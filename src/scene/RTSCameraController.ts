@@ -1,0 +1,208 @@
+import { Scene, ArcRotateCamera, Vector3, PointerEventTypes, Observer, PointerInfo, Matrix } from "babylonjs";
+import { UIManager } from "../ui/UIManager";
+
+export class RTSCameraController {
+    private camera: ArcRotateCamera;
+    private scene: Scene;
+    private canvas: HTMLCanvasElement;
+
+    // Panning State
+    private isDragging: boolean = false;
+    private startGroundPosition: Vector3 | null = null;
+    private isMouseInCanvas: boolean = true;
+    private pointerDownPos: { x: number, y: number } | null = null;
+
+    // Smoothing State
+    private targetPosition: Vector3;
+    private smoothingFactor: number = 0.15;
+
+    // Configuration
+    public edgeScrollSpeed: number = 1.0;
+    public edgeScrollThreshold: number = 20;
+
+    private observer: Observer<PointerInfo> | null = null;
+    private renderObserver: Observer<Scene> | null = null;
+    private mouseLeaveHandler: () => void;
+    private mouseEnterHandler: () => void;
+
+    constructor(scene: Scene, camera: ArcRotateCamera, canvas: HTMLCanvasElement) {
+        this.scene = scene;
+        this.camera = camera;
+        this.canvas = canvas;
+
+        // Initialize target
+        this.targetPosition = this.camera.target.clone();
+
+        this.mouseLeaveHandler = () => {
+            this.isDragging = false;
+            this.startGroundPosition = null;
+            this.isMouseInCanvas = false;
+            this.pointerDownPos = null;
+        };
+        this.mouseEnterHandler = () => {
+            this.isMouseInCanvas = true;
+        };
+
+        this.canvas.addEventListener("mouseleave", this.mouseLeaveHandler);
+        this.canvas.addEventListener("mouseenter", this.mouseEnterHandler);
+
+        this.setupInput();
+    }
+
+    private setupInput(): void {
+        this.observer = this.scene.onPointerObservable.add((pointerInfo) => {
+            switch (pointerInfo.type) {
+                case PointerEventTypes.POINTERDOWN:
+                    if (pointerInfo.event.button === 0) { // Left Click
+                        this.isDragging = true;
+                        this.pointerDownPos = { x: this.scene.pointerX, y: this.scene.pointerY };
+
+                        // Raycast to ground to find where we grabbed
+                        this.startGroundPosition = this.getGroundPosition();
+
+                        // Reset target to current to avoid jump
+                        this.targetPosition.copyFrom(this.camera.target);
+                    }
+                    break;
+                case PointerEventTypes.POINTERUP:
+                    if (this.isDragging) {
+                        // Check if we moved significantly
+                        const dx = this.scene.pointerX - (this.pointerDownPos?.x || 0);
+                        const dy = this.scene.pointerY - (this.pointerDownPos?.y || 0);
+                        const distSq = dx * dx + dy * dy;
+
+                        // If moved less than 5 pixels, treat as click
+                        if (distSq < 25) {
+                            const pick = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
+                            if (pick.hit && pick.pickedMesh) {
+                                const mesh = pick.pickedMesh;
+                                if (mesh.metadata && (mesh.metadata.isTrigger || (mesh.metadata.properties && mesh.metadata.properties.classname?.includes("trigger")))) {
+                                    console.log("TRIGGER CLICKED:", mesh.metadata.properties);
+
+                                    // Check for windowTarget
+                                    if (mesh.metadata.properties && mesh.metadata.properties.windowTarget) {
+                                        UIManager.getInstance().openDialog(mesh.metadata.properties.windowTarget, mesh.metadata.properties);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    this.isDragging = false;
+                    this.startGroundPosition = null;
+                    this.pointerDownPos = null;
+                    break;
+                case PointerEventTypes.POINTERMOVE:
+                    if (this.isDragging) {
+                        this.handleDrag();
+                    }
+                    break;
+            }
+        });
+
+        this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
+            this.handleEdgeScroll();
+            this.applySmoothing();
+        });
+    }
+
+    private getGroundPosition(): Vector3 | null {
+        // Create a ray from the camera passing through the mouse position
+        const ray = this.scene.createPickingRay(
+            this.scene.pointerX,
+            this.scene.pointerY,
+            Matrix.Identity(),
+            this.camera
+        );
+
+        // Intersect with Plane Y=0
+        if (Math.abs(ray.direction.y) < 0.0001) return null; // Parallel to plane
+
+        const t = -ray.origin.y / ray.direction.y;
+        if (t < 0) return null; // Behind camera
+
+        return ray.origin.add(ray.direction.scale(t));
+    }
+
+    private handleDrag(): void {
+        if (!this.startGroundPosition) return;
+
+        const currentGroundPos = this.getGroundPosition();
+        if (!currentGroundPos) return;
+
+        const delta = this.startGroundPosition.subtract(currentGroundPos);
+
+        // Safety check for NaN/Infinity
+        if (!isFinite(delta.x) || !isFinite(delta.y) || !isFinite(delta.z)) return;
+        if (delta.lengthSquared() > 10000) return; // Prevent massive jumps
+
+        // Apply to target
+        this.targetPosition.addInPlace(delta);
+
+        // CRITICAL: Snap camera to target immediately while dragging.
+        this.camera.target.copyFrom(this.targetPosition);
+
+        // Recalculate startGroundPosition based on the NEW camera position
+        this.startGroundPosition = this.getGroundPosition();
+    }
+
+    private handleEdgeScroll(): void {
+        if (this.isDragging || !this.isMouseInCanvas) return;
+
+        const x = this.scene.pointerX;
+        const y = this.scene.pointerY;
+
+        if (x < 0 || y < 0 || x > this.canvas.width || y > this.canvas.height) return;
+
+        let moveX = 0;
+        let moveY = 0;
+
+        if (x < this.edgeScrollThreshold) {
+            moveX = -this.edgeScrollSpeed;
+        } else if (x > this.canvas.width - this.edgeScrollThreshold) {
+            moveX = this.edgeScrollSpeed;
+        }
+
+        if (y < this.edgeScrollThreshold) {
+            moveY = -this.edgeScrollSpeed;
+        } else if (y > this.canvas.height - this.edgeScrollThreshold) {
+            moveY = this.edgeScrollSpeed;
+        }
+
+        if (moveX !== 0 || moveY !== 0) {
+            const forward = this.camera.getDirection(Vector3.Forward());
+            forward.y = 0;
+            forward.normalize();
+
+            const right = this.camera.getDirection(Vector3.Right());
+            right.y = 0;
+            right.normalize();
+
+            const moveVector = right.scale(moveX).add(forward.scale(-moveY));
+            this.targetPosition.addInPlace(moveVector);
+        }
+    }
+
+    private applySmoothing(): void {
+        // Only smooth if NOT dragging (dragging is 1:1 locked)
+        if (this.isDragging) return;
+
+        if (!this.camera.target.equals(this.targetPosition)) {
+            this.camera.target = Vector3.Lerp(this.camera.target, this.targetPosition, this.smoothingFactor);
+
+            if (Vector3.DistanceSquared(this.camera.target, this.targetPosition) < 0.001) {
+                this.camera.target.copyFrom(this.targetPosition);
+            }
+        }
+    }
+
+    public dispose(): void {
+        if (this.observer) {
+            this.scene.onPointerObservable.remove(this.observer);
+        }
+        if (this.renderObserver) {
+            this.scene.onBeforeRenderObservable.remove(this.renderObserver);
+        }
+        this.canvas.removeEventListener("mouseleave", this.mouseLeaveHandler);
+        this.canvas.removeEventListener("mouseenter", this.mouseEnterHandler);
+    }
+}
