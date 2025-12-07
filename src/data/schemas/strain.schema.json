@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Strain Genetics Data",
+  "description": "Schema for plant strain genetics definitions",
+  "type": "object",
+  "required": ["strains"],
+  "properties": {
+    "strains": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Strain"
+      }
+    }
+  },
+  "definitions": {
+    "Strain": {
+      "type": "object",
+      "required": [
+        "id", "name", "description", "type", "indicaPercent",
+        "thcContent", "cbdContent", "effects", "negativeEffects",
+        "flavors", "terpenes", "growthTraits", "appearance",
+        "lineage", "rarity", "basePrice", "isLandrace",
+        "tier", "specialTraits", "unlockLevel"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the strain",
+          "pattern": "^genetics_[a-z0-9_]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the strain"
+        },
+        "description": {
+          "type": "string",
+          "description": "Flavor text description"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["indica", "sativa", "hybrid"],
+          "description": "Primary strain type"
+        },
+        "indicaPercent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of indica genetics (0-100)"
+        },
+        "thcContent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 35,
+          "description": "THC percentage"
+        },
+        "cbdContent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "CBD percentage"
+        },
+        "effects": {
+          "type": "object",
+          "description": "Positive effects with intensity (0-100)",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "negativeEffects": {
+          "type": "object",
+          "description": "Negative effects with intensity (0-100)",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "flavors": {
+          "type": "object",
+          "description": "Flavor profile with intensity (0-100)",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "terpenes": {
+          "type": "object",
+          "description": "Terpene profile with intensity (0-100)",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "growthTraits": {
+          "$ref": "#/definitions/GrowthTraits"
+        },
+        "appearance": {
+          "$ref": "#/definitions/AppearanceTraits"
+        },
+        "lineage": {
+          "$ref": "#/definitions/Lineage"
+        },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "uncommon", "rare", "legendary", "unique"]
+        },
+        "basePrice": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Base price per gram"
+        },
+        "isLandrace": {
+          "type": "boolean",
+          "description": "True if this is an original landrace strain"
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Genetic tier (1-5)"
+        },
+        "specialTraits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "auto_flower", "high_thc", "high_cbd", "fast_flower",
+              "heavy_yield", "purple_pheno", "frost_giant", "pest_immune",
+              "drought_master", "compact_growth", "giant_growth",
+              "exotic_flavor", "balanced_hybrid", "medicinal", "connoisseur"
+            ]
+          },
+          "description": "Special genetic traits"
+        },
+        "unlockLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Player level required to obtain seeds"
+        }
+      }
+    },
+    "GrowthTraits": {
+      "type": "object",
+      "required": [
+        "floweringTime", "yieldPotential", "heightPotential",
+        "difficulty", "moldResistance", "pestResistance", "droughtTolerance"
+      ],
+      "properties": {
+        "floweringTime": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 120,
+          "description": "Days to flower (game days)"
+        },
+        "yieldPotential": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Yield potential (0-100)"
+        },
+        "heightPotential": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Height potential (0-100, short to tall)"
+        },
+        "difficulty": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Growing difficulty (0-100)"
+        },
+        "moldResistance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Mold resistance (0-100)"
+        },
+        "pestResistance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Pest resistance (0-100)"
+        },
+        "droughtTolerance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Drought tolerance (0-100)"
+        }
+      }
+    },
+    "AppearanceTraits": {
+      "type": "object",
+      "required": ["budDensity", "trichomeCoverage", "purpleExpression", "orangeHairs"],
+      "properties": {
+        "budDensity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "trichomeCoverage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "purpleExpression": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "orangeHairs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "Lineage": {
+      "type": "object",
+      "required": ["generation", "isStabilized"],
+      "properties": {
+        "parent1Id": {
+          "type": "string",
+          "description": "Mother strain ID"
+        },
+        "parent2Id": {
+          "type": "string",
+          "description": "Father strain ID"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Generation (0 = landrace, 1 = F1, etc.)"
+        },
+        "isStabilized": {
+          "type": "boolean",
+          "description": "True if bred for consistency"
+        },
+        "breederName": {
+          "type": "string",
+          "description": "Who created this strain"
+        },
+        "originRegion": {
+          "type": "string",
+          "description": "Geographic origin for landraces"
+        }
+      }
+    }
+  }
+}

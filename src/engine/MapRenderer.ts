@@ -1,0 +1,426 @@
+import {
+  Color3,
+  PointLight,
+  Scene,
+  StandardMaterial,
+  type TransformNode,
+  Vector3,
+} from "babylonjs";
+import { BuildingSystem } from "../game/BuildingSystem";
+import { BrushGenerator } from "../loader/BrushGenerator";
+import type { Entity } from "../loader/MapParser";
+import { type PatchDefinition, PatchGenerator } from "../loader/PatchGenerator";
+import { PrefabInstance } from "../loader/PrefabInstance";
+import { TextureManager } from "../loader/TextureManager";
+import { type BillboardSprite } from "../sprites/BillboardSprite";
+import { SpriteManager } from "../sprites/SpriteManager";
+import { TestSpriteGenerator } from "../sprites/TestSpriteGenerator";
+import { 
+  CharacterGenerator, 
+  PRESET_CHARACTERS, 
+  SKIN_TONES, 
+  HAIR_COLORS, 
+  SHIRT_COLORS,
+  type CharacterConfig,
+  type CharacterStyle,
+} from "./CharacterGenerator";
+
+export interface MapRenderResult {
+  playerStartPosition: Vector3;
+  prefabInstances: TransformNode[];
+  sprites: BillboardSprite[];
+}
+
+export class MapRenderer {
+  /**
+   * Renders parsed map entities into a Babylon scene.
+   * Returns the player start position if found.
+   */
+  public static async renderEntities(
+    entities: Entity[],
+    scene: Scene
+  ): Promise<MapRenderResult> {
+    const textureManager = TextureManager.getInstance();
+
+    // Ensure TextureManager is initialized for this scene
+    if (!textureManager.isInitialized()) {
+      textureManager.init(scene);
+    }
+
+    let playerStartPosition = new Vector3(0, 10, 0);
+    const prefabInstances: TransformNode[] = [];
+    const sprites: BillboardSprite[] = [];
+
+    for (const entity of entities) {
+      // Handle player start
+      if (entity.classname === "info_player_start" && entity.properties.origin) {
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
+      }
+
+      // Handle lights
+      if (entity.classname === "light" && entity.properties.origin) {
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const lightPos = new Vector3(parts[0], parts[2], parts[1]);
+
+        const light = new PointLight("light_" + Math.random(), lightPos, scene);
+
+        const intensity = entity.properties.light
+          ? parseFloat(entity.properties.light)
+          : 300;
+        light.intensity = intensity / 200.0;
+
+        if (entity.properties._color) {
+          const colors = entity.properties._color.split(" ").map(parseFloat);
+          if (colors.some((c) => c > 1.0)) {
+            light.diffuse = new Color3(
+              colors[0] / 255,
+              colors[1] / 255,
+              colors[2] / 255
+            );
+          } else {
+            light.diffuse = new Color3(colors[0], colors[1], colors[2]);
+          }
+        } else {
+          light.diffuse = new Color3(1, 1, 1);
+        }
+      }
+
+      // Handle brushes
+      for (const brush of entity.brushes) {
+        const mesh = BrushGenerator.buildMesh(brush, scene);
+        if (mesh) {
+          if (!mesh.material) {
+            const textureName = brush.planes[0]?.texture;
+            const planeDef = brush.planes[0];
+
+            if (textureName) {
+              const material = await textureManager.getMaterial({
+                path: textureName,
+                u_offset: planeDef?.u_offset || 0,
+                v_offset: planeDef?.v_offset || 0,
+                rotation: planeDef?.rotation || 0,
+                u_scale: planeDef?.u_scale || 1,
+                v_scale: planeDef?.v_scale || 1,
+              });
+              mesh.material = material;
+            } else {
+              const material = new StandardMaterial("mat_default", scene);
+              material.diffuseColor = new Color3(0.8, 0.8, 0.8);
+              material.specularColor = new Color3(0, 0, 0);
+              material.backFaceCulling = false;
+              mesh.material = material;
+            }
+          }
+
+          mesh.checkCollisions = true;
+
+          if (!mesh.metadata) mesh.metadata = {};
+          mesh.metadata.properties = entity.properties;
+        }
+      }
+
+      // Handle patches
+      for (const patch of entity.patches) {
+        const patchDef: PatchDefinition = {
+          texture: patch.texture,
+          width: patch.width,
+          height: patch.height,
+          controlPoints: patch.controlPoints.map((row) =>
+            row.map((cp) => ({
+              position: new Vector3(cp.x, cp.z, cp.y),
+              u: cp.u,
+              v: cp.v,
+            }))
+          ),
+        };
+
+        const mesh = PatchGenerator.buildMesh(patchDef, scene);
+        if (mesh) {
+          const material = await textureManager.getMaterial({
+            path: patch.texture,
+            u_offset: 0,
+            v_offset: 0,
+            rotation: 0,
+            u_scale: 1,
+            v_scale: 1,
+          });
+          material.twoSidedLighting = true;
+          mesh.material = material;
+          mesh.checkCollisions = true;
+          mesh.metadata = { properties: entity.properties };
+        }
+      }
+
+      // Handle misc_model (prefab instances)
+      if (entity.classname === "misc_model" && entity.properties.model) {
+        const modelPath = entity.properties.model;
+        
+        // Parse origin (Quake coords: X Y Z where Z is up)
+        let position = Vector3.Zero();
+        if (entity.properties.origin) {
+          const parts = entity.properties.origin.split(" ").map(parseFloat);
+          position = new Vector3(parts[0], parts[2], parts[1]); // Swap Y/Z
+        }
+
+        // Parse angle (Y rotation in degrees)
+        const angle = entity.properties.angle 
+          ? parseFloat(entity.properties.angle) 
+          : 0;
+
+        // Parse scale
+        const scale = entity.properties.scale 
+          ? parseFloat(entity.properties.scale) 
+          : 1;
+
+        // Parse drop-to-ground option
+        const dropToGround = entity.properties.dropToGround === "1";
+        const dropOffset = entity.properties.dropOffset 
+          ? parseFloat(entity.properties.dropOffset) 
+          : 0;
+
+        // Instantiate the prefab
+        const result = await PrefabInstance.create(modelPath, scene, {
+          position,
+          angle,
+          scale,
+          dropToGround,
+          dropOffset,
+        });
+
+        if (result) {
+          prefabInstances.push(result.root);
+        }
+      }
+
+      // Handle npc_sprite entities
+      if (entity.classname === "npc_sprite" && entity.properties.origin) {
+        const spriteManager = SpriteManager.getInstance();
+        
+        if (!spriteManager.isInitialized()) {
+          console.warn("SpriteManager not initialized - skipping npc_sprite");
+          continue;
+        }
+
+        // Parse position
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Get sprite path or generate test sprite
+        let spritePath = entity.properties.sprite;
+        if (!spritePath || spritePath === "test") {
+          // Generate a test sprite
+          const bodyColor = entity.properties.color || "#4488ff";
+          const accentColor = entity.properties.accentColor || "#ffcc00";
+          spritePath = TestSpriteGenerator.generateCharacterSheet(32, 32, bodyColor, accentColor);
+        }
+
+        // Parse sprite sheet config
+        const config = {
+          path: spritePath,
+          frameWidth: entity.properties.frameWidth ? parseInt(entity.properties.frameWidth) : 32,
+          frameHeight: entity.properties.frameHeight ? parseInt(entity.properties.frameHeight) : 32,
+          framesPerDirection: entity.properties.frames ? parseInt(entity.properties.frames) : 4,
+          directions: entity.properties.directions ? parseInt(entity.properties.directions) : 8,
+          frameRate: entity.properties.frameRate ? parseInt(entity.properties.frameRate) : 8,
+          hasAlpha: true,
+        };
+
+        // Create sprite
+        const sprite = spriteManager.createSpriteWithSheet(
+          `sprite_${entity.properties.targetname || Date.now()}`,
+          config
+        );
+
+        // Set position and scale (default bigger size)
+        sprite.position = position;
+        sprite.scale = entity.properties.scale ? parseFloat(entity.properties.scale) : 48;
+
+        // Set facing angle
+        if (entity.properties.angle) {
+          sprite.setFacingDegrees(parseFloat(entity.properties.angle));
+        }
+
+        // Enable lighting if requested (default: true for nice effect)
+        const receiveLighting = entity.properties.receiveLighting !== "0";
+        sprite.receiveLighting = receiveLighting;
+        if (entity.properties.ambientLevel) {
+          sprite.ambientLevel = parseFloat(entity.properties.ambientLevel);
+        }
+
+        // Enable shadow (default: true)
+        const castShadow = entity.properties.castShadow !== "0";
+        sprite.castShadow = castShadow;
+        if (entity.properties.shadowOpacity) {
+          sprite.shadowOpacity = parseFloat(entity.properties.shadowOpacity);
+        }
+        if (entity.properties.shadowScale) {
+          sprite.shadowScale = parseFloat(entity.properties.shadowScale);
+        }
+
+        // Add default walk animation
+        sprite.addAnimation({
+          name: "idle",
+          startFrame: 0,
+          frameCount: config.framesPerDirection,
+          loop: true,
+        });
+        sprite.playAnimation("idle");
+
+        sprites.push(sprite);
+        console.log(`Created sprite: ${entity.properties.targetname || "unnamed"} at ${position.toString()}`);
+      }
+
+      // Handle info_npc entities (3D cartoon characters)
+      if (entity.classname === "info_npc" && entity.properties.origin) {
+        const charGen = CharacterGenerator.getInstance();
+        
+        // Initialize if needed
+        if (!charGen.isInitialized()) {
+          charGen.init(scene);
+        }
+
+        // Parse position
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Get NPC ID and name
+        const npcId = entity.properties.targetname || `npc_${Date.now()}`;
+        const npcName = entity.properties.name || npcId;
+
+        // Check for preset character
+        const presetId = entity.properties.preset;
+        let character: TransformNode | null = null;
+
+        // Default scale of 32 to match game world units (characters ~48 units tall)
+        const baseScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
+
+        if (presetId) {
+          // Use preset character with world-scale
+          const preset = PRESET_CHARACTERS.find(p => p.id === presetId);
+          if (preset) {
+            const finalScale = baseScale * (preset.scale ?? 1);
+            character = charGen.createCharacter({ 
+              ...preset, 
+              id: npcId,
+              scale: finalScale,
+            });
+          }
+        }
+        
+        if (!character && entity.properties.random === "1") {
+          // Generate random character with world-scale
+          character = charGen.createRandomCharacter(npcId, npcName, baseScale);
+        }
+        
+        if (!character) {
+          // Build custom character from entity properties
+          // Default scale of 32 to match game world units (characters ~48 units tall)
+          const npcScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
+          const config: CharacterConfig = {
+            id: npcId,
+            name: npcName,
+            colors: {
+              skin: entity.properties.skinColor || SKIN_TONES.medium,
+              hair: entity.properties.hairColor || HAIR_COLORS.brown,
+              shirt: entity.properties.shirtColor || SHIRT_COLORS.blue,
+              pants: entity.properties.pantsColor || "#2C2C2C",
+              shoes: entity.properties.shoesColor || "#2C2C2C",
+              accessory: entity.properties.accessoryColor,
+            },
+            style: {
+              bodyType: (entity.properties.bodyType as CharacterStyle["bodyType"]) || "average",
+              hairStyle: (entity.properties.hairStyle as CharacterStyle["hairStyle"]) || "short",
+              gender: (entity.properties.gender as CharacterStyle["gender"]) || "neutral",
+              accessory: (entity.properties.accessory as CharacterStyle["accessory"]) || "none",
+              facialHair: (entity.properties.facialHair as CharacterStyle["facialHair"]) || "none",
+            },
+            scale: npcScale,
+          };
+          character = charGen.createCharacter(config);
+        }
+
+        if (character) {
+          character.position = position;
+          
+          // Apply rotation
+          if (entity.properties.angle) {
+            const angle = parseFloat(entity.properties.angle);
+            character.rotation.y = (angle * Math.PI) / 180;
+          }
+
+          // Store metadata
+          character.metadata = {
+            npcId,
+            npcName,
+            properties: entity.properties,
+          };
+
+          prefabInstances.push(character);
+          console.log(`Created NPC: ${npcName} at ${position.toString()}`);
+        }
+      }
+
+      // Handle build_zone entities
+      if (entity.classname === "build_zone" && entity.properties.origin) {
+        const buildingSystem = BuildingSystem.getInstance();
+
+        // Parse position
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Get zone properties
+        const zoneId = entity.properties.targetname || `zone_${Date.now()}`;
+        const zoneType = entity.properties.zoneType || "plant";
+        const size = entity.properties.size ? parseFloat(entity.properties.size) : 64;
+
+        // Get current map ID (from entity or default)
+        const mapId = entity.properties.mapId || "current";
+
+        // Register the zone
+        buildingSystem.registerZone(zoneId, position, size, zoneType, mapId);
+      }
+    }
+
+    return { playerStartPosition, prefabInstances, sprites };
+  }
+
+  /**
+   * Clears all map-related meshes and lights from a scene.
+   */
+  public static clearMap(scene: Scene): void {
+    scene.meshes.forEach((mesh) => {
+      if (
+        mesh.name === "brush" ||
+        mesh.name === "patch" ||
+        mesh.name.startsWith("light_") ||
+        mesh.name.startsWith("prefab_") ||
+        mesh.name.startsWith("sprite_") ||
+        mesh.name.startsWith("buildZone_")
+      ) {
+        mesh.dispose();
+      }
+    });
+
+    // Dispose prefab transform nodes
+    scene.transformNodes.forEach((node) => {
+      if (node.name.startsWith("prefab_")) {
+        node.dispose();
+      }
+    });
+
+    scene.lights.forEach((light) => {
+      if (light.name.startsWith("light_")) {
+        light.dispose();
+      }
+    });
+
+    // Clear sprites
+    SpriteManager.getInstance().clear();
+
+    // Clear build zones
+    BuildingSystem.getInstance().clearZones();
+
+    TextureManager.getInstance().clearCache();
+  }
+}

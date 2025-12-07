@@ -1,0 +1,122 @@
+{
+  "$schema": "./schemas/progression.schema.json",
+  "leveling": {
+    "maxLevel": 50,
+    "xpCurve": {
+      "type": "formula",
+      "base": 100,
+      "exponent": 1.5
+    },
+    "levelRewards": [
+      {
+        "level": 2,
+        "rewards": [
+          { "type": "money", "amount": 100 },
+          { "type": "unlock", "id": "basic_fertilizer" }
+        ],
+        "message": "You can now buy fertilizer!"
+      },
+      {
+        "level": 3,
+        "rewards": [
+          { "type": "money", "amount": 200 },
+          { "type": "unlock", "id": "genetics_thai" },
+          { "type": "unlock", "id": "genetics_og_kush" }
+        ],
+        "message": "New strains unlocked: Thai & OG Kush!"
+      },
+      {
+        "level": 5,
+        "rewards": [
+          { "type": "money", "amount": 500 },
+          { "type": "unlock", "id": "genetics_girl_scout_cookies" },
+          { "type": "unlock", "id": "breeding_station" }
+        ],
+        "message": "Breeding station unlocked! GSC seeds available!"
+      },
+      {
+        "level": 7,
+        "rewards": [
+          { "type": "money", "amount": 1000 },
+          { "type": "unlock", "id": "genetics_gelato" }
+        ],
+        "message": "Gelato strain unlocked!"
+      },
+      {
+        "level": 10,
+        "rewards": [
+          { "type": "money", "amount": 2500 },
+          { "type": "unlock", "id": "genetics_lemon_cherry_gelato" },
+          { "type": "title", "id": "master_grower" }
+        ],
+        "message": "Master Grower! Legendary strains unlocked!"
+      },
+      {
+        "level": 15,
+        "rewards": [
+          { "type": "money", "amount": 5000 },
+          { "type": "unlock", "id": "auto_watering" }
+        ],
+        "message": "Auto-watering system unlocked!"
+      },
+      {
+        "level": 20,
+        "rewards": [
+          { "type": "money", "amount": 10000 },
+          { "type": "unlock", "id": "downtown_access" }
+        ],
+        "message": "Downtown district unlocked!"
+      },
+      {
+        "level": 25,
+        "rewards": [
+          { "type": "money", "amount": 25000 },
+          { "type": "title", "id": "expert_breeder" }
+        ],
+        "message": "Expert Breeder title earned!"
+      },
+      {
+        "level": 30,
+        "rewards": [
+          { "type": "money", "amount": 50000 },
+          { "type": "unlock", "id": "dispensary_license" }
+        ],
+        "message": "Dispensary license unlocked!"
+      },
+      {
+        "level": 40,
+        "rewards": [
+          { "type": "money", "amount": 100000 },
+          { "type": "title", "id": "cannabis_tycoon" }
+        ],
+        "message": "Cannabis Tycoon!"
+      },
+      {
+        "level": 50,
+        "rewards": [
+          { "type": "money", "amount": 500000 },
+          { "type": "title", "id": "legend" },
+          { "type": "unlock", "id": "golden_seeds" }
+        ],
+        "message": "LEGENDARY! You've mastered the game!"
+      }
+    ]
+  },
+  "titles": [
+    { "id": "novice", "name": "Novice Grower", "minLevel": 1 },
+    { "id": "apprentice", "name": "Apprentice Grower", "minLevel": 5 },
+    { "id": "master_grower", "name": "Master Grower", "minLevel": 10 },
+    { "id": "expert_breeder", "name": "Expert Breeder", "minLevel": 25 },
+    { "id": "cannabis_tycoon", "name": "Cannabis Tycoon", "minLevel": 40 },
+    { "id": "legend", "name": "Legend", "minLevel": 50 }
+  ],
+  "xpSources": {
+    "harvest_plant": { "base": 25, "perQuality": 0.5 },
+    "complete_order": { "base": 50, "perValue": 0.1 },
+    "complete_quest": { "base": 100 },
+    "breed_strain": { "base": 75, "perTrait": 25 },
+    "discover_trait": { "base": 150 },
+    "first_harvest_strain": { "base": 50 },
+    "sell_product": { "base": 10, "perValue": 0.05 }
+  }
+}

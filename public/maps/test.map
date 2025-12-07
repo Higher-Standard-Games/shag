@@ -127,3 +127,207 @@
 ( -232 32 0 ) ( -232 32 64 ) ( -232 -32 0 ) common/trigger 0 0 0 1 1
 }
 }
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "100 100 -16"
+"angle" "0"
+"scale" "1"
+}
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "-100 100 -16"
+"angle" "45"
+"scale" "1.5"
+}
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "0 -150 -16"
+"angle" "90"
+"scale" "0.75"
+}
+{
+"classname" "trigger_multiple"
+"targetname" "spawn_trigger"
+"spawnModel" "test_cube.map"
+"spawnOrigin" "0 200 -16"
+"spawnScale" "1"
+"spawnDropToGround" "0"
+"message" "Click to spawn a pink cube!"
+// brush: Spawn Trigger Box (64x64x32) at (0, -250, 16) - yellow colored
+{
+( -32 -282 0 ) ( 32 -282 0 ) ( -32 -218 0 ) color_255_255_0 0 0 0 1 1
+( -32 -282 32 ) ( -32 -218 32 ) ( 32 -282 32 ) color_255_255_0 0 0 0 1 1
+( -32 -282 0 ) ( -32 -282 32 ) ( 32 -282 0 ) color_255_200_0 0 0 0 1 1
+( 32 -218 0 ) ( 32 -218 32 ) ( -32 -218 0 ) color_255_200_0 0 0 0 1 1
+( 32 -282 0 ) ( 32 -218 0 ) ( 32 -282 32 ) color_255_200_0 0 0 0 1 1
+( -32 -218 0 ) ( -32 -218 32 ) ( -32 -282 0 ) color_255_200_0 0 0 0 1 1
+}
+}
+{
+"classname" "npc_sprite"
+"targetname" "guard1"
+"origin" "150 0 -16"
+"sprite" "test"
+"color" "#4488ff"
+"accentColor" "#ffcc00"
+"scale" "32"
+"angle" "180"
+}
+{
+"classname" "npc_sprite"
+"targetname" "guard2"
+"origin" "-150 0 -16"
+"sprite" "test"
+"color" "#ff4444"
+"accentColor" "#ffffff"
+"scale" "32"
+"angle" "0"
+}
+{
+"classname" "npc_sprite"
+"targetname" "merchant"
+"origin" "0 150 -16"
+"sprite" "test"
+"color" "#44ff44"
+"accentColor" "#ffff00"
+"scale" "48"
+"angle" "270"
+}
+// Build zones - 5 plant pots in a row
+{
+"classname" "build_zone"
+"targetname" "pot_1"
+"origin" "-128 -64 0"
+"zoneType" "plant"
+"size" "64"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_2"
+"origin" "-64 -64 0"
+"zoneType" "plant"
+"size" "64"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_3"
+"origin" "0 -64 0"
+"zoneType" "plant"
+"size" "64"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_4"
+"origin" "64 -64 0"
+"zoneType" "plant"
+"size" "64"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_5"
+"origin" "128 -64 0"
+"zoneType" "plant"
+"size" "64"
+}
+// Equipment zone
+{
+"classname" "build_zone"
+"targetname" "equip_1"
+"origin" "-200 100 0"
+"zoneType" "equipment"
+"size" "80"
+}
+// Decoration zones
+{
+"classname" "build_zone"
+"targetname" "decor_1"
+"origin" "200 100 0"
+"zoneType" "decoration"
+"size" "48"
+}
+{
+"classname" "build_zone"
+"targetname" "decor_2"
+"origin" "200 150 0"
+"zoneType" "decoration"
+"size" "48"
+}
+// 3D NPC Characters
+{
+"classname" "info_npc"
+"targetname" "mike"
+"name" "Mike the Dealer"
+"preset" "dealer_mike"
+"origin" "200 0 -16"
+"angle" "270"
+}
+{
+"classname" "info_npc"
+"targetname" "sarah"
+"name" "Sarah"
+"preset" "customer_sarah"
+"origin" "-200 50 -16"
+"angle" "90"
+}
+{
+"classname" "info_npc"
+"targetname" "tony"
+"name" "Big Tony"
+"preset" "supplier_tony"
+"origin" "0 250 -16"
+"angle" "180"
+"scale" "1.2"
+}
+{
+"classname" "info_npc"
+"targetname" "alex"
+"name" "Alex"
+"preset" "hipster_alex"
+"origin" "-150 200 -16"
+"angle" "135"
+}
+{
+"classname" "info_npc"
+"targetname" "bob"
+"name" "Reggae Bob"
+"preset" "reggae_bob"
+"origin" "150 200 -16"
+"angle" "225"
+}
+// Random NPCs
+{
+"classname" "info_npc"
+"targetname" "random_npc_1"
+"name" "Random Guy"
+"random" "1"
+"origin" "-250 -100 -16"
+"angle" "45"
+}
+{
+"classname" "info_npc"
+"targetname" "random_npc_2"
+"name" "Random Person"
+"random" "1"
+"origin" "250 -100 -16"
+"angle" "315"
+}
+// Custom NPC with specific colors
+{
+"classname" "info_npc"
+"targetname" "custom_npc"
+"name" "Custom Character"
+"origin" "0 -200 -16"
+"angle" "0"
+"skinColor" "#FFE0BD"
+"hairColor" "#FF69B4"
+"shirtColor" "#9932CC"
+"pantsColor" "#1E3A5F"
+"shoesColor" "#FFFFFF"
+"bodyType" "slim"
+"hairStyle" "long"
+"accessory" "glasses"
+"accessoryColor" "#2C2C2C"
+}

@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Progression Data",
+  "description": "Schema for player leveling and progression",
+  "type": "object",
+  "required": ["leveling", "titles", "xpSources"],
+  "properties": {
+    "leveling": {
+      "type": "object",
+      "required": ["maxLevel", "xpCurve", "levelRewards"],
+      "properties": {
+        "maxLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum player level"
+        },
+        "xpCurve": {
+          "type": "object",
+          "required": ["type", "base", "exponent"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["formula", "table"],
+              "description": "How XP requirements are calculated"
+            },
+            "base": {
+              "type": "number",
+              "description": "Base XP for level 1"
+            },
+            "exponent": {
+              "type": "number",
+              "description": "Exponent for formula: base * level^exponent"
+            }
+          }
+        },
+        "levelRewards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LevelReward"
+          }
+        }
+      }
+    },
+    "titles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Title"
+      }
+    },
+    "xpSources": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/XPSource"
+      }
+    }
+  },
+  "definitions": {
+    "LevelReward": {
+      "type": "object",
+      "required": ["level", "rewards"],
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Level at which rewards are given"
+        },
+        "rewards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reward"
+          }
+        },
+        "message": {
+          "type": "string",
+          "description": "Message shown to player on level up"
+        }
+      }
+    },
+    "Reward": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["money", "xp", "item", "unlock", "title"],
+          "description": "Type of reward"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount for money/xp rewards"
+        },
+        "id": {
+          "type": "string",
+          "description": "ID for item/unlock/title rewards"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Quantity for item rewards"
+        }
+      }
+    },
+    "Title": {
+      "type": "object",
+      "required": ["id", "name", "minLevel"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique title ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "minLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum level to earn this title"
+        }
+      }
+    },
+    "XPSource": {
+      "type": "object",
+      "required": ["base"],
+      "properties": {
+        "base": {
+          "type": "number",
+          "description": "Base XP amount"
+        },
+        "perQuality": {
+          "type": "number",
+          "description": "Additional XP per quality point"
+        },
+        "perValue": {
+          "type": "number",
+          "description": "Additional XP per currency value"
+        },
+        "perTrait": {
+          "type": "number",
+          "description": "Additional XP per trait"
+        }
+      }
+    }
+  }
+}

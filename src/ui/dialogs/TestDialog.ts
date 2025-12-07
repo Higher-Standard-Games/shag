@@ -1,49 +1,32 @@
-import { BaseDialog } from "./BaseDialog";
-import { UIManager } from "../UIManager";
+import { BaseDialog, type DialogContext } from "./BaseDialog";
 
 export class TestDialog extends BaseDialog {
-    constructor() {
-        super("test_dialog");
-    }
+  constructor() {
+    super("test_dialog", {
+      title: "Test Dialog",
+    });
+  }
 
-    public getHTML(context: any): string {
-        const title = context.message || "Test Dialog";
-        const properties = JSON.stringify(context, null, 2);
+  public getBodyHTML(context: DialogContext): string {
+    const properties = JSON.stringify(context, null, 2);
 
-        return `
-            <div class="dialog-content" style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.9);
-                border: 2px solid #0f0;
-                color: #0f0;
-                padding: 20px;
-                font-family: monospace;
-                min-width: 300px;
-                box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-            ">
-                <h2 style="margin-top: 0; border-bottom: 1px solid #0f0; padding-bottom: 10px;">${title}</h2>
-                <pre style="background: #111; padding: 10px; overflow: auto;">${properties}</pre>
-                <button id="close-test-dialog" style="
-                    background: #0f0;
-                    color: #000;
-                    border: none;
-                    padding: 8px 16px;
-                    cursor: pointer;
-                    font-weight: bold;
-                    margin-top: 10px;
-                    width: 100%;
-                ">CLOSE</button>
-            </div>
-        `;
-    }
+    return `
+      <p style="margin-top: 0;">
+        This is a test dialog triggered by clicking on a brush entity.
+      </p>
+      <pre style="
+        background: rgba(0, 0, 0, 0.3);
+        padding: 12px;
+        border-radius: 6px;
+        overflow: auto;
+        font-size: 0.85rem;
+        color: #a0a0a0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      ">${properties}</pre>
+    `;
+  }
 
-    protected onOpen(context: any): void {
-        const btn = document.getElementById("close-test-dialog");
-        if (btn) {
-            btn.onclick = () => UIManager.getInstance().closeDialog(this.id);
-        }
-    }
+  protected getTitle(context: DialogContext): string {
+    return (context.message as string) || this.options.title;
+  }
 }
