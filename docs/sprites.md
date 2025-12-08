@@ -1,22 +1,116 @@
 # Sprite System
 
-2D animated billboard sprites in a 3D world - classic game style with modern features.
+2D sprites in a 3D world - classic game style with modern features.
 
 ---
 
 ## Overview
 
-The sprite system provides:
+The engine provides two sprite systems:
 
-- **Billboard rendering** - Sprites always face the camera
+### 1. NPC Sprites (`npc_sprite`)
+Animated billboard sprites for characters:
+- **Billboard rendering** - Always face the camera
 - **8-direction support** - Different sprites based on facing vs camera angle
 - **Frame animation** - Sprite sheet based animation
-- **Dynamic lighting** - Sprites react to point lights in the scene
+- **Dynamic lighting** - React to point lights in the scene
 - **Ground shadows** - Configurable shadow ellipses
+
+### 2. Sprite Buildings (`sprite_building`)
+Static sprites for buildings and decorations:
+- **Billboard or fixed rotation** - Choose per-sprite
+- **Day/night cycle support** - Darken at night, glow effects
+- **Trigger boxes** - Clickable areas for interaction
+- **Collision boxes** - For physics/pathfinding
+- **Transparent PNG support** - Full alpha channel
 
 ---
 
-## Quick Start
+## Sprite Buildings
+
+Perfect for isometric-style 2D art in a 3D world.
+
+### Quick Start
+
+```
+{
+"classname" "sprite_building"
+"targetname" "my_shop"
+"origin" "100 0 200"
+"texture" "textures/base/shop.png"
+"width" "128"
+"height" "128"
+"billboard" "1"
+"emissive" "0.3"
+}
+```
+
+### Rendering Modes
+
+| Mode | Property | Description |
+|------|----------|-------------|
+| **Billboard** | `"billboard" "1"` | Sprite always faces camera - ideal for 2D-style buildings |
+| **Fixed** | `"billboard" "0"` | Sprite has fixed rotation - for signs, geometric elements |
+
+### Day/Night Cycle
+
+Sprite buildings respond to scene lighting. The `emissive` property controls self-illumination:
+
+```
+"emissive" "0"      // Fully affected by day/night - dark at night
+"emissive" "0.2"    // Default - slight glow, visible at night
+"emissive" "0.5"    // Moderate glow - lit windows
+"emissive" "0.8"    // Bright glow - neon signs
+"emissive" "1.0"    // Fully self-lit - ignores day/night
+```
+
+### Interaction
+
+Add trigger properties to make sprites clickable:
+
+```
+{
+"classname" "sprite_building"
+"texture" "textures/base/shop.png"
+"origin" "100 0 200"
+"width" "128"
+"height" "128"
+"windowTarget" "shop_dialog"
+"triggerWidth" "100"
+"triggerHeight" "100"
+"triggerDepth" "30"
+}
+```
+
+### Workflow
+
+1. Create/cut 2D building sprites as transparent PNGs
+2. Save to `public/textures/` folder
+3. Add `sprite_building` entities to your map file
+4. Set `billboard` mode based on desired look
+5. Adjust `emissive` for day/night behavior
+
+### All Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `texture` | string | required | Path to PNG (e.g., `textures/base/shop.png`) |
+| `width` | float | `100` | Width in world units |
+| `height` | float | `100` | Height in world units |
+| `billboard` | `"0"`/`"1"` | `"0"` | Always face camera |
+| `angle` | float | `0` | Y rotation degrees (non-billboard only) |
+| `emissive` | float | `0.2` | Self-illumination (0-1) |
+| `windowTarget` | string | - | Dialog to open on click |
+| `triggerWidth/Height/Depth` | float | - | Clickable area size |
+| `collisionWidth/Height/Depth` | float | - | Collision box size |
+
+---
+
+## NPC Sprites
+
+Animated character sprites with 8-direction support.
+
+### Quick Start
 
 ### In Map File
 

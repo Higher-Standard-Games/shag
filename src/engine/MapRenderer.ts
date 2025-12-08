@@ -13,6 +13,7 @@ import { type PatchDefinition, PatchGenerator } from "../loader/PatchGenerator";
 import { PrefabInstance } from "../loader/PrefabInstance";
 import { TextureManager } from "../loader/TextureManager";
 import { type BillboardSprite } from "../sprites/BillboardSprite";
+import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 import { SpriteManager } from "../sprites/SpriteManager";
 import { TestSpriteGenerator } from "../sprites/TestSpriteGenerator";
 import { 
@@ -24,6 +25,8 @@ import {
   type CharacterConfig,
   type CharacterStyle,
 } from "./CharacterGenerator";
+import { SkyLightSystem } from "./SkyLightSystem";
+import { StreetLampSystem } from "./StreetLampSystem";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -65,11 +68,22 @@ export class MapRenderer {
 
         const light = new PointLight("light_" + Math.random(), lightPos, scene);
 
-        const intensity = entity.properties.light
+        // Parse intensity from Quake light value (default 300)
+        const quakeIntensity = entity.properties.light
           ? parseFloat(entity.properties.light)
           : 300;
-        light.intensity = intensity / 200.0;
+        
+        // Convert to Babylon intensity and set range
+        // Quake light values are roughly: 200-300 = normal, 500+ = bright
+        light.intensity = quakeIntensity / 100.0; // Increased divisor for brighter lights
+        
+        // Set range based on intensity - Quake lights have infinite range but we need to limit
+        // Use the light value as a rough guide for range
+        light.range = entity.properties.range 
+          ? parseFloat(entity.properties.range)
+          : quakeIntensity; // Range roughly equals light value in world units
 
+        // Parse color
         if (entity.properties._color) {
           const colors = entity.properties._color.split(" ").map(parseFloat);
           if (colors.some((c) => c > 1.0)) {
@@ -84,6 +98,70 @@ export class MapRenderer {
         } else {
           light.diffuse = new Color3(1, 1, 1);
         }
+        
+        console.log(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
+      }
+
+      // Handle street lamps (lights that turn on at night)
+      if (entity.classname === "street_lamp" && entity.properties.origin) {
+        const lampSystem = StreetLampSystem.getInstance();
+        
+        // Initialize if needed
+        if (!lampSystem.isInitialized()) {
+          lampSystem.init(scene);
+        }
+
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Parse color
+        let color: Color3 | undefined;
+        if (entity.properties._color) {
+          const colors = entity.properties._color.split(" ").map(parseFloat);
+          if (colors.some((c) => c > 1.0)) {
+            color = new Color3(colors[0] / 255, colors[1] / 255, colors[2] / 255);
+          } else {
+            color = new Color3(colors[0], colors[1], colors[2]);
+          }
+        }
+
+        // Parse other properties
+        const intensity = entity.properties.light 
+          ? parseFloat(entity.properties.light) / 200.0 
+          : 1.0;
+        const range = entity.properties.range 
+          ? parseFloat(entity.properties.range) 
+          : 100;
+        const fadeTime = entity.properties.fadeTime 
+          ? parseFloat(entity.properties.fadeTime) 
+          : 2;
+        const turnOnHour = entity.properties.turnOnHour 
+          ? parseFloat(entity.properties.turnOnHour) 
+          : 18;
+        const turnOffHour = entity.properties.turnOffHour 
+          ? parseFloat(entity.properties.turnOffHour) 
+          : 6;
+        const flickerEnabled = entity.properties.flicker === "1";
+        const showBulb = entity.properties.showBulb !== "0";
+        const bulbSize = entity.properties.bulbSize 
+          ? parseFloat(entity.properties.bulbSize) 
+          : 3;
+
+        const lampId = entity.properties.targetname || `lamp_${Date.now()}_${Math.random()}`;
+
+        lampSystem.createLamp({
+          id: lampId,
+          position,
+          color,
+          intensity,
+          range,
+          fadeTime,
+          turnOnHour,
+          turnOffHour,
+          flickerEnabled,
+          showBulb,
+          bulbSize,
+        });
       }
 
       // Handle brushes
@@ -190,6 +268,90 @@ export class MapRenderer {
 
         if (result) {
           prefabInstances.push(result.root);
+        }
+      }
+
+      // Handle sprite_building entities (2D isometric sprites as buildings)
+      if (entity.classname === "sprite_building" && entity.properties.origin) {
+        const spriteBuildingManager = SpriteBuildingManager.getInstance();
+        
+        // Initialize if needed
+        if (!spriteBuildingManager["scene"]) {
+          spriteBuildingManager.init(scene);
+        }
+
+        // Parse position
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Get texture path
+        const texturePath = entity.properties.texture || entity.properties.sprite;
+        if (!texturePath) {
+          console.warn("sprite_building missing texture property");
+          continue;
+        }
+
+        // Parse dimensions
+        const width = entity.properties.width ? parseFloat(entity.properties.width) : 100;
+        const height = entity.properties.height ? parseFloat(entity.properties.height) : 100;
+
+        // Parse rotation (for fixed isometric angle)
+        const rotation = entity.properties.angle 
+          ? (parseFloat(entity.properties.angle) * Math.PI / 180) 
+          : 0;
+
+        // Billboard mode (face camera)
+        const billboard = entity.properties.billboard === "1";
+
+        // Emissive for glowing effects
+        const emissiveIntensity = entity.properties.emissive 
+          ? parseFloat(entity.properties.emissive) 
+          : 0;
+
+        // Trigger properties
+        let trigger = undefined;
+        if (entity.properties.triggerWidth || entity.properties.windowTarget) {
+          trigger = {
+            size: new Vector3(
+              entity.properties.triggerWidth ? parseFloat(entity.properties.triggerWidth) : width,
+              entity.properties.triggerHeight ? parseFloat(entity.properties.triggerHeight) : height,
+              entity.properties.triggerDepth ? parseFloat(entity.properties.triggerDepth) : 20
+            ),
+            properties: {
+              windowTarget: entity.properties.windowTarget,
+              ...entity.properties,
+            },
+          };
+        }
+
+        // Collision properties
+        let collision = undefined;
+        if (entity.properties.collisionWidth) {
+          collision = {
+            size: new Vector3(
+              parseFloat(entity.properties.collisionWidth),
+              entity.properties.collisionHeight ? parseFloat(entity.properties.collisionHeight) : height,
+              entity.properties.collisionDepth ? parseFloat(entity.properties.collisionDepth) : 20
+            ),
+          };
+        }
+
+        // Create the sprite building
+        const building = spriteBuildingManager.create({
+          id: entity.properties.targetname || `sprite_building_${Date.now()}`,
+          texturePath,
+          position,
+          width,
+          height,
+          rotation,
+          billboard,
+          emissiveIntensity,
+          trigger,
+          collision,
+        });
+
+        if (building) {
+          console.log(`Created sprite building: ${building.getId()} at ${position.toString()}`);
         }
       }
 
@@ -355,6 +517,16 @@ export class MapRenderer {
             npcName,
             properties: entity.properties,
           };
+
+          // Add shadow support for NPC meshes
+          const skyLight = SkyLightSystem.getInstance();
+          if (skyLight.getShadowGenerator()) {
+            const childMeshes = character.getChildMeshes();
+            for (const mesh of childMeshes) {
+              skyLight.addShadowCaster(mesh, false);
+              mesh.receiveShadows = true;
+            }
+          }
 
           prefabInstances.push(character);
           console.log(`Created NPC: ${npcName} at ${position.toString()}`);

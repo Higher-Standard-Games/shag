@@ -12,6 +12,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 - **Triggers** - Interactive clickable volumes
 - **Prefabs** - Reusable .map files as models
 - **2D Sprites** - Animated billboard characters with lighting and shadows
+- **Sprite Buildings** - Static 2D sprites for isometric-style buildings with day/night support
 
 ## Documentation Index
 
@@ -20,7 +21,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 |----------|-------------|
 | [entities.md](./entities.md) | All supported entity types |
 | [triggers.md](./triggers.md) | Trigger system and actions |
-| [sprites.md](./sprites.md) | 2D sprite NPC system |
+| [sprites.md](./sprites.md) | 2D sprite systems (NPCs and buildings) |
 | [prefabs.md](./prefabs.md) | Prefab/model system |
 | [dialogs.md](./dialogs.md) | UI dialog system |
 | [config.md](./config.md) | Game configuration |
@@ -125,8 +126,10 @@ mypath/mytexture         →  /textures/mypath/mytexture.jpg
 | `TextureManager` | Loads and caches textures |
 | `PrefabLoader` | Loads prefab .map files |
 | `PrefabInstance` | Instantiates prefabs |
-| `SpriteManager` | Manages 2D sprites |
-| `BillboardSprite` | Individual sprite instance |
+| `SpriteManager` | Manages 2D NPC sprites |
+| `BillboardSprite` | Individual NPC sprite instance |
+| `SpriteBuildingManager` | Manages static sprite buildings |
+| `SpriteBuilding` | Individual sprite building instance |
 | `RTSCameraController` | Isometric camera controls |
 | `UIManager` | Dialog management |
 | `SpawnValidator` | Validates dynamic spawning |

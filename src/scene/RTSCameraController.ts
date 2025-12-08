@@ -9,6 +9,7 @@ import {
 } from "babylonjs";
 import { SpawnValidator } from "../engine/SpawnValidator";
 import { BuildingSystem } from "../game/BuildingSystem";
+import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PrefabInstance } from "../loader/PrefabInstance";
 import { UIManager } from "../ui/UIManager";
 
@@ -90,6 +91,12 @@ export class RTSCameraController {
               if (pick.hit && pick.pickedMesh) {
                 const mesh = pick.pickedMesh;
 
+                // Check for harvest indicator click
+                if (mesh.metadata?.isHarvestIndicator) {
+                  const plantId = mesh.metadata.plantId;
+                  HarvestIndicator.getInstance().handleIndicatorClick(plantId);
+                }
+
                 // Check for build zone click (separate from triggers)
                 if (mesh.metadata?.isBuildZone) {
                   const buildingSystem = BuildingSystem.getInstance();
@@ -170,6 +177,9 @@ export class RTSCameraController {
           if (this.isDragging) {
             this.handleDrag();
           }
+          
+          // Track hovered build zone for visual feedback
+          this.updateHoveredBuildZone();
           break;
       }
     });
@@ -262,6 +272,28 @@ export class RTSCameraController {
       if (Vector3.DistanceSquared(this.camera.target, this.targetPosition) < 0.001) {
         this.camera.target.copyFrom(this.targetPosition);
       }
+    }
+  }
+
+  private updateHoveredBuildZone(): void {
+    const buildingSystem = BuildingSystem.getInstance();
+    
+    // Only track hover when in build mode
+    if (!buildingSystem.inBuildMode) {
+      if (buildingSystem.hoveredZoneId !== null) {
+        buildingSystem.setHoveredZone(null);
+      }
+      return;
+    }
+
+    // Raycast to find what we're hovering over
+    const pick = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
+    
+    if (pick.hit && pick.pickedMesh?.metadata?.isBuildZone) {
+      const zoneId = pick.pickedMesh.metadata.zoneId;
+      buildingSystem.setHoveredZone(zoneId);
+    } else {
+      buildingSystem.setHoveredZone(null);
     }
   }
 

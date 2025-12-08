@@ -4,8 +4,10 @@
  */
 
 import { BuildableObjectManager } from "../game/BuildableObject";
+import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
 import { GameTimer } from "../game/GameTimer";
+import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
 import { ShopPanel } from "./ShopPanel";
 
@@ -74,10 +76,16 @@ export class GameHUD {
         </div>
         <div class="hud-buttons">
           <button class="hud-btn" id="hud-shop-btn">🛒 Shop</button>
+          <button class="hud-btn hud-harvest-btn" id="hud-harvest-btn" style="display: none;">
+            <span class="harvest-icon">✂️</span>
+            <span class="harvest-count">0</span>
+            <span class="harvest-text">Ready</span>
+          </button>
         </div>
         <div class="hud-time">
-          <span id="hud-game-time">0:00</span>
-          <span id="hud-time-scale" class="hud-time-scale">1x</span>
+          <span id="hud-day" class="hud-day">Day 1</span>
+          <span id="hud-clock" class="hud-clock">8:00 AM</span>
+          <span id="hud-period" class="hud-period">☀️</span>
         </div>
       </div>
 
@@ -199,10 +207,44 @@ export class GameHUD {
         box-shadow: 0 2px 10px rgba(76, 175, 80, 0.4);
       }
 
+      .hud-harvest-btn {
+        background: linear-gradient(135deg, #8BC34A, #689F38);
+        animation: harvestPulse 1.5s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .hud-harvest-btn:hover {
+        box-shadow: 0 2px 15px rgba(139, 195, 74, 0.6);
+      }
+
+      .hud-harvest-btn .harvest-count {
+        background: rgba(255,255,255,0.3);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+      }
+
+      .hud-harvest-btn.overripe {
+        background: linear-gradient(135deg, #FFC107, #FF9800);
+        animation: harvestPulse 0.8s ease-in-out infinite;
+      }
+
+      .hud-harvest-btn.spoiled {
+        background: linear-gradient(135deg, #f44336, #d32f2f);
+        animation: harvestPulse 0.5s ease-in-out infinite;
+      }
+
+      @keyframes harvestPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
       .hud-time {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         color: white;
         font-size: 14px;
         background: rgba(0,0,0,0.5);
@@ -210,11 +252,18 @@ export class GameHUD {
         border-radius: 20px;
       }
 
-      .hud-time-scale {
-        background: rgba(255,255,255,0.2);
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 12px;
+      .hud-day {
+        font-weight: bold;
+        color: #ffd700;
+      }
+
+      .hud-clock {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+      }
+
+      .hud-period {
+        font-size: 18px;
       }
 
       .hud-quick-inventory {
@@ -413,7 +462,6 @@ export class GameHUD {
     if (!this.container) return;
 
     const state = GameState.getInstance();
-    const timer = GameTimer.getInstance();
     const player = state.getPlayer();
     const inventory = state.getInventory();
 
@@ -434,19 +482,72 @@ export class GameHUD {
       xpFill.style.width = `${state.getXPProgress() * 100}%`;
     }
 
-    // Update time
-    const timeEl = this.container.querySelector("#hud-game-time");
-    if (timeEl) {
-      timeEl.textContent = timer.formatTime();
+    // Update day/night clock
+    const clock = GameClock.getInstance();
+    const timeOfDay = clock.getTimeOfDay();
+    
+    const dayEl = this.container.querySelector("#hud-day");
+    if (dayEl) {
+      dayEl.textContent = `Day ${clock.getCurrentDay()}`;
     }
 
-    const scaleEl = this.container.querySelector("#hud-time-scale");
-    if (scaleEl) {
-      scaleEl.textContent = `${timer.getTimeScale()}x`;
+    const clockEl = this.container.querySelector("#hud-clock");
+    if (clockEl) {
+      clockEl.textContent = clock.formatTime12h();
+    }
+
+    const periodEl = this.container.querySelector("#hud-period");
+    if (periodEl) {
+      // Show appropriate icon for time period
+      const icons: Record<string, string> = {
+        night: "🌙",
+        dawn: "🌅",
+        morning: "☀️",
+        afternoon: "☀️",
+        dusk: "🌇",
+        evening: "🌙",
+      };
+      periodEl.textContent = icons[timeOfDay.period] || "☀️";
     }
 
     // Update quick inventory
     this.updateInventory(inventory.items);
+
+    // Update harvest button
+    this.updateHarvestButton();
+  }
+
+  private updateHarvestButton(): void {
+    const harvestBtn = this.container?.querySelector("#hud-harvest-btn") as HTMLElement;
+    if (!harvestBtn) return;
+
+    const harvestIndicator = HarvestIndicator.getInstance();
+    const harvestables = harvestIndicator.getHarvestablePlants();
+    const count = harvestables.length;
+
+    if (count === 0) {
+      harvestBtn.style.display = "none";
+      return;
+    }
+
+    harvestBtn.style.display = "flex";
+
+    // Update count
+    const countEl = harvestBtn.querySelector(".harvest-count");
+    if (countEl) {
+      countEl.textContent = count.toString();
+    }
+
+    // Check for urgency (overripe or spoiled plants)
+    const hasOverripe = harvestables.some(h => h.phase === "overripe");
+    const hasSpoiled = harvestables.some(h => h.phase === "spoiled");
+
+    harvestBtn.classList.remove("overripe", "spoiled");
+    if (hasSpoiled) {
+      harvestBtn.classList.add("spoiled");
+    } else if (hasOverripe) {
+      harvestBtn.classList.add("overripe");
+    }
   }
 
   private updateInventory(items: { id: string; type: string; quantity: number }[]): void {
@@ -540,6 +641,18 @@ export class GameHUD {
     // Shop button
     this.container?.querySelector("#hud-shop-btn")?.addEventListener("click", () => {
       ShopPanel.getInstance().toggle();
+    });
+
+    // Harvest button - show first harvestable plant's panel
+    this.container?.querySelector("#hud-harvest-btn")?.addEventListener("click", () => {
+      const harvestIndicator = HarvestIndicator.getInstance();
+      const harvestables = harvestIndicator.getHarvestablePlants();
+      if (harvestables.length > 0) {
+        // Show panel for first harvestable (prioritize overripe/spoiled)
+        const urgent = harvestables.find(h => h.phase === "spoiled" || h.phase === "overripe");
+        const target = urgent || harvestables[0];
+        harvestIndicator.showHarvestPanel(target.plantId);
+      }
     });
   }
 

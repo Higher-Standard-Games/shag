@@ -2,13 +2,14 @@
   "game": {
     "title": "Ganjawars",
     "version": "0.0.1",
-    "startMap": "test.map"
+    "startMap": "sprite_test.map"
   },
   "assets": {
     "maps": [
       "test.map",
       "map2.map",
-      "patch_test.map"
+      "patch_test.map",
+      "sprite_test.map"
     ],
     "menuMap": "patch_test.map",
     "prefabs": [],
