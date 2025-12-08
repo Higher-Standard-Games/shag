@@ -307,9 +307,9 @@ export class SkyLightSystem {
     this.ambientLight.groundColor = ambientColor.scale(0.6);
     
     // Adjust ambient intensity based on time
-    // Higher base (0.4) ensures visibility at night, scales up to 1.4 at noon
-    const ambientMultiplier = 0.4 + sunIntensity * 1.0;
-    this.ambientLight.intensity = this.config.ambientIntensity * ambientMultiplier * 2.0;
+    // Higher base (0.6) ensures good visibility at night with blue tint
+    const ambientMultiplier = 0.6 + sunIntensity * 0.8;
+    this.ambientLight.intensity = this.config.ambientIntensity * ambientMultiplier * 2.5;
 
     // Update sprite buildings with ambient tint for day/night effect
     console.log(`SkyLight ambient: R=${ambientColor.r.toFixed(2)} G=${ambientColor.g.toFixed(2)} B=${ambientColor.b.toFixed(2)}`);

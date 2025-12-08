@@ -137,28 +137,22 @@ export class SpriteBuilding {
     texture.hasAlpha = true;
     
     // Configure material for 2D sprite rendering
-    // Use ONLY emissive (no diffuse lighting) so we have full control over the color
-    this.material.diffuseTexture = null; // Disable diffuse - we control color via emissive
-    this.material.diffuseColor = new Color3(0, 0, 0);
+    // Use diffuse texture - the hemispheric light will tint it
+    this.material.diffuseTexture = texture;
+    this.material.diffuseColor = new Color3(1, 1, 1);
     this.material.specularColor = new Color3(0, 0, 0);
-    this.material.useAlphaFromDiffuseTexture = false;
+    this.material.ambientColor = new Color3(1, 1, 1);
+    this.material.useAlphaFromDiffuseTexture = true;
     this.material.backFaceCulling = false;
     this.material.transparencyMode = 1; // ALPHA_BLEND for smooth edges
     this.material.alpha = 1;
     
-    // Use emissive texture - this shows the sprite without lighting
-    // We'll manually tint it via emissiveColor
-    this.material.emissiveTexture = texture;
-    this.material.opacityTexture = texture; // Use texture alpha for transparency
+    // No emissive - let scene lighting control the color
+    this.material.emissiveColor = new Color3(0, 0, 0);
     
-    // Base emissive - will be tinted by updateAmbientTint
+    // Store base brightness for tinting (from map or default)
     const emissiveIntensity = config.emissiveIntensity ?? 0.8;
     this.baseEmissive = emissiveIntensity;
-    this.material.emissiveColor = new Color3(
-      emissiveIntensity,
-      emissiveIntensity,
-      emissiveIntensity
-    );
 
     this.mesh.material = this.material;
 
@@ -275,20 +269,10 @@ export class SpriteBuilding {
    * Update colors based on ambient light for day/night tinting
    * @param ambientColor The scene's current ambient light color
    */
-  public updateAmbientTint(ambientColor: Color3): void {
-    // Direct color multiplication on emissive
-    // Since we're using emissive-only rendering, this directly tints the sprite
-    
-    // Normalize to get color direction, then scale by base emissive
-    const maxChannel = Math.max(ambientColor.r, ambientColor.g, ambientColor.b, 0.1);
-    
-    // Apply tint: multiply base emissive by normalized ambient color
-    // This creates a strong visible tint (blue at night, warm at day)
-    this.material.emissiveColor = new Color3(
-      this.baseEmissive * (ambientColor.r / maxChannel),
-      this.baseEmissive * (ambientColor.g / maxChannel),
-      this.baseEmissive * (ambientColor.b / maxChannel)
-    );
+  public updateAmbientTint(_ambientColor: Color3): void {
+    // With diffuse texture and no emissive, the scene's hemispheric light
+    // automatically tints the sprite. No manual update needed.
+    // This method is kept for API compatibility.
   }
 
   public setVisible(visible: boolean): void {
