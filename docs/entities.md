@@ -136,6 +136,79 @@ Places a prefab (.map file) as a model in the world.
 
 ## Sprites
 
+### sprite_building
+
+Static 2D sprite rendered in 3D world. Perfect for isometric-style buildings, signs, and decorations.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `origin` | vector3 | required | Position (Quake coords) |
+| `texture` | string | required | Path to PNG texture (e.g., `"textures/base/shop.png"`) |
+| `targetname` | string | - | Unique identifier |
+| `width` | float | `100` | Width in world units |
+| `height` | float | `100` | Height in world units |
+| `billboard` | `"0"` or `"1"` | `"0"` | If `"1"`, sprite always faces camera |
+| `angle` | float | `0` | Y rotation in degrees (ignored if billboard) |
+| `emissive` | float | `0.2` | Self-illumination (0-1). See day/night section |
+| `windowTarget` | string | - | Dialog ID to open when clicked |
+| `triggerWidth` | float | - | Clickable area width |
+| `triggerHeight` | float | - | Clickable area height |
+| `triggerDepth` | float | - | Clickable area depth |
+| `collisionWidth` | float | - | Collision box width |
+| `collisionHeight` | float | - | Collision box height |
+| `collisionDepth` | float | - | Collision box depth |
+
+**Day/Night Cycle:**
+
+The `emissive` property controls how the sprite interacts with the day/night cycle:
+
+| Value | Effect |
+|-------|--------|
+| `0` | Fully affected by lighting - dark at night |
+| `0.2` | Default - slight glow, visible at night but still darkens |
+| `0.3-0.5` | Moderate glow - buildings with some lights |
+| `0.5+` | Bright glow - neon signs, lit windows |
+| `1.0` | Fully self-lit - ignores day/night |
+
+**Rendering Modes:**
+
+| Mode | Property | Use Case |
+|------|----------|----------|
+| Billboard | `"billboard" "1"` | 2D-style buildings that always face camera |
+| Fixed | `"billboard" "0"` (default) | Geometric elements, signs with perspective |
+
+```
+// Billboard building (always faces camera)
+{
+"classname" "sprite_building"
+"targetname" "shop"
+"origin" "100 0 200"
+"texture" "textures/base/shop.png"
+"width" "128"
+"height" "128"
+"billboard" "1"
+"emissive" "0.3"
+"windowTarget" "shop_dialog"
+"triggerWidth" "100"
+"triggerHeight" "100"
+"triggerDepth" "30"
+}
+
+// Fixed rotation building (perspective distortion)
+{
+"classname" "sprite_building"
+"targetname" "sign"
+"origin" "200 0 100"
+"texture" "textures/base/neon_sign.png"
+"width" "64"
+"height" "32"
+"angle" "45"
+"emissive" "0.8"
+}
+```
+
+---
+
 ### npc_sprite
 
 2D animated billboard sprite that always faces the camera.

@@ -1,9 +1,7 @@
 import {
   ArcRotateCamera,
-  Color3,
   Color4,
   Engine,
-  HemisphericLight,
   Scene,
   Vector3,
 } from "babylonjs";
@@ -11,8 +9,9 @@ import { AchievementSystem } from "../game/AchievementSystem";
 import { BuildingSystem } from "../game/BuildingSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { EquipmentSystem } from "../game/EquipmentSystem";
+import { GameClock } from "../game/GameClock";
 import { registerGameData } from "../game/GameData";
-import { GameState, GameTimer, PlantSystem } from "../game";
+import { GameState, GameTimer, HarvestIndicator, PlantSystem } from "../game";
 import { OrderSystem } from "../game/OrderSystem";
 import { QuestSystem } from "../game/QuestSystem";
 import { ShopSystem } from "../game/ShopSystem";
@@ -26,6 +25,8 @@ import { QuestPanel } from "../ui/QuestPanel";
 import { AssetLoader } from "./AssetLoader";
 import { AudioManager } from "./AudioManager";
 import { MapRenderer } from "./MapRenderer";
+import { SkyLightSystem } from "./SkyLightSystem";
+import { StreetLampSystem } from "./StreetLampSystem";
 
 export class GameScene {
   private engine: Engine;
@@ -49,6 +50,7 @@ export class GameScene {
     // Initialize BuildingSystem before loading map (so zones can be registered)
     BuildingSystem.getInstance().init(this.scene!);
     BuildableObjectManager.getInstance().init(this.scene!);
+    HarvestIndicator.getInstance().init(this.scene!);
     
     await this.loadMap(startMap);
 
@@ -92,13 +94,22 @@ export class GameScene {
       this.updateCameraOrtho();
     });
 
-    // Lights
-    const light = new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
-    light.intensity = 0.3;
-    light.groundColor = new Color3(0.2, 0.2, 0.3);
+    // Initialize GameClock (3 minutes = 1 full day)
+    const clock = GameClock.getInstance();
+    clock.init({
+      dayLengthSeconds: 180, // 3 minutes for full day/night cycle
+      startHour: 8,          // Start at 8 AM
+      startDay: 1,
+    });
 
-    const dirLight = new HemisphericLight("dirLight", new Vector3(1, 1, 1), this.scene);
-    dirLight.intensity = 0.15;
+    // Initialize dynamic sky lighting (replaces static lights)
+    // Using mild values for soft, pleasant lighting
+    SkyLightSystem.getInstance().init(this.scene, {
+      sunIntensity: 0.6,      // Soft directional sun
+      moonIntensity: 0.12,    // Subtle moonlight
+      ambientIntensity: 0.25, // Low ambient for contrast
+      enableShadows: true,
+    });
 
     // RTS Camera Controller
     new RTSCameraController(this.scene, this.camera, this.canvas);
@@ -208,10 +219,28 @@ export class GameScene {
         console.log(result ? "Purchased!" : "Failed to purchase");
       },
       equipment: () => EquipmentSystem.getInstance().getActiveEquipment(),
+      // Clock commands
+      time: () => {
+        const clock = GameClock.getInstance();
+        return `Day ${clock.getCurrentDay()}, ${clock.formatTime12h()} (${clock.getTimeOfDay().period})`;
+      },
+      setTime: (hour: number, minute: number = 0) => {
+        GameClock.getInstance().setTime(hour, minute);
+        console.log(`Time set to ${GameClock.getInstance().formatTime()}`);
+      },
+      setDay: (day: number) => {
+        GameClock.getInstance().setDay(day);
+        console.log(`Day set to ${day}`);
+      },
+      daySpeed: (seconds: number) => {
+        GameClock.getInstance().setDayLengthSeconds(seconds);
+        console.log(`Day length set to ${seconds} seconds`);
+      },
     };
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)', and 'game.*' in console.");
     console.log("Game commands: game.state(), game.addMoney(100), game.addXP(50), game.plant('basic'), game.timeScale(60)");
+    console.log("Clock commands: game.time(), game.setTime(12), game.setDay(5), game.daySpeed(30)");
     console.log("New systems: game.orders(), game.createOrder(), game.quests(), game.achievements(), game.shop(), game.buy('seed_basic')");
   }
 
@@ -242,7 +271,15 @@ export class GameScene {
       if (!this.scene || !this.camera) return;
 
       // Update game timer
-      GameTimer.getInstance().update();
+      const deltaTime = GameTimer.getInstance().update();
+
+      // Update game clock (day/night cycle)
+      GameClock.getInstance().update(deltaTime);
+
+      // Update street lamps (fade in/out)
+      if (StreetLampSystem.getInstance().isInitialized()) {
+        StreetLampSystem.getInstance().update(deltaTime);
+      }
 
       // Force isometric view
       this.camera.alpha = -Math.PI / 4;

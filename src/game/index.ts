@@ -41,5 +41,7 @@ export type { Quest, QuestObjective, QuestReward, ActiveQuest, ObjectiveType } f
 export { AchievementSystem } from "./AchievementSystem";
 export type { Achievement, AchievementCondition, AchievementReward, AchievementProgress } from "./AchievementSystem";
 
+export { HarvestIndicator } from "./HarvestIndicator";
+
 // Game data registration (call once during init)
 export { registerGameData } from "./GameData";

@@ -77,7 +77,7 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
     cost: 50,
     requiredLevel: 1,
     buildTime: 10 * 1000, // 10 seconds
-    stages: createStages("pots/pot_basic", 1),
+    stages: createStages("pot", 1), // Uses pot_0.map, pot_50.map, pot_100.map
   },
   {
     id: "pot_large",
@@ -87,7 +87,7 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
     cost: 150,
     requiredLevel: 3,
     buildTime: 30 * 1000, // 30 seconds
-    stages: createStages("pots/pot_large", 1.5),
+    stages: createStages("pot", 1.5), // Same prefabs, larger scale
   },
   {
     id: "grow_light",

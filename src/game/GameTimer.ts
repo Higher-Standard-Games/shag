@@ -55,14 +55,15 @@ export class GameTimer {
 
   /**
    * Call this every frame from the game loop
+   * Returns the delta time in seconds (scaled by game time)
    */
-  public update(): void {
+  public update(): number {
     const now = performance.now();
     const realDelta = now - this.lastRealTime;
     this.lastRealTime = now;
 
     if (this.isPaused) {
-      return;
+      return 0;
     }
 
     // Update real-time tracking
@@ -82,6 +83,9 @@ export class GameTimer {
     for (const callback of this.updateCallbacks) {
       callback(gameDelta, this.gameTime);
     }
+
+    // Return delta time in seconds
+    return realDelta / 1000;
   }
 
   private processTimers(): void {

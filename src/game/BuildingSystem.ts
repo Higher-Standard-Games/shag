@@ -12,6 +12,7 @@ import {
 } from "babylonjs";
 import { BuildableObjectManager } from "./BuildableObject";
 import { GameState } from "./GameState";
+import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
 
 export interface BuildZone {
@@ -21,7 +22,8 @@ export interface BuildZone {
   zoneType: string; // "plant", "equipment", "decoration", etc.
   occupied: boolean;
   occupiedBy: string | null; // ID of item/plant in this zone
-  mesh: Mesh | null; // Visual indicator
+  mesh: Mesh | null; // Visual indicator (fill)
+  borderMesh: Mesh | null; // Border outline
   mapId: string;
 }
 
@@ -51,9 +53,19 @@ export class BuildingSystem {
   private _inBuildMode: boolean = false;
   private _selectedZoneType: string | null = null;
   private _selectedItem: BuildableItem | null = null;
+  private _hoveredZoneId: string | null = null;
+  
+  // Materials
   private highlightMaterial: StandardMaterial | null = null;
   private occupiedMaterial: StandardMaterial | null = null;
   private normalMaterial: StandardMaterial | null = null;
+  private borderMaterial: StandardMaterial | null = null;
+  private borderHoverMaterial: StandardMaterial | null = null;
+  private borderOccupiedMaterial: StandardMaterial | null = null;
+  
+  // Animation
+  private pulsationTaskId = "build_zone_pulsation";
+  private pulsationPhase = 0;
 
   private eventListeners: BuildEventCallback[] = [];
 
@@ -82,26 +94,47 @@ export class BuildingSystem {
   private createMaterials(): void {
     if (!this.scene) return;
 
-    // Highlight material (green, for available zones)
+    // Highlight material (green, for available zones) - subtle fill
     this.highlightMaterial = new StandardMaterial("buildZone_highlight", this.scene);
     this.highlightMaterial.diffuseColor = new Color3(0.2, 0.8, 0.2);
-    this.highlightMaterial.emissiveColor = new Color3(0.1, 0.4, 0.1);
-    this.highlightMaterial.alpha = 0.6;
+    this.highlightMaterial.emissiveColor = new Color3(0.05, 0.2, 0.05);
+    this.highlightMaterial.alpha = 0.15; // Very subtle fill
     this.highlightMaterial.backFaceCulling = false;
 
     // Occupied material (red, for taken zones)
     this.occupiedMaterial = new StandardMaterial("buildZone_occupied", this.scene);
     this.occupiedMaterial.diffuseColor = new Color3(0.8, 0.2, 0.2);
-    this.occupiedMaterial.emissiveColor = new Color3(0.4, 0.1, 0.1);
-    this.occupiedMaterial.alpha = 0.4;
+    this.occupiedMaterial.emissiveColor = new Color3(0.2, 0.05, 0.05);
+    this.occupiedMaterial.alpha = 0.15;
     this.occupiedMaterial.backFaceCulling = false;
 
-    // Normal material (subtle, when not in build mode)
+    // Normal material (invisible when not in build mode)
     this.normalMaterial = new StandardMaterial("buildZone_normal", this.scene);
     this.normalMaterial.diffuseColor = new Color3(0.3, 0.6, 0.3);
     this.normalMaterial.emissiveColor = new Color3(0.1, 0.3, 0.1);
-    this.normalMaterial.alpha = 0.4;
+    this.normalMaterial.alpha = 0;
     this.normalMaterial.backFaceCulling = false;
+
+    // Border material (bright green outline)
+    this.borderMaterial = new StandardMaterial("buildZone_border", this.scene);
+    this.borderMaterial.diffuseColor = new Color3(0.3, 1.0, 0.3);
+    this.borderMaterial.emissiveColor = new Color3(0.2, 0.8, 0.2);
+    this.borderMaterial.alpha = 0.8;
+    this.borderMaterial.backFaceCulling = false;
+
+    // Border hover material (brighter, for hovered zone)
+    this.borderHoverMaterial = new StandardMaterial("buildZone_border_hover", this.scene);
+    this.borderHoverMaterial.diffuseColor = new Color3(0.5, 1.0, 0.5);
+    this.borderHoverMaterial.emissiveColor = new Color3(0.4, 1.0, 0.4);
+    this.borderHoverMaterial.alpha = 1.0;
+    this.borderHoverMaterial.backFaceCulling = false;
+
+    // Border occupied material (red outline)
+    this.borderOccupiedMaterial = new StandardMaterial("buildZone_border_occupied", this.scene);
+    this.borderOccupiedMaterial.diffuseColor = new Color3(1.0, 0.3, 0.3);
+    this.borderOccupiedMaterial.emissiveColor = new Color3(0.6, 0.1, 0.1);
+    this.borderOccupiedMaterial.alpha = 0.6;
+    this.borderOccupiedMaterial.backFaceCulling = false;
   }
 
   // ==================== Zone Management ====================
@@ -124,11 +157,13 @@ export class BuildingSystem {
       occupied: false,
       occupiedBy: null,
       mesh: null,
+      borderMesh: null,
       mapId,
     };
 
-    // Create visual mesh
+    // Create visual meshes
     zone.mesh = this.createZoneMesh(zone);
+    zone.borderMesh = this.createBorderMesh(zone);
 
     this.zones.set(id, zone);
     console.log(`Registered build zone: ${id} (${zoneType}) at ${position.toString()}`);
@@ -162,6 +197,72 @@ export class BuildingSystem {
     mesh.isPickable = true;
 
     return mesh;
+  }
+
+  private createBorderMesh(zone: BuildZone): Mesh | null {
+    if (!this.scene) return null;
+
+    const halfSize = zone.size / 2;
+    const borderHeight = 2; // Height of the border walls
+    const borderThickness = 1; // Thickness of border
+
+    // Create 4 border segments as thin boxes
+    const borders: Mesh[] = [];
+
+    // North border
+    const north = MeshBuilder.CreateBox(`border_n_${zone.id}`, {
+      width: zone.size + borderThickness,
+      height: borderHeight,
+      depth: borderThickness,
+    }, this.scene);
+    north.position.set(0, borderHeight / 2, halfSize);
+    borders.push(north);
+
+    // South border
+    const south = MeshBuilder.CreateBox(`border_s_${zone.id}`, {
+      width: zone.size + borderThickness,
+      height: borderHeight,
+      depth: borderThickness,
+    }, this.scene);
+    south.position.set(0, borderHeight / 2, -halfSize);
+    borders.push(south);
+
+    // East border
+    const east = MeshBuilder.CreateBox(`border_e_${zone.id}`, {
+      width: borderThickness,
+      height: borderHeight,
+      depth: zone.size + borderThickness,
+    }, this.scene);
+    east.position.set(halfSize, borderHeight / 2, 0);
+    borders.push(east);
+
+    // West border
+    const west = MeshBuilder.CreateBox(`border_w_${zone.id}`, {
+      width: borderThickness,
+      height: borderHeight,
+      depth: zone.size + borderThickness,
+    }, this.scene);
+    west.position.set(-halfSize, borderHeight / 2, 0);
+    borders.push(west);
+
+    // Merge into single mesh
+    const borderMesh = Mesh.MergeMeshes(borders, true, true, undefined, false, true);
+    if (!borderMesh) return null;
+
+    borderMesh.name = `buildZoneBorder_${zone.id}`;
+    borderMesh.position = zone.position.clone();
+    borderMesh.position.y += 0.5;
+    borderMesh.material = this.borderMaterial;
+    borderMesh.visibility = 0; // Hidden by default
+    borderMesh.isPickable = false;
+
+    // Store zone reference
+    borderMesh.metadata = {
+      isBuildZoneBorder: true,
+      zoneId: zone.id,
+    };
+
+    return borderMesh;
   }
 
   public getZone(id: string): BuildZone | undefined {
@@ -203,6 +304,7 @@ export class BuildingSystem {
     this._selectedItem = item || null;
 
     this.updateZoneVisuals();
+    this.startPulsation();
     this.emit("enter_build_mode", { zoneType, item });
 
     console.log(`Entered build mode: ${zoneType}`);
@@ -215,7 +317,9 @@ export class BuildingSystem {
     this._inBuildMode = false;
     this._selectedZoneType = null;
     this._selectedItem = null;
+    this._hoveredZoneId = null;
 
+    this.stopPulsation();
     this.updateZoneVisuals();
     this.emit("exit_build_mode", {});
 
@@ -246,17 +350,76 @@ export class BuildingSystem {
 
   private updateZoneVisuals(): void {
     for (const zone of this.zones.values()) {
-      if (!zone.mesh) continue;
+      const isTargetZone = this._inBuildMode && zone.zoneType === this._selectedZoneType;
+      const isHovered = zone.id === this._hoveredZoneId;
 
-      if (this._inBuildMode && zone.zoneType === this._selectedZoneType) {
-        // In build mode for this zone type
-        zone.mesh.material = zone.occupied ? this.occupiedMaterial : this.highlightMaterial;
-        zone.mesh.visibility = 1;
-      } else {
-        // Not in build mode or different zone type
-        zone.mesh.material = this.normalMaterial;
-        zone.mesh.visibility = this._inBuildMode ? 0.5 : 1;
+      // Update fill mesh
+      if (zone.mesh) {
+        if (isTargetZone) {
+          zone.mesh.material = zone.occupied ? this.occupiedMaterial : this.highlightMaterial;
+          zone.mesh.visibility = isHovered ? 0.3 : 0.15;
+        } else {
+          zone.mesh.material = this.normalMaterial;
+          zone.mesh.visibility = 0;
+        }
       }
+
+      // Update border mesh
+      if (zone.borderMesh) {
+        if (isTargetZone && !zone.occupied) {
+          zone.borderMesh.visibility = 1;
+          zone.borderMesh.material = isHovered ? this.borderHoverMaterial : this.borderMaterial;
+        } else if (isTargetZone && zone.occupied) {
+          zone.borderMesh.visibility = 0.6;
+          zone.borderMesh.material = this.borderOccupiedMaterial;
+        } else {
+          zone.borderMesh.visibility = 0;
+        }
+      }
+    }
+  }
+
+  /**
+   * Set the currently hovered zone (call from mouse move handler)
+   */
+  public setHoveredZone(zoneId: string | null): void {
+    if (this._hoveredZoneId !== zoneId) {
+      this._hoveredZoneId = zoneId;
+      this.updateZoneVisuals();
+    }
+  }
+
+  /**
+   * Get the currently hovered zone
+   */
+  public get hoveredZoneId(): string | null {
+    return this._hoveredZoneId;
+  }
+
+  private startPulsation(): void {
+    this.pulsationPhase = 0;
+    
+    // Schedule pulsation updates
+    GameTimer.getInstance().scheduleTask(this.pulsationTaskId, 50, () => {
+      if (!this._inBuildMode) return;
+      
+      this.pulsationPhase += 0.1;
+      const pulse = (Math.sin(this.pulsationPhase) + 1) / 2; // 0-1
+
+      // Update border material emissive for pulsing effect
+      if (this.borderMaterial) {
+        const baseEmissive = 0.2 + pulse * 0.4;
+        this.borderMaterial.emissiveColor = new Color3(baseEmissive * 0.5, baseEmissive, baseEmissive * 0.5);
+      }
+    });
+  }
+
+  private stopPulsation(): void {
+    GameTimer.getInstance().cancelTask(this.pulsationTaskId);
+    
+    // Reset border material
+    if (this.borderMaterial) {
+      this.borderMaterial.emissiveColor = new Color3(0.2, 0.8, 0.2);
     }
   }
 

@@ -331,3 +331,78 @@
 "accessory" "glasses"
 "accessoryColor" "#2C2C2C"
 }
+// Street Lamps - turn on at dusk, off at dawn
+{
+"classname" "street_lamp"
+"targetname" "lamp_1"
+"origin" "-300 0 50"
+"light" "300"
+"range" "150"
+"_color" "255 220 150"
+"fadeTime" "3"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_2"
+"origin" "300 0 50"
+"light" "300"
+"range" "150"
+"_color" "255 220 150"
+"fadeTime" "3"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_3"
+"origin" "0 300 50"
+"light" "300"
+"range" "150"
+"_color" "255 220 150"
+"fadeTime" "3"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_4"
+"origin" "0 -300 50"
+"light" "300"
+"range" "150"
+"_color" "255 220 150"
+"fadeTime" "3"
+}
+// Corner lamps with different colors
+{
+"classname" "street_lamp"
+"targetname" "lamp_corner_1"
+"origin" "-350 -350 50"
+"light" "200"
+"range" "120"
+"_color" "200 255 200"
+"fadeTime" "2"
+"flicker" "1"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_corner_2"
+"origin" "350 -350 50"
+"light" "200"
+"range" "120"
+"_color" "200 200 255"
+"fadeTime" "2"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_corner_3"
+"origin" "-350 350 50"
+"light" "200"
+"range" "120"
+"_color" "255 200 200"
+"fadeTime" "2"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_corner_4"
+"origin" "350 350 50"
+"light" "200"
+"range" "120"
+"_color" "255 255 200"
+"fadeTime" "2"
+}

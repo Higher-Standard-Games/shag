@@ -1,5 +1,6 @@
 import { Color3, Mesh, Plane, type Scene, StandardMaterial, Vector3, VertexData } from "babylonjs";
 import type { Brush, PlaneDefinition } from "./MapParser";
+import { SkyLightSystem } from "../engine/SkyLightSystem";
 
 export interface BrushFace {
   vertices: Vector3[];
@@ -175,6 +176,13 @@ export class BrushGenerator {
       customMesh.material = mat;
       customMesh.metadata = { isTrigger: true };
       console.log(`Created Trigger Mesh with ${vertices.length} vertices`);
+    } else {
+      // Add shadow support for non-trigger brushes
+      const skyLight = SkyLightSystem.getInstance();
+      if (skyLight.getShadowGenerator()) {
+        skyLight.addShadowCaster(customMesh, false);
+        customMesh.receiveShadows = true;
+      }
     }
 
     return customMesh;

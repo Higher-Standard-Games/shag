@@ -42,7 +42,9 @@ export class MapParser {
     let currentEntity: Entity | null = null;
     let currentBrush: Brush | null = null;
     let inPatchDef = false;
+    let inBrushDef = false;
     let patchLines: string[] = [];
+    let brushDefLines: string[] = [];
 
     const lines = content.split("\n");
 
@@ -54,6 +56,36 @@ export class MapParser {
       const commentIdx = line.indexOf("//");
       if (commentIdx !== -1) {
         line = line.substring(0, commentIdx).trim();
+      }
+
+      // Check for brushDef start (NetRadiant format)
+      if (line === "brushDef") {
+        inBrushDef = true;
+        brushDefLines = [];
+        continue;
+      }
+
+      // Collect brushDef lines
+      if (inBrushDef) {
+        brushDefLines.push(line);
+
+        // Count braces - brushDef ends when we see the closing }
+        let braceDepth = 0;
+        for (const bl of brushDefLines) {
+          if (bl === "{") braceDepth++;
+          if (bl === "}") braceDepth--;
+        }
+
+        // When brace depth returns to 0, brushDef is complete
+        if (braceDepth === 0 && brushDefLines.length > 1) {
+          const brush = MapParser.parseBrushDef(brushDefLines);
+          if (brush && currentEntity) {
+            currentEntity.brushes.push(brush);
+          }
+          inBrushDef = false;
+          brushDefLines = [];
+        }
+        continue;
       }
 
       // Check for patchDef2 start
@@ -230,6 +262,68 @@ export class MapParser {
       return { texture, width, height, controlPoints };
     } catch (e) {
       console.error("Failed to parse patchDef2:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Parse a brushDef block (NetRadiant format)
+   *
+   * Format:
+   * brushDef
+   * {
+   *   ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) ( ( uX uY uOffset ) ( vX vY vOffset ) ) texture flags flags flags
+   * }
+   *
+   * The UV matrix format is different from Quake/Valve format.
+   * We extract the 3 points and texture name, using default UV values.
+   */
+  private static parseBrushDef(lines: string[]): Brush | null {
+    try {
+      const brush: Brush = { planes: [] };
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === "{" || trimmed === "}") continue;
+
+        // Parse brushDef plane format:
+        // ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) ( ( uX uY uOffset ) ( vX vY vOffset ) ) texture flags flags flags
+        const planeMatch = trimmed.match(
+          /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\)\s+(\S+)/
+        );
+
+        if (planeMatch) {
+          const p1 = [parseFloat(planeMatch[1]), parseFloat(planeMatch[2]), parseFloat(planeMatch[3])];
+          const p2 = [parseFloat(planeMatch[4]), parseFloat(planeMatch[5]), parseFloat(planeMatch[6])];
+          const p3 = [parseFloat(planeMatch[7]), parseFloat(planeMatch[8]), parseFloat(planeMatch[9])];
+          
+          // UV matrix values (for future use if needed)
+          // const uX = parseFloat(planeMatch[10]);
+          // const uY = parseFloat(planeMatch[11]);
+          const uOffset = parseFloat(planeMatch[12]);
+          // const vX = parseFloat(planeMatch[13]);
+          // const vY = parseFloat(planeMatch[14]);
+          const vOffset = parseFloat(planeMatch[15]);
+          
+          const texture = planeMatch[16];
+
+          brush.planes.push({
+            p1,
+            p2,
+            p3,
+            texture,
+            u_offset: uOffset,
+            v_offset: vOffset,
+            rotation: 0,
+            u_scale: 1,
+            v_scale: 1,
+          });
+        }
+      }
+
+      return brush.planes.length > 0 ? brush : null;
+    } catch (e) {
+      console.error("Failed to parse brushDef:", e);
       return null;
     }
   }
