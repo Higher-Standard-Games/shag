@@ -1,0 +1,516 @@
+// Game: Quake
+// Format: Valve
+// Showcase Map - Demonstrates all engine features
+
+// ==================== WORLDSPAWN ====================
+{
+"classname" "worldspawn"
+"message" "Feature Showcase Map"
+// Floor plane (1600x1600)
+{
+( -800 -800 -16 ) ( 800 800 -16 ) ( -800 800 -16 ) color_80_80_80 0 0 0 1 1
+( -800 -800 -32 ) ( -800 800 -32 ) ( 800 800 -32 ) color_40_40_40 0 0 0 1 1
+( -800 -800 -16 ) ( -800 -800 -32 ) ( 800 -800 -16 ) color_60_60_60 0 0 0 1 1
+( -800 800 -16 ) ( 800 800 -16 ) ( -800 800 -32 ) color_60_60_60 0 0 0 1 1
+( -800 800 -16 ) ( -800 800 -32 ) ( -800 -800 -16 ) color_60_60_60 0 0 0 1 1
+( 800 800 -16 ) ( 800 -800 -16 ) ( 800 800 -32 ) color_60_60_60 0 0 0 1 1
+}
+}
+
+// ==================== PLAYER START ====================
+{
+"classname" "info_player_start"
+"origin" "0 0 200"
+}
+
+// ==================== LIGHTING SHOWCASE ====================
+// Red light
+{
+"classname" "light"
+"origin" "-400 -400 100"
+"light" "500"
+"_color" "1 0.2 0.2"
+}
+// Green light
+{
+"classname" "light"
+"origin" "0 -400 100"
+"light" "500"
+"_color" "0.2 1 0.2"
+}
+// Blue light
+{
+"classname" "light"
+"origin" "400 -400 100"
+"light" "500"
+"_color" "0.2 0.2 1"
+}
+// Yellow light
+{
+"classname" "light"
+"origin" "-400 400 100"
+"light" "500"
+"_color" "1 1 0.2"
+}
+// Cyan light
+{
+"classname" "light"
+"origin" "0 400 100"
+"light" "500"
+"_color" "0.2 1 1"
+}
+// Magenta light
+{
+"classname" "light"
+"origin" "400 400 100"
+"light" "500"
+"_color" "1 0.2 1"
+}
+// White ambient light (center)
+{
+"classname" "light"
+"origin" "0 0 200"
+"light" "300"
+"_color" "1 1 1"
+}
+
+// ==================== STREET LAMPS ====================
+{
+"classname" "street_lamp"
+"targetname" "lamp_1"
+"origin" "-600 -600 50"
+"light" "200"
+"range" "150"
+"_color" "255 200 150"
+"fadeTime" "2"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_2"
+"origin" "600 -600 50"
+"light" "200"
+"range" "150"
+"_color" "150 200 255"
+"fadeTime" "2"
+"flicker" "1"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_3"
+"origin" "-600 600 50"
+"light" "200"
+"range" "150"
+"_color" "255 150 200"
+"fadeTime" "2"
+}
+{
+"classname" "street_lamp"
+"targetname" "lamp_4"
+"origin" "600 600 50"
+"light" "200"
+"range" "150"
+"_color" "200 255 150"
+"fadeTime" "2"
+"flicker" "1"
+}
+
+// ==================== GROWING AREA (10 pots in 2 rows) ====================
+// Row 1 - Plant pots (green ground markers)
+{
+"classname" "build_zone"
+"targetname" "pot_1"
+"origin" "-300 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_2"
+"origin" "-200 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_3"
+"origin" "-100 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_4"
+"origin" "0 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_5"
+"origin" "100 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+// Row 2 - Plant pots
+{
+"classname" "build_zone"
+"targetname" "pot_6"
+"origin" "-300 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_7"
+"origin" "-200 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_8"
+"origin" "-100 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_9"
+"origin" "0 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "pot_10"
+"origin" "100 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+
+// ==================== GROW LIGHT ZONES (128 units above pots, blue) ====================
+// Row 1 - Grow lights
+{
+"classname" "build_zone"
+"targetname" "light_1"
+"origin" "-300 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_2"
+"origin" "-200 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_3"
+"origin" "-100 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_4"
+"origin" "0 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_5"
+"origin" "100 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+// Row 2 - Grow lights
+{
+"classname" "build_zone"
+"targetname" "light_6"
+"origin" "-300 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_7"
+"origin" "-200 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_8"
+"origin" "-100 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_9"
+"origin" "0 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_10"
+"origin" "100 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+
+// ==================== EQUIPMENT ZONES (purple) ====================
+{
+"classname" "build_zone"
+"targetname" "equip_1"
+"origin" "-400 0 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+{
+"classname" "build_zone"
+"targetname" "equip_2"
+"origin" "-400 100 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+
+// ==================== DECORATION ZONES (orange) ====================
+{
+"classname" "build_zone"
+"targetname" "decor_1"
+"origin" "300 0 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+{
+"classname" "build_zone"
+"targetname" "decor_2"
+"origin" "300 60 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+{
+"classname" "build_zone"
+"targetname" "decor_3"
+"origin" "300 120 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+
+// ==================== TRIGGER SHOWCASE ====================
+// Dialog trigger (cyan ground)
+{
+"classname" "trigger_multiple"
+"targetname" "dialog_trigger"
+"windowTarget" "test_dialog"
+"message" "Opens a dialog!"
+{
+( -550 200 0 ) ( -450 200 0 ) ( -550 300 0 ) color_0_200_200 0 0 0 1 1
+( -550 200 48 ) ( -550 300 48 ) ( -450 200 48 ) color_0_200_200 0 0 0 1 1
+( -550 200 0 ) ( -550 200 48 ) ( -450 200 0 ) color_0_150_150 0 0 0 1 1
+( -550 300 0 ) ( -450 300 0 ) ( -550 300 48 ) color_0_150_150 0 0 0 1 1
+( -550 300 0 ) ( -550 300 48 ) ( -550 200 0 ) color_0_180_180 0 0 0 1 1
+( -450 300 0 ) ( -450 200 0 ) ( -450 300 48 ) color_0_180_180 0 0 0 1 1
+}
+}
+
+// Map switch trigger (yellow ground)
+{
+"classname" "trigger_multiple"
+"targetname" "map_switch"
+"targetMap" "test.map"
+"message" "Switch to test.map"
+{
+( -550 350 0 ) ( -450 350 0 ) ( -550 450 0 ) color_255_255_0 0 0 0 1 1
+( -550 350 48 ) ( -550 450 48 ) ( -450 350 48 ) color_255_255_0 0 0 0 1 1
+( -550 350 0 ) ( -550 350 48 ) ( -450 350 0 ) color_200_200_0 0 0 0 1 1
+( -550 450 0 ) ( -450 450 0 ) ( -550 450 48 ) color_200_200_0 0 0 0 1 1
+( -550 450 0 ) ( -550 450 48 ) ( -550 350 0 ) color_220_220_0 0 0 0 1 1
+( -450 450 0 ) ( -450 350 0 ) ( -450 450 48 ) color_220_220_0 0 0 0 1 1
+}
+}
+
+// Spawn trigger (magenta ground)
+{
+"classname" "trigger_multiple"
+"targetname" "spawn_trigger"
+"spawnModel" "test_cube.map"
+"spawnOrigin" "500 250 -16"
+"spawnScale" "1"
+"message" "Spawns a cube!"
+{
+( 450 200 0 ) ( 550 200 0 ) ( 450 300 0 ) color_255_0_255 0 0 0 1 1
+( 450 200 48 ) ( 450 300 48 ) ( 550 200 48 ) color_255_0_255 0 0 0 1 1
+( 450 200 0 ) ( 450 200 48 ) ( 550 200 0 ) color_200_0_200 0 0 0 1 1
+( 450 300 0 ) ( 550 300 0 ) ( 450 300 48 ) color_200_0_200 0 0 0 1 1
+( 450 300 0 ) ( 450 300 48 ) ( 450 200 0 ) color_220_0_220 0 0 0 1 1
+( 550 300 0 ) ( 550 200 0 ) ( 550 300 48 ) color_220_0_220 0 0 0 1 1
+}
+}
+
+// Seed store trigger (green ground)
+{
+"classname" "trigger_multiple"
+"targetname" "seed_store_trigger"
+"windowTarget" "seed_store"
+{
+( 450 350 0 ) ( 550 350 0 ) ( 450 450 0 ) color_100_200_100 0 0 0 1 1
+( 450 350 48 ) ( 450 450 48 ) ( 550 350 48 ) color_100_200_100 0 0 0 1 1
+( 450 350 0 ) ( 450 350 48 ) ( 550 350 0 ) color_80_160_80 0 0 0 1 1
+( 450 450 0 ) ( 550 450 0 ) ( 450 450 48 ) color_80_160_80 0 0 0 1 1
+( 450 450 0 ) ( 450 450 48 ) ( 450 350 0 ) color_90_180_90 0 0 0 1 1
+( 550 450 0 ) ( 550 350 0 ) ( 550 450 48 ) color_90_180_90 0 0 0 1 1
+}
+}
+
+// Supplies store trigger (purple ground)
+{
+"classname" "trigger_multiple"
+"targetname" "supplies_store_trigger"
+"windowTarget" "supplies_store"
+{
+( 450 500 0 ) ( 550 500 0 ) ( 450 600 0 ) color_200_100_200 0 0 0 1 1
+( 450 500 48 ) ( 450 600 48 ) ( 550 500 48 ) color_200_100_200 0 0 0 1 1
+( 450 500 0 ) ( 450 500 48 ) ( 550 500 0 ) color_160_80_160 0 0 0 1 1
+( 450 600 0 ) ( 550 600 0 ) ( 450 600 48 ) color_160_80_160 0 0 0 1 1
+( 450 600 0 ) ( 450 600 48 ) ( 450 500 0 ) color_180_90_180 0 0 0 1 1
+( 550 600 0 ) ( 550 500 0 ) ( 550 600 48 ) color_180_90_180 0 0 0 1 1
+}
+}
+
+// ==================== SPRITE NPCs ====================
+{
+"classname" "npc_sprite"
+"targetname" "sprite_guard"
+"origin" "-600 0 -16"
+"sprite" "test"
+"color" "#4488ff"
+"accentColor" "#ffcc00"
+"scale" "32"
+"angle" "90"
+}
+{
+"classname" "npc_sprite"
+"targetname" "sprite_merchant"
+"origin" "-600 100 -16"
+"sprite" "test"
+"color" "#44ff44"
+"accentColor" "#ffffff"
+"scale" "40"
+"angle" "90"
+}
+{
+"classname" "npc_sprite"
+"targetname" "sprite_enemy"
+"origin" "-600 -100 -16"
+"sprite" "test"
+"color" "#ff4444"
+"accentColor" "#ffff00"
+"scale" "36"
+"angle" "90"
+}
+
+// ==================== 3D NPC CHARACTERS ====================
+{
+"classname" "info_npc"
+"targetname" "npc_mike"
+"name" "Mike the Dealer"
+"preset" "dealer_mike"
+"origin" "600 0 -16"
+"angle" "270"
+}
+{
+"classname" "info_npc"
+"targetname" "npc_sarah"
+"name" "Sarah"
+"preset" "customer_sarah"
+"origin" "600 100 -16"
+"angle" "270"
+}
+{
+"classname" "info_npc"
+"targetname" "npc_tony"
+"name" "Big Tony"
+"preset" "supplier_tony"
+"origin" "600 -100 -16"
+"angle" "270"
+"scale" "1.2"
+}
+{
+"classname" "info_npc"
+"targetname" "npc_alex"
+"name" "Alex"
+"preset" "hipster_alex"
+"origin" "600 200 -16"
+"angle" "270"
+}
+{
+"classname" "info_npc"
+"targetname" "npc_bob"
+"name" "Reggae Bob"
+"preset" "reggae_bob"
+"origin" "600 -200 -16"
+"angle" "270"
+}
+// Random NPC
+{
+"classname" "info_npc"
+"targetname" "npc_random"
+"name" "Random Person"
+"random" "1"
+"origin" "600 300 -16"
+"angle" "270"
+}
+
+// ==================== MISC MODELS ====================
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "200 -400 -16"
+"angle" "0"
+"scale" "1"
+}
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "300 -400 -16"
+"angle" "45"
+"scale" "1.5"
+}
+{
+"classname" "misc_model"
+"model" "test_cube.map"
+"origin" "400 -400 -16"
+"angle" "90"
+"scale" "0.75"
+}
+

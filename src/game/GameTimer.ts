@@ -59,11 +59,18 @@ export class GameTimer {
    */
   public update(): number {
     const now = performance.now();
-    const realDelta = now - this.lastRealTime;
+    let realDelta = now - this.lastRealTime;
     this.lastRealTime = now;
 
     if (this.isPaused) {
       return 0;
+    }
+
+    // Cap delta time to prevent huge jumps when tab is inactive
+    // Max 100ms real-time per frame (10 FPS minimum)
+    const maxDelta = 100;
+    if (realDelta > maxDelta) {
+      realDelta = maxDelta;
     }
 
     // Update real-time tracking
