@@ -4,6 +4,7 @@
 
 import { BuildableObjectManager } from "./BuildableObject";
 import { CuringSystem } from "./CuringSystem";
+import { EventBus } from "../engine/core/EventBus";
 import { GameState, type PlantState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
@@ -1068,9 +1069,13 @@ export class PlantSystem {
   }
 
   private emit(event: string, plantId: string, data?: unknown): void {
+    // Legacy callback system
     for (const callback of this.eventListeners) {
       callback(plantId, event, data);
     }
+    
+    // Global EventBus - allows any system to listen to plant events
+    EventBus.emit(`plant:${event}`, { plantId, ...data as object });
   }
 
   // ==================== Cleanup ====================

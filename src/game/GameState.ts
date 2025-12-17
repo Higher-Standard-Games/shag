@@ -3,6 +3,8 @@
  * Handles player data, resources, and persistence
  */
 
+import { EventBus } from "../engine/core/EventBus";
+
 // Progression config types
 export interface ProgressionConfig {
   leveling: {
@@ -268,17 +270,29 @@ export class GameState {
   // ==================== Player Resources ====================
 
   public addMoney(amount: number): void {
+    const oldAmount = this.state.player.money;
     this.state.player.money += amount;
     if (amount > 0) {
       this.state.stats.moneyEarned = (this.state.stats.moneyEarned ?? 0) + amount;
     }
     this.emit("player");
+    EventBus.emit("player:money_changed", { 
+      oldAmount, 
+      newAmount: this.state.player.money, 
+      delta: amount 
+    });
   }
 
   public spendMoney(amount: number): boolean {
     if (this.state.player.money >= amount) {
+      const oldAmount = this.state.player.money;
       this.state.player.money -= amount;
       this.emit("player");
+      EventBus.emit("player:money_changed", { 
+        oldAmount, 
+        newAmount: this.state.player.money, 
+        delta: -amount 
+      });
       return true;
     }
     return false;
@@ -299,10 +313,11 @@ export class GameState {
     return this.progressionConfig;
   }
 
-  public addXP(amount: number): void {
+  public addXP(amount: number, source?: string): void {
     this.state.player.xp += amount;
     this.checkLevelUp();
     this.emit("player");
+    EventBus.emit("player:xp_gained", { amount, source: source ?? "unknown" });
   }
 
   /**
@@ -353,6 +368,10 @@ export class GameState {
     
     if (leveledUp) {
       this.emit("levelup");
+      EventBus.emit("player:levelup", { 
+        oldLevel: this.state.player.level - 1, 
+        newLevel: this.state.player.level 
+      });
     }
   }
 

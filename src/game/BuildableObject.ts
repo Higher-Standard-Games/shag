@@ -12,6 +12,7 @@ import {
   TransformNode,
   Vector3,
 } from "babylonjs";
+import { EventBus } from "../engine/core/EventBus";
 import { PrefabInstance } from "../loader/PrefabInstance";
 import { GameTimer } from "./GameTimer";
 
@@ -514,9 +515,13 @@ export class BuildableObjectManager {
   }
 
   private emit(event: string, objectId: string, data?: unknown): void {
+    // Legacy callback system
     for (const callback of this.eventListeners) {
       callback(objectId, event, data);
     }
+    
+    // Global EventBus - allows any system to listen to building events
+    EventBus.emit(`building:${event}`, { objectId, ...data as object });
   }
 
   // ==================== Serialization ====================
