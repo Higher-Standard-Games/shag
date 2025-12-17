@@ -10,6 +10,32 @@ import { GameState, type PlantState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
 
+/**
+ * Light intensity levels for grow lamps
+ */
+export type LightIntensity = "low" | "medium" | "high";
+
+/**
+ * Pot size categories
+ */
+export type PotSize = "small" | "medium" | "large";
+
+/**
+ * Nutrient demand levels
+ */
+export type NutrientDemand = "light" | "medium" | "heavy";
+
+/**
+ * Environment preferences for a strain
+ */
+export interface StrainEnvironment {
+  lightIntensity: LightIntensity; // Required light level for optimal growth
+  humidityMin: number; // Minimum humidity % (40-80)
+  humidityMax: number; // Maximum humidity % (40-80)
+  potSize: PotSize; // Preferred pot size
+  nutrientDemand: NutrientDemand; // How much nutrients the strain needs
+}
+
 export interface StrainDefinition {
   id: string;
   name: string;
@@ -38,27 +64,33 @@ export interface StrainDefinition {
   // Seed drop mechanics
   seedDropChance?: number; // Chance to drop a seed on harvest (0-1, default: 0.1 = 10%)
   rareSeedDrops?: Array<{ strainId: string; chance: number }>; // Rare seeds that can drop
+  // Environment preferences (optional for backwards compatibility)
+  environment?: StrainEnvironment;
 }
 
 /**
- * Pot types - affect grow speed
+ * Pot types - affect grow speed and have size categories
  */
 export interface PotDefinition {
   id: string;
   name: string;
+  size: PotSize; // small/medium/large - affects strain compatibility
   growthSpeedMultiplier: number; // 1.0 = normal, 0.5 = 2x faster
+  yieldMultiplier: number; // 1.0 = normal, affects max yield based on size
   cost: number;
   unlockLevel: number;
   description: string;
 }
 
 /**
- * Grow room lighting levels - passive yield bonus
+ * Grow room lighting levels - passive yield bonus and intensity
  */
 export interface LightingLevel {
   level: number;
   name: string;
+  intensity: LightIntensity; // low/medium/high - affects strain compatibility
   yieldBonus: number; // percentage bonus (0.1 = 10%)
+  growthSpeedBonus: number; // speed bonus (0.1 = 10% faster)
   cost: number;
   unlockLevel: number;
 }
@@ -566,6 +598,163 @@ export class PlantSystem {
     };
   }
 
+  // ==================== Environment Matching System ====================
+
+  /**
+   * Calculate environment match score for a plant
+   * Returns multipliers for yield and growth speed based on how well
+   * the growing conditions match the strain's preferences
+   */
+  public getEnvironmentMatch(plantId: string): {
+    potSizeMatch: boolean;
+    lightIntensityMatch: boolean;
+    overallScore: number; // 0-100
+    yieldMultiplier: number; // 0.5-1.5
+    speedMultiplier: number; // 0.5-1.5
+    details: {
+      potSize: { preferred: PotSize; actual: PotSize; bonus: number };
+      lightIntensity: { preferred: LightIntensity; actual: LightIntensity; bonus: number };
+    };
+  } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return null;
+
+    const pot = this.getPot(plant.potType);
+    if (!pot) return null;
+
+    const currentLighting = this.lightingLevels.find(l => l.level === this.currentLightingLevel);
+    
+    // Default environment if strain doesn't have one defined
+    const env = strain.environment ?? {
+      lightIntensity: "medium" as LightIntensity,
+      humidityMin: 45,
+      humidityMax: 65,
+      potSize: "medium" as PotSize,
+      nutrientDemand: "medium" as NutrientDemand,
+    };
+
+    // Pot size matching
+    const potSizeMatch = pot.size === env.potSize;
+    const potSizeBonus = this.calculatePotSizeBonus(pot.size, env.potSize);
+
+    // Light intensity matching
+    const actualIntensity = currentLighting?.intensity ?? "low";
+    const lightIntensityMatch = actualIntensity === env.lightIntensity;
+    const lightIntensityBonus = this.calculateLightIntensityBonus(actualIntensity, env.lightIntensity);
+
+    // Calculate overall score (0-100)
+    const potScore = potSizeMatch ? 50 : (potSizeBonus > 0 ? 25 : 0);
+    const lightScore = lightIntensityMatch ? 50 : (lightIntensityBonus > 0 ? 25 : 0);
+    const overallScore = potScore + lightScore;
+
+    // Calculate multipliers
+    // Perfect match = 1.0, mismatch = penalty, over-spec = small bonus
+    const baseYieldMultiplier = 1.0 + potSizeBonus + lightIntensityBonus;
+    const baseSpeedMultiplier = 1.0 + (lightIntensityBonus * 0.5); // Light affects speed more
+
+    return {
+      potSizeMatch,
+      lightIntensityMatch,
+      overallScore,
+      yieldMultiplier: Math.max(0.5, Math.min(1.5, baseYieldMultiplier)),
+      speedMultiplier: Math.max(0.5, Math.min(1.5, baseSpeedMultiplier)),
+      details: {
+        potSize: { preferred: env.potSize, actual: pot.size, bonus: potSizeBonus },
+        lightIntensity: { preferred: env.lightIntensity, actual: actualIntensity, bonus: lightIntensityBonus },
+      },
+    };
+  }
+
+  /**
+   * Calculate pot size bonus/penalty
+   * Matching = 0 (neutral), undersized = penalty, oversized = small bonus
+   */
+  private calculatePotSizeBonus(actual: PotSize, preferred: PotSize): number {
+    const sizeOrder: PotSize[] = ["small", "medium", "large"];
+    const actualIndex = sizeOrder.indexOf(actual);
+    const preferredIndex = sizeOrder.indexOf(preferred);
+    const diff = actualIndex - preferredIndex;
+
+    if (diff === 0) return 0; // Perfect match
+    if (diff > 0) return 0.05 * diff; // Oversized: +5% per size up
+    return -0.15 * Math.abs(diff); // Undersized: -15% per size down (penalty)
+  }
+
+  /**
+   * Calculate light intensity bonus/penalty
+   * Matching = 0 (neutral), under-lit = penalty, over-lit = small bonus
+   */
+  private calculateLightIntensityBonus(actual: LightIntensity, preferred: LightIntensity): number {
+    const intensityOrder: LightIntensity[] = ["low", "medium", "high"];
+    const actualIndex = intensityOrder.indexOf(actual);
+    const preferredIndex = intensityOrder.indexOf(preferred);
+    const diff = actualIndex - preferredIndex;
+
+    if (diff === 0) return 0; // Perfect match
+    if (diff > 0) return 0.05 * diff; // Over-lit: +5% per level
+    return -0.2 * Math.abs(diff); // Under-lit: -20% per level (bigger penalty)
+  }
+
+  /**
+   * Get a summary of environment conditions for UI display
+   */
+  public getEnvironmentSummary(plantId: string): {
+    temperature: { value: number; status: "cold" | "optimal" | "hot" };
+    potSize: { value: PotSize; status: "undersized" | "optimal" | "oversized" };
+    lighting: { value: LightIntensity; status: "insufficient" | "optimal" | "excess" };
+    overallRating: "poor" | "fair" | "good" | "excellent";
+  } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return null;
+
+    const pot = this.getPot(plant.potType);
+    if (!pot) return null;
+
+    const tempStatus = this.getTemperatureStatus(plantId);
+    const envMatch = this.getEnvironmentMatch(plantId);
+
+    if (!tempStatus || !envMatch) return null;
+
+    // Temperature status
+    let tempStatusLabel: "cold" | "optimal" | "hot" = "optimal";
+    if (plant.temperature < (strain.preferredTempMin ?? 68)) tempStatusLabel = "cold";
+    else if (plant.temperature > (strain.preferredTempMax ?? 78)) tempStatusLabel = "hot";
+
+    // Pot size status
+    let potStatus: "undersized" | "optimal" | "oversized" = "optimal";
+    if (!envMatch.potSizeMatch) {
+      potStatus = envMatch.details.potSize.bonus > 0 ? "oversized" : "undersized";
+    }
+
+    // Light status
+    let lightStatus: "insufficient" | "optimal" | "excess" = "optimal";
+    if (!envMatch.lightIntensityMatch) {
+      lightStatus = envMatch.details.lightIntensity.bonus > 0 ? "excess" : "insufficient";
+    }
+
+    // Overall rating based on score
+    let overallRating: "poor" | "fair" | "good" | "excellent" = "poor";
+    const score = envMatch.overallScore + (tempStatus.isOptimal ? 25 : 0);
+    if (score >= 100) overallRating = "excellent";
+    else if (score >= 75) overallRating = "good";
+    else if (score >= 50) overallRating = "fair";
+
+    const currentLighting = this.lightingLevels.find(l => l.level === this.currentLightingLevel);
+
+    return {
+      temperature: { value: plant.temperature, status: tempStatusLabel },
+      potSize: { value: pot.size, status: potStatus },
+      lighting: { value: currentLighting?.intensity ?? "low", status: lightStatus },
+      overallRating,
+    };
+  }
+
   // ==================== Fertilizer ====================
 
   /**
@@ -673,6 +862,14 @@ export class PlantSystem {
     const growLightMultipliers = this.getGrowLightMultipliers(plantId);
     const growLightYieldMultiplier = growLightMultipliers.yieldMultiplier;
     
+    // Pot yield multiplier (based on pot size and quality)
+    const pot = this.getPot(plant.potType);
+    const potYieldMultiplier = pot?.yieldMultiplier ?? 1.0;
+    
+    // Environment matching bonus (pot size + light intensity match with strain preferences)
+    const envMatch = this.getEnvironmentMatch(plantId);
+    const envYieldMultiplier = envMatch?.yieldMultiplier ?? 1.0;
+    
     // Equipment yield bonus (CO2, etc.)
     const equipmentYieldBonus = EquipmentSystem.getInstance().getBonus(
       "yield_bonus",
@@ -692,7 +889,7 @@ export class PlantSystem {
     // Final yield calculation
     const rawYield = base + waterBonus + tempBonus + lightBonus + masteryBonus;
     const equipmentYieldMultiplier = 1 + equipmentYieldBonus;
-    const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * equipmentYieldMultiplier));
+    const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * potYieldMultiplier * envYieldMultiplier * equipmentYieldMultiplier));
     
     // XP calculation
     const xp = Math.max(1, Math.floor(strain.xpReward * qualityMultiplier * healthMultiplier));
@@ -968,6 +1165,15 @@ export class PlantSystem {
     const lightMultipliers = this.getGrowLightMultipliers(plant.id);
     const lightSpeedPenalty = lightMultipliers.speedMultiplier;
 
+    // Lighting level speed bonus (from room lighting upgrades)
+    const currentLighting = this.lightingLevels.find(l => l.level === this.currentLightingLevel);
+    const lightingSpeedBonus = currentLighting?.growthSpeedBonus ?? 0;
+    const lightingSpeedMultiplier = 1 / (1 + lightingSpeedBonus); // Convert bonus to faster time
+
+    // Environment matching speed bonus (pot size + light intensity match)
+    const envMatch = this.getEnvironmentMatch(plant.id);
+    const envSpeedMultiplier = envMatch ? (1 / envMatch.speedMultiplier) : 1.0; // Invert: higher = faster
+
     // Equipment bonuses (fans, CO2, etc.)
     const equipmentSpeedBonus = EquipmentSystem.getInstance().getBonus(
       "growth_speed",
@@ -976,8 +1182,8 @@ export class PlantSystem {
     );
     const equipmentSpeedMultiplier = 1 / (1 + equipmentSpeedBonus); // Convert bonus to faster time
 
-    // Combined speed multiplier (pot + fertilizer + light penalty + equipment)
-    const speedMultiplier = potSpeedMultiplier * fertilizerBoost * lightSpeedPenalty * equipmentSpeedMultiplier;
+    // Combined speed multiplier (pot + fertilizer + light penalty + lighting level + env match + equipment)
+    const speedMultiplier = potSpeedMultiplier * fertilizerBoost * lightSpeedPenalty * lightingSpeedMultiplier * envSpeedMultiplier * equipmentSpeedMultiplier;
 
     // Calculate time since last update (adjusted for speed boosts)
     const timeSincePlanted = currentTime - plant.plantedAt;

@@ -30,6 +30,13 @@
       "tier": 1,
       "specialTraits": ["drought_master"],
       "unlockLevel": 1,
+      "environment": {
+        "lightIntensity": "low",
+        "humidityMin": 40,
+        "humidityMax": 60,
+        "potSize": "small",
+        "nutrientDemand": "light"
+      },
       "gameplay": {
         "growthTime": 360000,
         "stages": 4,
@@ -79,6 +86,13 @@
       "tier": 1,
       "specialTraits": ["giant_growth"],
       "unlockLevel": 1,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 45,
+        "humidityMax": 65,
+        "potSize": "large",
+        "nutrientDemand": "medium"
+      },
       "gameplay": {
         "growthTime": 420000,
         "stages": 5,
@@ -128,6 +142,13 @@
       "tier": 2,
       "specialTraits": ["exotic_flavor"],
       "unlockLevel": 3,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 50,
+        "humidityMax": 70,
+        "potSize": "large",
+        "nutrientDemand": "medium"
+      },
       "gameplay": {
         "growthTime": 540000,
         "stages": 5,
@@ -183,6 +204,13 @@
       "tier": 2,
       "specialTraits": [],
       "unlockLevel": 3,
+      "environment": {
+        "lightIntensity": "medium",
+        "humidityMin": 45,
+        "humidityMax": 55,
+        "potSize": "medium",
+        "nutrientDemand": "heavy"
+      },
       "gameplay": {
         "growthTime": 600000,
         "stages": 5,
@@ -240,6 +268,13 @@
       "tier": 1,
       "specialTraits": ["heavy_yield"],
       "unlockLevel": 1,
+      "environment": {
+        "lightIntensity": "medium",
+        "humidityMin": 40,
+        "humidityMax": 60,
+        "potSize": "medium",
+        "nutrientDemand": "heavy"
+      },
       "gameplay": {
         "growthTime": 330000,
         "stages": 4,
@@ -297,6 +332,13 @@
       "tier": 3,
       "specialTraits": ["high_thc", "frost_giant"],
       "unlockLevel": 5,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 45,
+        "humidityMax": 55,
+        "potSize": "medium",
+        "nutrientDemand": "heavy"
+      },
       "gameplay": {
         "growthTime": 780000,
         "stages": 5,
@@ -353,6 +395,13 @@
       "tier": 4,
       "specialTraits": ["frost_giant", "purple_pheno", "exotic_flavor"],
       "unlockLevel": 7,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 45,
+        "humidityMax": 55,
+        "potSize": "medium",
+        "nutrientDemand": "heavy"
+      },
       "gameplay": {
         "growthTime": 720000,
         "stages": 5,
@@ -410,6 +459,13 @@
       "tier": 5,
       "specialTraits": ["high_thc", "frost_giant", "purple_pheno", "exotic_flavor", "balanced_hybrid"],
       "unlockLevel": 10,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 45,
+        "humidityMax": 55,
+        "potSize": "large",
+        "nutrientDemand": "heavy"
+      },
       "gameplay": {
         "growthTime": 900000,
         "stages": 6,

@@ -53,6 +53,13 @@ interface RawStrain {
   tier: GeneticTier;
   specialTraits: SpecialTrait[];
   unlockLevel: number;
+  environment: {
+    lightIntensity: "low" | "medium" | "high";
+    humidityMin: number;
+    humidityMax: number;
+    potSize: "small" | "medium" | "large";
+    nutrientDemand: "light" | "medium" | "heavy";
+  };
   gameplay: {
     growthTime: number;
     stages: number;
@@ -112,6 +119,7 @@ export function toStrainDefinition(raw: RawStrain): StrainDefinition {
     curingTime: raw.gameplay.curingTime,
     seedDropChance: raw.gameplay.seedDropChance,
     rareSeedDrops: raw.gameplay.rareSeedDrops,
+    environment: raw.environment,
   };
 }
 

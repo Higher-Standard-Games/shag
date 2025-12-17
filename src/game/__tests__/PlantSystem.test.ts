@@ -77,7 +77,9 @@ const TEST_POTS: PotDefinition[] = [
   {
     id: "basic",
     name: "Basic Pot",
+    size: "medium",
     growthSpeedMultiplier: 1.0,
+    yieldMultiplier: 1.0,
     cost: 0,
     unlockLevel: 1,
     description: "Standard pot",
@@ -85,7 +87,9 @@ const TEST_POTS: PotDefinition[] = [
   {
     id: "magic",
     name: "Magic Pot",
+    size: "medium",
     growthSpeedMultiplier: 0.5, // 2x faster
+    yieldMultiplier: 1.2,
     cost: 1000,
     unlockLevel: 5,
     description: "Grows plants twice as fast",
@@ -93,8 +97,8 @@ const TEST_POTS: PotDefinition[] = [
 ];
 
 const TEST_LIGHTING: LightingLevel[] = [
-  { level: 1, name: "Basic", yieldBonus: 0, cost: 0, unlockLevel: 1 },
-  { level: 2, name: "LED", yieldBonus: 0.2, cost: 500, unlockLevel: 3 },
+  { level: 1, name: "Basic", intensity: "low", yieldBonus: 0, growthSpeedBonus: 0, cost: 0, unlockLevel: 1 },
+  { level: 2, name: "LED", intensity: "medium", yieldBonus: 0.2, growthSpeedBonus: 0.1, cost: 500, unlockLevel: 3 },
 ];
 
 describe("PlantSystem", () => {

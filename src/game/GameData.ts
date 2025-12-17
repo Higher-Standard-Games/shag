@@ -183,71 +183,147 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
 ];
 
 // ==================== Pot Types ====================
-// Pots affect grow speed - better pots = faster growth
+// Pots affect grow speed and have size categories for strain compatibility
 
 export const POT_TYPES: PotDefinition[] = [
   {
-    id: "basic",
-    name: "Basic Pot",
+    id: "basic_small",
+    name: "Small Clay Pot",
+    size: "small",
     growthSpeedMultiplier: 1.0, // Normal speed
+    yieldMultiplier: 0.8, // 80% yield - limited root space
     cost: 0, // Free starter pot
     unlockLevel: 1,
-    description: "A simple clay pot. Gets the job done.",
+    description: "A simple small pot. Good for compact indica strains.",
   },
   {
-    id: "smart",
-    name: "Smart Pot",
-    growthSpeedMultiplier: 0.75, // 25% faster (0.75x time = 1.33x speed)
+    id: "basic_medium",
+    name: "Medium Clay Pot",
+    size: "medium",
+    growthSpeedMultiplier: 1.0, // Normal speed
+    yieldMultiplier: 1.0, // 100% yield - balanced
+    cost: 100,
+    unlockLevel: 1,
+    description: "A versatile medium pot. Works for most strains.",
+  },
+  {
+    id: "basic_large",
+    name: "Large Clay Pot",
+    size: "large",
+    growthSpeedMultiplier: 1.1, // 10% slower (more soil to manage)
+    yieldMultiplier: 1.2, // 120% yield - more root space
+    cost: 250,
+    unlockLevel: 2,
+    description: "A spacious pot for tall sativas. Higher yield potential.",
+  },
+  {
+    id: "smart_small",
+    name: "Small Smart Pot",
+    size: "small",
+    growthSpeedMultiplier: 0.85, // 15% faster
+    yieldMultiplier: 0.9, // 90% yield
+    cost: 300,
+    unlockLevel: 3,
+    description: "Fabric pot with air pruning. Faster growth for small plants.",
+  },
+  {
+    id: "smart_medium",
+    name: "Medium Smart Pot",
+    size: "medium",
+    growthSpeedMultiplier: 0.8, // 20% faster
+    yieldMultiplier: 1.1, // 110% yield
     cost: 500,
     unlockLevel: 3,
-    description: "Fabric pot with better drainage. Plants grow 25% faster.",
+    description: "Premium fabric pot. Great drainage and aeration.",
   },
   {
-    id: "magic",
-    name: "Magic Pot",
-    growthSpeedMultiplier: 0.5, // 50% faster (0.5x time = 2x speed)
-    cost: 2000,
+    id: "smart_large",
+    name: "Large Smart Pot",
+    size: "large",
+    growthSpeedMultiplier: 0.85, // 15% faster
+    yieldMultiplier: 1.3, // 130% yield
+    cost: 800,
+    unlockLevel: 4,
+    description: "Large fabric pot for maximum yield potential.",
+  },
+  {
+    id: "hydro_small",
+    name: "Small Hydro System",
+    size: "small",
+    growthSpeedMultiplier: 0.6, // 40% faster
+    yieldMultiplier: 1.0, // 100% yield
+    cost: 1500,
+    unlockLevel: 5,
+    description: "Compact hydroponic system. Blazing fast growth!",
+  },
+  {
+    id: "hydro_medium",
+    name: "Medium Hydro System",
+    size: "medium",
+    growthSpeedMultiplier: 0.5, // 50% faster
+    yieldMultiplier: 1.2, // 120% yield
+    cost: 2500,
     unlockLevel: 6,
-    description: "Premium hydroponic pot. Plants grow twice as fast!",
+    description: "Professional hydro setup. Speed and yield combined.",
+  },
+  {
+    id: "hydro_large",
+    name: "Large Hydro System",
+    size: "large",
+    growthSpeedMultiplier: 0.5, // 50% faster
+    yieldMultiplier: 1.5, // 150% yield
+    cost: 4000,
+    unlockLevel: 7,
+    description: "Industrial hydroponic system. Maximum everything!",
   },
 ];
 
 // ==================== Lighting Levels ====================
-// Passive yield bonus from grow room equipment
+// Passive yield bonus from grow room equipment with intensity for strain compatibility
 
 export const LIGHTING_LEVELS: LightingLevel[] = [
   {
     level: 1,
     name: "Basic Bulb",
+    intensity: "low",
     yieldBonus: 0, // No bonus
+    growthSpeedBonus: 0, // No speed bonus
     cost: 0,
     unlockLevel: 1,
   },
   {
     level: 2,
     name: "CFL Lights",
+    intensity: "low",
     yieldBonus: 0.1, // +10% yield
+    growthSpeedBonus: 0.05, // +5% speed
     cost: 300,
     unlockLevel: 2,
   },
   {
     level: 3,
     name: "LED Panel",
+    intensity: "medium",
     yieldBonus: 0.2, // +20% yield
+    growthSpeedBonus: 0.1, // +10% speed
     cost: 800,
     unlockLevel: 4,
   },
   {
     level: 4,
     name: "HPS System",
+    intensity: "high",
     yieldBonus: 0.3, // +30% yield
+    growthSpeedBonus: 0.15, // +15% speed
     cost: 2000,
     unlockLevel: 6,
   },
   {
     level: 5,
     name: "Pro Grow Lights",
+    intensity: "high",
     yieldBonus: 0.5, // +50% yield
+    growthSpeedBonus: 0.25, // +25% speed
     cost: 5000,
     unlockLevel: 8,
   },
