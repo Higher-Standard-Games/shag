@@ -309,6 +309,17 @@ export class PlantSystem {
     console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z}) in ${potType} pot at ${initialTemp}°F`);
     this.emit("planted", plant.id, { strain: strainId, potType, temperature: initialTemp });
 
+    // Mark the pot as having a plant (for visual update)
+    const buildableManager = BuildableObjectManager.getInstance();
+    const allObjects = Array.from(buildableManager.getObjectsInMap(mapId));
+    const potAtPosition = allObjects.find(obj => 
+      Math.abs(obj.position.x - position.x) < 5 &&
+      Math.abs(obj.position.z - position.z) < 5
+    );
+    if (potAtPosition) {
+      buildableManager.setPlantInPot(potAtPosition.id, true);
+    }
+
     return plant;
   }
 

@@ -90,6 +90,8 @@ export interface BuildableObjectState {
   isComplete: boolean;
   /** Last production time (for producers) */
   lastProduction?: number;
+  /** Whether a plant has been planted in this pot (for plant zone types) */
+  hasPlant?: boolean;
 }
 
 type ObjectEventCallback = (objectId: string, event: string, data?: unknown) => void;
@@ -317,10 +319,18 @@ export class BuildableObjectManager {
       this.visuals.delete(state.id);
     }
 
+    // Determine which prefab to use
+    let prefabPath = stage.prefab;
+    
+    // For plant pots: if complete but no plant, show empty pot instead of plant stages
+    if (template.zoneType === "plant" && state.isComplete && !state.hasPlant) {
+      prefabPath = "pot_empty.map";
+    }
+
     // Create new visual
-    if (stage.prefab) {
+    if (prefabPath) {
       try {
-        const result = await PrefabInstance.create(stage.prefab, this.scene, {
+        const result = await PrefabInstance.create(prefabPath, this.scene, {
           position: new Vector3(state.position.x, state.position.y, state.position.z),
           scale: stage.scale || 1,
         });
@@ -406,17 +416,35 @@ export class BuildableObjectManager {
     const template = this.templates.get(state.templateId);
     if (!template || template.zoneType !== "plant") return;
 
-    // Reset to empty state
-    state.progress = 0;
-    state.currentStage = 0;
-    state.isComplete = false;
-    state.startedAt = GameTimer.getInstance().getGameTime();
+    // Reset to empty state - pot is complete but no plant
+    state.progress = 100; // Pot is still built
+    state.currentStage = template.stages.length - 1;
+    state.isComplete = true;
+    state.hasPlant = false; // No plant in pot
 
     // Update visual to show empty pot
     await this.updateVisual(state);
     
     console.log(`Reset pot ${id} to empty state`);
     this.emit("pot_reset", id, { state });
+  }
+
+  /**
+   * Mark a pot as having a plant (after seed is planted)
+   */
+  public async setPlantInPot(id: string, hasPlant: boolean): Promise<void> {
+    const state = this.objects.get(id);
+    if (!state) return;
+
+    const template = this.templates.get(state.templateId);
+    if (!template || template.zoneType !== "plant") return;
+
+    state.hasPlant = hasPlant;
+    
+    // Update visual - will show plant stages if hasPlant, empty pot if not
+    await this.updateVisual(state);
+    
+    console.log(`Pot ${id} hasPlant set to ${hasPlant}`);
   }
 
   /**
