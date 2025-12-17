@@ -12,9 +12,9 @@ import { BuildableObjectManager } from "../game/BuildableObject";
 import { BuildingSystem } from "../game/BuildingSystem";
 import { GameState } from "../game/GameState";
 import { HarvestIndicator } from "../game/HarvestIndicator";
-import { PlantSystem } from "../game/PlantSystem";
 import { PrefabInstance } from "../loader/PrefabInstance";
 import { GameHUD } from "../ui/GameHUD";
+import { SeedSelectionPopup } from "../ui/SeedSelectionPopup";
 import { UIManager } from "../ui/UIManager";
 
 export class RTSCameraController {
@@ -116,22 +116,23 @@ export class RTSCameraController {
                       // Show plant info panel
                       GameHUD.getInstance().showPlantInfo(plant.id);
                     } else {
-                      // No plant in this pot - auto-plant a basic seed if available
-                      const plantSystem = PlantSystem.getInstance();
-                      const hasSeeds = GameState.getInstance().hasItem("seed_basic");
-                      if (hasSeeds) {
-                        const newPlant = plantSystem.plantSeed(
-                          "basic",
-                          buildableObj.position,
-                          buildableObj.mapId
-                        );
-                        if (newPlant) {
-                          GameHUD.getInstance().showPlantInfo(newPlant.id);
-                          GameHUD.getInstance().showNotification("Planted a seed!", "success");
+                      // No plant in this pot - show seed selection popup
+                      SeedSelectionPopup.show(
+                        buildableObj.position,
+                        buildableObj.mapId,
+                        (result) => {
+                          // Find the newly planted plant and show info
+                          const newPlants = GameState.getInstance().getPlants();
+                          const newPlant = newPlants.find(p => 
+                            Math.abs(p.position.x - buildableObj.position.x) < 5 &&
+                            Math.abs(p.position.z - buildableObj.position.z) < 5
+                          );
+                          if (newPlant) {
+                            GameHUD.getInstance().showPlantInfo(newPlant.id);
+                            GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
+                          }
                         }
-                      } else {
-                        GameHUD.getInstance().showNotification("No seeds available!", "warning");
-                      }
+                      );
                     }
                   }
                 }

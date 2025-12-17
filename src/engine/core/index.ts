@@ -42,3 +42,9 @@ export type {
   TimerOptions,
   TimerState,
 } from "./TimerManager";
+
+export { PopupSystem } from "./PopupSystem";
+export type {
+  PopupButton,
+  PopupConfig,
+} from "./PopupSystem";

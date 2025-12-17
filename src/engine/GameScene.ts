@@ -22,6 +22,8 @@ import { BuildMenu } from "../ui/BuildMenu";
 import { GameHUD } from "../ui/GameHUD";
 import { OrderPanel } from "../ui/OrderPanel";
 import { QuestPanel } from "../ui/QuestPanel";
+import { HarvestCelebration } from "../ui/HarvestCelebration";
+import { WaterPromptUI } from "../ui/WaterPromptUI";
 import { AssetLoader } from "./AssetLoader";
 import { AudioManager } from "./AudioManager";
 import { MapRenderer } from "./MapRenderer";
@@ -274,6 +276,22 @@ export class GameScene {
     BuildMenu.getInstance().show();
     OrderPanel.getInstance().show();
     QuestPanel.getInstance().show();
+    
+    // Initialize water prompt UI with screen position converter
+    WaterPromptUI.getInstance().init((worldPos) => {
+      if (!this.scene || !this.camera) return null;
+      const pos = new Vector3(worldPos.x, worldPos.y, worldPos.z);
+      const screenPos = Vector3.Project(
+        pos,
+        this.scene.getTransformMatrix(),
+        this.scene.getProjectionMatrix(),
+        this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight())
+      );
+      return { x: screenPos.x, y: screenPos.y };
+    });
+    
+    // Initialize harvest celebration (listens for harvest events)
+    HarvestCelebration.init();
 
     this.engine.runRenderLoop(() => {
       if (!this.scene || !this.camera) return;

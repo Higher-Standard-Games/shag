@@ -1,0 +1,347 @@
+/**
+ * SeedSelectionPopup - UI for selecting which seed to plant in an empty pot
+ * 
+ * Shows available seeds from inventory with strain info (grow time, yield, etc.)
+ */
+
+import { PopupSystem } from "../engine/core/PopupSystem";
+import { GameState } from "../game/GameState";
+import { PlantSystem, StrainDefinition } from "../game/PlantSystem";
+
+export interface SeedSelectionResult {
+  strainId: string;
+  seedItemId: string;
+}
+
+export class SeedSelectionPopup {
+  private static styleInjected: boolean = false;
+
+  /**
+   * Show seed selection popup for an empty pot
+   * @param potPosition Position of the pot (for planting)
+   * @param mapId Current map ID
+   * @param onSelect Callback when seed is selected
+   * @param onCancel Callback when cancelled
+   */
+  public static show(
+    potPosition: { x: number; y: number; z: number },
+    mapId: string,
+    onSelect?: (result: SeedSelectionResult) => void,
+    onCancel?: () => void
+  ): void {
+    this.injectStyles();
+
+    const content = this.buildContent();
+
+    PopupSystem.show({
+      id: "seed_selection",
+      title: "🌱 Select a Seed to Plant",
+      content,
+      width: "450px",
+      position: "center",
+      closeOnOverlay: true,
+      closeOnEscape: true,
+      onClose: onCancel,
+      onButton: (action) => {
+        if (action.startsWith("plant:")) {
+          const strainId = action.replace("plant:", "");
+          const strain = PlantSystem.getInstance().getStrain(strainId);
+          if (strain) {
+            PopupSystem.close("seed_selection");
+            if (onSelect) {
+              onSelect({ strainId, seedItemId: strain.seedId });
+            }
+          }
+        }
+      },
+    });
+
+    // Add click handlers to seed items
+    this.attachSeedClickHandlers(potPosition, mapId, onSelect);
+  }
+
+  private static buildContent(): string {
+    const gameState = GameState.getInstance();
+    const plantSystem = PlantSystem.getInstance();
+    const allStrains = plantSystem.getAllStrains();
+    const playerLevel = gameState.getPlayer().level;
+
+    // Group seeds by availability
+    const availableSeeds: { strain: StrainDefinition; count: number }[] = [];
+    const lockedSeeds: { strain: StrainDefinition; reason: string }[] = [];
+    const noStockSeeds: { strain: StrainDefinition }[] = [];
+
+    for (const strain of allStrains) {
+      const seedCount = gameState.getItemCount(strain.seedId);
+      
+      if (strain.unlockLevel > playerLevel) {
+        lockedSeeds.push({ strain, reason: `Requires Level ${strain.unlockLevel}` });
+      } else if (seedCount === 0) {
+        noStockSeeds.push({ strain });
+      } else {
+        availableSeeds.push({ strain, count: seedCount });
+      }
+    }
+
+    let html = "";
+
+    // Available seeds
+    if (availableSeeds.length > 0) {
+      html += `<div class="seed-section">`;
+      for (const { strain, count } of availableSeeds) {
+        html += this.renderSeedItem(strain, count, true);
+      }
+      html += `</div>`;
+    }
+
+    // No stock seeds
+    if (noStockSeeds.length > 0) {
+      html += `<div class="seed-section seed-section-dimmed">
+        <div class="seed-section-label">No Seeds Available</div>`;
+      for (const { strain } of noStockSeeds) {
+        html += this.renderSeedItem(strain, 0, false, "Buy seeds from the shop");
+      }
+      html += `</div>`;
+    }
+
+    // Locked seeds
+    if (lockedSeeds.length > 0) {
+      html += `<div class="seed-section seed-section-locked">
+        <div class="seed-section-label">🔒 Locked Strains</div>`;
+      for (const { strain, reason } of lockedSeeds) {
+        html += this.renderSeedItem(strain, 0, false, reason);
+      }
+      html += `</div>`;
+    }
+
+    // Empty state
+    if (availableSeeds.length === 0 && noStockSeeds.length === 0 && lockedSeeds.length === 0) {
+      html = `
+        <div class="seed-empty">
+          <div class="seed-empty-icon">🌱</div>
+          <div class="seed-empty-text">No strains registered</div>
+        </div>
+      `;
+    }
+
+    // Tip
+    if (availableSeeds.length === 0 && noStockSeeds.length > 0) {
+      html += `
+        <div class="seed-tip">
+          💡 Visit the <strong>Seed Shop</strong> to buy seeds!
+        </div>
+      `;
+    }
+
+    return html;
+  }
+
+  private static renderSeedItem(
+    strain: StrainDefinition,
+    count: number,
+    available: boolean,
+    disabledReason?: string
+  ): string {
+    const growTimeMin = Math.round(strain.growthTime / 60000);
+    const yieldStr = `${strain.baseYield}g`;
+    const valueStr = `$${strain.valuePerGram}/g`;
+
+    return `
+      <div class="seed-item ${available ? "seed-item-available" : "seed-item-disabled"}" 
+           data-strain-id="${strain.id}"
+           ${available ? "" : `title="${disabledReason || "Not available"}"`}>
+        <div class="seed-item-icon">🌱</div>
+        <div class="seed-item-info">
+          <div class="seed-item-name">${strain.name}</div>
+          <div class="seed-item-stats">
+            <span class="seed-stat">⏱️ ${growTimeMin}min</span>
+            <span class="seed-stat">📦 ${yieldStr}</span>
+            <span class="seed-stat">💰 ${valueStr}</span>
+          </div>
+          ${disabledReason ? `<div class="seed-item-reason">${disabledReason}</div>` : ""}
+        </div>
+        <div class="seed-item-count">
+          ${available ? `<span class="seed-count">${count}</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  private static attachSeedClickHandlers(
+    potPosition: { x: number; y: number; z: number },
+    mapId: string,
+    onSelect?: (result: SeedSelectionResult) => void
+  ): void {
+    const popup = PopupSystem.getElement("seed_selection");
+    if (!popup) return;
+
+    popup.querySelectorAll(".seed-item-available").forEach((item) => {
+      item.addEventListener("click", () => {
+        const strainId = (item as HTMLElement).dataset.strainId;
+        if (!strainId) return;
+
+        const strain = PlantSystem.getInstance().getStrain(strainId);
+        if (!strain) return;
+
+        // Plant the seed
+        const plant = PlantSystem.getInstance().plantSeed(
+          strainId,
+          potPosition,
+          mapId
+        );
+
+        if (plant) {
+          PopupSystem.close("seed_selection");
+          if (onSelect) {
+            onSelect({ strainId, seedItemId: strain.seedId });
+          }
+        }
+      });
+    });
+  }
+
+  private static injectStyles(): void {
+    if (this.styleInjected) return;
+    this.styleInjected = true;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .seed-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .seed-section-label {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+        padding-left: 4px;
+      }
+
+      .seed-section-dimmed {
+        opacity: 0.6;
+      }
+
+      .seed-section-locked {
+        opacity: 0.5;
+      }
+
+      .seed-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.15s ease;
+      }
+
+      .seed-item-available {
+        cursor: pointer;
+      }
+
+      .seed-item-available:hover {
+        background: rgba(74, 144, 226, 0.2);
+        border-color: rgba(74, 144, 226, 0.4);
+        transform: translateX(4px);
+      }
+
+      .seed-item-disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      .seed-item-icon {
+        font-size: 28px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+      }
+
+      .seed-item-info {
+        flex: 1;
+      }
+
+      .seed-item-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 4px;
+      }
+
+      .seed-item-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .seed-stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .seed-item-reason {
+        font-size: 11px;
+        color: rgba(255, 200, 100, 0.8);
+        margin-top: 4px;
+      }
+
+      .seed-item-count {
+        min-width: 40px;
+        text-align: right;
+      }
+
+      .seed-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        background: rgba(74, 144, 226, 0.3);
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #4a90e2;
+      }
+
+      .seed-empty {
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      .seed-empty-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.5;
+      }
+
+      .seed-empty-text {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 14px;
+      }
+
+      .seed-tip {
+        background: rgba(255, 200, 100, 0.1);
+        border: 1px solid rgba(255, 200, 100, 0.3);
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: rgba(255, 200, 100, 0.9);
+        text-align: center;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
