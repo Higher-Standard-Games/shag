@@ -93,7 +93,6 @@ export class SpriteBuilding {
   private collisionMesh: Mesh | null = null;
   private config: SpriteBuildingConfig;
   private scene: Scene;
-  private baseEmissive: number = 0.5;
 
   constructor(scene: Scene, config: SpriteBuildingConfig) {
     this.scene = scene;
@@ -150,9 +149,6 @@ export class SpriteBuilding {
     // No emissive - let scene lighting control the color
     this.material.emissiveColor = new Color3(0, 0, 0);
     
-    // Store base brightness for tinting (from map or default)
-    const emissiveIntensity = config.emissiveIntensity ?? 0.8;
-    this.baseEmissive = emissiveIntensity;
 
     this.mesh.material = this.material;
 
@@ -261,7 +257,6 @@ export class SpriteBuilding {
   }
 
   public setEmissiveIntensity(intensity: number): void {
-    this.baseEmissive = intensity;
     this.material.emissiveColor = new Color3(intensity, intensity, intensity);
   }
 

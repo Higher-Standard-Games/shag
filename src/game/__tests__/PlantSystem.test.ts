@@ -31,6 +31,8 @@ import { GameState } from "../GameState";
 import { GameTimer } from "../GameTimer";
 import { PlantSystem, type StrainDefinition } from "../PlantSystem";
 
+import type { PotDefinition, LightingLevel } from "../PlantSystem";
+
 const TEST_STRAINS: StrainDefinition[] = [
   {
     id: "strain_basic",
@@ -38,11 +40,18 @@ const TEST_STRAINS: StrainDefinition[] = [
     growthTime: 60000, // 1 minute total
     stages: 4,
     waterConsumption: 10, // 10% per minute
-    baseYield: 5,
+    baseYield: 100, // 100g
+    valuePerGram: 5, // $5/gram
     xpReward: 50,
     seedId: "seed_basic",
-    harvestId: "harvest_basic",
+    harvestId: "fresh_basic",
+    curedId: "cured_basic",
     unlockLevel: 1,
+    // Hempire-style settings
+    preferredTempMin: 68,
+    preferredTempMax: 78,
+    waterPromptInterval: 10000, // Every 10 seconds for testing
+    waterPromptWindow: 5000, // 5 second window
   },
   {
     id: "strain_premium",
@@ -50,12 +59,42 @@ const TEST_STRAINS: StrainDefinition[] = [
     growthTime: 120000, // 2 minutes
     stages: 5,
     waterConsumption: 15,
-    baseYield: 10,
+    baseYield: 200, // 200g
+    valuePerGram: 10, // $10/gram
     xpReward: 100,
     seedId: "seed_premium",
-    harvestId: "harvest_premium",
+    harvestId: "fresh_premium",
+    curedId: "cured_premium",
     unlockLevel: 5,
+    preferredTempMin: 70,
+    preferredTempMax: 75,
+    waterPromptInterval: 15000,
+    waterPromptWindow: 4000,
   },
+];
+
+const TEST_POTS: PotDefinition[] = [
+  {
+    id: "basic",
+    name: "Basic Pot",
+    growthSpeedMultiplier: 1.0,
+    cost: 0,
+    unlockLevel: 1,
+    description: "Standard pot",
+  },
+  {
+    id: "magic",
+    name: "Magic Pot",
+    growthSpeedMultiplier: 0.5, // 2x faster
+    cost: 1000,
+    unlockLevel: 5,
+    description: "Grows plants twice as fast",
+  },
+];
+
+const TEST_LIGHTING: LightingLevel[] = [
+  { level: 1, name: "Basic", yieldBonus: 0, cost: 0, unlockLevel: 1 },
+  { level: 2, name: "LED", yieldBonus: 0.2, cost: 500, unlockLevel: 3 },
 ];
 
 describe("PlantSystem", () => {
@@ -73,9 +112,12 @@ describe("PlantSystem", () => {
     GameTimer.getInstance(); // Initialize timer
     plantSystem = PlantSystem.getInstance();
     plantSystem.registerStrains(TEST_STRAINS);
+    plantSystem.registerPots(TEST_POTS);
+    plantSystem.registerLightingLevels(TEST_LIGHTING);
     
-    // Give player some seeds
-    gameState.addItem("seed_basic", "seed", 10);
+    // Give player plenty of seeds and fertilizer for all tests
+    gameState.addItem("seed_basic", "seed", 50);
+    gameState.addItem("fertilizer", "consumable", 10);
   });
 
   describe("Strain Registration", () => {
@@ -210,6 +252,185 @@ describe("PlantSystem", () => {
       const timeToHarvest = plantSystem.getTimeToHarvest(plant.id);
       // Should be close to full growth time for new plant
       expect(timeToHarvest).toBeGreaterThan(0);
+    });
+  });
+
+  // ==================== Hempire-Style Mechanics ====================
+
+  describe("Pot System", () => {
+    it("should register pots", () => {
+      const pot = plantSystem.getPot("basic");
+      expect(pot).toBeDefined();
+      expect(pot?.name).toBe("Basic Pot");
+      expect(pot?.growthSpeedMultiplier).toBe(1.0);
+    });
+
+    it("should get all pots", () => {
+      const pots = plantSystem.getAllPots();
+      expect(pots.length).toBe(2);
+    });
+
+    it("should plant with specific pot type", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 80, y: 0, z: 80 },
+        "test_map",
+        "magic" // Use magic pot
+      );
+      
+      expect(plant).not.toBeNull();
+      expect(plant?.potType).toBe("magic");
+    });
+  });
+
+  describe("Temperature Control", () => {
+    it("should set temperature", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 90, y: 0, z: 90 },
+        "test_map",
+        "basic",
+        72 // Initial temp
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      expect(plant.temperature).toBe(72);
+      
+      plantSystem.setTemperature(plant.id, 75);
+      const updated = gameState.getPlant(plant.id);
+      expect(updated?.temperature).toBe(75);
+    });
+
+    it("should check if temperature is optimal", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 100, y: 0, z: 100 },
+        "test_map",
+        "basic",
+        73 // Within 68-78 range
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      expect(plantSystem.isTemperatureOptimal(plant.id)).toBe(true);
+      
+      // Set outside range
+      plantSystem.setTemperature(plant.id, 60);
+      expect(plantSystem.isTemperatureOptimal(plant.id)).toBe(false);
+    });
+
+    it("should get temperature status", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 110, y: 0, z: 110 },
+        "test_map",
+        "basic",
+        70
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      const status = plantSystem.getTemperatureStatus(plant.id);
+      expect(status).not.toBeNull();
+      expect(status?.current).toBe(70);
+      expect(status?.min).toBe(68);
+      expect(status?.max).toBe(78);
+      expect(status?.isOptimal).toBe(true);
+    });
+  });
+
+  describe("Water Prompts", () => {
+    it("should track water prompt status", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 120, y: 0, z: 120 },
+        "test_map"
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      const status = plantSystem.getWaterPromptStatus(plant.id);
+      expect(status).not.toBeNull();
+      expect(status?.streak).toBe(0);
+      expect(status?.hitRate).toBe(1); // No prompts yet = 100% rate
+    });
+
+    it("should respond to water prompt when active", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 130, y: 0, z: 130 },
+        "test_map"
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      // The first water prompt is at nextWaterPrompt (plantedAt + interval)
+      // We need to manually update the plant to simulate time passing
+      // Set the nextWaterPrompt to a time in the past so we're "in the window"
+      const currentGameTime = GameTimer.getInstance().getGameTime();
+      gameState.updatePlant(plant.id, {
+        nextWaterPrompt: currentGameTime - 1000, // Started 1 second ago
+      });
+      
+      const responded = plantSystem.respondToWaterPrompt(plant.id);
+      expect(responded).toBe(true);
+      
+      const updated = gameState.getPlant(plant.id);
+      expect(updated?.waterPromptsHit).toBe(1);
+      expect(updated?.wateringStreak).toBe(1);
+    });
+  });
+
+  describe("Lighting System", () => {
+    it("should get lighting level", () => {
+      const level = plantSystem.getLightingLevel();
+      expect(level).toBe(1); // Starts at level 1
+    });
+
+    it("should get lighting bonus", () => {
+      const bonus = plantSystem.getLightingBonus();
+      expect(bonus).toBe(0); // Level 1 has no bonus
+    });
+  });
+
+  describe("Mastery System", () => {
+    it("should track mastery for strains", () => {
+      const mastery = plantSystem.getMastery("strain_basic");
+      expect(mastery).toBeDefined();
+      expect(mastery.strainId).toBe("strain_basic");
+      expect(mastery.level).toBe(0);
+      expect(mastery.perfectGrows).toBe(0);
+    });
+
+    it("should get all mastery data", () => {
+      const allMastery = plantSystem.getAllMastery();
+      expect(Array.isArray(allMastery)).toBe(true);
+    });
+  });
+
+  describe("Fertilizer", () => {
+    it("should apply fertilizer for instant growth", () => {
+      const plant = plantSystem.plantSeed(
+        "strain_basic",
+        { x: 140, y: 0, z: 140 },
+        "test_map"
+      );
+      
+      if (!plant) throw new Error("Plant not created");
+      
+      // Plant should start at stage 0
+      expect(plant.growthStage).toBe(0);
+      
+      const applied = plantSystem.applyFertilizer(plant.id);
+      expect(applied).toBe(true);
+      
+      const updated = gameState.getPlant(plant.id);
+      // Should be at final stage (stages - 1 = 3)
+      expect(updated?.growthStage).toBe(3);
+      expect(updated?.fertilized).toBe(true);
+      // Should have perfect water bonus
+      expect(updated?.waterPromptsMissed).toBe(0);
     });
   });
 });

@@ -232,6 +232,47 @@
 "zoneType" "plant"
 "size" "64"
 }
+// Grow light zones - 128 units above plant pots (blue)
+{
+"classname" "build_zone"
+"targetname" "light_1"
+"origin" "-128 -64 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_2"
+"origin" "-64 -64 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_3"
+"origin" "0 -64 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_4"
+"origin" "64 -64 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "light_5"
+"origin" "128 -64 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
 // Equipment zone
 {
 "classname" "build_zone"
@@ -405,4 +446,55 @@
 "range" "120"
 "_color" "255 255 200"
 "fadeTime" "2"
+}
+// Store Triggers
+{
+"classname" "trigger_multiple"
+"targetname" "seed_store_trigger"
+"windowTarget" "seed_store"
+"origin" "-300 0 0"
+{
+( -340 -40 80 ) ( -260 -40 80 ) ( -340 40 80 ) common/trigger 0 0 0 1 1
+( -340 -40 -16 ) ( -340 40 -16 ) ( -260 -40 -16 ) common/trigger 0 0 0 1 1
+( -340 -40 80 ) ( -340 -40 -16 ) ( -260 -40 80 ) common/trigger 0 0 0 1 1
+( -340 40 80 ) ( -260 40 80 ) ( -340 40 -16 ) common/trigger 0 0 0 1 1
+( -340 40 80 ) ( -340 40 -16 ) ( -340 -40 80 ) common/trigger 0 0 0 1 1
+( -260 40 80 ) ( -260 -40 80 ) ( -260 40 -16 ) common/trigger 0 0 0 1 1
+}
+}
+{
+"classname" "trigger_multiple"
+"targetname" "supplies_store_trigger"
+"windowTarget" "supplies_store"
+"origin" "300 0 0"
+{
+( 260 -40 80 ) ( 340 -40 80 ) ( 260 40 80 ) common/trigger 0 0 0 1 1
+( 260 -40 -16 ) ( 260 40 -16 ) ( 340 -40 -16 ) common/trigger 0 0 0 1 1
+( 260 -40 80 ) ( 260 -40 -16 ) ( 340 -40 80 ) common/trigger 0 0 0 1 1
+( 260 40 80 ) ( 340 40 80 ) ( 260 40 -16 ) common/trigger 0 0 0 1 1
+( 260 40 80 ) ( 260 40 -16 ) ( 260 -40 80 ) common/trigger 0 0 0 1 1
+( 340 40 80 ) ( 340 -40 80 ) ( 340 40 -16 ) common/trigger 0 0 0 1 1
+}
+}
+// Store visual markers (simple boxes)
+{
+"classname" "worldspawn"
+// Seed Store Box
+{
+( -340 -40 80 ) ( -260 40 80 ) ( -340 40 80 ) color_100_200_100 0 0 0 1 1
+( -340 -40 -16 ) ( -340 40 -16 ) ( -260 40 -16 ) color_50_100_50 0 0 0 1 1
+( -340 -40 80 ) ( -340 -40 -16 ) ( -260 -40 80 ) color_80_160_80 0 0 0 1 1
+( -340 40 80 ) ( -260 40 80 ) ( -340 40 -16 ) color_80_160_80 0 0 0 1 1
+( -340 40 80 ) ( -340 40 -16 ) ( -340 -40 80 ) color_60_120_60 0 0 0 1 1
+( -260 40 80 ) ( -260 -40 80 ) ( -260 40 -16 ) color_60_120_60 0 0 0 1 1
+}
+// Supplies Store Box
+{
+( 260 -40 80 ) ( 340 40 80 ) ( 260 40 80 ) color_200_100_200 0 0 0 1 1
+( 260 -40 -16 ) ( 260 40 -16 ) ( 340 40 -16 ) color_100_50_100 0 0 0 1 1
+( 260 -40 80 ) ( 260 -40 -16 ) ( 340 -40 80 ) color_160_80_160 0 0 0 1 1
+( 260 40 80 ) ( 340 40 80 ) ( 260 40 -16 ) color_160_80_160 0 0 0 1 1
+( 260 40 80 ) ( 260 40 -16 ) ( 260 -40 80 ) color_120_60_120 0 0 0 1 1
+( 340 40 80 ) ( 340 -40 80 ) ( 340 40 -16 ) color_120_60_120 0 0 0 1 1
+}
 }

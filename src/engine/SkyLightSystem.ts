@@ -248,7 +248,6 @@ export class SkyLightSystem {
     // Initial update
     this.updateLighting(clock.getTimeOfDay());
 
-    console.log("SkyLightSystem initialized");
   }
 
   /**
@@ -312,7 +311,6 @@ export class SkyLightSystem {
     this.ambientLight.intensity = this.config.ambientIntensity * ambientMultiplier * 2.5;
 
     // Update sprite buildings with ambient tint for day/night effect
-    console.log(`SkyLight ambient: R=${ambientColor.r.toFixed(2)} G=${ambientColor.g.toFixed(2)} B=${ambientColor.b.toFixed(2)}`);
     SpriteBuildingManager.getInstance().updateAmbientTint(ambientColor);
   }
 

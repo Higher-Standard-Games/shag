@@ -12,9 +12,10 @@ import { BuildableObjectManager, createStages, createInstantStage, type Buildabl
 import { EquipmentSystem, type EquipmentTemplate } from "./EquipmentSystem";
 import { GameState } from "./GameState";
 import { OrderSystem, type CustomerTemplate } from "./OrderSystem";
-import { PlantSystem, type StrainDefinition } from "./PlantSystem";
+import { PlantSystem, type StrainDefinition, type PotDefinition, type LightingLevel } from "./PlantSystem";
 import { QuestSystem, type Quest } from "./QuestSystem";
 import { ShopSystem, type ShopItem, type ShopCategory } from "./ShopSystem";
+import { CuringSystem, type CuringBarrel } from "./CuringSystem";
 
 // ==================== Buildable Items ====================
 // These appear in the build menu
@@ -36,6 +37,31 @@ export const BUILDABLE_ITEMS: BuildableItem[] = [
     zoneType: "plant",
     cost: 150,
     requiredLevel: 3,
+  },
+  // Grow Lights (for growlight zones above plants)
+  {
+    id: "grow_light_basic",
+    name: "Basic Lamp",
+    icon: "💡",
+    zoneType: "growlight",
+    cost: 300,
+    requiredLevel: 1,
+  },
+  {
+    id: "grow_light_advanced",
+    name: "Advanced Lamp",
+    icon: "🔆",
+    zoneType: "growlight",
+    cost: 1000,
+    requiredLevel: 3,
+  },
+  {
+    id: "grow_light_ultra",
+    name: "Ultra LED Lamp",
+    icon: "✨",
+    zoneType: "growlight",
+    cost: 3000,
+    requiredLevel: 5,
   },
   // Equipment
   {
@@ -119,10 +145,145 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
     buildTime: 0, // Instant
     stages: createInstantStage("decor/plant_small.map", 1),
   },
+  // Grow lights for growlight zones (above plants)
+  {
+    id: "grow_light_basic",
+    name: "Basic Lamp",
+    icon: "💡",
+    zoneType: "growlight",
+    cost: 300,
+    requiredLevel: 1,
+    buildTime: 5 * 1000, // 5 seconds
+    stages: createInstantStage("equipment/grow_light.map", 1),
+    yieldBonus: 0, // Normal yield
+  },
+  {
+    id: "grow_light_advanced",
+    name: "Advanced Lamp",
+    icon: "🔆",
+    zoneType: "growlight",
+    cost: 1000,
+    requiredLevel: 3,
+    buildTime: 10 * 1000, // 10 seconds
+    stages: createInstantStage("equipment/grow_light.map", 1.1),
+    yieldBonus: 0.15, // +15% yield
+  },
+  {
+    id: "grow_light_ultra",
+    name: "Ultra LED Lamp",
+    icon: "✨",
+    zoneType: "growlight",
+    cost: 3000,
+    requiredLevel: 5,
+    buildTime: 15 * 1000, // 15 seconds
+    stages: createInstantStage("equipment/grow_light.map", 1.2),
+    yieldBonus: 0.30, // +30% yield
+  },
+];
+
+// ==================== Pot Types ====================
+// Pots affect grow speed - better pots = faster growth
+
+export const POT_TYPES: PotDefinition[] = [
+  {
+    id: "basic",
+    name: "Basic Pot",
+    growthSpeedMultiplier: 1.0, // Normal speed
+    cost: 0, // Free starter pot
+    unlockLevel: 1,
+    description: "A simple clay pot. Gets the job done.",
+  },
+  {
+    id: "smart",
+    name: "Smart Pot",
+    growthSpeedMultiplier: 0.75, // 25% faster (0.75x time = 1.33x speed)
+    cost: 500,
+    unlockLevel: 3,
+    description: "Fabric pot with better drainage. Plants grow 25% faster.",
+  },
+  {
+    id: "magic",
+    name: "Magic Pot",
+    growthSpeedMultiplier: 0.5, // 50% faster (0.5x time = 2x speed)
+    cost: 2000,
+    unlockLevel: 6,
+    description: "Premium hydroponic pot. Plants grow twice as fast!",
+  },
+];
+
+// ==================== Lighting Levels ====================
+// Passive yield bonus from grow room equipment
+
+export const LIGHTING_LEVELS: LightingLevel[] = [
+  {
+    level: 1,
+    name: "Basic Bulb",
+    yieldBonus: 0, // No bonus
+    cost: 0,
+    unlockLevel: 1,
+  },
+  {
+    level: 2,
+    name: "CFL Lights",
+    yieldBonus: 0.1, // +10% yield
+    cost: 300,
+    unlockLevel: 2,
+  },
+  {
+    level: 3,
+    name: "LED Panel",
+    yieldBonus: 0.2, // +20% yield
+    cost: 800,
+    unlockLevel: 4,
+  },
+  {
+    level: 4,
+    name: "HPS System",
+    yieldBonus: 0.3, // +30% yield
+    cost: 2000,
+    unlockLevel: 6,
+  },
+  {
+    level: 5,
+    name: "Pro Grow Lights",
+    yieldBonus: 0.5, // +50% yield
+    cost: 5000,
+    unlockLevel: 8,
+  },
+];
+
+// ==================== Curing Barrels ====================
+// Barrels for curing fresh harvest into sellable product
+
+export const CURING_BARRELS: CuringBarrel[] = [
+  {
+    id: "basic_barrel",
+    name: "Basic Curing Barrel",
+    capacity: 200, // 200g max
+    speedMultiplier: 1.0, // Normal speed
+    cost: 100,
+    unlockLevel: 1,
+  },
+  {
+    id: "oak_barrel",
+    name: "Oak Curing Barrel",
+    capacity: 500, // 500g max
+    speedMultiplier: 0.75, // 25% faster
+    cost: 500,
+    unlockLevel: 3,
+  },
+  {
+    id: "premium_barrel",
+    name: "Premium Curing Barrel",
+    capacity: 1000, // 1kg max
+    speedMultiplier: 0.5, // 50% faster
+    cost: 2000,
+    unlockLevel: 5,
+  },
 ];
 
 // ==================== Plant Strains ====================
-// These define growable plant types
+// These define growable plant types with Hempire-style mechanics
 
 export const PLANT_STRAINS: StrainDefinition[] = [
   {
@@ -130,14 +291,23 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     name: "Basic Bud",
     growthTime: 5 * 60 * 1000, // 5 minutes to grow
     stages: 4,
-    waterConsumption: 10, // 10% per minute
-    baseYield: 3,
+    waterConsumption: 10, // 10% per minute (legacy)
+    baseYield: 100, // 100g base yield
+    valuePerGram: 5, // $5/gram base value
     xpReward: 10,
     seedId: "seed_basic",
-    harvestId: "harvest_basic",
+    harvestId: "fresh_basic", // Fresh (uncured)
+    curedId: "cured_basic", // Cured (sellable)
     unlockLevel: 1,
     harvestWindow: 3 * 60 * 1000, // 3 minutes at peak quality
     overripeTime: 2 * 60 * 1000, // 2 minutes before spoiled
+    // Hempire-style: Temperature preferences
+    preferredTempMin: 65, // Tolerant strain - wide range
+    preferredTempMax: 80,
+    // Hempire-style: Water prompts (5 prompts during growth)
+    waterPromptInterval: 60 * 1000, // Every 1 minute
+    waterPromptWindow: 30 * 1000, // 30 seconds to respond
+    curingTime: 2 * 60 * 1000, // 2 minutes for testing (normally 7 days)
   },
   {
     id: "og_kush",
@@ -145,13 +315,22 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     growthTime: 10 * 60 * 1000, // 10 minutes to grow
     stages: 5,
     waterConsumption: 15,
-    baseYield: 5,
+    baseYield: 150, // 150g base yield
+    valuePerGram: 10, // $10/gram base value
     xpReward: 25,
     seedId: "seed_og_kush",
-    harvestId: "harvest_og_kush",
+    harvestId: "fresh_og_kush",
+    curedId: "cured_og_kush",
     unlockLevel: 3,
     harvestWindow: 4 * 60 * 1000, // 4 minutes at peak
     overripeTime: 3 * 60 * 1000, // 3 minutes before spoiled
+    // Hempire-style: Temperature preferences
+    preferredTempMin: 68, // Moderate range
+    preferredTempMax: 78,
+    // Hempire-style: Water prompts (10 prompts during growth)
+    waterPromptInterval: 60 * 1000, // Every 1 minute
+    waterPromptWindow: 25 * 1000, // 25 seconds to respond
+    curingTime: 3 * 60 * 1000, // 3 minutes for testing
   },
   {
     id: "purple_haze",
@@ -159,13 +338,22 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     growthTime: 15 * 60 * 1000, // 15 minutes to grow
     stages: 5,
     waterConsumption: 20,
-    baseYield: 8,
+    baseYield: 200, // 200g base yield
+    valuePerGram: 15, // $15/gram base value
     xpReward: 50,
     seedId: "seed_purple_haze",
-    harvestId: "harvest_purple_haze",
+    harvestId: "fresh_purple_haze",
+    curedId: "cured_purple_haze",
     unlockLevel: 5,
     harvestWindow: 5 * 60 * 1000, // 5 minutes at peak
     overripeTime: 3 * 60 * 1000, // 3 minutes before spoiled
+    // Hempire-style: Temperature preferences
+    preferredTempMin: 70, // Narrow range - needs precision
+    preferredTempMax: 75,
+    // Hempire-style: Water prompts (15 prompts during growth)
+    waterPromptInterval: 60 * 1000, // Every 1 minute
+    waterPromptWindow: 20 * 1000, // 20 seconds to respond - harder!
+    curingTime: 5 * 60 * 1000, // 5 minutes for testing
   },
 ];
 
@@ -284,13 +472,65 @@ export const SHOP_ITEMS: ShopItem[] = [
   {
     id: "fertilizer",
     name: "Fertilizer",
-    description: "Speeds up plant growth by 20%.",
+    description: "Boosts plant growth speed by 25%! Use on any growing plant.",
     icon: "🧪",
     category: "supplies",
     price: 50,
     itemType: "consumable",
     quantity: 1,
     requiredLevel: 2,
+    maxPurchases: -1,
+    stock: -1,
+    restockInterval: 0,
+    isVisible: true,
+    onSale: false,
+    saleDiscount: 0,
+  },
+  // Curing Barrels
+  {
+    id: "basic_barrel",
+    name: "Basic Curing Barrel",
+    description: "Cures up to 200g of fresh harvest. Required to sell your product!",
+    icon: "🛢️",
+    category: "supplies",
+    price: 100,
+    itemType: "equipment",
+    quantity: 1,
+    requiredLevel: 1,
+    maxPurchases: -1,
+    stock: -1,
+    restockInterval: 0,
+    isVisible: true,
+    onSale: false,
+    saleDiscount: 0,
+  },
+  {
+    id: "oak_barrel",
+    name: "Oak Curing Barrel",
+    description: "Cures up to 500g, 25% faster. Premium quality curing.",
+    icon: "🪵",
+    category: "supplies",
+    price: 500,
+    itemType: "equipment",
+    quantity: 1,
+    requiredLevel: 3,
+    maxPurchases: -1,
+    stock: -1,
+    restockInterval: 0,
+    isVisible: true,
+    onSale: false,
+    saleDiscount: 0,
+  },
+  {
+    id: "premium_barrel",
+    name: "Premium Curing Barrel",
+    description: "Cures up to 1kg, 50% faster. Professional grade!",
+    icon: "✨",
+    category: "supplies",
+    price: 2000,
+    itemType: "equipment",
+    quantity: 1,
+    requiredLevel: 5,
     maxPurchases: -1,
     stock: -1,
     restockInterval: 0,
@@ -1298,6 +1538,7 @@ export const STARTING_LOT = "slums_garage"; // Player starts with this lot
 
 export const STARTING_INVENTORY = [
   { id: "seed_basic", type: "seed" as const, quantity: 5 },
+  { id: "fertilizer", type: "consumable" as const, quantity: 1 },
 ];
 
 // ==================== Registration ====================
@@ -1318,8 +1559,11 @@ export function registerGameData(): void {
     objectManager.registerTemplate(template);
   }
 
-  // Register plant strains
-  PlantSystem.getInstance().registerStrains(PLANT_STRAINS);
+  // Register plant strains, pots, and lighting
+  const plantSystem = PlantSystem.getInstance();
+  plantSystem.registerStrains(PLANT_STRAINS);
+  plantSystem.registerPots(POT_TYPES);
+  plantSystem.registerLightingLevels(LIGHTING_LEVELS);
 
   // Register customers
   OrderSystem.getInstance().registerCustomers(CUSTOMERS);
@@ -1348,6 +1592,10 @@ export function registerGameData(): void {
   // Register strain genetics
   GeneticsSystem.getInstance().registerStrains(STRAIN_GENETICS);
 
+  // Register curing barrels
+  CuringSystem.getInstance().registerBarrels(CURING_BARRELS);
+  CuringSystem.getInstance().init();
+
   // Set up starting resources for new games
   const state = GameState.getInstance();
   if (!state.hasSaveData()) {
@@ -1367,6 +1615,14 @@ export function registerGameData(): void {
     // Starting location and lot
     state.setCustomData("currentArea", STARTING_AREA);
     state.setCustomData("ownedLots", [{ id: STARTING_LOT, purchasedAt: Date.now() }]);
+    
+    // Give player a free starter curing barrel
+    const curingSystem = CuringSystem.getInstance();
+    const starterBarrelId = `barrel_starter_${Date.now()}`;
+    curingSystem.loadState({
+      ownedBarrels: [{ id: starterBarrelId, templateId: "basic_barrel" }],
+    });
+    console.log("Gave player a free starter curing barrel");
   }
 
   console.log(`Registered: ${BUILDABLE_ITEMS.length} items, ${OBJECT_TEMPLATES.length} templates, ${PLANT_STRAINS.length} strains, ${CUSTOMERS.length} customers, ${SHOP_ITEMS.length} shop items, ${QUESTS.length} quests, ${ACHIEVEMENTS.length} achievements, ${WORLD_AREAS.length} areas, ${WORLD_LOTS.length} lots, ${NPCS.length} NPCs, ${STRAIN_GENETICS.length} genetics`);

@@ -61,6 +61,8 @@ export interface BuildableObjectTemplate {
   producesItem?: string;
   /** Amount produced per cycle */
   producesAmount?: number;
+  /** Yield bonus for grow lights (0 = normal, 0.15 = +15%, 0.30 = +30%) */
+  yieldBonus?: number;
 }
 
 /**
@@ -157,6 +159,17 @@ export class BuildableObjectManager {
   public init(scene: Scene): void {
     this.scene = scene;
     this.startUpdateLoop();
+    // Refresh all existing visuals to ensure they have metadata
+    this.refreshAllVisuals();
+  }
+
+  /**
+   * Refresh all visuals to ensure they have proper metadata for click detection
+   */
+  public async refreshAllVisuals(): Promise<void> {
+    for (const state of this.objects.values()) {
+      await this.updateVisual(state);
+    }
   }
 
   private startUpdateLoop(): void {
@@ -312,6 +325,16 @@ export class BuildableObjectManager {
         });
         if (result) {
           this.visuals.set(state.id, result.root);
+          // Tag all meshes with buildable object metadata for click detection
+          for (const mesh of result.meshes) {
+            mesh.metadata = {
+              ...mesh.metadata,
+              isBuildableObject: true,
+              buildableObjectId: state.id,
+              templateId: state.templateId,
+              zoneType: template.zoneType,
+            };
+          }
         }
       } catch (e) {
         // Prefab not found - create placeholder
@@ -341,6 +364,15 @@ export class BuildableObjectManager {
       state.position.z
     );
 
+    // Tag with metadata for click detection
+    const template = this.templates.get(state.templateId);
+    mesh.metadata = {
+      isBuildableObject: true,
+      buildableObjectId: state.id,
+      templateId: state.templateId,
+      zoneType: template?.zoneType,
+    };
+
     // Color based on progress
     const mat = new StandardMaterial(`placeholder_mat_${state.id}`, this.scene);
     if (state.progress < 50) {
@@ -360,6 +392,51 @@ export class BuildableObjectManager {
 
   public getObject(id: string): BuildableObjectState | undefined {
     return this.objects.get(id);
+  }
+
+  /**
+   * Reset a pot to empty state (after harvest)
+   * This resets progress to 0 so it shows an empty pot ready for new seed
+   */
+  public async resetPot(id: string): Promise<void> {
+    const state = this.objects.get(id);
+    if (!state) return;
+
+    const template = this.templates.get(state.templateId);
+    if (!template || template.zoneType !== "plant") return;
+
+    // Reset to empty state
+    state.progress = 0;
+    state.currentStage = 0;
+    state.isComplete = false;
+    state.startedAt = GameTimer.getInstance().getGameTime();
+
+    // Update visual to show empty pot
+    await this.updateVisual(state);
+    
+    console.log(`Reset pot ${id} to empty state`);
+    this.emit("pot_reset", id, { state });
+  }
+
+  /**
+   * Set pot progress to match plant growth (0-100%)
+   */
+  public async syncPotWithPlant(id: string, growthProgress: number): Promise<void> {
+    const state = this.objects.get(id);
+    if (!state) return;
+
+    const template = this.templates.get(state.templateId);
+    if (!template || template.zoneType !== "plant") return;
+
+    const oldStage = state.currentStage;
+    state.progress = Math.min(100, Math.max(0, growthProgress));
+    state.currentStage = this.getStageForProgress(template, state.progress);
+    state.isComplete = state.progress >= 100;
+
+    // Update visual if stage changed
+    if (state.currentStage !== oldStage) {
+      await this.updateVisual(state);
+    }
   }
 
   public getObjectsInZone(zoneId: string): BuildableObjectState[] {

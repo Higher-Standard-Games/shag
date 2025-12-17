@@ -8,9 +8,13 @@ import {
   Vector3,
 } from "babylonjs";
 import { SpawnValidator } from "../engine/SpawnValidator";
+import { BuildableObjectManager } from "../game/BuildableObject";
 import { BuildingSystem } from "../game/BuildingSystem";
+import { GameState } from "../game/GameState";
 import { HarvestIndicator } from "../game/HarvestIndicator";
+import { PlantSystem } from "../game/PlantSystem";
 import { PrefabInstance } from "../loader/PrefabInstance";
+import { GameHUD } from "../ui/GameHUD";
 import { UIManager } from "../ui/UIManager";
 
 export class RTSCameraController {
@@ -95,6 +99,41 @@ export class RTSCameraController {
                 if (mesh.metadata?.isHarvestIndicator) {
                   const plantId = mesh.metadata.plantId;
                   HarvestIndicator.getInstance().handleIndicatorClick(plantId);
+                }
+
+                // Check for plant/buildable object click - show plant info panel
+                if (mesh.metadata?.isBuildableObject && mesh.metadata?.zoneType === "plant") {
+                  const buildableObjectId = mesh.metadata.buildableObjectId;
+                  const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
+                  if (buildableObj) {
+                    // Find plant at this position
+                    const plants = GameState.getInstance().getPlants();
+                    const plant = plants.find(p => 
+                      Math.abs(p.position.x - buildableObj.position.x) < 5 &&
+                      Math.abs(p.position.z - buildableObj.position.z) < 5
+                    );
+                    if (plant) {
+                      // Show plant info panel
+                      GameHUD.getInstance().showPlantInfo(plant.id);
+                    } else {
+                      // No plant in this pot - auto-plant a basic seed if available
+                      const plantSystem = PlantSystem.getInstance();
+                      const hasSeeds = GameState.getInstance().hasItem("seed_basic");
+                      if (hasSeeds) {
+                        const newPlant = plantSystem.plantSeed(
+                          "basic",
+                          buildableObj.position,
+                          buildableObj.mapId
+                        );
+                        if (newPlant) {
+                          GameHUD.getInstance().showPlantInfo(newPlant.id);
+                          GameHUD.getInstance().showNotification("Planted a seed!", "success");
+                        }
+                      } else {
+                        GameHUD.getInstance().showNotification("No seeds available!", "warning");
+                      }
+                    }
+                  }
                 }
 
                 // Check for build zone click (separate from triggers)

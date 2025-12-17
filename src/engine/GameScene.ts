@@ -205,6 +205,14 @@ export class GameScene {
       },
       save: () => GameState.getInstance().save(),
       reset: () => GameState.getInstance().resetGame(),
+      clearSave: () => {
+        localStorage.clear();
+        console.log("Saved game cleared. Refresh the page to start fresh.");
+      },
+      refreshPots: async () => {
+        await BuildableObjectManager.getInstance().refreshAllVisuals();
+        console.log("Refreshed all buildable object visuals with metadata");
+      },
       // New system debug commands
       orders: () => OrderSystem.getInstance().getActiveOrders(),
       createOrder: () => {

@@ -146,6 +146,16 @@ export interface PlantState {
   health: number; // 0-100
   plantedAt: number; // timestamp
   lastWatered: number; // timestamp
+  // Hempire-style mechanics
+  potType: string; // "basic" | "smart" | "magic" - affects grow speed
+  temperature: number; // Current temperature setting (60-90°F)
+  waterPromptsHit: number; // Successful water taps
+  waterPromptsMissed: number; // Missed water prompts
+  wateringStreak: number; // Consecutive perfect waters (for bonus)
+  lastWaterPrompt: number; // Timestamp of last water prompt
+  nextWaterPrompt: number; // Timestamp when next prompt appears
+  fertilized: boolean; // Was fertilizer used?
+  fertilizedAt?: number; // Timestamp when fertilizer was applied
 }
 
 /**

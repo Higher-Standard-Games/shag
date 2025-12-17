@@ -10,6 +10,7 @@ import { GameTimer } from "../game/GameTimer";
 import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
 import { ShopPanel } from "./ShopPanel";
+import { UIManager } from "./UIManager";
 
 export class GameHUD {
   private static instance: GameHUD;
@@ -76,6 +77,7 @@ export class GameHUD {
         </div>
         <div class="hud-buttons">
           <button class="hud-btn" id="hud-shop-btn">🛒 Shop</button>
+          <button class="hud-btn" id="hud-curing-btn">🛢️ Curing</button>
           <button class="hud-btn hud-harvest-btn" id="hud-harvest-btn" style="display: none;">
             <span class="harvest-icon">✂️</span>
             <span class="harvest-count">0</span>
@@ -100,6 +102,7 @@ export class GameHUD {
       <div class="hud-plant-info" id="hud-plant-info" style="display: none;">
         <div class="plant-info-header">
           <span class="plant-name">Plant Name</span>
+          <span class="plant-mastery">☆☆☆☆☆</span>
           <button class="plant-info-close">×</button>
         </div>
         <div class="plant-info-body">
@@ -115,10 +118,32 @@ export class GameHUD {
             <span>Health:</span>
             <div class="plant-bar"><div class="plant-bar-fill health-bar"></div></div>
           </div>
+          <div class="plant-stat plant-temp-control">
+            <span>Temp:</span>
+            <input type="range" class="temp-slider" min="60" max="90" value="72">
+            <span class="temp-value">72°F</span>
+            <span class="temp-status">✓</span>
+          </div>
+          <div class="plant-stat plant-pot-info">
+            <span>Pot:</span>
+            <span class="pot-name">Basic Pot</span>
+          </div>
           <div class="plant-actions">
             <button class="plant-action-btn" id="btn-water">💧 Water</button>
+            <button class="plant-action-btn" id="btn-fertilize">🧪 Fertilize</button>
             <button class="plant-action-btn" id="btn-harvest" disabled>🌿 Harvest</button>
           </div>
+        </div>
+      </div>
+
+      <div class="hud-water-prompt" id="hud-water-prompt" style="display: none;">
+        <div class="water-prompt-content">
+          <div class="water-prompt-icon">💧</div>
+          <div class="water-prompt-text">TAP TO WATER!</div>
+          <div class="water-prompt-timer">
+            <div class="water-prompt-bar"></div>
+          </div>
+          <div class="water-prompt-streak">Streak: <span>0</span></div>
         </div>
       </div>
     `;
@@ -448,6 +473,140 @@ export class GameHUD {
         opacity: 0.5;
         cursor: not-allowed;
       }
+
+      /* Mastery stars */
+      .plant-mastery {
+        font-size: 14px;
+        color: #ffd700;
+        letter-spacing: 2px;
+      }
+
+      /* Temperature control */
+      .plant-temp-control {
+        flex-wrap: wrap;
+      }
+
+      .temp-slider {
+        flex: 1;
+        height: 6px;
+        -webkit-appearance: none;
+        background: linear-gradient(90deg, #2196F3, #4CAF50, #f44336);
+        border-radius: 3px;
+        cursor: pointer;
+      }
+
+      .temp-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      }
+
+      .temp-value {
+        width: 45px;
+        text-align: right;
+        font-weight: bold;
+      }
+
+      .temp-status {
+        width: 20px;
+        text-align: center;
+      }
+
+      .temp-status.optimal {
+        color: #4CAF50;
+      }
+
+      .temp-status.suboptimal {
+        color: #ff9800;
+      }
+
+      /* Pot info */
+      .pot-name {
+        flex: 1;
+        color: #aaa;
+      }
+
+      /* Water prompt overlay */
+      .hud-water-prompt {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 200;
+        animation: waterPromptPulse 0.5s ease-in-out infinite;
+      }
+
+      .water-prompt-content {
+        background: linear-gradient(135deg, rgba(33, 150, 243, 0.95), rgba(3, 169, 244, 0.95));
+        padding: 30px 50px;
+        border-radius: 20px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 10px 40px rgba(33, 150, 243, 0.5);
+        cursor: pointer;
+      }
+
+      .water-prompt-icon {
+        font-size: 60px;
+        margin-bottom: 10px;
+        animation: waterDrop 1s ease-in-out infinite;
+      }
+
+      .water-prompt-text {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      }
+
+      .water-prompt-timer {
+        width: 200px;
+        height: 8px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0 auto 10px;
+      }
+
+      .water-prompt-bar {
+        height: 100%;
+        background: white;
+        transition: width 0.1s linear;
+        width: 100%;
+      }
+
+      .water-prompt-streak {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .water-prompt-streak span {
+        font-weight: bold;
+        color: #ffd700;
+      }
+
+      @keyframes waterPromptPulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.02); }
+      }
+
+      @keyframes waterDrop {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+
+      /* Fertilize button special style */
+      #btn-fertilize {
+        background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+      }
+
+      #btn-fertilize:hover:not(:disabled) {
+        background: linear-gradient(135deg, #AB47BC, #8E24AA);
+      }
     `;
   }
 
@@ -586,7 +745,7 @@ export class GameHUD {
 
   private setupEventListeners(): void {
     // Listen for plant events
-    PlantSystem.getInstance().onPlantEvent((_plantId, event, data) => {
+    PlantSystem.getInstance().onPlantEvent((plantId, event, data) => {
       switch (event) {
         case "planted":
           this.showNotification(`Planted a new seed!`, "success");
@@ -595,8 +754,12 @@ export class GameHUD {
           this.showNotification(`Plant watered!`, "success");
           break;
         case "harvested":
-          const harvestData = data as { yield: number; xp: number };
-          this.showNotification(`Harvested ${harvestData.yield} buds! +${harvestData.xp} XP`, "success");
+          const harvestData = data as { yield: number; xp: number; isPerfect?: boolean };
+          if (harvestData.isPerfect) {
+            this.showNotification(`🌟 Perfect harvest! ${harvestData.yield} buds! +${harvestData.xp} XP`, "success");
+          } else {
+            this.showNotification(`Harvested ${harvestData.yield} buds! +${harvestData.xp} XP`, "success");
+          }
           break;
         case "needs_water":
           this.showNotification(`A plant needs water!`, "warning");
@@ -609,6 +772,26 @@ export class GameHUD {
           if (stageData.isHarvestable) {
             this.showNotification(`A plant is ready to harvest!`, "success");
           }
+          break;
+        // Hempire-style water prompt events
+        case "water_prompt_start":
+          const promptData = data as { timeRemaining: number; streak: number };
+          this.showWaterPrompt(plantId, promptData.timeRemaining, promptData.streak);
+          break;
+        case "water_prompt_missed":
+          this.hideWaterPrompt();
+          const missedData = data as { totalMissed: number };
+          this.showNotification(`Missed water prompt! (${missedData.totalMissed} missed)`, "warning");
+          break;
+        // Mastery level up
+        case "mastery_levelup":
+          const masteryData = data as { strainId: string; newLevel: number };
+          const strain = PlantSystem.getInstance().getStrain(masteryData.strainId);
+          this.showNotification(`🌟 ${strain?.name ?? "Strain"} mastery level ${masteryData.newLevel}!`, "success");
+          break;
+        // Fertilizer applied
+        case "fertilized":
+          this.showNotification(`🧪 Plant fertilized! 25% faster growth!`, "success");
           break;
       }
     });
@@ -643,6 +826,11 @@ export class GameHUD {
       ShopPanel.getInstance().toggle();
     });
 
+    // Curing button
+    this.container?.querySelector("#hud-curing-btn")?.addEventListener("click", () => {
+      UIManager.getInstance().openDialog("curing_dialog");
+    });
+
     // Harvest button - show first harvestable plant's panel
     this.container?.querySelector("#hud-harvest-btn")?.addEventListener("click", () => {
       const harvestIndicator = HarvestIndicator.getInstance();
@@ -675,7 +863,8 @@ export class GameHUD {
     const plant = GameState.getInstance().getPlant(plantId);
     if (!plant) return;
 
-    const strain = PlantSystem.getInstance().getStrain(plant.strain);
+    const plantSystem = PlantSystem.getInstance();
+    const strain = plantSystem.getStrain(plant.strain);
     if (!strain) return;
 
     const panel = this.container?.querySelector("#hud-plant-info") as HTMLElement;
@@ -688,8 +877,17 @@ export class GameHUD {
     const nameEl = panel.querySelector(".plant-name");
     if (nameEl) nameEl.textContent = strain.name;
 
+    // Update mastery stars
+    const mastery = plantSystem.getMastery(plant.strain);
+    const masteryEl = panel.querySelector(".plant-mastery");
+    if (masteryEl) {
+      const filled = "★".repeat(mastery.level);
+      const empty = "☆".repeat(5 - mastery.level);
+      masteryEl.textContent = filled + empty;
+    }
+
     // Update bars
-    const visual = PlantSystem.getInstance().getVisualState(plantId);
+    const visual = plantSystem.getVisualState(plantId);
     if (visual) {
       const growthBar = panel.querySelector(".growth-bar") as HTMLElement;
       const waterBar = panel.querySelector(".water-bar") as HTMLElement;
@@ -707,23 +905,99 @@ export class GameHUD {
       }
     }
 
-    // Setup button handlers
+    // Update temperature control
+    const tempSlider = panel.querySelector(".temp-slider") as HTMLInputElement;
+    const tempValue = panel.querySelector(".temp-value");
+    const tempStatus = panel.querySelector(".temp-status");
+    if (tempSlider) {
+      tempSlider.value = plant.temperature.toString();
+    }
+    if (tempValue) {
+      tempValue.textContent = `${plant.temperature}°F`;
+    }
+    if (tempStatus) {
+      const isOptimal = plantSystem.isTemperatureOptimal(plantId);
+      tempStatus.textContent = isOptimal ? "✓" : "⚠";
+      tempStatus.className = `temp-status ${isOptimal ? "optimal" : "suboptimal"}`;
+    }
+
+    // Update pot info
+    const potNameEl = panel.querySelector(".pot-name");
+    const pot = plantSystem.getPot(plant.potType);
+    if (potNameEl && pot) {
+      const speedText = pot.growthSpeedMultiplier < 1 
+        ? ` (${Math.round((1 - pot.growthSpeedMultiplier) * 100)}% faster)`
+        : "";
+      potNameEl.textContent = pot.name + speedText;
+    }
+
+    // Update fertilize button
+    const fertilizeBtn = panel.querySelector("#btn-fertilize") as HTMLButtonElement;
+    if (fertilizeBtn) {
+      const hasFertilizer = GameState.getInstance().getItemCount("fertilizer") > 0;
+      fertilizeBtn.disabled = plant.fertilized || !hasFertilizer;
+      if (plant.fertilized) {
+        fertilizeBtn.textContent = "✓ Fertilized";
+      } else {
+        fertilizeBtn.textContent = "🧪 Fertilize";
+      }
+    }
+
+    // Setup button handlers (remove old listeners first)
     const waterBtn = panel.querySelector("#btn-water");
     const harvestBtn = panel.querySelector("#btn-harvest");
     const closeBtn = panel.querySelector(".plant-info-close");
 
-    waterBtn?.addEventListener("click", () => {
-      PlantSystem.getInstance().waterPlant(plantId);
+    // Clone and replace to remove old event listeners
+    const newWaterBtn = waterBtn?.cloneNode(true);
+    const newHarvestBtn = harvestBtn?.cloneNode(true);
+    const newFertilizeBtn = fertilizeBtn?.cloneNode(true);
+    const newCloseBtn = closeBtn?.cloneNode(true);
+    const newTempSlider = tempSlider?.cloneNode(true);
+
+    if (waterBtn && newWaterBtn) waterBtn.replaceWith(newWaterBtn);
+    if (harvestBtn && newHarvestBtn) harvestBtn.replaceWith(newHarvestBtn);
+    if (fertilizeBtn && newFertilizeBtn) fertilizeBtn.replaceWith(newFertilizeBtn);
+    if (closeBtn && newCloseBtn) closeBtn.replaceWith(newCloseBtn);
+    if (tempSlider && newTempSlider) tempSlider.replaceWith(newTempSlider);
+
+    // Add new event listeners
+    panel.querySelector("#btn-water")?.addEventListener("click", () => {
+      plantSystem.waterPlant(plantId);
       this.showPlantInfo(plantId); // Refresh
     });
 
-    harvestBtn?.addEventListener("click", () => {
-      PlantSystem.getInstance().harvestPlant(plantId);
+    panel.querySelector("#btn-harvest")?.addEventListener("click", () => {
+      plantSystem.harvestPlant(plantId);
       this.hidePlantInfo();
     });
 
-    closeBtn?.addEventListener("click", () => {
+    panel.querySelector("#btn-fertilize")?.addEventListener("click", () => {
+      if (plantSystem.applyFertilizer(plantId)) {
+        this.showNotification("Plant fertilized! 25% faster growth!", "success");
+        this.showPlantInfo(plantId); // Refresh
+      }
+    });
+
+    panel.querySelector(".plant-info-close")?.addEventListener("click", () => {
       this.hidePlantInfo();
+    });
+
+    // Temperature slider
+    panel.querySelector(".temp-slider")?.addEventListener("input", (e) => {
+      const target = e.target as HTMLInputElement;
+      const newTemp = parseInt(target.value);
+      plantSystem.setTemperature(plantId, newTemp);
+      
+      // Update display
+      const tempValueEl = panel.querySelector(".temp-value");
+      const tempStatusEl = panel.querySelector(".temp-status");
+      if (tempValueEl) tempValueEl.textContent = `${newTemp}°F`;
+      if (tempStatusEl) {
+        const isOptimal = plantSystem.isTemperatureOptimal(plantId);
+        tempStatusEl.textContent = isOptimal ? "✓" : "⚠";
+        tempStatusEl.className = `temp-status ${isOptimal ? "optimal" : "suboptimal"}`;
+      }
     });
   }
 
@@ -731,6 +1005,92 @@ export class GameHUD {
     const panel = this.container?.querySelector("#hud-plant-info") as HTMLElement;
     if (panel) {
       panel.style.display = "none";
+    }
+  }
+
+  // ==================== Water Prompt UI ====================
+
+  private activeWaterPromptPlantId: string | null = null;
+  private waterPromptUpdateInterval: number | null = null;
+
+  public showWaterPrompt(plantId: string, timeRemaining: number, streak: number): void {
+    const prompt = this.container?.querySelector("#hud-water-prompt") as HTMLElement;
+    if (!prompt) return;
+
+    this.activeWaterPromptPlantId = plantId;
+    prompt.style.display = "block";
+
+    // Update streak display
+    const streakEl = prompt.querySelector(".water-prompt-streak span");
+    if (streakEl) streakEl.textContent = streak.toString();
+
+    // Get strain info for prompt window duration
+    const plant = GameState.getInstance().getPlant(plantId);
+    const strain = plant ? PlantSystem.getInstance().getStrain(plant.strain) : null;
+    const promptWindow = strain?.waterPromptWindow ?? 30000;
+
+    // Start timer bar animation
+    const bar = prompt.querySelector(".water-prompt-bar") as HTMLElement;
+    if (bar) {
+      bar.style.width = `${(timeRemaining / promptWindow) * 100}%`;
+    }
+
+    // Update timer bar every 100ms
+    if (this.waterPromptUpdateInterval) {
+      clearInterval(this.waterPromptUpdateInterval);
+    }
+
+    const startTime = Date.now();
+    const endTime = startTime + timeRemaining;
+
+    this.waterPromptUpdateInterval = window.setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, endTime - now);
+      const percent = (remaining / promptWindow) * 100;
+
+      if (bar) bar.style.width = `${percent}%`;
+
+      if (remaining <= 0) {
+        this.hideWaterPrompt();
+      }
+    }, 100);
+
+    // Setup click handler
+    const content = prompt.querySelector(".water-prompt-content");
+    const newContent = content?.cloneNode(true);
+    if (content && newContent) {
+      content.replaceWith(newContent);
+      this.container?.querySelector(".water-prompt-content")?.addEventListener("click", () => {
+        this.onWaterPromptClick();
+      });
+    }
+  }
+
+  private onWaterPromptClick(): void {
+    if (!this.activeWaterPromptPlantId) return;
+
+    const plantSystem = PlantSystem.getInstance();
+    const success = plantSystem.respondToWaterPrompt(this.activeWaterPromptPlantId);
+
+    if (success) {
+      const plant = GameState.getInstance().getPlant(this.activeWaterPromptPlantId);
+      this.showNotification(`Perfect water! Streak: ${plant?.wateringStreak ?? 0}`, "success");
+    }
+
+    this.hideWaterPrompt();
+  }
+
+  public hideWaterPrompt(): void {
+    const prompt = this.container?.querySelector("#hud-water-prompt") as HTMLElement;
+    if (prompt) {
+      prompt.style.display = "none";
+    }
+
+    this.activeWaterPromptPlantId = null;
+
+    if (this.waterPromptUpdateInterval) {
+      clearInterval(this.waterPromptUpdateInterval);
+      this.waterPromptUpdateInterval = null;
     }
   }
 }

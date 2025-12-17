@@ -2,7 +2,7 @@
   "game": {
     "title": "Ganjawars",
     "version": "0.0.1",
-    "startMap": "sprite_test.map"
+    "startMap": "test.map"
   },
   "assets": {
     "maps": [

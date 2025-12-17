@@ -2,6 +2,8 @@
  * PlantSystem - Manages plant growth, watering, and harvesting
  */
 
+import { BuildableObjectManager } from "./BuildableObject";
+import { CuringSystem } from "./CuringSystem";
 import { GameState, type PlantState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
@@ -11,15 +13,59 @@ export interface StrainDefinition {
   name: string;
   growthTime: number; // Total time in ms to fully grow
   stages: number; // Number of growth stages
-  waterConsumption: number; // Water consumed per minute
-  baseYield: number; // Base harvest amount
+  waterConsumption: number; // Water consumed per minute (legacy, kept for compatibility)
+  baseYield: number; // Base harvest amount in GRAMS (e.g., 150 = 150g)
   xpReward: number;
   seedId: string;
-  harvestId: string;
+  harvestId: string; // Fresh harvest item ID (uncured)
+  curedId?: string; // Cured product item ID (sellable)
   unlockLevel: number;
+  // Value per gram (affects selling price)
+  valuePerGram: number; // Base $/gram for this strain (e.g., 8 = $8/gram)
   // Harvest window settings
   harvestWindow?: number; // Time in ms plant stays at peak quality (default: growthTime / 2)
   overripeTime?: number; // Time in ms before plant spoils after harvest window (default: harvestWindow)
+  // Hempire-style: Temperature preferences (°F)
+  preferredTempMin?: number; // Min temp for green zone (default: 68)
+  preferredTempMax?: number; // Max temp for green zone (default: 78)
+  // Hempire-style: Water prompt timing
+  waterPromptInterval?: number; // ms between water prompts (default: growthTime / 10)
+  waterPromptWindow?: number; // ms player has to respond (default: 30000 = 30s)
+  // Curing time (default: 7 in-game days)
+  curingTime?: number; // ms to cure (default: 7 * 24 * 60 * 60 * 1000)
+}
+
+/**
+ * Pot types - affect grow speed
+ */
+export interface PotDefinition {
+  id: string;
+  name: string;
+  growthSpeedMultiplier: number; // 1.0 = normal, 0.5 = 2x faster
+  cost: number;
+  unlockLevel: number;
+  description: string;
+}
+
+/**
+ * Grow room lighting levels - passive yield bonus
+ */
+export interface LightingLevel {
+  level: number;
+  name: string;
+  yieldBonus: number; // percentage bonus (0.1 = 10%)
+  cost: number;
+  unlockLevel: number;
+}
+
+/**
+ * Strain mastery - tracks perfect grows per strain
+ */
+export interface StrainMastery {
+  strainId: string;
+  perfectGrows: number; // count of perfect grows
+  level: number; // 0-5 stars
+  bonusYield: number; // flat bonus buds per harvest
 }
 
 /**
@@ -53,8 +99,14 @@ export class PlantSystem {
   private gameState: GameState;
   private gameTimer: GameTimer;
   private strains: Map<string, StrainDefinition> = new Map();
+  private pots: Map<string, PotDefinition> = new Map();
+  private lightingLevels: LightingLevel[] = [];
+  private masteryData: Map<string, StrainMastery> = new Map();
   private eventListeners: PlantEventCallback[] = [];
   private updateInterval: string = "plant_system_update";
+  
+  // Current grow room state
+  private currentLightingLevel: number = 1;
 
   private constructor() {
     this.gameState = GameState.getInstance();
@@ -104,15 +156,106 @@ export class PlantSystem {
     this.strains.clear();
   }
 
+  // ==================== Pot Data ====================
+
+  public registerPot(pot: PotDefinition): void {
+    this.pots.set(pot.id, pot);
+  }
+
+  public registerPots(pots: PotDefinition[]): void {
+    for (const pot of pots) {
+      this.registerPot(pot);
+    }
+  }
+
+  public getPot(id: string): PotDefinition | undefined {
+    return this.pots.get(id);
+  }
+
+  public getAllPots(): PotDefinition[] {
+    return Array.from(this.pots.values());
+  }
+
+  public getUnlockedPots(): PotDefinition[] {
+    const playerLevel = this.gameState.getPlayer().level;
+    return this.getAllPots().filter(p => p.unlockLevel <= playerLevel);
+  }
+
+  // ==================== Lighting ====================
+
+  public registerLightingLevels(levels: LightingLevel[]): void {
+    this.lightingLevels = levels.sort((a, b) => a.level - b.level);
+  }
+
+  public getLightingLevel(): number {
+    return this.currentLightingLevel;
+  }
+
+  public getLightingBonus(): number {
+    const level = this.lightingLevels.find(l => l.level === this.currentLightingLevel);
+    return level?.yieldBonus ?? 0;
+  }
+
+  public upgradeLighting(): boolean {
+    const nextLevel = this.lightingLevels.find(l => l.level === this.currentLightingLevel + 1);
+    if (!nextLevel) return false;
+    
+    const playerLevel = this.gameState.getPlayer().level;
+    if (nextLevel.unlockLevel > playerLevel) return false;
+    
+    if (!this.gameState.spendMoney(nextLevel.cost)) return false;
+    
+    this.currentLightingLevel = nextLevel.level;
+    this.emit("lighting_upgraded", "", { level: this.currentLightingLevel, bonus: nextLevel.yieldBonus });
+    return true;
+  }
+
+  // ==================== Mastery ====================
+
+  public getMastery(strainId: string): StrainMastery {
+    let mastery = this.masteryData.get(strainId);
+    if (!mastery) {
+      mastery = {
+        strainId,
+        perfectGrows: 0,
+        level: 0,
+        bonusYield: 0,
+      };
+      this.masteryData.set(strainId, mastery);
+    }
+    return mastery;
+  }
+
+  public getAllMastery(): StrainMastery[] {
+    return Array.from(this.masteryData.values());
+  }
+
+  private addPerfectGrow(strainId: string): void {
+    const mastery = this.getMastery(strainId);
+    mastery.perfectGrows++;
+    
+    // Level up every 5 perfect grows (0-5 stars)
+    const newLevel = Math.min(5, Math.floor(mastery.perfectGrows / 5));
+    if (newLevel > mastery.level) {
+      mastery.level = newLevel;
+      mastery.bonusYield = newLevel; // +1 bud per star level
+      this.emit("mastery_levelup", "", { strainId, level: newLevel, bonusYield: mastery.bonusYield });
+    }
+  }
+
   // ==================== Plant Actions ====================
 
   /**
    * Plant a seed at a position
+   * @param potType - Type of pot to use (affects grow speed)
+   * @param initialTemp - Initial temperature setting (default: 72°F)
    */
   public plantSeed(
     strainId: string,
     position: { x: number; y: number; z: number },
-    mapId: string
+    mapId: string,
+    potType: string = "basic",
+    initialTemp: number = 72
   ): PlantState | null {
     const strain = this.getStrain(strainId);
     if (!strain) {
@@ -130,7 +273,13 @@ export class PlantSystem {
     // Remove seed from inventory
     this.gameState.removeItem(strain.seedId);
 
-    // Create plant
+    const currentTime = this.gameTimer.getGameTime();
+    
+    // Calculate first water prompt time
+    const waterPromptInterval = strain.waterPromptInterval ?? Math.floor(strain.growthTime / 10);
+    const firstWaterPrompt = currentTime + waterPromptInterval;
+
+    // Create plant with Hempire-style fields
     const plant = this.gameState.addPlant({
       strain: strainId,
       position,
@@ -139,18 +288,27 @@ export class PlantSystem {
       growthProgress: 0,
       waterLevel: 100,
       health: 100,
-      plantedAt: this.gameTimer.getGameTime(),
-      lastWatered: this.gameTimer.getGameTime(),
+      plantedAt: currentTime,
+      lastWatered: currentTime,
+      // Hempire-style fields
+      potType,
+      temperature: initialTemp,
+      waterPromptsHit: 0,
+      waterPromptsMissed: 0,
+      wateringStreak: 0,
+      lastWaterPrompt: 0,
+      nextWaterPrompt: firstWaterPrompt,
+      fertilized: false,
     });
 
-    console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z})`);
-    this.emit("planted", plant.id, { strain: strainId });
+    console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z}) in ${potType} pot at ${initialTemp}°F`);
+    this.emit("planted", plant.id, { strain: strainId, potType, temperature: initialTemp });
 
     return plant;
   }
 
   /**
-   * Water a plant
+   * Water a plant (legacy method - fills water to 100%)
    */
   public waterPlant(plantId: string): boolean {
     const plant = this.gameState.getPlant(plantId);
@@ -174,9 +332,284 @@ export class PlantSystem {
   }
 
   /**
-   * Harvest a plant
+   * Respond to a water prompt (Hempire-style active watering)
+   * Call this when player taps the water icon during a prompt
+   * @returns true if prompt was active and successfully responded to
    */
-  public harvestPlant(plantId: string): { success: boolean; yield: number; xp: number; quality: number; phase: PlantPhase } | null {
+  public respondToWaterPrompt(plantId: string): boolean {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return false;
+
+    const currentTime = this.gameTimer.getGameTime();
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return false;
+
+    // Check if there's an active water prompt
+    const promptWindow = strain.waterPromptWindow ?? 30000; // 30s default
+    const promptStart = plant.nextWaterPrompt;
+    const promptEnd = promptStart + promptWindow;
+
+    if (currentTime < promptStart || currentTime > promptEnd) {
+      console.log("No active water prompt");
+      return false;
+    }
+
+    // Success! Player responded in time
+    const newStreak = plant.wateringStreak + 1;
+    const waterPromptInterval = strain.waterPromptInterval ?? Math.floor(strain.growthTime / 10);
+    
+    this.gameState.updatePlant(plantId, {
+      waterPromptsHit: plant.waterPromptsHit + 1,
+      wateringStreak: newStreak,
+      lastWaterPrompt: currentTime,
+      nextWaterPrompt: currentTime + waterPromptInterval,
+      waterLevel: 100, // Also refill water
+      lastWatered: currentTime,
+    });
+
+    console.log(`Water prompt hit! Streak: ${newStreak}`);
+    this.emit("water_prompt_hit", plantId, { streak: newStreak });
+
+    return true;
+  }
+
+  /**
+   * Check if a plant currently has an active water prompt
+   */
+  public hasActiveWaterPrompt(plantId: string): boolean {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return false;
+
+    const currentTime = this.gameTimer.getGameTime();
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return false;
+
+    const promptWindow = strain.waterPromptWindow ?? 30000;
+    const promptStart = plant.nextWaterPrompt;
+    const promptEnd = promptStart + promptWindow;
+
+    return currentTime >= promptStart && currentTime <= promptEnd;
+  }
+
+  /**
+   * Get water prompt status for a plant
+   */
+  public getWaterPromptStatus(plantId: string): { 
+    isActive: boolean; 
+    timeRemaining: number; 
+    streak: number;
+    hitRate: number;
+  } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const currentTime = this.gameTimer.getGameTime();
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return null;
+
+    const promptWindow = strain.waterPromptWindow ?? 30000;
+    const promptStart = plant.nextWaterPrompt;
+    const promptEnd = promptStart + promptWindow;
+    
+    const isActive = currentTime >= promptStart && currentTime <= promptEnd;
+    const timeRemaining = isActive ? promptEnd - currentTime : 0;
+    
+    const totalPrompts = plant.waterPromptsHit + plant.waterPromptsMissed;
+    const hitRate = totalPrompts > 0 ? plant.waterPromptsHit / totalPrompts : 1;
+
+    return {
+      isActive,
+      timeRemaining,
+      streak: plant.wateringStreak,
+      hitRate,
+    };
+  }
+
+  // ==================== Grow Light Detection ====================
+
+  /**
+   * Get the grow light above a plant (if any)
+   * Grow lights are 128 units above plant positions
+   */
+  public getGrowLightAbove(plantId: string): { templateId: string; yieldBonus: number } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const buildableManager = BuildableObjectManager.getInstance();
+    const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
+    
+    // Look for a grow light at the same X/Y position but 128 units higher (Z)
+    const lightAbove = allObjects.find(obj => {
+      // Check if it's a grow light type
+      const isGrowLight = obj.templateId.startsWith("grow_light");
+      if (!isGrowLight) return false;
+      
+      // Check if it's above this plant (same X/Y, Z is ~128 higher)
+      const sameX = Math.abs(obj.position.x - plant.position.x) < 10;
+      const sameY = Math.abs(obj.position.z - plant.position.z) < 10; // Z in 3D = Y in map
+      const abovePlant = obj.position.y > plant.position.y + 50; // Y in 3D = height
+      
+      return sameX && sameY && abovePlant;
+    });
+
+    if (!lightAbove) return null;
+
+    // Get the template to find yield bonus
+    const template = buildableManager.getTemplate(lightAbove.templateId);
+    const yieldBonus = template?.yieldBonus ?? 0;
+
+    return { templateId: lightAbove.templateId, yieldBonus };
+  }
+
+  /**
+   * Check if a plant has a grow light installed above it
+   */
+  public hasGrowLight(plantId: string): boolean {
+    return this.getGrowLightAbove(plantId) !== null;
+  }
+
+  /**
+   * Get grow light multipliers for a plant
+   * Without light: 2x slower growth, 50% less yield
+   * With light: normal speed, yield bonus based on lamp type
+   */
+  public getGrowLightMultipliers(plantId: string): { speedMultiplier: number; yieldMultiplier: number } {
+    const light = this.getGrowLightAbove(plantId);
+    
+    if (light) {
+      // Has light: normal speed, yield bonus from lamp type
+      return { speedMultiplier: 1.0, yieldMultiplier: 1.0 + light.yieldBonus };
+    } else {
+      // No light: 2x slower, 50% yield
+      return { speedMultiplier: 2.0, yieldMultiplier: 0.5 };
+    }
+  }
+
+  // ==================== Temperature Control ====================
+
+  /**
+   * Set the temperature for a plant's grow environment
+   * @param temperature Temperature in °F (60-90 range)
+   */
+  public setTemperature(plantId: string, temperature: number): boolean {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return false;
+
+    // Clamp to valid range
+    const clampedTemp = Math.max(60, Math.min(90, temperature));
+    
+    this.gameState.updatePlant(plantId, {
+      temperature: clampedTemp,
+    });
+
+    console.log(`Set temperature for ${plantId} to ${clampedTemp}°F`);
+    this.emit("temperature_changed", plantId, { temperature: clampedTemp });
+
+    return true;
+  }
+
+  /**
+   * Check if temperature is in the optimal range for a strain
+   */
+  public isTemperatureOptimal(plantId: string): boolean {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return false;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return false;
+
+    const minTemp = strain.preferredTempMin ?? 68;
+    const maxTemp = strain.preferredTempMax ?? 78;
+
+    return plant.temperature >= minTemp && plant.temperature <= maxTemp;
+  }
+
+  /**
+   * Get temperature status for a plant
+   */
+  public getTemperatureStatus(plantId: string): {
+    current: number;
+    min: number;
+    max: number;
+    isOptimal: boolean;
+  } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return null;
+
+    const minTemp = strain.preferredTempMin ?? 68;
+    const maxTemp = strain.preferredTempMax ?? 78;
+
+    return {
+      current: plant.temperature,
+      min: minTemp,
+      max: maxTemp,
+      isOptimal: plant.temperature >= minTemp && plant.temperature <= maxTemp,
+    };
+  }
+
+  // ==================== Fertilizer ====================
+
+  /**
+   * Apply fertilizer to boost growth speed by 2x
+   * Fertilizer effect lasts until harvest
+   */
+  public applyFertilizer(plantId: string): boolean {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return false;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return false;
+
+    // Check if player has fertilizer
+    if (!this.gameState.hasItem("fertilizer")) {
+      console.warn("No fertilizer available!");
+      this.emit("no_fertilizer", plantId);
+      return false;
+    }
+
+    // Already fertilized or already ready
+    if (plant.fertilized || plant.growthStage >= strain.stages - 1) {
+      console.log("Cannot fertilize this plant");
+      return false;
+    }
+
+    // Remove fertilizer from inventory
+    this.gameState.removeItem("fertilizer");
+
+    // Mark as fertilized - growth speed will be 2x
+    this.gameState.updatePlant(plantId, {
+      fertilized: true,
+      fertilizedAt: this.gameTimer.getGameTime(),
+    });
+
+    console.log(`Fertilized ${plantId} - 25% faster growth!`);
+    this.emit("fertilized", plantId, { strain: plant.strain, speedBoost: 1.25 });
+
+    return true;
+  }
+
+  /**
+   * Harvest a plant - Hempire-style yield calculation
+   * Yield = Base + WaterBonus + TempBonus + LightBonus + MasteryBonus
+   */
+  public harvestPlant(plantId: string): { 
+    success: boolean; 
+    yield: number; 
+    xp: number; 
+    quality: number; 
+    phase: PlantPhase;
+    bonuses: {
+      base: number;
+      water: number;
+      temp: number;
+      light: number;
+      mastery: number;
+    };
+    isPerfectGrow: boolean;
+  } | null {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return null;
 
@@ -194,20 +627,65 @@ export class PlantSystem {
     const phaseInfo = this.getPlantPhase(plantId);
     if (!phaseInfo) return null;
 
-    // Calculate yield based on health AND quality
-    const healthMultiplier = plant.health / 100;
-    const qualityMultiplier = phaseInfo.quality / 100;
-    const totalMultiplier = healthMultiplier * qualityMultiplier;
+    // === HEMPIRE-STYLE YIELD CALCULATION ===
+    const base = strain.baseYield;
     
-    const yield_ = Math.max(1, Math.floor(strain.baseYield * totalMultiplier));
-    const xp = Math.max(1, Math.floor(strain.xpReward * totalMultiplier));
-
-    // Bonus XP for perfect timing
+    // Water bonus: 0-50% of base based on hit rate
+    const totalPrompts = plant.waterPromptsHit + plant.waterPromptsMissed;
+    const waterHitRate = totalPrompts > 0 ? plant.waterPromptsHit / totalPrompts : 1;
+    const waterBonus = Math.floor(base * 0.5 * waterHitRate);
+    const perfectWater = waterHitRate >= 1.0;
+    
+    // Temperature bonus: 25% of base if in optimal range
+    const tempOptimal = this.isTemperatureOptimal(plantId);
+    const tempBonus = tempOptimal ? Math.floor(base * 0.25) : 0;
+    
+    // Lighting bonus: based on grow room equipment level
+    const lightBonus = Math.floor(base * this.getLightingBonus());
+    
+    // Mastery bonus: flat bonus from strain mastery level
+    const mastery = this.getMastery(plant.strain);
+    const masteryBonus = mastery.bonusYield;
+    
+    // Quality multiplier (from harvest timing - ready/overripe/spoiled)
+    const qualityMultiplier = phaseInfo.quality / 100;
+    
+    // Health multiplier (from plant care)
+    const healthMultiplier = plant.health / 100;
+    
+    // Grow light penalty: 50% yield without light
+    const growLightMultipliers = this.getGrowLightMultipliers(plantId);
+    const growLightYieldMultiplier = growLightMultipliers.yieldMultiplier;
+    
+    // Final yield calculation
+    const rawYield = base + waterBonus + tempBonus + lightBonus + masteryBonus;
+    const yield_ = Math.max(1, Math.floor(rawYield * qualityMultiplier * healthMultiplier * growLightYieldMultiplier));
+    
+    // XP calculation
+    const xp = Math.max(1, Math.floor(strain.xpReward * qualityMultiplier * healthMultiplier));
     const bonusXp = phaseInfo.phase === "ready" ? Math.floor(strain.xpReward * 0.25) : 0;
     const totalXp = xp + bonusXp;
 
-    // Add harvest to inventory
-    this.gameState.addItem(strain.harvestId, "harvest", yield_);
+    // Check for perfect grow (perfect water + perfect temp + ready phase)
+    const isPerfectGrow = perfectWater && tempOptimal && phaseInfo.phase === "ready";
+    
+    // Award mastery point for perfect grow
+    if (isPerfectGrow) {
+      this.addPerfectGrow(plant.strain);
+    }
+
+    // Add fresh harvest to curing system (needs to be cured before selling)
+    const curingSystem = CuringSystem.getInstance();
+    const decayTime = 5 * 60 * 1000; // 5 minutes for testing (normally 24 hours)
+    curingSystem.addFreshHarvest(
+      strain.id,
+      strain.harvestId,
+      strain.curedId ?? `cured_${strain.id}`,
+      yield_,
+      phaseInfo.quality,
+      strain.valuePerGram ?? 10,
+      decayTime
+    );
     
     // Add XP
     this.gameState.addXP(totalXp);
@@ -216,6 +694,9 @@ export class PlantSystem {
     this.gameState.incrementStat("plantsHarvested");
     if (phaseInfo.phase === "ready") {
       this.gameState.incrementStat("perfectHarvests");
+    }
+    if (isPerfectGrow) {
+      this.gameState.incrementStat("perfectGrows");
     }
 
     // Update quest objectives
@@ -227,10 +708,27 @@ export class PlantSystem {
     // Remove plant
     this.gameState.removePlant(plantId);
 
-    const phaseText = phaseInfo.phase === "ready" ? "(Perfect!)" : 
+    // Reset the pot visual to empty state (ready for new seed)
+    // Find the pot at this plant's position
+    const buildableManager = BuildableObjectManager.getInstance();
+    const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
+    const potAtPosition = allObjects.find(obj => 
+      Math.abs(obj.position.x - plant.position.x) < 5 &&
+      Math.abs(obj.position.z - plant.position.z) < 5
+    );
+    if (potAtPosition) {
+      buildableManager.resetPot(potAtPosition.id);
+    }
+
+    const phaseText = isPerfectGrow ? "(PERFECT GROW!)" :
+                      phaseInfo.phase === "ready" ? "(Perfect Timing!)" : 
                       phaseInfo.phase === "overripe" ? "(Overripe)" : 
                       phaseInfo.phase === "spoiled" ? "(Spoiled!)" : "";
-    console.log(`Harvested ${yield_} ${strain.name} ${phaseText}, gained ${totalXp} XP`);
+    console.log(`Harvested ${yield_} ${strain.name} ${phaseText}`);
+    console.log(`  Base: ${base}, Water: +${waterBonus}, Temp: +${tempBonus}, Light: +${lightBonus}, Mastery: +${masteryBonus}`);
+    console.log(`  Quality: ${phaseInfo.quality}%, Health: ${plant.health}%, XP: ${totalXp}`);
+    
+    const bonuses = { base, water: waterBonus, temp: tempBonus, light: lightBonus, mastery: masteryBonus };
     
     this.emit("harvested", plantId, { 
       yield: yield_, 
@@ -239,6 +737,8 @@ export class PlantSystem {
       phase: phaseInfo.phase,
       quality: phaseInfo.quality,
       bonusXp,
+      bonuses,
+      isPerfectGrow,
     });
 
     return {
@@ -247,6 +747,8 @@ export class PlantSystem {
       xp: totalXp,
       quality: phaseInfo.quality,
       phase: phaseInfo.phase,
+      bonuses,
+      isPerfectGrow,
     };
   }
 
@@ -409,14 +911,35 @@ export class PlantSystem {
     // Skip dead plants
     if (plant.health <= 0) return;
 
-    // Calculate time since last update
+    // Skip plants that are already harvestable (no more growth updates needed)
+    if (plant.growthStage >= strain.stages - 1) {
+      this.checkPhaseChanges(plant, strain, currentTime);
+      return;
+    }
+
+    // Get pot speed multiplier
+    const pot = this.getPot(plant.potType);
+    const potSpeedMultiplier = pot?.growthSpeedMultiplier ?? 1.0;
+    
+    // Fertilizer gives 25% speed boost
+    const fertilizerBoost = plant.fertilized ? 0.8 : 1.0; // 0.8 = 25% faster
+
+    // Grow light penalty: 2x slower without light
+    const lightMultipliers = this.getGrowLightMultipliers(plant.id);
+    const lightSpeedPenalty = lightMultipliers.speedMultiplier;
+
+    // Combined speed multiplier (pot + fertilizer + light penalty)
+    const speedMultiplier = potSpeedMultiplier * fertilizerBoost * lightSpeedPenalty;
+
+    // Calculate time since last update (adjusted for speed boosts)
     const timeSincePlanted = currentTime - plant.plantedAt;
+    const effectiveTime = timeSincePlanted / speedMultiplier; // Faster = more effective time
     const stageTime = strain.growthTime / strain.stages;
 
     // Calculate current stage and progress
-    const totalProgress = timeSincePlanted / strain.growthTime;
+    const totalProgress = effectiveTime / strain.growthTime;
     const newStage = Math.min(strain.stages - 1, Math.floor(totalProgress * strain.stages));
-    const stageProgress = ((timeSincePlanted % stageTime) / stageTime) * 100;
+    const stageProgress = ((effectiveTime % stageTime) / stageTime) * 100;
 
     // Check for stage change
     if (newStage > plant.growthStage) {
@@ -433,27 +956,47 @@ export class PlantSystem {
       }
     }
 
-    // Check for phase changes (only for harvestable plants)
-    if (newStage >= strain.stages - 1) {
-      const phaseInfo = this.getPlantPhase(plant.id);
-      const previousPhase = this.gameState.getCustomData<string>(`plant_phase_${plant.id}`);
+    // === HEMPIRE-STYLE WATER PROMPTS ===
+    const promptWindow = strain.waterPromptWindow ?? 30000; // 30s default
+    const waterPromptInterval = strain.waterPromptInterval ?? Math.floor(strain.growthTime / 10);
+    
+    // Check if water prompt just became active
+    const promptStart = plant.nextWaterPrompt;
+    const promptEnd = promptStart + promptWindow;
+    const wasPromptActive = this.gameState.getCustomData<boolean>(`water_prompt_active_${plant.id}`);
+    const isPromptActive = currentTime >= promptStart && currentTime <= promptEnd;
+    
+    if (isPromptActive && !wasPromptActive) {
+      // Water prompt just started - notify UI
+      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, true);
+      this.emit("water_prompt_start", plant.id, { 
+        timeRemaining: promptEnd - currentTime,
+        streak: plant.wateringStreak,
+      });
+    }
+    
+    // Check if water prompt expired (missed)
+    if (currentTime > promptEnd && wasPromptActive) {
+      // Player missed the water prompt!
+      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, false);
       
-      if (phaseInfo && phaseInfo.phase !== previousPhase) {
-        this.gameState.setCustomData(`plant_phase_${plant.id}`, phaseInfo.phase);
-        
-        if (phaseInfo.phase === "overripe") {
-          this.emit("overripe", plant.id, { 
-            strain: plant.strain,
-            quality: phaseInfo.quality,
-            timeRemaining: phaseInfo.timeRemaining,
-          });
-        } else if (phaseInfo.phase === "spoiled") {
-          this.emit("spoiled", plant.id, { strain: plant.strain });
-        }
-      }
+      const newMissed = plant.waterPromptsMissed + 1;
+      const nextPrompt = currentTime + waterPromptInterval;
+      
+      this.gameState.updatePlant(plant.id, {
+        waterPromptsMissed: newMissed,
+        wateringStreak: 0, // Reset streak on miss
+        lastWaterPrompt: promptEnd,
+        nextWaterPrompt: nextPrompt,
+      });
+      
+      this.emit("water_prompt_missed", plant.id, { 
+        totalMissed: newMissed,
+        nextPromptIn: waterPromptInterval,
+      });
     }
 
-    // Calculate water consumption
+    // Calculate water consumption (legacy - still affects health)
     const timeSinceWatered = currentTime - plant.lastWatered;
     const minutesSinceWatered = timeSinceWatered / 60000;
     const waterConsumed = minutesSinceWatered * strain.waterConsumption;
@@ -487,6 +1030,28 @@ export class PlantSystem {
       waterLevel: newWaterLevel,
       health: newHealth,
     });
+  }
+
+  /**
+   * Check for phase changes on harvestable plants
+   */
+  private checkPhaseChanges(plant: PlantState, _strain: StrainDefinition, _currentTime: number): void {
+    const phaseInfo = this.getPlantPhase(plant.id);
+    const previousPhase = this.gameState.getCustomData<string>(`plant_phase_${plant.id}`);
+    
+    if (phaseInfo && phaseInfo.phase !== previousPhase) {
+      this.gameState.setCustomData(`plant_phase_${plant.id}`, phaseInfo.phase);
+      
+      if (phaseInfo.phase === "overripe") {
+        this.emit("overripe", plant.id, { 
+          strain: plant.strain,
+          quality: phaseInfo.quality,
+          timeRemaining: phaseInfo.timeRemaining,
+        });
+      } else if (phaseInfo.phase === "spoiled") {
+        this.emit("spoiled", plant.id, { strain: plant.strain });
+      }
+    }
   }
 
   // ==================== Events ====================

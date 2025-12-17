@@ -1,4 +1,6 @@
 import type { BaseDialog, DialogContext } from "./dialogs/BaseDialog";
+import { CuringDialog } from "./dialogs/CuringDialog";
+import { SeedStoreDialog, ShopDialog, SuppliesStoreDialog } from "./dialogs/ShopDialog";
 import { TestDialog } from "./dialogs/TestDialog";
 
 export class UIManager {
@@ -14,6 +16,10 @@ export class UIManager {
   private constructor() {
     // Register Dialogs Here
     this.register(new TestDialog());
+    this.register(new ShopDialog());
+    this.register(new SeedStoreDialog());
+    this.register(new SuppliesStoreDialog());
+    this.register(new CuringDialog());
   }
 
   public static getInstance(): UIManager {

@@ -54,6 +54,7 @@ export class BuildMenu {
       <div class="build-menu-container">
         <div class="build-categories">
           <button class="build-category active" data-category="plant">🪴 Plants</button>
+          <button class="build-category" data-category="growlight">💡 Lights</button>
           <button class="build-category" data-category="equipment">⚙️ Equipment</button>
           <button class="build-category" data-category="decoration">🎨 Decor</button>
         </div>
