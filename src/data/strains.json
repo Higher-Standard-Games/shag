@@ -29,7 +29,26 @@
       "isLandrace": true,
       "tier": 1,
       "specialTraits": ["drought_master"],
-      "unlockLevel": 1
+      "unlockLevel": 1,
+      "gameplay": {
+        "growthTime": 360000,
+        "stages": 4,
+        "waterConsumption": 8,
+        "baseYield": 120,
+        "xpReward": 15,
+        "seedId": "seed_afghan_kush",
+        "harvestId": "fresh_afghan_kush",
+        "curedId": "cured_afghan_kush",
+        "harvestWindow": 180000,
+        "overripeTime": 120000,
+        "preferredTempMin": 65,
+        "preferredTempMax": 80,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 30000,
+        "curingTime": 180000,
+        "seedDropChance": 0.15,
+        "rareSeedDrops": []
+      }
     },
     {
       "id": "genetics_durban_poison",
@@ -59,7 +78,26 @@
       "isLandrace": true,
       "tier": 1,
       "specialTraits": ["giant_growth"],
-      "unlockLevel": 1
+      "unlockLevel": 1,
+      "gameplay": {
+        "growthTime": 420000,
+        "stages": 5,
+        "waterConsumption": 12,
+        "baseYield": 100,
+        "xpReward": 20,
+        "seedId": "seed_durban_poison",
+        "harvestId": "fresh_durban_poison",
+        "curedId": "cured_durban_poison",
+        "harvestWindow": 180000,
+        "overripeTime": 120000,
+        "preferredTempMin": 70,
+        "preferredTempMax": 85,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 25000,
+        "curingTime": 180000,
+        "seedDropChance": 0.12,
+        "rareSeedDrops": []
+      }
     },
     {
       "id": "genetics_thai",
@@ -89,7 +127,26 @@
       "isLandrace": true,
       "tier": 2,
       "specialTraits": ["exotic_flavor"],
-      "unlockLevel": 3
+      "unlockLevel": 3,
+      "gameplay": {
+        "growthTime": 540000,
+        "stages": 5,
+        "waterConsumption": 15,
+        "baseYield": 80,
+        "xpReward": 30,
+        "seedId": "seed_thai",
+        "harvestId": "fresh_thai",
+        "curedId": "cured_thai",
+        "harvestWindow": 180000,
+        "overripeTime": 120000,
+        "preferredTempMin": 75,
+        "preferredTempMax": 90,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 20000,
+        "curingTime": 240000,
+        "seedDropChance": 0.10,
+        "rareSeedDrops": []
+      }
     },
     {
       "id": "genetics_og_kush",
@@ -125,7 +182,28 @@
       "isLandrace": false,
       "tier": 2,
       "specialTraits": [],
-      "unlockLevel": 3
+      "unlockLevel": 3,
+      "gameplay": {
+        "growthTime": 600000,
+        "stages": 5,
+        "waterConsumption": 15,
+        "baseYield": 150,
+        "xpReward": 25,
+        "seedId": "seed_og_kush",
+        "harvestId": "fresh_og_kush",
+        "curedId": "cured_og_kush",
+        "harvestWindow": 240000,
+        "overripeTime": 180000,
+        "preferredTempMin": 68,
+        "preferredTempMax": 78,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 25000,
+        "curingTime": 180000,
+        "seedDropChance": 0.12,
+        "rareSeedDrops": [
+          { "strainId": "genetics_girl_scout_cookies", "chance": 0.03 }
+        ]
+      }
     },
     {
       "id": "genetics_skunk_1",
@@ -161,7 +239,28 @@
       "isLandrace": false,
       "tier": 1,
       "specialTraits": ["heavy_yield"],
-      "unlockLevel": 1
+      "unlockLevel": 1,
+      "gameplay": {
+        "growthTime": 330000,
+        "stages": 4,
+        "waterConsumption": 10,
+        "baseYield": 160,
+        "xpReward": 12,
+        "seedId": "seed_skunk_1",
+        "harvestId": "fresh_skunk_1",
+        "curedId": "cured_skunk_1",
+        "harvestWindow": 180000,
+        "overripeTime": 120000,
+        "preferredTempMin": 65,
+        "preferredTempMax": 80,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 30000,
+        "curingTime": 150000,
+        "seedDropChance": 0.18,
+        "rareSeedDrops": [
+          { "strainId": "genetics_og_kush", "chance": 0.05 }
+        ]
+      }
     },
     {
       "id": "genetics_girl_scout_cookies",
@@ -197,7 +296,28 @@
       "isLandrace": false,
       "tier": 3,
       "specialTraits": ["high_thc", "frost_giant"],
-      "unlockLevel": 5
+      "unlockLevel": 5,
+      "gameplay": {
+        "growthTime": 780000,
+        "stages": 5,
+        "waterConsumption": 18,
+        "baseYield": 130,
+        "xpReward": 40,
+        "seedId": "seed_girl_scout_cookies",
+        "harvestId": "fresh_girl_scout_cookies",
+        "curedId": "cured_girl_scout_cookies",
+        "harvestWindow": 300000,
+        "overripeTime": 180000,
+        "preferredTempMin": 68,
+        "preferredTempMax": 76,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 22000,
+        "curingTime": 300000,
+        "seedDropChance": 0.10,
+        "rareSeedDrops": [
+          { "strainId": "genetics_gelato", "chance": 0.03 }
+        ]
+      }
     },
     {
       "id": "genetics_gelato",
@@ -232,7 +352,28 @@
       "isLandrace": false,
       "tier": 4,
       "specialTraits": ["frost_giant", "purple_pheno", "exotic_flavor"],
-      "unlockLevel": 7
+      "unlockLevel": 7,
+      "gameplay": {
+        "growthTime": 720000,
+        "stages": 5,
+        "waterConsumption": 16,
+        "baseYield": 140,
+        "xpReward": 45,
+        "seedId": "seed_gelato",
+        "harvestId": "fresh_gelato",
+        "curedId": "cured_gelato",
+        "harvestWindow": 300000,
+        "overripeTime": 180000,
+        "preferredTempMin": 68,
+        "preferredTempMax": 76,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 20000,
+        "curingTime": 300000,
+        "seedDropChance": 0.08,
+        "rareSeedDrops": [
+          { "strainId": "genetics_lemon_cherry_gelato", "chance": 0.02 }
+        ]
+      }
     },
     {
       "id": "genetics_lemon_cherry_gelato",
@@ -268,7 +409,26 @@
       "isLandrace": false,
       "tier": 5,
       "specialTraits": ["high_thc", "frost_giant", "purple_pheno", "exotic_flavor", "balanced_hybrid"],
-      "unlockLevel": 10
+      "unlockLevel": 10,
+      "gameplay": {
+        "growthTime": 900000,
+        "stages": 6,
+        "waterConsumption": 20,
+        "baseYield": 180,
+        "xpReward": 60,
+        "seedId": "seed_lemon_cherry_gelato",
+        "harvestId": "fresh_lemon_cherry_gelato",
+        "curedId": "cured_lemon_cherry_gelato",
+        "harvestWindow": 360000,
+        "overripeTime": 180000,
+        "preferredTempMin": 70,
+        "preferredTempMax": 75,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 18000,
+        "curingTime": 360000,
+        "seedDropChance": 0.05,
+        "rareSeedDrops": []
+      }
     }
   ]
 }

@@ -12,7 +12,7 @@ import { BuildableObjectManager, createStages, createInstantStage, type Buildabl
 import { EquipmentSystem, type EquipmentTemplate } from "./EquipmentSystem";
 import { GameState } from "./GameState";
 import { OrderSystem, type CustomerTemplate } from "./OrderSystem";
-import { PlantSystem, type StrainDefinition, type PotDefinition, type LightingLevel } from "./PlantSystem";
+import { PlantSystem, type PotDefinition, type LightingLevel } from "./PlantSystem";
 import { QuestSystem, type Quest } from "./QuestSystem";
 import { ShopSystem, type ShopItem, type ShopCategory } from "./ShopSystem";
 import { CuringSystem, type CuringBarrel } from "./CuringSystem";
@@ -370,92 +370,8 @@ export const CURING_BARRELS: CuringBarrel[] = [
 ];
 
 // ==================== Plant Strains ====================
-// These define growable plant types with Hempire-style mechanics
-
-export const PLANT_STRAINS: StrainDefinition[] = [
-  {
-    id: "basic",
-    name: "Basic Bud",
-    growthTime: 5 * 60 * 1000, // 5 minutes to grow
-    stages: 4,
-    waterConsumption: 10, // 10% per minute (legacy)
-    baseYield: 100, // 100g base yield
-    valuePerGram: 5, // $5/gram base value
-    xpReward: 10,
-    seedId: "seed_basic",
-    harvestId: "fresh_basic", // Fresh (uncured)
-    curedId: "cured_basic", // Cured (sellable)
-    unlockLevel: 1,
-    harvestWindow: 3 * 60 * 1000, // 3 minutes at peak quality
-    overripeTime: 2 * 60 * 1000, // 2 minutes before spoiled
-    // Hempire-style: Temperature preferences
-    preferredTempMin: 65, // Tolerant strain - wide range
-    preferredTempMax: 80,
-    // Hempire-style: Water prompts (5 prompts during growth)
-    waterPromptInterval: 60 * 1000, // Every 1 minute
-    waterPromptWindow: 30 * 1000, // 30 seconds to respond
-    curingTime: 2 * 60 * 1000, // 2 minutes for testing (normally 7 days)
-    // Seed drops
-    seedDropChance: 0.15, // 15% base chance
-    rareSeedDrops: [
-      { strainId: "og_kush", chance: 0.05 }, // 5% chance for OG Kush seed
-    ],
-  },
-  {
-    id: "og_kush",
-    name: "OG Kush",
-    growthTime: 10 * 60 * 1000, // 10 minutes to grow
-    stages: 5,
-    waterConsumption: 15,
-    baseYield: 150, // 150g base yield
-    valuePerGram: 10, // $10/gram base value
-    xpReward: 25,
-    seedId: "seed_og_kush",
-    harvestId: "fresh_og_kush",
-    curedId: "cured_og_kush",
-    unlockLevel: 3,
-    harvestWindow: 4 * 60 * 1000, // 4 minutes at peak
-    overripeTime: 3 * 60 * 1000, // 3 minutes before spoiled
-    // Hempire-style: Temperature preferences
-    preferredTempMin: 68, // Moderate range
-    preferredTempMax: 78,
-    // Hempire-style: Water prompts (10 prompts during growth)
-    waterPromptInterval: 60 * 1000, // Every 1 minute
-    waterPromptWindow: 25 * 1000, // 25 seconds to respond
-    curingTime: 3 * 60 * 1000, // 3 minutes for testing
-    // Seed drops
-    seedDropChance: 0.12, // 12% base chance
-    rareSeedDrops: [
-      { strainId: "purple_haze", chance: 0.03 }, // 3% chance for Purple Haze seed
-    ],
-  },
-  {
-    id: "purple_haze",
-    name: "Purple Haze",
-    growthTime: 15 * 60 * 1000, // 15 minutes to grow
-    stages: 5,
-    waterConsumption: 20,
-    baseYield: 200, // 200g base yield
-    valuePerGram: 15, // $15/gram base value
-    xpReward: 50,
-    seedId: "seed_purple_haze",
-    harvestId: "fresh_purple_haze",
-    curedId: "cured_purple_haze",
-    unlockLevel: 5,
-    harvestWindow: 5 * 60 * 1000, // 5 minutes at peak
-    overripeTime: 3 * 60 * 1000, // 3 minutes before spoiled
-    // Hempire-style: Temperature preferences
-    preferredTempMin: 70, // Narrow range - needs precision
-    preferredTempMax: 75,
-    // Hempire-style: Water prompts (15 prompts during growth)
-    waterPromptInterval: 60 * 1000, // Every 1 minute
-    waterPromptWindow: 20 * 1000, // 20 seconds to respond - harder!
-    curingTime: 5 * 60 * 1000, // 5 minutes for testing
-    // Seed drops - premium strain has lower drop rate
-    seedDropChance: 0.08, // 8% base chance
-    // No rare drops - this IS the rare strain
-  },
-];
+// Strains are now loaded from src/data/strains.json via StrainLoader
+// This is the single source of truth for all strain data
 
 // ==================== Customers ====================
 
@@ -1429,285 +1345,11 @@ export const NPC_DIALOGUES: NPCDialogue[] = [
 ];
 
 // ==================== Strain Genetics ====================
+// Strain genetics are now loaded from src/data/strains.json via StrainLoader
+// This is the single source of truth for all strain data
 
-import { GeneticsSystem, type StrainGenetics } from "./GeneticsSystem";
-
-export const STRAIN_GENETICS: StrainGenetics[] = [
-  // === Landrace Strains (Original genetics) ===
-  {
-    id: "genetics_afghan_kush",
-    name: "Afghan Kush",
-    description: "A pure indica landrace from the Hindu Kush mountains. Known for heavy relaxation and earthy flavors.",
-    type: "indica",
-    indicaPercent: 100,
-    thcContent: 17,
-    cbdContent: 6,
-    effects: { relaxed: 90, sleepy: 75, happy: 60, hungry: 50 },
-    negativeEffects: { dry_mouth: 40, dry_eyes: 30 },
-    flavors: { earthy: 85, woody: 70, herbal: 50, pine: 40 },
-    terpenes: { myrcene: 80, caryophyllene: 50, pinene: 40 },
-    growthTraits: {
-      floweringTime: 55,
-      yieldPotential: 70,
-      heightPotential: 40,
-      difficulty: 30,
-      moldResistance: 70,
-      pestResistance: 65,
-      droughtTolerance: 80,
-    },
-    appearance: { budDensity: 85, trichomeCoverage: 70, purpleExpression: 20, orangeHairs: 50 },
-    lineage: { generation: 0, isStabilized: true, originRegion: "Afghanistan" },
-    rarity: "uncommon",
-    basePrice: 8,
-    isLandrace: true,
-    tier: 1,
-    specialTraits: ["drought_master"],
-    unlockLevel: 1,
-  },
-  {
-    id: "genetics_durban_poison",
-    name: "Durban Poison",
-    description: "A pure sativa landrace from South Africa. Energizing and uplifting with sweet, earthy flavors.",
-    type: "sativa",
-    indicaPercent: 0,
-    thcContent: 20,
-    cbdContent: 1,
-    effects: { energetic: 90, uplifted: 85, creative: 80, focused: 75, happy: 70 },
-    negativeEffects: { anxious: 30, paranoid: 20 },
-    flavors: { sweet: 80, earthy: 60, pine: 50, citrus: 40 },
-    terpenes: { terpinolene: 70, myrcene: 40, ocimene: 35 },
-    growthTraits: {
-      floweringTime: 70,
-      yieldPotential: 65,
-      heightPotential: 90,
-      difficulty: 50,
-      moldResistance: 60,
-      pestResistance: 55,
-      droughtTolerance: 70,
-    },
-    appearance: { budDensity: 50, trichomeCoverage: 75, purpleExpression: 0, orangeHairs: 70 },
-    lineage: { generation: 0, isStabilized: true, originRegion: "South Africa" },
-    rarity: "uncommon",
-    basePrice: 10,
-    isLandrace: true,
-    tier: 1,
-    specialTraits: ["giant_growth"],
-    unlockLevel: 1,
-  },
-  {
-    id: "genetics_thai",
-    name: "Thai",
-    description: "A legendary sativa landrace from Thailand. Known for cerebral, creative effects.",
-    type: "sativa",
-    indicaPercent: 0,
-    thcContent: 18,
-    cbdContent: 0,
-    effects: { creative: 95, euphoric: 85, energetic: 80, focused: 70, uplifted: 75 },
-    negativeEffects: { anxious: 35, paranoid: 25, dry_mouth: 30 },
-    flavors: { citrus: 75, tropical: 70, herbal: 50, earthy: 40 },
-    terpenes: { limonene: 65, pinene: 45, terpinolene: 40 },
-    growthTraits: {
-      floweringTime: 90,
-      yieldPotential: 55,
-      heightPotential: 95,
-      difficulty: 70,
-      moldResistance: 40,
-      pestResistance: 50,
-      droughtTolerance: 60,
-    },
-    appearance: { budDensity: 35, trichomeCoverage: 65, purpleExpression: 0, orangeHairs: 60 },
-    lineage: { generation: 0, isStabilized: true, originRegion: "Thailand" },
-    rarity: "rare",
-    basePrice: 12,
-    isLandrace: true,
-    tier: 2,
-    specialTraits: ["exotic_flavor"],
-    unlockLevel: 3,
-  },
-  
-  // === Classic Hybrids ===
-  {
-    id: "genetics_og_kush",
-    name: "OG Kush",
-    description: "The legendary West Coast hybrid. Complex fuel and citrus flavors with powerful relaxation.",
-    type: "hybrid",
-    indicaPercent: 55,
-    thcContent: 23,
-    cbdContent: 0,
-    effects: { relaxed: 85, euphoric: 80, happy: 75, uplifted: 65, hungry: 50 },
-    negativeEffects: { dry_mouth: 50, dry_eyes: 40, dizzy: 20 },
-    flavors: { diesel: 80, citrus: 65, earthy: 55, pine: 50, lemon: 45 },
-    terpenes: { myrcene: 60, limonene: 55, caryophyllene: 50 },
-    growthTraits: {
-      floweringTime: 60,
-      yieldPotential: 65,
-      heightPotential: 55,
-      difficulty: 55,
-      moldResistance: 50,
-      pestResistance: 55,
-      droughtTolerance: 60,
-    },
-    appearance: { budDensity: 80, trichomeCoverage: 85, purpleExpression: 10, orangeHairs: 65 },
-    lineage: { 
-      parent1Id: "genetics_afghan_kush",
-      generation: 1, 
-      isStabilized: true, 
-      breederName: "Unknown",
-      originRegion: "California"
-    },
-    rarity: "rare",
-    basePrice: 15,
-    isLandrace: false,
-    tier: 2,
-    specialTraits: [],
-    unlockLevel: 3,
-  },
-  {
-    id: "genetics_skunk_1",
-    name: "Skunk #1",
-    description: "A foundational hybrid that changed cannabis breeding. Pungent and potent.",
-    type: "hybrid",
-    indicaPercent: 35,
-    thcContent: 17,
-    cbdContent: 1,
-    effects: { happy: 80, euphoric: 75, relaxed: 65, uplifted: 60, creative: 55 },
-    negativeEffects: { dry_mouth: 35, dry_eyes: 25 },
-    flavors: { skunk: 95, earthy: 60, sweet: 45, pungent: 70 },
-    terpenes: { myrcene: 55, caryophyllene: 45, limonene: 35 },
-    growthTraits: {
-      floweringTime: 55,
-      yieldPotential: 80,
-      heightPotential: 60,
-      difficulty: 25,
-      moldResistance: 75,
-      pestResistance: 70,
-      droughtTolerance: 65,
-    },
-    appearance: { budDensity: 70, trichomeCoverage: 70, purpleExpression: 5, orangeHairs: 55 },
-    lineage: { 
-      parent1Id: "genetics_afghan_kush",
-      parent2Id: "genetics_thai",
-      generation: 1, 
-      isStabilized: true, 
-      breederName: "Sacred Seeds"
-    },
-    rarity: "common",
-    basePrice: 8,
-    isLandrace: false,
-    tier: 1,
-    specialTraits: ["heavy_yield"],
-    unlockLevel: 1,
-  },
-  
-  // === Modern Strains ===
-  {
-    id: "genetics_girl_scout_cookies",
-    name: "Girl Scout Cookies",
-    description: "A modern classic with sweet, earthy flavors and powerful euphoria.",
-    type: "hybrid",
-    indicaPercent: 60,
-    thcContent: 25,
-    cbdContent: 1,
-    effects: { euphoric: 90, happy: 85, relaxed: 80, uplifted: 70, creative: 60 },
-    negativeEffects: { dry_mouth: 45, dry_eyes: 35, paranoid: 15 },
-    flavors: { sweet: 85, earthy: 65, mint: 40, vanilla: 35, berry: 30 },
-    terpenes: { caryophyllene: 65, limonene: 55, humulene: 40 },
-    growthTraits: {
-      floweringTime: 63,
-      yieldPotential: 60,
-      heightPotential: 50,
-      difficulty: 60,
-      moldResistance: 55,
-      pestResistance: 50,
-      droughtTolerance: 55,
-    },
-    appearance: { budDensity: 90, trichomeCoverage: 90, purpleExpression: 40, orangeHairs: 75 },
-    lineage: { 
-      parent1Id: "genetics_og_kush",
-      parent2Id: "genetics_durban_poison",
-      generation: 2, 
-      isStabilized: true, 
-      breederName: "Cookie Fam"
-    },
-    rarity: "rare",
-    basePrice: 18,
-    isLandrace: false,
-    tier: 3,
-    specialTraits: ["high_thc", "frost_giant"],
-    unlockLevel: 5,
-  },
-  {
-    id: "genetics_gelato",
-    name: "Gelato",
-    description: "A dessert strain with incredible flavor and balanced effects.",
-    type: "hybrid",
-    indicaPercent: 55,
-    thcContent: 24,
-    cbdContent: 0,
-    effects: { relaxed: 85, euphoric: 80, happy: 80, uplifted: 70, creative: 55 },
-    negativeEffects: { dry_mouth: 40, dry_eyes: 30 },
-    flavors: { sweet: 90, citrus: 70, berry: 65, vanilla: 50, earthy: 35 },
-    terpenes: { limonene: 60, caryophyllene: 50, myrcene: 45 },
-    growthTraits: {
-      floweringTime: 58,
-      yieldPotential: 70,
-      heightPotential: 55,
-      difficulty: 50,
-      moldResistance: 60,
-      pestResistance: 55,
-      droughtTolerance: 50,
-    },
-    appearance: { budDensity: 85, trichomeCoverage: 95, purpleExpression: 60, orangeHairs: 70 },
-    lineage: { 
-      parent1Id: "genetics_girl_scout_cookies",
-      generation: 3, 
-      isStabilized: true, 
-      breederName: "Cookie Fam"
-    },
-    rarity: "rare",
-    basePrice: 20,
-    isLandrace: false,
-    tier: 4,
-    specialTraits: ["frost_giant", "purple_pheno", "exotic_flavor"],
-    unlockLevel: 7,
-  },
-  {
-    id: "genetics_lemon_cherry_gelato",
-    name: "Lemon Cherry Gelato",
-    description: "An extremely popular hybrid with complex citrus and berry flavors.",
-    type: "hybrid",
-    indicaPercent: 50,
-    thcContent: 26,
-    cbdContent: 0,
-    effects: { relaxed: 80, tingly: 75, giggly: 70, happy: 75, euphoric: 65 },
-    negativeEffects: { anxious: 25, headache: 15, dizzy: 15 },
-    flavors: { lemon: 90, citrus: 85, berry: 75, sweet: 70, earthy: 40 },
-    terpenes: { limonene: 75, caryophyllene: 55, myrcene: 40 },
-    growthTraits: {
-      floweringTime: 60,
-      yieldPotential: 75,
-      heightPotential: 60,
-      difficulty: 45,
-      moldResistance: 65,
-      pestResistance: 60,
-      droughtTolerance: 55,
-    },
-    appearance: { budDensity: 88, trichomeCoverage: 92, purpleExpression: 50, orangeHairs: 80 },
-    lineage: { 
-      parent1Id: "genetics_gelato",
-      parent2Id: "genetics_girl_scout_cookies",
-      generation: 4, 
-      isStabilized: true, 
-      breederName: "Backpack Boyz"
-    },
-    rarity: "legendary",
-    basePrice: 25,
-    isLandrace: false,
-    tier: 5,
-    specialTraits: ["high_thc", "frost_giant", "purple_pheno", "exotic_flavor", "balanced_hybrid"],
-    unlockLevel: 10,
-  },
-];
+import { GeneticsSystem } from "./GeneticsSystem";
+import { getAllStrainDefinitions, getAllStrainGenetics } from "../data/StrainLoader";
 
 // ==================== Starting Resources ====================
 
@@ -1739,9 +1381,9 @@ export function registerGameData(): void {
     objectManager.registerTemplate(template);
   }
 
-  // Register plant strains, pots, and lighting
+  // Register plant strains, pots, and lighting (strains loaded from strains.json)
   const plantSystem = PlantSystem.getInstance();
-  plantSystem.registerStrains(PLANT_STRAINS);
+  plantSystem.registerStrains(getAllStrainDefinitions());
   plantSystem.registerPots(POT_TYPES);
   plantSystem.registerLightingLevels(LIGHTING_LEVELS);
 
@@ -1769,8 +1411,8 @@ export function registerGameData(): void {
   NPCSystem.getInstance().registerNPCs(NPCS);
   NPCSystem.getInstance().registerDialogues(NPC_DIALOGUES);
 
-  // Register strain genetics
-  GeneticsSystem.getInstance().registerStrains(STRAIN_GENETICS);
+  // Register strain genetics (loaded from strains.json)
+  GeneticsSystem.getInstance().registerStrains(getAllStrainGenetics());
 
   // Register curing barrels
   CuringSystem.getInstance().registerBarrels(CURING_BARRELS);
@@ -1809,5 +1451,6 @@ export function registerGameData(): void {
     console.log("Gave player a free starter curing barrel");
   }
 
-  console.log(`Registered: ${BUILDABLE_ITEMS.length} items, ${OBJECT_TEMPLATES.length} templates, ${PLANT_STRAINS.length} strains, ${CUSTOMERS.length} customers, ${SHOP_ITEMS.length} shop items, ${QUESTS.length} quests, ${ACHIEVEMENTS.length} achievements, ${WORLD_AREAS.length} areas, ${WORLD_LOTS.length} lots, ${NPCS.length} NPCs, ${STRAIN_GENETICS.length} genetics`);
+  const strainCount = getAllStrainDefinitions().length;
+  console.log(`Registered: ${BUILDABLE_ITEMS.length} items, ${OBJECT_TEMPLATES.length} templates, ${strainCount} strains, ${CUSTOMERS.length} customers, ${SHOP_ITEMS.length} shop items, ${QUESTS.length} quests, ${ACHIEVEMENTS.length} achievements, ${WORLD_AREAS.length} areas, ${WORLD_LOTS.length} lots, ${NPCS.length} NPCs`);
 }
