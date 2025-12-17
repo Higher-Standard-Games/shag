@@ -4,6 +4,7 @@
 
 import { BuildableObjectManager } from "./BuildableObject";
 import { CuringSystem } from "./CuringSystem";
+import { EquipmentSystem } from "./EquipmentSystem";
 import { EventBus } from "../engine/core/EventBus";
 import { GameState, type PlantState } from "./GameState";
 import { GameTimer } from "./GameTimer";
@@ -34,6 +35,9 @@ export interface StrainDefinition {
   waterPromptWindow?: number; // ms player has to respond (default: 30000 = 30s)
   // Curing time (default: 7 in-game days)
   curingTime?: number; // ms to cure (default: 7 * 24 * 60 * 60 * 1000)
+  // Seed drop mechanics
+  seedDropChance?: number; // Chance to drop a seed on harvest (0-1, default: 0.1 = 10%)
+  rareSeedDrops?: Array<{ strainId: string; chance: number }>; // Rare seeds that can drop
 }
 
 /**
@@ -658,9 +662,26 @@ export class PlantSystem {
     const growLightMultipliers = this.getGrowLightMultipliers(plantId);
     const growLightYieldMultiplier = growLightMultipliers.yieldMultiplier;
     
+    // Equipment yield bonus (CO2, etc.)
+    const equipmentYieldBonus = EquipmentSystem.getInstance().getBonus(
+      "yield_bonus",
+      plant.position,
+      plant.mapId
+    );
+    
+    // Equipment quality bonus (fans, etc.)
+    const equipmentQualityBonus = EquipmentSystem.getInstance().getBonus(
+      "quality_bonus",
+      plant.position,
+      plant.mapId
+    );
+    const adjustedQuality = Math.min(100, phaseInfo.quality + (equipmentQualityBonus * 100));
+    const adjustedQualityMultiplier = adjustedQuality / 100;
+    
     // Final yield calculation
     const rawYield = base + waterBonus + tempBonus + lightBonus + masteryBonus;
-    const yield_ = Math.max(1, Math.floor(rawYield * qualityMultiplier * healthMultiplier * growLightYieldMultiplier));
+    const equipmentYieldMultiplier = 1 + equipmentYieldBonus;
+    const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * equipmentYieldMultiplier));
     
     // XP calculation
     const xp = Math.max(1, Math.floor(strain.xpReward * qualityMultiplier * healthMultiplier));
@@ -705,6 +726,13 @@ export class PlantSystem {
       strainId: strain.id, 
       quantity: 1 
     });
+
+    // Seed drop chance (higher for perfect grows)
+    const seedDrops = this.calculateSeedDrops(strain, isPerfectGrow, phaseInfo.quality);
+    for (const drop of seedDrops) {
+      this.gameState.addItem(drop.seedId, "seed", drop.quantity);
+      this.emit("seed_dropped", plantId, { seedId: drop.seedId, quantity: drop.quantity, isRare: drop.isRare });
+    }
 
     // Remove plant
     this.gameState.removePlant(plantId);
@@ -929,8 +957,16 @@ export class PlantSystem {
     const lightMultipliers = this.getGrowLightMultipliers(plant.id);
     const lightSpeedPenalty = lightMultipliers.speedMultiplier;
 
-    // Combined speed multiplier (pot + fertilizer + light penalty)
-    const speedMultiplier = potSpeedMultiplier * fertilizerBoost * lightSpeedPenalty;
+    // Equipment bonuses (fans, CO2, etc.)
+    const equipmentSpeedBonus = EquipmentSystem.getInstance().getBonus(
+      "growth_speed",
+      plant.position,
+      plant.mapId
+    );
+    const equipmentSpeedMultiplier = 1 / (1 + equipmentSpeedBonus); // Convert bonus to faster time
+
+    // Combined speed multiplier (pot + fertilizer + light penalty + equipment)
+    const speedMultiplier = potSpeedMultiplier * fertilizerBoost * lightSpeedPenalty * equipmentSpeedMultiplier;
 
     // Calculate time since last update (adjusted for speed boosts)
     const timeSincePlanted = currentTime - plant.plantedAt;
@@ -1053,6 +1089,49 @@ export class PlantSystem {
         this.emit("spoiled", plant.id, { strain: plant.strain });
       }
     }
+  }
+
+  // ==================== Seed Drops ====================
+
+  /**
+   * Calculate seed drops on harvest
+   * - Base chance to get same strain seed back
+   * - Perfect grows have higher chance
+   * - Rare seed drops possible from certain strains
+   */
+  private calculateSeedDrops(
+    strain: StrainDefinition,
+    isPerfectGrow: boolean,
+    quality: number
+  ): Array<{ seedId: string; quantity: number; isRare: boolean }> {
+    const drops: Array<{ seedId: string; quantity: number; isRare: boolean }> = [];
+
+    // Base seed drop chance (default 10%, +20% for perfect grow)
+    const baseChance = strain.seedDropChance ?? 0.1;
+    const perfectBonus = isPerfectGrow ? 0.2 : 0;
+    const qualityBonus = (quality / 100) * 0.1; // Up to +10% for 100% quality
+    const totalChance = Math.min(0.8, baseChance + perfectBonus + qualityBonus);
+
+    // Roll for same-strain seed
+    if (Math.random() < totalChance) {
+      drops.push({ seedId: strain.seedId, quantity: 1, isRare: false });
+    }
+
+    // Roll for rare seed drops (if defined)
+    if (strain.rareSeedDrops && strain.rareSeedDrops.length > 0) {
+      for (const rareDrop of strain.rareSeedDrops) {
+        // Perfect grows double rare drop chance
+        const rareChance = isPerfectGrow ? rareDrop.chance * 2 : rareDrop.chance;
+        if (Math.random() < rareChance) {
+          const rareStrain = this.getStrain(rareDrop.strainId);
+          if (rareStrain) {
+            drops.push({ seedId: rareStrain.seedId, quantity: 1, isRare: true });
+          }
+        }
+      }
+    }
+
+    return drops;
   }
 
   // ==================== Events ====================

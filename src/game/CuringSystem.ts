@@ -8,6 +8,7 @@
  * 4. After curing time, product becomes cured (sellable)
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 
@@ -401,9 +402,13 @@ export class CuringSystem {
   }
 
   private emit(event: string, data: unknown): void {
+    // Legacy callback system
     for (const listener of this.eventListeners) {
       listener(event, data);
     }
+    
+    // Global EventBus - allows any system to listen to curing events
+    EventBus.emit(`curing:${event}`, data as object);
   }
 
   // ==================== State Management ====================

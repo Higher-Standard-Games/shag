@@ -43,5 +43,11 @@ export type { Achievement, AchievementCondition, AchievementReward, AchievementP
 
 export { HarvestIndicator } from "./HarvestIndicator";
 
+export { CuringSystem } from "./CuringSystem";
+export type { CuringBarrel, CuringSlot, StoredFreshItem } from "./CuringSystem";
+
+export { DealerSystem } from "./DealerSystem";
+export type { Dealer, SellableProduct, DealRecord, DealerReputation } from "./DealerSystem";
+
 // Game data registration (call once during init)
 export { registerGameData } from "./GameData";

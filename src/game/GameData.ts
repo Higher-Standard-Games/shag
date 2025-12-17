@@ -16,6 +16,7 @@ import { PlantSystem, type StrainDefinition, type PotDefinition, type LightingLe
 import { QuestSystem, type Quest } from "./QuestSystem";
 import { ShopSystem, type ShopItem, type ShopCategory } from "./ShopSystem";
 import { CuringSystem, type CuringBarrel } from "./CuringSystem";
+import { DealerSystem, type Dealer } from "./DealerSystem";
 
 // ==================== Buildable Items ====================
 // These appear in the build menu
@@ -255,6 +256,92 @@ export const LIGHTING_LEVELS: LightingLevel[] = [
 // ==================== Curing Barrels ====================
 // Barrels for curing fresh harvest into sellable product
 
+// ==================== Dealers ====================
+// NPCs that buy products from the player
+
+export const DEALERS: Dealer[] = [
+  {
+    id: "dealer_street",
+    name: "Street Dealer",
+    title: "Local Buyer",
+    icon: "🧢",
+    priceMultiplier: 0.8, // Pays 20% less (quick cash)
+    preferredCategories: ["fresh"],
+    preferredBonus: 0.1, // 10% bonus for fresh
+    minReputation: 0,
+    maxQuantity: 50, // Max 50g per deal
+    dealCooldown: 60000, // 1 minute cooldown
+    riskLevel: "low",
+    requiredLevel: 1,
+    isAvailable: true,
+    areaId: "slums_street",
+  },
+  {
+    id: "dealer_dispensary",
+    name: "Green Leaf Dispensary",
+    title: "Licensed Buyer",
+    icon: "🏪",
+    priceMultiplier: 1.0, // Standard prices
+    preferredCategories: ["cured"],
+    preferredBonus: 0.2, // 20% bonus for cured
+    minReputation: 10,
+    maxQuantity: 200, // Max 200g per deal
+    dealCooldown: 300000, // 5 minute cooldown
+    riskLevel: "low",
+    requiredLevel: 2,
+    isAvailable: true,
+    areaId: "downtown",
+  },
+  {
+    id: "dealer_wholesale",
+    name: "Big Mike",
+    title: "Wholesale Buyer",
+    icon: "💼",
+    priceMultiplier: 1.15, // Pays 15% more
+    preferredCategories: ["cured"],
+    preferredBonus: 0.15,
+    minReputation: 25,
+    maxQuantity: 500, // Max 500g per deal
+    dealCooldown: 600000, // 10 minute cooldown
+    riskLevel: "medium",
+    requiredLevel: 5,
+    isAvailable: true,
+    areaId: "industrial",
+  },
+  {
+    id: "dealer_premium",
+    name: "The Connoisseur",
+    title: "Premium Buyer",
+    icon: "🎩",
+    priceMultiplier: 1.5, // Pays 50% more!
+    preferredCategories: ["cured"],
+    preferredBonus: 0.25, // 25% bonus for cured
+    minReputation: 50,
+    maxQuantity: 100, // Max 100g per deal (quality over quantity)
+    dealCooldown: 1800000, // 30 minute cooldown
+    riskLevel: "low",
+    requiredLevel: 10,
+    isAvailable: true,
+    areaId: "uptown",
+  },
+  {
+    id: "dealer_underground",
+    name: "Shadow",
+    title: "Underground Contact",
+    icon: "🕶️",
+    priceMultiplier: 2.0, // Pays double!
+    preferredCategories: ["cured", "fresh"],
+    preferredBonus: 0.1,
+    minReputation: 75,
+    maxQuantity: 1000, // Bulk deals
+    dealCooldown: 3600000, // 1 hour cooldown
+    riskLevel: "high", // High heat gain
+    requiredLevel: 15,
+    isAvailable: true,
+    areaId: "underground",
+  },
+];
+
 export const CURING_BARRELS: CuringBarrel[] = [
   {
     id: "basic_barrel",
@@ -308,6 +395,11 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     waterPromptInterval: 60 * 1000, // Every 1 minute
     waterPromptWindow: 30 * 1000, // 30 seconds to respond
     curingTime: 2 * 60 * 1000, // 2 minutes for testing (normally 7 days)
+    // Seed drops
+    seedDropChance: 0.15, // 15% base chance
+    rareSeedDrops: [
+      { strainId: "og_kush", chance: 0.05 }, // 5% chance for OG Kush seed
+    ],
   },
   {
     id: "og_kush",
@@ -331,6 +423,11 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     waterPromptInterval: 60 * 1000, // Every 1 minute
     waterPromptWindow: 25 * 1000, // 25 seconds to respond
     curingTime: 3 * 60 * 1000, // 3 minutes for testing
+    // Seed drops
+    seedDropChance: 0.12, // 12% base chance
+    rareSeedDrops: [
+      { strainId: "purple_haze", chance: 0.03 }, // 3% chance for Purple Haze seed
+    ],
   },
   {
     id: "purple_haze",
@@ -354,6 +451,9 @@ export const PLANT_STRAINS: StrainDefinition[] = [
     waterPromptInterval: 60 * 1000, // Every 1 minute
     waterPromptWindow: 20 * 1000, // 20 seconds to respond - harder!
     curingTime: 5 * 60 * 1000, // 5 minutes for testing
+    // Seed drops - premium strain has lower drop rate
+    seedDropChance: 0.08, // 8% base chance
+    // No rare drops - this IS the rare strain
   },
 ];
 
@@ -569,6 +669,86 @@ export const EQUIPMENT_TEMPLATES: EquipmentTemplate[] = [
     requiresActivation: false,
     automationInterval: 30 * 1000, // Every 30 seconds
     automationCallback: "auto_water",
+  },
+  {
+    id: "fan_basic",
+    name: "Oscillating Fan",
+    icon: "🌀",
+    description: "Improves airflow, reducing pest risk and strengthening stems.",
+    zoneType: "equipment",
+    effects: [
+      { type: "quality_bonus", value: 0.1, radius: 100 }, // +10% quality
+      { type: "custom", value: 0.5, radius: 100, customId: "pest_resistance" }, // 50% pest resistance
+    ],
+    powerConsumption: 3,
+    requiresActivation: false,
+    automationInterval: 0,
+  },
+  {
+    id: "humidifier",
+    name: "Humidifier",
+    icon: "💨",
+    description: "Maintains optimal humidity, improving water retention.",
+    zoneType: "equipment",
+    effects: [
+      { type: "water_retention", value: 0.3, radius: 120 }, // 30% less water consumption
+    ],
+    powerConsumption: 5,
+    requiresActivation: false,
+    automationInterval: 0,
+  },
+  {
+    id: "co2_system",
+    name: "CO2 Injector",
+    icon: "🫧",
+    description: "Boosts photosynthesis for faster growth and bigger yields.",
+    zoneType: "equipment",
+    effects: [
+      { type: "growth_speed", value: 0.35, radius: 150 }, // +35% growth speed
+      { type: "yield_bonus", value: 0.15, radius: 150 }, // +15% yield
+    ],
+    powerConsumption: 15,
+    requiresActivation: true, // Needs to be turned on
+    automationInterval: 0,
+  },
+  {
+    id: "heater",
+    name: "Space Heater",
+    icon: "🔥",
+    description: "Raises temperature in cold environments.",
+    zoneType: "equipment",
+    effects: [
+      { type: "custom", value: 10, radius: 100, customId: "temp_increase" }, // +10°F
+    ],
+    powerConsumption: 20,
+    requiresActivation: true,
+    automationInterval: 0,
+  },
+  {
+    id: "ac_unit",
+    name: "AC Unit",
+    icon: "❄️",
+    description: "Lowers temperature in hot environments.",
+    zoneType: "equipment",
+    effects: [
+      { type: "custom", value: -10, radius: 100, customId: "temp_decrease" }, // -10°F
+    ],
+    powerConsumption: 25,
+    requiresActivation: true,
+    automationInterval: 0,
+  },
+  {
+    id: "security_camera",
+    name: "Security Camera",
+    icon: "📹",
+    description: "Reduces risk of theft and raids.",
+    zoneType: "equipment",
+    effects: [
+      { type: "custom", value: 0.25, radius: -1, customId: "security" }, // 25% security boost (global)
+    ],
+    powerConsumption: 2,
+    requiresActivation: false,
+    automationInterval: 0,
   },
 ];
 
@@ -1595,6 +1775,10 @@ export function registerGameData(): void {
   // Register curing barrels
   CuringSystem.getInstance().registerBarrels(CURING_BARRELS);
   CuringSystem.getInstance().init();
+
+  // Register dealers
+  DealerSystem.getInstance().registerDealers(DEALERS);
+  DealerSystem.getInstance().init();
 
   // Set up starting resources for new games
   const state = GameState.getInstance();
