@@ -10,7 +10,6 @@ import { GameHUD } from "./GameHUD";
 interface ActiveIndicator {
   objectId: string;
   element: HTMLElement;
-  position: { x: number; y: number; z: number };
 }
 
 export class PotActionIndicator {
@@ -18,7 +17,8 @@ export class PotActionIndicator {
   private container: HTMLElement | null = null;
   private indicators: Map<string, ActiveIndicator> = new Map();
   private getScreenPosition: ((worldPos: { x: number; y: number; z: number }) => { x: number; y: number } | null) | null = null;
-  private updateInterval: number | null = null;
+  private styleInjected: boolean = false;
+  private animationFrameId: number | null = null;
 
   private constructor() {}
 
@@ -33,6 +33,7 @@ export class PotActionIndicator {
     getScreenPosition: (worldPos: { x: number; y: number; z: number }) => { x: number; y: number } | null
   ): void {
     this.getScreenPosition = getScreenPosition;
+    this.injectStyles();
     this.createContainer();
     this.setupEventListeners();
     this.startUpdateLoop();
@@ -40,19 +41,16 @@ export class PotActionIndicator {
     // Check for any existing empty pots that need indicators
     // (in case pots were loaded from save before this was initialized)
     setTimeout(() => {
-      this.checkAllPots("showcase"); // TODO: get current map ID properly
-    }, 100);
+      this.checkAllPots("showcase");
+    }, 500);
   }
 
-  private createContainer(): void {
-    this.container = document.createElement("div");
-    this.container.id = "pot-action-indicators";
-    this.container.innerHTML = `<style>${this.getStyles()}</style>`;
-    document.body.appendChild(this.container);
-  }
+  private injectStyles(): void {
+    if (this.styleInjected) return;
+    this.styleInjected = true;
 
-  private getStyles(): string {
-    return `
+    const style = document.createElement("style");
+    style.textContent = `
       #pot-action-indicators {
         position: fixed;
         top: 0;
@@ -60,7 +58,7 @@ export class PotActionIndicator {
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 90;
+        z-index: 1000;
       }
 
       .pot-action-indicator {
@@ -68,15 +66,15 @@ export class PotActionIndicator {
         display: flex;
         flex-direction: column;
         align-items: center;
-        transform: translate(-50%, -100%);
+        transform: translate(-50%, -50%);
         pointer-events: auto;
         cursor: pointer;
       }
 
       .pot-action-icon {
         font-size: 32px;
-        animation: bounce 1s ease-in-out infinite;
         filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        animation: pot-bounce 1s ease-in-out infinite;
       }
 
       .pot-action-label {
@@ -91,11 +89,18 @@ export class PotActionIndicator {
         border: 1px solid rgba(76, 175, 80, 0.5);
       }
 
-      @keyframes bounce {
+      @keyframes pot-bounce {
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-15px); }
       }
     `;
+    document.head.appendChild(style);
+  }
+
+  private createContainer(): void {
+    this.container = document.createElement("div");
+    this.container.id = "pot-action-indicators";
+    document.body.appendChild(this.container);
   }
 
   private setupEventListeners(): void {
@@ -161,14 +166,7 @@ export class PotActionIndicator {
     const indicator: ActiveIndicator = {
       objectId,
       element,
-      position: { 
-        x: state.position.x, 
-        y: state.position.y ?? 0, 
-        z: state.position.z 
-      },
     };
-
-    console.log(`PotActionIndicator: Created for ${objectId} at world pos`, indicator.position);
     
     this.indicators.set(objectId, indicator);
     this.updateIndicatorPosition(indicator);
@@ -225,7 +223,7 @@ export class PotActionIndicator {
       for (const indicator of this.indicators.values()) {
         this.updateIndicatorPosition(indicator);
       }
-      this.updateInterval = requestAnimationFrame(update);
+      this.animationFrameId = requestAnimationFrame(update);
     };
     update();
   }
@@ -246,8 +244,8 @@ export class PotActionIndicator {
   }
 
   public dispose(): void {
-    if (this.updateInterval) {
-      cancelAnimationFrame(this.updateInterval);
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
     }
     this.container?.remove();
     this.indicators.clear();
