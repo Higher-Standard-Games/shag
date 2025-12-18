@@ -36,6 +36,12 @@ export class PotActionIndicator {
     this.createContainer();
     this.setupEventListeners();
     this.startUpdateLoop();
+    
+    // Check for any existing empty pots that need indicators
+    // (in case pots were loaded from save before this was initialized)
+    setTimeout(() => {
+      this.checkAllPots("showcase"); // TODO: get current map ID properly
+    }, 100);
   }
 
   private createContainer(): void {
@@ -123,6 +129,12 @@ export class PotActionIndicator {
   }
 
   public showIndicatorForPot(objectId: string): void {
+    // Don't show if not initialized yet
+    if (!this.getScreenPosition || !this.container) {
+      console.warn("PotActionIndicator: Not initialized yet, skipping indicator for", objectId);
+      return;
+    }
+
     const buildableManager = BuildableObjectManager.getInstance();
     const state = buildableManager.getObject(objectId);
     
@@ -143,14 +155,21 @@ export class PotActionIndicator {
       EventBus.emit("pot:needs_seed", { objectId, position: state.position });
     });
 
-    this.container?.appendChild(element);
+    this.container.appendChild(element);
 
+    // Store the objectId so we can look up fresh position each frame
     const indicator: ActiveIndicator = {
       objectId,
       element,
-      position: state.position,
+      position: { 
+        x: state.position.x, 
+        y: state.position.y ?? 0, 
+        z: state.position.z 
+      },
     };
 
+    console.log(`PotActionIndicator: Created for ${objectId} at world pos`, indicator.position);
+    
     this.indicators.set(objectId, indicator);
     this.updateIndicatorPosition(indicator);
 
@@ -172,21 +191,30 @@ export class PotActionIndicator {
   }
 
   private updateIndicatorPosition(indicator: ActiveIndicator): void {
-    if (!this.getScreenPosition) return;
+    if (!this.getScreenPosition) {
+      return;
+    }
 
-    // Position above the pot
+    // Get fresh position from the buildable object (in case it moved)
+    const buildableManager = BuildableObjectManager.getInstance();
+    const state = buildableManager.getObject(indicator.objectId);
+    if (!state) return;
+
+    // Position above the pot (y=0 for ground level objects)
     const worldPos = {
-      x: indicator.position.x,
-      y: indicator.position.y + 60, // Above the pot
-      z: indicator.position.z,
+      x: state.position.x,
+      y: (state.position.y || 0) + 40, // Above the pot
+      z: state.position.z,
     };
 
     const screenPos = this.getScreenPosition(worldPos);
-    if (screenPos) {
+    if (screenPos && screenPos.x > 0 && screenPos.y > 0 && 
+        screenPos.x < window.innerWidth && screenPos.y < window.innerHeight) {
       indicator.element.style.left = `${screenPos.x}px`;
       indicator.element.style.top = `${screenPos.y}px`;
       indicator.element.style.display = "flex";
     } else {
+      // Hide if off-screen
       indicator.element.style.display = "none";
     }
   }
