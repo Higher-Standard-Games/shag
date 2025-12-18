@@ -1216,9 +1216,11 @@ export class PlantSystem {
     }
 
     // Calculate water consumption first (needed for prompt logic)
+    // Water drains 30% faster than base rate to ensure plants need watering during growth
+    const waterDrainMultiplier = 1.3;
     const timeSinceWatered = currentTime - plant.lastWatered;
     const minutesSinceWatered = timeSinceWatered / 60000;
-    const waterConsumed = minutesSinceWatered * strain.waterConsumption;
+    const waterConsumed = minutesSinceWatered * strain.waterConsumption * waterDrainMultiplier;
     const newWaterLevel = Math.max(0, 100 - waterConsumed);
 
     // === WATER PROMPTS (triggered at 50% water level) ===
