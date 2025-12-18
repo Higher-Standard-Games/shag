@@ -356,7 +356,7 @@ export class PlantSystem {
   }
 
   /**
-   * Water a plant (legacy method - fills water to 100%)
+   * Water a plant (costs $2)
    */
   public waterPlant(plantId: string): boolean {
     const plant = this.gameState.getPlant(plantId);
@@ -367,14 +367,25 @@ export class PlantSystem {
       return false;
     }
 
+    // Check if player can afford water ($2)
+    const waterCost = 2;
+    if (this.gameState.getPlayer().money < waterCost) {
+      console.log("Not enough money to water plant");
+      this.emit("water_failed", plantId, { reason: "no_money", cost: waterCost });
+      return false;
+    }
+
+    // Deduct water cost
+    this.gameState.addMoney(-waterCost);
+
     // Fill water to 100%
     this.gameState.updatePlant(plantId, {
       waterLevel: 100,
       lastWatered: this.gameTimer.getGameTime(),
     });
 
-    console.log(`Watered plant ${plantId}`);
-    this.emit("watered", plantId);
+    console.log(`Watered plant ${plantId} for $${waterCost}`);
+    this.emit("watered", plantId, { cost: waterCost });
 
     return true;
   }
@@ -392,51 +403,49 @@ export class PlantSystem {
     const strain = this.getStrain(plant.strain);
     if (!strain) return false;
 
-    // Check if there's an active water prompt
-    const promptWindow = strain.waterPromptWindow ?? 30000; // 30s default
-    const promptStart = plant.nextWaterPrompt;
-    const promptEnd = promptStart + promptWindow;
-
-    if (currentTime < promptStart || currentTime > promptEnd) {
-      console.log("No active water prompt");
+    // Check if water level is low enough for prompt (50% or below)
+    if (plant.waterLevel > 50) {
+      console.log("Water level too high for prompt");
       return false;
     }
 
-    // Success! Player responded in time
+    // Check if player can afford water ($2)
+    const waterCost = 2;
+    if (this.gameState.getPlayer().money < waterCost) {
+      console.log("Not enough money to water plant");
+      this.emit("water_failed", plantId, { reason: "no_money", cost: waterCost });
+      return false;
+    }
+
+    // Deduct water cost
+    this.gameState.addMoney(-waterCost);
+
+    // Success! Player responded to water prompt
     const newStreak = plant.wateringStreak + 1;
-    const waterPromptInterval = strain.waterPromptInterval ?? Math.floor(strain.growthTime / 10);
     
     this.gameState.updatePlant(plantId, {
       waterPromptsHit: plant.waterPromptsHit + 1,
       wateringStreak: newStreak,
       lastWaterPrompt: currentTime,
-      nextWaterPrompt: currentTime + waterPromptInterval,
-      waterLevel: 100, // Also refill water
+      waterLevel: 100, // Refill water
       lastWatered: currentTime,
     });
 
-    console.log(`Water prompt hit! Streak: ${newStreak}`);
-    this.emit("water_prompt_hit", plantId, { streak: newStreak });
+    console.log(`Water prompt hit! Streak: ${newStreak}, cost: $${waterCost}`);
+    this.emit("water_prompt_hit", plantId, { streak: newStreak, cost: waterCost });
 
     return true;
   }
 
   /**
-   * Check if a plant currently has an active water prompt
+   * Check if a plant currently has an active water prompt (water level <= 50%)
    */
   public hasActiveWaterPrompt(plantId: string): boolean {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return false;
 
-    const currentTime = this.gameTimer.getGameTime();
-    const strain = this.getStrain(plant.strain);
-    if (!strain) return false;
-
-    const promptWindow = strain.waterPromptWindow ?? 30000;
-    const promptStart = plant.nextWaterPrompt;
-    const promptEnd = promptStart + promptWindow;
-
-    return currentTime >= promptStart && currentTime <= promptEnd;
+    // Water prompt is active when water level drops to 50% or below
+    return plant.waterLevel <= 50 && plant.waterLevel > 0;
   }
 
   /**
@@ -447,20 +456,15 @@ export class PlantSystem {
     timeRemaining: number; 
     streak: number;
     hitRate: number;
+    waterLevel: number;
   } | null {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return null;
 
-    const currentTime = this.gameTimer.getGameTime();
-    const strain = this.getStrain(plant.strain);
-    if (!strain) return null;
-
-    const promptWindow = strain.waterPromptWindow ?? 30000;
-    const promptStart = plant.nextWaterPrompt;
-    const promptEnd = promptStart + promptWindow;
-    
-    const isActive = currentTime >= promptStart && currentTime <= promptEnd;
-    const timeRemaining = isActive ? promptEnd - currentTime : 0;
+    // Water prompt is active when water level drops to 50% or below
+    const isActive = plant.waterLevel <= 50 && plant.waterLevel > 0;
+    // Time remaining is based on how long until water hits 0 (rough estimate)
+    const timeRemaining = isActive ? Math.max(0, plant.waterLevel * 1000) : 0;
     
     const totalPrompts = plant.waterPromptsHit + plant.waterPromptsMissed;
     const hitRate = totalPrompts > 0 ? plant.waterPromptsHit / totalPrompts : 1;
@@ -470,6 +474,7 @@ export class PlantSystem {
       timeRemaining,
       streak: plant.wateringStreak,
       hitRate,
+      waterLevel: plant.waterLevel,
     };
   }
 
@@ -1210,51 +1215,43 @@ export class PlantSystem {
       }
     }
 
-    // === HEMPIRE-STYLE WATER PROMPTS ===
-    const promptWindow = strain.waterPromptWindow ?? 30000; // 30s default
-    const waterPromptInterval = strain.waterPromptInterval ?? Math.floor(strain.growthTime / 10);
-    
-    // Check if water prompt just became active
-    const promptStart = plant.nextWaterPrompt;
-    const promptEnd = promptStart + promptWindow;
-    const wasPromptActive = this.gameState.getCustomData<boolean>(`water_prompt_active_${plant.id}`);
-    const isPromptActive = currentTime >= promptStart && currentTime <= promptEnd;
-    
-    if (isPromptActive && !wasPromptActive) {
-      // Water prompt just started - notify UI
-      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, true);
-      this.emit("water_prompt_start", plant.id, { 
-        timeRemaining: promptEnd - currentTime,
-        streak: plant.wateringStreak,
-      });
-    }
-    
-    // Check if water prompt expired (missed)
-    if (currentTime > promptEnd && wasPromptActive) {
-      // Player missed the water prompt!
-      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, false);
-      
-      const newMissed = plant.waterPromptsMissed + 1;
-      const nextPrompt = currentTime + waterPromptInterval;
-      
-      this.gameState.updatePlant(plant.id, {
-        waterPromptsMissed: newMissed,
-        wateringStreak: 0, // Reset streak on miss
-        lastWaterPrompt: promptEnd,
-        nextWaterPrompt: nextPrompt,
-      });
-      
-      this.emit("water_prompt_missed", plant.id, { 
-        totalMissed: newMissed,
-        nextPromptIn: waterPromptInterval,
-      });
-    }
-
-    // Calculate water consumption (legacy - still affects health)
+    // Calculate water consumption first (needed for prompt logic)
     const timeSinceWatered = currentTime - plant.lastWatered;
     const minutesSinceWatered = timeSinceWatered / 60000;
     const waterConsumed = minutesSinceWatered * strain.waterConsumption;
     const newWaterLevel = Math.max(0, 100 - waterConsumed);
+
+    // === WATER PROMPTS (triggered at 50% water level) ===
+    const wasPromptActive = this.gameState.getCustomData<boolean>(`water_prompt_active_${plant.id}`);
+    const isPromptActive = newWaterLevel <= 50 && newWaterLevel > 0;
+    
+    if (isPromptActive && !wasPromptActive) {
+      // Water prompt just started (water dropped to 50%) - notify UI
+      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, true);
+      this.emit("water_prompt_start", plant.id, { 
+        timeRemaining: newWaterLevel * 1000, // Rough estimate
+        streak: plant.wateringStreak,
+        waterLevel: newWaterLevel,
+      });
+    }
+    
+    // Check if water prompt expired (water hit 0 without being watered)
+    if (newWaterLevel <= 0 && wasPromptActive) {
+      // Player missed the water prompt!
+      this.gameState.setCustomData(`water_prompt_active_${plant.id}`, false);
+      
+      const newMissed = plant.waterPromptsMissed + 1;
+      
+      this.gameState.updatePlant(plant.id, {
+        waterPromptsMissed: newMissed,
+        wateringStreak: 0, // Reset streak on miss
+        lastWaterPrompt: currentTime,
+      });
+      
+      this.emit("water_prompt_missed", plant.id, { 
+        totalMissed: newMissed,
+      });
+    }
 
     // Calculate health damage from dehydration
     let newHealth = plant.health;
