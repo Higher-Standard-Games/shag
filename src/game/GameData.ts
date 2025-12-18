@@ -40,6 +40,14 @@ export const BUILDABLE_ITEMS: BuildableItem[] = [
     cost: 150,
     requiredLevel: 3,
   },
+  {
+    id: "pot_hydro",
+    name: "Hydro Pot",
+    icon: "💧",
+    zoneType: "plant",
+    cost: 1000,
+    requiredLevel: 10,
+  },
   // Grow Lights (for growlight zones above plants)
   {
     id: "grow_light_basic",
@@ -118,6 +126,16 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
     stages: createStages("pot", 1.5), // Same prefabs, larger scale
   },
   {
+    id: "pot_hydro",
+    name: "Hydro Pot",
+    icon: "💧",
+    zoneType: "plant",
+    cost: 1000,
+    requiredLevel: 10,
+    buildTime: 60 * 1000, // 60 seconds
+    stages: createStages("pot", 1.2), // Same prefabs, slightly larger
+  },
+  {
     id: "grow_light",
     name: "Grow Light",
     icon: "💡",
@@ -187,6 +205,36 @@ export const OBJECT_TEMPLATES: BuildableObjectTemplate[] = [
 // Pots affect grow speed and have size categories for strain compatibility
 
 export const POT_TYPES: PotDefinition[] = [
+  {
+    id: "pot_basic",
+    name: "Basic Pot",
+    size: "medium",
+    growthSpeedMultiplier: 1.0, // Normal speed
+    yieldMultiplier: 1.0, // 100% yield
+    cost: 50,
+    unlockLevel: 1,
+    description: "A simple clay pot. Works for most strains.",
+  },
+  {
+    id: "pot_large",
+    name: "Large Pot",
+    size: "large",
+    growthSpeedMultiplier: 1.0, // Normal speed
+    yieldMultiplier: 1.2, // 120% yield - more root space
+    cost: 150,
+    unlockLevel: 3,
+    description: "A spacious pot for bigger plants. Higher yield potential.",
+  },
+  {
+    id: "pot_hydro",
+    name: "Hydro Pot",
+    size: "medium",
+    growthSpeedMultiplier: 0.8, // 20% faster (like permanent fertilizer)
+    yieldMultiplier: 1.1, // 110% yield
+    cost: 1000,
+    unlockLevel: 10,
+    description: "Hydroponic system. Always grows 20% faster!",
+  },
   {
     id: "basic_small",
     name: "Small Clay Pot",
