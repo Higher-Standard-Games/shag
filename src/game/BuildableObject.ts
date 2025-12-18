@@ -442,10 +442,17 @@ export class BuildableObjectManager {
 
     state.hasPlant = hasPlant;
     
+    // When planting, reset progress to 0 so plant starts at first growth stage
+    // When removing plant, keep pot at 100% (built)
+    if (hasPlant) {
+      state.progress = 0;
+      state.currentStage = 0;
+    }
+    
     // Update visual - will show plant stages if hasPlant, empty pot if not
     await this.updateVisual(state);
     
-    console.log(`Pot ${id} hasPlant set to ${hasPlant}`);
+    console.log(`Pot ${id} hasPlant set to ${hasPlant}, progress reset to ${state.progress}`);
   }
 
   /**
