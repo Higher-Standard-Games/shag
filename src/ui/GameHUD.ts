@@ -91,6 +91,10 @@ export class GameHUD {
         <!-- Populated dynamically -->
       </div>
 
+      <div class="hud-game-message" id="hud-game-message" style="display: none;">
+        <span class="game-message-text"></span>
+      </div>
+
       <div class="hud-notifications" id="hud-notifications">
         <!-- Notifications appear here -->
       </div>
@@ -328,14 +332,44 @@ export class GameHUD {
         font-weight: bold;
       }
 
+      .hud-game-message {
+        position: fixed;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: bold;
+        border: 2px solid rgba(76, 175, 80, 0.5);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        z-index: 150;
+        animation: messagePopIn 0.3s ease;
+      }
+
+      .hud-game-message .game-message-text {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      @keyframes messagePopIn {
+        from { transform: translateX(-50%) scale(0.8); opacity: 0; }
+        to { transform: translateX(-50%) scale(1); opacity: 1; }
+      }
+
       .hud-notifications {
         position: fixed;
-        top: 80px;
-        right: 20px;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         flex-direction: column;
         gap: 10px;
-        max-width: 300px;
+        max-width: 400px;
+        z-index: 140;
       }
 
       .hud-notification {
@@ -843,6 +877,29 @@ export class GameHUD {
     setTimeout(() => {
       notification.remove();
     }, 3000);
+  }
+
+  /**
+   * Show a prominent game message at the top center of the screen
+   * Use for important action prompts like "Select strain to grow"
+   */
+  public showGameMessage(message: string, icon: string = "🌱"): void {
+    const messageEl = this.container?.querySelector("#hud-game-message") as HTMLElement;
+    const textEl = messageEl?.querySelector(".game-message-text");
+    if (!messageEl || !textEl) return;
+
+    textEl.innerHTML = `<span>${icon}</span> ${message}`;
+    messageEl.style.display = "block";
+  }
+
+  /**
+   * Hide the game message
+   */
+  public hideGameMessage(): void {
+    const messageEl = this.container?.querySelector("#hud-game-message") as HTMLElement;
+    if (messageEl) {
+      messageEl.style.display = "none";
+    }
   }
 
   public showPlantInfo(plantId: string): void {
