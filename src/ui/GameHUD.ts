@@ -3,12 +3,15 @@
  * Shows player resources, quick inventory, and notifications
  */
 
+import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
 import { GameTimer } from "../game/GameTimer";
 import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
+
+const SELECTION_INDICATOR_ID = "plant_selection";
 
 export class GameHUD {
   private static instance: GameHUD;
@@ -773,7 +776,29 @@ export class GameHUD {
     return icons[itemId] || "📦";
   }
 
+  private plantInfoOpenedAt: number = 0;
+
   private setupEventListeners(): void {
+    // Click outside plant info panel to close it
+    document.addEventListener("click", (e) => {
+      const panel = this.container?.querySelector("#hud-plant-info") as HTMLElement;
+      if (!panel || panel.style.display === "none") return;
+      
+      // Don't close if panel was just opened (within 300ms)
+      if (Date.now() - this.plantInfoOpenedAt < 300) return;
+      
+      // Check if click is outside the panel
+      const target = e.target as HTMLElement;
+      const isInsidePanel = panel.contains(target);
+      const isOnIndicator = target.closest(".world-indicator");
+      const isOnCanvas = target.tagName === "CANVAS";
+      
+      // Close if clicking on canvas (game area) or elsewhere outside panel
+      if (!isInsidePanel && !isOnIndicator && isOnCanvas) {
+        this.hidePlantInfo();
+      }
+    });
+
     // Listen for plant events
     PlantSystem.getInstance().onPlantEvent((plantId, event, data) => {
       switch (event) {
@@ -915,6 +940,10 @@ export class GameHUD {
 
     panel.style.display = "block";
     panel.dataset.plantId = plantId;
+    this.plantInfoOpenedAt = Date.now();
+
+    // Show selection indicator above the plant (pulsing ring)
+    this.showSelectionIndicator(plant.position);
 
     // Update name
     const nameEl = panel.querySelector(".plant-name");
@@ -1049,6 +1078,34 @@ export class GameHUD {
     if (panel) {
       panel.style.display = "none";
     }
+    // Remove selection indicator
+    this.hideSelectionIndicator();
+  }
+
+  // ==================== Selection Indicator ====================
+
+  private showSelectionIndicator(position: { x: number; y: number; z: number }): void {
+    const worldIndicator = WorldIndicatorSystem.getInstance();
+    if (!worldIndicator.isInitialized()) return;
+
+    // Remove existing selection indicator
+    worldIndicator.removeIndicator(SELECTION_INDICATOR_ID);
+
+    // Add pulsing selection indicator
+    worldIndicator.addIndicator({
+      id: SELECTION_INDICATOR_ID,
+      worldPosition: position,
+      config: {
+        icon: "🔘",
+        animation: "pulse",
+        offsetY: 30,
+        className: "selection-indicator",
+      },
+    });
+  }
+
+  private hideSelectionIndicator(): void {
+    WorldIndicatorSystem.getInstance().removeIndicator(SELECTION_INDICATOR_ID);
   }
 
   // ==================== Water Prompt UI ====================
