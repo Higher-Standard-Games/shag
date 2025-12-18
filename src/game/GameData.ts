@@ -15,6 +15,7 @@ import { OrderSystem, type CustomerTemplate } from "./OrderSystem";
 import { PlantSystem, type PotDefinition, type LightingLevel } from "./PlantSystem";
 import { QuestSystem, type Quest } from "./QuestSystem";
 import { ShopSystem, type ShopItem, type ShopCategory } from "./ShopSystem";
+import { generateSeedShopItems } from "../data/StrainLoader";
 import { CuringSystem, type CuringBarrel } from "./CuringSystem";
 import { DealerSystem, type Dealer } from "./DealerSystem";
 
@@ -506,60 +507,10 @@ export const SHOP_CATEGORIES: ShopCategory[] = [
 ];
 
 // ==================== Shop Items ====================
+// Seeds are generated from strains.json via generateSeedShopItems()
+// Only non-seed items are defined here
 
-export const SHOP_ITEMS: ShopItem[] = [
-  // Seeds
-  {
-    id: "seed_basic",
-    name: "Basic Seeds",
-    description: "Simple, reliable seeds for beginners.",
-    icon: "🌱",
-    category: "seeds",
-    price: 25,
-    itemType: "seed",
-    quantity: 3,
-    requiredLevel: 1,
-    maxPurchases: -1,
-    stock: -1,
-    restockInterval: 0,
-    isVisible: true,
-    onSale: false,
-    saleDiscount: 0,
-  },
-  {
-    id: "seed_og_kush",
-    name: "OG Kush Seeds",
-    description: "Premium strain with higher yields.",
-    icon: "🌿",
-    category: "seeds",
-    price: 100,
-    itemType: "seed",
-    quantity: 2,
-    requiredLevel: 3,
-    maxPurchases: -1,
-    stock: -1,
-    restockInterval: 0,
-    isVisible: true,
-    onSale: false,
-    saleDiscount: 0,
-  },
-  {
-    id: "seed_purple_haze",
-    name: "Purple Haze Seeds",
-    description: "Rare exotic strain. Top quality.",
-    icon: "💜",
-    category: "seeds",
-    price: 250,
-    itemType: "seed",
-    quantity: 1,
-    requiredLevel: 5,
-    maxPurchases: -1,
-    stock: 5,
-    restockInterval: 10 * 60 * 1000, // 10 minutes
-    isVisible: true,
-    onSale: false,
-    saleDiscount: 0,
-  },
+export const SHOP_ITEMS_BASE: ShopItem[] = [
   // Supplies
   {
     id: "fertilizer",
@@ -630,6 +581,12 @@ export const SHOP_ITEMS: ShopItem[] = [
     onSale: false,
     saleDiscount: 0,
   },
+];
+
+// Combined shop items: generated seeds from strains.json + base items
+export const SHOP_ITEMS: ShopItem[] = [
+  ...generateSeedShopItems(),
+  ...SHOP_ITEMS_BASE,
 ];
 
 // ==================== Equipment Templates ====================
@@ -1435,7 +1392,7 @@ export const STARTING_AREA = "slums_street";
 export const STARTING_LOT = "slums_garage"; // Player starts with this lot
 
 export const STARTING_INVENTORY = [
-  { id: "seed_basic", type: "seed" as const, quantity: 5 },
+  { id: "seed_afghan_kush", type: "seed" as const, quantity: 5 }, // Beginner-friendly strain from strains.json
   { id: "fertilizer", type: "consumable" as const, quantity: 1 },
 ];
 

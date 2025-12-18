@@ -187,3 +187,102 @@ export function getStrainGeneticsById(id: string): StrainGenetics | undefined {
   const raw = getStrainById(id);
   return raw ? toStrainGenetics(raw) : undefined;
 }
+
+/**
+ * Shop item interface (minimal for seed generation)
+ */
+export interface SeedShopItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: "seeds";
+  price: number;
+  itemType: "seed";
+  quantity: number;
+  requiredLevel: number;
+  maxPurchases: number;
+  stock: number;
+  restockInterval: number;
+  isVisible: boolean;
+  onSale: boolean;
+  saleDiscount: number;
+  metadata: {
+    strainId: string;
+  };
+}
+
+/**
+ * Generate shop seed items from strains.json
+ * This ensures seeds in shop match the actual strain seedIds
+ */
+export function generateSeedShopItems(): SeedShopItem[] {
+  const strains = getRawStrains();
+  
+  // Map rarity to icon
+  const rarityIcons: Record<string, string> = {
+    common: "🌱",
+    uncommon: "🌿",
+    rare: "💜",
+    legendary: "✨",
+  };
+  
+  // Map rarity to base price multiplier
+  const rarityPriceMultiplier: Record<string, number> = {
+    common: 1,
+    uncommon: 1.5,
+    rare: 3,
+    legendary: 5,
+  };
+  
+  // Map rarity to quantity per purchase
+  const rarityQuantity: Record<string, number> = {
+    common: 3,
+    uncommon: 2,
+    rare: 1,
+    legendary: 1,
+  };
+  
+  // Map rarity to stock (-1 = unlimited)
+  const rarityStock: Record<string, number> = {
+    common: -1,
+    uncommon: -1,
+    rare: 5,
+    legendary: 3,
+  };
+  
+  // Map rarity to restock interval (0 = never, in ms)
+  const rarityRestockInterval: Record<string, number> = {
+    common: 0,
+    uncommon: 0,
+    rare: 10 * 60 * 1000, // 10 minutes
+    legendary: 30 * 60 * 1000, // 30 minutes
+  };
+
+  return strains.map(strain => {
+    const basePrice = 25; // Base seed price
+    const priceMultiplier = rarityPriceMultiplier[strain.rarity] ?? 1;
+    const tierMultiplier = 1 + (strain.tier - 1) * 0.5; // Higher tier = more expensive
+    
+    return {
+      id: strain.gameplay.seedId,
+      name: `${strain.name} Seeds`,
+      description: strain.description.substring(0, 80) + (strain.description.length > 80 ? "..." : ""),
+      icon: rarityIcons[strain.rarity] ?? "🌱",
+      category: "seeds" as const,
+      price: Math.round(basePrice * priceMultiplier * tierMultiplier),
+      itemType: "seed" as const,
+      quantity: rarityQuantity[strain.rarity] ?? 2,
+      requiredLevel: strain.unlockLevel,
+      maxPurchases: -1,
+      stock: rarityStock[strain.rarity] ?? -1,
+      restockInterval: rarityRestockInterval[strain.rarity] ?? 0,
+      isVisible: true,
+      onSale: false,
+      saleDiscount: 0,
+      metadata: {
+        strainId: strain.id,
+      },
+    };
+  });
+}
