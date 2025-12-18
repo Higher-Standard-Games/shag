@@ -191,6 +191,37 @@ export class CuringSystem {
   }
 
   /**
+   * Split a fresh item into two parts (for when harvest exceeds barrel capacity)
+   * @param id The fresh item to split
+   * @param amount Amount to keep in the original item (rest goes to new item)
+   * @returns The new item ID, or null if split failed
+   */
+  public splitFreshItem(id: string, amount: number): string | null {
+    const item = this.freshStorage.get(id);
+    if (!item) return null;
+    
+    if (amount >= item.amount || amount <= 0) return null;
+    
+    const remainingAmount = item.amount - amount;
+    
+    // Update original item to have the split amount
+    item.amount = amount;
+    
+    // Create new item with remaining amount
+    const newId = `fresh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newItem: StoredFreshItem = {
+      ...item,
+      id: newId,
+      amount: remainingAmount,
+    };
+    
+    this.freshStorage.set(newId, newItem);
+    
+    console.log(`Split fresh item ${id}: ${amount}g + ${remainingAmount}g (new: ${newId})`);
+    return newId;
+  }
+
+  /**
    * Get decay status of a fresh item
    */
   public getDecayStatus(id: string): { 
@@ -249,8 +280,10 @@ export class CuringSystem {
       return false;
     }
 
-    // Get cured item ID from strain (need to look it up)
-    const curedItemId = `cured_${freshItem.strainId}`;
+    // Get cured item ID - use harvest_ prefix to match order system
+    // Strip "strain_" prefix if present to get base strain name
+    const baseStrainId = freshItem.strainId.replace(/^strain_/, "");
+    const curedItemId = `harvest_${baseStrainId}`;
 
     // Create curing slot
     const slotId = `curing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

@@ -121,12 +121,6 @@ export class GameHUD {
             <span>Health:</span>
             <div class="plant-bar"><div class="plant-bar-fill health-bar"></div></div>
           </div>
-          <div class="plant-stat plant-temp-control">
-            <span>Temp:</span>
-            <input type="range" class="temp-slider" min="60" max="90" value="72">
-            <span class="temp-value">72°F</span>
-            <span class="temp-status">✓</span>
-          </div>
           <div class="plant-stat plant-pot-info">
             <span>Pot:</span>
             <span class="pot-name">Basic Pot</span>
@@ -512,49 +506,6 @@ export class GameHUD {
         font-size: 14px;
         color: #ffd700;
         letter-spacing: 2px;
-      }
-
-      /* Temperature control */
-      .plant-temp-control {
-        flex-wrap: wrap;
-      }
-
-      .temp-slider {
-        flex: 1;
-        height: 6px;
-        -webkit-appearance: none;
-        background: linear-gradient(90deg, #2196F3, #4CAF50, #f44336);
-        border-radius: 3px;
-        cursor: pointer;
-      }
-
-      .temp-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 16px;
-        height: 16px;
-        background: white;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      }
-
-      .temp-value {
-        width: 45px;
-        text-align: right;
-        font-weight: bold;
-      }
-
-      .temp-status {
-        width: 20px;
-        text-align: center;
-      }
-
-      .temp-status.optimal {
-        color: #4CAF50;
-      }
-
-      .temp-status.suboptimal {
-        color: #ff9800;
       }
 
       /* Pot info */
@@ -977,22 +928,6 @@ export class GameHUD {
       }
     }
 
-    // Update temperature control
-    const tempSlider = panel.querySelector(".temp-slider") as HTMLInputElement;
-    const tempValue = panel.querySelector(".temp-value");
-    const tempStatus = panel.querySelector(".temp-status");
-    if (tempSlider) {
-      tempSlider.value = plant.temperature.toString();
-    }
-    if (tempValue) {
-      tempValue.textContent = `${plant.temperature}°F`;
-    }
-    if (tempStatus) {
-      const isOptimal = plantSystem.isTemperatureOptimal(plantId);
-      tempStatus.textContent = isOptimal ? "✓" : "⚠";
-      tempStatus.className = `temp-status ${isOptimal ? "optimal" : "suboptimal"}`;
-    }
-
     // Update pot info
     const potNameEl = panel.querySelector(".pot-name");
     const pot = plantSystem.getPot(plant.potType);
@@ -1025,13 +960,11 @@ export class GameHUD {
     const newHarvestBtn = harvestBtn?.cloneNode(true);
     const newFertilizeBtn = fertilizeBtn?.cloneNode(true);
     const newCloseBtn = closeBtn?.cloneNode(true);
-    const newTempSlider = tempSlider?.cloneNode(true);
 
     if (waterBtn && newWaterBtn) waterBtn.replaceWith(newWaterBtn);
     if (harvestBtn && newHarvestBtn) harvestBtn.replaceWith(newHarvestBtn);
     if (fertilizeBtn && newFertilizeBtn) fertilizeBtn.replaceWith(newFertilizeBtn);
     if (closeBtn && newCloseBtn) closeBtn.replaceWith(newCloseBtn);
-    if (tempSlider && newTempSlider) tempSlider.replaceWith(newTempSlider);
 
     // Add new event listeners
     panel.querySelector("#btn-water")?.addEventListener("click", () => {
@@ -1053,23 +986,6 @@ export class GameHUD {
 
     panel.querySelector(".plant-info-close")?.addEventListener("click", () => {
       this.hidePlantInfo();
-    });
-
-    // Temperature slider
-    panel.querySelector(".temp-slider")?.addEventListener("input", (e) => {
-      const target = e.target as HTMLInputElement;
-      const newTemp = parseInt(target.value);
-      plantSystem.setTemperature(plantId, newTemp);
-      
-      // Update display
-      const tempValueEl = panel.querySelector(".temp-value");
-      const tempStatusEl = panel.querySelector(".temp-status");
-      if (tempValueEl) tempValueEl.textContent = `${newTemp}°F`;
-      if (tempStatusEl) {
-        const isOptimal = plantSystem.isTemperatureOptimal(plantId);
-        tempStatusEl.textContent = isOptimal ? "✓" : "⚠";
-        tempStatusEl.className = `temp-status ${isOptimal ? "optimal" : "suboptimal"}`;
-      }
     });
   }
 

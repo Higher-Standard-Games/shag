@@ -31,6 +31,8 @@ import { MapRenderer } from "./MapRenderer";
 import { SkyLightSystem } from "./SkyLightSystem";
 import { StreetLampSystem } from "./StreetLampSystem";
 import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
+import { LampSystem } from "../game/LampSystem";
+import { LampInfoPanel } from "../ui/LampInfoPanel";
 
 export class GameScene {
   private engine: Engine;
@@ -292,6 +294,10 @@ export class GameScene {
     
     // Initialize pot action indicator (uses WorldIndicatorSystem)
     PotActionIndicator.getInstance().initialize();
+
+    // Initialize lamp system and UI
+    LampSystem.getInstance().init();
+    LampInfoPanel.getInstance().init();
 
     this.engine.runRenderLoop(() => {
       if (!this.scene || !this.camera) return;

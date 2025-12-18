@@ -8,6 +8,7 @@ import { EquipmentSystem } from "./EquipmentSystem";
 import { EventBus } from "../engine/core/EventBus";
 import { GameState, type PlantState } from "./GameState";
 import { GameTimer } from "./GameTimer";
+import { LampSystem } from "./LampSystem";
 import { QuestSystem } from "./QuestSystem";
 
 /**
@@ -524,18 +525,34 @@ export class PlantSystem {
   /**
    * Get grow light multipliers for a plant
    * Without light: 2x slower growth, 50% less yield
-   * With light: normal speed, yield bonus based on lamp type
+   * With light: speed/yield based on lamp settings (intensity, spectrum)
    */
   public getGrowLightMultipliers(plantId: string): { speedMultiplier: number; yieldMultiplier: number } {
-    const light = this.getGrowLightAbove(plantId);
-    
-    if (light) {
-      // Has light: normal speed, yield bonus from lamp type
-      return { speedMultiplier: 1.0, yieldMultiplier: 1.0 + light.yieldBonus };
-    } else {
-      // No light: 2x slower, 50% yield
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) {
       return { speedMultiplier: 2.0, yieldMultiplier: 0.5 };
     }
+
+    // Check LampSystem for dynamic lamp effects
+    const lampSystem = LampSystem.getInstance();
+    const lampEffect = lampSystem.getLampEffectAtPosition(plant.position);
+    
+    // If no lamps covering this plant, fall back to static grow light check
+    if (lampEffect.growthSpeedBonus === 1 && lampEffect.yieldBonus === 0) {
+      const light = this.getGrowLightAbove(plantId);
+      if (light) {
+        return { speedMultiplier: 1.0, yieldMultiplier: 1.0 + light.yieldBonus };
+      } else {
+        return { speedMultiplier: 2.0, yieldMultiplier: 0.5 };
+      }
+    }
+    
+    // Use LampSystem effects
+    // speedMultiplier: lower = faster, so invert growthSpeedBonus
+    const speedMultiplier = 1 / lampEffect.growthSpeedBonus;
+    const yieldMultiplier = (1 + lampEffect.yieldBonus) * lampEffect.qualityBonus;
+    
+    return { speedMultiplier, yieldMultiplier };
   }
 
   // ==================== Temperature Control ====================

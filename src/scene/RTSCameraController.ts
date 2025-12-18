@@ -17,6 +17,7 @@ import { PrefabInstance } from "../loader/PrefabInstance";
 import { GameHUD } from "../ui/GameHUD";
 import { SeedSelectionPopup } from "../ui/SeedSelectionPopup";
 import { UIManager } from "../ui/UIManager";
+import { LampInfoPanel } from "../ui/LampInfoPanel";
 
 export class RTSCameraController {
   private camera: ArcRotateCamera;
@@ -128,6 +129,15 @@ export class RTSCameraController {
                 if (mesh.metadata?.isHarvestIndicator) {
                   const plantId = mesh.metadata.plantId;
                   HarvestIndicator.getInstance().handleIndicatorClick(plantId);
+                }
+
+                // Check for growlight click - show lamp info panel
+                if (mesh.metadata?.isBuildableObject && mesh.metadata?.zoneType === "growlight") {
+                  const buildableObjectId = mesh.metadata.buildableObjectId;
+                  const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
+                  if (buildableObj && buildableObj.isComplete) {
+                    LampInfoPanel.getInstance().show(buildableObjectId, buildableObj.position);
+                  }
                 }
 
                 // Check for plant/buildable object click - show plant info panel
