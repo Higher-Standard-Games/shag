@@ -198,6 +198,7 @@ export class SkyLightSystem {
     }
 
     // Create sun light (directional) - softer specular for less harsh highlights
+    // Position light very high and far to cover entire map uniformly
     this.sunLight = new DirectionalLight(
       "sunLight",
       new Vector3(-0.5, -1, -0.5).normalize(),
@@ -206,15 +207,15 @@ export class SkyLightSystem {
     this.sunLight.intensity = 0;
     this.sunLight.diffuse = new Color3(1, 1, 1);
     this.sunLight.specular = new Color3(0.2, 0.2, 0.2); // Reduced specular
+    
+    // Position the light source far away so it covers the whole map uniformly
+    this.sunLight.position = new Vector3(500, 500, 500);
 
-    // Set up shadow generator for sun
-    if (this.config.enableShadows) {
-      this.shadowGenerator = new ShadowGenerator(1024, this.sunLight);
-      this.shadowGenerator.useBlurExponentialShadowMap = true;
-      this.shadowGenerator.blurKernel = 32;
-      this.shadowGenerator.darkness = 0.3; // Softer shadows
-      this.shadowGenerator.bias = 0.001;
-    }
+    // Disable shadows - they cause the "half dark" issue on large maps
+    // The day/night effect is achieved through ambient lighting instead
+    // If shadows are needed later, use a much larger shadow map (4096+) 
+    // and configure autoCalcShadowZBounds for the camera frustum
+    this.config.enableShadows = false;
 
     // Create moon light (directional, opposite direction)
     this.moonLight = new DirectionalLight(
