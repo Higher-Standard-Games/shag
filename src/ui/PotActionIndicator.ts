@@ -1,24 +1,20 @@
 /**
  * PotActionIndicator - Shows bouncing icons above pots that need player action
  * (e.g., empty pots that need a strain selected)
+ * 
+ * Now uses WorldIndicatorSystem for positioning and rendering.
  */
 
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { EventBus } from "../engine/core/EventBus";
+import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { GameHUD } from "./GameHUD";
 
-interface ActiveIndicator {
-  objectId: string;
-  element: HTMLElement;
-}
+const INDICATOR_PREFIX = "pot_action_";
 
 export class PotActionIndicator {
   private static instance: PotActionIndicator;
-  private container: HTMLElement | null = null;
-  private indicators: Map<string, ActiveIndicator> = new Map();
-  private getScreenPosition: ((worldPos: { x: number; y: number; z: number }) => { x: number; y: number } | null) | null = null;
-  private styleInjected: boolean = false;
-  private animationFrameId: number | null = null;
+  private activeIndicators: Set<string> = new Set();
 
   private constructor() {}
 
@@ -29,78 +25,18 @@ export class PotActionIndicator {
     return PotActionIndicator.instance;
   }
 
-  public initialize(
-    getScreenPosition: (worldPos: { x: number; y: number; z: number }) => { x: number; y: number } | null
-  ): void {
-    this.getScreenPosition = getScreenPosition;
-    this.injectStyles();
-    this.createContainer();
+  /**
+   * Initialize the pot action indicator system
+   * No longer needs a screen position function - uses WorldIndicatorSystem
+   */
+  public initialize(): void {
     this.setupEventListeners();
-    this.startUpdateLoop();
     
     // Check for any existing empty pots that need indicators
     // (in case pots were loaded from save before this was initialized)
     setTimeout(() => {
       this.checkAllPots("showcase");
     }, 500);
-  }
-
-  private injectStyles(): void {
-    if (this.styleInjected) return;
-    this.styleInjected = true;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #pot-action-indicators {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 1000;
-      }
-
-      .pot-action-indicator {
-        position: absolute;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        transform: translate(-50%, -50%);
-        pointer-events: auto;
-        cursor: pointer;
-      }
-
-      .pot-action-icon {
-        font-size: 32px;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-        animation: pot-bounce 1s ease-in-out infinite;
-      }
-
-      .pot-action-label {
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: bold;
-        white-space: nowrap;
-        margin-top: 4px;
-        border: 1px solid rgba(76, 175, 80, 0.5);
-      }
-
-      @keyframes pot-bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-15px); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  private createContainer(): void {
-    this.container = document.createElement("div");
-    this.container.id = "pot-action-indicators";
-    document.body.appendChild(this.container);
   }
 
   private setupEventListeners(): void {
@@ -123,7 +59,7 @@ export class PotActionIndicator {
     // Listen for seed planted event to hide indicator
     EventBus.on<{ plantId: string; position: { x: number; z: number } }>("plant:planted", () => {
       // Check all indicators and hide any that now have plants
-      for (const [objectId] of this.indicators) {
+      for (const objectId of this.activeIndicators) {
         const buildableManager = BuildableObjectManager.getInstance();
         const state = buildableManager.getObject(objectId);
         if (state?.hasPlant) {
@@ -134,9 +70,11 @@ export class PotActionIndicator {
   }
 
   public showIndicatorForPot(objectId: string): void {
-    // Don't show if not initialized yet
-    if (!this.getScreenPosition || !this.container) {
-      console.warn("PotActionIndicator: Not initialized yet, skipping indicator for", objectId);
+    const worldIndicator = WorldIndicatorSystem.getInstance();
+    
+    // Don't show if WorldIndicatorSystem not initialized yet
+    if (!worldIndicator.isInitialized()) {
+      console.warn("PotActionIndicator: WorldIndicatorSystem not initialized yet");
       return;
     }
 
@@ -146,86 +84,42 @@ export class PotActionIndicator {
     if (!state || state.hasPlant) return;
 
     // Check if indicator already exists
-    if (this.indicators.has(objectId)) return;
+    const indicatorId = `${INDICATOR_PREFIX}${objectId}`;
+    if (worldIndicator.hasIndicator(indicatorId)) return;
 
-    const element = document.createElement("div");
-    element.className = "pot-action-indicator";
-    element.innerHTML = `
-      <span class="pot-action-icon">🌱</span>
-      <span class="pot-action-label">Select strain</span>
-    `;
-
-    // Click to open seed selection - emit event via EventBus
-    element.addEventListener("click", () => {
-      EventBus.emit("pot:needs_seed", { objectId, position: state.position });
+    // Add indicator using WorldIndicatorSystem
+    worldIndicator.addIndicator({
+      id: indicatorId,
+      worldPosition: state.position,
+      config: {
+        icon: "🌱",
+        label: "Select strain",
+        animation: "bounce",
+        offsetY: 40,
+        onClick: () => {
+          EventBus.emit("pot:needs_seed", { objectId, position: state.position });
+        },
+      },
+      data: { objectId },
     });
 
-    this.container.appendChild(element);
-
-    // Store the objectId so we can look up fresh position each frame
-    const indicator: ActiveIndicator = {
-      objectId,
-      element,
-    };
-    
-    this.indicators.set(objectId, indicator);
-    this.updateIndicatorPosition(indicator);
+    this.activeIndicators.add(objectId);
 
     // Show game message
     GameHUD.getInstance().showGameMessage("Select strain to grow", "🌱");
   }
 
   public hideIndicator(objectId: string): void {
-    const indicator = this.indicators.get(objectId);
-    if (indicator) {
-      indicator.element.remove();
-      this.indicators.delete(objectId);
-    }
+    const worldIndicator = WorldIndicatorSystem.getInstance();
+    const indicatorId = `${INDICATOR_PREFIX}${objectId}`;
+    
+    worldIndicator.removeIndicator(indicatorId);
+    this.activeIndicators.delete(objectId);
 
     // Hide game message if no more indicators
-    if (this.indicators.size === 0) {
+    if (this.activeIndicators.size === 0) {
       GameHUD.getInstance().hideGameMessage();
     }
-  }
-
-  private updateIndicatorPosition(indicator: ActiveIndicator): void {
-    if (!this.getScreenPosition) {
-      return;
-    }
-
-    // Get fresh position from the buildable object (in case it moved)
-    const buildableManager = BuildableObjectManager.getInstance();
-    const state = buildableManager.getObject(indicator.objectId);
-    if (!state) return;
-
-    // Position above the pot (y=0 for ground level objects)
-    const worldPos = {
-      x: state.position.x,
-      y: (state.position.y || 0) + 40, // Above the pot
-      z: state.position.z,
-    };
-
-    const screenPos = this.getScreenPosition(worldPos);
-    if (screenPos && screenPos.x > 0 && screenPos.y > 0 && 
-        screenPos.x < window.innerWidth && screenPos.y < window.innerHeight) {
-      indicator.element.style.left = `${screenPos.x}px`;
-      indicator.element.style.top = `${screenPos.y}px`;
-      indicator.element.style.display = "flex";
-    } else {
-      // Hide if off-screen
-      indicator.element.style.display = "none";
-    }
-  }
-
-  private startUpdateLoop(): void {
-    // Update positions every frame
-    const update = () => {
-      for (const indicator of this.indicators.values()) {
-        this.updateIndicatorPosition(indicator);
-      }
-      this.animationFrameId = requestAnimationFrame(update);
-    };
-    update();
   }
 
   /**
@@ -244,10 +138,8 @@ export class PotActionIndicator {
   }
 
   public dispose(): void {
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-    }
-    this.container?.remove();
-    this.indicators.clear();
+    // Remove all indicators via WorldIndicatorSystem
+    WorldIndicatorSystem.getInstance().removeIndicatorsByPrefix(INDICATOR_PREFIX);
+    this.activeIndicators.clear();
   }
 }

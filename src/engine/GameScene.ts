@@ -30,6 +30,7 @@ import { AudioManager } from "./AudioManager";
 import { MapRenderer } from "./MapRenderer";
 import { SkyLightSystem } from "./SkyLightSystem";
 import { StreetLampSystem } from "./StreetLampSystem";
+import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 
 export class GameScene {
   private engine: Engine;
@@ -278,34 +279,19 @@ export class GameScene {
     OrderPanel.getInstance().show();
     QuestPanel.getInstance().show();
     
-    // Initialize water prompt UI with screen position converter
-    WaterPromptUI.getInstance().init((worldPos) => {
-      if (!this.scene || !this.camera) return null;
-      const pos = new Vector3(worldPos.x, worldPos.y, worldPos.z);
-      const screenPos = Vector3.Project(
-        pos,
-        this.scene.getTransformMatrix(),
-        this.scene.getProjectionMatrix(),
-        this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight())
-      );
-      return { x: screenPos.x, y: screenPos.y };
-    });
+    // Initialize WorldIndicatorSystem (generic world-positioned UI indicators)
+    if (this.scene && this.camera) {
+      WorldIndicatorSystem.getInstance().init(this.scene, this.camera, this.engine);
+    }
+    
+    // Initialize water prompt UI (uses WorldIndicatorSystem)
+    WaterPromptUI.getInstance().init();
     
     // Initialize harvest celebration (listens for harvest events)
     HarvestCelebration.init();
     
-    // Initialize pot action indicator (shows bouncing icon on empty pots)
-    PotActionIndicator.getInstance().initialize((worldPos) => {
-      if (!this.scene || !this.camera) return null;
-      const pos = new Vector3(worldPos.x, worldPos.y, worldPos.z);
-      const screenPos = Vector3.Project(
-        pos,
-        this.scene.getTransformMatrix(),
-        this.scene.getProjectionMatrix(),
-        this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight())
-      );
-      return { x: screenPos.x, y: screenPos.y };
-    });
+    // Initialize pot action indicator (uses WorldIndicatorSystem)
+    PotActionIndicator.getInstance().initialize();
 
     this.engine.runRenderLoop(() => {
       if (!this.scene || !this.camera) return;

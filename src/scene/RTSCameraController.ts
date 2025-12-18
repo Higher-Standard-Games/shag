@@ -7,6 +7,7 @@ import {
   type Scene,
   Vector3,
 } from "babylonjs";
+import { EventBus } from "../engine/core/EventBus";
 import { SpawnValidator } from "../engine/SpawnValidator";
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { BuildingSystem } from "../game/BuildingSystem";
@@ -64,6 +65,34 @@ export class RTSCameraController {
     this.canvas.addEventListener("mouseenter", this.mouseEnterHandler);
 
     this.setupInput();
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners(): void {
+    // Listen for pot:needs_seed event from PotActionIndicator
+    EventBus.on<{ objectId: string; position: { x: number; y: number; z: number } }>("pot:needs_seed", (data) => {
+      const buildableManager = BuildableObjectManager.getInstance();
+      const buildableObj = buildableManager.getObject(data.objectId);
+      if (!buildableObj) return;
+
+      // Show seed selection popup
+      SeedSelectionPopup.show(
+        buildableObj.position,
+        buildableObj.mapId,
+        (result) => {
+          // Find the newly planted plant and show info
+          const newPlants = GameState.getInstance().getPlants();
+          const newPlant = newPlants.find(p => 
+            Math.abs(p.position.x - buildableObj.position.x) < 5 &&
+            Math.abs(p.position.z - buildableObj.position.z) < 5
+          );
+          if (newPlant) {
+            GameHUD.getInstance().showPlantInfo(newPlant.id);
+            GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
+          }
+        }
+      );
+    });
   }
 
   private setupInput(): void {

@@ -48,3 +48,11 @@ export type {
   PopupButton,
   PopupConfig,
 } from "./PopupSystem";
+
+export { WorldIndicatorSystem } from "./WorldIndicatorSystem";
+export type {
+  IndicatorAnimation,
+  IndicatorConfig,
+  WorldIndicator,
+  AddIndicatorOptions,
+} from "./WorldIndicatorSystem";
