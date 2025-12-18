@@ -322,8 +322,9 @@ export class BuildableObjectManager {
     // Determine which prefab to use
     let prefabPath = stage.prefab;
     
-    // For plant pots: if complete but no plant, show empty pot instead of plant stages
-    if (template.zoneType === "plant" && state.isComplete && !state.hasPlant) {
+    // For plant pots: only show plant growth stages if hasPlant is true
+    // Otherwise show pot_empty.map (pot without plant geometry)
+    if (template.zoneType === "plant" && !state.hasPlant) {
       prefabPath = "pot_empty.map";
     }
 
