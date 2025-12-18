@@ -407,6 +407,21 @@
 }
 }
 
+// Curing area trigger (brown ground)
+{
+"classname" "trigger_multiple"
+"targetname" "curing_trigger"
+"windowTarget" "curing_dialog"
+{
+( 450 650 0 ) ( 550 650 0 ) ( 450 750 0 ) color_139_90_43 0 0 0 1 1
+( 450 650 48 ) ( 450 750 48 ) ( 550 650 48 ) color_139_90_43 0 0 0 1 1
+( 450 650 0 ) ( 450 650 48 ) ( 550 650 0 ) color_100_65_30 0 0 0 1 1
+( 450 750 0 ) ( 550 750 0 ) ( 450 750 48 ) color_100_65_30 0 0 0 1 1
+( 450 750 0 ) ( 450 750 48 ) ( 450 650 0 ) color_120_78_36 0 0 0 1 1
+( 550 750 0 ) ( 550 650 0 ) ( 550 750 48 ) color_120_78_36 0 0 0 1 1
+}
+}
+
 // ==================== SPRITE NPCs ====================
 {
 "classname" "npc_sprite"

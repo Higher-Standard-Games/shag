@@ -9,8 +9,6 @@ import { GameState } from "../game/GameState";
 import { GameTimer } from "../game/GameTimer";
 import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
-import { ShopPanel } from "./ShopPanel";
-import { UIManager } from "./UIManager";
 
 export class GameHUD {
   private static instance: GameHUD;
@@ -76,8 +74,6 @@ export class GameHUD {
           </div>
         </div>
         <div class="hud-buttons">
-          <button class="hud-btn" id="hud-shop-btn">🛒 Shop</button>
-          <button class="hud-btn" id="hud-curing-btn">🛢️ Curing</button>
           <button class="hud-btn hud-harvest-btn" id="hud-harvest-btn" style="display: none;">
             <span class="harvest-icon">✂️</span>
             <span class="harvest-count">0</span>
@@ -819,16 +815,6 @@ export class GameHUD {
           this.showNotification(`${completeData.template.name} is ready!`, "success");
           break;
       }
-    });
-
-    // Shop button
-    this.container?.querySelector("#hud-shop-btn")?.addEventListener("click", () => {
-      ShopPanel.getInstance().toggle();
-    });
-
-    // Curing button
-    this.container?.querySelector("#hud-curing-btn")?.addEventListener("click", () => {
-      UIManager.getInstance().openDialog("curing_dialog");
     });
 
     // Harvest button - show first harvestable plant's panel
