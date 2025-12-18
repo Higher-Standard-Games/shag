@@ -138,12 +138,15 @@ export class RTSCameraController {
                 }
 
                 // Check for build zone click (separate from triggers)
+                const buildingSystem = BuildingSystem.getInstance();
                 if (mesh.metadata?.isBuildZone) {
-                  const buildingSystem = BuildingSystem.getInstance();
                   if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
                     const zoneId = mesh.metadata.zoneId;
                     buildingSystem.buildAt(zoneId);
                   }
+                } else if (buildingSystem.inBuildMode) {
+                  // Clicked outside build zone while in build mode - cancel
+                  buildingSystem.exitBuildMode();
                 }
 
                 // Check for trigger click
