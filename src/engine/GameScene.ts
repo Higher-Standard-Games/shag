@@ -434,6 +434,7 @@ export class GameScene {
               itemId: item.id,
               icon: this.getInventoryIcon(item.id),
               count: item.quantity,
+              name: this.getInventoryItemName(item.id),
             });
           }
         }
@@ -463,6 +464,30 @@ export class GameScene {
       water: "💦",
     };
     return iconMap[itemId] || "📦";
+  }
+
+  /**
+   * Game-specific: Get display name for inventory items
+   */
+  private getInventoryItemName(itemId: string): string {
+    // Check if it's a seed - get strain name
+    if (itemId.startsWith("seed_")) {
+      const strainId = itemId.replace("seed_", "strain_");
+      const strain = PlantSystem.getInstance().getStrain(strainId);
+      if (strain) return strain.name;
+    }
+    // Check if it's a harvest product
+    if (itemId.startsWith("harvest_")) {
+      const strainId = itemId.replace("harvest_", "strain_");
+      const strain = PlantSystem.getInstance().getStrain(strainId);
+      if (strain) return strain.name;
+    }
+    // Fallback name map
+    const nameMap: Record<string, string> = {
+      fertilizer: "Fertilizer",
+      water: "Water",
+    };
+    return nameMap[itemId] || itemId.replace(/_/g, " ");
   }
 
   /**

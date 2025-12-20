@@ -18,6 +18,7 @@ export interface InventorySlot {
   itemId: string | null;
   icon: string | null;
   count: number;
+  name?: string;  // Display name for the item
 }
 
 /**
@@ -376,8 +377,8 @@ export class BottomBar {
   private createInventorySlot(index: number, slot: InventorySlot): HTMLDivElement {
     const el = document.createElement("div");
     el.style.cssText = `
-      width: 48px;
-      height: 48px;
+      width: 64px;
+      min-height: 64px;
       background: rgba(255, 255, 255, 0.05);
       border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 8px;
@@ -388,6 +389,7 @@ export class BottomBar {
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
+      padding: 4px;
     `;
 
     if (slot.itemId) {
@@ -401,23 +403,39 @@ export class BottomBar {
       }
       el.appendChild(icon);
 
-      // Count badge
-      if (slot.count > 1) {
-        const count = document.createElement("div");
-        count.style.cssText = `
-          position: absolute;
-          bottom: 2px;
-          right: 2px;
-          background: rgba(0, 0, 0, 0.7);
-          color: #fff;
-          font-size: 10px;
-          padding: 1px 4px;
-          border-radius: 4px;
-          font-weight: 600;
+      // Item name
+      if (slot.name) {
+        const name = document.createElement("div");
+        name.style.cssText = `
+          font-size: 9px;
+          color: #ccc;
+          text-align: center;
+          margin-top: 2px;
+          line-height: 1.1;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         `;
-        count.textContent = String(slot.count);
-        el.appendChild(count);
+        name.textContent = slot.name;
+        el.appendChild(name);
       }
+
+      // Count badge
+      const count = document.createElement("div");
+      count.style.cssText = `
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 10px;
+        padding: 1px 4px;
+        border-radius: 4px;
+        font-weight: 600;
+      `;
+      count.textContent = String(slot.count);
+      el.appendChild(count);
     }
 
     el.onclick = () => this.callbacks.onInventorySlotClick(index);
