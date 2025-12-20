@@ -188,10 +188,10 @@ export class SeedSelectionPopup {
   }
 
   private static attachSeedClickHandlers(): void {
-    // Find the modal content container
-    const modalBackdrop = document.getElementById("modal-backdrop-seed_selection");
-    if (!modalBackdrop) {
-      console.warn("SeedSelectionPopup: Modal backdrop not found");
+    // Find the modal container (not backdrop)
+    const modalContainer = document.getElementById("modal-seed_selection");
+    if (!modalContainer) {
+      console.warn("SeedSelectionPopup: Modal container not found");
       return;
     }
 
@@ -204,46 +204,43 @@ export class SeedSelectionPopup {
       return;
     }
 
-    const items = modalBackdrop.querySelectorAll(".seed-item-available");
-    console.log(`SeedSelectionPopup: Found ${items.length} available seed items`);
-
-    items.forEach((item) => {
-      // Clone and replace to remove any existing listeners
-      const newItem = item.cloneNode(true) as HTMLElement;
-      item.parentNode?.replaceChild(newItem, item);
+    // Use event delegation on the modal container
+    modalContainer.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      const seedItem = target.closest(".seed-item-available") as HTMLElement;
       
-      newItem.style.cursor = "pointer";
-      newItem.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const strainId = newItem.dataset.strainId;
-        console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
-        
-        // Visual feedback
-        GameHUD.getInstance().showNotification(`Planting ${strainId}...`);
-        if (!strainId) return;
+      if (!seedItem) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const strainId = seedItem.dataset.strainId;
+      console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
+      
+      // Visual feedback
+      GameHUD.getInstance().showNotification(`Planting ${strainId}...`);
+      if (!strainId) return;
 
-        const strain = PlantSystem.getInstance().getStrain(strainId);
-        if (!strain) {
-          console.warn(`SeedSelectionPopup: Strain ${strainId} not found`);
-          return;
+      const strain = PlantSystem.getInstance().getStrain(strainId);
+      if (!strain) {
+        console.warn(`SeedSelectionPopup: Strain ${strainId} not found`);
+        return;
+      }
+
+      // Plant the seed
+      const plant = PlantSystem.getInstance().plantSeed(
+        strainId,
+        potPosition,
+        mapId
+      );
+
+      console.log(`SeedSelectionPopup: Plant result:`, plant);
+      if (plant) {
+        this.close();
+        if (onSelect) {
+          onSelect({ strainId, seedItemId: strain.seedId });
         }
-
-        // Plant the seed
-        const plant = PlantSystem.getInstance().plantSeed(
-          strainId,
-          potPosition,
-          mapId
-        );
-
-        console.log(`SeedSelectionPopup: Plant result:`, plant);
-        if (plant) {
-          this.close();
-          if (onSelect) {
-            onSelect({ strainId, seedItemId: strain.seedId });
-          }
-        }
-      });
+      }
     });
   }
 
