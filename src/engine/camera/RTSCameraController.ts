@@ -166,7 +166,13 @@ export class RTSCameraController {
                 if (mesh.metadata?.isBuildZone) {
                   if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
                     const zoneId = mesh.metadata.zoneId;
-                    buildingSystem.buildAt(zoneId);
+                    const zoneType = mesh.metadata.zoneType;
+                    
+                    // Only build if zone type matches selected item's zone type
+                    if (zoneType === buildingSystem.selectedItem.zoneType) {
+                      buildingSystem.buildAt(zoneId);
+                    }
+                    // If zone type doesn't match, don't cancel build mode - user might click correct zone
                   }
                 } else if (buildingSystem.inBuildMode) {
                   // Clicked outside build zone while in build mode - cancel
