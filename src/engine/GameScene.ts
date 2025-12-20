@@ -48,9 +48,9 @@ let CAMERA_MODE: CameraMode = "perspective";
 
 // Default camera heights for each mode
 const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
-  perspective: 400,
+  perspective: 1000,
   orthographic: 250,  // This is orthoSize for orthographic mode
-  fake_ortho: 400,    // Radius for fake_ortho
+  fake_ortho: 1000,   // Radius for fake_ortho
 };
 
 export class GameScene {
@@ -461,14 +461,14 @@ export class GameScene {
    */
   private getBuildItemIcon(itemId: string): string {
     const iconMap: Record<string, string> = {
-      // Plants
-      basic_pot: "🌱",
-      large_pot: "🪴",
-      hydro_pot: "💧",
+      // Plants (match GameData.ts IDs)
+      pot_basic: "🪴",
+      pot_large: "🌿",
+      pot_hydro: "💧",
       // Lights
-      basic_lamp: "💡",
-      led_panel: "🔆",
-      hps_light: "☀️",
+      grow_light_basic: "💡",
+      grow_light_advanced: "🔆",
+      grow_light_ultra: "✨",
       // Equipment
       fan: "🌀",
       heater: "🔥",

@@ -8,7 +8,7 @@
         "color": "#4CAF50",
         "items": [
           {
-            "id": "basic_pot",
+            "id": "pot_basic",
             "name": "Basic Pot",
             "description": "A simple pot for growing plants",
             "cost": 50,
@@ -18,7 +18,7 @@
             "zoneType": "plant"
           },
           {
-            "id": "large_pot",
+            "id": "pot_large",
             "name": "Large Pot",
             "description": "A larger pot with better yield",
             "cost": 150,
@@ -28,7 +28,7 @@
             "zoneType": "plant"
           },
           {
-            "id": "hydro_pot",
+            "id": "pot_hydro",
             "name": "Hydro Pot",
             "description": "Hydroponic system for faster growth",
             "cost": 1000,
@@ -46,34 +46,34 @@
         "color": "#FFC107",
         "items": [
           {
-            "id": "basic_lamp",
+            "id": "grow_light_basic",
             "name": "Basic Lamp",
             "description": "Simple grow light",
-            "cost": 100,
+            "cost": 300,
             "icon": "icons/lamp_basic.png",
             "levelRequired": 1,
-            "prefab": "lamp_basic",
-            "zoneType": "light"
+            "prefab": "grow_light_basic",
+            "zoneType": "growlight"
           },
           {
-            "id": "led_panel",
-            "name": "LED Panel",
+            "id": "grow_light_advanced",
+            "name": "Advanced Lamp",
             "description": "Energy efficient LED grow light",
-            "cost": 500,
+            "cost": 1000,
             "icon": "icons/lamp_led.png",
-            "levelRequired": 5,
-            "prefab": "lamp_led",
-            "zoneType": "light"
+            "levelRequired": 3,
+            "prefab": "grow_light_advanced",
+            "zoneType": "growlight"
           },
           {
-            "id": "hps_light",
-            "name": "HPS Light",
-            "description": "High pressure sodium for flowering",
-            "cost": 1500,
+            "id": "grow_light_ultra",
+            "name": "Ultra LED Lamp",
+            "description": "High power LED for maximum yield",
+            "cost": 3000,
             "icon": "icons/lamp_hps.png",
-            "levelRequired": 15,
-            "prefab": "lamp_hps",
-            "zoneType": "light"
+            "levelRequired": 5,
+            "prefab": "grow_light_ultra",
+            "zoneType": "growlight"
           }
         ]
       },
