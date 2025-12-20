@@ -52,6 +52,8 @@ const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
 };
 
 export class GameScene {
+  private static instance: GameScene;
+  
   private engine: Engine;
   private canvas: HTMLCanvasElement;
   private scene: Scene | null = null;
@@ -68,6 +70,11 @@ export class GameScene {
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
     this.canvas = canvas;
+    GameScene.instance = this;
+  }
+
+  public static getInstance(): GameScene {
+    return GameScene.instance;
   }
 
   public async start(): Promise<void> {

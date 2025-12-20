@@ -9,6 +9,7 @@ import {
 } from "babylonjs";
 import { EventBus } from "../core/EventBus";
 import { SpawnValidator } from "../SpawnValidator";
+import { GameScene } from "../GameScene";
 import { BuildableObjectManager } from "../../game/BuildableObject";
 import { BuildingSystem } from "../../game/BuildingSystem";
 import { GameState } from "../../game/GameState";
@@ -88,7 +89,7 @@ export class RTSCameraController {
             Math.abs(p.position.z - buildableObj.position.z) < 5
           );
           if (newPlant) {
-            GameHUD.getInstance().showPlantInfo(newPlant.id);
+            GameScene.getInstance().showPlantInfo(newPlant.id);
             GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
           }
         }
@@ -152,8 +153,8 @@ export class RTSCameraController {
                       Math.abs(p.position.z - buildableObj.position.z) < 5
                     );
                     if (plant) {
-                      // Show plant info panel
-                      GameHUD.getInstance().showPlantInfo(plant.id);
+                      // Show plant info modal (new UI system)
+                      GameScene.getInstance().showPlantInfo(plant.id);
                     } else {
                       // No plant in this pot - show seed selection popup
                       SeedSelectionPopup.show(
@@ -167,7 +168,7 @@ export class RTSCameraController {
                             Math.abs(p.position.z - buildableObj.position.z) < 5
                           );
                           if (newPlant) {
-                            GameHUD.getInstance().showPlantInfo(newPlant.id);
+                            GameScene.getInstance().showPlantInfo(newPlant.id);
                             GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
                           }
                         }
