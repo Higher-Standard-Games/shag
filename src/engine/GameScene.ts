@@ -44,13 +44,14 @@ export type CameraMode = "perspective" | "orthographic" | "fake_ortho";
 
 // Default camera mode - can be changed at runtime via setCameraMode()
 // Note: This is the initial mode before map loads. Map's worldspawn can override.
-let CAMERA_MODE: CameraMode = "perspective";
+// Using fake_ortho as default since it works best with clustered lighting
+let CAMERA_MODE: CameraMode = "fake_ortho";
 
 // Default camera heights for each mode
 const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
   perspective: 600,
   orthographic: 250,  // This is orthoSize for orthographic mode
-  fake_ortho: 4000,   // Radius for fake_ortho (far away for low FOV)
+  fake_ortho: 5000,   // Radius for fake_ortho - matches showcase.map default
 };
 
 export class GameScene {
