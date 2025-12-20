@@ -8,6 +8,7 @@
 import { ModalPanel } from "../engine/ui/ModalPanel";
 import { GameState } from "../game/GameState";
 import { PlantSystem, StrainDefinition } from "../game/PlantSystem";
+import { GameHUD } from "./GameHUD";
 
 export interface SeedSelectionResult {
   strainId: string;
@@ -66,7 +67,8 @@ export class SeedSelectionPopup {
     this.modal.show();
     
     // Attach click handlers after modal is shown and rendered
-    setTimeout(() => this.attachSeedClickHandlers(), 50);
+    // Use longer timeout to ensure DOM is fully rendered
+    setTimeout(() => this.attachSeedClickHandlers(), 100);
   }
 
   /**
@@ -212,9 +214,13 @@ export class SeedSelectionPopup {
       
       newItem.style.cursor = "pointer";
       newItem.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
         const strainId = newItem.dataset.strainId;
         console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
+        
+        // Visual feedback
+        GameHUD.getInstance().showNotification(`Planting ${strainId}...`);
         if (!strainId) return;
 
         const strain = PlantSystem.getInstance().getStrain(strainId);
