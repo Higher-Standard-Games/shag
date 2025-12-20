@@ -56,8 +56,8 @@ export class PotActionIndicator {
       }
     });
 
-    // Listen for seed planted event to hide indicator
-    EventBus.on<{ plantId: string; position: { x: number; z: number } }>("plant:planted", () => {
+    // Listen for seed planted event to hide indicator (PlantSystem emits "planted")
+    EventBus.on<{ plantId: string; position: { x: number; z: number } }>("planted", () => {
       // Check all indicators and hide any that now have plants
       for (const objectId of this.activeIndicators) {
         const buildableManager = BuildableObjectManager.getInstance();
