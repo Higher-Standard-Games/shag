@@ -341,7 +341,7 @@ export class WorldIndicatorSystem {
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 1000;
+        z-index: 100;  /* Below UI panels (SidePanel=900, BottomBar=1000) */
       }
 
       .world-indicator {
