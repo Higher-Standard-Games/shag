@@ -1,0 +1,167 @@
+{
+  "buildMenu": {
+    "categories": [
+      {
+        "id": "plants",
+        "name": "Plants",
+        "icon": "🌱",
+        "color": "#4CAF50",
+        "items": [
+          {
+            "id": "basic_pot",
+            "name": "Basic Pot",
+            "description": "A simple pot for growing plants",
+            "cost": 50,
+            "icon": "icons/pot_basic.png",
+            "levelRequired": 1,
+            "prefab": "pot_basic",
+            "zoneType": "plant"
+          },
+          {
+            "id": "large_pot",
+            "name": "Large Pot",
+            "description": "A larger pot with better yield",
+            "cost": 150,
+            "icon": "icons/pot_large.png",
+            "levelRequired": 3,
+            "prefab": "pot_large",
+            "zoneType": "plant"
+          },
+          {
+            "id": "hydro_pot",
+            "name": "Hydro Pot",
+            "description": "Hydroponic system for faster growth",
+            "cost": 1000,
+            "icon": "icons/pot_hydro.png",
+            "levelRequired": 10,
+            "prefab": "pot_hydro",
+            "zoneType": "plant"
+          }
+        ]
+      },
+      {
+        "id": "lights",
+        "name": "Lights",
+        "icon": "💡",
+        "color": "#FFC107",
+        "items": [
+          {
+            "id": "basic_lamp",
+            "name": "Basic Lamp",
+            "description": "Simple grow light",
+            "cost": 100,
+            "icon": "icons/lamp_basic.png",
+            "levelRequired": 1,
+            "prefab": "lamp_basic",
+            "zoneType": "light"
+          },
+          {
+            "id": "led_panel",
+            "name": "LED Panel",
+            "description": "Energy efficient LED grow light",
+            "cost": 500,
+            "icon": "icons/lamp_led.png",
+            "levelRequired": 5,
+            "prefab": "lamp_led",
+            "zoneType": "light"
+          },
+          {
+            "id": "hps_light",
+            "name": "HPS Light",
+            "description": "High pressure sodium for flowering",
+            "cost": 1500,
+            "icon": "icons/lamp_hps.png",
+            "levelRequired": 15,
+            "prefab": "lamp_hps",
+            "zoneType": "light"
+          }
+        ]
+      },
+      {
+        "id": "equipment",
+        "name": "Equipment",
+        "icon": "⚙️",
+        "color": "#9E9E9E",
+        "items": [
+          {
+            "id": "fan",
+            "name": "Fan",
+            "description": "Improves air circulation",
+            "cost": 75,
+            "icon": "icons/fan.png",
+            "levelRequired": 2,
+            "prefab": "fan",
+            "zoneType": "equipment"
+          },
+          {
+            "id": "heater",
+            "name": "Heater",
+            "description": "Maintains optimal temperature",
+            "cost": 200,
+            "icon": "icons/heater.png",
+            "levelRequired": 4,
+            "prefab": "heater",
+            "zoneType": "equipment"
+          },
+          {
+            "id": "dehumidifier",
+            "name": "Dehumidifier",
+            "description": "Controls humidity levels",
+            "cost": 350,
+            "icon": "icons/dehumidifier.png",
+            "levelRequired": 6,
+            "prefab": "dehumidifier",
+            "zoneType": "equipment"
+          }
+        ]
+      },
+      {
+        "id": "decor",
+        "name": "Decor",
+        "icon": "🎨",
+        "color": "#E91E63",
+        "items": [
+          {
+            "id": "plant_stand",
+            "name": "Plant Stand",
+            "description": "Decorative plant stand",
+            "cost": 25,
+            "icon": "icons/decor_stand.png",
+            "levelRequired": 1,
+            "prefab": "decor_stand",
+            "zoneType": "decor"
+          },
+          {
+            "id": "poster",
+            "name": "Poster",
+            "description": "Wall decoration",
+            "cost": 50,
+            "icon": "icons/decor_poster.png",
+            "levelRequired": 1,
+            "prefab": "decor_poster",
+            "zoneType": "decor"
+          },
+          {
+            "id": "rug",
+            "name": "Rug",
+            "description": "Floor decoration",
+            "cost": 100,
+            "icon": "icons/decor_rug.png",
+            "levelRequired": 2,
+            "prefab": "decor_rug",
+            "zoneType": "decor"
+          }
+        ]
+      }
+    ]
+  },
+  "inventory": {
+    "slots": 8,
+    "defaultItems": []
+  },
+  "bottomBar": {
+    "height": 200,
+    "collapsedHeight": 60,
+    "animationDuration": 200
+  }
+}

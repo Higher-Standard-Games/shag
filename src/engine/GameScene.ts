@@ -18,7 +18,7 @@ import { ShopSystem } from "../game/ShopSystem";
 import { TextureManager } from "./loader/TextureManager";
 import { RTSCameraController } from "./camera/RTSCameraController";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { BuildMenu } from "../ui/BuildMenu";
+import { BottomBar, UIConfig, type BuildMenuItem, type InventorySlot } from "./ui";
 import { GameHUD } from "../ui/GameHUD";
 import { OrderPanel } from "../ui/OrderPanel";
 import { QuestPanel } from "../ui/QuestPanel";
@@ -61,6 +61,7 @@ export class GameScene {
   private orthoSize = 250;
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
+  private bottomBar: BottomBar | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -396,7 +397,59 @@ export class GameScene {
     console.log("New systems: game.orders(), game.createOrder(), game.quests(), game.achievements(), game.shop(), game.buy('seed_basic')");
   }
 
-  private startRenderLoop(): void {
+  private async initBottomBar(): Promise<void> {
+    // Load UI config
+    await UIConfig.getInstance().load("/data/ui-config.json");
+    
+    // Create BottomBar with callbacks
+    this.bottomBar = new BottomBar({
+      onItemSelect: (item: BuildMenuItem) => {
+        console.log("Selected build item:", item.name);
+        // Connect to BuildingSystem for placement
+        BuildingSystem.getInstance().selectItem(item.id);
+      },
+      onInventorySlotClick: (slotIndex: number) => {
+        console.log("Inventory slot clicked:", slotIndex);
+        // TODO: Connect to inventory system
+      },
+      getPlayerLevel: () => GameState.getInstance().getPlayer().level,
+      getPlayerMoney: () => GameState.getInstance().getPlayer().money,
+      getInventory: (): InventorySlot[] => {
+        // Return current inventory as slots
+        const inventoryState = GameState.getInstance().getInventory();
+        const slots: InventorySlot[] = [];
+        for (const item of inventoryState.items) {
+          if (item.quantity > 0) {
+            slots.push({
+              itemId: item.id,
+              icon: this.getInventoryIcon(item.id),
+              count: item.quantity,
+            });
+          }
+        }
+        // Pad to 8 slots
+        while (slots.length < 8) {
+          slots.push({ itemId: null, icon: null, count: 0 });
+        }
+        return slots;
+      },
+    });
+    
+    await this.bottomBar.init();
+    this.bottomBar.show();
+  }
+
+  private getInventoryIcon(itemId: string): string {
+    const iconMap: Record<string, string> = {
+      seed_basic: "🌿",
+      seed_premium: "🌱",
+      fertilizer: "💧",
+      water: "💦",
+    };
+    return iconMap[itemId] || "📦";
+  }
+
+  private async startRenderLoop(): Promise<void> {
     // Initialize game systems
     GameState.getInstance(); // Load/create save
     GameTimer.getInstance(); // Start timer
@@ -415,9 +468,11 @@ export class GameScene {
     
     // Show UI
     GameHUD.getInstance().show();
-    BuildMenu.getInstance().show();
     OrderPanel.getInstance().show();
     QuestPanel.getInstance().show();
+    
+    // Initialize and show new BottomBar UI
+    await this.initBottomBar();
     
     // Initialize WorldIndicatorSystem (generic world-positioned UI indicators)
     if (this.scene && this.camera) {
