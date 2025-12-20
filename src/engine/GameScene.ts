@@ -18,10 +18,8 @@ import { ShopSystem } from "../game/ShopSystem";
 import { TextureManager } from "./loader/TextureManager";
 import { RTSCameraController } from "./camera/RTSCameraController";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { BottomBar, UIConfig, type BuildMenuItem, type InventorySlot } from "./ui";
+import { BottomBar, UIConfig, SidePanel, type BuildMenuItem, type InventorySlot, type SidePanelItem } from "./ui";
 import { GameHUD } from "../ui/GameHUD";
-import { OrderPanel } from "../ui/OrderPanel";
-import { QuestPanel } from "../ui/QuestPanel";
 import { HarvestCelebration } from "../ui/HarvestCelebration";
 import { PotActionIndicator } from "../ui/PotActionIndicator";
 import { WaterPromptUI } from "../ui/WaterPromptUI";
@@ -62,6 +60,8 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private bottomBar: BottomBar | null = null;
+  private questPanel: SidePanel | null = null;
+  private orderPanel: SidePanel | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -481,6 +481,103 @@ export class GameScene {
     return iconMap[itemId] || "📦";
   }
 
+  /**
+   * Initialize side panels for Quests and Orders (left side, stacked)
+   */
+  private initSidePanels(): void {
+    // Quest Panel
+    this.questPanel = new SidePanel(
+      {
+        id: "quests",
+        title: "Quests",
+        icon: "📋",
+        side: "left",
+        order: 1,
+        maxHeight: 200,
+      },
+      {
+        getItems: (): SidePanelItem[] => {
+          const activeQuests = QuestSystem.getInstance().getActiveQuests();
+          return activeQuests.map(aq => {
+            const quest = QuestSystem.getInstance().getQuest(aq.questId);
+            const isMain = quest?.category === "main";
+            return {
+              id: aq.questId,
+              content: `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>${quest?.name || aq.questId}</span>
+                  ${isMain ? '<span style="background: #4CAF50; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">MAIN</span>' : ''}
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 4px;">
+                  ${aq.objectives.map(obj => `
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span style="color: ${obj.current >= obj.target ? '#4CAF50' : '#666'};">
+                        ${obj.current >= obj.target ? '✓' : '☐'}
+                      </span>
+                      <span>${obj.description}</span>
+                      <span style="color: #666;">${obj.current}/${obj.target}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `,
+            };
+          });
+        },
+        getHeaderExtra: () => {
+          const count = QuestSystem.getInstance().getActiveQuests().length;
+          return count > 0 ? `<span style="background: #4CAF50; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${count}</span>` : '';
+        },
+      }
+    );
+    this.questPanel.show();
+
+    // Order Panel
+    this.orderPanel = new SidePanel(
+      {
+        id: "orders",
+        title: "Orders",
+        icon: "📦",
+        side: "left",
+        order: 2,
+        maxHeight: 200,
+      },
+      {
+        getItems: (): SidePanelItem[] => {
+          const orders = OrderSystem.getInstance().getActiveOrders();
+          if (orders.length === 0) {
+            return [{
+              id: "no-orders",
+              content: `<div style="color: #666; text-align: center;">No orders yet. Keep growing!</div>`,
+            }];
+          }
+          return orders.map(order => ({
+            id: order.id,
+            content: `
+              <div style="display: flex; justify-content: space-between;">
+                <span>${order.customerName}</span>
+                <span style="color: #FFC107;">$${order.baseReward}</span>
+              </div>
+              <div style="color: #888; font-size: 11px; margin-top: 4px;">
+                ${Object.entries(order.items).map(([strainId, qty]) => `${qty}x ${strainId}`).join(', ')}
+              </div>
+            `,
+          }));
+        },
+        getHeaderExtra: () => {
+          const count = OrderSystem.getInstance().getActiveOrders().length;
+          return count > 0 ? `<span style="background: #FFC107; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${count}</span>` : '';
+        },
+      }
+    );
+    this.orderPanel.show();
+
+    // Set up periodic refresh for side panels
+    setInterval(() => {
+      this.questPanel?.refresh();
+      this.orderPanel?.refresh();
+    }, 1000);
+  }
+
   private async startRenderLoop(): Promise<void> {
     // Initialize game systems
     GameState.getInstance(); // Load/create save
@@ -500,11 +597,12 @@ export class GameScene {
     
     // Show UI
     GameHUD.getInstance().show();
-    OrderPanel.getInstance().show();
-    QuestPanel.getInstance().show();
     
     // Initialize and show new BottomBar UI
     await this.initBottomBar();
+    
+    // Initialize side panels (Quests and Orders on left)
+    this.initSidePanels();
     
     // Initialize WorldIndicatorSystem (generic world-positioned UI indicators)
     if (this.scene && this.camera) {

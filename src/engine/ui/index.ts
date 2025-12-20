@@ -19,3 +19,10 @@ export type {
   BottomBarCallbacks,
   InventorySlot,
 } from "./BottomBar";
+
+export { SidePanel } from "./SidePanel";
+export type {
+  SidePanelConfig,
+  SidePanelCallbacks,
+  SidePanelItem,
+} from "./SidePanel";
