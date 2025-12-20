@@ -783,10 +783,10 @@ export class GameScene {
     uiTheme.init();
     
     // Load custom fonts
-    await uiTheme.loadFont("CmasPlay", "/fonts/CmasPlay.woff2", "400");
+    await uiTheme.loadFont("Chicle", "/fonts/Chicle-Regular.woff2", "400");
     uiTheme.setFontFamily(
       "'Segoe UI', system-ui, -apple-system, sans-serif",  // Body font
-      "'CmasPlay', 'Segoe UI', sans-serif"                 // Heading font
+      "'Chicle', 'Segoe UI', sans-serif"                   // Heading font
     );
     
     // Show UI
