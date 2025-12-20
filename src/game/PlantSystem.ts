@@ -1226,26 +1226,22 @@ export class PlantSystem {
         isHarvestable: isNowHarvestable,
       });
       
-      // Sync pot visual with plant growth (convert plant stage to 0-100%)
-      const growthPercent = (newStage / (strain.stages - 1)) * 100;
-      const buildableManager = BuildableObjectManager.getInstance();
-      const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
-      console.log(`PlantSystem: Syncing pot visual for plant at (${plant.position.x}, ${plant.position.z}), mapId: '${plant.mapId}', found ${allObjects.length} objects`);
-      const potAtPosition = allObjects.find(obj => 
-        Math.abs(obj.position.x - plant.position.x) < 5 &&
-        Math.abs(obj.position.z - plant.position.z) < 5
-      );
-      if (potAtPosition) {
-        console.log(`PlantSystem: Found pot ${potAtPosition.id}, syncing to ${growthPercent}%`);
-        buildableManager.syncPotWithPlant(potAtPosition.id, growthPercent);
-      } else {
-        console.warn(`PlantSystem: No pot found at plant position`);
-      }
-      
       // Emit ready event when plant becomes harvestable
       if (isNowHarvestable && plant.growthStage < strain.stages - 1) {
         this.emit("ready_to_harvest", plant.id, { strain: plant.strain });
       }
+    }
+    
+    // Always sync pot visual with current growth (handles save/load and stage changes)
+    const growthPercent = (newStage / (strain.stages - 1)) * 100;
+    const buildableManager = BuildableObjectManager.getInstance();
+    const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
+    const potAtPosition = allObjects.find(obj => 
+      Math.abs(obj.position.x - plant.position.x) < 5 &&
+      Math.abs(obj.position.z - plant.position.z) < 5
+    );
+    if (potAtPosition) {
+      buildableManager.syncPotWithPlant(potAtPosition.id, growthPercent);
     }
 
     // Calculate water consumption first (needed for prompt logic)
