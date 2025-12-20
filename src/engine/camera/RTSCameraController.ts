@@ -163,20 +163,28 @@ export class RTSCameraController {
 
                 // Check for build zone click (separate from triggers)
                 const buildingSystem = BuildingSystem.getInstance();
-                if (mesh.metadata?.isBuildZone) {
-                  if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
-                    const zoneId = mesh.metadata.zoneId;
-                    const zoneType = mesh.metadata.zoneType;
-                    
-                    // Only build if zone type matches selected item's zone type
-                    if (zoneType === buildingSystem.selectedItem.zoneType) {
-                      buildingSystem.buildAt(zoneId);
-                    }
-                    // If zone type doesn't match, don't cancel build mode - user might click correct zone
+                if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
+                  // Use multiPick to find ALL meshes under cursor, then find matching zone type
+                  const multiPick = this.scene.multiPick(this.scene.pointerX, this.scene.pointerY);
+                  const targetZoneType = buildingSystem.selectedItem.zoneType;
+                  
+                  // Find a build zone that matches our selected item's zone type
+                  const matchingZone = multiPick?.find(p => 
+                    p.hit && 
+                    p.pickedMesh?.metadata?.isBuildZone && 
+                    p.pickedMesh?.metadata?.zoneType === targetZoneType
+                  );
+                  
+                  if (matchingZone && matchingZone.pickedMesh) {
+                    const zoneId = matchingZone.pickedMesh.metadata.zoneId;
+                    buildingSystem.buildAt(zoneId);
+                  } else if (!multiPick?.some(p => p.pickedMesh?.metadata?.isBuildZone)) {
+                    // Clicked outside any build zone while in build mode - cancel
+                    buildingSystem.exitBuildMode();
                   }
-                } else if (buildingSystem.inBuildMode) {
-                  // Clicked outside build zone while in build mode - cancel
-                  buildingSystem.exitBuildMode();
+                  // If clicked on wrong zone type, stay in build mode (user might click correct zone)
+                } else if (mesh.metadata?.isBuildZone) {
+                  // Not in build mode but clicked a build zone - ignore
                 }
 
                 // Check for trigger click
