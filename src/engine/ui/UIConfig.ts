@@ -1,9 +1,13 @@
 /**
- * UIConfig - JSON-driven UI configuration system
+ * UIConfig - JSON-driven UI configuration system (Engine Component)
  * 
- * Loads UI configuration from JSON files for data-driven UI components.
- * This allows easy modification of build menus, inventory, and other UI
- * elements without code changes.
+ * This is a GENERIC engine component for loading UI configuration from JSON.
+ * The JSON defines WHAT items exist (structure), while game code defines
+ * HOW they look (icons, styling) via callbacks.
+ * 
+ * Separation of concerns:
+ * - Engine: Layout, behavior, JSON loading, event handling
+ * - Game: Icons, colors, custom rendering, game-specific logic
  */
 
 export interface BuildMenuItem {

@@ -402,20 +402,21 @@ export class GameScene {
     await UIConfig.getInstance().load("/data/ui-config.json");
     
     // Create BottomBar with callbacks
+    // Engine handles layout/behavior, game provides content/styling via callbacks
     this.bottomBar = new BottomBar({
+      // Actions
       onItemSelect: (item: BuildMenuItem) => {
         console.log("Selected build item:", item.name);
-        // Connect to BuildingSystem for placement
         BuildingSystem.getInstance().selectItem(item.id);
       },
       onInventorySlotClick: (slotIndex: number) => {
         console.log("Inventory slot clicked:", slotIndex);
-        // TODO: Connect to inventory system
       },
+      
+      // Data providers
       getPlayerLevel: () => GameState.getInstance().getPlayer().level,
       getPlayerMoney: () => GameState.getInstance().getPlayer().money,
       getInventory: (): InventorySlot[] => {
-        // Return current inventory as slots
         const inventoryState = GameState.getInstance().getInventory();
         const slots: InventorySlot[] = [];
         for (const item of inventoryState.items) {
@@ -427,24 +428,55 @@ export class GameScene {
             });
           }
         }
-        // Pad to 8 slots
         while (slots.length < 8) {
           slots.push({ itemId: null, icon: null, count: 0 });
         }
         return slots;
       },
+      
+      // Game-specific customization (icons, styling)
+      renderItemIcon: (item: BuildMenuItem) => this.getBuildItemIcon(item.id),
+      renderInventoryIcon: (itemId: string) => this.getInventoryIcon(itemId),
     });
     
     await this.bottomBar.init();
     this.bottomBar.show();
   }
 
+  /**
+   * Game-specific: Get icon for inventory items
+   */
   private getInventoryIcon(itemId: string): string {
     const iconMap: Record<string, string> = {
       seed_basic: "🌿",
       seed_premium: "🌱",
       fertilizer: "💧",
       water: "💦",
+    };
+    return iconMap[itemId] || "📦";
+  }
+
+  /**
+   * Game-specific: Get icon for build menu items
+   */
+  private getBuildItemIcon(itemId: string): string {
+    const iconMap: Record<string, string> = {
+      // Plants
+      basic_pot: "🌱",
+      large_pot: "🪴",
+      hydro_pot: "💧",
+      // Lights
+      basic_lamp: "💡",
+      led_panel: "🔆",
+      hps_light: "☀️",
+      // Equipment
+      fan: "🌀",
+      heater: "🔥",
+      dehumidifier: "💨",
+      // Decor
+      plant_stand: "🪑",
+      poster: "🖼️",
+      rug: "🟫",
     };
     return iconMap[itemId] || "📦";
   }

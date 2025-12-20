@@ -1,27 +1,44 @@
 /**
- * BottomBar - Unified bottom UI panel
+ * BottomBar - Unified bottom UI panel (Engine Component)
+ * 
+ * This is a GENERIC engine component. Game-specific customization
+ * (icons, colors, item rendering) is provided via callbacks.
  * 
  * Features:
  * - Tabbed build menu with categories from JSON config
  * - Integrated inventory bar
  * - Collapsible/expandable
  * - Mobile-friendly touch targets
+ * - Customizable via callbacks (game provides icons, styling)
  */
 
 import { UIConfig, type BuildMenuCategory, type BuildMenuItem } from "./UIConfig";
-
-export interface BottomBarCallbacks {
-  onItemSelect: (item: BuildMenuItem) => void;
-  onInventorySlotClick: (slotIndex: number) => void;
-  getPlayerLevel: () => number;
-  getPlayerMoney: () => number;
-  getInventory: () => InventorySlot[];
-}
 
 export interface InventorySlot {
   itemId: string | null;
   icon: string | null;
   count: number;
+}
+
+/**
+ * Callbacks for game-specific customization
+ * The engine handles layout/behavior, game provides content/styling
+ */
+export interface BottomBarCallbacks {
+  // Actions
+  onItemSelect: (item: BuildMenuItem) => void;
+  onInventorySlotClick: (slotIndex: number) => void;
+  
+  // Data providers
+  getPlayerLevel: () => number;
+  getPlayerMoney: () => number;
+  getInventory: () => InventorySlot[];
+  
+  // Customization (optional - engine provides defaults)
+  renderItemIcon?: (item: BuildMenuItem) => string;  // Returns HTML/emoji for item icon
+  renderInventoryIcon?: (itemId: string) => string;  // Returns HTML/emoji for inventory
+  getItemTooltip?: (item: BuildMenuItem) => string;  // Custom tooltip text
+  getCategoryStyle?: (category: BuildMenuCategory) => { color?: string; icon?: string };
 }
 
 export class BottomBar {
@@ -328,22 +345,12 @@ export class BottomBar {
   }
 
   private getItemIcon(item: BuildMenuItem): string {
-    // Map item types to emoji fallbacks
-    const iconMap: Record<string, string> = {
-      basic_pot: "🌱",
-      large_pot: "🪴",
-      hydro_pot: "💧",
-      basic_lamp: "💡",
-      led_panel: "🔆",
-      hps_light: "☀️",
-      fan: "🌀",
-      heater: "🔥",
-      dehumidifier: "💨",
-      plant_stand: "🪑",
-      poster: "🖼️",
-      rug: "🟫",
-    };
-    return iconMap[item.id] || "📦";
+    // Use game-provided renderer if available, otherwise use default emoji
+    if (this.callbacks.renderItemIcon) {
+      return this.callbacks.renderItemIcon(item);
+    }
+    // Default fallback - just use a generic icon
+    return "📦";
   }
 
   private selectItem(item: BuildMenuItem): void {
@@ -384,10 +391,14 @@ export class BottomBar {
     `;
 
     if (slot.itemId) {
-      // Icon
+      // Icon - use game-provided renderer or fallback
       const icon = document.createElement("div");
       icon.style.cssText = `font-size: 22px;`;
-      icon.textContent = slot.icon || "📦";
+      if (this.callbacks.renderInventoryIcon && slot.itemId) {
+        icon.innerHTML = this.callbacks.renderInventoryIcon(slot.itemId);
+      } else {
+        icon.textContent = slot.icon || "📦";
+      }
       el.appendChild(icon);
 
       // Count badge
