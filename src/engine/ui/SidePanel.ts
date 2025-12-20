@@ -116,7 +116,7 @@ export class SidePanel {
     this.headerEl.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 16px;">${this.config.icon}</span>
-        <span class="side-panel-title" style="color: #fff; font-weight: 600; font-size: 18px;">${this.config.title}</span>
+        <span class="side-panel-title" style="color: #fff; font-weight: 400; font-size: 20px;">${this.config.title}</span>
         ${extra}
       </div>
       <span style="color: #666; font-size: 12px; transition: transform 0.2s;">

@@ -61,10 +61,12 @@ export class SeedSelectionPopup {
       );
     }
 
+    // Refresh content before showing (in case inventory changed)
+    this.modal.refresh();
     this.modal.show();
     
-    // Attach click handlers after modal is shown
-    setTimeout(() => this.attachSeedClickHandlers(), 0);
+    // Attach click handlers after modal is shown and rendered
+    setTimeout(() => this.attachSeedClickHandlers(), 50);
   }
 
   /**
