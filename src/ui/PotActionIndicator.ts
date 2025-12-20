@@ -8,7 +8,6 @@
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { EventBus } from "../engine/core/EventBus";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { GameHUD } from "./GameHUD";
 
 const INDICATOR_PREFIX = "pot_action_";
 
@@ -99,9 +98,6 @@ export class PotActionIndicator {
     });
 
     this.activeIndicators.add(objectId);
-
-    // Show game message
-    GameHUD.getInstance().showGameMessage("Select strain to grow", "🌱");
   }
 
   public hideIndicator(objectId: string): void {
@@ -110,11 +106,6 @@ export class PotActionIndicator {
     
     worldIndicator.removeIndicator(indicatorId);
     this.activeIndicators.delete(objectId);
-
-    // Hide game message if no more indicators
-    if (this.activeIndicators.size === 0) {
-      GameHUD.getInstance().hideGameMessage();
-    }
   }
 
   /**
