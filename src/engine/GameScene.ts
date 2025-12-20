@@ -18,7 +18,7 @@ import { ShopSystem } from "../game/ShopSystem";
 import { TextureManager } from "./loader/TextureManager";
 import { RTSCameraController } from "./camera/RTSCameraController";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { BottomBar, UIConfig, SidePanel, type BuildMenuItem, type InventorySlot, type SidePanelItem } from "./ui";
+import { BottomBar, UIConfig, SidePanel, ModalPanel, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "./ui";
 import { GameHUD } from "../ui/GameHUD";
 import { HarvestCelebration } from "../ui/HarvestCelebration";
 import { PotActionIndicator } from "../ui/PotActionIndicator";
@@ -62,6 +62,8 @@ export class GameScene {
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
+  private plantModal: ModalPanel | null = null;
+  private selectedPlantId: string | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -578,6 +580,146 @@ export class GameScene {
     }, 1000);
   }
 
+  /**
+   * Initialize plant info modal panel
+   */
+  private initPlantModal(): void {
+    this.plantModal = new ModalPanel(
+      {
+        id: "plant-info",
+        title: "Plant",
+        icon: "🌿",
+        width: 340,
+      },
+      {
+        renderContent: () => this.renderPlantContent(),
+        getActions: (): ModalAction[] => this.getPlantActions(),
+        onClose: () => {
+          this.selectedPlantId = null;
+          GameHUD.getInstance().hidePlantInfo();
+        },
+      }
+    );
+  }
+
+  private renderPlantContent(): string {
+    if (!this.selectedPlantId) return "<div>No plant selected</div>";
+    
+    const plant = GameState.getInstance().getPlant(this.selectedPlantId);
+    if (!plant) return "<div>Plant not found</div>";
+    
+    const strain = PlantSystem.getInstance().getStrain(plant.strain);
+    if (!strain) return "<div>Unknown strain</div>";
+    
+    const mastery = PlantSystem.getInstance().getMastery(plant.strain);
+    const stars = "★".repeat(mastery.level) + "☆".repeat(5 - mastery.level);
+    
+    // Calculate progress percentages
+    const growthPercent = Math.min(100, plant.growthProgress);
+    const waterPercent = Math.min(100, plant.waterLevel);
+    const healthPercent = Math.min(100, plant.health);
+    
+    return `
+      <div style="text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 14px; color: #FFD700; letter-spacing: 2px;">${stars}</div>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #aaa; font-size: 13px;">Growth</span>
+          <div style="flex: 1; margin: 0 12px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+            <div style="width: ${growthPercent}%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 4px;"></div>
+          </div>
+          <span style="color: #fff; font-size: 12px; min-width: 40px; text-align: right;">${Math.floor(growthPercent)}%</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #aaa; font-size: 13px;">Water</span>
+          <div style="flex: 1; margin: 0 12px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+            <div style="width: ${waterPercent}%; height: 100%; background: linear-gradient(90deg, #2196F3, #03A9F4); border-radius: 4px;"></div>
+          </div>
+          <span style="color: #fff; font-size: 12px; min-width: 40px; text-align: right;">${Math.floor(waterPercent)}%</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #aaa; font-size: 13px;">Health</span>
+          <div style="flex: 1; margin: 0 12px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+            <div style="width: ${healthPercent}%; height: 100%; background: linear-gradient(90deg, #F44336, #E91E63); border-radius: 4px;"></div>
+          </div>
+          <span style="color: #fff; font-size: 12px; min-width: 40px; text-align: right;">${Math.floor(healthPercent)}%</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; color: #888; font-size: 12px;">
+          <span>Pot:</span>
+          <span style="color: #fff;">Basic Pot</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private getPlantActions(): ModalAction[] {
+    if (!this.selectedPlantId) return [];
+    
+    const plant = GameState.getInstance().getPlant(this.selectedPlantId);
+    if (!plant) return [];
+    
+    const canHarvest = plant.growthProgress >= 100 && plant.growthStage >= 3;
+    
+    return [
+      {
+        id: "water",
+        label: "Water",
+        icon: "💧",
+        color: "#2196F3",
+        onClick: () => {
+          PlantSystem.getInstance().waterPlant(this.selectedPlantId!);
+          this.plantModal?.refresh();
+        },
+      },
+      {
+        id: "fertilize",
+        label: "Fertilize",
+        icon: "🧪",
+        color: "#9C27B0",
+        disabled: plant.fertilized || !GameState.getInstance().hasItem("fertilizer", 1),
+        onClick: () => {
+          PlantSystem.getInstance().applyFertilizer(this.selectedPlantId!);
+          this.plantModal?.refresh();
+        },
+      },
+      {
+        id: "harvest",
+        label: "Harvest",
+        icon: "🌾",
+        primary: true,
+        color: canHarvest ? "#4CAF50" : undefined,
+        disabled: !canHarvest,
+        onClick: () => {
+          PlantSystem.getInstance().harvestPlant(this.selectedPlantId!);
+          this.plantModal?.hide();
+        },
+      },
+    ];
+  }
+
+  /**
+   * Show plant info modal for a specific plant
+   */
+  public showPlantInfo(plantId: string): void {
+    const plant = GameState.getInstance().getPlant(plantId);
+    if (!plant) return;
+    
+    const strain = PlantSystem.getInstance().getStrain(plant.strain);
+    this.selectedPlantId = plantId;
+    
+    if (this.plantModal) {
+      this.plantModal.setTitle(strain?.name || "Plant");
+      this.plantModal.show();
+    }
+  }
+
   private async startRenderLoop(): Promise<void> {
     // Initialize game systems
     GameState.getInstance(); // Load/create save
@@ -603,6 +745,9 @@ export class GameScene {
     
     // Initialize side panels (Quests and Orders on left)
     this.initSidePanels();
+    
+    // Initialize plant info modal
+    this.initPlantModal();
     
     // Initialize WorldIndicatorSystem (generic world-positioned UI indicators)
     if (this.scene && this.camera) {
