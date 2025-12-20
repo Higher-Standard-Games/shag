@@ -227,10 +227,13 @@ export class SeedSelectionPopup {
         hasOnSelect: !!onSelect
       });
 
-      if (!potPosition || !mapId) {
-        console.warn("SeedSelectionPopup: Missing pot position or mapId at click time");
+      if (!potPosition) {
+        console.warn("SeedSelectionPopup: Missing pot position at click time");
         return;
       }
+      
+      // mapId can be empty string for default map
+      const effectiveMapId = mapId || "default";
       
       const strainId = seedItem.dataset.strainId;
       console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
@@ -249,7 +252,7 @@ export class SeedSelectionPopup {
       const plant = PlantSystem.getInstance().plantSeed(
         strainId,
         potPosition,
-        mapId
+        effectiveMapId
       );
 
       console.log(`SeedSelectionPopup: Plant result:`, plant);
