@@ -41,6 +41,11 @@ export class SeedSelectionPopup {
     this.currentPotPosition = potPosition;
     this.currentMapId = mapId;
     this.currentOnSelect = onSelect;
+    
+    console.log("SeedSelectionPopup.show() - stored context:", {
+      potPosition: this.currentPotPosition,
+      mapId: this.currentMapId
+    });
 
     // Create modal if not exists
     if (!this.modal) {
@@ -215,6 +220,12 @@ export class SeedSelectionPopup {
       const potPosition = SeedSelectionPopup.currentPotPosition;
       const mapId = SeedSelectionPopup.currentMapId;
       const onSelect = SeedSelectionPopup.currentOnSelect;
+
+      console.log("SeedSelectionPopup click - reading context:", {
+        potPosition,
+        mapId,
+        hasOnSelect: !!onSelect
+      });
 
       if (!potPosition || !mapId) {
         console.warn("SeedSelectionPopup: Missing pot position or mapId at click time");
