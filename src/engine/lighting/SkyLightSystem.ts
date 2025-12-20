@@ -18,7 +18,7 @@ import {
   ShadowGenerator,
   Vector3,
 } from "babylonjs";
-import { GameClock, type TimeOfDay } from "../game/GameClock";
+import { GameClock, type TimeOfDay } from "../../game/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 
 // ==================== Types ====================

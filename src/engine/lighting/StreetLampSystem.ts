@@ -18,7 +18,7 @@ import {
   StandardMaterial,
   Vector3,
 } from "babylonjs";
-import { GameClock, type TimePeriod } from "../game/GameClock";
+import { GameClock, type TimePeriod } from "../../game/GameClock";
 
 // ==================== Types ====================
 

@@ -8,16 +8,16 @@ import {
   Vector3,
 } from "babylonjs";
 import { BuildingSystem } from "../game/BuildingSystem";
-import { BrushGenerator } from "../loader/BrushGenerator";
-import type { Entity } from "../loader/MapParser";
-import { ModelLoader } from "../loader/ModelLoader";
-import { type PatchDefinition, PatchGenerator } from "../loader/PatchGenerator";
-import { PrefabInstance } from "../loader/PrefabInstance";
-import { TextureManager } from "../loader/TextureManager";
-import { type BillboardSprite } from "../sprites/BillboardSprite";
-import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
-import { SpriteManager } from "../sprites/SpriteManager";
-import { TestSpriteGenerator } from "../sprites/TestSpriteGenerator";
+import { BrushGenerator } from "./loader/BrushGenerator";
+import type { Entity } from "./loader/MapParser";
+import { ModelLoader } from "./loader/ModelLoader";
+import { type PatchDefinition, PatchGenerator } from "./loader/PatchGenerator";
+import { PrefabInstance } from "./loader/PrefabInstance";
+import { TextureManager } from "./loader/TextureManager";
+import { type BillboardSprite } from "./sprites/BillboardSprite";
+import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
+import { SpriteManager } from "./sprites/SpriteManager";
+import { TestSpriteGenerator } from "./sprites/TestSpriteGenerator";
 import { 
   CharacterGenerator, 
   PRESET_CHARACTERS, 
@@ -27,8 +27,8 @@ import {
   type CharacterConfig,
   type CharacterStyle,
 } from "./CharacterGenerator";
-import { SkyLightSystem } from "./SkyLightSystem";
-import { StreetLampSystem } from "./StreetLampSystem";
+import { SkyLightSystem } from "./lighting/SkyLightSystem";
+import { StreetLampSystem } from "./lighting/StreetLampSystem";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;

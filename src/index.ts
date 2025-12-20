@@ -11,11 +11,11 @@ import {
   StandardMaterial,
   Vector3,
 } from "babylonjs";
-import { BrushGenerator } from "./loader/BrushGenerator";
-import { MapParser } from "./loader/MapParser";
-import { type PatchDefinition, PatchGenerator } from "./loader/PatchGenerator";
-import { TextureManager } from "./loader/TextureManager";
-import { RTSCameraController } from "./scene/RTSCameraController";
+import { BrushGenerator } from "./engine/loader/BrushGenerator";
+import { MapParser } from "./engine/loader/MapParser";
+import { type PatchDefinition, PatchGenerator } from "./engine/loader/PatchGenerator";
+import { TextureManager } from "./engine/loader/TextureManager";
+import { RTSCameraController } from "./engine/camera/RTSCameraController";
 import { UIManager } from "./ui/UIManager";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;

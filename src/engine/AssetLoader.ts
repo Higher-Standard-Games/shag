@@ -1,5 +1,5 @@
-import { MapParser, type Entity } from "../loader/MapParser";
-import { PrefabLoader } from "../loader/PrefabLoader";
+import { MapParser, type Entity } from "./loader/MapParser";
+import { PrefabLoader } from "./loader/PrefabLoader";
 
 export interface GameConfig {
   game: {

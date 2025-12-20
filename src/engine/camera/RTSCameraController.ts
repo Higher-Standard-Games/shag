@@ -7,17 +7,17 @@ import {
   type Scene,
   Vector3,
 } from "babylonjs";
-import { EventBus } from "../engine/core/EventBus";
-import { SpawnValidator } from "../engine/SpawnValidator";
-import { BuildableObjectManager } from "../game/BuildableObject";
-import { BuildingSystem } from "../game/BuildingSystem";
-import { GameState } from "../game/GameState";
-import { HarvestIndicator } from "../game/HarvestIndicator";
+import { EventBus } from "../core/EventBus";
+import { SpawnValidator } from "../SpawnValidator";
+import { BuildableObjectManager } from "../../game/BuildableObject";
+import { BuildingSystem } from "../../game/BuildingSystem";
+import { GameState } from "../../game/GameState";
+import { HarvestIndicator } from "../../game/HarvestIndicator";
 import { PrefabInstance } from "../loader/PrefabInstance";
-import { GameHUD } from "../ui/GameHUD";
-import { SeedSelectionPopup } from "../ui/SeedSelectionPopup";
-import { UIManager } from "../ui/UIManager";
-import { LampInfoPanel } from "../ui/LampInfoPanel";
+import { GameHUD } from "../../ui/GameHUD";
+import { SeedSelectionPopup } from "../../ui/SeedSelectionPopup";
+import { UIManager } from "../../ui/UIManager";
+import { LampInfoPanel } from "../../ui/LampInfoPanel";
 
 export class RTSCameraController {
   private camera: ArcRotateCamera;

@@ -13,7 +13,7 @@ import {
   Vector3,
 } from "babylonjs";
 import { EventBus } from "../engine/core/EventBus";
-import { PrefabInstance } from "../loader/PrefabInstance";
+import { PrefabInstance } from "../engine/loader/PrefabInstance";
 import { GameTimer } from "./GameTimer";
 
 /**
