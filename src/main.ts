@@ -4,8 +4,8 @@ import "babylonjs-loaders";
 import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
 import { GameScene } from "./engine/GameScene";
-import { LoadingScreen } from "./engine/LoadingScreen";
-import { MainMenu } from "./engine/MainMenu";
+import { LoadingScreen } from "./game/LoadingScreen";
+import { MainMenu } from "./game/MainMenu";
 
 /**
  * Main application entry point.

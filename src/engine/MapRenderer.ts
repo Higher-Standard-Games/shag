@@ -26,7 +26,7 @@ import {
   SHIRT_COLORS,
   type CharacterConfig,
   type CharacterStyle,
-} from "./CharacterGenerator";
+} from "../game/CharacterGenerator";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 

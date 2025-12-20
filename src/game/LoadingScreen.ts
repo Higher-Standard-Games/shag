@@ -1,4 +1,4 @@
-import type { LoadProgress } from "./AssetLoader";
+import type { LoadProgress } from "../engine/AssetLoader";
 
 export class LoadingScreen {
   private container: HTMLDivElement;

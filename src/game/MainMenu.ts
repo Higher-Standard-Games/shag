@@ -6,10 +6,10 @@ import {
   Scene,
   Vector3,
 } from "babylonjs";
-import { AssetLoader } from "./AssetLoader";
-import { AudioManager } from "./AudioManager";
-import { MapRenderer } from "./MapRenderer";
-import { GameState } from "../game/GameState";
+import { AssetLoader } from "../engine/AssetLoader";
+import { AudioManager } from "../engine/AudioManager";
+import { MapRenderer } from "../engine/MapRenderer";
+import { GameState } from "./GameState";
 
 export interface MainMenuCallbacks {
   onNewGame: () => void;
