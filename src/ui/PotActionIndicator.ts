@@ -56,15 +56,10 @@ export class PotActionIndicator {
       }
     });
 
-    // Listen for seed planted event to hide indicator (PlantSystem emits "planted")
-    EventBus.on<{ plantId: string; position: { x: number; z: number } }>("planted", () => {
-      // Check all indicators and hide any that now have plants
-      for (const objectId of this.activeIndicators) {
-        const buildableManager = BuildableObjectManager.getInstance();
-        const state = buildableManager.getObject(objectId);
-        if (state?.hasPlant) {
-          this.hideIndicator(objectId);
-        }
+    // Listen for plant state changed (from BuildableObjectManager.setPlantInPot)
+    EventBus.on<{ objectId: string; hasPlant: boolean }>("building:plant_state_changed", (data) => {
+      if (data.hasPlant) {
+        this.hideIndicator(data.objectId);
       }
     });
   }

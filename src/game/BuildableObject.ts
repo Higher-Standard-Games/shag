@@ -453,6 +453,9 @@ export class BuildableObjectManager {
     await this.updateVisual(state);
     
     console.log(`Pot ${id} hasPlant set to ${hasPlant}, progress reset to ${state.progress}`);
+    
+    // Emit event so PotActionIndicator can hide the "Select strain" indicator
+    this.emit("plant_state_changed", id, { hasPlant, progress: state.progress });
   }
 
   /**
