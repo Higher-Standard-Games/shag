@@ -352,13 +352,12 @@ export class GameHUD {
 
       .hud-notifications {
         position: fixed;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
+        top: 70px;
+        right: 16px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        max-width: 400px;
+        gap: 8px;
+        max-width: 300px;
         z-index: 140;
       }
 
@@ -380,7 +379,7 @@ export class GameHUD {
       }
 
       @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
+        from { transform: translateX(50px); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
       }
 
