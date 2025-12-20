@@ -289,15 +289,8 @@ export class GameHUD {
       }
 
       .hud-quick-inventory {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 5px;
-        background: rgba(0,0,0,0.6);
-        padding: 10px;
-        border-radius: 10px;
+        /* Hidden - inventory is now in BottomBar */
+        display: none;
       }
 
       .hud-inv-slot {
