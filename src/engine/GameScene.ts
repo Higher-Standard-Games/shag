@@ -44,14 +44,13 @@ export type CameraMode = "perspective" | "orthographic" | "fake_ortho";
 
 // Default camera mode - can be changed at runtime via setCameraMode()
 // Note: This is the initial mode before map loads. Map's worldspawn can override.
-// Using fake_ortho as default since it works best with clustered lighting
-let CAMERA_MODE: CameraMode = "fake_ortho";
+let CAMERA_MODE: CameraMode = "perspective";
 
 // Default camera heights for each mode
 const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
-  perspective: 600,
+  perspective: 400,
   orthographic: 250,  // This is orthoSize for orthographic mode
-  fake_ortho: 5000,   // Radius for fake_ortho - matches showcase.map default
+  fake_ortho: 400,    // Radius for fake_ortho
 };
 
 export class GameScene {
@@ -202,12 +201,13 @@ export class GameScene {
         break;
 
       case "fake_ortho":
-        // Perspective with very low FOV - looks orthographic, works with clustered lights
+        // Perspective with low FOV - looks orthographic, works with clustered lights
+        // FOV scales with height to maintain consistent view size
         this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
-        this.camera.fov = 0.08;  // Very narrow FOV for orthographic-like view
-        this.camera.radius = height;  // Far from target to compensate for narrow FOV
+        this.camera.fov = 0.5;  // Moderate FOV for orthographic-like view
+        this.camera.radius = height;
         this.camera.minZ = 1;
-        this.camera.maxZ = Math.max(8000, height * 2);
+        this.camera.maxZ = Math.max(2000, height * 4);
         console.log(`Camera mode: FAKE_ORTHO (radius: ${height})`);
         break;
     }
@@ -275,11 +275,10 @@ export class GameScene {
       this.cameraHeight = null;  // Reset to use defaults
     }
 
-    // Apply camera mode from map if specified, otherwise use default (perspective)
+    // Apply camera mode from map if specified, otherwise keep perspective default
     if (result.cameraMode) {
       this.setCameraMode(result.cameraMode);
     } else {
-      // Default to perspective if not specified in map
       this.setCameraMode("perspective");
     }
 
