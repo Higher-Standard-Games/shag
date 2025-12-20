@@ -187,6 +187,8 @@ export class SeedSelectionPopup {
     `;
   }
 
+  private static clickHandlerAttached = false;
+
   private static attachSeedClickHandlers(): void {
     // Find the modal container (not backdrop)
     const modalContainer = document.getElementById("modal-seed_selection");
@@ -195,14 +197,9 @@ export class SeedSelectionPopup {
       return;
     }
 
-    const potPosition = this.currentPotPosition;
-    const mapId = this.currentMapId;
-    const onSelect = this.currentOnSelect;
-
-    if (!potPosition || !mapId) {
-      console.warn("SeedSelectionPopup: Missing pot position or mapId");
-      return;
-    }
+    // Only attach the handler once, it will read current values from static properties
+    if (this.clickHandlerAttached) return;
+    this.clickHandlerAttached = true;
 
     // Use event delegation on the modal container
     modalContainer.addEventListener("click", (e) => {
@@ -213,6 +210,16 @@ export class SeedSelectionPopup {
       
       e.preventDefault();
       e.stopPropagation();
+      
+      // Read current values from static properties (not closure)
+      const potPosition = SeedSelectionPopup.currentPotPosition;
+      const mapId = SeedSelectionPopup.currentMapId;
+      const onSelect = SeedSelectionPopup.currentOnSelect;
+
+      if (!potPosition || !mapId) {
+        console.warn("SeedSelectionPopup: Missing pot position or mapId at click time");
+        return;
+      }
       
       const strainId = seedItem.dataset.strainId;
       console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
@@ -236,7 +243,7 @@ export class SeedSelectionPopup {
 
       console.log(`SeedSelectionPopup: Plant result:`, plant);
       if (plant) {
-        this.close();
+        SeedSelectionPopup.close();
         if (onSelect) {
           onSelect({ strainId, seedItemId: strain.seedId });
         }
