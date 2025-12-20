@@ -559,18 +559,27 @@ export class GameScene {
               content: `<div style="color: #666; text-align: center;">No orders yet. Keep growing!</div>`,
             }];
           }
-          return orders.map(order => ({
-            id: order.id,
-            content: `
-              <div style="display: flex; justify-content: space-between;">
-                <span>${order.customerName}</span>
-                <span style="color: #FFC107;">$${order.baseReward}</span>
-              </div>
-              <div style="color: #888; font-size: 11px; margin-top: 4px;">
-                ${Object.entries(order.items).map(([strainId, qty]) => `${qty}x ${strainId}`).join(', ')}
-              </div>
-            `,
-          }));
+          const currentTime = GameTimer.getInstance().getGameTime();
+          return orders.map(order => {
+            const timeLeft = order.expiresAt - currentTime;
+            const minutesLeft = Math.max(0, Math.floor(timeLeft / 60000));
+            const isUrgent = minutesLeft < 5;
+            return {
+              id: order.id,
+              content: `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>${order.customerName}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: ${isUrgent ? '#F44336' : '#888'}; font-size: 11px;">⏱️ ${minutesLeft}m</span>
+                    <span style="color: #FFC107;">$${order.baseReward}</span>
+                  </div>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 4px;">
+                  ${Object.entries(order.items).map(([strainId, qty]) => `${qty}x ${strainId}`).join(', ')}
+                </div>
+              `,
+            };
+          });
         },
         getHeaderExtra: () => {
           const count = OrderSystem.getInstance().getActiveOrders().length;
