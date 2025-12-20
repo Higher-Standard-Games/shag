@@ -26,3 +26,10 @@ export type {
   SidePanelCallbacks,
   SidePanelItem,
 } from "./SidePanel";
+
+export { ModalPanel } from "./ModalPanel";
+export type {
+  ModalConfig,
+  ModalCallbacks,
+  ModalAction,
+} from "./ModalPanel";
