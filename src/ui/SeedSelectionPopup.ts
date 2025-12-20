@@ -232,8 +232,8 @@ export class SeedSelectionPopup {
         return;
       }
       
-      // mapId can be empty string for default map
-      const effectiveMapId = mapId || "default";
+      // mapId can be empty string - use as-is (don't convert to "default")
+      const effectiveMapId = mapId ?? "";
       
       const strainId = seedItem.dataset.strainId;
       console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
