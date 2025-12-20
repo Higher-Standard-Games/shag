@@ -82,16 +82,8 @@ export class RTSCameraController {
         buildableObj.position,
         buildableObj.mapId,
         (result) => {
-          // Find the newly planted plant and show info
-          const newPlants = GameState.getInstance().getPlants();
-          const newPlant = newPlants.find(p => 
-            Math.abs(p.position.x - buildableObj.position.x) < 5 &&
-            Math.abs(p.position.z - buildableObj.position.z) < 5
-          );
-          if (newPlant) {
-            GameScene.getInstance().showPlantInfo(newPlant.id);
-            GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
-          }
+          // Just show notification, don't auto-open plant info
+          GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
         }
       );
     });
@@ -161,16 +153,8 @@ export class RTSCameraController {
                         buildableObj.position,
                         buildableObj.mapId,
                         (result) => {
-                          // Find the newly planted plant and show info
-                          const newPlants = GameState.getInstance().getPlants();
-                          const newPlant = newPlants.find(p => 
-                            Math.abs(p.position.x - buildableObj.position.x) < 5 &&
-                            Math.abs(p.position.z - buildableObj.position.z) < 5
-                          );
-                          if (newPlant) {
-                            GameScene.getInstance().showPlantInfo(newPlant.id);
-                            GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
-                          }
+                          // Just show notification, don't auto-open plant info
+                          GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
                         }
                       );
                     }

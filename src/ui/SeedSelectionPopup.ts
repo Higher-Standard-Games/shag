@@ -2,9 +2,10 @@
  * SeedSelectionPopup - UI for selecting which seed to plant in an empty pot
  * 
  * Shows available seeds from inventory with strain info (grow time, yield, etc.)
+ * Uses the new ModalPanel engine component for consistent UI styling.
  */
 
-import { PopupSystem } from "../engine/core/PopupSystem";
+import { ModalPanel } from "../engine/ui/ModalPanel";
 import { GameState } from "../game/GameState";
 import { PlantSystem, StrainDefinition } from "../game/PlantSystem";
 
@@ -15,6 +16,10 @@ export interface SeedSelectionResult {
 
 export class SeedSelectionPopup {
   private static styleInjected: boolean = false;
+  private static modal: ModalPanel | null = null;
+  private static currentPotPosition: { x: number; y: number; z: number } | null = null;
+  private static currentMapId: string | null = null;
+  private static currentOnSelect: ((result: SeedSelectionResult) => void) | undefined;
 
   /**
    * Show seed selection popup for an empty pot
@@ -30,34 +35,45 @@ export class SeedSelectionPopup {
     onCancel?: () => void
   ): void {
     this.injectStyles();
+    
+    // Store context for click handlers
+    this.currentPotPosition = potPosition;
+    this.currentMapId = mapId;
+    this.currentOnSelect = onSelect;
 
-    const content = this.buildContent();
-
-    PopupSystem.show({
-      id: "seed_selection",
-      title: "🌱 Select a Seed to Plant",
-      content,
-      width: "450px",
-      position: "center",
-      closeOnOverlay: true,
-      closeOnEscape: true,
-      onClose: onCancel,
-      onButton: (action) => {
-        if (action.startsWith("plant:")) {
-          const strainId = action.replace("plant:", "");
-          const strain = PlantSystem.getInstance().getStrain(strainId);
-          if (strain) {
-            PopupSystem.close("seed_selection");
-            if (onSelect) {
-              onSelect({ strainId, seedItemId: strain.seedId });
-            }
-          }
+    // Create modal if not exists
+    if (!this.modal) {
+      this.modal = new ModalPanel(
+        {
+          id: "seed_selection",
+          title: "Select a Seed to Plant",
+          icon: "🌱",
+          width: 400,
+          showClose: true,
+          closeOnBackdrop: true,
+        },
+        {
+          onClose: () => {
+            if (onCancel) onCancel();
+          },
+          renderContent: () => this.buildContent(),
         }
-      },
-    });
+      );
+    }
 
-    // Add click handlers to seed items
-    this.attachSeedClickHandlers(potPosition, mapId, onSelect);
+    this.modal.show();
+    
+    // Attach click handlers after modal is shown
+    setTimeout(() => this.attachSeedClickHandlers(), 0);
+  }
+
+  /**
+   * Close the seed selection popup
+   */
+  public static close(): void {
+    if (this.modal) {
+      this.modal.hide();
+    }
   }
 
   private static buildContent(): string {
@@ -167,15 +183,18 @@ export class SeedSelectionPopup {
     `;
   }
 
-  private static attachSeedClickHandlers(
-    potPosition: { x: number; y: number; z: number },
-    mapId: string,
-    onSelect?: (result: SeedSelectionResult) => void
-  ): void {
-    const popup = PopupSystem.getElement("seed_selection");
-    if (!popup) return;
+  private static attachSeedClickHandlers(): void {
+    // Find the modal content container
+    const modalBackdrop = document.getElementById("modal-backdrop-seed_selection");
+    if (!modalBackdrop) return;
 
-    popup.querySelectorAll(".seed-item-available").forEach((item) => {
+    const potPosition = this.currentPotPosition;
+    const mapId = this.currentMapId;
+    const onSelect = this.currentOnSelect;
+
+    if (!potPosition || !mapId) return;
+
+    modalBackdrop.querySelectorAll(".seed-item-available").forEach((item) => {
       item.addEventListener("click", () => {
         const strainId = (item as HTMLElement).dataset.strainId;
         if (!strainId) return;
@@ -191,7 +210,7 @@ export class SeedSelectionPopup {
         );
 
         if (plant) {
-          PopupSystem.close("seed_selection");
+          this.close();
           if (onSelect) {
             onSelect({ strainId, seedItemId: strain.seedId });
           }
