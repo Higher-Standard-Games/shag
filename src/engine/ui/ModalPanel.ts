@@ -151,7 +151,7 @@ export class ModalPanel {
       ">
         <div style="display: flex; align-items: center; gap: 10px;">
           ${this.config.icon ? `<span style="font-size: 24px;">${this.config.icon}</span>` : ''}
-          <span class="modal-title" style="color: #fff; font-weight: 400; font-size: 22px;">${this.config.title}</span>
+          <span class="modal-title" style="color: #fff; font-weight: 400; font-size: 24px;">${this.config.title}</span>
         </div>
         ${this.config.showClose ? `
           <button class="modal-close" style="
