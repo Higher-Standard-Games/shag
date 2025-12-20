@@ -17,7 +17,6 @@ import { TextureManager } from "./loader/TextureManager";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { TestSpriteGenerator } from "./sprites/TestSpriteGenerator";
 import { 
   CharacterGenerator, 
   PRESET_CHARACTERS, 
@@ -442,13 +441,11 @@ export class MapRenderer {
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const position = new Vector3(parts[0], parts[2], parts[1]);
 
-        // Get sprite path or generate test sprite
-        let spritePath = entity.properties.sprite;
-        if (!spritePath || spritePath === "test") {
-          // Generate a test sprite
-          const bodyColor = entity.properties.color || "#4488ff";
-          const accentColor = entity.properties.accentColor || "#ffcc00";
-          spritePath = TestSpriteGenerator.generateCharacterSheet(32, 32, bodyColor, accentColor);
+        // Get sprite path - sprite property is required
+        const spritePath = entity.properties.sprite;
+        if (!spritePath) {
+          console.warn(`npc_sprite "${entity.properties.targetname}" missing sprite path, skipping`);
+          continue;
         }
 
         // Parse sprite sheet config

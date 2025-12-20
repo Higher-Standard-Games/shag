@@ -454,7 +454,7 @@ The `emissive` property controls how the sprite interacts with the day/night cyc
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `origin` | vector3 | required | Position (Quake coords) |
-| `sprite` | string | `"test"` | Sprite sheet path or `"test"` for generated |
+| `sprite` | string | required | Path to sprite sheet image |
 | `targetname` | string | - | Unique identifier |
 | `scale` | float | `48` | Size in world units |
 | `angle` | float | `0` | Facing direction (degrees) |
@@ -463,8 +463,6 @@ The `emissive` property controls how the sprite interacts with the day/night cyc
 | `frameRate` | int | `8` | Animation FPS |
 | `frameWidth` | int | `32` | Sprite frame width (pixels) |
 | `frameHeight` | int | `32` | Sprite frame height (pixels) |
-| `color` | string | `"#4488ff"` | Body color (test sprites only) |
-| `accentColor` | string | `"#ffcc00"` | Accent color (test sprites only) |
 | `receiveLighting` | `"0"` or `"1"` | `"1"` | React to scene lights |
 | `ambientLevel` | float | `0.15` | Base brightness in shadow (0-1) |
 | `castShadow` | `"0"` or `"1"` | `"1"` | Show ground shadow |
@@ -476,8 +474,7 @@ The `emissive` property controls how the sprite interacts with the day/night cyc
 "classname" "npc_sprite"
 "targetname" "guard1"
 "origin" "150 0 0"
-"sprite" "test"
-"color" "#ff4444"
+"sprite" "sprites/characters/guard.png"
 "scale" "64"
 "angle" "180"
 "receiveLighting" "1"

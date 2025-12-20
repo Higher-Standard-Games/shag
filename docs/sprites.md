@@ -119,7 +119,7 @@ Animated character sprites with 8-direction support.
 "classname" "npc_sprite"
 "targetname" "my_npc"
 "origin" "100 0 0"
-"sprite" "test"
+"sprite" "sprites/characters/npc.png"
 "scale" "48"
 }
 ```
@@ -127,14 +127,14 @@ Animated character sprites with 8-direction support.
 ### Programmatically
 
 ```typescript
-import { SpriteManager } from "./sprites/SpriteManager";
+import { SpriteManager } from "./engine/sprites/SpriteManager";
 
 // Get manager (must be initialized by GameScene)
 const manager = SpriteManager.getInstance();
 
-// Create sprite with test sheet
+// Create sprite with sprite sheet
 const sprite = manager.createSpriteWithSheet("my_sprite", {
-  path: TestSpriteGenerator.generateCharacterSheet(32, 32, "#ff0000", "#ffff00"),
+  path: "sprites/characters/npc.png",
   frameWidth: 32,
   frameHeight: 32,
   framesPerDirection: 4,
@@ -304,43 +304,6 @@ sprite.shadowScale = 1.2;       // Size relative to sprite
 - Scales proportionally with sprite size
 - Slightly elliptical (squashed for perspective)
 - Does not receive lighting
-
----
-
-## Test Sprite Generator
-
-For development without art assets, use the built-in generator:
-
-```typescript
-import { TestSpriteGenerator } from "./sprites/TestSpriteGenerator";
-
-// Generate character sprite sheet
-const dataUrl = TestSpriteGenerator.generateCharacterSheet(
-  32,           // Frame width
-  32,           // Frame height
-  "#4488ff",    // Body color
-  "#ffcc00"     // Accent color
-);
-
-// Use as sprite path
-const sprite = manager.createSpriteWithSheet("test", {
-  path: dataUrl,
-  // ...
-});
-```
-
-### In Map Files
-
-Use `"sprite" "test"` with color properties:
-
-```
-{
-"classname" "npc_sprite"
-"sprite" "test"
-"color" "#ff4444"
-"accentColor" "#ffffff"
-}
-```
 
 ---
 

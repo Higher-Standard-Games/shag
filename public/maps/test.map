@@ -166,36 +166,6 @@
 ( -32 -218 0 ) ( -32 -218 32 ) ( -32 -282 0 ) color_255_200_0 0 0 0 1 1
 }
 }
-{
-"classname" "npc_sprite"
-"targetname" "guard1"
-"origin" "150 0 -16"
-"sprite" "test"
-"color" "#4488ff"
-"accentColor" "#ffcc00"
-"scale" "32"
-"angle" "180"
-}
-{
-"classname" "npc_sprite"
-"targetname" "guard2"
-"origin" "-150 0 -16"
-"sprite" "test"
-"color" "#ff4444"
-"accentColor" "#ffffff"
-"scale" "32"
-"angle" "0"
-}
-{
-"classname" "npc_sprite"
-"targetname" "merchant"
-"origin" "0 150 -16"
-"sprite" "test"
-"color" "#44ff44"
-"accentColor" "#ffff00"
-"scale" "48"
-"angle" "270"
-}
 // Build zones - 5 plant pots in a row
 {
 "classname" "build_zone"

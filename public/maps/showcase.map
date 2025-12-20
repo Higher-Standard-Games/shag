@@ -371,38 +371,6 @@
 }
 }
 
-// ==================== SPRITE NPCs ====================
-{
-"classname" "npc_sprite"
-"targetname" "sprite_guard"
-"origin" "-600 0 -16"
-"sprite" "test"
-"color" "#4488ff"
-"accentColor" "#ffcc00"
-"scale" "32"
-"angle" "90"
-}
-{
-"classname" "npc_sprite"
-"targetname" "sprite_merchant"
-"origin" "-600 100 -16"
-"sprite" "test"
-"color" "#44ff44"
-"accentColor" "#ffffff"
-"scale" "40"
-"angle" "90"
-}
-{
-"classname" "npc_sprite"
-"targetname" "sprite_enemy"
-"origin" "-600 -100 -16"
-"sprite" "test"
-"color" "#ff4444"
-"accentColor" "#ffff00"
-"scale" "36"
-"angle" "90"
-}
-
 // ==================== 3D NPC CHARACTERS ====================
 {
 "classname" "info_npc"

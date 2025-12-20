@@ -54,7 +54,6 @@ export { BillboardSprite } from "./sprites/BillboardSprite";
 export type { SpriteAnimationState } from "./sprites/BillboardSprite";
 export { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 export type { SpriteBuildingConfig } from "./sprites/SpriteBuilding";
-export { TestSpriteGenerator } from "./sprites/TestSpriteGenerator";
 
 // Validators
 export { SpawnValidator } from "./SpawnValidator";
