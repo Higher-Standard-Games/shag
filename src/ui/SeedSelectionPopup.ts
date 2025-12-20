@@ -188,21 +188,40 @@ export class SeedSelectionPopup {
   private static attachSeedClickHandlers(): void {
     // Find the modal content container
     const modalBackdrop = document.getElementById("modal-backdrop-seed_selection");
-    if (!modalBackdrop) return;
+    if (!modalBackdrop) {
+      console.warn("SeedSelectionPopup: Modal backdrop not found");
+      return;
+    }
 
     const potPosition = this.currentPotPosition;
     const mapId = this.currentMapId;
     const onSelect = this.currentOnSelect;
 
-    if (!potPosition || !mapId) return;
+    if (!potPosition || !mapId) {
+      console.warn("SeedSelectionPopup: Missing pot position or mapId");
+      return;
+    }
 
-    modalBackdrop.querySelectorAll(".seed-item-available").forEach((item) => {
-      item.addEventListener("click", () => {
-        const strainId = (item as HTMLElement).dataset.strainId;
+    const items = modalBackdrop.querySelectorAll(".seed-item-available");
+    console.log(`SeedSelectionPopup: Found ${items.length} available seed items`);
+
+    items.forEach((item) => {
+      // Clone and replace to remove any existing listeners
+      const newItem = item.cloneNode(true) as HTMLElement;
+      item.parentNode?.replaceChild(newItem, item);
+      
+      newItem.style.cursor = "pointer";
+      newItem.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const strainId = newItem.dataset.strainId;
+        console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
         if (!strainId) return;
 
         const strain = PlantSystem.getInstance().getStrain(strainId);
-        if (!strain) return;
+        if (!strain) {
+          console.warn(`SeedSelectionPopup: Strain ${strainId} not found`);
+          return;
+        }
 
         // Plant the seed
         const plant = PlantSystem.getInstance().plantSeed(
@@ -211,6 +230,7 @@ export class SeedSelectionPopup {
           mapId
         );
 
+        console.log(`SeedSelectionPopup: Plant result:`, plant);
         if (plant) {
           this.close();
           if (onSelect) {
