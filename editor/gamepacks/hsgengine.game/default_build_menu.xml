@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!--
+HSG Engine Build Menu
+Since HSG Engine loads .map files directly, no BSP compilation is needed.
+These commands are for convenience/export only.
+-->
+<project version="2.0">
+<var name="q3map2">"[RadiantPath]q3map2.[ExecutableType]" -v -game quake3 -fs_basepath "[EnginePath]"</var>
+<build name="Export to OBJ">
+<command>[q3map2] -meta -patchmeta "[MapFile]"</command>
+<command>[q3map2] -convert -format obj -shadersasbitmap "[BspFile]"</command>
+</build>
+<build name="Export to ASE">
+<command>[q3map2] -meta -patchmeta "[MapFile]"</command>
+<command>[q3map2] -convert -format ase -shadersasbitmap "[BspFile]"</command>
+</build>
+</project>

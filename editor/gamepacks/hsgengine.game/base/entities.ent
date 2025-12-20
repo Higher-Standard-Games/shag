@@ -1,0 +1,252 @@
+<?xml version="1.0"?>
+<!--
+ HSG Engine Entity Definitions for NetRadiant
+ Version: 1.0.0
+ 
+ This file defines all entities supported by the HSG Engine.
+ The engine loads .map files directly without BSP compilation.
+-->
+<classes>
+
+<!--
+=============================================================================
+ WORLD ENTITIES
+=============================================================================
+-->
+
+<group name="worldspawn" color="0 0 0">
+The world entity. Each map must contain exactly one worldspawn.
+All world geometry (brushes and patches) belongs to this entity.
+-------- KEYS --------
+<string key="message" name="Map Title">Title or description of the map.</string>
+-------- NOTES --------
+This entity is automatically created. Place your world geometry brushes and patches inside it.
+</group>
+
+<!--
+=============================================================================
+ PLAYER / SPAWN POINTS
+=============================================================================
+-->
+
+<point name="info_player_start" color="0 1 0" box="-16 -16 -24 16 16 32">
+Player spawn point. Defines where the camera starts.
+-------- KEYS --------
+<real3 key="origin" name="Position">Spawn position in world coordinates.</real3>
+<real key="angle" name="Facing Angle">Initial camera facing direction in degrees.</real>
+-------- NOTES --------
+Only one info_player_start should exist per map. The engine uses this as the initial camera position.
+</point>
+
+<!--
+=============================================================================
+ LIGHTING
+=============================================================================
+-->
+
+<point name="light" color="1 1 0" box="-8 -8 -8 8 8 8">
+Point light source. Always on, static lighting.
+-------- KEYS --------
+<real3 key="origin" name="Position">Light position in world coordinates.</real3>
+<real key="light" name="Intensity" value="300">Light intensity (default 300). Divided by 100 for Babylon.js.</real>
+<real key="range" name="Range">Light range in world units. Defaults to intensity value.</real>
+<color key="_color" name="Color" value="1 1 1">RGB color. Values 0-1 or 0-255 (auto-detected).</color>
+-------- NOTES --------
+For dynamic day/night lights, use street_lamp instead.
+Color values greater than 1.0 are automatically treated as 0-255 range.
+</point>
+
+<point name="street_lamp" color="1 0.8 0.3" box="-8 -8 -8 8 8 8">
+Dynamic street lamp that turns on/off with day/night cycle.
+Features smooth fade transitions and optional flicker effects.
+-------- KEYS --------
+<real3 key="origin" name="Position">Lamp position in world coordinates.</real3>
+<string key="targetname" name="Target Name">Unique identifier for this lamp.</string>
+<real key="light" name="Intensity" value="200">Max intensity when on (divided by 200).</real>
+<real key="range" name="Range" value="100">Light range in world units.</real>
+<color key="_color" name="Color" value="255 200 150">RGB color (0-255 or 0-1 range).</color>
+<real key="fadeTime" name="Fade Time" value="2">Fade in/out duration in seconds.</real>
+<real key="turnOnHour" name="Turn On Hour" value="18">Hour to turn on (0-24, default 18 = 6 PM).</real>
+<real key="turnOffHour" name="Turn Off Hour" value="6">Hour to turn off (0-24, default 6 = 6 AM).</real>
+<boolean key="flicker" name="Flicker" value="0">Enable subtle flicker effect (0 or 1).</boolean>
+<boolean key="showBulb" name="Show Bulb" value="1">Show glowing bulb mesh (0 or 1).</boolean>
+<real key="bulbSize" name="Bulb Size" value="3">Diameter of the bulb mesh.</real>
+-------- NOTES --------
+Lamps automatically respond to the GameClock day/night cycle.
+Use flicker="1" for faulty neon effect.
+Use showBulb="0" for invisible ambient lighting.
+</point>
+
+<!--
+=============================================================================
+ MODELS & PREFABS
+=============================================================================
+-->
+
+<point name="misc_model" color="1 0.5 0" box="-16 -16 -16 16 16 16">
+Places a model in the world. Supports .map prefabs and 3D models (GLB/glTF/OBJ).
+-------- KEYS --------
+<real3 key="origin" name="Position">Model position in world coordinates.</real3>
+<string key="model" name="Model Path">Path to model file (e.g., "prefabs/barrel" or "models/crate.glb").</string>
+<real key="angle" name="Angle" value="0">Y-axis rotation in degrees.</real>
+<real key="scale" name="Scale" value="1">Uniform scale factor.</real>
+<boolean key="collision" name="Collision" value="1">Enable collision (3D models only).</boolean>
+<boolean key="receiveShadows" name="Receive Shadows" value="1">Model receives shadows (3D models only).</boolean>
+<boolean key="castShadows" name="Cast Shadows" value="0">Model casts shadows (3D models only).</boolean>
+<boolean key="visible" name="Visible" value="1">Model visibility. Set to 0 for invisible colliders.</boolean>
+<integer key="renderingGroup" name="Rendering Group" value="0">Layer for draw order (0-3).</integer>
+<boolean key="dropToGround" name="Drop To Ground" value="0">Raycast down to place on geometry (.map prefabs only).</boolean>
+<real key="dropOffset" name="Drop Offset" value="0">Vertical offset after dropping (.map prefabs only).</real>
+-------- SPAWNFLAGS --------
+-------- NOTES --------
+File extension determines loader:
+- .glb, .gltf, .obj, .babylon = 3D model loader
+- No extension or .map = Map prefab loader
+Place 3D models in public/models/, prefabs in public/prefabs/.
+</point>
+
+<!--
+=============================================================================
+ SPRITES
+=============================================================================
+-->
+
+<point name="sprite_building" color="0.5 0.8 1" box="-32 -32 0 32 32 64">
+Static 2D sprite rendered in 3D world. For buildings, signs, decorations.
+-------- KEYS --------
+<real3 key="origin" name="Position">Sprite position in world coordinates.</real3>
+<string key="targetname" name="Target Name">Unique identifier.</string>
+<texture key="texture" name="Texture">Path to PNG texture (e.g., "textures/base/shop.png").</texture>
+<real key="width" name="Width" value="100">Width in world units.</real>
+<real key="height" name="Height" value="100">Height in world units.</real>
+<boolean key="billboard" name="Billboard" value="0">If 1, sprite always faces camera.</boolean>
+<real key="angle" name="Angle" value="0">Y rotation in degrees (ignored if billboard).</real>
+<real key="emissive" name="Emissive" value="0">Self-illumination 0-1. Higher = brighter at night.</real>
+<string key="windowTarget" name="Window Target">Dialog ID to open when clicked.</string>
+<real key="triggerWidth" name="Trigger Width">Clickable area width.</real>
+<real key="triggerHeight" name="Trigger Height">Clickable area height.</real>
+<real key="triggerDepth" name="Trigger Depth">Clickable area depth.</real>
+<real key="collisionWidth" name="Collision Width">Collision box width.</real>
+<real key="collisionHeight" name="Collision Height">Collision box height.</real>
+<real key="collisionDepth" name="Collision Depth">Collision box depth.</real>
+-------- NOTES --------
+Emissive values: 0=dark at night, 0.2=default, 0.5+=neon/lit, 1.0=always bright.
+Use billboard="1" for 2D-style buildings that face camera.
+</point>
+
+<point name="npc_sprite" color="0 1 0.5" box="-16 -16 0 16 16 48">
+2D animated billboard sprite for NPCs. Always faces camera.
+-------- KEYS --------
+<real3 key="origin" name="Position">NPC position in world coordinates.</real3>
+<string key="targetname" name="Target Name">Unique identifier.</string>
+<string key="sprite" name="Sprite Path">Sprite sheet path, or "test" for generated sprite.</string>
+<real key="scale" name="Scale" value="48">Size in world units.</real>
+<real key="angle" name="Angle" value="0">Facing direction in degrees.</real>
+<integer key="directions" name="Directions" value="8">Sprite directions (1, 4, or 8).</integer>
+<integer key="frames" name="Frames" value="4">Animation frames per direction.</integer>
+<integer key="frameRate" name="Frame Rate" value="8">Animation FPS.</integer>
+<integer key="frameWidth" name="Frame Width" value="32">Sprite frame width in pixels.</integer>
+<integer key="frameHeight" name="Frame Height" value="32">Sprite frame height in pixels.</integer>
+<string key="color" name="Body Color" value="#4488ff">Body color (test sprites only).</string>
+<string key="accentColor" name="Accent Color" value="#ffcc00">Accent color (test sprites only).</string>
+<boolean key="receiveLighting" name="Receive Lighting" value="1">React to scene lights.</boolean>
+<real key="ambientLevel" name="Ambient Level" value="0.15">Base brightness in shadow.</real>
+<boolean key="castShadow" name="Cast Shadow" value="1">Show ground shadow.</boolean>
+<real key="shadowOpacity" name="Shadow Opacity" value="0.4">Shadow darkness 0-1.</real>
+<real key="shadowScale" name="Shadow Scale" value="1.2">Shadow size multiplier.</real>
+-------- NOTES --------
+Use sprite="test" with color/accentColor for quick placeholder NPCs.
+</point>
+
+<!--
+=============================================================================
+ 3D NPCs
+=============================================================================
+-->
+
+<point name="info_npc" color="0 0.8 0.4" box="-16 -16 0 16 16 64">
+3D cartoon-style NPC character.
+-------- KEYS --------
+<real3 key="origin" name="Position">NPC position in world coordinates.</real3>
+<string key="targetname" name="Target Name">Unique identifier.</string>
+<string key="name" name="Display Name">NPC's display name.</string>
+<string key="preset" name="Preset">Character preset ID (e.g., "dealer_mike", "customer_sarah").</string>
+<boolean key="random" name="Random" value="0">Generate random appearance if 1.</boolean>
+<real key="angle" name="Angle" value="0">Facing direction in degrees.</real>
+<real key="scale" name="Scale" value="1">Size multiplier (base is 32 units).</real>
+<string key="skinColor" name="Skin Color">Skin tone hex color.</string>
+<string key="hairColor" name="Hair Color">Hair hex color.</string>
+<string key="shirtColor" name="Shirt Color">Shirt hex color.</string>
+<string key="pantsColor" name="Pants Color">Pants hex color.</string>
+<string key="shoesColor" name="Shoes Color">Shoes hex color.</string>
+<string key="bodyType" name="Body Type">Body type: "slim", "average", "heavy".</string>
+<string key="hairStyle" name="Hair Style">Hair style: "bald", "short", "medium", "long", "ponytail", "mohawk", "afro".</string>
+<string key="gender" name="Gender">Gender: "male", "female", "neutral".</string>
+<string key="accessory" name="Accessory">Accessory: "none", "glasses", "sunglasses", "hat", "cap", "beanie".</string>
+<string key="facialHair" name="Facial Hair">Facial hair: "none", "stubble", "goatee", "beard", "mustache".</string>
+-------- NOTES --------
+Use preset for predefined characters, or random="1" for variety.
+Custom colors override preset values.
+</point>
+
+<!--
+=============================================================================
+ TRIGGERS
+=============================================================================
+-->
+
+<group name="trigger_multiple" color="1 0 0">
+Interactive trigger volume. Player can activate by entering or clicking.
+-------- KEYS --------
+<string key="targetname" name="Target Name">Unique identifier.</string>
+<string key="message" name="Message">Console message when triggered.</string>
+<string key="windowTarget" name="Window Target">Opens dialog with this ID.</string>
+<string key="targetMap" name="Target Map">Loads this map file.</string>
+<string key="spawnModel" name="Spawn Model">Spawns this prefab.</string>
+<real3 key="spawnOrigin" name="Spawn Origin">Where to spawn (defaults to trigger origin).</real3>
+<real key="spawnAngle" name="Spawn Angle">Spawn rotation in degrees.</real>
+<real key="spawnScale" name="Spawn Scale" value="1">Spawn scale.</real>
+<boolean key="spawnDropToGround" name="Spawn Drop To Ground" value="0">Drop spawned prefab to ground.</boolean>
+<string key="spawnValidators" name="Spawn Validators">Comma-separated validator IDs.</string>
+<integer key="maxCount" name="Max Count">Max instances for max_count validator.</integer>
+-------- SPAWNFLAGS --------
+-------- NOTES --------
+Use common/trigger texture on brush faces.
+Triggers are rendered as red wireframe in-game for debugging.
+</group>
+
+<!--
+=============================================================================
+ BUILD ZONES
+=============================================================================
+-->
+
+<point name="build_zone" color="0.4 0.8 0.4" box="-32 -32 -4 32 32 4">
+Defines an area where items can be placed (pots, equipment, decorations).
+-------- KEYS --------
+<real3 key="origin" name="Position">Zone center position.</real3>
+<string key="targetname" name="Target Name">Unique zone identifier.</string>
+<string key="zoneType" name="Zone Type" value="plant">Zone type: "plant", "equipment", "decoration", "growlight".</string>
+<real key="size" name="Size" value="64">Zone size in world units.</real>
+<color key="color" name="Color">Display color RGB (0-255).</color>
+-------- NOTES --------
+Zones appear as subtle squares on the floor.
+In build mode: available=green glow, occupied=red glow.
+</point>
+
+<!--
+=============================================================================
+ SPECIAL TEXTURES
+=============================================================================
+-->
+
+<!--
+Special texture naming conventions:
+
+color_R_G_B     - Solid color (e.g., color_255_128_0 = orange)
+common/caulk    - Not rendered (editor only)
+common/trigger  - Trigger volume (red wireframe)
+common/clip     - Invisible collision
+-->
+
+</classes>

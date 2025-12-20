@@ -34,12 +34,32 @@ import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { LampSystem } from "../game/LampSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
 
+/**
+ * Camera rendering modes:
+ * - "perspective": Regular perspective camera, full clustered lighting support
+ * - "orthographic": True orthographic, may have light artifacts at screen edges
+ * - "fake_ortho": Perspective with very low FOV, looks orthographic but works with clustered lights
+ */
+export type CameraMode = "perspective" | "orthographic" | "fake_ortho";
+
+// Default camera mode - can be changed at runtime via setCameraMode()
+// Note: This is the initial mode before map loads. Map's worldspawn can override.
+let CAMERA_MODE: CameraMode = "perspective";
+
+// Default camera heights for each mode
+const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
+  perspective: 600,
+  orthographic: 250,  // This is orthoSize for orthographic mode
+  fake_ortho: 4000,   // Radius for fake_ortho (far away for low FOV)
+};
+
 export class GameScene {
   private engine: Engine;
   private canvas: HTMLCanvasElement;
   private scene: Scene | null = null;
   private camera: ArcRotateCamera | null = null;
   private orthoSize = 250;
+  private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
@@ -80,19 +100,19 @@ export class GameScene {
     // Initialize SpriteManager (will be used when loading maps with npc_sprite entities)
     // Camera will be set after it's created
 
-    // Isometric Camera
+    // Isometric Camera - supports multiple rendering modes
     this.camera = new ArcRotateCamera(
       "camera",
-      -Math.PI / 4,
-      Math.PI / 4,
-      200,
+      -Math.PI / 4,  // alpha - rotation around Y axis
+      Math.PI / 4,   // beta - angle from top (45 degrees for isometric)
+      200,           // radius - will be adjusted based on mode
       Vector3.Zero(),
       this.scene
     );
-    this.camera.mode = ArcRotateCamera.ORTHOGRAPHIC_CAMERA;
+    
+    // Apply camera mode settings
+    this.applyCameraMode(CAMERA_MODE);
     this.camera.inputs.clear();
-
-    this.updateCameraOrtho();
 
     // Resize handler
     window.addEventListener("resize", () => {
@@ -140,6 +160,87 @@ export class GameScene {
     this.camera.orthoRight = this.orthoSize * ratio;
   }
 
+  /**
+   * Apply camera mode settings
+   * @param mode - The camera rendering mode to apply
+   */
+  private applyCameraMode(mode: CameraMode): void {
+    if (!this.camera) return;
+
+    // Use custom height if set, otherwise use default for the mode
+    const height = this.cameraHeight ?? DEFAULT_CAMERA_HEIGHT[mode];
+
+    switch (mode) {
+      case "perspective":
+        // Regular perspective camera - full clustered lighting support
+        this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
+        this.camera.fov = 0.8;
+        this.camera.radius = height;
+        this.camera.minZ = 1;
+        this.camera.maxZ = Math.max(2000, height * 2);
+        console.log(`Camera mode: PERSPECTIVE (height: ${height})`);
+        break;
+
+      case "orthographic":
+        // True orthographic - may have light artifacts at screen edges
+        this.camera.mode = ArcRotateCamera.ORTHOGRAPHIC_CAMERA;
+        this.camera.radius = 200;
+        this.camera.minZ = 1;
+        this.camera.maxZ = 2000;
+        this.orthoSize = height;
+        this.updateCameraOrtho();
+        console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height})`);
+        break;
+
+      case "fake_ortho":
+        // Perspective with very low FOV - looks orthographic, works with clustered lights
+        this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
+        this.camera.fov = 0.08;  // Very narrow FOV for orthographic-like view
+        this.camera.radius = height;  // Far from target to compensate for narrow FOV
+        this.camera.minZ = 1;
+        this.camera.maxZ = Math.max(8000, height * 2);
+        console.log(`Camera mode: FAKE_ORTHO (radius: ${height})`);
+        break;
+    }
+  }
+
+  /**
+   * Change camera mode at runtime
+   * @param mode - The new camera mode
+   */
+  public setCameraMode(mode: CameraMode): void {
+    CAMERA_MODE = mode;
+    this.applyCameraMode(mode);
+    
+    // Update ortho bounds if switching to orthographic
+    if (mode === "orthographic") {
+      this.updateCameraOrtho();
+    }
+  }
+
+  /**
+   * Get current camera mode
+   */
+  public getCameraMode(): CameraMode {
+    return CAMERA_MODE;
+  }
+
+  /**
+   * Set camera height/distance at runtime
+   * @param height - The camera height (meaning varies by mode)
+   */
+  public setCameraHeight(height: number): void {
+    this.cameraHeight = height;
+    this.applyCameraMode(CAMERA_MODE);  // Re-apply mode with new height
+  }
+
+  /**
+   * Get current camera height
+   */
+  public getCameraHeight(): number {
+    return this.cameraHeight ?? DEFAULT_CAMERA_HEIGHT[CAMERA_MODE];
+  }
+
   public async loadMap(mapName: string): Promise<void> {
     if (!this.scene) return;
 
@@ -157,6 +258,21 @@ export class GameScene {
 
     // Render the map
     const result = await MapRenderer.renderEntities(mapData.entities, this.scene);
+
+    // Apply camera height from map if specified
+    if (result.cameraHeight !== null) {
+      this.cameraHeight = result.cameraHeight;
+    } else {
+      this.cameraHeight = null;  // Reset to use defaults
+    }
+
+    // Apply camera mode from map if specified, otherwise use default (perspective)
+    if (result.cameraMode) {
+      this.setCameraMode(result.cameraMode);
+    } else {
+      // Default to perspective if not specified in map
+      this.setCameraMode("perspective");
+    }
 
     // Set camera target
     if (this.camera) {
@@ -185,6 +301,20 @@ export class GameScene {
       this.updateCameraOrtho();
       console.log(`Zoom set to ${this.orthoSize}`);
     };
+    
+    // Camera mode toggle
+    (window as any).setCameraMode = (mode: CameraMode) => {
+      this.setCameraMode(mode);
+    };
+    (window as any).getCameraMode = () => this.getCameraMode();
+    
+    // Camera height/distance control
+    (window as any).setCameraHeight = (height: number) => {
+      this.setCameraHeight(height);
+    };
+    (window as any).getCameraHeight = () => this.getCameraHeight();
+    
+    console.log("Camera: setCameraMode('perspective'|'orthographic'|'fake_ortho'), setCameraHeight(number)");
 
     // Game system debug functions
     (window as any).game = {

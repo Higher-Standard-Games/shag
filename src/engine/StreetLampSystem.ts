@@ -9,6 +9,7 @@
  */
 
 import {
+  ClusteredLightContainer,
   Color3,
   Mesh,
   MeshBuilder,
@@ -62,6 +63,7 @@ export class StreetLampSystem {
 
   private scene: Scene | null = null;
   private lamps: Map<string, StreetLamp> = new Map();
+  private clusteredLights: ClusteredLightContainer | null = null;
 
   private constructor() {}
 
@@ -85,6 +87,14 @@ export class StreetLampSystem {
   public init(scene: Scene): void {
     this.scene = scene;
 
+    // Create clustered light container for street lamp point lights
+    // Configure for orthographic camera compatibility
+    this.clusteredLights = new ClusteredLightContainer("streetLampCluster", [], scene);
+    this.clusteredLights.depthSlices = 4;
+    this.clusteredLights.horizontalTiles = 8;
+    this.clusteredLights.verticalTiles = 8;
+    this.clusteredLights.maxRange = 1000;
+
     // Subscribe to clock period changes for instant response
     const clock = GameClock.getInstance();
     clock.on((event, data) => {
@@ -97,7 +107,7 @@ export class StreetLampSystem {
     // Initial state check
     this.checkLampStates();
 
-    console.log("StreetLampSystem initialized");
+    console.log("StreetLampSystem initialized with clustered lighting");
   }
 
   /**
@@ -134,6 +144,11 @@ export class StreetLampSystem {
     light.specular = fullConfig.color.scale(0.3);
     light.range = fullConfig.range;
     light.intensity = 0; // Start off
+
+    // Add to clustered light container
+    if (this.clusteredLights) {
+      this.clusteredLights.addLight(light);
+    }
 
     // Create glowing bulb mesh
     let bulb: Mesh | null = null;

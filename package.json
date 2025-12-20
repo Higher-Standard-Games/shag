@@ -21,6 +21,9 @@
     "vitest": "^1.6.0"
   },
   "dependencies": {
-    "babylonjs": "^7.0.0"
+    "@babylonjs/core": "^8.42.0",
+    "@babylonjs/loaders": "^8.42.0",
+    "babylonjs": "^8.42.0",
+    "babylonjs-loaders": "^8.42.0"
   }
 }

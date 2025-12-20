@@ -33,3 +33,12 @@ npm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+
+# NetRadiant Editor (exclude all except our gamepack)
+editor/*
+!editor/gamepacks/
+editor/gamepacks/*
+!editor/gamepacks/games/
+!editor/gamepacks/hsgengine.game/
+editor/gamepacks/games/*
+!editor/gamepacks/games/hsgengine.game

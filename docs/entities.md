@@ -8,20 +8,73 @@ Complete reference for all supported entity types in the engine.
 
 ### worldspawn
 
-The root entity containing all world geometry.
+The root entity containing all world geometry and map-wide settings.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `message` | string | Map title/description |
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `message` | string | - | Map title/description |
+| `camera_mode` | string | `"perspective"` | Camera rendering mode (see below) |
+| `camera_height` | float | varies | Camera distance/zoom level |
 
 **Contains:** Brushes and patches that form the world geometry.
 
+#### Camera Modes
+
+| Mode | Description | Clustered Lighting |
+|------|-------------|-------------------|
+| `perspective` | Regular perspective camera | ✅ Full support |
+| `orthographic` | True orthographic projection - perfect for 2D sprites | ⚠️ May have artifacts at screen edges |
+| `fake_ortho` | Perspective with very low FOV - looks orthographic | ✅ Full support |
+
+#### Camera Height
+
+The meaning of `camera_height` varies by mode:
+
+| Mode | camera_height controls | Default |
+|------|----------------------|---------|
+| `perspective` | Camera radius (distance from target) | 600 |
+| `orthographic` | Orthographic size (zoom level) | 250 |
+| `fake_ortho` | Camera radius (distance from target) | 4000 |
+
+#### Examples
+
 ```
+// Default perspective camera
 {
 "classname" "worldspawn"
 "message" "My Level"
 // brushes and patches here
 }
+
+// Fake orthographic with custom zoom
+{
+"classname" "worldspawn"
+"message" "Isometric Level"
+"camera_mode" "fake_ortho"
+"camera_height" "5000"
+// brushes and patches here
+}
+
+// True orthographic for 2D sprite games
+{
+"classname" "worldspawn"
+"message" "2D Style Level"
+"camera_mode" "orthographic"
+"camera_height" "300"
+// brushes and patches here
+}
+```
+
+#### Runtime Commands
+
+Camera settings can be changed at runtime via console:
+```javascript
+setCameraMode('perspective')    // Switch to perspective
+setCameraMode('orthographic')   // Switch to orthographic
+setCameraMode('fake_ortho')     // Switch to fake orthographic
+setCameraHeight(5000)           // Adjust zoom/distance
+getCameraMode()                 // Get current mode
+getCameraHeight()               // Get current height
 ```
 
 ---
@@ -45,14 +98,19 @@ Defines the player/camera starting position.
 
 ## Lighting
 
+The engine uses **BabylonJS 8 Clustered Lighting** for efficient rendering of many point lights. This allows dozens of lights without performance issues.
+
+> **Note:** Clustered lighting works best with `perspective` or `fake_ortho` camera modes. True `orthographic` mode may show visual artifacts at screen edges when lights are near the viewport boundary.
+
 ### light
 
-Point light source.
+Point light source. Multiple lights are automatically grouped into a clustered light container.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `origin` | vector3 | required | `"x y z"` - Light position |
 | `light` | float | `300` | Intensity (divided by 200 for Babylon) |
+| `range` | float | `200` | Light range in world units |
 | `_color` | vector3 | `"1 1 1"` | RGB color (0-1 or 0-255 range) |
 
 ```
@@ -60,11 +118,101 @@ Point light source.
 "classname" "light"
 "origin" "0 0 200"
 "light" "500"
+"range" "400"
 "_color" "1 0.5 0"
 }
 ```
 
-**Note:** Color values > 1.0 are auto-detected as 0-255 range and converted.
+**Notes:**
+- Color values > 1.0 are auto-detected as 0-255 range and converted
+- For PBR materials (GLB models), lights use clustered rendering automatically
+- Static lights don't cast shadows (use SkyLightSystem for shadows)
+
+---
+
+### street_lamp
+
+Dynamic point light that automatically turns on/off based on time of day. Features smooth fade transitions and optional flicker effects. Creates a visible glowing bulb mesh.
+
+#### Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `origin` | vector3 | *required* | Position (Quake coords) |
+| `targetname` | string | auto | Unique identifier |
+| `light` | float | `200` | Intensity (divided by 200 for Babylon) |
+| `_color` | vector3 | `"255 200 150"` | RGB color (0-255 or 0-1 range) |
+| `range` | float | `100` | Light range in world units |
+| `fadeTime` | float | `2` | Fade in/out duration (seconds) |
+| `turnOnHour` | float | `18` | Hour to turn on (0-24, default: 6 PM) |
+| `turnOffHour` | float | `6` | Hour to turn off (0-24, default: 6 AM) |
+| `flicker` | `"0"` or `"1"` | `"0"` | Enable subtle flicker effect |
+| `showBulb` | `"0"` or `"1"` | `"1"` | Show glowing bulb mesh |
+| `bulbSize` | float | `3` | Bulb mesh diameter |
+
+#### Examples
+
+**Standard warm street lamp:**
+```
+{
+"classname" "street_lamp"
+"targetname" "lamp_1"
+"origin" "100 200 50"
+"light" "200"
+"range" "150"
+"_color" "255 200 150"
+"fadeTime" "2"
+"bulbSize" "4"
+}
+```
+
+**Flickering neon (blue, faulty effect):**
+```
+{
+"classname" "street_lamp"
+"targetname" "lamp_neon"
+"origin" "300 0 40"
+"light" "150"
+"range" "100"
+"_color" "150 200 255"
+"flicker" "1"
+"bulbSize" "3"
+}
+```
+
+**Custom hours (early on, late off):**
+```
+{
+"classname" "street_lamp"
+"targetname" "lamp_custom"
+"origin" "0 0 50"
+"light" "150"
+"_color" "255 220 180"
+"turnOnHour" "16"
+"turnOffHour" "8"
+}
+```
+
+**Hidden light (no bulb, ambient only):**
+```
+{
+"classname" "street_lamp"
+"targetname" "lamp_ambient"
+"origin" "0 0 30"
+"light" "100"
+"range" "80"
+"_color" "255 100 100"
+"showBulb" "0"
+}
+```
+
+#### Behavior
+
+- Lamps automatically turn on during **dusk/evening/night** periods
+- Smooth fade transition over `fadeTime` seconds
+- Flicker effect adds ±5% intensity variation when enabled
+- Bulb mesh emissive color matches light intensity
+- Works with the `GameClock` day/night cycle system
 
 ---
 
@@ -104,25 +252,67 @@ Interactive trigger volume. Rendered as red wireframe.
 
 ---
 
-## Prefabs
+## Models & Prefabs
 
 ### misc_model
 
-Places a prefab (.map file) as a model in the world.
+Places a model in the world. Supports both `.map` prefabs (created in NetRadiant) and 3D model files (GLB/glTF/OBJ).
+
+The engine auto-detects the format based on file extension.
+
+---
+
+#### Supported Formats
+
+| Format | Extension | Description |
+|--------|-----------|-------------|
+| **Map Prefab** | `.map` or no extension | NetRadiant brush/patch geometry |
+| **glTF Binary** | `.glb` | Recommended for 3D models - single file, embedded textures |
+| **glTF** | `.gltf` | Text-based glTF with separate files |
+| **Wavefront** | `.obj` | Simple geometry, no animations |
+| **Babylon** | `.babylon` | Native Babylon.js format |
+
+---
+
+#### Common Properties (All Formats)
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `model` | string | required | Prefab filename (e.g., `"tree.map"`) |
-| `origin` | vector3 | `"0 0 0"` | Position (Quake coords) |
+| `model` | string | *required* | Model path (e.g., `"prefabs/barrel"` or `"models/crate.glb"`) |
+| `origin` | vector3 | `"0 0 0"` | Position (Quake coords: X Y Z where Z is up) |
 | `angle` | float | `0` | Y-axis rotation (degrees) |
 | `scale` | float | `1` | Uniform scale |
-| `dropToGround` | `"0"` or `"1"` | `"0"` | Raycast down to place on geometry |
-| `dropOffset` | float | `0` | Vertical offset after dropping |
 
+---
+
+#### 3D Model Properties (GLB/glTF/OBJ)
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `collision` | `"0"` or `"1"` | `"1"` | Enable collision on meshes |
+| `receiveShadows` | `"0"` or `"1"` | `"1"` | Model receives shadows from lights |
+| `castShadows` | `"0"` or `"1"` | `"0"` | Model casts shadows (requires shadow system) |
+| `visible` | `"0"` or `"1"` | `"1"` | Model visibility - `"0"` for invisible colliders/triggers |
+| `renderingGroup` | int | `0` | Rendering layer for draw order control |
+
+---
+
+#### Map Prefab Properties (.map)
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `dropToGround` | `"0"` or `"1"` | `"0"` | Raycast down to place on world geometry |
+| `dropOffset` | float | `0` | Vertical offset after dropping (positive = higher) |
+
+---
+
+#### Examples
+
+**Map Prefab (NetRadiant geometry):**
 ```
 {
 "classname" "misc_model"
-"model" "props/barrel.map"
+"model" "prefabs/barrel"
 "origin" "128 256 0"
 "angle" "45"
 "scale" "1.5"
@@ -130,7 +320,55 @@ Places a prefab (.map file) as a model in the world.
 }
 ```
 
-**Prefab Convention:** The prefab's origin (0,0,0) is the floor/anchor point.
+**GLB Model (from Blender, free resources, etc.):**
+```
+{
+"classname" "misc_model"
+"model" "models/props/crate.glb"
+"origin" "200 100 0"
+"angle" "90"
+"scale" "2"
+"collision" "1"
+"receiveShadows" "1"
+"castShadows" "1"
+}
+```
+
+**Invisible Collider (collision without visuals):**
+```
+{
+"classname" "misc_model"
+"model" "models/collision/wall_blocker.glb"
+"origin" "0 0 0"
+"visible" "0"
+"collision" "1"
+"receiveShadows" "0"
+"castShadows" "0"
+}
+```
+
+---
+
+#### Rendering Groups
+
+Use `renderingGroup` to control draw order for layering effects:
+
+| Value | Use Case |
+|-------|----------|
+| `0` | Default - normal world geometry |
+| `1` | Foreground objects (rendered on top) |
+| `2` | UI elements in 3D space |
+| `3` | Always-on-top overlays |
+
+---
+
+#### Tips
+
+- **GLB is recommended** for external 3D models - single file with embedded textures
+- **Map prefabs** are best for geometry you want to edit in NetRadiant
+- Place models in `public/models/` for GLB/glTF or `public/prefabs/` for .map files
+- Use `visible "0"` with `collision "1"` for invisible barriers
+- Enable `castShadows` sparingly - it has performance cost
 
 ---
 

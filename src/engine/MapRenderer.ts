@@ -1,4 +1,5 @@
 import {
+  ClusteredLightContainer,
   Color3,
   PointLight,
   Scene,
@@ -9,6 +10,7 @@ import {
 import { BuildingSystem } from "../game/BuildingSystem";
 import { BrushGenerator } from "../loader/BrushGenerator";
 import type { Entity } from "../loader/MapParser";
+import { ModelLoader } from "../loader/ModelLoader";
 import { type PatchDefinition, PatchGenerator } from "../loader/PatchGenerator";
 import { PrefabInstance } from "../loader/PrefabInstance";
 import { TextureManager } from "../loader/TextureManager";
@@ -32,6 +34,10 @@ export interface MapRenderResult {
   playerStartPosition: Vector3;
   prefabInstances: TransformNode[];
   sprites: BillboardSprite[];
+  /** Camera mode specified in worldspawn, or null if not specified */
+  cameraMode: "perspective" | "orthographic" | "fake_ortho" | null;
+  /** Camera height/distance specified in worldspawn, or null if not specified */
+  cameraHeight: number | null;
 }
 
 export class MapRenderer {
@@ -53,8 +59,36 @@ export class MapRenderer {
     let playerStartPosition = new Vector3(0, 10, 0);
     const prefabInstances: TransformNode[] = [];
     const sprites: BillboardSprite[] = [];
+    let cameraMode: "perspective" | "orthographic" | "fake_ortho" | null = null;
+    let cameraHeight: number | null = null;
+    
+    // Collect static point lights for clustered rendering
+    const staticLights: PointLight[] = [];
 
     for (const entity of entities) {
+      // Handle worldspawn (first entity, contains map-wide settings)
+      if (entity.classname === "worldspawn") {
+        // Parse camera_mode if specified
+        if (entity.properties.camera_mode) {
+          const mode = entity.properties.camera_mode.toLowerCase();
+          if (mode === "perspective" || mode === "orthographic" || mode === "fake_ortho") {
+            cameraMode = mode;
+            console.log(`Map specifies camera_mode: ${cameraMode}`);
+          } else {
+            console.warn(`Unknown camera_mode in worldspawn: ${entity.properties.camera_mode}`);
+          }
+        }
+        
+        // Parse camera_height if specified (controls zoom/distance)
+        if (entity.properties.camera_height) {
+          const height = parseFloat(entity.properties.camera_height);
+          if (!isNaN(height) && height > 0) {
+            cameraHeight = height;
+            console.log(`Map specifies camera_height: ${cameraHeight}`);
+          }
+        }
+      }
+
       // Handle player start
       if (entity.classname === "info_player_start" && entity.properties.origin) {
         const parts = entity.properties.origin.split(" ").map(parseFloat);
@@ -99,6 +133,7 @@ export class MapRenderer {
           light.diffuse = new Color3(1, 1, 1);
         }
         
+        staticLights.push(light);
         console.log(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
       }
 
@@ -230,9 +265,10 @@ export class MapRenderer {
         }
       }
 
-      // Handle misc_model (prefab instances)
+      // Handle misc_model (prefab instances or 3D models)
       if (entity.classname === "misc_model" && entity.properties.model) {
         const modelPath = entity.properties.model;
+        console.log(`misc_model: ${modelPath}, isModelFile: ${ModelLoader.isModelFile(modelPath)}`);
         
         // Parse origin (Quake coords: X Y Z where Z is up)
         let position = Vector3.Zero();
@@ -251,23 +287,61 @@ export class MapRenderer {
           ? parseFloat(entity.properties.scale) 
           : 1;
 
-        // Parse drop-to-ground option
-        const dropToGround = entity.properties.dropToGround === "1";
-        const dropOffset = entity.properties.dropOffset 
-          ? parseFloat(entity.properties.dropOffset) 
-          : 0;
+        // Check if this is a 3D model file (GLB/glTF/OBJ) or a .map prefab
+        if (ModelLoader.isModelFile(modelPath)) {
+          // Load as 3D model (GLB/glTF/OBJ)
+          const modelLoader = ModelLoader.getInstance();
+          
+          // Initialize if needed
+          if (!modelLoader.isInitialized()) {
+            modelLoader.init(scene);
+          }
 
-        // Instantiate the prefab
-        const result = await PrefabInstance.create(modelPath, scene, {
-          position,
-          angle,
-          scale,
-          dropToGround,
-          dropOffset,
-        });
+          const hasCollision = entity.properties.collision !== "0";
+          const receiveShadows = entity.properties.receiveShadows !== "0";
+          const castShadows = entity.properties.castShadows === "1";
+          const visible = entity.properties.visible !== "0";
+          const renderingGroupId = entity.properties.renderingGroup 
+            ? parseInt(entity.properties.renderingGroup) 
+            : 0;
 
-        if (result) {
-          prefabInstances.push(result.root);
+          // Get shadow generator if casting shadows
+          const skyLight = SkyLightSystem.getInstance();
+          const shadowGenerator = castShadows ? skyLight.getShadowGenerator() : null;
+
+          const result = await modelLoader.loadModel(modelPath, {
+            position,
+            angle,
+            scale,
+            hasCollision,
+            receiveShadows,
+            castShadows,
+            shadowGenerator,
+            visible,
+            renderingGroupId,
+          });
+
+          if (result) {
+            prefabInstances.push(result.root);
+          }
+        } else {
+          // Load as .map prefab (existing behavior)
+          const dropToGround = entity.properties.dropToGround === "1";
+          const dropOffset = entity.properties.dropOffset 
+            ? parseFloat(entity.properties.dropOffset) 
+            : 0;
+
+          const result = await PrefabInstance.create(modelPath, scene, {
+            position,
+            angle,
+            scale,
+            dropToGround,
+            dropOffset,
+          });
+
+          if (result) {
+            prefabInstances.push(result.root);
+          }
         }
       }
 
@@ -554,7 +628,21 @@ export class MapRenderer {
       }
     }
 
-    return { playerStartPosition, prefabInstances, sprites };
+    // Use ClusteredLightContainer for static point lights
+    // This allows many lights without hitting WebGL uniform buffer limits
+    if (staticLights.length > 0) {
+      const clusteredLights = new ClusteredLightContainer("mapLightsCluster", staticLights, scene);
+      // Configure for orthographic camera compatibility
+      // Very few depth slices and coarse tiles minimize artifacts
+      clusteredLights.depthSlices = 4;
+      clusteredLights.horizontalTiles = 8;
+      clusteredLights.verticalTiles = 8;
+      // Set max range to match our scene size
+      clusteredLights.maxRange = 1000;
+      console.log(`Created clustered light container with ${staticLights.length} static lights`);
+    }
+
+    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight };
   }
 
   /**

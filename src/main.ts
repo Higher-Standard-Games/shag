@@ -1,5 +1,6 @@
 import "./style.css";
 import { Engine } from "babylonjs";
+import "babylonjs-loaders";
 import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
 import { GameScene } from "./engine/GameScene";

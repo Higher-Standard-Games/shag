@@ -6,6 +6,8 @@
 {
 "classname" "worldspawn"
 "message" "Feature Showcase Map"
+"camera_mode" "fake_ortho"
+"camera_height" "5000"
 // Floor plane (1600x1600)
 {
 ( -800 -800 -16 ) ( 800 800 -16 ) ( -800 800 -16 ) color_80_80_80 0 0 0 1 1
@@ -23,95 +25,42 @@
 "origin" "0 0 200"
 }
 
-// ==================== LIGHTING SHOWCASE ====================
-// Red light
+// ==================== CLUSTERED LIGHTING TEST ====================
+// Testing BabylonJS 8 ClusteredLightContainer
+// One static light for testing
 {
 "classname" "light"
-"origin" "-400 -400 100"
-"light" "500"
-"_color" "1 0.2 0.2"
-}
-// Green light
-{
-"classname" "light"
-"origin" "0 -400 100"
-"light" "500"
-"_color" "0.2 1 0.2"
-}
-// Blue light
-{
-"classname" "light"
-"origin" "400 -400 100"
-"light" "500"
-"_color" "0.2 0.2 1"
-}
-// Yellow light
-{
-"classname" "light"
-"origin" "-400 400 100"
-"light" "500"
-"_color" "1 1 0.2"
-}
-// Cyan light
-{
-"classname" "light"
-"origin" "0 400 100"
-"light" "500"
-"_color" "0.2 1 1"
-}
-// Magenta light
-{
-"classname" "light"
-"origin" "400 400 100"
-"light" "500"
-"_color" "1 0.2 1"
-}
-// White ambient light (center)
-{
-"classname" "light"
-"origin" "0 0 200"
+"origin" "0 0 150"
 "light" "300"
+"range" "400"
 "_color" "1 1 1"
 }
 
 // ==================== STREET LAMPS ====================
+// Two street lamps for testing clustered lighting
+
+// Street lamp 1 - Warm yellow
 {
 "classname" "street_lamp"
 "targetname" "lamp_1"
-"origin" "-600 -600 50"
+"origin" "-300 -300 50"
 "light" "200"
 "range" "150"
 "_color" "255 200 150"
 "fadeTime" "2"
+"bulbSize" "4"
 }
+
+// Street lamp 2 - Cool blue
 {
 "classname" "street_lamp"
 "targetname" "lamp_2"
-"origin" "600 -600 50"
+"origin" "300 300 50"
 "light" "200"
 "range" "150"
 "_color" "150 200 255"
 "fadeTime" "2"
-"flicker" "1"
-}
-{
-"classname" "street_lamp"
-"targetname" "lamp_3"
-"origin" "-600 600 50"
-"light" "200"
-"range" "150"
-"_color" "255 150 200"
-"fadeTime" "2"
-}
-{
-"classname" "street_lamp"
-"targetname" "lamp_4"
-"origin" "600 600 50"
-"light" "200"
-"range" "150"
-"_color" "200 255 150"
-"fadeTime" "2"
-"flicker" "1"
+"bulbSize" "4"
 }
 
 // ==================== GROWING AREA (10 pots in 2 rows) ====================
@@ -529,3 +478,14 @@
 "scale" "0.75"
 }
 
+// GLB 3D Model test - placed near growing area
+{
+"classname" "misc_model"
+"model" "prefabs/building.glb"
+"origin" "-200 -50 0"
+"angle" "0"
+"scale" "50"
+"collision" "1"
+"receiveShadows" "1"
+"castShadows" "0"
+}
