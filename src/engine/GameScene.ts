@@ -94,6 +94,14 @@ export class GameScene {
     this.scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
     this.scene.collisionsEnabled = true;
 
+    // BabylonJS 8 Performance Optimizations
+    // Skip clearing color buffer since we always have a skybox/background
+    this.scene.autoClear = false;
+    // Skip pointer move picking for better performance (we use click picking)
+    this.scene.skipPointerMovePicking = true;
+    // Block dirty mechanism during batch operations (materials handle this themselves)
+    this.scene.blockMaterialDirtyMechanism = false;
+
     // Initialize TextureManager for this scene
     TextureManager.getInstance().init(this.scene);
 

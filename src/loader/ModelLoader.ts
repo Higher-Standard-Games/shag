@@ -157,8 +157,11 @@ export class ModelLoader {
           if (mesh.material) {
             if (mesh.material instanceof PBRMaterial) {
               mesh.material.usePhysicalLightFalloff = false;
+              // Freeze material for better performance (BabylonJS 8 optimization)
+              mesh.material.freeze();
             } else if (mesh.material instanceof StandardMaterial) {
               // Standard materials work with clustered lights by default
+              mesh.material.freeze();
             }
           }
           

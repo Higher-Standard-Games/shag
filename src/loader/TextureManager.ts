@@ -232,6 +232,10 @@ export class TextureManager {
       material.diffuseColor = new Color3(0.8, 0.8, 0.8);
     }
 
+    // Freeze material for better performance (BabylonJS 8 optimization)
+    // Frozen materials skip shader recompilation checks
+    material.freeze();
+
     this.materialCache.set(cacheKey, material);
     return material;
   }
