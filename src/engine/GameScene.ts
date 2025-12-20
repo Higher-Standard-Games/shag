@@ -18,7 +18,7 @@ import { ShopSystem } from "../game/ShopSystem";
 import { TextureManager } from "./loader/TextureManager";
 import { RTSCameraController } from "./camera/RTSCameraController";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { BottomBar, UIConfig, SidePanel, ModalPanel, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "./ui";
+import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "./ui";
 import { GameHUD } from "../ui/GameHUD";
 import { HarvestCelebration } from "../ui/HarvestCelebration";
 import { PotActionIndicator } from "../ui/PotActionIndicator";
@@ -743,6 +743,9 @@ export class GameScene {
     
     // Check for auto-start quests
     QuestSystem.getInstance().checkAutoStart();
+    
+    // Initialize UI theme (centralized styling)
+    UITheme.getInstance().init();
     
     // Show UI
     GameHUD.getInstance().show();

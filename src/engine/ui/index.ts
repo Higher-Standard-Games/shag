@@ -33,3 +33,6 @@ export type {
   ModalCallbacks,
   ModalAction,
 } from "./ModalPanel";
+
+export { UITheme } from "./UITheme";
+export type { UIThemeConfig } from "./UITheme";

@@ -327,16 +327,17 @@ export class GameHUD {
         top: 70px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.85);
+        background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
         color: white;
         padding: 12px 24px;
-        border-radius: 25px;
+        border-radius: 12px;
         font-size: 16px;
-        font-weight: bold;
-        border: 2px solid rgba(76, 175, 80, 0.5);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        font-weight: 600;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         z-index: 150;
         animation: messagePopIn 0.3s ease;
+        font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
       }
 
       .hud-game-message .game-message-text {
@@ -362,11 +363,14 @@ export class GameHUD {
       }
 
       .hud-notification {
-        background: rgba(0,0,0,0.8);
+        background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
         color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
+        padding: 12px 16px;
+        border-radius: 10px;
         border-left: 4px solid #4CAF50;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
         animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
       }
 

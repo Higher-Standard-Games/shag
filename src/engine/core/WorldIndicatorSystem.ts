@@ -365,15 +365,17 @@ export class WorldIndicatorSystem {
       }
 
       .world-indicator-label {
-        background: rgba(0, 0, 0, 0.8);
+        background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
         color: white;
-        padding: 4px 10px;
-        border-radius: 12px;
+        padding: 6px 12px;
+        border-radius: 8px;
         font-size: 12px;
-        font-weight: bold;
+        font-weight: 600;
         white-space: nowrap;
         margin-top: 4px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
       }
 
       /* Bounce animation */
