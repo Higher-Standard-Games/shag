@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:textures": "node scripts/convert-ktx2.js",
+    "build:textures:clean": "node scripts/convert-ktx2.js --clean",
+    "build:prod": "npm run build:textures && npm run build",
     "preview": "vite preview",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",

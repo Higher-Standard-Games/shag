@@ -42,3 +42,6 @@ editor/gamepacks/*
 !editor/gamepacks/hsgengine.game/
 editor/gamepacks/games/*
 !editor/gamepacks/games/hsgengine.game
+
+# KTX2 compressed textures (generated from source PNGs)
+public/textures-ktx2/

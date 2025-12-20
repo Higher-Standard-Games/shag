@@ -1,5 +1,12 @@
 import { Color3, type Scene, StandardMaterial, Texture } from "babylonjs";
 
+// Check if we're in production mode (Vite sets this)
+// @ts-ignore - Vite provides import.meta.env
+const IS_PRODUCTION: boolean = import.meta.env?.PROD ?? false;
+
+// KTX2 texture directory (converted textures for production)
+const KTX2_BASE_PATH = "/textures-ktx2";
+
 export interface TextureInfo {
   path: string;
   u_offset: number;
@@ -27,7 +34,9 @@ export class TextureManager {
   private basePath: string = "/textures";
 
   // Supported extensions in order of preference
+  // In production, try KTX2 first for GPU-compressed textures
   private extensions: string[] = [".png", ".jpg", ".jpeg", ".tga", ".webp"];
+  private ktx2Extensions: string[] = [".ktx2"];
 
   // Textures to skip (editor-only)
   private skipTextures: Set<string> = new Set([
@@ -138,6 +147,7 @@ export class TextureManager {
 
   /**
    * Try loading a texture with various extensions
+   * In production, tries KTX2 (GPU-compressed) first for better mobile performance
    */
   private async tryLoadTexture(textureName: string): Promise<Texture | null> {
     if (!this.scene) return null;
@@ -147,7 +157,31 @@ export class TextureManager {
     if (!normalizedPath.startsWith("textures/")) {
       normalizedPath = `textures/${normalizedPath}`;
     }
+    // Remove the "textures/" prefix for building paths
+    const cleanPath = normalizedPath.replace(/^textures\//, "");
 
+    // In production, try KTX2 first (GPU-compressed textures)
+    if (IS_PRODUCTION) {
+      for (const ext of this.ktx2Extensions) {
+        const ktx2Path = `${KTX2_BASE_PATH}/${cleanPath}${ext}`;
+
+        try {
+          const exists = await this.checkTextureExists(ktx2Path);
+          if (exists) {
+            const texture = new Texture(ktx2Path, this.scene);
+            texture.name = textureName;
+            texture.wrapU = Texture.WRAP_ADDRESSMODE;
+            texture.wrapV = Texture.WRAP_ADDRESSMODE;
+            console.log(`Loaded KTX2 texture: ${ktx2Path}`);
+            return texture;
+          }
+        } catch {
+          // KTX2 not available, fall through to regular textures
+        }
+      }
+    }
+
+    // Fall back to regular texture formats
     for (const ext of this.extensions) {
       const fullPath = `${this.basePath}/${normalizedPath}${ext}`.replace("textures/textures", "textures");
 
