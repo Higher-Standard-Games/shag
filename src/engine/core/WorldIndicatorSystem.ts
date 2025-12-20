@@ -114,7 +114,7 @@ export class WorldIndicatorSystem {
     const config = {
       animation: "bounce" as IndicatorAnimation,
       offsetY: 40,
-      zIndex: 1000,
+      zIndex: 100,  // Below UI panels (SidePanel=900, BottomBar=1000)
       ...options.config,
     };
 
