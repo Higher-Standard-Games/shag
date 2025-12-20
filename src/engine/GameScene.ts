@@ -745,7 +745,15 @@ export class GameScene {
     QuestSystem.getInstance().checkAutoStart();
     
     // Initialize UI theme (centralized styling)
-    UITheme.getInstance().init();
+    const uiTheme = UITheme.getInstance();
+    uiTheme.init();
+    
+    // Load custom fonts
+    await uiTheme.loadFont("LostTumbler", "/fonts/LostTumbler.woff2", "400");
+    uiTheme.setFontFamily(
+      "'Segoe UI', system-ui, -apple-system, sans-serif",  // Body font
+      "'LostTumbler', 'Segoe UI', sans-serif"              // Heading font
+    );
     
     // Show UI
     GameHUD.getInstance().show();

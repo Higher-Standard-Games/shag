@@ -186,6 +186,15 @@ export class UITheme {
         color: var(--ui-text-primary);
       }
 
+      /* Heading styles - use game font */
+      .side-panel-title,
+      .modal-title,
+      .panel-header,
+      .ui-heading {
+        font-family: var(--ui-font-heading) !important;
+        letter-spacing: 0.5px;
+      }
+
       /* World indicator styles - unified */
       .world-indicator {
         font-family: var(--ui-font) !important;
