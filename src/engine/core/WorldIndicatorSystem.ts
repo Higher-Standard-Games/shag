@@ -352,30 +352,51 @@ export class WorldIndicatorSystem {
         transform: translate(-50%, -50%);
         pointer-events: auto;
         cursor: pointer;
-        transition: transform 0.1s ease;
+        transition: all 0.1s ease;
       }
 
       .world-indicator:hover {
-        transform: translate(-50%, -50%) scale(1.1);
+        transform: translate(-50%, calc(-50% - 3px));
+      }
+
+      .world-indicator:hover .world-indicator-label {
+        background: #FFFFFF;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      .world-indicator:active {
+        transform: translate(-50%, calc(-50% + 2px));
+      }
+
+      .world-indicator:active .world-indicator-label {
+        border-bottom-width: 2px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
 
       .world-indicator-icon {
         font-size: 32px;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        background: #FFFFFF;
+        padding: 8px;
+        border-radius: 12px;
+        border-bottom: 3px solid #E0E0E0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       }
 
       .world-indicator-label {
-        background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
-        color: white;
-        padding: 6px 12px;
+        background: #FAFAFA;
+        color: #333333;
+        padding: 8px 14px;
         border-radius: 8px;
         font-size: 12px;
         font-weight: 600;
         white-space: nowrap;
-        margin-top: 4px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        margin-top: 6px;
+        border: none;
+        border-bottom: 4px solid #CCCCCC;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
         font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
+        transition: all 0.1s ease;
       }
 
       /* Bounce animation */
