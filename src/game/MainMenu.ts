@@ -194,12 +194,12 @@ export class MainMenu {
     title.textContent = "Load Game";
     title.style.cssText = `
       color: #333333;
-      font-size: 1.75rem;
+      font-size: 2rem;
       margin: 0 0 1.5rem 0;
-      font-weight: 600;
-      letter-spacing: 0.1em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       text-align: center;
-      font-family: var(--ui-font-heading, 'Segoe UI', system-ui, sans-serif);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
     panel.appendChild(title);
 
@@ -328,12 +328,12 @@ export class MainMenu {
     title.textContent = "Choose Save Slot";
     title.style.cssText = `
       color: #333333;
-      font-size: 1.75rem;
+      font-size: 2rem;
       margin: 0 0 1.5rem 0;
-      font-weight: 600;
-      letter-spacing: 0.1em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       text-align: center;
-      font-family: var(--ui-font-heading, 'Segoe UI', system-ui, sans-serif);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
     panel.appendChild(title);
 
