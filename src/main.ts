@@ -6,6 +6,7 @@ import { AudioManager } from "./engine/AudioManager";
 import { GameScene } from "./engine/GameScene";
 import { LoadingScreen } from "./game/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
+import { SettingsPanel } from "./ui/SettingsPanel";
 
 /**
  * Main application entry point.
@@ -39,6 +40,9 @@ async function main() {
 
   // Initialize audio manager with loaded config
   AudioManager.getInstance().init();
+  
+  // Initialize settings (loads saved settings and applies to audio)
+  SettingsPanel.getInstance();
 
   // Phase 2: Main Menu
   loadingScreen.hide();

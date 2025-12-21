@@ -15,7 +15,7 @@
     "menuMap": "patch_test.map",
     "prefabs": [],
     "music": {
-      "menu": "music/menu.ogg",
+      "menu": "music/GreenKingdom.ogg",
       "maps": {
         "test.map": "music/ambient.ogg",
         "map2.map": "music/ambient.ogg"

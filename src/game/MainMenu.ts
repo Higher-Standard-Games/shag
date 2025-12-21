@@ -9,6 +9,7 @@ import {
 import { AssetLoader } from "../engine/AssetLoader";
 import { AudioManager } from "../engine/AudioManager";
 import { MapRenderer } from "../engine/MapRenderer";
+import { SettingsPanel } from "../ui/SettingsPanel";
 import { GameState } from "./GameState";
 
 export interface MainMenuCallbacks {
@@ -145,13 +146,14 @@ export class MainMenu {
       buttons.appendChild(loadBtn);
     }
 
-    // Settings button (optional)
-    if (this.callbacks.onSettings) {
-      const settingsBtn = this.createButton("Settings", () => {
+    // Settings button - always show
+    const settingsBtn = this.createButton("Settings", () => {
+      SettingsPanel.getInstance().show(() => {
+        // Callback when settings panel closes
         this.callbacks.onSettings?.();
       });
-      buttons.appendChild(settingsBtn);
-    }
+    });
+    buttons.appendChild(settingsBtn);
 
     menuContent.appendChild(buttons);
     this.container.appendChild(menuContent);

@@ -1,0 +1,393 @@
+/**
+ * SettingsPanel - Settings UI with volume controls
+ * 
+ * Can be shown from MainMenu or in-game pause menu.
+ * Persists settings to localStorage.
+ */
+
+import { AudioManager } from "../engine/AudioManager";
+
+const SETTINGS_STORAGE_KEY = "ganjawars_settings";
+
+export interface GameSettings {
+  musicVolume: number;  // 0-1
+  sfxVolume: number;    // 0-1 (for future use)
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
+}
+
+export class SettingsPanel {
+  private static instance: SettingsPanel;
+  private container: HTMLDivElement | null = null;
+  private settings: GameSettings;
+  private onClose?: () => void;
+
+  private constructor() {
+    this.settings = this.loadSettings();
+    this.applySettings();
+  }
+
+  public static getInstance(): SettingsPanel {
+    if (!SettingsPanel.instance) {
+      SettingsPanel.instance = new SettingsPanel();
+    }
+    return SettingsPanel.instance;
+  }
+
+  /**
+   * Load settings from localStorage or use defaults
+   */
+  private loadSettings(): GameSettings {
+    try {
+      const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (stored) {
+        return { ...this.getDefaults(), ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.warn("Failed to load settings:", e);
+    }
+    return this.getDefaults();
+  }
+
+  private getDefaults(): GameSettings {
+    return {
+      musicVolume: 0.5,
+      sfxVolume: 0.5,
+      musicEnabled: true,
+      sfxEnabled: true,
+    };
+  }
+
+  /**
+   * Save settings to localStorage
+   */
+  private saveSettings(): void {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(this.settings));
+    } catch (e) {
+      console.warn("Failed to save settings:", e);
+    }
+  }
+
+  /**
+   * Apply current settings to audio systems
+   */
+  private applySettings(): void {
+    const audio = AudioManager.getInstance();
+    audio.setMusicVolume(this.settings.musicVolume);
+    audio.setMusicEnabled(this.settings.musicEnabled);
+  }
+
+  /**
+   * Get current settings
+   */
+  public getSettings(): GameSettings {
+    return { ...this.settings };
+  }
+
+  /**
+   * Show the settings panel
+   */
+  public show(onClose?: () => void): void {
+    this.onClose = onClose;
+
+    if (this.container) {
+      this.container.remove();
+    }
+
+    this.container = document.createElement("div");
+    this.container.id = "settings-panel";
+    this.container.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 300;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    `;
+
+    // Panel content
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 32px 48px;
+      min-width: 400px;
+      max-width: 500px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    `;
+
+    // Title
+    const title = document.createElement("h2");
+    title.textContent = "Settings";
+    title.style.cssText = `
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      text-align: center;
+      margin: 0 0 32px 0;
+    `;
+    panel.appendChild(title);
+
+    // Settings content
+    const content = document.createElement("div");
+    content.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    `;
+
+    // Music Volume slider
+    content.appendChild(this.createVolumeSlider(
+      "Music Volume",
+      "🎵",
+      this.settings.musicVolume,
+      (value) => {
+        this.settings.musicVolume = value;
+        this.applySettings();
+        this.saveSettings();
+      }
+    ));
+
+    // Music enabled toggle
+    content.appendChild(this.createToggle(
+      "Music Enabled",
+      this.settings.musicEnabled,
+      (enabled) => {
+        this.settings.musicEnabled = enabled;
+        this.applySettings();
+        this.saveSettings();
+      }
+    ));
+
+    // SFX Volume slider (for future use)
+    content.appendChild(this.createVolumeSlider(
+      "Sound Effects",
+      "🔊",
+      this.settings.sfxVolume,
+      (value) => {
+        this.settings.sfxVolume = value;
+        this.saveSettings();
+      }
+    ));
+
+    panel.appendChild(content);
+
+    // Back button
+    const backBtn = document.createElement("button");
+    backBtn.textContent = "Back";
+    backBtn.style.cssText = `
+      margin-top: 32px;
+      padding: 12px 48px;
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    `;
+    backBtn.addEventListener("mouseenter", () => {
+      backBtn.style.background = "rgba(255, 255, 255, 0.2)";
+    });
+    backBtn.addEventListener("mouseleave", () => {
+      backBtn.style.background = "rgba(255, 255, 255, 0.1)";
+    });
+    backBtn.addEventListener("click", () => this.hide());
+    panel.appendChild(backBtn);
+
+    this.container.appendChild(panel);
+    document.body.appendChild(this.container);
+  }
+
+  /**
+   * Hide the settings panel
+   */
+  public hide(): void {
+    if (this.container) {
+      this.container.remove();
+      this.container = null;
+    }
+    this.onClose?.();
+  }
+
+  /**
+   * Create a volume slider control
+   */
+  private createVolumeSlider(
+    label: string,
+    icon: string,
+    initialValue: number,
+    onChange: (value: number) => void
+  ): HTMLDivElement {
+    const container = document.createElement("div");
+    container.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    `;
+
+    // Label row
+    const labelRow = document.createElement("div");
+    labelRow.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    `;
+
+    const labelText = document.createElement("span");
+    labelText.innerHTML = `${icon} ${label}`;
+    labelText.style.cssText = `
+      color: #ccc;
+      font-size: 14px;
+    `;
+    labelRow.appendChild(labelText);
+
+    const valueText = document.createElement("span");
+    valueText.textContent = `${Math.round(initialValue * 100)}%`;
+    valueText.style.cssText = `
+      color: #888;
+      font-size: 14px;
+      min-width: 40px;
+      text-align: right;
+    `;
+    labelRow.appendChild(valueText);
+
+    container.appendChild(labelRow);
+
+    // Slider
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "100";
+    slider.value = String(Math.round(initialValue * 100));
+    slider.style.cssText = `
+      width: 100%;
+      height: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    `;
+
+    // Custom slider thumb styling
+    const styleId = "settings-slider-styles";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        #settings-panel input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          background: linear-gradient(135deg, #4CAF50, #2E7D32);
+          border-radius: 50%;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transition: transform 0.1s ease;
+        }
+        #settings-panel input[type="range"]::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+        }
+        #settings-panel input[type="range"]::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          background: linear-gradient(135deg, #4CAF50, #2E7D32);
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    slider.addEventListener("input", () => {
+      const value = parseInt(slider.value) / 100;
+      valueText.textContent = `${slider.value}%`;
+      onChange(value);
+    });
+
+    container.appendChild(slider);
+
+    return container;
+  }
+
+  /**
+   * Create a toggle switch control
+   */
+  private createToggle(
+    label: string,
+    initialValue: boolean,
+    onChange: (enabled: boolean) => void
+  ): HTMLDivElement {
+    const container = document.createElement("div");
+    container.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    `;
+
+    const labelText = document.createElement("span");
+    labelText.textContent = label;
+    labelText.style.cssText = `
+      color: #ccc;
+      font-size: 14px;
+    `;
+    container.appendChild(labelText);
+
+    // Toggle switch
+    const toggle = document.createElement("div");
+    toggle.style.cssText = `
+      width: 48px;
+      height: 24px;
+      background: ${initialValue ? "#4CAF50" : "rgba(255, 255, 255, 0.2)"};
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s ease;
+    `;
+
+    const knob = document.createElement("div");
+    knob.style.cssText = `
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: ${initialValue ? "26px" : "2px"};
+      transition: left 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    `;
+    toggle.appendChild(knob);
+
+    let enabled = initialValue;
+    toggle.addEventListener("click", () => {
+      enabled = !enabled;
+      toggle.style.background = enabled ? "#4CAF50" : "rgba(255, 255, 255, 0.2)";
+      knob.style.left = enabled ? "26px" : "2px";
+      onChange(enabled);
+    });
+
+    container.appendChild(toggle);
+
+    return container;
+  }
+}
