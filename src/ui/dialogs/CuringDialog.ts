@@ -1,5 +1,6 @@
 import { CuringSystem } from "../../game/CuringSystem";
 import { PlantSystem } from "../../game/PlantSystem";
+import { GameState } from "../../game/GameState";
 import { BaseDialog, type DialogContext } from "./BaseDialog";
 
 /**
@@ -227,6 +228,47 @@ export class CuringDialog extends BaseDialog {
       }
     }
 
+    // Cured Products Inventory
+    const curedProducts = GameState.getInstance().getItemsByType("harvest");
+    let curedHTML = "";
+    if (curedProducts.length === 0) {
+      curedHTML = `<div style="color: #666666; text-align: center; padding: 16px; font-size: 0.9rem;">No cured products yet. Cure fresh harvest to sell!</div>`;
+    } else {
+      const totalGrams = curedProducts.reduce((sum, p) => sum + p.quantity, 0);
+      curedHTML = `
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          ${curedProducts.map(product => {
+            // Extract strain name from harvest_strainId format
+            const strainId = product.id.replace(/^harvest_/, "");
+            const strain = PlantSystem.getInstance().getStrain(strainId) || 
+                          PlantSystem.getInstance().getStrain(`strain_${strainId}`);
+            const strainName = strain?.name ?? strainId.replace(/_/g, " ");
+            
+            return `
+              <div style="
+                background: #F0FDF4;
+                border: 1px solid #86EFAC;
+                border-radius: 8px;
+                padding: 10px 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              ">
+                <span style="font-size: 1.2rem;">📦</span>
+                <div>
+                  <div style="font-weight: 600; color: #166534; font-size: 0.9rem;">${strainName}</div>
+                  <div style="font-size: 0.85rem; color: #15803D; font-weight: 500;">${product.quantity}g</div>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <div style="margin-top: 10px; text-align: right; font-size: 0.85rem; color: #666666;">
+          Total: <strong style="color: #166534;">${totalGrams}g</strong> ready to sell
+        </div>
+      `;
+    }
+
     return `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
@@ -236,7 +278,7 @@ export class CuringDialog extends BaseDialog {
               (tap to select)
             </span>
           </h3>
-          <div style="max-height: 300px; overflow-y: auto;">
+          <div style="max-height: 250px; overflow-y: auto;">
             ${freshHTML}
           </div>
           <div style="margin-top: 8px; font-size: 0.8rem; color: #666666;">
@@ -250,12 +292,21 @@ export class CuringDialog extends BaseDialog {
               (tap empty barrel)
             </span>
           </h3>
-          <div style="max-height: 300px; overflow-y: auto;">
+          <div style="max-height: 250px; overflow-y: auto;">
             ${barrelsHTML}
           </div>
         </div>
       </div>
       ${actionHTML}
+      <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E0E0E0;">
+        <h3 style="margin: 0 0 12px 0; color: #333333; font-size: 1rem;">
+          📦 Cured Products Inventory
+          <span style="font-size: 0.8rem; color: #666666; font-weight: normal;">
+            (ready to sell)
+          </span>
+        </h3>
+        ${curedHTML}
+      </div>
     `;
   }
 
