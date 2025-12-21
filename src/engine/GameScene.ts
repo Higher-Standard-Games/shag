@@ -656,8 +656,12 @@ export class GameScene {
     const stars = "★".repeat(mastery.level) + "☆".repeat(5 - mastery.level);
     
     // Calculate progress percentages
-    // Overall growth = (current stage + stage progress) / total stages
-    const overallGrowth = ((plant.growthStage + (plant.growthProgress / 100)) / strain.stages) * 100;
+    // Overall growth = (current stage + stage progress) / (total stages - 1)
+    // Stage 0 = 0%, final stage (stages-1) = 100%
+    const maxStage = strain.stages - 1;
+    const overallGrowth = maxStage > 0 
+      ? ((plant.growthStage + (plant.growthProgress / 100)) / maxStage) * 100
+      : 100;
     const growthPercent = Math.min(100, overallGrowth);
     const waterPercent = Math.min(100, plant.waterLevel);
     const healthPercent = Math.min(100, plant.health);
