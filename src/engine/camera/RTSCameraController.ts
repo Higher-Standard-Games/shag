@@ -145,8 +145,14 @@ export class RTSCameraController {
                       Math.abs(p.position.z - buildableObj.position.z) < 5
                     );
                     if (plant) {
-                      // Show plant info modal (new UI system)
-                      GameScene.getInstance().showPlantInfo(plant.id);
+                      // Check if plant is harvestable - show harvest panel instead of management dialog
+                      const harvestIndicator = HarvestIndicator.getInstance();
+                      if (harvestIndicator.isHarvestable(plant.id)) {
+                        harvestIndicator.showHarvestPanel(plant.id);
+                      } else {
+                        // Show plant info modal (new UI system)
+                        GameScene.getInstance().showPlantInfo(plant.id);
+                      }
                     } else {
                       // No plant in this pot - show seed selection popup
                       SeedSelectionPopup.show(
