@@ -951,11 +951,11 @@ export class GameScene {
     // Add game-active class to body to prevent text selection
     document.body.classList.add("game-active");
     
-    // Load custom fonts
-    await uiTheme.loadFont("Chicle", "/fonts/Chicle-Regular.woff2", "400");
+    // Nunito font is already loaded in main.ts
+    // Just ensure the font family is set correctly
     uiTheme.setFontFamily(
-      "'Segoe UI', system-ui, -apple-system, sans-serif",  // Body font
-      "'Chicle', 'Segoe UI', sans-serif"                   // Heading font
+      "'Nunito', 'Segoe UI', system-ui, sans-serif",  // Body font (regular weight)
+      "'Nunito', 'Segoe UI', system-ui, sans-serif"   // Heading font (use bold weight via CSS)
     );
     
     // Show UI

@@ -267,8 +267,9 @@ export class GameHUD {
       }
 
       .game-award-text {
-        font-family: 'Chicle', 'Segoe UI', sans-serif;
+        font-family: 'Nunito', 'Segoe UI', sans-serif;
         font-size: 1.8rem;
+        font-weight: 800;
         color: #8f8;
         text-shadow: 0 2px 10px rgba(76, 175, 80, 0.5);
         letter-spacing: 0.05em;

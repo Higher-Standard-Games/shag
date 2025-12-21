@@ -49,7 +49,7 @@ async function main() {
   
   // Load custom fonts before showing main menu
   const uiTheme = UITheme.getInstance();
-  await uiTheme.loadFont("Chicle", "/fonts/Chicle-Regular.woff2", "400");
+  await uiTheme.loadNunitoFont();
 
   // Phase 2: Main Menu
   loadingScreen.hide();

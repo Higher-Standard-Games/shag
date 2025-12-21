@@ -90,8 +90,8 @@ const LIGHT_THEME: UIThemeConfig = {
   buttonShadow: "rgba(0, 0, 0, 0.1)",
   
   // Fonts
-  fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-  fontFamilyHeading: "'Segoe UI', system-ui, -apple-system, sans-serif",
+  fontFamily: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
+  fontFamilyHeading: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
   
   // Shadows
   shadowLight: "0 2px 4px rgba(0, 0, 0, 0.08)",
@@ -136,8 +136,8 @@ const DARK_THEME: UIThemeConfig = {
   buttonShadow: "rgba(0, 0, 0, 0.3)",
   
   // Fonts
-  fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-  fontFamilyHeading: "'Segoe UI', system-ui, -apple-system, sans-serif",
+  fontFamily: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
+  fontFamilyHeading: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
   
   // Shadows
   shadowLight: "0 2px 8px rgba(0, 0, 0, 0.3)",
@@ -270,6 +270,28 @@ export class UITheme {
    */
   public init(): void {
     this.injectStyles();
+  }
+
+  /**
+   * Load Nunito font family with all weights
+   */
+  public async loadNunitoFont(): Promise<void> {
+    const weights = [
+      { weight: "300", file: "Nunito-Light.ttf" },
+      { weight: "400", file: "Nunito-Regular.ttf" },
+      { weight: "500", file: "Nunito-Medium.ttf" },
+      { weight: "600", file: "Nunito-SemiBold.ttf" },
+      { weight: "700", file: "Nunito-Bold.ttf" },
+      { weight: "800", file: "Nunito-ExtraBold.ttf" },
+      { weight: "900", file: "Nunito-Black.ttf" },
+    ];
+
+    const loadPromises = weights.map(({ weight, file }) =>
+      this.loadFont("Nunito", `/fonts/Nunito/static/${file}`, weight)
+    );
+
+    await Promise.all(loadPromises);
+    console.log("[UITheme] Nunito font family loaded");
   }
 
   /**
