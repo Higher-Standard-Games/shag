@@ -88,7 +88,7 @@ export abstract class BaseDialog {
       flex-direction: column;
       overflow: hidden;
       animation: dialogSlideIn 0.25s ease-out;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     this.element.innerHTML = this.buildDialogHTML(context);
@@ -137,10 +137,10 @@ export abstract class BaseDialog {
       ">
         <h2 style="
           margin: 0;
-          font-size: 1.25rem;
-          font-weight: 600;
+          font-size: 1.4rem;
+          font-weight: 800;
           color: #333333;
-          letter-spacing: 0.02em;
+          letter-spacing: -0.02em;
         ">${title}</h2>
         ${this.options.showCloseButton ? `
           <button id="dialog-close-${this.id}" class="dialog-close-btn" style="
