@@ -7,7 +7,7 @@ export class LoadingScreen {
   private progressFill: HTMLDivElement;
 
   constructor() {
-    // Create container
+    // Create container with radial gradient glow from bottom
     this.container = document.createElement("div");
     this.container.id = "loading-screen";
     this.container.style.cssText = `
@@ -16,7 +16,7 @@ export class LoadingScreen {
       left: 0;
       width: 100%;
       height: 100%;
-      background: #0a0a0a;
+      background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -26,46 +26,33 @@ export class LoadingScreen {
       color: #fff;
     `;
 
-    // Title
-    const title = document.createElement("h1");
-    title.textContent = "Loading...";
-    title.style.cssText = `
-      font-size: 2rem;
-      margin-bottom: 2rem;
-      font-weight: 300;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    `;
-    this.container.appendChild(title);
-
-    // Progress bar container
+    // Progress bar container - positioned lower on screen
     this.progressBar = document.createElement("div");
     this.progressBar.style.cssText = `
+      position: absolute;
+      bottom: 15%;
       width: 300px;
-      height: 4px;
-      background: #333;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 2px;
       overflow: hidden;
-      margin-bottom: 1rem;
     `;
 
-    // Progress bar fill
+    // Progress bar fill - green gradient
     this.progressFill = document.createElement("div");
     this.progressFill.style.cssText = `
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, #4a9eff, #00d4aa);
+      background: linear-gradient(90deg, #1a5a2a, #2d8a3e);
       transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(45, 138, 62, 0.5);
     `;
     this.progressBar.appendChild(this.progressFill);
     this.container.appendChild(this.progressBar);
 
-    // Progress text
+    // Hidden progress text (keep for API compatibility but don't show)
     this.progressText = document.createElement("div");
-    this.progressText.style.cssText = `
-      font-size: 0.875rem;
-      color: #888;
-    `;
+    this.progressText.style.cssText = `display: none;`;
     this.container.appendChild(this.progressText);
   }
 

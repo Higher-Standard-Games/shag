@@ -418,9 +418,7 @@ export class MainMenu {
       left: 0;
       width: 100%;
       height: 100%;
-      background: 
-        radial-gradient(ellipse 120% 60% at 50% 120%, rgba(20, 80, 30, 0.6) 0%, rgba(10, 40, 15, 0.3) 40%, transparent 70%),
-        linear-gradient(180deg, #020804 0%, #051208 40%, #030a05 100%);
+      background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
       display: flex;
       flex-direction: column;
       justify-content: center;
