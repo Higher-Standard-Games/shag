@@ -445,6 +445,17 @@ export class MainMenu {
       `;
       overlay.appendChild(glow);
 
+      // Engine logo - centered
+      const logo = document.createElement("img");
+      logo.src = "engine.svg";
+      logo.alt = "Engine";
+      logo.style.cssText = `
+        width: 250px;
+        height: auto;
+        margin-bottom: 40px;
+      `;
+      overlay.appendChild(logo);
+
       const text = document.createElement("div");
       text.textContent = "Click to Start";
       text.style.cssText = `

@@ -26,11 +26,20 @@ export class LoadingScreen {
       color: #fff;
     `;
 
-    // Progress bar container - positioned lower on screen
+    // Engine logo - centered
+    const logo = document.createElement("img");
+    logo.src = "engine.svg";
+    logo.alt = "Engine";
+    logo.style.cssText = `
+      width: 200px;
+      height: auto;
+      margin-bottom: 40px;
+    `;
+    this.container.appendChild(logo);
+
+    // Progress bar container - below logo
     this.progressBar = document.createElement("div");
     this.progressBar.style.cssText = `
-      position: absolute;
-      bottom: 15%;
       width: 300px;
       height: 3px;
       background: rgba(255, 255, 255, 0.1);
