@@ -210,15 +210,16 @@ export class BottomBar {
       border: none;
       border-bottom: 4px solid ${defaultBorder};
       color: ${textColor};
-      padding: 10px 18px;
+      padding: 12px 20px;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       white-space: nowrap;
       transition: all 0.1s ease;
       position: relative;
       top: 0;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     tab.onclick = () => this.selectCategory(category.id);
@@ -304,22 +305,23 @@ export class BottomBar {
       border: none;
       border-bottom: 3px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
       border-radius: 10px;
-      padding: 10px 8px;
+      padding: 12px 10px;
       text-align: center;
       cursor: ${isAvailable ? "pointer" : "not-allowed"};
       opacity: ${isAvailable ? "1" : "0.5"};
       transition: all 0.1s ease;
-      min-width: 80px;
+      min-width: 90px;
       position: relative;
       top: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     // Icon
     const icon = document.createElement("div");
     icon.style.cssText = `
-      font-size: 28px;
-      margin-bottom: 6px;
+      font-size: 32px;
+      margin-bottom: 8px;
       filter: ${isAvailable ? "none" : "grayscale(1)"};
     `;
     // Use emoji fallback if no icon image
@@ -329,9 +331,9 @@ export class BottomBar {
     // Name
     const name = document.createElement("div");
     name.style.cssText = `
-      font-size: 11px;
+      font-size: 13px;
       color: #333333;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
       font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
@@ -344,13 +346,13 @@ export class BottomBar {
     const cost = document.createElement("div");
     cost.style.cssText = `
       display: inline-block;
-      font-size: 11px;
+      font-size: 13px;
       color: ${canAfford ? "#FFFFFF" : "#D32F2F"};
       background: ${canAfford ? "#4CAF50" : "transparent"};
       border-bottom: ${canAfford ? "2px solid #3D9140" : "none"};
-      padding: ${canAfford ? "2px 8px" : "0"};
-      border-radius: 4px;
-      font-weight: 600;
+      padding: ${canAfford ? "3px 10px" : "0"};
+      border-radius: 6px;
+      font-weight: 700;
     `;
     cost.textContent = `$${item.cost}`;
     el.appendChild(cost);
@@ -359,10 +361,10 @@ export class BottomBar {
     if (!meetsLevel) {
       const lvl = document.createElement("div");
       lvl.style.cssText = `
-        font-size: 10px;
+        font-size: 12px;
         color: #E65100;
         margin-top: 4px;
-        font-weight: 500;
+        font-weight: 600;
       `;
       lvl.textContent = `Lv.${item.levelRequired}`;
       el.appendChild(lvl);
@@ -432,12 +434,12 @@ export class BottomBar {
   private createInventorySlot(index: number, slot: InventorySlot): HTMLDivElement {
     const el = document.createElement("div");
     el.style.cssText = `
-      width: 64px;
-      min-height: 64px;
+      width: 72px;
+      min-height: 72px;
       background: #FFFFFF;
       border: none;
       border-bottom: 3px solid #E0E0E0;
-      border-radius: 8px;
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -445,15 +447,16 @@ export class BottomBar {
       cursor: pointer;
       transition: all 0.1s ease;
       position: relative;
-      padding: 4px;
+      padding: 6px;
       top: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     if (slot.itemId) {
       // Icon - use game-provided renderer or fallback
       const icon = document.createElement("div");
-      icon.style.cssText = `font-size: 22px;`;
+      icon.style.cssText = `font-size: 26px;`;
       if (this.callbacks.renderInventoryIcon && slot.itemId) {
         icon.innerHTML = this.callbacks.renderInventoryIcon(slot.itemId);
       } else {
@@ -465,16 +468,16 @@ export class BottomBar {
       if (slot.name) {
         const name = document.createElement("div");
         name.style.cssText = `
-          font-size: 9px;
+          font-size: 10px;
           color: #666666;
           text-align: center;
-          margin-top: 2px;
+          margin-top: 3px;
           line-height: 1.1;
           max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-weight: 500;
+          font-weight: 600;
         `;
         name.textContent = slot.name;
         el.appendChild(name);
@@ -484,14 +487,14 @@ export class BottomBar {
       const count = document.createElement("div");
       count.style.cssText = `
         position: absolute;
-        bottom: 2px;
-        right: 2px;
+        bottom: 3px;
+        right: 3px;
         background: #4CAF50;
         color: #FFFFFF;
-        font-size: 10px;
-        padding: 2px 5px;
-        border-radius: 4px;
-        font-weight: 600;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-weight: 700;
         border-bottom: 2px solid #3D9140;
       `;
       count.textContent = String(slot.count);

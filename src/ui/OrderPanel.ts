@@ -72,14 +72,14 @@ export class OrderPanel {
         top: 80px;
         right: 20px;
         z-index: 100;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .order-panel-container {
         background: #FAFAFA;
         border-radius: 12px;
         min-width: 280px;
-        max-width: 320px;
+        max-width: 340px;
         border: 1px solid #E0E0E0;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
@@ -88,7 +88,7 @@ export class OrderPanel {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 15px;
+        padding: 14px 16px;
         border-bottom: 1px solid #E0E0E0;
         background: #F5F5F5;
         border-radius: 12px 12px 0 0;
@@ -96,8 +96,9 @@ export class OrderPanel {
 
       .order-title {
         color: #333333;
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
       }
 
       .order-toggle {
@@ -155,21 +156,22 @@ export class OrderPanel {
       }
 
       .customer-icon {
-        font-size: 24px;
+        font-size: 26px;
       }
 
       .customer-name {
         color: #333333;
-        font-weight: 500;
+        font-weight: 600;
+        font-size: 15px;
       }
 
       .order-timer {
         color: #F57C00;
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
         background: #FFF8E1;
-        padding: 2px 8px;
-        border-radius: 4px;
+        padding: 3px 10px;
+        border-radius: 6px;
       }
 
       .order-timer.urgent {
@@ -192,9 +194,9 @@ export class OrderPanel {
 
       .order-item {
         background: #F5F5F5;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 14px;
         color: #333333;
         border: 1px solid #E0E0E0;
       }
@@ -219,7 +221,8 @@ export class OrderPanel {
 
       .order-reward {
         color: #2E7D32;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 15px;
       }
 
       .order-fulfill {
@@ -227,11 +230,11 @@ export class OrderPanel {
         border: none;
         border-bottom: 3px solid #3D9140;
         color: white;
-        padding: 6px 15px;
-        border-radius: 6px;
+        padding: 8px 18px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 12px;
-        font-weight: 500;
+        font-size: 14px;
+        font-weight: 600;
         transition: all 0.1s ease;
         position: relative;
         top: 0;

@@ -158,7 +158,7 @@ export class GameHUD {
         right: 0;
         bottom: 0;
         pointer-events: none;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
         z-index: 100;
       }
 
@@ -182,13 +182,13 @@ export class GameHUD {
       .hud-resource {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         background: #FAFAFA;
-        padding: 8px 16px;
+        padding: 10px 18px;
         border-radius: 50px;
         color: #333333;
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 17px;
+        font-weight: 700;
         border: none;
         border-bottom: 3px solid #CCCCCC;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
@@ -204,7 +204,7 @@ export class GameHUD {
       }
 
       .hud-icon {
-        font-size: 18px;
+        font-size: 20px;
       }
 
       .hud-xp-bar {
@@ -293,11 +293,11 @@ export class GameHUD {
       .hud-time {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         color: #333333;
-        font-size: 14px;
+        font-size: 16px;
         background: #FAFAFA;
-        padding: 8px 16px;
+        padding: 10px 18px;
         border-radius: 50px;
         border: none;
         border-bottom: 3px solid #CCCCCC;
@@ -314,18 +314,20 @@ export class GameHUD {
       }
 
       .hud-day {
-        font-weight: 700;
+        font-weight: 800;
+        font-size: 17px;
         color: #F57C00;
       }
 
       .hud-clock {
-        font-family: 'Courier New', monospace;
-        font-weight: 600;
+        font-family: 'Nunito', 'Courier New', monospace;
+        font-weight: 700;
+        font-size: 16px;
         color: #333333;
       }
 
       .hud-period {
-        font-size: 16px;
+        font-size: 18px;
       }
 
       .hud-speed-btn {
@@ -334,8 +336,8 @@ export class GameHUD {
         border-bottom: 2px solid #BBBBBB;
         border-radius: 50px;
         color: #666666;
-        font-size: 10px;
-        padding: 4px 8px;
+        font-size: 12px;
+        padding: 5px 10px;
         cursor: pointer;
         transition: all 0.1s ease;
         margin-left: 4px;

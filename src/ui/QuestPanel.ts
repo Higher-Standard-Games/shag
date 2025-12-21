@@ -68,14 +68,14 @@ export class QuestPanel {
         top: 80px;
         left: 20px;
         z-index: 100;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .quest-panel-container {
         background: #FAFAFA;
         border-radius: 12px;
-        min-width: 250px;
-        max-width: 300px;
+        min-width: 260px;
+        max-width: 320px;
         border: 1px solid #E0E0E0;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
@@ -84,7 +84,7 @@ export class QuestPanel {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 15px;
+        padding: 14px 16px;
         border-bottom: 1px solid #E0E0E0;
         background: #F5F5F5;
         border-radius: 12px 12px 0 0;
@@ -92,8 +92,9 @@ export class QuestPanel {
 
       .quest-title {
         color: #333333;
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
       }
 
       .quest-toggle {
@@ -140,23 +141,24 @@ export class QuestPanel {
       }
 
       .quest-icon {
-        font-size: 20px;
+        font-size: 22px;
       }
 
       .quest-name {
         color: #333333;
-        font-weight: 500;
+        font-weight: 600;
+        font-size: 15px;
         flex: 1;
       }
 
       .quest-category {
         background: #E8E8E8;
         color: #666666;
-        padding: 2px 6px;
+        padding: 3px 8px;
         border-radius: 4px;
-        font-size: 10px;
+        font-size: 11px;
         text-transform: uppercase;
-        font-weight: 500;
+        font-weight: 600;
       }
 
       .quest-objectives {
@@ -167,8 +169,8 @@ export class QuestPanel {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 5px;
-        font-size: 13px;
+        margin-bottom: 6px;
+        font-size: 14px;
       }
 
       .objective-check {
@@ -201,24 +203,24 @@ export class QuestPanel {
 
       .objective-progress {
         color: #666666;
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 600;
       }
 
       .quest-rewards {
         display: flex;
         gap: 10px;
-        margin-top: 8px;
+        margin-top: 10px;
         margin-left: 28px;
       }
 
       .quest-reward {
         background: #FFF8E1;
         color: #F57C00;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
         border: 1px solid #FFE082;
       }
 

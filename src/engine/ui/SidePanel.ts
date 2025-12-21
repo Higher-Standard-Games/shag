@@ -67,12 +67,12 @@ export class SidePanel {
     container.style.cssText = `
       position: fixed;
       ${this.config.side}: 16px;
-      width: 220px;
+      width: 240px;
       background: #FAFAFA;
       border-radius: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       z-index: 900;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       border: 1px solid #E0E0E0;
       overflow: hidden;
       transition: all 0.2s ease;
@@ -87,7 +87,7 @@ export class SidePanel {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
+      padding: 12px 14px;
       background: #F5F5F5;
       cursor: pointer;
       user-select: none;
@@ -115,12 +115,12 @@ export class SidePanel {
   private renderHeader(): void {
     const extra = this.callbacks.getHeaderExtra?.() ?? "";
     this.headerEl.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">${this.config.icon}</span>
-        <span class="side-panel-title" style="color: #333333; font-weight: 600; font-size: 16px;">${this.config.title}</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 22px;">${this.config.icon}</span>
+        <span class="side-panel-title" style="color: #333333; font-weight: 800; font-size: 20px; letter-spacing: -0.02em;">${this.config.title}</span>
         ${extra}
       </div>
-      <span style="color: #888888; font-size: 12px; transition: transform 0.2s;">
+      <span style="color: #888888; font-size: 14px; transition: transform 0.2s;">
         ${this.isCollapsed ? "▶" : "▼"}
       </span>
     `;
@@ -137,7 +137,7 @@ export class SidePanel {
     
     if (items.length === 0) {
       this.contentEl.innerHTML = `
-        <div style="padding: 16px; text-align: center; color: #888888; font-size: 12px;">
+        <div style="padding: 16px; text-align: center; color: #888888; font-size: 14px;">
           No items
         </div>
       `;
