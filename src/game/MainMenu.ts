@@ -396,7 +396,10 @@ export class MainMenu {
   }
 
   public async show(): Promise<void> {
-    // Create background scene with menu map
+    // Show "Click to Start" overlay FIRST (before any menu content)
+    await this.showClickToStart();
+    
+    // After click, create background scene with menu map
     await this.createBackgroundScene();
 
     // Show UI
@@ -404,62 +407,64 @@ export class MainMenu {
 
     // Start render loop for background
     this.startRenderLoop();
-
-    // Show "Click to Start" overlay to enable audio (browser autoplay policy)
-    this.showClickToStart();
+    
+    // Start menu music (now allowed after user interaction)
+    AudioManager.getInstance().playMusic("menu");
   }
 
-  private showClickToStart(): void {
-    const overlay = document.createElement("div");
-    overlay.id = "click-to-start";
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 200;
-      cursor: pointer;
-    `;
+  private showClickToStart(): Promise<void> {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.id = "click-to-start";
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+        cursor: pointer;
+      `;
 
-    const text = document.createElement("div");
-    text.textContent = "Click to Start";
-    text.style.cssText = `
-      color: #fff;
-      font-size: 2.5rem;
-      font-family: 'Chicle', 'Segoe UI', sans-serif;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      animation: pulse 2s ease-in-out infinite;
-      text-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
-    `;
+      const text = document.createElement("div");
+      text.textContent = "Click to Start";
+      text.style.cssText = `
+        color: #fff;
+        font-size: 2.5rem;
+        font-family: 'Chicle', 'Segoe UI', sans-serif;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        animation: pulse 2s ease-in-out infinite;
+        text-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+      `;
 
-    // Add pulse animation
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes pulse {
-        0%, 100% { opacity: 0.6; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.05); }
-      }
-    `;
-    document.head.appendChild(style);
+      // Add pulse animation
+      const style = document.createElement("style");
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+      `;
+      document.head.appendChild(style);
 
-    overlay.appendChild(text);
-    document.body.appendChild(overlay);
+      overlay.appendChild(text);
+      document.body.appendChild(overlay);
 
-    // On click, remove overlay and start music
-    const handleClick = () => {
-      overlay.remove();
-      style.remove();
-      AudioManager.getInstance().playMusic("menu");
-    };
+      // On click, remove overlay and resolve promise
+      const handleClick = () => {
+        overlay.remove();
+        style.remove();
+        resolve();
+      };
 
-    overlay.addEventListener("click", handleClick, { once: true });
+      overlay.addEventListener("click", handleClick, { once: true });
+    });
   }
 
   public hide(): void {
