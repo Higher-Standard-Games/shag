@@ -108,7 +108,7 @@ export class SettingsPanel {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 300;
+      z-index: 1500;
       font-family: 'Segoe UI', system-ui, sans-serif;
     `;
 
