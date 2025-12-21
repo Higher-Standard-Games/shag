@@ -198,9 +198,9 @@ export class BottomBar {
     const tab = document.createElement("button");
     const isSelected = this.selectedCategory === category.id;
     
-    tab.innerHTML = `${category.icon} ${category.name}`;
+    tab.innerHTML = `${category.icon} <strong>${category.name}</strong>`;
     
-    // Light theme with 3D button effect
+    // 3D button effect for all tabs
     const defaultBg = isSelected ? category.color : "#F5F5F5";
     const defaultBorder = isSelected ? this.darkenColor(category.color, 20) : "#CCCCCC";
     const textColor = isSelected ? "#FFFFFF" : "#333333";
@@ -208,13 +208,13 @@ export class BottomBar {
     tab.style.cssText = `
       background: ${defaultBg};
       border: none;
-      border-bottom: 3px solid ${defaultBorder};
+      border-bottom: 4px solid ${defaultBorder};
       color: ${textColor};
-      padding: 8px 16px;
+      padding: 10px 18px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       white-space: nowrap;
       transition: all 0.1s ease;
       position: relative;
@@ -225,7 +225,7 @@ export class BottomBar {
     tab.onmouseenter = () => {
       if (!isSelected) {
         tab.style.background = "#FFFFFF";
-        tab.style.top = "-1px";
+        tab.style.top = "-2px";
       }
     };
     tab.onmouseleave = () => {
@@ -233,6 +233,15 @@ export class BottomBar {
         tab.style.background = "#F5F5F5";
         tab.style.top = "0";
       }
+    };
+    // Add press effect
+    tab.onmousedown = () => {
+      tab.style.top = "2px";
+      tab.style.borderBottomWidth = "2px";
+    };
+    tab.onmouseup = () => {
+      tab.style.top = isSelected ? "0" : "-2px";
+      tab.style.borderBottomWidth = "4px";
     };
 
     return tab;
@@ -285,14 +294,18 @@ export class BottomBar {
     const el = document.createElement("div");
     el.style.cssText = `
       background: ${isSelected ? "#E8F5E9" : "#FFFFFF"};
-      border: 2px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
+      border: none;
+      border-bottom: 3px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
       border-radius: 10px;
       padding: 10px 8px;
       text-align: center;
       cursor: ${isAvailable ? "pointer" : "not-allowed"};
       opacity: ${isAvailable ? "1" : "0.5"};
-      transition: all 0.15s ease;
+      transition: all 0.1s ease;
       min-width: 80px;
+      position: relative;
+      top: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     `;
 
     // Icon
@@ -312,7 +325,7 @@ export class BottomBar {
       font-size: 11px;
       color: #333333;
       margin-bottom: 4px;
-      font-weight: 500;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -320,11 +333,16 @@ export class BottomBar {
     name.textContent = item.name;
     el.appendChild(name);
 
-    // Cost
+    // Cost - styled as mini 3D badge
     const cost = document.createElement("div");
     cost.style.cssText = `
-      font-size: 12px;
-      color: ${canAfford ? "#2E7D32" : "#D32F2F"};
+      display: inline-block;
+      font-size: 11px;
+      color: ${canAfford ? "#FFFFFF" : "#D32F2F"};
+      background: ${canAfford ? "#4CAF50" : "transparent"};
+      border-bottom: ${canAfford ? "2px solid #3D9140" : "none"};
+      padding: ${canAfford ? "2px 8px" : "0"};
+      border-radius: 4px;
       font-weight: 600;
     `;
     cost.textContent = `$${item.cost}`;
@@ -336,30 +354,39 @@ export class BottomBar {
       lvl.style.cssText = `
         font-size: 10px;
         color: #E65100;
-        margin-top: 2px;
+        margin-top: 4px;
+        font-weight: 500;
       `;
       lvl.textContent = `Lv.${item.levelRequired}`;
       el.appendChild(lvl);
     }
 
-    // Click handler
+    // Click handler with 3D press effect
     if (isAvailable) {
       el.onclick = () => this.selectItem(item);
       el.onmouseenter = () => {
         if (!isSelected) {
-          el.style.background = "#F5F5F5";
-          el.style.borderColor = "#CCCCCC";
-          el.style.transform = "translateY(-2px)";
-          el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.1)";
+          el.style.background = "#F8F8F8";
+          el.style.top = "-2px";
+          el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
         }
       };
       el.onmouseleave = () => {
         if (!isSelected) {
           el.style.background = "#FFFFFF";
-          el.style.borderColor = "#E0E0E0";
-          el.style.transform = "translateY(0)";
-          el.style.boxShadow = "none";
+          el.style.top = "0";
+          el.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
         }
+      };
+      el.onmousedown = () => {
+        el.style.top = "2px";
+        el.style.borderBottomWidth = "1px";
+        el.style.boxShadow = "none";
+      };
+      el.onmouseup = () => {
+        el.style.top = "-2px";
+        el.style.borderBottomWidth = "3px";
+        el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
       };
     }
 
@@ -401,16 +428,19 @@ export class BottomBar {
       width: 64px;
       min-height: 64px;
       background: #FFFFFF;
-      border: 2px solid #E0E0E0;
+      border: none;
+      border-bottom: 3px solid #E0E0E0;
       border-radius: 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.1s ease;
       position: relative;
       padding: 4px;
+      top: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     `;
 
     if (slot.itemId) {
@@ -437,6 +467,7 @@ export class BottomBar {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          font-weight: 500;
         `;
         name.textContent = slot.name;
         el.appendChild(name);
@@ -448,12 +479,13 @@ export class BottomBar {
         position: absolute;
         bottom: 2px;
         right: 2px;
-        background: #333333;
+        background: #4CAF50;
         color: #FFFFFF;
         font-size: 10px;
-        padding: 1px 4px;
+        padding: 2px 5px;
         border-radius: 4px;
         font-weight: 600;
+        border-bottom: 2px solid #3D9140;
       `;
       count.textContent = String(slot.count);
       el.appendChild(count);
@@ -461,12 +493,24 @@ export class BottomBar {
 
     el.onclick = () => this.callbacks.onInventorySlotClick(index);
     el.onmouseenter = () => {
-      el.style.background = "#F5F5F5";
-      el.style.borderColor = "#CCCCCC";
+      el.style.background = "#F8F8F8";
+      el.style.top = "-2px";
+      el.style.boxShadow = "0 3px 6px rgba(0, 0, 0, 0.12)";
     };
     el.onmouseleave = () => {
       el.style.background = "#FFFFFF";
-      el.style.borderColor = "#E0E0E0";
+      el.style.top = "0";
+      el.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
+    };
+    el.onmousedown = () => {
+      el.style.top = "2px";
+      el.style.borderBottomWidth = "1px";
+      el.style.boxShadow = "none";
+    };
+    el.onmouseup = () => {
+      el.style.top = "-2px";
+      el.style.borderBottomWidth = "3px";
+      el.style.boxShadow = "0 3px 6px rgba(0, 0, 0, 0.12)";
     };
 
     return el;
