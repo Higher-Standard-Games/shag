@@ -65,6 +65,7 @@ export class GameScene {
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
+  private eventsPanel: SidePanel | null = null;
   private plantModal: ModalPanel | null = null;
   private selectedPlantId: string | null = null;
 
@@ -615,10 +616,168 @@ export class GameScene {
     );
     this.orderPanel.show();
 
+    // Events Panel - shows actionable events (plants ready, need water, etc.)
+    this.eventsPanel = new SidePanel(
+      {
+        id: "events",
+        title: "Events",
+        icon: "🔔",
+        side: "left",
+        order: 3,
+        maxHeight: 200,
+      },
+      {
+        getItems: (): SidePanelItem[] => {
+          const events: SidePanelItem[] = [];
+          const harvestIndicator = HarvestIndicator.getInstance();
+          const plants = GameState.getInstance().getPlants();
+
+          // Check for harvestable plants (prioritize urgent ones)
+          const harvestables = harvestIndicator.getHarvestablePlants();
+          const spoiled = harvestables.filter(h => h.phase === "spoiled");
+          const overripe = harvestables.filter(h => h.phase === "overripe");
+          const ready = harvestables.filter(h => h.phase === "ready");
+
+          if (spoiled.length > 0) {
+            events.push({
+              id: "event-spoiled",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #F44336;">
+                  <span>⚠️</span>
+                  <span>${spoiled.length} plant${spoiled.length > 1 ? 's' : ''} spoiling!</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Harvest immediately</div>
+              `,
+              onClick: () => {
+                if (spoiled[0]) harvestIndicator.showHarvestPanel(spoiled[0].plantId);
+              },
+            });
+          }
+
+          if (overripe.length > 0) {
+            events.push({
+              id: "event-overripe",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #FF9800;">
+                  <span>🍂</span>
+                  <span>${overripe.length} plant${overripe.length > 1 ? 's' : ''} overripe</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Quality degrading</div>
+              `,
+              onClick: () => {
+                if (overripe[0]) harvestIndicator.showHarvestPanel(overripe[0].plantId);
+              },
+            });
+          }
+
+          if (ready.length > 0) {
+            events.push({
+              id: "event-ready",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #4CAF50;">
+                  <span>✂️</span>
+                  <span>${ready.length} plant${ready.length > 1 ? 's' : ''} ready to harvest</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Peak quality</div>
+              `,
+              onClick: () => {
+                if (ready[0]) harvestIndicator.showHarvestPanel(ready[0].plantId);
+              },
+            });
+          }
+
+          // Check for plants needing water
+          const needsWater = plants.filter(p => p.waterLevel < 30);
+          if (needsWater.length > 0) {
+            events.push({
+              id: "event-water",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #2196F3;">
+                  <span>💧</span>
+                  <span>${needsWater.length} plant${needsWater.length > 1 ? 's' : ''} need water</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Water level low</div>
+              `,
+              onClick: () => {
+                if (needsWater[0]) this.showPlantInfo(needsWater[0].id);
+              },
+            });
+          }
+
+          // Check for low health plants
+          const lowHealth = plants.filter(p => p.health < 50 && p.health > 0);
+          if (lowHealth.length > 0) {
+            events.push({
+              id: "event-health",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #E91E63;">
+                  <span>❤️</span>
+                  <span>${lowHealth.length} plant${lowHealth.length > 1 ? 's' : ''} unhealthy</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Check conditions</div>
+              `,
+              onClick: () => {
+                if (lowHealth[0]) this.showPlantInfo(lowHealth[0].id);
+              },
+            });
+          }
+
+          // Check for empty pots needing seeds
+          const buildableManager = BuildableObjectManager.getInstance();
+          const emptyPots = Array.from(buildableManager.getObjectsInMap("")).filter(obj => {
+            const template = buildableManager.getTemplate(obj.templateId);
+            return template?.zoneType === "plant" && obj.isComplete && !obj.hasPlant;
+          });
+          if (emptyPots.length > 0) {
+            events.push({
+              id: "event-empty-pots",
+              content: `
+                <div style="display: flex; align-items: center; gap: 8px; color: #9E9E9E;">
+                  <span>🌱</span>
+                  <span>${emptyPots.length} pot${emptyPots.length > 1 ? 's' : ''} empty</span>
+                </div>
+                <div style="color: #888; font-size: 11px; margin-top: 2px;">Select a strain to plant</div>
+              `,
+            });
+          }
+
+          // No events
+          if (events.length === 0) {
+            return [{
+              id: "no-events",
+              content: `<div style="color: #666; text-align: center;">No events. All good! 👍</div>`,
+            }];
+          }
+
+          return events;
+        },
+        getHeaderExtra: () => {
+          const harvestIndicator = HarvestIndicator.getInstance();
+          const harvestables = harvestIndicator.getHarvestablePlants();
+          const plants = GameState.getInstance().getPlants();
+          const needsWater = plants.filter(p => p.waterLevel < 30).length;
+          const lowHealth = plants.filter(p => p.health < 50 && p.health > 0).length;
+          
+          const urgentCount = harvestables.filter(h => h.phase === "spoiled" || h.phase === "overripe").length;
+          const totalCount = harvestables.length + needsWater + lowHealth;
+          
+          if (urgentCount > 0) {
+            return `<span style="background: #F44336; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; animation: pulse 1s infinite;">${urgentCount}</span>`;
+          }
+          if (totalCount > 0) {
+            return `<span style="background: #4CAF50; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${totalCount}</span>`;
+          }
+          return '';
+        },
+      }
+    );
+    this.eventsPanel.show();
+
     // Set up periodic refresh for side panels
     setInterval(() => {
       this.questPanel?.refresh();
       this.orderPanel?.refresh();
+      this.eventsPanel?.refresh();
     }, 1000);
   }
 
