@@ -90,6 +90,9 @@ export class GameHUD {
           <button id="hud-speed-btn" class="hud-speed-btn" title="Toggle game speed">
             <span class="speed-icon">▶</span>
           </button>
+          <button id="hud-fullscreen-btn" class="hud-fullscreen-btn" title="Toggle fullscreen">
+            <span class="fullscreen-icon">⛶</span>
+          </button>
         </div>
       </div>
 
@@ -371,6 +374,37 @@ export class GameHUD {
       @keyframes debugPulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.7; }
+      }
+
+      .hud-fullscreen-btn {
+        background: #E8E8E8;
+        border: none;
+        border-bottom: 2px solid #BBBBBB;
+        border-radius: 50px;
+        color: #666666;
+        font-size: 14px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        margin-left: 4px;
+        position: relative;
+        top: 0;
+      }
+
+      .hud-fullscreen-btn:hover {
+        background: #F5F5F5;
+        top: -1px;
+      }
+
+      .hud-fullscreen-btn:active {
+        top: 1px;
+        border-bottom-width: 1px;
+      }
+
+      .hud-fullscreen-btn.active {
+        background: #E3F2FD;
+        border-bottom-color: #2196F3;
+        color: #1976D2;
       }
 
       .hud-quick-inventory {
@@ -979,6 +1013,43 @@ export class GameHUD {
       const newMode = gameTimer.cycleSpeedMode();
       this.updateSpeedButton(newMode);
     });
+
+    // Fullscreen toggle button
+    const fullscreenBtn = this.container?.querySelector("#hud-fullscreen-btn");
+    fullscreenBtn?.addEventListener("click", () => {
+      this.toggleFullscreen();
+    });
+
+    // Update fullscreen button state on fullscreen change
+    document.addEventListener("fullscreenchange", () => {
+      this.updateFullscreenButton();
+    });
+  }
+
+  private toggleFullscreen(): void {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn("Fullscreen request failed:", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  private updateFullscreenButton(): void {
+    const btn = this.container?.querySelector("#hud-fullscreen-btn") as HTMLElement;
+    if (!btn) return;
+
+    const icon = btn.querySelector(".fullscreen-icon");
+    if (document.fullscreenElement) {
+      btn.classList.add("active");
+      if (icon) icon.textContent = "⛶";
+      btn.title = "Exit fullscreen";
+    } else {
+      btn.classList.remove("active");
+      if (icon) icon.textContent = "⛶";
+      btn.title = "Toggle fullscreen";
+    }
   }
 
   public showNotification(message: string, type: "success" | "warning" | "error" = "success"): void {
