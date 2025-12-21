@@ -456,29 +456,86 @@ export class MainMenu {
       `;
       overlay.appendChild(logo);
 
-      const text = document.createElement("div");
-      text.textContent = "Click to Start";
-      text.style.cssText = `
-        color: #fff;
-        font-size: 2.5rem;
-        font-family: 'Chicle', 'Segoe UI', sans-serif;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        animation: pulse 2s ease-in-out infinite;
-        text-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+      // Ripple container - universal "tap here" indicator
+      const rippleContainer = document.createElement("div");
+      rippleContainer.style.cssText = `
+        position: relative;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `;
 
-      // Add pulse animation
+      // Central pulsing dot
+      const centerDot = document.createElement("div");
+      centerDot.style.cssText = `
+        width: 16px;
+        height: 16px;
+        background: rgb(37, 182, 120);
+        border-radius: 50%;
+        box-shadow: 0 0 20px rgba(37, 182, 120, 0.6);
+        animation: centerPulse 2s ease-in-out infinite;
+        z-index: 2;
+      `;
+      rippleContainer.appendChild(centerDot);
+
+      // Create 3 ripple rings with staggered animations
+      const rippleColors = [
+        'rgba(37, 182, 120, 0.6)',   // Main green
+        'rgba(99, 211, 199, 0.5)',   // Teal highlight
+        'rgba(134, 233, 216, 0.4)',  // Light teal
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        const ripple = document.createElement("div");
+        ripple.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 20px;
+          height: 20px;
+          border: 2px solid ${rippleColors[i]};
+          border-radius: 50%;
+          animation: rippleWave 2.4s ease-out infinite;
+          animation-delay: ${i * 0.8}s;
+          opacity: 0;
+        `;
+        rippleContainer.appendChild(ripple);
+      }
+
+      // Add ripple animations
       const style = document.createElement("style");
       style.textContent = `
-        @keyframes pulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); }
+        @keyframes rippleWave {
+          0% {
+            width: 20px;
+            height: 20px;
+            opacity: 0.8;
+            border-width: 3px;
+          }
+          100% {
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+            border-width: 1px;
+          }
+        }
+        @keyframes centerPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 20px rgba(37, 182, 120, 0.6);
+          }
+          50% {
+            transform: scale(1.2);
+            box-shadow: 0 0 30px rgba(99, 211, 199, 0.8), 0 0 50px rgba(37, 182, 120, 0.4);
+          }
         }
       `;
       document.head.appendChild(style);
 
-      overlay.appendChild(text);
+      overlay.appendChild(rippleContainer);
       document.body.appendChild(overlay);
 
       // On click, remove overlay and resolve promise
