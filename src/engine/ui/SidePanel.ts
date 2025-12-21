@@ -108,6 +108,7 @@ export class SidePanel {
       scrollbar-width: thin;
       scrollbar-color: #CCCCCC transparent;
       background: #FFFFFF;
+      padding: 0;
     `;
     return content;
   }
@@ -137,7 +138,7 @@ export class SidePanel {
     
     if (items.length === 0) {
       this.contentEl.innerHTML = `
-        <div style="padding: 16px; text-align: center; color: #888888; font-size: 14px;">
+        <div style="padding: 14px 16px; text-align: center; color: #888888; font-size: 14px;">
           No items
         </div>
       `;
@@ -169,10 +170,10 @@ export class SidePanel {
   private defaultRenderItem(item: SidePanelItem): string {
     return `
       <div class="side-panel-item" data-item-id="${item.id}" style="
-        padding: 10px 12px;
+        padding: 12px 16px;
         border-bottom: 1px solid #E8E8E8;
         color: #333333;
-        font-size: 12px;
+        font-size: 14px;
         transition: background 0.15s ease;
       " onmouseenter="this.style.background='#F5F5F5'"
          onmouseleave="this.style.background='transparent'">

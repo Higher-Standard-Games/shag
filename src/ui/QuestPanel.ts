@@ -123,7 +123,7 @@ export class QuestPanel {
       }
 
       .quest-card {
-        padding: 12px 15px;
+        padding: 14px 16px;
         border-bottom: 1px solid #E8E8E8;
         background: #FFFFFF;
       }
@@ -227,7 +227,7 @@ export class QuestPanel {
       .no-quests {
         color: #888888;
         text-align: center;
-        padding: 20px;
+        padding: 14px 16px;
         font-size: 14px;
         background: #FFFFFF;
         border-radius: 0 0 12px 12px;
