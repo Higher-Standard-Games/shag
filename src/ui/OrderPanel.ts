@@ -76,35 +76,44 @@ export class OrderPanel {
       }
 
       .order-panel-container {
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 10px;
+        background: #FAFAFA;
+        border-radius: 12px;
         min-width: 280px;
         max-width: 320px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
 
       .order-panel-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 15px;
+        border-bottom: 1px solid #E0E0E0;
+        background: #F5F5F5;
+        border-radius: 12px 12px 0 0;
       }
 
       .order-title {
-        color: white;
+        color: #333333;
         font-size: 16px;
-        font-weight: bold;
+        font-weight: 600;
       }
 
       .order-toggle {
-        background: none;
+        background: #E8E8E8;
         border: none;
-        color: white;
-        font-size: 20px;
+        border-bottom: 2px solid #CCCCCC;
+        color: #666666;
+        font-size: 16px;
         cursor: pointer;
-        padding: 0 5px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        transition: all 0.1s ease;
+      }
+
+      .order-toggle:hover {
+        background: #F5F5F5;
       }
 
       .order-list {
@@ -118,16 +127,18 @@ export class OrderPanel {
 
       .order-card {
         padding: 12px 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        transition: background 0.2s;
+        border-bottom: 1px solid #E8E8E8;
+        background: #FFFFFF;
+        transition: background 0.15s ease;
       }
 
       .order-card:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: #F5F5F5;
       }
 
       .order-card:last-child {
         border-bottom: none;
+        border-radius: 0 0 12px 12px;
       }
 
       .order-header {
@@ -148,18 +159,22 @@ export class OrderPanel {
       }
 
       .customer-name {
-        color: white;
+        color: #333333;
         font-weight: 500;
       }
 
       .order-timer {
-        color: #ffd700;
+        color: #F57C00;
         font-size: 12px;
-        font-weight: bold;
+        font-weight: 600;
+        background: #FFF8E1;
+        padding: 2px 8px;
+        border-radius: 4px;
       }
 
       .order-timer.urgent {
-        color: #ff6b6b;
+        color: #D32F2F;
+        background: #FFEBEE;
         animation: pulse 1s infinite;
       }
 
@@ -176,21 +191,24 @@ export class OrderPanel {
       }
 
       .order-item {
-        background: rgba(255, 255, 255, 0.1);
+        background: #F5F5F5;
         padding: 4px 8px;
         border-radius: 4px;
         font-size: 12px;
-        color: white;
+        color: #333333;
+        border: 1px solid #E0E0E0;
       }
 
       .order-item.has-item {
-        background: rgba(76, 175, 80, 0.3);
+        background: #E8F5E9;
         border: 1px solid #4CAF50;
+        color: #2E7D32;
       }
 
       .order-item.missing {
-        background: rgba(244, 67, 54, 0.3);
-        border: 1px solid #f44336;
+        background: #FFEBEE;
+        border: 1px solid #EF9A9A;
+        color: #D32F2F;
       }
 
       .order-footer {
@@ -200,43 +218,57 @@ export class OrderPanel {
       }
 
       .order-reward {
-        color: #4CAF50;
-        font-weight: bold;
+        color: #2E7D32;
+        font-weight: 600;
       }
 
       .order-fulfill {
-        background: linear-gradient(135deg, #4CAF50, #45a049);
+        background: #4CAF50;
         border: none;
+        border-bottom: 3px solid #3D9140;
         color: white;
         padding: 6px 15px;
-        border-radius: 5px;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 12px;
-        transition: all 0.2s;
+        font-weight: 500;
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
       }
 
       .order-fulfill:hover {
-        transform: scale(1.05);
+        background: #5CBF60;
+        top: -1px;
+      }
+
+      .order-fulfill:active {
+        top: 3px;
+        border-bottom-width: 0;
       }
 
       .order-fulfill:disabled {
-        background: #666;
+        background: #E0E0E0;
+        border-bottom-color: #CCCCCC;
+        color: #999999;
         cursor: not-allowed;
-        transform: none;
+        top: 0;
       }
 
       .order-dialogue {
-        color: rgba(255, 255, 255, 0.6);
+        color: #666666;
         font-size: 11px;
         font-style: italic;
         margin-bottom: 8px;
       }
 
       .no-orders {
-        color: rgba(255, 255, 255, 0.5);
+        color: #888888;
         text-align: center;
         padding: 20px;
         font-size: 14px;
+        background: #FFFFFF;
+        border-radius: 0 0 12px 12px;
       }
     `;
   }

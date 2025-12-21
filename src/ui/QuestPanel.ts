@@ -72,35 +72,44 @@ export class QuestPanel {
       }
 
       .quest-panel-container {
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 10px;
+        background: #FAFAFA;
+        border-radius: 12px;
         min-width: 250px;
         max-width: 300px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
 
       .quest-panel-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 15px;
+        border-bottom: 1px solid #E0E0E0;
+        background: #F5F5F5;
+        border-radius: 12px 12px 0 0;
       }
 
       .quest-title {
-        color: white;
+        color: #333333;
         font-size: 16px;
-        font-weight: bold;
+        font-weight: 600;
       }
 
       .quest-toggle {
-        background: none;
+        background: #E8E8E8;
         border: none;
-        color: white;
-        font-size: 20px;
+        border-bottom: 2px solid #CCCCCC;
+        color: #666666;
+        font-size: 16px;
         cursor: pointer;
-        padding: 0 5px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        transition: all 0.1s ease;
+      }
+
+      .quest-toggle:hover {
+        background: #F5F5F5;
       }
 
       .quest-list {
@@ -114,11 +123,13 @@ export class QuestPanel {
 
       .quest-card {
         padding: 12px 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid #E8E8E8;
+        background: #FFFFFF;
       }
 
       .quest-card:last-child {
         border-bottom: none;
+        border-radius: 0 0 12px 12px;
       }
 
       .quest-header {
@@ -133,18 +144,19 @@ export class QuestPanel {
       }
 
       .quest-name {
-        color: white;
+        color: #333333;
         font-weight: 500;
         flex: 1;
       }
 
       .quest-category {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.7);
+        background: #E8E8E8;
+        color: #666666;
         padding: 2px 6px;
-        border-radius: 3px;
+        border-radius: 4px;
         font-size: 10px;
         text-transform: uppercase;
+        font-weight: 500;
       }
 
       .quest-objectives {
@@ -162,12 +174,13 @@ export class QuestPanel {
       .objective-check {
         width: 16px;
         height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-radius: 3px;
+        border: 2px solid #CCCCCC;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 10px;
+        background: #FFFFFF;
       }
 
       .objective-check.complete {
@@ -177,18 +190,19 @@ export class QuestPanel {
       }
 
       .objective-text {
-        color: rgba(255, 255, 255, 0.8);
+        color: #333333;
         flex: 1;
       }
 
       .objective-text.complete {
         text-decoration: line-through;
-        color: rgba(255, 255, 255, 0.4);
+        color: #999999;
       }
 
       .objective-progress {
-        color: rgba(255, 255, 255, 0.5);
+        color: #666666;
         font-size: 11px;
+        font-weight: 500;
       }
 
       .quest-rewards {
@@ -199,18 +213,22 @@ export class QuestPanel {
       }
 
       .quest-reward {
-        background: rgba(255, 215, 0, 0.2);
-        color: #ffd700;
+        background: #FFF8E1;
+        color: #F57C00;
         padding: 3px 8px;
         border-radius: 4px;
         font-size: 11px;
+        font-weight: 500;
+        border: 1px solid #FFE082;
       }
 
       .no-quests {
-        color: rgba(255, 255, 255, 0.5);
+        color: #888888;
         text-align: center;
         padding: 20px;
         font-size: 14px;
+        background: #FFFFFF;
+        border-radius: 0 0 12px 12px;
       }
     `;
   }
