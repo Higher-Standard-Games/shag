@@ -9,6 +9,7 @@
 
 import { AudioManager } from "../engine/AudioManager";
 import { Overlay, createButton, UIManager } from "../engine/ui";
+import { UITheme, type ThemeMode } from "../engine/ui/UITheme";
 
 const SETTINGS_STORAGE_KEY = "ganjawars_settings";
 
@@ -186,6 +187,9 @@ export class SettingsPanel {
         this.saveSettings();
       }
     ));
+
+    // Theme toggle (Light/Dark mode)
+    content.appendChild(this.createThemeToggle());
 
     this.panel.appendChild(content);
 
@@ -389,6 +393,84 @@ export class SettingsPanel {
     });
 
     container.appendChild(toggle);
+
+    return container;
+  }
+
+  /**
+   * Create a theme toggle (Light/Dark mode)
+   */
+  private createThemeToggle(): HTMLDivElement {
+    const container = document.createElement("div");
+    container.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-top: 1px solid #E0E0E0;
+      margin-top: 8px;
+    `;
+
+    const labelContainer = document.createElement("div");
+    labelContainer.style.cssText = `display: flex; align-items: center; gap: 8px;`;
+    
+    const icon = document.createElement("span");
+    icon.textContent = "🎨";
+    icon.style.fontSize = "18px";
+    labelContainer.appendChild(icon);
+
+    const labelText = document.createElement("span");
+    labelText.textContent = "Theme";
+    labelText.style.cssText = `
+      color: #333333;
+      font-size: 14px;
+      font-weight: 500;
+    `;
+    labelContainer.appendChild(labelText);
+    container.appendChild(labelContainer);
+
+    // Theme selector buttons
+    const buttonGroup = document.createElement("div");
+    buttonGroup.style.cssText = `
+      display: flex;
+      gap: 4px;
+      background: #E8E8E8;
+      border-radius: 8px;
+      padding: 3px;
+    `;
+
+    const currentMode = UITheme.getInstance().getMode();
+
+    const createModeButton = (mode: ThemeMode, label: string, emoji: string) => {
+      const btn = document.createElement("button");
+      const isActive = currentMode === mode;
+      btn.innerHTML = `${emoji} ${label}`;
+      btn.style.cssText = `
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        background: ${isActive ? "#FFFFFF" : "transparent"};
+        color: ${isActive ? "#333333" : "#666666"};
+        box-shadow: ${isActive ? "0 1px 3px rgba(0, 0, 0, 0.1)" : "none"};
+      `;
+      
+      btn.addEventListener("click", () => {
+        UITheme.getInstance().setMode(mode);
+        // Refresh the settings panel to reflect new theme
+        this.hide();
+        setTimeout(() => this.show(this.onClose), 100);
+      });
+
+      return btn;
+    };
+
+    buttonGroup.appendChild(createModeButton("light", "Light", "☀️"));
+    buttonGroup.appendChild(createModeButton("dark", "Dark", "🌙"));
+    container.appendChild(buttonGroup);
 
     return container;
   }
