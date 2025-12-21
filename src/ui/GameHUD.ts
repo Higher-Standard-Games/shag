@@ -747,7 +747,7 @@ export class GameHUD {
     });
 
     // Listen for plant events
-    PlantSystem.getInstance().onPlantEvent((plantId, event, data) => {
+    PlantSystem.getInstance().onPlantEvent((_plantId, event, data) => {
       switch (event) {
         case "planted":
           this.showNotification(`Planted a new seed!`, "success");
@@ -775,10 +775,11 @@ export class GameHUD {
             this.showNotification(`A plant is ready to harvest!`, "success");
           }
           break;
-        // Hempire-style water prompt events
+        // Hempire-style water prompt events (disabled - using floating indicators instead)
         case "water_prompt_start":
-          const promptData = data as { timeRemaining: number; streak: number };
-          this.showWaterPrompt(plantId, promptData.timeRemaining, promptData.streak);
+          // Large overlay disabled - WaterPromptUI handles floating indicators
+          // const promptData = data as { timeRemaining: number; streak: number };
+          // this.showWaterPrompt(plantId, promptData.timeRemaining, promptData.streak);
           break;
         case "water_prompt_missed":
           this.hideWaterPrompt();
