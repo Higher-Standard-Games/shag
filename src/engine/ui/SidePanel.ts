@@ -225,36 +225,63 @@ export class SidePanel {
 
   // Static method to update all panel positions (stacking)
   private static updatePositions(): void {
-    const leftPanels: SidePanel[] = [];
-    const rightPanels: SidePanel[] = [];
-    
-    for (const panel of SidePanel.panels.values()) {
-      if (panel.isVisible()) {
-        if (panel.config.side === "left") {
-          leftPanels.push(panel);
-        } else {
-          rightPanels.push(panel);
+    // Use requestAnimationFrame to ensure DOM has updated before calculating heights
+    requestAnimationFrame(() => {
+      const leftPanels: SidePanel[] = [];
+      const rightPanels: SidePanel[] = [];
+      
+      for (const panel of SidePanel.panels.values()) {
+        if (panel.isVisible()) {
+          if (panel.config.side === "left") {
+            leftPanels.push(panel);
+          } else {
+            rightPanels.push(panel);
+          }
         }
       }
-    }
-    
-    // Sort by order
-    leftPanels.sort((a, b) => a.config.order - b.config.order);
-    rightPanels.sort((a, b) => a.config.order - b.config.order);
-    
-    // Position left panels
-    let topOffset = 70; // Below top bar
-    for (const panel of leftPanels) {
-      panel.container.style.top = `${topOffset}px`;
-      topOffset += panel.container.offsetHeight + 10;
-    }
-    
-    // Position right panels
-    topOffset = 70;
-    for (const panel of rightPanels) {
-      panel.container.style.top = `${topOffset}px`;
-      topOffset += panel.container.offsetHeight + 10;
-    }
+      
+      // Sort by order
+      leftPanels.sort((a, b) => a.config.order - b.config.order);
+      rightPanels.sort((a, b) => a.config.order - b.config.order);
+      
+      // Calculate available height (viewport height minus top bar and bottom bar)
+      const viewportHeight = window.innerHeight;
+      const topBarHeight = 70;
+      const bottomBarHeight = 140; // Approximate height of build bar
+      const maxBottomY = viewportHeight - bottomBarHeight;
+      
+      // Position left panels
+      let topOffset = topBarHeight;
+      for (const panel of leftPanels) {
+        panel.container.style.top = `${topOffset}px`;
+        
+        // Calculate remaining space for this panel
+        const remainingSpace = maxBottomY - topOffset - 10; // 10px margin
+        if (remainingSpace > 0) {
+          // Limit content height to fit in remaining space
+          const headerHeight = panel.headerEl.offsetHeight;
+          const maxContentHeight = Math.max(50, remainingSpace - headerHeight);
+          panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
+        }
+        
+        topOffset += panel.container.offsetHeight + 10;
+      }
+      
+      // Position right panels
+      topOffset = topBarHeight;
+      for (const panel of rightPanels) {
+        panel.container.style.top = `${topOffset}px`;
+        
+        const remainingSpace = maxBottomY - topOffset - 10;
+        if (remainingSpace > 0) {
+          const headerHeight = panel.headerEl.offsetHeight;
+          const maxContentHeight = Math.max(50, remainingSpace - headerHeight);
+          panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
+        }
+        
+        topOffset += panel.container.offsetHeight + 10;
+      }
+    });
   }
 
 
