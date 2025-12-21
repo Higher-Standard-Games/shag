@@ -3,6 +3,23 @@
  * Handles game time, timers, and scheduled events
  */
 
+/**
+ * Game speed modes
+ * - normal: 1.0x speed
+ * - fast: 2.0x speed (turbo mode)
+ * - debug: 10.0x speed (for testing, config-gated)
+ */
+export type GameSpeedMode = "normal" | "fast" | "debug";
+
+export const SPEED_MULTIPLIERS: Record<GameSpeedMode, number> = {
+  normal: 1.0,
+  fast: 2.0,
+  debug: 10.0,
+};
+
+// Config: Set to false to hide debug speed mode in production
+export const DEBUG_SPEED_ENABLED = true;
+
 export interface TimerEvent {
   id: string;
   callback: () => void;
@@ -28,6 +45,10 @@ export class GameTimer {
   private lastRealTime: number = 0;
   private isPaused: boolean = false;
 
+  // Speed mode (user-controlled turbo/debug)
+  private speedMode: GameSpeedMode = "normal";
+  private debugModeEnabled: boolean = false; // Set via config
+
   // Timers and tasks
   private timers: Map<string, TimerEvent> = new Map();
   private tasks: Map<string, ScheduledTask> = new Map();
@@ -38,6 +59,7 @@ export class GameTimer {
 
   private constructor() {
     this.lastRealTime = performance.now();
+    this.debugModeEnabled = DEBUG_SPEED_ENABLED;
   }
 
   public static getInstance(): GameTimer {
@@ -76,8 +98,9 @@ export class GameTimer {
     // Update real-time tracking
     this.realTimeElapsed += realDelta;
 
-    // Update game time (scaled)
-    const gameDelta = realDelta * this.gameTimeScale;
+    // Update game time (scaled by both gameTimeScale and speed multiplier)
+    const speedMultiplier = SPEED_MULTIPLIERS[this.speedMode];
+    const gameDelta = realDelta * this.gameTimeScale * speedMultiplier;
     this.gameTime += gameDelta;
 
     // Process timers
@@ -147,6 +170,70 @@ export class GameTimer {
 
   public getTimeScale(): number {
     return this.gameTimeScale;
+  }
+
+  // ==================== Speed Mode Control ====================
+
+  /**
+   * Enable or disable debug speed mode (call from config)
+   */
+  public setDebugModeEnabled(enabled: boolean): void {
+    this.debugModeEnabled = enabled;
+    // If debug mode is disabled and we're in debug, switch to normal
+    if (!enabled && this.speedMode === "debug") {
+      this.speedMode = "normal";
+    }
+  }
+
+  /**
+   * Check if debug mode is enabled
+   */
+  public isDebugModeEnabled(): boolean {
+    return this.debugModeEnabled;
+  }
+
+  /**
+   * Get current speed mode
+   */
+  public getSpeedMode(): GameSpeedMode {
+    return this.speedMode;
+  }
+
+  /**
+   * Set speed mode directly
+   */
+  public setSpeedMode(mode: GameSpeedMode): void {
+    if (mode === "debug" && !this.debugModeEnabled) {
+      console.warn("[GameTimer] Debug mode is disabled");
+      return;
+    }
+    this.speedMode = mode;
+  }
+
+  /**
+   * Cycle to next speed mode (Normal > Fast > Debug > Normal)
+   * Skips debug if not enabled
+   */
+  public cycleSpeedMode(): GameSpeedMode {
+    switch (this.speedMode) {
+      case "normal":
+        this.speedMode = "fast";
+        break;
+      case "fast":
+        this.speedMode = this.debugModeEnabled ? "debug" : "normal";
+        break;
+      case "debug":
+        this.speedMode = "normal";
+        break;
+    }
+    return this.speedMode;
+  }
+
+  /**
+   * Get current speed multiplier
+   */
+  public getSpeedMultiplier(): number {
+    return SPEED_MULTIPLIERS[this.speedMode];
   }
 
   public getGameTime(): number {

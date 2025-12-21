@@ -7,7 +7,7 @@ import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
-import { GameTimer } from "../game/GameTimer";
+import { GameTimer, type GameSpeedMode } from "../game/GameTimer";
 import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
 
@@ -87,6 +87,9 @@ export class GameHUD {
           <span id="hud-day" class="hud-day">Day 1</span>
           <span id="hud-clock" class="hud-clock">8:00 AM</span>
           <span id="hud-period" class="hud-period">☀️</span>
+          <button id="hud-speed-btn" class="hud-speed-btn" title="Toggle game speed">
+            <span class="speed-icon">▶</span>
+          </button>
         </div>
       </div>
 
@@ -286,6 +289,40 @@ export class GameHUD {
 
       .hud-period {
         font-size: 18px;
+      }
+
+      .hud-speed-btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        color: #fff;
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: 4px;
+      }
+
+      .hud-speed-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .hud-speed-btn.fast {
+        background: rgba(76, 175, 80, 0.4);
+        border-color: rgba(76, 175, 80, 0.6);
+        color: #8f8;
+      }
+
+      .hud-speed-btn.debug {
+        background: rgba(244, 67, 54, 0.4);
+        border-color: rgba(244, 67, 54, 0.6);
+        color: #f88;
+        animation: debugPulse 0.5s ease-in-out infinite;
+      }
+
+      @keyframes debugPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
       }
 
       .hud-quick-inventory {
@@ -656,6 +693,34 @@ export class GameHUD {
     this.updateHarvestButton();
   }
 
+  private updateSpeedButton(mode?: GameSpeedMode): void {
+    const speedBtn = this.container?.querySelector("#hud-speed-btn") as HTMLElement;
+    if (!speedBtn) return;
+
+    const currentMode = mode ?? GameTimer.getInstance().getSpeedMode();
+    const iconEl = speedBtn.querySelector(".speed-icon");
+
+    // Update icon and class based on mode
+    speedBtn.classList.remove("fast", "debug");
+    
+    switch (currentMode) {
+      case "normal":
+        if (iconEl) iconEl.textContent = "▶";
+        speedBtn.title = "Normal speed (1x)";
+        break;
+      case "fast":
+        speedBtn.classList.add("fast");
+        if (iconEl) iconEl.textContent = "▶▶";
+        speedBtn.title = "Fast speed (2x)";
+        break;
+      case "debug":
+        speedBtn.classList.add("debug");
+        if (iconEl) iconEl.textContent = "⚡";
+        speedBtn.title = "Debug speed (10x)";
+        break;
+    }
+  }
+
   private updateHarvestButton(): void {
     const harvestBtn = this.container?.querySelector("#hud-harvest-btn") as HTMLElement;
     if (!harvestBtn) return;
@@ -834,6 +899,13 @@ export class GameHUD {
         const target = urgent || harvestables[0];
         harvestIndicator.showHarvestPanel(target.plantId);
       }
+    });
+
+    // Speed toggle button
+    this.container?.querySelector("#hud-speed-btn")?.addEventListener("click", () => {
+      const gameTimer = GameTimer.getInstance();
+      const newMode = gameTimer.cycleSpeedMode();
+      this.updateSpeedButton(newMode);
     });
   }
 
