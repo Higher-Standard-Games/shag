@@ -166,10 +166,10 @@ export function createButton(config: ButtonConfig): HTMLButtonElement {
       btn.style.boxShadow = `0 4px 8px ${colors.shadow}`;
     });
 
-    // Click handler with sound
+    // Click handler with 3D button press sound
     btn.addEventListener("click", () => {
       if (playSound) {
-        AudioManager.getInstance().playClick();
+        AudioManager.getInstance().playButtonPress();
       }
       config.onClick();
     });

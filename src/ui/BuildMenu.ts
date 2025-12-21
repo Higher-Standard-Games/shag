@@ -81,38 +81,54 @@ export class BuildMenu {
       }
 
       .build-menu-container {
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 15px;
-        padding: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        background: #FAFAFA;
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       }
 
       .build-categories {
         display: flex;
-        gap: 5px;
-        margin-bottom: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 10px;
+        gap: 6px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #E0E0E0;
+        padding-bottom: 12px;
       }
 
       .build-category {
-        background: rgba(255, 255, 255, 0.1);
+        background: #F5F5F5;
         border: none;
-        color: white;
-        padding: 8px 15px;
+        border-bottom: 3px solid #CCCCCC;
+        color: #333333;
+        padding: 8px 16px;
         border-radius: 8px;
         cursor: pointer;
         font-size: 14px;
-        transition: all 0.2s;
+        font-weight: 500;
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
       }
 
       .build-category:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: #FFFFFF;
+        top: -1px;
+      }
+
+      .build-category:active {
+        top: 3px;
+        border-bottom-width: 0;
       }
 
       .build-category.active {
-        background: linear-gradient(135deg, #4CAF50, #45a049);
+        background: #4CAF50;
+        border-bottom-color: #3D9140;
+        color: #FFFFFF;
+      }
+
+      .build-category.active:hover {
+        background: #5CBF60;
       }
 
       .build-items {
@@ -128,23 +144,25 @@ export class BuildMenu {
         display: flex;
         flex-direction: column;
         align-items: center;
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid transparent;
+        background: #FFFFFF;
+        border: 2px solid #E0E0E0;
         border-radius: 10px;
         padding: 10px 15px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
         min-width: 80px;
       }
 
       .build-item:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-3px);
+        background: #F5F5F5;
+        border-color: #CCCCCC;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .build-item.selected {
         border-color: #4CAF50;
-        background: rgba(76, 175, 80, 0.3);
+        background: #E8F5E9;
       }
 
       .build-item.locked {
@@ -154,6 +172,7 @@ export class BuildMenu {
 
       .build-item.locked:hover {
         transform: none;
+        box-shadow: none;
       }
 
       .build-item-icon {
@@ -162,20 +181,22 @@ export class BuildMenu {
       }
 
       .build-item-name {
-        color: white;
+        color: #333333;
         font-size: 12px;
+        font-weight: 500;
         text-align: center;
         white-space: nowrap;
       }
 
       .build-item-cost {
-        color: #ffd700;
+        color: #2E7D32;
         font-size: 11px;
+        font-weight: 600;
         margin-top: 3px;
       }
 
       .build-item-level {
-        color: #ff6b6b;
+        color: #D32F2F;
         font-size: 10px;
         margin-top: 2px;
       }
@@ -186,31 +207,42 @@ export class BuildMenu {
         align-items: center;
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid #E0E0E0;
       }
 
       .status-text {
-        color: rgba(255, 255, 255, 0.7);
+        color: #666666;
         font-size: 13px;
       }
 
       .status-text.active {
-        color: #4CAF50;
+        color: #2E7D32;
+        font-weight: 500;
       }
 
       .cancel-build {
-        background: rgba(244, 67, 54, 0.3);
-        border: 1px solid #f44336;
-        color: white;
-        padding: 5px 15px;
-        border-radius: 5px;
+        background: #FFEBEE;
+        border: none;
+        border-bottom: 3px solid #EF9A9A;
+        color: #D32F2F;
+        padding: 6px 16px;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 12px;
-        transition: background 0.2s;
+        font-weight: 500;
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
       }
 
       .cancel-build:hover {
-        background: rgba(244, 67, 54, 0.5);
+        background: #FFCDD2;
+        top: -1px;
+      }
+
+      .cancel-build:active {
+        top: 3px;
+        border-bottom-width: 0;
       }
     `;
   }

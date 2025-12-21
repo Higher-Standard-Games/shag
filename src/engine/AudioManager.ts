@@ -162,10 +162,17 @@ export class AudioManager {
   }
 
   /**
-   * Play UI click sound
+   * Play general UI click sound (for taps, selections, etc.)
    */
   public playClick(): void {
     this.playSfx("ui_click", 0.5);
+  }
+
+  /**
+   * Play 3D button press sound (deeper, more tactile)
+   */
+  public playButtonPress(): void {
+    this.playSfx("button_press", 0.6);
   }
 
   public setSfxVolume(volume: number): void {

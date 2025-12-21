@@ -115,14 +115,13 @@ export class MainMenu {
     const saveSlots = state.getSaveSlots();
     const hasSaves = saveSlots.some(s => s.exists);
 
-    // Continue button (if autosave exists)
+    // Continue button (if autosave exists) - primary green style
     if (hasAutoSave) {
       const continueBtn = this.createButton("Continue", () => {
         this.hide();
         state.loadAutoSave();
         this.callbacks.onContinue?.() || this.callbacks.onLoadGame(-1);
-      });
-      continueBtn.style.background = "rgba(100, 200, 100, 0.2)";
+      }, "primary");
       buttons.appendChild(continueBtn);
     }
 
@@ -163,7 +162,7 @@ export class MainMenu {
     const state = GameState.getInstance();
     const slots = state.getSaveSlots();
     
-    // Create modal overlay
+    // Create modal overlay with light panel
     const modal = document.createElement("div");
     modal.style.cssText = `
       position: fixed;
@@ -171,7 +170,8 @@ export class MainMenu {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -179,24 +179,34 @@ export class MainMenu {
       z-index: 200;
     `;
 
+    // Light panel container
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #FAFAFA;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+    `;
+
     const title = document.createElement("h2");
     title.textContent = "Load Game";
     title.style.cssText = `
-      color: #fff;
-      font-size: 2rem;
-      margin-bottom: 2rem;
-      font-weight: 300;
-      letter-spacing: 0.2em;
+      color: #333333;
+      font-size: 1.75rem;
+      margin: 0 0 1.5rem 0;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-align: center;
     `;
-    modal.appendChild(title);
+    panel.appendChild(title);
 
     const slotsContainer = document.createElement("div");
     slotsContainer.style.cssText = `
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      max-width: 500px;
-      width: 90%;
+      gap: 12px;
     `;
 
     for (const slot of slots) {
@@ -204,13 +214,14 @@ export class MainMenu {
       
       const slotBtn = document.createElement("button");
       slotBtn.style.cssText = `
-        padding: 1.5rem;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
+        padding: 16px;
+        background: #FFFFFF;
+        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        color: #333333;
         cursor: pointer;
         text-align: left;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
       `;
 
       const slotName = slot.isAutoSave ? "Autosave" : `Slot ${slot.slot + 1}`;
@@ -218,22 +229,25 @@ export class MainMenu {
       const lastSaved = slot.lastSaved ? new Date(slot.lastSaved).toLocaleString() : "Unknown";
       
       slotBtn.innerHTML = `
-        <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">${slotName}</div>
-        <div style="font-size: 0.9rem; color: #aaa;">
+        <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; color: #333333;">${slotName}</div>
+        <div style="font-size: 0.9rem; color: #666666;">
           Level ${slot.level || 1} • $${(slot.money || 0).toLocaleString()} • Day ${slot.day || 1}
         </div>
-        <div style="font-size: 0.8rem; color: #888; margin-top: 0.25rem;">
+        <div style="font-size: 0.8rem; color: #888888; margin-top: 4px;">
           ${playTime} played • ${lastSaved}
         </div>
       `;
 
       slotBtn.addEventListener("mouseenter", () => {
-        slotBtn.style.background = "rgba(255, 255, 255, 0.2)";
+        slotBtn.style.background = "#F5F5F5";
+        slotBtn.style.borderColor = "#CCCCCC";
       });
       slotBtn.addEventListener("mouseleave", () => {
-        slotBtn.style.background = "rgba(255, 255, 255, 0.1)";
+        slotBtn.style.background = "#FFFFFF";
+        slotBtn.style.borderColor = "#E0E0E0";
       });
       slotBtn.addEventListener("click", () => {
+        AudioManager.getInstance().playButtonPress();
         modal.remove();
         this.hide();
         if (slot.isAutoSave) {
@@ -247,21 +261,24 @@ export class MainMenu {
       slotsContainer.appendChild(slotBtn);
     }
 
-    modal.appendChild(slotsContainer);
+    panel.appendChild(slotsContainer);
 
     // Back button
     const backBtn = this.createButton("Back", () => {
       modal.remove();
     });
-    backBtn.style.marginTop = "2rem";
-    modal.appendChild(backBtn);
+    backBtn.style.marginTop = "1.5rem";
+    backBtn.style.width = "100%";
+    panel.appendChild(backBtn);
 
+    modal.appendChild(panel);
     document.body.appendChild(modal);
   }
 
   private showNewGameSlotPicker(): void {
     const state = GameState.getInstance();
     
+    // Create modal overlay with light panel
     const modal = document.createElement("div");
     modal.style.cssText = `
       position: fixed;
@@ -269,7 +286,8 @@ export class MainMenu {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -277,24 +295,34 @@ export class MainMenu {
       z-index: 200;
     `;
 
+    // Light panel container
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #FAFAFA;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+    `;
+
     const title = document.createElement("h2");
     title.textContent = "Choose Save Slot";
     title.style.cssText = `
-      color: #fff;
-      font-size: 2rem;
-      margin-bottom: 2rem;
-      font-weight: 300;
-      letter-spacing: 0.2em;
+      color: #333333;
+      font-size: 1.75rem;
+      margin: 0 0 1.5rem 0;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-align: center;
     `;
-    modal.appendChild(title);
+    panel.appendChild(title);
 
     const slotsContainer = document.createElement("div");
     slotsContainer.style.cssText = `
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      max-width: 500px;
-      width: 90%;
+      gap: 12px;
     `;
 
     for (let i = 0; i < 3; i++) {
@@ -302,37 +330,41 @@ export class MainMenu {
       
       const slotBtn = document.createElement("button");
       slotBtn.style.cssText = `
-        padding: 1.5rem;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #fff;
+        padding: 16px;
+        background: #FFFFFF;
+        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        color: #333333;
         cursor: pointer;
         text-align: left;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
       `;
 
       if (existingSlot?.exists) {
         const playTime = this.formatPlayTime(existingSlot.playTime || 0);
         slotBtn.innerHTML = `
-          <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">Slot ${i + 1} (Overwrite)</div>
-          <div style="font-size: 0.9rem; color: #f88;">
+          <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; color: #333333;">Slot ${i + 1} (Overwrite)</div>
+          <div style="font-size: 0.9rem; color: #D32F2F;">
             Level ${existingSlot.level || 1} • $${(existingSlot.money || 0).toLocaleString()} • ${playTime}
           </div>
         `;
       } else {
         slotBtn.innerHTML = `
-          <div style="font-size: 1.2rem;">Slot ${i + 1}</div>
-          <div style="font-size: 0.9rem; color: #888;">Empty</div>
+          <div style="font-size: 1.1rem; font-weight: 500; color: #333333;">Slot ${i + 1}</div>
+          <div style="font-size: 0.9rem; color: #666666;">Empty</div>
         `;
       }
 
       slotBtn.addEventListener("mouseenter", () => {
-        slotBtn.style.background = "rgba(255, 255, 255, 0.2)";
+        slotBtn.style.background = "#F5F5F5";
+        slotBtn.style.borderColor = "#CCCCCC";
       });
       slotBtn.addEventListener("mouseleave", () => {
-        slotBtn.style.background = "rgba(255, 255, 255, 0.1)";
+        slotBtn.style.background = "#FFFFFF";
+        slotBtn.style.borderColor = "#E0E0E0";
       });
       slotBtn.addEventListener("click", () => {
+        AudioManager.getInstance().playButtonPress();
         modal.remove();
         this.hide();
         state.newGame(i);
@@ -342,13 +374,16 @@ export class MainMenu {
       slotsContainer.appendChild(slotBtn);
     }
 
-    modal.appendChild(slotsContainer);
+    panel.appendChild(slotsContainer);
 
     const backBtn = this.createButton("Back", () => {
       modal.remove();
     });
-    backBtn.style.marginTop = "2rem";
-    modal.appendChild(backBtn);
+    backBtn.style.marginTop = "1.5rem";
+    backBtn.style.width = "100%";
+    panel.appendChild(backBtn);
+
+    modal.appendChild(panel);
 
     document.body.appendChild(modal);
   }
@@ -362,36 +397,69 @@ export class MainMenu {
     return `${minutes}m`;
   }
 
-  private createButton(text: string, onClick: () => void): HTMLButtonElement {
+  private createButton(text: string, onClick: () => void, variant: "primary" | "secondary" = "secondary"): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.textContent = text;
+    
+    const isPrimary = variant === "primary";
+    const bg = isPrimary ? "#4CAF50" : "#F5F5F5";
+    const bgHover = isPrimary ? "#5CBF60" : "#FFFFFF";
+    const bgActive = isPrimary ? "#3D9140" : "#E8E8E8";
+    const border = isPrimary ? "#3D9140" : "#CCCCCC";
+    const textColor = isPrimary ? "#FFFFFF" : "#333333";
+    const shadow = isPrimary ? "rgba(61, 145, 64, 0.3)" : "rgba(0, 0, 0, 0.1)";
+    
     btn.style.cssText = `
-      padding: 1rem 3rem;
-      font-size: 1.125rem;
-      font-weight: 400;
-      letter-spacing: 0.15em;
+      padding: 14px 40px;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #fff;
+      background: ${bg};
+      border: none;
+      border-bottom: 4px solid ${border};
+      border-radius: 8px;
+      color: ${textColor};
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.1s ease;
       min-width: 250px;
+      box-shadow: 0 2px 4px ${shadow};
+      position: relative;
+      top: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     `;
 
     btn.addEventListener("mouseenter", () => {
-      btn.style.background = "rgba(255, 255, 255, 0.2)";
-      btn.style.borderColor = "rgba(255, 255, 255, 0.4)";
-      btn.style.transform = "scale(1.02)";
+      btn.style.background = bgHover;
+      btn.style.top = "-1px";
+      btn.style.boxShadow = `0 4px 8px ${shadow}`;
     });
 
     btn.addEventListener("mouseleave", () => {
-      btn.style.background = "rgba(255, 255, 255, 0.1)";
-      btn.style.borderColor = "rgba(255, 255, 255, 0.2)";
-      btn.style.transform = "scale(1)";
+      btn.style.background = bg;
+      btn.style.top = "0";
+      btn.style.boxShadow = `0 2px 4px ${shadow}`;
+      btn.style.borderBottomWidth = "4px";
     });
 
-    btn.addEventListener("click", onClick);
+    btn.addEventListener("mousedown", () => {
+      btn.style.background = bgActive;
+      btn.style.top = "4px";
+      btn.style.borderBottomWidth = "0px";
+      btn.style.boxShadow = `0 0 2px ${shadow}`;
+    });
+
+    btn.addEventListener("mouseup", () => {
+      btn.style.background = bgHover;
+      btn.style.top = "-1px";
+      btn.style.borderBottomWidth = "4px";
+      btn.style.boxShadow = `0 4px 8px ${shadow}`;
+    });
+
+    btn.addEventListener("click", () => {
+      AudioManager.getInstance().playButtonPress();
+      onClick();
+    });
     return btn;
   }
 
