@@ -537,11 +537,12 @@ export class GameHUD {
         padding: 12px 15px;
         background: #E8F5E9;
         border-bottom: 1px solid #C8E6C9;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .plant-name {
-        font-weight: 600;
-        font-size: 16px;
+        font-weight: 700;
+        font-size: 17px;
         color: #2E7D32;
       }
 
@@ -563,6 +564,7 @@ export class GameHUD {
       .plant-info-body {
         padding: 15px;
         background: #FFFFFF;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .plant-stat {
@@ -572,11 +574,13 @@ export class GameHUD {
         margin-bottom: 10px;
         font-size: 14px;
         color: #333333;
+        font-weight: 600;
       }
 
       .plant-stat span {
         width: 60px;
-        color: #666666;
+        color: #333333;
+        font-weight: 600;
       }
 
       .plant-bar {
@@ -612,15 +616,17 @@ export class GameHUD {
 
       .plant-action-btn {
         flex: 1;
-        padding: 8px;
+        padding: 10px 8px;
         border: none;
         border-bottom: 3px solid #3D9140;
-        border-radius: 6px;
+        border-radius: 8px;
         background: #4CAF50;
         color: white;
         cursor: pointer;
         transition: all 0.1s ease;
-        font-weight: 500;
+        font-weight: 600;
+        font-size: 13px;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
         position: relative;
         top: 0;
       }
@@ -652,7 +658,8 @@ export class GameHUD {
       /* Pot info */
       .pot-name {
         flex: 1;
-        color: #aaa;
+        color: #666666;
+        font-weight: 500;
       }
 
       /* Water prompt overlay */
