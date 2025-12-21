@@ -16,7 +16,7 @@ export class LoadingScreen {
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
+      background: #000000;
       display: flex;
       flex-direction: column;
       justify-content: center;

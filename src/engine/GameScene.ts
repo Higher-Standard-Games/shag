@@ -1018,7 +1018,21 @@ export class GameScene {
   }
 
   public dispose(): void {
+    // Hide all game UI
     GameHUD.getInstance().hide();
+    
+    // Hide side panels
+    this.questPanel?.hide();
+    this.orderPanel?.hide();
+    this.eventsPanel?.hide();
+    
+    // Hide bottom bar
+    this.bottomBar?.hide();
+    
+    // Remove game-active class
+    document.body.classList.remove("game-active");
+    
+    // Save game state
     GameState.getInstance().save();
     
     if (this.scene) {
