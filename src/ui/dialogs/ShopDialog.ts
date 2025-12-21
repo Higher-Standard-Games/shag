@@ -55,24 +55,24 @@ export class ShopDialog extends BaseDialog {
           align-items: center;
           gap: 12px;
           padding: 12px;
-          background: rgba(255, 255, 255, 0.05);
+          background: #FFFFFF;
           border-radius: 8px;
           margin-bottom: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid #E0E0E0;
           ${!canBuy || !inStock ? 'opacity: 0.6;' : ''}
         ">
           <div style="font-size: 2rem; width: 48px; text-align: center;">${item.icon}</div>
           <div style="flex: 1;">
-            <div style="font-weight: 500; color: #fff; margin-bottom: 4px;">
+            <div style="font-weight: 500; color: #333333; margin-bottom: 4px;">
               ${item.name}
-              ${item.quantity > 1 ? `<span style="color: #888; font-size: 0.85rem;">(x${item.quantity})</span>` : ''}
+              ${item.quantity > 1 ? `<span style="color: #666666; font-size: 0.85rem;">(x${item.quantity})</span>` : ''}
             </div>
-            <div style="font-size: 0.85rem; color: #aaa;">${item.description}</div>
-            ${!meetsLevel ? `<div style="font-size: 0.8rem; color: #ff6b6b; margin-top: 4px;">Requires Level ${item.requiredLevel}</div>` : ''}
-            ${!inStock ? `<div style="font-size: 0.8rem; color: #ff6b6b; margin-top: 4px;">Out of Stock</div>` : ''}
+            <div style="font-size: 0.85rem; color: #666666;">${item.description}</div>
+            ${!meetsLevel ? `<div style="font-size: 0.8rem; color: #D32F2F; margin-top: 4px;">Requires Level ${item.requiredLevel}</div>` : ''}
+            ${!inStock ? `<div style="font-size: 0.8rem; color: #D32F2F; margin-top: 4px;">Out of Stock</div>` : ''}
           </div>
           <div style="text-align: right;">
-            <div style="color: ${canAfford ? '#4ade80' : '#ff6b6b'}; font-weight: 600; margin-bottom: 8px;">
+            <div style="color: ${canAfford ? '#2E7D32' : '#D32F2F'}; font-weight: 600; margin-bottom: 8px;">
               $${item.price}
             </div>
             <button 
@@ -82,12 +82,13 @@ export class ShopDialog extends BaseDialog {
               style="
                 padding: 6px 16px;
                 font-size: 0.85rem;
-                font-weight: 500;
+                font-weight: 600;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 cursor: ${canBuy && inStock ? 'pointer' : 'not-allowed'};
-                background: ${canBuy && inStock ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)' : 'rgba(255, 255, 255, 0.1)'};
-                color: ${canBuy && inStock ? '#000' : '#666'};
+                background: ${canBuy && inStock ? '#4CAF50' : '#E0E0E0'};
+                border-bottom: ${canBuy && inStock ? '3px solid #3D9140' : '3px solid #CCCCCC'};
+                color: ${canBuy && inStock ? '#fff' : '#999'};
                 transition: all 0.15s ease;
               "
             >Buy</button>
@@ -98,8 +99,8 @@ export class ShopDialog extends BaseDialog {
 
     return `
       <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #888;">Your Money:</span>
-        <span style="color: #4ade80; font-weight: 600; font-size: 1.1rem;">$${playerMoney}</span>
+        <span style="color: #666666;">Your Money:</span>
+        <span style="color: #2E7D32; font-weight: 600; font-size: 1.1rem;">$${playerMoney}</span>
       </div>
       <div class="shop-items" style="max-height: 400px; overflow-y: auto;">
         ${itemsHTML}

@@ -64,7 +64,7 @@ export abstract class BaseDialog {
     `;
     document.body.appendChild(this.backdrop);
 
-    // Create dialog container
+    // Create dialog container - Light theme
     this.element = document.createElement("div");
     this.element.id = `dialog-${this.id}`;
     this.element.className = "game-dialog";
@@ -77,13 +77,12 @@ export abstract class BaseDialog {
       max-width: ${this.options.maxWidth};
       height: 70vh;
       max-height: 85vh;
-      background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #FAFAFA;
+      border: 1px solid #E0E0E0;
       border-radius: 12px;
       box-shadow: 
-        0 25px 50px -12px rgba(0, 0, 0, 0.8),
-        0 0 0 1px rgba(255, 255, 255, 0.05),
-        0 0 80px rgba(100, 100, 255, 0.1);
+        0 25px 50px -12px rgba(0, 0, 0, 0.15),
+        0 4px 16px rgba(0, 0, 0, 0.1);
       z-index: 1000;
       display: flex;
       flex-direction: column;
@@ -127,20 +126,20 @@ export abstract class BaseDialog {
     const title = this.getTitle(context);
 
     return `
-      <!-- Header -->
+      <!-- Header - Light theme -->
       <div class="dialog-header" style="
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 16px 20px;
-        background: rgba(0, 0, 0, 0.3);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: #F5F5F5;
+        border-bottom: 1px solid #E0E0E0;
       ">
         <h2 style="
           margin: 0;
           font-size: 1.25rem;
-          font-weight: 500;
-          color: #fff;
+          font-weight: 600;
+          color: #333333;
           letter-spacing: 0.02em;
         ">${title}</h2>
         ${this.options.showCloseButton ? `
@@ -148,9 +147,9 @@ export abstract class BaseDialog {
             width: 32px;
             height: 32px;
             border: none;
-            background: rgba(255, 255, 255, 0.1);
+            background: #E8E8E8;
             border-radius: 6px;
-            color: #888;
+            color: #666666;
             font-size: 1.25rem;
             cursor: pointer;
             display: flex;
@@ -163,11 +162,11 @@ export abstract class BaseDialog {
         ` : ""}
       </div>
 
-      <!-- Body -->
+      <!-- Body - Light theme -->
       <div class="dialog-body" style="
         padding: 20px;
         overflow-y: auto;
-        color: #e0e0e0;
+        color: #333333;
         line-height: 1.6;
       ">
         ${this.getBodyHTML(context)}
@@ -180,12 +179,12 @@ export abstract class BaseDialog {
     if (closeBtn) {
       closeBtn.addEventListener("click", () => this.close());
       closeBtn.addEventListener("mouseenter", () => {
-        closeBtn.style.background = "rgba(255, 100, 100, 0.3)";
-        closeBtn.style.color = "#ff6b6b";
+        closeBtn.style.background = "#FFDDDD";
+        closeBtn.style.color = "#D32F2F";
       });
       closeBtn.addEventListener("mouseleave", () => {
-        closeBtn.style.background = "rgba(255, 255, 255, 0.1)";
-        closeBtn.style.color = "#888";
+        closeBtn.style.background = "#E8E8E8";
+        closeBtn.style.color = "#666666";
       });
     }
   }
@@ -276,12 +275,14 @@ export abstract class BaseDialog {
         cursor: pointer;
         transition: all 0.15s ease;
         ${isPrimary
-          ? `background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          ? `background: #4CAF50;
              color: #fff;
-             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);`
-          : `background: rgba(255, 255, 255, 0.1);
-             color: #ccc;
-             border: 1px solid rgba(255, 255, 255, 0.2);`
+             border-bottom: 4px solid #3D9140;
+             box-shadow: 0 2px 4px rgba(61, 145, 64, 0.3);`
+          : `background: #F5F5F5;
+             color: #333333;
+             border: 1px solid #CCCCCC;
+             border-bottom: 4px solid #CCCCCC;`
         }
       ">${text}</button>
     `;

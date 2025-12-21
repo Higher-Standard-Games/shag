@@ -57,7 +57,7 @@ export class ConfirmDialog {
     );
     this.overlay.show();
 
-    // Create panel
+    // Create panel - Light theme
     this.panel = document.createElement("div");
     this.panel.className = "ui-confirm-panel";
     this.panel.style.cssText = `
@@ -65,14 +65,14 @@ export class ConfirmDialog {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #FAFAFA;
+      border: 1px solid #E0E0E0;
       border-radius: 16px;
       padding: 32px 40px;
       max-width: 400px;
       width: 90%;
       text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
       z-index: ${UIManager.getInstance().getZIndex("CONFIRM") + 1};
       animation: uiScaleIn 0.2s ease;
       font-family: 'Segoe UI', system-ui, sans-serif;
@@ -82,9 +82,9 @@ export class ConfirmDialog {
     const titleEl = document.createElement("h3");
     titleEl.textContent = title;
     titleEl.style.cssText = `
-      color: #fff;
+      color: #333333;
       font-size: 1.5rem;
-      font-weight: 400;
+      font-weight: 600;
       margin: 0 0 12px 0;
     `;
     this.panel.appendChild(titleEl);
@@ -93,7 +93,7 @@ export class ConfirmDialog {
     const messageEl = document.createElement("p");
     messageEl.textContent = message;
     messageEl.style.cssText = `
-      color: #aaa;
+      color: #666666;
       font-size: 1rem;
       margin: 0 0 24px 0;
       line-height: 1.5;

@@ -27,7 +27,7 @@ export class CuringDialog extends BaseDialog {
     // Fresh Storage Section - clickable list items
     let freshHTML = "";
     if (freshItems.length === 0) {
-      freshHTML = `<div style="color: #888; text-align: center; padding: 20px;">No fresh harvest in storage</div>`;
+      freshHTML = `<div style="color: #666666; text-align: center; padding: 20px;">No fresh harvest in storage</div>`;
     } else {
       freshHTML = freshItems.map(item => {
         const strain = PlantSystem.getInstance().getStrain(item.strainId);
@@ -42,25 +42,25 @@ export class CuringDialog extends BaseDialog {
             align-items: center;
             gap: 12px;
             padding: 12px;
-            background: ${isSelected ? "rgba(74, 222, 128, 0.2)" : "rgba(255, 255, 255, 0.05)"};
+            background: ${isSelected ? "#E8F5E9" : "#FFFFFF"};
             border-radius: 8px;
             margin-bottom: 8px;
-            border: 2px solid ${isSelected ? "#4ade80" : "rgba(255, 255, 255, 0.1)"};
+            border: 2px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
             cursor: pointer;
             transition: all 0.2s;
           ">
             <div style="font-size: 1.5rem;">🌿</div>
             <div style="flex: 1;">
-              <div style="font-weight: 500; color: #fff;">
-                ${strain?.name ?? item.strainId} <span style="color: #888;">(${item.amount}g)</span>
+              <div style="font-weight: 500; color: #333333;">
+                ${strain?.name ?? item.strainId} <span style="color: #666666;">(${item.amount}g)</span>
               </div>
-              <div style="font-size: 0.85rem; color: #aaa;">
+              <div style="font-size: 0.85rem; color: #666666;">
                 Quality: ${item.quality}% | Value: $${item.valuePerGram}/g
               </div>
               <div style="margin-top: 4px;">
                 <div style="
                   height: 4px;
-                  background: rgba(255,255,255,0.1);
+                  background: #E0E0E0;
                   border-radius: 2px;
                   overflow: hidden;
                 ">
@@ -76,7 +76,7 @@ export class CuringDialog extends BaseDialog {
                 </div>
               </div>
             </div>
-            ${isSelected ? `<div style="color: #4ade80; font-size: 1.2rem;">✓</div>` : ""}
+            ${isSelected ? `<div style="color: #4CAF50; font-size: 1.2rem;">✓</div>` : ""}
           </div>
         `;
       }).join("");
@@ -85,7 +85,7 @@ export class CuringDialog extends BaseDialog {
     // Barrels Section - clickable list items
     let barrelsHTML = "";
     if (barrels.length === 0) {
-      barrelsHTML = `<div style="color: #888; text-align: center; padding: 20px;">No curing barrels owned. Buy one from the Supplies Store!</div>`;
+      barrelsHTML = `<div style="color: #666666; text-align: center; padding: 20px;">No curing barrels owned. Buy one from the Supplies Store!</div>`;
     } else {
       barrelsHTML = barrels.map(barrel => {
         const slot = barrel.slot;
@@ -101,16 +101,16 @@ export class CuringDialog extends BaseDialog {
           return `
             <div class="barrel-item" style="
               padding: 16px;
-              background: rgba(255, 255, 255, 0.05);
+              background: #FFFFFF;
               border-radius: 8px;
               margin-bottom: 8px;
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid #E0E0E0;
             ">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="font-size: 2rem;">🛢️</div>
                 <div style="flex: 1;">
-                  <div style="font-weight: 500; color: #fff;">${barrel.template.name}</div>
-                  <div style="font-size: 0.85rem; color: #888;">
+                  <div style="font-weight: 500; color: #333333;">${barrel.template.name}</div>
+                  <div style="font-size: 0.85rem; color: #666666;">
                     Curing: ${strain?.name ?? slot.strainId} (${slot.amount}g)
                   </div>
                 </div>
@@ -118,7 +118,7 @@ export class CuringDialog extends BaseDialog {
               <div style="margin-top: 8px;">
                 <div style="
                   height: 6px;
-                  background: rgba(255,255,255,0.1);
+                  background: #E0E0E0;
                   border-radius: 3px;
                   overflow: hidden;
                 ">
@@ -133,16 +133,17 @@ export class CuringDialog extends BaseDialog {
                   <button class="collect-btn" data-slot-id="${slot.id}" style="
                     margin-top: 8px;
                     padding: 8px 20px;
-                    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+                    background: #4CAF50;
                     border: none;
+                    border-bottom: 3px solid #3D9140;
                     border-radius: 6px;
-                    color: #000;
+                    color: #fff;
                     font-weight: 600;
                     cursor: pointer;
                     width: 100%;
                   ">✓ Collect Cured Product</button>
                 ` : `
-                  <div style="font-size: 0.8rem; color: #888; margin-top: 4px; text-align: center;">
+                  <div style="font-size: 0.8rem; color: #666666; margin-top: 4px; text-align: center;">
                     ${Math.round(progress?.progress ?? 0)}% complete
                   </div>
                 `}
@@ -154,25 +155,25 @@ export class CuringDialog extends BaseDialog {
           return `
             <div class="barrel-item selectable-barrel ${isSelected ? "selected" : ""}" data-barrel-id="${barrel.id}" style="
               padding: 16px;
-              background: ${isSelected ? "rgba(96, 165, 250, 0.2)" : "rgba(255, 255, 255, 0.05)"};
+              background: ${isSelected ? "#E3F2FD" : "#FFFFFF"};
               border-radius: 8px;
               margin-bottom: 8px;
-              border: 2px solid ${isSelected ? "#60a5fa" : "rgba(255, 255, 255, 0.1)"};
+              border: 2px solid ${isSelected ? "#2196F3" : "#E0E0E0"};
               cursor: pointer;
               transition: all 0.2s;
             ">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="font-size: 2rem;">🛢️</div>
                 <div style="flex: 1;">
-                  <div style="font-weight: 500; color: #fff;">${barrel.template.name}</div>
-                  <div style="font-size: 0.85rem; color: #888;">
+                  <div style="font-weight: 500; color: #333333;">${barrel.template.name}</div>
+                  <div style="font-size: 0.85rem; color: #666666;">
                     Capacity: ${barrel.template.capacity}g | 
                     Speed: ${barrel.template.speedMultiplier === 1 ? "Normal" : `${Math.round((1 / barrel.template.speedMultiplier) * 100 - 100)}% faster`}
                   </div>
                 </div>
-                ${isSelected ? `<div style="color: #60a5fa; font-size: 1.2rem;">✓</div>` : ""}
+                ${isSelected ? `<div style="color: #2196F3; font-size: 1.2rem;">✓</div>` : ""}
               </div>
-              <div style="margin-top: 8px; color: ${isEmpty ? "#4ade80" : "#888"}; font-size: 0.9rem;">
+              <div style="margin-top: 8px; color: ${isEmpty ? "#4CAF50" : "#666666"}; font-size: 0.9rem;">
                 ${isSelected ? "Selected - choose a harvest" : "Tap to select"}
               </div>
             </div>
@@ -198,21 +199,22 @@ export class CuringDialog extends BaseDialog {
           <div style="
             margin-top: 16px;
             padding: 16px;
-            background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(59, 130, 246, 0.1));
+            background: #E3F2FD;
             border-radius: 8px;
-            border: 1px solid rgba(96, 165, 250, 0.3);
+            border: 1px solid #BBDEFB;
           ">
-            <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">
+            <div style="font-weight: 600; color: #333333; margin-bottom: 8px;">
               Ready to Cure
             </div>
-            <div style="font-size: 0.9rem; color: #aaa; margin-bottom: 12px;">
+            <div style="font-size: 0.9rem; color: #666666; margin-bottom: 12px;">
               ${strain?.name ?? freshItem.strainId}: ${amountToCure}g → ${barrel.template.name}
-              ${willSplit ? `<br><span style="color: #fbbf24;">⚠️ ${remaining}g will remain in storage</span>` : ""}
+              ${willSplit ? `<br><span style="color: #E65100;">⚠️ ${remaining}g will remain in storage</span>` : ""}
             </div>
             <button class="start-cure-action-btn" style="
               padding: 10px 24px;
-              background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+              background: #2196F3;
               border: none;
+              border-bottom: 4px solid #1565C0;
               border-radius: 6px;
               color: #fff;
               font-weight: 600;
@@ -228,23 +230,23 @@ export class CuringDialog extends BaseDialog {
     return `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
-          <h3 style="margin: 0 0 12px 0; color: #fff; font-size: 1rem;">
+          <h3 style="margin: 0 0 12px 0; color: #333333; font-size: 1rem;">
             🌿 Fresh Storage
-            <span style="font-size: 0.8rem; color: #888; font-weight: normal;">
+            <span style="font-size: 0.8rem; color: #666666; font-weight: normal;">
               (tap to select)
             </span>
           </h3>
           <div style="max-height: 300px; overflow-y: auto;">
             ${freshHTML}
           </div>
-          <div style="margin-top: 8px; font-size: 0.8rem; color: #888;">
+          <div style="margin-top: 8px; font-size: 0.8rem; color: #666666;">
             ⚠️ Fresh harvest decays! Cure it before it spoils.
           </div>
         </div>
         <div>
-          <h3 style="margin: 0 0 12px 0; color: #fff; font-size: 1rem;">
+          <h3 style="margin: 0 0 12px 0; color: #333333; font-size: 1rem;">
             🛢️ Curing Barrels
-            <span style="font-size: 0.8rem; color: #888; font-weight: normal;">
+            <span style="font-size: 0.8rem; color: #666666; font-weight: normal;">
               (tap empty barrel)
             </span>
           </h3>

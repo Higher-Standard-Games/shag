@@ -112,7 +112,7 @@ export class SettingsPanel {
     );
     this.overlay.show();
 
-    // Create panel
+    // Create panel - Light theme
     this.panel = document.createElement("div");
     this.panel.id = "settings-panel";
     this.panel.style.cssText = `
@@ -120,13 +120,13 @@ export class SettingsPanel {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #FAFAFA;
+      border: 1px solid #E0E0E0;
       border-radius: 16px;
       padding: 32px 48px;
       min-width: 400px;
       max-width: 500px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
       z-index: ${UIManager.getInstance().getZIndex("SETTINGS") + 1};
       animation: uiScaleIn 0.2s ease;
       font-family: 'Segoe UI', system-ui, sans-serif;
@@ -136,10 +136,10 @@ export class SettingsPanel {
     const title = document.createElement("h2");
     title.textContent = "Settings";
     title.style.cssText = `
-      color: #fff;
+      color: #333333;
       font-size: 2rem;
-      font-weight: 300;
-      letter-spacing: 0.2em;
+      font-weight: 600;
+      letter-spacing: 0.1em;
       text-align: center;
       margin: 0 0 32px 0;
     `;
@@ -252,7 +252,7 @@ export class SettingsPanel {
     const labelText = document.createElement("span");
     labelText.innerHTML = `${icon} ${label}`;
     labelText.style.cssText = `
-      color: #ccc;
+      color: #333333;
       font-size: 14px;
     `;
     labelRow.appendChild(labelText);
@@ -260,7 +260,7 @@ export class SettingsPanel {
     const valueText = document.createElement("span");
     valueText.textContent = `${Math.round(initialValue * 100)}%`;
     valueText.style.cssText = `
-      color: #888;
+      color: #666666;
       font-size: 14px;
       min-width: 40px;
       text-align: right;
@@ -280,7 +280,7 @@ export class SettingsPanel {
       height: 8px;
       -webkit-appearance: none;
       appearance: none;
-      background: rgba(255, 255, 255, 0.1);
+      background: #E0E0E0;
       border-radius: 4px;
       outline: none;
       cursor: pointer;
@@ -349,7 +349,7 @@ export class SettingsPanel {
     const labelText = document.createElement("span");
     labelText.textContent = label;
     labelText.style.cssText = `
-      color: #ccc;
+      color: #333333;
       font-size: 14px;
     `;
     container.appendChild(labelText);
@@ -359,7 +359,7 @@ export class SettingsPanel {
     toggle.style.cssText = `
       width: 48px;
       height: 24px;
-      background: ${initialValue ? "#4CAF50" : "rgba(255, 255, 255, 0.2)"};
+      background: ${initialValue ? "#4CAF50" : "#CCCCCC"};
       border-radius: 12px;
       cursor: pointer;
       position: relative;
@@ -383,7 +383,7 @@ export class SettingsPanel {
     let enabled = initialValue;
     toggle.addEventListener("click", () => {
       enabled = !enabled;
-      toggle.style.background = enabled ? "#4CAF50" : "rgba(255, 255, 255, 0.2)";
+      toggle.style.background = enabled ? "#4CAF50" : "#CCCCCC";
       knob.style.left = enabled ? "26px" : "2px";
       onChange(enabled);
     });

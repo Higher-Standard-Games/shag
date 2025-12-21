@@ -37,16 +37,17 @@ export class DealerDialog extends BaseDialog {
           align-items: center;
           gap: 8px;
           padding: 8px 12px;
-          background: rgba(0,0,0,0.3);
+          background: #F0F0F0;
           border-radius: 8px;
           margin-bottom: 16px;
+          border: 1px solid #E0E0E0;
         ">
           <span style="font-size: 1.2rem;">🔥</span>
           <div style="flex: 1;">
-            <div style="font-size: 0.85rem; color: #888;">Heat Level</div>
+            <div style="font-size: 0.85rem; color: #666666;">Heat Level</div>
             <div style="
               height: 6px;
-              background: rgba(255,255,255,0.1);
+              background: #E0E0E0;
               border-radius: 3px;
               overflow: hidden;
               margin-top: 4px;
@@ -84,8 +85,8 @@ export class DealerDialog extends BaseDialog {
              data-dealer-id="${dealer.id}"
              style="
                padding: 12px;
-               background: ${isSelected ? 'rgba(74, 144, 226, 0.3)' : 'rgba(255,255,255,0.05)'};
-               border: 1px solid ${isSelected ? 'rgba(74, 144, 226, 0.6)' : 'rgba(255,255,255,0.1)'};
+               background: ${isSelected ? '#E3F2FD' : '#FFFFFF'};
+               border: 1px solid ${isSelected ? '#2196F3' : '#E0E0E0'};
                border-radius: 8px;
                cursor: ${isAvailable ? 'pointer' : 'not-allowed'};
                opacity: ${isAvailable ? '1' : '0.5'};
@@ -94,12 +95,12 @@ export class DealerDialog extends BaseDialog {
                transition: all 0.15s ease;
              ">
           <div style="font-size: 2rem;">${dealer.icon}</div>
-          <div style="font-weight: 500; color: #fff; margin-top: 4px;">${dealer.name}</div>
-          <div style="font-size: 0.8rem; color: #888;">${dealer.title}</div>
-          ${dealer.priceMultiplier > 1 ? `<div style="font-size: 0.75rem; color: #4ade80;">+${Math.round((dealer.priceMultiplier - 1) * 100)}% prices</div>` : ''}
-          ${dealer.priceMultiplier < 1 ? `<div style="font-size: 0.75rem; color: #f97316;">${Math.round((1 - dealer.priceMultiplier) * 100)}% less</div>` : ''}
-          ${rep ? `<div style="font-size: 0.7rem; color: #888; margin-top: 4px;">Rep: ${rep.level}/100</div>` : ''}
-          ${!isAvailable ? `<div style="font-size: 0.7rem; color: #ef4444; margin-top: 4px;">Lvl ${dealer.requiredLevel} req</div>` : ''}
+          <div style="font-weight: 500; color: #333333; margin-top: 4px;">${dealer.name}</div>
+          <div style="font-size: 0.8rem; color: #666666;">${dealer.title}</div>
+          ${dealer.priceMultiplier > 1 ? `<div style="font-size: 0.75rem; color: #2E7D32;">+${Math.round((dealer.priceMultiplier - 1) * 100)}% prices</div>` : ''}
+          ${dealer.priceMultiplier < 1 ? `<div style="font-size: 0.75rem; color: #E65100;">${Math.round((1 - dealer.priceMultiplier) * 100)}% less</div>` : ''}
+          ${rep ? `<div style="font-size: 0.7rem; color: #666666; margin-top: 4px;">Rep: ${rep.level}/100</div>` : ''}
+          ${!isAvailable ? `<div style="font-size: 0.7rem; color: #D32F2F; margin-top: 4px;">Lvl ${dealer.requiredLevel} req</div>` : ''}
         </div>
       `;
     }
@@ -117,7 +118,7 @@ export class DealerDialog extends BaseDialog {
       `;
 
       if (sellableProducts.length === 0) {
-        html += `<div style="color: #888; text-align: center; padding: 20px;">No products to sell. Harvest and cure some plants first!</div>`;
+        html += `<div style="color: #666666; text-align: center; padding: 20px;">No products to sell. Harvest and cure some plants first!</div>`;
       } else {
         html += `<div class="product-list" style="display: flex; flex-direction: column; gap: 8px;">`;
         
@@ -136,51 +137,51 @@ export class DealerDialog extends BaseDialog {
               align-items: center;
               gap: 12px;
               padding: 12px;
-              background: rgba(255,255,255,0.05);
+              background: #FFFFFF;
               border-radius: 8px;
-              border: 1px solid ${selectedQty > 0 ? 'rgba(74, 144, 226, 0.4)' : 'rgba(255,255,255,0.1)'};
+              border: 1px solid ${selectedQty > 0 ? '#2196F3' : '#E0E0E0'};
             ">
               <div style="font-size: 1.5rem;">${product.category === 'cured' ? '🧪' : '🌿'}</div>
               <div style="flex: 1;">
-                <div style="font-weight: 500; color: #fff;">${product.name}</div>
-                <div style="font-size: 0.85rem; color: #888;">
+                <div style="font-weight: 500; color: #333333;">${product.name}</div>
+                <div style="font-size: 0.85rem; color: #666666;">
                   ${product.quantity}g available | Quality: ${product.quality}%
                 </div>
-                <div style="font-size: 0.85rem; color: #4ade80;">
+                <div style="font-size: 0.85rem; color: #2E7D32;">
                   $${priceInfo?.pricePerUnit || product.basePrice}/g
                 </div>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <button class="qty-btn qty-minus" data-item-id="${product.itemId}" style="
                   width: 28px; height: 28px;
-                  border: none; border-radius: 4px;
-                  background: rgba(255,255,255,0.1);
-                  color: #fff; cursor: pointer;
+                  border: none; border-radius: 6px;
+                  background: #E0E0E0;
+                  color: #333333; cursor: pointer;
                   font-size: 1.2rem;
                 ">-</button>
                 <input type="number" class="qty-input" data-item-id="${product.itemId}" 
                        value="${selectedQty}" min="0" max="${product.quantity}"
                        style="
                          width: 60px; height: 28px;
-                         border: 1px solid rgba(255,255,255,0.2);
+                         border: 1px solid #CCCCCC;
                          border-radius: 4px;
-                         background: rgba(0,0,0,0.3);
-                         color: #fff;
+                         background: #FFFFFF;
+                         color: #333333;
                          text-align: center;
                          font-size: 0.9rem;
                        ">
                 <button class="qty-btn qty-plus" data-item-id="${product.itemId}" style="
                   width: 28px; height: 28px;
-                  border: none; border-radius: 4px;
-                  background: rgba(255,255,255,0.1);
-                  color: #fff; cursor: pointer;
+                  border: none; border-radius: 6px;
+                  background: #E0E0E0;
+                  color: #333333; cursor: pointer;
                   font-size: 1.2rem;
                 ">+</button>
                 <button class="qty-btn qty-all" data-item-id="${product.itemId}" data-max="${product.quantity}" style="
                   padding: 4px 8px;
                   border: none; border-radius: 4px;
-                  background: rgba(74, 144, 226, 0.3);
-                  color: #4a90e2; cursor: pointer;
+                  background: #E3F2FD;
+                  color: #1976D2; cursor: pointer;
                   font-size: 0.75rem;
                 ">ALL</button>
               </div>
@@ -196,23 +197,25 @@ export class DealerDialog extends BaseDialog {
         <div class="sale-summary" style="
           margin-top: 16px;
           padding: 16px;
-          background: rgba(0,0,0,0.3);
+          background: #F0F0F0;
           border-radius: 8px;
+          border: 1px solid #E0E0E0;
           display: flex;
           justify-content: space-between;
           align-items: center;
         ">
           <div>
-            <div style="font-size: 0.85rem; color: #888;">Total Sale</div>
-            <div style="font-size: 1.5rem; font-weight: 600; color: #4ade80;">$${totalInfo.total}</div>
-            <div style="font-size: 0.8rem; color: #888;">${totalInfo.quantity}g total</div>
+            <div style="font-size: 0.85rem; color: #666666;">Total Sale</div>
+            <div style="font-size: 1.5rem; font-weight: 600; color: #2E7D32;">$${totalInfo.total}</div>
+            <div style="font-size: 0.8rem; color: #666666;">${totalInfo.quantity}g total</div>
           </div>
           <button id="btn-sell" ${totalInfo.quantity === 0 ? 'disabled' : ''} style="
             padding: 12px 24px;
             border: none;
             border-radius: 8px;
-            background: ${totalInfo.quantity > 0 ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)' : 'rgba(255,255,255,0.1)'};
-            color: ${totalInfo.quantity > 0 ? '#000' : '#888'};
+            background: ${totalInfo.quantity > 0 ? '#4CAF50' : '#E0E0E0'};
+            border-bottom: ${totalInfo.quantity > 0 ? '4px solid #3D9140' : '4px solid #CCCCCC'};
+            color: ${totalInfo.quantity > 0 ? '#fff' : '#999'};
             font-weight: 600;
             font-size: 1rem;
             cursor: ${totalInfo.quantity > 0 ? 'pointer' : 'not-allowed'};
