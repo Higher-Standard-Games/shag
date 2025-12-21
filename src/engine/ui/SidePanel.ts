@@ -249,7 +249,7 @@ export class SidePanel {
       
       // Calculate available height (viewport height minus top bar and bottom bar)
       const viewportHeight = window.innerHeight;
-      const topBarHeight = 70;
+      const topBarHeight = 80; // Space below top bar pills
       const bottomBarHeight = 140; // Approximate height of build bar
       const maxBottomY = viewportHeight - bottomBarHeight;
       

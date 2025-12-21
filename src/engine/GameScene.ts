@@ -583,7 +583,7 @@ export class GameScene {
           if (orders.length === 0) {
             return [{
               id: "no-orders",
-              content: `<div style="color: #666; text-align: center;">No orders yet. Keep growing!</div>`,
+              content: `<div style="color: #888888; font-size: 14px;">No orders yet. Keep growing!</div>`,
             }];
           }
           const currentTime = GameTimer.getInstance().getGameTime();
