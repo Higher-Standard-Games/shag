@@ -249,8 +249,8 @@ export class BuildableObjectManager {
       const template = this.templates.get(state.templateId);
       if (!template) continue;
 
-      // Update progress if not complete
-      if (!state.isComplete && template.buildTime > 0) {
+      // Update progress if not complete (skip if pot has plant - plant growth is handled by PlantSystem)
+      if (!state.isComplete && template.buildTime > 0 && !state.hasPlant) {
         const elapsed = now - state.startedAt;
         const newProgress = Math.min(100, (elapsed / template.buildTime) * 100);
         
