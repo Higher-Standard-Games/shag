@@ -360,18 +360,26 @@ export class RTSCameraController {
     const buildingSystem = BuildingSystem.getInstance();
     
     // Only track hover when in build mode
-    if (!buildingSystem.inBuildMode) {
+    if (!buildingSystem.inBuildMode || !buildingSystem.selectedItem) {
       if (buildingSystem.hoveredZoneId !== null) {
         buildingSystem.setHoveredZone(null);
       }
       return;
     }
 
-    // Raycast to find what we're hovering over
-    const pick = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
+    // Use multiPick to find ALL meshes under cursor, then find matching zone type
+    const multiPick = this.scene.multiPick(this.scene.pointerX, this.scene.pointerY);
+    const targetZoneType = buildingSystem.selectedItem.zoneType;
     
-    if (pick.hit && pick.pickedMesh?.metadata?.isBuildZone) {
-      const zoneId = pick.pickedMesh.metadata.zoneId;
+    // Find a build zone that matches our selected item's zone type
+    const matchingZone = multiPick?.find(p => 
+      p.hit && 
+      p.pickedMesh?.metadata?.isBuildZone && 
+      p.pickedMesh?.metadata?.zoneType === targetZoneType
+    );
+    
+    if (matchingZone && matchingZone.pickedMesh) {
+      const zoneId = matchingZone.pickedMesh.metadata.zoneId;
       buildingSystem.setHoveredZone(zoneId);
     } else {
       buildingSystem.setHoveredZone(null);
