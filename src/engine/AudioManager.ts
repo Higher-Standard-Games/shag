@@ -26,13 +26,21 @@ export class AudioManager {
   }
 
   public playMusic(key: string, loop = true, fadeIn = true): void {
-    if (!this.musicEnabled) return;
+    console.log(`[AudioManager] playMusic called: key=${key}, enabled=${this.musicEnabled}, volume=${this.musicVolume}`);
+    
+    if (!this.musicEnabled) {
+      console.log("[AudioManager] Music disabled, skipping");
+      return;
+    }
 
     const audio = AssetLoader.getInstance().getAudio(key);
     if (!audio) {
-      console.warn(`Audio not found: ${key}`);
+      console.warn(`[AudioManager] Audio not found: ${key}`);
       return;
     }
+    
+    console.log(`[AudioManager] Audio found, preparing to play`);
+
 
     // Stop current music
     this.stopMusic(fadeIn);
