@@ -472,35 +472,39 @@ export class GameHUD {
 
       .hud-notifications {
         position: fixed;
-        top: 70px;
-        right: 16px;
+        top: 80px;
+        right: 20px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-width: 300px;
+        gap: 10px;
+        max-width: 280px;
         z-index: 140;
       }
 
       .hud-notification {
-        background: #FFFFFF;
+        background: #FAFAFA;
         color: #333333;
-        padding: 12px 16px;
-        border-radius: 10px;
-        border-left: 4px solid #4CAF50;
-        border: 1px solid #E0E0E0;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
+        padding: 10px 18px;
+        border-radius: 50px;
+        border: none;
+        border-bottom: 3px solid #CCCCCC;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
         animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
       }
 
       .hud-notification.warning {
-        border-left-color: #F57C00;
         background: #FFF8E1;
+        border-bottom-color: #F57C00;
+        color: #E65100;
       }
 
       .hud-notification.error {
-        border-left-color: #D32F2F;
         background: #FFEBEE;
+        border-bottom-color: #D32F2F;
+        color: #C62828;
       }
 
       @keyframes slideIn {
