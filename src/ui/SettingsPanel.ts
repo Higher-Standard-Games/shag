@@ -130,7 +130,7 @@ export class SettingsPanel {
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
       z-index: ${UIManager.getInstance().getZIndex("SETTINGS") + 1};
       animation: uiScaleIn 0.2s ease;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     // Title
@@ -139,10 +139,11 @@ export class SettingsPanel {
     title.style.cssText = `
       color: #333333;
       font-size: 2rem;
-      font-weight: 600;
-      letter-spacing: 0.1em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       text-align: center;
       margin: 0 0 32px 0;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
     this.panel.appendChild(title);
 
@@ -257,7 +258,8 @@ export class SettingsPanel {
     labelText.innerHTML = `${icon} ${label}`;
     labelText.style.cssText = `
       color: #333333;
-      font-size: 14px;
+      font-size: 15px;
+      font-weight: 600;
     `;
     labelRow.appendChild(labelText);
 
@@ -265,7 +267,8 @@ export class SettingsPanel {
     valueText.textContent = `${Math.round(initialValue * 100)}%`;
     valueText.style.cssText = `
       color: #666666;
-      font-size: 14px;
+      font-size: 15px;
+      font-weight: 600;
       min-width: 40px;
       text-align: right;
     `;
@@ -354,7 +357,8 @@ export class SettingsPanel {
     labelText.textContent = label;
     labelText.style.cssText = `
       color: #333333;
-      font-size: 14px;
+      font-size: 15px;
+      font-weight: 600;
     `;
     container.appendChild(labelText);
 
@@ -423,8 +427,8 @@ export class SettingsPanel {
     labelText.textContent = "Theme";
     labelText.style.cssText = `
       color: #333333;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 15px;
+      font-weight: 600;
     `;
     labelContainer.appendChild(labelText);
     container.appendChild(labelContainer);
@@ -449,13 +453,14 @@ export class SettingsPanel {
         padding: 6px 12px;
         border: none;
         border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.15s ease;
         background: ${isActive ? "#FFFFFF" : "transparent"};
         color: ${isActive ? "#333333" : "#666666"};
         box-shadow: ${isActive ? "0 1px 3px rgba(0, 0, 0, 0.1)" : "none"};
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       `;
       
       btn.addEventListener("click", () => {
