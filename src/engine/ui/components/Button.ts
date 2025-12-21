@@ -51,17 +51,17 @@ const SIZES = {
   small: {
     padding: "8px 16px",
     fontSize: "0.875rem",
-    minWidth: "80px",
+    minWidth: "100px",
   },
   medium: {
     padding: "12px 32px",
     fontSize: "1rem",
-    minWidth: "120px",
+    minWidth: "160px",
   },
   large: {
     padding: "16px 48px",
     fontSize: "1.1rem",
-    minWidth: "180px",
+    minWidth: "220px",
   },
 };
 
