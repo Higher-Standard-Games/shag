@@ -245,16 +245,17 @@ export class PopupSystem {
       }
 
       .popup-container {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(74, 144, 226, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #FAFAFA;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1);
+        border: 1px solid #E0E0E0;
         max-height: 80vh;
         overflow: hidden;
         display: flex;
         flex-direction: column;
         transform: scale(0.9) translateY(20px);
         transition: transform 0.2s ease;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .popup-visible .popup-container {
@@ -265,23 +266,23 @@ export class PopupSystem {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
+        padding: 18px 22px;
+        border-bottom: 1px solid #E0E0E0;
+        background: #FFFFFF;
       }
 
       .popup-title {
         margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-        color: #fff;
+        font-size: 20px;
+        font-weight: 800;
+        color: #333333;
       }
 
       .popup-close {
-        background: none;
+        background: #E8E8E8;
         border: none;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 24px;
+        color: #666666;
+        font-size: 18px;
         cursor: pointer;
         padding: 0;
         width: 32px;
@@ -289,39 +290,43 @@ export class PopupSystem {
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
+        border-radius: 8px;
         transition: all 0.15s ease;
       }
 
       .popup-close:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
+        background: #DDDDDD;
+        color: #333333;
       }
 
       .popup-content {
         padding: 20px;
         overflow-y: auto;
         flex: 1;
-        color: rgba(255, 255, 255, 0.9);
+        color: #333333;
+        background: #FFFFFF;
       }
 
       .popup-buttons {
         display: flex;
         gap: 12px;
-        padding: 16px 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
+        padding: 16px 22px;
+        border-top: 1px solid #E0E0E0;
+        background: #F5F5F5;
         justify-content: flex-end;
       }
 
       .popup-btn {
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.1s ease;
         border: none;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        position: relative;
+        top: 0;
       }
 
       .popup-btn:disabled {
@@ -330,33 +335,41 @@ export class PopupSystem {
       }
 
       .popup-btn-primary {
-        background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        background: #4CAF50;
+        border-bottom: 3px solid #388E3C;
         color: #fff;
       }
 
       .popup-btn-primary:hover:not(:disabled) {
-        background: linear-gradient(135deg, #5a9ff2 0%, #4589cd 100%);
-        transform: translateY(-1px);
+        background: #5CBF60;
+        top: -1px;
+      }
+
+      .popup-btn-primary:active:not(:disabled) {
+        top: 2px;
+        border-bottom-width: 1px;
       }
 
       .popup-btn-secondary {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: #E0E0E0;
+        border-bottom: 3px solid #BDBDBD;
+        color: #666666;
       }
 
       .popup-btn-secondary:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.15);
-        color: #fff;
+        background: #EEEEEE;
+        top: -1px;
       }
 
       .popup-btn-danger {
-        background: linear-gradient(135deg, #e24a4a 0%, #bd3535 100%);
+        background: #F44336;
+        border-bottom: 3px solid #D32F2F;
         color: #fff;
       }
 
       .popup-btn-danger:hover:not(:disabled) {
-        background: linear-gradient(135deg, #f25a5a 0%, #cd4545 100%);
+        background: #EF5350;
+        top: -1px;
       }
     `;
     document.head.appendChild(style);

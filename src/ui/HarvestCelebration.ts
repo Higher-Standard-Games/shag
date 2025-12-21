@@ -235,7 +235,7 @@ export class HarvestCelebration {
     const style = document.createElement("style");
     style.textContent = `
       .harvest-perfect .popup-header {
-        background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 140, 0, 0.2) 100%);
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 140, 0, 0.1) 100%);
       }
 
       .harvest-content {
@@ -243,15 +243,17 @@ export class HarvestCelebration {
         flex-direction: column;
         gap: 16px;
         text-align: center;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       }
 
       .harvest-strain {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
+        padding: 14px;
+        background: #F5F5F5;
+        border-radius: 12px;
+        border: 1px solid #E0E0E0;
       }
 
       .harvest-strain-icon {
@@ -264,35 +266,36 @@ export class HarvestCelebration {
 
       .harvest-strain-name {
         font-size: 18px;
-        font-weight: 600;
-        color: #fff;
+        font-weight: 700;
+        color: #333333;
       }
 
       .harvest-mastery {
         font-size: 14px;
-        color: #FFD700;
+        color: #FFB300;
         letter-spacing: 2px;
       }
 
       .harvest-yield {
-        padding: 20px;
-        background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(56, 142, 60, 0.2) 100%);
+        padding: 24px;
+        background: #E8F5E9;
         border-radius: 12px;
-        border: 1px solid rgba(76, 175, 80, 0.4);
+        border: none;
+        border-bottom: 4px solid #4CAF50;
       }
 
       .harvest-yield-amount {
         font-size: 48px;
-        font-weight: 700;
-        color: #4CAF50;
-        text-shadow: 0 2px 10px rgba(76, 175, 80, 0.5);
+        font-weight: 800;
+        color: #2E7D32;
       }
 
       .harvest-yield-label {
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+        color: #666666;
         text-transform: uppercase;
         letter-spacing: 2px;
+        font-weight: 600;
       }
 
       .harvest-quality {
@@ -300,38 +303,42 @@ export class HarvestCelebration {
       }
 
       .harvest-quality-stars {
-        font-size: 24px;
-        color: #FFD700;
+        font-size: 26px;
+        color: #FFB300;
         letter-spacing: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
       }
 
       .harvest-quality-percent {
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.7);
+        font-size: 15px;
+        color: #666666;
+        font-weight: 600;
       }
 
       .harvest-breakdown {
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
-        padding: 12px;
+        background: #F5F5F5;
+        border-radius: 12px;
+        padding: 14px;
+        border: 1px solid #E0E0E0;
       }
 
       .harvest-breakdown-title {
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.5);
+        color: #888888;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        font-weight: 600;
       }
 
       .harvest-breakdown-row {
         display: flex;
         justify-content: space-between;
-        padding: 6px 0;
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.8);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 8px 0;
+        font-size: 14px;
+        color: #333333;
+        border-bottom: 1px solid #E8E8E8;
+        font-weight: 500;
       }
 
       .harvest-breakdown-row:last-child {
@@ -339,17 +346,19 @@ export class HarvestCelebration {
       }
 
       .harvest-bonus span:last-child {
-        color: #4CAF50;
-        font-weight: 600;
+        color: #2E7D32;
+        font-weight: 700;
       }
 
       .harvest-xp {
-        padding: 12px;
-        background: linear-gradient(135deg, rgba(156, 39, 176, 0.3) 0%, rgba(123, 31, 162, 0.2) 100%);
+        padding: 14px;
+        background: #E8F5E9;
         border-radius: 10px;
+        border: none;
+        border-bottom: 3px solid #4CAF50;
         font-size: 16px;
-        font-weight: 600;
-        color: #CE93D8;
+        font-weight: 700;
+        color: #2E7D32;
       }
 
       /* Confetti */
