@@ -193,6 +193,7 @@ export class SidePanel {
 
   public refresh(): void {
     this.render();
+    SidePanel.updatePositions();
   }
 
   public show(): void {

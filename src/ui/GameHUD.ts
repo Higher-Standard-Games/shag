@@ -8,7 +8,6 @@ import { BuildableObjectManager } from "../game/BuildableObject";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
 import { GameTimer, type GameSpeedMode } from "../game/GameTimer";
-import { HarvestIndicator } from "../game/HarvestIndicator";
 import { PlantSystem } from "../game/PlantSystem";
 
 const SELECTION_INDICATOR_ID = "plant_selection";
@@ -18,6 +17,11 @@ export class GameHUD {
   private container: HTMLElement | null = null;
   private isVisible: boolean = false;
   private updateInterval: string = "hud_update";
+
+  // Game Award notification queue
+  private awardQueue: { icon: string; text: string }[] = [];
+  private currentAward: HTMLElement | null = null;
+  private isShowingAward: boolean = false;
 
   private constructor() {}
 
@@ -77,11 +81,7 @@ export class GameHUD {
           </div>
         </div>
         <div class="hud-buttons">
-          <button class="hud-btn hud-harvest-btn" id="hud-harvest-btn" style="display: none;">
-            <span class="harvest-icon">✂️</span>
-            <span class="harvest-count">0</span>
-            <span class="harvest-text">Ready</span>
-          </button>
+          <!-- Harvest button removed - using Events panel instead -->
         </div>
         <div class="hud-time">
           <span id="hud-day" class="hud-day">Day 1</span>
@@ -232,33 +232,44 @@ export class GameHUD {
         box-shadow: 0 2px 10px rgba(76, 175, 80, 0.4);
       }
 
-      .hud-harvest-btn {
-        background: linear-gradient(135deg, #8BC34A, #689F38);
-        animation: harvestPulse 1.5s ease-in-out infinite;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+      /* Game Award notification styles */
+      .game-award {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, rgba(30, 60, 30, 0.95), rgba(20, 40, 20, 0.98));
+        border: 2px solid rgba(76, 175, 80, 0.6);
+        border-radius: 16px;
+        padding: 24px 48px;
+        text-align: center;
+        z-index: 1800;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px rgba(76, 175, 80, 0.2);
+        animation: awardFadeIn 0.3s ease-out;
+        cursor: pointer;
       }
 
-      .hud-harvest-btn:hover {
-        box-shadow: 0 2px 15px rgba(139, 195, 74, 0.6);
+      .game-award-icon {
+        font-size: 48px;
+        margin-bottom: 8px;
       }
 
-      .hud-harvest-btn .harvest-count {
-        background: rgba(255,255,255,0.3);
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 12px;
+      .game-award-text {
+        font-family: 'Chicle', 'Segoe UI', sans-serif;
+        font-size: 1.8rem;
+        color: #8f8;
+        text-shadow: 0 2px 10px rgba(76, 175, 80, 0.5);
+        letter-spacing: 0.05em;
       }
 
-      .hud-harvest-btn.overripe {
-        background: linear-gradient(135deg, #FFC107, #FF9800);
-        animation: harvestPulse 0.8s ease-in-out infinite;
+      @keyframes awardFadeIn {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
       }
 
-      .hud-harvest-btn.spoiled {
-        background: linear-gradient(135deg, #f44336, #d32f2f);
-        animation: harvestPulse 0.5s ease-in-out infinite;
+      @keyframes awardFadeOut {
+        from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        to { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
       }
 
       @keyframes harvestPulse {
@@ -688,9 +699,6 @@ export class GameHUD {
 
     // Update quick inventory
     this.updateInventory(inventory.items);
-
-    // Update harvest button
-    this.updateHarvestButton();
   }
 
   private updateSpeedButton(mode?: GameSpeedMode): void {
@@ -721,37 +729,54 @@ export class GameHUD {
     }
   }
 
-  private updateHarvestButton(): void {
-    const harvestBtn = this.container?.querySelector("#hud-harvest-btn") as HTMLElement;
-    if (!harvestBtn) return;
+  /**
+   * Show a Game Award notification (queued, auto-dismiss after 2s or on click)
+   * @param icon Emoji or icon to display
+   * @param text Award text to display
+   */
+  public showGameAward(icon: string, text: string): void {
+    this.awardQueue.push({ icon, text });
+    this.processAwardQueue();
+  }
 
-    const harvestIndicator = HarvestIndicator.getInstance();
-    const harvestables = harvestIndicator.getHarvestablePlants();
-    const count = harvestables.length;
+  private processAwardQueue(): void {
+    if (this.isShowingAward || this.awardQueue.length === 0) return;
 
-    if (count === 0) {
-      harvestBtn.style.display = "none";
-      return;
-    }
+    const award = this.awardQueue.shift();
+    if (!award) return;
 
-    harvestBtn.style.display = "flex";
+    this.isShowingAward = true;
 
-    // Update count
-    const countEl = harvestBtn.querySelector(".harvest-count");
-    if (countEl) {
-      countEl.textContent = count.toString();
-    }
+    // Create award element
+    this.currentAward = document.createElement("div");
+    this.currentAward.className = "game-award";
+    this.currentAward.innerHTML = `
+      <div class="game-award-icon">${award.icon}</div>
+      <div class="game-award-text">${award.text}</div>
+    `;
 
-    // Check for urgency (overripe or spoiled plants)
-    const hasOverripe = harvestables.some(h => h.phase === "overripe");
-    const hasSpoiled = harvestables.some(h => h.phase === "spoiled");
+    // Click to dismiss
+    this.currentAward.addEventListener("click", () => this.dismissAward());
 
-    harvestBtn.classList.remove("overripe", "spoiled");
-    if (hasSpoiled) {
-      harvestBtn.classList.add("spoiled");
-    } else if (hasOverripe) {
-      harvestBtn.classList.add("overripe");
-    }
+    document.body.appendChild(this.currentAward);
+
+    // Auto-dismiss after 2 seconds
+    setTimeout(() => this.dismissAward(), 2000);
+  }
+
+  private dismissAward(): void {
+    if (!this.currentAward) return;
+
+    this.currentAward.style.animation = "awardFadeOut 0.3s ease-out forwards";
+    
+    setTimeout(() => {
+      this.currentAward?.remove();
+      this.currentAward = null;
+      this.isShowingAward = false;
+      
+      // Process next award in queue
+      this.processAwardQueue();
+    }, 300);
   }
 
   private updateInventory(items: { id: string; type: string; quantity: number }[]): void {
@@ -886,18 +911,6 @@ export class GameHUD {
           const completeData = data as { template: { name: string } };
           this.showNotification(`${completeData.template.name} is ready!`, "success");
           break;
-      }
-    });
-
-    // Harvest button - show first harvestable plant's panel
-    this.container?.querySelector("#hud-harvest-btn")?.addEventListener("click", () => {
-      const harvestIndicator = HarvestIndicator.getInstance();
-      const harvestables = harvestIndicator.getHarvestablePlants();
-      if (harvestables.length > 0) {
-        // Show panel for first harvestable (prioritize overripe/spoiled)
-        const urgent = harvestables.find(h => h.phase === "spoiled" || h.phase === "overripe");
-        const target = urgent || harvestables[0];
-        harvestIndicator.showHarvestPanel(target.plantId);
       }
     });
 
