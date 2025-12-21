@@ -915,15 +915,21 @@ export class GameScene {
    * Show plant info modal for a specific plant
    */
   public showPlantInfo(plantId: string): void {
+    console.log("[GameScene] showPlantInfo called for:", plantId);
     const plant = GameState.getInstance().getPlant(plantId);
-    if (!plant) return;
+    if (!plant) {
+      console.log("[GameScene] Plant not found:", plantId);
+      return;
+    }
     
     const strain = PlantSystem.getInstance().getStrain(plant.strain);
     this.selectedPlantId = plantId;
     
+    console.log("[GameScene] plantModal exists:", !!this.plantModal);
     if (this.plantModal) {
       this.plantModal.setTitle(strain?.name || "Plant");
       this.plantModal.show();
+      console.log("[GameScene] plantModal.show() called");
     }
   }
 

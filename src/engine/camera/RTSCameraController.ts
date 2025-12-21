@@ -137,6 +137,7 @@ export class RTSCameraController {
                 if (mesh.metadata?.isBuildableObject && mesh.metadata?.zoneType === "plant") {
                   const buildableObjectId = mesh.metadata.buildableObjectId;
                   const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
+                  console.log("[RTSCamera] Plant zone clicked, buildableObj:", buildableObj?.id);
                   if (buildableObj) {
                     // Find plant at this position
                     const plants = GameState.getInstance().getPlants();
@@ -144,13 +145,18 @@ export class RTSCameraController {
                       Math.abs(p.position.x - buildableObj.position.x) < 5 &&
                       Math.abs(p.position.z - buildableObj.position.z) < 5
                     );
+                    console.log("[RTSCamera] Found plant:", plant?.id, "strain:", plant?.strain);
                     if (plant) {
                       // Check if plant is harvestable - show harvest panel instead of management dialog
                       const harvestIndicator = HarvestIndicator.getInstance();
-                      if (harvestIndicator.isHarvestable(plant.id)) {
+                      const isHarvestable = harvestIndicator.isHarvestable(plant.id);
+                      console.log("[RTSCamera] Plant isHarvestable:", isHarvestable);
+                      if (isHarvestable) {
+                        console.log("[RTSCamera] Showing harvest panel for:", plant.id);
                         harvestIndicator.showHarvestPanel(plant.id);
                       } else {
                         // Show plant info modal (new UI system)
+                        console.log("[RTSCamera] Showing plant info for:", plant.id);
                         GameScene.getInstance().showPlantInfo(plant.id);
                       }
                     } else {
