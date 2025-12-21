@@ -411,23 +411,25 @@ export class GameHUD {
       }
 
       .hud-notification {
-        background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
-        color: white;
+        background: #FFFFFF;
+        color: #333333;
         padding: 12px 16px;
         border-radius: 10px;
         border-left: 4px solid #4CAF50;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         font-family: var(--ui-font, 'Segoe UI', system-ui, sans-serif);
         animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
       }
 
       .hud-notification.warning {
-        border-left-color: #ff9800;
+        border-left-color: #F57C00;
+        background: #FFF8E1;
       }
 
       .hud-notification.error {
-        border-left-color: #f44336;
+        border-left-color: #D32F2F;
+        background: #FFEBEE;
       }
 
       @keyframes slideIn {
@@ -445,41 +447,47 @@ export class GameHUD {
         bottom: 100px;
         left: 20px;
         width: 250px;
-        background: rgba(0,0,0,0.85);
-        border-radius: 10px;
-        color: white;
+        background: #FAFAFA;
+        border-radius: 12px;
+        color: #333333;
         overflow: hidden;
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
 
       .plant-info-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 15px;
-        background: rgba(76, 175, 80, 0.3);
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 12px 15px;
+        background: #E8F5E9;
+        border-bottom: 1px solid #C8E6C9;
       }
 
       .plant-name {
-        font-weight: bold;
+        font-weight: 600;
         font-size: 16px;
+        color: #2E7D32;
       }
 
       .plant-info-close {
-        background: none;
+        background: #E0E0E0;
         border: none;
-        color: white;
-        font-size: 20px;
+        color: #666666;
+        font-size: 16px;
         cursor: pointer;
-        opacity: 0.7;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background 0.15s ease;
       }
 
       .plant-info-close:hover {
-        opacity: 1;
+        background: #CCCCCC;
       }
 
       .plant-info-body {
         padding: 15px;
+        background: #FFFFFF;
       }
 
       .plant-stat {
@@ -488,16 +496,18 @@ export class GameHUD {
         gap: 10px;
         margin-bottom: 10px;
         font-size: 14px;
+        color: #333333;
       }
 
       .plant-stat span {
         width: 60px;
+        color: #666666;
       }
 
       .plant-bar {
         flex: 1;
         height: 8px;
-        background: rgba(255,255,255,0.2);
+        background: #E0E0E0;
         border-radius: 4px;
         overflow: hidden;
       }
@@ -529,19 +539,31 @@ export class GameHUD {
         flex: 1;
         padding: 8px;
         border: none;
-        border-radius: 5px;
-        background: rgba(255,255,255,0.1);
+        border-bottom: 3px solid #3D9140;
+        border-radius: 6px;
+        background: #4CAF50;
         color: white;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.1s ease;
+        font-weight: 500;
+        position: relative;
+        top: 0;
       }
 
       .plant-action-btn:hover:not(:disabled) {
-        background: rgba(255,255,255,0.2);
+        background: #5CBF60;
+        top: -1px;
+      }
+
+      .plant-action-btn:active:not(:disabled) {
+        top: 3px;
+        border-bottom-width: 0;
       }
 
       .plant-action-btn:disabled {
-        opacity: 0.5;
+        background: #E0E0E0;
+        border-bottom-color: #CCCCCC;
+        color: #999999;
         cursor: not-allowed;
       }
 
