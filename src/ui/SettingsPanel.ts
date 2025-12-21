@@ -3,9 +3,12 @@
  * 
  * Can be shown from MainMenu or in-game pause menu.
  * Persists settings to localStorage.
+ * 
+ * Uses unified UI components: Overlay, Button
  */
 
 import { AudioManager } from "../engine/AudioManager";
+import { Overlay, createButton, UIManager } from "../engine/ui";
 
 const SETTINGS_STORAGE_KEY = "ganjawars_settings";
 
@@ -18,7 +21,8 @@ export interface GameSettings {
 
 export class SettingsPanel {
   private static instance: SettingsPanel;
-  private container: HTMLDivElement | null = null;
+  private overlay: Overlay | null = null;
+  private panel: HTMLDivElement | null = null;
   private settings: GameSettings;
   private onClose?: () => void;
 
@@ -91,30 +95,31 @@ export class SettingsPanel {
   public show(onClose?: () => void): void {
     this.onClose = onClose;
 
-    if (this.container) {
-      this.container.remove();
-    }
+    // Clean up existing
+    this.hide();
 
-    this.container = document.createElement("div");
-    this.container.id = "settings-panel";
-    this.container.style.cssText = `
+    // Create overlay using unified component
+    this.overlay = new Overlay(
+      {
+        id: "settings",
+        opacity: 0.85,
+        blur: 0,
+        zIndex: UIManager.getInstance().getZIndex("SETTINGS"),
+        closeOnClick: false,
+        animate: true,
+      },
+      () => this.hide()
+    );
+    this.overlay.show();
+
+    // Create panel
+    this.panel = document.createElement("div");
+    this.panel.id = "settings-panel";
+    this.panel.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1500;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-    `;
-
-    // Panel content
-    const panel = document.createElement("div");
-    panel.style.cssText = `
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
@@ -122,6 +127,9 @@ export class SettingsPanel {
       min-width: 400px;
       max-width: 500px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: ${UIManager.getInstance().getZIndex("SETTINGS") + 1};
+      animation: uiScaleIn 0.2s ease;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     `;
 
     // Title
@@ -135,7 +143,7 @@ export class SettingsPanel {
       text-align: center;
       margin: 0 0 32px 0;
     `;
-    panel.appendChild(title);
+    this.panel.appendChild(title);
 
     // Settings content
     const content = document.createElement("div");
@@ -179,47 +187,41 @@ export class SettingsPanel {
       }
     ));
 
-    panel.appendChild(content);
+    this.panel.appendChild(content);
 
-    // Back button
-    const backBtn = document.createElement("button");
-    backBtn.textContent = "Back";
-    backBtn.style.cssText = `
-      margin-top: 32px;
-      padding: 12px 48px;
-      font-size: 1rem;
-      font-weight: 400;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 100%;
-    `;
-    backBtn.addEventListener("mouseenter", () => {
-      backBtn.style.background = "rgba(255, 255, 255, 0.2)";
+    // Back button using unified component
+    const backBtnContainer = document.createElement("div");
+    backBtnContainer.style.cssText = `margin-top: 32px; width: 100%;`;
+    const backBtn = createButton({
+      text: "Back",
+      variant: "secondary",
+      size: "medium",
+      fullWidth: true,
+      onClick: () => this.hide(),
     });
-    backBtn.addEventListener("mouseleave", () => {
-      backBtn.style.background = "rgba(255, 255, 255, 0.1)";
-    });
-    backBtn.addEventListener("click", () => this.hide());
-    panel.appendChild(backBtn);
+    backBtnContainer.appendChild(backBtn);
+    this.panel.appendChild(backBtnContainer);
 
-    this.container.appendChild(panel);
-    document.body.appendChild(this.container);
+    document.body.appendChild(this.panel);
   }
 
   /**
    * Hide the settings panel
    */
   public hide(): void {
-    if (this.container) {
-      this.container.remove();
-      this.container = null;
+    if (this.panel) {
+      this.panel.style.animation = "uiFadeOut 0.15s ease";
+      setTimeout(() => {
+        this.panel?.remove();
+        this.panel = null;
+      }, 150);
     }
+
+    if (this.overlay) {
+      this.overlay.hide();
+      this.overlay = null;
+    }
+
     this.onClose?.();
   }
 

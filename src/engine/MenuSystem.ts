@@ -6,9 +6,12 @@
  * - ESC key to toggle pause menu
  * - Blur/darken overlay effect
  * - Integration with SettingsPanel
+ * 
+ * Uses unified UI components: Overlay, Button, ConfirmDialog
  */
 
 import { SettingsPanel } from "../ui/SettingsPanel";
+import { Overlay, createButton, ConfirmDialog, UIManager } from "./ui";
 
 export type MenuState = "main_menu" | "in_game" | "pause_menu" | "settings";
 
@@ -21,11 +24,15 @@ export interface MenuSystemCallbacks {
 export class MenuSystem {
   private static instance: MenuSystem;
   private state: MenuState = "main_menu";
-  private pauseOverlay: HTMLDivElement | null = null;
+  private overlay: Overlay | null = null;
+  private pausePanel: HTMLDivElement | null = null;
   private callbacks: MenuSystemCallbacks = {};
   private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
-  private constructor() {}
+  private constructor() {
+    // Ensure UIManager styles are injected
+    UIManager.getInstance();
+  }
 
   public static getInstance(): MenuSystem {
     if (!MenuSystem.instance) {
@@ -74,7 +81,7 @@ export class MenuSystem {
       case "settings":
         // Settings panel handles its own close, then we go back to pause
         SettingsPanel.getInstance().hide();
-        if (this.pauseOverlay) {
+        if (this.overlay) {
           this.state = "pause_menu";
         } else {
           this.state = "in_game";
@@ -134,21 +141,15 @@ export class MenuSystem {
   public showSettings(): void {
     this.state = "settings";
     
-    // Hide pause menu content but keep overlay
-    if (this.pauseOverlay) {
-      const panel = this.pauseOverlay.querySelector("div");
-      if (panel) {
-        (panel as HTMLElement).style.display = "none";
-      }
+    // Hide pause panel but keep overlay
+    if (this.pausePanel) {
+      this.pausePanel.style.display = "none";
     }
     
     SettingsPanel.getInstance().show(() => {
-      // When settings closes, show pause menu content again
-      if (this.pauseOverlay) {
-        const panel = this.pauseOverlay.querySelector("div");
-        if (panel) {
-          (panel as HTMLElement).style.display = "flex";
-        }
+      // When settings closes, show pause panel again
+      if (this.pausePanel) {
+        this.pausePanel.style.display = "flex";
         this.state = "pause_menu";
       } else {
         this.state = "in_game";
@@ -169,39 +170,36 @@ export class MenuSystem {
    * Create the pause menu overlay with blur effect
    */
   private createPauseOverlay(): void {
-    if (this.pauseOverlay) return;
+    if (this.overlay) return;
 
-    // Create overlay container
-    this.pauseOverlay = document.createElement("div");
-    this.pauseOverlay.id = "pause-overlay";
-    this.pauseOverlay.style.cssText = `
+    // Create overlay using unified component
+    this.overlay = new Overlay(
+      {
+        id: "pause-menu",
+        blur: 8,
+        opacity: 0.6,
+        zIndex: UIManager.getInstance().getZIndex("PAUSE_MENU"),
+        closeOnClick: false,
+        animate: true,
+      },
+      () => this.resume() // Called if overlay is closed externally
+    );
+    this.overlay.show();
+
+    // Create pause panel
+    this.pausePanel = document.createElement("div");
+    this.pausePanel.id = "pause-panel";
+    this.pausePanel.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      animation: fadeIn 0.2s ease;
-    `;
-
-    // Add animation keyframes
-    this.injectStyles();
-
-    // Menu panel
-    const panel = document.createElement("div");
-    panel.style.cssText = `
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 16px;
+      z-index: ${UIManager.getInstance().getZIndex("PAUSE_MENU") + 1};
+      animation: uiScaleIn 0.2s ease;
     `;
 
     // Title
@@ -214,215 +212,71 @@ export class MenuSystem {
       letter-spacing: 0.3em;
       margin: 0 0 24px 0;
       text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      font-family: 'Segoe UI', system-ui, sans-serif;
     `;
-    panel.appendChild(title);
+    this.pausePanel.appendChild(title);
 
-    // Buttons
-    const buttons = [
-      { text: "Resume", action: () => this.resume(), primary: true },
-      { text: "Settings", action: () => this.showSettings() },
-      { text: "Main Menu", action: () => this.confirmMainMenu() },
-    ];
+    // Buttons using unified component
+    const resumeBtn = createButton({
+      text: "Resume",
+      variant: "primary",
+      size: "large",
+      onClick: () => this.resume(),
+    });
+    this.pausePanel.appendChild(resumeBtn);
 
-    for (const btn of buttons) {
-      const button = this.createButton(btn.text, btn.action, btn.primary);
-      panel.appendChild(button);
-    }
+    const settingsBtn = createButton({
+      text: "Settings",
+      variant: "secondary",
+      size: "large",
+      onClick: () => this.showSettings(),
+    });
+    this.pausePanel.appendChild(settingsBtn);
 
-    this.pauseOverlay.appendChild(panel);
-    document.body.appendChild(this.pauseOverlay);
+    const mainMenuBtn = createButton({
+      text: "Main Menu",
+      variant: "secondary",
+      size: "large",
+      onClick: () => this.confirmMainMenu(),
+    });
+    this.pausePanel.appendChild(mainMenuBtn);
+
+    document.body.appendChild(this.pausePanel);
   }
 
   /**
    * Confirm returning to main menu (loses unsaved progress)
    */
   private confirmMainMenu(): void {
-    this.showConfirmDialog(
-      "Return to Main Menu?",
-      "Any unsaved progress will be lost.",
-      () => this.returnToMainMenu()
-    );
-  }
-
-  /**
-   * Show a custom confirmation dialog (mobile-friendly, no alert())
-   */
-  private showConfirmDialog(title: string, message: string, onConfirm: () => void): void {
-    const dialog = document.createElement("div");
-    dialog.id = "confirm-dialog";
-    dialog.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      animation: fadeIn 0.15s ease;
-    `;
-
-    const panel = document.createElement("div");
-    panel.style.cssText = `
-      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
-      padding: 32px 40px;
-      max-width: 400px;
-      text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    `;
-
-    const titleEl = document.createElement("h3");
-    titleEl.textContent = title;
-    titleEl.style.cssText = `
-      color: #fff;
-      font-size: 1.5rem;
-      font-weight: 400;
-      margin: 0 0 12px 0;
-    `;
-    panel.appendChild(titleEl);
-
-    const messageEl = document.createElement("p");
-    messageEl.textContent = message;
-    messageEl.style.cssText = `
-      color: #aaa;
-      font-size: 1rem;
-      margin: 0 0 24px 0;
-    `;
-    panel.appendChild(messageEl);
-
-    const buttonRow = document.createElement("div");
-    buttonRow.style.cssText = `
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-    `;
-
-    // Cancel button
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "Cancel";
-    cancelBtn.style.cssText = `
-      padding: 12px 32px;
-      font-size: 1rem;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-    cancelBtn.addEventListener("mouseenter", () => {
-      cancelBtn.style.background = "rgba(255, 255, 255, 0.2)";
+    // Use unified ConfirmDialog component
+    ConfirmDialog.show({
+      title: "Return to Main Menu?",
+      message: "Any unsaved progress will be lost.",
+      confirmText: "Confirm",
+      cancelText: "Cancel",
+      confirmVariant: "danger",
+      onConfirm: () => this.returnToMainMenu(),
     });
-    cancelBtn.addEventListener("mouseleave", () => {
-      cancelBtn.style.background = "rgba(255, 255, 255, 0.1)";
-    });
-    cancelBtn.addEventListener("click", () => dialog.remove());
-    buttonRow.appendChild(cancelBtn);
-
-    // Confirm button
-    const confirmBtn = document.createElement("button");
-    confirmBtn.textContent = "Confirm";
-    confirmBtn.style.cssText = `
-      padding: 12px 32px;
-      font-size: 1rem;
-      background: rgba(244, 67, 54, 0.3);
-      border: 1px solid rgba(244, 67, 54, 0.5);
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-    confirmBtn.addEventListener("mouseenter", () => {
-      confirmBtn.style.background = "rgba(244, 67, 54, 0.5)";
-    });
-    confirmBtn.addEventListener("mouseleave", () => {
-      confirmBtn.style.background = "rgba(244, 67, 54, 0.3)";
-    });
-    confirmBtn.addEventListener("click", () => {
-      dialog.remove();
-      onConfirm();
-    });
-    buttonRow.appendChild(confirmBtn);
-
-    panel.appendChild(buttonRow);
-    dialog.appendChild(panel);
-    document.body.appendChild(dialog);
   }
 
   /**
    * Hide the pause overlay
    */
   private hidePauseOverlay(): void {
-    if (this.pauseOverlay) {
-      this.pauseOverlay.style.animation = "fadeOut 0.2s ease";
+    // Hide panel with animation
+    if (this.pausePanel) {
+      this.pausePanel.style.animation = "uiFadeOut 0.2s ease";
       setTimeout(() => {
-        this.pauseOverlay?.remove();
-        this.pauseOverlay = null;
+        this.pausePanel?.remove();
+        this.pausePanel = null;
       }, 200);
     }
-  }
 
-  /**
-   * Create a styled button
-   */
-  private createButton(text: string, onClick: () => void, primary = false): HTMLButtonElement {
-    const btn = document.createElement("button");
-    btn.textContent = text;
-    btn.style.cssText = `
-      padding: 14px 48px;
-      font-size: 1.1rem;
-      font-weight: 400;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      background: ${primary ? "rgba(76, 175, 80, 0.3)" : "rgba(255, 255, 255, 0.1)"};
-      border: 1px solid ${primary ? "rgba(76, 175, 80, 0.5)" : "rgba(255, 255, 255, 0.2)"};
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      min-width: 220px;
-    `;
-
-    btn.addEventListener("mouseenter", () => {
-      btn.style.background = primary ? "rgba(76, 175, 80, 0.5)" : "rgba(255, 255, 255, 0.2)";
-      btn.style.transform = "scale(1.02)";
-    });
-
-    btn.addEventListener("mouseleave", () => {
-      btn.style.background = primary ? "rgba(76, 175, 80, 0.3)" : "rgba(255, 255, 255, 0.1)";
-      btn.style.transform = "scale(1)";
-    });
-
-    btn.addEventListener("click", onClick);
-    return btn;
-  }
-
-  /**
-   * Inject CSS animations
-   */
-  private injectStyles(): void {
-    const styleId = "menu-system-styles";
-    if (document.getElementById(styleId)) return;
-
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-      }
-    `;
-    document.head.appendChild(style);
+    // Hide overlay
+    if (this.overlay) {
+      this.overlay.hide();
+      this.overlay = null;
+    }
   }
 
   /**

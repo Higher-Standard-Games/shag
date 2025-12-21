@@ -2,7 +2,16 @@
  * Engine UI System
  * 
  * Data-driven UI components for game interfaces.
+ * See UI_ARCHITECTURE.md for design documentation.
  */
+
+// Core UI Manager
+export { UIManager, type ZIndexLayer } from "./UIManager";
+
+// UI Components
+export { Overlay, type OverlayConfig } from "./components/Overlay";
+export { createButton, createButtonRow, type ButtonConfig, type ButtonVariant, type ButtonSize } from "./components/Button";
+export { ConfirmDialog, type ConfirmOptions } from "./components/ConfirmDialog";
 
 export { UIConfig } from "./UIConfig";
 export type {
