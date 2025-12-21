@@ -75,15 +75,15 @@ export class BottomBar {
       transform: translateX(-50%);
       width: 90%;
       max-width: 800px;
-      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
+      background: #FAFAFA;
       border-radius: 16px 16px 0 0;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
       z-index: 1000;
       font-family: 'Segoe UI', system-ui, sans-serif;
       transition: transform 0.2s ease;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid #E0E0E0;
       border-bottom: none;
     `;
     return container;
@@ -94,9 +94,9 @@ export class BottomBar {
     tabs.id = "bottom-bar-tabs";
     tabs.style.cssText = `
       display: flex;
-      gap: 4px;
-      padding: 8px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #E0E0E0;
       overflow-x: auto;
       scrollbar-width: none;
     `;
@@ -114,7 +114,7 @@ export class BottomBar {
       max-height: 120px;
       overflow-y: auto;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.3) transparent;
+      scrollbar-color: #CCCCCC transparent;
     `;
     return items;
   }
@@ -126,8 +126,8 @@ export class BottomBar {
       display: flex;
       gap: 6px;
       padding: 8px 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(0, 0, 0, 0.3);
+      border-top: 1px solid #E0E0E0;
+      background: #F0F0F0;
       border-radius: 0 0 16px 16px;
       justify-content: center;
     `;
@@ -163,19 +163,28 @@ export class BottomBar {
     const collapseBtn = document.createElement("button");
     collapseBtn.innerHTML = this.isExpanded ? "▼" : "▲";
     collapseBtn.style.cssText = `
-      background: rgba(255, 255, 255, 0.1);
+      background: #E8E8E8;
       border: none;
-      color: #888;
+      border-bottom: 3px solid #CCCCCC;
+      color: #666666;
       padding: 8px 12px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 12px;
       margin-right: 8px;
-      transition: all 0.2s;
+      transition: all 0.1s ease;
+      position: relative;
+      top: 0;
     `;
     collapseBtn.onclick = () => this.toggleExpanded();
-    collapseBtn.onmouseenter = () => collapseBtn.style.background = "rgba(255, 255, 255, 0.2)";
-    collapseBtn.onmouseleave = () => collapseBtn.style.background = "rgba(255, 255, 255, 0.1)";
+    collapseBtn.onmouseenter = () => {
+      collapseBtn.style.background = "#F5F5F5";
+      collapseBtn.style.top = "-1px";
+    };
+    collapseBtn.onmouseleave = () => {
+      collapseBtn.style.background = "#E8E8E8";
+      collapseBtn.style.top = "0";
+    };
     this.tabsContainer.appendChild(collapseBtn);
 
     // Add category tabs
@@ -190,31 +199,39 @@ export class BottomBar {
     const isSelected = this.selectedCategory === category.id;
     
     tab.innerHTML = `${category.icon} ${category.name}`;
+    
+    // Light theme with 3D button effect
+    const defaultBg = isSelected ? category.color : "#F5F5F5";
+    const defaultBorder = isSelected ? this.darkenColor(category.color, 20) : "#CCCCCC";
+    const textColor = isSelected ? "#FFFFFF" : "#333333";
+    
     tab.style.cssText = `
-      background: ${isSelected ? category.color : "rgba(255, 255, 255, 0.1)"};
+      background: ${defaultBg};
       border: none;
-      color: ${isSelected ? "#fff" : "#aaa"};
+      border-bottom: 3px solid ${defaultBorder};
+      color: ${textColor};
       padding: 8px 16px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 13px;
-      font-weight: ${isSelected ? "600" : "400"};
+      font-weight: 500;
       white-space: nowrap;
-      transition: all 0.2s;
-      box-shadow: ${isSelected ? "0 2px 8px rgba(0,0,0,0.3)" : "none"};
+      transition: all 0.1s ease;
+      position: relative;
+      top: 0;
     `;
 
     tab.onclick = () => this.selectCategory(category.id);
     tab.onmouseenter = () => {
       if (!isSelected) {
-        tab.style.background = "rgba(255, 255, 255, 0.2)";
-        tab.style.color = "#fff";
+        tab.style.background = "#FFFFFF";
+        tab.style.top = "-1px";
       }
     };
     tab.onmouseleave = () => {
       if (!isSelected) {
-        tab.style.background = "rgba(255, 255, 255, 0.1)";
-        tab.style.color = "#aaa";
+        tab.style.background = "#F5F5F5";
+        tab.style.top = "0";
       }
     };
 
@@ -267,14 +284,14 @@ export class BottomBar {
 
     const el = document.createElement("div");
     el.style.cssText = `
-      background: ${isSelected ? "rgba(76, 175, 80, 0.3)" : "rgba(255, 255, 255, 0.05)"};
-      border: 2px solid ${isSelected ? "#4CAF50" : "rgba(255, 255, 255, 0.1)"};
+      background: ${isSelected ? "#E8F5E9" : "#FFFFFF"};
+      border: 2px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
       border-radius: 10px;
       padding: 10px 8px;
       text-align: center;
       cursor: ${isAvailable ? "pointer" : "not-allowed"};
       opacity: ${isAvailable ? "1" : "0.5"};
-      transition: all 0.2s;
+      transition: all 0.15s ease;
       min-width: 80px;
     `;
 
@@ -293,7 +310,7 @@ export class BottomBar {
     const name = document.createElement("div");
     name.style.cssText = `
       font-size: 11px;
-      color: #fff;
+      color: #333333;
       margin-bottom: 4px;
       font-weight: 500;
       white-space: nowrap;
@@ -307,7 +324,7 @@ export class BottomBar {
     const cost = document.createElement("div");
     cost.style.cssText = `
       font-size: 12px;
-      color: ${canAfford ? "#4CAF50" : "#f44336"};
+      color: ${canAfford ? "#2E7D32" : "#D32F2F"};
       font-weight: 600;
     `;
     cost.textContent = `$${item.cost}`;
@@ -318,7 +335,7 @@ export class BottomBar {
       const lvl = document.createElement("div");
       lvl.style.cssText = `
         font-size: 10px;
-        color: #ff9800;
+        color: #E65100;
         margin-top: 2px;
       `;
       lvl.textContent = `Lv.${item.levelRequired}`;
@@ -330,14 +347,18 @@ export class BottomBar {
       el.onclick = () => this.selectItem(item);
       el.onmouseenter = () => {
         if (!isSelected) {
-          el.style.background = "rgba(255, 255, 255, 0.1)";
-          el.style.borderColor = "rgba(255, 255, 255, 0.3)";
+          el.style.background = "#F5F5F5";
+          el.style.borderColor = "#CCCCCC";
+          el.style.transform = "translateY(-2px)";
+          el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.1)";
         }
       };
       el.onmouseleave = () => {
         if (!isSelected) {
-          el.style.background = "rgba(255, 255, 255, 0.05)";
-          el.style.borderColor = "rgba(255, 255, 255, 0.1)";
+          el.style.background = "#FFFFFF";
+          el.style.borderColor = "#E0E0E0";
+          el.style.transform = "translateY(0)";
+          el.style.boxShadow = "none";
         }
       };
     }
@@ -379,15 +400,15 @@ export class BottomBar {
     el.style.cssText = `
       width: 64px;
       min-height: 64px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: #FFFFFF;
+      border: 2px solid #E0E0E0;
       border-radius: 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s ease;
       position: relative;
       padding: 4px;
     `;
@@ -408,7 +429,7 @@ export class BottomBar {
         const name = document.createElement("div");
         name.style.cssText = `
           font-size: 9px;
-          color: #ccc;
+          color: #666666;
           text-align: center;
           margin-top: 2px;
           line-height: 1.1;
@@ -427,8 +448,8 @@ export class BottomBar {
         position: absolute;
         bottom: 2px;
         right: 2px;
-        background: rgba(0, 0, 0, 0.7);
-        color: #fff;
+        background: #333333;
+        color: #FFFFFF;
         font-size: 10px;
         padding: 1px 4px;
         border-radius: 4px;
@@ -440,12 +461,12 @@ export class BottomBar {
 
     el.onclick = () => this.callbacks.onInventorySlotClick(index);
     el.onmouseenter = () => {
-      el.style.background = "rgba(255, 255, 255, 0.1)";
-      el.style.borderColor = "rgba(255, 255, 255, 0.3)";
+      el.style.background = "#F5F5F5";
+      el.style.borderColor = "#CCCCCC";
     };
     el.onmouseleave = () => {
-      el.style.background = "rgba(255, 255, 255, 0.05)";
-      el.style.borderColor = "rgba(255, 255, 255, 0.15)";
+      el.style.background = "#FFFFFF";
+      el.style.borderColor = "#E0E0E0";
     };
 
     return el;
@@ -486,5 +507,26 @@ export class BottomBar {
   public clearSelection(): void {
     this.selectedItem = null;
     this.renderItems();
+  }
+
+  /**
+   * Darken a hex color by a percentage
+   */
+  private darkenColor(hex: string, percent: number): string {
+    // Remove # if present
+    hex = hex.replace(/^#/, '');
+    
+    // Parse RGB
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+    
+    // Darken
+    r = Math.max(0, Math.floor(r * (1 - percent / 100)));
+    g = Math.max(0, Math.floor(g * (1 - percent / 100)));
+    b = Math.max(0, Math.floor(b * (1 - percent / 100)));
+    
+    // Convert back to hex
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }
 }
