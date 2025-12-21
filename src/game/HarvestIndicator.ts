@@ -424,12 +424,16 @@ export class HarvestIndicator {
   // ==================== UI ====================
 
   public showHarvestPanel(plantId: string): void {
+    console.log("[HarvestIndicator] showHarvestPanel called for:", plantId);
+    console.log("[HarvestIndicator] harvestables size:", this.harvestables.size);
     const info = this.harvestables.get(plantId);
+    console.log("[HarvestIndicator] info found:", !!info, "harvestPanel exists:", !!this.harvestPanel);
     if (!info || !this.harvestPanel) return;
 
     this.selectedPlantId = plantId;
     this.updateHarvestPanelInfo(info);
     this.harvestPanel.style.display = "flex";
+    console.log("[HarvestIndicator] Panel displayed");
 
     this.emit("panel_opened", { plantId });
   }
