@@ -22,6 +22,7 @@ import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem
 import { GameHUD } from "../ui/GameHUD";
 import { HarvestCelebration } from "../ui/HarvestCelebration";
 import { PotActionIndicator } from "../ui/PotActionIndicator";
+import { PlantStatusIndicator } from "../ui/PlantStatusIndicator";
 import { WaterPromptUI } from "../ui/WaterPromptUI";
 import { AssetLoader } from "./AssetLoader";
 import { AudioManager } from "./AudioManager";
@@ -820,6 +821,9 @@ export class GameScene {
     
     // Initialize pot action indicator (uses WorldIndicatorSystem)
     PotActionIndicator.getInstance().initialize();
+    
+    // Initialize plant status indicators (floating health/water/growth bars)
+    PlantStatusIndicator.getInstance().initialize();
 
     // Initialize lamp system and UI
     LampSystem.getInstance().init();
