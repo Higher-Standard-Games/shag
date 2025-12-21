@@ -68,12 +68,12 @@ export class SidePanel {
       position: fixed;
       ${this.config.side}: 16px;
       width: 220px;
-      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.98));
+      background: #FAFAFA;
       border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       z-index: 900;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid #E0E0E0;
       overflow: hidden;
       transition: all 0.2s ease;
     `;
@@ -88,10 +88,10 @@ export class SidePanel {
       align-items: center;
       justify-content: space-between;
       padding: 10px 12px;
-      background: rgba(255, 255, 255, 0.05);
+      background: #F5F5F5;
       cursor: pointer;
       user-select: none;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid #E0E0E0;
     `;
     
     header.onclick = () => this.toggleCollapse();
@@ -106,7 +106,8 @@ export class SidePanel {
       max-height: ${this.config.maxHeight ?? 300}px;
       overflow-y: auto;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.3) transparent;
+      scrollbar-color: #CCCCCC transparent;
+      background: #FFFFFF;
     `;
     return content;
   }
@@ -116,10 +117,10 @@ export class SidePanel {
     this.headerEl.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 16px;">${this.config.icon}</span>
-        <span class="side-panel-title" style="color: #fff; font-weight: 400; font-size: 24px;">${this.config.title}</span>
+        <span class="side-panel-title" style="color: #333333; font-weight: 600; font-size: 16px;">${this.config.title}</span>
         ${extra}
       </div>
-      <span style="color: #666; font-size: 12px; transition: transform 0.2s;">
+      <span style="color: #888888; font-size: 12px; transition: transform 0.2s;">
         ${this.isCollapsed ? "▶" : "▼"}
       </span>
     `;
@@ -136,7 +137,7 @@ export class SidePanel {
     
     if (items.length === 0) {
       this.contentEl.innerHTML = `
-        <div style="padding: 16px; text-align: center; color: #666; font-size: 12px;">
+        <div style="padding: 16px; text-align: center; color: #888888; font-size: 12px;">
           No items
         </div>
       `;
@@ -169,11 +170,11 @@ export class SidePanel {
     return `
       <div class="side-panel-item" data-item-id="${item.id}" style="
         padding: 10px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        color: #ccc;
+        border-bottom: 1px solid #E8E8E8;
+        color: #333333;
         font-size: 12px;
-        transition: background 0.2s;
-      " onmouseenter="this.style.background='rgba(255,255,255,0.05)'"
+        transition: background 0.15s ease;
+      " onmouseenter="this.style.background='#F5F5F5'"
          onmouseleave="this.style.background='transparent'">
         ${item.content}
       </div>
