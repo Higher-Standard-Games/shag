@@ -135,4 +135,52 @@ export class AudioManager {
   public isMusicEnabled(): boolean {
     return this.musicEnabled;
   }
+
+  // ==================== Sound Effects ====================
+
+  private sfxVolume = 0.7;
+  private sfxEnabled = true;
+
+  /**
+   * Play a sound effect (one-shot, no looping)
+   */
+  public playSfx(key: string, volumeMultiplier = 1.0): void {
+    if (!this.sfxEnabled) return;
+
+    const audio = AssetLoader.getInstance().getAudio(key);
+    if (!audio) {
+      console.warn(`[AudioManager] SFX not found: ${key}`);
+      return;
+    }
+
+    // Clone so we can play multiple instances
+    const sfx = audio.cloneNode(true) as HTMLAudioElement;
+    sfx.volume = this.sfxVolume * volumeMultiplier;
+    sfx.play().catch((e) => {
+      console.warn("SFX play blocked:", e);
+    });
+  }
+
+  /**
+   * Play UI click sound
+   */
+  public playClick(): void {
+    this.playSfx("ui_click", 0.5);
+  }
+
+  public setSfxVolume(volume: number): void {
+    this.sfxVolume = Math.max(0, Math.min(1, volume));
+  }
+
+  public setSfxEnabled(enabled: boolean): void {
+    this.sfxEnabled = enabled;
+  }
+
+  public getSfxVolume(): number {
+    return this.sfxVolume;
+  }
+
+  public isSfxEnabled(): boolean {
+    return this.sfxEnabled;
+  }
 }
