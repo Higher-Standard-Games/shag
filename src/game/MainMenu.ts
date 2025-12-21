@@ -450,7 +450,7 @@ export class MainMenu {
       logo.src = "engine.svg";
       logo.alt = "Engine";
       logo.style.cssText = `
-        width: 250px;
+        width: 320px;
         height: auto;
         margin-bottom: 40px;
       `;

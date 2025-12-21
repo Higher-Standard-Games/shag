@@ -31,7 +31,7 @@ export class LoadingScreen {
     logo.src = "engine.svg";
     logo.alt = "Engine";
     logo.style.cssText = `
-      width: 200px;
+      width: 280px;
       height: auto;
       margin-bottom: 40px;
     `;
