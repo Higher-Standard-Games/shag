@@ -132,6 +132,21 @@ export class CuringSystem {
     return barrelId;
   }
 
+  /**
+   * Add a barrel to owned barrels (used by ShopSystem when purchasing)
+   */
+  public addOwnedBarrel(barrelId: string, templateId: string): void {
+    const template = this.barrelTemplates.get(templateId);
+    if (!template) {
+      console.warn(`Unknown barrel template: ${templateId}`);
+      return;
+    }
+    
+    this.ownedBarrels.set(barrelId, { templateId });
+    console.log(`Added ${template.name} (${barrelId}) to owned barrels`);
+    this.emit("barrel_purchased", { barrelId, template });
+  }
+
   public getOwnedBarrels(): Array<{ id: string; template: CuringBarrel; slot?: CuringSlot }> {
     const result: Array<{ id: string; template: CuringBarrel; slot?: CuringSlot }> = [];
     

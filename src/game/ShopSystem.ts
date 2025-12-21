@@ -9,6 +9,7 @@
  */
 
 import { GameState } from "./GameState";
+import { CuringSystem } from "./CuringSystem";
 
 /**
  * Shop item definition
@@ -228,9 +229,20 @@ export class ShopSystem {
     // Deduct money
     state.spendMoney(totalPrice);
 
-    // Add to inventory
-    const itemQuantity = item.quantity * quantity;
-    state.addItem(itemId, item.itemType, itemQuantity, item.metadata);
+    // Special handling for curing barrels - register with CuringSystem
+    const isBarrel = itemId.includes("barrel");
+    if (isBarrel) {
+      const curingSystem = CuringSystem.getInstance();
+      for (let i = 0; i < quantity; i++) {
+        // Add barrel to CuringSystem's owned barrels (money already deducted)
+        const barrelId = `barrel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        curingSystem.addOwnedBarrel(barrelId, itemId);
+      }
+    } else {
+      // Add to inventory for non-barrel items
+      const itemQuantity = item.quantity * quantity;
+      state.addItem(itemId, item.itemType, itemQuantity, item.metadata);
+    }
 
     // Update stock
     if (item.stock !== -1) {
