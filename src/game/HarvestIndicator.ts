@@ -558,11 +558,17 @@ export class HarvestIndicator {
    * Get all currently harvestable plants
    */
   public getHarvestablePlants(): HarvestableInfo[] {
-    const result = Array.from(this.harvestables.values());
-    // Debug: log when this is called
-    if (result.length > 0) {
-      console.log(`[HarvestIndicator] getHarvestablePlants() returning ${result.length} plants`);
+    // Update phases before returning (ensures fresh data)
+    const plantSystem = PlantSystem.getInstance();
+    for (const [plantId, info] of this.harvestables) {
+      const phaseInfo = plantSystem.getPlantPhase(plantId);
+      if (phaseInfo) {
+        info.phase = phaseInfo.phase;
+        info.quality = phaseInfo.quality;
+      }
     }
+    
+    const result = Array.from(this.harvestables.values());
     return result;
   }
 
