@@ -199,6 +199,7 @@ export class MainMenu {
       font-weight: 600;
       letter-spacing: 0.1em;
       text-align: center;
+      font-family: var(--ui-font-heading, 'Segoe UI', system-ui, sans-serif);
     `;
     panel.appendChild(title);
 
@@ -216,12 +217,16 @@ export class MainMenu {
       slotBtn.style.cssText = `
         padding: 16px;
         background: #FFFFFF;
-        border: 1px solid #E0E0E0;
-        border-radius: 8px;
+        border: none;
+        border-bottom: 3px solid #E0E0E0;
+        border-radius: 10px;
         color: #333333;
         cursor: pointer;
         text-align: left;
-        transition: all 0.15s ease;
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       `;
 
       const slotName = slot.isAutoSave ? "Autosave" : `Slot ${slot.slot + 1}`;
@@ -229,7 +234,7 @@ export class MainMenu {
       const lastSaved = slot.lastSaved ? new Date(slot.lastSaved).toLocaleString() : "Unknown";
       
       slotBtn.innerHTML = `
-        <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; color: #333333;">${slotName}</div>
+        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333;">${slotName}</div>
         <div style="font-size: 0.9rem; color: #666666;">
           Level ${slot.level || 1} • $${(slot.money || 0).toLocaleString()} • Day ${slot.day || 1}
         </div>
@@ -239,12 +244,25 @@ export class MainMenu {
       `;
 
       slotBtn.addEventListener("mouseenter", () => {
-        slotBtn.style.background = "#F5F5F5";
-        slotBtn.style.borderColor = "#CCCCCC";
+        slotBtn.style.background = "#F8F8F8";
+        slotBtn.style.top = "-2px";
+        slotBtn.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
       });
       slotBtn.addEventListener("mouseleave", () => {
         slotBtn.style.background = "#FFFFFF";
-        slotBtn.style.borderColor = "#E0E0E0";
+        slotBtn.style.top = "0";
+        slotBtn.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
+        slotBtn.style.borderBottomWidth = "3px";
+      });
+      slotBtn.addEventListener("mousedown", () => {
+        slotBtn.style.top = "2px";
+        slotBtn.style.borderBottomWidth = "1px";
+        slotBtn.style.boxShadow = "none";
+      });
+      slotBtn.addEventListener("mouseup", () => {
+        slotBtn.style.top = "-2px";
+        slotBtn.style.borderBottomWidth = "3px";
+        slotBtn.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
       });
       slotBtn.addEventListener("click", () => {
         AudioManager.getInstance().playButtonPress();
@@ -315,6 +333,7 @@ export class MainMenu {
       font-weight: 600;
       letter-spacing: 0.1em;
       text-align: center;
+      font-family: var(--ui-font-heading, 'Segoe UI', system-ui, sans-serif);
     `;
     panel.appendChild(title);
 
@@ -332,36 +351,53 @@ export class MainMenu {
       slotBtn.style.cssText = `
         padding: 16px;
         background: #FFFFFF;
-        border: 1px solid #E0E0E0;
-        border-radius: 8px;
+        border: none;
+        border-bottom: 3px solid #E0E0E0;
+        border-radius: 10px;
         color: #333333;
         cursor: pointer;
         text-align: left;
-        transition: all 0.15s ease;
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       `;
 
       if (existingSlot?.exists) {
         const playTime = this.formatPlayTime(existingSlot.playTime || 0);
         slotBtn.innerHTML = `
-          <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; color: #333333;">Slot ${i + 1} (Overwrite)</div>
+          <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333;">Slot ${i + 1} (Overwrite)</div>
           <div style="font-size: 0.9rem; color: #D32F2F;">
             Level ${existingSlot.level || 1} • $${(existingSlot.money || 0).toLocaleString()} • ${playTime}
           </div>
         `;
       } else {
         slotBtn.innerHTML = `
-          <div style="font-size: 1.1rem; font-weight: 500; color: #333333;">Slot ${i + 1}</div>
+          <div style="font-size: 1.1rem; font-weight: 600; color: #333333;">Slot ${i + 1}</div>
           <div style="font-size: 0.9rem; color: #666666;">Empty</div>
         `;
       }
 
       slotBtn.addEventListener("mouseenter", () => {
-        slotBtn.style.background = "#F5F5F5";
-        slotBtn.style.borderColor = "#CCCCCC";
+        slotBtn.style.background = "#F8F8F8";
+        slotBtn.style.top = "-2px";
+        slotBtn.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
       });
       slotBtn.addEventListener("mouseleave", () => {
         slotBtn.style.background = "#FFFFFF";
-        slotBtn.style.borderColor = "#E0E0E0";
+        slotBtn.style.top = "0";
+        slotBtn.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
+        slotBtn.style.borderBottomWidth = "3px";
+      });
+      slotBtn.addEventListener("mousedown", () => {
+        slotBtn.style.top = "2px";
+        slotBtn.style.borderBottomWidth = "1px";
+        slotBtn.style.boxShadow = "none";
+      });
+      slotBtn.addEventListener("mouseup", () => {
+        slotBtn.style.top = "-2px";
+        slotBtn.style.borderBottomWidth = "3px";
+        slotBtn.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
       });
       slotBtn.addEventListener("click", () => {
         AudioManager.getInstance().playButtonPress();
