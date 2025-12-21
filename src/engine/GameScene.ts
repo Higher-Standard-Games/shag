@@ -948,6 +948,9 @@ export class GameScene {
     const uiTheme = UITheme.getInstance();
     uiTheme.init();
     
+    // Add game-active class to body to prevent text selection
+    document.body.classList.add("game-active");
+    
     // Load custom fonts
     await uiTheme.loadFont("Chicle", "/fonts/Chicle-Regular.woff2", "400");
     uiTheme.setFontFamily(

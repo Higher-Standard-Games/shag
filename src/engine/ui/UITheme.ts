@@ -180,6 +180,22 @@ export class UITheme {
         --ui-shadow-heavy: ${this.theme.shadowHeavy};
       }
 
+      /* Prevent text selection on game UI elements */
+      body.game-active {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      /* Allow text selection in specific input areas if needed */
+      input, textarea {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+
       /* Base UI styles */
       .ui-panel, .side-panel, .bottom-bar, .modal-panel {
         font-family: var(--ui-font);
