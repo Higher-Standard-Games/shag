@@ -107,55 +107,61 @@ export class HarvestIndicator {
     this.harvestPanel.id = "harvest-panel";
     this.harvestPanel.style.cssText = `
       position: fixed;
-      bottom: 120px;
+      bottom: 180px;
       left: 50%;
       transform: translateX(-50%);
-      background: linear-gradient(135deg, rgba(30, 60, 30, 0.95), rgba(20, 40, 20, 0.95));
-      border: 2px solid #4a4;
-      border-radius: 12px;
-      padding: 16px 24px;
-      color: white;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #FAFAFA;
+      border: none;
+      border-bottom: 4px solid #4CAF50;
+      border-radius: 16px;
+      padding: 20px 28px;
+      color: #333333;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
-      min-width: 280px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      z-index: 1000;
+      gap: 14px;
+      min-width: 300px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      z-index: 1500;
     `;
 
     this.harvestPanel.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: bold;">
+      <div style="display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; color: #333333;">
         <span id="harvest-icon">🌿</span>
         <span id="harvest-title">Ready to Harvest</span>
       </div>
-      <div id="harvest-info" style="text-align: center; font-size: 14px; color: #aaa;">
-        <div id="harvest-strain">Basic Bud</div>
-        <div id="harvest-quality" style="margin-top: 4px;">Quality: 100%</div>
-        <div id="harvest-phase" style="margin-top: 4px; font-style: italic;">Perfect timing!</div>
+      <div id="harvest-info" style="text-align: center; font-size: 15px; color: #666666;">
+        <div id="harvest-strain" style="font-weight: 600; color: #333333;">Basic Bud</div>
+        <div id="harvest-quality" style="margin-top: 6px; font-weight: 600;">Quality: 100%</div>
+        <div id="harvest-phase" style="margin-top: 6px; font-style: italic;">Perfect timing!</div>
       </div>
-      <div style="display: flex; gap: 12px; margin-top: 8px;">
+      <div style="display: flex; gap: 12px; margin-top: 10px;">
         <button id="harvest-btn" style="
-          background: linear-gradient(135deg, #4a4, #282);
+          background: #4CAF50;
           border: none;
-          border-radius: 8px;
-          padding: 10px 24px;
+          border-bottom: 3px solid #388E3C;
+          border-radius: 10px;
+          padding: 12px 28px;
           color: white;
           font-size: 16px;
-          font-weight: bold;
+          font-weight: 700;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.1s ease;
+          font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
         ">🌾 Harvest</button>
         <button id="harvest-cancel-btn" style="
-          background: rgba(100,100,100,0.5);
-          border: 1px solid #666;
-          border-radius: 8px;
-          padding: 10px 16px;
-          color: #ccc;
+          background: #E0E0E0;
+          border: none;
+          border-bottom: 3px solid #BDBDBD;
+          border-radius: 10px;
+          padding: 12px 20px;
+          color: #666666;
           font-size: 14px;
+          font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.1s ease;
+          font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
         ">Cancel</button>
       </div>
     `;
