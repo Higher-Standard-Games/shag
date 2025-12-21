@@ -95,9 +95,9 @@ export class ModalPanel {
     const container = document.createElement("div");
     container.id = `modal-${this.config.id}`;
     container.style.cssText = `
-      background: linear-gradient(to bottom, rgba(35, 35, 35, 0.98), rgba(25, 25, 25, 0.99));
+      background: #FAFAFA;
       border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
       width: 100%;
       max-width: ${this.config.width}px;
       max-height: 80vh;
@@ -105,7 +105,7 @@ export class ModalPanel {
       display: flex;
       flex-direction: column;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid #E0E0E0;
       transform: scale(0.9);
       transition: transform 0.2s ease;
     `;
@@ -146,29 +146,31 @@ export class ModalPanel {
         align-items: center;
         justify-content: space-between;
         padding: 14px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid #E0E0E0;
+        background: #F5F5F5;
+        border-radius: 16px 16px 0 0;
       ">
         <div style="display: flex; align-items: center; gap: 10px;">
           ${this.config.icon ? `<span style="font-size: 24px;">${this.config.icon}</span>` : ''}
-          <span class="modal-title" style="color: #fff; font-weight: 400; font-size: 26px;">${this.config.title}</span>
+          <span class="modal-title" style="color: #333333; font-weight: 600; font-size: 22px;">${this.config.title}</span>
         </div>
         ${this.config.showClose ? `
           <button class="modal-close" style="
-            background: rgba(255, 255, 255, 0.1);
+            background: #E8E8E8;
             border: none;
-            color: #888;
+            border-bottom: 2px solid #CCCCCC;
+            color: #666666;
             width: 32px;
             height: 32px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-          " onmouseenter="this.style.background='rgba(255,255,255,0.2)';this.style.color='#fff'"
-             onmouseleave="this.style.background='rgba(255,255,255,0.1)';this.style.color='#888'">✕</button>
+            transition: all 0.1s ease;
+          " onmouseenter="this.style.background='#F5F5F5'"
+             onmouseleave="this.style.background='#E8E8E8'">✕</button>
         ` : ''}
       </div>
     `;
@@ -176,24 +178,29 @@ export class ModalPanel {
 
   private renderActions(actions: ModalAction[]): string {
     const actionButtons = actions.map(action => {
+      const isPrimary = action.primary;
       const bgColor = action.disabled 
-        ? 'rgba(100, 100, 100, 0.3)' 
-        : (action.color || (action.primary ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)'));
-      const textColor = action.disabled ? '#666' : '#fff';
+        ? '#E0E0E0' 
+        : (action.color || (isPrimary ? '#4CAF50' : '#F5F5F5'));
+      const borderColor = action.disabled
+        ? '#CCCCCC'
+        : (isPrimary ? '#3D9140' : '#CCCCCC');
+      const textColor = action.disabled ? '#999999' : (isPrimary ? '#FFFFFF' : '#333333');
       const cursor = action.disabled ? 'not-allowed' : 'pointer';
-      const minHeight = action.primary ? '56px' : '48px';
-      const fontSize = action.primary ? '15px' : '14px';
+      const minHeight = isPrimary ? '56px' : '48px';
+      const fontSize = isPrimary ? '15px' : '14px';
       
       return `
         <button class="modal-action" data-action-id="${action.id}" style="
           background: ${bgColor};
           border: none;
+          border-bottom: 3px solid ${borderColor};
           color: ${textColor};
           padding: 12px 16px;
-          border-radius: 12px;
+          border-radius: 10px;
           cursor: ${cursor};
           font-size: ${fontSize};
-          font-weight: 600;
+          font-weight: 500;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -201,8 +208,10 @@ export class ModalPanel {
           gap: 4px;
           min-height: ${minHeight};
           flex: 1;
-          transition: all 0.2s;
-          opacity: ${action.disabled ? '0.5' : '1'};
+          transition: all 0.1s ease;
+          opacity: ${action.disabled ? '0.6' : '1'};
+          position: relative;
+          top: 0;
         " ${action.disabled ? 'disabled' : ''}>
           <span style="font-size: 24px;">${action.icon}</span>
           <span>${action.label}</span>
@@ -215,8 +224,8 @@ export class ModalPanel {
         display: flex;
         gap: 10px;
         padding: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid #E0E0E0;
+        background: #F5F5F5;
       ">${actionButtons}</div>
     `;
   }

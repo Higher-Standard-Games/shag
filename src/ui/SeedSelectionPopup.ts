@@ -280,11 +280,12 @@ export class SeedSelectionPopup {
 
       .seed-section-label {
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.5);
+        color: #888888;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 4px;
         padding-left: 4px;
+        font-weight: 500;
       }
 
       .seed-section-dimmed {
@@ -300,9 +301,9 @@ export class SeedSelectionPopup {
         align-items: center;
         gap: 12px;
         padding: 12px 16px;
-        background: rgba(255, 255, 255, 0.05);
+        background: #FFFFFF;
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid #E0E0E0;
         transition: all 0.15s ease;
       }
 
@@ -311,14 +312,16 @@ export class SeedSelectionPopup {
       }
 
       .seed-item-available:hover {
-        background: rgba(74, 144, 226, 0.2);
-        border-color: rgba(74, 144, 226, 0.4);
+        background: #E3F2FD;
+        border-color: #2196F3;
         transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
       }
 
       .seed-item-disabled {
         cursor: not-allowed;
-        opacity: 0.7;
+        opacity: 0.6;
+        background: #F5F5F5;
       }
 
       .seed-item-icon {
@@ -328,7 +331,7 @@ export class SeedSelectionPopup {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.3);
+        background: #E8F5E9;
         border-radius: 8px;
       }
 
@@ -339,7 +342,7 @@ export class SeedSelectionPopup {
       .seed-item-name {
         font-size: 15px;
         font-weight: 600;
-        color: #fff;
+        color: #333333;
         margin-bottom: 4px;
       }
 
@@ -347,7 +350,7 @@ export class SeedSelectionPopup {
         display: flex;
         gap: 12px;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.6);
+        color: #666666;
       }
 
       .seed-stat {
@@ -358,7 +361,7 @@ export class SeedSelectionPopup {
 
       .seed-item-reason {
         font-size: 11px;
-        color: rgba(255, 200, 100, 0.8);
+        color: #F57C00;
         margin-top: 4px;
       }
 
@@ -374,11 +377,12 @@ export class SeedSelectionPopup {
         min-width: 28px;
         height: 28px;
         padding: 0 8px;
-        background: rgba(74, 144, 226, 0.3);
+        background: #E3F2FD;
         border-radius: 14px;
         font-size: 14px;
         font-weight: 600;
-        color: #4a90e2;
+        color: #1976D2;
+        border: 1px solid #BBDEFB;
       }
 
       .seed-empty {
@@ -393,17 +397,17 @@ export class SeedSelectionPopup {
       }
 
       .seed-empty-text {
-        color: rgba(255, 255, 255, 0.5);
+        color: #888888;
         font-size: 14px;
       }
 
       .seed-tip {
-        background: rgba(255, 200, 100, 0.1);
-        border: 1px solid rgba(255, 200, 100, 0.3);
+        background: #FFF8E1;
+        border: 1px solid #FFE082;
         border-radius: 8px;
         padding: 12px 16px;
         font-size: 13px;
-        color: rgba(255, 200, 100, 0.9);
+        color: #F57C00;
         text-align: center;
       }
     `;
