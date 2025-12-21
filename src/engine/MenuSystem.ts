@@ -133,9 +133,22 @@ export class MenuSystem {
    */
   public showSettings(): void {
     this.state = "settings";
+    
+    // Hide pause menu content but keep overlay
+    if (this.pauseOverlay) {
+      const panel = this.pauseOverlay.querySelector("div");
+      if (panel) {
+        (panel as HTMLElement).style.display = "none";
+      }
+    }
+    
     SettingsPanel.getInstance().show(() => {
-      // When settings closes, return to pause menu
+      // When settings closes, show pause menu content again
       if (this.pauseOverlay) {
+        const panel = this.pauseOverlay.querySelector("div");
+        if (panel) {
+          (panel as HTMLElement).style.display = "flex";
+        }
         this.state = "pause_menu";
       } else {
         this.state = "in_game";
@@ -224,11 +237,122 @@ export class MenuSystem {
    * Confirm returning to main menu (loses unsaved progress)
    */
   private confirmMainMenu(): void {
-    // Simple confirmation - could be a modal in the future
-    const confirmed = confirm("Return to main menu? Any unsaved progress will be lost.");
-    if (confirmed) {
-      this.returnToMainMenu();
-    }
+    this.showConfirmDialog(
+      "Return to Main Menu?",
+      "Any unsaved progress will be lost.",
+      () => this.returnToMainMenu()
+    );
+  }
+
+  /**
+   * Show a custom confirmation dialog (mobile-friendly, no alert())
+   */
+  private showConfirmDialog(title: string, message: string, onConfirm: () => void): void {
+    const dialog = document.createElement("div");
+    dialog.id = "confirm-dialog";
+    dialog.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      animation: fadeIn 0.15s ease;
+    `;
+
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.98), rgba(25, 25, 25, 0.98));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 32px 40px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    `;
+
+    const titleEl = document.createElement("h3");
+    titleEl.textContent = title;
+    titleEl.style.cssText = `
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin: 0 0 12px 0;
+    `;
+    panel.appendChild(titleEl);
+
+    const messageEl = document.createElement("p");
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      color: #aaa;
+      font-size: 1rem;
+      margin: 0 0 24px 0;
+    `;
+    panel.appendChild(messageEl);
+
+    const buttonRow = document.createElement("div");
+    buttonRow.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    `;
+
+    // Cancel button
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = `
+      padding: 12px 32px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    cancelBtn.addEventListener("mouseenter", () => {
+      cancelBtn.style.background = "rgba(255, 255, 255, 0.2)";
+    });
+    cancelBtn.addEventListener("mouseleave", () => {
+      cancelBtn.style.background = "rgba(255, 255, 255, 0.1)";
+    });
+    cancelBtn.addEventListener("click", () => dialog.remove());
+    buttonRow.appendChild(cancelBtn);
+
+    // Confirm button
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "Confirm";
+    confirmBtn.style.cssText = `
+      padding: 12px 32px;
+      font-size: 1rem;
+      background: rgba(244, 67, 54, 0.3);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    confirmBtn.addEventListener("mouseenter", () => {
+      confirmBtn.style.background = "rgba(244, 67, 54, 0.5)";
+    });
+    confirmBtn.addEventListener("mouseleave", () => {
+      confirmBtn.style.background = "rgba(244, 67, 54, 0.3)";
+    });
+    confirmBtn.addEventListener("click", () => {
+      dialog.remove();
+      onConfirm();
+    });
+    buttonRow.appendChild(confirmBtn);
+
+    panel.appendChild(buttonRow);
+    dialog.appendChild(panel);
+    document.body.appendChild(dialog);
   }
 
   /**

@@ -418,7 +418,7 @@ export class MainMenu {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
+      background: linear-gradient(135deg, #0a1a0a 0%, #0d2818 30%, #051005 70%, #000000 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -431,11 +431,12 @@ export class MainMenu {
     text.textContent = "Click to Start";
     text.style.cssText = `
       color: #fff;
-      font-size: 2rem;
-      font-weight: 200;
-      letter-spacing: 0.3em;
+      font-size: 2.5rem;
+      font-family: 'Chicle', 'Segoe UI', sans-serif;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
       animation: pulse 2s ease-in-out infinite;
+      text-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
     `;
 
     // Add pulse animation
