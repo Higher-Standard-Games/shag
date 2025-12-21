@@ -422,7 +422,7 @@ export class MainMenu {
         left: 0;
         width: 100%;
         height: 100%;
-        background: radial-gradient(ellipse 100% 50% at 50% 100%, rgba(15, 50, 20, 0.5) 0%, rgba(5, 20, 8, 0.2) 30%, #000000 60%);
+        background: #000000;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -430,6 +430,20 @@ export class MainMenu {
         z-index: 200;
         cursor: pointer;
       `;
+
+      // Add subtle green glow at bottom
+      const glow = document.createElement("div");
+      glow.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 150%;
+        height: 40%;
+        background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(10, 35, 15, 0.8) 0%, rgba(5, 20, 8, 0.4) 40%, transparent 70%);
+        pointer-events: none;
+      `;
+      overlay.appendChild(glow);
 
       const text = document.createElement("div");
       text.textContent = "Click to Start";
