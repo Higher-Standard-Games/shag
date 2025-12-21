@@ -402,11 +402,63 @@ export class MainMenu {
     // Show UI
     document.body.appendChild(this.container);
 
-    // Start menu music
-    AudioManager.getInstance().playMusic("menu");
-
     // Start render loop for background
     this.startRenderLoop();
+
+    // Show "Click to Start" overlay to enable audio (browser autoplay policy)
+    this.showClickToStart();
+  }
+
+  private showClickToStart(): void {
+    const overlay = document.createElement("div");
+    overlay.id = "click-to-start";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+      cursor: pointer;
+    `;
+
+    const text = document.createElement("div");
+    text.textContent = "Click to Start";
+    text.style.cssText = `
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 200;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      animation: pulse 2s ease-in-out infinite;
+    `;
+
+    // Add pulse animation
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    overlay.appendChild(text);
+    document.body.appendChild(overlay);
+
+    // On click, remove overlay and start music
+    const handleClick = () => {
+      overlay.remove();
+      style.remove();
+      AudioManager.getInstance().playMusic("menu");
+    };
+
+    overlay.addEventListener("click", handleClick, { once: true });
   }
 
   public hide(): void {
