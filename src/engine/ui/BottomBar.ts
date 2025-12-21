@@ -250,6 +250,13 @@ export class BottomBar {
   private selectCategory(categoryId: string): void {
     this.selectedCategory = categoryId;
     this.selectedItem = null;
+    
+    // Auto-expand if minimized when clicking a tab
+    if (!this.isExpanded) {
+      this.isExpanded = true;
+      this.itemsContainer.style.display = "grid";
+    }
+    
     this.renderTabs();
     this.renderItems();
   }

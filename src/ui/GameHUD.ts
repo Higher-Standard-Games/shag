@@ -183,22 +183,34 @@ export class GameHUD {
         display: flex;
         align-items: center;
         gap: 8px;
-        background: rgba(0,0,0,0.5);
-        padding: 8px 15px;
-        border-radius: 20px;
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
+        background: #FAFAFA;
+        padding: 8px 16px;
+        border-radius: 50px;
+        color: #333333;
+        font-size: 15px;
+        font-weight: 600;
+        border: none;
+        border-bottom: 3px solid #CCCCCC;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
+      }
+
+      .hud-resource:hover {
+        background: #FFFFFF;
+        top: -2px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       }
 
       .hud-icon {
-        font-size: 20px;
+        font-size: 18px;
       }
 
       .hud-xp-bar {
         width: 60px;
         height: 6px;
-        background: rgba(255,255,255,0.2);
+        background: #E0E0E0;
         border-radius: 3px;
         overflow: hidden;
         margin-left: 5px;
@@ -206,7 +218,7 @@ export class GameHUD {
 
       .hud-xp-fill {
         height: 100%;
-        background: linear-gradient(90deg, #ffd700, #ffaa00);
+        background: linear-gradient(90deg, #FFC107, #FF9800);
         transition: width 0.3s ease;
       }
 
@@ -281,53 +293,75 @@ export class GameHUD {
         display: flex;
         align-items: center;
         gap: 8px;
-        color: white;
+        color: #333333;
         font-size: 14px;
-        background: rgba(0,0,0,0.5);
-        padding: 8px 15px;
-        border-radius: 20px;
+        background: #FAFAFA;
+        padding: 8px 16px;
+        border-radius: 50px;
+        border: none;
+        border-bottom: 3px solid #CCCCCC;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        transition: all 0.1s ease;
+        position: relative;
+        top: 0;
+      }
+
+      .hud-time:hover {
+        background: #FFFFFF;
+        top: -2px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       }
 
       .hud-day {
-        font-weight: bold;
-        color: #ffd700;
+        font-weight: 700;
+        color: #F57C00;
       }
 
       .hud-clock {
         font-family: 'Courier New', monospace;
-        font-weight: bold;
+        font-weight: 600;
+        color: #333333;
       }
 
       .hud-period {
-        font-size: 18px;
+        font-size: 16px;
       }
 
       .hud-speed-btn {
-        background: rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 4px;
-        color: #fff;
+        background: #E8E8E8;
+        border: none;
+        border-bottom: 2px solid #BBBBBB;
+        border-radius: 50px;
+        color: #666666;
         font-size: 10px;
-        padding: 2px 6px;
+        padding: 4px 8px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.1s ease;
         margin-left: 4px;
+        position: relative;
+        top: 0;
       }
 
       .hud-speed-btn:hover {
-        background: rgba(255, 255, 255, 0.25);
+        background: #F5F5F5;
+        top: -1px;
+      }
+
+      .hud-speed-btn:active {
+        top: 1px;
+        border-bottom-width: 1px;
       }
 
       .hud-speed-btn.fast {
-        background: rgba(76, 175, 80, 0.4);
-        border-color: rgba(76, 175, 80, 0.6);
-        color: #8f8;
+        background: #E8F5E9;
+        border-bottom-color: #4CAF50;
+        color: #2E7D32;
       }
 
       .hud-speed-btn.debug {
-        background: rgba(244, 67, 54, 0.4);
-        border-color: rgba(244, 67, 54, 0.6);
-        color: #f88;
+        background: #FFEBEE;
+        border-bottom-color: #F44336;
+        color: #D32F2F;
         animation: debugPulse 0.5s ease-in-out infinite;
       }
 
