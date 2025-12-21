@@ -467,18 +467,38 @@ export class MainMenu {
         justify-content: center;
       `;
 
-      // Central pulsing dot
+      // Central pulsing dot with color rotation
       const centerDot = document.createElement("div");
       centerDot.style.cssText = `
-        width: 16px;
-        height: 16px;
+        width: 32px;
+        height: 32px;
         background: rgb(37, 182, 120);
         border-radius: 50%;
         box-shadow: 0 0 20px rgba(37, 182, 120, 0.6);
         animation: centerPulse 2s ease-in-out infinite;
         z-index: 2;
+        transition: background 0.5s ease, box-shadow 0.5s ease;
       `;
       rippleContainer.appendChild(centerDot);
+
+      // Color palette from engine.svg for random rotation
+      const colorPalette = [
+        { bg: 'rgb(37, 182, 120)', glow: 'rgba(37, 182, 120, 0.6)' },    // Main green
+        { bg: 'rgb(99, 211, 199)', glow: 'rgba(99, 211, 199, 0.6)' },    // Teal highlight
+        { bg: 'rgb(134, 233, 216)', glow: 'rgba(134, 233, 216, 0.6)' },  // Light teal
+        { bg: 'rgb(254, 200, 49)', glow: 'rgba(254, 200, 49, 0.6)' },    // Orange/yellow
+        { bg: 'rgb(60, 197, 196)', glow: 'rgba(60, 197, 196, 0.6)' },    // Cyan-teal
+        { bg: 'rgb(254, 167, 39)', glow: 'rgba(254, 167, 39, 0.6)' },    // Orange
+      ];
+
+      // Random color rotation interval
+      let colorIndex = 0;
+      const colorInterval = setInterval(() => {
+        colorIndex = Math.floor(Math.random() * colorPalette.length);
+        const color = colorPalette[colorIndex];
+        centerDot.style.background = color.bg;
+        centerDot.style.boxShadow = `0 0 25px ${color.glow}`;
+      }, 800 + Math.random() * 400);
 
       // Create 3 ripple rings with staggered animations
       const rippleColors = [
@@ -540,6 +560,7 @@ export class MainMenu {
 
       // On click, remove overlay and resolve promise
       const handleClick = () => {
+        clearInterval(colorInterval);
         overlay.remove();
         style.remove();
         resolve();
