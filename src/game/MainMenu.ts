@@ -46,7 +46,7 @@ export class MainMenu {
       justify-content: center;
       align-items: center;
       z-index: 100;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       pointer-events: none;
     `;
 
@@ -190,6 +190,8 @@ export class MainMenu {
       width: 90%;
     `;
 
+    panel.style.fontFamily = "'Nunito', 'Segoe UI', system-ui, sans-serif";
+
     const title = document.createElement("h2");
     title.textContent = "Load Game";
     title.style.cssText = `
@@ -323,6 +325,8 @@ export class MainMenu {
       max-width: 500px;
       width: 90%;
     `;
+
+    panel.style.fontFamily = "'Nunito', 'Segoe UI', system-ui, sans-serif";
 
     const title = document.createElement("h2");
     title.textContent = "Choose Save Slot";
