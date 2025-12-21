@@ -53,18 +53,18 @@ export class PlantStatusIndicator {
       .plant-status-bars {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        padding: 4px 6px;
+        gap: 3px;
+        padding: 6px 8px;
         background: rgba(0, 0, 0, 0.6);
-        border-radius: 4px;
-        min-width: 50px;
+        border-radius: 6px;
+        min-width: 80px;
         pointer-events: none;
       }
 
       .plant-status-bar {
-        height: 4px;
+        height: 6px;
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 2px;
+        border-radius: 3px;
         overflow: hidden;
       }
 
