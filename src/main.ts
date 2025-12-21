@@ -8,6 +8,7 @@ import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./game/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
 import { SettingsPanel } from "./ui/SettingsPanel";
+import { UITheme } from "./engine/ui/UITheme";
 
 /**
  * Main application entry point.
@@ -45,6 +46,10 @@ async function main() {
   
   // Initialize settings (loads saved settings and applies to audio)
   SettingsPanel.getInstance();
+  
+  // Load custom fonts before showing main menu
+  const uiTheme = UITheme.getInstance();
+  await uiTheme.loadFont("Chicle", "/fonts/Chicle-Regular.woff2", "400");
 
   // Phase 2: Main Menu
   loadingScreen.hide();
