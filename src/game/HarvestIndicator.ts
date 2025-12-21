@@ -558,7 +558,12 @@ export class HarvestIndicator {
    * Get all currently harvestable plants
    */
   public getHarvestablePlants(): HarvestableInfo[] {
-    return Array.from(this.harvestables.values());
+    const result = Array.from(this.harvestables.values());
+    // Debug: log when this is called
+    if (result.length > 0) {
+      console.log(`[HarvestIndicator] getHarvestablePlants() returning ${result.length} plants`);
+    }
+    return result;
   }
 
   /**

@@ -634,6 +634,11 @@ export class GameScene {
 
           // Check for harvestable plants (prioritize urgent ones)
           const harvestables = harvestIndicator.getHarvestablePlants();
+          
+          // Debug: log harvestables count
+          if (harvestables.length > 0) {
+            console.log(`[Events] Found ${harvestables.length} harvestables:`, harvestables.map(h => ({ id: h.plantId, phase: h.phase })));
+          }
           const spoiled = harvestables.filter(h => h.phase === "spoiled");
           const overripe = harvestables.filter(h => h.phase === "overripe");
           const ready = harvestables.filter(h => h.phase === "ready");
