@@ -890,9 +890,16 @@ export class GameScene {
         label: "Fertilize",
         icon: "🧪",
         color: "#9C27B0",
-        disabled: false, // Will be handled by applyFertilizer logic
+        disabled: (() => {
+          const strain = PlantSystem.getInstance().getStrain(plant.strain);
+          const fertType = strain?.fertilization?.fertilizerType || 'basic';
+          const fertItemId = `fertilizer_${fertType}`;
+          const hasFertilizer = GameState.getInstance().hasItem(fertItemId);
+          const fertStatus = PlantSystem.getInstance().getFertilizationStatus(this.selectedPlantId!);
+          const isFullyFertilized = fertStatus ? fertStatus.applications >= fertStatus.required : false;
+          return !hasFertilizer || isFullyFertilized;
+        })(),
         onClick: () => {
-          // TODO: Let player choose fertilizer type based on strain requirement
           const strain = PlantSystem.getInstance().getStrain(plant.strain);
           const fertType = strain?.fertilization?.fertilizerType || 'basic';
           PlantSystem.getInstance().applyFertilizer(this.selectedPlantId!, fertType);
