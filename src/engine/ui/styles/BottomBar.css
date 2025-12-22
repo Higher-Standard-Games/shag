@@ -19,6 +19,8 @@
   transition: transform 0.2s ease;
   border: 1px solid #E0E0E0;
   border-bottom: none;
+  /* Safe area padding for notched phones (home indicator) */
+  padding-bottom: var(--safe-area-inset-bottom, 0px);
 }
 
 #bottom-bar.hidden {
