@@ -199,7 +199,7 @@ export class MenuSystem {
       align-items: center;
       gap: 16px;
       z-index: ${UIManager.getInstance().getZIndex("PAUSE_MENU") + 1};
-      animation: uiScaleIn 0.2s ease;
+      animation: uiScaleInCentered 0.2s ease;
     `;
 
     // Title

@@ -129,7 +129,7 @@ export class SettingsPanel {
       max-width: 500px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
       z-index: ${UIManager.getInstance().getZIndex("SETTINGS") + 1};
-      animation: uiScaleIn 0.2s ease;
+      animation: uiScaleInCentered 0.2s ease;
       font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 

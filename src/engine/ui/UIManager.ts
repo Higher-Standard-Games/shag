@@ -161,6 +161,11 @@ export class UIManager {
         to { opacity: 1; transform: scale(1); }
       }
       
+      @keyframes uiScaleInCentered {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+      
       @keyframes uiPulse {
         0%, 100% { opacity: 0.6; transform: scale(1); }
         50% { opacity: 1; transform: scale(1.05); }
