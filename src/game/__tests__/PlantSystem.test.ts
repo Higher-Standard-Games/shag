@@ -426,7 +426,7 @@ describe("PlantSystem", () => {
       // Plant should start at stage 0
       expect(plant.growthStage).toBe(0);
       
-      const applied = plantSystem.applyFertilizer(plant.id);
+      const applied = plantSystem.applyFertilizer(plant.id, 'basic');
       expect(applied).toBe(true);
       
       const updated = gameState.getPlant(plant.id);

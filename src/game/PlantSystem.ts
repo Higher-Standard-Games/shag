@@ -37,6 +37,12 @@ export interface StrainEnvironment {
   nutrientDemand: NutrientDemand; // How much nutrients the strain needs
 }
 
+export interface FertilizationRequirement {
+  requiredApplications: number; // 1-3 applications needed
+  fertilizerType: 'basic' | 'premium' | 'advanced'; // Type of fertilizer required
+  applicationTiming: number[]; // Growth progress % when to apply (e.g., [0.25, 0.6])
+}
+
 export interface StrainDefinition {
   id: string;
   name: string;
@@ -67,6 +73,8 @@ export interface StrainDefinition {
   rareSeedDrops?: Array<{ strainId: string; chance: number }>; // Rare seeds that can drop
   // Environment preferences (optional for backwards compatibility)
   environment?: StrainEnvironment;
+  // Fertilization requirements
+  fertilization?: FertilizationRequirement;
 }
 
 /**
@@ -780,42 +788,114 @@ export class PlantSystem {
   // ==================== Fertilizer ====================
 
   /**
-   * Apply fertilizer to boost growth speed by 2x
-   * Fertilizer effect lasts until harvest
+   * Apply fertilizer to a plant
+   * Fertilizer affects final yield (60% without, 100% with perfect fertilization)
    */
-  public applyFertilizer(plantId: string): boolean {
+  public applyFertilizer(plantId: string, fertilizerType: 'basic' | 'premium' | 'advanced'): boolean {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return false;
 
     const strain = this.getStrain(plant.strain);
-    if (!strain) return false;
+    if (!strain || !strain.fertilization) return false;
 
-    // Check if player has fertilizer
-    if (!this.gameState.hasItem("fertilizer")) {
-      console.warn("No fertilizer available!");
-      this.emit("no_fertilizer", plantId);
+    // Check if player has the correct fertilizer type
+    const fertilizerItemId = `fertilizer_${fertilizerType}`;
+    if (!this.gameState.hasItem(fertilizerItemId)) {
+      console.warn(`No ${fertilizerType} fertilizer available!`);
+      this.emit("no_fertilizer", plantId, { type: fertilizerType });
       return false;
     }
 
-    // Already fertilized or already ready
-    if (plant.fertilized || plant.growthStage >= strain.stages - 1) {
-      console.log("Cannot fertilize this plant");
+    // Check if plant is already fully fertilized
+    const currentApplications = plant.fertilizerApplications || 0;
+    if (currentApplications >= strain.fertilization.requiredApplications) {
+      console.log("Plant already fully fertilized");
+      return false;
+    }
+
+    // Check if it's the right time to fertilize
+    const growthProgress = this.getGrowthProgress(plantId);
+    const nextTimingWindow = strain.fertilization.applicationTiming[currentApplications];
+    const windowTolerance = 0.1; // ±10% tolerance
+    
+    if (Math.abs(growthProgress - nextTimingWindow) > windowTolerance) {
+      console.log(`Not the right time to fertilize. Wait until ${Math.round(nextTimingWindow * 100)}% growth`);
+      this.emit("fertilizer_wrong_timing", plantId, { 
+        currentProgress: growthProgress, 
+        targetProgress: nextTimingWindow 
+      });
       return false;
     }
 
     // Remove fertilizer from inventory
-    this.gameState.removeItem("fertilizer");
+    this.gameState.removeItem(fertilizerItemId);
 
-    // Mark as fertilized - growth speed will be 2x
+    // Apply fertilizer
     this.gameState.updatePlant(plantId, {
-      fertilized: true,
-      fertilizedAt: this.gameTimer.getGameTime(),
+      fertilizerApplications: currentApplications + 1,
+      lastFertilizedAt: this.gameTimer.getGameTime(),
     });
 
-    console.log(`Fertilized ${plantId} - 25% faster growth!`);
-    this.emit("fertilized", plantId, { strain: plant.strain, speedBoost: 1.25 });
+    console.log(`Applied ${fertilizerType} fertilizer to ${plantId} (${currentApplications + 1}/${strain.fertilization.requiredApplications})`);
+    this.emit("fertilized", plantId, { 
+      strain: plant.strain, 
+      applications: currentApplications + 1,
+      required: strain.fertilization.requiredApplications,
+      type: fertilizerType
+    });
 
     return true;
+  }
+
+  /**
+   * Get fertilization status for a plant
+   */
+  public getFertilizationStatus(plantId: string): {
+    applications: number;
+    required: number;
+    yieldMultiplier: number;
+    nextWindow?: number;
+    fertilizerType: string;
+  } | null {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return null;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain || !strain.fertilization) return null;
+
+    const applications = plant.fertilizerApplications || 0;
+    const required = strain.fertilization.requiredApplications;
+    
+    // Calculate yield multiplier: 60% base + 40% from fertilization
+    // Linear scaling: 0 apps = 0.6, full apps = 1.0
+    const yieldMultiplier = 0.6 + (0.4 * (applications / required));
+    
+    // Get next fertilization window
+    const nextWindow = applications < required ? strain.fertilization.applicationTiming[applications] : undefined;
+
+    return {
+      applications,
+      required,
+      yieldMultiplier,
+      nextWindow,
+      fertilizerType: strain.fertilization.fertilizerType
+    };
+  }
+
+  /**
+   * Get growth progress as a percentage (0-1)
+   */
+  private getGrowthProgress(plantId: string): number {
+    const plant = this.gameState.getPlant(plantId);
+    if (!plant) return 0;
+
+    const strain = this.getStrain(plant.strain);
+    if (!strain) return 0;
+
+    const currentTime = this.gameTimer.getGameTime();
+    const timeSincePlanted = currentTime - plant.plantedAt;
+    
+    return Math.min(1, timeSincePlanted / strain.growthTime);
   }
 
   /**
@@ -908,10 +988,14 @@ export class PlantSystem {
     const adjustedQuality = Math.min(100, phaseInfo.quality + (equipmentQualityBonus * 100));
     const adjustedQualityMultiplier = adjustedQuality / 100;
     
+    // Fertilization bonus: 60% base + 40% from perfect fertilization
+    const fertilizationStatus = this.getFertilizationStatus(plantId);
+    const fertilizationMultiplier = fertilizationStatus?.yieldMultiplier ?? 0.6;
+    
     // Final yield calculation
     const rawYield = base + waterBonus + tempBonus + lightBonus + masteryBonus;
     const equipmentYieldMultiplier = 1 + equipmentYieldBonus;
-    const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * potYieldMultiplier * envYieldMultiplier * equipmentYieldMultiplier));
+    const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * potYieldMultiplier * envYieldMultiplier * equipmentYieldMultiplier * fertilizationMultiplier));
     
     // XP calculation
     const xp = Math.max(1, Math.floor(strain.xpReward * qualityMultiplier * healthMultiplier));
@@ -985,7 +1069,7 @@ export class PlantSystem {
                       phaseInfo.phase === "spoiled" ? "(Spoiled!)" : "";
     console.log(`Harvested ${yield_} ${strain.name} ${phaseText}`);
     console.log(`  Base: ${base}, Water: +${waterBonus}, Temp: +${tempBonus}, Light: +${lightBonus}, Mastery: +${masteryBonus}`);
-    console.log(`  Quality: ${phaseInfo.quality}%, Health: ${plant.health}%, XP: ${totalXp}`);
+    console.log(`  Quality: ${phaseInfo.quality}%, Health: ${plant.health}%, Fertilization: ${Math.round(fertilizationMultiplier * 100)}%, XP: ${totalXp}`);
     
     const bonuses = { base, water: waterBonus, temp: tempBonus, light: lightBonus, mastery: masteryBonus };
     

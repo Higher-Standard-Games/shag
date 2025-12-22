@@ -611,9 +611,14 @@ export class GameHUD {
     });
 
     panel.querySelector("#btn-fertilize")?.addEventListener("click", () => {
-      if (plantSystem.applyFertilizer(plantId)) {
-        this.showNotification("Plant fertilized! 25% faster growth!", "success");
-        this.showPlantInfo(plantId); // Refresh
+      const plant = GameState.getInstance().getPlant(plantId);
+      if (plant) {
+        const strain = plantSystem.getStrain(plant.strain);
+        const fertType = strain?.fertilization?.fertilizerType || 'basic';
+        if (plantSystem.applyFertilizer(plantId, fertType)) {
+          this.showNotification("Fertilizer applied! Increases yield!", "success");
+          this.showPlantInfo(plantId); // Refresh
+        }
       }
     });
 

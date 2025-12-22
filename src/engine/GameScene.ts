@@ -890,9 +890,12 @@ export class GameScene {
         label: "Fertilize",
         icon: "🧪",
         color: "#9C27B0",
-        disabled: plant.fertilized || !GameState.getInstance().hasItem("fertilizer", 1),
+        disabled: false, // Will be handled by applyFertilizer logic
         onClick: () => {
-          PlantSystem.getInstance().applyFertilizer(this.selectedPlantId!);
+          // TODO: Let player choose fertilizer type based on strain requirement
+          const strain = PlantSystem.getInstance().getStrain(plant.strain);
+          const fertType = strain?.fertilization?.fertilizerType || 'basic';
+          PlantSystem.getInstance().applyFertilizer(this.selectedPlantId!, fertType);
           this.plantModal?.refresh();
         },
       },

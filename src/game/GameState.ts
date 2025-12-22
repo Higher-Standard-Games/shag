@@ -156,8 +156,10 @@ export interface PlantState {
   wateringStreak: number; // Consecutive perfect waters (for bonus)
   lastWaterPrompt: number; // Timestamp of last water prompt
   nextWaterPrompt: number; // Timestamp when next prompt appears
-  fertilized: boolean; // Was fertilizer used?
-  fertilizedAt?: number; // Timestamp when fertilizer was applied
+  fertilized: boolean; // Legacy field - kept for compatibility
+  fertilizedAt?: number; // Legacy field - kept for compatibility
+  fertilizerApplications?: number; // Number of fertilizer applications (0-3)
+  lastFertilizedAt?: number; // Timestamp of last fertilizer application
 }
 
 /**
