@@ -109,8 +109,11 @@ export class ShopDialog extends BaseDialog {
   }
 
   protected onOpen(context: DialogContext): void {
-    // Setup buy button handlers
-    const buyButtons = document.querySelectorAll('.shop-buy-btn');
+    // Setup buy button handlers - scope to dialog element
+    const dialogBody = this.element?.querySelector('.dialog-body');
+    if (!dialogBody) return;
+    
+    const buyButtons = dialogBody.querySelectorAll('.shop-buy-btn');
     buyButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         const target = e.target as HTMLButtonElement;

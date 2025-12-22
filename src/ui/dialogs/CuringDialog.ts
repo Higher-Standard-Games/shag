@@ -318,9 +318,13 @@ export class CuringDialog extends BaseDialog {
 
   private setupEventHandlers(context: DialogContext): void {
     const curingSystem = CuringSystem.getInstance();
+    
+    // Use the dialog element as the root for queries
+    const dialogBody = this.element?.querySelector(".dialog-body");
+    if (!dialogBody) return;
 
     // Fresh item selection
-    document.querySelectorAll(".fresh-item.selectable-item").forEach(item => {
+    dialogBody.querySelectorAll(".fresh-item.selectable-item").forEach(item => {
       item.addEventListener("click", () => {
         const id = (item as HTMLElement).dataset.id;
         if (id) {
@@ -331,7 +335,7 @@ export class CuringDialog extends BaseDialog {
     });
 
     // Barrel selection
-    document.querySelectorAll(".selectable-barrel").forEach(barrel => {
+    dialogBody.querySelectorAll(".selectable-barrel").forEach(barrel => {
       barrel.addEventListener("click", () => {
         const id = (barrel as HTMLElement).dataset.barrelId;
         if (id) {
@@ -342,7 +346,7 @@ export class CuringDialog extends BaseDialog {
     });
 
     // Start curing action button
-    document.querySelector(".start-cure-action-btn")?.addEventListener("click", () => {
+    dialogBody.querySelector(".start-cure-action-btn")?.addEventListener("click", () => {
       if (this.selectedFreshItemId && this.selectedBarrelId) {
         const freshItem = curingSystem.getFreshItem(this.selectedFreshItemId);
         const barrels = curingSystem.getOwnedBarrels();
@@ -370,7 +374,7 @@ export class CuringDialog extends BaseDialog {
     });
 
     // Collect buttons
-    document.querySelectorAll(".collect-btn").forEach(btn => {
+    dialogBody.querySelectorAll(".collect-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const target = e.target as HTMLButtonElement;
         const slotId = target.dataset.slotId;
