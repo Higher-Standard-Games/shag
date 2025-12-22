@@ -229,6 +229,7 @@ export class MainMenu {
         position: relative;
         top: 0;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       `;
 
       const slotName = slot.isAutoSave ? "Autosave" : `Slot ${slot.slot + 1}`;
@@ -236,11 +237,11 @@ export class MainMenu {
       const lastSaved = slot.lastSaved ? new Date(slot.lastSaved).toLocaleString() : "Unknown";
       
       slotBtn.innerHTML = `
-        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333;">${slotName}</div>
-        <div style="font-size: 0.9rem; color: #666666;">
+        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">${slotName}</div>
+        <div style="font-size: 0.9rem; color: #666666; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">
           Level ${slot.level || 1} • $${(slot.money || 0).toLocaleString()} • Day ${slot.day || 1}
         </div>
-        <div style="font-size: 0.8rem; color: #888888; margin-top: 4px;">
+        <div style="font-size: 0.8rem; color: #888888; margin-top: 4px; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">
           ${playTime} played • ${lastSaved}
         </div>
       `;
@@ -365,20 +366,21 @@ export class MainMenu {
         position: relative;
         top: 0;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       `;
 
       if (existingSlot?.exists) {
         const playTime = this.formatPlayTime(existingSlot.playTime || 0);
         slotBtn.innerHTML = `
-          <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333;">Slot ${i + 1} (Overwrite)</div>
-          <div style="font-size: 0.9rem; color: #D32F2F;">
+          <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; color: #333333; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">Slot ${i + 1} (Overwrite)</div>
+          <div style="font-size: 0.9rem; color: #D32F2F; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">
             Level ${existingSlot.level || 1} • $${(existingSlot.money || 0).toLocaleString()} • ${playTime}
           </div>
         `;
       } else {
         slotBtn.innerHTML = `
-          <div style="font-size: 1.1rem; font-weight: 600; color: #333333;">Slot ${i + 1}</div>
-          <div style="font-size: 0.9rem; color: #666666;">Empty</div>
+          <div style="font-size: 1.1rem; font-weight: 600; color: #333333; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">Slot ${i + 1}</div>
+          <div style="font-size: 0.9rem; color: #666666; font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;">Empty</div>
         `;
       }
 
@@ -456,17 +458,17 @@ export class MainMenu {
       letter-spacing: 0.1em;
       text-transform: uppercase;
       background: ${bg};
+      color: ${textColor};
       border: none;
       border-bottom: 4px solid ${border};
       border-radius: 8px;
-      color: ${textColor};
       cursor: pointer;
       transition: all 0.1s ease;
       min-width: 250px;
       box-shadow: 0 2px 4px ${shadow};
       position: relative;
       top: 0;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
 
     btn.addEventListener("mouseenter", () => {
