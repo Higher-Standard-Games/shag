@@ -40,7 +40,7 @@
       "gameplay": {
         "growthTime": 360000,
         "stages": 4,
-        "waterConsumption": 8,
+        "waterConsumption": 26,
         "baseYield": 120,
         "xpReward": 15,
         "seedId": "seed_afghan_kush",
@@ -96,7 +96,7 @@
       "gameplay": {
         "growthTime": 420000,
         "stages": 5,
-        "waterConsumption": 12,
+        "waterConsumption": 27,
         "baseYield": 100,
         "xpReward": 20,
         "seedId": "seed_durban_poison",
@@ -152,7 +152,7 @@
       "gameplay": {
         "growthTime": 540000,
         "stages": 5,
-        "waterConsumption": 15,
+        "waterConsumption": 26,
         "baseYield": 80,
         "xpReward": 30,
         "seedId": "seed_thai",
@@ -214,7 +214,7 @@
       "gameplay": {
         "growthTime": 600000,
         "stages": 5,
-        "waterConsumption": 15,
+        "waterConsumption": 27,
         "baseYield": 150,
         "xpReward": 25,
         "seedId": "seed_og_kush",
@@ -278,7 +278,7 @@
       "gameplay": {
         "growthTime": 330000,
         "stages": 4,
-        "waterConsumption": 10,
+        "waterConsumption": 28,
         "baseYield": 160,
         "xpReward": 12,
         "seedId": "seed_skunk_1",
@@ -342,7 +342,7 @@
       "gameplay": {
         "growthTime": 780000,
         "stages": 5,
-        "waterConsumption": 18,
+        "waterConsumption": 24,
         "baseYield": 130,
         "xpReward": 40,
         "seedId": "seed_girl_scout_cookies",
@@ -405,7 +405,7 @@
       "gameplay": {
         "growthTime": 720000,
         "stages": 5,
-        "waterConsumption": 16,
+        "waterConsumption": 29,
         "baseYield": 140,
         "xpReward": 45,
         "seedId": "seed_gelato",
@@ -469,7 +469,7 @@
       "gameplay": {
         "growthTime": 900000,
         "stages": 6,
-        "waterConsumption": 20,
+        "waterConsumption": 26,
         "baseYield": 180,
         "xpReward": 60,
         "seedId": "seed_lemon_cherry_gelato",
