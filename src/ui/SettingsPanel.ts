@@ -165,8 +165,8 @@ export class SettingsPanel {
       }
     ));
 
-    // Theme toggle (Light/Dark mode)
-    content.appendChild(this.createThemeToggle());
+    // Theme toggle (Light/Dark mode) - hidden for now, needs CSS variable integration
+    // content.appendChild(this.createThemeToggle());
 
     this.panel.appendChild(content);
 
@@ -291,7 +291,9 @@ export class SettingsPanel {
 
   /**
    * Create a theme toggle (Light/Dark mode)
+   * @todo Re-enable when CSS files use CSS variables for theming
    */
+  // @ts-ignore - Kept for future dark mode implementation
   private createThemeToggle(): HTMLDivElement {
     const container = document.createElement("div");
     container.className = "settings-theme-container";
