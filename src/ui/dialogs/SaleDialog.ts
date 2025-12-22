@@ -224,11 +224,22 @@ export class SaleDialog extends BaseDialog {
 
   private setupEventHandlers(context: DialogContext): void {
     const orderSystem = OrderSystem.getInstance();
+    
+    // Use the dialog element as the root for queries
+    const dialogBody = this.element?.querySelector(".dialog-body");
+    if (!dialogBody) {
+      console.warn("[SaleDialog] Dialog body not found");
+      return;
+    }
 
     // Order selection
-    document.querySelectorAll(".selectable-order").forEach(orderEl => {
+    const orderElements = dialogBody.querySelectorAll(".selectable-order");
+    console.log("[SaleDialog] Found", orderElements.length, "selectable orders");
+    
+    orderElements.forEach(orderEl => {
       orderEl.addEventListener("click", () => {
         const id = (orderEl as HTMLElement).dataset.orderId;
+        console.log("[SaleDialog] Order clicked:", id);
         if (id) {
           this.selectedOrderId = this.selectedOrderId === id ? null : id;
           this.refresh(context);
@@ -237,9 +248,14 @@ export class SaleDialog extends BaseDialog {
     });
 
     // Complete sale button
-    document.querySelector(".complete-sale-btn")?.addEventListener("click", () => {
+    const saleBtn = dialogBody.querySelector(".complete-sale-btn");
+    console.log("[SaleDialog] Sale button found:", !!saleBtn);
+    
+    saleBtn?.addEventListener("click", () => {
+      console.log("[SaleDialog] Complete sale clicked, selectedOrderId:", this.selectedOrderId);
       if (this.selectedOrderId) {
         const order = orderSystem.getOrder(this.selectedOrderId);
+        console.log("[SaleDialog] Order found:", !!order, "canFulfill:", order ? orderSystem.canFulfill(this.selectedOrderId) : false);
         if (order && orderSystem.fulfillOrder(this.selectedOrderId)) {
           // Show award notification
           const reward = Math.floor(order.baseReward * order.tipMultiplier);
