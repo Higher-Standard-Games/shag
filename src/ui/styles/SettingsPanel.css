@@ -142,6 +142,31 @@
   left: 26px;
 }
 
+/* Toggle with description */
+.settings-toggle-with-desc {
+  flex-wrap: wrap;
+}
+
+.settings-toggle-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.settings-toggle-description {
+  color: #888888;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Separator */
+.settings-separator {
+  height: 1px;
+  background: #E0E0E0;
+  margin: 8px 0;
+}
+
 /* Theme Toggle */
 .settings-theme-container {
   display: flex;

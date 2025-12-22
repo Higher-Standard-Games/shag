@@ -15,6 +15,7 @@ import { GameState, GameTimer, HarvestIndicator, PlantSystem } from "../game";
 import { OrderSystem } from "../game/OrderSystem";
 import { QuestSystem } from "../game/QuestSystem";
 import { ShopSystem } from "../game/ShopSystem";
+import { SettingsPanel } from "../ui/SettingsPanel";
 import { TextureManager } from "./loader/TextureManager";
 import { RTSCameraController } from "./camera/RTSCameraController";
 import { SpriteManager } from "./sprites/SpriteManager";
@@ -69,26 +70,41 @@ export class GameScene {
   private plantModal: ModalPanel | null = null;
   private selectedPlantId: string | null = null;
   
-  // Mobile optimization: FPS throttling
-  private isMobile: boolean;
-  private targetFPS: number;
+  // Performance mode: FPS throttling
+  private targetFPS: number = 999;
   private lastRenderTime: number = 0;
-  private frameInterval: number;
+  private frameInterval: number = 0;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
     this.canvas = canvas;
     GameScene.instance = this;
     
-    // Detect mobile for FPS throttling
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                    (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+    // Read performance setting (respects user's choice, defaults based on device)
+    const settings = SettingsPanel.getInstance().getSettings();
+    this.updatePerformanceMode(settings.highPerformanceRendering);
     
-    // 30 FPS on mobile (saves battery), 60 FPS on desktop
-    this.targetFPS = this.isMobile ? 30 : 60;
-    this.frameInterval = 1000 / this.targetFPS;
-    
-    console.log(`[GameScene] Target FPS: ${this.targetFPS} (${this.isMobile ? 'mobile' : 'desktop'})`);
+    // Listen for performance setting changes
+    window.addEventListener("performanceSettingChanged", ((e: CustomEvent) => {
+      this.updatePerformanceMode(e.detail.highPerformance);
+    }) as EventListener);
+  }
+  
+  /**
+   * Update FPS target based on performance mode
+   */
+  private updatePerformanceMode(highPerformance: boolean): void {
+    if (highPerformance) {
+      // Uncapped - let browser handle it (typically 60-120fps)
+      this.targetFPS = 999; // Effectively uncapped
+      this.frameInterval = 0;
+      console.log(`[GameScene] High Performance mode: uncapped FPS`);
+    } else {
+      // Battery saver - 30fps
+      this.targetFPS = 30;
+      this.frameInterval = 1000 / this.targetFPS;
+      console.log(`[GameScene] Battery Saver mode: 30 FPS`);
+    }
   }
 
   public static getInstance(): GameScene {
@@ -1034,17 +1050,19 @@ export class GameScene {
     this.engine.runRenderLoop(() => {
       if (!this.scene || !this.camera) return;
 
-      // FPS throttling for mobile (saves battery and reduces heat)
-      const currentTime = performance.now();
-      const elapsed = currentTime - this.lastRenderTime;
-      
-      if (elapsed < this.frameInterval) {
-        // Skip this frame - not enough time has passed
-        return;
+      // FPS throttling when in battery saver mode (frameInterval > 0)
+      if (this.frameInterval > 0) {
+        const currentTime = performance.now();
+        const elapsed = currentTime - this.lastRenderTime;
+        
+        if (elapsed < this.frameInterval) {
+          // Skip this frame - not enough time has passed
+          return;
+        }
+        
+        // Adjust for drift to maintain consistent frame rate
+        this.lastRenderTime = currentTime - (elapsed % this.frameInterval);
       }
-      
-      // Adjust for drift to maintain consistent frame rate
-      this.lastRenderTime = currentTime - (elapsed % this.frameInterval);
 
       // Update game timer
       const deltaTime = GameTimer.getInstance().update();

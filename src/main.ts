@@ -23,31 +23,12 @@ import { UITheme } from "./engine/ui/UITheme";
 async function main() {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
   
-  // Detect mobile device
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                   (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-  
-  // Create engine with mobile-optimized settings
+  // Create engine
+  // Note: FPS throttling is handled in GameScene based on user's "High Performance" setting
   const engine = new Engine(canvas, true, {
-    // Limit to device pixel ratio of 2 on mobile to save GPU
-    adaptToDeviceRatio: !isMobile,
     // Disable stencil buffer if not needed (saves memory)
     stencil: false,
   });
-  
-  // Mobile optimization: Limit FPS to 30 on mobile, 60 on desktop
-  // This significantly reduces battery drain and heat
-  if (isMobile) {
-    // 30 FPS is smooth enough for a casual farming game
-    engine.setHardwareScalingLevel(1.5); // Render at lower resolution
-    // Note: Babylon.js doesn't have direct FPS limiting, but we can use:
-    // 1. Lower hardware scaling (renders at lower resolution)
-    // 2. The browser's requestAnimationFrame naturally caps at 60fps
-    // 3. For 30fps, we'd need custom throttling in render loop
-    console.log("[Mobile] Optimized settings: 1.5x hardware scaling");
-  } else {
-    console.log("[Desktop] Full quality rendering");
-  }
 
   // Handle window resize
   window.addEventListener("resize", () => {

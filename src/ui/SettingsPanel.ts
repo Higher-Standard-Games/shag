@@ -20,6 +20,7 @@ export interface GameSettings {
   sfxVolume: number;    // 0-1 (for future use)
   musicEnabled: boolean;
   sfxEnabled: boolean;
+  highPerformanceRendering: boolean;  // true = uncapped FPS, false = 30fps battery saver
 }
 
 export class SettingsPanel {
@@ -57,12 +58,23 @@ export class SettingsPanel {
     return this.getDefaults();
   }
 
+  /**
+   * Detect if running on mobile device
+   */
+  private isMobileDevice(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+  }
+
   private getDefaults(): GameSettings {
+    // High performance ON by default for desktop, OFF for mobile (battery saver)
+    const isMobile = this.isMobileDevice();
     return {
       musicVolume: 0.5,
       sfxVolume: 0.5,
       musicEnabled: true,
       sfxEnabled: true,
+      highPerformanceRendering: !isMobile,  // Desktop: on, Mobile: off
     };
   }
 
@@ -162,6 +174,29 @@ export class SettingsPanel {
       (value) => {
         this.settings.sfxVolume = value;
         this.saveSettings();
+      }
+    ));
+
+    // Separator
+    const separator = document.createElement("div");
+    separator.className = "settings-separator";
+    content.appendChild(separator);
+
+    // High Performance Rendering toggle
+    content.appendChild(this.createToggleWithDescription(
+      "High Performance",
+      "⚡",
+      this.settings.highPerformanceRendering,
+      this.isMobileDevice() 
+        ? "Uncapped FPS (uses more battery)" 
+        : "Uncapped FPS (smoother gameplay)",
+      (enabled) => {
+        this.settings.highPerformanceRendering = enabled;
+        this.saveSettings();
+        // Notify any listeners about the change
+        window.dispatchEvent(new CustomEvent("performanceSettingChanged", { 
+          detail: { highPerformance: enabled } 
+        }));
       }
     ));
 
@@ -268,6 +303,54 @@ export class SettingsPanel {
     labelText.className = "settings-toggle-label";
     labelText.textContent = label;
     container.appendChild(labelText);
+
+    // Toggle switch
+    const toggle = document.createElement("div");
+    toggle.className = `settings-toggle${initialValue ? " active" : ""}`;
+
+    const knob = document.createElement("div");
+    knob.className = "settings-toggle-knob";
+    toggle.appendChild(knob);
+
+    let enabled = initialValue;
+    toggle.addEventListener("click", () => {
+      enabled = !enabled;
+      toggle.classList.toggle("active", enabled);
+      onChange(enabled);
+    });
+
+    container.appendChild(toggle);
+
+    return container;
+  }
+
+  /**
+   * Create a toggle switch with icon and description
+   */
+  private createToggleWithDescription(
+    label: string,
+    icon: string,
+    initialValue: boolean,
+    description: string,
+    onChange: (enabled: boolean) => void
+  ): HTMLDivElement {
+    const container = document.createElement("div");
+    container.className = "settings-toggle-container settings-toggle-with-desc";
+
+    const leftSide = document.createElement("div");
+    leftSide.className = "settings-toggle-left";
+
+    const labelText = document.createElement("span");
+    labelText.className = "settings-toggle-label";
+    labelText.innerHTML = `${icon} ${label}`;
+    leftSide.appendChild(labelText);
+
+    const descText = document.createElement("span");
+    descText.className = "settings-toggle-description";
+    descText.textContent = description;
+    leftSide.appendChild(descText);
+
+    container.appendChild(leftSide);
 
     // Toggle switch
     const toggle = document.createElement("div");
