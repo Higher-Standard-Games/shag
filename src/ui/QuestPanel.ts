@@ -3,6 +3,8 @@
  */
 
 import { QuestSystem, type ActiveQuest, type Quest } from "../game/QuestSystem";
+import { UIStyles } from "../engine/ui/UIStyles";
+import questPanelCSS from "./styles/QuestPanel.css?raw";
 
 export class QuestPanel {
   private static instance: QuestPanel;
@@ -35,14 +37,13 @@ export class QuestPanel {
   }
 
   private createPanel(): void {
+    // Inject styles once
+    UIStyles.injectCSS("quest-panel", questPanelCSS);
+
     this.container = document.createElement("div");
     this.container.id = "quest-panel";
     this.container.innerHTML = this.getHTML();
     document.body.appendChild(this.container);
-
-    const style = document.createElement("style");
-    style.textContent = this.getStyles();
-    this.container.appendChild(style);
 
     this.update();
   }
@@ -58,180 +59,6 @@ export class QuestPanel {
           <!-- Quests populated dynamically -->
         </div>
       </div>
-    `;
-  }
-
-  private getStyles(): string {
-    return `
-      #quest-panel {
-        position: fixed;
-        top: 80px;
-        left: 20px;
-        z-index: 100;
-        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-      }
-
-      .quest-panel-container {
-        background: #FAFAFA;
-        border-radius: 12px;
-        min-width: 260px;
-        max-width: 320px;
-        border: 1px solid #E0E0E0;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-      }
-
-      .quest-panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 16px;
-        border-bottom: 1px solid #E0E0E0;
-        background: #F5F5F5;
-        border-radius: 12px 12px 0 0;
-      }
-
-      .quest-title {
-        color: #333333;
-        font-size: 20px;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-      }
-
-      .quest-toggle {
-        background: #E8E8E8;
-        border: none;
-        border-bottom: 2px solid #CCCCCC;
-        color: #666666;
-        font-size: 16px;
-        cursor: pointer;
-        padding: 4px 10px;
-        border-radius: 6px;
-        transition: all 0.1s ease;
-      }
-
-      .quest-toggle:hover {
-        background: #F5F5F5;
-      }
-
-      .quest-list {
-        max-height: 350px;
-        overflow-y: auto;
-      }
-
-      .quest-list.collapsed {
-        display: none;
-      }
-
-      .quest-card {
-        padding: 14px 16px;
-        border-bottom: 1px solid #E8E8E8;
-        background: #FFFFFF;
-      }
-
-      .quest-card:last-child {
-        border-bottom: none;
-        border-radius: 0 0 12px 12px;
-      }
-
-      .quest-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-      }
-
-      .quest-icon {
-        font-size: 22px;
-      }
-
-      .quest-name {
-        color: #333333;
-        font-weight: 600;
-        font-size: 15px;
-        flex: 1;
-      }
-
-      .quest-category {
-        background: #E8E8E8;
-        color: #666666;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        text-transform: uppercase;
-        font-weight: 600;
-      }
-
-      .quest-objectives {
-        margin-left: 28px;
-      }
-
-      .quest-objective {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-        font-size: 14px;
-      }
-
-      .objective-check {
-        width: 16px;
-        height: 16px;
-        border: 2px solid #CCCCCC;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        background: #FFFFFF;
-      }
-
-      .objective-check.complete {
-        background: #4CAF50;
-        border-color: #4CAF50;
-        color: white;
-      }
-
-      .objective-text {
-        color: #333333;
-        flex: 1;
-      }
-
-      .objective-text.complete {
-        text-decoration: line-through;
-        color: #999999;
-      }
-
-      .objective-progress {
-        color: #666666;
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      .quest-rewards {
-        display: flex;
-        gap: 10px;
-        margin-top: 10px;
-        margin-left: 28px;
-      }
-
-      .quest-reward {
-        background: #FFF8E1;
-        color: #F57C00;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
-        border: 1px solid #FFE082;
-      }
-
-      .no-quests {
-        color: #888888;
-        text-align: center;
-        padding: 14px 16px;
-        font-size: 14px;
-        background: #FFFFFF;
-        border-radius: 0 0 12px 12px;
-      }
     `;
   }
 
