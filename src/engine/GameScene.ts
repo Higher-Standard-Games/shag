@@ -68,11 +68,27 @@ export class GameScene {
   private eventsPanel: SidePanel | null = null;
   private plantModal: ModalPanel | null = null;
   private selectedPlantId: string | null = null;
+  
+  // Mobile optimization: FPS throttling
+  private isMobile: boolean;
+  private targetFPS: number;
+  private lastRenderTime: number = 0;
+  private frameInterval: number;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
     this.canvas = canvas;
     GameScene.instance = this;
+    
+    // Detect mobile for FPS throttling
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                    (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+    
+    // 30 FPS on mobile (saves battery), 60 FPS on desktop
+    this.targetFPS = this.isMobile ? 30 : 60;
+    this.frameInterval = 1000 / this.targetFPS;
+    
+    console.log(`[GameScene] Target FPS: ${this.targetFPS} (${this.isMobile ? 'mobile' : 'desktop'})`);
   }
 
   public static getInstance(): GameScene {
@@ -1017,6 +1033,18 @@ export class GameScene {
 
     this.engine.runRenderLoop(() => {
       if (!this.scene || !this.camera) return;
+
+      // FPS throttling for mobile (saves battery and reduces heat)
+      const currentTime = performance.now();
+      const elapsed = currentTime - this.lastRenderTime;
+      
+      if (elapsed < this.frameInterval) {
+        // Skip this frame - not enough time has passed
+        return;
+      }
+      
+      // Adjust for drift to maintain consistent frame rate
+      this.lastRenderTime = currentTime - (elapsed % this.frameInterval);
 
       // Update game timer
       const deltaTime = GameTimer.getInstance().update();
