@@ -140,6 +140,165 @@
           "type": "integer",
           "minimum": 1,
           "description": "Player level required to obtain seeds"
+        },
+        "environment": {
+          "$ref": "#/definitions/Environment"
+        },
+        "gameplay": {
+          "$ref": "#/definitions/Gameplay"
+        }
+      }
+    },
+    "Environment": {
+      "type": "object",
+      "required": ["lightIntensity", "humidityMin", "humidityMax", "potSize", "nutrientDemand"],
+      "properties": {
+        "lightIntensity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Preferred light intensity"
+        },
+        "humidityMin": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 80,
+          "description": "Minimum humidity %"
+        },
+        "humidityMax": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 80,
+          "description": "Maximum humidity %"
+        },
+        "potSize": {
+          "type": "string",
+          "enum": ["small", "medium", "large"],
+          "description": "Preferred pot size"
+        },
+        "nutrientDemand": {
+          "type": "string",
+          "enum": ["light", "medium", "heavy"],
+          "description": "Nutrient demand level"
+        }
+      }
+    },
+    "Gameplay": {
+      "type": "object",
+      "required": [
+        "growthTime", "stages", "waterConsumption", "baseYield",
+        "xpReward", "seedId", "harvestId", "curedId"
+      ],
+      "properties": {
+        "growthTime": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Total growth time in milliseconds"
+        },
+        "stages": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 10,
+          "description": "Number of growth stages"
+        },
+        "waterConsumption": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Water consumed per minute"
+        },
+        "baseYield": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Base harvest yield in grams"
+        },
+        "xpReward": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "XP reward for harvesting"
+        },
+        "seedId": {
+          "type": "string",
+          "description": "Item ID for seeds"
+        },
+        "harvestId": {
+          "type": "string",
+          "description": "Item ID for fresh harvest"
+        },
+        "curedId": {
+          "type": "string",
+          "description": "Item ID for cured product"
+        },
+        "harvestWindow": {
+          "type": "integer",
+          "description": "Time window for perfect harvest in ms"
+        },
+        "overripeTime": {
+          "type": "integer",
+          "description": "Time until overripe in ms"
+        },
+        "preferredTempMin": {
+          "type": "integer",
+          "description": "Minimum preferred temperature in °F"
+        },
+        "preferredTempMax": {
+          "type": "integer",
+          "description": "Maximum preferred temperature in °F"
+        },
+        "waterPromptInterval": {
+          "type": "integer",
+          "description": "Interval between water prompts in ms"
+        },
+        "waterPromptWindow": {
+          "type": "integer",
+          "description": "Time window to respond to water prompt in ms"
+        },
+        "curingTime": {
+          "type": "integer",
+          "description": "Time to cure harvest in ms"
+        },
+        "seedDropChance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Chance to drop seeds on harvest"
+        },
+        "rareSeedDrops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "strainId": { "type": "string" },
+              "chance": { "type": "number" }
+            }
+          }
+        },
+        "fertilization": {
+          "$ref": "#/definitions/Fertilization"
+        }
+      }
+    },
+    "Fertilization": {
+      "type": "object",
+      "required": ["requiredApplications", "fertilizerType", "applicationTiming"],
+      "properties": {
+        "requiredApplications": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Number of fertilizer applications needed for 100% yield"
+        },
+        "fertilizerType": {
+          "type": "string",
+          "enum": ["basic", "premium", "advanced"],
+          "description": "Type of fertilizer required"
+        },
+        "applicationTiming": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "description": "Growth progress % when to apply fertilizer (e.g., [0.25, 0.5, 0.75])"
         }
       }
     },

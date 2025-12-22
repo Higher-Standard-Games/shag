@@ -9,10 +9,27 @@
       "indicaPercent": 100,
       "thcContent": 17,
       "cbdContent": 6,
-      "effects": { "relaxed": 90, "sleepy": 75, "happy": 60, "hungry": 50 },
-      "negativeEffects": { "dry_mouth": 40, "dry_eyes": 30 },
-      "flavors": { "earthy": 85, "woody": 70, "herbal": 50, "pine": 40 },
-      "terpenes": { "myrcene": 80, "caryophyllene": 50, "pinene": 40 },
+      "effects": {
+        "relaxed": 90,
+        "sleepy": 75,
+        "happy": 60,
+        "hungry": 50
+      },
+      "negativeEffects": {
+        "dry_mouth": 40,
+        "dry_eyes": 30
+      },
+      "flavors": {
+        "earthy": 85,
+        "woody": 70,
+        "herbal": 50,
+        "pine": 40
+      },
+      "terpenes": {
+        "myrcene": 80,
+        "caryophyllene": 50,
+        "pinene": 40
+      },
       "growthTraits": {
         "floweringTime": 55,
         "yieldPotential": 70,
@@ -22,13 +39,24 @@
         "pestResistance": 65,
         "droughtTolerance": 80
       },
-      "appearance": { "budDensity": 85, "trichomeCoverage": 70, "purpleExpression": 20, "orangeHairs": 50 },
-      "lineage": { "generation": 0, "isStabilized": true, "originRegion": "Afghanistan" },
+      "appearance": {
+        "budDensity": 85,
+        "trichomeCoverage": 70,
+        "purpleExpression": 20,
+        "orangeHairs": 50
+      },
+      "lineage": {
+        "generation": 0,
+        "isStabilized": true,
+        "originRegion": "Afghanistan"
+      },
       "rarity": "uncommon",
       "basePrice": 8,
       "isLandrace": true,
       "tier": 1,
-      "specialTraits": ["drought_master"],
+      "specialTraits": [
+        "drought_master"
+      ],
       "unlockLevel": 1,
       "environment": {
         "lightIntensity": "low",
@@ -54,7 +82,14 @@
         "waterPromptWindow": 30000,
         "curingTime": 180000,
         "seedDropChance": 0.15,
-        "rareSeedDrops": []
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 1,
+          "fertilizerType": "basic",
+          "applicationTiming": [
+            0.25
+          ]
+        }
       }
     },
     {
@@ -65,10 +100,28 @@
       "indicaPercent": 0,
       "thcContent": 20,
       "cbdContent": 1,
-      "effects": { "energetic": 90, "uplifted": 85, "creative": 80, "focused": 75, "happy": 70 },
-      "negativeEffects": { "anxious": 30, "paranoid": 20 },
-      "flavors": { "sweet": 80, "earthy": 60, "pine": 50, "citrus": 40 },
-      "terpenes": { "terpinolene": 70, "myrcene": 40, "ocimene": 35 },
+      "effects": {
+        "energetic": 90,
+        "uplifted": 85,
+        "creative": 80,
+        "focused": 75,
+        "happy": 70
+      },
+      "negativeEffects": {
+        "anxious": 30,
+        "paranoid": 20
+      },
+      "flavors": {
+        "sweet": 80,
+        "earthy": 60,
+        "pine": 50,
+        "citrus": 40
+      },
+      "terpenes": {
+        "terpinolene": 70,
+        "myrcene": 40,
+        "ocimene": 35
+      },
       "growthTraits": {
         "floweringTime": 70,
         "yieldPotential": 65,
@@ -78,13 +131,24 @@
         "pestResistance": 55,
         "droughtTolerance": 70
       },
-      "appearance": { "budDensity": 50, "trichomeCoverage": 75, "purpleExpression": 0, "orangeHairs": 70 },
-      "lineage": { "generation": 0, "isStabilized": true, "originRegion": "South Africa" },
+      "appearance": {
+        "budDensity": 50,
+        "trichomeCoverage": 75,
+        "purpleExpression": 0,
+        "orangeHairs": 70
+      },
+      "lineage": {
+        "generation": 0,
+        "isStabilized": true,
+        "originRegion": "South Africa"
+      },
       "rarity": "uncommon",
       "basePrice": 10,
       "isLandrace": true,
       "tier": 1,
-      "specialTraits": ["giant_growth"],
+      "specialTraits": [
+        "giant_growth"
+      ],
       "unlockLevel": 1,
       "environment": {
         "lightIntensity": "high",
@@ -110,7 +174,15 @@
         "waterPromptWindow": 25000,
         "curingTime": 180000,
         "seedDropChance": 0.12,
-        "rareSeedDrops": []
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 2,
+          "fertilizerType": "premium",
+          "applicationTiming": [
+            0.25,
+            0.6
+          ]
+        }
       }
     },
     {
@@ -121,10 +193,29 @@
       "indicaPercent": 0,
       "thcContent": 18,
       "cbdContent": 0,
-      "effects": { "creative": 95, "euphoric": 85, "energetic": 80, "focused": 70, "uplifted": 75 },
-      "negativeEffects": { "anxious": 35, "paranoid": 25 },
-      "flavors": { "citrus": 70, "earthy": 55, "woody": 50, "herbal": 45, "spicy": 40 },
-      "terpenes": { "terpinolene": 60, "pinene": 50, "limonene": 45 },
+      "effects": {
+        "creative": 95,
+        "euphoric": 85,
+        "energetic": 80,
+        "focused": 70,
+        "uplifted": 75
+      },
+      "negativeEffects": {
+        "anxious": 35,
+        "paranoid": 25
+      },
+      "flavors": {
+        "citrus": 70,
+        "earthy": 55,
+        "woody": 50,
+        "herbal": 45,
+        "spicy": 40
+      },
+      "terpenes": {
+        "terpinolene": 60,
+        "pinene": 50,
+        "limonene": 45
+      },
       "growthTraits": {
         "floweringTime": 80,
         "yieldPotential": 55,
@@ -134,13 +225,24 @@
         "pestResistance": 50,
         "droughtTolerance": 60
       },
-      "appearance": { "budDensity": 35, "trichomeCoverage": 65, "purpleExpression": 0, "orangeHairs": 60 },
-      "lineage": { "generation": 0, "isStabilized": true, "originRegion": "Thailand" },
+      "appearance": {
+        "budDensity": 35,
+        "trichomeCoverage": 65,
+        "purpleExpression": 0,
+        "orangeHairs": 60
+      },
+      "lineage": {
+        "generation": 0,
+        "isStabilized": true,
+        "originRegion": "Thailand"
+      },
       "rarity": "rare",
       "basePrice": 12,
       "isLandrace": true,
       "tier": 2,
-      "specialTraits": ["exotic_flavor"],
+      "specialTraits": [
+        "exotic_flavor"
+      ],
       "unlockLevel": 3,
       "environment": {
         "lightIntensity": "high",
@@ -165,8 +267,16 @@
         "waterPromptInterval": 60000,
         "waterPromptWindow": 20000,
         "curingTime": 240000,
-        "seedDropChance": 0.10,
-        "rareSeedDrops": []
+        "seedDropChance": 0.1,
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 2,
+          "fertilizerType": "premium",
+          "applicationTiming": [
+            0.25,
+            0.6
+          ]
+        }
       }
     },
     {
@@ -177,10 +287,30 @@
       "indicaPercent": 55,
       "thcContent": 23,
       "cbdContent": 0,
-      "effects": { "relaxed": 85, "euphoric": 80, "happy": 75, "uplifted": 65, "hungry": 50 },
-      "negativeEffects": { "dry_mouth": 50, "dry_eyes": 40, "dizzy": 20 },
-      "flavors": { "diesel": 80, "citrus": 65, "earthy": 55, "pine": 50, "lemon": 45 },
-      "terpenes": { "myrcene": 60, "limonene": 55, "caryophyllene": 50 },
+      "effects": {
+        "relaxed": 85,
+        "euphoric": 80,
+        "happy": 75,
+        "uplifted": 65,
+        "hungry": 50
+      },
+      "negativeEffects": {
+        "dry_mouth": 50,
+        "dry_eyes": 40,
+        "dizzy": 20
+      },
+      "flavors": {
+        "diesel": 80,
+        "citrus": 65,
+        "earthy": 55,
+        "pine": 50,
+        "lemon": 45
+      },
+      "terpenes": {
+        "myrcene": 60,
+        "limonene": 55,
+        "caryophyllene": 50
+      },
       "growthTraits": {
         "floweringTime": 60,
         "yieldPotential": 65,
@@ -190,7 +320,12 @@
         "pestResistance": 55,
         "droughtTolerance": 60
       },
-      "appearance": { "budDensity": 80, "trichomeCoverage": 85, "purpleExpression": 10, "orangeHairs": 65 },
+      "appearance": {
+        "budDensity": 80,
+        "trichomeCoverage": 85,
+        "purpleExpression": 10,
+        "orangeHairs": 65
+      },
       "lineage": {
         "parent1Id": "genetics_afghan_kush",
         "generation": 1,
@@ -229,8 +364,20 @@
         "curingTime": 180000,
         "seedDropChance": 0.12,
         "rareSeedDrops": [
-          { "strainId": "genetics_girl_scout_cookies", "chance": 0.03 }
-        ]
+          {
+            "strainId": "genetics_girl_scout_cookies",
+            "chance": 0.03
+          }
+        ],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -241,10 +388,29 @@
       "indicaPercent": 35,
       "thcContent": 17,
       "cbdContent": 1,
-      "effects": { "happy": 80, "euphoric": 75, "relaxed": 65, "uplifted": 60, "creative": 55 },
-      "negativeEffects": { "dry_mouth": 35, "dry_eyes": 25, "paranoid": 15 },
-      "flavors": { "skunk": 90, "earthy": 60, "sweet": 45, "pungent": 70 },
-      "terpenes": { "myrcene": 65, "caryophyllene": 45, "limonene": 35 },
+      "effects": {
+        "happy": 80,
+        "euphoric": 75,
+        "relaxed": 65,
+        "uplifted": 60,
+        "creative": 55
+      },
+      "negativeEffects": {
+        "dry_mouth": 35,
+        "dry_eyes": 25,
+        "paranoid": 15
+      },
+      "flavors": {
+        "skunk": 90,
+        "earthy": 60,
+        "sweet": 45,
+        "pungent": 70
+      },
+      "terpenes": {
+        "myrcene": 65,
+        "caryophyllene": 45,
+        "limonene": 35
+      },
       "growthTraits": {
         "floweringTime": 55,
         "yieldPotential": 80,
@@ -254,7 +420,12 @@
         "pestResistance": 70,
         "droughtTolerance": 65
       },
-      "appearance": { "budDensity": 70, "trichomeCoverage": 70, "purpleExpression": 5, "orangeHairs": 55 },
+      "appearance": {
+        "budDensity": 70,
+        "trichomeCoverage": 70,
+        "purpleExpression": 5,
+        "orangeHairs": 55
+      },
       "lineage": {
         "parent1Id": "genetics_afghan_kush",
         "parent2Id": "genetics_thai",
@@ -266,7 +437,9 @@
       "basePrice": 8,
       "isLandrace": false,
       "tier": 1,
-      "specialTraits": ["heavy_yield"],
+      "specialTraits": [
+        "heavy_yield"
+      ],
       "unlockLevel": 1,
       "environment": {
         "lightIntensity": "medium",
@@ -293,8 +466,20 @@
         "curingTime": 150000,
         "seedDropChance": 0.18,
         "rareSeedDrops": [
-          { "strainId": "genetics_og_kush", "chance": 0.05 }
-        ]
+          {
+            "strainId": "genetics_og_kush",
+            "chance": 0.05
+          }
+        ],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -305,10 +490,30 @@
       "indicaPercent": 60,
       "thcContent": 25,
       "cbdContent": 1,
-      "effects": { "euphoric": 90, "happy": 85, "relaxed": 80, "uplifted": 70, "creative": 60 },
-      "negativeEffects": { "dry_mouth": 45, "dry_eyes": 35, "paranoid": 15 },
-      "flavors": { "sweet": 85, "earthy": 65, "mint": 40, "vanilla": 35, "berry": 30 },
-      "terpenes": { "caryophyllene": 65, "limonene": 55, "humulene": 40 },
+      "effects": {
+        "euphoric": 90,
+        "happy": 85,
+        "relaxed": 80,
+        "uplifted": 70,
+        "creative": 60
+      },
+      "negativeEffects": {
+        "dry_mouth": 45,
+        "dry_eyes": 35,
+        "paranoid": 15
+      },
+      "flavors": {
+        "sweet": 85,
+        "earthy": 65,
+        "mint": 40,
+        "vanilla": 35,
+        "berry": 30
+      },
+      "terpenes": {
+        "caryophyllene": 65,
+        "limonene": 55,
+        "humulene": 40
+      },
       "growthTraits": {
         "floweringTime": 63,
         "yieldPotential": 60,
@@ -318,7 +523,12 @@
         "pestResistance": 50,
         "droughtTolerance": 55
       },
-      "appearance": { "budDensity": 90, "trichomeCoverage": 90, "purpleExpression": 40, "orangeHairs": 75 },
+      "appearance": {
+        "budDensity": 90,
+        "trichomeCoverage": 90,
+        "purpleExpression": 40,
+        "orangeHairs": 75
+      },
       "lineage": {
         "parent1Id": "genetics_og_kush",
         "parent2Id": "genetics_durban_poison",
@@ -330,7 +540,10 @@
       "basePrice": 18,
       "isLandrace": false,
       "tier": 3,
-      "specialTraits": ["high_thc", "frost_giant"],
+      "specialTraits": [
+        "high_thc",
+        "frost_giant"
+      ],
       "unlockLevel": 5,
       "environment": {
         "lightIntensity": "high",
@@ -355,10 +568,22 @@
         "waterPromptInterval": 60000,
         "waterPromptWindow": 22000,
         "curingTime": 300000,
-        "seedDropChance": 0.10,
+        "seedDropChance": 0.1,
         "rareSeedDrops": [
-          { "strainId": "genetics_gelato", "chance": 0.03 }
-        ]
+          {
+            "strainId": "genetics_gelato",
+            "chance": 0.03
+          }
+        ],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -369,10 +594,29 @@
       "indicaPercent": 55,
       "thcContent": 24,
       "cbdContent": 0,
-      "effects": { "relaxed": 85, "euphoric": 80, "happy": 80, "uplifted": 70, "creative": 55 },
-      "negativeEffects": { "dry_mouth": 40, "dry_eyes": 30 },
-      "flavors": { "sweet": 90, "citrus": 70, "berry": 65, "vanilla": 50, "earthy": 35 },
-      "terpenes": { "limonene": 60, "caryophyllene": 50, "myrcene": 45 },
+      "effects": {
+        "relaxed": 85,
+        "euphoric": 80,
+        "happy": 80,
+        "uplifted": 70,
+        "creative": 55
+      },
+      "negativeEffects": {
+        "dry_mouth": 40,
+        "dry_eyes": 30
+      },
+      "flavors": {
+        "sweet": 90,
+        "citrus": 70,
+        "berry": 65,
+        "vanilla": 50,
+        "earthy": 35
+      },
+      "terpenes": {
+        "limonene": 60,
+        "caryophyllene": 50,
+        "myrcene": 45
+      },
       "growthTraits": {
         "floweringTime": 58,
         "yieldPotential": 70,
@@ -382,7 +626,12 @@
         "pestResistance": 55,
         "droughtTolerance": 50
       },
-      "appearance": { "budDensity": 85, "trichomeCoverage": 95, "purpleExpression": 60, "orangeHairs": 70 },
+      "appearance": {
+        "budDensity": 85,
+        "trichomeCoverage": 95,
+        "purpleExpression": 60,
+        "orangeHairs": 70
+      },
       "lineage": {
         "parent1Id": "genetics_girl_scout_cookies",
         "generation": 3,
@@ -393,7 +642,11 @@
       "basePrice": 20,
       "isLandrace": false,
       "tier": 4,
-      "specialTraits": ["frost_giant", "purple_pheno", "exotic_flavor"],
+      "specialTraits": [
+        "frost_giant",
+        "purple_pheno",
+        "exotic_flavor"
+      ],
       "unlockLevel": 7,
       "environment": {
         "lightIntensity": "high",
@@ -420,8 +673,20 @@
         "curingTime": 300000,
         "seedDropChance": 0.08,
         "rareSeedDrops": [
-          { "strainId": "genetics_lemon_cherry_gelato", "chance": 0.02 }
-        ]
+          {
+            "strainId": "genetics_lemon_cherry_gelato",
+            "chance": 0.02
+          }
+        ],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -432,10 +697,30 @@
       "indicaPercent": 50,
       "thcContent": 26,
       "cbdContent": 0,
-      "effects": { "relaxed": 80, "tingly": 75, "giggly": 70, "happy": 75, "euphoric": 65 },
-      "negativeEffects": { "anxious": 25, "headache": 15, "dizzy": 15 },
-      "flavors": { "lemon": 90, "citrus": 85, "berry": 75, "sweet": 70, "earthy": 40 },
-      "terpenes": { "limonene": 75, "caryophyllene": 55, "myrcene": 40 },
+      "effects": {
+        "relaxed": 80,
+        "tingly": 75,
+        "giggly": 70,
+        "happy": 75,
+        "euphoric": 65
+      },
+      "negativeEffects": {
+        "anxious": 25,
+        "headache": 15,
+        "dizzy": 15
+      },
+      "flavors": {
+        "lemon": 90,
+        "citrus": 85,
+        "berry": 75,
+        "sweet": 70,
+        "earthy": 40
+      },
+      "terpenes": {
+        "limonene": 75,
+        "caryophyllene": 55,
+        "myrcene": 40
+      },
       "growthTraits": {
         "floweringTime": 60,
         "yieldPotential": 75,
@@ -445,7 +730,12 @@
         "pestResistance": 60,
         "droughtTolerance": 55
       },
-      "appearance": { "budDensity": 88, "trichomeCoverage": 92, "purpleExpression": 50, "orangeHairs": 80 },
+      "appearance": {
+        "budDensity": 88,
+        "trichomeCoverage": 92,
+        "purpleExpression": 50,
+        "orangeHairs": 80
+      },
       "lineage": {
         "parent1Id": "genetics_gelato",
         "parent2Id": "genetics_girl_scout_cookies",
@@ -457,7 +747,13 @@
       "basePrice": 25,
       "isLandrace": false,
       "tier": 5,
-      "specialTraits": ["high_thc", "frost_giant", "purple_pheno", "exotic_flavor", "balanced_hybrid"],
+      "specialTraits": [
+        "high_thc",
+        "frost_giant",
+        "purple_pheno",
+        "exotic_flavor",
+        "balanced_hybrid"
+      ],
       "unlockLevel": 10,
       "environment": {
         "lightIntensity": "high",
@@ -483,7 +779,16 @@
         "waterPromptWindow": 18000,
         "curingTime": 360000,
         "seedDropChance": 0.05,
-        "rareSeedDrops": []
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -494,10 +799,29 @@
       "indicaPercent": 50,
       "thcContent": 22,
       "cbdContent": 1,
-      "effects": { "relaxed": 75, "happy": 80, "uplifted": 70, "creative": 65, "euphoric": 70 },
-      "negativeEffects": { "dry_mouth": 35, "dry_eyes": 25 },
-      "flavors": { "berry": 85, "sweet": 75, "blueberry": 80, "earthy": 45, "vanilla": 30 },
-      "terpenes": { "myrcene": 55, "caryophyllene": 50, "limonene": 45 },
+      "effects": {
+        "relaxed": 75,
+        "happy": 80,
+        "uplifted": 70,
+        "creative": 65,
+        "euphoric": 70
+      },
+      "negativeEffects": {
+        "dry_mouth": 35,
+        "dry_eyes": 25
+      },
+      "flavors": {
+        "berry": 85,
+        "sweet": 75,
+        "blueberry": 80,
+        "earthy": 45,
+        "vanilla": 30
+      },
+      "terpenes": {
+        "myrcene": 55,
+        "caryophyllene": 50,
+        "limonene": 45
+      },
       "growthTraits": {
         "floweringTime": 62,
         "yieldPotential": 68,
@@ -507,7 +831,12 @@
         "pestResistance": 58,
         "droughtTolerance": 52
       },
-      "appearance": { "budDensity": 82, "trichomeCoverage": 88, "purpleExpression": 75, "orangeHairs": 65 },
+      "appearance": {
+        "budDensity": 82,
+        "trichomeCoverage": 88,
+        "purpleExpression": 75,
+        "orangeHairs": 65
+      },
       "lineage": {
         "generation": 3,
         "isStabilized": true,
@@ -517,7 +846,10 @@
       "basePrice": 16,
       "isLandrace": false,
       "tier": 3,
-      "specialTraits": ["purple_pheno", "exotic_flavor"],
+      "specialTraits": [
+        "purple_pheno",
+        "exotic_flavor"
+      ],
       "unlockLevel": 6,
       "environment": {
         "lightIntensity": "high",
@@ -543,7 +875,16 @@
         "waterPromptWindow": 22000,
         "curingTime": 270000,
         "seedDropChance": 0.11,
-        "rareSeedDrops": []
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     },
     {
@@ -554,10 +895,30 @@
       "indicaPercent": 90,
       "thcContent": 24,
       "cbdContent": 2,
-      "effects": { "relaxed": 95, "sleepy": 85, "euphoric": 75, "happy": 70, "hungry": 65 },
-      "negativeEffects": { "dry_mouth": 50, "dry_eyes": 40, "dizzy": 20 },
-      "flavors": { "earthy": 90, "woody": 80, "hash": 85, "citrus": 40, "pine": 60 },
-      "terpenes": { "myrcene": 85, "caryophyllene": 60, "limonene": 40 },
+      "effects": {
+        "relaxed": 95,
+        "sleepy": 85,
+        "euphoric": 75,
+        "happy": 70,
+        "hungry": 65
+      },
+      "negativeEffects": {
+        "dry_mouth": 50,
+        "dry_eyes": 40,
+        "dizzy": 20
+      },
+      "flavors": {
+        "earthy": 90,
+        "woody": 80,
+        "hash": 85,
+        "citrus": 40,
+        "pine": 60
+      },
+      "terpenes": {
+        "myrcene": 85,
+        "caryophyllene": 60,
+        "limonene": 40
+      },
       "growthTraits": {
         "floweringTime": 65,
         "yieldPotential": 75,
@@ -567,7 +928,12 @@
         "pestResistance": 70,
         "droughtTolerance": 85
       },
-      "appearance": { "budDensity": 92, "trichomeCoverage": 95, "purpleExpression": 30, "orangeHairs": 60 },
+      "appearance": {
+        "budDensity": 92,
+        "trichomeCoverage": 95,
+        "purpleExpression": 30,
+        "orangeHairs": 60
+      },
       "lineage": {
         "parent1Id": "genetics_afghan_kush",
         "generation": 1,
@@ -579,7 +945,12 @@
       "basePrice": 30,
       "isLandrace": false,
       "tier": 5,
-      "specialTraits": ["high_thc", "frost_giant", "drought_master", "heavy_yield"],
+      "specialTraits": [
+        "high_thc",
+        "frost_giant",
+        "drought_master",
+        "heavy_yield"
+      ],
       "unlockLevel": 12,
       "environment": {
         "lightIntensity": "high",
@@ -605,7 +976,16 @@
         "waterPromptWindow": 15000,
         "curingTime": 420000,
         "seedDropChance": 0.03,
-        "rareSeedDrops": []
+        "rareSeedDrops": [],
+        "fertilization": {
+          "requiredApplications": 3,
+          "fertilizerType": "advanced",
+          "applicationTiming": [
+            0.2,
+            0.5,
+            0.8
+          ]
+        }
       }
     }
   ]
