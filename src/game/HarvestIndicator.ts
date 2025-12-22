@@ -526,6 +526,7 @@ export class HarvestIndicator {
       top: 40%;
       left: 50%;
       transform: translate(-50%, -50%);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       font-size: 24px;
       font-weight: bold;
       color: ${result.phase === "ready" ? "#8f8" : result.phase === "overripe" ? "#fa0" : "#f66"};

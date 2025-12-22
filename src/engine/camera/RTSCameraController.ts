@@ -114,149 +114,161 @@ export class RTSCameraController {
 
             // If moved less than 5 pixels, treat as click
             if (distSq < 25) {
-              const pick = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
-              if (pick.hit && pick.pickedMesh) {
-                const mesh = pick.pickedMesh;
+              // Use multiPick to find ALL meshes under cursor (handles overlapping objects)
+              const multiPick = this.scene.multiPick(this.scene.pointerX, this.scene.pointerY);
+              
+              // Check for harvest indicator click first
+              const harvestIndicatorPick = multiPick?.find(p => p.hit && p.pickedMesh?.metadata?.isHarvestIndicator);
+              if (harvestIndicatorPick && harvestIndicatorPick.pickedMesh) {
+                const plantId = harvestIndicatorPick.pickedMesh.metadata.plantId;
+                HarvestIndicator.getInstance().handleIndicatorClick(plantId);
+              }
 
-                // Check for harvest indicator click
-                if (mesh.metadata?.isHarvestIndicator) {
-                  const plantId = mesh.metadata.plantId;
-                  HarvestIndicator.getInstance().handleIndicatorClick(plantId);
+              // Check for plant zone click (prioritize over growlight)
+              const plantZonePick = multiPick?.find(p => 
+                p.hit && 
+                p.pickedMesh?.metadata?.isBuildableObject && 
+                p.pickedMesh?.metadata?.zoneType === "plant"
+              );
+              
+              if (plantZonePick && plantZonePick.pickedMesh) {
+                const mesh = plantZonePick.pickedMesh;
+                const buildableObjectId = mesh.metadata.buildableObjectId;
+                const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
+                console.log("[RTSCamera] Plant zone clicked, buildableObj:", buildableObj?.id);
+                if (buildableObj) {
+                  // Find plant at this position
+                  const plants = GameState.getInstance().getPlants();
+                  const plant = plants.find(p => 
+                    Math.abs(p.position.x - buildableObj.position.x) < 5 &&
+                    Math.abs(p.position.z - buildableObj.position.z) < 5
+                  );
+                  console.log("[RTSCamera] Found plant:", plant?.id, "strain:", plant?.strain);
+                  if (plant) {
+                    // Check if plant is harvestable - show harvest panel instead of management dialog
+                    const harvestIndicator = HarvestIndicator.getInstance();
+                    const isHarvestable = harvestIndicator.isHarvestable(plant.id);
+                    console.log("[RTSCamera] Plant isHarvestable:", isHarvestable);
+                    if (isHarvestable) {
+                      console.log("[RTSCamera] Showing harvest panel for:", plant.id);
+                      harvestIndicator.showHarvestPanel(plant.id);
+                    } else {
+                      // Show plant info modal (new UI system)
+                      console.log("[RTSCamera] Showing plant info for:", plant.id);
+                      GameScene.getInstance().showPlantInfo(plant.id);
+                    }
+                  } else {
+                    // No plant in this pot - show seed selection popup
+                    SeedSelectionPopup.show(
+                      buildableObj.position,
+                      buildableObj.mapId,
+                      (result) => {
+                        // Just show notification, don't auto-open plant info
+                        GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
+                      }
+                    );
+                  }
                 }
-
-                // Check for growlight click - show lamp info panel
-                if (mesh.metadata?.isBuildableObject && mesh.metadata?.zoneType === "growlight") {
-                  const buildableObjectId = mesh.metadata.buildableObjectId;
+              } else {
+                // Check for growlight click (only if no plant was clicked)
+                const growlightPick = multiPick?.find(p => 
+                  p.hit && 
+                  p.pickedMesh?.metadata?.isBuildableObject && 
+                  p.pickedMesh?.metadata?.zoneType === "growlight"
+                );
+                
+                if (growlightPick && growlightPick.pickedMesh) {
+                  const buildableObjectId = growlightPick.pickedMesh.metadata.buildableObjectId;
                   const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
                   if (buildableObj && buildableObj.isComplete) {
                     LampInfoPanel.getInstance().show(buildableObjectId, buildableObj.position);
                   }
                 }
+              }
 
-                // Check for plant/buildable object click - show plant info panel
-                if (mesh.metadata?.isBuildableObject && mesh.metadata?.zoneType === "plant") {
-                  const buildableObjectId = mesh.metadata.buildableObjectId;
-                  const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
-                  console.log("[RTSCamera] Plant zone clicked, buildableObj:", buildableObj?.id);
-                  if (buildableObj) {
-                    // Find plant at this position
-                    const plants = GameState.getInstance().getPlants();
-                    const plant = plants.find(p => 
-                      Math.abs(p.position.x - buildableObj.position.x) < 5 &&
-                      Math.abs(p.position.z - buildableObj.position.z) < 5
-                    );
-                    console.log("[RTSCamera] Found plant:", plant?.id, "strain:", plant?.strain);
-                    if (plant) {
-                      // Check if plant is harvestable - show harvest panel instead of management dialog
-                      const harvestIndicator = HarvestIndicator.getInstance();
-                      const isHarvestable = harvestIndicator.isHarvestable(plant.id);
-                      console.log("[RTSCamera] Plant isHarvestable:", isHarvestable);
-                      if (isHarvestable) {
-                        console.log("[RTSCamera] Showing harvest panel for:", plant.id);
-                        harvestIndicator.showHarvestPanel(plant.id);
-                      } else {
-                        // Show plant info modal (new UI system)
-                        console.log("[RTSCamera] Showing plant info for:", plant.id);
-                        GameScene.getInstance().showPlantInfo(plant.id);
-                      }
-                    } else {
-                      // No plant in this pot - show seed selection popup
-                      SeedSelectionPopup.show(
-                        buildableObj.position,
-                        buildableObj.mapId,
-                        (result) => {
-                          // Just show notification, don't auto-open plant info
-                          GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
-                        }
-                      );
-                    }
-                  }
+              // Check for build zone click (separate from triggers)
+              const buildingSystem = BuildingSystem.getInstance();
+              if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
+                // Use multiPick to find ALL meshes under cursor, then find matching zone type
+                const buildMultiPick = this.scene.multiPick(this.scene.pointerX, this.scene.pointerY);
+                const targetZoneType = buildingSystem.selectedItem.zoneType;
+                
+                // Find a build zone that matches our selected item's zone type
+                const matchingZone = buildMultiPick?.find(p => 
+                  p.hit && 
+                  p.pickedMesh?.metadata?.isBuildZone && 
+                  p.pickedMesh?.metadata?.zoneType === targetZoneType
+                );
+                
+                if (matchingZone && matchingZone.pickedMesh) {
+                  const zoneId = matchingZone.pickedMesh.metadata.zoneId;
+                  buildingSystem.buildAt(zoneId);
+                } else if (!buildMultiPick?.some(p => p.pickedMesh?.metadata?.isBuildZone)) {
+                  // Clicked outside any build zone while in build mode - cancel
+                  buildingSystem.exitBuildMode();
+                }
+                // If clicked on wrong zone type, stay in build mode (user might click correct zone)
+              }
+
+              // Check for trigger click
+              const triggerPick = multiPick?.find(p => 
+                p.hit && 
+                p.pickedMesh?.metadata &&
+                (p.pickedMesh.metadata.isTrigger || p.pickedMesh.metadata.properties?.classname?.includes("trigger"))
+              );
+              
+              if (triggerPick && triggerPick.pickedMesh) {
+                const mesh = triggerPick.pickedMesh;
+                console.log("TRIGGER CLICKED:", mesh.metadata.properties);
+
+                // Check for windowTarget
+                if (mesh.metadata.properties?.windowTarget) {
+                  UIManager.getInstance().openDialog(mesh.metadata.properties.windowTarget, mesh.metadata.properties);
                 }
 
-                // Check for build zone click (separate from triggers)
-                const buildingSystem = BuildingSystem.getInstance();
-                if (buildingSystem.inBuildMode && buildingSystem.selectedItem) {
-                  // Use multiPick to find ALL meshes under cursor, then find matching zone type
-                  const multiPick = this.scene.multiPick(this.scene.pointerX, this.scene.pointerY);
-                  const targetZoneType = buildingSystem.selectedItem.zoneType;
+                // Check for spawnModel - dynamically spawn a prefab
+                if (mesh.metadata.properties?.spawnModel) {
+                  const props = mesh.metadata.properties;
                   
-                  // Find a build zone that matches our selected item's zone type
-                  const matchingZone = multiPick?.find(p => 
-                    p.hit && 
-                    p.pickedMesh?.metadata?.isBuildZone && 
-                    p.pickedMesh?.metadata?.zoneType === targetZoneType
+                  // Parse spawn position (defaults to trigger origin if not specified)
+                  let spawnPos = new Vector3(0, 0, 0);
+                  const spawnOrigin = props.spawnOrigin || props.origin;
+                  if (spawnOrigin) {
+                    const parts = spawnOrigin.split(" ").map(parseFloat);
+                    spawnPos = new Vector3(parts[0], parts[2], parts[1]); // Quake to Babylon coords
+                  }
+
+                  // Validate spawn
+                  const validatorIds = props.spawnValidators 
+                    ? props.spawnValidators.split(",").map((s: string) => s.trim())
+                    : undefined;
+
+                  const validation = SpawnValidator.getInstance().validate(
+                    {
+                      prefabName: props.spawnModel,
+                      position: spawnPos,
+                      scene: this.scene,
+                      triggerProperties: props,
+                    },
+                    validatorIds
                   );
-                  
-                  if (matchingZone && matchingZone.pickedMesh) {
-                    const zoneId = matchingZone.pickedMesh.metadata.zoneId;
-                    buildingSystem.buildAt(zoneId);
-                  } else if (!multiPick?.some(p => p.pickedMesh?.metadata?.isBuildZone)) {
-                    // Clicked outside any build zone while in build mode - cancel
-                    buildingSystem.exitBuildMode();
-                  }
-                  // If clicked on wrong zone type, stay in build mode (user might click correct zone)
-                } else if (mesh.metadata?.isBuildZone) {
-                  // Not in build mode but clicked a build zone - ignore
-                }
 
-                // Check for trigger click
-                if (
-                  mesh.metadata &&
-                  (mesh.metadata.isTrigger || mesh.metadata.properties?.classname?.includes("trigger"))
-                ) {
-                  console.log("TRIGGER CLICKED:", mesh.metadata.properties);
-
-                  // Check for windowTarget
-                  if (mesh.metadata.properties?.windowTarget) {
-                    UIManager.getInstance().openDialog(mesh.metadata.properties.windowTarget, mesh.metadata.properties);
-                  }
-
-                  // Check for spawnModel - dynamically spawn a prefab
-                  if (mesh.metadata.properties?.spawnModel) {
-                    const props = mesh.metadata.properties;
-                    
-                    // Parse spawn position (defaults to trigger origin if not specified)
-                    let spawnPos = new Vector3(0, 0, 0);
-                    const spawnOrigin = props.spawnOrigin || props.origin;
-                    if (spawnOrigin) {
-                      const parts = spawnOrigin.split(" ").map(parseFloat);
-                      spawnPos = new Vector3(parts[0], parts[2], parts[1]); // Quake to Babylon coords
-                    }
-
-                    // Validate spawn
-                    const validatorIds = props.spawnValidators 
-                      ? props.spawnValidators.split(",").map((s: string) => s.trim())
-                      : undefined;
-
-                    const validation = SpawnValidator.getInstance().validate(
-                      {
-                        prefabName: props.spawnModel,
-                        position: spawnPos,
-                        scene: this.scene,
-                        triggerProperties: props,
-                      },
-                      validatorIds
-                    );
-
-                    if (!validation.allowed) {
-                      console.log(`Spawn blocked: ${validation.reason}`);
-                      // TODO: Could show UI feedback here
-                      // Don't return - let the normal cleanup happen below
-                    } else {
-
-                      // Spawn the prefab
-                      PrefabInstance.create(props.spawnModel, this.scene, {
-                        position: spawnPos,
-                        angle: props.spawnAngle ? parseFloat(props.spawnAngle) : Math.random() * 360,
-                        scale: props.spawnScale ? parseFloat(props.spawnScale) : 1,
-                        dropToGround: props.spawnDropToGround === "1",
-                        dropOffset: props.spawnDropOffset ? parseFloat(props.spawnDropOffset) : 0,
-                      }).then((result) => {
-                        if (result) {
-                          console.log(`Spawned prefab: ${props.spawnModel} at ${result.finalPosition.toString()}`);
-                        }
-                      });
-                    }
+                  if (!validation.allowed) {
+                    console.log(`Spawn blocked: ${validation.reason}`);
+                    // TODO: Could show UI feedback here
+                  } else {
+                    // Spawn the prefab
+                    PrefabInstance.create(props.spawnModel, this.scene, {
+                      position: spawnPos,
+                      angle: props.spawnAngle ? parseFloat(props.spawnAngle) : Math.random() * 360,
+                      scale: props.spawnScale ? parseFloat(props.spawnScale) : 1,
+                      dropToGround: props.spawnDropToGround === "1",
+                      dropOffset: props.spawnDropOffset ? parseFloat(props.spawnDropOffset) : 0,
+                    }).then((result) => {
+                      if (result) {
+                        console.log(`Spawned prefab: ${props.spawnModel} at ${result.finalPosition.toString()}`);
+                      }
+                    });
                   }
                 }
               }

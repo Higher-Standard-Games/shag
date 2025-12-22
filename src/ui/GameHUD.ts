@@ -398,7 +398,24 @@ export class GameHUD {
           break;
         // Fertilizer applied
         case "fertilized":
-          this.showNotification(`🧪 Plant fertilized! 25% faster growth!`, "success");
+          this.showNotification(`🧪 Plant fertilized! Increases yield!`, "success");
+          break;
+        // Water failed
+        case "water_failed":
+          const waterFailData = data as { reason: string; cost: number };
+          if (waterFailData.reason === "no_money") {
+            this.showNotification(`💸 Not enough money to water! Need $${waterFailData.cost}`, "error");
+          }
+          break;
+        // No fertilizer
+        case "no_fertilizer":
+          const fertData = data as { type: string };
+          this.showNotification(`🧪 No ${fertData.type} fertilizer! Buy from Supplies Store.`, "warning");
+          break;
+        // Wrong fertilizer timing
+        case "fertilizer_wrong_timing":
+          const timingData = data as { currentProgress: number; targetProgress: number };
+          this.showNotification(`⏰ Wait until ${Math.round(timingData.targetProgress * 100)}% growth to fertilize (currently ${Math.round(timingData.currentProgress * 100)}%)`, "warning");
           break;
       }
     });

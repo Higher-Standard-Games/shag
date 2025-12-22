@@ -78,6 +78,11 @@ interface RawStrain {
     curingTime: number;
     seedDropChance: number;
     rareSeedDrops: Array<{ strainId: string; chance: number }>;
+    fertilization?: {
+      requiredApplications: number;
+      fertilizerType: 'basic' | 'premium' | 'advanced';
+      applicationTiming: number[];
+    };
   };
 }
 
@@ -120,6 +125,7 @@ export function toStrainDefinition(raw: RawStrain): StrainDefinition {
     seedDropChance: raw.gameplay.seedDropChance,
     rareSeedDrops: raw.gameplay.rareSeedDrops,
     environment: raw.environment,
+    fertilization: raw.gameplay.fertilization,
   };
 }
 
