@@ -1,6 +1,7 @@
 import type { BaseDialog, DialogContext } from "./dialogs/BaseDialog";
 import { CuringDialog } from "./dialogs/CuringDialog";
 import { DealerDialog } from "./dialogs/DealerDialog";
+import { SaleDialog } from "./dialogs/SaleDialog";
 import { SeedStoreDialog, ShopDialog, SuppliesStoreDialog } from "./dialogs/ShopDialog";
 import { TestDialog } from "./dialogs/TestDialog";
 
@@ -21,6 +22,7 @@ export class UIManager {
     this.register(new SeedStoreDialog());
     this.register(new SuppliesStoreDialog());
     this.register(new CuringDialog());
+    this.register(new SaleDialog());
     this.register(new DealerDialog());
   }
 

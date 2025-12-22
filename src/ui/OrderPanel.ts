@@ -6,6 +6,7 @@ import { OrderSystem, type Order } from "../game/OrderSystem";
 import { GameState } from "../game/GameState";
 import { UIStyles } from "../engine/ui/UIStyles";
 import orderPanelCSS from "./styles/OrderPanel.css?raw";
+import { UIManager } from "./UIManager";
 
 export class OrderPanel {
   private static instance: OrderPanel;
@@ -113,9 +114,9 @@ export class OrderPanel {
         <div class="order-items">${itemsHtml}</div>
         <div class="order-footer">
           <span class="order-reward">$${reward} +${order.xpReward}XP</span>
-          <button class="order-fulfill" ${canFulfill ? '' : 'disabled'} data-order-id="${order.id}">
-            ${canFulfill ? 'Fulfill' : 'Need Items'}
-          </button>
+          <span class="order-status" style="font-size: 0.8rem; color: ${canFulfill ? '#4CAF50' : '#666666'}; font-weight: 600;">
+            ${canFulfill ? '✓ Ready' : 'Need Items'}
+          </span>
         </div>
       </div>
     `;
@@ -141,15 +142,12 @@ export class OrderPanel {
       }
     });
 
-    // Fulfill buttons
+    // Order card clicks - open sale dialog
     this.container.querySelector("#order-list")?.addEventListener("click", (e) => {
-      const btn = (e.target as HTMLElement).closest(".order-fulfill") as HTMLElement;
-      if (btn && !btn.hasAttribute("disabled")) {
-        const orderId = btn.dataset.orderId;
-        if (orderId) {
-          OrderSystem.getInstance().fulfillOrder(orderId);
-          this.update();
-        }
+      const card = (e.target as HTMLElement).closest(".order-card") as HTMLElement;
+      if (card) {
+        // Open sale dialog
+        UIManager.getInstance().openDialog("sale_dialog", {});
       }
     });
 
