@@ -11,6 +11,8 @@
 import { GameState } from "../game/GameState";
 import { PlantSystem } from "../game/PlantSystem";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
+import { UIStyles } from "../engine/ui/UIStyles";
+import plantStatusIndicatorCSS from "./styles/PlantStatusIndicator.css?raw";
 
 const INDICATOR_PREFIX = "plant_status_";
 const UPDATE_INTERVAL = 1000; // Update every second
@@ -47,72 +49,7 @@ export class PlantStatusIndicator {
   private injectStyles(): void {
     if (this.styleInjected) return;
     this.styleInjected = true;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      .plant-status-bars {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        padding: 6px 8px;
-        background: rgba(0, 0, 0, 0.6);
-        border-radius: 6px;
-        min-width: 80px;
-        pointer-events: none;
-      }
-
-      .plant-status-bar {
-        height: 6px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
-        overflow: hidden;
-      }
-
-      .plant-status-bar-fill {
-        height: 100%;
-        border-radius: 2px;
-        transition: width 0.3s ease;
-      }
-
-      .plant-status-bar-growth .plant-status-bar-fill {
-        background: linear-gradient(90deg, #4CAF50, #8BC34A);
-      }
-
-      .plant-status-bar-water .plant-status-bar-fill {
-        background: linear-gradient(90deg, #2196F3, #03A9F4);
-      }
-
-      .plant-status-bar-health .plant-status-bar-fill {
-        background: linear-gradient(90deg, #F44336, #E91E63);
-      }
-
-      /* Low water warning - pulse animation */
-      .plant-status-bar-water.low .plant-status-bar-fill {
-        animation: pulse-water 1s ease-in-out infinite;
-      }
-
-      @keyframes pulse-water {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-
-      /* Low health warning */
-      .plant-status-bar-health.low .plant-status-bar-fill {
-        animation: pulse-health 0.8s ease-in-out infinite;
-      }
-
-      @keyframes pulse-health {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
-      }
-
-      /* Ready to harvest - green glow */
-      .plant-status-bars.harvestable {
-        box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
-        border: 1px solid rgba(76, 175, 80, 0.4);
-      }
-    `;
-    document.head.appendChild(style);
+    UIStyles.injectCSS("plant-status-indicator", plantStatusIndicatorCSS);
   }
 
   private setupEventListeners(): void {

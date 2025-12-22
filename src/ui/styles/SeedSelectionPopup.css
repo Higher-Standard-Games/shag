@@ -1,0 +1,143 @@
+/**
+ * SeedSelectionPopup Styles
+ */
+
+.seed-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.seed-section-label {
+  font-size: 12px;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  padding-left: 4px;
+  font-weight: 500;
+}
+
+.seed-section-dimmed {
+  opacity: 0.6;
+}
+
+.seed-section-locked {
+  opacity: 0.5;
+}
+
+.seed-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #FFFFFF;
+  border-radius: 10px;
+  border: 1px solid #E0E0E0;
+  transition: all 0.15s ease;
+}
+
+.seed-item-available {
+  cursor: pointer;
+}
+
+.seed-item-available:hover {
+  background: #E3F2FD;
+  border-color: #2196F3;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+}
+
+.seed-item-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: #F5F5F5;
+}
+
+.seed-item-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #E8F5E9;
+  border-radius: 8px;
+}
+
+.seed-item-info {
+  flex: 1;
+}
+
+.seed-item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 4px;
+}
+
+.seed-item-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #666666;
+}
+
+.seed-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.seed-item-reason {
+  font-size: 11px;
+  color: #F57C00;
+  margin-top: 4px;
+}
+
+.seed-item-count {
+  min-width: 40px;
+  text-align: right;
+}
+
+.seed-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  background: #E3F2FD;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1976D2;
+  border: 1px solid #BBDEFB;
+}
+
+.seed-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.seed-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.seed-empty-text {
+  color: #888888;
+  font-size: 14px;
+}
+
+.seed-tip {
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #F57C00;
+  text-align: center;
+}
