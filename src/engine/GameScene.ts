@@ -423,6 +423,14 @@ export class GameScene {
       onInventorySlotClick: (slotIndex: number) => {
         console.log("Inventory slot clicked:", slotIndex);
       },
+      onCategoryChange: () => {
+        // Exit build mode when changing tabs
+        BuildingSystem.getInstance().exitBuildMode();
+      },
+      onCollapse: () => {
+        // Exit build mode when minimizing the build bar
+        BuildingSystem.getInstance().exitBuildMode();
+      },
       
       // Data providers
       getPlayerLevel: () => GameState.getInstance().getPlayer().level,

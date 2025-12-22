@@ -31,6 +31,8 @@ export interface BottomBarCallbacks {
   // Actions
   onItemSelect: (item: BuildMenuItem) => void;
   onInventorySlotClick: (slotIndex: number) => void;
+  onCategoryChange?: (categoryId: string) => void;  // Called when category tab changes
+  onCollapse?: () => void;  // Called when bar is minimized
   
   // Data providers
   getPlayerLevel: () => number;
@@ -160,6 +162,9 @@ export class BottomBar {
       this.isExpanded = true;
       this.itemsContainer.classList.remove("collapsed");
     }
+    
+    // Notify game of category change (e.g., to exit build mode)
+    this.callbacks.onCategoryChange?.(categoryId);
     
     this.renderTabs();
     this.renderItems();
@@ -302,6 +307,8 @@ export class BottomBar {
       this.itemsContainer.classList.remove("collapsed");
     } else {
       this.itemsContainer.classList.add("collapsed");
+      // Notify game when bar is minimized (e.g., to exit build mode)
+      this.callbacks.onCollapse?.();
     }
     this.renderTabs();
   }
