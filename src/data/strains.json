@@ -485,6 +485,128 @@
         "seedDropChance": 0.05,
         "rareSeedDrops": []
       }
+    },
+    {
+      "id": "genetics_blue_lobster",
+      "name": "Blue Lobster",
+      "description": "A unique hybrid with stunning blue hues and sweet berry flavors. Known for balanced effects and beautiful appearance.",
+      "type": "hybrid",
+      "indicaPercent": 50,
+      "thcContent": 22,
+      "cbdContent": 1,
+      "effects": { "relaxed": 75, "happy": 80, "uplifted": 70, "creative": 65, "euphoric": 70 },
+      "negativeEffects": { "dry_mouth": 35, "dry_eyes": 25 },
+      "flavors": { "berry": 85, "sweet": 75, "blueberry": 80, "earthy": 45, "vanilla": 30 },
+      "terpenes": { "myrcene": 55, "caryophyllene": 50, "limonene": 45 },
+      "growthTraits": {
+        "floweringTime": 62,
+        "yieldPotential": 68,
+        "heightPotential": 58,
+        "difficulty": 55,
+        "moldResistance": 60,
+        "pestResistance": 58,
+        "droughtTolerance": 52
+      },
+      "appearance": { "budDensity": 82, "trichomeCoverage": 88, "purpleExpression": 75, "orangeHairs": 65 },
+      "lineage": {
+        "generation": 3,
+        "isStabilized": true,
+        "breederName": "Unknown"
+      },
+      "rarity": "rare",
+      "basePrice": 16,
+      "isLandrace": false,
+      "tier": 3,
+      "specialTraits": ["purple_pheno", "exotic_flavor"],
+      "unlockLevel": 6,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 45,
+        "humidityMax": 55,
+        "potSize": "medium",
+        "nutrientDemand": "heavy"
+      },
+      "gameplay": {
+        "growthTime": 660000,
+        "stages": 5,
+        "waterConsumption": 25,
+        "baseYield": 135,
+        "xpReward": 35,
+        "seedId": "seed_blue_lobster",
+        "harvestId": "fresh_blue_lobster",
+        "curedId": "cured_blue_lobster",
+        "harvestWindow": 270000,
+        "overripeTime": 180000,
+        "preferredTempMin": 68,
+        "preferredTempMax": 76,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 22000,
+        "curingTime": 270000,
+        "seedDropChance": 0.11,
+        "rareSeedDrops": []
+      }
+    },
+    {
+      "id": "genetics_master_kush",
+      "name": "Master Kush",
+      "description": "A legendary indica from the Hindu Kush region. Prized for its potency, earthy hash flavors, and deeply relaxing effects. The ultimate connoisseur strain.",
+      "type": "indica",
+      "indicaPercent": 90,
+      "thcContent": 24,
+      "cbdContent": 2,
+      "effects": { "relaxed": 95, "sleepy": 85, "euphoric": 75, "happy": 70, "hungry": 65 },
+      "negativeEffects": { "dry_mouth": 50, "dry_eyes": 40, "dizzy": 20 },
+      "flavors": { "earthy": 90, "woody": 80, "hash": 85, "citrus": 40, "pine": 60 },
+      "terpenes": { "myrcene": 85, "caryophyllene": 60, "limonene": 40 },
+      "growthTraits": {
+        "floweringTime": 65,
+        "yieldPotential": 75,
+        "heightPotential": 45,
+        "difficulty": 65,
+        "moldResistance": 75,
+        "pestResistance": 70,
+        "droughtTolerance": 85
+      },
+      "appearance": { "budDensity": 92, "trichomeCoverage": 95, "purpleExpression": 30, "orangeHairs": 60 },
+      "lineage": {
+        "parent1Id": "genetics_afghan_kush",
+        "generation": 1,
+        "isStabilized": true,
+        "originRegion": "Netherlands",
+        "breederName": "Dutch Passion"
+      },
+      "rarity": "legendary",
+      "basePrice": 30,
+      "isLandrace": false,
+      "tier": 5,
+      "specialTraits": ["high_thc", "frost_giant", "drought_master", "heavy_yield"],
+      "unlockLevel": 12,
+      "environment": {
+        "lightIntensity": "high",
+        "humidityMin": 40,
+        "humidityMax": 50,
+        "potSize": "large",
+        "nutrientDemand": "heavy"
+      },
+      "gameplay": {
+        "growthTime": 960000,
+        "stages": 6,
+        "waterConsumption": 26,
+        "baseYield": 200,
+        "xpReward": 75,
+        "seedId": "seed_master_kush",
+        "harvestId": "fresh_master_kush",
+        "curedId": "cured_master_kush",
+        "harvestWindow": 420000,
+        "overripeTime": 240000,
+        "preferredTempMin": 65,
+        "preferredTempMax": 75,
+        "waterPromptInterval": 60000,
+        "waterPromptWindow": 15000,
+        "curingTime": 420000,
+        "seedDropChance": 0.03,
+        "rareSeedDrops": []
+      }
     }
   ]
 }
