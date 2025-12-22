@@ -6,6 +6,16 @@
  */
 
 import { UIManager } from "../UIManager";
+import { UIStyles } from "../UIStyles";
+import overlayCSS from "./styles/Overlay.css?raw";
+
+// Inject overlay styles once
+let overlayStylesInjected = false;
+function injectOverlayStyles(): void {
+  if (overlayStylesInjected) return;
+  overlayStylesInjected = true;
+  UIStyles.injectCSS("overlay", overlayCSS);
+}
 
 export interface OverlayConfig {
   id: string;
@@ -41,10 +51,11 @@ export class Overlay {
    */
   public show(): void {
     if (this.visible) return;
+    injectOverlayStyles();
 
     this.element = document.createElement("div");
     this.element.id = `overlay-${this.config.id}`;
-    this.element.className = "ui-overlay";
+    this.element.className = `ui-overlay${this.config.animate ? " animate-in" : ""}`;
     
     // Build background with opacity
     const r = parseInt(this.config.color.slice(1, 3), 16) || 0;
@@ -52,17 +63,13 @@ export class Overlay {
     const b = parseInt(this.config.color.slice(5, 7), 16) || 0;
     const bgColor = `rgba(${r}, ${g}, ${b}, ${this.config.opacity})`;
 
-    this.element.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: ${bgColor};
-      ${this.config.blur > 0 ? `backdrop-filter: blur(${this.config.blur}px); -webkit-backdrop-filter: blur(${this.config.blur}px);` : ""}
-      z-index: ${this.config.zIndex};
-      ${this.config.animate ? "animation: uiFadeIn 0.2s ease;" : ""}
-    `;
+    this.element.style.background = bgColor;
+    this.element.style.zIndex = String(this.config.zIndex);
+    
+    if (this.config.blur > 0) {
+      this.element.style.backdropFilter = `blur(${this.config.blur}px)`;
+      (this.element.style as unknown as Record<string, string>).webkitBackdropFilter = `blur(${this.config.blur}px)`;
+    }
 
     if (this.config.closeOnClick) {
       this.element.addEventListener("click", (e) => {
@@ -88,7 +95,8 @@ export class Overlay {
     if (!this.visible || !this.element) return;
 
     if (this.config.animate) {
-      this.element.style.animation = "uiFadeOut 0.2s ease";
+      this.element.classList.remove("animate-in");
+      this.element.classList.add("animate-out");
       setTimeout(() => {
         this.element?.remove();
         this.element = null;

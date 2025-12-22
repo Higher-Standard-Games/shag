@@ -1,0 +1,19 @@
+/**
+ * Overlay Styles
+ */
+
+.ui-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ui-overlay.animate-in {
+  animation: uiFadeIn 0.2s ease;
+}
+
+.ui-overlay.animate-out {
+  animation: uiFadeOut 0.2s ease;
+}

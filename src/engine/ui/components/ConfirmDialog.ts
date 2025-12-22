@@ -8,6 +8,8 @@
 import { UIManager } from "../UIManager";
 import { Overlay } from "./Overlay";
 import { createButtonRow, type ButtonVariant } from "./Button";
+import { UIStyles } from "../UIStyles";
+import confirmDialogCSS from "./styles/ConfirmDialog.css?raw";
 
 export interface ConfirmOptions {
   title: string;
@@ -22,6 +24,13 @@ export interface ConfirmOptions {
 export class ConfirmDialog {
   private static overlay: Overlay | null = null;
   private static panel: HTMLDivElement | null = null;
+  private static stylesInjected = false;
+
+  private static injectStyles(): void {
+    if (this.stylesInjected) return;
+    this.stylesInjected = true;
+    UIStyles.injectCSS("confirm-dialog", confirmDialogCSS);
+  }
 
   /**
    * Show a confirmation dialog
@@ -29,6 +38,7 @@ export class ConfirmDialog {
   public static show(options: ConfirmOptions): void {
     // Hide any existing confirm dialog
     this.hide();
+    this.injectStyles();
 
     const {
       title,
@@ -57,47 +67,21 @@ export class ConfirmDialog {
     );
     this.overlay.show();
 
-    // Create panel - Light theme
+    // Create panel
     this.panel = document.createElement("div");
     this.panel.className = "ui-confirm-panel";
-    this.panel.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #FAFAFA;
-      border: 1px solid #E0E0E0;
-      border-radius: 16px;
-      padding: 32px 40px;
-      max-width: 400px;
-      width: 90%;
-      text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
-      z-index: ${UIManager.getInstance().getZIndex("CONFIRM") + 1};
-      animation: uiScaleInCentered 0.2s ease;
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-    `;
+    this.panel.style.zIndex = String(UIManager.getInstance().getZIndex("CONFIRM") + 1);
 
     // Title
     const titleEl = document.createElement("h3");
+    titleEl.className = "ui-confirm-title";
     titleEl.textContent = title;
-    titleEl.style.cssText = `
-      color: #333333;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin: 0 0 12px 0;
-    `;
     this.panel.appendChild(titleEl);
 
     // Message
     const messageEl = document.createElement("p");
+    messageEl.className = "ui-confirm-message";
     messageEl.textContent = message;
-    messageEl.style.cssText = `
-      color: #666666;
-      font-size: 1rem;
-      margin: 0 0 24px 0;
-      line-height: 1.5;
-    `;
     this.panel.appendChild(messageEl);
 
     // Buttons

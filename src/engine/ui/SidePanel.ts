@@ -11,6 +11,9 @@
  * - No overlap with BottomBar
  */
 
+import { UIStyles } from "./UIStyles";
+import sidePanelCSS from "./styles/SidePanel.css?raw";
+
 export interface SidePanelItem {
   id: string;
   content: string;      // HTML content for the item
@@ -49,6 +52,9 @@ export class SidePanel {
     this.callbacks = callbacks;
     this.isCollapsed = config.collapsedByDefault ?? false;
     
+    // Inject styles once
+    UIStyles.injectCSS("side-panel", sidePanelCSS);
+    
     this.container = this.createContainer();
     this.headerEl = this.createHeader();
     this.contentEl = this.createContent();
@@ -63,85 +69,47 @@ export class SidePanel {
   private createContainer(): HTMLDivElement {
     const container = document.createElement("div");
     container.id = `side-panel-${this.config.id}`;
-    container.className = "side-panel";
-    container.style.cssText = `
-      position: fixed;
-      ${this.config.side}: 16px;
-      width: 240px;
-      background: #FAFAFA;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-      z-index: 900;
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-      border: 1px solid #E0E0E0;
-      overflow: hidden;
-      transition: all 0.2s ease;
-    `;
+    container.className = `side-panel ${this.config.side}`;
     return container;
   }
 
   private createHeader(): HTMLDivElement {
     const header = document.createElement("div");
     header.className = "side-panel-header";
-    header.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      background: #F5F5F5;
-      cursor: pointer;
-      user-select: none;
-      border-bottom: 1px solid #E0E0E0;
-    `;
-    
     header.onclick = () => this.toggleCollapse();
-    
     return header;
   }
 
   private createContent(): HTMLDivElement {
     const content = document.createElement("div");
     content.className = "side-panel-content";
-    content.style.cssText = `
-      max-height: ${this.config.maxHeight ?? 300}px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: #CCCCCC transparent;
-      background: #FFFFFF;
-      padding: 0;
-    `;
+    content.style.maxHeight = `${this.config.maxHeight ?? 300}px`;
     return content;
   }
 
   private renderHeader(): void {
     const extra = this.callbacks.getHeaderExtra?.() ?? "";
     this.headerEl.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 22px;">${this.config.icon}</span>
-        <span class="side-panel-title" style="color: #333333; font-weight: 800; font-size: 20px; letter-spacing: -0.02em;">${this.config.title}</span>
+      <div class="side-panel-header-left">
+        <span class="side-panel-icon">${this.config.icon}</span>
+        <span class="side-panel-title">${this.config.title}</span>
         ${extra}
       </div>
-      <span style="color: #888888; font-size: 14px; transition: transform 0.2s;">
-        ${this.isCollapsed ? "▶" : "▼"}
-      </span>
+      <span class="side-panel-toggle">${this.isCollapsed ? "▶" : "▼"}</span>
     `;
   }
 
   private renderContent(): void {
     if (this.isCollapsed) {
-      this.contentEl.style.display = "none";
+      this.contentEl.classList.add("collapsed");
       return;
     }
     
-    this.contentEl.style.display = "block";
+    this.contentEl.classList.remove("collapsed");
     const items = this.callbacks.getItems();
     
     if (items.length === 0) {
-      this.contentEl.innerHTML = `
-        <div style="padding: 14px 16px; text-align: center; color: #888888; font-size: 14px;">
-          No items
-        </div>
-      `;
+      this.contentEl.innerHTML = `<div class="side-panel-empty">No items</div>`;
       return;
     }
     
@@ -168,15 +136,9 @@ export class SidePanel {
   }
 
   private defaultRenderItem(item: SidePanelItem): string {
+    const hasClick = item.onClick || this.callbacks.onItemClick;
     return `
-      <div class="side-panel-item" data-item-id="${item.id}" style="
-        padding: 12px 16px;
-        border-bottom: 1px solid #E8E8E8;
-        color: #333333;
-        font-size: 14px;
-        transition: background 0.15s ease;
-      " onmouseenter="this.style.background='#F5F5F5'"
-         onmouseleave="this.style.background='transparent'">
+      <div class="side-panel-item${hasClick ? " clickable" : ""}" data-item-id="${item.id}">
         ${item.content}
       </div>
     `;

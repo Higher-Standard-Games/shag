@@ -1,0 +1,147 @@
+/**
+ * BaseDialog Styles
+ */
+
+/* Backdrop */
+.dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 900;
+  animation: dialogBackdropIn 0.2s ease-out;
+}
+
+/* Dialog Container */
+.game-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 70vh;
+  max-height: 85vh;
+  background: #FAFAFA;
+  border: 1px solid #E0E0E0;
+  border-radius: 12px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dialogSlideIn 0.25s ease-out;
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Header */
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #F5F5F5;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #333333;
+  letter-spacing: -0.02em;
+}
+
+.dialog-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #E8E8E8;
+  border-radius: 6px;
+  color: #666666;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.dialog-close-btn:hover {
+  background: #FFDDDD;
+  color: #D32F2F;
+}
+
+/* Body */
+.dialog-body {
+  padding: 20px;
+  overflow-y: auto;
+  color: #333333;
+  line-height: 1.6;
+  flex: 1;
+}
+
+/* Buttons */
+.dialog-btn {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dialog-btn.primary {
+  background: #4CAF50;
+  color: #fff;
+  border-bottom: 4px solid #3D9140;
+  box-shadow: 0 2px 4px rgba(61, 145, 64, 0.3);
+}
+
+.dialog-btn.primary:hover {
+  background: #5CBF60;
+}
+
+.dialog-btn.secondary {
+  background: #F5F5F5;
+  color: #333333;
+  border: 1px solid #CCCCCC;
+  border-bottom: 4px solid #CCCCCC;
+}
+
+.dialog-btn.secondary:hover {
+  background: #FFFFFF;
+}
+
+/* Animations */
+@keyframes dialogBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes dialogSlideOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+}

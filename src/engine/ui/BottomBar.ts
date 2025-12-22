@@ -13,6 +13,8 @@
  */
 
 import { UIConfig, type BuildMenuCategory, type BuildMenuItem } from "./UIConfig";
+import { UIStyles } from "./UIStyles";
+import bottomBarCSS from "./styles/BottomBar.css?raw";
 
 export interface InventorySlot {
   itemId: string | null;
@@ -55,6 +57,10 @@ export class BottomBar {
 
   constructor(callbacks: BottomBarCallbacks) {
     this.callbacks = callbacks;
+    
+    // Inject styles once
+    UIStyles.injectCSS("bottom-bar", bottomBarCSS);
+    
     this.container = this.createContainer();
     this.tabsContainer = this.createTabsContainer();
     this.itemsContainer = this.createItemsContainer();
@@ -68,69 +74,24 @@ export class BottomBar {
   private createContainer(): HTMLDivElement {
     const container = document.createElement("div");
     container.id = "bottom-bar";
-    container.style.cssText = `
-      position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90%;
-      max-width: 800px;
-      background: #FAFAFA;
-      border-radius: 16px 16px 0 0;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      z-index: 1000;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      transition: transform 0.2s ease;
-      border: 1px solid #E0E0E0;
-      border-bottom: none;
-    `;
     return container;
   }
 
   private createTabsContainer(): HTMLDivElement {
     const tabs = document.createElement("div");
     tabs.id = "bottom-bar-tabs";
-    tabs.style.cssText = `
-      display: flex;
-      gap: 6px;
-      padding: 10px 12px;
-      border-bottom: 1px solid #E0E0E0;
-      overflow-x: auto;
-      scrollbar-width: none;
-    `;
     return tabs;
   }
 
   private createItemsContainer(): HTMLDivElement {
     const items = document.createElement("div");
     items.id = "bottom-bar-items";
-    items.style.cssText = `
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-      gap: 8px;
-      padding: 12px;
-      max-height: 120px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: #CCCCCC transparent;
-    `;
     return items;
   }
 
   private createInventoryContainer(): HTMLDivElement {
     const inventory = document.createElement("div");
     inventory.id = "bottom-bar-inventory";
-    inventory.style.cssText = `
-      display: flex;
-      gap: 6px;
-      padding: 8px 12px;
-      border-top: 1px solid #E0E0E0;
-      background: #F0F0F0;
-      border-radius: 0 0 16px 16px;
-      justify-content: center;
-    `;
     return inventory;
   }
 
@@ -161,30 +122,9 @@ export class BottomBar {
 
     // Add collapse/expand button
     const collapseBtn = document.createElement("button");
+    collapseBtn.className = "bottom-bar-collapse";
     collapseBtn.innerHTML = this.isExpanded ? "▼" : "▲";
-    collapseBtn.style.cssText = `
-      background: #E8E8E8;
-      border: none;
-      border-bottom: 3px solid #CCCCCC;
-      color: #666666;
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      margin-right: 8px;
-      transition: all 0.1s ease;
-      position: relative;
-      top: 0;
-    `;
     collapseBtn.onclick = () => this.toggleExpanded();
-    collapseBtn.onmouseenter = () => {
-      collapseBtn.style.background = "#F5F5F5";
-      collapseBtn.style.top = "-1px";
-    };
-    collapseBtn.onmouseleave = () => {
-      collapseBtn.style.background = "#E8E8E8";
-      collapseBtn.style.top = "0";
-    };
     this.tabsContainer.appendChild(collapseBtn);
 
     // Add category tabs
@@ -198,53 +138,16 @@ export class BottomBar {
     const tab = document.createElement("button");
     const isSelected = this.selectedCategory === category.id;
     
+    tab.className = `bottom-bar-tab${isSelected ? " active" : ""}`;
     tab.innerHTML = `${category.icon} <strong>${category.name}</strong>`;
     
-    // 3D button effect for all tabs
-    const defaultBg = isSelected ? category.color : "#F5F5F5";
-    const defaultBorder = isSelected ? this.darkenColor(category.color, 20) : "#CCCCCC";
-    const textColor = isSelected ? "#FFFFFF" : "#333333";
-    
-    tab.style.cssText = `
-      background: ${defaultBg};
-      border: none;
-      border-bottom: 4px solid ${defaultBorder};
-      color: ${textColor};
-      padding: 12px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 700;
-      white-space: nowrap;
-      transition: all 0.1s ease;
-      position: relative;
-      top: 0;
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-    `;
+    // Set dynamic color via CSS variables for active state
+    if (isSelected) {
+      tab.style.setProperty("--tab-color", category.color);
+      tab.style.setProperty("--tab-border-color", this.darkenColor(category.color, 20));
+    }
 
     tab.onclick = () => this.selectCategory(category.id);
-    tab.onmouseenter = () => {
-      if (!isSelected) {
-        tab.style.background = "#FFFFFF";
-        tab.style.top = "-2px";
-      }
-    };
-    tab.onmouseleave = () => {
-      if (!isSelected) {
-        tab.style.background = "#F5F5F5";
-        tab.style.top = "0";
-      }
-    };
-    // Add press effect
-    tab.onmousedown = () => {
-      tab.style.top = "2px";
-      tab.style.borderBottomWidth = "2px";
-    };
-    tab.onmouseup = () => {
-      tab.style.top = isSelected ? "0" : "-2px";
-      tab.style.borderBottomWidth = "4px";
-    };
-
     return tab;
   }
 
@@ -255,7 +158,7 @@ export class BottomBar {
     // Auto-expand if minimized when clicking a tab
     if (!this.isExpanded) {
       this.isExpanded = true;
-      this.itemsContainer.style.display = "grid";
+      this.itemsContainer.classList.remove("collapsed");
     }
     
     this.renderTabs();
@@ -281,13 +184,7 @@ export class BottomBar {
     // Show hint if no items
     if (category.items.length === 0) {
       const hint = document.createElement("div");
-      hint.style.cssText = `
-        grid-column: 1 / -1;
-        text-align: center;
-        color: #666;
-        padding: 20px;
-        font-size: 14px;
-      `;
+      hint.className = "bottom-bar-hint";
       hint.textContent = "No items available at your level";
       this.itemsContainer.appendChild(hint);
     }
@@ -300,103 +197,37 @@ export class BottomBar {
     const isSelected = this.selectedItem?.id === item.id;
 
     const el = document.createElement("div");
-    el.style.cssText = `
-      background: ${isSelected ? "#E8F5E9" : "#FFFFFF"};
-      border: none;
-      border-bottom: 3px solid ${isSelected ? "#4CAF50" : "#E0E0E0"};
-      border-radius: 10px;
-      padding: 12px 10px;
-      text-align: center;
-      cursor: ${isAvailable ? "pointer" : "not-allowed"};
-      opacity: ${isAvailable ? "1" : "0.5"};
-      transition: all 0.1s ease;
-      min-width: 90px;
-      position: relative;
-      top: 0;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-    `;
+    el.className = `bottom-bar-item${isSelected ? " selected" : ""}${!isAvailable ? " disabled" : ""}`;
 
     // Icon
     const icon = document.createElement("div");
-    icon.style.cssText = `
-      font-size: 32px;
-      margin-bottom: 8px;
-      filter: ${isAvailable ? "none" : "grayscale(1)"};
-    `;
-    // Use emoji fallback if no icon image
+    icon.className = `bottom-bar-item-icon${!isAvailable ? " disabled" : ""}`;
     icon.innerHTML = this.getItemIcon(item);
     el.appendChild(icon);
 
     // Name
     const name = document.createElement("div");
-    name.style.cssText = `
-      font-size: 13px;
-      color: #333333;
-      margin-bottom: 6px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    `;
+    name.className = "bottom-bar-item-name";
     name.textContent = item.name;
     el.appendChild(name);
 
-    // Cost - styled as mini 3D badge
+    // Cost
     const cost = document.createElement("div");
-    cost.style.cssText = `
-      display: inline-block;
-      font-size: 13px;
-      color: ${canAfford ? "#FFFFFF" : "#D32F2F"};
-      background: ${canAfford ? "#4CAF50" : "transparent"};
-      border-bottom: ${canAfford ? "2px solid #3D9140" : "none"};
-      padding: ${canAfford ? "3px 10px" : "0"};
-      border-radius: 6px;
-      font-weight: 700;
-    `;
+    cost.className = `bottom-bar-item-cost ${canAfford ? "affordable" : "expensive"}`;
     cost.textContent = `$${item.cost}`;
     el.appendChild(cost);
 
     // Level requirement if not met
     if (!meetsLevel) {
       const lvl = document.createElement("div");
-      lvl.style.cssText = `
-        font-size: 12px;
-        color: #E65100;
-        margin-top: 4px;
-        font-weight: 600;
-      `;
+      lvl.className = "bottom-bar-item-level";
       lvl.textContent = `Lv.${item.levelRequired}`;
       el.appendChild(lvl);
     }
 
-    // Click handler with 3D press effect
+    // Click handler
     if (isAvailable) {
       el.onclick = () => this.selectItem(item);
-      el.onmouseenter = () => {
-        if (!isSelected) {
-          el.style.background = "#F8F8F8";
-          el.style.top = "-2px";
-          el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
-        }
-      };
-      el.onmouseleave = () => {
-        if (!isSelected) {
-          el.style.background = "#FFFFFF";
-          el.style.top = "0";
-          el.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
-        }
-      };
-      el.onmousedown = () => {
-        el.style.top = "2px";
-        el.style.borderBottomWidth = "1px";
-        el.style.boxShadow = "none";
-      };
-      el.onmouseup = () => {
-        el.style.top = "-2px";
-        el.style.borderBottomWidth = "3px";
-        el.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.12)";
-      };
     }
 
     return el;
@@ -433,30 +264,12 @@ export class BottomBar {
 
   private createInventorySlot(index: number, slot: InventorySlot): HTMLDivElement {
     const el = document.createElement("div");
-    el.style.cssText = `
-      width: 72px;
-      min-height: 72px;
-      background: #FFFFFF;
-      border: none;
-      border-bottom: 3px solid #E0E0E0;
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.1s ease;
-      position: relative;
-      padding: 6px;
-      top: 0;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-    `;
+    el.className = "bottom-bar-slot";
 
     if (slot.itemId) {
-      // Icon - use game-provided renderer or fallback
+      // Icon
       const icon = document.createElement("div");
-      icon.style.cssText = `font-size: 26px;`;
+      icon.className = "bottom-bar-slot-icon";
       if (this.callbacks.renderInventoryIcon && slot.itemId) {
         icon.innerHTML = this.callbacks.renderInventoryIcon(slot.itemId);
       } else {
@@ -467,68 +280,29 @@ export class BottomBar {
       // Item name
       if (slot.name) {
         const name = document.createElement("div");
-        name.style.cssText = `
-          font-size: 10px;
-          color: #666666;
-          text-align: center;
-          margin-top: 3px;
-          line-height: 1.1;
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-weight: 600;
-        `;
+        name.className = "bottom-bar-slot-name";
         name.textContent = slot.name;
         el.appendChild(name);
       }
 
       // Count badge
       const count = document.createElement("div");
-      count.style.cssText = `
-        position: absolute;
-        bottom: 3px;
-        right: 3px;
-        background: #4CAF50;
-        color: #FFFFFF;
-        font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-weight: 700;
-        border-bottom: 2px solid #3D9140;
-      `;
+      count.className = "bottom-bar-slot-count";
       count.textContent = String(slot.count);
       el.appendChild(count);
     }
 
     el.onclick = () => this.callbacks.onInventorySlotClick(index);
-    el.onmouseenter = () => {
-      el.style.background = "#F8F8F8";
-      el.style.top = "-2px";
-      el.style.boxShadow = "0 3px 6px rgba(0, 0, 0, 0.12)";
-    };
-    el.onmouseleave = () => {
-      el.style.background = "#FFFFFF";
-      el.style.top = "0";
-      el.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.08)";
-    };
-    el.onmousedown = () => {
-      el.style.top = "2px";
-      el.style.borderBottomWidth = "1px";
-      el.style.boxShadow = "none";
-    };
-    el.onmouseup = () => {
-      el.style.top = "-2px";
-      el.style.borderBottomWidth = "3px";
-      el.style.boxShadow = "0 3px 6px rgba(0, 0, 0, 0.12)";
-    };
-
     return el;
   }
 
   private toggleExpanded(): void {
     this.isExpanded = !this.isExpanded;
-    this.itemsContainer.style.display = this.isExpanded ? "grid" : "none";
+    if (this.isExpanded) {
+      this.itemsContainer.classList.remove("collapsed");
+    } else {
+      this.itemsContainer.classList.add("collapsed");
+    }
     this.renderTabs();
   }
 
@@ -536,11 +310,11 @@ export class BottomBar {
     if (!this.container.parentElement) {
       document.body.appendChild(this.container);
     }
-    this.container.style.transform = "translateX(-50%) translateY(0)";
+    this.container.classList.remove("hidden");
   }
 
   public hide(): void {
-    this.container.style.transform = "translateX(-50%) translateY(100%)";
+    this.container.classList.add("hidden");
   }
 
   public destroy(): void {

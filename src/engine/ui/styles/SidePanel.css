@@ -1,0 +1,105 @@
+/**
+ * SidePanel Styles
+ */
+
+.side-panel {
+  position: fixed;
+  width: 240px;
+  background: #FAFAFA;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 900;
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  border: 1px solid #E0E0E0;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.side-panel.left {
+  left: 16px;
+}
+
+.side-panel.right {
+  right: 16px;
+}
+
+/* Header */
+.side-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #F5F5F5;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.side-panel-header:hover {
+  background: #EEEEEE;
+}
+
+.side-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.side-panel-icon {
+  font-size: 22px;
+}
+
+.side-panel-title {
+  color: #333333;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.side-panel-toggle {
+  color: #888888;
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+
+/* Content */
+.side-panel-content {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #CCCCCC transparent;
+  background: #FFFFFF;
+  padding: 0;
+}
+
+.side-panel-content.collapsed {
+  display: none;
+}
+
+/* Items */
+.side-panel-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #E8E8E8;
+  color: #333333;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.side-panel-item:hover {
+  background: #F5F5F5;
+}
+
+.side-panel-item:last-child {
+  border-bottom: none;
+}
+
+.side-panel-item.clickable {
+  cursor: pointer;
+}
+
+/* Empty state */
+.side-panel-empty {
+  padding: 14px 16px;
+  text-align: center;
+  color: #888888;
+  font-size: 14px;
+}

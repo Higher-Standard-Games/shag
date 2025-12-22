@@ -13,6 +13,9 @@
  * - Smooth animations
  */
 
+import { UIStyles } from "./UIStyles";
+import modalPanelCSS from "./styles/ModalPanel.css?raw";
+
 export interface ModalAction {
   id: string;
   label: string;
@@ -55,6 +58,9 @@ export class ModalPanel {
     };
     this.callbacks = callbacks;
     
+    // Inject styles once
+    UIStyles.injectCSS("modal-panel", modalPanelCSS);
+    
     this.backdrop = this.createBackdrop();
     this.container = this.createContainer();
     this.backdrop.appendChild(this.container);
@@ -63,22 +69,7 @@ export class ModalPanel {
   private createBackdrop(): HTMLDivElement {
     const backdrop = document.createElement("div");
     backdrop.id = `modal-backdrop-${this.config.id}`;
-    backdrop.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      padding: 20px;
-      box-sizing: border-box;
-    `;
+    backdrop.className = "modal-backdrop";
     
     if (this.config.closeOnBackdrop) {
       backdrop.onclick = (e) => {
@@ -94,21 +85,8 @@ export class ModalPanel {
   private createContainer(): HTMLDivElement {
     const container = document.createElement("div");
     container.id = `modal-${this.config.id}`;
-    container.style.cssText = `
-      background: #FAFAFA;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: ${this.config.width}px;
-      max-height: 80vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      border: 1px solid #E0E0E0;
-      transform: scale(0.9);
-      transition: transform 0.2s ease;
-    `;
+    container.className = "modal-container";
+    container.style.maxWidth = `${this.config.width}px`;
     return container;
   }
 
@@ -141,93 +119,36 @@ export class ModalPanel {
     }
     
     return `
-      <div class="modal-header" style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 16px;
-        border-bottom: 1px solid #E0E0E0;
-        background: #F5F5F5;
-        border-radius: 16px 16px 0 0;
-      ">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          ${this.config.icon ? `<span style="font-size: 24px;">${this.config.icon}</span>` : ''}
-          <span class="modal-title" style="color: #333333; font-weight: 600; font-size: 22px;">${this.config.title}</span>
+      <div class="modal-header">
+        <div class="modal-header-left">
+          ${this.config.icon ? `<span class="modal-header-icon">${this.config.icon}</span>` : ''}
+          <span class="modal-title">${this.config.title}</span>
         </div>
-        ${this.config.showClose ? `
-          <button class="modal-close" style="
-            background: #E8E8E8;
-            border: none;
-            border-bottom: 2px solid #CCCCCC;
-            color: #666666;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.1s ease;
-          " onmouseenter="this.style.background='#F5F5F5'"
-             onmouseleave="this.style.background='#E8E8E8'">✕</button>
-        ` : ''}
+        ${this.config.showClose ? `<button class="modal-close">✕</button>` : ''}
       </div>
     `;
   }
 
   private renderActions(actions: ModalAction[]): string {
     const actionButtons = actions.map(action => {
-      const isPrimary = action.primary;
-      const bgColor = action.disabled 
-        ? '#E0E0E0' 
-        : (action.color || (isPrimary ? '#4CAF50' : '#F5F5F5'));
-      const borderColor = action.disabled
-        ? '#CCCCCC'
-        : (isPrimary ? '#3D9140' : '#CCCCCC');
-      const textColor = action.disabled ? '#999999' : (isPrimary ? '#FFFFFF' : '#333333');
-      const cursor = action.disabled ? 'not-allowed' : 'pointer';
-      const minHeight = isPrimary ? '56px' : '48px';
-      const fontSize = isPrimary ? '15px' : '14px';
+      const classes = ['modal-action'];
+      if (action.primary) classes.push('primary');
+      if (action.disabled) classes.push('disabled');
+      
+      // Custom color via CSS variable
+      const customStyle = action.color && !action.disabled 
+        ? `style="--action-color: ${action.color}; background: ${action.color};"` 
+        : '';
       
       return `
-        <button class="modal-action" data-action-id="${action.id}" style="
-          background: ${bgColor};
-          border: none;
-          border-bottom: 3px solid ${borderColor};
-          color: ${textColor};
-          padding: 12px 16px;
-          border-radius: 10px;
-          cursor: ${cursor};
-          font-size: ${fontSize};
-          font-weight: 500;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          min-height: ${minHeight};
-          flex: 1;
-          transition: all 0.1s ease;
-          opacity: ${action.disabled ? '0.6' : '1'};
-          position: relative;
-          top: 0;
-        " ${action.disabled ? 'disabled' : ''}>
-          <span style="font-size: 24px;">${action.icon}</span>
+        <button class="${classes.join(' ')}" data-action-id="${action.id}" ${customStyle} ${action.disabled ? 'disabled' : ''}>
+          <span class="modal-action-icon">${action.icon}</span>
           <span>${action.label}</span>
         </button>
       `;
     }).join('');
     
-    return `
-      <div class="modal-actions" style="
-        display: flex;
-        gap: 10px;
-        padding: 16px;
-        border-top: 1px solid #E0E0E0;
-        background: #F5F5F5;
-      ">${actionButtons}</div>
-    `;
+    return `<div class="modal-actions">${actionButtons}</div>`;
   }
 
   private attachActionHandlers(actions: ModalAction[]): void {
@@ -243,15 +164,6 @@ export class ModalPanel {
       const btn = this.container.querySelector(`[data-action-id="${action.id}"]`);
       if (btn) {
         btn.addEventListener('click', () => action.onClick());
-        // Hover effects
-        btn.addEventListener('mouseenter', () => {
-          if (!action.disabled) {
-            (btn as HTMLElement).style.filter = 'brightness(1.2)';
-          }
-        });
-        btn.addEventListener('mouseleave', () => {
-          (btn as HTMLElement).style.filter = 'brightness(1)';
-        });
       }
     });
   }
@@ -264,12 +176,10 @@ export class ModalPanel {
     }
     
     this.render();
-    this.backdrop.style.display = "flex";
     
     // Trigger animation
     requestAnimationFrame(() => {
-      this.backdrop.style.opacity = "1";
-      this.container.style.transform = "scale(1)";
+      this.backdrop.classList.add("visible");
     });
     
     this.isVisible = true;
@@ -278,11 +188,9 @@ export class ModalPanel {
   public hide(): void {
     if (!this.isVisible) return;
     
-    this.backdrop.style.opacity = "0";
-    this.container.style.transform = "scale(0.9)";
+    this.backdrop.classList.remove("visible");
     
     setTimeout(() => {
-      this.backdrop.style.display = "none";
       this.callbacks.onClose?.();
     }, 200);
     
