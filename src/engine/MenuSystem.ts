@@ -12,6 +12,7 @@
 
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { Overlay, createButton, ConfirmDialog, UIManager } from "./ui";
+import { GameTimer } from "../game/GameTimer";
 
 export type MenuState = "main_menu" | "in_game" | "pause_menu" | "settings";
 
@@ -123,6 +124,7 @@ export class MenuSystem {
     if (this.state !== "in_game") return;
 
     this.state = "pause_menu";
+    GameTimer.getInstance().pause();
     this.createPauseOverlay();
   }
 
@@ -131,6 +133,7 @@ export class MenuSystem {
    */
   public resume(): void {
     this.state = "in_game";
+    GameTimer.getInstance().resume();
     this.hidePauseOverlay();
     this.callbacks.onResume?.();
   }
@@ -208,11 +211,11 @@ export class MenuSystem {
     title.style.cssText = `
       color: #fff;
       font-size: 2.5rem;
-      font-weight: 200;
+      font-weight: 300;
       letter-spacing: 0.3em;
       margin: 0 0 24px 0;
       text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     `;
     this.pausePanel.appendChild(title);
 
