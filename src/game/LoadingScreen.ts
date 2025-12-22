@@ -22,7 +22,7 @@ export class LoadingScreen {
       justify-content: center;
       align-items: center;
       z-index: 1000;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
       color: #fff;
     `;
 

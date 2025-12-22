@@ -182,7 +182,7 @@ export class UIManager {
       
       /* Button base styles */
       .ui-button {
-        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
         border: none;
         border-radius: 8px;
         cursor: pointer;
