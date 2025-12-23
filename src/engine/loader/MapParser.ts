@@ -37,62 +37,123 @@ export interface PatchControlPoint {
 }
 
 export class MapParser {
+  /**
+   * Preprocess .map content to normalize NetRadiant format to simpler format.
+   * - Removes comments and layer definitions
+   * - Converts brushDef { ... } to simple brush format
+   * - Removes wrapper braces around brushDef/patchDef2
+   */
+  private static preprocess(content: string): string {
+    const lines = content.split("\n");
+    const output: string[] = [];
+    let inBrushDef = false;
+    let inPatchDef = false;
+    let brushDefBraceDepth = 0;
+    let skipNextCloseBrace = false;
+
+    for (const rawLine of lines) {
+      let line = rawLine.trim();
+      
+      // Skip empty lines, comments, and layer definitions
+      if (!line || line.startsWith("//") || line.startsWith("//@$&")) continue;
+      
+      // Remove inline comments
+      const commentIdx = line.indexOf("//");
+      if (commentIdx !== -1) {
+        line = line.substring(0, commentIdx).trim();
+        if (!line) continue;
+      }
+
+      // Handle brushDef start
+      if (line === "brushDef") {
+        inBrushDef = true;
+        brushDefBraceDepth = 0;
+        continue; // Skip the brushDef keyword itself
+      }
+
+      // Handle patchDef2 start
+      if (line === "patchDef2") {
+        inPatchDef = true;
+        output.push("patchDef2");
+        continue;
+      }
+
+      // Inside brushDef - convert to simple plane format
+      if (inBrushDef) {
+        if (line === "{") {
+          brushDefBraceDepth++;
+          if (brushDefBraceDepth === 1) {
+            // This is the brushDef's opening brace, output as brush start
+            output.push("{");
+          }
+          continue;
+        }
+        if (line === "}") {
+          brushDefBraceDepth--;
+          if (brushDefBraceDepth === 0) {
+            // End of brushDef
+            output.push("}");
+            inBrushDef = false;
+            skipNextCloseBrace = true; // Skip the wrapper close brace
+          }
+          continue;
+        }
+        
+        // Convert brushDef plane format to simple format:
+        // FROM: ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags
+        // TO:   ( p1 ) ( p2 ) ( p3 ) texture 0 0 0 1 1
+        const brushDefMatch = line.match(
+          /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\([^)]+\)\s*\([^)]+\)\s*\)\s+(\S+)/
+        );
+        if (brushDefMatch) {
+          const [, x1, y1, z1, x2, y2, z2, x3, y3, z3, texture] = brushDefMatch;
+          output.push(`( ${x1} ${y1} ${z1} ) ( ${x2} ${y2} ${z2} ) ( ${x3} ${y3} ${z3} ) ${texture} 0 0 0 1 1`);
+        }
+        continue;
+      }
+
+      // Inside patchDef2 - pass through
+      if (inPatchDef) {
+        output.push(line);
+        if (line === "}") {
+          // Count braces to detect end
+          const openCount = output.filter(l => l === "{").length;
+          const closeCount = output.filter(l => l === "}").length;
+          if (closeCount >= openCount) {
+            inPatchDef = false;
+          }
+        }
+        continue;
+      }
+
+      // Skip wrapper close braces
+      if (skipNextCloseBrace && line === "}") {
+        skipNextCloseBrace = false;
+        continue;
+      }
+
+      // Pass through everything else
+      output.push(line);
+    }
+
+    return output.join("\n");
+  }
+
   static parse(content: string): Entity[] {
+    // Preprocess to normalize format (handles brushDef conversion, removes comments)
+    const normalizedContent = MapParser.preprocess(content);
+    
     const entities: Entity[] = [];
     let currentEntity: Entity | null = null;
     let currentBrush: Brush | null = null;
     let inPatchDef = false;
-    let inBrushDef = false;
     let patchLines: string[] = [];
-    let brushDefLines: string[] = [];
-    let entityBraceDepth = 0; // Track brace depth within entity
 
-    const lines = content.split("\n");
+    const lines = normalizedContent.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
-      if (!line || line.startsWith("//")) continue;
-      
-      // Skip NetRadiant layer definitions
-      if (line.startsWith("//@$&")) continue;
-
-      // Remove comments at end of line
-      const commentIdx = line.indexOf("//");
-      if (commentIdx !== -1) {
-        line = line.substring(0, commentIdx).trim();
-      }
-      
+      const line = lines[i].trim();
       if (!line) continue;
-
-      // Check for brushDef start (NetRadiant format)
-      if (line === "brushDef") {
-        inBrushDef = true;
-        brushDefLines = [];
-        continue;
-      }
-
-      // Collect brushDef lines
-      if (inBrushDef) {
-        brushDefLines.push(line);
-
-        // Count braces - brushDef ends when we see the closing }
-        let braceDepth = 0;
-        for (const bl of brushDefLines) {
-          if (bl === "{") braceDepth++;
-          if (bl === "}") braceDepth--;
-        }
-
-        // When brace depth returns to 0, brushDef is complete
-        if (braceDepth === 0 && brushDefLines.length > 1) {
-          const brush = MapParser.parseBrushDef(brushDefLines);
-          if (brush && currentEntity) {
-            currentEntity.brushes.push(brush);
-          }
-          inBrushDef = false;
-          brushDefLines = [];
-        }
-        continue;
-      }
 
       // Check for patchDef2 start
       if (line === "patchDef2") {
@@ -114,13 +175,9 @@ export class MapParser {
 
         // When brace depth returns to 0, patch is complete
         if (braceDepth === 0 && patchLines.length > 1) {
-          // Parse the collected patch
           const patch = MapParser.parsePatchDef2(patchLines);
           if (patch && currentEntity) {
             currentEntity.patches.push(patch);
-            console.log(`Parsed patch: ${patch.width}x${patch.height}, texture: ${patch.texture}`);
-          } else {
-            console.warn("Failed to parse patch from lines:", patchLines);
           }
           inPatchDef = false;
           patchLines = [];
@@ -131,29 +188,9 @@ export class MapParser {
       if (line === "{") {
         if (!currentEntity) {
           currentEntity = { classname: "", properties: {}, brushes: [], patches: [] };
-          entityBraceDepth = 1;
-        } else {
-          entityBraceDepth++;
-          // Only create a brush if we're at depth 2 AND next line is not brushDef/patchDef2
-          if (entityBraceDepth === 2 && !currentBrush) {
-            // Peek ahead to see if this is a wrapper for brushDef/patchDef2
-            let nextIdx = i + 1;
-            let isBrushDefWrapper = false;
-            while (nextIdx < lines.length) {
-              const nextLine = lines[nextIdx].trim();
-              if (!nextLine || nextLine.startsWith("//")) {
-                nextIdx++;
-                continue;
-              }
-              if (nextLine === "brushDef" || nextLine === "patchDef2") {
-                isBrushDefWrapper = true;
-              }
-              break;
-            }
-            if (!isBrushDefWrapper) {
-              currentBrush = { planes: [] };
-            }
-          }
+        } else if (!currentBrush) {
+          // Nested brace means a brush
+          currentBrush = { planes: [] };
         }
       } else if (line === "}") {
         if (currentBrush) {
@@ -161,14 +198,9 @@ export class MapParser {
             currentEntity.brushes.push(currentBrush);
           }
           currentBrush = null;
-        }
-        
-        if (currentEntity) {
-          entityBraceDepth--;
-          if (entityBraceDepth === 0) {
-            entities.push(currentEntity);
-            currentEntity = null;
-          }
+        } else if (currentEntity) {
+          entities.push(currentEntity);
+          currentEntity = null;
         }
       } else {
         // Property or Plane
@@ -297,65 +329,4 @@ export class MapParser {
     }
   }
 
-  /**
-   * Parse a brushDef block (NetRadiant format)
-   *
-   * Format:
-   * brushDef
-   * {
-   *   ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) ( ( uX uY uOffset ) ( vX vY vOffset ) ) texture flags flags flags
-   * }
-   *
-   * The UV matrix format is different from Quake/Valve format.
-   * We extract the 3 points and texture name, using default UV values.
-   */
-  private static parseBrushDef(lines: string[]): Brush | null {
-    try {
-      const brush: Brush = { planes: [] };
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed === "{" || trimmed === "}") continue;
-
-        // Parse brushDef plane format:
-        // ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) ( ( uX uY uOffset ) ( vX vY vOffset ) ) texture flags flags flags
-        const planeMatch = trimmed.match(
-          /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\)\s+(\S+)/
-        );
-
-        if (planeMatch) {
-          const p1 = [parseFloat(planeMatch[1]), parseFloat(planeMatch[2]), parseFloat(planeMatch[3])];
-          const p2 = [parseFloat(planeMatch[4]), parseFloat(planeMatch[5]), parseFloat(planeMatch[6])];
-          const p3 = [parseFloat(planeMatch[7]), parseFloat(planeMatch[8]), parseFloat(planeMatch[9])];
-          
-          // UV matrix values (for future use if needed)
-          // const uX = parseFloat(planeMatch[10]);
-          // const uY = parseFloat(planeMatch[11]);
-          const uOffset = parseFloat(planeMatch[12]);
-          // const vX = parseFloat(planeMatch[13]);
-          // const vY = parseFloat(planeMatch[14]);
-          const vOffset = parseFloat(planeMatch[15]);
-          
-          const texture = planeMatch[16];
-
-          brush.planes.push({
-            p1,
-            p2,
-            p3,
-            texture,
-            u_offset: uOffset,
-            v_offset: vOffset,
-            rotation: 0,
-            u_scale: 1,
-            v_scale: 1,
-          });
-        }
-      }
-
-      return brush.planes.length > 0 ? brush : null;
-    } catch (e) {
-      console.error("Failed to parse brushDef:", e);
-      return null;
-    }
-  }
 }
