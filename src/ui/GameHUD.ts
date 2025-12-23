@@ -957,12 +957,20 @@ export class GameHUD {
     // Update fertilize button
     const fertilizeBtn = panel.querySelector("#btn-fertilize") as HTMLButtonElement;
     if (fertilizeBtn) {
-      const hasFertilizer = GameState.getInstance().getItemCount("fertilizer") > 0;
-      fertilizeBtn.disabled = plant.fertilized || !hasFertilizer;
-      if (plant.fertilized) {
+      const strain = plantSystem.getStrain(plant.strain);
+      const fertType = strain?.fertilization?.fertilizerType || 'basic';
+      const fertItemId = `fertilizer_${fertType}`;
+      const hasFertilizer = GameState.getInstance().getItemCount(fertItemId) > 0;
+      const isFullyFertilized = strain?.fertilization 
+        ? (plant.fertilizerApplications || 0) >= strain.fertilization.requiredApplications
+        : plant.fertilized;
+      
+      fertilizeBtn.disabled = isFullyFertilized || !hasFertilizer;
+      if (isFullyFertilized) {
         fertilizeBtn.textContent = "✓ Fertilized";
       } else {
-        fertilizeBtn.textContent = "🧪 Fertilize";
+        const count = GameState.getInstance().getItemCount(fertItemId);
+        fertilizeBtn.textContent = `🧪 Fertilize (${count})`;
       }
     }
 
