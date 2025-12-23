@@ -1516,20 +1516,21 @@ export const NPC_DIALOGUES: NPCDialogue[] = [
 
 import { GeneticsSystem } from "./GeneticsSystem";
 import { getAllStrainDefinitions, getAllStrainGenetics } from "../data/StrainLoader";
+import newGameConfig from "../data/newgame.json";
+import type { ItemType } from "./GameState";
 
-// ==================== Starting Resources ====================
+// ==================== Starting Resources (loaded from newgame.json) ====================
 
-export const STARTING_MONEY = 1000;
-export const STARTING_UNLOCKS = ["basic_pot", "basic_light"];
-export const STARTING_AREA = "slums_street";
-export const STARTING_LOT = "slums_garage"; // Player starts with this lot
-
-export const STARTING_INVENTORY = [
-  { id: "seed_afghan_kush", type: "seed" as const, quantity: 5 }, // Beginner-friendly strain from strains.json
-  { id: "fertilizer_basic", type: "fertilizer" as const, quantity: 3 }, // Basic fertilizer for starting strain
-  { id: "fertilizer_premium", type: "fertilizer" as const, quantity: 2 }, // Some premium for medium feeders
-  { id: "fertilizer_advanced", type: "fertilizer" as const, quantity: 1 }, // One advanced to try
-];
+export const STARTING_MONEY = newGameConfig.startingMoney;
+export const STARTING_UNLOCKS = newGameConfig.startingUnlocks;
+export const STARTING_AREA = newGameConfig.startingArea;
+export const STARTING_LOT = newGameConfig.startingLot;
+export const STARTING_INVENTORY = newGameConfig.startingInventory.map(item => ({
+  id: item.id,
+  type: item.type as ItemType,
+  quantity: item.quantity,
+}));
+export const STARTING_BARREL = newGameConfig.startingBarrel;
 
 // ==================== Registration ====================
 
@@ -1617,13 +1618,15 @@ export function registerGameData(): void {
     state.setCustomData("currentArea", STARTING_AREA);
     state.setCustomData("ownedLots", [{ id: STARTING_LOT, purchasedAt: Date.now() }]);
     
-    // Give player a free starter curing barrel
-    const curingSystem = CuringSystem.getInstance();
-    const starterBarrelId = `barrel_starter_${Date.now()}`;
-    curingSystem.loadState({
-      ownedBarrels: [{ id: starterBarrelId, templateId: "basic_barrel" }],
-    });
-    console.log("Gave player a free starter curing barrel");
+    // Give player a free starter curing barrel (from newgame.json)
+    if (STARTING_BARREL) {
+      const curingSystem = CuringSystem.getInstance();
+      const starterBarrelId = `barrel_starter_${Date.now()}`;
+      curingSystem.loadState({
+        ownedBarrels: [{ id: starterBarrelId, templateId: STARTING_BARREL.templateId }],
+      });
+      console.log(`Gave player a free starter curing barrel: ${STARTING_BARREL.templateId}`);
+    }
   }
 
   const strainCount = getAllStrainDefinitions().length;

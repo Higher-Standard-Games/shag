@@ -1,0 +1,19 @@
+{
+  "$schema": "./schemas/newgame.schema.json",
+  "startingMoney": 1000,
+  "startingArea": "slums_street",
+  "startingLot": "slums_garage",
+  "startingUnlocks": [
+    "basic_pot",
+    "basic_light"
+  ],
+  "startingInventory": [
+    { "id": "seed_afghan_kush", "type": "seed", "quantity": 5 },
+    { "id": "fertilizer_basic", "type": "fertilizer", "quantity": 3 },
+    { "id": "fertilizer_premium", "type": "fertilizer", "quantity": 2 },
+    { "id": "fertilizer_advanced", "type": "fertilizer", "quantity": 1 }
+  ],
+  "startingBarrel": {
+    "templateId": "basic_barrel"
+  }
+}
