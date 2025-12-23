@@ -330,6 +330,11 @@ export class GameScene {
   public setCameraHeight(height: number): void {
     this.cameraHeight = height;
     this.applyCameraMode(CAMERA_MODE);  // Re-apply mode with new height
+    
+    // Reset camera to map center to prevent getting lost
+    if (this.camera) {
+      this.camera.setTarget(this.mapCenterPosition);
+    }
   }
 
   /**
