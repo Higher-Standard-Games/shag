@@ -61,6 +61,7 @@ interface SubsystemSaveData {
     orders: unknown[];
     dailySoldGrams?: number;
     lastResetDay?: number;
+    autosaleTriggers?: unknown[];
   };
   
   // Quest system

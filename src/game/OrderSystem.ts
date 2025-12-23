@@ -75,6 +75,31 @@ export interface OrderConfig {
   xpPerItem: number;
 }
 
+/**
+ * Autosale trigger - for NPC dealers who can automatically sell products
+ * Hidden feature for future NPC integration
+ */
+export interface AutosaleTrigger {
+  /** Unique identifier for this trigger */
+  id: string;
+  /** NPC or source name (for future UI) */
+  sourceName: string;
+  /** Probability of successful sale (0-1) */
+  successRate: number;
+  /** Strain tiers this trigger can handle (empty = all tiers) */
+  allowedTiers?: number[];
+  /** Maximum grams per autosale attempt */
+  maxGramsPerSale: number;
+  /** Cooldown between autosale attempts (ms) */
+  cooldownMs: number;
+  /** Last attempt timestamp */
+  lastAttemptAt: number;
+  /** Whether this trigger is currently active */
+  active: boolean;
+  /** Price multiplier (1.0 = normal market rate) */
+  priceMultiplier: number;
+}
+
 const DEFAULT_CONFIG: OrderConfig = {
   maxOrders: 3,
   orderInterval: 60 * 1000, // 1 minute
@@ -104,6 +129,10 @@ export class OrderSystem {
   // Daily sale tracking
   private dailySoldGrams: number = 0;
   private lastResetDay: number = 0;
+  
+  // Autosale triggers (hidden feature for NPC dealers)
+  private autosaleTriggers: Map<string, AutosaleTrigger> = new Map();
+  private autosaleTaskId = "order_system_autosale";
 
   private constructor() {}
 
@@ -133,6 +162,11 @@ export class OrderSystem {
     // Generate new orders periodically
     GameTimer.getInstance().scheduleTask(this.generateTaskId, 5000, () => {
       this.tryGenerateOrder();
+    });
+    
+    // Process autosale triggers periodically
+    GameTimer.getInstance().scheduleTask(this.autosaleTaskId, 10000, () => {
+      this.processAutosales();
     });
   }
 
@@ -223,6 +257,177 @@ export class OrderSystem {
       limit: this.getDailyLimit(),
       remaining: this.getRemainingDailyLimit(),
     });
+  }
+
+  // ==================== Autosale System (Hidden) ====================
+  // For future NPC dealer integration - NPCs can automatically sell products
+
+  /**
+   * Register an autosale trigger (e.g., from an NPC dealer)
+   */
+  public registerAutosaleTrigger(trigger: Omit<AutosaleTrigger, "lastAttemptAt">): void {
+    this.autosaleTriggers.set(trigger.id, {
+      ...trigger,
+      lastAttemptAt: 0,
+    });
+    this.emit("autosale_registered", { trigger });
+  }
+
+  /**
+   * Remove an autosale trigger
+   */
+  public removeAutosaleTrigger(triggerId: string): boolean {
+    const removed = this.autosaleTriggers.delete(triggerId);
+    if (removed) {
+      this.emit("autosale_removed", { triggerId });
+    }
+    return removed;
+  }
+
+  /**
+   * Get all active autosale triggers
+   */
+  public getAutosaleTriggers(): AutosaleTrigger[] {
+    return Array.from(this.autosaleTriggers.values());
+  }
+
+  /**
+   * Enable/disable an autosale trigger
+   */
+  public setAutosaleTriggerActive(triggerId: string, active: boolean): boolean {
+    const trigger = this.autosaleTriggers.get(triggerId);
+    if (!trigger) return false;
+    trigger.active = active;
+    this.emit("autosale_updated", { trigger });
+    return true;
+  }
+
+  /**
+   * Process all autosale triggers - called periodically
+   */
+  private processAutosales(): void {
+    const now = GameTimer.getInstance().getGameTime();
+    const state = GameState.getInstance();
+    
+    for (const trigger of this.autosaleTriggers.values()) {
+      if (!trigger.active) continue;
+      
+      // Check cooldown
+      if (now - trigger.lastAttemptAt < trigger.cooldownMs) continue;
+      
+      // Check daily limit
+      const remainingLimit = this.getRemainingDailyLimit();
+      if (remainingLimit <= 0) continue;
+      
+      // Find sellable products matching tier restrictions
+      const sellableProducts = this.findAutosaleProducts(trigger);
+      if (sellableProducts.length === 0) continue;
+      
+      // Pick a random product to sell
+      const product = sellableProducts[Math.floor(Math.random() * sellableProducts.length)];
+      
+      // Determine quantity (capped by daily limit and trigger max)
+      const maxQty = Math.min(trigger.maxGramsPerSale, remainingLimit, product.quantity);
+      if (maxQty <= 0) continue;
+      
+      // Roll for success
+      trigger.lastAttemptAt = now;
+      const roll = Math.random();
+      
+      if (roll <= trigger.successRate) {
+        // Success! Sell the product
+        const quantity = Math.floor(Math.random() * maxQty) + 1; // 1 to maxQty
+        const pricePerGram = this.config.basePricePerItem * trigger.priceMultiplier;
+        const reward = Math.floor(quantity * pricePerGram);
+        const xp = Math.floor(quantity * this.config.xpPerItem * 0.5); // Half XP for autosales
+        
+        // Remove items and give rewards
+        state.removeItem(product.itemId, quantity);
+        state.addMoney(reward);
+        state.addXP(xp);
+        
+        // Record against daily limit
+        this.recordSale(quantity);
+        
+        // Update stats
+        state.incrementStat("ordersCompleted");
+        state.incrementStat("moneyEarned", reward);
+        
+        this.emit("autosale_success", {
+          triggerId: trigger.id,
+          sourceName: trigger.sourceName,
+          itemId: product.itemId,
+          quantity,
+          reward,
+          xp,
+        });
+        
+        console.log(`[Autosale] ${trigger.sourceName} sold ${quantity}g of ${product.itemId} for $${reward}`);
+      } else {
+        // Failed attempt
+        this.emit("autosale_failed", {
+          triggerId: trigger.id,
+          sourceName: trigger.sourceName,
+          reason: "probability_miss",
+        });
+      }
+    }
+  }
+
+  /**
+   * Find products that can be sold by an autosale trigger
+   */
+  private findAutosaleProducts(trigger: AutosaleTrigger): Array<{ itemId: string; quantity: number; tier: number }> {
+    const state = GameState.getInstance();
+    const inventory = state.getInventory();
+    const products: Array<{ itemId: string; quantity: number; tier: number }> = [];
+    
+    for (const item of inventory.items) {
+      // Only harvest items
+      if (item.type !== "harvest" || !item.id.startsWith("harvest_")) continue;
+      if (item.quantity <= 0) continue;
+      
+      // Get strain tier from metadata or estimate from item ID
+      const tier = (item.metadata?.tier as number) ?? this.estimateStrainTier(item.id);
+      
+      // Check tier restrictions
+      if (trigger.allowedTiers && trigger.allowedTiers.length > 0) {
+        if (!trigger.allowedTiers.includes(tier)) continue;
+      }
+      
+      products.push({
+        itemId: item.id,
+        quantity: item.quantity,
+        tier,
+      });
+    }
+    
+    return products;
+  }
+
+  /**
+   * Estimate strain tier from item ID (fallback when metadata not available)
+   */
+  private estimateStrainTier(itemId: string): number {
+    // Default tier mapping based on known strains
+    // Tier 1: Basic strains (afghan_kush, durban_poison, thai)
+    // Tier 2: OG Kush, Skunk #1
+    // Tier 3: GSC, Gelato
+    // Tier 4: Lemon Cherry Gelato, Blue Lobster
+    // Tier 5: Master Kush
+    const tierMap: Record<string, number> = {
+      "harvest_genetics_afghan_kush": 1,
+      "harvest_genetics_durban_poison": 1,
+      "harvest_genetics_thai": 1,
+      "harvest_genetics_og_kush": 2,
+      "harvest_genetics_skunk_1": 2,
+      "harvest_genetics_girl_scout_cookies": 3,
+      "harvest_genetics_gelato": 3,
+      "harvest_genetics_lemon_cherry_gelato": 4,
+      "harvest_genetics_blue_lobster": 4,
+      "harvest_genetics_master_kush": 5,
+    };
+    return tierMap[itemId] ?? 1;
   }
 
   // ==================== Order Generation ====================
@@ -532,16 +737,28 @@ export class OrderSystem {
 
   // ==================== Serialization ====================
 
-  public getState(): { orders: Order[]; dailySoldGrams: number; lastResetDay: number } {
+  public getState(): { 
+    orders: Order[]; 
+    dailySoldGrams: number; 
+    lastResetDay: number;
+    autosaleTriggers: AutosaleTrigger[];
+  } {
     return {
       orders: Array.from(this.orders.values()),
       dailySoldGrams: this.dailySoldGrams,
       lastResetDay: this.lastResetDay,
+      autosaleTriggers: Array.from(this.autosaleTriggers.values()),
     };
   }
 
-  public loadState(state: { orders?: Order[]; dailySoldGrams?: number; lastResetDay?: number } | Order[]): void {
+  public loadState(state: { 
+    orders?: Order[]; 
+    dailySoldGrams?: number; 
+    lastResetDay?: number;
+    autosaleTriggers?: AutosaleTrigger[];
+  } | Order[]): void {
     this.orders.clear();
+    this.autosaleTriggers.clear();
     
     // Handle both old format (Order[]) and new format (object with orders)
     if (Array.isArray(state)) {
@@ -560,6 +777,13 @@ export class OrderSystem {
       }
       this.dailySoldGrams = state.dailySoldGrams ?? 0;
       this.lastResetDay = state.lastResetDay ?? 0;
+      
+      // Load autosale triggers
+      if (state.autosaleTriggers) {
+        for (const trigger of state.autosaleTriggers) {
+          this.autosaleTriggers.set(trigger.id, trigger);
+        }
+      }
     }
   }
 
@@ -572,7 +796,9 @@ export class OrderSystem {
   public dispose(): void {
     GameTimer.getInstance().cancelTask(this.updateTaskId);
     GameTimer.getInstance().cancelTask(this.generateTaskId);
+    GameTimer.getInstance().cancelTask(this.autosaleTaskId);
     this.clear();
+    this.autosaleTriggers.clear();
     this.eventListeners = [];
   }
 }
