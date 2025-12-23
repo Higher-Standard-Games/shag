@@ -364,11 +364,14 @@ export class GameScene {
     const mapData = AssetLoader.getInstance().getMap(mapName);
     if (!mapData) {
       console.error(`Map not found in cache: ${mapName}`);
+      console.log("Available maps:", Array.from(AssetLoader.getInstance().getAllMaps().keys()));
       return;
     }
 
     // Render the map
+    console.log(`[GameScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
     const result = await MapRenderer.renderEntities(mapData.entities, this.scene);
+    console.log(`[GameScene] Map rendered, player start: ${result.playerStartPosition}`);
 
     // Apply camera height from map if specified
     if (result.cameraHeight !== null) {

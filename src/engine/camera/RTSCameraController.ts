@@ -245,7 +245,14 @@ export class RTSCameraController {
                   }
                   
                   console.log(`Switching to map: ${props.targetMap}`);
-                  GameScene.getInstance().loadMap(props.targetMap);
+                  const gameScene = GameScene.getInstance();
+                  if (gameScene) {
+                    gameScene.loadMap(props.targetMap).catch(err => {
+                      console.error("Failed to load map:", err);
+                    });
+                  } else {
+                    console.error("GameScene instance not found!");
+                  }
                 }
 
                 // Check for spawnModel - dynamically spawn a prefab
