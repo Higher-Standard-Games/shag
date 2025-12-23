@@ -2,7 +2,7 @@
   "game": {
     "title": "Ganjawars",
     "version": "0.0.1",
-    "startMap": "showcase.map"
+    "startMap": "maps/areas/slums_street.map"
   },
   "assets": {
     "maps": [
@@ -10,7 +10,11 @@
       "test.map",
       "map2.map",
       "patch_test.map",
-      "sprite_test.map"
+      "sprite_test.map",
+      "maps/areas/slums_street.map",
+      "maps/areas/suburbs_main.map",
+      "maps/areas/downtown_plaza.map",
+      "maps/areas/industrial.map"
     ],
     "menuMap": "patch_test.map",
     "prefabs": [],
