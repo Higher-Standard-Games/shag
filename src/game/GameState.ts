@@ -135,7 +135,7 @@ export interface InventoryItem {
   metadata?: Record<string, unknown>;
 }
 
-export type ItemType = "seed" | "harvest" | "equipment" | "consumable" | "material" | "special";
+export type ItemType = "seed" | "harvest" | "equipment" | "consumable" | "material" | "special" | "fertilizer";
 
 export interface PlantState {
   id: string;

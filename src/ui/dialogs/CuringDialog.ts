@@ -506,8 +506,20 @@ export class CuringDialog extends BaseDialog {
     if (this.element) {
       const body = this.element.querySelector(".dialog-body");
       if (body) {
+        // Preserve scroll positions before refresh
+        const leftPanel = body.querySelector('[style*="overflow-y: auto"]') as HTMLElement;
+        const rightPanel = body.querySelectorAll('[style*="overflow-y: auto"]')[1] as HTMLElement;
+        const leftScroll = leftPanel?.scrollTop ?? 0;
+        const rightScroll = rightPanel?.scrollTop ?? 0;
+        
         body.innerHTML = this.getBodyHTML(context);
         this.setupEventHandlers(context);
+        
+        // Restore scroll positions after refresh
+        const newLeftPanel = body.querySelector('[style*="overflow-y: auto"]') as HTMLElement;
+        const newRightPanel = body.querySelectorAll('[style*="overflow-y: auto"]')[1] as HTMLElement;
+        if (newLeftPanel) newLeftPanel.scrollTop = leftScroll;
+        if (newRightPanel) newRightPanel.scrollTop = rightScroll;
       }
     }
   }

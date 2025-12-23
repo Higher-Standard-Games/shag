@@ -119,8 +119,11 @@ export class PopupSystem {
 
     // Add button handlers
     popup.querySelectorAll("[data-action]").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const action = (btn as HTMLElement).dataset.action!;
+        console.log(`[PopupSystem] Button clicked: ${action} for popup ${config.id}`);
         if (action === "close") {
           this.close(config.id);
         } else if (config.onButton) {

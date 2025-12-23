@@ -375,8 +375,10 @@ export class PlantSystem {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return false;
 
-    if (plant.waterLevel >= 100) {
-      console.log("Plant doesn't need water");
+    // Only allow watering if water level is below 80%
+    if (plant.waterLevel >= 80) {
+      console.log("Plant doesn't need water (water level >= 80%)");
+      this.emit("water_failed", plantId, { reason: "water_full", waterLevel: plant.waterLevel });
       return false;
     }
 

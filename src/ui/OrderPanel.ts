@@ -4,6 +4,7 @@
 
 import { OrderSystem, type Order } from "../game/OrderSystem";
 import { GameState } from "../game/GameState";
+import { PlantSystem } from "../game/PlantSystem";
 import { UIStyles } from "../engine/ui/UIStyles";
 import orderPanelCSS from "./styles/OrderPanel.css?raw";
 import { UIManager } from "./UIManager";
@@ -91,10 +92,16 @@ export class OrderPanel {
     const itemsHtml = Object.entries(order.items).map(([itemId, qty]) => {
       const item = inventory.items.find(i => i.id === itemId);
       const hasEnough = item && item.quantity >= qty;
-      const current = item?.quantity || 0;
+      
+      // Look up strain name from item ID (e.g., "harvest_genetics_afghan_kush" -> "Afghan Kush")
+      const strainId = itemId.replace(/^harvest_/, "");
+      const strain = PlantSystem.getInstance().getStrain(strainId) || 
+                    PlantSystem.getInstance().getStrain(`strain_${strainId}`);
+      const displayName = strain?.name ?? strainId.replace(/_/g, " ");
+      
       return `
         <span class="order-item ${hasEnough ? 'has-item' : 'missing'}">
-          ${itemId.replace('harvest_', '')} ${current}/${qty}
+          ${qty}x ${displayName}
         </span>
       `;
     }).join("");

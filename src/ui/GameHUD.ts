@@ -5,6 +5,7 @@
 
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
+import { CuringSystem } from "../game/CuringSystem";
 import { DealerSystem } from "../game/DealerSystem";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
@@ -12,6 +13,7 @@ import { GameTimer, type GameSpeedMode } from "../game/GameTimer";
 import { PlantSystem } from "../game/PlantSystem";
 import { UIStyles } from "../engine/ui/UIStyles";
 import gameHUDCSS from "./styles/GameHUD.css?raw";
+import { UIManager } from "./UIManager";
 
 const SELECTION_INDICATOR_ID = "plant_selection";
 
@@ -432,7 +434,7 @@ export class GameHUD {
           <div>
             <div style="font-weight: 600; color: #333; text-transform: capitalize;">${product.name}</div>
             <div style="font-size: 0.85rem; color: #666;">
-              Quality: <span style="color: ${qualityColor}; font-weight: 500;">${product.quality}%</span>
+              Quality: <span style="color: ${qualityColor}; font-weight: 500;">${Math.round(product.quality)}%</span>
             </div>
           </div>
           <div style="text-align: right;">
@@ -571,8 +573,9 @@ export class GameHUD {
       
       const typeLabels: Record<string, { label: string; icon: string }> = {
         seed: { label: "Seeds", icon: "🌱" },
+        fertilizer: { label: "Fertilizers", icon: "🧪" },
         harvest: { label: "Harvests", icon: "🌿" },
-        material: { label: "Materials", icon: "🧪" },
+        material: { label: "Materials", icon: "🔬" },
         equipment: { label: "Equipment", icon: "🔧" },
         consumable: { label: "Consumables", icon: "💊" },
         other: { label: "Other", icon: "📦" },
@@ -801,6 +804,28 @@ export class GameHUD {
       }
     });
 
+    // Listen for curing system events (burping)
+    CuringSystem.getInstance().on((event, data) => {
+      if (event === "burp_needed") {
+        const burpData = data as { slotId: string; slot: { strainId: string }; timeRemaining: number };
+        const strain = PlantSystem.getInstance().getStrain(burpData.slot.strainId);
+        const strainName = strain?.name ?? burpData.slot.strainId;
+        this.showClickableNotification(
+          `💨 ${strainName} needs burping!`,
+          "warning",
+          () => UIManager.getInstance().openDialog("curing_dialog", {})
+        );
+      } else if (event === "burp_missed") {
+        const missedData = data as { slotId: string; slot: { strainId: string } };
+        const strain = PlantSystem.getInstance().getStrain(missedData.slot.strainId);
+        const strainName = strain?.name ?? missedData.slot.strainId;
+        this.showNotification(`⚠️ Missed burp for ${strainName}! Quality reduced.`, "error");
+      } else if (event === "burp_completed") {
+        const burpData = data as { slotId: string; burpsCompleted: number; burpsRequired: number };
+        this.showNotification(`💨 Burp ${burpData.burpsCompleted}/${burpData.burpsRequired} complete!`, "success");
+      }
+    });
+
     // Stock inventory pill click
     this.container?.querySelector("#hud-stock")?.addEventListener("click", () => {
       this.showStockInventory();
@@ -869,6 +894,33 @@ export class GameHUD {
     setTimeout(() => {
       notification.remove();
     }, 3000);
+  }
+
+  /**
+   * Show a clickable notification that triggers an action when clicked
+   */
+  public showClickableNotification(
+    message: string, 
+    type: "success" | "warning" | "error" = "success",
+    onClick: () => void
+  ): void {
+    const container = this.container?.querySelector("#hud-notifications");
+    if (!container) return;
+
+    const notification = document.createElement("div");
+    notification.className = `hud-notification ${type} clickable`;
+    notification.textContent = message;
+    notification.style.cursor = "pointer";
+    notification.addEventListener("click", () => {
+      onClick();
+      notification.remove();
+    });
+    container.appendChild(notification);
+
+    // Remove after animation (longer for clickable)
+    setTimeout(() => {
+      notification.remove();
+    }, 5000);
   }
 
   /**
@@ -941,6 +993,18 @@ export class GameHUD {
       const harvestBtn = panel.querySelector("#btn-harvest") as HTMLButtonElement;
       if (harvestBtn) {
         harvestBtn.disabled = !visual.isHarvestable;
+      }
+      
+      // Update water button - disable if water level >= 80%
+      const waterBtn = panel.querySelector("#btn-water") as HTMLButtonElement;
+      if (waterBtn) {
+        const canWater = plant.waterLevel < 80;
+        waterBtn.disabled = !canWater;
+        if (!canWater) {
+          waterBtn.textContent = "💧 Full";
+        } else {
+          waterBtn.textContent = "💧 Water ($2)";
+        }
       }
     }
 

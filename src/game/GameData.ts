@@ -1526,9 +1526,9 @@ export const STARTING_LOT = "slums_garage"; // Player starts with this lot
 
 export const STARTING_INVENTORY = [
   { id: "seed_afghan_kush", type: "seed" as const, quantity: 5 }, // Beginner-friendly strain from strains.json
-  { id: "fertilizer_basic", type: "consumable" as const, quantity: 3 }, // Basic fertilizer for starting strain
-  { id: "fertilizer_premium", type: "consumable" as const, quantity: 2 }, // Some premium for medium feeders
-  { id: "fertilizer_advanced", type: "consumable" as const, quantity: 1 }, // One advanced to try
+  { id: "fertilizer_basic", type: "fertilizer" as const, quantity: 3 }, // Basic fertilizer for starting strain
+  { id: "fertilizer_premium", type: "fertilizer" as const, quantity: 2 }, // Some premium for medium feeders
+  { id: "fertilizer_advanced", type: "fertilizer" as const, quantity: 1 }, // One advanced to try
 ];
 
 // ==================== Registration ====================
@@ -1595,9 +1595,13 @@ export function registerGameData(): void {
   const saveManager = SaveManager.getInstance();
   
   // Only add starting resources if this is NOT a loaded game
-  if (!saveManager.isLoading()) {
+  const isLoadingGame = saveManager.isLoading();
+  console.log(`[GameData] registerGameData called. isLoading: ${isLoadingGame}, current money: ${state.getPlayer().money}`);
+  
+  if (!isLoadingGame) {
     // Starting money
     state.addMoney(STARTING_MONEY);
+    console.log(`[GameData] Added starting money: $${STARTING_MONEY}`);
     
     // Starting inventory
     for (const item of STARTING_INVENTORY) {

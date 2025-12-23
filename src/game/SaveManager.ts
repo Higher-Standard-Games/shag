@@ -151,9 +151,9 @@ export class SaveManager {
     // 2. Collect all subsystem states into customData
     this.collectSubsystemStates();
     
-    // 3. Save game time
+    // 3. Save game time (get day from GameTimer, not GameState)
     const gameTimer = GameTimer.getInstance();
-    gameState.setGameTime(gameTimer.getGameTime(), gameState.getGameDay());
+    gameState.setGameTime(gameTimer.getGameTime(), gameTimer.getDay());
     
     // 4. Save to slot (or current slot if not specified)
     if (slot !== undefined) {
@@ -244,9 +244,9 @@ export class SaveManager {
     // Collect subsystem states
     this.collectSubsystemStates();
     
-    // Save game time
+    // Save game time (get day from GameTimer, not GameState)
     const gameTimer = GameTimer.getInstance();
-    gameState.setGameTime(gameTimer.getGameTime(), gameState.getGameDay());
+    gameState.setGameTime(gameTimer.getGameTime(), gameTimer.getDay());
     
     // Autosave
     gameState.autoSave();
