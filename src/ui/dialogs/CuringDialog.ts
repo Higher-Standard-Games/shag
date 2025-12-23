@@ -34,28 +34,27 @@ export class CuringDialog extends BaseDialog {
     const curingSystem = CuringSystem.getInstance();
     const freshItems = curingSystem.getFreshStorage();
     const barrels = curingSystem.getOwnedBarrels();
-    const curedProducts = GameState.getInstance().getItemsByType("harvest");
 
-    // Build left panel - Fresh Storage & Barrels combined
-    const leftPanelHTML = this.buildSelectionPanel(freshItems, barrels, curingSystem);
+    // Build left panel - Fresh Harvest
+    const leftPanelHTML = this.buildFreshHarvestPanel(freshItems, curingSystem);
     
-    // Build right panel - Details/Status
-    const rightPanelHTML = this.buildDetailsPanel(freshItems, barrels, curedProducts, curingSystem);
+    // Build right panel - Curing Devices
+    const rightPanelHTML = this.buildCuringDevicesPanel(barrels, curingSystem);
     
     // Build bottom action bar
     const actionBarHTML = this.buildActionBar(freshItems, barrels, curingSystem);
 
     return `
       <div style="display: flex; flex-direction: column; height: 100%; min-height: 400px;">
-        <!-- Main content area -->
+        <!-- Main content area - Two columns side by side -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; overflow: hidden;">
-          <!-- Left Panel: Selection -->
-          <div style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 4px;">
+          <!-- Left Panel: Fresh Harvest -->
+          <div style="display: flex; flex-direction: column; overflow-y: auto; padding-right: 4px;">
             ${leftPanelHTML}
           </div>
           
-          <!-- Right Panel: Details -->
-          <div style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 4px;">
+          <!-- Right Panel: Curing Devices -->
+          <div style="display: flex; flex-direction: column; overflow-y: auto; padding-right: 4px;">
             ${rightPanelHTML}
           </div>
         </div>
@@ -73,21 +72,24 @@ export class CuringDialog extends BaseDialog {
     `;
   }
 
-  private buildSelectionPanel(freshItems: ReturnType<typeof CuringSystem.prototype.getFreshStorage>, barrels: ReturnType<typeof CuringSystem.prototype.getOwnedBarrels>, curingSystem: CuringSystem): string {
-    let html = "";
-
-    // Fresh Storage Section
-    html += `
-      <div style="background: #FAFAFA; border-radius: 10px; padding: 12px; border: 1px solid #E8E8E8;">
-        <h3 style="margin: 0 0 10px 0; color: #333333; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+  private buildFreshHarvestPanel(freshItems: ReturnType<typeof CuringSystem.prototype.getFreshStorage>, curingSystem: CuringSystem): string {
+    let html = `
+      <div style="background: #FAFAFA; border-radius: 10px; padding: 12px; border: 1px solid #E8E8E8; height: 100%;">
+        <h3 style="margin: 0 0 12px 0; color: #333333; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
           🌿 Fresh Harvest <span style="color: #888; font-weight: normal;">(${freshItems.length})</span>
         </h3>
     `;
 
     if (freshItems.length === 0) {
-      html += `<div style="color: #888; text-align: center; padding: 16px; font-size: 0.85rem;">No fresh harvest<br><span style="font-size: 0.75rem;">Harvest plants to get fresh product</span></div>`;
+      html += `
+        <div style="color: #888; text-align: center; padding: 32px 16px; font-size: 0.85rem;">
+          <div style="font-size: 2rem; margin-bottom: 8px; opacity: 0.5;">🌱</div>
+          No fresh harvest
+          <div style="font-size: 0.75rem; margin-top: 4px;">Harvest plants to get fresh product</div>
+        </div>
+      `;
     } else {
-      html += `<div style="display: flex; flex-direction: column; gap: 6px;">`;
+      html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
       for (const item of freshItems) {
         const strain = PlantSystem.getInstance().getStrain(item.strainId);
         const decayStatus = curingSystem.getDecayStatus(item.id);
@@ -97,23 +99,23 @@ export class CuringDialog extends BaseDialog {
         
         html += `
           <div class="fresh-item selectable-item" data-id="${item.id}" style="
-            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            display: flex; align-items: center; gap: 10px; padding: 12px;
             background: ${isSelected ? "#E8F5E9" : "#fff"};
             border: 2px solid ${isSelected ? "#4CAF50" : "#E8E8E8"};
             border-radius: 8px; cursor: pointer; transition: all 0.15s;
           ">
-            <div style="font-size: 1.3rem;">🌿</div>
+            <div style="font-size: 1.5rem;">🌿</div>
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 600; color: #333; font-size: 0.9rem;">${strain?.name ?? item.strainId}</div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                <span style="font-size: 0.85rem; color: #666; font-weight: 500;">${item.amount}g</span>
-                <div style="flex: 1; height: 4px; background: #E0E0E0; border-radius: 2px; overflow: hidden;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                <span style="font-size: 0.9rem; color: #666; font-weight: 600;">${item.amount}g</span>
+                <div style="flex: 1; height: 5px; background: #E0E0E0; border-radius: 3px; overflow: hidden;">
                   <div style="width: ${decayPercent}%; height: 100%; background: ${decayColor};"></div>
                 </div>
-                <span style="font-size: 0.7rem; color: ${decayColor}; font-weight: 500;">${Math.round(decayPercent)}%</span>
+                <span style="font-size: 0.75rem; color: ${decayColor}; font-weight: 500;">${Math.round(decayPercent)}%</span>
               </div>
             </div>
-            ${isSelected ? `<div style="color: #4CAF50; font-size: 1.2rem;">✓</div>` : ""}
+            ${isSelected ? `<div style="color: #4CAF50; font-size: 1.3rem;">✓</div>` : ""}
           </div>
         `;
       }
@@ -121,25 +123,34 @@ export class CuringDialog extends BaseDialog {
     }
     html += `</div>`;
 
-    // Barrels Section
-    html += `
-      <div style="background: #FAFAFA; border-radius: 10px; padding: 12px; border: 1px solid #E8E8E8;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h3 style="margin: 0; color: #333333; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+    return html;
+  }
+
+  private buildCuringDevicesPanel(barrels: ReturnType<typeof CuringSystem.prototype.getOwnedBarrels>, curingSystem: CuringSystem): string {
+    let html = `
+      <div style="background: #FAFAFA; border-radius: 10px; padding: 12px; border: 1px solid #E8E8E8; height: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0; color: #333333; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
             🏺 Curing Devices <span style="color: #888; font-weight: normal;">(${barrels.length})</span>
           </h3>
           <button class="buy-barrel-btn" style="
-            padding: 4px 10px; background: #4CAF50; border: none;
-            border-radius: 4px; color: #fff; font-size: 0.75rem;
+            padding: 5px 12px; background: #4CAF50; border: none;
+            border-radius: 4px; color: #fff; font-size: 0.8rem;
             font-weight: 600; cursor: pointer;
           ">+ Buy</button>
         </div>
     `;
 
     if (barrels.length === 0) {
-      html += `<div style="color: #888; text-align: center; padding: 16px; font-size: 0.85rem;">No curing devices<br><span style="font-size: 0.75rem;">Click "Buy" to purchase one</span></div>`;
+      html += `
+        <div style="color: #888; text-align: center; padding: 32px 16px; font-size: 0.85rem;">
+          <div style="font-size: 2rem; margin-bottom: 8px; opacity: 0.5;">🏺</div>
+          No curing devices
+          <div style="font-size: 0.75rem; margin-top: 4px;">Click "+ Buy" to purchase one</div>
+        </div>
+      `;
     } else {
-      html += `<div style="display: flex; flex-direction: column; gap: 6px;">`;
+      html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
       for (const barrel of barrels) {
         html += this.buildBarrelItem(barrel, curingSystem);
       }
@@ -233,75 +244,6 @@ export class CuringDialog extends BaseDialog {
     }
   }
 
-  private buildDetailsPanel(_freshItems: ReturnType<typeof CuringSystem.prototype.getFreshStorage>, barrels: ReturnType<typeof CuringSystem.prototype.getOwnedBarrels>, curedProducts: ReturnType<typeof GameState.prototype.getItemsByType>, curingSystem: CuringSystem): string {
-    let html = "";
-
-    // Selection Details
-    if (this.selectedFreshItemId || this.selectedBarrelId) {
-      html += `<div style="background: #E3F2FD; border-radius: 10px; padding: 12px; border: 1px solid #BBDEFB;">`;
-      html += `<h3 style="margin: 0 0 10px 0; color: #1565C0; font-size: 0.9rem;">📋 Selection</h3>`;
-      
-      if (this.selectedFreshItemId) {
-        const item = curingSystem.getFreshItem(this.selectedFreshItemId);
-        if (item) {
-          const strain = PlantSystem.getInstance().getStrain(item.strainId);
-          html += `<div style="background: #fff; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-            <div style="font-weight: 600; color: #333;">🌿 ${strain?.name ?? item.strainId}</div>
-            <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">${item.amount}g • ${item.quality}% quality</div>
-          </div>`;
-        }
-      }
-      
-      if (this.selectedBarrelId) {
-        const barrel = barrels.find(b => b.id === this.selectedBarrelId);
-        if (barrel && !barrel.slot) {
-          const condition = curingSystem.getBarrelCondition(barrel.id);
-          html += `<div style="background: #fff; padding: 10px; border-radius: 6px;">
-            <div style="font-weight: 600; color: #333;">${barrel.template.icon} ${barrel.template.name}</div>
-            <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
-              Capacity: ${barrel.template.capacity}g • Condition: ${condition?.condition ?? 100}%
-              ${barrel.template.burpsRequired > 0 ? `<br>Requires ${barrel.template.burpsRequired} burps` : ""}
-              ${barrel.template.qualityBonus > 0 ? `<br>+${barrel.template.qualityBonus}% quality bonus` : ""}
-            </div>
-          </div>`;
-        }
-      }
-      html += `</div>`;
-    }
-
-    // Cured Products (Ready to Sell)
-    html += `
-      <div style="background: #F0FDF4; border-radius: 10px; padding: 12px; border: 1px solid #BBF7D0; flex: 1;">
-        <h3 style="margin: 0 0 10px 0; color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-          📦 Ready to Sell
-        </h3>
-    `;
-
-    if (curedProducts.length === 0) {
-      html += `<div style="color: #888; text-align: center; padding: 16px; font-size: 0.85rem;">No cured products yet</div>`;
-    } else {
-      const totalGrams = curedProducts.reduce((sum, p) => sum + p.quantity, 0);
-      html += `<div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
-      for (const product of curedProducts) {
-        const strainId = product.id.replace(/^harvest_/, "");
-        const strain = PlantSystem.getInstance().getStrain(strainId) || 
-                      PlantSystem.getInstance().getStrain(`strain_${strainId}`);
-        const strainName = strain?.name ?? strainId.replace(/_/g, " ");
-        
-        html += `
-          <div style="background: #fff; border: 1px solid #86EFAC; border-radius: 6px; padding: 8px 12px;">
-            <div style="font-weight: 600; color: #166534; font-size: 0.85rem;">${strainName}</div>
-            <div style="font-size: 0.8rem; color: #15803D;">${product.quantity}g</div>
-          </div>
-        `;
-      }
-      html += `</div>`;
-      html += `<div style="margin-top: 10px; text-align: right; font-size: 0.85rem; color: #166534; font-weight: 600;">Total: ${totalGrams}g</div>`;
-    }
-    html += `</div>`;
-
-    return html;
-  }
 
   private buildActionBar(freshItems: ReturnType<typeof CuringSystem.prototype.getFreshStorage>, barrels: ReturnType<typeof CuringSystem.prototype.getOwnedBarrels>, curingSystem: CuringSystem): string {
     const canStartCuring = this.selectedFreshItemId && this.selectedBarrelId;
