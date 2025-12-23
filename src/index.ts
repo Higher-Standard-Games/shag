@@ -19,6 +19,7 @@ import { RTSCameraController } from "./engine/camera/RTSCameraController";
 import { UIManager } from "./ui/UIManager";
 import { GameState } from "./game/GameState";
 import { EventBus } from "./engine/core/EventBus";
+import { WORLD_AREAS } from "./data/world";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
@@ -223,8 +224,9 @@ const createScene = async () => {
   // Expose loadMap to console for debugging
   (window as any).loadMap = loadMap;
 
-  // Initial Map Load
-  loadMap("patch_test.map");
+  // Initial Map Load - Start in the first world area (slums)
+  const startingArea = WORLD_AREAS[0];
+  loadMap(startingArea.mapFile);
 
   // Initialize RTS Camera Controller
   new RTSCameraController(scene, camera, canvas);
