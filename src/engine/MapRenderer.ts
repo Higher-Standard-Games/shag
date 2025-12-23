@@ -37,6 +37,8 @@ export interface MapRenderResult {
   cameraMode: "perspective" | "orthographic" | "fake_ortho" | null;
   /** Camera height/distance specified in worldspawn, or null if not specified */
   cameraHeight: number | null;
+  /** Playlist file specified in worldspawn, or null to keep current/default */
+  playlist: string | null;
 }
 
 export class MapRenderer {
@@ -60,6 +62,7 @@ export class MapRenderer {
     const sprites: BillboardSprite[] = [];
     let cameraMode: "perspective" | "orthographic" | "fake_ortho" | null = null;
     let cameraHeight: number | null = null;
+    let playlist: string | null = null;
     
     // Collect static point lights for clustered rendering
     const staticLights: PointLight[] = [];
@@ -85,6 +88,12 @@ export class MapRenderer {
             cameraHeight = height;
             console.log(`Map specifies camera_height: ${cameraHeight}`);
           }
+        }
+        
+        // Parse playlist if specified (music playlist for this map)
+        if (entity.properties.playlist) {
+          playlist = entity.properties.playlist;
+          console.log(`Map specifies playlist: ${playlist}`);
         }
       }
 
@@ -639,7 +648,7 @@ export class MapRenderer {
       console.log(`Created clustered light container with ${staticLights.length} static lights`);
     }
 
-    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight };
+    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight, playlist };
   }
 
   /**

@@ -1,4 +1,18 @@
 import { AssetLoader } from "./AssetLoader";
+import defaultPlaylist from "../data/defaultPlaylist.json";
+
+// Playlist types
+export interface PlaylistTrack {
+  file: string;
+  title?: string;
+}
+
+export interface Playlist {
+  name?: string;
+  loop?: boolean;
+  shuffle?: boolean;
+  tracks: PlaylistTrack[];
+}
 
 export class AudioManager {
   private static instance: AudioManager;
@@ -7,6 +21,12 @@ export class AudioManager {
   private musicVolume = 0.5;
   private musicEnabled = true;
   private fadeInterval: number | null = null;
+
+  // Playlist state
+  private currentPlaylist: Playlist | null = null;
+  private currentTrackIndex = 0;
+  private playlistName: string | null = null;
+  private isPlayingPlaylist = false;
 
   private constructor() {}
 
@@ -189,5 +209,182 @@ export class AudioManager {
 
   public isSfxEnabled(): boolean {
     return this.sfxEnabled;
+  }
+
+  // ==================== Playlist System ====================
+
+  /**
+   * Start playing the default playlist
+   */
+  public startDefaultPlaylist(): void {
+    this.startPlaylist(defaultPlaylist as Playlist, "default");
+  }
+
+  /**
+   * Start playing a playlist
+   * @param playlist The playlist to play
+   * @param name Optional name to identify the playlist (prevents reloading same playlist)
+   */
+  public startPlaylist(playlist: Playlist, name?: string): void {
+    // If same playlist is already playing, don't restart
+    if (name && this.playlistName === name && this.isPlayingPlaylist) {
+      console.log(`[AudioManager] Playlist "${name}" already playing, skipping reload`);
+      return;
+    }
+
+    console.log(`[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`);
+
+    this.currentPlaylist = playlist;
+    this.playlistName = name || null;
+    this.currentTrackIndex = 0;
+    this.isPlayingPlaylist = true;
+
+    // Shuffle if needed
+    if (playlist.shuffle) {
+      this.shufflePlaylist();
+    }
+
+    this.playCurrentTrack(true);
+  }
+
+  /**
+   * Load and start a playlist from a JSON file path
+   * @param playlistPath Path to the playlist JSON file (relative to data folder)
+   */
+  public async loadPlaylist(playlistPath: string): Promise<void> {
+    try {
+      // Dynamic import of playlist JSON
+      const module = await import(`../data/${playlistPath}`);
+      const playlist = module.default as Playlist;
+      this.startPlaylist(playlist, playlistPath);
+    } catch (e) {
+      console.error(`[AudioManager] Failed to load playlist: ${playlistPath}`, e);
+      // Fall back to default playlist
+      this.startDefaultPlaylist();
+    }
+  }
+
+  /**
+   * Stop the current playlist
+   */
+  public stopPlaylist(fadeOut = true): void {
+    this.isPlayingPlaylist = false;
+    this.currentPlaylist = null;
+    this.playlistName = null;
+    this.stopMusic(fadeOut);
+  }
+
+  /**
+   * Play the current track in the playlist
+   */
+  private playCurrentTrack(fadeIn = true): void {
+    if (!this.currentPlaylist || !this.isPlayingPlaylist) return;
+
+    const track = this.currentPlaylist.tracks[this.currentTrackIndex];
+    if (!track) {
+      console.warn(`[AudioManager] No track at index ${this.currentTrackIndex}`);
+      return;
+    }
+
+    console.log(`[AudioManager] Playing track ${this.currentTrackIndex + 1}/${this.currentPlaylist.tracks.length}: ${track.title || track.file}`);
+
+    // Get audio from AssetLoader using the file name (without extension) as key
+    const audioKey = track.file.replace(/\.[^.]+$/, ""); // Remove extension
+    const audio = AssetLoader.getInstance().getAudio(audioKey);
+    
+    if (!audio) {
+      console.warn(`[AudioManager] Track audio not found: ${audioKey}, trying next track`);
+      this.nextTrack();
+      return;
+    }
+
+    // Stop current music
+    if (this.currentMusic) {
+      this.stopMusic(fadeIn);
+    }
+
+    // Clone and play
+    this.currentMusic = audio.cloneNode(true) as HTMLAudioElement;
+    this.currentMusic.loop = false; // We handle looping via playlist
+    this.currentMusic.volume = fadeIn ? 0 : this.musicVolume;
+
+    // Listen for track end to play next
+    this.currentMusic.addEventListener("ended", () => {
+      this.nextTrack();
+    });
+
+    this.currentMusic.play().catch((e) => {
+      console.warn("[AudioManager] Playlist track autoplay blocked:", e);
+    });
+
+    if (fadeIn) {
+      this.fadeInMusic();
+    }
+  }
+
+  /**
+   * Advance to the next track in the playlist
+   */
+  private nextTrack(): void {
+    if (!this.currentPlaylist || !this.isPlayingPlaylist) return;
+
+    this.currentTrackIndex++;
+
+    // Check if we've reached the end
+    if (this.currentTrackIndex >= this.currentPlaylist.tracks.length) {
+      if (this.currentPlaylist.loop !== false) {
+        // Loop back to start
+        this.currentTrackIndex = 0;
+        console.log("[AudioManager] Playlist looping back to start");
+      } else {
+        // Playlist finished
+        console.log("[AudioManager] Playlist finished");
+        this.isPlayingPlaylist = false;
+        return;
+      }
+    }
+
+    this.playCurrentTrack(false); // No fade between tracks
+  }
+
+  /**
+   * Shuffle the current playlist tracks
+   */
+  private shufflePlaylist(): void {
+    if (!this.currentPlaylist) return;
+
+    const tracks = this.currentPlaylist.tracks;
+    for (let i = tracks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+    }
+  }
+
+  /**
+   * Get current playlist info
+   */
+  public getCurrentPlaylistInfo(): { name: string | null; trackIndex: number; trackCount: number; currentTrack: PlaylistTrack | null } | null {
+    if (!this.currentPlaylist) return null;
+
+    return {
+      name: this.playlistName,
+      trackIndex: this.currentTrackIndex,
+      trackCount: this.currentPlaylist.tracks.length,
+      currentTrack: this.currentPlaylist.tracks[this.currentTrackIndex] || null,
+    };
+  }
+
+  /**
+   * Check if a playlist is currently playing
+   */
+  public isPlaylistPlaying(): boolean {
+    return this.isPlayingPlaylist;
+  }
+
+  /**
+   * Get the current playlist name
+   */
+  public getCurrentPlaylistName(): string | null {
+    return this.playlistName;
   }
 }

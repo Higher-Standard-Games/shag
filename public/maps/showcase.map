@@ -8,6 +8,7 @@
 "message" "Feature Showcase Map"
 "camera_mode" "fake_ortho"
 "camera_height" "1000"
+"playlist" "defaultPlaylist.json"
 // Floor plane (1600x1600)
 {
 ( -800 -800 -16 ) ( 800 800 -16 ) ( -800 800 -16 ) color_80_80_80 0 0 0 1 1

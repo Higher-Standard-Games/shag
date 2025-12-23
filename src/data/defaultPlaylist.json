@@ -1,0 +1,12 @@
+{
+  "$schema": "./schemas/playlist.schema.json",
+  "name": "Default In-Game Playlist",
+  "loop": true,
+  "shuffle": false,
+  "tracks": [
+    {
+      "file": "GreenKingdomNightRemix.ogg",
+      "title": "Green Kingdom Night Remix"
+    }
+  ]
+}

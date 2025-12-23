@@ -382,12 +382,18 @@ export class GameScene {
     // Load saved state for this map (built objects, etc.)
     await SaveManager.getInstance().loadMapState(mapName);
 
-    // Switch music if configured
-    const config = AssetLoader.getInstance().getConfig();
-    const musicKey = config?.assets.music.maps[mapName];
-    if (musicKey && previousMap !== mapName) {
-      AudioManager.getInstance().playMusic(mapName);
+    // Handle playlist from map worldspawn
+    const audioManager = AudioManager.getInstance();
+    if (result.playlist) {
+      // Map specifies a playlist - load it
+      console.log(`[GameScene] Map specifies playlist: ${result.playlist}`);
+      await audioManager.loadPlaylist(result.playlist);
+    } else if (!audioManager.isPlaylistPlaying()) {
+      // No playlist specified and none playing - start default
+      console.log("[GameScene] No playlist specified, starting default playlist");
+      audioManager.startDefaultPlaylist();
     }
+    // If no playlist specified but one is already playing, keep it playing
   }
 
   private setupTriggerHandling(): void {
