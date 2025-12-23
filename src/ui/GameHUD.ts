@@ -85,6 +85,10 @@ export class GameHUD {
             <span class="hud-icon">📦</span>
             <span class="hud-value">0g</span>
           </div>
+          <div class="hud-resource hud-inventory-pill" id="hud-inventory-pill" title="View Inventory">
+            <span class="hud-icon">🎒</span>
+            <span class="hud-value">0</span>
+          </div>
         </div>
         <div class="hud-buttons">
           <!-- Harvest button removed - using Events panel instead -->
@@ -100,10 +104,6 @@ export class GameHUD {
             <span class="fullscreen-icon">⛶</span>
           </button>
         </div>
-      </div>
-
-      <div class="hud-quick-inventory" id="hud-inventory">
-        <!-- Populated dynamically -->
       </div>
 
       <div class="hud-game-message" id="hud-game-message" style="display: none;">
@@ -170,7 +170,6 @@ export class GameHUD {
 
     const state = GameState.getInstance();
     const player = state.getPlayer();
-    const inventory = state.getInventory();
 
     // Update money
     const moneyEl = this.container.querySelector("#hud-money .hud-value");
@@ -194,6 +193,13 @@ export class GameHUD {
     if (stockEl) {
       const totalStock = this.getTotalSellableStock();
       stockEl.textContent = `${totalStock}g`;
+    }
+
+    // Update inventory pill count
+    const invPillEl = this.container.querySelector("#hud-inventory-pill .hud-value");
+    if (invPillEl) {
+      const totalItems = this.getTotalInventoryCount();
+      invPillEl.textContent = String(totalItems);
     }
 
     // Update day/night clock
@@ -223,9 +229,6 @@ export class GameHUD {
       };
       periodEl.textContent = icons[timeOfDay.period] || "☀️";
     }
-
-    // Update quick inventory
-    this.updateInventory(inventory.items);
   }
 
   private updateSpeedButton(mode?: GameSpeedMode): void {
@@ -304,26 +307,6 @@ export class GameHUD {
       // Process next award in queue
       this.processAwardQueue();
     }, 300);
-  }
-
-  private updateInventory(items: { id: string; type: string; quantity: number }[]): void {
-    const container = this.container?.querySelector("#hud-inventory");
-    if (!container) return;
-
-    // Show first 8 items
-    const displayItems = items.slice(0, 8);
-    
-    container.innerHTML = displayItems.map(item => `
-      <div class="hud-inv-slot" data-item="${item.id}">
-        <span class="slot-icon">${this.getItemIcon(item.id)}</span>
-        <span class="slot-count">${item.quantity}</span>
-      </div>
-    `).join("");
-
-    // Add empty slots
-    for (let i = displayItems.length; i < 8; i++) {
-      container.innerHTML += `<div class="hud-inv-slot"></div>`;
-    }
   }
 
   private getItemIcon(itemId: string): string {
@@ -492,6 +475,210 @@ export class GameHUD {
     panel.querySelector("#stock-close-btn")?.addEventListener("click", closeModal);
   }
 
+  /**
+   * Get total inventory item count
+   */
+  private getTotalInventoryCount(): number {
+    const state = GameState.getInstance();
+    const inventory = state.getInventory();
+    return inventory.items.reduce((total, item) => total + item.quantity, 0);
+  }
+
+  /**
+   * Show inventory dialog with all items grouped by type
+   */
+  private showInventoryDialog(): void {
+    const state = GameState.getInstance();
+    const inventory = state.getInventory();
+    const items = inventory.items;
+    
+    // Create modal overlay
+    const modal = document.createElement("div");
+    modal.id = "inventory-modal";
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    `;
+    
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #FAFAFA;
+      border-radius: 16px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 500px;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    `;
+    
+    // Header
+    const header = document.createElement("div");
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #E0E0E0;
+    `;
+    header.innerHTML = `
+      <h3 style="margin: 0; color: #333; font-size: 1.3rem;">🎒 Inventory</h3>
+      <button id="inventory-close-btn" style="
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+        padding: 4px 8px;
+      ">×</button>
+    `;
+    panel.appendChild(header);
+    
+    // Content
+    if (items.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = `
+        text-align: center;
+        padding: 32px;
+        color: #666;
+      `;
+      empty.innerHTML = `
+        <div style="font-size: 3rem; margin-bottom: 12px;">🎒</div>
+        <div>Your inventory is empty</div>
+        <div style="font-size: 0.9rem; margin-top: 8px; color: #999;">
+          Buy seeds from the shop or harvest plants
+        </div>
+      `;
+      panel.appendChild(empty);
+    } else {
+      // Group items by type
+      const grouped: Record<string, typeof items> = {};
+      for (const item of items) {
+        const type = item.type || "other";
+        if (!grouped[type]) grouped[type] = [];
+        grouped[type].push(item);
+      }
+      
+      const typeLabels: Record<string, { label: string; icon: string }> = {
+        seed: { label: "Seeds", icon: "🌱" },
+        harvest: { label: "Harvests", icon: "🌿" },
+        material: { label: "Materials", icon: "🧪" },
+        equipment: { label: "Equipment", icon: "🔧" },
+        consumable: { label: "Consumables", icon: "💊" },
+        other: { label: "Other", icon: "📦" },
+      };
+      
+      const list = document.createElement("div");
+      list.style.cssText = `display: flex; flex-direction: column; gap: 16px;`;
+      
+      for (const [type, typeItems] of Object.entries(grouped)) {
+        const section = document.createElement("div");
+        
+        const typeInfo = typeLabels[type] || typeLabels.other;
+        const sectionHeader = document.createElement("div");
+        sectionHeader.style.cssText = `
+          font-weight: 600;
+          color: #666;
+          font-size: 0.9rem;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        `;
+        sectionHeader.textContent = `${typeInfo.icon} ${typeInfo.label}`;
+        section.appendChild(sectionHeader);
+        
+        const itemsGrid = document.createElement("div");
+        itemsGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 8px;
+        `;
+        
+        for (const item of typeItems) {
+          const itemEl = document.createElement("div");
+          itemEl.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #FFFFFF;
+            border-radius: 10px;
+            border: 1px solid #E0E0E0;
+          `;
+          
+          const icon = this.getItemIcon(item.id);
+          const displayName = this.formatItemName(item.id);
+          
+          itemEl.innerHTML = `
+            <div style="font-size: 1.5rem;">${icon}</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 500; color: #333; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${displayName}</div>
+              <div style="font-size: 0.8rem; color: #666;">×${item.quantity}</div>
+            </div>
+          `;
+          itemsGrid.appendChild(itemEl);
+        }
+        
+        section.appendChild(itemsGrid);
+        list.appendChild(section);
+      }
+      panel.appendChild(list);
+      
+      // Total count
+      const totalCount = items.reduce((t, i) => t + i.quantity, 0);
+      const total = document.createElement("div");
+      total.style.cssText = `
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #E0E0E0;
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+      `;
+      total.innerHTML = `
+        <span style="color: #333;">Total Items</span>
+        <span style="color: #2196F3;">${totalCount}</span>
+      `;
+      panel.appendChild(total);
+    }
+    
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+    
+    // Close handlers
+    const closeModal = () => modal.remove();
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    panel.querySelector("#inventory-close-btn")?.addEventListener("click", closeModal);
+  }
+
+  /**
+   * Format item ID to display name
+   */
+  private formatItemName(itemId: string): string {
+    // Remove prefixes like seed_, harvest_, etc.
+    let name = itemId
+      .replace(/^seed_/, "")
+      .replace(/^harvest_/, "")
+      .replace(/^fresh_/, "")
+      .replace(/^cured_/, "")
+      .replace(/_/g, " ");
+    
+    // Title case
+    return name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+
   private plantInfoOpenedAt: number = 0;
 
   private setupEventListeners(): void {
@@ -617,6 +804,11 @@ export class GameHUD {
     // Stock inventory pill click
     this.container?.querySelector("#hud-stock")?.addEventListener("click", () => {
       this.showStockInventory();
+    });
+
+    // Inventory pill click
+    this.container?.querySelector("#hud-inventory-pill")?.addEventListener("click", () => {
+      this.showInventoryDialog();
     });
 
     // Speed toggle button

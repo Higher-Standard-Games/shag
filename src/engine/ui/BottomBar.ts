@@ -70,7 +70,8 @@ export class BottomBar {
     
     this.container.appendChild(this.tabsContainer);
     this.container.appendChild(this.itemsContainer);
-    this.container.appendChild(this.inventoryContainer);
+    // Note: Inventory is now shown in a separate dialog via GameHUD
+    // this.container.appendChild(this.inventoryContainer);
   }
 
   private createContainer(): HTMLDivElement {

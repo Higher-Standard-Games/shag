@@ -73,6 +73,24 @@
   transition: width 0.3s ease;
 }
 
+/* Clickable pills (stock, inventory) */
+.hud-stock-pill,
+.hud-inventory-pill {
+  cursor: pointer;
+}
+
+.hud-stock-pill:hover,
+.hud-inventory-pill:hover {
+  background: #E8F5E9;
+  border-bottom-color: #4CAF50;
+}
+
+.hud-stock-pill:active,
+.hud-inventory-pill:active {
+  top: 1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 .hud-buttons {
   display: flex;
   gap: 10px;
