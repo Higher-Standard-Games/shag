@@ -1,7 +1,3 @@
-// Game: Quake
-// Format: Valve
-// Quiet Suburbs - Mid-tier Area (Level 3+)
-
 {
 "classname" "worldspawn"
 "message" "Quiet Suburbs"
@@ -26,38 +22,6 @@
 ( 500 50 -16 ) ( 500 -50 -16 ) ( 500 50 -20 ) color_62_62_67 0 0 0 1 1
 }
 {
-( -400 -3 -15 ) ( -300 -3 -15 ) ( -400 3 -15 ) color_220_220_220 0 0 0 1 1
-( -400 -3 -16 ) ( -400 3 -16 ) ( -300 -3 -16 ) color_200_200_200 0 0 0 1 1
-( -400 -3 -15 ) ( -400 -3 -16 ) ( -300 -3 -15 ) color_210_210_210 0 0 0 1 1
-( -400 3 -15 ) ( -300 3 -15 ) ( -400 3 -16 ) color_210_210_210 0 0 0 1 1
-( -400 3 -15 ) ( -400 3 -16 ) ( -400 -3 -15 ) color_210_210_210 0 0 0 1 1
-( -300 3 -15 ) ( -300 -3 -15 ) ( -300 3 -16 ) color_210_210_210 0 0 0 1 1
-}
-{
-( -200 -3 -15 ) ( -100 -3 -15 ) ( -200 3 -15 ) color_220_220_220 0 0 0 1 1
-( -200 -3 -16 ) ( -200 3 -16 ) ( -100 -3 -16 ) color_200_200_200 0 0 0 1 1
-( -200 -3 -15 ) ( -200 -3 -16 ) ( -100 -3 -15 ) color_210_210_210 0 0 0 1 1
-( -200 3 -15 ) ( -100 3 -15 ) ( -200 3 -16 ) color_210_210_210 0 0 0 1 1
-( -200 3 -15 ) ( -200 3 -16 ) ( -200 -3 -15 ) color_210_210_210 0 0 0 1 1
-( -100 3 -15 ) ( -100 -3 -15 ) ( -100 3 -16 ) color_210_210_210 0 0 0 1 1
-}
-{
-( 0 -3 -15 ) ( 100 -3 -15 ) ( 0 3 -15 ) color_220_220_220 0 0 0 1 1
-( 0 -3 -16 ) ( 0 3 -16 ) ( 100 -3 -16 ) color_200_200_200 0 0 0 1 1
-( 0 -3 -15 ) ( 0 -3 -16 ) ( 100 -3 -15 ) color_210_210_210 0 0 0 1 1
-( 0 3 -15 ) ( 100 3 -15 ) ( 0 3 -16 ) color_210_210_210 0 0 0 1 1
-( 0 3 -15 ) ( 0 3 -16 ) ( 0 -3 -15 ) color_210_210_210 0 0 0 1 1
-( 100 3 -15 ) ( 100 -3 -15 ) ( 100 3 -16 ) color_210_210_210 0 0 0 1 1
-}
-{
-( 200 -3 -15 ) ( 300 -3 -15 ) ( 200 3 -15 ) color_220_220_220 0 0 0 1 1
-( 200 -3 -16 ) ( 200 3 -16 ) ( 300 -3 -16 ) color_200_200_200 0 0 0 1 1
-( 200 -3 -15 ) ( 200 -3 -16 ) ( 300 -3 -15 ) color_210_210_210 0 0 0 1 1
-( 200 3 -15 ) ( 300 3 -15 ) ( 200 3 -16 ) color_210_210_210 0 0 0 1 1
-( 200 3 -15 ) ( 200 3 -16 ) ( 200 -3 -15 ) color_210_210_210 0 0 0 1 1
-( 300 3 -15 ) ( 300 -3 -15 ) ( 300 3 -16 ) color_210_210_210 0 0 0 1 1
-}
-{
 ( -500 50 -16 ) ( 500 50 -16 ) ( -500 100 -16 ) color_180_175_170 0 0 0 1 1
 ( -500 50 -20 ) ( -500 100 -20 ) ( 500 50 -20 ) color_150_145_140 0 0 0 1 1
 ( -500 50 -16 ) ( -500 50 -20 ) ( 500 50 -16 ) color_165_160_155 0 0 0 1 1
@@ -74,30 +38,6 @@
 ( 500 -50 -16 ) ( 500 -100 -16 ) ( 500 -50 -20 ) color_165_160_155 0 0 0 1 1
 }
 {
-( -50 -100 -15 ) ( 50 -100 -15 ) ( -50 -300 -15 ) color_150_140_130 0 0 0 1 1
-( -50 -100 -16 ) ( -50 -300 -16 ) ( 50 -100 -16 ) color_130_120_110 0 0 0 1 1
-( -50 -100 -15 ) ( -50 -100 -16 ) ( 50 -100 -15 ) color_140_130_120 0 0 0 1 1
-( -50 -300 -15 ) ( 50 -300 -15 ) ( -50 -300 -16 ) color_140_130_120 0 0 0 1 1
-( -50 -300 -15 ) ( -50 -300 -16 ) ( -50 -100 -15 ) color_140_130_120 0 0 0 1 1
-( 50 -300 -15 ) ( 50 -100 -15 ) ( 50 -300 -16 ) color_140_130_120 0 0 0 1 1
-}
-{
-( -300 150 -15 ) ( -200 150 -15 ) ( -300 200 -15 ) color_180_60_60 0 0 0 1 1
-( -300 150 -16 ) ( -300 200 -16 ) ( -200 150 -16 ) color_150_50_50 0 0 0 1 1
-( -300 150 -15 ) ( -300 150 -16 ) ( -200 150 -15 ) color_165_55_55 0 0 0 1 1
-( -300 200 -15 ) ( -200 200 -15 ) ( -300 200 -16 ) color_165_55_55 0 0 0 1 1
-( -300 200 -15 ) ( -300 200 -16 ) ( -300 150 -15 ) color_165_55_55 0 0 0 1 1
-( -200 200 -15 ) ( -200 150 -15 ) ( -200 200 -16 ) color_165_55_55 0 0 0 1 1
-}
-{
-( 200 150 -15 ) ( 300 150 -15 ) ( 200 200 -15 ) color_220_200_80 0 0 0 1 1
-( 200 150 -16 ) ( 200 200 -16 ) ( 300 150 -16 ) color_190_170_60 0 0 0 1 1
-( 200 150 -15 ) ( 200 150 -16 ) ( 300 150 -15 ) color_205_185_70 0 0 0 1 1
-( 200 200 -15 ) ( 300 200 -15 ) ( 200 200 -16 ) color_205_185_70 0 0 0 1 1
-( 200 200 -15 ) ( 200 200 -16 ) ( 200 150 -15 ) color_205_185_70 0 0 0 1 1
-( 300 200 -15 ) ( 300 150 -15 ) ( 300 200 -16 ) color_205_185_70 0 0 0 1 1
-}
-{
 ( -250 -350 -15 ) ( 250 -350 -15 ) ( -250 -150 -15 ) color_160_155_150 0 0 0 1 1
 ( -250 -350 -16 ) ( -250 -150 -16 ) ( 250 -350 -16 ) color_140_135_130 0 0 0 1 1
 ( -250 -350 -15 ) ( -250 -350 -16 ) ( 250 -350 -15 ) color_150_145_140 0 0 0 1 1
@@ -105,29 +45,11 @@
 ( -250 -350 -15 ) ( -250 -350 -16 ) ( -250 -150 -15 ) color_150_145_140 0 0 0 1 1
 ( 250 -150 -15 ) ( 250 -350 -15 ) ( 250 -150 -16 ) color_150_145_140 0 0 0 1 1
 }
-{
-( 350 -100 -15 ) ( 450 -100 -15 ) ( 350 200 -15 ) color_170_165_160 0 0 0 1 1
-( 350 -100 -16 ) ( 350 200 -16 ) ( 450 -100 -16 ) color_150_145_140 0 0 0 1 1
-( 350 -100 -15 ) ( 350 -100 -16 ) ( 450 -100 -15 ) color_160_155_150 0 0 0 1 1
-( 350 200 -15 ) ( 450 200 -15 ) ( 350 200 -16 ) color_160_155_150 0 0 0 1 1
-( 350 200 -15 ) ( 350 200 -16 ) ( 350 -100 -15 ) color_160_155_150 0 0 0 1 1
-( 450 200 -15 ) ( 450 -100 -15 ) ( 450 200 -16 ) color_160_155_150 0 0 0 1 1
 }
-{
-( -250 -150 -15 ) ( 250 -150 -15 ) ( -250 -140 -15 ) color_60_45_30 0 0 0 1 1
-( -250 -150 -16 ) ( -250 -140 -16 ) ( 250 -150 -16 ) color_50_35_20 0 0 0 1 1
-( -250 -150 -15 ) ( -250 -150 -16 ) ( 250 -150 -15 ) color_55_40_25 0 0 0 1 1
-( -250 -140 -15 ) ( 250 -140 -15 ) ( -250 -140 -16 ) color_55_40_25 0 0 0 1 1
-( -250 -140 -15 ) ( -250 -140 -16 ) ( -250 -150 -15 ) color_55_40_25 0 0 0 1 1
-( 250 -140 -15 ) ( 250 -150 -15 ) ( 250 -140 -16 ) color_55_40_25 0 0 0 1 1
-}
-}
-
 {
 "classname" "info_player_start"
 "origin" "0 0 100"
 }
-
 {
 "classname" "light"
 "origin" "0 0 200"
@@ -135,7 +57,6 @@
 "range" "700"
 "_color" "1 1 0.95"
 }
-
 {
 "classname" "street_lamp"
 "targetname" "suburbs_lamp_1"
@@ -146,7 +67,6 @@
 "fadeTime" "2"
 "bulbSize" "4"
 }
-
 {
 "classname" "street_lamp"
 "targetname" "suburbs_lamp_2"
@@ -157,12 +77,11 @@
 "fadeTime" "2"
 "bulbSize" "4"
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_slums"
 "targetMap" "maps/areas/slums_street.map"
-"message" "← To Slums"
+"message" "To Slums"
 {
 ( -500 -50 0 ) ( -450 -50 0 ) ( -500 50 0 ) color_150_150_150 0 0 0 1 1
 ( -500 -50 64 ) ( -500 50 64 ) ( -450 -50 64 ) color_150_150_150 0 0 0 1 1
@@ -172,12 +91,11 @@
 ( -450 50 0 ) ( -450 -50 0 ) ( -450 50 64 ) color_130_130_130 0 0 0 1 1
 }
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_downtown"
 "targetMap" "maps/areas/downtown_plaza.map"
-"message" "To Downtown → (Level 5 required)"
+"message" "To Downtown"
 "requiredLevel" "5"
 "deniedMessage" "Downtown is for established operators only. Reach level 5!"
 {
@@ -189,7 +107,6 @@
 ( 500 50 0 ) ( 500 -50 0 ) ( 500 50 64 ) color_220_180_45 0 0 0 1 1
 }
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_1"
@@ -198,7 +115,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_2"
@@ -207,7 +123,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_3"
@@ -216,7 +131,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_4"
@@ -225,7 +139,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_5"
@@ -234,7 +147,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_6"
@@ -243,7 +155,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_7"
@@ -252,7 +163,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_8"
@@ -261,7 +171,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_9"
@@ -270,7 +179,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_10"
@@ -279,7 +187,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_1"
@@ -288,7 +195,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_2"
@@ -297,7 +203,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_3"
@@ -306,7 +211,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_4"
@@ -315,7 +219,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_5"
@@ -324,7 +227,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_6"
@@ -333,7 +235,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_7"
@@ -342,7 +243,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_8"
@@ -351,7 +251,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_9"
@@ -360,7 +259,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_10"
@@ -369,7 +267,6 @@
 "size" "64"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_equip_1"
@@ -378,7 +275,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "suburbs_equip_2"
@@ -387,7 +283,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "suburbs_seed_store"
@@ -402,7 +297,6 @@
 ( 230 330 0 ) ( 230 250 0 ) ( 230 330 48 ) color_90_180_90 0 0 0 1 1
 }
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "suburbs_supplies"
@@ -417,7 +311,6 @@
 ( 330 330 0 ) ( 330 250 0 ) ( 330 330 48 ) color_180_90_180 0 0 0 1 1
 }
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "suburbs_curing"
@@ -432,7 +325,6 @@
 ( 230 430 0 ) ( 230 350 0 ) ( 230 430 48 ) color_120_78_36 0 0 0 1 1
 }
 }
-
 {
 "classname" "info_npc"
 "targetname" "npc_sparky"
@@ -440,22 +332,4 @@
 "npcId" "npc_tech_guy"
 "origin" "-350 150 -16"
 "angle" "0"
-}
-
-{
-"classname" "build_zone"
-"targetname" "suburbs_decor_1"
-"origin" "400 300 0"
-"zoneType" "decoration"
-"size" "48"
-"color" "255 150 50"
-}
-
-{
-"classname" "build_zone"
-"targetname" "suburbs_decor_2"
-"origin" "400 380 0"
-"zoneType" "decoration"
-"size" "48"
-"color" "255 150 50"
 }

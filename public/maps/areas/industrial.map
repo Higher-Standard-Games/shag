@@ -1,7 +1,3 @@
-// Game: Quake
-// Format: Valve
-// Industrial District - Endgame Area (Level 8+)
-
 {
 "classname" "worldspawn"
 "message" "Industrial District"
@@ -50,28 +46,12 @@
 ( 600 -150 -15 ) ( 600 -600 -15 ) ( 600 -150 -16 ) color_85_85_90 0 0 0 1 1
 }
 {
-( -5 -600 -14 ) ( 5 -600 -14 ) ( -5 -150 -14 ) color_120_120_125 0 0 0 1 1
-( -5 -600 -15 ) ( -5 -150 -15 ) ( 5 -600 -15 ) color_100_100_105 0 0 0 1 1
-( -5 -600 -14 ) ( -5 -600 -15 ) ( 5 -600 -14 ) color_110_110_115 0 0 0 1 1
-( -5 -150 -14 ) ( 5 -150 -14 ) ( -5 -150 -15 ) color_110_110_115 0 0 0 1 1
-( -5 -150 -14 ) ( -5 -150 -15 ) ( -5 -600 -14 ) color_110_110_115 0 0 0 1 1
-( 5 -150 -14 ) ( 5 -600 -14 ) ( 5 -150 -15 ) color_110_110_115 0 0 0 1 1
-}
-{
 ( -750 200 -15 ) ( -450 200 -15 ) ( -750 700 -15 ) color_80_80_85 0 0 0 1 1
 ( -750 200 -16 ) ( -750 700 -16 ) ( -450 200 -16 ) color_60_60_65 0 0 0 1 1
 ( -750 200 -15 ) ( -750 200 -16 ) ( -450 200 -15 ) color_70_70_75 0 0 0 1 1
 ( -750 700 -15 ) ( -450 700 -15 ) ( -750 700 -16 ) color_70_70_75 0 0 0 1 1
 ( -750 700 -15 ) ( -750 700 -16 ) ( -750 200 -15 ) color_70_70_75 0 0 0 1 1
 ( -450 700 -15 ) ( -450 200 -15 ) ( -450 700 -16 ) color_70_70_75 0 0 0 1 1
-}
-{
-( -750 200 -14 ) ( -450 200 -14 ) ( -750 210 -14 ) color_220_180_40 0 0 0 1 1
-( -750 200 -15 ) ( -750 210 -15 ) ( -450 200 -15 ) color_200_160_30 0 0 0 1 1
-( -750 200 -14 ) ( -750 200 -15 ) ( -450 200 -14 ) color_210_170_35 0 0 0 1 1
-( -750 210 -14 ) ( -450 210 -14 ) ( -750 210 -15 ) color_210_170_35 0 0 0 1 1
-( -750 210 -14 ) ( -750 210 -15 ) ( -750 200 -14 ) color_210_170_35 0 0 0 1 1
-( -450 210 -14 ) ( -450 200 -14 ) ( -450 210 -15 ) color_210_170_35 0 0 0 1 1
 }
 {
 ( 450 200 -15 ) ( 750 200 -15 ) ( 450 700 -15 ) color_110_105_100 0 0 0 1 1
@@ -81,21 +61,11 @@
 ( 450 700 -15 ) ( 450 700 -16 ) ( 450 200 -15 ) color_100_95_90 0 0 0 1 1
 ( 750 700 -15 ) ( 750 200 -15 ) ( 750 700 -16 ) color_100_95_90 0 0 0 1 1
 }
-{
-( -100 150 -15 ) ( 100 150 -15 ) ( -100 200 -15 ) color_180_60_60 0 0 0 1 1
-( -100 150 -16 ) ( -100 200 -16 ) ( 100 150 -16 ) color_150_50_50 0 0 0 1 1
-( -100 150 -15 ) ( -100 150 -16 ) ( 100 150 -15 ) color_165_55_55 0 0 0 1 1
-( -100 200 -15 ) ( 100 200 -15 ) ( -100 200 -16 ) color_165_55_55 0 0 0 1 1
-( -100 200 -15 ) ( -100 200 -16 ) ( -100 150 -15 ) color_165_55_55 0 0 0 1 1
-( 100 200 -15 ) ( 100 150 -15 ) ( 100 200 -16 ) color_165_55_55 0 0 0 1 1
 }
-}
-
 {
 "classname" "info_player_start"
 "origin" "0 -400 100"
 }
-
 {
 "classname" "light"
 "origin" "0 0 300"
@@ -103,7 +73,6 @@
 "range" "1000"
 "_color" "1 0.95 0.9"
 }
-
 {
 "classname" "street_lamp"
 "targetname" "industrial_lamp_1"
@@ -114,7 +83,6 @@
 "fadeTime" "0.5"
 "bulbSize" "6"
 }
-
 {
 "classname" "street_lamp"
 "targetname" "industrial_lamp_2"
@@ -125,34 +93,11 @@
 "fadeTime" "0.5"
 "bulbSize" "6"
 }
-
-{
-"classname" "street_lamp"
-"targetname" "industrial_lamp_3"
-"origin" "-500 400 80"
-"light" "250"
-"range" "200"
-"_color" "255 255 240"
-"fadeTime" "0.5"
-"bulbSize" "6"
-}
-
-{
-"classname" "street_lamp"
-"targetname" "industrial_lamp_4"
-"origin" "500 400 80"
-"light" "250"
-"range" "200"
-"_color" "255 255 240"
-"fadeTime" "0.5"
-"bulbSize" "6"
-}
-
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_downtown"
 "targetMap" "maps/areas/downtown_plaza.map"
-"message" "↓ To Downtown"
+"message" "To Downtown"
 {
 ( -50 -800 0 ) ( 50 -800 0 ) ( -50 -750 0 ) color_100_150_255 0 0 0 1 1
 ( -50 -800 64 ) ( -50 -750 64 ) ( 50 -800 64 ) color_100_150_255 0 0 0 1 1
@@ -162,7 +107,6 @@
 ( 50 -750 0 ) ( 50 -800 0 ) ( 50 -750 64 ) color_90_135_220 0 0 0 1 1
 }
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_1"
@@ -171,7 +115,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_2"
@@ -180,7 +123,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_3"
@@ -189,7 +131,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_4"
@@ -198,7 +139,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_5"
@@ -207,7 +147,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_6"
@@ -216,7 +155,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_7"
@@ -225,7 +163,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_8"
@@ -234,7 +171,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_9"
@@ -243,7 +179,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_10"
@@ -252,7 +187,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_11"
@@ -261,7 +195,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_12"
@@ -270,7 +203,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_13"
@@ -279,7 +211,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_14"
@@ -288,7 +219,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_15"
@@ -297,7 +227,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_16"
@@ -306,7 +235,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_17"
@@ -315,7 +243,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_18"
@@ -324,7 +251,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_19"
@@ -333,7 +259,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_20"
@@ -342,7 +267,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_21"
@@ -351,7 +275,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_22"
@@ -360,7 +283,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_23"
@@ -369,7 +291,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_24"
@@ -378,7 +299,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_25"
@@ -387,7 +307,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_26"
@@ -396,7 +315,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_27"
@@ -405,7 +323,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_28"
@@ -414,7 +331,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_29"
@@ -423,7 +339,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_30"
@@ -432,7 +347,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_31"
@@ -441,7 +355,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_32"
@@ -450,7 +363,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_33"
@@ -459,7 +371,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_34"
@@ -468,7 +379,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_35"
@@ -477,7 +387,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_36"
@@ -486,7 +395,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_37"
@@ -495,7 +403,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_38"
@@ -504,7 +411,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_39"
@@ -513,7 +419,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_40"
@@ -522,7 +427,6 @@
 "size" "64"
 "color" "100 200 100"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_light_1"
@@ -531,88 +435,62 @@
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_light_2"
-"origin" "-250 -290 128"
+"origin" "-150 -290 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_light_3"
-"origin" "-50 -290 128"
-"zoneType" "growlight"
-"size" "100"
-"color" "100 150 255"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_light_4"
 "origin" "150 -290 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
-"targetname" "industrial_light_5"
-"origin" "350 -290 128"
+"targetname" "industrial_light_4"
+"origin" "450 -290 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
-"targetname" "industrial_light_6"
+"targetname" "industrial_light_5"
 "origin" "-450 -450 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
+{
+"classname" "build_zone"
+"targetname" "industrial_light_6"
+"origin" "-150 -450 128"
+"zoneType" "growlight"
+"size" "100"
+"color" "100 150 255"
+}
 {
 "classname" "build_zone"
 "targetname" "industrial_light_7"
-"origin" "-250 -450 128"
-"zoneType" "growlight"
-"size" "100"
-"color" "100 150 255"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_light_8"
-"origin" "-50 -450 128"
-"zoneType" "growlight"
-"size" "100"
-"color" "100 150 255"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_light_9"
 "origin" "150 -450 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
-"targetname" "industrial_light_10"
-"origin" "350 -450 128"
+"targetname" "industrial_light_8"
+"origin" "450 -450 128"
 "zoneType" "growlight"
 "size" "100"
 "color" "100 150 255"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_1"
@@ -621,7 +499,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_2"
@@ -630,7 +507,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_3"
@@ -639,7 +515,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_4"
@@ -648,7 +523,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_5"
@@ -657,7 +531,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_6"
@@ -666,7 +539,6 @@
 "size" "80"
 "color" "200 100 200"
 }
-
 {
 "classname" "trigger_multiple"
 "targetname" "industrial_seed_store"
@@ -681,69 +553,17 @@
 ( 650 400 0 ) ( 650 300 0 ) ( 650 400 48 ) color_90_180_90 0 0 0 1 1
 }
 }
-
-{
-"classname" "trigger_multiple"
-"targetname" "industrial_supplies"
-"windowTarget" "supplies_store"
-"message" "Industrial Equipment"
-{
-( 520 420 0 ) ( 650 420 0 ) ( 520 520 0 ) color_200_100_200 0 0 0 1 1
-( 520 420 48 ) ( 520 520 48 ) ( 650 420 48 ) color_200_100_200 0 0 0 1 1
-( 520 420 0 ) ( 520 420 48 ) ( 650 420 0 ) color_160_80_160 0 0 0 1 1
-( 520 520 0 ) ( 650 520 0 ) ( 520 520 48 ) color_160_80_160 0 0 0 1 1
-( 520 520 0 ) ( 520 520 48 ) ( 520 420 0 ) color_180_90_180 0 0 0 1 1
-( 650 520 0 ) ( 650 420 0 ) ( 650 520 48 ) color_180_90_180 0 0 0 1 1
-}
-}
-
 {
 "classname" "trigger_multiple"
 "targetname" "industrial_curing"
 "windowTarget" "curing_dialog"
 "message" "Processing Plant"
 {
-( 520 540 0 ) ( 650 540 0 ) ( 520 640 0 ) color_139_90_43 0 0 0 1 1
-( 520 540 48 ) ( 520 640 48 ) ( 650 540 48 ) color_139_90_43 0 0 0 1 1
-( 520 540 0 ) ( 520 540 48 ) ( 650 540 0 ) color_100_65_30 0 0 0 1 1
-( 520 640 0 ) ( 650 640 0 ) ( 520 640 48 ) color_100_65_30 0 0 0 1 1
-( 520 640 0 ) ( 520 640 48 ) ( 520 540 0 ) color_120_78_36 0 0 0 1 1
-( 650 640 0 ) ( 650 540 0 ) ( 650 640 48 ) color_120_78_36 0 0 0 1 1
+( 520 420 0 ) ( 650 420 0 ) ( 520 520 0 ) color_139_90_43 0 0 0 1 1
+( 520 420 48 ) ( 520 520 48 ) ( 650 420 48 ) color_139_90_43 0 0 0 1 1
+( 520 420 0 ) ( 520 420 48 ) ( 650 420 0 ) color_100_65_30 0 0 0 1 1
+( 520 520 0 ) ( 650 520 0 ) ( 520 520 48 ) color_100_65_30 0 0 0 1 1
+( 520 520 0 ) ( 520 520 48 ) ( 520 420 0 ) color_120_78_36 0 0 0 1 1
+( 650 520 0 ) ( 650 420 0 ) ( 650 520 48 ) color_120_78_36 0 0 0 1 1
 }
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_decor_1"
-"origin" "-700 -550 0"
-"zoneType" "decoration"
-"size" "64"
-"color" "150 100 50"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_decor_2"
-"origin" "-600 -550 0"
-"zoneType" "decoration"
-"size" "64"
-"color" "150 100 50"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_decor_3"
-"origin" "600 -550 0"
-"zoneType" "decoration"
-"size" "64"
-"color" "150 100 50"
-}
-
-{
-"classname" "build_zone"
-"targetname" "industrial_decor_4"
-"origin" "700 -550 0"
-"zoneType" "decoration"
-"size" "64"
-"color" "150 100 50"
 }
