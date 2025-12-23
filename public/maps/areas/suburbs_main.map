@@ -1,9 +1,7 @@
 // Game: Quake
 // Format: Valve
 // Quiet Suburbs - Mid-tier Area (Level 3+)
-// Detailed ground with lawns, stone paths, flower beds
 
-// ==================== WORLDSPAWN ====================
 {
 "classname" "worldspawn"
 "message" "Quiet Suburbs"
@@ -11,8 +9,6 @@
 "camera_height" "900"
 "area_id" "suburbs_main"
 "area_tier" "suburbs"
-
-// === BASE GROUND - Healthy green grass ===
 {
 ( -500 -500 -20 ) ( 500 500 -20 ) ( -500 500 -20 ) color_70_110_50 0 0 0 1 1
 ( -500 -500 -32 ) ( -500 500 -32 ) ( 500 500 -32 ) color_50_90_30 0 0 0 1 1
@@ -21,8 +17,6 @@
 ( -500 500 -20 ) ( -500 500 -32 ) ( -500 -500 -20 ) color_60_100_40 0 0 0 1 1
 ( 500 500 -20 ) ( 500 -500 -20 ) ( 500 500 -32 ) color_60_100_40 0 0 0 1 1
 }
-
-// === MAIN ROAD - Clean asphalt running east-west ===
 {
 ( -500 -50 -16 ) ( 500 -50 -16 ) ( -500 50 -16 ) color_70_70_75 0 0 0 1 1
 ( -500 -50 -20 ) ( -500 50 -20 ) ( 500 -50 -20 ) color_55_55_60 0 0 0 1 1
@@ -31,8 +25,6 @@
 ( -500 50 -16 ) ( -500 50 -20 ) ( -500 -50 -16 ) color_62_62_67 0 0 0 1 1
 ( 500 50 -16 ) ( 500 -50 -16 ) ( 500 50 -20 ) color_62_62_67 0 0 0 1 1
 }
-
-// === ROAD CENTER LINE - White dashed ===
 {
 ( -400 -3 -15 ) ( -300 -3 -15 ) ( -400 3 -15 ) color_220_220_220 0 0 0 1 1
 ( -400 -3 -16 ) ( -400 3 -16 ) ( -300 -3 -16 ) color_200_200_200 0 0 0 1 1
@@ -65,8 +57,6 @@
 ( 200 3 -15 ) ( 200 3 -16 ) ( 200 -3 -15 ) color_210_210_210 0 0 0 1 1
 ( 300 3 -15 ) ( 300 -3 -15 ) ( 300 3 -16 ) color_210_210_210 0 0 0 1 1
 }
-
-// === NORTH SIDEWALK - Clean concrete ===
 {
 ( -500 50 -16 ) ( 500 50 -16 ) ( -500 100 -16 ) color_180_175_170 0 0 0 1 1
 ( -500 50 -20 ) ( -500 100 -20 ) ( 500 50 -20 ) color_150_145_140 0 0 0 1 1
@@ -75,8 +65,6 @@
 ( -500 100 -16 ) ( -500 100 -20 ) ( -500 50 -16 ) color_165_160_155 0 0 0 1 1
 ( 500 100 -16 ) ( 500 50 -16 ) ( 500 100 -20 ) color_165_160_155 0 0 0 1 1
 }
-
-// === SOUTH SIDEWALK - Clean concrete ===
 {
 ( -500 -100 -16 ) ( 500 -100 -16 ) ( -500 -50 -16 ) color_180_175_170 0 0 0 1 1
 ( -500 -100 -20 ) ( -500 -50 -20 ) ( 500 -100 -20 ) color_150_145_140 0 0 0 1 1
@@ -85,8 +73,6 @@
 ( -500 -50 -16 ) ( -500 -50 -20 ) ( -500 -100 -16 ) color_165_160_155 0 0 0 1 1
 ( 500 -50 -16 ) ( 500 -100 -16 ) ( 500 -50 -20 ) color_165_160_155 0 0 0 1 1
 }
-
-// === STONE PATH - Garden walkway to grow area ===
 {
 ( -50 -100 -15 ) ( 50 -100 -15 ) ( -50 -300 -15 ) color_150_140_130 0 0 0 1 1
 ( -50 -100 -16 ) ( -50 -300 -16 ) ( 50 -100 -16 ) color_130_120_110 0 0 0 1 1
@@ -95,8 +81,6 @@
 ( -50 -300 -15 ) ( -50 -300 -16 ) ( -50 -100 -15 ) color_140_130_120 0 0 0 1 1
 ( 50 -300 -15 ) ( 50 -100 -15 ) ( 50 -300 -16 ) color_140_130_120 0 0 0 1 1
 }
-
-// === FLOWER BED 1 - Red flowers (north) ===
 {
 ( -300 150 -15 ) ( -200 150 -15 ) ( -300 200 -15 ) color_180_60_60 0 0 0 1 1
 ( -300 150 -16 ) ( -300 200 -16 ) ( -200 150 -16 ) color_150_50_50 0 0 0 1 1
@@ -105,8 +89,6 @@
 ( -300 200 -15 ) ( -300 200 -16 ) ( -300 150 -15 ) color_165_55_55 0 0 0 1 1
 ( -200 200 -15 ) ( -200 150 -15 ) ( -200 200 -16 ) color_165_55_55 0 0 0 1 1
 }
-
-// === FLOWER BED 2 - Yellow flowers (north) ===
 {
 ( 200 150 -15 ) ( 300 150 -15 ) ( 200 200 -15 ) color_220_200_80 0 0 0 1 1
 ( 200 150 -16 ) ( 200 200 -16 ) ( 300 150 -16 ) color_190_170_60 0 0 0 1 1
@@ -115,8 +97,6 @@
 ( 200 200 -15 ) ( 200 200 -16 ) ( 200 150 -15 ) color_205_185_70 0 0 0 1 1
 ( 300 200 -15 ) ( 300 150 -15 ) ( 300 200 -16 ) color_205_185_70 0 0 0 1 1
 }
-
-// === PATIO AREA - Stone tiles for grow area ===
 {
 ( -250 -350 -15 ) ( 250 -350 -15 ) ( -250 -150 -15 ) color_160_155_150 0 0 0 1 1
 ( -250 -350 -16 ) ( -250 -150 -16 ) ( 250 -350 -16 ) color_140_135_130 0 0 0 1 1
@@ -125,8 +105,6 @@
 ( -250 -350 -15 ) ( -250 -350 -16 ) ( -250 -150 -15 ) color_150_145_140 0 0 0 1 1
 ( 250 -150 -15 ) ( 250 -350 -15 ) ( 250 -150 -16 ) color_150_145_140 0 0 0 1 1
 }
-
-// === DRIVEWAY - Concrete ===
 {
 ( 350 -100 -15 ) ( 450 -100 -15 ) ( 350 200 -15 ) color_170_165_160 0 0 0 1 1
 ( 350 -100 -16 ) ( 350 200 -16 ) ( 450 -100 -16 ) color_150_145_140 0 0 0 1 1
@@ -135,8 +113,6 @@
 ( 350 200 -15 ) ( 350 200 -16 ) ( 350 -100 -15 ) color_160_155_150 0 0 0 1 1
 ( 450 200 -15 ) ( 450 -100 -15 ) ( 450 200 -16 ) color_160_155_150 0 0 0 1 1
 }
-
-// === DARKER LAWN EDGE - Mulch border ===
 {
 ( -250 -150 -15 ) ( 250 -150 -15 ) ( -250 -140 -15 ) color_60_45_30 0 0 0 1 1
 ( -250 -150 -16 ) ( -250 -140 -16 ) ( 250 -150 -16 ) color_50_35_20 0 0 0 1 1
@@ -147,13 +123,11 @@
 }
 }
 
-// ==================== PLAYER START ====================
 {
 "classname" "info_player_start"
 "origin" "0 0 100"
 }
 
-// ==================== LIGHTING ====================
 {
 "classname" "light"
 "origin" "0 0 200"
@@ -184,7 +158,6 @@
 "bulbSize" "4"
 }
 
-// ==================== PORTAL: TO SLUMS (West side) ====================
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_slums"
@@ -200,7 +173,6 @@
 }
 }
 
-// ==================== PORTAL: TO DOWNTOWN (East side) ====================
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_downtown"
@@ -218,8 +190,6 @@
 }
 }
 
-// ==================== GROWING AREA (10 pots) ====================
-// Row 1
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_1"
@@ -228,6 +198,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_2"
@@ -236,6 +207,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_3"
@@ -244,6 +216,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_4"
@@ -252,6 +225,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_5"
@@ -260,7 +234,7 @@
 "size" "64"
 "color" "100 200 100"
 }
-// Row 2
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_6"
@@ -269,6 +243,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_7"
@@ -277,6 +252,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_8"
@@ -285,6 +261,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_9"
@@ -293,6 +270,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_pot_10"
@@ -302,8 +280,6 @@
 "color" "100 200 100"
 }
 
-// ==================== GROW LIGHTS ====================
-// Row 1
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_1"
@@ -312,6 +288,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_2"
@@ -320,6 +297,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_3"
@@ -328,6 +306,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_4"
@@ -336,6 +315,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_5"
@@ -344,7 +324,7 @@
 "size" "64"
 "color" "100 150 255"
 }
-// Row 2
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_6"
@@ -353,6 +333,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_7"
@@ -361,6 +342,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_8"
@@ -369,6 +351,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_9"
@@ -377,6 +360,7 @@
 "size" "64"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_light_10"
@@ -386,7 +370,6 @@
 "color" "100 150 255"
 }
 
-// ==================== EQUIPMENT ZONES ====================
 {
 "classname" "build_zone"
 "targetname" "suburbs_equip_1"
@@ -395,6 +378,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_equip_2"
@@ -404,7 +388,6 @@
 "color" "200 100 200"
 }
 
-// ==================== SHOP TRIGGERS ====================
 {
 "classname" "trigger_multiple"
 "targetname" "suburbs_seed_store"
@@ -450,7 +433,6 @@
 }
 }
 
-// ==================== NPC ====================
 {
 "classname" "info_npc"
 "targetname" "npc_sparky"
@@ -460,7 +442,6 @@
 "angle" "0"
 }
 
-// ==================== DECORATION ZONES ====================
 {
 "classname" "build_zone"
 "targetname" "suburbs_decor_1"
@@ -469,6 +450,7 @@
 "size" "48"
 "color" "255 150 50"
 }
+
 {
 "classname" "build_zone"
 "targetname" "suburbs_decor_2"

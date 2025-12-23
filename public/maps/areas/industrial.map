@@ -1,9 +1,7 @@
 // Game: Quake
 // Format: Valve
 // Industrial District - Endgame Area (Level 8+)
-// Detailed ground with warehouse concrete, safety markings, loading zones
 
-// ==================== WORLDSPAWN ====================
 {
 "classname" "worldspawn"
 "message" "Industrial District"
@@ -11,8 +9,6 @@
 "camera_height" "1200"
 "area_id" "industrial_district"
 "area_tier" "industrial"
-
-// === BASE GROUND - Worn warehouse concrete ===
 {
 ( -800 -800 -20 ) ( 800 800 -20 ) ( -800 800 -20 ) color_85_85_90 0 0 0 1 1
 ( -800 -800 -32 ) ( -800 800 -32 ) ( 800 800 -32 ) color_65_65_70 0 0 0 1 1
@@ -21,8 +17,6 @@
 ( -800 800 -20 ) ( -800 800 -32 ) ( -800 -800 -20 ) color_75_75_80 0 0 0 1 1
 ( 800 800 -20 ) ( 800 -800 -20 ) ( 800 800 -32 ) color_75_75_80 0 0 0 1 1
 }
-
-// === MAIN LOADING ROAD - Heavy duty asphalt ===
 {
 ( -800 -100 -16 ) ( 800 -100 -16 ) ( -800 100 -16 ) color_50_50_55 0 0 0 1 1
 ( -800 -100 -20 ) ( -800 100 -20 ) ( 800 -100 -20 ) color_40_40_45 0 0 0 1 1
@@ -31,8 +25,6 @@
 ( -800 100 -16 ) ( -800 100 -20 ) ( -800 -100 -16 ) color_45_45_50 0 0 0 1 1
 ( 800 100 -16 ) ( 800 -100 -16 ) ( 800 100 -20 ) color_45_45_50 0 0 0 1 1
 }
-
-// === SAFETY STRIPE - Yellow warning on road edge (north) ===
 {
 ( -800 95 -15 ) ( 800 95 -15 ) ( -800 100 -15 ) color_220_180_40 0 0 0 1 1
 ( -800 95 -16 ) ( -800 100 -16 ) ( 800 95 -16 ) color_200_160_30 0 0 0 1 1
@@ -41,8 +33,6 @@
 ( -800 100 -15 ) ( -800 100 -16 ) ( -800 95 -15 ) color_210_170_35 0 0 0 1 1
 ( 800 100 -15 ) ( 800 95 -15 ) ( 800 100 -16 ) color_210_170_35 0 0 0 1 1
 }
-
-// === SAFETY STRIPE - Yellow warning on road edge (south) ===
 {
 ( -800 -100 -15 ) ( 800 -100 -15 ) ( -800 -95 -15 ) color_220_180_40 0 0 0 1 1
 ( -800 -100 -16 ) ( -800 -95 -16 ) ( 800 -100 -16 ) color_200_160_30 0 0 0 1 1
@@ -51,46 +41,6 @@
 ( -800 -95 -15 ) ( -800 -95 -16 ) ( -800 -100 -15 ) color_210_170_35 0 0 0 1 1
 ( 800 -95 -15 ) ( 800 -100 -15 ) ( 800 -95 -16 ) color_210_170_35 0 0 0 1 1
 }
-
-// === LOADING BAY 1 - Marked zone ===
-{
-( -700 -90 -15 ) ( -500 -90 -15 ) ( -700 90 -15 ) color_60_60_65 0 0 0 1 1
-( -700 -90 -16 ) ( -700 90 -16 ) ( -500 -90 -16 ) color_50_50_55 0 0 0 1 1
-( -700 -90 -15 ) ( -700 -90 -16 ) ( -500 -90 -15 ) color_55_55_60 0 0 0 1 1
-( -700 90 -15 ) ( -500 90 -15 ) ( -700 90 -16 ) color_55_55_60 0 0 0 1 1
-( -700 90 -15 ) ( -700 90 -16 ) ( -700 -90 -15 ) color_55_55_60 0 0 0 1 1
-( -500 90 -15 ) ( -500 -90 -15 ) ( -500 90 -16 ) color_55_55_60 0 0 0 1 1
-}
-
-// === LOADING BAY 1 - White outline ===
-{
-( -700 -90 -14 ) ( -500 -90 -14 ) ( -700 -85 -14 ) color_200_200_200 0 0 0 1 1
-( -700 -90 -15 ) ( -700 -85 -15 ) ( -500 -90 -15 ) color_180_180_180 0 0 0 1 1
-( -700 -90 -14 ) ( -700 -90 -15 ) ( -500 -90 -14 ) color_190_190_190 0 0 0 1 1
-( -700 -85 -14 ) ( -500 -85 -14 ) ( -700 -85 -15 ) color_190_190_190 0 0 0 1 1
-( -700 -85 -14 ) ( -700 -85 -15 ) ( -700 -90 -14 ) color_190_190_190 0 0 0 1 1
-( -500 -85 -14 ) ( -500 -90 -14 ) ( -500 -85 -15 ) color_190_190_190 0 0 0 1 1
-}
-{
-( -700 85 -14 ) ( -500 85 -14 ) ( -700 90 -14 ) color_200_200_200 0 0 0 1 1
-( -700 85 -15 ) ( -700 90 -15 ) ( -500 85 -15 ) color_180_180_180 0 0 0 1 1
-( -700 85 -14 ) ( -700 85 -15 ) ( -500 85 -14 ) color_190_190_190 0 0 0 1 1
-( -700 90 -14 ) ( -500 90 -14 ) ( -700 90 -15 ) color_190_190_190 0 0 0 1 1
-( -700 90 -14 ) ( -700 90 -15 ) ( -700 85 -14 ) color_190_190_190 0 0 0 1 1
-( -500 90 -14 ) ( -500 85 -14 ) ( -500 90 -15 ) color_190_190_190 0 0 0 1 1
-}
-
-// === LOADING BAY 2 - Marked zone ===
-{
-( 500 -90 -15 ) ( 700 -90 -15 ) ( 500 90 -15 ) color_60_60_65 0 0 0 1 1
-( 500 -90 -16 ) ( 500 90 -16 ) ( 700 -90 -16 ) color_50_50_55 0 0 0 1 1
-( 500 -90 -15 ) ( 500 -90 -16 ) ( 700 -90 -15 ) color_55_55_60 0 0 0 1 1
-( 500 90 -15 ) ( 700 90 -15 ) ( 500 90 -16 ) color_55_55_60 0 0 0 1 1
-( 500 90 -15 ) ( 500 90 -16 ) ( 500 -90 -15 ) color_55_55_60 0 0 0 1 1
-( 700 90 -15 ) ( 700 -90 -15 ) ( 700 90 -16 ) color_55_55_60 0 0 0 1 1
-}
-
-// === MAIN GROW FLOOR - Polished industrial ===
 {
 ( -600 -600 -15 ) ( 600 -600 -15 ) ( -600 -150 -15 ) color_95_95_100 0 0 0 1 1
 ( -600 -600 -16 ) ( -600 -150 -16 ) ( 600 -600 -16 ) color_75_75_80 0 0 0 1 1
@@ -99,8 +49,6 @@
 ( -600 -600 -15 ) ( -600 -600 -16 ) ( -600 -150 -15 ) color_85_85_90 0 0 0 1 1
 ( 600 -150 -15 ) ( 600 -600 -15 ) ( 600 -150 -16 ) color_85_85_90 0 0 0 1 1
 }
-
-// === GROW FLOOR GRID LINES - Aisle markers ===
 {
 ( -5 -600 -14 ) ( 5 -600 -14 ) ( -5 -150 -14 ) color_120_120_125 0 0 0 1 1
 ( -5 -600 -15 ) ( -5 -150 -15 ) ( 5 -600 -15 ) color_100_100_105 0 0 0 1 1
@@ -109,8 +57,6 @@
 ( -5 -150 -14 ) ( -5 -150 -15 ) ( -5 -600 -14 ) color_110_110_115 0 0 0 1 1
 ( 5 -150 -14 ) ( 5 -600 -14 ) ( 5 -150 -15 ) color_110_110_115 0 0 0 1 1
 }
-
-// === EQUIPMENT AREA - Heavy duty floor ===
 {
 ( -750 200 -15 ) ( -450 200 -15 ) ( -750 700 -15 ) color_80_80_85 0 0 0 1 1
 ( -750 200 -16 ) ( -750 700 -16 ) ( -450 200 -16 ) color_60_60_65 0 0 0 1 1
@@ -119,8 +65,6 @@
 ( -750 700 -15 ) ( -750 700 -16 ) ( -750 200 -15 ) color_70_70_75 0 0 0 1 1
 ( -450 700 -15 ) ( -450 200 -15 ) ( -450 700 -16 ) color_70_70_75 0 0 0 1 1
 }
-
-// === EQUIPMENT AREA - Safety border ===
 {
 ( -750 200 -14 ) ( -450 200 -14 ) ( -750 210 -14 ) color_220_180_40 0 0 0 1 1
 ( -750 200 -15 ) ( -750 210 -15 ) ( -450 200 -15 ) color_200_160_30 0 0 0 1 1
@@ -129,8 +73,6 @@
 ( -750 210 -14 ) ( -750 210 -15 ) ( -750 200 -14 ) color_210_170_35 0 0 0 1 1
 ( -450 210 -14 ) ( -450 200 -14 ) ( -450 210 -15 ) color_210_170_35 0 0 0 1 1
 }
-
-// === SHOP/OFFICE AREA - Cleaner floor ===
 {
 ( 450 200 -15 ) ( 750 200 -15 ) ( 450 700 -15 ) color_110_105_100 0 0 0 1 1
 ( 450 200 -16 ) ( 450 700 -16 ) ( 750 200 -16 ) color_90_85_80 0 0 0 1 1
@@ -139,28 +81,6 @@
 ( 450 700 -15 ) ( 450 700 -16 ) ( 450 200 -15 ) color_100_95_90 0 0 0 1 1
 ( 750 700 -15 ) ( 750 200 -15 ) ( 750 700 -16 ) color_100_95_90 0 0 0 1 1
 }
-
-// === OIL STAIN 1 ===
-{
-( -300 -50 -15 ) ( -200 -50 -15 ) ( -300 30 -15 ) color_40_38_35 0 0 0 1 1
-( -300 -50 -16 ) ( -300 30 -16 ) ( -200 -50 -16 ) color_35_33_30 0 0 0 1 1
-( -300 -50 -15 ) ( -300 -50 -16 ) ( -200 -50 -15 ) color_38_36_33 0 0 0 1 1
-( -300 30 -15 ) ( -200 30 -15 ) ( -300 30 -16 ) color_38_36_33 0 0 0 1 1
-( -300 30 -15 ) ( -300 30 -16 ) ( -300 -50 -15 ) color_38_36_33 0 0 0 1 1
-( -200 30 -15 ) ( -200 -50 -15 ) ( -200 30 -16 ) color_38_36_33 0 0 0 1 1
-}
-
-// === OIL STAIN 2 ===
-{
-( 150 -30 -15 ) ( 250 -30 -15 ) ( 150 50 -15 ) color_42_40_37 0 0 0 1 1
-( 150 -30 -16 ) ( 150 50 -16 ) ( 250 -30 -16 ) color_37_35_32 0 0 0 1 1
-( 150 -30 -15 ) ( 150 -30 -16 ) ( 250 -30 -15 ) color_40_38_35 0 0 0 1 1
-( 150 50 -15 ) ( 250 50 -15 ) ( 150 50 -16 ) color_40_38_35 0 0 0 1 1
-( 150 50 -15 ) ( 150 50 -16 ) ( 150 -30 -15 ) color_40_38_35 0 0 0 1 1
-( 250 50 -15 ) ( 250 -30 -15 ) ( 250 50 -16 ) color_40_38_35 0 0 0 1 1
-}
-
-// === HAZARD ZONE - Red striped area ===
 {
 ( -100 150 -15 ) ( 100 150 -15 ) ( -100 200 -15 ) color_180_60_60 0 0 0 1 1
 ( -100 150 -16 ) ( -100 200 -16 ) ( 100 150 -16 ) color_150_50_50 0 0 0 1 1
@@ -171,13 +91,11 @@
 }
 }
 
-// ==================== PLAYER START ====================
 {
 "classname" "info_player_start"
 "origin" "0 -400 100"
 }
 
-// ==================== LIGHTING ====================
 {
 "classname" "light"
 "origin" "0 0 300"
@@ -230,7 +148,6 @@
 "bulbSize" "6"
 }
 
-// ==================== PORTAL: TO DOWNTOWN (South side) ====================
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_downtown"
@@ -246,8 +163,6 @@
 }
 }
 
-// ==================== MASSIVE GROWING AREA (40 pots) ====================
-// Row 1
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_1"
@@ -256,6 +171,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_2"
@@ -264,6 +180,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_3"
@@ -272,6 +189,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_4"
@@ -280,6 +198,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_5"
@@ -288,6 +207,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_6"
@@ -296,6 +216,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_7"
@@ -304,6 +225,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_8"
@@ -312,6 +234,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_9"
@@ -320,6 +243,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_10"
@@ -328,7 +252,7 @@
 "size" "64"
 "color" "100 200 100"
 }
-// Row 2
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_11"
@@ -337,6 +261,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_12"
@@ -345,6 +270,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_13"
@@ -353,6 +279,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_14"
@@ -361,6 +288,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_15"
@@ -369,6 +297,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_16"
@@ -377,6 +306,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_17"
@@ -385,6 +315,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_18"
@@ -393,6 +324,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_19"
@@ -401,6 +333,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_20"
@@ -409,7 +342,7 @@
 "size" "64"
 "color" "100 200 100"
 }
-// Row 3
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_21"
@@ -418,6 +351,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_22"
@@ -426,6 +360,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_23"
@@ -434,6 +369,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_24"
@@ -442,6 +378,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_25"
@@ -450,6 +387,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_26"
@@ -458,6 +396,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_27"
@@ -466,6 +405,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_28"
@@ -474,6 +414,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_29"
@@ -482,6 +423,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_30"
@@ -490,7 +432,7 @@
 "size" "64"
 "color" "100 200 100"
 }
-// Row 4
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_31"
@@ -499,6 +441,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_32"
@@ -507,6 +450,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_33"
@@ -515,6 +459,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_34"
@@ -523,6 +468,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_35"
@@ -531,6 +477,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_36"
@@ -539,6 +486,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_37"
@@ -547,6 +495,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_38"
@@ -555,6 +504,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_39"
@@ -563,6 +513,7 @@
 "size" "64"
 "color" "100 200 100"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_pot_40"
@@ -572,7 +523,6 @@
 "color" "100 200 100"
 }
 
-// ==================== GROW LIGHTS (10 large lights for 40 pots) ====================
 {
 "classname" "build_zone"
 "targetname" "industrial_light_1"
@@ -581,6 +531,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_2"
@@ -589,6 +540,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_3"
@@ -597,6 +549,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_4"
@@ -605,6 +558,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_5"
@@ -613,6 +567,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_6"
@@ -621,6 +576,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_7"
@@ -629,6 +585,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_8"
@@ -637,6 +594,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_9"
@@ -645,6 +603,7 @@
 "size" "100"
 "color" "100 150 255"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_light_10"
@@ -654,7 +613,6 @@
 "color" "100 150 255"
 }
 
-// ==================== EQUIPMENT ZONES ====================
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_1"
@@ -663,6 +621,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_2"
@@ -671,6 +630,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_3"
@@ -679,6 +639,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_4"
@@ -687,6 +648,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_5"
@@ -695,6 +657,7 @@
 "size" "80"
 "color" "200 100 200"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_equip_6"
@@ -704,7 +667,6 @@
 "color" "200 100 200"
 }
 
-// ==================== SHOP TRIGGERS ====================
 {
 "classname" "trigger_multiple"
 "targetname" "industrial_seed_store"
@@ -750,7 +712,6 @@
 }
 }
 
-// ==================== DECORATION ZONES ====================
 {
 "classname" "build_zone"
 "targetname" "industrial_decor_1"
@@ -759,6 +720,7 @@
 "size" "64"
 "color" "150 100 50"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_decor_2"
@@ -767,6 +729,7 @@
 "size" "64"
 "color" "150 100 50"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_decor_3"
@@ -775,6 +738,7 @@
 "size" "64"
 "color" "150 100 50"
 }
+
 {
 "classname" "build_zone"
 "targetname" "industrial_decor_4"
