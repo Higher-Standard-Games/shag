@@ -45,18 +45,24 @@ export class MapParser {
     let inBrushDef = false;
     let patchLines: string[] = [];
     let brushDefLines: string[] = [];
+    let entityBraceDepth = 0; // Track brace depth within entity
 
     const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
       if (!line || line.startsWith("//")) continue;
+      
+      // Skip NetRadiant layer definitions
+      if (line.startsWith("//@$&")) continue;
 
       // Remove comments at end of line
       const commentIdx = line.indexOf("//");
       if (commentIdx !== -1) {
         line = line.substring(0, commentIdx).trim();
       }
+      
+      if (!line) continue;
 
       // Check for brushDef start (NetRadiant format)
       if (line === "brushDef") {
@@ -125,9 +131,29 @@ export class MapParser {
       if (line === "{") {
         if (!currentEntity) {
           currentEntity = { classname: "", properties: {}, brushes: [], patches: [] };
-        } else if (!currentBrush) {
-          // Nested brace means a brush
-          currentBrush = { planes: [] };
+          entityBraceDepth = 1;
+        } else {
+          entityBraceDepth++;
+          // Only create a brush if we're at depth 2 AND next line is not brushDef/patchDef2
+          if (entityBraceDepth === 2 && !currentBrush) {
+            // Peek ahead to see if this is a wrapper for brushDef/patchDef2
+            let nextIdx = i + 1;
+            let isBrushDefWrapper = false;
+            while (nextIdx < lines.length) {
+              const nextLine = lines[nextIdx].trim();
+              if (!nextLine || nextLine.startsWith("//")) {
+                nextIdx++;
+                continue;
+              }
+              if (nextLine === "brushDef" || nextLine === "patchDef2") {
+                isBrushDefWrapper = true;
+              }
+              break;
+            }
+            if (!isBrushDefWrapper) {
+              currentBrush = { planes: [] };
+            }
+          }
         }
       } else if (line === "}") {
         if (currentBrush) {
@@ -135,9 +161,14 @@ export class MapParser {
             currentEntity.brushes.push(currentBrush);
           }
           currentBrush = null;
-        } else if (currentEntity) {
-          entities.push(currentEntity);
-          currentEntity = null;
+        }
+        
+        if (currentEntity) {
+          entityBraceDepth--;
+          if (entityBraceDepth === 0) {
+            entities.push(currentEntity);
+            currentEntity = null;
+          }
         }
       } else {
         // Property or Plane
