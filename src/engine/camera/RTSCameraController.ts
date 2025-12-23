@@ -229,6 +229,25 @@ export class RTSCameraController {
                   UIManager.getInstance().openDialog(mesh.metadata.properties.windowTarget, mesh.metadata.properties);
                 }
 
+                // Check for targetMap - map transition
+                if (mesh.metadata.properties?.targetMap) {
+                  const props = mesh.metadata.properties;
+                  
+                  // Check level requirement
+                  if (props.requiredLevel) {
+                    const playerLevel = GameState.getInstance().getPlayer().level;
+                    const requiredLevel = parseInt(props.requiredLevel, 10);
+                    if (playerLevel < requiredLevel) {
+                      const message = props.message || `Requires level ${requiredLevel}`;
+                      GameHUD.getInstance().showNotification(message, "warning");
+                      return;
+                    }
+                  }
+                  
+                  console.log(`Switching to map: ${props.targetMap}`);
+                  GameScene.getInstance().loadMap(props.targetMap);
+                }
+
                 // Check for spawnModel - dynamically spawn a prefab
                 if (mesh.metadata.properties?.spawnModel) {
                   const props = mesh.metadata.properties;
