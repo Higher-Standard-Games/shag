@@ -388,12 +388,17 @@ export class CuringSystem {
     // Remove curing slot
     this.curingSlots.delete(slotId);
 
-    console.log(`Collected ${slot.amount}g cured ${slot.strainId} (value: $${totalValue})`);
+    // Award XP for curing (1 XP per 10g cured + quality bonus)
+    const curingXp = Math.max(1, Math.floor(slot.amount / 10) + Math.floor(slot.quality / 25));
+    state.addXP(curingXp, "curing");
+
+    console.log(`Collected ${slot.amount}g cured ${slot.strainId} (value: $${totalValue}, +${curingXp} XP)`);
     this.emit("curing_complete", { 
       slot, 
       amount: slot.amount, 
       itemId: slot.curedItemId,
       value: totalValue,
+      xp: curingXp,
     });
 
     return { 

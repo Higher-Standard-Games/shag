@@ -191,21 +191,22 @@ export class HarvestCelebration {
       strain: string;
       yield: number;
       quality: number;
-      xpGained: number;
-      breakdown?: {
+      xp: number;
+      bonuses?: {
         base: number;
-        waterBonus: number;
-        tempBonus: number;
-        lightBonus: number;
-        masteryBonus: number;
+        water: number;
+        temp: number;
+        light: number;
+        mastery: number;
       };
+      isPerfectGrow?: boolean;
     }) => {
       const plantSystem = PlantSystem.getInstance();
       const strain = plantSystem.getStrain(data.strain);
       const mastery = plantSystem.getMastery(data.strain);
 
-      // Calculate if perfect (all bonuses maxed)
-      const isPerfect = data.quality >= 95;
+      // Calculate if perfect (all bonuses maxed or isPerfectGrow flag)
+      const isPerfect = data.isPerfectGrow || data.quality >= 95;
 
       const result: HarvestResult = {
         plantId: data.plantId,
@@ -214,14 +215,14 @@ export class HarvestCelebration {
         totalYield: data.yield,
         quality: data.quality,
         breakdown: {
-          base: data.breakdown?.base || data.yield,
-          waterBonus: data.breakdown?.waterBonus || 0,
-          tempBonus: data.breakdown?.tempBonus || 0,
-          lightBonus: data.breakdown?.lightBonus || 0,
-          masteryBonus: data.breakdown?.masteryBonus || 0,
+          base: data.bonuses?.base || data.yield,
+          waterBonus: data.bonuses?.water || 0,
+          tempBonus: data.bonuses?.temp || 0,
+          lightBonus: data.bonuses?.light || 0,
+          masteryBonus: data.bonuses?.mastery || 0,
           growLightBonus: 0, // TODO: Track this separately
         },
-        xpGained: data.xpGained,
+        xpGained: data.xp,
         isPerfect,
         masteryLevel: mastery?.level || 0,
       };

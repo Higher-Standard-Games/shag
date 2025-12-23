@@ -347,8 +347,12 @@ export class PlantSystem {
       fertilized: false,
     });
 
-    console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z}) in ${potType} pot at ${initialTemp}°F`);
-    this.emit("planted", plant.id, { strain: strainId, potType, temperature: initialTemp });
+    // Award small XP for planting (2 base + unlock level bonus)
+    const plantingXp = 2 + Math.floor(strain.unlockLevel / 2);
+    this.gameState.addXP(plantingXp, "planting");
+    
+    console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z}) in ${potType} pot at ${initialTemp}°F (+${plantingXp} XP)`);
+    this.emit("planted", plant.id, { strain: strainId, potType, temperature: initialTemp, xp: plantingXp });
 
     // Mark the pot as having a plant (for visual update)
     const buildableManager = BuildableObjectManager.getInstance();
@@ -393,8 +397,11 @@ export class PlantSystem {
       lastWatered: this.gameTimer.getGameTime(),
     });
 
-    console.log(`Watered plant ${plantId} for $${waterCost}`);
-    this.emit("watered", plantId, { cost: waterCost });
+    // Award tiny XP for watering (1 XP)
+    this.gameState.addXP(1, "watering");
+    
+    console.log(`Watered plant ${plantId} for $${waterCost} (+1 XP)`);
+    this.emit("watered", plantId, { cost: waterCost, xp: 1 });
 
     return true;
   }
@@ -440,8 +447,12 @@ export class PlantSystem {
       lastWatered: currentTime,
     });
 
-    console.log(`Water prompt hit! Streak: ${newStreak}, cost: $${waterCost}`);
-    this.emit("water_prompt_hit", plantId, { streak: newStreak, cost: waterCost });
+    // Award XP for water prompt (1 base + streak bonus)
+    const waterXp = 1 + Math.min(newStreak, 5); // Max +5 from streak
+    this.gameState.addXP(waterXp, "watering");
+    
+    console.log(`Water prompt hit! Streak: ${newStreak}, cost: $${waterCost} (+${waterXp} XP)`);
+    this.emit("water_prompt_hit", plantId, { streak: newStreak, cost: waterCost, xp: waterXp });
 
     return true;
   }
@@ -954,9 +965,6 @@ export class PlantSystem {
     const mastery = this.getMastery(plant.strain);
     const masteryBonus = mastery.bonusYield;
     
-    // Quality multiplier (from harvest timing - ready/overripe/spoiled)
-    const qualityMultiplier = phaseInfo.quality / 100;
-    
     // Health multiplier (from plant care)
     const healthMultiplier = plant.health / 100;
     
@@ -997,10 +1005,21 @@ export class PlantSystem {
     const equipmentYieldMultiplier = 1 + equipmentYieldBonus;
     const yield_ = Math.max(1, Math.floor(rawYield * adjustedQualityMultiplier * healthMultiplier * growLightYieldMultiplier * potYieldMultiplier * envYieldMultiplier * equipmentYieldMultiplier * fertilizationMultiplier));
     
-    // XP calculation
-    const xp = Math.max(1, Math.floor(strain.xpReward * qualityMultiplier * healthMultiplier));
-    const bonusXp = phaseInfo.phase === "ready" ? Math.floor(strain.xpReward * 0.25) : 0;
-    const totalXp = xp + bonusXp;
+    // XP calculation - based on strain reward, quality, health, and yield
+    // Base XP from strain
+    const baseXp = strain.xpReward || 10;
+    // Quality bonus (0.5x to 1.5x based on quality 0-100%)
+    const qualityXpMultiplier = 0.5 + (phaseInfo.quality / 100);
+    // Health bonus (0.5x to 1.0x)
+    const healthXpMultiplier = 0.5 + (healthMultiplier * 0.5);
+    // Yield bonus (1 XP per 10g harvested)
+    const yieldXpBonus = Math.floor(yield_ / 10);
+    // Perfect timing bonus
+    const timingXpBonus = phaseInfo.phase === "ready" ? Math.floor(baseXp * 0.25) : 0;
+    // Perfect grow bonus (all conditions optimal)
+    const perfectGrowBonus = (perfectWater && tempOptimal && phaseInfo.phase === "ready") ? Math.floor(baseXp * 0.5) : 0;
+    
+    const totalXp = Math.max(1, Math.floor(baseXp * qualityXpMultiplier * healthXpMultiplier) + yieldXpBonus + timingXpBonus + perfectGrowBonus);
 
     // Check for perfect grow (perfect water + perfect temp + ready phase)
     const isPerfectGrow = perfectWater && tempOptimal && phaseInfo.phase === "ready";
@@ -1079,7 +1098,6 @@ export class PlantSystem {
       strain: strain.id,
       phase: phaseInfo.phase,
       quality: phaseInfo.quality,
-      bonusXp,
       bonuses,
       isPerfectGrow,
     });
