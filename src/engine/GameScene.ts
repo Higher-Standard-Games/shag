@@ -176,8 +176,8 @@ export class GameScene {
     this.scene.collisionsEnabled = true;
 
     // BabylonJS 8 Performance Optimizations
-    // Skip clearing color buffer since we always have a skybox/background
-    this.scene.autoClear = false;
+    // Keep autoClear enabled so clearColor (sky) is visible for day/night cycle
+    this.scene.autoClear = true;
     // Skip pointer move picking for better performance (we use click picking)
     this.scene.skipPointerMovePicking = true;
     // Block dirty mechanism during batch operations (materials handle this themselves)

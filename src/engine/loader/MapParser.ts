@@ -42,7 +42,7 @@ export class MapParser {
    * 
    * Handles:
    * - Valve format: ( p1 ) ( p2 ) ( p3 ) texture u v rot scaleU scaleV
-   * - NetRadiant brushDef: brushDef { ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags }
+   * - NetRadiant brushDef: { brushDef { ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags } }
    * 
    * Output: Normalized Valve format that the main parser can handle.
    */
@@ -52,7 +52,7 @@ export class MapParser {
     let inBrushDef = false;
     let inPatchDef = false;
     let patchBraceDepth = 0;
-    let pendingWrapperClose = false; // Track if we need to skip a wrapper close brace
+    let wrapperBraceCount = 0; // Count wrapper braces to skip
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
@@ -96,9 +96,9 @@ export class MapParser {
         inBrushDef = true;
         // Check if previous output line was just "{" - that's the wrapper
         if (output.length > 0 && output[output.length - 1] === "{") {
-          // Remove the wrapper opening brace, we'll add our own
+          // Remove the wrapper opening brace
           output.pop();
-          pendingWrapperClose = true;
+          wrapperBraceCount++;
         }
         continue;
       }
@@ -118,7 +118,7 @@ export class MapParser {
         }
         
         // Convert brushDef plane format to simple format:
-        // FROM: ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags
+        // FROM: ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture contentFlags surfaceFlags value
         // TO:   ( p1 ) ( p2 ) ( p3 ) texture 0 0 0 1 1
         const brushDefMatch = line.match(
           /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\([^)]+\)\s*\([^)]+\)\s*\)\s+(\S+)/
@@ -126,13 +126,15 @@ export class MapParser {
         if (brushDefMatch) {
           const [, x1, y1, z1, x2, y2, z2, x3, y3, z3, texture] = brushDefMatch;
           output.push(`( ${x1} ${y1} ${z1} ) ( ${x2} ${y2} ${z2} ) ( ${x3} ${y3} ${z3} ) ${texture} 0 0 0 1 1`);
+        } else {
+          console.warn("[MapParser] Failed to parse brushDef plane:", line);
         }
         continue;
       }
 
-      // Skip wrapper close brace after brushDef
-      if (pendingWrapperClose && line === "}") {
-        pendingWrapperClose = false;
+      // Skip wrapper close braces
+      if (wrapperBraceCount > 0 && line === "}") {
+        wrapperBraceCount--;
         continue;
       }
 

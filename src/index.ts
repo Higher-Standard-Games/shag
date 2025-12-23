@@ -98,7 +98,9 @@ const createScene = async () => {
       // Clear texture cache for new map
       textureManager.clearCache();
 
-      const response = await fetch(`/maps/${mapName}`);
+      // Handle both "mapname.map" and "maps/subdir/mapname.map" formats
+      const mapPath = mapName.startsWith("maps/") ? `/${mapName}` : `/maps/${mapName}`;
+      const response = await fetch(mapPath);
       const mapText = await response.text();
       const entities = MapParser.parse(mapText);
 

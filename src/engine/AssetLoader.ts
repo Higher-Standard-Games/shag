@@ -13,6 +13,7 @@ export interface GameConfig {
     prefabs: string[];
     music: {
       menu: string;
+      ingame?: string;
       maps: Record<string, string>;
     };
     textures: string[];
@@ -119,6 +120,21 @@ export class AssetLoader {
       loaded++;
     }
 
+    // Load ingame music if specified
+    if (this.config.assets.music.ingame) {
+      onProgress?.({
+        current: loaded,
+        total: totalAssets,
+        currentAsset: this.config.assets.music.ingame,
+        phase: "audio",
+      });
+
+      // Extract filename without extension as key
+      const ingameKey = this.config.assets.music.ingame.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
+      await this.loadAudio(ingameKey, this.config.assets.music.ingame);
+      loaded++;
+    }
+
     for (const [mapName, musicPath] of Object.entries(this.config.assets.music.maps)) {
       onProgress?.({
         current: loaded,
@@ -151,7 +167,9 @@ export class AssetLoader {
 
   private async loadMap(mapName: string): Promise<void> {
     try {
-      const response = await fetch(`/maps/${mapName}`);
+      // Handle both "mapname.map" and "maps/subdir/mapname.map" formats
+      const mapPath = mapName.startsWith("maps/") ? `/${mapName}` : `/maps/${mapName}`;
+      const response = await fetch(mapPath);
       const raw = await response.text();
       const entities = MapParser.parse(raw);
 

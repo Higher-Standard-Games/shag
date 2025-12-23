@@ -20,6 +20,7 @@
     "prefabs": [],
     "music": {
       "menu": "music/GreenKingdom.ogg",
+      "ingame": "music/GreenKingdomNightRemix.ogg",
       "maps": {
         "test.map": "music/ambient.ogg",
         "map2.map": "music/ambient.ogg"
