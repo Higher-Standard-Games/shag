@@ -277,6 +277,8 @@ export class AudioManager {
   /**
    * Play the current track in the playlist
    */
+  private failedTrackAttempts = 0;
+
   private playCurrentTrack(fadeIn = true): void {
     if (!this.currentPlaylist || !this.isPlayingPlaylist) return;
 
@@ -294,9 +296,20 @@ export class AudioManager {
     
     if (!audio) {
       console.warn(`[AudioManager] Track audio not found: ${audioKey}, trying next track`);
+      this.failedTrackAttempts++;
+      // Prevent infinite loop - if we've tried all tracks and none work, stop
+      if (this.failedTrackAttempts >= this.currentPlaylist.tracks.length) {
+        console.error(`[AudioManager] All tracks failed to load, stopping playlist`);
+        this.isPlayingPlaylist = false;
+        this.failedTrackAttempts = 0;
+        return;
+      }
       this.nextTrack();
       return;
     }
+    
+    // Reset failed attempts on successful load
+    this.failedTrackAttempts = 0;
 
     // Stop current music
     if (this.currentMusic) {
