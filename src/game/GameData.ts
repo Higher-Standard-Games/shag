@@ -533,7 +533,7 @@ export const CUSTOMERS: CustomerTemplate[] = [
     tipMultiplier: 1.0,
     // Tier 1 strains (unlockLevel 1)
     requestableItems: ["harvest_genetics_afghan_kush", "harvest_genetics_durban_poison", "harvest_genetics_thai"],
-    quantityRange: [10, 30], // grams
+    quantityRange: [10, 30], // grams (capped at 50g by daily limit)
     dialogues: [
       "Hey, got any good stuff?",
       "I heard you have quality products.",
@@ -552,7 +552,7 @@ export const CUSTOMERS: CustomerTemplate[] = [
       "harvest_genetics_afghan_kush", "harvest_genetics_durban_poison", "harvest_genetics_thai",
       "harvest_genetics_og_kush", "harvest_genetics_skunk_1",
     ],
-    quantityRange: [20, 50],
+    quantityRange: [15, 40],
     dialogues: [
       "The usual, please!",
       "You know what I like.",
@@ -570,7 +570,7 @@ export const CUSTOMERS: CustomerTemplate[] = [
       "harvest_genetics_og_kush", "harvest_genetics_skunk_1",
       "harvest_genetics_girl_scout_cookies", "harvest_genetics_gelato",
     ],
-    quantityRange: [30, 80],
+    quantityRange: [20, 50],
     dialogues: [
       "Only the finest quality, please.",
       "I appreciate the good stuff.",
@@ -588,7 +588,7 @@ export const CUSTOMERS: CustomerTemplate[] = [
       "harvest_genetics_lemon_cherry_gelato", "harvest_genetics_blue_lobster",
       "harvest_genetics_master_kush",
     ],
-    quantityRange: [50, 100],
+    quantityRange: [25, 50],
     dialogues: [
       "I only collect the rarest strains.",
       "Money is no object for quality.",

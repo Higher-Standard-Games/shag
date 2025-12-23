@@ -59,7 +59,8 @@ interface SubsystemSaveData {
   // Order system
   orderSystem?: {
     orders: unknown[];
-    lastOrderTime: number;
+    dailySoldGrams?: number;
+    lastResetDay?: number;
   };
   
   // Quest system
@@ -402,9 +403,7 @@ export class SaveManager {
     
     // Order System
     const orderSystem = OrderSystem.getInstance();
-    gameState.setCustomData("orderSystem", {
-      orders: orderSystem.getState(),
-    });
+    gameState.setCustomData("orderSystem", orderSystem.getState());
     
     // Quest System
     const questState = QuestSystem.getInstance().getState();
@@ -452,8 +451,8 @@ export class SaveManager {
     
     // Order System
     const orderData = gameState.getCustomData<SubsystemSaveData["orderSystem"]>("orderSystem");
-    if (orderData?.orders) {
-      OrderSystem.getInstance().loadState(orderData.orders as any);
+    if (orderData) {
+      OrderSystem.getInstance().loadState(orderData as any);
     }
     
     // Quest System

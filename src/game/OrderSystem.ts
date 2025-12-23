@@ -83,6 +83,11 @@ const DEFAULT_CONFIG: OrderConfig = {
   xpPerItem: 5,
 };
 
+// Daily sale limit constants
+const DAILY_LIMIT_BASE = 50; // grams at level 1
+const DAILY_LIMIT_MAX = 200; // grams at level 10+
+const DAILY_LIMIT_LEVEL_CAP = 10; // level at which max is reached
+
 type OrderEventCallback = (event: string, data: unknown) => void;
 
 export class OrderSystem {
@@ -95,6 +100,10 @@ export class OrderSystem {
   private updateTaskId = "order_system_update";
   private generateTaskId = "order_system_generate";
   private lastOrderTime: number = 0;
+  
+  // Daily sale tracking
+  private dailySoldGrams: number = 0;
+  private lastResetDay: number = 0;
 
   private constructor() {}
 
@@ -162,10 +171,71 @@ export class OrderSystem {
     this.customers.clear();
   }
 
+  // ==================== Daily Limit ====================
+
+  /**
+   * Get the daily sale limit based on player level
+   * Scales from 50g at level 1 to 200g at level 10+
+   */
+  public getDailyLimit(): number {
+    const level = GameState.getInstance().getPlayer().level;
+    const clampedLevel = Math.min(level, DAILY_LIMIT_LEVEL_CAP);
+    const progress = (clampedLevel - 1) / (DAILY_LIMIT_LEVEL_CAP - 1);
+    return Math.floor(DAILY_LIMIT_BASE + progress * (DAILY_LIMIT_MAX - DAILY_LIMIT_BASE));
+  }
+
+  /**
+   * Get remaining daily sale capacity in grams
+   */
+  public getRemainingDailyLimit(): number {
+    this.checkDayReset();
+    return Math.max(0, this.getDailyLimit() - this.dailySoldGrams);
+  }
+
+  /**
+   * Get amount sold today in grams
+   */
+  public getDailySold(): number {
+    this.checkDayReset();
+    return this.dailySoldGrams;
+  }
+
+  /**
+   * Check if we need to reset daily counter (new day)
+   */
+  private checkDayReset(): void {
+    const currentDay = GameTimer.getInstance().getDay();
+    if (currentDay !== this.lastResetDay) {
+      this.dailySoldGrams = 0;
+      this.lastResetDay = currentDay;
+      this.emit("daily_limit_reset", { day: currentDay, limit: this.getDailyLimit() });
+    }
+  }
+
+  /**
+   * Record a sale amount against daily limit
+   */
+  private recordSale(grams: number): void {
+    this.checkDayReset();
+    this.dailySoldGrams += grams;
+    this.emit("daily_sold_updated", { 
+      sold: this.dailySoldGrams, 
+      limit: this.getDailyLimit(),
+      remaining: this.getRemainingDailyLimit(),
+    });
+  }
+
   // ==================== Order Generation ====================
 
   private tryGenerateOrder(): void {
-    const now = GameTimer.getInstance().getGameTime();
+    const timer = GameTimer.getInstance();
+    const now = timer.getGameTime();
+    
+    // Orders only appear during daytime (6 AM - 8 PM)
+    if (!timer.isDaytime()) return;
+    
+    // Check daily limit - don't generate if we've hit the limit
+    if (this.getRemainingDailyLimit() <= 0) return;
     
     // Check if we can generate
     if (this.orders.size >= this.config.maxOrders) return;
@@ -183,7 +253,7 @@ export class OrderSystem {
     // Pick random customer
     const customer = customers[Math.floor(Math.random() * customers.length)];
     
-    // Generate order
+    // Generate order (respecting daily limit)
     const order = this.generateOrder(customer);
     if (order) {
       this.orders.set(order.id, order);
@@ -199,16 +269,23 @@ export class OrderSystem {
     const now = GameTimer.getInstance().getGameTime();
     const id = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Check remaining daily limit
+    const remainingLimit = this.getRemainingDailyLimit();
+    if (remainingLimit <= 0) return null;
+
     // Pick random items
     const items: Record<string, number> = {};
-    const numItems = 1 + Math.floor(Math.random() * 2); // 1-2 item types
+    const numItems = 1; // Single item type per order for simplicity
     
     for (let i = 0; i < numItems; i++) {
       const itemId = customer.requestableItems[
         Math.floor(Math.random() * customer.requestableItems.length)
       ];
       const [minQty, maxQty] = customer.quantityRange;
-      const quantity = minQty + Math.floor(Math.random() * (maxQty - minQty + 1));
+      // Cap quantity to remaining daily limit
+      const cappedMax = Math.min(maxQty, remainingLimit);
+      if (cappedMax < minQty) return null; // Can't generate order within limits
+      const quantity = minQty + Math.floor(Math.random() * (cappedMax - minQty + 1));
       items[itemId] = (items[itemId] || 0) + quantity;
     }
 
@@ -341,10 +418,15 @@ export class OrderSystem {
 
     const state = GameState.getInstance();
 
-    // Consume items
+    // Consume items and track total grams sold
+    let totalGramsSold = 0;
     for (const [itemId, quantity] of Object.entries(order.items)) {
       state.removeItem(itemId, quantity);
+      totalGramsSold += quantity;
     }
+    
+    // Record sale against daily limit
+    this.recordSale(totalGramsSold);
 
     // Calculate final reward with tip
     const now = GameTimer.getInstance().getGameTime();
@@ -450,14 +532,34 @@ export class OrderSystem {
 
   // ==================== Serialization ====================
 
-  public getState(): Order[] {
-    return Array.from(this.orders.values());
+  public getState(): { orders: Order[]; dailySoldGrams: number; lastResetDay: number } {
+    return {
+      orders: Array.from(this.orders.values()),
+      dailySoldGrams: this.dailySoldGrams,
+      lastResetDay: this.lastResetDay,
+    };
   }
 
-  public loadState(orders: Order[]): void {
+  public loadState(state: { orders?: Order[]; dailySoldGrams?: number; lastResetDay?: number } | Order[]): void {
     this.orders.clear();
-    for (const order of orders) {
-      this.orders.set(order.id, order);
+    
+    // Handle both old format (Order[]) and new format (object with orders)
+    if (Array.isArray(state)) {
+      // Legacy format
+      for (const order of state) {
+        this.orders.set(order.id, order);
+      }
+      this.dailySoldGrams = 0;
+      this.lastResetDay = 0;
+    } else {
+      // New format
+      if (state.orders) {
+        for (const order of state.orders) {
+          this.orders.set(order.id, order);
+        }
+      }
+      this.dailySoldGrams = state.dailySoldGrams ?? 0;
+      this.lastResetDay = state.lastResetDay ?? 0;
     }
   }
 
