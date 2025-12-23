@@ -64,6 +64,7 @@ export class GameScene {
   private orthoSize = 250;
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
+  private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -308,6 +309,11 @@ export class GameScene {
     if (mode === "orthographic") {
       this.updateCameraOrtho();
     }
+    
+    // Reset camera to map center to prevent getting lost
+    if (this.camera) {
+      this.camera.setTarget(this.mapCenterPosition);
+    }
   }
 
   /**
@@ -372,9 +378,10 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Set camera target
+    // Set camera target and store for later reset
+    this.mapCenterPosition = result.playerStartPosition;
     if (this.camera) {
-      this.camera.setTarget(result.playerStartPosition);
+      this.camera.setTarget(this.mapCenterPosition);
     }
 
     this.currentMap = mapName;
