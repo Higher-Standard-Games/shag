@@ -38,24 +38,30 @@ export interface PatchControlPoint {
 
 export class MapParser {
   /**
-   * Preprocess .map content to normalize NetRadiant format to simpler format.
-   * - Removes comments and layer definitions
-   * - Converts brushDef { ... } to simple brush format
-   * - Removes wrapper braces around brushDef/patchDef2
+   * Preprocess .map content to normalize different formats.
+   * 
+   * Handles:
+   * - Valve format: ( p1 ) ( p2 ) ( p3 ) texture u v rot scaleU scaleV
+   * - NetRadiant brushDef: brushDef { ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags }
+   * 
+   * Output: Normalized Valve format that the main parser can handle.
    */
   private static preprocess(content: string): string {
     const lines = content.split("\n");
     const output: string[] = [];
     let inBrushDef = false;
     let inPatchDef = false;
-    let brushDefBraceDepth = 0;
-    let skipNextCloseBrace = false;
+    let patchBraceDepth = 0;
+    let pendingWrapperClose = false; // Track if we need to skip a wrapper close brace
 
-    for (const rawLine of lines) {
-      let line = rawLine.trim();
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
       
-      // Skip empty lines, comments, and layer definitions
-      if (!line || line.startsWith("//") || line.startsWith("//@$&")) continue;
+      // Skip empty lines and layer definitions
+      if (!line || line.startsWith("//@$&")) continue;
+      
+      // Skip full-line comments
+      if (line.startsWith("//")) continue;
       
       // Remove inline comments
       const commentIdx = line.indexOf("//");
@@ -64,38 +70,50 @@ export class MapParser {
         if (!line) continue;
       }
 
-      // Handle brushDef start
-      if (line === "brushDef") {
-        inBrushDef = true;
-        brushDefBraceDepth = 0;
-        continue; // Skip the brushDef keyword itself
-      }
-
       // Handle patchDef2 start
       if (line === "patchDef2") {
         inPatchDef = true;
+        patchBraceDepth = 0;
         output.push("patchDef2");
+        continue;
+      }
+
+      // Inside patchDef2 - pass through and track braces
+      if (inPatchDef) {
+        output.push(line);
+        if (line === "{") patchBraceDepth++;
+        if (line === "}") {
+          patchBraceDepth--;
+          if (patchBraceDepth === 0) {
+            inPatchDef = false;
+          }
+        }
+        continue;
+      }
+
+      // Handle brushDef start - look for wrapper brace before it
+      if (line === "brushDef") {
+        inBrushDef = true;
+        // Check if previous output line was just "{" - that's the wrapper
+        if (output.length > 0 && output[output.length - 1] === "{") {
+          // Remove the wrapper opening brace, we'll add our own
+          output.pop();
+          pendingWrapperClose = true;
+        }
         continue;
       }
 
       // Inside brushDef - convert to simple plane format
       if (inBrushDef) {
         if (line === "{") {
-          brushDefBraceDepth++;
-          if (brushDefBraceDepth === 1) {
-            // This is the brushDef's opening brace, output as brush start
-            output.push("{");
-          }
+          // This is brushDef's opening brace
+          output.push("{");
           continue;
         }
         if (line === "}") {
-          brushDefBraceDepth--;
-          if (brushDefBraceDepth === 0) {
-            // End of brushDef
-            output.push("}");
-            inBrushDef = false;
-            skipNextCloseBrace = true; // Skip the wrapper close brace
-          }
+          // This is brushDef's closing brace
+          output.push("}");
+          inBrushDef = false;
           continue;
         }
         
@@ -112,27 +130,13 @@ export class MapParser {
         continue;
       }
 
-      // Inside patchDef2 - pass through
-      if (inPatchDef) {
-        output.push(line);
-        if (line === "}") {
-          // Count braces to detect end
-          const openCount = output.filter(l => l === "{").length;
-          const closeCount = output.filter(l => l === "}").length;
-          if (closeCount >= openCount) {
-            inPatchDef = false;
-          }
-        }
+      // Skip wrapper close brace after brushDef
+      if (pendingWrapperClose && line === "}") {
+        pendingWrapperClose = false;
         continue;
       }
 
-      // Skip wrapper close braces
-      if (skipNextCloseBrace && line === "}") {
-        skipNextCloseBrace = false;
-        continue;
-      }
-
-      // Pass through everything else
+      // Pass through everything else (properties, braces, Valve-format planes)
       output.push(line);
     }
 
