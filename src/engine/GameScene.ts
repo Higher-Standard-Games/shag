@@ -276,8 +276,8 @@ export class GameScene {
         // True orthographic - may have light artifacts at screen edges
         this.camera.mode = ArcRotateCamera.ORTHOGRAPHIC_CAMERA;
         this.camera.radius = 200;
-        this.camera.minZ = 1;
-        this.camera.maxZ = 2000;
+        this.camera.minZ = -5000;  // Allow geometry behind camera plane
+        this.camera.maxZ = 5000;
         this.orthoSize = height;
         this.updateCameraOrtho();
         console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height})`);
@@ -289,8 +289,8 @@ export class GameScene {
         this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
         this.camera.fov = 0.5;  // Moderate FOV for orthographic-like view
         this.camera.radius = height;
-        this.camera.minZ = 1;
-        this.camera.maxZ = Math.max(2000, height * 4);
+        this.camera.minZ = 0.1;  // Very small near plane to avoid clipping
+        this.camera.maxZ = Math.max(5000, height * 4);
         console.log(`Camera mode: FAKE_ORTHO (radius: ${height})`);
         break;
     }
