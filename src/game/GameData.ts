@@ -18,6 +18,7 @@ import { ShopSystem, type ShopItem, type ShopCategory } from "./ShopSystem";
 import { generateSeedShopItems } from "../data/StrainLoader";
 import { CuringSystem, type CuringBarrel } from "./CuringSystem";
 import { DealerSystem, type Dealer } from "./DealerSystem";
+import { SaveManager } from "./SaveManager";
 
 // ==================== Buildable Items ====================
 // These appear in the build menu
@@ -1539,9 +1540,12 @@ export function registerGameData(): void {
   DealerSystem.getInstance().registerDealers(DEALERS);
   DealerSystem.getInstance().init();
 
-  // Set up starting resources for new games
+  // Set up starting resources for new games only (not when loading)
   const state = GameState.getInstance();
-  if (!state.hasSaveData()) {
+  const saveManager = SaveManager.getInstance();
+  
+  // Only add starting resources if this is NOT a loaded game
+  if (!saveManager.isLoading()) {
     // Starting money
     state.addMoney(STARTING_MONEY);
     
