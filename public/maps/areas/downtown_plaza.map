@@ -1,6 +1,7 @@
 // Game: Quake
 // Format: Valve
 // Downtown Plaza - Premium Area (Level 5+)
+// Detailed ground with plaza tiles, crosswalks, urban features
 
 // ==================== WORLDSPAWN ====================
 {
@@ -10,14 +11,155 @@
 "camera_height" "1000"
 "area_id" "downtown_plaza"
 "area_tier" "downtown"
-// Floor plane (1200x1200) - Polished concrete
+
+// === BASE GROUND - Polished plaza tiles ===
 {
-( -600 -600 -16 ) ( 600 600 -16 ) ( -600 600 -16 ) color_100_100_110 0 0 0 1 1
-( -600 -600 -32 ) ( -600 600 -32 ) ( 600 600 -32 ) color_80_80_90 0 0 0 1 1
-( -600 -600 -16 ) ( -600 -600 -32 ) ( 600 -600 -16 ) color_90_90_100 0 0 0 1 1
-( -600 600 -16 ) ( 600 600 -16 ) ( -600 600 -32 ) color_90_90_100 0 0 0 1 1
-( -600 600 -16 ) ( -600 600 -32 ) ( -600 -600 -16 ) color_90_90_100 0 0 0 1 1
-( 600 600 -16 ) ( 600 -600 -16 ) ( 600 600 -32 ) color_90_90_100 0 0 0 1 1
+( -600 -600 -20 ) ( 600 600 -20 ) ( -600 600 -20 ) color_130_125_120 0 0 0 1 1
+( -600 -600 -32 ) ( -600 600 -32 ) ( 600 600 -32 ) color_100_95_90 0 0 0 1 1
+( -600 -600 -20 ) ( -600 -600 -32 ) ( 600 -600 -20 ) color_115_110_105 0 0 0 1 1
+( -600 600 -20 ) ( 600 600 -20 ) ( -600 600 -32 ) color_115_110_105 0 0 0 1 1
+( -600 600 -20 ) ( -600 600 -32 ) ( -600 -600 -20 ) color_115_110_105 0 0 0 1 1
+( 600 600 -20 ) ( 600 -600 -20 ) ( 600 600 -32 ) color_115_110_105 0 0 0 1 1
+}
+
+// === MAIN ROAD - Smooth asphalt east-west ===
+{
+( -600 -60 -16 ) ( 600 -60 -16 ) ( -600 60 -16 ) color_55_55_60 0 0 0 1 1
+( -600 -60 -20 ) ( -600 60 -20 ) ( 600 -60 -20 ) color_45_45_50 0 0 0 1 1
+( -600 -60 -16 ) ( -600 -60 -20 ) ( 600 -60 -16 ) color_50_50_55 0 0 0 1 1
+( -600 60 -16 ) ( 600 60 -16 ) ( -600 60 -20 ) color_50_50_55 0 0 0 1 1
+( -600 60 -16 ) ( -600 60 -20 ) ( -600 -60 -16 ) color_50_50_55 0 0 0 1 1
+( 600 60 -16 ) ( 600 -60 -16 ) ( 600 60 -20 ) color_50_50_55 0 0 0 1 1
+}
+
+// === ROAD CENTER LINE - Double yellow ===
+{
+( -600 -6 -15 ) ( 600 -6 -15 ) ( -600 -2 -15 ) color_220_200_50 0 0 0 1 1
+( -600 -6 -16 ) ( -600 -2 -16 ) ( 600 -6 -16 ) color_200_180_40 0 0 0 1 1
+( -600 -6 -15 ) ( -600 -6 -16 ) ( 600 -6 -15 ) color_210_190_45 0 0 0 1 1
+( -600 -2 -15 ) ( 600 -2 -15 ) ( -600 -2 -16 ) color_210_190_45 0 0 0 1 1
+( -600 -2 -15 ) ( -600 -2 -16 ) ( -600 -6 -15 ) color_210_190_45 0 0 0 1 1
+( 600 -2 -15 ) ( 600 -6 -15 ) ( 600 -2 -16 ) color_210_190_45 0 0 0 1 1
+}
+{
+( -600 2 -15 ) ( 600 2 -15 ) ( -600 6 -15 ) color_220_200_50 0 0 0 1 1
+( -600 2 -16 ) ( -600 6 -16 ) ( 600 2 -16 ) color_200_180_40 0 0 0 1 1
+( -600 2 -15 ) ( -600 2 -16 ) ( 600 2 -15 ) color_210_190_45 0 0 0 1 1
+( -600 6 -15 ) ( 600 6 -15 ) ( -600 6 -16 ) color_210_190_45 0 0 0 1 1
+( -600 6 -15 ) ( -600 6 -16 ) ( -600 2 -15 ) color_210_190_45 0 0 0 1 1
+( 600 6 -15 ) ( 600 2 -15 ) ( 600 6 -16 ) color_210_190_45 0 0 0 1 1
+}
+
+// === CROSSWALK 1 - White stripes ===
+{
+( -100 -55 -15 ) ( -80 -55 -15 ) ( -100 55 -15 ) color_240_240_240 0 0 0 1 1
+( -100 -55 -16 ) ( -100 55 -16 ) ( -80 -55 -16 ) color_220_220_220 0 0 0 1 1
+( -100 -55 -15 ) ( -100 -55 -16 ) ( -80 -55 -15 ) color_230_230_230 0 0 0 1 1
+( -100 55 -15 ) ( -80 55 -15 ) ( -100 55 -16 ) color_230_230_230 0 0 0 1 1
+( -100 55 -15 ) ( -100 55 -16 ) ( -100 -55 -15 ) color_230_230_230 0 0 0 1 1
+( -80 55 -15 ) ( -80 -55 -15 ) ( -80 55 -16 ) color_230_230_230 0 0 0 1 1
+}
+{
+( -60 -55 -15 ) ( -40 -55 -15 ) ( -60 55 -15 ) color_240_240_240 0 0 0 1 1
+( -60 -55 -16 ) ( -60 55 -16 ) ( -40 -55 -16 ) color_220_220_220 0 0 0 1 1
+( -60 -55 -15 ) ( -60 -55 -16 ) ( -40 -55 -15 ) color_230_230_230 0 0 0 1 1
+( -60 55 -15 ) ( -40 55 -15 ) ( -60 55 -16 ) color_230_230_230 0 0 0 1 1
+( -60 55 -15 ) ( -60 55 -16 ) ( -60 -55 -15 ) color_230_230_230 0 0 0 1 1
+( -40 55 -15 ) ( -40 -55 -15 ) ( -40 55 -16 ) color_230_230_230 0 0 0 1 1
+}
+{
+( -20 -55 -15 ) ( 0 -55 -15 ) ( -20 55 -15 ) color_240_240_240 0 0 0 1 1
+( -20 -55 -16 ) ( -20 55 -16 ) ( 0 -55 -16 ) color_220_220_220 0 0 0 1 1
+( -20 -55 -15 ) ( -20 -55 -16 ) ( 0 -55 -15 ) color_230_230_230 0 0 0 1 1
+( -20 55 -15 ) ( 0 55 -15 ) ( -20 55 -16 ) color_230_230_230 0 0 0 1 1
+( -20 55 -15 ) ( -20 55 -16 ) ( -20 -55 -15 ) color_230_230_230 0 0 0 1 1
+( 0 55 -15 ) ( 0 -55 -15 ) ( 0 55 -16 ) color_230_230_230 0 0 0 1 1
+}
+{
+( 20 -55 -15 ) ( 40 -55 -15 ) ( 20 55 -15 ) color_240_240_240 0 0 0 1 1
+( 20 -55 -16 ) ( 20 55 -16 ) ( 40 -55 -16 ) color_220_220_220 0 0 0 1 1
+( 20 -55 -15 ) ( 20 -55 -16 ) ( 40 -55 -15 ) color_230_230_230 0 0 0 1 1
+( 20 55 -15 ) ( 40 55 -15 ) ( 20 55 -16 ) color_230_230_230 0 0 0 1 1
+( 20 55 -15 ) ( 20 55 -16 ) ( 20 -55 -15 ) color_230_230_230 0 0 0 1 1
+( 40 55 -15 ) ( 40 -55 -15 ) ( 40 55 -16 ) color_230_230_230 0 0 0 1 1
+}
+{
+( 60 -55 -15 ) ( 80 -55 -15 ) ( 60 55 -15 ) color_240_240_240 0 0 0 1 1
+( 60 -55 -16 ) ( 60 55 -16 ) ( 80 -55 -16 ) color_220_220_220 0 0 0 1 1
+( 60 -55 -15 ) ( 60 -55 -16 ) ( 80 -55 -15 ) color_230_230_230 0 0 0 1 1
+( 60 55 -15 ) ( 80 55 -15 ) ( 60 55 -16 ) color_230_230_230 0 0 0 1 1
+( 60 55 -15 ) ( 60 55 -16 ) ( 60 -55 -15 ) color_230_230_230 0 0 0 1 1
+( 80 55 -15 ) ( 80 -55 -15 ) ( 80 55 -16 ) color_230_230_230 0 0 0 1 1
+}
+
+// === WIDE SIDEWALK NORTH - Premium tiles ===
+{
+( -600 60 -16 ) ( 600 60 -16 ) ( -600 150 -16 ) color_170_165_160 0 0 0 1 1
+( -600 60 -20 ) ( -600 150 -20 ) ( 600 60 -20 ) color_140_135_130 0 0 0 1 1
+( -600 60 -16 ) ( -600 60 -20 ) ( 600 60 -16 ) color_155_150_145 0 0 0 1 1
+( -600 150 -16 ) ( 600 150 -16 ) ( -600 150 -20 ) color_155_150_145 0 0 0 1 1
+( -600 150 -16 ) ( -600 150 -20 ) ( -600 60 -16 ) color_155_150_145 0 0 0 1 1
+( 600 150 -16 ) ( 600 60 -16 ) ( 600 150 -20 ) color_155_150_145 0 0 0 1 1
+}
+
+// === WIDE SIDEWALK SOUTH - Premium tiles ===
+{
+( -600 -150 -16 ) ( 600 -150 -16 ) ( -600 -60 -16 ) color_170_165_160 0 0 0 1 1
+( -600 -150 -20 ) ( -600 -60 -20 ) ( 600 -150 -20 ) color_140_135_130 0 0 0 1 1
+( -600 -150 -16 ) ( -600 -150 -20 ) ( 600 -150 -16 ) color_155_150_145 0 0 0 1 1
+( -600 -60 -16 ) ( 600 -60 -16 ) ( -600 -60 -20 ) color_155_150_145 0 0 0 1 1
+( -600 -60 -16 ) ( -600 -60 -20 ) ( -600 -150 -16 ) color_155_150_145 0 0 0 1 1
+( 600 -60 -16 ) ( 600 -150 -16 ) ( 600 -60 -20 ) color_155_150_145 0 0 0 1 1
+}
+
+// === CENTRAL PLAZA - Decorative tiles ===
+{
+( -200 150 -15 ) ( 200 150 -15 ) ( -200 400 -15 ) color_160_150_140 0 0 0 1 1
+( -200 150 -16 ) ( -200 400 -16 ) ( 200 150 -16 ) color_140_130_120 0 0 0 1 1
+( -200 150 -15 ) ( -200 150 -16 ) ( 200 150 -15 ) color_150_140_130 0 0 0 1 1
+( -200 400 -15 ) ( 200 400 -15 ) ( -200 400 -16 ) color_150_140_130 0 0 0 1 1
+( -200 400 -15 ) ( -200 400 -16 ) ( -200 150 -15 ) color_150_140_130 0 0 0 1 1
+( 200 400 -15 ) ( 200 150 -15 ) ( 200 400 -16 ) color_150_140_130 0 0 0 1 1
+}
+
+// === PLAZA ACCENT STRIPE - Decorative red ===
+{
+( -200 270 -14 ) ( 200 270 -14 ) ( -200 280 -14 ) color_150_60_60 0 0 0 1 1
+( -200 270 -15 ) ( -200 280 -15 ) ( 200 270 -15 ) color_130_50_50 0 0 0 1 1
+( -200 270 -14 ) ( -200 270 -15 ) ( 200 270 -14 ) color_140_55_55 0 0 0 1 1
+( -200 280 -14 ) ( 200 280 -14 ) ( -200 280 -15 ) color_140_55_55 0 0 0 1 1
+( -200 280 -14 ) ( -200 280 -15 ) ( -200 270 -14 ) color_140_55_55 0 0 0 1 1
+( 200 280 -14 ) ( 200 270 -14 ) ( 200 280 -15 ) color_140_55_55 0 0 0 1 1
+}
+
+// === GROW AREA - Indoor flooring ===
+{
+( -350 -400 -15 ) ( 350 -400 -15 ) ( -350 -180 -15 ) color_100_95_90 0 0 0 1 1
+( -350 -400 -16 ) ( -350 -180 -16 ) ( 350 -400 -16 ) color_80_75_70 0 0 0 1 1
+( -350 -400 -15 ) ( -350 -400 -16 ) ( 350 -400 -15 ) color_90_85_80 0 0 0 1 1
+( -350 -180 -15 ) ( 350 -180 -15 ) ( -350 -180 -16 ) color_90_85_80 0 0 0 1 1
+( -350 -400 -15 ) ( -350 -400 -16 ) ( -350 -180 -15 ) color_90_85_80 0 0 0 1 1
+( 350 -180 -15 ) ( 350 -400 -15 ) ( 350 -180 -16 ) color_90_85_80 0 0 0 1 1
+}
+
+// === SHOP AREA - Premium flooring ===
+{
+( 300 200 -15 ) ( 550 200 -15 ) ( 300 500 -15 ) color_140_130_120 0 0 0 1 1
+( 300 200 -16 ) ( 300 500 -16 ) ( 550 200 -16 ) color_120_110_100 0 0 0 1 1
+( 300 200 -15 ) ( 300 200 -16 ) ( 550 200 -15 ) color_130_120_110 0 0 0 1 1
+( 300 500 -15 ) ( 550 500 -15 ) ( 300 500 -16 ) color_130_120_110 0 0 0 1 1
+( 300 500 -15 ) ( 300 500 -16 ) ( 300 200 -15 ) color_130_120_110 0 0 0 1 1
+( 550 500 -15 ) ( 550 200 -15 ) ( 550 500 -16 ) color_130_120_110 0 0 0 1 1
+}
+
+// === EQUIPMENT AREA - Industrial flooring ===
+{
+( -550 200 -15 ) ( -350 200 -15 ) ( -550 450 -15 ) color_90_90_95 0 0 0 1 1
+( -550 200 -16 ) ( -550 450 -16 ) ( -350 200 -16 ) color_70_70_75 0 0 0 1 1
+( -550 200 -15 ) ( -550 200 -16 ) ( -350 200 -15 ) color_80_80_85 0 0 0 1 1
+( -550 450 -15 ) ( -350 450 -15 ) ( -550 450 -16 ) color_80_80_85 0 0 0 1 1
+( -550 450 -15 ) ( -550 450 -16 ) ( -550 200 -15 ) color_80_80_85 0 0 0 1 1
+( -350 450 -15 ) ( -350 200 -15 ) ( -350 450 -16 ) color_80_80_85 0 0 0 1 1
 }
 }
 
@@ -28,7 +170,6 @@
 }
 
 // ==================== LIGHTING ====================
-// Bright city lights - urban atmosphere
 {
 "classname" "light"
 "origin" "0 0 250"
@@ -37,11 +178,10 @@
 "_color" "1 1 1"
 }
 
-// Neon-style street lamps
 {
 "classname" "street_lamp"
 "targetname" "downtown_lamp_1"
-"origin" "-400 -400 60"
+"origin" "-400 100 60"
 "light" "220"
 "range" "180"
 "_color" "200 220 255"
@@ -52,7 +192,7 @@
 {
 "classname" "street_lamp"
 "targetname" "downtown_lamp_2"
-"origin" "400 400 60"
+"origin" "400 100 60"
 "light" "220"
 "range" "180"
 "_color" "255 200 220"
@@ -63,7 +203,7 @@
 {
 "classname" "street_lamp"
 "targetname" "downtown_lamp_3"
-"origin" "-400 400 60"
+"origin" "-400 -100 60"
 "light" "220"
 "range" "180"
 "_color" "220 255 200"
@@ -74,7 +214,7 @@
 {
 "classname" "street_lamp"
 "targetname" "downtown_lamp_4"
-"origin" "400 -400 60"
+"origin" "400 -100 60"
 "light" "220"
 "range" "180"
 "_color" "255 255 200"
@@ -83,7 +223,6 @@
 }
 
 // ==================== PORTAL: TO SUBURBS (West side) ====================
-// Green trigger - back to suburbs
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_suburbs"
@@ -100,7 +239,6 @@
 }
 
 // ==================== PORTAL: TO INDUSTRIAL (North side) ====================
-// Orange trigger - requires Level 8 + $1000
 {
 "classname" "trigger_multiple"
 "targetname" "portal_to_industrial"
@@ -119,27 +257,12 @@
 }
 }
 
-// Portal signs
-{
-"classname" "info_sign"
-"origin" "-575 0 80"
-"text" "← SUBURBS"
-"color" "100 200 100"
-}
-
-{
-"classname" "info_sign"
-"origin" "0 575 80"
-"text" "↑ INDUSTRIAL"
-"color" "255 150 50"
-}
-
-// ==================== GROWING AREA (14 pots - large) ====================
+// ==================== GROWING AREA (14 pots) ====================
 // Row 1
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_1"
-"origin" "-300 -200 0"
+"origin" "-300 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -147,7 +270,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_2"
-"origin" "-200 -200 0"
+"origin" "-200 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -155,7 +278,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_3"
-"origin" "-100 -200 0"
+"origin" "-100 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -163,7 +286,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_4"
-"origin" "0 -200 0"
+"origin" "0 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -171,7 +294,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_5"
-"origin" "100 -200 0"
+"origin" "100 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -179,7 +302,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_6"
-"origin" "200 -200 0"
+"origin" "200 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -187,7 +310,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_7"
-"origin" "300 -200 0"
+"origin" "300 -250 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -196,7 +319,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_8"
-"origin" "-300 -100 0"
+"origin" "-300 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -204,7 +327,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_9"
-"origin" "-200 -100 0"
+"origin" "-200 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -212,7 +335,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_10"
-"origin" "-100 -100 0"
+"origin" "-100 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -220,7 +343,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_11"
-"origin" "0 -100 0"
+"origin" "0 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -228,7 +351,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_12"
-"origin" "100 -100 0"
+"origin" "100 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -236,7 +359,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_13"
-"origin" "200 -100 0"
+"origin" "200 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
@@ -244,18 +367,18 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_pot_14"
-"origin" "300 -100 0"
+"origin" "300 -350 0"
 "zoneType" "plant"
 "size" "64"
 "color" "100 200 100"
 }
 
-// ==================== GROW LIGHTS (above pots) ====================
+// ==================== GROW LIGHTS ====================
 // Row 1
 {
 "classname" "build_zone"
 "targetname" "downtown_light_1"
-"origin" "-300 -200 128"
+"origin" "-300 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -263,7 +386,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_2"
-"origin" "-200 -200 128"
+"origin" "-200 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -271,7 +394,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_3"
-"origin" "-100 -200 128"
+"origin" "-100 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -279,7 +402,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_4"
-"origin" "0 -200 128"
+"origin" "0 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -287,7 +410,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_5"
-"origin" "100 -200 128"
+"origin" "100 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -295,7 +418,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_6"
-"origin" "200 -200 128"
+"origin" "200 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -303,7 +426,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_7"
-"origin" "300 -200 128"
+"origin" "300 -250 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -312,7 +435,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_8"
-"origin" "-300 -100 128"
+"origin" "-300 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -320,7 +443,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_9"
-"origin" "-200 -100 128"
+"origin" "-200 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -328,7 +451,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_10"
-"origin" "-100 -100 128"
+"origin" "-100 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -336,7 +459,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_11"
-"origin" "0 -100 128"
+"origin" "0 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -344,7 +467,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_12"
-"origin" "100 -100 128"
+"origin" "100 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -352,7 +475,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_13"
-"origin" "200 -100 128"
+"origin" "200 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -360,7 +483,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_light_14"
-"origin" "300 -100 128"
+"origin" "300 -350 128"
 "zoneType" "growlight"
 "size" "64"
 "color" "100 150 255"
@@ -370,7 +493,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_equip_1"
-"origin" "-450 150 0"
+"origin" "-480 280 0"
 "zoneType" "equipment"
 "size" "80"
 "color" "200 100 200"
@@ -378,7 +501,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_equip_2"
-"origin" "-450 250 0"
+"origin" "-480 380 0"
 "zoneType" "equipment"
 "size" "80"
 "color" "200 100 200"
@@ -386,76 +509,73 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_equip_3"
-"origin" "-450 350 0"
+"origin" "-400 280 0"
 "zoneType" "equipment"
 "size" "80"
 "color" "200 100 200"
 }
 
 // ==================== SHOP TRIGGERS ====================
-// Premium seed store (green)
 {
 "classname" "trigger_multiple"
 "targetname" "downtown_seed_store"
 "windowTarget" "seed_store"
 "message" "Elite Genetics Shop"
 {
-( 250 250 0 ) ( 350 250 0 ) ( 250 350 0 ) color_100_200_100 0 0 0 1 1
-( 250 250 48 ) ( 250 350 48 ) ( 350 250 48 ) color_100_200_100 0 0 0 1 1
-( 250 250 0 ) ( 250 250 48 ) ( 350 250 0 ) color_80_160_80 0 0 0 1 1
-( 250 350 0 ) ( 350 350 0 ) ( 250 350 48 ) color_80_160_80 0 0 0 1 1
-( 250 350 0 ) ( 250 350 48 ) ( 250 250 0 ) color_90_180_90 0 0 0 1 1
-( 350 350 0 ) ( 350 250 0 ) ( 350 350 48 ) color_90_180_90 0 0 0 1 1
+( 350 280 0 ) ( 450 280 0 ) ( 350 380 0 ) color_100_200_100 0 0 0 1 1
+( 350 280 48 ) ( 350 380 48 ) ( 450 280 48 ) color_100_200_100 0 0 0 1 1
+( 350 280 0 ) ( 350 280 48 ) ( 450 280 0 ) color_80_160_80 0 0 0 1 1
+( 350 380 0 ) ( 450 380 0 ) ( 350 380 48 ) color_80_160_80 0 0 0 1 1
+( 350 380 0 ) ( 350 380 48 ) ( 350 280 0 ) color_90_180_90 0 0 0 1 1
+( 450 380 0 ) ( 450 280 0 ) ( 450 380 48 ) color_90_180_90 0 0 0 1 1
 }
 }
 
-// Supplies store (purple)
 {
 "classname" "trigger_multiple"
 "targetname" "downtown_supplies"
 "windowTarget" "supplies_store"
 "message" "Pro Equipment"
 {
-( 370 250 0 ) ( 470 250 0 ) ( 370 350 0 ) color_200_100_200 0 0 0 1 1
-( 370 250 48 ) ( 370 350 48 ) ( 470 250 48 ) color_200_100_200 0 0 0 1 1
-( 370 250 0 ) ( 370 250 48 ) ( 470 250 0 ) color_160_80_160 0 0 0 1 1
-( 370 350 0 ) ( 470 350 0 ) ( 370 350 48 ) color_160_80_160 0 0 0 1 1
-( 370 350 0 ) ( 370 350 48 ) ( 370 250 0 ) color_180_90_180 0 0 0 1 1
-( 470 350 0 ) ( 470 250 0 ) ( 470 350 48 ) color_180_90_180 0 0 0 1 1
+( 350 400 0 ) ( 450 400 0 ) ( 350 480 0 ) color_200_100_200 0 0 0 1 1
+( 350 400 48 ) ( 350 480 48 ) ( 450 400 48 ) color_200_100_200 0 0 0 1 1
+( 350 400 0 ) ( 350 400 48 ) ( 450 400 0 ) color_160_80_160 0 0 0 1 1
+( 350 480 0 ) ( 450 480 0 ) ( 350 480 48 ) color_160_80_160 0 0 0 1 1
+( 350 480 0 ) ( 350 480 48 ) ( 350 400 0 ) color_180_90_180 0 0 0 1 1
+( 450 480 0 ) ( 450 400 0 ) ( 450 480 48 ) color_180_90_180 0 0 0 1 1
 }
 }
 
-// Curing area (brown)
 {
 "classname" "trigger_multiple"
 "targetname" "downtown_curing"
 "windowTarget" "curing_dialog"
 "message" "Premium Curing Facility"
 {
-( 250 370 0 ) ( 350 370 0 ) ( 250 470 0 ) color_139_90_43 0 0 0 1 1
-( 250 370 48 ) ( 250 470 48 ) ( 350 370 48 ) color_139_90_43 0 0 0 1 1
-( 250 370 0 ) ( 250 370 48 ) ( 350 370 0 ) color_100_65_30 0 0 0 1 1
-( 250 470 0 ) ( 350 470 0 ) ( 250 470 48 ) color_100_65_30 0 0 0 1 1
-( 250 470 0 ) ( 250 470 48 ) ( 250 370 0 ) color_120_78_36 0 0 0 1 1
-( 350 470 0 ) ( 350 370 0 ) ( 350 470 48 ) color_120_78_36 0 0 0 1 1
+( 470 280 0 ) ( 540 280 0 ) ( 470 380 0 ) color_139_90_43 0 0 0 1 1
+( 470 280 48 ) ( 470 380 48 ) ( 540 280 48 ) color_139_90_43 0 0 0 1 1
+( 470 280 0 ) ( 470 280 48 ) ( 540 280 0 ) color_100_65_30 0 0 0 1 1
+( 470 380 0 ) ( 540 380 0 ) ( 470 380 48 ) color_100_65_30 0 0 0 1 1
+( 470 380 0 ) ( 470 380 48 ) ( 470 280 0 ) color_120_78_36 0 0 0 1 1
+( 540 380 0 ) ( 540 280 0 ) ( 540 380 48 ) color_120_78_36 0 0 0 1 1
 }
 }
 
-// ==================== NPC: Mysterious Dealer ====================
+// ==================== NPC ====================
 {
 "classname" "info_npc"
 "targetname" "npc_dealer"
 "name" "???"
 "npcId" "npc_dealer"
-"origin" "-350 -350 -16"
-"angle" "45"
+"origin" "-100 300 -16"
+"angle" "180"
 }
 
-// ==================== DECORATIVE ELEMENTS ====================
+// ==================== DECORATION ZONES ====================
 {
 "classname" "build_zone"
 "targetname" "downtown_decor_1"
-"origin" "450 -350 0"
+"origin" "100 300 0"
 "zoneType" "decoration"
 "size" "48"
 "color" "255 150 50"
@@ -463,15 +583,7 @@
 {
 "classname" "build_zone"
 "targetname" "downtown_decor_2"
-"origin" "450 -250 0"
-"zoneType" "decoration"
-"size" "48"
-"color" "255 150 50"
-}
-{
-"classname" "build_zone"
-"targetname" "downtown_decor_3"
-"origin" "450 -150 0"
+"origin" "180 300 0"
 "zoneType" "decoration"
 "size" "48"
 "color" "255 150 50"
