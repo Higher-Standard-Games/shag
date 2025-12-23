@@ -237,9 +237,11 @@ export class RTSCameraController {
                   if (props.requiredLevel) {
                     const playerLevel = GameState.getInstance().getPlayer().level;
                     const requiredLevel = parseInt(props.requiredLevel, 10);
+                    console.log(`Level check: player ${playerLevel}, required ${requiredLevel}`);
                     if (playerLevel < requiredLevel) {
-                      const message = props.message || `Requires level ${requiredLevel}`;
+                      const message = props.deniedMessage || `Requires level ${requiredLevel}`;
                       GameHUD.getInstance().showNotification(message, "warning");
+                      console.log(`Map transition blocked: ${message}`);
                       return;
                     }
                   }
