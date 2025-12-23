@@ -531,8 +531,9 @@ export const CUSTOMERS: CustomerTemplate[] = [
     unlockLevel: 1,
     basePatience: 5 * 60 * 1000, // 5 minutes
     tipMultiplier: 1.0,
-    requestableItems: ["harvest_basic"],
-    quantityRange: [1, 3],
+    // Tier 1 strains (unlockLevel 1)
+    requestableItems: ["harvest_genetics_afghan_kush", "harvest_genetics_durban_poison", "harvest_genetics_thai"],
+    quantityRange: [10, 30], // grams
     dialogues: [
       "Hey, got any good stuff?",
       "I heard you have quality products.",
@@ -546,8 +547,12 @@ export const CUSTOMERS: CustomerTemplate[] = [
     unlockLevel: 2,
     basePatience: 4 * 60 * 1000,
     tipMultiplier: 1.2,
-    requestableItems: ["harvest_basic", "harvest_og_kush"],
-    quantityRange: [2, 5],
+    // Tier 1-2 strains
+    requestableItems: [
+      "harvest_genetics_afghan_kush", "harvest_genetics_durban_poison", "harvest_genetics_thai",
+      "harvest_genetics_og_kush", "harvest_genetics_skunk_1",
+    ],
+    quantityRange: [20, 50],
     dialogues: [
       "The usual, please!",
       "You know what I like.",
@@ -560,11 +565,34 @@ export const CUSTOMERS: CustomerTemplate[] = [
     unlockLevel: 4,
     basePatience: 3 * 60 * 1000,
     tipMultiplier: 1.5,
-    requestableItems: ["harvest_og_kush", "harvest_purple_haze"],
-    quantityRange: [3, 8],
+    // Tier 2-3 strains (premium)
+    requestableItems: [
+      "harvest_genetics_og_kush", "harvest_genetics_skunk_1",
+      "harvest_genetics_girl_scout_cookies", "harvest_genetics_gelato",
+    ],
+    quantityRange: [30, 80],
     dialogues: [
       "Only the finest quality, please.",
       "I appreciate the good stuff.",
+    ],
+  },
+  {
+    id: "collector",
+    name: "Collector",
+    icon: "💎",
+    unlockLevel: 6,
+    basePatience: 2 * 60 * 1000,
+    tipMultiplier: 2.0,
+    // Tier 4-5 strains (rare/legendary)
+    requestableItems: [
+      "harvest_genetics_lemon_cherry_gelato", "harvest_genetics_blue_lobster",
+      "harvest_genetics_master_kush",
+    ],
+    quantityRange: [50, 100],
+    dialogues: [
+      "I only collect the rarest strains.",
+      "Money is no object for quality.",
+      "Show me what you've got!",
     ],
   },
 ];
