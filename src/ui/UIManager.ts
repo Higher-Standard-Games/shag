@@ -5,9 +5,19 @@ import { SaleDialog } from "./dialogs/SaleDialog";
 import { SeedStoreDialog, ShopDialog, SuppliesStoreDialog } from "./dialogs/ShopDialog";
 import { TestDialog } from "./dialogs/TestDialog";
 
+// Dialog factory functions for lazy instantiation
+type DialogFactory = () => BaseDialog;
+
+/**
+ * UIManager - Centralized dialog management
+ * 
+ * Dialogs are lazily instantiated on first use to improve startup performance.
+ * Register dialogs using registerFactory() for lazy loading, or register() for eager loading.
+ */
 export class UIManager {
   private static instance: UIManager;
   private dialogs: Map<string, BaseDialog> = new Map();
+  private dialogFactories: Map<string, DialogFactory> = new Map();
   private activeDialog: BaseDialog | null = null;
 
   /** Returns true if any dialog is currently open */
@@ -16,14 +26,15 @@ export class UIManager {
   }
 
   private constructor() {
-    // Register Dialogs Here
-    this.register(new TestDialog());
-    this.register(new ShopDialog());
-    this.register(new SeedStoreDialog());
-    this.register(new SuppliesStoreDialog());
-    this.register(new CuringDialog());
-    this.register(new SaleDialog());
-    this.register(new DealerDialog());
+    // Register dialog factories for lazy instantiation
+    // Dialogs are only created when first opened, not at startup
+    this.registerFactory("test_dialog", () => new TestDialog());
+    this.registerFactory("shop_dialog", () => new ShopDialog());
+    this.registerFactory("seed_store_dialog", () => new SeedStoreDialog());
+    this.registerFactory("supplies_store_dialog", () => new SuppliesStoreDialog());
+    this.registerFactory("curing_dialog", () => new CuringDialog());
+    this.registerFactory("sale_dialog", () => new SaleDialog());
+    this.registerFactory("dealer_dialog", () => new DealerDialog());
   }
 
   public static getInstance(): UIManager {
@@ -33,8 +44,37 @@ export class UIManager {
     return UIManager.instance;
   }
 
+  /**
+   * Register a dialog factory for lazy instantiation
+   */
+  public registerFactory(id: string, factory: DialogFactory): void {
+    this.dialogFactories.set(id, factory);
+  }
+
+  /**
+   * Register an already-instantiated dialog (eager loading)
+   */
   public register(dialog: BaseDialog): void {
     this.dialogs.set(dialog.id, dialog);
+  }
+
+  /**
+   * Get or create a dialog instance
+   */
+  private getDialog(id: string): BaseDialog | null {
+    // Check if already instantiated
+    let dialog = this.dialogs.get(id);
+    if (dialog) return dialog;
+
+    // Check for factory
+    const factory = this.dialogFactories.get(id);
+    if (factory) {
+      dialog = factory();
+      this.dialogs.set(id, dialog);
+      return dialog;
+    }
+
+    return null;
   }
 
   public openDialog(id: string, context: DialogContext = {}): void {
@@ -43,7 +83,7 @@ export class UIManager {
       this.activeDialog.hide();
     }
 
-    const dialog = this.dialogs.get(id);
+    const dialog = this.getDialog(id);
     if (dialog) {
       dialog.show(context);
       this.activeDialog = dialog;

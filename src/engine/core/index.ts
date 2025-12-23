@@ -49,6 +49,8 @@ export type {
   PopupConfig,
 } from "./PopupSystem";
 
+export { PersistenceManager } from "./PersistenceManager";
+
 export { WorldIndicatorSystem } from "./WorldIndicatorSystem";
 export type {
   IndicatorAnimation,
@@ -56,3 +58,6 @@ export type {
   WorldIndicator,
   AddIndicatorOptions,
 } from "./WorldIndicatorSystem";
+
+export { SubsystemRegistry } from "./Subsystem";
+export type { Subsystem, InitializableSubsystem } from "./Subsystem";
