@@ -287,13 +287,17 @@ export class GameScene {
 
       case "fake_ortho":
         // Perspective with low FOV - looks orthographic, works with clustered lights
-        // FOV scales with height to maintain consistent view size
+        // Lower height = closer view, so we use smaller FOV and closer radius
         this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
-        this.camera.fov = 0.5;  // Moderate FOV for orthographic-like view
-        this.camera.radius = height;
+        // FOV inversely proportional to height for zoom effect
+        // height 100 -> FOV 0.3 (close), height 500 -> FOV 0.6 (far)
+        const baseFov = 0.3;
+        const fovScale = Math.min(0.6, baseFov + (height - 100) / 1000);
+        this.camera.fov = fovScale;
+        this.camera.radius = height * 2;  // Keep camera further back
         this.camera.minZ = 0.1;  // Very small near plane to avoid clipping
         this.camera.maxZ = Math.max(5000, height * 4);
-        console.log(`Camera mode: FAKE_ORTHO (radius: ${height})`);
+        console.log(`Camera mode: FAKE_ORTHO (height: ${height}, fov: ${fovScale.toFixed(2)}, radius: ${this.camera.radius})`);
         break;
     }
   }
