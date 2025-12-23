@@ -242,18 +242,24 @@ export class RTSCameraController {
                       const message = props.deniedMessage || `Requires level ${requiredLevel}`;
                       GameHUD.getInstance().showNotification(message, "warning");
                       console.log(`Map transition blocked: ${message}`);
-                      return;
+                      // Don't return - let the pointer up handler finish to reset isDragging
                     }
                   }
                   
-                  console.log(`Switching to map: ${props.targetMap}`);
-                  const gameScene = GameScene.getInstance();
-                  if (gameScene) {
-                    gameScene.loadMap(props.targetMap).catch(err => {
-                      console.error("Failed to load map:", err);
-                    });
-                  } else {
-                    console.error("GameScene instance not found!");
+                  // Only proceed with map transition if level check passed
+                  const canTransition = !props.requiredLevel || 
+                    GameState.getInstance().getPlayer().level >= parseInt(props.requiredLevel, 10);
+                  
+                  if (canTransition) {
+                    console.log(`Switching to map: ${props.targetMap}`);
+                    const gameScene = GameScene.getInstance();
+                    if (gameScene) {
+                      gameScene.loadMap(props.targetMap).catch(err => {
+                        console.error("Failed to load map:", err);
+                      });
+                    } else {
+                      console.error("GameScene instance not found!");
+                    }
                   }
                 }
 

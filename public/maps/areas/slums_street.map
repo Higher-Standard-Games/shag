@@ -86,8 +86,6 @@ brushDef
 "targetname" "portal_to_suburbs"
 "targetMap" "maps/areas/suburbs_main.map"
 "message" "To Suburbs"
-"requiredLevel" "3"
-"deniedMessage" "The suburbs are too nice for you... yet. Reach level 3!"
 // brush 0
 {
 brushDef
