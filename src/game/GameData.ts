@@ -476,22 +476,44 @@ export const CURING_BARRELS: CuringBarrel[] = [
     speedMultiplier: 1.0, // Normal speed
     cost: 100,
     unlockLevel: 1,
+    // Durability: breaks after 3-6 uses
+    minUses: 3,
+    maxUses: 6,
+    // Requires 2 burps during curing
+    burpsRequired: 2,
+    qualityBonus: 0,
+    icon: "🛢️",
   },
   {
-    id: "oak_barrel",
-    name: "Oak Curing Barrel",
-    capacity: 500, // 500g max
-    speedMultiplier: 0.75, // 25% faster
+    id: "quality_barrel",
+    name: "Quality Curing Barrel",
+    capacity: 250, // 250g max
+    speedMultiplier: 0.9, // 10% faster
     cost: 500,
     unlockLevel: 3,
+    // Durability: breaks after 8-16 uses
+    minUses: 8,
+    maxUses: 16,
+    // No burping needed (only for tier 3+ strains - handled in code)
+    burpsRequired: 0,
+    burpOnlyForTier: 3,
+    qualityBonus: 5, // +5% quality
+    icon: "🪵",
   },
   {
-    id: "premium_barrel",
-    name: "Premium Curing Barrel",
-    capacity: 1000, // 1kg max
-    speedMultiplier: 0.5, // 50% faster
+    id: "electric_curer",
+    name: "Electric Professional Curer",
+    capacity: 400, // 400g max
+    speedMultiplier: 0.7, // 30% faster
     cost: 2000,
     unlockLevel: 5,
+    // Durability: breaks after 16-32 uses
+    minUses: 16,
+    maxUses: 32,
+    // No burping needed
+    burpsRequired: 0,
+    qualityBonus: 10, // +10% quality
+    icon: "⚡",
   },
 ];
 

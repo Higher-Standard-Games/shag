@@ -19,6 +19,16 @@ export interface CuringBarrel {
   speedMultiplier: number; // 1.0 = normal, 0.5 = 2x faster
   cost: number;
   unlockLevel: number;
+  // Durability settings
+  minUses: number; // Minimum uses before breakage chance starts
+  maxUses: number; // Maximum uses (100% break chance)
+  // Burping requirements
+  burpsRequired: number; // Number of burps needed during curing (0 = none)
+  burpOnlyForTier?: number; // Only require burps for strains at or above this tier (optional)
+  // Quality bonus
+  qualityBonus: number; // Percentage bonus to quality (e.g., 5 = +5%)
+  // Visual
+  icon: string;
 }
 
 export interface CuringSlot {
@@ -31,6 +41,11 @@ export interface CuringSlot {
   startedAt: number; // Timestamp when curing started
   curingTime: number; // Total time needed (ms)
   quality: number; // Quality percentage (affects value)
+  // Burping tracking
+  burpsRequired: number; // Total burps needed
+  burpsCompleted: number; // Burps done so far
+  nextBurpAt: number; // Timestamp when next burp is due (0 if none needed)
+  burpMissed: boolean; // True if a burp was missed (reduces quality)
 }
 
 export interface StoredFreshItem {
@@ -44,16 +59,24 @@ export interface StoredFreshItem {
   decayTime: number; // Time until spoiled (ms from harvest)
 }
 
+export interface OwnedBarrelData {
+  templateId: string;
+  usesCount: number; // How many times this barrel has been used
+  condition: number; // 0-100, visual wear indicator
+  position?: { x: number; y: number; z: number };
+}
+
 type CuringEventCallback = (event: string, data: unknown) => void;
 
 const DEFAULT_DECAY_TIME = 5 * 60 * 1000; // 5 minutes for testing (normally 24 hours)
 const DECAY_CHECK_INTERVAL = 10 * 1000; // Check every 10 seconds
+const BURP_WINDOW = 30 * 1000; // 30 seconds to respond to burp prompt
 
 export class CuringSystem {
   private static instance: CuringSystem;
   
   private barrelTemplates: Map<string, CuringBarrel> = new Map();
-  private ownedBarrels: Map<string, { templateId: string; position?: { x: number; y: number; z: number } }> = new Map();
+  private ownedBarrels: Map<string, OwnedBarrelData> = new Map();
   private curingSlots: Map<string, CuringSlot> = new Map();
   private freshStorage: Map<string, StoredFreshItem> = new Map();
   private eventListeners: CuringEventCallback[] = [];
@@ -124,7 +147,11 @@ export class CuringSystem {
     state.spendMoney(template.cost);
 
     const barrelId = `barrel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this.ownedBarrels.set(barrelId, { templateId });
+    this.ownedBarrels.set(barrelId, { 
+      templateId, 
+      usesCount: 0, 
+      condition: 100 
+    });
 
     console.log(`Purchased ${template.name} (${barrelId})`);
     this.emit("barrel_purchased", { barrelId, template });
@@ -142,19 +169,23 @@ export class CuringSystem {
       return;
     }
     
-    this.ownedBarrels.set(barrelId, { templateId });
+    this.ownedBarrels.set(barrelId, { 
+      templateId, 
+      usesCount: 0, 
+      condition: 100 
+    });
     console.log(`Added ${template.name} (${barrelId}) to owned barrels`);
     this.emit("barrel_purchased", { barrelId, template });
   }
 
-  public getOwnedBarrels(): Array<{ id: string; template: CuringBarrel; slot?: CuringSlot }> {
-    const result: Array<{ id: string; template: CuringBarrel; slot?: CuringSlot }> = [];
+  public getOwnedBarrels(): Array<{ id: string; template: CuringBarrel; slot?: CuringSlot; data: OwnedBarrelData }> {
+    const result: Array<{ id: string; template: CuringBarrel; slot?: CuringSlot; data: OwnedBarrelData }> = [];
     
     for (const [id, data] of this.ownedBarrels) {
       const template = this.barrelTemplates.get(data.templateId);
       if (template) {
         const slot = Array.from(this.curingSlots.values()).find(s => s.barrelId === id);
-        result.push({ id, template, slot });
+        result.push({ id, template, slot, data });
       }
     }
     
@@ -303,6 +334,13 @@ export class CuringSystem {
     // Create curing slot
     const slotId = `curing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const effectiveCuringTime = curingTime * template.speedMultiplier;
+    const currentTime = GameTimer.getInstance().getGameTime();
+    
+    // Determine burping requirements
+    // TODO: Check strain tier for burpOnlyForTier logic
+    const burpsRequired = template.burpsRequired;
+    const burpInterval = burpsRequired > 0 ? effectiveCuringTime / (burpsRequired + 1) : 0;
+    const nextBurpAt = burpsRequired > 0 ? currentTime + burpInterval : 0;
 
     const slot: CuringSlot = {
       id: slotId,
@@ -311,12 +349,21 @@ export class CuringSystem {
       freshItemId: freshItem.itemId,
       curedItemId,
       amount: freshItem.amount,
-      startedAt: GameTimer.getInstance().getGameTime(),
+      startedAt: currentTime,
       curingTime: effectiveCuringTime,
       quality: freshItem.quality,
+      // Burping
+      burpsRequired,
+      burpsCompleted: 0,
+      nextBurpAt,
+      burpMissed: false,
     };
 
     this.curingSlots.set(slotId, slot);
+    
+    // Increment barrel use count
+    barrelData.usesCount++;
+    barrelData.condition = Math.max(0, 100 - (barrelData.usesCount / template.maxUses) * 100);
     
     // Remove from fresh storage
     this.freshStorage.delete(freshItemId);
@@ -334,6 +381,8 @@ export class CuringSystem {
     progress: number;
     timeRemaining: number;
     isComplete: boolean;
+    needsBurp: boolean;
+    burpsRemaining: number;
   } | null {
     const slot = this.curingSlots.get(slotId);
     if (!slot) return null;
@@ -342,11 +391,122 @@ export class CuringSystem {
     const elapsed = currentTime - slot.startedAt;
     const progress = Math.min(100, (elapsed / slot.curingTime) * 100);
     const timeRemaining = Math.max(0, slot.curingTime - elapsed);
+    const needsBurp = slot.nextBurpAt > 0 && currentTime >= slot.nextBurpAt && slot.burpsCompleted < slot.burpsRequired;
+    const burpsRemaining = slot.burpsRequired - slot.burpsCompleted;
 
     return {
       progress,
       timeRemaining,
       isComplete: progress >= 100,
+      needsBurp,
+      burpsRemaining,
+    };
+  }
+
+  /**
+   * Perform a burp on a curing slot
+   */
+  public burpBarrel(slotId: string): boolean {
+    const slot = this.curingSlots.get(slotId);
+    if (!slot) return false;
+
+    const currentTime = GameTimer.getInstance().getGameTime();
+    
+    // Check if burp is needed
+    if (slot.nextBurpAt === 0 || slot.burpsCompleted >= slot.burpsRequired) {
+      console.log("No burp needed");
+      return false;
+    }
+
+    // Check if we're within the burp window
+    if (currentTime < slot.nextBurpAt) {
+      console.log("Too early to burp");
+      return false;
+    }
+
+    // Burp successful
+    slot.burpsCompleted++;
+    
+    // Calculate next burp time
+    if (slot.burpsCompleted < slot.burpsRequired) {
+      const burpInterval = slot.curingTime / (slot.burpsRequired + 1);
+      slot.nextBurpAt = slot.startedAt + (burpInterval * (slot.burpsCompleted + 1));
+    } else {
+      slot.nextBurpAt = 0; // No more burps needed
+    }
+
+    console.log(`Burp ${slot.burpsCompleted}/${slot.burpsRequired} completed`);
+    this.emit("burp_completed", { slotId, burpsCompleted: slot.burpsCompleted, burpsRequired: slot.burpsRequired });
+    
+    return true;
+  }
+
+  /**
+   * Check if a barrel should break based on usage
+   * Returns true if barrel breaks
+   */
+  public checkBarrelBreakage(barrelId: string): boolean {
+    const barrelData = this.ownedBarrels.get(barrelId);
+    if (!barrelData) return false;
+
+    const template = this.barrelTemplates.get(barrelData.templateId);
+    if (!template) return false;
+
+    // No breakage chance until minimum uses reached
+    if (barrelData.usesCount < template.minUses) {
+      return false;
+    }
+
+    // Calculate breakage chance: 0% at minUses, 100% at maxUses
+    const usesInRange = barrelData.usesCount - template.minUses;
+    const rangeSize = template.maxUses - template.minUses;
+    const breakChance = Math.min(1, usesInRange / rangeSize);
+
+    // Roll for breakage
+    const roll = Math.random();
+    if (roll < breakChance) {
+      // Barrel breaks!
+      this.ownedBarrels.delete(barrelId);
+      console.log(`${template.name} (${barrelId}) has broken after ${barrelData.usesCount} uses!`);
+      this.emit("barrel_broken", { barrelId, template, usesCount: barrelData.usesCount });
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get barrel condition info
+   */
+  public getBarrelCondition(barrelId: string): { 
+    usesCount: number; 
+    condition: number; 
+    breakChance: number;
+    status: "new" | "good" | "worn" | "critical";
+  } | null {
+    const barrelData = this.ownedBarrels.get(barrelId);
+    if (!barrelData) return null;
+
+    const template = this.barrelTemplates.get(barrelData.templateId);
+    if (!template) return null;
+
+    let breakChance = 0;
+    if (barrelData.usesCount >= template.minUses) {
+      const usesInRange = barrelData.usesCount - template.minUses;
+      const rangeSize = template.maxUses - template.minUses;
+      breakChance = Math.min(100, (usesInRange / rangeSize) * 100);
+    }
+
+    let status: "new" | "good" | "worn" | "critical" = "new";
+    if (barrelData.condition < 25) status = "critical";
+    else if (barrelData.condition < 50) status = "worn";
+    else if (barrelData.condition < 90) status = "good";
+
+    return {
+      usesCount: barrelData.usesCount,
+      condition: barrelData.condition,
+      breakChance,
+      status,
     };
   }
 
@@ -358,6 +518,7 @@ export class CuringSystem {
     amount?: number; 
     itemId?: string;
     value?: number;
+    barrelBroke?: boolean;
   } {
     const slot = this.curingSlots.get(slotId);
     if (!slot) {
@@ -370,17 +531,27 @@ export class CuringSystem {
       return { success: false };
     }
 
+    // Get barrel template for quality bonus
+    const barrelData = this.ownedBarrels.get(slot.barrelId);
+    const template = barrelData ? this.barrelTemplates.get(barrelData.templateId) : null;
+    const qualityBonus = template?.qualityBonus ?? 0;
+    
+    // Apply quality bonus and missed burp penalty
+    let finalQuality = Math.min(100, slot.quality + qualityBonus);
+    if (slot.burpMissed) {
+      finalQuality = Math.max(0, finalQuality - 15); // -15% quality for missed burp
+    }
+
     // Calculate value
-    const freshItem = this.freshStorage.get(slot.freshItemId);
-    const baseValue = freshItem?.valuePerGram ?? 10;
-    const qualityMultiplier = slot.quality / 100;
+    const baseValue = 10; // Default value per gram
+    const qualityMultiplier = finalQuality / 100;
     const totalValue = Math.floor(slot.amount * baseValue * qualityMultiplier);
 
     // Add cured product to inventory with metadata for selling
     const state = GameState.getInstance();
     state.addItem(slot.curedItemId, "harvest", slot.amount, {
       strainId: slot.strainId,
-      quality: slot.quality,
+      quality: finalQuality,
       valuePerGram: baseValue,
       cured: true,
     });
@@ -388,17 +559,22 @@ export class CuringSystem {
     // Remove curing slot
     this.curingSlots.delete(slotId);
 
+    // Check for barrel breakage
+    const barrelBroke = this.checkBarrelBreakage(slot.barrelId);
+
     // Award XP for curing (1 XP per 10g cured + quality bonus)
-    const curingXp = Math.max(1, Math.floor(slot.amount / 10) + Math.floor(slot.quality / 25));
+    const curingXp = Math.max(1, Math.floor(slot.amount / 10) + Math.floor(finalQuality / 25));
     state.addXP(curingXp, "curing");
 
-    console.log(`Collected ${slot.amount}g cured ${slot.strainId} (value: $${totalValue}, +${curingXp} XP)`);
+    console.log(`Collected ${slot.amount}g cured ${slot.strainId} (quality: ${finalQuality}%, value: $${totalValue}, +${curingXp} XP)${barrelBroke ? " - BARREL BROKE!" : ""}`);
     this.emit("curing_complete", { 
       slot, 
       amount: slot.amount, 
       itemId: slot.curedItemId,
       value: totalValue,
+      quality: finalQuality,
       xp: curingXp,
+      barrelBroke,
     });
 
     return { 
@@ -406,6 +582,7 @@ export class CuringSystem {
       amount: slot.amount, 
       itemId: slot.curedItemId,
       value: totalValue,
+      barrelBroke,
     };
   }
 
@@ -432,9 +609,28 @@ export class CuringSystem {
       }
     }
 
-    // Check for completed curing
+    // Check for completed curing and missed burps
     for (const [id, slot] of this.curingSlots) {
       const elapsed = currentTime - slot.startedAt;
+      
+      // Check for missed burps
+      if (slot.nextBurpAt > 0 && !slot.burpMissed && slot.burpsCompleted < slot.burpsRequired) {
+        const burpDeadline = slot.nextBurpAt + BURP_WINDOW;
+        if (currentTime > burpDeadline) {
+          // Burp was missed!
+          slot.burpMissed = true;
+          console.log(`Burp missed for ${slot.strainId}! Quality will be reduced.`);
+          this.emit("burp_missed", { slotId: id, slot });
+        } else if (currentTime >= slot.nextBurpAt) {
+          // Burp is due - notify
+          const wasNotified = GameState.getInstance().getCustomData<boolean>(`burp_due_${id}_${slot.burpsCompleted}`);
+          if (!wasNotified) {
+            GameState.getInstance().setCustomData(`burp_due_${id}_${slot.burpsCompleted}`, true);
+            this.emit("burp_needed", { slotId: id, slot, timeRemaining: burpDeadline - currentTime });
+          }
+        }
+      }
+      
       if (elapsed >= slot.curingTime) {
         // Curing complete - notify but don't auto-collect
         const wasNotified = GameState.getInstance().getCustomData<boolean>(`curing_ready_${id}`);
@@ -472,26 +668,35 @@ export class CuringSystem {
   // ==================== State Management ====================
 
   public getState(): {
-    ownedBarrels: Array<{ id: string; templateId: string }>;
+    ownedBarrels: Array<{ id: string; templateId: string; usesCount: number; condition: number }>;
     curingSlots: CuringSlot[];
     freshStorage: StoredFreshItem[];
   } {
     return {
-      ownedBarrels: Array.from(this.ownedBarrels.entries()).map(([id, data]) => ({ id, templateId: data.templateId })),
+      ownedBarrels: Array.from(this.ownedBarrels.entries()).map(([id, data]) => ({ 
+        id, 
+        templateId: data.templateId,
+        usesCount: data.usesCount,
+        condition: data.condition,
+      })),
       curingSlots: Array.from(this.curingSlots.values()),
       freshStorage: Array.from(this.freshStorage.values()),
     };
   }
 
   public loadState(state: {
-    ownedBarrels?: Array<{ id: string; templateId: string }>;
+    ownedBarrels?: Array<{ id: string; templateId: string; usesCount?: number; condition?: number }>;
     curingSlots?: CuringSlot[];
     freshStorage?: StoredFreshItem[];
   }): void {
     if (state.ownedBarrels) {
       this.ownedBarrels.clear();
       for (const barrel of state.ownedBarrels) {
-        this.ownedBarrels.set(barrel.id, { templateId: barrel.templateId });
+        this.ownedBarrels.set(barrel.id, { 
+          templateId: barrel.templateId,
+          usesCount: barrel.usesCount ?? 0,
+          condition: barrel.condition ?? 100,
+        });
       }
     }
     if (state.curingSlots) {
