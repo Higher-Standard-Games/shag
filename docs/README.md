@@ -29,7 +29,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 ### Game Systems
 | Document | Description |
 |----------|-------------|
-| [game-systems.md](./game-systems.md) | Core game systems (GameState, Timer, etc.) |
+| [game-systems.md](./game-systems.md) | Core game systems (GameState, Timer, Save, etc.) |
 | [genetics-system.md](./genetics-system.md) | Plant genetics, breeding, and progression |
 | [data-files.md](./data-files.md) | JSON data files for game content |
 
@@ -133,6 +133,9 @@ mypath/mytexture         →  /textures/mypath/mytexture.jpg
 | `RTSCameraController` | Isometric camera controls |
 | `UIManager` | Dialog management |
 | `SpawnValidator` | Validates dynamic spawning |
+| `SaveManager` | Game-level save/load orchestration |
+| `PersistenceManager` | Engine-level save infrastructure |
+| `GameHUD` | In-game heads-up display |
 
 ## Development
 

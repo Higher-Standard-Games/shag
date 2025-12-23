@@ -10,19 +10,23 @@ Generic engine systems for resource management, timers, building, and entity man
 
 ```
 Engine Systems (Generic)          Game Data (JSON Files)
-├── GameState                     ├── strains.json
-├── GameTimer                     ├── items.json (TODO)
-├── PlantSystem                   ├── quests.json (TODO)
-├── GeneticsSystem                ├── npcs.json (TODO)
-├── BuildingSystem                ├── achievements.json (TODO)
-├── BuildableObjectManager        └── world.json (TODO)
-├── OrderSystem                   
-├── ShopSystem                    Game Data (TypeScript)
-├── EquipmentSystem               ├── BUILDABLE_ITEMS
-├── QuestSystem                   ├── OBJECT_TEMPLATES
-├── AchievementSystem             ├── CUSTOMERS
-├── NPCSystem                     ├── SHOP_ITEMS
-├── WorldSystem                   └── STARTING_*
+├── PersistenceManager            ├── strains.json
+├── GameState                     ├── items.json (TODO)
+├── GameTimer                     ├── quests.json (TODO)
+├── GameClock                     ├── npcs.json (TODO)
+├── PlantSystem                   ├── achievements.json (TODO)
+├── GeneticsSystem                └── world.json (TODO)
+├── BuildingSystem                
+├── BuildableObjectManager        Game Data (TypeScript)
+├── CuringSystem                  ├── BUILDABLE_ITEMS
+├── DealerSystem                  ├── OBJECT_TEMPLATES
+├── OrderSystem                   ├── CUSTOMERS
+├── ShopSystem                    ├── SHOP_ITEMS
+├── EquipmentSystem               └── STARTING_*
+├── QuestSystem                   
+├── AchievementSystem             Game-Level Orchestration
+├── NPCSystem                     ├── SaveManager
+├── WorldSystem                   └── GameHUD
 └── UI Components                 
 ```
 
@@ -31,8 +35,11 @@ Engine Systems (Generic)          Game Data (JSON Files)
 The game systems provide:
 
 ### Core Systems
-- **GameState** - Player resources, inventory, saves
-- **GameTimer** - Time-based events, scheduling, day/night cycle
+- **GameState** - Player resources, inventory, persistence
+- **GameTimer** - Time-based events, scheduling
+- **GameClock** - Day/night cycle, time-of-day periods
+- **SaveManager** - Save/load orchestration for all subsystems
+- **PersistenceManager** - Engine-level save slot management
 
 ### Plant Systems
 - **PlantSystem** - Plant growth, watering, harvesting
@@ -45,6 +52,8 @@ The game systems provide:
 - **BuildableObjectManager** - Objects with progress/stages
 
 ### Economy Systems
+- **CuringSystem** - Curing barrels and product processing
+- **DealerSystem** - Selling cured products to dealers
 - **OrderSystem** - Customer orders and fulfillment
 - **ShopSystem** - Item purchasing and stock
 - **EquipmentSystem** - Equipment bonuses and automation
@@ -107,20 +116,50 @@ const count = state.getItemCount("seed_basic");
 
 ### Persistence
 
+The save system uses a two-tier architecture:
+
+**Engine Level** (`PersistenceManager`):
+- Generic save slot management (localStorage abstraction)
+- Saveable interface for systems to register save/load/clear methods
+- Autosave timer coordination
+
+**Game Level** (`SaveManager`):
+- Game-specific subsystem coordination
+- Collects state from all game systems
+- Handles map transitions and state preservation
+
 ```typescript
-// Manual save
-state.save();
+import { SaveManager } from "./game/SaveManager";
 
-// Check for existing save
-if (state.hasSaveData()) {
-  console.log("Welcome back!");
-}
+const saveManager = SaveManager.getInstance();
 
-// Reset game
-state.resetGame();
+// New game (clears all data for slot)
+saveManager.newGame(slotNumber);
+
+// Save to current slot
+saveManager.saveGame();
+
+// Load from slot (or autosave with slot -1)
+await saveManager.loadGame(slotNumber);
+await saveManager.loadAutoSave();
+
+// Check for existing saves
+const slots = saveManager.getSaveSlots();
+const hasAutosave = saveManager.hasAutosave();
 ```
 
 Auto-save runs every 30 seconds.
+
+### Save Slot Management
+
+```typescript
+// Get all save slot info
+const slots = GameState.getInstance().getSaveSlotInfo();
+// Returns: { slot: number, exists: boolean, level?: number, money?: number, playTime?: number }[]
+
+// Delete a save slot
+GameState.getInstance().deleteSaveSlot(slotNumber);
+```
 
 ### Events
 
@@ -456,14 +495,31 @@ hud.showNotification("Plant died!", "error");
 // Plant info panel
 hud.showPlantInfo(plantId);
 hud.hidePlantInfo();
+
+// Game awards (queued, auto-dismiss)
+hud.showGameAward("🏆", "First Harvest!");
 ```
 
 ### HUD Elements
 
-- **Top bar** - Money, level, XP progress, game time
+- **Top bar** - Money, level, XP progress, stock inventory, game time
+  - **Money pill** - Current cash with 💰 icon
+  - **Level pill** - Current level with XP progress bar
+  - **Stock pill** - Total cured product grams (click to view inventory)
+  - **Time display** - Day number, clock, time-of-day icon, speed toggle
 - **Quick inventory** - First 8 items
-- **Notifications** - Slide-in alerts
-- **Plant info** - Selected plant details
+- **Notifications** - Slide-in alerts (top-right)
+- **Plant info** - Selected plant details panel
+- **Game awards** - Centered celebration banners
+
+### Stock Inventory
+
+Click the 📦 stock pill to open the stock inventory modal showing:
+- All cured products with strain name
+- Quality percentage (color-coded)
+- Quantity in grams
+- Value per gram
+- Total stock value estimate
 
 ---
 
@@ -563,6 +619,90 @@ OrderSystem.getInstance().onOrderEvent((event, data) => {
   }
 });
 ```
+
+---
+
+## CuringSystem
+
+Manages the curing process for harvested products.
+
+### Curing Flow
+
+1. **Harvest** → Fresh product goes to fresh storage
+2. **Start Curing** → Place fresh product in curing barrel
+3. **Wait** → Curing takes time based on barrel speed
+4. **Collect** → Cured product goes to inventory (sellable)
+
+### Usage
+
+```typescript
+import { CuringSystem } from "./game/CuringSystem";
+
+const curing = CuringSystem.getInstance();
+
+// Get fresh storage (uncured harvests)
+const freshItems = curing.getFreshStorage();
+
+// Start curing in a barrel
+curing.startCuring("barrel_basic", "fresh_item_id");
+
+// Check progress
+const progress = curing.getCuringProgress(slotId);
+// { progress: 75, timeRemaining: 30000, isComplete: false }
+
+// Collect when complete
+const result = curing.collectCured(slotId);
+// { success: true, amount: 10, itemId: "harvest_og_kush", value: 150 }
+```
+
+### Barrel Types
+
+| Barrel | Capacity | Speed | Unlock |
+|--------|----------|-------|--------|
+| Basic | 50g | 1.0x | Lv.1 |
+| Large | 200g | 1.0x | Lv.5 |
+| Premium | 100g | 0.5x (2x faster) | Lv.10 |
+
+---
+
+## DealerSystem
+
+Manages selling cured products to dealers.
+
+### Sellable Products
+
+Products become sellable after curing. The system tracks:
+- **Item ID** - `harvest_<strain>` format
+- **Quality** - Affects price (from plant health/care)
+- **Strain ID** - Original strain for display
+- **Value per gram** - Base price
+
+```typescript
+import { DealerSystem } from "./game/DealerSystem";
+
+const dealers = DealerSystem.getInstance();
+
+// Get all sellable products
+const products = dealers.getSellableProducts();
+// [{ itemId, name, category, basePrice, quality, quantity, strainId }]
+
+// Calculate price for a dealer
+const price = dealers.calculatePrice("dealer_street", "harvest_og_kush", 10, 85);
+// { pricePerUnit, totalPrice, breakdown: { base, dealerBonus, qualityBonus, ... } }
+
+// Execute sale
+const result = dealers.sellToDealer("dealer_street", [
+  { itemId: "harvest_og_kush", quantity: 10 }
+]);
+```
+
+### Dealer Types
+
+| Dealer | Price Mult | Preferred | Unlock |
+|--------|------------|-----------|--------|
+| Street | 0.8x | Any | Lv.1 |
+| Dispensary | 1.0x | High quality | Lv.5 |
+| Collector | 1.5x | Rare strains | Lv.10 |
 
 ---
 
