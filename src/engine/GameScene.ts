@@ -276,12 +276,13 @@ export class GameScene {
       case "orthographic":
         // True orthographic - may have light artifacts at screen edges
         this.camera.mode = ArcRotateCamera.ORTHOGRAPHIC_CAMERA;
-        this.camera.radius = 200;
-        this.camera.minZ = -5000;  // Allow geometry behind camera plane
-        this.camera.maxZ = 5000;
+        // Radius should be proportional to orthoSize to keep geometry in view
+        this.camera.radius = Math.max(500, height * 2);
+        this.camera.minZ = -10000;  // Allow geometry behind camera plane
+        this.camera.maxZ = 10000;
         this.orthoSize = height;
         this.updateCameraOrtho();
-        console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height})`);
+        console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height}, radius: ${this.camera.radius})`);
         break;
 
       case "fake_ortho":
