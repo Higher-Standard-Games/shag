@@ -17,6 +17,8 @@ import { type PatchDefinition, PatchGenerator } from "./engine/loader/PatchGener
 import { TextureManager } from "./engine/loader/TextureManager";
 import { RTSCameraController } from "./engine/camera/RTSCameraController";
 import { UIManager } from "./ui/UIManager";
+import { GameState } from "./game/GameState";
+import { EventBus } from "./engine/core/EventBus";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
@@ -236,6 +238,30 @@ const createScene = async () => {
 
         const properties = mesh.metadata.properties;
         if (properties) {
+          // Check level requirement
+          if (properties.requiredLevel) {
+            const playerLevel = GameState.getInstance().getPlayer().level;
+            const requiredLevel = parseInt(properties.requiredLevel, 10);
+            if (playerLevel < requiredLevel) {
+              const message = properties.deniedMessage || `Requires level ${requiredLevel}. You are level ${playerLevel}.`;
+              EventBus.emit("ui:notification", { message, type: "warning" });
+              console.log(`Access denied: ${message}`);
+              return;
+            }
+          }
+
+          // Check money requirement
+          if (properties.requiredMoney) {
+            const playerMoney = GameState.getInstance().getPlayer().money;
+            const requiredMoney = parseInt(properties.requiredMoney, 10);
+            if (playerMoney < requiredMoney) {
+              const message = properties.deniedMessage || `Requires $${requiredMoney}. You have $${playerMoney}.`;
+              EventBus.emit("ui:notification", { message, type: "warning" });
+              console.log(`Access denied: ${message}`);
+              return;
+            }
+          }
+
           if (properties.windowTarget) {
             console.log(`Opening Dialog: ${properties.windowTarget}`);
             UIManager.getInstance().openDialog(properties.windowTarget);

@@ -1,0 +1,375 @@
+// Game: Quake
+// Format: Valve
+// Quiet Suburbs - Mid-tier Area (Level 3+)
+
+// ==================== WORLDSPAWN ====================
+{
+"classname" "worldspawn"
+"message" "Quiet Suburbs"
+"camera_mode" "fake_ortho"
+"camera_height" "900"
+"area_id" "suburbs_main"
+"area_tier" "suburbs"
+// Floor plane (1000x1000) - Green grass with path
+{
+( -500 -500 -16 ) ( 500 500 -16 ) ( -500 500 -16 ) color_80_120_60 0 0 0 1 1
+( -500 -500 -32 ) ( -500 500 -32 ) ( 500 500 -32 ) color_60_100_40 0 0 0 1 1
+( -500 -500 -16 ) ( -500 -500 -32 ) ( 500 -500 -16 ) color_70_110_50 0 0 0 1 1
+( -500 500 -16 ) ( 500 500 -16 ) ( -500 500 -32 ) color_70_110_50 0 0 0 1 1
+( -500 500 -16 ) ( -500 500 -32 ) ( -500 -500 -16 ) color_70_110_50 0 0 0 1 1
+( 500 500 -16 ) ( 500 -500 -16 ) ( 500 500 -32 ) color_70_110_50 0 0 0 1 1
+}
+}
+
+// ==================== PLAYER START ====================
+{
+"classname" "info_player_start"
+"origin" "0 0 100"
+}
+
+// ==================== LIGHTING ====================
+// Bright daylight - pleasant suburbs
+{
+"classname" "light"
+"origin" "0 0 200"
+"light" "350"
+"range" "700"
+"_color" "1 1 0.95"
+}
+
+// Garden lights
+{
+"classname" "street_lamp"
+"targetname" "suburbs_lamp_1"
+"origin" "-300 -300 50"
+"light" "180"
+"range" "140"
+"_color" "255 240 200"
+"fadeTime" "2"
+"bulbSize" "4"
+}
+
+{
+"classname" "street_lamp"
+"targetname" "suburbs_lamp_2"
+"origin" "300 300 50"
+"light" "180"
+"range" "140"
+"_color" "255 240 200"
+"fadeTime" "2"
+"bulbSize" "4"
+}
+
+// ==================== PORTAL: TO SLUMS (West side) ====================
+// Gray trigger - back to starting area
+{
+"classname" "trigger_multiple"
+"targetname" "portal_to_slums"
+"targetMap" "maps/areas/slums_street.map"
+"message" "← To Slums"
+{
+( -500 -50 0 ) ( -450 -50 0 ) ( -500 50 0 ) color_150_150_150 0 0 0 1 1
+( -500 -50 64 ) ( -500 50 64 ) ( -450 -50 64 ) color_150_150_150 0 0 0 1 1
+( -500 -50 0 ) ( -500 -50 64 ) ( -450 -50 0 ) color_120_120_120 0 0 0 1 1
+( -500 50 0 ) ( -450 50 0 ) ( -500 50 64 ) color_120_120_120 0 0 0 1 1
+( -500 50 0 ) ( -500 50 64 ) ( -500 -50 0 ) color_130_130_130 0 0 0 1 1
+( -450 50 0 ) ( -450 -50 0 ) ( -450 50 64 ) color_130_130_130 0 0 0 1 1
+}
+}
+
+// ==================== PORTAL: TO DOWNTOWN (East side) ====================
+// Gold trigger - requires Level 5
+{
+"classname" "trigger_multiple"
+"targetname" "portal_to_downtown"
+"targetMap" "maps/areas/downtown_plaza.map"
+"message" "To Downtown → (Level 5 required)"
+"requiredLevel" "5"
+"deniedMessage" "Downtown is for established operators only. Reach level 5!"
+{
+( 450 -50 0 ) ( 500 -50 0 ) ( 450 50 0 ) color_255_200_50 0 0 0 1 1
+( 450 -50 64 ) ( 450 50 64 ) ( 500 -50 64 ) color_255_200_50 0 0 0 1 1
+( 450 -50 0 ) ( 450 -50 64 ) ( 500 -50 0 ) color_200_160_40 0 0 0 1 1
+( 450 50 0 ) ( 500 50 0 ) ( 450 50 64 ) color_200_160_40 0 0 0 1 1
+( 450 50 0 ) ( 450 50 64 ) ( 450 -50 0 ) color_220_180_45 0 0 0 1 1
+( 500 50 0 ) ( 500 -50 0 ) ( 500 50 64 ) color_220_180_45 0 0 0 1 1
+}
+}
+
+// Portal signs
+{
+"classname" "info_sign"
+"origin" "-475 0 80"
+"text" "← SLUMS"
+"color" "150 150 150"
+}
+
+{
+"classname" "info_sign"
+"origin" "475 0 80"
+"text" "DOWNTOWN →"
+"color" "255 200 50"
+}
+
+// ==================== GROWING AREA (10 pots - medium) ====================
+// Row 1
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_1"
+"origin" "-200 -150 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_2"
+"origin" "-100 -150 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_3"
+"origin" "0 -150 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_4"
+"origin" "100 -150 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_5"
+"origin" "200 -150 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+// Row 2
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_6"
+"origin" "-200 -50 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_7"
+"origin" "-100 -50 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_8"
+"origin" "0 -50 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_9"
+"origin" "100 -50 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_pot_10"
+"origin" "200 -50 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+
+// ==================== GROW LIGHTS (above pots) ====================
+// Row 1
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_1"
+"origin" "-200 -150 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_2"
+"origin" "-100 -150 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_3"
+"origin" "0 -150 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_4"
+"origin" "100 -150 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_5"
+"origin" "200 -150 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+// Row 2
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_6"
+"origin" "-200 -50 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_7"
+"origin" "-100 -50 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_8"
+"origin" "0 -50 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_9"
+"origin" "100 -50 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_light_10"
+"origin" "200 -50 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+
+// ==================== EQUIPMENT ZONES ====================
+{
+"classname" "build_zone"
+"targetname" "suburbs_equip_1"
+"origin" "-350 100 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_equip_2"
+"origin" "-350 200 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+
+// ==================== SHOP TRIGGERS ====================
+// Seed store (green)
+{
+"classname" "trigger_multiple"
+"targetname" "suburbs_seed_store"
+"windowTarget" "seed_store"
+"message" "Premium Seed Shop"
+{
+( 150 200 0 ) ( 230 200 0 ) ( 150 280 0 ) color_100_200_100 0 0 0 1 1
+( 150 200 48 ) ( 150 280 48 ) ( 230 200 48 ) color_100_200_100 0 0 0 1 1
+( 150 200 0 ) ( 150 200 48 ) ( 230 200 0 ) color_80_160_80 0 0 0 1 1
+( 150 280 0 ) ( 230 280 0 ) ( 150 280 48 ) color_80_160_80 0 0 0 1 1
+( 150 280 0 ) ( 150 280 48 ) ( 150 200 0 ) color_90_180_90 0 0 0 1 1
+( 230 280 0 ) ( 230 200 0 ) ( 230 280 48 ) color_90_180_90 0 0 0 1 1
+}
+}
+
+// Supplies store (purple)
+{
+"classname" "trigger_multiple"
+"targetname" "suburbs_supplies"
+"windowTarget" "supplies_store"
+"message" "Garden Supplies"
+{
+( 250 200 0 ) ( 330 200 0 ) ( 250 280 0 ) color_200_100_200 0 0 0 1 1
+( 250 200 48 ) ( 250 280 48 ) ( 330 200 48 ) color_200_100_200 0 0 0 1 1
+( 250 200 0 ) ( 250 200 48 ) ( 330 200 0 ) color_160_80_160 0 0 0 1 1
+( 250 280 0 ) ( 330 280 0 ) ( 250 280 48 ) color_160_80_160 0 0 0 1 1
+( 250 280 0 ) ( 250 280 48 ) ( 250 200 0 ) color_180_90_180 0 0 0 1 1
+( 330 280 0 ) ( 330 200 0 ) ( 330 280 48 ) color_180_90_180 0 0 0 1 1
+}
+}
+
+// Curing area (brown)
+{
+"classname" "trigger_multiple"
+"targetname" "suburbs_curing"
+"windowTarget" "curing_dialog"
+"message" "Curing Station"
+{
+( 150 300 0 ) ( 230 300 0 ) ( 150 380 0 ) color_139_90_43 0 0 0 1 1
+( 150 300 48 ) ( 150 380 48 ) ( 230 300 48 ) color_139_90_43 0 0 0 1 1
+( 150 300 0 ) ( 150 300 48 ) ( 230 300 0 ) color_100_65_30 0 0 0 1 1
+( 150 380 0 ) ( 230 380 0 ) ( 150 380 48 ) color_100_65_30 0 0 0 1 1
+( 150 380 0 ) ( 150 380 48 ) ( 150 300 0 ) color_120_78_36 0 0 0 1 1
+( 230 380 0 ) ( 230 300 0 ) ( 230 380 48 ) color_120_78_36 0 0 0 1 1
+}
+}
+
+// ==================== NPC: Sparky (Equipment) ====================
+{
+"classname" "info_npc"
+"targetname" "npc_sparky"
+"name" "Sparky"
+"npcId" "npc_tech_guy"
+"origin" "-300 300 -16"
+"angle" "0"
+}
+
+// ==================== DECORATIVE ELEMENTS ====================
+{
+"classname" "build_zone"
+"targetname" "suburbs_decor_1"
+"origin" "350 -300 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+{
+"classname" "build_zone"
+"targetname" "suburbs_decor_2"
+"origin" "350 -200 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}

@@ -1,0 +1,210 @@
+// Game: Quake
+// Format: Valve
+// Slums Street - Starting Area (Level 1+)
+
+// ==================== WORLDSPAWN ====================
+{
+"classname" "worldspawn"
+"message" "Slum Street"
+"camera_mode" "fake_ortho"
+"camera_height" "800"
+"area_id" "slums_street"
+"area_tier" "slums"
+// Floor plane (800x800) - Dark concrete
+{
+( -400 -400 -16 ) ( 400 400 -16 ) ( -400 400 -16 ) color_60_55_50 0 0 0 1 1
+( -400 -400 -32 ) ( -400 400 -32 ) ( 400 400 -32 ) color_40_35_30 0 0 0 1 1
+( -400 -400 -16 ) ( -400 -400 -32 ) ( 400 -400 -16 ) color_50_45_40 0 0 0 1 1
+( -400 400 -16 ) ( 400 400 -16 ) ( -400 400 -32 ) color_50_45_40 0 0 0 1 1
+( -400 400 -16 ) ( -400 400 -32 ) ( -400 -400 -16 ) color_50_45_40 0 0 0 1 1
+( 400 400 -16 ) ( 400 -400 -16 ) ( 400 400 -32 ) color_50_45_40 0 0 0 1 1
+}
+}
+
+// ==================== PLAYER START ====================
+{
+"classname" "info_player_start"
+"origin" "0 0 100"
+}
+
+// ==================== LIGHTING ====================
+// Dim street light - slums atmosphere
+{
+"classname" "light"
+"origin" "0 0 150"
+"light" "200"
+"range" "500"
+"_color" "1 0.9 0.7"
+}
+
+// Street lamp - flickering yellow
+{
+"classname" "street_lamp"
+"targetname" "slums_lamp_1"
+"origin" "-200 -200 50"
+"light" "150"
+"range" "120"
+"_color" "255 200 100"
+"fadeTime" "3"
+"bulbSize" "3"
+}
+
+{
+"classname" "street_lamp"
+"targetname" "slums_lamp_2"
+"origin" "200 200 50"
+"light" "150"
+"range" "120"
+"_color" "255 180 80"
+"fadeTime" "4"
+"bulbSize" "3"
+}
+
+// ==================== PORTAL: TO SUBURBS (East side) ====================
+// Yellow trigger - requires Level 3
+{
+"classname" "trigger_multiple"
+"targetname" "portal_to_suburbs"
+"targetMap" "maps/areas/suburbs_main.map"
+"message" "To Suburbs → (Level 3 required)"
+"requiredLevel" "3"
+"deniedMessage" "The suburbs are too nice for you... yet. Reach level 3!"
+{
+( 350 -50 0 ) ( 400 -50 0 ) ( 350 50 0 ) color_255_220_100 0 0 0 1 1
+( 350 -50 64 ) ( 350 50 64 ) ( 400 -50 64 ) color_255_220_100 0 0 0 1 1
+( 350 -50 0 ) ( 350 -50 64 ) ( 400 -50 0 ) color_200_180_80 0 0 0 1 1
+( 350 50 0 ) ( 400 50 0 ) ( 350 50 64 ) color_200_180_80 0 0 0 1 1
+( 350 50 0 ) ( 350 50 64 ) ( 350 -50 0 ) color_220_200_90 0 0 0 1 1
+( 400 50 0 ) ( 400 -50 0 ) ( 400 50 64 ) color_220_200_90 0 0 0 1 1
+}
+}
+
+// Portal sign
+{
+"classname" "info_sign"
+"origin" "375 0 80"
+"text" "→ SUBURBS"
+"color" "255 220 100"
+}
+
+// ==================== GROWING AREA (4 pots - starter) ====================
+{
+"classname" "build_zone"
+"targetname" "slums_pot_1"
+"origin" "-150 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_pot_2"
+"origin" "-50 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_pot_3"
+"origin" "-150 0 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_pot_4"
+"origin" "-50 0 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+
+// ==================== GROW LIGHTS (above pots) ====================
+{
+"classname" "build_zone"
+"targetname" "slums_light_1"
+"origin" "-150 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_light_2"
+"origin" "-50 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_light_3"
+"origin" "-150 0 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "slums_light_4"
+"origin" "-50 0 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+
+// ==================== SHOP TRIGGERS ====================
+// Seed store (green)
+{
+"classname" "trigger_multiple"
+"targetname" "slums_seed_store"
+"windowTarget" "seed_store"
+"message" "Seed Shop"
+{
+( 100 150 0 ) ( 180 150 0 ) ( 100 230 0 ) color_100_200_100 0 0 0 1 1
+( 100 150 48 ) ( 100 230 48 ) ( 180 150 48 ) color_100_200_100 0 0 0 1 1
+( 100 150 0 ) ( 100 150 48 ) ( 180 150 0 ) color_80_160_80 0 0 0 1 1
+( 100 230 0 ) ( 180 230 0 ) ( 100 230 48 ) color_80_160_80 0 0 0 1 1
+( 100 230 0 ) ( 100 230 48 ) ( 100 150 0 ) color_90_180_90 0 0 0 1 1
+( 180 230 0 ) ( 180 150 0 ) ( 180 230 48 ) color_90_180_90 0 0 0 1 1
+}
+}
+
+// Curing area (brown)
+{
+"classname" "trigger_multiple"
+"targetname" "slums_curing"
+"windowTarget" "curing_dialog"
+"message" "Curing Station"
+{
+( 200 150 0 ) ( 280 150 0 ) ( 200 230 0 ) color_139_90_43 0 0 0 1 1
+( 200 150 48 ) ( 200 230 48 ) ( 280 150 48 ) color_139_90_43 0 0 0 1 1
+( 200 150 0 ) ( 200 150 48 ) ( 280 150 0 ) color_100_65_30 0 0 0 1 1
+( 200 230 0 ) ( 280 230 0 ) ( 200 230 48 ) color_100_65_30 0 0 0 1 1
+( 200 230 0 ) ( 200 230 48 ) ( 200 150 0 ) color_120_78_36 0 0 0 1 1
+( 280 230 0 ) ( 280 150 0 ) ( 280 230 48 ) color_120_78_36 0 0 0 1 1
+}
+}
+
+// ==================== NPC: Old Pete (Mentor) ====================
+{
+"classname" "info_npc"
+"targetname" "npc_old_pete"
+"name" "Old Pete"
+"npcId" "npc_mentor"
+"origin" "-300 200 -16"
+"angle" "0"
+}
+
+// ==================== DECORATIVE ELEMENTS ====================
+// Trash pile (decoration zone)
+{
+"classname" "build_zone"
+"targetname" "slums_decor_1"
+"origin" "250 -200 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "150 100 50"
+}

@@ -801,6 +801,11 @@ export class GameHUD {
       this.showNotification(`💨 Burp ${data.burpsCompleted}/${data.burpsRequired} complete!`, "success");
     });
 
+    // Generic UI notifications (from triggers, etc.)
+    EventBus.on<{ message: string; type: "success" | "warning" | "error" }>("ui:notification", (data) => {
+      this.showNotification(data.message, data.type);
+    });
+
     // Stock inventory pill click
     this.container?.querySelector("#hud-stock")?.addEventListener("click", () => {
       this.showStockInventory();

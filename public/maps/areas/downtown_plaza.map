@@ -1,0 +1,478 @@
+// Game: Quake
+// Format: Valve
+// Downtown Plaza - Premium Area (Level 5+)
+
+// ==================== WORLDSPAWN ====================
+{
+"classname" "worldspawn"
+"message" "Downtown Plaza"
+"camera_mode" "fake_ortho"
+"camera_height" "1000"
+"area_id" "downtown_plaza"
+"area_tier" "downtown"
+// Floor plane (1200x1200) - Polished concrete
+{
+( -600 -600 -16 ) ( 600 600 -16 ) ( -600 600 -16 ) color_100_100_110 0 0 0 1 1
+( -600 -600 -32 ) ( -600 600 -32 ) ( 600 600 -32 ) color_80_80_90 0 0 0 1 1
+( -600 -600 -16 ) ( -600 -600 -32 ) ( 600 -600 -16 ) color_90_90_100 0 0 0 1 1
+( -600 600 -16 ) ( 600 600 -16 ) ( -600 600 -32 ) color_90_90_100 0 0 0 1 1
+( -600 600 -16 ) ( -600 600 -32 ) ( -600 -600 -16 ) color_90_90_100 0 0 0 1 1
+( 600 600 -16 ) ( 600 -600 -16 ) ( 600 600 -32 ) color_90_90_100 0 0 0 1 1
+}
+}
+
+// ==================== PLAYER START ====================
+{
+"classname" "info_player_start"
+"origin" "0 0 100"
+}
+
+// ==================== LIGHTING ====================
+// Bright city lights - urban atmosphere
+{
+"classname" "light"
+"origin" "0 0 250"
+"light" "400"
+"range" "800"
+"_color" "1 1 1"
+}
+
+// Neon-style street lamps
+{
+"classname" "street_lamp"
+"targetname" "downtown_lamp_1"
+"origin" "-400 -400 60"
+"light" "220"
+"range" "180"
+"_color" "200 220 255"
+"fadeTime" "1"
+"bulbSize" "5"
+}
+
+{
+"classname" "street_lamp"
+"targetname" "downtown_lamp_2"
+"origin" "400 400 60"
+"light" "220"
+"range" "180"
+"_color" "255 200 220"
+"fadeTime" "1"
+"bulbSize" "5"
+}
+
+{
+"classname" "street_lamp"
+"targetname" "downtown_lamp_3"
+"origin" "-400 400 60"
+"light" "220"
+"range" "180"
+"_color" "220 255 200"
+"fadeTime" "1"
+"bulbSize" "5"
+}
+
+{
+"classname" "street_lamp"
+"targetname" "downtown_lamp_4"
+"origin" "400 -400 60"
+"light" "220"
+"range" "180"
+"_color" "255 255 200"
+"fadeTime" "1"
+"bulbSize" "5"
+}
+
+// ==================== PORTAL: TO SUBURBS (West side) ====================
+// Green trigger - back to suburbs
+{
+"classname" "trigger_multiple"
+"targetname" "portal_to_suburbs"
+"targetMap" "maps/areas/suburbs_main.map"
+"message" "← To Suburbs"
+{
+( -600 -50 0 ) ( -550 -50 0 ) ( -600 50 0 ) color_100_200_100 0 0 0 1 1
+( -600 -50 64 ) ( -600 50 64 ) ( -550 -50 64 ) color_100_200_100 0 0 0 1 1
+( -600 -50 0 ) ( -600 -50 64 ) ( -550 -50 0 ) color_80_160_80 0 0 0 1 1
+( -600 50 0 ) ( -550 50 0 ) ( -600 50 64 ) color_80_160_80 0 0 0 1 1
+( -600 50 0 ) ( -600 50 64 ) ( -600 -50 0 ) color_90_180_90 0 0 0 1 1
+( -550 50 0 ) ( -550 -50 0 ) ( -550 50 64 ) color_90_180_90 0 0 0 1 1
+}
+}
+
+// ==================== PORTAL: TO INDUSTRIAL (North side) ====================
+// Orange trigger - requires Level 8 + $1000
+{
+"classname" "trigger_multiple"
+"targetname" "portal_to_industrial"
+"targetMap" "maps/areas/industrial.map"
+"message" "To Industrial ↑ (Level 8 + $1000 required)"
+"requiredLevel" "8"
+"requiredMoney" "1000"
+"deniedMessage" "The guards want $1,000 to look the other way..."
+{
+( -50 550 0 ) ( 50 550 0 ) ( -50 600 0 ) color_255_150_50 0 0 0 1 1
+( -50 550 64 ) ( -50 600 64 ) ( 50 550 64 ) color_255_150_50 0 0 0 1 1
+( -50 550 0 ) ( -50 550 64 ) ( 50 550 0 ) color_200_120_40 0 0 0 1 1
+( -50 600 0 ) ( 50 600 0 ) ( -50 600 64 ) color_200_120_40 0 0 0 1 1
+( -50 600 0 ) ( -50 600 64 ) ( -50 550 0 ) color_220_135_45 0 0 0 1 1
+( 50 600 0 ) ( 50 550 0 ) ( 50 600 64 ) color_220_135_45 0 0 0 1 1
+}
+}
+
+// Portal signs
+{
+"classname" "info_sign"
+"origin" "-575 0 80"
+"text" "← SUBURBS"
+"color" "100 200 100"
+}
+
+{
+"classname" "info_sign"
+"origin" "0 575 80"
+"text" "↑ INDUSTRIAL"
+"color" "255 150 50"
+}
+
+// ==================== GROWING AREA (14 pots - large) ====================
+// Row 1
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_1"
+"origin" "-300 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_2"
+"origin" "-200 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_3"
+"origin" "-100 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_4"
+"origin" "0 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_5"
+"origin" "100 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_6"
+"origin" "200 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_7"
+"origin" "300 -200 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+// Row 2
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_8"
+"origin" "-300 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_9"
+"origin" "-200 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_10"
+"origin" "-100 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_11"
+"origin" "0 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_12"
+"origin" "100 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_13"
+"origin" "200 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_pot_14"
+"origin" "300 -100 0"
+"zoneType" "plant"
+"size" "64"
+"color" "100 200 100"
+}
+
+// ==================== GROW LIGHTS (above pots) ====================
+// Row 1
+{
+"classname" "build_zone"
+"targetname" "downtown_light_1"
+"origin" "-300 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_2"
+"origin" "-200 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_3"
+"origin" "-100 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_4"
+"origin" "0 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_5"
+"origin" "100 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_6"
+"origin" "200 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_7"
+"origin" "300 -200 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+// Row 2
+{
+"classname" "build_zone"
+"targetname" "downtown_light_8"
+"origin" "-300 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_9"
+"origin" "-200 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_10"
+"origin" "-100 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_11"
+"origin" "0 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_12"
+"origin" "100 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_13"
+"origin" "200 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_light_14"
+"origin" "300 -100 128"
+"zoneType" "growlight"
+"size" "64"
+"color" "100 150 255"
+}
+
+// ==================== EQUIPMENT ZONES ====================
+{
+"classname" "build_zone"
+"targetname" "downtown_equip_1"
+"origin" "-450 150 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_equip_2"
+"origin" "-450 250 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_equip_3"
+"origin" "-450 350 0"
+"zoneType" "equipment"
+"size" "80"
+"color" "200 100 200"
+}
+
+// ==================== SHOP TRIGGERS ====================
+// Premium seed store (green)
+{
+"classname" "trigger_multiple"
+"targetname" "downtown_seed_store"
+"windowTarget" "seed_store"
+"message" "Elite Genetics Shop"
+{
+( 250 250 0 ) ( 350 250 0 ) ( 250 350 0 ) color_100_200_100 0 0 0 1 1
+( 250 250 48 ) ( 250 350 48 ) ( 350 250 48 ) color_100_200_100 0 0 0 1 1
+( 250 250 0 ) ( 250 250 48 ) ( 350 250 0 ) color_80_160_80 0 0 0 1 1
+( 250 350 0 ) ( 350 350 0 ) ( 250 350 48 ) color_80_160_80 0 0 0 1 1
+( 250 350 0 ) ( 250 350 48 ) ( 250 250 0 ) color_90_180_90 0 0 0 1 1
+( 350 350 0 ) ( 350 250 0 ) ( 350 350 48 ) color_90_180_90 0 0 0 1 1
+}
+}
+
+// Supplies store (purple)
+{
+"classname" "trigger_multiple"
+"targetname" "downtown_supplies"
+"windowTarget" "supplies_store"
+"message" "Pro Equipment"
+{
+( 370 250 0 ) ( 470 250 0 ) ( 370 350 0 ) color_200_100_200 0 0 0 1 1
+( 370 250 48 ) ( 370 350 48 ) ( 470 250 48 ) color_200_100_200 0 0 0 1 1
+( 370 250 0 ) ( 370 250 48 ) ( 470 250 0 ) color_160_80_160 0 0 0 1 1
+( 370 350 0 ) ( 470 350 0 ) ( 370 350 48 ) color_160_80_160 0 0 0 1 1
+( 370 350 0 ) ( 370 350 48 ) ( 370 250 0 ) color_180_90_180 0 0 0 1 1
+( 470 350 0 ) ( 470 250 0 ) ( 470 350 48 ) color_180_90_180 0 0 0 1 1
+}
+}
+
+// Curing area (brown)
+{
+"classname" "trigger_multiple"
+"targetname" "downtown_curing"
+"windowTarget" "curing_dialog"
+"message" "Premium Curing Facility"
+{
+( 250 370 0 ) ( 350 370 0 ) ( 250 470 0 ) color_139_90_43 0 0 0 1 1
+( 250 370 48 ) ( 250 470 48 ) ( 350 370 48 ) color_139_90_43 0 0 0 1 1
+( 250 370 0 ) ( 250 370 48 ) ( 350 370 0 ) color_100_65_30 0 0 0 1 1
+( 250 470 0 ) ( 350 470 0 ) ( 250 470 48 ) color_100_65_30 0 0 0 1 1
+( 250 470 0 ) ( 250 470 48 ) ( 250 370 0 ) color_120_78_36 0 0 0 1 1
+( 350 470 0 ) ( 350 370 0 ) ( 350 470 48 ) color_120_78_36 0 0 0 1 1
+}
+}
+
+// ==================== NPC: Mysterious Dealer ====================
+{
+"classname" "info_npc"
+"targetname" "npc_dealer"
+"name" "???"
+"npcId" "npc_dealer"
+"origin" "-350 -350 -16"
+"angle" "45"
+}
+
+// ==================== DECORATIVE ELEMENTS ====================
+{
+"classname" "build_zone"
+"targetname" "downtown_decor_1"
+"origin" "450 -350 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_decor_2"
+"origin" "450 -250 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
+{
+"classname" "build_zone"
+"targetname" "downtown_decor_3"
+"origin" "450 -150 0"
+"zoneType" "decoration"
+"size" "48"
+"color" "255 150 50"
+}
