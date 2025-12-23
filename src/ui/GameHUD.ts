@@ -5,6 +5,7 @@
 
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
+import { DealerSystem } from "../game/DealerSystem";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
 import { GameTimer, type GameSpeedMode } from "../game/GameTimer";
@@ -19,6 +20,7 @@ export class GameHUD {
   private container: HTMLElement | null = null;
   private isVisible: boolean = false;
   private updateInterval: string = "hud_update";
+  private listenersSetup: boolean = false;
 
   // Game Award notification queue
   private awardQueue: { icon: string; text: string }[] = [];
@@ -78,6 +80,10 @@ export class GameHUD {
             <div class="hud-xp-bar">
               <div class="hud-xp-fill"></div>
             </div>
+          </div>
+          <div class="hud-resource hud-stock-pill" id="hud-stock" title="View Stock Inventory">
+            <span class="hud-icon">📦</span>
+            <span class="hud-value">0g</span>
           </div>
         </div>
         <div class="hud-buttons">
@@ -181,6 +187,13 @@ export class GameHUD {
     const xpFill = this.container.querySelector(".hud-xp-fill") as HTMLElement;
     if (xpFill) {
       xpFill.style.width = `${state.getXPProgress() * 100}%`;
+    }
+
+    // Update stock inventory (sellable products)
+    const stockEl = this.container.querySelector("#hud-stock .hud-value");
+    if (stockEl) {
+      const totalStock = this.getTotalSellableStock();
+      stockEl.textContent = `${totalStock}g`;
     }
 
     // Update day/night clock
@@ -327,9 +340,165 @@ export class GameHUD {
     return icons[itemId] || "📦";
   }
 
+  /**
+   * Get total sellable stock (cured products) in grams
+   */
+  private getTotalSellableStock(): number {
+    const products = DealerSystem.getInstance().getSellableProducts();
+    return products
+      .filter(p => p.category === "cured")
+      .reduce((total, p) => total + p.quantity, 0);
+  }
+
+  /**
+   * Show stock inventory panel
+   */
+  private showStockInventory(): void {
+    const products = DealerSystem.getInstance().getSellableProducts();
+    const curedProducts = products.filter(p => p.category === "cured");
+    
+    // Create modal overlay
+    const modal = document.createElement("div");
+    modal.id = "stock-inventory-modal";
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    `;
+    
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #FAFAFA;
+      border-radius: 16px;
+      padding: 24px;
+      min-width: 350px;
+      max-width: 450px;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    `;
+    
+    // Header
+    const header = document.createElement("div");
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #E0E0E0;
+    `;
+    header.innerHTML = `
+      <h3 style="margin: 0; color: #333; font-size: 1.3rem;">📦 Stock Inventory</h3>
+      <button id="stock-close-btn" style="
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+        padding: 4px 8px;
+      ">×</button>
+    `;
+    panel.appendChild(header);
+    
+    // Content
+    if (curedProducts.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = `
+        text-align: center;
+        padding: 32px;
+        color: #666;
+      `;
+      empty.innerHTML = `
+        <div style="font-size: 3rem; margin-bottom: 12px;">📦</div>
+        <div>No cured products in stock</div>
+        <div style="font-size: 0.9rem; margin-top: 8px; color: #999;">
+          Harvest plants and cure them to build your inventory
+        </div>
+      `;
+      panel.appendChild(empty);
+    } else {
+      const list = document.createElement("div");
+      list.style.cssText = `display: flex; flex-direction: column; gap: 12px;`;
+      
+      for (const product of curedProducts) {
+        const item = document.createElement("div");
+        item.style.cssText = `
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: #FFFFFF;
+          border-radius: 10px;
+          border: 1px solid #E0E0E0;
+        `;
+        
+        const qualityColor = product.quality >= 90 ? "#4CAF50" : 
+                            product.quality >= 70 ? "#8BC34A" : 
+                            product.quality >= 50 ? "#FFC107" : "#FF9800";
+        
+        item.innerHTML = `
+          <div>
+            <div style="font-weight: 600; color: #333; text-transform: capitalize;">${product.name}</div>
+            <div style="font-size: 0.85rem; color: #666;">
+              Quality: <span style="color: ${qualityColor}; font-weight: 500;">${product.quality}%</span>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: 700; color: #4CAF50; font-size: 1.1rem;">${product.quantity}g</div>
+            <div style="font-size: 0.85rem; color: #666;">$${product.basePrice}/g</div>
+          </div>
+        `;
+        list.appendChild(item);
+      }
+      panel.appendChild(list);
+      
+      // Total
+      const totalGrams = curedProducts.reduce((t, p) => t + p.quantity, 0);
+      const totalValue = curedProducts.reduce((t, p) => t + (p.quantity * p.basePrice), 0);
+      
+      const total = document.createElement("div");
+      total.style.cssText = `
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #E0E0E0;
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+      `;
+      total.innerHTML = `
+        <span style="color: #333;">Total Stock</span>
+        <span style="color: #4CAF50;">${totalGrams}g (~$${totalValue.toLocaleString()})</span>
+      `;
+      panel.appendChild(total);
+    }
+    
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+    
+    // Close handlers
+    const closeModal = () => modal.remove();
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    panel.querySelector("#stock-close-btn")?.addEventListener("click", closeModal);
+  }
+
   private plantInfoOpenedAt: number = 0;
 
   private setupEventListeners(): void {
+    // Prevent duplicate listener registration
+    if (this.listenersSetup) return;
+    this.listenersSetup = true;
+    
     // Click outside plant info panel to close it
     document.addEventListener("click", (e) => {
       const panel = this.container?.querySelector("#hud-plant-info") as HTMLElement;
@@ -443,6 +612,11 @@ export class GameHUD {
           this.showNotification(`${completeData.template.name} is ready!`, "success");
           break;
       }
+    });
+
+    // Stock inventory pill click
+    this.container?.querySelector("#hud-stock")?.addEventListener("click", () => {
+      this.showStockInventory();
     });
 
     // Speed toggle button

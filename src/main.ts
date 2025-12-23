@@ -7,6 +7,7 @@ import { GameScene } from "./engine/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./game/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
+import { SaveManager } from "./game/SaveManager";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
 
@@ -62,9 +63,43 @@ async function main() {
 
   // Track current game scene for returning to main menu
   let currentGameScene: GameScene | null = null;
+  const saveManager = SaveManager.getInstance();
 
-  // Function to start a game
-  const startGame = () => {
+  // Function to start a new game
+  const startNewGame = (slot: number) => {
+    console.log(`Starting new game in slot ${slot}`);
+    saveManager.newGame(slot);
+    currentGameScene = new GameScene(engine, canvas);
+    currentGameScene.start();
+    MenuSystem.getInstance().enterGame();
+  };
+
+  // Function to load a saved game
+  const loadGame = async (slot: number) => {
+    console.log(`Loading game from slot ${slot}`);
+    
+    // Slot -1 is autosave - use loadAutoSave instead
+    const success = slot === -1 
+      ? await saveManager.loadAutoSave()
+      : await saveManager.loadGame(slot);
+      
+    if (!success) {
+      console.error(`Failed to load game from slot ${slot}`);
+      return;
+    }
+    currentGameScene = new GameScene(engine, canvas);
+    currentGameScene.start();
+    MenuSystem.getInstance().enterGame();
+  };
+
+  // Function to continue from autosave
+  const continueGame = async () => {
+    console.log("Continuing from autosave");
+    const success = await saveManager.loadAutoSave();
+    if (!success) {
+      console.error("Failed to load autosave");
+      return;
+    }
     currentGameScene = new GameScene(engine, canvas);
     currentGameScene.start();
     MenuSystem.getInstance().enterGame();
@@ -72,8 +107,9 @@ async function main() {
 
   // Function to show main menu
   const showMainMenu = async () => {
-    // Dispose current game if exists
+    // Save current game before returning to menu
     if (currentGameScene) {
+      saveManager.saveGame();
       currentGameScene.dispose();
       currentGameScene = null;
     }
@@ -81,15 +117,9 @@ async function main() {
     // Show main menu
     MenuSystem.getInstance().enterMainMenu();
     const menu = new MainMenu(engine, canvas, {
-      onNewGame: startGame,
-      onLoadGame: (slot: number) => {
-        console.log(`Loading game from slot ${slot}`);
-        startGame();
-      },
-      onContinue: () => {
-        console.log("Continuing from autosave");
-        startGame();
-      },
+      onNewGame: startNewGame,
+      onLoadGame: loadGame,
+      onContinue: continueGame,
     });
     await menu.show();
   };

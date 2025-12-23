@@ -239,12 +239,12 @@ export class SeedSelectionPopup {
       
       const strainId = seedItem.dataset.strainId;
       console.log(`SeedSelectionPopup: Clicked strain ${strainId}`);
-      
-      // Visual feedback
-      GameHUD.getInstance().showNotification(`Planting ${strainId}...`);
       if (!strainId) return;
 
       const strain = PlantSystem.getInstance().getStrain(strainId);
+      
+      // Visual feedback - use strain name, not ID
+      GameHUD.getInstance().showNotification(`Planting ${strain?.name ?? strainId}...`);
       if (!strain) {
         console.warn(`SeedSelectionPopup: Strain ${strainId} not found`);
         return;

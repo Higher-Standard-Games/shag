@@ -159,20 +159,28 @@ export class DealerSystem {
     const products: SellableProduct[] = [];
 
     for (const item of inventory.items) {
-      // Check if item is sellable (cured products, fresh products)
-      if (item.type === "harvest" || item.id.startsWith("cured_") || item.id.startsWith("fresh_")) {
-        const category = item.id.startsWith("cured_") ? "cured" : "fresh";
+      // Check if item is sellable (harvest type items, or items with cured/fresh prefix)
+      if (item.type === "harvest" || item.id.startsWith("cured_") || item.id.startsWith("fresh_") || item.id.startsWith("harvest_")) {
+        // Determine category based on metadata or item ID
+        const isCured = item.metadata?.cured === true || item.id.startsWith("cured_");
+        const category = isCured ? "cured" : "fresh";
         const basePrice = (item.metadata?.valuePerGram as number) || this.getBasePrice(item.id);
         const quality = (item.metadata?.quality as number) || 75;
+        
+        // Get display name from strain if available
+        const strainId = item.metadata?.strainId as string;
+        const displayName = strainId 
+          ? strainId.replace(/^(strain_|genetics_)/, "").replace(/_/g, " ")
+          : item.id.replace(/^(harvest_|cured_|fresh_)/, "").replace(/_/g, " ");
 
         products.push({
           itemId: item.id,
-          name: item.id,
+          name: displayName,
           category,
           basePrice,
           quality,
           quantity: item.quantity,
-          strainId: item.metadata?.strainId as string,
+          strainId,
         });
       }
     }

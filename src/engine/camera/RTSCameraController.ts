@@ -15,6 +15,7 @@ import { BuildingSystem } from "../../game/BuildingSystem";
 import { GameState } from "../../game/GameState";
 import { HarvestIndicator } from "../../game/HarvestIndicator";
 import { PrefabInstance } from "../loader/PrefabInstance";
+import { PlantSystem } from "../../game/PlantSystem";
 import { GameHUD } from "../../ui/GameHUD";
 import { SeedSelectionPopup } from "../../ui/SeedSelectionPopup";
 import { UIManager } from "../../ui/UIManager";
@@ -83,7 +84,8 @@ export class RTSCameraController {
         buildableObj.mapId,
         (result) => {
           // Just show notification, don't auto-open plant info
-          GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
+          const strain = PlantSystem.getInstance().getStrain(result.strainId);
+          GameHUD.getInstance().showNotification(`Planted ${strain?.name ?? result.strainId}!`, "success");
         }
       );
     });
@@ -164,7 +166,8 @@ export class RTSCameraController {
                       buildableObj.mapId,
                       (result) => {
                         // Just show notification, don't auto-open plant info
-                        GameHUD.getInstance().showNotification(`Planted ${result.strainId}!`, "success");
+                        const strain = PlantSystem.getInstance().getStrain(result.strainId);
+                        GameHUD.getInstance().showNotification(`Planted ${strain?.name ?? result.strainId}!`, "success");
                       }
                     );
                   }

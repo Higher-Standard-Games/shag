@@ -81,18 +81,24 @@ export class GameClock {
 
   /**
    * Initialize the clock with configuration
+   * @param config Clock configuration
+   * @param preserveTime If true, only sets dayLengthSeconds without resetting time (for loading saves)
    */
-  public init(config: GameClockConfig): void {
+  public init(config: GameClockConfig, preserveTime: boolean = false): void {
     this.dayLengthSeconds = config.dayLengthSeconds;
-    this.currentDay = config.startDay ?? 1;
     
-    // Convert start hour to normalized time
-    const startHour = config.startHour ?? 8;
-    this.currentTimeNormalized = startHour / 24;
+    if (!preserveTime) {
+      // Only reset time/day on new game, not when loading
+      this.currentDay = config.startDay ?? 1;
+      
+      // Convert start hour to normalized time
+      const startHour = config.startHour ?? 8;
+      this.currentTimeNormalized = startHour / 24;
+    }
     
     this.lastPeriod = this.getTimeOfDay().period;
     
-    console.log(`GameClock initialized: Day ${this.currentDay}, ${this.formatTime()}`);
+    console.log(`GameClock initialized: Day ${this.currentDay}, ${this.formatTime()}${preserveTime ? ' (time preserved)' : ''}`);
   }
 
   /**

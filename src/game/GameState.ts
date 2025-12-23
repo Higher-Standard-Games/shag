@@ -220,14 +220,14 @@ export class GameState {
   private static instance: GameState;
   private state: GameStateData;
   private listeners: Map<string, StateChangeCallback[]> = new Map();
-  private autoSaveInterval: number | null = null;
   private sessionStartTime: number = Date.now();
   private progressionConfig: ProgressionConfig = DEFAULT_PROGRESSION;
   private currentSlot: number = 0;
 
   private constructor() {
     this.state = this.loadFromStorage(0) || { ...DEFAULT_STATE };
-    this.startAutoSave();
+    // Note: Autosave is now handled by SaveManager via GameScene
+    // to ensure all subsystem states are collected
   }
 
   private getStorageKey(slot: number): string {
@@ -245,9 +245,6 @@ export class GameState {
    * Reset the singleton instance (for testing only)
    */
   public static resetInstance(): void {
-    if (GameState.instance) {
-      GameState.instance.stopAutoSave();
-    }
     GameState.instance = null as any;
   }
 
@@ -581,6 +578,11 @@ export class GameState {
     this.emit("customData");
   }
 
+  public clearAllCustomData(): void {
+    this.state.customData = {};
+    this.emit("customData");
+  }
+
   // ==================== Unlocks (Query) ====================
 
   public getUnlocks(): string[] {
@@ -676,6 +678,11 @@ export class GameState {
 
   public hasDiscoveredSecret(mapId: string, secretId: string): boolean {
     return this.state.mapData[mapId]?.discoveredSecrets.includes(secretId) || false;
+  }
+
+  public clearAllMapData(): void {
+    this.state.mapData = {};
+    this.emit("mapData");
   }
 
   // ==================== Game Time ====================
@@ -971,20 +978,6 @@ export class GameState {
     } catch (e) {
       console.error("Failed to import save:", e);
       return false;
-    }
-  }
-
-  private startAutoSave(): void {
-    // Autosave every 30 seconds (continuous save)
-    this.autoSaveInterval = window.setInterval(() => {
-      this.autoSave();
-    }, 30000);
-  }
-
-  public stopAutoSave(): void {
-    if (this.autoSaveInterval !== null) {
-      clearInterval(this.autoSaveInterval);
-      this.autoSaveInterval = null;
     }
   }
 

@@ -33,6 +33,7 @@ import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { LampSystem } from "../game/LampSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
+import { SaveManager } from "../game/SaveManager";
 
 /**
  * Camera rendering modes:
@@ -74,6 +75,9 @@ export class GameScene {
   private targetFPS: number = 999;
   private lastRenderTime: number = 0;
   private frameInterval: number = 0;
+  
+  // Autosave interval
+  private autoSaveInterval: number | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -130,7 +134,40 @@ export class GameScene {
       AudioManager.getInstance().playMusic(startMap);
     }
 
+    // Start periodic autosave using SaveManager (every 30 seconds)
+    this.startAutoSave();
+    
+    // Clear the loading flag now that scene is fully initialized
+    SaveManager.getInstance().clearLoadingFlag();
+
     this.startRenderLoop();
+  }
+  
+  /**
+   * Start periodic autosave
+   */
+  private startAutoSave(): void {
+    // Clear any existing interval
+    if (this.autoSaveInterval !== null) {
+      clearInterval(this.autoSaveInterval);
+    }
+    
+    // Autosave every 30 seconds
+    this.autoSaveInterval = window.setInterval(() => {
+      SaveManager.getInstance().autoSave();
+    }, 30000);
+    
+    console.log("[GameScene] Autosave started (30s interval)");
+  }
+  
+  /**
+   * Stop periodic autosave
+   */
+  private stopAutoSave(): void {
+    if (this.autoSaveInterval !== null) {
+      clearInterval(this.autoSaveInterval);
+      this.autoSaveInterval = null;
+    }
   }
 
   private async createScene(): Promise<void> {
@@ -173,12 +210,14 @@ export class GameScene {
     });
 
     // Initialize GameClock (3 minutes = 1 full day)
+    // If loading a saved game, preserve the loaded time instead of resetting to 8 AM
     const clock = GameClock.getInstance();
+    const preserveTime = SaveManager.getInstance().isLoading();
     clock.init({
       dayLengthSeconds: 180, // 3 minutes for full day/night cycle
-      startHour: 8,          // Start at 8 AM
+      startHour: 8,          // Start at 8 AM (only used for new game)
       startDay: 1,
-    });
+    }, preserveTime);
 
     // Initialize dynamic sky lighting (replaces static lights)
     // Using mild values for soft, pleasant lighting
@@ -298,6 +337,13 @@ export class GameScene {
     if (!this.scene) return;
 
     console.log(`Loading map: ${mapName}`);
+    
+    const previousMap = this.currentMap;
+    
+    // Save current map state before switching (if we have a previous map)
+    if (previousMap && previousMap !== mapName) {
+      SaveManager.getInstance().saveCurrentMapState(previousMap);
+    }
 
     // Clear existing map
     MapRenderer.clearMap(this.scene);
@@ -332,11 +378,14 @@ export class GameScene {
     }
 
     this.currentMap = mapName;
+    
+    // Load saved state for this map (built objects, etc.)
+    await SaveManager.getInstance().loadMapState(mapName);
 
     // Switch music if configured
     const config = AssetLoader.getInstance().getConfig();
     const musicKey = config?.assets.music.maps[mapName];
-    if (musicKey && this.currentMap !== mapName) {
+    if (musicKey && previousMap !== mapName) {
       AudioManager.getInstance().playMusic(mapName);
     }
   }
@@ -1088,6 +1137,9 @@ export class GameScene {
   }
 
   public dispose(): void {
+    // Stop autosave
+    this.stopAutoSave();
+    
     // Hide all game UI
     GameHUD.getInstance().hide();
     
@@ -1102,8 +1154,8 @@ export class GameScene {
     // Remove game-active class
     document.body.classList.remove("game-active");
     
-    // Save game state
-    GameState.getInstance().save();
+    // Save game state via SaveManager (collects all subsystem states)
+    SaveManager.getInstance().saveGame();
     
     if (this.scene) {
       this.scene.dispose();

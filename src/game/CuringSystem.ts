@@ -370,15 +370,20 @@ export class CuringSystem {
       return { success: false };
     }
 
-    // Add cured product to inventory
-    const state = GameState.getInstance();
-    state.addItem(slot.curedItemId, "harvest", slot.amount);
-
     // Calculate value
     const freshItem = this.freshStorage.get(slot.freshItemId);
     const baseValue = freshItem?.valuePerGram ?? 10;
     const qualityMultiplier = slot.quality / 100;
     const totalValue = Math.floor(slot.amount * baseValue * qualityMultiplier);
+
+    // Add cured product to inventory with metadata for selling
+    const state = GameState.getInstance();
+    state.addItem(slot.curedItemId, "harvest", slot.amount, {
+      strainId: slot.strainId,
+      quality: slot.quality,
+      valuePerGram: baseValue,
+      cured: true,
+    });
 
     // Remove curing slot
     this.curingSlots.delete(slotId);

@@ -251,6 +251,20 @@ export class GameTimer {
     this.gameTime = time;
   }
 
+  /**
+   * Reset timer to initial state (for new game)
+   */
+  public reset(): void {
+    this.gameTime = 0;
+    this.realTimeElapsed = 0;
+    this.lastRealTime = performance.now();
+    this.isPaused = false;
+    this.speedMode = "normal";
+    this.timers.clear();
+    this.tasks.clear();
+    this.updateCallbacks = [];
+  }
+
   // ==================== Timers (Game Time) ====================
 
   /**

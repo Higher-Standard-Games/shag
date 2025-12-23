@@ -13,7 +13,7 @@ import { SettingsPanel } from "../ui/SettingsPanel";
 import { GameState } from "./GameState";
 
 export interface MainMenuCallbacks {
-  onNewGame: () => void;
+  onNewGame: (slot: number) => void;
   onLoadGame: (slot: number) => void;
   onContinue?: () => void;
   onSettings?: () => void;
@@ -119,7 +119,7 @@ export class MainMenu {
     if (hasAutoSave) {
       const continueBtn = this.createButton("Continue", () => {
         this.hide();
-        state.loadAutoSave();
+        // SaveManager handles loadAutoSave() now
         this.callbacks.onContinue?.() || this.callbacks.onLoadGame(-1);
       }, "primary");
       buttons.appendChild(continueBtn);
@@ -131,8 +131,8 @@ export class MainMenu {
         this.showNewGameSlotPicker();
       } else {
         this.hide();
-        state.newGame(0);
-        this.callbacks.onNewGame();
+        // SaveManager handles newGame() now
+        this.callbacks.onNewGame(0);
       }
     });
     buttons.appendChild(newGameBtn);
@@ -271,11 +271,7 @@ export class MainMenu {
         AudioManager.getInstance().playButtonPress();
         modal.remove();
         this.hide();
-        if (slot.isAutoSave) {
-          state.loadAutoSave();
-        } else {
-          state.loadFromSlot(slot.slot);
-        }
+        // SaveManager handles loadFromSlot/loadAutoSave now
         this.callbacks.onLoadGame(slot.slot);
       });
 
@@ -407,10 +403,20 @@ export class MainMenu {
       });
       slotBtn.addEventListener("click", () => {
         AudioManager.getInstance().playButtonPress();
-        modal.remove();
-        this.hide();
-        state.newGame(i);
-        this.callbacks.onNewGame();
+        
+        if (existingSlot?.exists) {
+          // Show confirmation dialog for overwriting
+          this.showOverwriteConfirmation(i, existingSlot, () => {
+            modal.remove();
+            this.hide();
+            this.callbacks.onNewGame(i);
+          });
+        } else {
+          // Empty slot - no confirmation needed
+          modal.remove();
+          this.hide();
+          this.callbacks.onNewGame(i);
+        }
       });
 
       slotsContainer.appendChild(slotBtn);
@@ -437,6 +443,112 @@ export class MainMenu {
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
+  }
+
+  private showOverwriteConfirmation(
+    slot: number, 
+    existingSlot: { level?: number; money?: number; playTime?: number },
+    onConfirm: () => void
+  ): void {
+    const modal = document.createElement("div");
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+    `;
+
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #FAFAFA;
+      padding: 2rem;
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    `;
+
+    const title = document.createElement("h3");
+    title.textContent = "Overwrite Save?";
+    title.style.cssText = `
+      margin: 0 0 1rem 0;
+      color: #D32F2F;
+      font-size: 1.4rem;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    `;
+    panel.appendChild(title);
+
+    const message = document.createElement("p");
+    const playTime = this.formatPlayTime(existingSlot.playTime || 0);
+    message.innerHTML = `
+      This will permanently delete your save in <strong>Slot ${slot + 1}</strong>:<br>
+      <span style="color: #666;">Level ${existingSlot.level || 1} • $${(existingSlot.money || 0).toLocaleString()} • ${playTime}</span>
+    `;
+    message.style.cssText = `
+      margin: 0 0 1.5rem 0;
+      color: #333;
+      font-size: 1rem;
+      line-height: 1.6;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    `;
+    panel.appendChild(message);
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    `;
+
+    const cancelBtn = this.createButton("Cancel", () => {
+      AudioManager.getInstance().playButtonPress();
+      modal.remove();
+    });
+    cancelBtn.style.minWidth = "120px";
+    cancelBtn.style.padding = "12px 24px";
+    buttonContainer.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "Overwrite";
+    confirmBtn.style.cssText = `
+      padding: 12px 24px;
+      min-width: 120px;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: #D32F2F;
+      color: #FFFFFF;
+      border: none;
+      border-bottom: 4px solid #B71C1C;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    `;
+    confirmBtn.addEventListener("mouseenter", () => {
+      confirmBtn.style.background = "#E53935";
+    });
+    confirmBtn.addEventListener("mouseleave", () => {
+      confirmBtn.style.background = "#D32F2F";
+    });
+    confirmBtn.addEventListener("click", () => {
+      AudioManager.getInstance().playButtonPress();
+      modal.remove();
+      onConfirm();
+    });
+    buttonContainer.appendChild(confirmBtn);
+
+    panel.appendChild(buttonContainer);
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
   }
 
   private createButton(text: string, onClick: () => void, variant: "primary" | "secondary" = "secondary"): HTMLButtonElement {
