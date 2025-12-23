@@ -3,9 +3,9 @@
  * Shows player resources, quick inventory, and notifications
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 import { BuildableObjectManager } from "../game/BuildableObject";
-import { CuringSystem } from "../game/CuringSystem";
 import { DealerSystem } from "../game/DealerSystem";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
@@ -709,74 +709,52 @@ export class GameHUD {
       }
     });
 
-    // Listen for plant events
-    PlantSystem.getInstance().onPlantEvent((_plantId, event, data) => {
-      switch (event) {
-        case "planted":
-          this.showNotification(`Planted a new seed!`, "success");
-          break;
-        case "watered":
-          this.showNotification(`Plant watered!`, "success");
-          break;
-        case "harvested":
-          const harvestData = data as { yield: number; xp: number; isPerfect?: boolean };
-          if (harvestData.isPerfect) {
-            this.showNotification(`🌟 Perfect harvest! ${harvestData.yield} buds! +${harvestData.xp} XP`, "success");
-          } else {
-            this.showNotification(`Harvested ${harvestData.yield} buds! +${harvestData.xp} XP`, "success");
-          }
-          break;
-        case "needs_water":
-          this.showNotification(`A plant needs water!`, "warning");
-          break;
-        case "died":
-          this.showNotification(`A plant has died!`, "error");
-          break;
-        case "stage_change":
-          const stageData = data as { isHarvestable: boolean };
-          if (stageData.isHarvestable) {
-            this.showNotification(`A plant is ready to harvest!`, "success");
-          }
-          break;
-        // Hempire-style water prompt events (disabled - using floating indicators instead)
-        case "water_prompt_start":
-          // Large overlay disabled - WaterPromptUI handles floating indicators
-          // const promptData = data as { timeRemaining: number; streak: number };
-          // this.showWaterPrompt(plantId, promptData.timeRemaining, promptData.streak);
-          break;
-        case "water_prompt_missed":
-          this.hideWaterPrompt();
-          const missedData = data as { totalMissed: number };
-          this.showNotification(`Missed water prompt! (${missedData.totalMissed} missed)`, "warning");
-          break;
-        // Mastery level up
-        case "mastery_levelup":
-          const masteryData = data as { strainId: string; newLevel: number };
-          const strain = PlantSystem.getInstance().getStrain(masteryData.strainId);
-          this.showNotification(`🌟 ${strain?.name ?? "Strain"} mastery level ${masteryData.newLevel}!`, "success");
-          break;
-        // Fertilizer applied
-        case "fertilized":
-          this.showNotification(`🧪 Plant fertilized! Increases yield!`, "success");
-          break;
-        // Water failed
-        case "water_failed":
-          const waterFailData = data as { reason: string; cost: number };
-          if (waterFailData.reason === "no_money") {
-            this.showNotification(`💸 Not enough money to water! Need $${waterFailData.cost}`, "error");
-          }
-          break;
-        // No fertilizer
-        case "no_fertilizer":
-          const fertData = data as { type: string };
-          this.showNotification(`🧪 No ${fertData.type} fertilizer! Buy from Supplies Store.`, "warning");
-          break;
-        // Wrong fertilizer timing
-        case "fertilizer_wrong_timing":
-          const timingData = data as { currentProgress: number; targetProgress: number };
-          this.showNotification(`⏰ Wait until ${Math.round(timingData.targetProgress * 100)}% growth to fertilize (currently ${Math.round(timingData.currentProgress * 100)}%)`, "warning");
-          break;
+    // Listen for plant events via EventBus
+    EventBus.on<{ plantId: string }>("plant:planted", () => {
+      this.showNotification(`Planted a new seed!`, "success");
+    });
+    EventBus.on<{ plantId: string }>("plant:watered", () => {
+      this.showNotification(`Plant watered!`, "success");
+    });
+    EventBus.on<{ plantId: string; yield: number; xp: number; isPerfect?: boolean }>("plant:harvested", (data) => {
+      if (data.isPerfect) {
+        this.showNotification(`🌟 Perfect harvest! ${data.yield} buds! +${data.xp} XP`, "success");
+      } else {
+        this.showNotification(`Harvested ${data.yield} buds! +${data.xp} XP`, "success");
       }
+    });
+    EventBus.on<{ plantId: string }>("plant:needs_water", () => {
+      this.showNotification(`A plant needs water!`, "warning");
+    });
+    EventBus.on<{ plantId: string }>("plant:died", () => {
+      this.showNotification(`A plant has died!`, "error");
+    });
+    EventBus.on<{ plantId: string; isHarvestable: boolean }>("plant:stage_change", (data) => {
+      if (data.isHarvestable) {
+        this.showNotification(`A plant is ready to harvest!`, "success");
+      }
+    });
+    EventBus.on<{ plantId: string; totalMissed: number }>("plant:water_prompt_missed", (data) => {
+      this.hideWaterPrompt();
+      this.showNotification(`Missed water prompt! (${data.totalMissed} missed)`, "warning");
+    });
+    EventBus.on<{ plantId: string; strainId: string; newLevel: number }>("plant:mastery_levelup", (data) => {
+      const strain = PlantSystem.getInstance().getStrain(data.strainId);
+      this.showNotification(`🌟 ${strain?.name ?? "Strain"} mastery level ${data.newLevel}!`, "success");
+    });
+    EventBus.on<{ plantId: string }>("plant:fertilized", () => {
+      this.showNotification(`🧪 Plant fertilized! Increases yield!`, "success");
+    });
+    EventBus.on<{ plantId: string; reason: string; cost: number }>("plant:water_failed", (data) => {
+      if (data.reason === "no_money") {
+        this.showNotification(`💸 Not enough money to water! Need $${data.cost}`, "error");
+      }
+    });
+    EventBus.on<{ plantId: string; type: string }>("plant:no_fertilizer", (data) => {
+      this.showNotification(`🧪 No ${data.type} fertilizer! Buy from Supplies Store.`, "warning");
+    });
+    EventBus.on<{ plantId: string; currentProgress: number; targetProgress: number }>("plant:fertilizer_wrong_timing", (data) => {
+      this.showNotification(`⏰ Wait until ${Math.round(data.targetProgress * 100)}% growth to fertilize (currently ${Math.round(data.currentProgress * 100)}%)`, "warning");
     });
 
     // Listen for level up
@@ -804,26 +782,23 @@ export class GameHUD {
       }
     });
 
-    // Listen for curing system events (burping)
-    CuringSystem.getInstance().on((event, data) => {
-      if (event === "burp_needed") {
-        const burpData = data as { slotId: string; slot: { strainId: string }; timeRemaining: number };
-        const strain = PlantSystem.getInstance().getStrain(burpData.slot.strainId);
-        const strainName = strain?.name ?? burpData.slot.strainId;
-        this.showClickableNotification(
-          `💨 ${strainName} needs burping!`,
-          "warning",
-          () => UIManager.getInstance().openDialog("curing_dialog", {})
-        );
-      } else if (event === "burp_missed") {
-        const missedData = data as { slotId: string; slot: { strainId: string } };
-        const strain = PlantSystem.getInstance().getStrain(missedData.slot.strainId);
-        const strainName = strain?.name ?? missedData.slot.strainId;
-        this.showNotification(`⚠️ Missed burp for ${strainName}! Quality reduced.`, "error");
-      } else if (event === "burp_completed") {
-        const burpData = data as { slotId: string; burpsCompleted: number; burpsRequired: number };
-        this.showNotification(`💨 Burp ${burpData.burpsCompleted}/${burpData.burpsRequired} complete!`, "success");
-      }
+    // Listen for curing system events via EventBus
+    EventBus.on<{ slotId: string; slot: { strainId: string }; timeRemaining: number }>("curing:burp_needed", (data) => {
+      const strain = PlantSystem.getInstance().getStrain(data.slot.strainId);
+      const strainName = strain?.name ?? data.slot.strainId;
+      this.showClickableNotification(
+        `💨 ${strainName} needs burping!`,
+        "warning",
+        () => UIManager.getInstance().openDialog("curing_dialog", {})
+      );
+    });
+    EventBus.on<{ slotId: string; slot: { strainId: string } }>("curing:burp_missed", (data) => {
+      const strain = PlantSystem.getInstance().getStrain(data.slot.strainId);
+      const strainName = strain?.name ?? data.slot.strainId;
+      this.showNotification(`⚠️ Missed burp for ${strainName}! Quality reduced.`, "error");
+    });
+    EventBus.on<{ slotId: string; burpsCompleted: number; burpsRequired: number }>("curing:burp_completed", (data) => {
+      this.showNotification(`💨 Burp ${data.burpsCompleted}/${data.burpsRequired} complete!`, "success");
     });
 
     // Stock inventory pill click

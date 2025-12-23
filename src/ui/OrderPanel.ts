@@ -2,6 +2,7 @@
  * OrderPanel - UI for displaying customer orders
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { OrderSystem, type Order } from "../game/OrderSystem";
 import { GameState } from "../game/GameState";
 import { PlantSystem } from "../game/PlantSystem";
@@ -158,11 +159,10 @@ export class OrderPanel {
       }
     });
 
-    // Listen for order events
-    OrderSystem.getInstance().onOrderEvent((event) => {
-      if (["order_created", "order_completed", "order_expired", "order_cancelled"].includes(event)) {
-        this.update();
-      }
+    // Listen for order events via EventBus
+    const orderEvents = ["order:order_created", "order:order_completed", "order:order_expired", "order:order_cancelled"];
+    orderEvents.forEach(event => {
+      EventBus.on(event, () => this.update());
     });
   }
 

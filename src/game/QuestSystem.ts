@@ -8,6 +8,7 @@
  * - Rewards
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 
@@ -479,9 +480,12 @@ export class QuestSystem {
   }
 
   private emit(event: string, data: unknown): void {
+    // Legacy callback system
     for (const callback of this.eventListeners) {
       callback(event, data);
     }
+    // Global EventBus
+    EventBus.emit(`quest:${event}`, data as object);
   }
 
   // ==================== Serialization ====================

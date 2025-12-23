@@ -8,6 +8,7 @@
  * - Order expiration
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
@@ -739,9 +740,12 @@ export class OrderSystem {
   }
 
   private emit(event: string, data: unknown): void {
+    // Legacy callback system
     for (const callback of this.eventListeners) {
       callback(event, data);
     }
+    // Global EventBus
+    EventBus.emit(`order:${event}`, data as object);
   }
 
   // ==================== Serialization ====================

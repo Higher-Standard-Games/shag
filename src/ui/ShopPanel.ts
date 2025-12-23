@@ -2,6 +2,7 @@
  * ShopPanel - UI for the shop/store
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { ShopSystem, type ShopItem } from "../game/ShopSystem";
 import { GameState } from "../game/GameState";
 import { UIStyles } from "../engine/ui/UIStyles";
@@ -177,12 +178,8 @@ export class ShopPanel {
       }
     });
 
-    // Listen for shop events
-    ShopSystem.getInstance().onShopEvent((event) => {
-      if (event === "purchase_success") {
-        this.updateItems();
-      }
-    });
+    // Listen for shop events via EventBus
+    EventBus.on("shop:purchase_success", () => this.updateItems());
 
     // Escape to close
     const escHandler = (e: KeyboardEvent) => {

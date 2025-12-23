@@ -2,6 +2,7 @@
  * QuestPanel - UI for displaying quests and objectives
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { QuestSystem, type ActiveQuest, type Quest } from "../game/QuestSystem";
 import { UIStyles } from "../engine/ui/UIStyles";
 import questPanelCSS from "./styles/QuestPanel.css?raw";
@@ -125,11 +126,10 @@ export class QuestPanel {
       }
     });
 
-    // Listen for quest events
-    QuestSystem.getInstance().onQuestEvent((event) => {
-      if (["quest_started", "quest_completed", "objective_completed"].includes(event)) {
-        this.update();
-      }
+    // Listen for quest events via EventBus
+    const questEvents = ["quest:quest_started", "quest:quest_completed", "quest:objective_completed"];
+    questEvents.forEach(event => {
+      EventBus.on(event, () => this.update());
     });
   }
 }

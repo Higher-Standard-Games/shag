@@ -13,6 +13,7 @@ import {
   TransformNode,
   Vector3,
 } from "babylonjs";
+import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { PlantSystem, type PlantPhase } from "./PlantSystem";
@@ -192,23 +193,24 @@ export class HarvestIndicator {
   }
 
   private setupPlantEvents(): void {
-    const plantSystem = PlantSystem.getInstance();
-
-    plantSystem.onPlantEvent((plantId, event) => {
-      switch (event) {
-        case "ready_to_harvest":
-          this.addHarvestable(plantId);
-          break;
-        case "harvested":
-        case "removed":
-        case "died":
-          this.removeHarvestable(plantId);
-          break;
-        case "overripe":
-        case "spoiled":
-          this.updateHarvestablePhase(plantId);
-          break;
-      }
+    // Listen for plant events via EventBus
+    EventBus.on<{ plantId: string }>("plant:ready_to_harvest", (data) => {
+      this.addHarvestable(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:harvested", (data) => {
+      this.removeHarvestable(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:removed", (data) => {
+      this.removeHarvestable(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:died", (data) => {
+      this.removeHarvestable(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:overripe", (data) => {
+      this.updateHarvestablePhase(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:spoiled", (data) => {
+      this.updateHarvestablePhase(data.plantId);
     });
   }
 

@@ -8,6 +8,7 @@
  * - Red/Pink bar: Health
  */
 
+import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "../game/GameState";
 import { PlantSystem } from "../game/PlantSystem";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
@@ -53,19 +54,15 @@ export class PlantStatusIndicator {
   }
 
   private setupEventListeners(): void {
-    const plantSystem = PlantSystem.getInstance();
-
-    // Listen for new plants
-    plantSystem.onPlantEvent((plantId, event) => {
-      switch (event) {
-        case "planted":
-          this.addPlantIndicator(plantId);
-          break;
-        case "harvested":
-        case "died":
-          this.removePlantIndicator(plantId);
-          break;
-      }
+    // Listen for plant events via EventBus
+    EventBus.on<{ plantId: string }>("plant:planted", (data) => {
+      this.addPlantIndicator(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:harvested", (data) => {
+      this.removePlantIndicator(data.plantId);
+    });
+    EventBus.on<{ plantId: string }>("plant:died", (data) => {
+      this.removePlantIndicator(data.plantId);
     });
   }
 
