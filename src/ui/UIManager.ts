@@ -31,9 +31,13 @@ export class UIManager {
     this.registerFactory("test_dialog", () => new TestDialog());
     this.registerFactory("shop_dialog", () => new ShopDialog());
     this.registerFactory("seed_store_dialog", () => new SeedStoreDialog());
+    this.registerFactory("seed_store", () => new SeedStoreDialog());  // Alias for map triggers
     this.registerFactory("supplies_store_dialog", () => new SuppliesStoreDialog());
+    this.registerFactory("supplies_store", () => new SuppliesStoreDialog());  // Alias for map triggers
     this.registerFactory("curing_dialog", () => new CuringDialog());
+    this.registerFactory("curing", () => new CuringDialog());  // Alias for map triggers
     this.registerFactory("sale_dialog", () => new SaleDialog());
+    this.registerFactory("dealer", () => new DealerDialog());  // Alias for map triggers
     this.registerFactory("dealer_dialog", () => new DealerDialog());
   }
 
