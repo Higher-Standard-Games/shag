@@ -303,6 +303,12 @@ export class GameScene {
    * @param mode - The new camera mode
    */
   public setCameraMode(mode: CameraMode): void {
+    // Validate mode
+    if (!["perspective", "orthographic", "fake_ortho"].includes(mode)) {
+      console.error(`Invalid camera mode: ${mode}. Use 'perspective', 'orthographic', or 'fake_ortho'`);
+      return;
+    }
+    
     CAMERA_MODE = mode;
     this.applyCameraMode(mode);
     
@@ -312,7 +318,7 @@ export class GameScene {
     }
     
     // Reset camera to map center to prevent getting lost
-    if (this.camera) {
+    if (this.camera && this.mapCenterPosition) {
       this.camera.setTarget(this.mapCenterPosition);
     }
   }
@@ -328,12 +334,19 @@ export class GameScene {
    * Set camera height/distance at runtime
    * @param height - The camera height (meaning varies by mode)
    */
-  public setCameraHeight(height: number): void {
-    this.cameraHeight = height;
+  public setCameraHeight(height: number | string): void {
+    // Handle string input from console
+    const numHeight = typeof height === 'string' ? parseFloat(height) : height;
+    if (isNaN(numHeight) || numHeight <= 0) {
+      console.error(`Invalid camera height: ${height}`);
+      return;
+    }
+    
+    this.cameraHeight = numHeight;
     this.applyCameraMode(CAMERA_MODE);  // Re-apply mode with new height
     
     // Reset camera to map center to prevent getting lost
-    if (this.camera) {
+    if (this.camera && this.mapCenterPosition) {
       this.camera.setTarget(this.mapCenterPosition);
     }
   }
