@@ -98,6 +98,8 @@ export interface AutosaleTrigger {
   active: boolean;
   /** Price multiplier (1.0 = normal market rate) */
   priceMultiplier: number;
+  /** Commission rate (0-1, e.g., 0.1 = 10% goes to the NPC, player gets 90%) */
+  commission: number;
 }
 
 const DEFAULT_CONFIG: OrderConfig = {
@@ -338,31 +340,38 @@ export class OrderSystem {
         // Success! Sell the product
         const quantity = Math.floor(Math.random() * maxQty) + 1; // 1 to maxQty
         const pricePerGram = this.config.basePricePerItem * trigger.priceMultiplier;
-        const reward = Math.floor(quantity * pricePerGram);
+        const grossReward = Math.floor(quantity * pricePerGram);
+        
+        // Apply commission - NPC takes their cut
+        const commissionAmount = Math.floor(grossReward * trigger.commission);
+        const playerReward = grossReward - commissionAmount;
+        
         const xp = Math.floor(quantity * this.config.xpPerItem * 0.5); // Half XP for autosales
         
-        // Remove items and give rewards
+        // Remove items and give rewards (after commission)
         state.removeItem(product.itemId, quantity);
-        state.addMoney(reward);
+        state.addMoney(playerReward);
         state.addXP(xp);
         
         // Record against daily limit
         this.recordSale(quantity);
         
-        // Update stats
+        // Update stats (track gross for stats, player gets net)
         state.incrementStat("ordersCompleted");
-        state.incrementStat("moneyEarned", reward);
+        state.incrementStat("moneyEarned", playerReward);
         
         this.emit("autosale_success", {
           triggerId: trigger.id,
           sourceName: trigger.sourceName,
           itemId: product.itemId,
           quantity,
-          reward,
+          grossReward,
+          commission: commissionAmount,
+          reward: playerReward,
           xp,
         });
         
-        console.log(`[Autosale] ${trigger.sourceName} sold ${quantity}g of ${product.itemId} for $${reward}`);
+        console.log(`[Autosale] ${trigger.sourceName} sold ${quantity}g for $${grossReward} (commission: $${commissionAmount}, player gets: $${playerReward})`);
       } else {
         // Failed attempt
         this.emit("autosale_failed", {
