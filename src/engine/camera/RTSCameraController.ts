@@ -257,6 +257,8 @@ export class RTSCameraController {
                       gameScene.loadMap(props.targetMap).catch(err => {
                         console.error("Failed to load map:", err);
                       });
+                      // Stop processing - mesh will be disposed after map load
+                      return;
                     } else {
                       console.error("GameScene instance not found!");
                     }
@@ -264,7 +266,7 @@ export class RTSCameraController {
                 }
 
                 // Check for spawnModel - dynamically spawn a prefab
-                if (mesh.metadata.properties?.spawnModel) {
+                if (mesh.metadata?.properties?.spawnModel) {
                   const props = mesh.metadata.properties;
                   
                   // Parse spawn position (defaults to trigger origin if not specified)
