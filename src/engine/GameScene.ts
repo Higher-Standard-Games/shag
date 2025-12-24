@@ -36,6 +36,7 @@ import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
 import { ScreenTransition } from "./effects/ScreenTransition";
 import { PostProcessingManager } from "./effects/PostProcessingManager";
+import { RainEffect } from "./effects/RainEffect";
 import { EventBus } from "./core/EventBus";
 
 /**
@@ -87,6 +88,9 @@ export class GameScene {
   
   // Autosave interval
   private autoSaveInterval: number | null = null;
+  
+  // Weather effects
+  private rainEffect: RainEffect | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -245,6 +249,9 @@ export class GameScene {
 
     // Initialize post-processing effects (bloom, vignette, color grading)
     PostProcessingManager.getInstance().init(this.scene, this.camera);
+
+    // Initialize weather effects
+    this.rainEffect = new RainEffect(this.scene);
 
     // Trigger click handling
     this.setupTriggerHandling();
@@ -629,6 +636,18 @@ export class GameScene {
       // Presets
       reset: () => pp.resetToDefaults(),
       settings: () => pp.getSettings(),
+    };
+    
+    // Weather effects debug commands
+    (window as any).weather = {
+      rain: (on: boolean) => on ? this.rainEffect?.start() : this.rainEffect?.stop(),
+      rainIntensity: (v: number) => this.rainEffect?.setIntensity(v),
+      rainDropSize: (v: number) => this.rainEffect?.updateSettings({ dropSize: v }),
+      rainSpeed: (v: number) => this.rainEffect?.updateSettings({ speed: v }),
+      rainWind: (angle: number, strength: number) => this.rainEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
+      rainSettings: (settings: any) => this.rainEffect?.updateSettings(settings),
+      isRaining: () => this.rainEffect?.isRaining(),
+      settings: () => this.rainEffect?.getSettings(),
     };
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)', and 'game.*' in console.");
