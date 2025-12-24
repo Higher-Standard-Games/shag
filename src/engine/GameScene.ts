@@ -476,7 +476,11 @@ export class GameScene {
 
     this.currentMap = mapName;
     
-    // Notify RTSCameraController to sync its targetPosition with the new camera target
+    // Clear ALL world indicators before notifying systems about map load
+    // This prevents any UI elements from leaking between maps
+    WorldIndicatorSystem.getInstance().clearAll();
+    
+    // Notify systems to sync with new map (RTSCameraController, PlantStatusIndicator, etc.)
     EventBus.emit("map:loaded", { mapName });
     
     // Load saved state for this map (built objects, etc.)

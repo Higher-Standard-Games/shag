@@ -217,6 +217,18 @@ export class WorldIndicatorSystem {
   }
 
   /**
+   * Clear ALL indicators - used on map change to prevent leaking between maps
+   */
+  public clearAll(): void {
+    const count = this.indicators.size;
+    for (const indicator of this.indicators.values()) {
+      indicator.element.remove();
+    }
+    this.indicators.clear();
+    console.log(`[WorldIndicatorSystem] Cleared ${count} indicators`);
+  }
+
+  /**
    * Get all indicators with a specific prefix
    */
   public getIndicatorsByPrefix(prefix: string): WorldIndicator[] {
