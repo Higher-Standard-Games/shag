@@ -437,44 +437,44 @@ export class GameScene {
     const result = await MapRenderer.renderEntities(mapData.entities, this.scene);
     console.log(`[GameScene] Map rendered, player start: ${result.playerStartPosition}`);
 
-    // Apply camera height from map if specified
+    // STEP 1: Determine camera target FIRST (before applying mode/height)
+    // This prevents setCameraMode from using stale mapCenterPosition
+    const savedState = this.mapCameraStates.get(mapName);
+    let targetAlpha = -Math.PI / 4;  // Default horizontal rotation
+    let targetBeta = Math.PI / 4;    // Default 45° from top (isometric)
+    
+    if (savedState) {
+      // Returning to a previously visited map - use saved position
+      this.mapCenterPosition = savedState.target.clone();
+      targetAlpha = savedState.alpha;
+      targetBeta = savedState.beta;
+      console.log(`[GameScene] Will restore camera state for ${mapName}: target=${this.mapCenterPosition.toString()}, alpha=${targetAlpha.toFixed(2)}, beta=${targetBeta.toFixed(2)}`);
+    } else {
+      // First visit to this map - use player start
+      this.mapCenterPosition = result.playerStartPosition.clone();
+      console.log(`[GameScene] First visit to ${mapName}: will use player start ${this.mapCenterPosition.toString()}`);
+    }
+
+    // STEP 2: Apply camera height from map (uses mapCenterPosition which is now correct)
     if (result.cameraHeight !== null) {
       this.cameraHeight = result.cameraHeight;
     } else {
       this.cameraHeight = null;  // Reset to use defaults
     }
 
-    // Apply camera mode from map if specified, otherwise keep perspective default
+    // STEP 3: Apply camera mode (this may call applyCameraMode which sets radius/FOV)
     if (result.cameraMode) {
       this.setCameraMode(result.cameraMode);
     } else {
       this.setCameraMode("perspective");
     }
 
-    // Restore saved camera user state for this map, or use defaults for first visit
-    // Camera MODE and HEIGHT were already applied above from map file
-    const savedState = this.mapCameraStates.get(mapName);
-    if (savedState) {
-      // Returning to a previously visited map - restore user's pan position and rotation
-      // IMPORTANT: Clone the target to avoid reference issues - camera.setTarget stores a reference
-      // that gets modified when panning, which would corrupt our saved state
-      const targetClone = savedState.target.clone();
-      this.mapCenterPosition = targetClone;
-      if (this.camera) {
-        this.camera.alpha = savedState.alpha;
-        this.camera.beta = savedState.beta;
-        this.camera.setTarget(targetClone);
-      }
-      console.log(`[GameScene] Restored camera state for ${mapName}: target=${targetClone.toString()}, alpha=${savedState.alpha.toFixed(2)}, beta=${savedState.beta.toFixed(2)}`);
-    } else {
-      // First visit to this map - use player start and default angles
-      this.mapCenterPosition = result.playerStartPosition.clone();
-      if (this.camera) {
-        this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
-        this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
-        this.camera.setTarget(this.mapCenterPosition);
-      }
-      console.log(`[GameScene] First visit to ${mapName}: using player start ${this.mapCenterPosition.toString()}`);
+    // STEP 4: Apply camera angles and target
+    if (this.camera) {
+      this.camera.alpha = targetAlpha;
+      this.camera.beta = targetBeta;
+      this.camera.setTarget(this.mapCenterPosition);
+      console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, alpha=${targetAlpha.toFixed(2)}, beta=${targetBeta.toFixed(2)}, radius=${this.camera.radius}`);
     }
 
     this.currentMap = mapName;
