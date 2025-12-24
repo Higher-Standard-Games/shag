@@ -66,6 +66,7 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
+  private mapCameraTargets: Map<string, Vector3> = new Map();  // Store camera target per map
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -395,9 +396,16 @@ export class GameScene {
   private async loadMapInternal(mapName: string): Promise<void> {
     if (!this.scene) return;
 
-    console.log(`Loading map: ${mapName}`);
+    console.log(`Loading map: ${mapName}, currentMap: ${this.currentMap}`);
+    console.log(`[GameScene] Current saved targets:`, Array.from(this.mapCameraTargets.keys()));
     
     const previousMap = this.currentMap;
+    
+    // Save current camera target for the previous map before switching
+    if (previousMap && previousMap !== mapName && this.camera) {
+      this.mapCameraTargets.set(previousMap, this.camera.target.clone());
+      console.log(`[GameScene] Saved camera target for ${previousMap}: ${this.camera.target.toString()}`);
+    }
     
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
@@ -434,9 +442,16 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Set camera target to player start position
-    // Note: We don't save/restore camera positions across maps because each map has its own coordinate system
-    this.mapCenterPosition = result.playerStartPosition;
+    // Restore saved camera target for this map, or use player start for first visit
+    const savedTarget = this.mapCameraTargets.get(mapName);
+    if (savedTarget) {
+      this.mapCenterPosition = savedTarget;
+      console.log(`[GameScene] Restored camera target for ${mapName}: ${savedTarget.toString()}`);
+    } else {
+      this.mapCenterPosition = result.playerStartPosition;
+      console.log(`[GameScene] Using player start for ${mapName}: ${result.playerStartPosition.toString()}`);
+    }
+    
     if (this.camera) {
       this.camera.setTarget(this.mapCenterPosition);
     }
