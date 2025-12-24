@@ -456,22 +456,25 @@ export class GameScene {
     const savedState = this.mapCameraStates.get(mapName);
     if (savedState) {
       // Returning to a previously visited map - restore user's pan position and rotation
-      this.mapCenterPosition = savedState.target;
+      // IMPORTANT: Clone the target to avoid reference issues - camera.setTarget stores a reference
+      // that gets modified when panning, which would corrupt our saved state
+      const targetClone = savedState.target.clone();
+      this.mapCenterPosition = targetClone;
       if (this.camera) {
         this.camera.alpha = savedState.alpha;
         this.camera.beta = savedState.beta;
-        this.camera.setTarget(savedState.target);
+        this.camera.setTarget(targetClone);
       }
-      console.log(`[GameScene] Restored camera state for ${mapName}: target=${savedState.target.toString()}, alpha=${savedState.alpha.toFixed(2)}, beta=${savedState.beta.toFixed(2)}`);
+      console.log(`[GameScene] Restored camera state for ${mapName}: target=${targetClone.toString()}, alpha=${savedState.alpha.toFixed(2)}, beta=${savedState.beta.toFixed(2)}`);
     } else {
       // First visit to this map - use player start and default angles
-      this.mapCenterPosition = result.playerStartPosition;
+      this.mapCenterPosition = result.playerStartPosition.clone();
       if (this.camera) {
         this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
         this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
         this.camera.setTarget(this.mapCenterPosition);
       }
-      console.log(`[GameScene] First visit to ${mapName}: using player start ${result.playerStartPosition.toString()}`);
+      console.log(`[GameScene] First visit to ${mapName}: using player start ${this.mapCenterPosition.toString()}`);
     }
 
     this.currentMap = mapName;
