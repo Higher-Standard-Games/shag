@@ -24,6 +24,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 | [sprites.md](./sprites.md) | 2D sprite systems (NPCs and buildings) |
 | [prefabs.md](./prefabs.md) | Prefab/model system |
 | [post-processing.md](./post-processing.md) | Graphics effects (bloom, vignette, SSAO) |
+| [weather-effects.md](./weather-effects.md) | Weather system (rain, snow, thunder, fog) |
 | [dialogs.md](./dialogs.md) | UI dialog system |
 | [config.md](./config.md) | Game configuration |
 

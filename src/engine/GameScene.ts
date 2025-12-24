@@ -36,7 +36,9 @@ import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
 import { ScreenTransition } from "./effects/ScreenTransition";
 import { PostProcessingManager } from "./effects/PostProcessingManager";
-import { RainEffect } from "./effects/RainEffect";
+import { PrecipitationEffect } from "./effects/RainEffect";
+import { ThunderEffect } from "./effects/ThunderEffect";
+import { FogEffect } from "./effects/FogEffect";
 import { EventBus } from "./core/EventBus";
 
 /**
@@ -90,7 +92,9 @@ export class GameScene {
   private autoSaveInterval: number | null = null;
   
   // Weather effects
-  private rainEffect: RainEffect | null = null;
+  private precipitationEffect: PrecipitationEffect | null = null;
+  private thunderEffect: ThunderEffect | null = null;
+  private fogEffect: FogEffect | null = null;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -251,7 +255,9 @@ export class GameScene {
     PostProcessingManager.getInstance().init(this.scene, this.camera);
 
     // Initialize weather effects
-    this.rainEffect = new RainEffect(this.scene);
+    this.precipitationEffect = new PrecipitationEffect(this.scene);
+    this.thunderEffect = new ThunderEffect(this.scene);
+    this.fogEffect = new FogEffect(this.scene);
 
     // Trigger click handling
     this.setupTriggerHandling();
@@ -640,14 +646,41 @@ export class GameScene {
     
     // Weather effects debug commands
     (window as any).weather = {
-      rain: (on: boolean) => on ? this.rainEffect?.start() : this.rainEffect?.stop(),
-      rainIntensity: (v: number) => this.rainEffect?.setIntensity(v),
-      rainDropSize: (v: number) => this.rainEffect?.updateSettings({ dropSize: v }),
-      rainSpeed: (v: number) => this.rainEffect?.updateSettings({ speed: v }),
-      rainWind: (angle: number, strength: number) => this.rainEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
-      rainSettings: (settings: any) => this.rainEffect?.updateSettings(settings),
-      isRaining: () => this.rainEffect?.isRaining(),
-      settings: () => this.rainEffect?.getSettings(),
+      // Rain
+      rain: (on: boolean) => on ? this.precipitationEffect?.startRain() : this.precipitationEffect?.stop(),
+      rainIntensity: (v: number) => this.precipitationEffect?.setIntensity(v),
+      rainSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
+      rainSpeed: (v: number) => this.precipitationEffect?.updateSettings({ speed: v }),
+      rainWind: (angle: number, strength: number) => this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
+      
+      // Snow
+      snow: (on: boolean) => on ? this.precipitationEffect?.startSnow() : this.precipitationEffect?.stop(),
+      snowIntensity: (v: number) => { this.precipitationEffect?.updateSettings({ intensity: v }); },
+      snowSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
+      
+      // Thunder (self-fading storm effect)
+      thunder: (duration?: number) => this.thunderEffect?.trigger(duration ? { duration } : undefined),
+      thunderStop: () => this.thunderEffect?.stop(),
+      
+      // Fog
+      fog: (on: boolean) => on ? this.fogEffect?.start() : this.fogEffect?.stop(),
+      fogDensity: (v: number) => this.fogEffect?.setDensity(v),
+      fogColor: (r: number, g: number, b: number) => this.fogEffect?.setColor(r, g, b),
+      lightMist: () => this.fogEffect?.lightMist(),
+      heavyFog: () => this.fogEffect?.heavyFog(),
+      morningFog: () => this.fogEffect?.morningFog(),
+      spookyFog: () => this.fogEffect?.spookyFog(),
+      
+      // Status
+      isRaining: () => this.precipitationEffect?.isRaining(),
+      isSnowing: () => this.precipitationEffect?.isSnowing(),
+      isStorming: () => this.thunderEffect?.isStorming(),
+      isFoggy: () => this.fogEffect?.isFoggy(),
+      settings: () => ({
+        precipitation: this.precipitationEffect?.getSettings(),
+        thunder: this.thunderEffect?.getSettings(),
+        fog: this.fogEffect?.getSettings(),
+      }),
     };
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)', and 'game.*' in console.");
@@ -655,6 +688,7 @@ export class GameScene {
     console.log("Clock commands: game.time(), game.setTime(12), game.setDay(5), game.daySpeed(30)");
     console.log("New systems: game.orders(), game.createOrder(), game.quests(), game.achievements(), game.shop(), game.buy('seed_basic')");
     console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true), fx.settings()");
+    console.log("Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.lightMist()");
   }
 
   private async initBottomBar(): Promise<void> {

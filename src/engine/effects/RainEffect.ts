@@ -1,7 +1,7 @@
 /**
- * RainEffect - Particle-based rain system
+ * PrecipitationEffect - Particle-based rain/snow system
  * 
- * Creates rain drops that fall from above the camera down to the ground.
+ * Creates rain drops or snowflakes that fall from above the camera down to the ground.
  * Uses Babylon.js ParticleSystem for efficient GPU-accelerated rendering.
  */
 
@@ -16,46 +16,99 @@ import {
   Observer,
 } from "babylonjs";
 
-export interface RainSettings {
-  intensity: number;      // 0-1, affects particle count
-  speed: number;          // Fall speed multiplier
-  windAngle: number;      // Wind direction in radians (0 = no wind)
-  windStrength: number;   // How much wind affects rain (0-1)
-  dropSize: number;       // Size of rain drops
-  opacity: number;        // Rain visibility (0-1)
+export type PrecipitationType = 'rain' | 'snow';
+
+export interface PrecipitationSettings {
+  type: PrecipitationType; // Rain or snow
+  intensity: number;       // 0-1, affects particle count
+  speed: number;           // Fall speed multiplier
+  windAngle: number;       // Wind direction in radians (0 = no wind)
+  windStrength: number;    // How much wind affects precipitation (0-1)
+  particleSize: number;    // Size of particles
+  opacity: number;         // Visibility (0-1)
 }
 
-const DEFAULT_RAIN_SETTINGS: RainSettings = {
+// Legacy alias for backwards compatibility
+export type RainSettings = PrecipitationSettings;
+
+const DEFAULT_RAIN_SETTINGS: PrecipitationSettings = {
+  type: 'rain',
   intensity: 0.5,
   speed: 9.0,         // Tuned for natural look
   windAngle: 0,
   windStrength: 0,
-  dropSize: 1.5,
+  particleSize: 1.5,
   opacity: 0.7,
 };
 
-export class RainEffect {
+const DEFAULT_SNOW_SETTINGS: PrecipitationSettings = {
+  type: 'snow',
+  intensity: 0.6,
+  speed: 1.5,         // Snow falls slower
+  windAngle: 0,
+  windStrength: 0.2,  // Light drift
+  particleSize: 1.0,
+  opacity: 0.9,
+};
+
+export class PrecipitationEffect {
   private scene: Scene;
   private particleSystem: ParticleSystem | null = null;
   private emitter: AbstractMesh | null = null;
-  private settings: RainSettings = { ...DEFAULT_RAIN_SETTINGS };
+  private settings: PrecipitationSettings = { ...DEFAULT_RAIN_SETTINGS };
   private isActive: boolean = false;
   private renderObserver: Observer<Scene> | null = null;
+  private currentType: PrecipitationType = 'rain';
   
-  // Rain area dimensions - dynamically calculated based on camera view
+  // Precipitation area dimensions - dynamically calculated based on camera view
   private emitWidth: number = 200;
   private emitDepth: number = 200;
-  private readonly EMIT_HEIGHT = 100;  // Height above camera target where rain spawns
+  private readonly EMIT_HEIGHT = 100;  // Height above camera target where precipitation spawns
   private readonly COVERAGE = 0.9;     // Cover 90% of visible area
+  
+  // Ambient sounds
+  private rainSound: HTMLAudioElement | null = null;
+  private readonly RAIN_FADE_DURATION = 1000;  // ms to fade in/out
 
   constructor(scene: Scene) {
     this.scene = scene;
+    this.loadSounds();
+  }
+  
+  /**
+   * Load ambient weather sounds
+   */
+  private loadSounds(): void {
+    this.rainSound = new Audio("/sounds/rain.mp3");
+    this.rainSound.loop = true;
+    this.rainSound.volume = 0;  // Start silent, fade in
+  }
+  
+  /**
+   * Start rain effect
+   */
+  public startRain(settings?: Partial<PrecipitationSettings>): void {
+    this.start({ ...DEFAULT_RAIN_SETTINGS, ...settings, type: 'rain' });
+  }
+  
+  /**
+   * Start snow effect
+   */
+  public startSnow(settings?: Partial<PrecipitationSettings>): void {
+    this.start({ ...DEFAULT_SNOW_SETTINGS, ...settings, type: 'snow' });
   }
 
   /**
-   * Start the rain effect
+   * Start the precipitation effect
    */
-  public start(settings?: Partial<RainSettings>): void {
+  public start(settings?: Partial<PrecipitationSettings>): void {
+    // If switching types, stop and restart
+    if (this.isActive && settings?.type && settings.type !== this.currentType) {
+      this.stop();
+      setTimeout(() => this.start(settings), 100);
+      return;
+    }
+    
     if (this.isActive) {
       this.updateSettings(settings || {});
       return;
@@ -64,17 +117,27 @@ export class RainEffect {
     if (settings) {
       this.settings = { ...this.settings, ...settings };
     }
-
+    
+    this.currentType = this.settings.type;
     this.createParticleSystem();
     this.isActive = true;
-    console.log("[RainEffect] Started with intensity:", this.settings.intensity);
+    
+    // Start rain ambient sound (only for rain, not snow)
+    if (this.currentType === 'rain') {
+      this.fadeInRainSound();
+    }
+    
+    console.log(`[PrecipitationEffect] Started ${this.currentType} with intensity:`, this.settings.intensity);
   }
 
   /**
-   * Stop the rain effect
+   * Stop the precipitation effect
    */
   public stop(): void {
     if (!this.isActive) return;
+
+    // Fade out rain sound
+    this.fadeOutRainSound();
 
     // Remove render observer
     if (this.renderObserver) {
@@ -94,7 +157,61 @@ export class RainEffect {
     }
 
     this.isActive = false;
-    console.log("[RainEffect] Stopped");
+    console.log(`[PrecipitationEffect] Stopped ${this.currentType}`);
+  }
+  
+  /**
+   * Fade in rain ambient sound
+   */
+  private fadeInRainSound(): void {
+    if (!this.rainSound) return;
+    
+    this.rainSound.currentTime = 0;
+    this.rainSound.volume = 0;
+    this.rainSound.play().catch(err => {
+      console.warn("[PrecipitationEffect] Could not play rain sound:", err.message);
+    });
+    
+    // Fade in over duration
+    const targetVolume = 0.4;
+    const steps = 20;
+    const stepTime = this.RAIN_FADE_DURATION / steps;
+    const volumeStep = targetVolume / steps;
+    let currentStep = 0;
+    
+    const fadeInterval = setInterval(() => {
+      currentStep++;
+      if (this.rainSound) {
+        this.rainSound.volume = Math.min(targetVolume, volumeStep * currentStep);
+      }
+      if (currentStep >= steps) {
+        clearInterval(fadeInterval);
+      }
+    }, stepTime);
+  }
+  
+  /**
+   * Fade out rain ambient sound
+   */
+  private fadeOutRainSound(): void {
+    if (!this.rainSound || this.rainSound.paused) return;
+    
+    const startVolume = this.rainSound.volume;
+    const steps = 20;
+    const stepTime = this.RAIN_FADE_DURATION / steps;
+    const volumeStep = startVolume / steps;
+    let currentStep = 0;
+    
+    const fadeInterval = setInterval(() => {
+      currentStep++;
+      if (this.rainSound) {
+        this.rainSound.volume = Math.max(0, startVolume - volumeStep * currentStep);
+      }
+      if (currentStep >= steps) {
+        clearInterval(fadeInterval);
+        this.rainSound?.pause();
+      }
+    }, stepTime);
   }
 
   /**
@@ -109,11 +226,11 @@ export class RainEffect {
   }
 
   /**
-   * Create the particle system for rain
+   * Create the particle system for precipitation
    */
   private createParticleSystem(): void {
     // Create invisible emitter mesh that will follow camera
-    this.emitter = MeshBuilder.CreateBox("rainEmitter", { size: 1 }, this.scene);
+    this.emitter = MeshBuilder.CreateBox("precipEmitter", { size: 1 }, this.scene);
     this.emitter.isVisible = false;
     
     // Initial position at camera target
@@ -121,11 +238,12 @@ export class RainEffect {
 
     // Create particle system
     const capacity = Math.floor(2000 * this.settings.intensity);
-    this.particleSystem = new ParticleSystem("rain", capacity, this.scene);
+    this.particleSystem = new ParticleSystem("precipitation", capacity, this.scene);
 
-    // Use a simple texture or procedural
-    // For rain, we'll use a stretched white texture
-    this.particleSystem.particleTexture = this.createRainTexture();
+    // Use appropriate texture based on type
+    this.particleSystem.particleTexture = this.currentType === 'snow' 
+      ? this.createSnowTexture() 
+      : this.createRainTexture();
 
     // Emitter configuration - box emitter for area around camera
     this.particleSystem.emitter = this.emitter;
@@ -242,6 +360,7 @@ export class RainEffect {
     if (!this.particleSystem) return;
 
     const s = this.settings;
+    const isSnow = this.currentType === 'snow';
     const baseSpeed = 80 * s.speed;
 
     // Emission rate based on intensity
@@ -253,15 +372,28 @@ export class RainEffect {
     this.particleSystem.minLifeTime = lifetime * 0.9;
     this.particleSystem.maxLifeTime = lifetime * 1.1;
 
-    // Size - rain drops scaled for isometric view
-    this.particleSystem.minSize = s.dropSize * 0.8;
-    this.particleSystem.maxSize = s.dropSize * 1.2;
+    // Size
+    this.particleSystem.minSize = s.particleSize * 0.8;
+    this.particleSystem.maxSize = s.particleSize * 1.2;
     
-    // Scale to make drops look elongated (stretched by speed)
-    this.particleSystem.minScaleX = 0.3;
-    this.particleSystem.maxScaleX = 0.5;
-    this.particleSystem.minScaleY = 3.0;
-    this.particleSystem.maxScaleY = 5.0;
+    if (isSnow) {
+      // Snow: round flakes, no elongation
+      this.particleSystem.minScaleX = 0.8;
+      this.particleSystem.maxScaleX = 1.2;
+      this.particleSystem.minScaleY = 0.8;
+      this.particleSystem.maxScaleY = 1.2;
+      // Add some rotation for snow
+      this.particleSystem.minAngularSpeed = -2;
+      this.particleSystem.maxAngularSpeed = 2;
+    } else {
+      // Rain: elongated drops
+      this.particleSystem.minScaleX = 0.3;
+      this.particleSystem.maxScaleX = 0.5;
+      this.particleSystem.minScaleY = 3.0;
+      this.particleSystem.maxScaleY = 5.0;
+      this.particleSystem.minAngularSpeed = 0;
+      this.particleSystem.maxAngularSpeed = 0;
+    }
 
     // Direction - mostly down with optional wind
     const windX = Math.sin(s.windAngle) * s.windStrength * 20;
@@ -270,16 +402,28 @@ export class RainEffect {
     this.particleSystem.direction1 = new Vector3(windX - 2, -baseSpeed, windZ - 2);
     this.particleSystem.direction2 = new Vector3(windX + 2, -baseSpeed, windZ + 2);
 
-    // No gravity needed - direction handles the fall
-    this.particleSystem.gravity = new Vector3(0, 0, 0);
+    // Snow has some gravity wobble, rain falls straight
+    if (isSnow) {
+      this.particleSystem.gravity = new Vector3(windX * 0.5, -5, windZ * 0.5);
+    } else {
+      this.particleSystem.gravity = new Vector3(0, 0, 0);
+    }
 
-    // Color - light blue/white with transparency
+    // Color
     const alpha = s.opacity;
-    this.particleSystem.color1 = new Color4(0.7, 0.8, 1.0, alpha);
-    this.particleSystem.color2 = new Color4(0.8, 0.9, 1.0, alpha * 0.8);
-    this.particleSystem.colorDead = new Color4(0.7, 0.8, 1.0, 0);
+    if (isSnow) {
+      // Snow: pure white
+      this.particleSystem.color1 = new Color4(1.0, 1.0, 1.0, alpha);
+      this.particleSystem.color2 = new Color4(0.95, 0.95, 1.0, alpha * 0.9);
+      this.particleSystem.colorDead = new Color4(1.0, 1.0, 1.0, 0);
+    } else {
+      // Rain: light blue/white
+      this.particleSystem.color1 = new Color4(0.7, 0.8, 1.0, alpha);
+      this.particleSystem.color2 = new Color4(0.8, 0.9, 1.0, alpha * 0.8);
+      this.particleSystem.colorDead = new Color4(0.7, 0.8, 1.0, 0);
+    }
 
-    // Blend mode for rain
+    // Blend mode
     this.particleSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
 
     // Update speed (how fast particles update)
@@ -315,10 +459,59 @@ export class RainEffect {
   }
 
   /**
+   * Create a snowflake texture procedurally
+   */
+  private createSnowTexture(): Texture {
+    const size = 32;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+
+    // Create radial gradient for soft round snowflake
+    const gradient = ctx.createRadialGradient(
+      size / 2, size / 2, 0,
+      size / 2, size / 2, size / 2
+    );
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.9)");
+    gradient.addColorStop(0.7, "rgba(255, 255, 255, 0.3)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const texture = new Texture(canvas.toDataURL(), this.scene, false, false);
+    texture.hasAlpha = true;
+    return texture;
+  }
+
+  /**
+   * Check if precipitation is currently active
+   */
+  public isActive_(): boolean {
+    return this.isActive;
+  }
+  
+  /**
    * Check if rain is currently active
    */
   public isRaining(): boolean {
-    return this.isActive;
+    return this.isActive && this.currentType === 'rain';
+  }
+  
+  /**
+   * Check if snow is currently active
+   */
+  public isSnowing(): boolean {
+    return this.isActive && this.currentType === 'snow';
+  }
+  
+  /**
+   * Get current precipitation type
+   */
+  public getType(): PrecipitationType | null {
+    return this.isActive ? this.currentType : null;
   }
 
   /**
