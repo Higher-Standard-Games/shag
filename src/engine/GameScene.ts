@@ -34,6 +34,7 @@ import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { LampSystem } from "../game/LampSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
+import { ScreenTransition } from "./effects/ScreenTransition";
 
 /**
  * Camera rendering modes:
@@ -362,7 +363,36 @@ export class GameScene {
     return this.cameraHeight ?? DEFAULT_CAMERA_HEIGHT[CAMERA_MODE];
   }
 
-  public async loadMap(mapName: string): Promise<void> {
+  /**
+   * Load a map with optional fade transition
+   * @param mapName - The map file path to load
+   * @param withTransition - Whether to use fade transition (default: true for map changes, false for initial load)
+   * @param transitionDuration - Total transition duration in ms (default: 400)
+   */
+  public async loadMap(mapName: string, withTransition = true, transitionDuration?: number): Promise<void> {
+    if (!this.scene) return;
+
+    // Skip transition for initial load (no previous map)
+    const isInitialLoad = !this.currentMap;
+    const shouldTransition = withTransition && !isInitialLoad;
+
+    if (shouldTransition) {
+      const transition = ScreenTransition.getInstance();
+      await transition.fadeTransition(
+        async () => {
+          await this.loadMapInternal(mapName);
+        },
+        { duration: transitionDuration }
+      );
+    } else {
+      await this.loadMapInternal(mapName);
+    }
+  }
+
+  /**
+   * Internal map loading logic (without transition effects)
+   */
+  private async loadMapInternal(mapName: string): Promise<void> {
     if (!this.scene) return;
 
     console.log(`Loading map: ${mapName}`);
