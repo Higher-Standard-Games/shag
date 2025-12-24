@@ -456,6 +456,10 @@ export class GameScene {
     }
     
     if (this.camera) {
+      // Reset camera angles to default isometric view
+      // This prevents camera rotation from previous map affecting this map
+      this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
+      this.camera.beta = Math.PI / 4;    // Default 45° from top
       this.camera.setTarget(this.mapCenterPosition);
     }
 
