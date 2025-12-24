@@ -14,6 +14,7 @@ import {
   Vector3,
 } from "babylonjs";
 import { EventBus } from "../engine/core/EventBus";
+import { GameScene } from "../engine/GameScene";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { PlantSystem, type PlantPhase } from "./PlantSystem";
@@ -212,12 +213,39 @@ export class HarvestIndicator {
     EventBus.on<{ plantId: string }>("plant:spoiled", (data) => {
       this.updateHarvestablePhase(data.plantId);
     });
+    
+    // Clear and rescan on map change
+    EventBus.on("map:loaded", () => {
+      this.clearAllIndicators();
+      setTimeout(() => {
+        this.scanForHarvestablePlants();
+      }, 100);
+    });
+  }
+
+  /**
+   * Clear all harvest indicators (used on map change)
+   */
+  private clearAllIndicators(): void {
+    for (const info of this.harvestables.values()) {
+      if (info.indicator) {
+        info.indicator.dispose();
+      }
+    }
+    this.harvestables.clear();
+    this.indicators.clear();
+    console.log("[HarvestIndicator] Cleared all indicators");
   }
 
   private scanForHarvestablePlants(): void {
-    const plants = GameState.getInstance().getPlants();
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap) return;
+    
+    // Only scan plants in the CURRENT map
+    const plants = GameState.getInstance().getPlantsInMap(currentMap);
     const plantSystem = PlantSystem.getInstance();
 
+    console.log(`[HarvestIndicator] Scanning ${plants.length} plants in ${currentMap}`);
     for (const plant of plants) {
       const visualState = plantSystem.getVisualState(plant.id);
       if (visualState?.isHarvestable) {
