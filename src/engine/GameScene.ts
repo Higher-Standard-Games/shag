@@ -95,6 +95,7 @@ export class GameScene {
   private precipitationEffect: PrecipitationEffect | null = null;
   private thunderEffect: ThunderEffect | null = null;
   private fogEffect: FogEffect | null = null;
+  private isIndoorMap: boolean = false;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
@@ -522,6 +523,13 @@ export class GameScene {
       audioManager.startDefaultPlaylist();
     }
     // If no playlist specified but one is already playing, keep it playing
+    
+    // Handle indoor flag - stop precipitation if entering indoor map
+    this.isIndoorMap = result.indoor;
+    if (this.isIndoorMap && this.precipitationEffect?.isActive_()) {
+      console.log("[GameScene] Indoor map - stopping precipitation");
+      this.precipitationEffect.stop();
+    }
   }
 
   private setupTriggerHandling(): void {
@@ -646,15 +654,27 @@ export class GameScene {
     
     // Weather effects debug commands
     (window as any).weather = {
-      // Rain
-      rain: (on: boolean) => on ? this.precipitationEffect?.startRain() : this.precipitationEffect?.stop(),
+      // Rain (blocked on indoor maps)
+      rain: (on: boolean) => {
+        if (on && this.isIndoorMap) {
+          console.log("[Weather] Cannot start rain - indoor map");
+          return;
+        }
+        on ? this.precipitationEffect?.startRain() : this.precipitationEffect?.stop();
+      },
       rainIntensity: (v: number) => this.precipitationEffect?.setIntensity(v),
       rainSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
       rainSpeed: (v: number) => this.precipitationEffect?.updateSettings({ speed: v }),
       rainWind: (angle: number, strength: number) => this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
       
-      // Snow
-      snow: (on: boolean) => on ? this.precipitationEffect?.startSnow() : this.precipitationEffect?.stop(),
+      // Snow (blocked on indoor maps)
+      snow: (on: boolean) => {
+        if (on && this.isIndoorMap) {
+          console.log("[Weather] Cannot start snow - indoor map");
+          return;
+        }
+        on ? this.precipitationEffect?.startSnow() : this.precipitationEffect?.stop();
+      },
       snowIntensity: (v: number) => { this.precipitationEffect?.updateSettings({ intensity: v }); },
       snowSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
       

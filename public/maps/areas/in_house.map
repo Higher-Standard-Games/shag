@@ -8,6 +8,7 @@
 "camera_height" "300"
 "area_id" "in_house"
 "area_tier" "suburbs"
+"indoor" "1"
 // brush 0 - wooden floor
 {
 brushDef

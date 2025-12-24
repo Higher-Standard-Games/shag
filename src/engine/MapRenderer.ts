@@ -39,6 +39,8 @@ export interface MapRenderResult {
   cameraHeight: number | null;
   /** Playlist file specified in worldspawn, or null to keep current/default */
   playlist: string | null;
+  /** Whether this map is indoors (disables rain/snow effects) */
+  indoor: boolean;
 }
 
 export class MapRenderer {
@@ -63,6 +65,7 @@ export class MapRenderer {
     let cameraMode: "perspective" | "orthographic" | "fake_ortho" | null = null;
     let cameraHeight: number | null = null;
     let playlist: string | null = null;
+    let indoor: boolean = false;
     
     // Collect static point lights for clustered rendering
     const staticLights: PointLight[] = [];
@@ -94,6 +97,12 @@ export class MapRenderer {
         if (entity.properties.playlist) {
           playlist = entity.properties.playlist;
           console.log(`Map specifies playlist: ${playlist}`);
+        }
+        
+        // Parse indoor flag (disables rain/snow effects)
+        if (entity.properties.indoor === "1") {
+          indoor = true;
+          console.log(`Map is marked as indoor - weather effects disabled`);
         }
       }
 
@@ -648,7 +657,7 @@ export class MapRenderer {
       console.log(`Created clustered light container with ${staticLights.length} static lights`);
     }
 
-    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight, playlist };
+    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight, playlist, indoor };
   }
 
   /**
