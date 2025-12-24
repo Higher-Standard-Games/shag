@@ -9,6 +9,7 @@
  */
 
 import { EventBus } from "../engine/core/EventBus";
+import { GameScene } from "../engine/GameScene";
 import { GameState } from "../game/GameState";
 import { PlantSystem } from "../game/PlantSystem";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
@@ -97,7 +98,12 @@ export class PlantStatusIndicator {
   }
 
   private scanExistingPlants(): void {
-    const plants = GameState.getInstance().getPlants();
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap) return;
+    
+    // Only scan plants in the CURRENT map, not all maps
+    const plants = GameState.getInstance().getPlantsInMap(currentMap);
+    console.log(`[PlantStatusIndicator] Scanning ${plants.length} plants in ${currentMap}`);
     for (const plant of plants) {
       this.addPlantIndicator(plant.id);
     }

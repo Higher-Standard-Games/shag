@@ -368,6 +368,13 @@ export class GameScene {
   }
 
   /**
+   * Get the current map name
+   */
+  public getCurrentMap(): string | null {
+    return this.currentMap;
+  }
+
+  /**
    * Load a map with optional fade transition
    * @param mapName - The map file path to load
    * @param withTransition - Whether to use fade transition (default: true for map changes, false for initial load)
