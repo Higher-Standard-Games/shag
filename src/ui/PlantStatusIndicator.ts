@@ -64,6 +64,28 @@ export class PlantStatusIndicator {
     EventBus.on<{ plantId: string }>("plant:died", (data) => {
       this.removePlantIndicator(data.plantId);
     });
+    
+    // Clear all indicators when map changes, then rescan for plants in new map
+    EventBus.on("map:loaded", () => {
+      this.clearAllIndicators();
+      // Rescan after a short delay to let the new map's plants load
+      setTimeout(() => {
+        this.scanExistingPlants();
+      }, 100);
+    });
+  }
+
+  /**
+   * Clear all plant indicators (used on map change)
+   */
+  public clearAllIndicators(): void {
+    const worldIndicator = WorldIndicatorSystem.getInstance();
+    for (const plantId of this.activePlants) {
+      const indicatorId = `${INDICATOR_PREFIX}${plantId}`;
+      worldIndicator.removeIndicator(indicatorId);
+    }
+    this.activePlants.clear();
+    console.log("[PlantStatusIndicator] Cleared all indicators");
   }
 
   private startUpdateLoop(): void {
