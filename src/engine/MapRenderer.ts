@@ -655,31 +655,49 @@ export class MapRenderer {
    * Clears all map-related meshes and lights from a scene.
    */
   public static clearMap(scene: Scene): void {
-    scene.meshes.forEach((mesh) => {
-      if (
-        mesh.name === "brush" ||
-        mesh.name === "patch" ||
-        mesh.name.startsWith("light_") ||
-        mesh.name.startsWith("prefab_") ||
-        mesh.name.startsWith("sprite_") ||
-        mesh.name.startsWith("buildZone_")
-      ) {
-        mesh.dispose();
-      }
-    });
+    // Collect meshes to dispose first (avoid modifying array during iteration)
+    const meshesToDispose = scene.meshes.filter((mesh) =>
+      mesh.name === "brush" ||
+      mesh.name === "patch" ||
+      mesh.name.startsWith("light_") ||
+      mesh.name.startsWith("prefab_") ||
+      mesh.name.startsWith("sprite_") ||
+      mesh.name.startsWith("buildZone_") ||
+      mesh.name.startsWith("npc_") ||
+      mesh.name.startsWith("character_") ||
+      mesh.name.startsWith("trigger_") ||
+      // Also catch any mesh with map-related metadata
+      mesh.metadata?.properties?.classname
+    );
+    
+    for (const mesh of meshesToDispose) {
+      mesh.dispose();
+    }
 
-    // Dispose prefab transform nodes
-    scene.transformNodes.forEach((node) => {
-      if (node.name.startsWith("prefab_")) {
-        node.dispose();
-      }
-    });
+    // Dispose transform nodes (NPCs, prefabs, etc.)
+    const nodesToDispose = scene.transformNodes.filter((node) =>
+      node.name.startsWith("prefab_") ||
+      node.name.startsWith("npc_") ||
+      node.name.startsWith("character_") ||
+      // Also catch any node with NPC metadata
+      node.metadata?.npcId
+    );
+    
+    for (const node of nodesToDispose) {
+      node.dispose();
+    }
 
-    scene.lights.forEach((light) => {
-      if (light.name.startsWith("light_")) {
-        light.dispose();
-      }
-    });
+    // Dispose map lights
+    const lightsToDispose = scene.lights.filter((light) =>
+      light.name.startsWith("light_")
+    );
+    
+    for (const light of lightsToDispose) {
+      light.dispose();
+    }
+
+    // Clear street lamps
+    StreetLampSystem.getInstance().clear();
 
     // Clear sprites
     SpriteManager.getInstance().clear();
