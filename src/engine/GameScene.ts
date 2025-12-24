@@ -323,10 +323,8 @@ export class GameScene {
       this.updateCameraOrtho();
     }
     
-    // Reset camera to map center to prevent getting lost
-    if (this.camera && this.mapCenterPosition) {
-      this.camera.setTarget(this.mapCenterPosition);
-    }
+    // Note: Don't reset camera target here - it will be set after mapCenterPosition is updated
+    // This prevents using stale coordinates from the previous map
   }
 
   /**
