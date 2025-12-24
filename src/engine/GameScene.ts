@@ -454,16 +454,16 @@ export class GameScene {
     // STEP 2: Apply camera height from map
     if (result.cameraHeight !== null) {
       this.cameraHeight = result.cameraHeight;
+      console.log(`[GameScene] Setting camera height from map: ${result.cameraHeight}`);
     } else {
       this.cameraHeight = null;  // Reset to use defaults
+      console.log(`[GameScene] No camera height in map, using default`);
     }
 
     // STEP 3: Apply camera mode (sets radius/FOV based on height)
-    if (result.cameraMode) {
-      this.setCameraMode(result.cameraMode);
-    } else {
-      this.setCameraMode("perspective");
-    }
+    const modeToApply = result.cameraMode || "perspective";
+    console.log(`[GameScene] Applying camera mode: ${modeToApply}, height: ${this.cameraHeight}`);
+    this.setCameraMode(modeToApply);
 
     // STEP 4: Apply default camera angles and target
     // Always use default isometric angles - no state to leak between maps
