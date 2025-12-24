@@ -66,7 +66,6 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
-  private mapCameraTargets: Map<string, Vector3> = new Map();  // Store camera target per map (not angles - those depend on camera height)
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -400,14 +399,6 @@ export class GameScene {
     
     const previousMap = this.currentMap;
     
-    // Save current camera target before switching (if we have a previous map)
-    // Only save target position, not angles - angles depend on camera height which varies per map
-    if (previousMap && previousMap !== mapName && this.camera) {
-      const currentTarget = this.camera.target.clone();
-      this.mapCameraTargets.set(previousMap, currentTarget);
-      console.log(`[GameScene] Saved camera target for ${previousMap}: ${currentTarget.toString()}`);
-    }
-    
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
       SaveManager.getInstance().saveCurrentMapState(previousMap);
@@ -443,15 +434,9 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Restore saved camera target for this map, or use player start
-    const savedCameraTarget = this.mapCameraTargets.get(mapName);
-    if (savedCameraTarget) {
-      this.mapCenterPosition = savedCameraTarget;
-      console.log(`[GameScene] Restored camera target for ${mapName}: ${savedCameraTarget.toString()}`);
-    } else {
-      this.mapCenterPosition = result.playerStartPosition;
-    }
-    
+    // Set camera target to player start position
+    // Note: We don't save/restore camera positions across maps because each map has its own coordinate system
+    this.mapCenterPosition = result.playerStartPosition;
     if (this.camera) {
       this.camera.setTarget(this.mapCenterPosition);
     }
