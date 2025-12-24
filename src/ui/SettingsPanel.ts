@@ -8,6 +8,7 @@
  */
 
 import { AudioManager } from "../engine/AudioManager";
+import { PostProcessingManager } from "../engine/effects/PostProcessingManager";
 import { Overlay, createButton, UIManager } from "../engine/ui";
 import { UITheme, type ThemeMode } from "../engine/ui/UITheme";
 import { UIStyles } from "../engine/ui/UIStyles";
@@ -21,6 +22,10 @@ export interface GameSettings {
   musicEnabled: boolean;
   sfxEnabled: boolean;
   highPerformanceRendering: boolean;  // true = uncapped FPS, false = 30fps battery saver
+  // Graphics settings
+  bloomEnabled: boolean;
+  vignetteEnabled: boolean;
+  ssaoEnabled: boolean;
 }
 
 export class SettingsPanel {
@@ -75,6 +80,10 @@ export class SettingsPanel {
       musicEnabled: true,
       sfxEnabled: true,
       highPerformanceRendering: !isMobile,  // Desktop: on, Mobile: off
+      // Graphics defaults
+      bloomEnabled: true,
+      vignetteEnabled: true,
+      ssaoEnabled: false,  // Off by default (performance heavy)
     };
   }
 
@@ -90,12 +99,20 @@ export class SettingsPanel {
   }
 
   /**
-   * Apply current settings to audio systems
+   * Apply current settings to audio and graphics systems
    */
   private applySettings(): void {
     const audio = AudioManager.getInstance();
     audio.setMusicVolume(this.settings.musicVolume);
     audio.setMusicEnabled(this.settings.musicEnabled);
+    
+    // Apply graphics settings (only if PostProcessingManager is initialized)
+    const pp = PostProcessingManager.getInstance();
+    if (pp.isInitialized()) {
+      pp.setBloomEnabled(this.settings.bloomEnabled);
+      pp.setVignetteEnabled(this.settings.vignetteEnabled);
+      pp.setSSAOEnabled(this.settings.ssaoEnabled);
+    }
   }
 
   /**
@@ -197,6 +214,55 @@ export class SettingsPanel {
         window.dispatchEvent(new CustomEvent("performanceSettingChanged", { 
           detail: { highPerformance: enabled } 
         }));
+      }
+    ));
+
+    // Graphics section separator
+    const graphicsSeparator = document.createElement("div");
+    graphicsSeparator.className = "settings-separator";
+    content.appendChild(graphicsSeparator);
+
+    const graphicsLabel = document.createElement("div");
+    graphicsLabel.className = "settings-section-label";
+    graphicsLabel.textContent = "Graphics";
+    content.appendChild(graphicsLabel);
+
+    // Bloom toggle
+    content.appendChild(this.createToggleWithDescription(
+      "Bloom",
+      "✨",
+      this.settings.bloomEnabled,
+      "Glow effect on bright objects",
+      (enabled) => {
+        this.settings.bloomEnabled = enabled;
+        this.saveSettings();
+        this.applySettings();
+      }
+    ));
+
+    // Vignette toggle
+    content.appendChild(this.createToggleWithDescription(
+      "Vignette",
+      "🎬",
+      this.settings.vignetteEnabled,
+      "Darkened screen edges",
+      (enabled) => {
+        this.settings.vignetteEnabled = enabled;
+        this.saveSettings();
+        this.applySettings();
+      }
+    ));
+
+    // SSAO toggle
+    content.appendChild(this.createToggleWithDescription(
+      "Ambient Occlusion",
+      "🌑",
+      this.settings.ssaoEnabled,
+      "Soft shadows (impacts performance)",
+      (enabled) => {
+        this.settings.ssaoEnabled = enabled;
+        this.saveSettings();
+        this.applySettings();
       }
     ));
 

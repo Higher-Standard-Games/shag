@@ -167,6 +167,16 @@
   margin: 8px 0;
 }
 
+/* Section Label */
+.settings-section-label {
+  color: #666666;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: -8px;
+}
+
 /* Theme Toggle */
 .settings-theme-container {
   display: flex;
