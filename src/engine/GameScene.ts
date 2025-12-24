@@ -377,6 +377,14 @@ export class GameScene {
     const isInitialLoad = !this.currentMap;
     const shouldTransition = withTransition && !isInitialLoad;
 
+    // Save camera target for current map BEFORE any transition or map change
+    // This ensures we capture the exact camera position the player was at
+    if (this.currentMap && this.currentMap !== mapName && this.camera) {
+      const targetToSave = this.camera.target.clone();
+      this.mapCameraTargets.set(this.currentMap, targetToSave);
+      console.log(`[GameScene] Saved camera target for ${this.currentMap}: ${targetToSave.toString()}`);
+    }
+
     if (shouldTransition) {
       const transition = ScreenTransition.getInstance();
       await transition.fadeTransition(
@@ -401,11 +409,7 @@ export class GameScene {
     
     const previousMap = this.currentMap;
     
-    // Save current camera target for the previous map before switching
-    if (previousMap && previousMap !== mapName && this.camera) {
-      this.mapCameraTargets.set(previousMap, this.camera.target.clone());
-      console.log(`[GameScene] Saved camera target for ${previousMap}: ${this.camera.target.toString()}`);
-    }
+    // Note: Camera target is saved in loadMap() before transition starts
     
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
