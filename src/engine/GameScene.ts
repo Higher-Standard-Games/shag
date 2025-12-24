@@ -35,6 +35,7 @@ import { LampSystem } from "../game/LampSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
 import { ScreenTransition } from "./effects/ScreenTransition";
+import { PostProcessingManager } from "./effects/PostProcessingManager";
 import { EventBus } from "./core/EventBus";
 
 /**
@@ -241,6 +242,9 @@ export class GameScene {
 
     // Initialize SpriteManager with scene and camera
     SpriteManager.getInstance().init(this.scene, this.camera);
+
+    // Initialize post-processing effects (bloom, vignette, color grading)
+    PostProcessingManager.getInstance().init(this.scene, this.camera);
 
     // Trigger click handling
     this.setupTriggerHandling();
@@ -599,11 +603,39 @@ export class GameScene {
         console.log(`Day length set to ${seconds} seconds`);
       },
     };
+    
+    // Post-processing effects debug commands
+    const pp = PostProcessingManager.getInstance();
+    (window as any).fx = {
+      // Master toggle
+      enabled: (on: boolean) => pp.setEnabled(on),
+      
+      // Bloom
+      bloom: (on: boolean) => pp.setBloomEnabled(on),
+      bloomIntensity: (v: number) => pp.setBloomIntensity(v),
+      bloomThreshold: (v: number) => pp.setBloomThreshold(v),
+      
+      // Vignette
+      vignette: (on: boolean) => pp.setVignetteEnabled(on),
+      vignetteIntensity: (v: number) => pp.setVignetteIntensity(v),
+      
+      // SSAO
+      ssao: (on: boolean) => pp.setSSAOEnabled(on),
+      ssaoIntensity: (v: number) => pp.setSSAOIntensity(v),
+      
+      // Chromatic Aberration
+      chromatic: (on: boolean) => pp.setChromaticAberrationEnabled(on),
+      
+      // Presets
+      reset: () => pp.resetToDefaults(),
+      settings: () => pp.getSettings(),
+    };
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)', and 'game.*' in console.");
     console.log("Game commands: game.state(), game.addMoney(100), game.addXP(50), game.plant('basic'), game.timeScale(60)");
     console.log("Clock commands: game.time(), game.setTime(12), game.setDay(5), game.daySpeed(30)");
     console.log("New systems: game.orders(), game.createOrder(), game.quests(), game.achievements(), game.shop(), game.buy('seed_basic')");
+    console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true), fx.settings()");
   }
 
   private async initBottomBar(): Promise<void> {
