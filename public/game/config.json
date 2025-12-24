@@ -14,7 +14,8 @@
       "maps/areas/slums_street.map",
       "maps/areas/suburbs_main.map",
       "maps/areas/downtown_plaza.map",
-      "maps/areas/industrial.map"
+      "maps/areas/industrial.map",
+      "maps/areas/in_house.map"
     ],
     "menuMap": "patch_test.map",
     "prefabs": [],
