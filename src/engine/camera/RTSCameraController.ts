@@ -255,12 +255,11 @@ export class RTSCameraController {
                     const gameScene = GameScene.getInstance();
                     if (gameScene) {
                       // Record the trigger position so we can return to it later
-                      // Get trigger origin from properties or mesh position
-                      let triggerPos = mesh.position.clone();
-                      if (props.origin) {
-                        const parts = props.origin.split(" ").map(parseFloat);
-                        triggerPos = new Vector3(parts[0], parts[2], parts[1]); // Quake to Babylon coords
-                      }
+                      // Get center of trigger mesh bounding box (mesh.position is 0,0,0 for brushes)
+                      mesh.computeWorldMatrix(true);
+                      const boundingInfo = mesh.getBoundingInfo();
+                      const triggerPos = boundingInfo.boundingBox.centerWorld.clone();
+                      console.log(`[RTSCamera] Trigger center: ${triggerPos.toString()}`);
                       gameScene.setMapEntryTrigger(props.targetMap, triggerPos);
                       
                       gameScene.loadMap(props.targetMap).catch(err => {
