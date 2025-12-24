@@ -66,7 +66,7 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
-  private mapCameraPositions: Map<string, Vector3> = new Map();  // Store camera position per map
+  private mapCameraStates: Map<string, { target: Vector3; alpha: number; beta: number }> = new Map();  // Store full camera state per map
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -400,11 +400,15 @@ export class GameScene {
     
     const previousMap = this.currentMap;
     
-    // Save current camera position before switching (if we have a previous map)
+    // Save current camera state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName && this.camera) {
-      const currentTarget = this.camera.target.clone();
-      this.mapCameraPositions.set(previousMap, currentTarget);
-      console.log(`[GameScene] Saved camera position for ${previousMap}: ${currentTarget.toString()}`);
+      const cameraState = {
+        target: this.camera.target.clone(),
+        alpha: this.camera.alpha,
+        beta: this.camera.beta,
+      };
+      this.mapCameraStates.set(previousMap, cameraState);
+      console.log(`[GameScene] Saved camera state for ${previousMap}: target=${cameraState.target.toString()}, alpha=${cameraState.alpha.toFixed(2)}, beta=${cameraState.beta.toFixed(2)}`);
     }
     
     // Save current map state before switching (if we have a previous map)
@@ -442,17 +446,19 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Restore saved camera position for this map, or use player start
-    const savedCameraPos = this.mapCameraPositions.get(mapName);
-    if (savedCameraPos) {
-      this.mapCenterPosition = savedCameraPos;
-      console.log(`[GameScene] Restored camera position for ${mapName}: ${savedCameraPos.toString()}`);
+    // Restore saved camera state for this map, or use player start
+    const savedCameraState = this.mapCameraStates.get(mapName);
+    if (savedCameraState && this.camera) {
+      this.mapCenterPosition = savedCameraState.target;
+      this.camera.setTarget(savedCameraState.target);
+      this.camera.alpha = savedCameraState.alpha;
+      this.camera.beta = savedCameraState.beta;
+      console.log(`[GameScene] Restored camera state for ${mapName}: target=${savedCameraState.target.toString()}, alpha=${savedCameraState.alpha.toFixed(2)}, beta=${savedCameraState.beta.toFixed(2)}`);
     } else {
       this.mapCenterPosition = result.playerStartPosition;
-    }
-    
-    if (this.camera) {
-      this.camera.setTarget(this.mapCenterPosition);
+      if (this.camera) {
+        this.camera.setTarget(this.mapCenterPosition);
+      }
     }
 
     this.currentMap = mapName;
