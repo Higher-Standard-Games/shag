@@ -66,7 +66,10 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
-  private mapCameraTargets: Map<string, Vector3> = new Map();  // Store camera target per map
+  
+  // Camera user state per map (target + angles) - saved when leaving, restored when returning
+  // Note: Camera MODE and HEIGHT come from map file and are NOT saved here
+  private mapCameraStates: Map<string, { target: Vector3; alpha: number; beta: number }> = new Map();
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -375,12 +378,16 @@ export class GameScene {
     const isInitialLoad = !this.currentMap;
     const shouldTransition = withTransition && !isInitialLoad;
 
-    // Save camera target for current map BEFORE any transition or map change
-    // Use camera.target (the actual panned position) not mapCenterPosition (which may be stale)
+    // Save complete camera user state for current map BEFORE any transition
+    // This includes target (pan position) and angles (rotation) - NOT mode/height (those come from map file)
     if (this.currentMap && this.currentMap !== mapName && this.camera) {
-      const targetToSave = this.camera.target.clone();
-      console.log(`[GameScene] Saving camera.target for ${this.currentMap}: ${targetToSave.toString()}`);
-      this.mapCameraTargets.set(this.currentMap, targetToSave);
+      const stateToSave = {
+        target: this.camera.target.clone(),
+        alpha: this.camera.alpha,
+        beta: this.camera.beta
+      };
+      console.log(`[GameScene] Saving camera state for ${this.currentMap}: target=${stateToSave.target.toString()}, alpha=${stateToSave.alpha.toFixed(2)}, beta=${stateToSave.beta.toFixed(2)}`);
+      this.mapCameraStates.set(this.currentMap, stateToSave);
     }
 
     if (shouldTransition) {
@@ -403,7 +410,7 @@ export class GameScene {
     if (!this.scene) return;
 
     console.log(`Loading map: ${mapName}, currentMap: ${this.currentMap}`);
-    console.log(`[GameScene] Current saved targets:`, Array.from(this.mapCameraTargets.keys()));
+    console.log(`[GameScene] Maps with saved camera states:`, Array.from(this.mapCameraStates.keys()));
     
     const previousMap = this.currentMap;
     
@@ -444,22 +451,27 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Restore saved camera target for this map, or use player start for first visit
-    const savedTarget = this.mapCameraTargets.get(mapName);
-    if (savedTarget) {
-      this.mapCenterPosition = savedTarget;
-      console.log(`[GameScene] Restored camera target for ${mapName}: ${savedTarget.toString()}`);
+    // Restore saved camera user state for this map, or use defaults for first visit
+    // Camera MODE and HEIGHT were already applied above from map file
+    const savedState = this.mapCameraStates.get(mapName);
+    if (savedState) {
+      // Returning to a previously visited map - restore user's pan position and rotation
+      this.mapCenterPosition = savedState.target;
+      if (this.camera) {
+        this.camera.alpha = savedState.alpha;
+        this.camera.beta = savedState.beta;
+        this.camera.setTarget(savedState.target);
+      }
+      console.log(`[GameScene] Restored camera state for ${mapName}: target=${savedState.target.toString()}, alpha=${savedState.alpha.toFixed(2)}, beta=${savedState.beta.toFixed(2)}`);
     } else {
+      // First visit to this map - use player start and default angles
       this.mapCenterPosition = result.playerStartPosition;
-      console.log(`[GameScene] Using player start for ${mapName}: ${result.playerStartPosition.toString()}`);
-    }
-    
-    if (this.camera) {
-      // Reset camera angles to default isometric view
-      // This prevents camera rotation from previous map affecting this map
-      this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
-      this.camera.beta = Math.PI / 4;    // Default 45° from top
-      this.camera.setTarget(this.mapCenterPosition);
+      if (this.camera) {
+        this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
+        this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
+        this.camera.setTarget(this.mapCenterPosition);
+      }
+      console.log(`[GameScene] First visit to ${mapName}: using player start ${result.playerStartPosition.toString()}`);
     }
 
     this.currentMap = mapName;
