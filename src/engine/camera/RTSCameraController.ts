@@ -254,6 +254,15 @@ export class RTSCameraController {
                     console.log(`Switching to map: ${props.targetMap}`);
                     const gameScene = GameScene.getInstance();
                     if (gameScene) {
+                      // Record the trigger position so we can return to it later
+                      // Get trigger origin from properties or mesh position
+                      let triggerPos = mesh.position.clone();
+                      if (props.origin) {
+                        const parts = props.origin.split(" ").map(parseFloat);
+                        triggerPos = new Vector3(parts[0], parts[2], parts[1]); // Quake to Babylon coords
+                      }
+                      gameScene.setMapEntryTrigger(props.targetMap, triggerPos);
+                      
                       gameScene.loadMap(props.targetMap).catch(err => {
                         console.error("Failed to load map:", err);
                       });

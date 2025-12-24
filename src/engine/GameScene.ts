@@ -67,9 +67,10 @@ export class GameScene {
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
   
-  // Camera user state per map (target + angles) - saved when leaving, restored when returning
-  // Note: Camera MODE and HEIGHT come from map file and are NOT saved here
-  private mapCameraStates: Map<string, { target: Vector3; alpha: number; beta: number }> = new Map();
+  // Track the trigger position that was used to enter each map
+  // Key: destination map name, Value: trigger position in the SOURCE map
+  // When returning FROM a map, we look up where the trigger TO that map was located
+  private mapEntryTriggers: Map<string, { sourceMap: string; triggerPosition: Vector3 }> = new Map();
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -371,24 +372,26 @@ export class GameScene {
    * @param withTransition - Whether to use fade transition (default: true for map changes, false for initial load)
    * @param transitionDuration - Total transition duration in ms (default: 400)
    */
+  /**
+   * Record that a trigger at a specific position was used to enter a destination map
+   * This allows us to center the camera on that trigger when returning from the destination
+   */
+  public setMapEntryTrigger(destinationMap: string, triggerPosition: Vector3): void {
+    if (!this.currentMap) return;
+    
+    this.mapEntryTriggers.set(destinationMap, {
+      sourceMap: this.currentMap,
+      triggerPosition: triggerPosition.clone()
+    });
+    console.log(`[GameScene] Recorded entry trigger for ${destinationMap}: position=${triggerPosition.toString()} in ${this.currentMap}`);
+  }
+
   public async loadMap(mapName: string, withTransition = true, transitionDuration?: number): Promise<void> {
     if (!this.scene) return;
 
     // Skip transition for initial load (no previous map)
     const isInitialLoad = !this.currentMap;
     const shouldTransition = withTransition && !isInitialLoad;
-
-    // Save complete camera user state for current map BEFORE any transition
-    // This includes target (pan position) and angles (rotation) - NOT mode/height (those come from map file)
-    if (this.currentMap && this.currentMap !== mapName && this.camera) {
-      const stateToSave = {
-        target: this.camera.target.clone(),
-        alpha: this.camera.alpha,
-        beta: this.camera.beta
-      };
-      console.log(`[GameScene] Saving camera state for ${this.currentMap}: target=${stateToSave.target.toString()}, alpha=${stateToSave.alpha.toFixed(2)}, beta=${stateToSave.beta.toFixed(2)}`);
-      this.mapCameraStates.set(this.currentMap, stateToSave);
-    }
 
     if (shouldTransition) {
       const transition = ScreenTransition.getInstance();
@@ -409,12 +412,8 @@ export class GameScene {
   private async loadMapInternal(mapName: string): Promise<void> {
     if (!this.scene) return;
 
-    console.log(`Loading map: ${mapName}, currentMap: ${this.currentMap}`);
-    console.log(`[GameScene] Maps with saved camera states:`, Array.from(this.mapCameraStates.keys()));
-    
     const previousMap = this.currentMap;
-    
-    // Note: Camera target is saved in loadMap() before transition starts
+    console.log(`[GameScene] Loading map: ${mapName}, previous: ${previousMap}`);
     
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
@@ -437,44 +436,41 @@ export class GameScene {
     const result = await MapRenderer.renderEntities(mapData.entities, this.scene);
     console.log(`[GameScene] Map rendered, player start: ${result.playerStartPosition}`);
 
-    // STEP 1: Determine camera target FIRST (before applying mode/height)
-    // This prevents setCameraMode from using stale mapCenterPosition
-    const savedState = this.mapCameraStates.get(mapName);
-    let targetAlpha = -Math.PI / 4;  // Default horizontal rotation
-    let targetBeta = Math.PI / 4;    // Default 45° from top (isometric)
-    
-    if (savedState) {
-      // Returning to a previously visited map - use saved position
-      this.mapCenterPosition = savedState.target.clone();
-      targetAlpha = savedState.alpha;
-      targetBeta = savedState.beta;
-      console.log(`[GameScene] Will restore camera state for ${mapName}: target=${this.mapCenterPosition.toString()}, alpha=${targetAlpha.toFixed(2)}, beta=${targetBeta.toFixed(2)}`);
+    // STEP 1: Determine camera target position
+    // Check if we're returning FROM a map that we entered via a trigger in THIS map
+    // If so, center on that trigger position instead of player start
+    const entryInfo = this.mapEntryTriggers.get(previousMap || "");
+    if (entryInfo && entryInfo.sourceMap === mapName) {
+      // We're returning to this map from previousMap - center on the trigger that led there
+      this.mapCenterPosition = entryInfo.triggerPosition.clone();
+      console.log(`[GameScene] Returning from ${previousMap}: centering on entry trigger at ${this.mapCenterPosition.toString()}`);
     } else {
-      // First visit to this map - use player start
+      // First visit or no trigger info - use player start
       this.mapCenterPosition = result.playerStartPosition.clone();
-      console.log(`[GameScene] First visit to ${mapName}: will use player start ${this.mapCenterPosition.toString()}`);
+      console.log(`[GameScene] Using player start for ${mapName}: ${this.mapCenterPosition.toString()}`);
     }
 
-    // STEP 2: Apply camera height from map (uses mapCenterPosition which is now correct)
+    // STEP 2: Apply camera height from map
     if (result.cameraHeight !== null) {
       this.cameraHeight = result.cameraHeight;
     } else {
       this.cameraHeight = null;  // Reset to use defaults
     }
 
-    // STEP 3: Apply camera mode (this may call applyCameraMode which sets radius/FOV)
+    // STEP 3: Apply camera mode (sets radius/FOV based on height)
     if (result.cameraMode) {
       this.setCameraMode(result.cameraMode);
     } else {
       this.setCameraMode("perspective");
     }
 
-    // STEP 4: Apply camera angles and target
+    // STEP 4: Apply default camera angles and target
+    // Always use default isometric angles - no state to leak between maps
     if (this.camera) {
-      this.camera.alpha = targetAlpha;
-      this.camera.beta = targetBeta;
+      this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
+      this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
       this.camera.setTarget(this.mapCenterPosition);
-      console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, alpha=${targetAlpha.toFixed(2)}, beta=${targetBeta.toFixed(2)}, radius=${this.camera.radius}`);
+      console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, radius=${this.camera.radius}`);
     }
 
     this.currentMap = mapName;
