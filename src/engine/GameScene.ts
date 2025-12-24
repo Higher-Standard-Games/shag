@@ -376,11 +376,10 @@ export class GameScene {
     const shouldTransition = withTransition && !isInitialLoad;
 
     // Save camera target for current map BEFORE any transition or map change
-    // Use mapCenterPosition (not camera.target) because camera.target might have moved
-    // due to clicking on a trigger at the edge of the map
-    if (this.currentMap && this.currentMap !== mapName) {
-      const targetToSave = this.mapCenterPosition.clone();
-      console.log(`[GameScene] Saving mapCenterPosition for ${this.currentMap}: ${targetToSave.toString()}`);
+    // Use camera.target (the actual panned position) not mapCenterPosition (which may be stale)
+    if (this.currentMap && this.currentMap !== mapName && this.camera) {
+      const targetToSave = this.camera.target.clone();
+      console.log(`[GameScene] Saving camera.target for ${this.currentMap}: ${targetToSave.toString()}`);
       this.mapCameraTargets.set(this.currentMap, targetToSave);
     }
 
