@@ -1037,7 +1037,7 @@ export class GameHUD {
     // Add new event listeners
     panel.querySelector("#btn-water")?.addEventListener("click", () => {
       plantSystem.waterPlant(plantId);
-      this.showPlantInfo(plantId); // Refresh
+      this.hidePlantInfo(); // Close panel after action
     });
 
     panel.querySelector("#btn-harvest")?.addEventListener("click", () => {
@@ -1052,7 +1052,7 @@ export class GameHUD {
         const fertType = strain?.fertilization?.fertilizerType || 'basic';
         if (plantSystem.applyFertilizer(plantId, fertType)) {
           this.showNotification("Fertilizer applied! Increases yield!", "success");
-          this.showPlantInfo(plantId); // Refresh
+          this.hidePlantInfo(); // Close panel after action
         }
       }
     });
