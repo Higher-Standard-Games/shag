@@ -7,6 +7,7 @@
 
 import { BuildableObjectManager } from "../game/BuildableObject";
 import { EventBus } from "../engine/core/EventBus";
+import { GameScene } from "../engine/GameScene";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
 
 const INDICATOR_PREFIX = "pot_action_";
@@ -34,8 +35,17 @@ export class PotActionIndicator {
     // Check for any existing empty pots that need indicators
     // (in case pots were loaded from save before this was initialized)
     setTimeout(() => {
-      this.checkAllPots("showcase");
+      this.checkCurrentMapPots();
     }, 500);
+  }
+
+  /**
+   * Check pots in the current map only
+   */
+  private checkCurrentMapPots(): void {
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap) return;
+    this.checkAllPots(currentMap);
   }
 
   private setupEventListeners(): void {
@@ -60,6 +70,14 @@ export class PotActionIndicator {
       if (data.hasPlant) {
         this.hideIndicator(data.objectId);
       }
+    });
+    
+    // Clear and rescan on map change
+    EventBus.on("map:loaded", () => {
+      this.activeIndicators.clear();
+      setTimeout(() => {
+        this.checkCurrentMapPots();
+      }, 100);
     });
   }
 
