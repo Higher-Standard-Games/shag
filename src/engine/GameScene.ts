@@ -66,6 +66,7 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
+  private mapCameraPositions: Map<string, Vector3> = new Map();  // Store camera position per map
   private bottomBar: BottomBar | null = null;
   private questPanel: SidePanel | null = null;
   private orderPanel: SidePanel | null = null;
@@ -399,6 +400,13 @@ export class GameScene {
     
     const previousMap = this.currentMap;
     
+    // Save current camera position before switching (if we have a previous map)
+    if (previousMap && previousMap !== mapName && this.camera) {
+      const currentTarget = this.camera.target.clone();
+      this.mapCameraPositions.set(previousMap, currentTarget);
+      console.log(`[GameScene] Saved camera position for ${previousMap}: ${currentTarget.toString()}`);
+    }
+    
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
       SaveManager.getInstance().saveCurrentMapState(previousMap);
@@ -434,8 +442,15 @@ export class GameScene {
       this.setCameraMode("perspective");
     }
 
-    // Set camera target and store for later reset
-    this.mapCenterPosition = result.playerStartPosition;
+    // Restore saved camera position for this map, or use player start
+    const savedCameraPos = this.mapCameraPositions.get(mapName);
+    if (savedCameraPos) {
+      this.mapCenterPosition = savedCameraPos;
+      console.log(`[GameScene] Restored camera position for ${mapName}: ${savedCameraPos.toString()}`);
+    } else {
+      this.mapCenterPosition = result.playerStartPosition;
+    }
+    
     if (this.camera) {
       this.camera.setTarget(this.mapCenterPosition);
     }
