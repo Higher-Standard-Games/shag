@@ -101,14 +101,8 @@ export class PlantStatusIndicator {
     const currentMap = GameScene.getInstance()?.getCurrentMap();
     if (!currentMap) return;
     
-    // Debug: show all plants and their mapIds
-    const allPlants = GameState.getInstance().getPlants();
-    console.log(`[PlantStatusIndicator] All plants:`, allPlants.map(p => ({ id: p.id, mapId: p.mapId })));
-    console.log(`[PlantStatusIndicator] Current map: "${currentMap}"`);
-    
     // Only scan plants in the CURRENT map, not all maps
     const plants = GameState.getInstance().getPlantsInMap(currentMap);
-    console.log(`[PlantStatusIndicator] Scanning ${plants.length} plants in ${currentMap}`);
     for (const plant of plants) {
       this.addPlantIndicator(plant.id);
     }
