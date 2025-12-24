@@ -43,8 +43,8 @@ export class RTSCameraController {
 
   private observer: Observer<PointerInfo> | null = null;
   private renderObserver: Observer<Scene> | null = null;
-  private mouseLeaveHandler: () => void;
-  private mouseEnterHandler: () => void;
+  private mouseLeaveHandler!: () => void;
+  private mouseEnterHandler!: () => void;
 
   constructor(scene: Scene, camera: ArcRotateCamera, canvas: HTMLCanvasElement) {
     this.scene = scene;
@@ -53,7 +53,25 @@ export class RTSCameraController {
 
     // Initialize target
     this.targetPosition = this.camera.target.clone();
+    
+    // Listen for map load events to sync targetPosition with new camera target
+    EventBus.on("map:loaded", () => {
+      this.syncTargetPosition();
+    });
+    
+    this.initializeHandlers();
+  }
 
+  /**
+   * Sync the controller's target position with the camera's current target.
+   * Call this after changing the camera target externally (e.g., map load).
+   */
+  public syncTargetPosition(): void {
+    this.targetPosition = this.camera.target.clone();
+    console.log(`[RTSCameraController] Synced targetPosition to: ${this.targetPosition.toString()}`);
+  }
+
+  private initializeHandlers(): void {
     this.mouseLeaveHandler = () => {
       this.isDragging = false;
       this.startGroundPosition = null;

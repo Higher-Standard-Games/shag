@@ -35,6 +35,7 @@ import { LampSystem } from "../game/LampSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
 import { ScreenTransition } from "./effects/ScreenTransition";
+import { EventBus } from "./core/EventBus";
 
 /**
  * Camera rendering modes:
@@ -474,6 +475,9 @@ export class GameScene {
     }
 
     this.currentMap = mapName;
+    
+    // Notify RTSCameraController to sync its targetPosition with the new camera target
+    EventBus.emit("map:loaded", { mapName });
     
     // Load saved state for this map (built objects, etc.)
     await SaveManager.getInstance().loadMapState(mapName);
