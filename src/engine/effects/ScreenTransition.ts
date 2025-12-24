@@ -2,16 +2,21 @@
  * ScreenTransition - Handles screen fade effects for map transitions
  * 
  * Provides smooth fade-to-black (or other colors) transitions
- * when changing maps or scenes.
+ * when changing maps or scenes. Only covers the game canvas area,
+ * leaving UI elements visible.
  */
 
-export type TransitionType = "fade" | "fadeWhite" | "fadeColor";
+import { SkyLightSystem } from "../lighting/SkyLightSystem";
+
+export type TransitionType = "fade" | "fadeWhite" | "fadeColor" | "fadeSky";
 
 export interface TransitionOptions {
-  /** Total duration in milliseconds (default: 500) */
+  /** Total duration in milliseconds (default: 400) */
   duration?: number;
-  /** Color to fade to (default: black) */
+  /** Color to fade to (default: current sky color, fallback to black) */
   color?: string;
+  /** Use current sky/day-cycle color instead of specified color */
+  useSkyColor?: boolean;
   /** Easing function (default: ease-in-out) */
   easing?: string;
 }
@@ -21,6 +26,7 @@ export class ScreenTransition {
   private overlay: HTMLDivElement | null = null;
   private isTransitioning = false;
   private defaultDuration = 400; // ms total (200 fade out + 200 fade in)
+  private useSkyColorByDefault = true; // Use sky color by default
 
   private constructor() {}
 
@@ -32,15 +38,19 @@ export class ScreenTransition {
   }
 
   /**
-   * Initialize the transition overlay
+   * Initialize the transition overlay (targets game canvas only)
    */
   public init(): void {
     if (this.overlay) return;
 
+    // Find the game canvas container
+    const canvas = document.getElementById("renderCanvas");
+    const container = canvas?.parentElement || document.body;
+
     this.overlay = document.createElement("div");
     this.overlay.id = "screen-transition-overlay";
     this.overlay.style.cssText = `
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
@@ -48,10 +58,23 @@ export class ScreenTransition {
       background-color: black;
       opacity: 0;
       pointer-events: none;
-      z-index: 9999;
+      z-index: 100;
       transition: opacity 0.2s ease-in-out;
     `;
-    document.body.appendChild(this.overlay);
+    
+    // Insert overlay into canvas container (so UI stays on top)
+    if (container !== document.body) {
+      // Make sure container has relative positioning for absolute child
+      const containerStyle = window.getComputedStyle(container);
+      if (containerStyle.position === "static") {
+        container.style.position = "relative";
+      }
+      container.appendChild(this.overlay);
+    } else {
+      // Fallback: append to body but use lower z-index
+      this.overlay.style.zIndex = "100";
+      document.body.appendChild(this.overlay);
+    }
   }
 
   /**
@@ -66,6 +89,28 @@ export class ScreenTransition {
    */
   public getDefaultDuration(): number {
     return this.defaultDuration;
+  }
+
+  /**
+   * Set whether to use sky color by default
+   */
+  public setUseSkyColorByDefault(use: boolean): void {
+    this.useSkyColorByDefault = use;
+  }
+
+  /**
+   * Get the current sky color from the day/night cycle
+   */
+  private getSkyColor(): string {
+    try {
+      const skyLight = SkyLightSystem.getInstance();
+      if (skyLight.isInitialized()) {
+        return skyLight.getCurrentSkyColorHex();
+      }
+    } catch {
+      // SkyLightSystem not available
+    }
+    return "#000000"; // Fallback to black
   }
 
   /**
@@ -87,15 +132,24 @@ export class ScreenTransition {
     this.isTransitioning = true;
     const duration = options?.duration ?? this.defaultDuration;
     const halfDuration = duration / 2;
-    const color = options?.color ?? "black";
     const easing = options?.easing ?? "ease-in-out";
+    
+    // Determine color: explicit color > useSkyColor option > default behavior
+    let color: string;
+    if (options?.color) {
+      color = options.color;
+    } else if (options?.useSkyColor !== undefined ? options.useSkyColor : this.useSkyColorByDefault) {
+      color = this.getSkyColor();
+    } else {
+      color = "#000000";
+    }
 
     // Set transition properties
     this.overlay.style.backgroundColor = color;
     this.overlay.style.transition = `opacity ${halfDuration}ms ${easing}`;
 
     try {
-      // Fade out (to black)
+      // Fade out (to sky/specified color)
       await this.fadeOut(halfDuration);
 
       // Execute the callback (map load, etc.)
@@ -104,7 +158,7 @@ export class ScreenTransition {
       // Small delay to ensure rendering is complete
       await this.delay(50);
 
-      // Fade in (from black)
+      // Fade in (from sky/specified color)
       await this.fadeIn(halfDuration);
     } finally {
       this.isTransitioning = false;

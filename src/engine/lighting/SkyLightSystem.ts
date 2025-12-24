@@ -188,6 +188,13 @@ export class SkyLightSystem {
   }
 
   /**
+   * Check if the system is initialized
+   */
+  public isInitialized(): boolean {
+    return this.scene !== null && this.sunLight !== null;
+  }
+
+  /**
    * Initialize the sky light system
    */
   public init(scene: Scene, config?: SkyLightConfig): void {
@@ -450,6 +457,18 @@ export class SkyLightSystem {
    */
   public setMoonIntensity(intensity: number): void {
     this.config.moonIntensity = intensity;
+  }
+
+  /**
+   * Get the current sky color as a CSS hex string
+   */
+  public getCurrentSkyColorHex(): string {
+    if (!this.scene) return "#000000";
+    const c = this.scene.clearColor;
+    const r = Math.round(c.r * 255);
+    const g = Math.round(c.g * 255);
+    const b = Math.round(c.b * 255);
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
   }
 
   /**
