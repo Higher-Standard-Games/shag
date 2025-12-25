@@ -4,8 +4,8 @@
 {
 "classname" "worldspawn"
 "message" "Quiet Suburbs"
-"camera_mode" "fake_ortho"
-"camera_height" "900"
+"camera_mode" "perspective"
+"camera_height" "800"
 "area_id" "suburbs_main"
 "area_tier" "suburbs"
 // brush 0 - base ground 1000x1000

@@ -132,8 +132,9 @@ export class PrecipitationEffect {
 
   /**
    * Stop the precipitation effect
+   * @param immediate - If true, dispose particles immediately (for map transitions)
    */
-  public stop(): void {
+  public stop(immediate: boolean = false): void {
     if (!this.isActive) return;
 
     // Fade out rain sound
@@ -147,17 +148,26 @@ export class PrecipitationEffect {
 
     if (this.particleSystem) {
       this.particleSystem.stop();
-      // Let existing particles finish falling
-      setTimeout(() => {
-        this.particleSystem?.dispose();
+      
+      if (immediate) {
+        // Immediate disposal for map transitions
+        this.particleSystem.dispose();
         this.particleSystem = null;
         this.emitter?.dispose();
         this.emitter = null;
-      }, 3000);
+      } else {
+        // Let existing particles finish falling
+        setTimeout(() => {
+          this.particleSystem?.dispose();
+          this.particleSystem = null;
+          this.emitter?.dispose();
+          this.emitter = null;
+        }, 3000);
+      }
     }
 
     this.isActive = false;
-    console.log(`[PrecipitationEffect] Stopped ${this.currentType}`);
+    console.log(`[PrecipitationEffect] Stopped ${this.currentType}${immediate ? ' (immediate)' : ''}`);
   }
   
   /**

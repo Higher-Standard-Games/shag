@@ -22,6 +22,8 @@ import { UIManager } from "../../ui/UIManager";
 import { LampInfoPanel } from "../../ui/LampInfoPanel";
 
 export class RTSCameraController {
+  private static instance: RTSCameraController | null = null;
+  
   private camera: ArcRotateCamera;
   private scene: Scene;
   private canvas: HTMLCanvasElement;
@@ -50,6 +52,7 @@ export class RTSCameraController {
     this.scene = scene;
     this.camera = camera;
     this.canvas = canvas;
+    RTSCameraController.instance = this;
 
     // Initialize target
     this.targetPosition = this.camera.target.clone();
@@ -66,6 +69,10 @@ export class RTSCameraController {
    * Sync the controller's target position with the camera's current target.
    * Call this after changing the camera target externally (e.g., map load).
    */
+  public static getInstance(): RTSCameraController | null {
+    return RTSCameraController.instance;
+  }
+  
   public syncTargetPosition(): void {
     this.targetPosition = this.camera.target.clone();
     console.log(`[RTSCameraController] Synced targetPosition to: ${this.targetPosition.toString()}`);

@@ -4,8 +4,8 @@
 {
 "classname" "worldspawn"
 "message" "Downtown Plaza"
-"camera_mode" "fake_ortho"
-"camera_height" "1000"
+"camera_mode" "perspective"
+"camera_height" "800"
 "area_id" "downtown_plaza"
 "area_tier" "downtown"
 // brush 0 - base ground 1200x1200

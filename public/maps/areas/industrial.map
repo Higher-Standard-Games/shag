@@ -4,8 +4,8 @@
 {
 "classname" "worldspawn"
 "message" "Industrial District"
-"camera_mode" "fake_ortho"
-"camera_height" "1200"
+"camera_mode" "perspective"
+"camera_height" "800"
 "area_id" "industrial_district"
 "area_tier" "industrial"
 // brush 0 - base ground 1600x1600

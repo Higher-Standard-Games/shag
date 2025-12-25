@@ -4,8 +4,8 @@
 {
 "classname" "worldspawn"
 "message" "Inside the House"
-"camera_mode" "fake_ortho"
-"camera_height" "300"
+"camera_mode" "perspective"
+"camera_height" "500"
 "area_id" "in_house"
 "area_tier" "suburbs"
 "indoor" "1"

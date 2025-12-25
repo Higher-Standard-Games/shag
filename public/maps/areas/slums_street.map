@@ -4,7 +4,7 @@
 {
 "classname" "worldspawn"
 "message" "Slum Street"
-"camera_mode" "fake_ortho"
+"camera_mode" "perspective"
 "camera_height" "800"
 "area_id" "slums_street"
 "area_tier" "slums"

@@ -55,9 +55,9 @@ let CAMERA_MODE: CameraMode = "perspective";
 
 // Default camera heights for each mode
 const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
-  perspective: 1000,
+  perspective: 800,   // Standard outdoor height
   orthographic: 250,  // This is orthoSize for orthographic mode
-  fake_ortho: 1000,   // Radius for fake_ortho
+  fake_ortho: 800,    // Radius for fake_ortho
 };
 
 export class GameScene {
@@ -217,7 +217,7 @@ export class GameScene {
       this.scene
     );
     
-    // Apply camera mode settings
+    // Apply camera mode settings (uses default height since map not loaded yet)
     this.applyCameraMode(CAMERA_MODE);
     this.camera.inputs.clear();
 
@@ -294,7 +294,7 @@ export class GameScene {
         this.camera.fov = 0.8;
         this.camera.radius = height;
         this.camera.minZ = 1;
-        this.camera.maxZ = Math.max(2000, height * 2);
+        this.camera.maxZ = 10000;  // Large maxZ to prevent clipping at distance
         console.log(`Camera mode: PERSPECTIVE (height: ${height})`);
         break;
 
@@ -468,35 +468,62 @@ export class GameScene {
     const entryInfo = this.mapEntryTriggers.get(previousMap || "");
     if (entryInfo && entryInfo.sourceMap === mapName) {
       // We're returning to this map from previousMap - center on the trigger that led there
-      this.mapCenterPosition = entryInfo.triggerPosition.clone();
+      // Keep X and Z from trigger, but use ground level Y (0) to prevent camera drift
+      this.mapCenterPosition = new Vector3(
+        entryInfo.triggerPosition.x,
+        0,  // Always target ground level
+        entryInfo.triggerPosition.z
+      );
       console.log(`[GameScene] Returning from ${previousMap}: centering on entry trigger at ${this.mapCenterPosition.toString()}`);
     } else {
       // First visit or no trigger info - use player start
-      this.mapCenterPosition = result.playerStartPosition.clone();
+      // Keep X and Z from player start, but use ground level Y (0)
+      this.mapCenterPosition = new Vector3(
+        result.playerStartPosition.x,
+        0,  // Always target ground level
+        result.playerStartPosition.z
+      );
       console.log(`[GameScene] Using player start for ${mapName}: ${this.mapCenterPosition.toString()}`);
     }
 
     // STEP 2: Apply camera height from map
+    const previousHeight = this.cameraHeight;
     if (result.cameraHeight !== null) {
       this.cameraHeight = result.cameraHeight;
-      console.log(`[GameScene] Setting camera height from map: ${result.cameraHeight}`);
+      console.log(`[GameScene] Setting camera height from map: ${result.cameraHeight} (was: ${previousHeight})`);
     } else {
       this.cameraHeight = null;  // Reset to use defaults
-      console.log(`[GameScene] No camera height in map, using default`);
+      console.log(`[GameScene] No camera height in map, using default (was: ${previousHeight})`);
     }
 
     // STEP 3: Apply camera mode (sets radius/FOV based on height)
     const modeToApply = result.cameraMode || "perspective";
     console.log(`[GameScene] Applying camera mode: ${modeToApply}, height: ${this.cameraHeight}`);
     this.setCameraMode(modeToApply);
+    
+    // Log actual camera state after applying
+    if (this.camera) {
+      console.log(`[GameScene] Camera after mode apply: radius=${this.camera.radius}, fov=${this.camera.fov?.toFixed(3)}`);
+    }
 
     // STEP 4: Apply default camera angles and target
     // Always use default isometric angles - no state to leak between maps
     if (this.camera) {
+      // Store the radius we want BEFORE any operations that might change it
+      const desiredRadius = this.camera.radius;
+      
       this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
       this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
       this.camera.setTarget(this.mapCenterPosition);
-      console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, radius=${this.camera.radius}`);
+      
+      // Restore radius in case setTarget modified it
+      this.camera.radius = desiredRadius;
+      
+      // CRITICAL: Sync RTSCameraController's internal target IMMEDIATELY after setting camera target
+      // This must happen before the next render frame to prevent smoothing from fighting
+      RTSCameraController.getInstance()?.syncTargetPosition();
+      
+      console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, radius=${this.camera.radius}, pos=${this.camera.position.toString()}`);
     }
 
     this.currentMap = mapName;
@@ -506,6 +533,7 @@ export class GameScene {
     WorldIndicatorSystem.getInstance().clearAll();
     
     // Notify systems to sync with new map (RTSCameraController, PlantStatusIndicator, etc.)
+    // RTSCameraController listens for this and syncs its internal targetPosition
     EventBus.emit("map:loaded", { mapName });
     
     // Load saved state for this map (built objects, etc.)
@@ -524,11 +552,11 @@ export class GameScene {
     }
     // If no playlist specified but one is already playing, keep it playing
     
-    // Handle indoor flag - stop precipitation if entering indoor map
+    // Handle indoor flag - stop precipitation immediately if entering indoor map
     this.isIndoorMap = result.indoor;
     if (this.isIndoorMap && this.precipitationEffect?.isActive_()) {
       console.log("[GameScene] Indoor map - stopping precipitation");
-      this.precipitationEffect.stop();
+      this.precipitationEffect.stop(true);  // Immediate stop for map transitions
     }
   }
 
