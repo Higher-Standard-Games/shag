@@ -42,6 +42,13 @@ export class MenuSystem {
     }
     return MenuSystem.instance;
   }
+  
+  /**
+   * Check if currently in game (not in main menu)
+   */
+  public isInGame(): boolean {
+    return this.state === "in_game" || this.state === "pause_menu";
+  }
 
   /**
    * Initialize the menu system with callbacks
