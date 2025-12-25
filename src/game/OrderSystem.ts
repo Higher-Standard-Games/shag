@@ -11,6 +11,7 @@
 import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
+import { PlantSystem } from "./PlantSystem";
 import { QuestSystem } from "./QuestSystem";
 
 /**
@@ -455,6 +456,9 @@ export class OrderSystem {
     // Check if we can generate
     if (this.orders.size >= this.config.maxOrders) return;
     
+    // Don't generate orders until player has some stock to sell
+    if (!this.playerHasAnyStock()) return;
+    
     // Check interval with variance
     const variance = 1 + (Math.random() * 2 - 1) * this.config.intervalVariance;
     const interval = this.config.orderInterval * variance;
@@ -468,7 +472,7 @@ export class OrderSystem {
     // Pick random customer
     const customer = customers[Math.floor(Math.random() * customers.length)];
     
-    // Generate order (respecting daily limit)
+    // Generate order (respecting daily limit and player level)
     const order = this.generateOrder(customer);
     if (order) {
       this.orders.set(order.id, order);
@@ -476,6 +480,31 @@ export class OrderSystem {
       this.emit("order_created", { order });
       console.log(`New order from ${customer.name}: ${JSON.stringify(order.items)}`);
     }
+  }
+  
+  /**
+   * Check if player has any harvest items in stock
+   */
+  private playerHasAnyStock(): boolean {
+    const inventory = GameState.getInstance().getInventory();
+    return inventory.items.some(item => 
+      item.type === "harvest" && item.quantity > 0
+    );
+  }
+
+  /**
+   * Filter requestable items to only include strains the player has unlocked
+   * Items are harvest IDs like "harvest_genetics_afghan_kush"
+   */
+  private filterByPlayerLevel(harvestIds: string[]): string[] {
+    const playerLevel = GameState.getInstance().getPlayer().level;
+    const plantSystem = PlantSystem.getInstance();
+    
+    return harvestIds.filter(harvestId => {
+      const strain = plantSystem.getStrainByHarvestId(harvestId);
+      if (!strain) return true; // If strain not found, allow it (fallback)
+      return strain.unlockLevel <= playerLevel;
+    });
   }
 
   private generateOrder(customer: CustomerTemplate): Order | null {
@@ -488,13 +517,17 @@ export class OrderSystem {
     const remainingLimit = this.getRemainingDailyLimit();
     if (remainingLimit <= 0) return null;
 
+    // Filter requestable items to only include strains the player has unlocked
+    const unlockedItems = this.filterByPlayerLevel(customer.requestableItems);
+    if (unlockedItems.length === 0) return null;
+
     // Pick random items
     const items: Record<string, number> = {};
     const numItems = 1; // Single item type per order for simplicity
     
     for (let i = 0; i < numItems; i++) {
-      const itemId = customer.requestableItems[
-        Math.floor(Math.random() * customer.requestableItems.length)
+      const itemId = unlockedItems[
+        Math.floor(Math.random() * unlockedItems.length)
       ];
       const [minQty, maxQty] = customer.quantityRange;
       // Cap quantity to remaining daily limit

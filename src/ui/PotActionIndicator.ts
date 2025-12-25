@@ -72,6 +72,11 @@ export class PotActionIndicator {
       }
     });
     
+    // Restore indicator if seed selection was cancelled
+    EventBus.on<{ objectId: string }>("pot:restore_indicator", (data) => {
+      this.showIndicatorForPot(data.objectId);
+    });
+    
     // Clear and rescan on map change
     EventBus.on("map:loaded", () => {
       this.activeIndicators.clear();
@@ -94,6 +99,10 @@ export class PotActionIndicator {
     const state = buildableManager.getObject(objectId);
     
     if (!state || state.hasPlant) return;
+    
+    // Only show indicators for pots in the CURRENT map
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap || state.mapId !== currentMap) return;
 
     // Check if indicator already exists
     const indicatorId = `${INDICATOR_PREFIX}${objectId}`;
@@ -109,6 +118,9 @@ export class PotActionIndicator {
         animation: "bounce",
         offsetY: 40,
         onClick: () => {
+          // Hide indicator immediately when clicked to prevent race conditions
+          // (user clicking fast on multiple pots before async plant flow completes)
+          this.hideIndicator(objectId);
           EventBus.emit("pot:needs_seed", { objectId, position: state.position });
         },
       },

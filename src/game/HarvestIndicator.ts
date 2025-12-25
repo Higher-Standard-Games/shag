@@ -261,6 +261,10 @@ export class HarvestIndicator {
 
     const plant = GameState.getInstance().getPlant(plantId);
     if (!plant) return;
+    
+    // Only add indicators for plants in the CURRENT map
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap || plant.mapId !== currentMap) return;
 
     const plantSystem = PlantSystem.getInstance();
     const strain = plantSystem.getStrain(plant.strain);

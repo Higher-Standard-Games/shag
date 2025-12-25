@@ -1221,7 +1221,7 @@ export class GameScene {
         color: "#2196F3",
         onClick: () => {
           PlantSystem.getInstance().waterPlant(this.selectedPlantId!);
-          this.plantModal?.refresh();
+          this.plantModal?.hide(); // Close dialog after watering
         },
       },
       {
@@ -1242,7 +1242,7 @@ export class GameScene {
           const strain = PlantSystem.getInstance().getStrain(plant.strain);
           const fertType = strain?.fertilization?.fertilizerType || 'basic';
           PlantSystem.getInstance().applyFertilizer(this.selectedPlantId!, fertType);
-          this.plantModal?.refresh();
+          this.plantModal?.hide(); // Close dialog after fertilizing
         },
       },
       {

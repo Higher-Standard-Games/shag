@@ -9,6 +9,7 @@
 
 import { EventBus } from "../engine/core/EventBus";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
+import { GameScene } from "../engine/GameScene";
 import { GameState } from "../game/GameState";
 import { GameTimer } from "../game/GameTimer";
 import { PlantSystem } from "../game/PlantSystem";
@@ -55,6 +56,27 @@ export class WaterPromptUI {
     EventBus.on("plant:harvested", (data: { plantId: string }) => {
       this.hidePrompt(data.plantId);
     });
+    
+    // Clear all prompts when map changes, then rescan for current map
+    EventBus.on("map:loaded", () => {
+      this.clearAllPrompts();
+      setTimeout(() => {
+        this.checkForNewPrompts();
+      }, 100);
+    });
+  }
+  
+  /**
+   * Clear all water prompts (used on map change)
+   */
+  private clearAllPrompts(): void {
+    const worldIndicator = WorldIndicatorSystem.getInstance();
+    for (const plantId of this.activePrompts) {
+      const indicatorId = `${INDICATOR_PREFIX}${plantId}`;
+      worldIndicator.removeIndicator(indicatorId);
+    }
+    this.activePrompts.clear();
+    console.log("[WaterPromptUI] Cleared all prompts");
   }
 
   /**
@@ -72,6 +94,10 @@ export class WaterPromptUI {
 
     const plant = GameState.getInstance().getPlant(plantId);
     if (!plant) return;
+    
+    // Only show prompts for plants in the CURRENT map
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap || plant.mapId !== currentMap) return;
 
     // Add indicator using WorldIndicatorSystem
     worldIndicator.addIndicator({
@@ -136,7 +162,11 @@ export class WaterPromptUI {
   }
 
   private checkForNewPrompts(): void {
-    const plants = GameState.getInstance().getPlants();
+    const currentMap = GameScene.getInstance()?.getCurrentMap();
+    if (!currentMap) return;
+    
+    // Only check plants in the CURRENT map
+    const plants = GameState.getInstance().getPlantsInMap(currentMap);
     const plantSystem = PlantSystem.getInstance();
 
     for (const plant of plants) {

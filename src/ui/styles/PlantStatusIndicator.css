@@ -2,15 +2,29 @@
  * PlantStatusIndicator Styles
  */
 
+/* Override world-indicator wrapper to remove white background for plant status */
+.plant-status-indicator.world-indicator {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.plant-status-indicator.world-indicator:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .plant-status-bars {
   display: flex;
   flex-direction: column;
   gap: 3px;
   padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);  /* 50% opacity dark box */
   border-radius: 6px;
   min-width: 80px;
   pointer-events: none;
+  opacity: 0.9;  /* 10% transparent overall */
 }
 
 .plant-status-bar {

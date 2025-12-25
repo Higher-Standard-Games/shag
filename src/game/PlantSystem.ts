@@ -189,6 +189,19 @@ export class PlantSystem {
     return this.strains.get(id);
   }
 
+  /**
+   * Get strain by harvest item ID (e.g., "harvest_genetics_afghan_kush" -> strain)
+   */
+  public getStrainByHarvestId(harvestId: string): StrainDefinition | undefined {
+    // Try direct lookup first (in case harvestId is actually a strain ID)
+    const direct = this.strains.get(harvestId);
+    if (direct) return direct;
+    
+    // Strip "harvest_" prefix and try again
+    const strainId = harvestId.replace(/^harvest_/, "");
+    return this.strains.get(strainId);
+  }
+
   public getAllStrains(): StrainDefinition[] {
     return Array.from(this.strains.values());
   }

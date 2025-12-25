@@ -111,6 +111,12 @@ export class RTSCameraController {
           // Just show notification, don't auto-open plant info
           const strain = PlantSystem.getInstance().getStrain(result.strainId);
           GameHUD.getInstance().showNotification(`Planted ${strain?.name ?? result.strainId}!`, "success");
+        },
+        () => {
+          // On cancel - restore indicator if pot is still empty
+          if (!buildableObj.hasPlant) {
+            EventBus.emit("pot:restore_indicator", { objectId: data.objectId });
+          }
         }
       );
     });

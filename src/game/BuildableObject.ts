@@ -7,6 +7,7 @@ import {
   Color3,
   Mesh,
   MeshBuilder,
+  PointLight,
   Scene,
   StandardMaterial,
   TransformNode,
@@ -144,6 +145,7 @@ export class BuildableObjectManager {
   private scene: Scene | null = null;
   private objects: Map<string, BuildableObjectState> = new Map();
   private visuals: Map<string, TransformNode | Mesh> = new Map();
+  private growLights: Map<string, PointLight> = new Map();  // Point lights for grow lights
   private templates: Map<string, BuildableObjectTemplate> = new Map();
   private eventListeners: ObjectEventCallback[] = [];
   private updateTaskId = "buildable_objects_update";
@@ -164,6 +166,23 @@ export class BuildableObjectManager {
     this.startUpdateLoop();
     // Refresh all existing visuals to ensure they have metadata
     this.refreshAllVisuals();
+    // Create grow lights for any existing completed growlight objects
+    this.recreateGrowLights();
+  }
+  
+  /**
+   * Recreate grow lights for all existing completed growlight objects
+   * Called on init to handle objects loaded from save before scene was ready
+   */
+  private recreateGrowLights(): void {
+    for (const state of this.objects.values()) {
+      if (state.isComplete) {
+        const template = this.templates.get(state.templateId);
+        if (template && template.zoneType === "growlight") {
+          this.createGrowLight(state, template);
+        }
+      }
+    }
   }
 
   /**
@@ -272,6 +291,10 @@ export class BuildableObjectManager {
 
           // Check for completion
           if (state.isComplete) {
+            // Create grow light if this is a growlight zone
+            if (template.zoneType === "growlight") {
+              this.createGrowLight(state, template);
+            }
             this.emit("completed", id, { template });
           }
         }
@@ -398,6 +421,61 @@ export class BuildableObjectManager {
     mesh.material = mat;
 
     this.visuals.set(state.id, mesh);
+  }
+
+  // ==================== Grow Light Management ====================
+
+  /**
+   * Create a point light underneath a completed grow light
+   * Light is positioned 32 units below the grow light brush
+   */
+  private createGrowLight(state: BuildableObjectState, template: BuildableObjectTemplate): void {
+    if (!this.scene) return;
+    
+    // Don't create duplicate lights
+    if (this.growLights.has(state.id)) return;
+    
+    // Grow light trigger is at ceiling height (e.g., Y=128)
+    // Place light source at the trigger position (where lamp hangs) to illuminate downward
+    // The light will cast down onto plants below
+    const lightPos = new Vector3(
+      state.position.x,
+      state.position.y,  // At trigger height (ceiling where lamp hangs)
+      state.position.z
+    );
+    
+    console.log(`[GrowLight] Creating light at position: X=${lightPos.x}, Y=${lightPos.y}, Z=${lightPos.z}`);
+    
+    const light = new PointLight(
+      `growlight_${state.id}`,
+      lightPos,
+      this.scene
+    );
+    
+    // Warm purple/pink grow light color
+    light.diffuse = new Color3(0.9, 0.3, 0.9);  // Purple-pink
+    light.specular = new Color3(0.5, 0.2, 0.5);
+    
+    // Intensity based on lamp tier - needs to be visible in dark room
+    const yieldBonus = template.yieldBonus ?? 0;
+    light.intensity = 3.0 + (yieldBonus * 4);  // 3.0, 3.6, 4.2
+    
+    // Range needs to reach from ceiling (Y=128) to floor (Y=0) plus some margin
+    light.range = 300;
+    
+    this.growLights.set(state.id, light);
+    console.log(`Created grow light for ${state.id} at Y=${lightPos.y}, intensity=${light.intensity}`);
+  }
+
+  /**
+   * Remove a grow light when the object is removed
+   */
+  private removeGrowLight(objectId: string): void {
+    const light = this.growLights.get(objectId);
+    if (light) {
+      light.dispose();
+      this.growLights.delete(objectId);
+    }
   }
 
   // ==================== Queries ====================
@@ -533,6 +611,9 @@ export class BuildableObjectManager {
       visual.dispose();
       this.visuals.delete(id);
     }
+    
+    // Remove grow light if this was a growlight
+    this.removeGrowLight(id);
 
     this.objects.delete(id);
     this.emit("removed", id, { state });
@@ -579,6 +660,14 @@ export class BuildableObjectManager {
     for (const state of states) {
       this.objects.set(state.id, state);
       await this.updateVisual(state);
+      
+      // Recreate grow lights for completed growlight objects
+      if (state.isComplete) {
+        const template = this.templates.get(state.templateId);
+        if (template && template.zoneType === "growlight") {
+          this.createGrowLight(state, template);
+        }
+      }
     }
   }
 
@@ -589,6 +678,13 @@ export class BuildableObjectManager {
       visual.dispose();
     }
     this.visuals.clear();
+    
+    // Clean up grow lights
+    for (const light of this.growLights.values()) {
+      light.dispose();
+    }
+    this.growLights.clear();
+    
     this.objects.clear();
   }
 

@@ -94,11 +94,9 @@ export class OrderPanel {
       const item = inventory.items.find(i => i.id === itemId);
       const hasEnough = item && item.quantity >= qty;
       
-      // Look up strain name from item ID (e.g., "harvest_genetics_afghan_kush" -> "Afghan Kush")
-      const strainId = itemId.replace(/^harvest_/, "");
-      const strain = PlantSystem.getInstance().getStrain(strainId) || 
-                    PlantSystem.getInstance().getStrain(`strain_${strainId}`);
-      const displayName = strain?.name ?? strainId.replace(/_/g, " ");
+      // Look up strain name from harvest item ID
+      const strain = PlantSystem.getInstance().getStrainByHarvestId(itemId);
+      const displayName = strain?.name ?? itemId.replace(/^harvest_/, "").replace(/_/g, " ");
       
       return `
         <span class="order-item ${hasEnough ? 'has-item' : 'missing'}">

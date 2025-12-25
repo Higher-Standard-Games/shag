@@ -969,22 +969,22 @@ export class GameHUD {
       if (waterBar) waterBar.style.width = `${plant.waterLevel}%`;
       if (healthBar) healthBar.style.width = `${plant.health}%`;
 
-      // Update buttons
+      // Update harvest button
       const harvestBtn = panel.querySelector("#btn-harvest") as HTMLButtonElement;
       if (harvestBtn) {
         harvestBtn.disabled = !visual.isHarvestable;
       }
-      
-      // Update water button - disable if water level >= 80%
-      const waterBtn = panel.querySelector("#btn-water") as HTMLButtonElement;
-      if (waterBtn) {
-        const canWater = plant.waterLevel < 80;
-        waterBtn.disabled = !canWater;
-        if (!canWater) {
-          waterBtn.textContent = "💧 Full";
-        } else {
-          waterBtn.textContent = "💧 Water ($2)";
-        }
+    }
+    
+    // Update water button - disable if water level >= 80% (always check, not just when visual exists)
+    const waterBtnEl = panel.querySelector("#btn-water") as HTMLButtonElement;
+    if (waterBtnEl) {
+      const canWater = plant.waterLevel < 80;
+      waterBtnEl.disabled = !canWater;
+      if (!canWater) {
+        waterBtnEl.textContent = "💧 Full";
+      } else {
+        waterBtnEl.textContent = "💧 Water ($2)";
       }
     }
 
@@ -1018,48 +1018,47 @@ export class GameHUD {
       }
     }
 
-    // Setup button handlers (remove old listeners first)
-    const waterBtn = panel.querySelector("#btn-water");
-    const harvestBtn = panel.querySelector("#btn-harvest");
-    const closeBtn = panel.querySelector(".plant-info-close");
+    // Setup button handlers using onclick (simpler than clone/replace)
+    const waterBtn = panel.querySelector("#btn-water") as HTMLButtonElement;
+    const harvestBtn = panel.querySelector("#btn-harvest") as HTMLButtonElement;
+    const fertilizeBtnEl = panel.querySelector("#btn-fertilize") as HTMLButtonElement;
+    const closeBtn = panel.querySelector(".plant-info-close") as HTMLElement;
 
-    // Clone and replace to remove old event listeners
-    const newWaterBtn = waterBtn?.cloneNode(true);
-    const newHarvestBtn = harvestBtn?.cloneNode(true);
-    const newFertilizeBtn = fertilizeBtn?.cloneNode(true);
-    const newCloseBtn = closeBtn?.cloneNode(true);
+    // Use onclick to replace any existing handler
+    if (waterBtn) {
+      waterBtn.onclick = () => {
+        console.log("[GameHUD] Water button clicked");
+        plantSystem.waterPlant(plantId);
+        this.hidePlantInfo();
+      };
+    }
 
-    if (waterBtn && newWaterBtn) waterBtn.replaceWith(newWaterBtn);
-    if (harvestBtn && newHarvestBtn) harvestBtn.replaceWith(newHarvestBtn);
-    if (fertilizeBtn && newFertilizeBtn) fertilizeBtn.replaceWith(newFertilizeBtn);
-    if (closeBtn && newCloseBtn) closeBtn.replaceWith(newCloseBtn);
+    if (harvestBtn) {
+      harvestBtn.onclick = () => {
+        plantSystem.harvestPlant(plantId);
+        this.hidePlantInfo();
+      };
+    }
 
-    // Add new event listeners
-    panel.querySelector("#btn-water")?.addEventListener("click", () => {
-      plantSystem.waterPlant(plantId);
-      this.hidePlantInfo(); // Close panel after action
-    });
-
-    panel.querySelector("#btn-harvest")?.addEventListener("click", () => {
-      plantSystem.harvestPlant(plantId);
-      this.hidePlantInfo();
-    });
-
-    panel.querySelector("#btn-fertilize")?.addEventListener("click", () => {
-      const plant = GameState.getInstance().getPlant(plantId);
-      if (plant) {
-        const strain = plantSystem.getStrain(plant.strain);
-        const fertType = strain?.fertilization?.fertilizerType || 'basic';
-        if (plantSystem.applyFertilizer(plantId, fertType)) {
-          this.showNotification("Fertilizer applied! Increases yield!", "success");
-          this.hidePlantInfo(); // Close panel after action
+    if (fertilizeBtnEl) {
+      fertilizeBtnEl.onclick = () => {
+        const plant = GameState.getInstance().getPlant(plantId);
+        if (plant) {
+          const strain = plantSystem.getStrain(plant.strain);
+          const fertType = strain?.fertilization?.fertilizerType || 'basic';
+          if (plantSystem.applyFertilizer(plantId, fertType)) {
+            this.showNotification("Fertilizer applied! Increases yield!", "success");
+            this.hidePlantInfo();
+          }
         }
-      }
-    });
+      };
+    }
 
-    panel.querySelector(".plant-info-close")?.addEventListener("click", () => {
-      this.hidePlantInfo();
-    });
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        this.hidePlantInfo();
+      };
+    }
   }
 
   public hidePlantInfo(): void {
