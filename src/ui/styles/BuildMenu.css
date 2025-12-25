@@ -175,3 +175,78 @@
   top: 3px;
   border-bottom-width: 0;
 }
+
+/* ==========================================================================
+   Mobile/Touch Device Overrides - Ultra compact build menu
+   Uses media query for reliable touch detection
+   ========================================================================== */
+
+@media (pointer: coarse), (hover: none) {
+  #build-menu {
+    bottom: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    transform: none !important;
+    max-width: none !important;
+  }
+
+  .build-menu-container {
+    padding: 6px !important;
+    border-radius: 8px !important;
+  }
+
+  .build-categories {
+    gap: 3px !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 4px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .build-category {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    border-bottom-width: 2px !important;
+    border-radius: 6px !important;
+  }
+
+  .build-items {
+    min-width: unset !important;
+    max-width: none !important;
+    gap: 4px !important;
+    padding: 2px 0 !important;
+    max-height: 60px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+  }
+
+  .build-item {
+    padding: 4px 6px !important;
+    min-width: 50px !important;
+    flex-shrink: 0 !important;
+    border-width: 1px !important;
+    border-radius: 6px !important;
+  }
+
+  .build-item-icon {
+    font-size: 16px !important;
+    margin-bottom: 1px !important;
+  }
+
+  .build-item-name {
+    font-size: 8px !important;
+  }
+
+  .build-item-cost {
+    font-size: 9px !important;
+    margin-top: 1px !important;
+  }
+
+  .build-status {
+    display: none !important;
+  }
+}

@@ -48,6 +48,7 @@ export class ModalPanel {
   private config: ModalConfig;
   private callbacks: ModalCallbacks;
   private isVisible: boolean = false;
+  private canCloseOnBackdrop: boolean = false; // Prevents immediate close on touch devices
 
   constructor(config: ModalConfig, callbacks: ModalCallbacks) {
     this.config = {
@@ -73,6 +74,9 @@ export class ModalPanel {
     
     if (this.config.closeOnBackdrop) {
       backdrop.onclick = (e) => {
+        // Prevent immediate close on touch devices - the touch that opened
+        // the modal can also trigger backdrop click
+        if (!this.canCloseOnBackdrop) return;
         if (e.target === backdrop) {
           this.hide();
         }
@@ -183,6 +187,12 @@ export class ModalPanel {
     });
     
     this.isVisible = true;
+    
+    // Delay enabling backdrop close to prevent touch event from immediately closing
+    this.canCloseOnBackdrop = false;
+    setTimeout(() => {
+      this.canCloseOnBackdrop = true;
+    }, 300);
   }
 
   public hide(): void {

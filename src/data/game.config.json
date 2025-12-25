@@ -1,0 +1,16 @@
+{
+  "$schema": "./schemas/game.config.schema.json",
+  "display": {
+    "orientation": "landscape",
+    "fullscreen": true,
+    "keepScreenAwake": true
+  },
+  "android": {
+    "screenOrientation": "landscape",
+    "immersiveMode": true
+  },
+  "ios": {
+    "screenOrientation": "landscape",
+    "statusBarHidden": true
+  }
+}

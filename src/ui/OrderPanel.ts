@@ -140,11 +140,13 @@ export class OrderPanel {
 
     // Toggle collapse
     this.container.querySelector("#order-toggle")?.addEventListener("click", () => {
-      const list = this.container?.querySelector("#order-list");
-      const btn = this.container?.querySelector("#order-toggle");
-      if (list && btn) {
-        list.classList.toggle("collapsed");
-        btn.textContent = list.classList.contains("collapsed") ? "+" : "−";
+      this.toggleCollapse();
+    });
+    
+    // Clicking the header also toggles
+    this.container.querySelector(".order-panel-header")?.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).id !== "order-toggle") {
+        this.toggleCollapse();
       }
     });
 
@@ -162,6 +164,37 @@ export class OrderPanel {
     orderEvents.forEach(event => {
       EventBus.on(event, () => this.update());
     });
+    
+    // Accordion behavior: collapse when another panel opens
+    EventBus.on<{ panel: string }>("ui:panel_expanded", ({ panel }) => {
+      if (panel !== "order") {
+        this.collapse();
+      }
+    });
+  }
+  
+  private toggleCollapse(): void {
+    const list = this.container?.querySelector("#order-list");
+    const btn = this.container?.querySelector("#order-toggle");
+    if (list && btn) {
+      const wasCollapsed = list.classList.contains("collapsed");
+      list.classList.toggle("collapsed");
+      btn.textContent = list.classList.contains("collapsed") ? "+" : "−";
+      
+      // Emit event when expanding (for accordion behavior)
+      if (wasCollapsed) {
+        EventBus.emit("ui:panel_expanded", { panel: "order" });
+      }
+    }
+  }
+  
+  private collapse(): void {
+    const list = this.container?.querySelector("#order-list");
+    const btn = this.container?.querySelector("#order-toggle");
+    if (list && btn && !list.classList.contains("collapsed")) {
+      list.classList.add("collapsed");
+      btn.textContent = "+";
+    }
   }
 
   private startUpdateLoop(): void {

@@ -118,11 +118,13 @@ export class QuestPanel {
 
     // Toggle collapse
     this.container.querySelector("#quest-toggle")?.addEventListener("click", () => {
-      const list = this.container?.querySelector("#quest-list");
-      const btn = this.container?.querySelector("#quest-toggle");
-      if (list && btn) {
-        list.classList.toggle("collapsed");
-        btn.textContent = list.classList.contains("collapsed") ? "+" : "−";
+      this.toggleCollapse();
+    });
+    
+    // Clicking the header also toggles
+    this.container.querySelector(".quest-panel-header")?.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).id !== "quest-toggle") {
+        this.toggleCollapse();
       }
     });
 
@@ -131,5 +133,36 @@ export class QuestPanel {
     questEvents.forEach(event => {
       EventBus.on(event, () => this.update());
     });
+    
+    // Accordion behavior: collapse when another panel opens
+    EventBus.on<{ panel: string }>("ui:panel_expanded", ({ panel }) => {
+      if (panel !== "quest") {
+        this.collapse();
+      }
+    });
+  }
+  
+  private toggleCollapse(): void {
+    const list = this.container?.querySelector("#quest-list");
+    const btn = this.container?.querySelector("#quest-toggle");
+    if (list && btn) {
+      const wasCollapsed = list.classList.contains("collapsed");
+      list.classList.toggle("collapsed");
+      btn.textContent = list.classList.contains("collapsed") ? "+" : "−";
+      
+      // Emit event when expanding (for accordion behavior)
+      if (wasCollapsed) {
+        EventBus.emit("ui:panel_expanded", { panel: "quest" });
+      }
+    }
+  }
+  
+  private collapse(): void {
+    const list = this.container?.querySelector("#quest-list");
+    const btn = this.container?.querySelector("#quest-toggle");
+    if (list && btn && !list.classList.contains("collapsed")) {
+      list.classList.add("collapsed");
+      btn.textContent = "+";
+    }
   }
 }

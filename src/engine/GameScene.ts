@@ -907,10 +907,11 @@ export class GameScene {
       {
         id: "quests",
         title: "Quests",
-        icon: "📋",
+        icon: "📜",
         side: "left",
         order: 1,
         maxHeight: 200,
+        collapsedByDefault: true,
       },
       {
         getItems: (): SidePanelItem[] => {
@@ -957,6 +958,7 @@ export class GameScene {
         side: "left",
         order: 2,
         maxHeight: 200,
+        collapsedByDefault: true,
       },
       {
         getItems: (): SidePanelItem[] => {
@@ -1006,6 +1008,7 @@ export class GameScene {
         side: "left",
         order: 3,
         maxHeight: 200,
+        collapsedByDefault: true,
       },
       {
         getItems: (): SidePanelItem[] => {

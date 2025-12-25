@@ -18,10 +18,13 @@
 
 export class UIStyles {
   private static injectedIds = new Set<string>();
+  private static mobileStyleElement: HTMLStyleElement | null = null;
+  private static mobileCSS: string = "";
 
   /**
    * Inject CSS with a unique ID. Safe to call multiple times - 
    * styles with the same ID are only injected once.
+   * Mobile overrides are automatically re-appended to maintain priority.
    */
   public static injectCSS(id: string, css: string): void {
     if (this.injectedIds.has(id)) return;
@@ -31,6 +34,38 @@ export class UIStyles {
     style.textContent = css;
     document.head.appendChild(style);
     this.injectedIds.add(id);
+    
+    // Re-append mobile styles to ensure they come last (highest priority)
+    this.reapplyMobileStyles();
+  }
+  
+  /**
+   * Set mobile/responsive CSS overrides. These are always injected LAST
+   * to ensure they override component styles.
+   */
+  public static setMobileCSS(css: string): void {
+    this.mobileCSS = css;
+    this.reapplyMobileStyles();
+  }
+  
+  /**
+   * Re-append mobile styles to end of head (ensures highest priority)
+   */
+  private static reapplyMobileStyles(): void {
+    if (!this.mobileCSS) return;
+    
+    // Remove existing mobile style element
+    if (this.mobileStyleElement) {
+      this.mobileStyleElement.remove();
+    }
+    
+    // Create and append at end of head
+    this.mobileStyleElement = document.createElement("style");
+    this.mobileStyleElement.id = "ui-styles-mobile-overrides";
+    this.mobileStyleElement.textContent = this.mobileCSS;
+    document.head.appendChild(this.mobileStyleElement);
+    
+    console.log(`[UIStyles] Mobile CSS reapplied (${this.mobileCSS.length} chars), now last in head`);
   }
 
   /**

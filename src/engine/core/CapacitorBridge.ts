@@ -11,9 +11,11 @@
 
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { StatusBar } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { EventBus } from './EventBus';
+import { UIStyles } from '../ui/UIStyles';
+import mobileCSS from '../../ui/styles/mobile.css?raw';
 
 export interface SafeAreaInsets {
   top: number;
@@ -57,9 +59,20 @@ export class CapacitorBridge {
     if (this.initialized) return;
     this.initialized = true;
 
-    console.log(`[CapacitorBridge] Platform: ${CapacitorBridge.getPlatform()}, Native: ${CapacitorBridge.isNative()}`);
+    const platform = CapacitorBridge.getPlatform();
+    const isNative = CapacitorBridge.isNative();
+    
+    console.log(`[CapacitorBridge] Platform: ${platform}, Native: ${isNative}`);
 
-    if (!CapacitorBridge.isNative()) {
+    // Add platform classes to body for CSS targeting
+    this.addPlatformClasses();
+    
+    // Load mobile CSS overrides if on touch device or native
+    if (this.isTouchDevice() || isNative) {
+      this.loadMobileCSS();
+    }
+
+    if (!isNative) {
       console.log('[CapacitorBridge] Running in web mode - skipping native setup');
       return;
     }
@@ -72,6 +85,64 @@ export class CapacitorBridge {
     } catch (error) {
       console.error('[CapacitorBridge] Initialization error:', error);
     }
+  }
+  
+  /**
+   * Add platform-specific classes to body for CSS targeting
+   * Classes added:
+   * - capacitor-native (when running in native app)
+   * - capacitor-android / capacitor-ios / capacitor-web
+   * - touch-device (when touch is primary input)
+   */
+  private addPlatformClasses(): void {
+    const body = document.body;
+    const platform = CapacitorBridge.getPlatform();
+    
+    // Platform-specific class
+    body.classList.add(`capacitor-${platform}`);
+    
+    // Native vs web
+    if (CapacitorBridge.isNative()) {
+      body.classList.add('capacitor-native');
+    }
+    
+    // Touch device detection (works for mobile web too)
+    if (this.isTouchDevice()) {
+      body.classList.add('touch-device');
+    }
+    
+    console.log(`[CapacitorBridge] Body classes: ${body.className}`);
+  }
+  
+  /**
+   * Detect if device primarily uses touch input
+   */
+  private isTouchDevice(): boolean {
+    return (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia('(pointer: coarse)').matches
+    );
+  }
+  
+  /**
+   * Check if running on a touch device (static helper)
+   */
+  public static isTouchDevice(): boolean {
+    return (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia('(pointer: coarse)').matches
+    );
+  }
+  
+  /**
+   * Load mobile CSS overrides via UIStyles system
+   * This ensures mobile styles are always applied LAST (highest priority)
+   */
+  private loadMobileCSS(): void {
+    UIStyles.setMobileCSS(mobileCSS);
+    console.log('[CapacitorBridge] Mobile CSS overrides loaded');
   }
 
   /**
@@ -89,13 +160,13 @@ export class CapacitorBridge {
   }
 
   /**
-   * Configure status bar appearance
+   * Configure status bar - hide for immersive fullscreen gaming experience
    */
   private async setupStatusBar(): Promise<void> {
     try {
-      await StatusBar.setStyle({ style: Style.Dark });
-      await StatusBar.setBackgroundColor({ color: '#1a1a2e' });
-      console.log('[CapacitorBridge] Status bar configured');
+      // Hide status bar for immersive fullscreen mode
+      await StatusBar.hide();
+      console.log('[CapacitorBridge] Status bar hidden for immersive mode');
     } catch (error) {
       console.error('[CapacitorBridge] Status bar setup error:', error);
     }

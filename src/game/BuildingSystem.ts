@@ -303,11 +303,13 @@ export class BuildingSystem {
     this._selectedZoneType = zoneType;
     this._selectedItem = item || null;
 
+    // Count zones of this type
+    const matchingZones = this.getZonesByType(zoneType);
+    console.log(`[BuildingSystem] Entering build mode: ${zoneType}, found ${matchingZones.length} zones, total zones: ${this.zones.size}`);
+    
     this.updateZoneVisuals();
     this.startPulsation();
     this.emit("enter_build_mode", { zoneType, item });
-
-    console.log(`Entered build mode: ${zoneType}`);
   }
 
   /**
@@ -581,8 +583,10 @@ export class BuildingSystem {
   public clearZones(): void {
     for (const zone of this.zones.values()) {
       zone.mesh?.dispose();
+      zone.borderMesh?.dispose();
     }
     this.zones.clear();
+    console.log("[BuildingSystem] Cleared all zones");
   }
 
   public setCurrentMap(mapId: string): void {

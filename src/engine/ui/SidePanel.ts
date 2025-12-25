@@ -145,8 +145,27 @@ export class SidePanel {
   }
 
   private toggleCollapse(): void {
+    const wasCollapsed = this.isCollapsed;
     this.isCollapsed = !this.isCollapsed;
     this.render();
+    SidePanel.updatePositions();
+    
+    // Accordion behavior: collapse other panels when this one expands
+    if (wasCollapsed && !this.isCollapsed) {
+      SidePanel.collapseOthers(this.config.id);
+    }
+  }
+  
+  /**
+   * Collapse all other panels (accordion behavior)
+   */
+  private static collapseOthers(exceptId: string): void {
+    for (const [id, panel] of SidePanel.panels.entries()) {
+      if (id !== exceptId && !panel.isCollapsed) {
+        panel.isCollapsed = true;
+        panel.render();
+      }
+    }
     SidePanel.updatePositions();
   }
 

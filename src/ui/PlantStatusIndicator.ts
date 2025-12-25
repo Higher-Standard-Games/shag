@@ -108,11 +108,18 @@ export class PlantStatusIndicator {
     }
   }
 
-  private addPlantIndicator(plantId: string): void {
+  private addPlantIndicator(plantId: string, retryCount = 0): void {
     if (this.activePlants.has(plantId)) return;
 
     const plant = GameState.getInstance().getPlant(plantId);
-    if (!plant) return;
+    if (!plant) {
+      // Plant data might not be ready yet, retry after a short delay
+      if (retryCount < 3) {
+        console.log(`[PlantStatusIndicator] Plant ${plantId} not found, retrying... (${retryCount + 1}/3)`);
+        setTimeout(() => this.addPlantIndicator(plantId, retryCount + 1), 100);
+      }
+      return;
+    }
     
     // Only add indicators for plants in the CURRENT map
     const currentMap = GameScene.getInstance()?.getCurrentMap();
@@ -120,31 +127,46 @@ export class PlantStatusIndicator {
 
     const plantSystem = PlantSystem.getInstance();
     const strain = plantSystem.getStrain(plant.strain);
-    if (!strain) return;
+    if (!strain) {
+      console.warn(`[PlantStatusIndicator] Strain ${plant.strain} not found for plant ${plantId}`);
+      return;
+    }
 
     const worldIndicator = WorldIndicatorSystem.getInstance();
     const indicatorId = `${INDICATOR_PREFIX}${plantId}`;
+    
+    // Check if indicator already exists (might have been added by rescan)
+    if (worldIndicator.getIndicator(indicatorId)) {
+      this.activePlants.add(plantId);
+      return;
+    }
 
     // Create the status bars HTML
     const barsHtml = this.createBarsHtml(plantId);
+    
+    // On touch devices, position indicator below plant to avoid blocking touch
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const offsetY = isTouchDevice ? -30 : 60; // Below plant on mobile, above on desktop
+    const worldY = isTouchDevice ? plant.position.y - 0.5 : plant.position.y + 2;
 
     worldIndicator.addIndicator({
       id: indicatorId,
       worldPosition: {
         x: plant.position.x,
-        y: plant.position.y + 2, // Slightly above plant
+        y: worldY,
         z: plant.position.z,
       },
       config: {
         icon: barsHtml,
         animation: "none",
-        offsetY: 60, // Higher above the plant
+        offsetY: offsetY,
         className: "plant-status-indicator",
       },
       data: { plantId },
     });
 
     this.activePlants.add(plantId);
+    console.log(`[PlantStatusIndicator] Added indicator for plant ${plantId}`);
   }
 
   private removePlantIndicator(plantId: string): void {

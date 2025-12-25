@@ -1,0 +1,411 @@
+/**
+ * Mobile/Touch Device Responsive Overrides
+ * 
+ * These styles apply when:
+ * - Running on Capacitor native (body.capacitor-native)
+ * - Running on Android specifically (body.capacitor-android)
+ * - Touch device detected (body.touch-device)
+ * - Small viewport (media query fallback)
+ * 
+ * Priority: Use touch-device class for broadest mobile support (includes mobile web)
+ */
+
+/* ==========================================================================
+   Hide PC-only elements on native
+   ========================================================================== */
+
+/* Hide fullscreen button on native (always fullscreen) */
+.capacitor-native .hud-fullscreen-btn {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Global Mobile Adjustments
+   ========================================================================== */
+
+/* Larger touch targets for all interactive elements */
+.touch-device button,
+.touch-device .clickable,
+.touch-device [role="button"] {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+/* Prevent text selection on UI elements */
+.touch-device .ui-panel,
+.touch-device .dialog,
+.touch-device .modal {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ==========================================================================
+   Dialog/Panel Base - Make all dialogs mobile-friendly
+   ========================================================================== */
+
+/* Settings Panel */
+.touch-device #settings-panel,
+.capacitor-native #settings-panel {
+  min-width: 85vw;
+  max-width: 92vw;
+  max-height: 85vh;
+  padding: 20px 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.touch-device .settings-title,
+.capacitor-native .settings-title {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.touch-device .settings-content,
+.capacitor-native .settings-content {
+  gap: 16px;
+}
+
+/* Larger toggle switches for touch */
+.touch-device .settings-toggle,
+.capacitor-native .settings-toggle {
+  width: 56px;
+  height: 28px;
+  border-radius: 14px;
+}
+
+.touch-device .settings-toggle-knob,
+.capacitor-native .settings-toggle-knob {
+  width: 24px;
+  height: 24px;
+}
+
+.touch-device .settings-toggle.active .settings-toggle-knob,
+.capacitor-native .settings-toggle.active .settings-toggle-knob {
+  left: 30px;
+}
+
+/* Larger slider thumb for touch */
+.touch-device .settings-slider::-webkit-slider-thumb,
+.capacitor-native .settings-slider::-webkit-slider-thumb {
+  width: 28px;
+  height: 28px;
+}
+
+.touch-device .settings-slider::-moz-range-thumb,
+.capacitor-native .settings-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+}
+
+/* ==========================================================================
+   Modal Panels (Plant info, etc.)
+   ========================================================================== */
+
+.touch-device .modal-panel,
+.capacitor-native .modal-panel {
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   Side Panels (Quests, Orders, Events) - Compact for mobile
+   Uses the unified SidePanel component from engine/ui
+   ========================================================================== */
+
+/* Make panels narrower and more compact */
+.touch-device .side-panel,
+.capacitor-native .side-panel {
+  width: 200px;
+}
+
+.touch-device .side-panel.left,
+.capacitor-native .side-panel.left {
+  left: 10px;
+}
+
+/* Smaller headers */
+.touch-device .side-panel-header,
+.capacitor-native .side-panel-header {
+  padding: 8px 10px;
+}
+
+.touch-device .side-panel-icon,
+.capacitor-native .side-panel-icon {
+  font-size: 16px;
+}
+
+.touch-device .side-panel-title,
+.capacitor-native .side-panel-title {
+  font-size: 14px;
+}
+
+/* Smaller content */
+.touch-device .side-panel-item,
+.capacitor-native .side-panel-item {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.touch-device .side-panel-content,
+.capacitor-native .side-panel-content {
+  max-height: calc(100vh - 300px) !important;
+}
+
+/* Legacy panels (QuestPanel, OrderPanel) - if still used */
+.touch-device #quest-panel,
+.touch-device #order-panel,
+.capacitor-native #quest-panel,
+.capacitor-native #order-panel {
+  left: 10px;
+}
+
+.touch-device .quest-panel-container,
+.touch-device .order-panel-container,
+.capacitor-native .quest-panel-container,
+.capacitor-native .order-panel-container {
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.touch-device .quest-panel-header,
+.touch-device .order-panel-header,
+.capacitor-native .quest-panel-header,
+.capacitor-native .order-panel-header {
+  padding: 8px 10px;
+}
+
+.touch-device .quest-title,
+.touch-device .order-title,
+.capacitor-native .quest-title,
+.capacitor-native .order-title {
+  font-size: 14px;
+}
+
+.touch-device .quest-list,
+.touch-device .order-list,
+.capacitor-native .quest-list,
+.capacitor-native .order-list {
+  max-height: calc(100vh - 300px);
+}
+
+.touch-device .quest-card,
+.touch-device .order-card,
+.capacitor-native .quest-card,
+.capacitor-native .order-card {
+  padding: 8px 10px;
+}
+
+.touch-device .quest-icon,
+.touch-device .order-icon,
+.capacitor-native .quest-icon,
+.capacitor-native .order-icon {
+  font-size: 16px;
+}
+
+.touch-device .quest-name,
+.touch-device .order-name,
+.capacitor-native .quest-name,
+.capacitor-native .order-name {
+  font-size: 12px;
+}
+
+.touch-device .quest-objective,
+.touch-device .order-details,
+.capacitor-native .quest-objective,
+.capacitor-native .order-details {
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   Bottom Bar / Build Menu - Compact for mobile
+   ========================================================================== */
+
+.touch-device .bottom-bar,
+.capacitor-native .bottom-bar {
+  padding-bottom: calc(8px + var(--safe-area-bottom, 0px));
+}
+
+/* Build menu - ultra compact on mobile (half height) */
+body.touch-device #build-menu,
+body.capacitor-native #build-menu {
+  bottom: 8px !important;
+  left: 8px !important;
+  right: 8px !important;
+  transform: none !important;
+  max-width: none !important;
+}
+
+body.touch-device .build-menu-container,
+body.capacitor-native .build-menu-container {
+  padding: 6px !important;
+  border-radius: 8px !important;
+}
+
+/* Inline category tabs - smaller */
+body.touch-device .build-categories,
+body.capacitor-native .build-categories {
+  gap: 3px !important;
+  margin-bottom: 4px !important;
+  padding-bottom: 4px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+}
+
+body.touch-device .build-category,
+body.capacitor-native .build-category {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  border-bottom-width: 2px !important;
+  border-radius: 6px !important;
+}
+
+/* Horizontal scrolling items - single compact row */
+body.touch-device .build-items,
+body.capacitor-native .build-items {
+  min-width: unset !important;
+  max-width: none !important;
+  gap: 4px !important;
+  padding: 2px 0 !important;
+  max-height: 55px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  flex-wrap: nowrap !important;
+}
+
+/* Much smaller build item cards - inline style */
+body.touch-device .build-item,
+body.capacitor-native .build-item {
+  padding: 4px 6px !important;
+  min-width: 50px !important;
+  flex-shrink: 0 !important;
+  border-width: 1px !important;
+  border-radius: 6px !important;
+}
+
+body.touch-device .build-item-icon,
+body.capacitor-native .build-item-icon {
+  font-size: 16px !important;
+  margin-bottom: 1px !important;
+}
+
+body.touch-device .build-item-name,
+body.capacitor-native .build-item-name {
+  font-size: 8px !important;
+}
+
+body.touch-device .build-item-cost,
+body.capacitor-native .build-item-cost {
+  font-size: 9px !important;
+  margin-top: 1px !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+}
+
+/* Hide status bar on mobile to save space */
+body.touch-device .build-status,
+body.capacitor-native .build-status {
+  display: none !important;
+}
+
+/* Larger bottom bar buttons */
+.touch-device .bottom-bar-btn,
+.capacitor-native .bottom-bar-btn {
+  min-width: 64px;
+  min-height: 48px;
+  padding: 8px 12px;
+}
+
+/* ==========================================================================
+   HUD Elements
+   ========================================================================== */
+
+/* Respect safe areas for HUD */
+.touch-device .hud-top,
+.capacitor-native .hud-top {
+  padding-top: var(--safe-area-top, 0px);
+}
+
+.touch-device .hud-bottom,
+.capacitor-native .hud-bottom {
+  padding-bottom: var(--safe-area-bottom, 0px);
+}
+
+/* ==========================================================================
+   Popup/Tooltip Adjustments
+   ========================================================================== */
+
+.touch-device .popup,
+.capacitor-native .popup {
+  max-width: 85vw;
+  font-size: 14px;
+}
+
+/* ==========================================================================
+   World Indicators (floating UI above objects)
+   ========================================================================== */
+
+.touch-device .world-indicator,
+.capacitor-native .world-indicator {
+  transform: scale(1.1);
+}
+
+/* ==========================================================================
+   Media Query Fallback (for mobile web without Capacitor)
+   ========================================================================== */
+
+@media (max-width: 768px) and (pointer: coarse) {
+  #settings-panel {
+    min-width: 85vw !important;
+    max-width: 92vw !important;
+    max-height: 85vh !important;
+    padding: 20px 24px !important;
+    overflow-y: auto !important;
+  }
+  
+  .settings-title {
+    font-size: 1.5rem !important;
+  }
+  
+  .modal-panel {
+    max-width: 90vw !important;
+  }
+  
+  .side-panel {
+    width: 85vw !important;
+    max-width: 400px !important;
+  }
+}
+
+/* ==========================================================================
+   Android-specific adjustments
+   ========================================================================== */
+
+.capacitor-android .status-bar-spacer {
+  height: var(--safe-area-top, 24px);
+}
+
+/* ==========================================================================
+   Landscape orientation on mobile
+   ========================================================================== */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .touch-device #settings-panel,
+  .capacitor-native #settings-panel {
+    max-height: 90vh;
+    padding: 12px 20px;
+  }
+  
+  .touch-device .settings-title,
+  .capacitor-native .settings-title {
+    font-size: 1.25rem;
+    margin-bottom: 12px;
+  }
+  
+  .touch-device .settings-content,
+  .capacitor-native .settings-content {
+    gap: 8px;
+  }
+}
