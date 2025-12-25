@@ -17,7 +17,7 @@
     "test:run": "vitest run",
     "cap:sync": "npx cap sync",
     "android:build": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android",
+    "android:open": "node scripts/android-open.cjs",
     "android:run": "npx cap run android",
     "android:live": "npm run build && npx cap sync android && npx cap run android --livereload --external"
   },
