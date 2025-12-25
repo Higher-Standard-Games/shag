@@ -39,6 +39,7 @@ import { PostProcessingManager } from "./effects/PostProcessingManager";
 import { PrecipitationEffect } from "./effects/RainEffect";
 import { ThunderEffect } from "./effects/ThunderEffect";
 import { FogEffect } from "./effects/FogEffect";
+import { CapacitorBridge } from "./core/CapacitorBridge";
 import { EventBus } from "./core/EventBus";
 
 /**
@@ -159,6 +160,47 @@ export class GameScene {
     SaveManager.getInstance().clearLoadingFlag();
 
     this.startRenderLoop();
+    
+    // Setup Capacitor app lifecycle handlers
+    this.setupCapacitorListeners();
+  }
+  
+  /**
+   * Setup Capacitor app lifecycle listeners (pause/resume, back button)
+   */
+  private setupCapacitorListeners(): void {
+    // Handle app state changes (foreground/background)
+    EventBus.on<{ isActive: boolean }>("app:state_change", ({ isActive }) => {
+      if (isActive) {
+        // App resumed - restart render loop
+        console.log("[GameScene] App resumed - restarting render loop");
+        this.engine.runRenderLoop(() => {
+          this.scene?.render();
+        });
+      } else {
+        // App backgrounded - pause rendering and save
+        console.log("[GameScene] App backgrounded - pausing and saving");
+        this.engine.stopRenderLoop();
+        SaveManager.getInstance().autoSave();
+      }
+    });
+    
+    // Handle Android back button
+    EventBus.on<{ canGoBack: boolean }>("app:back_button", () => {
+      // Import MenuSystem dynamically to avoid circular dependency
+      import("./MenuSystem").then(({ MenuSystem }) => {
+        const menuSystem = MenuSystem.getInstance();
+        if (menuSystem.isInGame()) {
+          // Show pause menu
+          menuSystem.showPauseMenu();
+        } else {
+          // Exit app if on main menu
+          CapacitorBridge.getInstance().exitApp();
+        }
+      });
+    });
+    
+    console.log("[GameScene] Capacitor listeners registered");
   }
   
   /**

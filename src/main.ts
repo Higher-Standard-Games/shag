@@ -3,6 +3,7 @@ import { Engine } from "babylonjs";
 import "babylonjs-loaders";
 import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
+import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { GameScene } from "./engine/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./game/LoadingScreen";
@@ -22,6 +23,9 @@ import { UITheme } from "./engine/ui/UITheme";
  * 5. ESC key shows pause menu during gameplay
  */
 async function main() {
+  // Initialize Capacitor bridge early (handles native platform setup)
+  await CapacitorBridge.getInstance().init();
+  
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
   
   // Create engine
@@ -60,6 +64,9 @@ async function main() {
 
   // Phase 2: Main Menu
   loadingScreen.hide();
+  
+  // Hide native splash screen (Capacitor)
+  await CapacitorBridge.getInstance().hideSplashScreen();
 
   // Track current game scene for returning to main menu
   let currentGameScene: GameScene | null = null;

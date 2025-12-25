@@ -45,3 +45,13 @@ editor/gamepacks/games/*
 
 # KTX2 compressed textures (generated from source PNGs)
 public/textures-ktx2/
+
+# Capacitor / Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/capacitor-cordova-android-plugins/build/
