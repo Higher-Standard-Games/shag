@@ -1,0 +1,189 @@
+{
+  "$schema": "./mapgen.config.schema.json",
+  "presets": {
+    "terrain_test": {
+      "width": 400,
+      "depth": 400,
+      "cellSize": 32,
+      "blockSize": 200,
+      "biome": "suburban",
+      "seed": 42,
+      "elevation": {
+        "enabled": true,
+        "maxHeight": 30,
+        "frequency": 0.015,
+        "octaves": 3,
+        "persistence": 0.5,
+        "flattenRoads": true
+      },
+      "roads": {
+        "width": 80,
+        "sideWidth": 60,
+        "sidewalkWidth": 16,
+        "curbHeight": 4,
+        "lineWidth": 4
+      },
+      "features": {
+        "water": false,
+        "vegetation": false,
+        "streetLamps": true,
+        "rocks": false
+      },
+      "density": {
+        "vegetation": 0.3,
+        "rocks": 0.15,
+        "streetLamps": 0.6,
+        "water": 0.1
+      },
+      "optimization": {
+        "mergeFlatBrushes": true,
+        "maxMergeSize": 128,
+        "flatTolerance": 2
+      },
+      "output": {
+        "mapName": "Terrain Test",
+        "areaId": "terrain_test",
+        "areaTier": "suburbs",
+        "filename": "terrain_test.map"
+      }
+    },
+    "urban_small": {
+      "width": 600,
+      "depth": 600,
+      "cellSize": 32,
+      "blockSize": 150,
+      "biome": "urban",
+      "seed": 12345,
+      "elevation": {
+        "enabled": true,
+        "maxHeight": 15,
+        "frequency": 0.008,
+        "octaves": 2,
+        "persistence": 0.4,
+        "flattenRoads": true
+      },
+      "roads": {
+        "width": 100,
+        "sideWidth": 70,
+        "sidewalkWidth": 20,
+        "curbHeight": 6,
+        "lineWidth": 4
+      },
+      "features": {
+        "water": false,
+        "vegetation": false,
+        "streetLamps": true,
+        "rocks": false
+      },
+      "density": {
+        "vegetation": 0.1,
+        "rocks": 0.05,
+        "streetLamps": 0.8,
+        "water": 0.0
+      },
+      "optimization": {
+        "mergeFlatBrushes": true,
+        "maxMergeSize": 128,
+        "flatTolerance": 2
+      },
+      "output": {
+        "mapName": "Urban District",
+        "areaId": "urban_small",
+        "areaTier": "downtown",
+        "filename": "test_urban.map"
+      }
+    },
+    "rural_hills": {
+      "width": 800,
+      "depth": 800,
+      "cellSize": 48,
+      "blockSize": 300,
+      "biome": "rural",
+      "seed": 99999,
+      "elevation": {
+        "enabled": true,
+        "maxHeight": 60,
+        "frequency": 0.006,
+        "octaves": 4,
+        "persistence": 0.6,
+        "flattenRoads": true
+      },
+      "roads": {
+        "width": 60,
+        "sideWidth": 40,
+        "sidewalkWidth": 10,
+        "curbHeight": 3,
+        "lineWidth": 3
+      },
+      "features": {
+        "water": true,
+        "vegetation": true,
+        "streetLamps": true,
+        "rocks": true
+      },
+      "density": {
+        "vegetation": 0.5,
+        "rocks": 0.3,
+        "streetLamps": 0.4,
+        "water": 0.15
+      },
+      "optimization": {
+        "mergeFlatBrushes": true,
+        "maxMergeSize": 192,
+        "flatTolerance": 3
+      },
+      "output": {
+        "mapName": "Rural Hills",
+        "areaId": "rural_hills",
+        "areaTier": "countryside",
+        "filename": "test_rural.map"
+      }
+    }
+  },
+  "biomes": {
+    "urban": {
+      "ground": [60, 55, 50],
+      "groundAlt": [55, 50, 45],
+      "grass": [70, 100, 50],
+      "road": [45, 45, 50],
+      "roadLine": [200, 180, 50],
+      "sidewalk": [130, 125, 120],
+      "curb": [110, 105, 100],
+      "water": [40, 80, 120],
+      "dirt": [80, 70, 55]
+    },
+    "suburban": {
+      "ground": [90, 75, 55],
+      "groundAlt": [85, 70, 50],
+      "grass": [80, 130, 50],
+      "road": [50, 50, 55],
+      "roadLine": [220, 200, 60],
+      "sidewalk": [140, 135, 130],
+      "curb": [120, 115, 110],
+      "water": [60, 120, 160],
+      "dirt": [100, 85, 60]
+    },
+    "rural": {
+      "ground": [100, 85, 60],
+      "groundAlt": [95, 80, 55],
+      "grass": [90, 140, 55],
+      "road": [90, 80, 65],
+      "roadLine": [180, 160, 50],
+      "sidewalk": [110, 100, 85],
+      "curb": [100, 90, 75],
+      "water": [70, 130, 170],
+      "dirt": [110, 95, 70]
+    },
+    "industrial": {
+      "ground": [50, 50, 55],
+      "groundAlt": [45, 45, 50],
+      "grass": [60, 90, 45],
+      "road": [40, 40, 45],
+      "roadLine": [180, 160, 40],
+      "sidewalk": [100, 95, 90],
+      "curb": [80, 75, 70],
+      "water": [35, 60, 80],
+      "dirt": [70, 65, 55]
+    }
+  }
+}

@@ -253,35 +253,115 @@ The generator outputs a `.map` file with:
 - [x] Road network (simple grid)
 - [x] Street lamps
 
-### Phase 2: Textures
+### Phase 2: Elevation & Optimization ✓
+- [x] Perlin noise height map
+- [x] Bezier patches for sloped terrain
+- [x] Brush merging optimization (72% reduction)
+- [x] Configurable parameters via JSON
+
+### Phase 3: Textures (Deferred)
 - [ ] Texture definition system
 - [ ] UV mapping for different scales
 - [ ] Texture variants/randomization
-- [ ] Color fallback for missing textures
-
-### Phase 3: Road Details
-- [ ] Proper intersections
-- [ ] Road markings (lines, crosswalks)
-- [ ] Curbs and gutters
-- [ ] Variable road widths
+- [x] Color fallback (current approach)
 
 ### Phase 4: Natural Elements
+- [x] Terrain elevation variation
 - [ ] Grass patches with patches (bezier)
-- [ ] Rock placement
-- [ ] Terrain elevation variation
-- [ ] Edge blending
+- [ ] Rock placement (sprites)
+- [ ] Water features (blue brushes)
 
 ### Phase 5: Decorations
 - [ ] Street furniture placement
-- [ ] Vegetation system
+- [ ] Vegetation system (sprites)
 - [ ] Build zone generation
 - [ ] Prop placement rules
 
 ### Phase 6: Polish
-- [ ] Biome presets
+- [x] Biome presets (4 biomes)
 - [ ] Preview tool
-- [ ] CLI with full options
-- [ ] Documentation
+- [x] CLI with options
+- [x] Documentation
+
+---
+
+## Configuration Reference
+
+All parameters can be set via the `MapGeneratorConfig` interface or the JSON config file at `src/tools/mapgen.config.json`.
+
+### Dimensions
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `width` | number | 400 | Map width in units |
+| `depth` | number | 400 | Map depth in units |
+| `cellSize` | number | 32 | Terrain cell size (smaller = more detail, more geometry) |
+| `blockSize` | number | 200 | City block size (distance between roads) |
+
+### Roads
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `roadWidth` | number | 80 | Main road width |
+| `sideRoadWidth` | number | 60 | Side road width |
+| `sidewalkWidth` | number | 16 | Sidewalk width |
+| `curbHeight` | number | 4 | Curb height above road |
+
+### Elevation
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `elevation.enabled` | boolean | true | Enable terrain elevation |
+| `elevation.maxHeight` | number | 30 | Maximum hill height |
+| `elevation.frequency` | number | 0.015 | Noise frequency (lower = larger hills) |
+| `elevation.octaves` | number | 3 | Noise octaves (more = more detail) |
+| `elevation.persistence` | number | 0.5 | Octave amplitude falloff |
+| `elevation.flattenRoads` | boolean | true | Keep roads at elevation 0 |
+
+### Optimization
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `optimization.mergeFlatBrushes` | boolean | true | Merge adjacent flat cells into larger brushes |
+| `optimization.maxMergeSize` | number | 128 | Maximum merged brush size |
+| `optimization.flatTolerance` | number | 2 | Height difference tolerance for "flat" |
+
+**Optimization Results (400x400 map, 32-unit cells):**
+- Without optimization: 116 brushes
+- With optimization: 32 brushes (72% reduction)
+
+### Biome
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `biome` | string | "suburban" | Biome preset: `urban`, `suburban`, `rural`, `industrial` |
+
+### Features (TODO)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `features.water` | boolean | false | Generate water features |
+| `features.vegetation` | boolean | false | Generate vegetation sprites |
+| `features.streetLamps` | boolean | true | Generate street lamps |
+| `features.rocks` | boolean | false | Generate rock sprites |
+
+### Density (TODO)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `density.vegetation` | number | 0.3 | Vegetation density (0-1) |
+| `density.rocks` | number | 0.15 | Rock density (0-1) |
+| `density.streetLamps` | number | 0.6 | Street lamp density (0-1) |
+| `density.water` | number | 0.1 | Water feature probability |
+
+### Output
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mapName` | string | "Generated Map" | Display name in game |
+| `areaId` | string | "generated" | Area identifier |
+| `areaTier` | string | "suburbs" | Area tier for game logic |
+| `seed` | number | Date.now() | Random seed for reproducibility |
 
 ---
 
@@ -291,34 +371,48 @@ The generator outputs a `.map` file with:
 import { MapGenerator } from './tools/MapGenerator';
 
 const generator = new MapGenerator({
-  width: 800,
-  depth: 800,
+  width: 400,
+  depth: 400,
   blockSize: 200,
-  biome: 'urban',
-  textures: {
-    ground: ['grass', 'grass_dry'],
-    road: 'asphalt',
-    sidewalk: 'concrete',
-    roadLine: 'road_line_yellow',
+  cellSize: 32,
+  biome: 'suburban',
+  seed: 42,
+  elevation: {
+    enabled: true,
+    maxHeight: 30,
+    frequency: 0.015,
+    octaves: 3,
+    persistence: 0.5,
+    flattenRoads: true,
+  },
+  optimization: {
+    mergeFlatBrushes: true,
+    maxMergeSize: 128,
+    flatTolerance: 2,
   },
   features: {
     streetLamps: true,
-    vegetation: true,
+    vegetation: false,
     rocks: false,
-    buildZones: true,
+    water: false,
   },
-  density: {
-    vegetation: 0.3,
-    streetLamps: 0.6,
-  },
-  seed: 12345,
-  mapName: "Downtown",
-  areaId: "downtown_01",
+  mapName: "Terrain Test",
+  areaId: "terrain_test",
   areaTier: "suburbs",
 });
 
 const mapContent = generator.generate();
-fs.writeFileSync('public/maps/generated/downtown.map', mapContent);
+fs.writeFileSync('public/maps/generated/terrain_test.map', mapContent);
+```
+
+### CLI Usage
+
+```bash
+# Generate maps with default settings
+npm run generate:map
+
+# Or run directly
+npx vite-node src/tools/test-generator.ts
 ```
 
 ---

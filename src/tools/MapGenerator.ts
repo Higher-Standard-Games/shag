@@ -46,7 +46,7 @@ export interface MapGeneratorConfig {
   
   // Grid settings
   blockSize: number;      // Size of each city block (default: 200)
-  cellSize: number;       // Size of terrain cells for elevation (default: 50)
+  cellSize: number;       // Size of terrain cells for elevation (default: 32)
   
   // Road settings
   roadWidth: number;      // Width of main roads (default: 80)
@@ -58,7 +58,9 @@ export interface MapGeneratorConfig {
   elevation: {
     enabled: boolean;
     maxHeight: number;    // Maximum hill height (default: 40)
-    frequency: number;    // Noise frequency (default: 0.01)
+    frequency: number;    // Noise frequency (default: 0.015)
+    octaves: number;      // Noise octaves (default: 3)
+    persistence: number;  // Noise persistence (default: 0.5)
     flattenRoads: boolean; // Keep roads flat (default: true)
   };
   
@@ -79,6 +81,13 @@ export interface MapGeneratorConfig {
     rocks: number;
     streetLamps: number;
     water: number;        // Chance of water features
+  };
+  
+  // Optimization settings
+  optimization: {
+    mergeFlatBrushes: boolean;  // Merge adjacent flat brushes of same type
+    maxMergeSize: number;       // Max size of merged brush (default: 128)
+    flatTolerance: number;      // Height diff tolerance for "flat" (default: 2)
   };
   
   // Generation options
@@ -157,26 +166,28 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
 // ============================================================================
 
 export const DEFAULT_CONFIG: MapGeneratorConfig = {
-  width: 800,
-  depth: 800,
+  width: 400,
+  depth: 400,
   blockSize: 200,
-  cellSize: 50,
+  cellSize: 32,
   roadWidth: 80,
   sideRoadWidth: 60,
   sidewalkWidth: 16,
   curbHeight: 4,
   elevation: {
     enabled: true,
-    maxHeight: 40,
-    frequency: 0.008,
+    maxHeight: 30,
+    frequency: 0.015,
+    octaves: 3,
+    persistence: 0.5,
     flattenRoads: true,
   },
   biome: 'suburban',
   features: {
-    water: true,
-    vegetation: true,
+    water: false,
+    vegetation: false,
     streetLamps: true,
-    rocks: true,
+    rocks: false,
   },
   density: {
     vegetation: 0.3,
@@ -184,9 +195,14 @@ export const DEFAULT_CONFIG: MapGeneratorConfig = {
     streetLamps: 0.6,
     water: 0.1,
   },
+  optimization: {
+    mergeFlatBrushes: true,
+    maxMergeSize: 128,
+    flatTolerance: 2,
+  },
   mapName: "Generated Map",
   areaId: "generated",
-  areaTier: "slums",
+  areaTier: "suburbs",
 };
 
 // ============================================================================
@@ -223,6 +239,97 @@ class SeededRandom {
 }
 
 // ============================================================================
+// Perlin Noise (simplified 2D implementation)
+// ============================================================================
+
+class PerlinNoise {
+  private permutation: number[];
+  
+  constructor(seed: number) {
+    // Generate permutation table from seed
+    const rng = new SeededRandom(seed);
+    this.permutation = [];
+    for (let i = 0; i < 256; i++) {
+      this.permutation[i] = i;
+    }
+    // Shuffle
+    for (let i = 255; i > 0; i--) {
+      const j = rng.int(0, i);
+      [this.permutation[i], this.permutation[j]] = [this.permutation[j], this.permutation[i]];
+    }
+    // Duplicate for overflow
+    this.permutation = [...this.permutation, ...this.permutation];
+  }
+  
+  private fade(t: number): number {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+  
+  private lerp(a: number, b: number, t: number): number {
+    return a + t * (b - a);
+  }
+  
+  private grad(hash: number, x: number, y: number): number {
+    const h = hash & 3;
+    const u = h < 2 ? x : y;
+    const v = h < 2 ? y : x;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+  
+  /**
+   * Get noise value at (x, y) - returns value in range [-1, 1]
+   */
+  noise(x: number, y: number): number {
+    const X = Math.floor(x) & 255;
+    const Y = Math.floor(y) & 255;
+    
+    x -= Math.floor(x);
+    y -= Math.floor(y);
+    
+    const u = this.fade(x);
+    const v = this.fade(y);
+    
+    const A = this.permutation[X] + Y;
+    const B = this.permutation[X + 1] + Y;
+    
+    return this.lerp(
+      this.lerp(
+        this.grad(this.permutation[A], x, y),
+        this.grad(this.permutation[B], x - 1, y),
+        u
+      ),
+      this.lerp(
+        this.grad(this.permutation[A + 1], x, y - 1),
+        this.grad(this.permutation[B + 1], x - 1, y - 1),
+        u
+      ),
+      v
+    );
+  }
+  
+  /**
+   * Get octave noise (multiple frequencies combined)
+   * Returns value in range [0, 1]
+   */
+  octaveNoise(x: number, y: number, octaves: number = 3, persistence: number = 0.5): number {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+    
+    for (let i = 0; i < octaves; i++) {
+      total += this.noise(x * frequency, y * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= 2;
+    }
+    
+    // Normalize to [0, 1]
+    return (total / maxValue + 1) / 2;
+  }
+}
+
+// ============================================================================
 // Map Generator
 // ============================================================================
 
@@ -230,13 +337,136 @@ export class MapGenerator {
   private config: MapGeneratorConfig;
   private colors: BiomeColors;
   private rng: SeededRandom;
+  private noise: PerlinNoise;
   private entityCount: number = 0;
   private brushCount: number = 0;
+  private patchCount: number = 0;
+  
+  // Height map grid
+  private heightMap: number[][] = [];
+  private cellTypes: CellType[][] = [];
+  private gridCols: number = 0;
+  private gridRows: number = 0;
   
   constructor(config: Partial<MapGeneratorConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.colors = BIOME_COLORS[this.config.biome];
-    this.rng = new SeededRandom(this.config.seed ?? Date.now());
+    const seed = this.config.seed ?? Date.now();
+    this.rng = new SeededRandom(seed);
+    this.noise = new PerlinNoise(seed);
+  }
+  
+  /**
+   * Generate height map using Perlin noise
+   */
+  private generateHeightMap(): void {
+    const { width, depth, cellSize, elevation, blockSize, roadWidth } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    
+    this.gridCols = Math.ceil(width / cellSize) + 1;
+    this.gridRows = Math.ceil(depth / cellSize) + 1;
+    
+    // Initialize grids
+    this.heightMap = [];
+    this.cellTypes = [];
+    
+    for (let row = 0; row < this.gridRows; row++) {
+      this.heightMap[row] = [];
+      this.cellTypes[row] = [];
+      
+      for (let col = 0; col < this.gridCols; col++) {
+        const worldX = -halfW + col * cellSize;
+        const worldZ = -halfD + row * cellSize;
+        
+        // Determine cell type first
+        const cellType = this.getCellType(worldX, worldZ, blockSize, roadWidth, halfW, halfD);
+        this.cellTypes[row][col] = cellType;
+        
+        // Generate height based on cell type
+        if (!elevation.enabled) {
+          this.heightMap[row][col] = 0;
+        } else if (cellType === 'road_h' || cellType === 'road_v' || cellType === 'intersection') {
+          // Roads are flat
+          this.heightMap[row][col] = elevation.flattenRoads ? 0 : this.getNoiseHeight(worldX, worldZ);
+        } else if (cellType === 'sidewalk') {
+          // Sidewalks slightly raised
+          this.heightMap[row][col] = elevation.flattenRoads ? 4 : this.getNoiseHeight(worldX, worldZ) + 4;
+        } else {
+          // Natural terrain
+          this.heightMap[row][col] = this.getNoiseHeight(worldX, worldZ);
+        }
+      }
+    }
+  }
+  
+  /**
+   * Get noise-based height at world position
+   */
+  private getNoiseHeight(x: number, z: number): number {
+    const { elevation } = this.config;
+    const noiseVal = this.noise.octaveNoise(
+      x * elevation.frequency,
+      z * elevation.frequency,
+      elevation.octaves,
+      elevation.persistence
+    );
+    return noiseVal * elevation.maxHeight;
+  }
+  
+  /**
+   * Determine cell type based on position
+   */
+  private getCellType(
+    x: number, z: number,
+    blockSize: number, roadWidth: number,
+    halfW: number, halfD: number
+  ): CellType {
+    const halfRoad = roadWidth / 2;
+    
+    // Check if on a road
+    let onHorizontalRoad = false;
+    let onVerticalRoad = false;
+    
+    // Check horizontal roads
+    for (let roadZ = -halfD; roadZ <= halfD; roadZ += blockSize) {
+      if (Math.abs(z - roadZ) < halfRoad) {
+        onHorizontalRoad = true;
+        break;
+      }
+    }
+    
+    // Check vertical roads
+    for (let roadX = -halfW; roadX <= halfW; roadX += blockSize) {
+      if (Math.abs(x - roadX) < halfRoad) {
+        onVerticalRoad = true;
+        break;
+      }
+    }
+    
+    if (onHorizontalRoad && onVerticalRoad) {
+      return 'intersection';
+    } else if (onHorizontalRoad) {
+      return 'road_h';
+    } else if (onVerticalRoad) {
+      return 'road_v';
+    }
+    
+    // Check sidewalk (adjacent to road)
+    const sidewalkWidth = this.config.sidewalkWidth;
+    for (let roadZ = -halfD; roadZ <= halfD; roadZ += blockSize) {
+      if (Math.abs(z - roadZ) < halfRoad + sidewalkWidth && Math.abs(z - roadZ) >= halfRoad) {
+        return 'sidewalk';
+      }
+    }
+    for (let roadX = -halfW; roadX <= halfW; roadX += blockSize) {
+      if (Math.abs(x - roadX) < halfRoad + sidewalkWidth && Math.abs(x - roadX) >= halfRoad) {
+        return 'sidewalk';
+      }
+    }
+    
+    // Default to grass/ground
+    return this.rng.bool(0.7) ? 'grass' : 'ground';
   }
   
   /**
@@ -245,6 +475,10 @@ export class MapGenerator {
   generate(): string {
     this.entityCount = 0;
     this.brushCount = 0;
+    this.patchCount = 0;
+    
+    // Generate height map first
+    this.generateHeightMap();
     
     const lines: string[] = [];
     
@@ -268,11 +502,11 @@ export class MapGenerator {
   }
   
   /**
-   * Generate worldspawn entity with ground and road geometry
+   * Generate worldspawn entity with terrain cells and roads
    */
   private generateWorldspawn(): string[] {
     const lines: string[] = [];
-    const { width, depth, blockSize, roadWidth, sidewalkWidth } = this.config;
+    const { width, depth, cellSize } = this.config;
     
     lines.push(`// entity ${this.entityCount++}`);
     lines.push('{');
@@ -286,61 +520,343 @@ export class MapGenerator {
     const halfW = width / 2;
     const halfD = depth / 2;
     
-    // Base ground plane
+    // Base ground plane (below everything)
     lines.push(...this.generateBrush(
-      -halfW, -halfD, -32,
-      halfW, halfD, -16,
+      -halfW, -halfD, -48,
+      halfW, halfD, -32,
       this.colors.ground,
       "base ground"
     ));
     
-    // Calculate road positions based on block size
-    const numBlocksX = Math.floor(width / blockSize);
-    const numBlocksZ = Math.floor(depth / blockSize);
-    
-    // Generate horizontal roads
-    for (let i = 0; i <= numBlocksZ; i++) {
-      const z = -halfD + i * blockSize;
-      if (z > halfD - roadWidth / 2) continue;
-      
-      lines.push(...this.generateRoad(
-        -halfW, z - roadWidth / 2,
-        halfW, z + roadWidth / 2,
-        'horizontal'
-      ));
+    // Generate terrain with optimization
+    if (this.config.optimization.mergeFlatBrushes) {
+      lines.push(...this.generateOptimizedTerrain(halfW, halfD, cellSize));
+    } else {
+      lines.push(...this.generateUnoptimizedTerrain(halfW, halfD, cellSize));
     }
     
-    // Generate vertical roads
-    for (let i = 0; i <= numBlocksX; i++) {
-      const x = -halfW + i * blockSize;
-      if (x > halfW - roadWidth / 2) continue;
-      
-      lines.push(...this.generateRoad(
-        x - roadWidth / 2, -halfD,
-        x + roadWidth / 2, halfD,
-        'vertical'
-      ));
-    }
-    
-    // Generate sidewalks along roads
-    for (let i = 0; i <= numBlocksZ; i++) {
-      const z = -halfD + i * blockSize;
-      if (z > halfD - roadWidth / 2) continue;
-      
-      // North sidewalk
-      lines.push(...this.generateSidewalk(
-        -halfW, z + roadWidth / 2,
-        halfW, z + roadWidth / 2 + sidewalkWidth
-      ));
-      
-      // South sidewalk
-      lines.push(...this.generateSidewalk(
-        -halfW, z - roadWidth / 2 - sidewalkWidth,
-        halfW, z - roadWidth / 2
-      ));
-    }
+    // Generate road center lines
+    lines.push(...this.generateRoadMarkings());
     
     lines.push('}');
+    return lines;
+  }
+  
+  /**
+   * Generate terrain WITHOUT optimization (one brush/patch per cell)
+   */
+  private generateUnoptimizedTerrain(halfW: number, halfD: number, cellSize: number): string[] {
+    const lines: string[] = [];
+    const tolerance = this.config.optimization.flatTolerance;
+    
+    for (let row = 0; row < this.gridRows - 1; row++) {
+      for (let col = 0; col < this.gridCols - 1; col++) {
+        const x1 = -halfW + col * cellSize;
+        const z1 = -halfD + row * cellSize;
+        const x2 = x1 + cellSize;
+        const z2 = z1 + cellSize;
+        
+        const cellType = this.cellTypes[row][col];
+        const h00 = this.heightMap[row][col];
+        const h10 = this.heightMap[row][col + 1];
+        const h01 = this.heightMap[row + 1][col];
+        const h11 = this.heightMap[row + 1][col + 1];
+        
+        const avgHeight = (h00 + h10 + h01 + h11) / 4;
+        const maxDiff = Math.max(
+          Math.abs(h00 - avgHeight),
+          Math.abs(h10 - avgHeight),
+          Math.abs(h01 - avgHeight),
+          Math.abs(h11 - avgHeight)
+        );
+        const isFlat = maxDiff < tolerance;
+        const color = this.getCellColor(cellType);
+        
+        if (isFlat || cellType === 'road_h' || cellType === 'road_v' || cellType === 'intersection') {
+          const height = cellType.startsWith('road') || cellType === 'intersection' ? 0 : avgHeight;
+          lines.push(...this.generateTerrainBrush(x1, z1, x2, z2, height, color, cellType));
+        } else {
+          lines.push(...this.generateTerrainPatch(x1, z1, x2, z2, h00, h10, h01, h11, color, cellType));
+        }
+      }
+    }
+    return lines;
+  }
+  
+  /**
+   * Generate terrain WITH optimization (merge adjacent flat cells)
+   * Uses a greedy algorithm to find rectangular regions of same type/height
+   */
+  private generateOptimizedTerrain(halfW: number, halfD: number, cellSize: number): string[] {
+    const lines: string[] = [];
+    const tolerance = this.config.optimization.flatTolerance;
+    const maxMerge = Math.floor(this.config.optimization.maxMergeSize / cellSize);
+    
+    // Track which cells have been processed
+    const processed: boolean[][] = [];
+    for (let row = 0; row < this.gridRows; row++) {
+      processed[row] = new Array(this.gridCols).fill(false);
+    }
+    
+    // First pass: generate patches for sloped terrain (can't merge these)
+    for (let row = 0; row < this.gridRows - 1; row++) {
+      for (let col = 0; col < this.gridCols - 1; col++) {
+        const cellType = this.cellTypes[row][col];
+        const h00 = this.heightMap[row][col];
+        const h10 = this.heightMap[row][col + 1];
+        const h01 = this.heightMap[row + 1][col];
+        const h11 = this.heightMap[row + 1][col + 1];
+        
+        const avgHeight = (h00 + h10 + h01 + h11) / 4;
+        const maxDiff = Math.max(
+          Math.abs(h00 - avgHeight),
+          Math.abs(h10 - avgHeight),
+          Math.abs(h01 - avgHeight),
+          Math.abs(h11 - avgHeight)
+        );
+        const isFlat = maxDiff < tolerance;
+        const isRoad = cellType === 'road_h' || cellType === 'road_v' || cellType === 'intersection';
+        
+        if (!isFlat && !isRoad) {
+          // Generate patch for sloped cell
+          const x1 = -halfW + col * cellSize;
+          const z1 = -halfD + row * cellSize;
+          const x2 = x1 + cellSize;
+          const z2 = z1 + cellSize;
+          const color = this.getCellColor(cellType);
+          lines.push(...this.generateTerrainPatch(x1, z1, x2, z2, h00, h10, h01, h11, color, cellType));
+          processed[row][col] = true;
+        }
+      }
+    }
+    
+    // Second pass: merge flat cells using greedy rectangle finding
+    for (let row = 0; row < this.gridRows - 1; row++) {
+      for (let col = 0; col < this.gridCols - 1; col++) {
+        if (processed[row][col]) continue;
+        
+        const cellType = this.cellTypes[row][col];
+        const baseHeight = this.getCellAverageHeight(row, col);
+        const isRoad = cellType === 'road_h' || cellType === 'road_v' || cellType === 'intersection';
+        const height = isRoad ? 0 : baseHeight;
+        
+        // Find maximum rectangle of same type and similar height
+        let maxCol = col;
+        let maxRow = row;
+        
+        // Expand horizontally first
+        while (maxCol < this.gridCols - 1 && 
+               maxCol - col < maxMerge &&
+               !processed[row][maxCol] &&
+               this.canMergeCell(row, maxCol, cellType, height, tolerance, isRoad)) {
+          maxCol++;
+        }
+        
+        // Then expand vertically
+        let canExpandDown = true;
+        while (canExpandDown && 
+               maxRow < this.gridRows - 1 && 
+               maxRow - row < maxMerge) {
+          // Check if entire row can be merged
+          for (let c = col; c < maxCol; c++) {
+            if (processed[maxRow + 1][c] || 
+                !this.canMergeCell(maxRow + 1, c, cellType, height, tolerance, isRoad)) {
+              canExpandDown = false;
+              break;
+            }
+          }
+          if (canExpandDown) maxRow++;
+        }
+        
+        // Mark cells as processed
+        for (let r = row; r <= maxRow; r++) {
+          for (let c = col; c < maxCol; c++) {
+            processed[r][c] = true;
+          }
+        }
+        
+        // Generate merged brush
+        const x1 = -halfW + col * cellSize;
+        const z1 = -halfD + row * cellSize;
+        const x2 = -halfW + maxCol * cellSize;
+        const z2 = -halfD + (maxRow + 1) * cellSize;
+        const color = this.getCellColor(cellType);
+        
+        const mergedCells = (maxCol - col) * (maxRow - row + 1);
+        const comment = mergedCells > 1 ? `${cellType} (${mergedCells} cells merged)` : cellType;
+        lines.push(...this.generateTerrainBrush(x1, z1, x2, z2, height, color, comment as CellType));
+      }
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Check if a cell can be merged with a region
+   */
+  private canMergeCell(
+    row: number, col: number, 
+    targetType: CellType, targetHeight: number, 
+    tolerance: number, isRoad: boolean
+  ): boolean {
+    if (row >= this.gridRows - 1 || col >= this.gridCols - 1) return false;
+    
+    const cellType = this.cellTypes[row][col];
+    if (cellType !== targetType) return false;
+    
+    const avgHeight = this.getCellAverageHeight(row, col);
+    const height = isRoad ? 0 : avgHeight;
+    
+    // Check if heights are similar enough
+    if (Math.abs(height - targetHeight) > tolerance) return false;
+    
+    // Check if cell is flat
+    const h00 = this.heightMap[row][col];
+    const h10 = this.heightMap[row][col + 1];
+    const h01 = this.heightMap[row + 1][col];
+    const h11 = this.heightMap[row + 1][col + 1];
+    const maxDiff = Math.max(
+      Math.abs(h00 - avgHeight),
+      Math.abs(h10 - avgHeight),
+      Math.abs(h01 - avgHeight),
+      Math.abs(h11 - avgHeight)
+    );
+    
+    return maxDiff < tolerance || isRoad;
+  }
+  
+  /**
+   * Get average height of a cell
+   */
+  private getCellAverageHeight(row: number, col: number): number {
+    const h00 = this.heightMap[row][col];
+    const h10 = this.heightMap[row][col + 1];
+    const h01 = this.heightMap[row + 1][col];
+    const h11 = this.heightMap[row + 1][col + 1];
+    return (h00 + h10 + h01 + h11) / 4;
+  }
+  
+  /**
+   * Get color for a cell type
+   */
+  private getCellColor(cellType: CellType): RGB {
+    switch (cellType) {
+      case 'road_h':
+      case 'road_v':
+      case 'intersection':
+        return this.colors.road;
+      case 'sidewalk':
+        return this.colors.sidewalk;
+      case 'grass':
+        return this.colors.grass;
+      case 'water':
+        return this.colors.water;
+      default:
+        return this.colors.ground;
+    }
+  }
+  
+  /**
+   * Generate a flat terrain brush
+   */
+  private generateTerrainBrush(
+    x1: number, z1: number,
+    x2: number, z2: number,
+    height: number,
+    color: RGB,
+    cellType: CellType
+  ): string[] {
+    const baseZ = -16;
+    const topZ = baseZ + height;
+    const thickness = 8;
+    
+    return this.generateBrush(
+      x1, z1, topZ - thickness,
+      x2, z2, topZ,
+      color,
+      cellType
+    );
+  }
+  
+  /**
+   * Generate a sloped terrain patch (patchDef2)
+   */
+  private generateTerrainPatch(
+    x1: number, z1: number,
+    x2: number, z2: number,
+    h00: number, h10: number,
+    h01: number, h11: number,
+    color: RGB,
+    cellType: CellType
+  ): string[] {
+    const lines: string[] = [];
+    const tex = this.colorToTexture(color);
+    const baseZ = -16;
+    
+    // 3x3 control points for bezier patch
+    const midX = (x1 + x2) / 2;
+    const midZ = (z1 + z2) / 2;
+    const hMid = (h00 + h10 + h01 + h11) / 4;
+    const hTop = (h00 + h10) / 2;
+    const hBottom = (h01 + h11) / 2;
+    const hLeft = (h00 + h01) / 2;
+    const hRight = (h10 + h11) / 2;
+    
+    lines.push(`// patch ${this.patchCount++} - ${cellType}`);
+    lines.push('{');
+    lines.push('patchDef2');
+    lines.push('{');
+    lines.push(tex);
+    lines.push('( 3 3 0 0 0 )');
+    lines.push('(');
+    
+    // Row 0 (z1 - front)
+    lines.push(`( ( ${x1} ${z1} ${baseZ + h00} 0 0 ) ( ${midX} ${z1} ${baseZ + hTop} 0.5 0 ) ( ${x2} ${z1} ${baseZ + h10} 1 0 ) )`);
+    
+    // Row 1 (midZ - middle)
+    lines.push(`( ( ${x1} ${midZ} ${baseZ + hLeft} 0 0.5 ) ( ${midX} ${midZ} ${baseZ + hMid} 0.5 0.5 ) ( ${x2} ${midZ} ${baseZ + hRight} 1 0.5 ) )`);
+    
+    // Row 2 (z2 - back)
+    lines.push(`( ( ${x1} ${z2} ${baseZ + h01} 0 1 ) ( ${midX} ${z2} ${baseZ + hBottom} 0.5 1 ) ( ${x2} ${z2} ${baseZ + h11} 1 1 ) )`);
+    
+    lines.push(')');
+    lines.push('}');
+    lines.push('}');
+    
+    return lines;
+  }
+  
+  /**
+   * Generate road center line markings
+   */
+  private generateRoadMarkings(): string[] {
+    const lines: string[] = [];
+    const { width, depth, blockSize, roadWidth } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const lineWidth = 4;
+    const lineHeight = 2;
+    
+    // Horizontal road center lines
+    for (let roadZ = -halfD; roadZ <= halfD; roadZ += blockSize) {
+      lines.push(...this.generateBrush(
+        -halfW, roadZ - lineWidth / 2, -16,
+        halfW, roadZ + lineWidth / 2, -16 + lineHeight,
+        this.colors.roadLine,
+        "road line h"
+      ));
+    }
+    
+    // Vertical road center lines
+    for (let roadX = -halfW; roadX <= halfW; roadX += blockSize) {
+      lines.push(...this.generateBrush(
+        roadX - lineWidth / 2, -halfD, -16,
+        roadX + lineWidth / 2, halfD, -16 + lineHeight,
+        this.colors.roadLine,
+        "road line v"
+      ));
+    }
+    
     return lines;
   }
   
