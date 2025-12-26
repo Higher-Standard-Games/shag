@@ -19,7 +19,8 @@
     "android:build": "npm run build && npx cap sync android",
     "android:open": "node scripts/android-open.cjs",
     "android:run": "npx cap run android",
-    "android:live": "npm run build && npx cap sync android && npx cap run android --livereload --external"
+    "android:live": "npm run build && npx cap sync android && npx cap run android --livereload --external",
+    "generate:map": "npx vite-node src/tools/test-generator.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
