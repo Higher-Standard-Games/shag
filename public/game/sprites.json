@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "basePath": "sprites/",
+  "categories": {
+    "rocks": {
+      "sprites": [
+        {
+          "id": "rock_1",
+          "file": "rock_1.png",
+          "width": 48,
+          "height": 38,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": true,
+          "scaleRange": [0.8, 1.2],
+          "biomes": ["suburban", "rural", "industrial"]
+        },
+        {
+          "id": "rock_2",
+          "file": "rock_2.png",
+          "width": 36,
+          "height": 28,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": true,
+          "scaleRange": [0.7, 1.1],
+          "biomes": ["all"]
+        }
+      ],
+      "defaultDensity": 0.15,
+      "avoidRoads": true,
+      "minSpacing": 24
+    },
+    "vegetation": {
+      "sprites": [],
+      "defaultDensity": 0.3,
+      "avoidRoads": true,
+      "preferGrass": true,
+      "minSpacing": 16
+    },
+    "props": {
+      "sprites": [],
+      "defaultDensity": 0.1,
+      "avoidRoads": false,
+      "minSpacing": 32
+    }
+  }
+}

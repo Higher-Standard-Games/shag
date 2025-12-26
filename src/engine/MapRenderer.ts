@@ -154,6 +154,43 @@ export class MapRenderer {
         console.log(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
       }
 
+      // Handle sprite entities (rocks, vegetation, etc.)
+      // Supports both "sprite" (legacy/generated) and "misc_sprite" (NetRadiant)
+      if ((entity.classname === "sprite" || entity.classname === "misc_sprite") && entity.properties.origin) {
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+        
+        const spritePath = entity.properties.sprite;
+        const width = parseFloat(entity.properties.width || "32");
+        const height = parseFloat(entity.properties.height || "32");
+        const scale = parseFloat(entity.properties.scale || "1");
+        const hasShadow = entity.properties.shadow !== "0"; // Default true
+        const shadowOpacity = parseFloat(entity.properties.shadowOpacity || "0.3");
+        const isBillboard = entity.properties.billboard !== "0"; // Default true
+        const anchor = (entity.properties.anchor || "bottom-center") as "bottom-center" | "center" | "bottom-left" | "bottom-right";
+        
+        if (spritePath) {
+          const spriteManager = SpriteManager.getInstance();
+          const sprite = spriteManager.createStaticSprite(
+            {
+              id: `map_sprite_${Date.now()}`,
+              file: spritePath.replace('sprites/', ''), // Remove prefix since basePath adds it
+              width,
+              height,
+              anchor,
+              billboard: isBillboard,
+              shadow: hasShadow,
+              shadowOpacity,
+            },
+            position,
+            scale
+          );
+          if (sprite) {
+            console.log(`Created sprite at ${position.toString()}: ${spritePath}`);
+          }
+        }
+      }
+
       // Handle street lamps (lights that turn on at night)
       if (entity.classname === "street_lamp" && entity.properties.origin) {
         const lampSystem = StreetLampSystem.getInstance();

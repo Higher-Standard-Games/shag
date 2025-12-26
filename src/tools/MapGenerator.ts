@@ -498,7 +498,134 @@ export class MapGenerator {
     // Street lamps
     lines.push(...this.generateStreetLamps());
     
+    // Sprites (rocks, vegetation, etc.)
+    if (this.config.features.rocks || this.config.features.vegetation) {
+      lines.push(...this.generateSprites());
+    }
+    
     return lines.join('\n');
+  }
+  
+  /**
+   * Generate sprite entities from manifest
+   */
+  private generateSprites(): string[] {
+    const lines: string[] = [];
+    const { width, depth, cellSize } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    
+    // Load sprite definitions (we'll read from a simple inline definition for now)
+    // In production, this would read from sprites.json
+    const spriteDefinitions = this.getSpriteDefinitions();
+    
+    // Place sprites on grass/ground cells
+    for (let row = 0; row < this.gridRows - 1; row++) {
+      for (let col = 0; col < this.gridCols - 1; col++) {
+        const cellType = this.cellTypes[row][col];
+        
+        // Only place on grass or ground
+        if (cellType !== 'grass' && cellType !== 'ground') continue;
+        
+        // Get cell center position
+        const x = -halfW + (col + 0.5) * cellSize;
+        const z = -halfD + (row + 0.5) * cellSize;
+        const y = this.getCellAverageHeight(row, col);
+        
+        // Random chance to place a sprite
+        const category = this.config.features.rocks ? 'rocks' : 'vegetation';
+        const density = category === 'rocks' 
+          ? this.config.density.rocks 
+          : this.config.density.vegetation;
+        
+        if (this.rng.next() > density) continue;
+        
+        // Pick a random sprite from the category
+        const sprites = spriteDefinitions[category];
+        if (!sprites || sprites.length === 0) continue;
+        
+        const sprite = sprites[Math.floor(this.rng.next() * sprites.length)];
+        
+        // Random offset within cell (avoid edges)
+        const offsetX = (this.rng.next() - 0.5) * cellSize * 0.6;
+        const offsetZ = (this.rng.next() - 0.5) * cellSize * 0.6;
+        
+        // Random scale
+        const scaleMin = sprite.scaleRange?.[0] ?? 1;
+        const scaleMax = sprite.scaleRange?.[1] ?? 1;
+        const scale = scaleMin + this.rng.next() * (scaleMax - scaleMin);
+        
+        lines.push(...this.generateSpriteEntity(
+          sprite,
+          x + offsetX,
+          y,
+          z + offsetZ,
+          scale
+        ));
+      }
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Get sprite definitions (inline for now, could load from JSON)
+   */
+  private getSpriteDefinitions(): Record<string, Array<{
+    id: string;
+    file: string;
+    width: number;
+    height: number;
+    scaleRange?: [number, number];
+    shadow?: boolean;
+  }>> {
+    return {
+      rocks: [
+        {
+          id: 'rock_1',
+          file: 'sprites/rock_1.png',
+          width: 48,
+          height: 38,
+          scaleRange: [0.8, 1.2],
+          shadow: true,
+        },
+        {
+          id: 'rock_2',
+          file: 'sprites/rock_2.png',
+          width: 36,
+          height: 28,
+          scaleRange: [0.7, 1.1],
+          shadow: true,
+        },
+      ],
+      vegetation: [],
+    };
+  }
+  
+  /**
+   * Generate a sprite entity (misc_sprite for NetRadiant compatibility)
+   */
+  private generateSpriteEntity(
+    sprite: { id: string; file: string; width: number; height: number; shadow?: boolean },
+    x: number, y: number, z: number,
+    scale: number
+  ): string[] {
+    const lines: string[] = [];
+    
+    lines.push(`// entity ${this.entityCount++}`);
+    lines.push('{');
+    lines.push(`"classname" "misc_sprite"`);
+    lines.push(`"origin" "${x.toFixed(1)} ${z.toFixed(1)} ${y.toFixed(1)}"`);
+    lines.push(`"sprite" "${sprite.file}"`);
+    lines.push(`"width" "${sprite.width.toFixed(1)}"`);
+    lines.push(`"height" "${sprite.height.toFixed(1)}"`);
+    lines.push(`"scale" "${scale.toFixed(2)}"`);
+    lines.push(`"billboard" "1"`);
+    lines.push(`"shadow" "${sprite.shadow ? '1' : '0'}"`);
+    lines.push(`"anchor" "bottom-center"`);
+    lines.push('}');
+    
+    return lines;
   }
   
   /**

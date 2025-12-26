@@ -1219,3 +1219,111 @@ brushDef
 "fadeTime" "4.4"
 "bulbSize" "3"
 }
+// entity 6
+{
+"classname" "misc_sprite"
+"origin" "-123.2 -112.6 16.7"
+"sprite" "sprites/rock_1.png"
+"width" "48.0"
+"height" "38.0"
+"scale" "1.18"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 7
+{
+"classname" "misc_sprite"
+"origin" "-86.4 -123.1 17.3"
+"sprite" "sprites/rock_2.png"
+"width" "36.0"
+"height" "28.0"
+"scale" "0.83"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 8
+{
+"classname" "misc_sprite"
+"origin" "-63.6 -111.9 10.1"
+"sprite" "sprites/rock_2.png"
+"width" "36.0"
+"height" "28.0"
+"scale" "1.02"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 9
+{
+"classname" "misc_sprite"
+"origin" "-127.3 -92.9 17.3"
+"sprite" "sprites/rock_2.png"
+"width" "36.0"
+"height" "28.0"
+"scale" "0.94"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 10
+{
+"classname" "misc_sprite"
+"origin" "136.8 -53.1 7.2"
+"sprite" "sprites/rock_1.png"
+"width" "48.0"
+"height" "38.0"
+"scale" "1.20"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 11
+{
+"classname" "misc_sprite"
+"origin" "78.3 81.2 15.7"
+"sprite" "sprites/rock_1.png"
+"width" "48.0"
+"height" "38.0"
+"scale" "1.12"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 12
+{
+"classname" "misc_sprite"
+"origin" "99.8 71.8 15.2"
+"sprite" "sprites/rock_1.png"
+"width" "48.0"
+"height" "38.0"
+"scale" "1.14"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 13
+{
+"classname" "misc_sprite"
+"origin" "-119.4 99.5 14.8"
+"sprite" "sprites/rock_1.png"
+"width" "48.0"
+"height" "38.0"
+"scale" "0.96"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+// entity 14
+{
+"classname" "misc_sprite"
+"origin" "-90.6 103.5 17.4"
+"sprite" "sprites/rock_2.png"
+"width" "36.0"
+"height" "28.0"
+"scale" "0.80"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}

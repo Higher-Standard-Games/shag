@@ -35,6 +35,18 @@ const terrainConfig: Partial<MapGeneratorConfig> = {
     maxMergeSize: 128,
     flatTolerance: 2,
   },
+  features: {
+    water: false,
+    vegetation: false,
+    streetLamps: true,
+    rocks: true,  // Enable rock sprites
+  },
+  density: {
+    vegetation: 0.3,
+    rocks: 0.2,  // 20% chance per grass cell
+    streetLamps: 0.6,
+    water: 0.1,
+  },
   mapName: "Terrain Test",
   areaId: "terrain_test",
   areaTier: "suburbs",

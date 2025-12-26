@@ -293,6 +293,11 @@ export class GameScene {
 
     // Initialize SpriteManager with scene and camera
     SpriteManager.getInstance().init(this.scene, this.camera);
+    
+    // Load sprite manifest for static sprites (rocks, vegetation, etc.)
+    SpriteManager.getInstance().loadManifest('game/sprites.json').catch(err => {
+      console.warn('Failed to load sprite manifest:', err);
+    });
 
     // Initialize post-processing effects (bloom, vignette, color grading)
     PostProcessingManager.getInstance().init(this.scene, this.camera);
