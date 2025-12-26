@@ -157,6 +157,7 @@ export class MapRenderer {
       // Handle sprite entities (rocks, vegetation, etc.)
       // Supports both "sprite" (legacy/generated) and "misc_sprite" (NetRadiant)
       if ((entity.classname === "sprite" || entity.classname === "misc_sprite") && entity.properties.origin) {
+        console.log(`MapRenderer: Found ${entity.classname} entity:`, entity.properties);
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const position = new Vector3(parts[0], parts[2], parts[1]);
         
@@ -174,7 +175,7 @@ export class MapRenderer {
           const sprite = spriteManager.createStaticSprite(
             {
               id: `map_sprite_${Date.now()}`,
-              file: spritePath.replace('sprites/', ''), // Remove prefix since basePath adds it
+              file: spritePath, // Full path from map entity
               width,
               height,
               anchor,

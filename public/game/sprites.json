@@ -7,23 +7,23 @@
         {
           "id": "rock_1",
           "file": "rock_1.png",
-          "width": 48,
-          "height": 38,
+          "width": 32,
+          "height": 25,
           "anchor": "bottom-center",
           "billboard": true,
-          "shadow": true,
-          "scaleRange": [0.8, 1.2],
+          "shadow": false,
+          "scaleRange": [0.6, 1.0],
           "biomes": ["suburban", "rural", "industrial"]
         },
         {
           "id": "rock_2",
           "file": "rock_2.png",
-          "width": 36,
-          "height": 28,
+          "width": 24,
+          "height": 18,
           "anchor": "bottom-center",
           "billboard": true,
-          "shadow": true,
-          "scaleRange": [0.7, 1.1],
+          "shadow": false,
+          "scaleRange": [0.5, 0.9],
           "biomes": ["all"]
         }
       ],

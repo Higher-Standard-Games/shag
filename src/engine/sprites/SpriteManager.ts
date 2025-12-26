@@ -201,13 +201,18 @@ export class SpriteManager {
     position: Vector3,
     scale: number = 1
   ): StaticSprite | null {
-    if (!this.scene || !this.manifest) {
-      console.warn("SpriteManager: Cannot create static sprite - not initialized or no manifest");
+    if (!this.scene) {
+      console.warn("SpriteManager: Cannot create static sprite - not initialized");
       return null;
     }
 
-    const basePath = this.manifest.basePath;
+    // If file already has a path (contains /), use it directly
+    // Otherwise, prepend manifest basePath if available
+    const hasPath = definition.file.includes('/');
+    const basePath = hasPath ? '' : (this.manifest?.basePath || '');
     const texturePath = basePath + definition.file;
+    
+    console.log(`SpriteManager: Creating sprite from ${texturePath} at ${position.toString()}`);
     
     // Get or create material (cached per texture)
     let material = this.materialCache.get(texturePath);
@@ -317,7 +322,7 @@ export class SpriteManager {
 
     const indices = [0, 1, 2, 0, 2, 3];
     const normals = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
-    const uvs = [0, 1, 1, 1, 1, 0, 0, 0]; // Flipped for correct orientation
+    const uvs = [0, 0, 1, 0, 1, 1, 0, 1]; // bottom-left, bottom-right, top-right, top-left
 
     mesh.setVerticesData("position", positions);
     mesh.setVerticesData("normal", normals);
