@@ -24,6 +24,112 @@ Static sprites for buildings and decorations:
 - **Collision boxes** - For physics/pathfinding
 - **Transparent PNG support** - Full alpha channel
 
+### 3. Decoration Sprites (`misc_sprite`)
+Static decoration sprites for environment details:
+- **Billboard rendering** - Always face camera (default)
+- **Ground shadows** - Configurable shadow ellipses
+- **Manifest-based** - Defined in `sprites.json` for procedural placement
+- **Perfect for** - Rocks, bushes, grass tufts, signs, props
+
+---
+
+## Decoration Sprites (misc_sprite)
+
+Simple billboard sprites for environment decoration. Ideal for rocks, vegetation, and props.
+
+### In NetRadiant
+
+1. Right-click in 2D view → `misc_sprite`
+2. Set properties in Entity Inspector:
+   - `sprite` - Path to image (e.g., `sprites/rock_1.png`)
+   - `width` / `height` - Size in world units
+   - `scale` - Additional scale multiplier
+   - `shadow` - Enable ground shadow (`1` or `0`)
+
+### Map File Format
+
+```
+// entity 5
+{
+"classname" "misc_sprite"
+"origin" "120 -45 8"
+"sprite" "sprites/rock_1.png"
+"width" "48"
+"height" "38"
+"scale" "1.0"
+"billboard" "1"
+"shadow" "1"
+"anchor" "bottom-center"
+}
+```
+
+### All Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `sprite` | string | required | Path to PNG (e.g., `sprites/rock_1.png`) |
+| `width` | float | `32` | Base width in world units |
+| `height` | float | `32` | Base height in world units |
+| `scale` | float | `1` | Scale multiplier |
+| `billboard` | `"0"`/`"1"` | `"1"` | Always face camera |
+| `angle` | float | `0` | Y rotation degrees (non-billboard only) |
+| `shadow` | `"0"`/`"1"` | `"1"` | Show ground shadow |
+| `shadowOpacity` | float | `0.3` | Shadow darkness (0-1) |
+| `anchor` | string | `"bottom-center"` | Anchor point: `bottom-center`, `center`, `bottom-left`, `bottom-right` |
+
+### Sprite Manifest (sprites.json)
+
+For procedural generation, sprites are defined in `public/game/sprites.json`:
+
+```json
+{
+  "version": 1,
+  "basePath": "sprites/",
+  "categories": {
+    "rocks": {
+      "sprites": [
+        {
+          "id": "rock_1",
+          "file": "rock_1.png",
+          "width": 48,
+          "height": 38,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": true,
+          "scaleRange": [0.8, 1.2],
+          "biomes": ["suburban", "rural", "industrial"]
+        }
+      ],
+      "defaultDensity": 0.15,
+      "avoidRoads": true,
+      "minSpacing": 24
+    }
+  }
+}
+```
+
+### Programmatic Creation
+
+```typescript
+import { SpriteManager } from "./engine/sprites/SpriteManager";
+import { Vector3 } from "babylonjs";
+
+const manager = SpriteManager.getInstance();
+
+// Load manifest first
+await manager.loadManifest('game/sprites.json');
+
+// Create sprite from definition
+const rockDef = manager.getSpriteDefinition('rocks', 'rock_1');
+if (rockDef) {
+  const sprite = manager.createStaticSprite(
+    rockDef,
+    new Vector3(100, 0, 50),
+    1.0  // scale
+  );
+}
+```
+
 ---
 
 ## Sprite Buildings

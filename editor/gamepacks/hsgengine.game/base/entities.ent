@@ -134,6 +134,26 @@ Emissive values: 0=dark at night, 0.2=default, 0.5+=neon/lit, 1.0=always bright.
 Use billboard="1" for 2D-style buildings that face camera.
 </point>
 
+<point name="misc_sprite" color="0.6 0.8 0.4" box="-16 -16 0 16 16 32">
+Static decoration sprite (rocks, vegetation, props). Billboard that faces camera.
+-------- KEYS --------
+<real3 key="origin" name="Position">Sprite position in world coordinates.</real3>
+<string key="sprite" name="Sprite Path">Path to sprite image (e.g., "sprites/rock_1.png").</string>
+<real key="width" name="Width" value="32">Width in world units.</real>
+<real key="height" name="Height" value="32">Height in world units.</real>
+<real key="scale" name="Scale" value="1">Additional scale multiplier.</real>
+<boolean key="billboard" name="Billboard" value="1">If 1, sprite always faces camera (default). Set to 0 for fixed rotation.</boolean>
+<real key="angle" name="Angle" value="0">Y rotation in degrees (only if billboard=0).</real>
+<boolean key="shadow" name="Shadow" value="1">Show ground shadow.</boolean>
+<real key="shadowOpacity" name="Shadow Opacity" value="0.3">Shadow darkness 0-1.</real>
+<string key="anchor" name="Anchor" value="bottom-center">Anchor point: "bottom-center", "center", "bottom-left", "bottom-right".</string>
+-------- NOTES --------
+Use for static decoration like rocks, bushes, grass tufts, signs, etc.
+Sprites are loaded from public/sprites/ directory.
+For animated NPCs, use npc_sprite instead.
+For building facades, use sprite_building instead.
+</point>
+
 <point name="npc_sprite" color="0 1 0.5" box="-16 -16 0 16 16 48">
 2D animated billboard sprite for NPCs. Always faces camera.
 -------- KEYS --------
