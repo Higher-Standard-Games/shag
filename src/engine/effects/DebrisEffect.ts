@@ -147,6 +147,13 @@ export class DebrisEffect {
   }
   
   /**
+   * Check if debris is currently active
+   */
+  public isActive_(): boolean {
+    return this.isActive;
+  }
+  
+  /**
    * Stop the debris effect
    */
   public stop(immediate: boolean = false): void {

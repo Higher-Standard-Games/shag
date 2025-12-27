@@ -617,11 +617,21 @@ export class GameScene {
     }
     // If no playlist specified but one is already playing, keep it playing
     
-    // Handle indoor flag - stop precipitation immediately if entering indoor map
+    // Handle indoor flag - stop weather effects immediately if entering indoor map
     this.isIndoorMap = result.indoor;
-    if (this.isIndoorMap && this.precipitationEffect?.isActive_()) {
-      console.log("[GameScene] Indoor map - stopping precipitation");
-      this.precipitationEffect.stop(true);  // Immediate stop for map transitions
+    if (this.isIndoorMap) {
+      if (this.precipitationEffect?.isActive_()) {
+        console.log("[GameScene] Indoor map - stopping precipitation");
+        this.precipitationEffect.stop(true);  // Immediate stop for map transitions
+      }
+      if (this.windSystem?.isWindy()) {
+        console.log("[GameScene] Indoor map - stopping wind");
+        this.windSystem.stop();
+      }
+      if (this.debrisEffect?.isActive_()) {
+        console.log("[GameScene] Indoor map - stopping debris");
+        this.debrisEffect.stop();
+      }
     }
   }
 
