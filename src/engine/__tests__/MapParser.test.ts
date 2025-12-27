@@ -113,5 +113,68 @@ describe("MapParser", () => {
       expect(result[0].properties.camera_mode).toBe("fake_ortho");
       expect(result[0].properties.camera_height).toBe("500");
     });
+
+    it("should parse camera_alpha and camera_beta", () => {
+      const content = `{
+"classname" "worldspawn"
+"camera_alpha" "-0.7854"
+"camera_beta" "0.5236"
+}`;
+      const result = MapParser.parse(content);
+      expect(result[0].properties.camera_alpha).toBe("-0.7854");
+      expect(result[0].properties.camera_beta).toBe("0.5236");
+    });
+
+    it("should parse lighting properties", () => {
+      const content = `{
+"classname" "worldspawn"
+"sun_intensity" "0.8"
+"moon_intensity" "0.15"
+"ambient_intensity" "0.3"
+"shadows" "1"
+}`;
+      const result = MapParser.parse(content);
+      expect(result[0].properties.sun_intensity).toBe("0.8");
+      expect(result[0].properties.moon_intensity).toBe("0.15");
+      expect(result[0].properties.ambient_intensity).toBe("0.3");
+      expect(result[0].properties.shadows).toBe("1");
+    });
+
+    it("should parse weather properties", () => {
+      const content = `{
+"classname" "worldspawn"
+"weather" "rain"
+"weather_intensity" "0.7"
+"fog" "1"
+"fog_density" "0.05"
+}`;
+      const result = MapParser.parse(content);
+      expect(result[0].properties.weather).toBe("rain");
+      expect(result[0].properties.weather_intensity).toBe("0.7");
+      expect(result[0].properties.fog).toBe("1");
+      expect(result[0].properties.fog_density).toBe("0.05");
+    });
+
+    it("should parse time properties", () => {
+      const content = `{
+"classname" "worldspawn"
+"day_length" "300"
+"start_hour" "12"
+}`;
+      const result = MapParser.parse(content);
+      expect(result[0].properties.day_length).toBe("300");
+      expect(result[0].properties.start_hour).toBe("12");
+    });
+
+    it("should parse indoor and playlist properties", () => {
+      const content = `{
+"classname" "worldspawn"
+"indoor" "1"
+"playlist" "playlists/spooky.json"
+}`;
+      const result = MapParser.parse(content);
+      expect(result[0].properties.indoor).toBe("1");
+      expect(result[0].properties.playlist).toBe("playlists/spooky.json");
+    });
   });
 });
