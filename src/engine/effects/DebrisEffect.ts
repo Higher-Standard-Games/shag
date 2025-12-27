@@ -43,20 +43,20 @@ export interface DebrisSettings {
 
 const DEFAULT_DEBRIS_SETTINGS: DebrisSettings = {
   type: 'leaves',
-  density: 0.5,
+  density: 0.15,      // Sparse - leaves are occasional, not rain
   size: 8,
   height: 80,
-  spread: 512,        // Larger area for better coverage
+  spread: 512,
   windInfluence: 0.8,
-  turbulence: 0.4,
+  turbulence: 0.7,    // More random direction
   opacity: 0.9,
   // Motion defaults - tunable via CLI
   emitPowerMin: 2,
   emitPowerMax: 5,
-  gravity: 4,
+  gravity: 3,
   spinSpeed: 2,
-  lifetime: 8,
-  windForce: 15,
+  lifetime: 10,       // Longer lifetime so fewer needed
+  windForce: 20,      // Stronger wind effect
 };
 
 const LEAVES_COLORS = [
