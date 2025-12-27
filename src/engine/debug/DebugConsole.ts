@@ -496,41 +496,47 @@ export class DebugConsole {
    * - Numbers are highlighted
    */
   private formatMessage(message: string): string {
-    // Escape HTML first
-    let formatted = message
+    // Escape HTML entities first
+    const escapeHtml = (str: string) => str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
     
-    // Highlight [bracketed text] in cyan
-    formatted = formatted.replace(
+    const escaped = escapeHtml(message);
+    
+    // Build result by finding patterns and wrapping them
+    // Process in order of priority to avoid nested replacements
+    
+    // 1. Highlight [bracketed text] in cyan - most specific
+    let result = escaped.replace(
       /\[([^\]]+)\]/g,
-      '<span class="hl-bracket">[$1]</span>'
+      (_, content) => `<span class="hl-bracket">[${content}]</span>`
     );
     
-    // Highlight label: value patterns (word followed by colon)
-    formatted = formatted.replace(
-      /(\b\w+):/g,
-      '<span class="hl-label">$1:</span>'
+    // 2. Highlight "quoted strings"
+    result = result.replace(
+      /&quot;([^&]+)&quot;/g,
+      (_, content) => `<span class="hl-string">"${content}"</span>`
     );
     
-    // Highlight numbers
-    formatted = formatted.replace(
-      /\b(\d+\.?\d*)\b/g,
+    // 3. Highlight label: patterns (but not inside already highlighted spans)
+    result = result.replace(
+      /(\b[A-Za-z_]\w*):/g,
+      (match, label) => {
+        // Don't highlight if it's part of a class attribute
+        if (label === 'class' || label === 'span') return match;
+        return `<span class="hl-label">${label}:</span>`;
+      }
+    );
+    
+    // 4. Highlight standalone numbers (not inside spans)
+    result = result.replace(
+      /\b(\d+\.?\d*)\b(?![^<]*>)/g,
       '<span class="hl-number">$1</span>'
     );
     
-    // Highlight quoted strings
-    formatted = formatted.replace(
-      /"([^"]+)"/g,
-      '<span class="hl-string">"$1"</span>'
-    );
-    formatted = formatted.replace(
-      /'([^']+)'/g,
-      '<span class="hl-string">\'$1\'</span>'
-    );
-    
-    return formatted;
+    return result;
   }
 
   // ============================================================================
