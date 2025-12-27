@@ -125,3 +125,4 @@ time 22              # Night
 - **Indoor maps**: Weather effects (wind, debris, precipitation) are automatically disabled on indoor maps
 - **Day/night cycle**: Debris particles respond to scene ambient lighting
 - **Settings persistence**: Use `debris settings` to see current values, then update defaults in code if desired
+- **Map-based debris**: Use `info_debris_zone` entities in maps for localized debris effects (see `docs/entities.md`)

@@ -566,6 +566,85 @@ Defines an area where items can be placed (pots, equipment, decorations).
 
 ---
 
+## Effects
+
+### info_debris_zone
+
+Spawns local debris particles (leaves, trash, dust) in a fixed area. Responds to the global wind system and day/night lighting cycle.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `origin` | vector3 | required | Center position (Quake coords) |
+| `targetname` | string | auto | Unique zone identifier |
+| `type` | string | `"leaves"` | Debris type (see below) |
+| `radius` | float | `128` | Horizontal spawn radius |
+| `height` | float | `64` | Vertical spawn range |
+| `density` | float | `0.5` | Particle density (0-1) |
+| `windInfluence` | float | `0.8` | How much wind affects particles (0-1) |
+
+**Debris Types:**
+
+| Type | Description |
+|------|-------------|
+| `leaves` | Autumn leaves (orange, brown, yellow, red) |
+| `trash` | Urban debris (paper, wrappers, plastic) |
+| `dust` | Fine dust particles (semi-transparent) |
+| `mixed` | Combination of leaves and trash |
+
+**Examples:**
+
+```
+// Autumn leaves near trees
+{
+"classname" "info_debris_zone"
+"targetname" "autumn_leaves"
+"origin" "200 100 32"
+"type" "leaves"
+"radius" "128"
+"height" "64"
+"density" "0.5"
+"windInfluence" "0.8"
+}
+
+// Urban trash in alley
+{
+"classname" "info_debris_zone"
+"targetname" "alley_trash"
+"origin" "-100 300 16"
+"type" "trash"
+"radius" "64"
+"height" "32"
+"density" "0.3"
+}
+
+// Dusty desert area
+{
+"classname" "info_debris_zone"
+"targetname" "desert_dust"
+"origin" "500 0 8"
+"type" "dust"
+"radius" "256"
+"height" "48"
+"density" "0.6"
+"windInfluence" "1.0"
+}
+```
+
+**Behavior:**
+- Particles spawn within the defined radius and height
+- Responds to global `WindSystem` - particles drift with wind direction
+- Colors modulate with scene ambient light for day/night cycle
+- **Automatically disabled on indoor maps** (`indoor: true` in worldspawn)
+- Cleaned up automatically on map transitions
+
+**Tips:**
+- Use lower `density` (0.2-0.4) for subtle ambient effects
+- Higher `windInfluence` makes particles more responsive to gusts
+- Place multiple zones with different types for varied environments
+- Combine with `wind on` console command for testing
+
+---
+
 ## Coordinate System
 
 The engine converts from Quake coordinates to Babylon.js:
