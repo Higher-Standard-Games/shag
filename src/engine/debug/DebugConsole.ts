@@ -224,12 +224,12 @@ export class DebugConsole {
         
       case 'ArrowUp':
         e.preventDefault();
-        this.navigateHistory(-1);
+        this.navigateHistory(1);  // Go to older commands
         break;
         
       case 'ArrowDown':
         e.preventDefault();
-        this.navigateHistory(1);
+        this.navigateHistory(-1);  // Go to newer commands
         break;
         
       case 'Tab':
@@ -304,14 +304,15 @@ export class DebugConsole {
   private navigateHistory(direction: number): void {
     if (this.commandHistory.length === 0) return;
     
-    // Save current input if starting to navigate
-    if (this.historyIndex === -1 && direction === -1) {
+    // Save current input if starting to navigate (going up from fresh input)
+    if (this.historyIndex === -1 && direction === 1) {
       this.currentInput = this.inputEl?.value || '';
     }
     
+    // direction: 1 = up (older), -1 = down (newer)
     this.historyIndex += direction;
     
-    // Clamp
+    // Clamp: -1 means current input, 0+ means history
     if (this.historyIndex < -1) {
       this.historyIndex = -1;
     } else if (this.historyIndex >= this.commandHistory.length) {
