@@ -46,7 +46,7 @@ const DEFAULT_DEBRIS_SETTINGS: DebrisSettings = {
   density: 0.5,
   size: 8,
   height: 80,
-  spread: 300,
+  spread: 512,        // Larger area for better coverage
   windInfluence: 0.8,
   turbulence: 0.4,
   opacity: 0.9,
@@ -246,9 +246,16 @@ export class DebrisEffect {
     // Apply all settings
     this.applySettings();
     
-    // Register render observer
+    // Register render observer - update position and lighting
+    let lightingUpdateCounter = 0;
     this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
       this.updateEmitterPosition();
+      // Update lighting every 60 frames (~1 second) for day/night cycle
+      lightingUpdateCounter++;
+      if (lightingUpdateCounter >= 60) {
+        lightingUpdateCounter = 0;
+        this.applyColors();
+      }
     });
     
     this.particleSystem.start();
@@ -345,7 +352,7 @@ export class DebrisEffect {
   }
   
   /**
-   * Apply colors based on debris type
+   * Apply colors based on debris type, modulated by scene ambient light
    */
   private applyColors(): void {
     if (!this.particleSystem) return;
@@ -374,9 +381,33 @@ export class DebrisEffect {
     const c1 = colors[Math.floor(Math.random() * colors.length)];
     const c2 = colors[Math.floor(Math.random() * colors.length)];
     
-    this.particleSystem.color1 = new Color4(c1.r, c1.g, c1.b, alpha);
-    this.particleSystem.color2 = new Color4(c2.r, c2.g, c2.b, alpha);
-    this.particleSystem.colorDead = new Color4(c1.r, c1.g, c1.b, 0);
+    // Modulate colors by scene ambient light for day/night cycle
+    const ambient = this.scene.ambientColor;
+    const lightMult = (ambient.r + ambient.g + ambient.b) / 3 + 0.3; // 0.3-1.3 range
+    
+    this.particleSystem.color1 = new Color4(
+      c1.r * lightMult, 
+      c1.g * lightMult, 
+      c1.b * lightMult, 
+      alpha
+    );
+    this.particleSystem.color2 = new Color4(
+      c2.r * lightMult, 
+      c2.g * lightMult, 
+      c2.b * lightMult, 
+      alpha
+    );
+    this.particleSystem.colorDead = new Color4(c1.r * lightMult, c1.g * lightMult, c1.b * lightMult, 0);
+  }
+  
+  /**
+   * Update particle colors based on current scene lighting
+   * Should be called periodically or when lighting changes
+   */
+  public updateLighting(): void {
+    if (this.isActive && this.particleSystem) {
+      this.applyColors();
+    }
   }
   
   /**
