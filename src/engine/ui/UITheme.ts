@@ -172,7 +172,7 @@ export class UITheme {
    * Load a custom font from URL
    * Supports WOFF2, WOFF, TTF, OTF formats
    */
-  public async loadFont(fontName: string, fontUrl: string, weight: string = "400"): Promise<void> {
+  public async loadFont(fontName: string, fontUrl: string, weight: string = "400", silent: boolean = false): Promise<void> {
     const font = new FontFace(fontName, `url(${fontUrl})`, {
       weight,
       style: "normal",
@@ -181,7 +181,9 @@ export class UITheme {
     try {
       const loadedFont = await font.load();
       document.fonts.add(loadedFont);
-      console.log(`Font loaded: ${fontName}`);
+      if (!silent) {
+        console.log(`Font loaded: ${fontName}`);
+      }
     } catch (error) {
       console.warn(`Failed to load font ${fontName}:`, error);
     }
@@ -287,11 +289,11 @@ export class UITheme {
     ];
 
     const loadPromises = weights.map(({ weight, file }) =>
-      this.loadFont("Nunito", `/fonts/Nunito/static/${file}`, weight)
+      this.loadFont("Nunito", `/fonts/Nunito/static/${file}`, weight, true)
     );
 
     await Promise.all(loadPromises);
-    console.log("[UITheme] Nunito font family loaded");
+    console.log("[UITheme] Nunito font family loaded (7 weights)");
   }
 
   /**
