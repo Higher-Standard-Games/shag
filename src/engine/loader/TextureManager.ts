@@ -1,4 +1,4 @@
-import { Color3, type Scene, StandardMaterial, Texture } from "babylonjs";
+import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
 
 // Check if we're in production mode (Vite sets this)
 // @ts-ignore - Vite provides import.meta.env
@@ -238,10 +238,19 @@ export class TextureManager {
     material.specularColor = new Color3(0, 0, 0); // Flat shading
     material.backFaceCulling = false;
 
-    // Handle color textures
+    // Handle color textures - generate procedural noisy texture
     if (this.isColorTexture(textureInfo.path)) {
       const color = this.parseColorTexture(textureInfo.path);
-      material.diffuseColor = color || new Color3(0.5, 0.5, 0.5);
+      if (color) {
+        const noisyTexture = this.generateNoisyColorTexture(textureInfo.path, color);
+        if (noisyTexture) {
+          material.diffuseTexture = noisyTexture;
+        } else {
+          material.diffuseColor = color;
+        }
+      } else {
+        material.diffuseColor = new Color3(0.5, 0.5, 0.5);
+      }
     }
     // Handle trigger textures
     else if (this.isTriggerTexture(textureInfo.path)) {
@@ -326,5 +335,121 @@ export class TextureManager {
 
     await Promise.all(promises);
     console.log(`Preloaded ${promises.length} textures`);
+  }
+
+  // Cache for noisy color textures
+  private noisyTextureCache: Map<string, DynamicTexture> = new Map();
+
+  /**
+   * Generate a procedural noisy texture from a base color
+   * Creates seamlessly tileable noise texture
+   */
+  private generateNoisyColorTexture(textureName: string, baseColor: Color3): DynamicTexture | null {
+    if (!this.scene) return null;
+
+    // Check cache
+    if (this.noisyTextureCache.has(textureName)) {
+      return this.noisyTextureCache.get(textureName)!;
+    }
+
+    // Create a dynamic texture
+    const size = 128;
+    const texture = new DynamicTexture(`noisy_${textureName}`, size, this.scene, false);
+    const ctx = texture.getContext() as CanvasRenderingContext2D;
+
+    // Base color in 0-255 range
+    const r = Math.floor(baseColor.r * 255);
+    const g = Math.floor(baseColor.g * 255);
+    const b = Math.floor(baseColor.b * 255);
+
+    // Noise parameters
+    const noiseAmount = 18;
+    
+    // Use seeded random for consistent results per color
+    const seed = r * 1000 + g * 100 + b;
+    const seededRandom = this.createSeededRandom(seed);
+    
+    // Generate seamless tileable noise
+    // Use multiple octaves of seamless noise
+    const noiseGrid = this.generateTileableNoise(size, seededRandom);
+    
+    // Draw pixels
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const noiseVal = noiseGrid[y][x];
+        const totalNoise = noiseVal * noiseAmount;
+        
+        // Apply noise
+        const pr = Math.max(0, Math.min(255, Math.floor(r + totalNoise)));
+        const pg = Math.max(0, Math.min(255, Math.floor(g + totalNoise * 0.9)));
+        const pb = Math.max(0, Math.min(255, Math.floor(b + totalNoise * 0.8)));
+        
+        ctx.fillStyle = `rgb(${pr},${pg},${pb})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+
+    texture.update();
+
+    // Set texture to tile
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+
+    // Cache it
+    this.noisyTextureCache.set(textureName, texture);
+
+    return texture;
+  }
+
+  /**
+   * Create a seeded random number generator
+   */
+  private createSeededRandom(seed: number): () => number {
+    let s = seed;
+    return () => {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
+  }
+
+  /**
+   * Generate seamlessly tileable noise using mirroring technique
+   * This ensures the texture tiles perfectly without visible seams
+   */
+  private generateTileableNoise(size: number, random: () => number): number[][] {
+    const grid: number[][] = [];
+    const halfSize = size / 2;
+    
+    // Generate noise for one quadrant
+    const baseNoise: number[][] = [];
+    for (let y = 0; y <= halfSize; y++) {
+      baseNoise[y] = [];
+      for (let x = 0; x <= halfSize; x++) {
+        // Multi-frequency noise
+        let value = 0;
+        value += (random() - 0.5) * 1.0;  // Base noise
+        value += Math.sin(x * 0.2 + random() * 6.28) * 0.3;  // Low freq
+        value += Math.sin(y * 0.15 + random() * 6.28) * 0.3;
+        baseNoise[y][x] = value;
+      }
+    }
+    
+    // Mirror to create seamless tiling
+    for (let y = 0; y < size; y++) {
+      grid[y] = [];
+      for (let x = 0; x < size; x++) {
+        // Mirror coordinates
+        const mx = x < halfSize ? x : size - x;
+        const my = y < halfSize ? y : size - y;
+        
+        // Blend at edges for smoother transition
+        const bx = Math.min(mx, halfSize);
+        const by = Math.min(my, halfSize);
+        
+        grid[y][x] = baseNoise[by]?.[bx] ?? 0;
+      }
+    }
+    
+    return grid;
   }
 }

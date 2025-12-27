@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
+    "@types/pngjs": "^6.0.5",
     "jsdom": "^27.2.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
@@ -39,6 +40,7 @@
     "@capacitor/splash-screen": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "babylonjs": "^8.42.0",
-    "babylonjs-loaders": "^8.42.0"
+    "babylonjs-loaders": "^8.42.0",
+    "pngjs": "^7.0.0"
   }
 }

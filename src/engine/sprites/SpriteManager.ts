@@ -222,8 +222,9 @@ export class SpriteManager {
       
       material = new StandardMaterial(`mat_${definition.id}`, this.scene);
       material.diffuseTexture = texture;
+      material.diffuseColor = new Color3(1, 1, 1);
       material.specularColor = new Color3(0, 0, 0);
-      material.emissiveColor = new Color3(1, 1, 1);
+      material.emissiveColor = new Color3(0, 0, 0); // No self-illumination - affected by scene lighting
       material.useAlphaFromDiffuseTexture = true;
       material.backFaceCulling = false;
       

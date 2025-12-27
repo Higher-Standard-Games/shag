@@ -25,18 +25,82 @@
           "shadow": false,
           "scaleRange": [0.5, 0.9],
           "biomes": ["all"]
+        },
+        {
+          "id": "rock_3",
+          "file": "rock_3.png",
+          "width": 28,
+          "height": 20,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": false,
+          "scaleRange": [0.6, 1.0],
+          "biomes": ["all"]
         }
       ],
       "defaultDensity": 0.15,
       "avoidRoads": true,
       "minSpacing": 24
     },
-    "vegetation": {
-      "sprites": [],
-      "defaultDensity": 0.3,
+    "trees": {
+      "sprites": [
+        {
+          "id": "tree_1",
+          "file": "tree_1.png",
+          "width": 48,
+          "height": 64,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": true,
+          "scaleRange": [0.8, 1.2],
+          "biomes": ["suburban", "rural"]
+        },
+        {
+          "id": "tree_2",
+          "file": "tree_2.png",
+          "width": 44,
+          "height": 60,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": true,
+          "scaleRange": [0.7, 1.1],
+          "biomes": ["suburban", "rural"]
+        }
+      ],
+      "defaultDensity": 0.05,
       "avoidRoads": true,
       "preferGrass": true,
-      "minSpacing": 16
+      "minSpacing": 48
+    },
+    "grass": {
+      "sprites": [
+        {
+          "id": "grass_1",
+          "file": "grass_1.png",
+          "width": 20,
+          "height": 16,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": false,
+          "scaleRange": [0.5, 0.9],
+          "biomes": ["all"]
+        },
+        {
+          "id": "grass_2",
+          "file": "grass_2.png",
+          "width": 22,
+          "height": 18,
+          "anchor": "bottom-center",
+          "billboard": true,
+          "shadow": false,
+          "scaleRange": [0.5, 0.8],
+          "biomes": ["all"]
+        }
+      ],
+      "defaultDensity": 0.4,
+      "avoidRoads": true,
+      "preferGrass": true,
+      "minSpacing": 8
     },
     "props": {
       "sprites": [],

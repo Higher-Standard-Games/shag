@@ -13,6 +13,8 @@
  * - Street lamps and props
  */
 
+import { SeededRandom, PerlinNoise } from './PerlinNoise';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -54,6 +56,9 @@ export interface MapGeneratorConfig {
   sidewalkWidth: number;  // Width of sidewalks (default: 16)
   curbHeight: number;     // Height of curbs (default: 4)
   
+  // Terrain mode
+  terrainOnly: boolean;   // If true, skip roads/blocks, generate pure terrain
+  
   // Elevation settings
   elevation: {
     enabled: boolean;
@@ -62,6 +67,13 @@ export interface MapGeneratorConfig {
     octaves: number;      // Noise octaves (default: 3)
     persistence: number;  // Noise persistence (default: 0.5)
     flattenRoads: boolean; // Keep roads flat (default: true)
+    
+    // Heightmap support
+    heightmap?: {
+      data: number[][];   // 2D array of heights (0-1 normalized)
+      width: number;      // Heightmap width in pixels
+      height: number;     // Heightmap height in pixels
+    };
   };
   
   // Biome/style
@@ -90,6 +102,9 @@ export interface MapGeneratorConfig {
     flatTolerance: number;      // Height diff tolerance for "flat" (default: 2)
   };
   
+  // Patch settings
+  patchResolution: number;      // Control points per patch edge (3, 5, 7, 9) - must be odd
+  
   // Generation options
   seed?: number;          // Random seed for reproducibility
   
@@ -100,7 +115,7 @@ export interface MapGeneratorConfig {
 }
 
 // Grid cell types
-export type CellType = 'ground' | 'grass' | 'road_h' | 'road_v' | 'intersection' | 'sidewalk' | 'water' | 'building';
+export type CellType = 'ground' | 'grass' | 'grass_dark' | 'dirt' | 'road_h' | 'road_v' | 'intersection' | 'sidewalk' | 'water' | 'building';
 
 export interface GridCell {
   x: number;
@@ -174,6 +189,7 @@ export const DEFAULT_CONFIG: MapGeneratorConfig = {
   sideRoadWidth: 60,
   sidewalkWidth: 16,
   curbHeight: 4,
+  terrainOnly: false,
   elevation: {
     enabled: true,
     maxHeight: 30,
@@ -200,134 +216,11 @@ export const DEFAULT_CONFIG: MapGeneratorConfig = {
     maxMergeSize: 128,
     flatTolerance: 2,
   },
+  patchResolution: 3,  // 3x3 control points (default)
   mapName: "Generated Map",
   areaId: "generated",
   areaTier: "suburbs",
 };
-
-// ============================================================================
-// Seeded Random Number Generator
-// ============================================================================
-
-class SeededRandom {
-  private seed: number;
-  
-  constructor(seed: number) {
-    this.seed = seed;
-  }
-  
-  // Simple LCG random
-  next(): number {
-    this.seed = (this.seed * 1664525 + 1013904223) % 4294967296;
-    return this.seed / 4294967296;
-  }
-  
-  // Random integer in range [min, max]
-  int(min: number, max: number): number {
-    return Math.floor(this.next() * (max - min + 1)) + min;
-  }
-  
-  // Random float in range [min, max]
-  float(min: number, max: number): number {
-    return this.next() * (max - min) + min;
-  }
-  
-  // Random boolean with probability
-  bool(probability = 0.5): boolean {
-    return this.next() < probability;
-  }
-}
-
-// ============================================================================
-// Perlin Noise (simplified 2D implementation)
-// ============================================================================
-
-class PerlinNoise {
-  private permutation: number[];
-  
-  constructor(seed: number) {
-    // Generate permutation table from seed
-    const rng = new SeededRandom(seed);
-    this.permutation = [];
-    for (let i = 0; i < 256; i++) {
-      this.permutation[i] = i;
-    }
-    // Shuffle
-    for (let i = 255; i > 0; i--) {
-      const j = rng.int(0, i);
-      [this.permutation[i], this.permutation[j]] = [this.permutation[j], this.permutation[i]];
-    }
-    // Duplicate for overflow
-    this.permutation = [...this.permutation, ...this.permutation];
-  }
-  
-  private fade(t: number): number {
-    return t * t * t * (t * (t * 6 - 15) + 10);
-  }
-  
-  private lerp(a: number, b: number, t: number): number {
-    return a + t * (b - a);
-  }
-  
-  private grad(hash: number, x: number, y: number): number {
-    const h = hash & 3;
-    const u = h < 2 ? x : y;
-    const v = h < 2 ? y : x;
-    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
-  }
-  
-  /**
-   * Get noise value at (x, y) - returns value in range [-1, 1]
-   */
-  noise(x: number, y: number): number {
-    const X = Math.floor(x) & 255;
-    const Y = Math.floor(y) & 255;
-    
-    x -= Math.floor(x);
-    y -= Math.floor(y);
-    
-    const u = this.fade(x);
-    const v = this.fade(y);
-    
-    const A = this.permutation[X] + Y;
-    const B = this.permutation[X + 1] + Y;
-    
-    return this.lerp(
-      this.lerp(
-        this.grad(this.permutation[A], x, y),
-        this.grad(this.permutation[B], x - 1, y),
-        u
-      ),
-      this.lerp(
-        this.grad(this.permutation[A + 1], x, y - 1),
-        this.grad(this.permutation[B + 1], x - 1, y - 1),
-        u
-      ),
-      v
-    );
-  }
-  
-  /**
-   * Get octave noise (multiple frequencies combined)
-   * Returns value in range [0, 1]
-   */
-  octaveNoise(x: number, y: number, octaves: number = 3, persistence: number = 0.5): number {
-    let total = 0;
-    let frequency = 1;
-    let amplitude = 1;
-    let maxValue = 0;
-    
-    for (let i = 0; i < octaves; i++) {
-      total += this.noise(x * frequency, y * frequency) * amplitude;
-      maxValue += amplitude;
-      amplitude *= persistence;
-      frequency *= 2;
-    }
-    
-    // Normalize to [0, 1]
-    return (total / maxValue + 1) / 2;
-  }
-}
 
 // ============================================================================
 // Map Generator
@@ -388,30 +281,109 @@ export class MapGenerator {
           this.heightMap[row][col] = 0;
         } else if (cellType === 'road_h' || cellType === 'road_v' || cellType === 'intersection') {
           // Roads are flat
-          this.heightMap[row][col] = elevation.flattenRoads ? 0 : this.getNoiseHeight(worldX, worldZ);
+          this.heightMap[row][col] = elevation.flattenRoads ? 0 : this.getTerrainHeight(worldX, worldZ);
         } else if (cellType === 'sidewalk') {
           // Sidewalks slightly raised
-          this.heightMap[row][col] = elevation.flattenRoads ? 4 : this.getNoiseHeight(worldX, worldZ) + 4;
+          this.heightMap[row][col] = elevation.flattenRoads ? 4 : this.getTerrainHeight(worldX, worldZ) + 4;
         } else {
-          // Natural terrain
-          this.heightMap[row][col] = this.getNoiseHeight(worldX, worldZ);
+          // Natural terrain - use heightmap if available, otherwise noise
+          this.heightMap[row][col] = this.getTerrainHeight(worldX, worldZ);
         }
       }
     }
   }
   
   /**
-   * Get noise-based height at world position
+   * Get terrain height at world position
+   * Uses heightmap if available, otherwise falls back to noise
    */
-  private getNoiseHeight(x: number, z: number): number {
-    const { elevation } = this.config;
+  private getTerrainHeight(worldX: number, worldZ: number): number {
+    const { elevation, width, depth } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    
+    // If heightmap is provided, sample from it
+    if (elevation.heightmap) {
+      const hm = elevation.heightmap;
+      
+      // Convert world coords to heightmap UV (0-1)
+      const u = (worldX + halfW) / width;
+      const v = (worldZ + halfD) / depth;
+      
+      // Convert to heightmap pixel coords
+      const px = u * (hm.width - 1);
+      const py = v * (hm.height - 1);
+      
+      // Bilinear interpolation
+      const x0 = Math.floor(px);
+      const y0 = Math.floor(py);
+      const x1 = Math.min(x0 + 1, hm.width - 1);
+      const y1 = Math.min(y0 + 1, hm.height - 1);
+      
+      const fx = px - x0;
+      const fy = py - y0;
+      
+      const h00 = hm.data[y0]?.[x0] ?? 0;
+      const h10 = hm.data[y0]?.[x1] ?? 0;
+      const h01 = hm.data[y1]?.[x0] ?? 0;
+      const h11 = hm.data[y1]?.[x1] ?? 0;
+      
+      const h0 = h00 * (1 - fx) + h10 * fx;
+      const h1 = h01 * (1 - fx) + h11 * fx;
+      const normalizedHeight = h0 * (1 - fy) + h1 * fy;
+      
+      return normalizedHeight * elevation.maxHeight;
+    }
+    
+    // Fall back to noise-based generation
     const noiseVal = this.noise.octaveNoise(
-      x * elevation.frequency,
-      z * elevation.frequency,
+      worldX * elevation.frequency,
+      worldZ * elevation.frequency,
       elevation.octaves,
       elevation.persistence
     );
     return noiseVal * elevation.maxHeight;
+  }
+  
+  /**
+   * Get interpolated height at exact world position
+   * Uses bilinear interpolation between grid points
+   */
+  private getHeightAtPosition(worldX: number, worldZ: number): number {
+    const { width, depth, cellSize } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    
+    // Convert world position to grid coordinates
+    const gridX = (worldX + halfW) / cellSize;
+    const gridZ = (worldZ + halfD) / cellSize;
+    
+    // Get the four surrounding grid points
+    const col0 = Math.floor(gridX);
+    const row0 = Math.floor(gridZ);
+    const col1 = Math.min(col0 + 1, this.gridCols - 1);
+    const row1 = Math.min(row0 + 1, this.gridRows - 1);
+    
+    // Clamp to valid range
+    const c0 = Math.max(0, Math.min(col0, this.gridCols - 1));
+    const r0 = Math.max(0, Math.min(row0, this.gridRows - 1));
+    const c1 = Math.max(0, Math.min(col1, this.gridCols - 1));
+    const r1 = Math.max(0, Math.min(row1, this.gridRows - 1));
+    
+    // Get heights at four corners
+    const h00 = this.heightMap[r0][c0];
+    const h10 = this.heightMap[r0][c1];
+    const h01 = this.heightMap[r1][c0];
+    const h11 = this.heightMap[r1][c1];
+    
+    // Bilinear interpolation
+    const fx = gridX - col0;
+    const fz = gridZ - row0;
+    
+    const h0 = h00 * (1 - fx) + h10 * fx;
+    const h1 = h01 * (1 - fx) + h11 * fx;
+    
+    return h0 * (1 - fz) + h1 * fz;
   }
   
   /**
@@ -422,6 +394,11 @@ export class MapGenerator {
     blockSize: number, roadWidth: number,
     halfW: number, halfD: number
   ): CellType {
+    // Terrain-only mode: all cells are grass
+    if (this.config.terrainOnly) {
+      return 'grass';
+    }
+    
     const halfRoad = roadWidth / 2;
     
     // Check if on a road
@@ -507,62 +484,164 @@ export class MapGenerator {
   }
   
   /**
+   * Rock pile presets - different arrangements of rocks
+   */
+  private readonly ROCK_PILE_PRESETS = [
+    // Single rock
+    { name: 'single', rocks: [{ dx: 0, dz: 0, sizeIdx: 0, scale: 1.0 }] },
+    // Pair of rocks
+    { name: 'pair', rocks: [
+      { dx: 0, dz: 0, sizeIdx: 0, scale: 1.0 },
+      { dx: 8, dz: 4, sizeIdx: 1, scale: 0.7 },
+    ]},
+    // Small cluster (3 rocks)
+    { name: 'cluster_small', rocks: [
+      { dx: 0, dz: 0, sizeIdx: 0, scale: 0.9 },
+      { dx: -6, dz: 5, sizeIdx: 1, scale: 0.6 },
+      { dx: 7, dz: -3, sizeIdx: 1, scale: 0.5 },
+    ]},
+    // Medium cluster (4-5 rocks)
+    { name: 'cluster_medium', rocks: [
+      { dx: 0, dz: 0, sizeIdx: 0, scale: 1.0 },
+      { dx: -10, dz: 3, sizeIdx: 0, scale: 0.7 },
+      { dx: 8, dz: 6, sizeIdx: 1, scale: 0.6 },
+      { dx: 5, dz: -8, sizeIdx: 1, scale: 0.5 },
+      { dx: -5, dz: -6, sizeIdx: 1, scale: 0.4 },
+    ]},
+    // Scattered (spread out)
+    { name: 'scattered', rocks: [
+      { dx: -12, dz: -8, sizeIdx: 1, scale: 0.5 },
+      { dx: 10, dz: 5, sizeIdx: 1, scale: 0.6 },
+      { dx: -5, dz: 10, sizeIdx: 1, scale: 0.4 },
+    ]},
+  ];
+
+  /**
    * Generate sprite entities from manifest
+   * Uses FIXED counts based on map area, not cell count
    */
   private generateSprites(): string[] {
     const lines: string[] = [];
-    const { width, depth, cellSize } = this.config;
+    const { width, depth } = this.config;
     const halfW = width / 2;
     const halfD = depth / 2;
+    const mapArea = width * depth;
     
-    // Load sprite definitions (we'll read from a simple inline definition for now)
-    // In production, this would read from sprites.json
     const spriteDefinitions = this.getSpriteDefinitions();
+    const rockSprites = spriteDefinitions.rocks;
+    const treeSprites = spriteDefinitions.trees;
+    const grassSprites = spriteDefinitions.grass;
     
-    // Place sprites on grass/ground cells
-    for (let row = 0; row < this.gridRows - 1; row++) {
-      for (let col = 0; col < this.gridCols - 1; col++) {
-        const cellType = this.cellTypes[row][col];
+    // Fixed counts based on map area (per 10000 sq units = 100x100 area)
+    const areaFactor = mapArea / 10000;
+    const rockCount = Math.floor(8 * areaFactor * this.config.density.rocks);
+    const treeCount = Math.floor(12 * areaFactor * this.config.density.vegetation);
+    const grassCount = Math.floor(30 * areaFactor * this.config.density.vegetation);
+    
+    // --- ROCKS ---
+    if (this.config.features.rocks && rockSprites.length > 0) {
+      for (let i = 0; i < rockCount; i++) {
+        const x = -halfW + this.rng.next() * width;
+        const z = -halfD + this.rng.next() * depth;
+        const y = this.getHeightAtPosition(x, z);
         
-        // Only place on grass or ground
-        if (cellType !== 'grass' && cellType !== 'ground') continue;
+        // Skip if in water (low height)
+        if (y < 5) continue;
         
-        // Get cell center position
-        const x = -halfW + (col + 0.5) * cellSize;
-        const z = -halfD + (row + 0.5) * cellSize;
-        const y = this.getCellAverageHeight(row, col);
-        
-        // Random chance to place a sprite
-        const category = this.config.features.rocks ? 'rocks' : 'vegetation';
-        const density = category === 'rocks' 
-          ? this.config.density.rocks 
-          : this.config.density.vegetation;
-        
-        if (this.rng.next() > density) continue;
-        
-        // Pick a random sprite from the category
-        const sprites = spriteDefinitions[category];
-        if (!sprites || sprites.length === 0) continue;
-        
-        const sprite = sprites[Math.floor(this.rng.next() * sprites.length)];
-        
-        // Random offset within cell (avoid edges)
-        const offsetX = (this.rng.next() - 0.5) * cellSize * 0.6;
-        const offsetZ = (this.rng.next() - 0.5) * cellSize * 0.6;
-        
-        // Random scale
-        const scaleMin = sprite.scaleRange?.[0] ?? 1;
-        const scaleMax = sprite.scaleRange?.[1] ?? 1;
-        const scale = scaleMin + this.rng.next() * (scaleMax - scaleMin);
-        
-        lines.push(...this.generateSpriteEntity(
-          sprite,
-          x + offsetX,
-          y,
-          z + offsetZ,
-          scale
-        ));
+        lines.push(...this.generateRockPile(rockSprites, x, y, z, 32));
       }
+    }
+    
+    // --- TREES ---
+    if (this.config.features.vegetation && treeSprites.length > 0) {
+      for (let i = 0; i < treeCount; i++) {
+        const x = -halfW + this.rng.next() * width;
+        const z = -halfD + this.rng.next() * depth;
+        const y = this.getHeightAtPosition(x, z);
+        
+        // Skip if in water
+        if (y < 5) continue;
+        
+        const tree = treeSprites[Math.floor(this.rng.next() * treeSprites.length)];
+        const scaleMin = tree.scaleRange?.[0] ?? 1;
+        const scaleMax = tree.scaleRange?.[1] ?? 1;
+        const scale = scaleMin + this.rng.next() * (scaleMax - scaleMin);
+        lines.push(...this.generateSpriteEntity(tree, x, y, z, scale));
+      }
+    }
+    
+    // --- GRASS TUFTS ---
+    if (this.config.features.vegetation && grassSprites.length > 0) {
+      for (let i = 0; i < grassCount; i++) {
+        const x = -halfW + this.rng.next() * width;
+        const z = -halfD + this.rng.next() * depth;
+        const y = this.getHeightAtPosition(x, z);
+        
+        // Skip if in water
+        if (y < 5) continue;
+        
+        const grass = grassSprites[Math.floor(this.rng.next() * grassSprites.length)];
+        const scaleMin = grass.scaleRange?.[0] ?? 1;
+        const scaleMax = grass.scaleRange?.[1] ?? 1;
+        const scale = scaleMin + this.rng.next() * (scaleMax - scaleMin);
+        lines.push(...this.generateSpriteEntity(grass, x, y, z, scale));
+      }
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Generate a rock pile using presets
+   */
+  private generateRockPile(
+    rockSprites: Array<{ id: string; file: string; width: number; height: number; scaleRange?: [number, number]; shadow?: boolean }>,
+    baseX: number, _baseY: number, baseZ: number, cellSize: number
+  ): string[] {
+    const lines: string[] = [];
+    
+    // Random offset within cell
+    const offsetX = (this.rng.next() - 0.5) * cellSize * 0.4;
+    const offsetZ = (this.rng.next() - 0.5) * cellSize * 0.4;
+    
+    // Pick a random pile preset (weighted towards simpler ones)
+    const presetRoll = this.rng.next();
+    let preset;
+    if (presetRoll < 0.4) {
+      preset = this.ROCK_PILE_PRESETS[0]; // single (40%)
+    } else if (presetRoll < 0.65) {
+      preset = this.ROCK_PILE_PRESETS[1]; // pair (25%)
+    } else if (presetRoll < 0.85) {
+      preset = this.ROCK_PILE_PRESETS[2]; // cluster_small (20%)
+    } else if (presetRoll < 0.95) {
+      preset = this.ROCK_PILE_PRESETS[3]; // cluster_medium (10%)
+    } else {
+      preset = this.ROCK_PILE_PRESETS[4]; // scattered (5%)
+    }
+    
+    // Generate each rock in the pile
+    for (const rock of preset.rocks) {
+      const sprite = rockSprites[rock.sizeIdx % rockSprites.length];
+      const scaleMin = sprite.scaleRange?.[0] ?? 1;
+      const scaleMax = sprite.scaleRange?.[1] ?? 1;
+      const randomScale = scaleMin + this.rng.next() * (scaleMax - scaleMin);
+      const finalScale = rock.scale * randomScale;
+      
+      // Add some randomness to preset positions
+      const jitterX = (this.rng.next() - 0.5) * 4;
+      const jitterZ = (this.rng.next() - 0.5) * 4;
+      
+      const rockX = baseX + offsetX + rock.dx + jitterX;
+      const rockZ = baseZ + offsetZ + rock.dz + jitterZ;
+      const rockY = this.getHeightAtPosition(rockX, rockZ);
+      
+      lines.push(...this.generateSpriteEntity(
+        sprite,
+        rockX,
+        rockY,
+        rockZ,
+        finalScale
+      ));
     }
     
     return lines;
@@ -587,7 +666,7 @@ export class MapGenerator {
           width: 32,
           height: 25,
           scaleRange: [0.6, 1.0],
-          shadow: false,  // Rocks don't need shadows - they're on ground
+          shadow: false,
         },
         {
           id: 'rock_2',
@@ -597,8 +676,51 @@ export class MapGenerator {
           scaleRange: [0.5, 0.9],
           shadow: false,
         },
+        {
+          id: 'rock_3',
+          file: 'sprites/rock_3.png',
+          width: 28,
+          height: 20,
+          scaleRange: [0.6, 1.0],
+          shadow: false,
+        },
       ],
-      vegetation: [],
+      trees: [
+        {
+          id: 'tree_1',
+          file: 'sprites/tree_1.png',
+          width: 48,
+          height: 64,
+          scaleRange: [0.8, 1.2],
+          shadow: true,
+        },
+        {
+          id: 'tree_2',
+          file: 'sprites/tree_2.png',
+          width: 44,
+          height: 60,
+          scaleRange: [0.7, 1.1],
+          shadow: true,
+        },
+      ],
+      grass: [
+        {
+          id: 'grass_1',
+          file: 'sprites/grass_1.png',
+          width: 20,
+          height: 16,
+          scaleRange: [0.5, 0.9],
+          shadow: false,
+        },
+        {
+          id: 'grass_2',
+          file: 'sprites/grass_2.png',
+          width: 22,
+          height: 18,
+          scaleRange: [0.5, 0.8],
+          shadow: false,
+        },
+      ],
     };
   }
   
@@ -647,25 +769,252 @@ export class MapGenerator {
     const halfW = width / 2;
     const halfD = depth / 2;
     
-    // Base ground plane (below everything)
-    lines.push(...this.generateBrush(
-      -halfW, -halfD, -48,
-      halfW, halfD, -32,
-      this.colors.ground,
-      "base ground"
-    ));
-    
-    // Generate terrain with optimization
-    if (this.config.optimization.mergeFlatBrushes) {
-      lines.push(...this.generateOptimizedTerrain(halfW, halfD, cellSize));
+    // Generate terrain - patches only for clean unified ground
+    if (this.config.terrainOnly) {
+      lines.push(...this.generatePatchOnlyTerrain(halfW, halfD, cellSize));
     } else {
-      lines.push(...this.generateUnoptimizedTerrain(halfW, halfD, cellSize));
+      // City mode with roads - use old system
+      lines.push(...this.generateBrush(
+        -halfW, -halfD, -48,
+        halfW, halfD, -32,
+        this.colors.ground,
+        "base ground"
+      ));
+      if (this.config.optimization.mergeFlatBrushes) {
+        lines.push(...this.generateOptimizedTerrain(halfW, halfD, cellSize));
+      } else {
+        lines.push(...this.generateUnoptimizedTerrain(halfW, halfD, cellSize));
+      }
+      lines.push(...this.generateRoadMarkings());
+      lines.push(...this.generateCurbs());
     }
     
-    // Generate road center lines
-    lines.push(...this.generateRoadMarkings());
-    
     lines.push('}');
+    return lines;
+  }
+  
+  /**
+   * Generate terrain using LARGE patches with many vertices
+   * 
+   * Quake-style: 128x128 unit patches with 9x9 vertices
+   * Each vertex Z coordinate is sampled from heightmap
+   */
+  private generatePatchOnlyTerrain(halfW: number, halfD: number, _cellSize: number): string[] {
+    const lines: string[] = [];
+    
+    // Use 128-unit patches (Quake standard)
+    const patchSize = 128;
+    const patchesX = Math.ceil(this.config.width / patchSize);
+    const patchesY = Math.ceil(this.config.depth / patchSize);
+    
+    // Noise for terrain type
+    const typeNoise = new PerlinNoise((this.config.seed ?? 42) + 1000);
+    const waterLevel = 0;
+    
+    // Generate one patch per grid cell
+    for (let py = 0; py < patchesY; py++) {
+      for (let px = 0; px < patchesX; px++) {
+        const x1 = -halfW + px * patchSize;
+        const y1 = -halfD + py * patchSize;
+        const x2 = Math.min(x1 + patchSize, halfW);
+        const y2 = Math.min(y1 + patchSize, halfD);
+        
+        // Determine terrain type for this patch
+        const centerX = (x1 + x2) / 2;
+        const centerY = (y1 + y2) / 2;
+        const centerHeight = this.sampleHeightAt(centerX, centerY, halfW, halfD);
+        const typeVal = typeNoise.octaveNoise(centerX * 0.008, centerY * 0.008, 2, 0.5);
+        
+        let terrainType: CellType;
+        let color: RGB;
+        
+        if (this.config.features.water && centerHeight < 5 && typeVal < 0.4) {
+          terrainType = 'water';
+          color = this.colors.water;
+        } else if (typeVal > 0.7) {
+          terrainType = 'dirt';
+          color = this.colors.dirt;
+        } else {
+          terrainType = 'grass';
+          color = this.colors.grass;
+        }
+        
+        // Generate the patch with heightmap-sampled Z values
+        lines.push(...this.generateLargePatch(
+          x1, y1, x2, y2,
+          halfW, halfD,
+          color,
+          terrainType,
+          terrainType === 'water' ? waterLevel : null
+        ));
+      }
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Sample height (Z) at any world position (X, Y)
+   * Uses the heightmap data directly for full resolution
+   */
+  private sampleHeightAt(worldX: number, worldY: number, halfW: number, halfD: number): number {
+    const { width, depth, elevation } = this.config;
+    
+    // If heightmap data is available, sample from it directly
+    if (elevation.heightmap) {
+      const hm = elevation.heightmap;
+      
+      // Convert world coords to heightmap UV (0-1)
+      const u = (worldX + halfW) / width;
+      const v = (worldY + halfD) / depth;
+      
+      // Clamp to valid range
+      const uClamped = Math.max(0, Math.min(1, u));
+      const vClamped = Math.max(0, Math.min(1, v));
+      
+      // Convert to heightmap pixel coords
+      const px = uClamped * (hm.width - 1);
+      const py = vClamped * (hm.height - 1);
+      
+      // Bilinear interpolation
+      const x0 = Math.floor(px);
+      const y0 = Math.floor(py);
+      const x1 = Math.min(x0 + 1, hm.width - 1);
+      const y1 = Math.min(y0 + 1, hm.height - 1);
+      
+      const fx = px - x0;
+      const fy = py - y0;
+      
+      const h00 = hm.data[y0]?.[x0] ?? 0;
+      const h10 = hm.data[y0]?.[x1] ?? 0;
+      const h01 = hm.data[y1]?.[x0] ?? 0;
+      const h11 = hm.data[y1]?.[x1] ?? 0;
+      
+      const h0 = h00 * (1 - fx) + h10 * fx;
+      const h1 = h01 * (1 - fx) + h11 * fx;
+      const normalizedHeight = h0 * (1 - fy) + h1 * fy;
+      
+      return normalizedHeight * elevation.maxHeight;
+    }
+    
+    // Fall back to noise-based generation
+    const noiseVal = this.noise.octaveNoise(
+      worldX * elevation.frequency,
+      worldY * elevation.frequency,
+      elevation.octaves,
+      elevation.persistence
+    );
+    return noiseVal * elevation.maxHeight;
+  }
+  
+  /**
+   * Generate a LARGE terrain patch where each vertex samples the heightmap
+   * This creates complex terrain geometry from a single patch
+   * 
+   * Quake .map format: ( X Y Z U V )
+   * - X, Y = horizontal position
+   * - Z = height (vertical)
+   * - U, V = texture coordinates
+   */
+  private generateLargePatch(
+    x1: number, y1: number,
+    x2: number, y2: number,
+    halfW: number, halfD: number,
+    color: RGB,
+    cellType: CellType,
+    flatHeight: number | null = null  // If set, all vertices use this height (for water)
+  ): string[] {
+    const lines: string[] = [];
+    const tex = this.colorToTexture(color);
+    const res = this.config.patchResolution || 5;
+    const resolution = Math.max(3, res % 2 === 0 ? res + 1 : res);
+    
+    lines.push(`// patch ${this.patchCount++} - ${cellType}`);
+    lines.push('{');
+    lines.push('patchDef2');
+    lines.push('{');
+    lines.push(tex);
+    lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
+    lines.push('(');
+    
+    // Generate vertices in Quake format: ( X Y Z U V )
+    // Rows iterate over X, columns iterate over Y
+    for (let row = 0; row < resolution; row++) {
+      const rowVertices: string[] = [];
+      const t_row = row / (resolution - 1);
+      const x = x1 + t_row * (x2 - x1);
+      
+      for (let col = 0; col < resolution; col++) {
+        const t_col = col / (resolution - 1);
+        const y = y1 + t_col * (y2 - y1);
+        
+        // Sample height (Z) at this vertex's world position
+        const z = flatHeight !== null ? flatHeight : this.sampleHeightAt(x, y, halfW, halfD);
+        
+        // UV coordinates for texturing
+        const u = t_col * 2 - 1;  // Range roughly -1 to 1
+        const v = t_row * 2 - 1;
+        
+        rowVertices.push(`( ${x} ${y} ${z} ${u.toFixed(1)} ${v.toFixed(1)} )`);
+      }
+      
+      lines.push(`( ${rowVertices.join(' ')} )`);
+    }
+    
+    lines.push(')');
+    lines.push('}');
+    lines.push('}');
+    
+    return lines;
+  }
+  
+  /**
+   * Generate curbs - raised edges between road and sidewalk
+   */
+  private generateCurbs(): string[] {
+    const lines: string[] = [];
+    const { width, depth, blockSize, roadWidth, curbHeight } = this.config;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const halfRoad = roadWidth / 2;
+    const curbWidth = 4;  // Width of curb
+    
+    // Horizontal road curbs (along Z axis roads)
+    for (let roadZ = -halfD; roadZ <= halfD; roadZ += blockSize) {
+      // North curb (positive Z side of road)
+      lines.push(...this.generateBrush(
+        -halfW, roadZ + halfRoad, -16,
+        halfW, roadZ + halfRoad + curbWidth, -16 + curbHeight,
+        this.colors.curb,
+        "curb h north"
+      ));
+      // South curb (negative Z side of road)
+      lines.push(...this.generateBrush(
+        -halfW, roadZ - halfRoad - curbWidth, -16,
+        halfW, roadZ - halfRoad, -16 + curbHeight,
+        this.colors.curb,
+        "curb h south"
+      ));
+    }
+    
+    // Vertical road curbs (along X axis roads)
+    for (let roadX = -halfW; roadX <= halfW; roadX += blockSize) {
+      // East curb (positive X side of road)
+      lines.push(...this.generateBrush(
+        roadX + halfRoad, -halfD, -16,
+        roadX + halfRoad + curbWidth, halfD, -16 + curbHeight,
+        this.colors.curb,
+        "curb v east"
+      ));
+      // West curb (negative X side of road)
+      lines.push(...this.generateBrush(
+        roadX - halfRoad - curbWidth, -halfD, -16,
+        roadX - halfRoad, halfD, -16 + curbHeight,
+        this.colors.curb,
+        "curb v west"
+      ));
+    }
+    
     return lines;
   }
   
@@ -906,7 +1255,11 @@ export class MapGenerator {
   }
   
   /**
-   * Generate a sloped terrain patch (patchDef2)
+   * Generate a sloped terrain patch (patchDef2) with configurable resolution
+   * Resolution must be odd (3, 5, 7, 9, etc.)
+   * 
+   * Edge vertices are sampled from the heightmap to ensure adjacent patches align perfectly.
+   * Interior vertices get noise-based displacement for organic shapes.
    */
   private generateTerrainPatch(
     x1: number, z1: number,
@@ -919,38 +1272,80 @@ export class MapGenerator {
     const lines: string[] = [];
     const tex = this.colorToTexture(color);
     const baseZ = -16;
+    const res = this.config.patchResolution || 3;
     
-    // 3x3 control points for bezier patch
-    const midX = (x1 + x2) / 2;
-    const midZ = (z1 + z2) / 2;
-    const hMid = (h00 + h10 + h01 + h11) / 4;
-    const hTop = (h00 + h10) / 2;
-    const hBottom = (h01 + h11) / 2;
-    const hLeft = (h00 + h01) / 2;
-    const hRight = (h10 + h11) / 2;
+    // Ensure resolution is odd and at least 3
+    const resolution = Math.max(3, res % 2 === 0 ? res + 1 : res);
+    
+    // Noise for organic vertex displacement (only for interior vertices)
+    const cellSize = x2 - x1;
+    const jitterScale = cellSize * 0.15;  // Max displacement as fraction of cell size
     
     lines.push(`// patch ${this.patchCount++} - ${cellType}`);
     lines.push('{');
     lines.push('patchDef2');
     lines.push('{');
     lines.push(tex);
-    lines.push('( 3 3 0 0 0 )');
+    lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
     lines.push('(');
     
-    // Row 0 (z1 - front)
-    lines.push(`( ( ${x1} ${z1} ${baseZ + h00} 0 0 ) ( ${midX} ${z1} ${baseZ + hTop} 0.5 0 ) ( ${x2} ${z1} ${baseZ + h10} 1 0 ) )`);
-    
-    // Row 1 (midZ - middle)
-    lines.push(`( ( ${x1} ${midZ} ${baseZ + hLeft} 0 0.5 ) ( ${midX} ${midZ} ${baseZ + hMid} 0.5 0.5 ) ( ${x2} ${midZ} ${baseZ + hRight} 1 0.5 ) )`);
-    
-    // Row 2 (z2 - back)
-    lines.push(`( ( ${x1} ${z2} ${baseZ + h01} 0 1 ) ( ${midX} ${z2} ${baseZ + hBottom} 0.5 1 ) ( ${x2} ${z2} ${baseZ + h11} 1 1 ) )`);
+    // Generate rows of vertices
+    for (let row = 0; row < resolution; row++) {
+      const rowVertices: string[] = [];
+      const t_row = row / (resolution - 1);  // 0 to 1
+      const isEdgeRow = row === 0 || row === resolution - 1;
+      
+      for (let col = 0; col < resolution; col++) {
+        const t_col = col / (resolution - 1);  // 0 to 1
+        const isEdgeCol = col === 0 || col === resolution - 1;
+        const isEdge = isEdgeRow || isEdgeCol;
+        
+        // Base position
+        let x = x1 + t_col * (x2 - x1);
+        let z = z1 + t_row * (z2 - z1);
+        
+        // Add jitter to interior vertices only (edges must align with neighbors)
+        if (!isEdge) {
+          // Use deterministic noise based on world position
+          const noiseX = this.noise.noise(x * 0.1, z * 0.1);
+          const noiseZ = this.noise.noise(x * 0.1 + 100, z * 0.1 + 100);
+          x += noiseX * jitterScale;
+          z += noiseZ * jitterScale;
+        }
+        
+        const u = t_col;  // UV u coordinate
+        const v = t_row;  // UV v coordinate
+        
+        // Bilinear interpolation of height from corner values
+        // Use original t values for height to maintain smooth surface
+        const h = this.bilinearInterpolate(h00, h10, h01, h11, t_col, t_row);
+        
+        rowVertices.push(`( ${x} ${z} ${baseZ + h} ${u} ${v} )`);
+      }
+      
+      lines.push(`( ${rowVertices.join(' ')} )`);
+    }
     
     lines.push(')');
     lines.push('}');
     lines.push('}');
     
     return lines;
+  }
+  
+  /**
+   * Bilinear interpolation between four corner values
+   * t_x: 0 = left edge, 1 = right edge
+   * t_y: 0 = top edge, 1 = bottom edge
+   */
+  private bilinearInterpolate(
+    h00: number, h10: number,  // top-left, top-right
+    h01: number, h11: number,  // bottom-left, bottom-right
+    t_x: number, t_y: number
+  ): number {
+    const top = h00 * (1 - t_x) + h10 * t_x;
+    const bottom = h01 * (1 - t_x) + h11 * t_x;
+    return top * (1 - t_y) + bottom * t_y;
   }
   
   /**
@@ -1145,20 +1540,56 @@ export class MapGenerator {
   }
   
   /**
-   * Generate ambient lights
+   * Generate lights for the map
    */
   private generateLights(): string[] {
     const lines: string[] = [];
+    const { width, depth } = this.config;
     
-    // Main ambient light
-    lines.push(`// entity ${this.entityCount++}`);
-    lines.push('{');
-    lines.push('"classname" "light"');
-    lines.push('"origin" "0 0 300"');
-    lines.push('"light" "150"');
-    lines.push('"range" "1000"');
-    lines.push('"_color" "1 0.95 0.9"');
-    lines.push('}');
+    // For terrain-only mode, use directional sun light to show geometry
+    if (this.config.terrainOnly) {
+      // Directional sun light - angled to cast shadows and show terrain relief
+      lines.push(`// entity ${this.entityCount++}`);
+      lines.push('{');
+      lines.push('"classname" "light_sun"');
+      lines.push(`"origin" "${width * 0.3} ${-depth * 0.3} 800"`);
+      lines.push('"light" "400"');
+      lines.push('"range" "3000"');
+      lines.push('"_color" "1.0 0.95 0.85"');  // Warm sunlight
+      lines.push('"angle" "45"');  // Sun angle
+      lines.push('"direction" "-0.5 0.5 -0.7"');  // Angled direction for shadows
+      lines.push('}');
+      
+      // Ambient fill light - softer, from opposite side
+      lines.push(`// entity ${this.entityCount++}`);
+      lines.push('{');
+      lines.push('"classname" "light_ambient"');
+      lines.push(`"origin" "${-width * 0.2} ${depth * 0.2} 600"`);
+      lines.push('"light" "150"');
+      lines.push('"range" "2500"');
+      lines.push('"_color" "0.7 0.8 1.0"');  // Cool sky fill
+      lines.push('}');
+      
+      // Ground bounce light
+      lines.push(`// entity ${this.entityCount++}`);
+      lines.push('{');
+      lines.push('"classname" "light"');
+      lines.push('"origin" "0 0 50"');
+      lines.push('"light" "100"');
+      lines.push('"range" "2000"');
+      lines.push('"_color" "0.4 0.5 0.3"');  // Green ground bounce
+      lines.push('}');
+    } else {
+      // Standard overhead light for city maps
+      lines.push(`// entity ${this.entityCount++}`);
+      lines.push('{');
+      lines.push('"classname" "light"');
+      lines.push('"origin" "0 0 500"');
+      lines.push('"light" "300"');
+      lines.push('"range" "2000"');
+      lines.push('"_color" "1 0.98 0.95"');
+      lines.push('}');
+    }
     
     return lines;
   }
