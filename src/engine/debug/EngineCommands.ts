@@ -616,4 +616,55 @@ export function registerEngineCommands(): void {
     }
   });
 
+  // ============================================================================
+  // UI Scale Commands
+  // ============================================================================
+  
+  registry.register('ui', (args) => {
+    const { UIScale } = require('../ui/UIScale');
+    const uiScale = UIScale.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'scale': {
+        const value = args[1];
+        if (!value) {
+          return uiScale.getDebugInfo();
+        }
+        if (value === 'auto') {
+          uiScale.forceScale(null);
+          return 'UI scale reset to automatic';
+        }
+        const scale = parseFloat(value);
+        if (isNaN(scale) || scale <= 0) {
+          return 'Usage: ui scale <number|auto>';
+        }
+        uiScale.forceScale(scale);
+        return `UI scale forced to: ${scale}`;
+      }
+      
+      case 'mode': {
+        const mode = args[1]?.toLowerCase();
+        if (!mode) {
+          return `Current mode: ${uiScale.getScaleFactors().scale}\nModes: fit, fill, width, height`;
+        }
+        if (!['fit', 'fill', 'width', 'height'].includes(mode)) {
+          return 'Invalid mode. Use: fit, fill, width, height';
+        }
+        uiScale.setScaleMode(mode as 'fit' | 'fill' | 'width' | 'height');
+        return `UI scale mode set to: ${mode}`;
+      }
+      
+      case 'debug':
+        uiScale.toggleDebug();
+        return 'UI debug overlay toggled';
+      
+      case 'info':
+        return uiScale.getDebugInfo();
+        
+      default:
+        return 'Subcommands: scale [value|auto], mode [fit|fill|width|height], debug, info';
+    }
+  });
+
 }

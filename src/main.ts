@@ -11,6 +11,7 @@ import { MainMenu } from "./game/MainMenu";
 import { SaveManager } from "./game/SaveManager";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
+import { UIScale } from "./engine/ui/UIScale";
 import { DebugConsole, registerEngineCommands } from "./engine/debug";
 import { registerGameCommands } from "./game/GameCommands";
 
@@ -65,6 +66,9 @@ async function main() {
   
   // Initialize settings (loads saved settings and applies to audio)
   SettingsPanel.getInstance();
+  
+  // Initialize UI scaling system
+  UIScale.getInstance().init();
   
   // Load custom fonts before showing main menu
   const uiTheme = UITheme.getInstance();
