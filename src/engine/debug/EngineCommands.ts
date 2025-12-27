@@ -116,24 +116,57 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
-  // Weather Commands (placeholder - needs WeatherSystem reference)
+  // Weather Commands
   // ============================================================================
   
   registry.register('weather', (args) => {
-    const subcommand = args[0]?.toLowerCase();
+    // Dynamically import GameScene to avoid circular dependencies
+    const GameScene = require('../GameScene').GameScene;
+    const gameScene = GameScene.getInstance?.();
     
-    // These would need to be wired to actual weather system
+    if (!gameScene?.weather) {
+      return 'Weather system not available (game not started)';
+    }
+    
+    const subcommand = args[0]?.toLowerCase();
+    const intensity = parseFloat(args[1]) || 0.5;
+    
     switch (subcommand) {
       case 'rain':
-        return 'Weather: rain (wire to WeatherSystem)';
+        gameScene.weather.rain(true);
+        if (args[1]) gameScene.weather.rainIntensity(intensity);
+        return `Rain started (intensity: ${intensity})`;
+        
       case 'snow':
-        return 'Weather: snow (wire to WeatherSystem)';
+        gameScene.weather.snow(true);
+        if (args[1]) gameScene.weather.snowIntensity(intensity);
+        return `Snow started (intensity: ${intensity})`;
+        
       case 'clear':
-        return 'Weather: clear (wire to WeatherSystem)';
-      case 'fog':
-        return 'Weather: fog (wire to WeatherSystem)';
+        gameScene.weather.rain(false);
+        gameScene.weather.snow(false);
+        gameScene.weather.clearFog();
+        return 'Weather cleared';
+        
+      case 'fog': {
+        const density = parseFloat(args[1]) || 0.02;
+        gameScene.weather.fog(density);
+        return `Fog set (density: ${density})`;
+      }
+      
+      case 'thunder':
+        gameScene.weather.thunder();
+        return 'Thunder triggered';
+        
+      case 'status': {
+        const raining = gameScene.weather.isRaining();
+        const snowing = gameScene.weather.isSnowing();
+        const foggy = gameScene.weather.isFoggy();
+        return `Weather: ${raining ? 'raining' : snowing ? 'snowing' : 'clear'}${foggy ? ', foggy' : ''}`;
+      }
+        
       default:
-        return 'Subcommands: rain, snow, clear, fog';
+        return 'Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, status';
     }
   });
 
