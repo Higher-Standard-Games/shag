@@ -78,7 +78,20 @@
         { "name": "rain", "description": "Start rain", "args": ["intensity?"] },
         { "name": "snow", "description": "Start snow", "args": ["intensity?"] },
         { "name": "clear", "description": "Clear weather" },
-        { "name": "fog", "description": "Set fog", "args": ["density?"] }
+        { "name": "fog", "description": "Set fog", "args": ["density?"] },
+        { "name": "thunder", "description": "Trigger thunder" },
+        { "name": "status", "description": "Show weather status" }
+      ]
+    },
+    {
+      "name": "export",
+      "description": "Export settings to JSON for engine-settings.json",
+      "usage": "export <target>",
+      "subcommands": [
+        { "name": "camera", "description": "Export camera settings" },
+        { "name": "fx", "description": "Export post-processing settings" },
+        { "name": "all", "description": "Export all settings" },
+        { "name": "show", "description": "Preview settings without copying" }
       ]
     }
   ]

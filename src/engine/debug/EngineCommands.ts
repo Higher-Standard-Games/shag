@@ -216,6 +216,129 @@ export function registerEngineCommands(): void {
   // Map Commands (placeholder)
   // ============================================================================
   
+  // ============================================================================
+  // Export Commands - Export current settings to JSON for engine-settings.json
+  // ============================================================================
+  
+  registry.register('export', (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    
+    // Get current settings from window globals
+    const camera = (window as any).camera;
+    const fx = (window as any).fx;
+    
+    const getCameraSettings = () => {
+      if (!camera) return null;
+      const cam = camera.get?.();
+      if (!cam) return null;
+      return {
+        mode: camera.getMode?.() || "fake_ortho",
+        height: camera.getHeight?.() || Math.round(cam.radius || 800),
+        alpha: parseFloat(cam.alpha?.toFixed(6) || "-0.785398"),
+        beta: parseFloat(cam.beta?.toFixed(6) || "0.785398"),
+        fov: parseFloat(cam.fov?.toFixed(3) || "0.4"),
+        smoothing: 0.15
+      };
+    };
+    
+    const getFxSettings = () => {
+      if (!fx) return null;
+      const settings = fx.settings?.();
+      if (!settings) return null;
+      return {
+        bloom: {
+          enabled: settings.bloom?.enabled ?? true,
+          intensity: settings.bloom?.intensity ?? 0.3
+        },
+        vignette: {
+          enabled: settings.vignette?.enabled ?? true,
+          weight: settings.vignette?.weight ?? 0.3
+        },
+        ssao: {
+          enabled: settings.ssao?.enabled ?? false,
+          intensity: settings.ssao?.intensity ?? 0.5
+        },
+        chromaticAberration: {
+          enabled: settings.chromaticAberration?.enabled ?? false
+        }
+      };
+    };
+    
+    const copyToClipboard = (text: string) => {
+      navigator.clipboard.writeText(text).then(() => {
+        console.log('[Export] Copied to clipboard!');
+      }).catch(() => {
+        console.log('[Export] Could not copy to clipboard - see output above');
+      });
+    };
+    
+    switch (subcommand) {
+      case 'camera': {
+        const cameraSettings = getCameraSettings();
+        if (!cameraSettings) return 'Camera not available';
+        const json = JSON.stringify({ camera: cameraSettings }, null, 2);
+        console.log(json);
+        copyToClipboard(json);
+        return 'Camera settings exported (copied to clipboard)';
+      }
+      
+      case 'fx': {
+        const fxSettings = getFxSettings();
+        if (!fxSettings) return 'Post-processing not available';
+        const json = JSON.stringify({ postProcessing: fxSettings }, null, 2);
+        console.log(json);
+        copyToClipboard(json);
+        return 'Post-processing settings exported (copied to clipboard)';
+      }
+      
+      case 'all': {
+        const allSettings: Record<string, unknown> = {};
+        
+        const cameraSettings = getCameraSettings();
+        if (cameraSettings) allSettings.camera = cameraSettings;
+        
+        const fxSettings = getFxSettings();
+        if (fxSettings) allSettings.postProcessing = fxSettings;
+        
+        // Add lighting defaults
+        allSettings.lighting = {
+          sunIntensity: 0.6,
+          moonIntensity: 0.12,
+          ambientIntensity: 0.25,
+          enableShadows: true
+        };
+        
+        // Add time defaults
+        allSettings.time = {
+          dayLengthSeconds: 180,
+          startHour: 8,
+          startDay: 1
+        };
+        
+        const json = JSON.stringify(allSettings, null, 2);
+        console.log(json);
+        copyToClipboard(json);
+        return 'All settings exported (copied to clipboard) - paste into public/game/engine-settings.json';
+      }
+      
+      case 'show': {
+        const allSettings: Record<string, unknown> = {};
+        const cameraSettings = getCameraSettings();
+        if (cameraSettings) allSettings.camera = cameraSettings;
+        const fxSettings = getFxSettings();
+        if (fxSettings) allSettings.postProcessing = fxSettings;
+        return JSON.stringify(allSettings, null, 2);
+      }
+      
+      default:
+        return 'Subcommands: camera, fx, all, show';
+    }
+  });
+
+  // ============================================================================
+  // Map Commands (placeholder)
+  // ============================================================================
+  
   registry.register('map', (args) => {
     const subcommand = args[0]?.toLowerCase();
     

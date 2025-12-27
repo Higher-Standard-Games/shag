@@ -41,6 +41,7 @@ import { ThunderEffect } from "./effects/ThunderEffect";
 import { FogEffect } from "./effects/FogEffect";
 import { CapacitorBridge } from "./core/CapacitorBridge";
 import { EventBus } from "./core/EventBus";
+import { EngineSettings } from "./core/EngineSettings";
 
 /**
  * Camera rendering modes:
@@ -138,6 +139,9 @@ export class GameScene {
     const config = AssetLoader.getInstance().getConfig();
     const startMap = config?.game.startMap || "test.map";
 
+    // Load engine settings before creating scene
+    await EngineSettings.getInstance().load();
+    
     await this.createScene();
     
     // Initialize BuildingSystem before loading map (so zones can be registered)
@@ -249,18 +253,24 @@ export class GameScene {
     // Initialize SpriteManager (will be used when loading maps with npc_sprite entities)
     // Camera will be set after it's created
 
+    // Load camera settings from engine-settings.json
+    const engineSettings = EngineSettings.getInstance();
+    const cameraSettings = engineSettings.getCameraSettings();
+    
     // Isometric Camera - supports multiple rendering modes
     this.camera = new ArcRotateCamera(
       "camera",
-      -Math.PI / 4,  // alpha - rotation around Y axis
-      Math.PI / 4,   // beta - angle from top (45 degrees for isometric)
-      200,           // radius - will be adjusted based on mode
+      cameraSettings.alpha,  // alpha - rotation around Y axis
+      cameraSettings.beta,   // beta - angle from top
+      200,                   // radius - will be adjusted based on mode
       Vector3.Zero(),
       this.scene
     );
     
-    // Apply camera mode settings (uses default height since map not loaded yet)
-    this.applyCameraMode(CAMERA_MODE);
+    // Apply camera mode from settings
+    const cameraMode = cameraSettings.mode as CameraMode;
+    this.cameraHeight = cameraSettings.height;
+    this.applyCameraMode(cameraMode);
     this.camera.inputs.clear();
 
     // Resize handler
@@ -269,23 +279,23 @@ export class GameScene {
       this.updateCameraOrtho();
     });
 
-    // Initialize GameClock (3 minutes = 1 full day)
-    // If loading a saved game, preserve the loaded time instead of resetting to 8 AM
+    // Initialize GameClock using settings from engine-settings.json
+    const timeSettings = engineSettings.getTimeSettings();
     const clock = GameClock.getInstance();
     const preserveTime = SaveManager.getInstance().isLoading();
     clock.init({
-      dayLengthSeconds: 180, // 3 minutes for full day/night cycle
-      startHour: 8,          // Start at 8 AM (only used for new game)
-      startDay: 1,
+      dayLengthSeconds: timeSettings.dayLengthSeconds,
+      startHour: timeSettings.startHour,
+      startDay: timeSettings.startDay,
     }, preserveTime);
 
-    // Initialize dynamic sky lighting (replaces static lights)
-    // Using mild values for soft, pleasant lighting
+    // Initialize dynamic sky lighting using settings from engine-settings.json
+    const lightingSettings = engineSettings.getLightingSettings();
     SkyLightSystem.getInstance().init(this.scene, {
-      sunIntensity: 0.6,      // Soft directional sun
-      moonIntensity: 0.12,    // Subtle moonlight
-      ambientIntensity: 0.25, // Low ambient for contrast
-      enableShadows: true,
+      sunIntensity: lightingSettings.sunIntensity,
+      moonIntensity: lightingSettings.moonIntensity,
+      ambientIntensity: lightingSettings.ambientIntensity,
+      enableShadows: lightingSettings.enableShadows,
     });
 
     // RTS Camera Controller
@@ -631,6 +641,13 @@ export class GameScene {
       this.setCameraHeight(height);
     };
     (window as any).getCameraHeight = () => this.getCameraHeight();
+    
+    // Camera object for export command
+    (window as any).camera = {
+      get: () => this.camera,
+      getMode: () => this.getCameraMode(),
+      getHeight: () => this.getCameraHeight(),
+    };
     
     console.log("Camera: setCameraMode('perspective'|'orthographic'|'fake_ortho'), setCameraHeight(number)");
 
