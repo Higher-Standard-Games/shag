@@ -216,6 +216,7 @@ export class DebrisEffect {
    */
   public updateSettings(settings: Partial<DebrisSettings>): void {
     this.settings = { ...this.settings, ...settings };
+    console.log("[DebrisEffect] Settings updated:", settings);
     if (this.particleSystem) {
       this.applySettings();
     }
@@ -380,11 +381,24 @@ export class DebrisEffect {
   
   /**
    * Apply wind state to particle directions
+   * Called by wind listener - uses current settings
    */
   private applyWindToParticles(): void {
-    if (!this.particleSystem || !this.currentWindState) return;
+    if (!this.particleSystem) return;
     
     const s = this.settings;
+    
+    // If no wind, just apply base settings
+    if (!this.currentWindState) {
+      this.particleSystem.direction1 = new Vector3(-s.turbulence * 10, -2, -s.turbulence * 10);
+      this.particleSystem.direction2 = new Vector3(s.turbulence * 10, 2, s.turbulence * 10);
+      this.particleSystem.gravity = new Vector3(0, -s.gravity, 0);
+      this.particleSystem.minEmitPower = s.emitPowerMin;
+      this.particleSystem.maxEmitPower = s.emitPowerMax;
+      this.particleSystem.emitRate = Math.floor(100 * s.density);
+      return;
+    }
+    
     const wind = this.currentWindState;
     const influence = s.windInfluence;
     const turbulence = s.turbulence;
@@ -423,7 +437,7 @@ export class DebrisEffect {
     this.particleSystem.maxEmitPower = s.emitPowerMax + wind.strength * s.emitPowerMax;
     
     // Adjust emission rate based on wind strength
-    const baseRate = 100 * this.settings.density;
+    const baseRate = 100 * s.density;
     this.particleSystem.emitRate = Math.floor(baseRate * (0.7 + wind.strength * 0.5));
   }
   

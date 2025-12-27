@@ -824,16 +824,16 @@ export class GameScene {
         }
       },
       // Debris tuning parameters
-      debrisDensity: (v: number) => this.debrisEffect?.updateSettings({ density: v }),
-      debrisSize: (v: number) => this.debrisEffect?.updateSettings({ size: v }),
-      debrisSpeed: (min: number, max: number) => this.debrisEffect?.updateSettings({ emitPowerMin: min, emitPowerMax: max }),
-      debrisGravity: (v: number) => this.debrisEffect?.updateSettings({ gravity: v }),
-      debrisSpin: (v: number) => this.debrisEffect?.updateSettings({ spinSpeed: v }),
-      debrisLifetime: (v: number) => this.debrisEffect?.updateSettings({ lifetime: v }),
-      debrisWindForce: (v: number) => this.debrisEffect?.updateSettings({ windForce: v }),
-      debrisTurbulence: (v: number) => this.debrisEffect?.updateSettings({ turbulence: v }),
-      debrisSpread: (v: number) => this.debrisEffect?.updateSettings({ spread: v }),
-      debrisHeight: (v: number) => this.debrisEffect?.updateSettings({ height: v }),
+      debrisDensity: (v: number) => { console.log("[Weather] debrisDensity:", v); this.debrisEffect?.updateSettings({ density: v }); },
+      debrisSize: (v: number) => { console.log("[Weather] debrisSize:", v); this.debrisEffect?.updateSettings({ size: v }); },
+      debrisSpeed: (min: number, max: number) => { console.log("[Weather] debrisSpeed:", min, max); this.debrisEffect?.updateSettings({ emitPowerMin: min, emitPowerMax: max }); },
+      debrisGravity: (v: number) => { console.log("[Weather] debrisGravity:", v); this.debrisEffect?.updateSettings({ gravity: v }); },
+      debrisSpin: (v: number) => { console.log("[Weather] debrisSpin:", v); this.debrisEffect?.updateSettings({ spinSpeed: v }); },
+      debrisLifetime: (v: number) => { console.log("[Weather] debrisLifetime:", v); this.debrisEffect?.updateSettings({ lifetime: v }); },
+      debrisWindForce: (v: number) => { console.log("[Weather] debrisWindForce:", v); this.debrisEffect?.updateSettings({ windForce: v }); },
+      debrisTurbulence: (v: number) => { console.log("[Weather] debrisTurbulence:", v); this.debrisEffect?.updateSettings({ turbulence: v }); },
+      debrisSpread: (v: number) => { console.log("[Weather] debrisSpread:", v); this.debrisEffect?.updateSettings({ spread: v }); },
+      debrisHeight: (v: number) => { console.log("[Weather] debrisHeight:", v); this.debrisEffect?.updateSettings({ height: v }); },
       
       // Status
       isRaining: () => this.precipitationEffect?.isRaining(),
