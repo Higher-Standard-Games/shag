@@ -162,8 +162,8 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     sidewalk: [140, 135, 130],  // Light concrete
     curb: [120, 115, 110],
     water: [60, 120, 160],      // Blue
-    dirt: [100, 85, 60],
-    sand: [160, 145, 110],      // Sandy beach
+    dirt: [50, 40, 25],
+    sand: [90, 75, 50],         // Dark sandy beach
   },
   rural: {
     ground: [100, 85, 60],      // Dirt
@@ -174,8 +174,8 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     sidewalk: [110, 100, 85],   // Gravel path
     curb: [100, 90, 75],
     water: [70, 130, 170],      // Clear blue
-    dirt: [110, 95, 70],
-    sand: [170, 155, 120],      // Sandy beach
+    dirt: [55, 45, 30],
+    sand: [95, 80, 55],         // Dark sandy beach
   },
   industrial: {
     ground: [50, 50, 55],       // Dark concrete
@@ -187,7 +187,7 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     curb: [80, 75, 70],
     water: [35, 60, 80],        // Murky water
     dirt: [70, 65, 55],
-    sand: [120, 110, 90],       // Gritty sand
+    sand: [70, 60, 45],         // Dark gritty sand
   },
 };
 
@@ -1021,7 +1021,8 @@ export class MapGenerator {
   }
   
   /**
-   * Generate sandy shoreline ring around a pond
+   * Generate sandy shoreline patch around a pond
+   * Uses circular shape that matches the water edge
    */
   private generatePondShoreline(
     pond: {x: number, y: number, radius: number},
@@ -1031,9 +1032,8 @@ export class MapGenerator {
     const tex = this.colorToTexture(this.colors.sand);
     const resolution = 9;
     
-    // Shoreline is a ring from 85% to 110% of pond radius
-    const innerRadius = pond.radius * 0.85;
-    const outerRadius = pond.radius * 1.1;
+    // Shoreline extends beyond water to cover terrain edge
+    const shorelineScale = 1.25;
     
     lines.push(`// patch ${this.patchCount++} - pond shoreline`);
     lines.push('{');
@@ -1043,20 +1043,30 @@ export class MapGenerator {
     lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
     lines.push('(');
     
+    // Use circular shape - corners pull inward toward center
     for (let row = 0; row < resolution; row++) {
       const rowVertices: string[] = [];
       const t_row = row / (resolution - 1);
-      // Interpolate between inner and outer radius
-      const radius = innerRadius + (outerRadius - innerRadius) * t_row;
       
       for (let col = 0; col < resolution; col++) {
         const t_col = col / (resolution - 1);
-        // Go around the circle
-        const angle = t_col * Math.PI * 2;
-        const x = pond.x + Math.cos(angle) * radius;
-        const y = pond.y + Math.sin(angle) * radius;
-        // Sample terrain height and add small offset to avoid Z-fighting
-        const z = this.sampleHeightAt(x, y, halfW, halfD) + 2;
+        const nx = t_col * 2 - 1;  // -1 to 1
+        const ny = t_row * 2 - 1;  // -1 to 1
+        
+        // Calculate distance from center and normalize to circular shape
+        const dist = Math.sqrt(nx * nx + ny * ny);
+        // Clamp distance to 1 to make it circular (corners get pulled in)
+        const clampedDist = Math.min(dist, 1);
+        // Normalize direction
+        const dirX = dist > 0.001 ? nx / dist : 0;
+        const dirY = dist > 0.001 ? ny / dist : 0;
+        
+        // Position on circle
+        const x = pond.x + dirX * clampedDist * pond.radius * shorelineScale;
+        const y = pond.y + dirY * clampedDist * pond.radius * shorelineScale;
+        
+        // Sample terrain height and add larger offset to avoid Z-fighting
+        const z = this.sampleHeightAt(x, y, halfW, halfD) + 8;
         const u = t_col;
         const v = t_row;
         
