@@ -265,15 +265,17 @@ The generator outputs a `.map` file with:
 - [ ] Texture variants/randomization
 - [x] Color fallback (current approach)
 
-### Phase 4: Natural Elements
+### Phase 4: Natural Elements ✓
 - [x] Terrain elevation variation
-- [ ] Grass patches with patches (bezier)
-- [ ] Rock placement (sprites)
-- [ ] Water features (blue brushes)
+- [x] Dirt blob patches (organic rounded shapes)
+- [x] Rock placement (sprites)
+- [x] Pond generation with terrain depressions
+- [x] Sandy shoreline around ponds
+- [x] Water patches for ponds
 
-### Phase 5: Decorations
-- [ ] Street furniture placement
-- [ ] Vegetation system (sprites)
+### Phase 5: Decorations ✓
+- [x] Street furniture placement
+- [x] Vegetation system (sprites - trees, grass)
 - [ ] Build zone generation
 - [ ] Prop placement rules
 
@@ -336,16 +338,16 @@ All parameters can be set via the `MapGeneratorConfig` interface or the JSON con
 |-----------|------|---------|-------------|
 | `biome` | string | "suburban" | Biome preset: `urban`, `suburban`, `rural`, `industrial` |
 
-### Features (TODO)
+### Features
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `features.water` | boolean | false | Generate water features |
-| `features.vegetation` | boolean | false | Generate vegetation sprites |
+| `features.vegetation` | boolean | true | Generate vegetation sprites (trees, grass) |
 | `features.streetLamps` | boolean | true | Generate street lamps |
-| `features.rocks` | boolean | false | Generate rock sprites |
+| `features.rocks` | boolean | true | Generate rock sprites |
 
-### Density (TODO)
+### Density
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -353,6 +355,23 @@ All parameters can be set via the `MapGeneratorConfig` interface or the JSON con
 | `density.rocks` | number | 0.15 | Rock density (0-1) |
 | `density.streetLamps` | number | 0.6 | Street lamp density (0-1) |
 | `density.water` | number | 0.1 | Water feature probability |
+| `density.ponds` | number | 0.3 | Pond density (0-1), affects number of ponds |
+
+### Ponds
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ponds.enabled` | boolean | false | Enable pond generation |
+| `ponds.waterLevel` | number | 10 | Base water level offset |
+| `ponds.maxDepth` | number | 30 | Maximum pond depression depth |
+| `ponds.minRadius` | number | 64 | Minimum pond radius |
+| `ponds.maxRadius` | number | 192 | Maximum pond radius |
+
+**Pond Features:**
+- Terrain depressions using cosine falloff
+- Flat water surface patches
+- Sandy shoreline rings around each pond
+- Vegetation/rocks automatically avoid pond areas
 
 ### Output
 
@@ -408,11 +427,19 @@ fs.writeFileSync('public/maps/generated/terrain_test.map', mapContent);
 ### CLI Usage
 
 ```bash
-# Generate maps with default settings
-npm run generate:map
+# Generate terrain-only map with ponds
+npx vite-node src/tools/generate-map.ts --name my_map --terrainOnly --width 1024 --depth 1024 --ponds 0.4 --vegetation 0.1 --rocks 0.05 --seed 42
 
-# Or run directly
-npx vite-node src/tools/test-generator.ts
+# CLI Options:
+#   --name <string>       Output filename (without .map)
+#   --width <number>      Map width in units
+#   --depth <number>      Map depth in units
+#   --seed <number>       Random seed for reproducibility
+#   --biome <string>      Biome: urban, suburban, rural, industrial
+#   --terrainOnly         Generate terrain patches only (no roads)
+#   --ponds <number>      Pond density 0-1 (enables ponds)
+#   --vegetation <number> Vegetation density 0-1
+#   --rocks <number>      Rock density 0-1
 ```
 
 ---

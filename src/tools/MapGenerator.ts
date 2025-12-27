@@ -39,6 +39,7 @@ export interface BiomeColors {
   curb: RGB;
   water: RGB;
   dirt: RGB;
+  sand: RGB;           // Beach/shoreline color
 }
 
 export interface MapGeneratorConfig {
@@ -93,6 +94,16 @@ export interface MapGeneratorConfig {
     rocks: number;
     streetLamps: number;
     water: number;        // Chance of water features
+    ponds: number;        // Pond density (0-1), affects number of ponds
+  };
+  
+  // Pond settings
+  ponds: {
+    enabled: boolean;
+    waterLevel: number;   // Z level of water surface (default: 10)
+    maxDepth: number;     // How deep ponds go below waterLevel (default: 30)
+    minRadius: number;    // Minimum pond radius (default: 64)
+    maxRadius: number;    // Maximum pond radius (default: 192)
   };
   
   // Optimization settings
@@ -140,6 +151,7 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     curb: [110, 105, 100],
     water: [40, 80, 120],       // Dark blue
     dirt: [80, 70, 55],
+    sand: [140, 130, 100],      // Sandy beach
   },
   suburban: {
     ground: [90, 75, 55],       // Light dirt
@@ -151,6 +163,7 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     curb: [120, 115, 110],
     water: [60, 120, 160],      // Blue
     dirt: [100, 85, 60],
+    sand: [160, 145, 110],      // Sandy beach
   },
   rural: {
     ground: [100, 85, 60],      // Dirt
@@ -162,6 +175,7 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     curb: [100, 90, 75],
     water: [70, 130, 170],      // Clear blue
     dirt: [110, 95, 70],
+    sand: [170, 155, 120],      // Sandy beach
   },
   industrial: {
     ground: [50, 50, 55],       // Dark concrete
@@ -173,6 +187,7 @@ export const BIOME_COLORS: Record<BiomeType, BiomeColors> = {
     curb: [80, 75, 70],
     water: [35, 60, 80],        // Murky water
     dirt: [70, 65, 55],
+    sand: [120, 110, 90],       // Gritty sand
   },
 };
 
@@ -210,6 +225,14 @@ export const DEFAULT_CONFIG: MapGeneratorConfig = {
     rocks: 0.15,
     streetLamps: 0.6,
     water: 0.1,
+    ponds: 0.3,
+  },
+  ponds: {
+    enabled: false,
+    waterLevel: 10,
+    maxDepth: 30,
+    minRadius: 64,
+    maxRadius: 192,
   },
   optimization: {
     mergeFlatBrushes: true,
@@ -240,6 +263,9 @@ export class MapGenerator {
   private cellTypes: CellType[][] = [];
   private gridCols: number = 0;
   private gridRows: number = 0;
+  
+  // Pond locations
+  private pondLocations: Array<{x: number, y: number, radius: number}> = [];
   
   constructor(config: Partial<MapGeneratorConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -545,8 +571,9 @@ export class MapGenerator {
         const z = -halfD + this.rng.next() * depth;
         const y = this.getHeightAtPosition(x, z);
         
-        // Skip if in water (low height)
+        // Skip if in water (low height) or in pond
         if (y < 5) continue;
+        if (this.isInPond(x, z)) continue;
         
         lines.push(...this.generateRockPile(rockSprites, x, y, z, 32));
       }
@@ -559,8 +586,9 @@ export class MapGenerator {
         const z = -halfD + this.rng.next() * depth;
         const y = this.getHeightAtPosition(x, z);
         
-        // Skip if in water
+        // Skip if in water or in pond
         if (y < 5) continue;
+        if (this.isInPond(x, z)) continue;
         
         const tree = treeSprites[Math.floor(this.rng.next() * treeSprites.length)];
         const scaleMin = tree.scaleRange?.[0] ?? 1;
@@ -577,8 +605,9 @@ export class MapGenerator {
         const z = -halfD + this.rng.next() * depth;
         const y = this.getHeightAtPosition(x, z);
         
-        // Skip if in water
+        // Skip if in water or in pond
         if (y < 5) continue;
+        if (this.isInPond(x, z)) continue;
         
         const grass = grassSprites[Math.floor(this.rng.next() * grassSprites.length)];
         const scaleMin = grass.scaleRange?.[0] ?? 1;
@@ -802,16 +831,17 @@ export class MapGenerator {
   private generatePatchOnlyTerrain(halfW: number, halfD: number, _cellSize: number): string[] {
     const lines: string[] = [];
     
+    // Generate pond locations first (if enabled)
+    if (this.config.ponds.enabled) {
+      this.generatePondLocations(halfW, halfD);
+    }
+    
     // Use 128-unit patches (Quake standard)
     const patchSize = 128;
     const patchesX = Math.ceil(this.config.width / patchSize);
     const patchesY = Math.ceil(this.config.depth / patchSize);
     
-    // Noise for terrain type
-    const typeNoise = new PerlinNoise((this.config.seed ?? 42) + 1000);
-    const waterLevel = 0;
-    
-    // Generate one patch per grid cell
+    // LAYER 1: Generate all terrain as grass base
     for (let py = 0; py < patchesY; py++) {
       for (let px = 0; px < patchesX; px++) {
         const x1 = -halfW + px * patchSize;
@@ -819,85 +849,351 @@ export class MapGenerator {
         const x2 = Math.min(x1 + patchSize, halfW);
         const y2 = Math.min(y1 + patchSize, halfD);
         
-        // Determine terrain type for this patch
-        const centerX = (x1 + x2) / 2;
-        const centerY = (y1 + y2) / 2;
-        const centerHeight = this.sampleHeightAt(centerX, centerY, halfW, halfD);
-        const typeVal = typeNoise.octaveNoise(centerX * 0.008, centerY * 0.008, 2, 0.5);
-        
-        let terrainType: CellType;
-        let color: RGB;
-        
-        if (this.config.features.water && centerHeight < 5 && typeVal < 0.4) {
-          terrainType = 'water';
-          color = this.colors.water;
-        } else if (typeVal > 0.7) {
-          terrainType = 'dirt';
-          color = this.colors.dirt;
-        } else {
-          terrainType = 'grass';
-          color = this.colors.grass;
-        }
-        
-        // Generate the patch with heightmap-sampled Z values
+        // All base terrain is grass
         lines.push(...this.generateLargePatch(
           x1, y1, x2, y2,
           halfW, halfD,
-          color,
-          terrainType,
-          terrainType === 'water' ? waterLevel : null
+          this.colors.grass,
+          'grass',
+          null
         ));
       }
+    }
+    
+    // LAYER 2: Generate rounded dirt blob patches on top
+    lines.push(...this.generateDirtBlobs(halfW, halfD));
+    
+    // LAYER 3: Generate flat water patches for each pond
+    if (this.config.ponds.enabled) {
+      lines.push(...this.generatePondWaterPatches(halfW, halfD));
     }
     
     return lines;
   }
   
   /**
-   * Sample height (Z) at any world position (X, Y)
-   * Uses the heightmap data directly for full resolution
+   * Generate organic rounded dirt blob patches
    */
-  private sampleHeightAt(worldX: number, worldY: number, halfW: number, halfD: number): number {
+  private generateDirtBlobs(halfW: number, halfD: number): string[] {
+    const lines: string[] = [];
+    const typeNoise = new PerlinNoise((this.config.seed ?? 42) + 1000);
+    
+    // Find dirt blob centers using noise peaks
+    const gridStep = 100;
+    const blobs: Array<{x: number, y: number, radius: number}> = [];
+    
+    for (let y = -halfD + gridStep; y < halfD - gridStep; y += gridStep) {
+      for (let x = -halfW + gridStep; x < halfW - gridStep; x += gridStep) {
+        const noiseVal = typeNoise.octaveNoise(x * 0.01, y * 0.01, 2, 0.5);
+        
+        if (noiseVal > 0.6) {
+          const radius = 50 + noiseVal * 80;
+          blobs.push({ x, y, radius });
+        }
+      }
+    }
+    
+    for (const blob of blobs) {
+      lines.push(...this.generateRoundedDirtPatch(blob, halfW, halfD));
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Generate a single rounded dirt patch
+   */
+  private generateRoundedDirtPatch(
+    blob: {x: number, y: number, radius: number},
+    halfW: number, halfD: number
+  ): string[] {
+    const lines: string[] = [];
+    const tex = this.colorToTexture(this.colors.dirt);
+    const resolution = 9;
+    
+    lines.push(`// patch ${this.patchCount++} - dirt blob`);
+    lines.push('{');
+    lines.push('patchDef2');
+    lines.push('{');
+    lines.push(tex);
+    lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
+    lines.push('(');
+    
+    // Generate circular dirt patch with height offset that increases toward center
+    // Edge vertices are slightly above terrain, center vertices are higher
+    // This creates a gentle dome shape that won't Z-fight
+    for (let row = 0; row < resolution; row++) {
+      const rowVertices: string[] = [];
+      const t_row = row / (resolution - 1);
+      
+      for (let col = 0; col < resolution; col++) {
+        const t_col = col / (resolution - 1);
+        // Map to -1 to 1 range
+        const nx = t_col * 2 - 1;
+        const ny = t_row * 2 - 1;
+        
+        // Distance from center (0 at center, 1 at corners, ~0.7 at edge midpoints)
+        const dist = Math.sqrt(nx * nx + ny * ny);
+        
+        // Circular falloff for radius (1 at center, 0 at edge)
+        const radiusFalloff = Math.max(0, 1 - dist);
+        
+        // Effective position uses circular falloff for organic shape
+        const effectiveRadius = blob.radius * Math.pow(radiusFalloff, 0.4);
+        const x = blob.x + nx * effectiveRadius;
+        const y = blob.y + ny * effectiveRadius;
+        
+        // Height offset: minimum 5 at edges, maximum 12 at center
+        // This ensures ALL vertices are above the grass terrain
+        const heightOffset = 5 + 7 * radiusFalloff;
+        const z = this.sampleHeightAt(x, y, halfW, halfD) + heightOffset;
+        
+        const u = t_col;
+        const v = t_row;
+        
+        rowVertices.push(`( ${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(2)} ${u.toFixed(2)} ${v.toFixed(2)} )`);
+      }
+      
+      lines.push(`( ${rowVertices.join(' ')} )`);
+    }
+    
+    lines.push(')');
+    lines.push('}');
+    lines.push('}');
+    
+    return lines;
+  }
+  
+  /**
+   * Generate pond locations based on density
+   */
+  private generatePondLocations(halfW: number, halfD: number): void {
+    this.pondLocations = [];
+    
+    const { ponds, density } = this.config;
+    const mapArea = this.config.width * this.config.depth;
+    const pondCount = Math.max(2, Math.floor((mapArea / 100000) * density.ponds * 5));
+    
+    console.log(`Generating ${pondCount} ponds (density: ${density.ponds}, area: ${mapArea})`);
+    
+    for (let i = 0; i < pondCount; i++) {
+      const margin = ponds.maxRadius + 50;
+      const x = -halfW + margin + this.rng.next() * (this.config.width - margin * 2);
+      const y = -halfD + margin + this.rng.next() * (this.config.depth - margin * 2);
+      const radius = ponds.minRadius + this.rng.next() * (ponds.maxRadius - ponds.minRadius);
+      
+      let overlaps = false;
+      for (const existing of this.pondLocations) {
+        const dist = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2);
+        if (dist < radius + existing.radius + 32) {
+          overlaps = true;
+          break;
+        }
+      }
+      
+      if (!overlaps) {
+        this.pondLocations.push({ x, y, radius });
+        console.log(`  Pond ${this.pondLocations.length}: (${x.toFixed(0)}, ${y.toFixed(0)}) r=${radius.toFixed(0)}`);
+      }
+    }
+    console.log(`Created ${this.pondLocations.length} ponds`);
+  }
+  
+  /**
+   * Generate flat water patches for all ponds
+   */
+  private generatePondWaterPatches(halfW: number, halfD: number): string[] {
+    const lines: string[] = [];
+    const { ponds } = this.config;
+    
+    for (const pond of this.pondLocations) {
+      // First generate the sandy shoreline ring (slightly larger than water)
+      lines.push(...this.generatePondShoreline(pond, halfW, halfD));
+      
+      // Then generate water on top
+      const baseHeight = this.sampleBaseHeightAt(pond.x, pond.y, halfW, halfD);
+      const waterZ = baseHeight - ponds.waterLevel + 3;  // 3 units above edge terrain
+      console.log(`  Pond water at Z=${waterZ.toFixed(1)} (base terrain: ${baseHeight.toFixed(1)})`);
+      lines.push(...this.generatePondWaterPatch(pond, halfW, halfD, waterZ));
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Generate sandy shoreline ring around a pond
+   */
+  private generatePondShoreline(
+    pond: {x: number, y: number, radius: number},
+    halfW: number, halfD: number
+  ): string[] {
+    const lines: string[] = [];
+    const tex = this.colorToTexture(this.colors.sand);
+    const resolution = 9;
+    
+    // Shoreline is a ring from 85% to 110% of pond radius
+    const innerRadius = pond.radius * 0.85;
+    const outerRadius = pond.radius * 1.1;
+    
+    lines.push(`// patch ${this.patchCount++} - pond shoreline`);
+    lines.push('{');
+    lines.push('patchDef2');
+    lines.push('{');
+    lines.push(tex);
+    lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
+    lines.push('(');
+    
+    for (let row = 0; row < resolution; row++) {
+      const rowVertices: string[] = [];
+      const t_row = row / (resolution - 1);
+      // Interpolate between inner and outer radius
+      const radius = innerRadius + (outerRadius - innerRadius) * t_row;
+      
+      for (let col = 0; col < resolution; col++) {
+        const t_col = col / (resolution - 1);
+        // Go around the circle
+        const angle = t_col * Math.PI * 2;
+        const x = pond.x + Math.cos(angle) * radius;
+        const y = pond.y + Math.sin(angle) * radius;
+        // Sample terrain height and add small offset to avoid Z-fighting
+        const z = this.sampleHeightAt(x, y, halfW, halfD) + 2;
+        const u = t_col;
+        const v = t_row;
+        
+        rowVertices.push(`( ${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(2)} ${u.toFixed(2)} ${v.toFixed(2)} )`);
+      }
+      
+      lines.push(`( ${rowVertices.join(' ')} )`);
+    }
+    
+    lines.push(')');
+    lines.push('}');
+    lines.push('}');
+    
+    return lines;
+  }
+  
+  /**
+   * Generate a single flat water patch for a pond
+   */
+  private generatePondWaterPatch(
+    pond: {x: number, y: number, radius: number},
+    _halfW: number, _halfD: number,
+    waterLevel: number
+  ): string[] {
+    const lines: string[] = [];
+    const tex = this.colorToTexture(this.colors.water);
+    const resolution = 9;
+    
+    lines.push(`// patch ${this.patchCount++} - pond water`);
+    lines.push('{');
+    lines.push('patchDef2');
+    lines.push('{');
+    lines.push(tex);
+    lines.push(`( ${resolution} ${resolution} 0 0 0 )`);
+    lines.push('(');
+    
+    for (let row = 0; row < resolution; row++) {
+      const rowVertices: string[] = [];
+      const t_row = row / (resolution - 1);
+      
+      for (let col = 0; col < resolution; col++) {
+        const t_col = col / (resolution - 1);
+        const nx = t_col * 2 - 1;
+        const ny = t_row * 2 - 1;
+        const x = pond.x + nx * pond.radius * 0.9;
+        const y = pond.y + ny * pond.radius * 0.9;
+        const z = waterLevel;
+        const u = t_col;
+        const v = t_row;
+        
+        rowVertices.push(`( ${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(2)} ${u.toFixed(2)} ${v.toFixed(2)} )`);
+      }
+      
+      lines.push(`( ${rowVertices.join(' ')} )`);
+    }
+    
+    lines.push(')');
+    lines.push('}');
+    lines.push('}');
+    
+    return lines;
+  }
+  
+  /**
+   * Check if a position is inside any pond
+   */
+  private isInPond(worldX: number, worldY: number): boolean {
+    if (!this.config.ponds.enabled || this.pondLocations.length === 0) {
+      return false;
+    }
+    
+    for (const pond of this.pondLocations) {
+      const dx = worldX - pond.x;
+      const dy = worldY - pond.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < pond.radius * 1.1) {  // Slightly larger to keep sprites away from edge
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  /**
+   * Get pond depression at a world position
+   */
+  private getPondDepression(worldX: number, worldY: number): number {
+    if (!this.config.ponds.enabled || this.pondLocations.length === 0) {
+      return 0;
+    }
+    
+    const { ponds } = this.config;
+    
+    for (const pond of this.pondLocations) {
+      const dx = worldX - pond.x;
+      const dy = worldY - pond.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < pond.radius) {
+        const normalizedDist = dist / pond.radius;
+        const falloff = (1 + Math.cos(normalizedDist * Math.PI)) / 2;
+        return -(ponds.maxDepth * falloff + ponds.waterLevel);
+      }
+    }
+    
+    return 0;
+  }
+  
+  /**
+   * Sample base terrain height without pond depression
+   */
+  private sampleBaseHeightAt(worldX: number, worldY: number, halfW: number, halfD: number): number {
     const { width, depth, elevation } = this.config;
     
-    // If heightmap data is available, sample from it directly
     if (elevation.heightmap) {
       const hm = elevation.heightmap;
-      
-      // Convert world coords to heightmap UV (0-1)
       const u = (worldX + halfW) / width;
       const v = (worldY + halfD) / depth;
-      
-      // Clamp to valid range
       const uClamped = Math.max(0, Math.min(1, u));
       const vClamped = Math.max(0, Math.min(1, v));
-      
-      // Convert to heightmap pixel coords
       const px = uClamped * (hm.width - 1);
       const py = vClamped * (hm.height - 1);
-      
-      // Bilinear interpolation
       const x0 = Math.floor(px);
       const y0 = Math.floor(py);
       const x1 = Math.min(x0 + 1, hm.width - 1);
       const y1 = Math.min(y0 + 1, hm.height - 1);
-      
       const fx = px - x0;
       const fy = py - y0;
-      
       const h00 = hm.data[y0]?.[x0] ?? 0;
       const h10 = hm.data[y0]?.[x1] ?? 0;
       const h01 = hm.data[y1]?.[x0] ?? 0;
       const h11 = hm.data[y1]?.[x1] ?? 0;
-      
       const h0 = h00 * (1 - fx) + h10 * fx;
       const h1 = h01 * (1 - fx) + h11 * fx;
       const normalizedHeight = h0 * (1 - fy) + h1 * fy;
-      
       return normalizedHeight * elevation.maxHeight;
     }
     
-    // Fall back to noise-based generation
     const noiseVal = this.noise.octaveNoise(
       worldX * elevation.frequency,
       worldY * elevation.frequency,
@@ -905,6 +1201,16 @@ export class MapGenerator {
       elevation.persistence
     );
     return noiseVal * elevation.maxHeight;
+  }
+  
+  /**
+   * Sample height (Z) at any world position (X, Y)
+   * Uses the heightmap data directly for full resolution
+   */
+  private sampleHeightAt(worldX: number, worldY: number, halfW: number, halfD: number): number {
+    let height = this.sampleBaseHeightAt(worldX, worldY, halfW, halfD);
+    height += this.getPondDepression(worldX, worldY);
+    return height;
   }
   
   /**
@@ -1353,7 +1659,7 @@ export class MapGenerator {
    */
   private generateRoadMarkings(): string[] {
     const lines: string[] = [];
-    const { width, depth, blockSize, roadWidth } = this.config;
+    const { width, depth, blockSize } = this.config;
     const halfW = width / 2;
     const halfD = depth / 2;
     const lineWidth = 4;
@@ -1378,70 +1684,6 @@ export class MapGenerator {
         "road line v"
       ));
     }
-    
-    return lines;
-  }
-  
-  /**
-   * Generate a road segment with center line
-   */
-  private generateRoad(
-    x1: number, z1: number,
-    x2: number, z2: number,
-    direction: 'horizontal' | 'vertical'
-  ): string[] {
-    const lines: string[] = [];
-    const colors = this.colors;
-    
-    // Road surface (slightly above ground)
-    lines.push(...this.generateBrush(
-      x1, z1, -16,
-      x2, z2, -14,
-      colors.road,
-      `road ${direction}`
-    ));
-    
-    // Center line
-    const lineWidth = 4;
-    if (direction === 'horizontal') {
-      const centerZ = (z1 + z2) / 2;
-      lines.push(...this.generateBrush(
-        x1, centerZ - lineWidth / 2, -14,
-        x2, centerZ + lineWidth / 2, -12,
-        colors.roadLine,
-        "center line"
-      ));
-    } else {
-      const centerX = (x1 + x2) / 2;
-      lines.push(...this.generateBrush(
-        centerX - lineWidth / 2, z1, -14,
-        centerX + lineWidth / 2, z2, -12,
-        colors.roadLine,
-        "center line"
-      ));
-    }
-    
-    return lines;
-  }
-  
-  /**
-   * Generate a sidewalk with curb
-   */
-  private generateSidewalk(
-    x1: number, z1: number,
-    x2: number, z2: number
-  ): string[] {
-    const lines: string[] = [];
-    const colors = this.colors;
-    const { curbHeight } = this.config;
-    
-    // Sidewalk surface (raised)
-    lines.push(...this.generateBrush(
-      x1, z1, -16,
-      x2, z2, -16 + curbHeight,
-      colors.sidewalk,
-      "sidewalk"
-    ));
     
     return lines;
   }
@@ -1486,40 +1728,6 @@ export class MapGenerator {
     // Right face (X = x2)
     lines.push(`( ${x2} ${z1} ${y2} ) ( ${x2} ${z2} ${y2} ) ( ${x2} ${z1} ${y1} ) ${uv} ${texMid} 0 0 0`);
     
-    lines.push('}');
-    lines.push('}');
-    
-    return lines;
-  }
-  
-  /**
-   * Generate a bezier patch (patchDef2) for curved surfaces
-   */
-  private generatePatch(
-    controlPoints: Vec3[][],
-    color: RGB,
-    comment?: string
-  ): string[] {
-    const lines: string[] = [];
-    const tex = this.colorToTexture(color);
-    
-    const height = controlPoints.length;
-    const width = controlPoints[0]?.length || 0;
-    
-    lines.push(`// patch${comment ? ` - ${comment}` : ''}`);
-    lines.push('{');
-    lines.push('patchDef2');
-    lines.push('{');
-    lines.push(tex);
-    lines.push(`( ${width} ${height} 0 0 0 )`);
-    lines.push('(');
-    
-    for (const row of controlPoints) {
-      const rowStr = row.map(p => `( ${p.x} ${p.z} ${p.y} 0 0 )`).join(' ');
-      lines.push(`( ${rowStr} )`);
-    }
-    
-    lines.push(')');
     lines.push('}');
     lines.push('}');
     

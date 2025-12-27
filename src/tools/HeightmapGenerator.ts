@@ -206,11 +206,12 @@ export function generateValleyHeightmap(
   for (let y = 0; y < config.height; y++) {
     data[y] = [];
     for (let x = 0; x < config.width; x++) {
-      const _u = x / (config.width - 1);
+      const u = x / (config.width - 1);
       const v = y / (config.height - 1);
       
       // Distance from center line (horizontal valley)
-      // Note: _u available for vertical valley variant
+      // u available for vertical valley variant
+      void u;
       const distFromCenter = Math.abs(v - 0.5) * 2;
       
       // Valley shape
