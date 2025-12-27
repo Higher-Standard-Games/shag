@@ -330,8 +330,77 @@ export function registerEngineCommands(): void {
         return JSON.stringify(allSettings, null, 2);
       }
       
+      case 'map': {
+        // Export current settings as worldspawn entity values for NetRadiant
+        const cam = camera?.get?.();
+        const weatherApi = (window as any).weather;
+        
+        const lines: string[] = [
+          '// ============================================',
+          '// Worldspawn entity values for NetRadiant',
+          '// Copy these into your map\'s worldspawn entity',
+          '// ============================================',
+          '',
+          '// Camera settings',
+          `"camera_mode" "${camera?.getMode?.() || 'fake_ortho'}"`,
+          `"camera_height" "${camera?.getHeight?.() || 800}"`,
+        ];
+        
+        // Add camera angles if non-default
+        if (cam) {
+          const alpha = cam.alpha?.toFixed(4);
+          const beta = cam.beta?.toFixed(4);
+          if (alpha && Math.abs(parseFloat(alpha) + 0.7854) > 0.01) {
+            lines.push(`"camera_alpha" "${alpha}"`);
+          }
+          if (beta && Math.abs(parseFloat(beta) - 0.7854) > 0.01) {
+            lines.push(`"camera_beta" "${beta}"`);
+          }
+        }
+        
+        lines.push('');
+        lines.push('// Lighting settings (optional overrides)');
+        lines.push('"sun_intensity" "0.6"');
+        lines.push('"moon_intensity" "0.12"');
+        lines.push('"ambient_intensity" "0.25"');
+        lines.push('"shadows" "1"');
+        
+        lines.push('');
+        lines.push('// Time settings (optional)');
+        lines.push('"day_length" "180"');
+        lines.push('"start_hour" "8"');
+        
+        lines.push('');
+        lines.push('// Weather defaults (optional)');
+        if (weatherApi?.isRaining?.()) {
+          lines.push('"weather" "rain"');
+          lines.push('"weather_intensity" "0.5"');
+        } else if (weatherApi?.isSnowing?.()) {
+          lines.push('"weather" "snow"');
+          lines.push('"weather_intensity" "0.5"');
+        }
+        if (weatherApi?.isFoggy?.()) {
+          lines.push('"fog" "1"');
+          lines.push('"fog_density" "0.02"');
+        }
+        
+        lines.push('');
+        lines.push('// Map flags');
+        lines.push('// "indoor" "1"  // Uncomment to disable rain/snow');
+        lines.push('// "playlist" "playlists/ambient.json"  // Music playlist');
+        
+        const output = lines.join('\n');
+        console.log(output);
+        
+        navigator.clipboard.writeText(output).then(() => {
+          console.log('[Export] Copied to clipboard!');
+        }).catch(() => {});
+        
+        return 'Map worldspawn values exported (copied to clipboard) - paste into NetRadiant entity editor';
+      }
+        
       default:
-        return 'Subcommands: camera, fx, all, show';
+        return 'Subcommands: camera, fx, all, map, show';
     }
   });
 

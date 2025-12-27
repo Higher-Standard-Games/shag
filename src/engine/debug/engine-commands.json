@@ -85,12 +85,13 @@
     },
     {
       "name": "export",
-      "description": "Export settings to JSON for engine-settings.json",
+      "description": "Export settings to JSON or NetRadiant format",
       "usage": "export <target>",
       "subcommands": [
-        { "name": "camera", "description": "Export camera settings" },
-        { "name": "fx", "description": "Export post-processing settings" },
-        { "name": "all", "description": "Export all settings" },
+        { "name": "camera", "description": "Export camera settings (JSON)" },
+        { "name": "fx", "description": "Export post-processing settings (JSON)" },
+        { "name": "all", "description": "Export all settings (JSON)" },
+        { "name": "map", "description": "Export worldspawn values for NetRadiant" },
         { "name": "show", "description": "Preview settings without copying" }
       ]
     }

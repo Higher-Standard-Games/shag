@@ -37,10 +37,33 @@ export interface MapRenderResult {
   cameraMode: "perspective" | "orthographic" | "fake_ortho" | null;
   /** Camera height/distance specified in worldspawn, or null if not specified */
   cameraHeight: number | null;
+  /** Camera alpha angle specified in worldspawn, or null if not specified */
+  cameraAlpha: number | null;
+  /** Camera beta angle specified in worldspawn, or null if not specified */
+  cameraBeta: number | null;
   /** Playlist file specified in worldspawn, or null to keep current/default */
   playlist: string | null;
   /** Whether this map is indoors (disables rain/snow effects) */
   indoor: boolean;
+  /** Lighting overrides from worldspawn */
+  lighting: {
+    sunIntensity?: number;
+    moonIntensity?: number;
+    ambientIntensity?: number;
+    shadows?: boolean;
+  } | null;
+  /** Weather settings from worldspawn */
+  weather: {
+    type?: 'rain' | 'snow' | 'clear';
+    intensity?: number;
+    fog?: boolean;
+    fogDensity?: number;
+  } | null;
+  /** Time settings from worldspawn */
+  time: {
+    dayLength?: number;
+    startHour?: number;
+  } | null;
 }
 
 export class MapRenderer {
@@ -64,8 +87,13 @@ export class MapRenderer {
     const sprites: BillboardSprite[] = [];
     let cameraMode: "perspective" | "orthographic" | "fake_ortho" | null = null;
     let cameraHeight: number | null = null;
+    let cameraAlpha: number | null = null;
+    let cameraBeta: number | null = null;
     let playlist: string | null = null;
     let indoor: boolean = false;
+    let lighting: MapRenderResult['lighting'] = null;
+    let weather: MapRenderResult['weather'] = null;
+    let time: MapRenderResult['time'] = null;
     
     // Collect static point lights for clustered rendering
     const staticLights: PointLight[] = [];
@@ -93,6 +121,24 @@ export class MapRenderer {
           }
         }
         
+        // Parse camera_alpha if specified (horizontal rotation)
+        if (entity.properties.camera_alpha) {
+          const alpha = parseFloat(entity.properties.camera_alpha);
+          if (!isNaN(alpha)) {
+            cameraAlpha = alpha;
+            console.log(`Map specifies camera_alpha: ${cameraAlpha}`);
+          }
+        }
+        
+        // Parse camera_beta if specified (vertical angle)
+        if (entity.properties.camera_beta) {
+          const beta = parseFloat(entity.properties.camera_beta);
+          if (!isNaN(beta)) {
+            cameraBeta = beta;
+            console.log(`Map specifies camera_beta: ${cameraBeta}`);
+          }
+        }
+        
         // Parse playlist if specified (music playlist for this map)
         if (entity.properties.playlist) {
           playlist = entity.properties.playlist;
@@ -103,6 +149,58 @@ export class MapRenderer {
         if (entity.properties.indoor === "1") {
           indoor = true;
           console.log(`Map is marked as indoor - weather effects disabled`);
+        }
+        
+        // Parse lighting overrides
+        if (entity.properties.sun_intensity || entity.properties.moon_intensity || 
+            entity.properties.ambient_intensity || entity.properties.shadows) {
+          lighting = {};
+          if (entity.properties.sun_intensity) {
+            lighting.sunIntensity = parseFloat(entity.properties.sun_intensity);
+          }
+          if (entity.properties.moon_intensity) {
+            lighting.moonIntensity = parseFloat(entity.properties.moon_intensity);
+          }
+          if (entity.properties.ambient_intensity) {
+            lighting.ambientIntensity = parseFloat(entity.properties.ambient_intensity);
+          }
+          if (entity.properties.shadows) {
+            lighting.shadows = entity.properties.shadows === "1";
+          }
+          console.log(`Map specifies lighting overrides:`, lighting);
+        }
+        
+        // Parse weather settings
+        if (entity.properties.weather || entity.properties.fog) {
+          weather = {};
+          if (entity.properties.weather) {
+            const w = entity.properties.weather.toLowerCase();
+            if (w === 'rain' || w === 'snow' || w === 'clear') {
+              weather.type = w;
+            }
+          }
+          if (entity.properties.weather_intensity) {
+            weather.intensity = parseFloat(entity.properties.weather_intensity);
+          }
+          if (entity.properties.fog === "1") {
+            weather.fog = true;
+          }
+          if (entity.properties.fog_density) {
+            weather.fogDensity = parseFloat(entity.properties.fog_density);
+          }
+          console.log(`Map specifies weather:`, weather);
+        }
+        
+        // Parse time settings
+        if (entity.properties.day_length || entity.properties.start_hour) {
+          time = {};
+          if (entity.properties.day_length) {
+            time.dayLength = parseFloat(entity.properties.day_length);
+          }
+          if (entity.properties.start_hour) {
+            time.startHour = parseFloat(entity.properties.start_hour);
+          }
+          console.log(`Map specifies time settings:`, time);
         }
       }
 
@@ -695,7 +793,20 @@ export class MapRenderer {
       console.log(`Created clustered light container with ${staticLights.length} static lights`);
     }
 
-    return { playerStartPosition, prefabInstances, sprites, cameraMode, cameraHeight, playlist, indoor };
+    return { 
+      playerStartPosition, 
+      prefabInstances, 
+      sprites, 
+      cameraMode, 
+      cameraHeight,
+      cameraAlpha,
+      cameraBeta,
+      playlist, 
+      indoor,
+      lighting,
+      weather,
+      time
+    };
   }
 
   /**
