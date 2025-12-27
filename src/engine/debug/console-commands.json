@@ -1,0 +1,103 @@
+{
+  "commands": [
+    {
+      "name": "help",
+      "description": "Show available commands",
+      "usage": "help [command]"
+    },
+    {
+      "name": "clear",
+      "description": "Clear console output",
+      "usage": "clear"
+    },
+    {
+      "name": "weather",
+      "description": "Control weather effects",
+      "usage": "weather <type> [intensity]",
+      "subcommands": [
+        { "name": "rain", "description": "Start rain", "args": ["intensity?"] },
+        { "name": "snow", "description": "Start snow", "args": ["intensity?"] },
+        { "name": "clear", "description": "Clear weather" },
+        { "name": "fog", "description": "Set fog", "args": ["density?"] }
+      ]
+    },
+    {
+      "name": "camera",
+      "description": "Camera controls",
+      "usage": "camera <command> [args]",
+      "subcommands": [
+        { "name": "mode", "description": "Set camera mode", "args": ["perspective|orthographic|fake_ortho"] },
+        { "name": "height", "description": "Set camera height", "args": ["number"] },
+        { "name": "pos", "description": "Set camera position", "args": ["x", "y", "z"] },
+        { "name": "reset", "description": "Reset camera to default" }
+      ]
+    },
+    {
+      "name": "audio",
+      "description": "Audio controls",
+      "usage": "audio <command> [args]",
+      "subcommands": [
+        { "name": "volume", "description": "Set music volume", "args": ["0-1"] },
+        { "name": "mute", "description": "Mute all audio" },
+        { "name": "unmute", "description": "Unmute audio" },
+        { "name": "play", "description": "Play music track", "args": ["trackname"] },
+        { "name": "stop", "description": "Stop music" }
+      ]
+    },
+    {
+      "name": "time",
+      "description": "Game clock controls",
+      "usage": "time <command> [args]",
+      "subcommands": [
+        { "name": "set", "description": "Set time of day", "args": ["hour"] },
+        { "name": "speed", "description": "Set time speed multiplier", "args": ["multiplier"] },
+        { "name": "pause", "description": "Pause time" },
+        { "name": "resume", "description": "Resume time" }
+      ]
+    },
+    {
+      "name": "debug",
+      "description": "Debug utilities",
+      "usage": "debug <command>",
+      "subcommands": [
+        { "name": "fps", "description": "Toggle FPS display" },
+        { "name": "wireframe", "description": "Toggle wireframe mode" },
+        { "name": "bounds", "description": "Toggle bounding boxes" },
+        { "name": "lights", "description": "Toggle light gizmos" }
+      ]
+    },
+    {
+      "name": "map",
+      "description": "Map commands",
+      "usage": "map <command> [args]",
+      "subcommands": [
+        { "name": "load", "description": "Load a map", "args": ["mapname"] },
+        { "name": "reload", "description": "Reload current map" },
+        { "name": "list", "description": "List available maps" }
+      ]
+    },
+    {
+      "name": "give",
+      "description": "Give resources (cheat)",
+      "usage": "give <resource> <amount>",
+      "subcommands": [
+        { "name": "money", "description": "Give money", "args": ["amount"] },
+        { "name": "xp", "description": "Give experience", "args": ["amount"] }
+      ]
+    },
+    {
+      "name": "spawn",
+      "description": "Spawn entities",
+      "usage": "spawn <entity> [args]",
+      "subcommands": [
+        { "name": "npc", "description": "Spawn NPC", "args": ["type"] },
+        { "name": "item", "description": "Spawn item", "args": ["itemid"] }
+      ]
+    },
+    {
+      "name": "version",
+      "description": "Show engine version",
+      "usage": "version"
+    }
+  ]
+}

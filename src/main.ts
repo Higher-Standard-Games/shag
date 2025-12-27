@@ -11,6 +11,7 @@ import { MainMenu } from "./game/MainMenu";
 import { SaveManager } from "./game/SaveManager";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
+import { DebugConsole, registerEngineCommands } from "./engine/debug";
 
 /**
  * Main application entry point.
@@ -54,6 +55,11 @@ async function main() {
 
   // Initialize audio manager with loaded config
   AudioManager.getInstance().init();
+  
+  // Initialize debug console (PC only, tilde key to toggle)
+  const debugConsole = DebugConsole.getInstance();
+  debugConsole.enable();
+  registerEngineCommands();
   
   // Initialize settings (loads saved settings and applies to audio)
   SettingsPanel.getInstance();
