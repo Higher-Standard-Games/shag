@@ -13,7 +13,7 @@
  * - Street lamps and props
  */
 
-import { SeededRandom, PerlinNoise } from './PerlinNoise';
+import { SeededRandom, PerlinNoise } from '../engine/math';
 
 // ============================================================================
 // Types
@@ -849,13 +849,14 @@ export class MapGenerator {
         const x2 = Math.min(x1 + patchSize, halfW);
         const y2 = Math.min(y1 + patchSize, halfD);
         
-        // All base terrain is grass
+        // All base terrain is grass - use procedural terrain texture
         lines.push(...this.generateLargePatch(
           x1, y1, x2, y2,
           halfW, halfD,
-          this.colors.grass,
+          null,
           'grass',
-          null
+          null,
+          this.getTerrainTexture('grass')
         ));
       }
     }
@@ -908,7 +909,7 @@ export class MapGenerator {
     halfW: number, halfD: number
   ): string[] {
     const lines: string[] = [];
-    const tex = this.colorToTexture(this.colors.dirt);
+    const tex = this.getTerrainTexture('dirt');
     const resolution = 9;
     
     lines.push(`// patch ${this.patchCount++} - dirt blob`);
@@ -1029,7 +1030,7 @@ export class MapGenerator {
     halfW: number, halfD: number
   ): string[] {
     const lines: string[] = [];
-    const tex = this.colorToTexture(this.colors.sand);
+    const tex = this.getTerrainTexture('sand');
     const resolution = 9;
     
     // Shoreline extends beyond water to cover terrain edge
@@ -1092,7 +1093,7 @@ export class MapGenerator {
     waterLevel: number
   ): string[] {
     const lines: string[] = [];
-    const tex = this.colorToTexture(this.colors.water);
+    const tex = this.getTerrainTexture('water');
     const resolution = 9;
     
     lines.push(`// patch ${this.patchCount++} - pond water`);
@@ -1236,12 +1237,13 @@ export class MapGenerator {
     x1: number, y1: number,
     x2: number, y2: number,
     halfW: number, halfD: number,
-    color: RGB,
+    color: RGB | null,
     cellType: CellType,
-    flatHeight: number | null = null  // If set, all vertices use this height (for water)
+    flatHeight: number | null = null,  // If set, all vertices use this height (for water)
+    textureName: string | null = null  // If set, use this texture instead of color
   ): string[] {
     const lines: string[] = [];
-    const tex = this.colorToTexture(color);
+    const tex = textureName || (color ? this.colorToTexture(color) : 'terrain_grass');
     const res = this.config.patchResolution || 5;
     const resolution = Math.max(3, res % 2 === 0 ? res + 1 : res);
     
@@ -1888,6 +1890,14 @@ export class MapGenerator {
   
   private colorToTexture(color: RGB): string {
     return `color_${color[0]}_${color[1]}_${color[2]}`;
+  }
+  
+  /**
+   * Get terrain texture name for procedural textures
+   * These are generated at runtime by TerrainTextureGenerator
+   */
+  private getTerrainTexture(type: 'grass' | 'water' | 'rock' | 'dirt' | 'sand'): string {
+    return `terrain_${type}`;
   }
   
   private darkenColor(color: RGB, factor: number): RGB {

@@ -48,6 +48,7 @@ const terrainConfig: Partial<MapGeneratorConfig> = {
     rocks: 0.15,
     streetLamps: 0.6,
     water: 0.1,
+    ponds: 0.3,
   },
   mapName: "Terrain Test",
   areaId: "terrain_test",
@@ -139,6 +140,7 @@ const heightmapConfig: Partial<MapGeneratorConfig> = {
     rocks: 0.02,       // Reduced to see terrain geometry
     streetLamps: 0.6,
     water: 0.1,
+    ponds: 0.3,
   },
   mapName: "Heightmap Terrain",
   areaId: "terrain_heightmap",

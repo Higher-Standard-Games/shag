@@ -1,4 +1,5 @@
 import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
+import { ProceduralTextureGenerator } from "../procedural/ProceduralTextureGenerator";
 
 // Check if we're in production mode (Vite sets this)
 // @ts-ignore - Vite provides import.meta.env
@@ -63,6 +64,8 @@ export class TextureManager {
    */
   init(scene: Scene): void {
     this.scene = scene;
+    // Initialize procedural texture generator
+    ProceduralTextureGenerator.getInstance().initialize(scene);
   }
 
   /**
@@ -84,6 +87,13 @@ export class TextureManager {
    */
   isColorTexture(textureName: string): boolean {
     return textureName.startsWith("color_");
+  }
+
+  /**
+   * Check if a texture name is a terrain texture
+   */
+  isTerrainTexture(textureName: string): boolean {
+    return textureName.startsWith("terrain_");
   }
 
   /**
@@ -128,6 +138,16 @@ export class TextureManager {
 
     // Skip special textures
     if (this.shouldSkipTexture(textureName) || this.isColorTexture(textureName)) {
+      return null;
+    }
+
+    // Handle terrain textures (procedurally generated)
+    if (this.isTerrainTexture(textureName)) {
+      const terrainTexture = ProceduralTextureGenerator.getInstance().getTexture(textureName);
+      if (terrainTexture) {
+        this.textureCache.set(textureName, terrainTexture);
+        return terrainTexture;
+      }
       return null;
     }
 

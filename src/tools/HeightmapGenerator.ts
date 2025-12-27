@@ -5,7 +5,7 @@
  * by MapGenerator for terrain elevation.
  */
 
-import { PerlinNoise } from './PerlinNoise';
+import { PerlinNoise } from '../engine/math/Noise';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PNG } from 'pngjs';
