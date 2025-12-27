@@ -66,6 +66,7 @@ Entities are defined within curly braces `{}` with key-value pairs in quotes:
 | `build_zone` | Buildable area marker | `origin`, `zoneType`, `size`, `color` |
 | `trigger_multiple` | Clickable trigger volume | Contains a brush, plus properties |
 | `info_npc` | NPC spawn point | `origin`, `npcId`, `name` |
+| `info_debris_zone` | Local debris particle spawner | `origin`, `type`, `radius` |
 
 ### Common Properties
 
@@ -252,6 +253,33 @@ brushDef
 "color" "100 200 100"
 }
 ```
+
+### Debris Zone
+
+Spawns local debris particles in a fixed area. Responds to wind system.
+
+```
+{
+"classname" "info_debris_zone"
+"targetname" "autumn_leaves"
+"origin" "200 100 32"
+"type" "leaves"
+"radius" "128"
+"height" "64"
+"density" "0.5"
+"windInfluence" "0.8"
+}
+```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `type` | `"leaves"` | Debris type: `leaves`, `trash`, `dust`, `mixed` |
+| `radius` | `128` | Horizontal spawn radius |
+| `height` | `64` | Vertical spawn range |
+| `density` | `0.5` | Particle density (0-1) |
+| `windInfluence` | `0.8` | How much wind affects particles (0-1) |
+
+**Note:** Debris zones are automatically disabled on indoor maps.
 
 ### NPC
 

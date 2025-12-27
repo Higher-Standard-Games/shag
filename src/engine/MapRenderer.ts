@@ -28,6 +28,7 @@ import {
 } from "../game/CharacterGenerator";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
+import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -777,6 +778,37 @@ export class MapRenderer {
         // Register the zone
         buildingSystem.registerZone(zoneId, position, size, zoneType, mapId);
       }
+
+      // Handle info_debris_zone entities (local debris particle spawners)
+      if (entity.classname === "info_debris_zone" && entity.properties.origin) {
+        const debrisManager = LocalDebrisManager.getInstance();
+        debrisManager.init(scene);
+
+        // Parse position
+        const parts = entity.properties.origin.split(" ").map(parseFloat);
+        const position = new Vector3(parts[0], parts[2], parts[1]);
+
+        // Get zone properties
+        const zoneId = entity.properties.targetname || `debris_${Date.now()}`;
+        const debrisType = (entity.properties.type || "leaves") as LocalDebrisType;
+        const radius = entity.properties.radius ? parseFloat(entity.properties.radius) : 128;
+        const height = entity.properties.height ? parseFloat(entity.properties.height) : 64;
+        const density = entity.properties.density ? parseFloat(entity.properties.density) : 0.5;
+        const windInfluence = entity.properties.windInfluence ? parseFloat(entity.properties.windInfluence) : 0.8;
+
+        // Create the debris zone (only if not indoor)
+        if (!indoor) {
+          debrisManager.createZone(zoneId, {
+            position,
+            radius,
+            height,
+            type: debrisType,
+            density,
+            windInfluence,
+          });
+          console.log(`Created debris zone: ${zoneId} (${debrisType}) at ${position.toString()}`);
+        }
+      }
     }
 
     // Use ClusteredLightContainer for static point lights
@@ -862,6 +894,9 @@ export class MapRenderer {
 
     // Clear build zones
     BuildingSystem.getInstance().clearZones();
+
+    // Clear debris zones
+    LocalDebrisManager.getInstance().clear();
 
     TextureManager.getInstance().clearCache();
   }
