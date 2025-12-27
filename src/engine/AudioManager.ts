@@ -18,6 +18,7 @@ export class AudioManager {
   private static instance: AudioManager;
 
   private currentMusic: HTMLAudioElement | null = null;
+  private fadingOutMusic: HTMLAudioElement | null = null;
   private musicVolume = 0.5;
   private musicEnabled = true;
   private fadeInterval: number | null = null;
@@ -115,20 +116,32 @@ export class AudioManager {
   }
 
   private fadeOutMusic(): void {
-    if (!this.currentMusic) return;
+    if (!this.currentMusic && !this.fadingOutMusic) return;
 
     if (this.fadeInterval) {
       clearInterval(this.fadeInterval);
     }
 
+    // Stop any previously fading music immediately
+    if (this.fadingOutMusic) {
+      this.fadingOutMusic.pause();
+      this.fadingOutMusic = null;
+    }
+
     const musicToFade = this.currentMusic;
     this.currentMusic = null;
+    
+    if (!musicToFade) return;
+    
+    // Track the fading music so we can stop it if needed
+    this.fadingOutMusic = musicToFade;
 
     this.fadeInterval = window.setInterval(() => {
       if (musicToFade.volume > 0.02) {
         musicToFade.volume -= 0.02;
       } else {
         musicToFade.pause();
+        this.fadingOutMusic = null;
         if (this.fadeInterval) clearInterval(this.fadeInterval);
       }
     }, 50);

@@ -211,16 +211,20 @@ export class ProceduralTextureGenerator {
 
     const ctx = texture.getContext() as CanvasRenderingContext2D;
     
-    // Use value noise (faster for texture generation)
-    const noise = new ValueNoise(Date.now());
+    // Use consistent seed for each texture type (based on name hash)
+    const seed = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const noise = new ValueNoise(seed);
     
-    // Draw pixel by pixel
+    // Draw pixel by pixel with tileable noise
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        // Multi-octave noise for natural look
-        const noiseValue = noise.octaveNoise(
-          x * noiseScale / size,
-          y * noiseScale / size,
+        // Use tileable noise by sampling on a torus
+        // This ensures edges wrap seamlessly
+        const noiseValue = this.tileableNoise(
+          noise,
+          x / size,
+          y / size,
+          noiseScale,
           noiseOctaves,
           noisePersistence
         );
@@ -246,6 +250,49 @@ export class ProceduralTextureGenerator {
 
     console.log(`Generated procedural texture: ${name}`);
     return texture;
+  }
+
+  /**
+   * Generate tileable noise by sampling on a torus
+   * This ensures the texture wraps seamlessly at edges
+   */
+  private tileableNoise(
+    noise: ValueNoise,
+    x: number,
+    y: number,
+    scale: number,
+    octaves: number,
+    persistence: number
+  ): number {
+    // Map 2D coordinates to 4D torus for seamless tiling
+    const twoPi = Math.PI * 2;
+    const s = x * scale;
+    const t = y * scale;
+    
+    // Sample noise in 4D space mapped from 2D torus
+    // This creates seamless wrapping in both directions
+    const nx = Math.cos(s * twoPi) * scale;
+    const ny = Math.sin(s * twoPi) * scale;
+    const nz = Math.cos(t * twoPi) * scale;
+    const nw = Math.sin(t * twoPi) * scale;
+    
+    // Use 2D noise with combined coordinates for pseudo-4D effect
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+    
+    for (let i = 0; i < octaves; i++) {
+      // Combine coordinates for varied sampling
+      const sample1 = noise.noise(nx * frequency + nz * 0.5, ny * frequency + nw * 0.5);
+      const sample2 = noise.noise(nz * frequency, nw * frequency);
+      total += ((sample1 + sample2) / 2) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= 2;
+    }
+    
+    return total / maxValue;
   }
 
   /**

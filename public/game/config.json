@@ -2,7 +2,7 @@
   "game": {
     "title": "Ganjawars",
     "version": "0.0.1",
-    "startMap": "showcase.map"
+    "startMap": "maps/generated/terrain_heightmap.map"
   },
   "assets": {
     "maps": [
