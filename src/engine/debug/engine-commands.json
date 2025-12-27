@@ -84,6 +84,34 @@
       ]
     },
     {
+      "name": "wind",
+      "description": "Control wind system",
+      "usage": "wind <command> [args]",
+      "subcommands": [
+        { "name": "on", "description": "Start wind" },
+        { "name": "off", "description": "Stop wind" },
+        { "name": "strength", "description": "Set wind strength", "args": ["0-1"] },
+        { "name": "angle", "description": "Set wind angle", "args": ["radians"] },
+        { "name": "gust", "description": "Trigger a wind gust" },
+        { "name": "calm", "description": "Calm breeze preset" },
+        { "name": "moderate", "description": "Moderate wind preset" },
+        { "name": "storm", "description": "Storm wind preset" }
+      ]
+    },
+    {
+      "name": "debris",
+      "description": "Control flying debris particles",
+      "usage": "debris <type>",
+      "subcommands": [
+        { "name": "leaves", "description": "Start leaves debris" },
+        { "name": "trash", "description": "Start trash/paper debris" },
+        { "name": "dust", "description": "Start dust particles" },
+        { "name": "mixed", "description": "Start mixed debris" },
+        { "name": "off", "description": "Stop debris" },
+        { "name": "density", "description": "Set debris density", "args": ["0-1"] }
+      ]
+    },
+    {
       "name": "export",
       "description": "Export settings to JSON or NetRadiant format",
       "usage": "export <target>",

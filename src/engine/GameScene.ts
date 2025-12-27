@@ -39,6 +39,8 @@ import { PostProcessingManager } from "./effects/PostProcessingManager";
 import { PrecipitationEffect } from "./effects/RainEffect";
 import { ThunderEffect } from "./effects/ThunderEffect";
 import { FogEffect } from "./effects/FogEffect";
+import { WindSystem } from "./effects/WindSystem";
+import { DebrisEffect } from "./effects/DebrisEffect";
 import { CapacitorBridge } from "./core/CapacitorBridge";
 import { EventBus } from "./core/EventBus";
 import { EngineSettings } from "./core/EngineSettings";
@@ -97,6 +99,8 @@ export class GameScene {
   private precipitationEffect: PrecipitationEffect | null = null;
   private thunderEffect: ThunderEffect | null = null;
   private fogEffect: FogEffect | null = null;
+  private windSystem: WindSystem | null = null;
+  private debrisEffect: DebrisEffect | null = null;
   private isIndoorMap: boolean = false;
 
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
@@ -316,6 +320,10 @@ export class GameScene {
     this.precipitationEffect = new PrecipitationEffect(this.scene);
     this.thunderEffect = new ThunderEffect(this.scene);
     this.fogEffect = new FogEffect(this.scene);
+    
+    // Initialize wind and debris systems
+    this.windSystem = WindSystem.getInstance(this.scene);
+    this.debrisEffect = new DebrisEffect(this.scene);
 
     // Trigger click handling
     this.setupTriggerHandling();
@@ -783,15 +791,52 @@ export class GameScene {
       morningFog: () => this.fogEffect?.morningFog(),
       spookyFog: () => this.fogEffect?.spookyFog(),
       
+      // Wind system
+      wind: (on: boolean) => {
+        if (on && this.isIndoorMap) {
+          console.log("[Weather] Cannot start wind - indoor map");
+          return;
+        }
+        on ? this.windSystem?.start() : this.windSystem?.stop();
+      },
+      windStrength: (v: number) => this.windSystem?.setStrength(v),
+      windAngle: (v: number) => this.windSystem?.setAngle(v),
+      gust: () => this.windSystem?.triggerGust(),
+      calmBreeze: () => this.windSystem?.calmBreeze(),
+      moderateWind: () => this.windSystem?.moderateWind(),
+      stormWind: () => this.windSystem?.stormWind(),
+      
+      // Debris effects
+      debris: (type: 'leaves' | 'trash' | 'dust' | 'mixed' | false) => {
+        if (type && this.isIndoorMap) {
+          console.log("[Weather] Cannot start debris - indoor map");
+          return;
+        }
+        if (type === false) {
+          this.debrisEffect?.stop();
+        } else {
+          switch (type) {
+            case 'leaves': this.debrisEffect?.startLeaves(); break;
+            case 'trash': this.debrisEffect?.startTrash(); break;
+            case 'dust': this.debrisEffect?.startDust(); break;
+            case 'mixed': this.debrisEffect?.startMixed(); break;
+          }
+        }
+      },
+      debrisDensity: (v: number) => this.debrisEffect?.setDensity(v),
+      
       // Status
       isRaining: () => this.precipitationEffect?.isRaining(),
       isSnowing: () => this.precipitationEffect?.isSnowing(),
       isStorming: () => this.thunderEffect?.isStorming(),
       isFoggy: () => this.fogEffect?.isFoggy(),
+      isWindy: () => this.windSystem?.isWindy(),
       settings: () => ({
         precipitation: this.precipitationEffect?.getSettings(),
         thunder: this.thunderEffect?.getSettings(),
         fog: this.fogEffect?.getSettings(),
+        wind: this.windSystem?.getSettings(),
+        debris: this.debrisEffect?.getSettings(),
       }),
     };
 
@@ -800,7 +845,7 @@ export class GameScene {
     console.log("Clock commands: game.time(), game.setTime(12), game.setDay(5), game.daySpeed(30)");
     console.log("New systems: game.orders(), game.createOrder(), game.quests(), game.achievements(), game.shop(), game.buy('seed_basic')");
     console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true), fx.settings()");
-    console.log("Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.lightMist()");
+    console.log("Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.wind(true), weather.debris('leaves')");
   }
 
   private async initBottomBar(): Promise<void> {

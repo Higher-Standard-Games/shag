@@ -162,11 +162,121 @@ export function registerEngineCommands(): void {
         const raining = weather.isRaining?.();
         const snowing = weather.isSnowing?.();
         const foggy = weather.isFoggy?.();
-        return `Weather: ${raining ? 'raining' : snowing ? 'snowing' : 'clear'}${foggy ? ', foggy' : ''}`;
+        const windy = weather.isWindy?.();
+        return `Weather: ${raining ? 'raining' : snowing ? 'snowing' : 'clear'}${foggy ? ', foggy' : ''}${windy ? ', windy' : ''}`;
       }
         
       default:
-        return 'Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, status';
+        return 'Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, wind, debris, status';
+    }
+  });
+  
+  // ============================================================================
+  // Wind Commands
+  // ============================================================================
+  
+  registry.register('wind', (args) => {
+    const weather = (window as any).weather;
+    
+    if (!weather) {
+      return 'Weather system not available (game not started)';
+    }
+    
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'on':
+        weather.wind(true);
+        return 'Wind started';
+        
+      case 'off':
+        weather.wind(false);
+        return 'Wind stopped';
+        
+      case 'strength': {
+        const strength = parseFloat(args[1]);
+        if (isNaN(strength)) {
+          return 'Usage: wind strength <0-1>';
+        }
+        weather.windStrength(strength);
+        return `Wind strength: ${strength}`;
+      }
+      
+      case 'angle': {
+        const angle = parseFloat(args[1]);
+        if (isNaN(angle)) {
+          return 'Usage: wind angle <radians>';
+        }
+        weather.windAngle(angle);
+        return `Wind angle: ${angle} rad`;
+      }
+      
+      case 'gust':
+        weather.gust();
+        return 'Gust triggered';
+        
+      case 'calm':
+        weather.calmBreeze();
+        return 'Calm breeze preset';
+        
+      case 'moderate':
+        weather.moderateWind();
+        return 'Moderate wind preset';
+        
+      case 'storm':
+        weather.stormWind();
+        return 'Storm wind preset';
+        
+      default:
+        return 'Subcommands: on, off, strength <0-1>, angle <rad>, gust, calm, moderate, storm';
+    }
+  });
+  
+  // ============================================================================
+  // Debris Commands
+  // ============================================================================
+  
+  registry.register('debris', (args) => {
+    const weather = (window as any).weather;
+    
+    if (!weather) {
+      return 'Weather system not available (game not started)';
+    }
+    
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'leaves':
+        weather.debris('leaves');
+        return 'Leaves debris started';
+        
+      case 'trash':
+        weather.debris('trash');
+        return 'Trash debris started';
+        
+      case 'dust':
+        weather.debris('dust');
+        return 'Dust debris started';
+        
+      case 'mixed':
+        weather.debris('mixed');
+        return 'Mixed debris started';
+        
+      case 'off':
+        weather.debris(false);
+        return 'Debris stopped';
+        
+      case 'density': {
+        const density = parseFloat(args[1]);
+        if (isNaN(density)) {
+          return 'Usage: debris density <0-1>';
+        }
+        weather.debrisDensity(density);
+        return `Debris density: ${density}`;
+      }
+        
+      default:
+        return 'Subcommands: leaves, trash, dust, mixed, off, density <0-1>';
     }
   });
 

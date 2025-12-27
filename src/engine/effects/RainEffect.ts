@@ -15,6 +15,7 @@ import {
   MeshBuilder,
   Observer,
 } from "babylonjs";
+import { WindSystem, WindState } from "./WindSystem";
 
 export type PrecipitationType = 'rain' | 'snow';
 
@@ -69,6 +70,10 @@ export class PrecipitationEffect {
   // Ambient sounds
   private rainSound: HTMLAudioElement | null = null;
   private readonly RAIN_FADE_DURATION = 1000;  // ms to fade in/out
+  
+  // Wind integration
+  private windListener: ((state: WindState) => void) | null = null;
+  private useGlobalWind: boolean = true;  // Auto-sync with WindSystem
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -122,12 +127,45 @@ export class PrecipitationEffect {
     this.createParticleSystem();
     this.isActive = true;
     
+    // Subscribe to global wind if enabled
+    if (this.useGlobalWind) {
+      this.subscribeToWind();
+    }
+    
     // Start rain ambient sound (only for rain, not snow)
     if (this.currentType === 'rain') {
       this.fadeInRainSound();
     }
     
     console.log(`[PrecipitationEffect] Started ${this.currentType} with intensity:`, this.settings.intensity);
+  }
+  
+  /**
+   * Subscribe to WindSystem for automatic wind sync
+   */
+  private subscribeToWind(): void {
+    if (!WindSystem.hasInstance()) return;
+    
+    const windSystem = WindSystem.getInstance();
+    this.windListener = (state: WindState) => {
+      // Apply wind to precipitation settings
+      this.settings.windAngle = state.angle;
+      this.settings.windStrength = state.strength * 0.5;  // Scale down for precipitation
+      if (this.particleSystem) {
+        this.applySettings();
+      }
+    };
+    windSystem.addListener(this.windListener);
+  }
+  
+  /**
+   * Unsubscribe from WindSystem
+   */
+  private unsubscribeFromWind(): void {
+    if (this.windListener && WindSystem.hasInstance()) {
+      WindSystem.getInstance().removeListener(this.windListener);
+      this.windListener = null;
+    }
   }
 
   /**
@@ -137,6 +175,9 @@ export class PrecipitationEffect {
   public stop(immediate: boolean = false): void {
     if (!this.isActive) return;
 
+    // Unsubscribe from wind
+    this.unsubscribeFromWind();
+    
     // Fade out rain sound
     this.fadeOutRainSound();
 
