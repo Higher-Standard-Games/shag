@@ -351,39 +351,49 @@ export function registerEngineCommands(): void {
   
   registry.register('camera', (args) => {
     const subcommand = args[0]?.toLowerCase();
+    const setCameraMode = (window as any).setCameraMode;
+    const getCameraMode = (window as any).getCameraMode;
+    const setCameraHeight = (window as any).setCameraHeight;
+    const getCameraHeight = (window as any).getCameraHeight;
     
     switch (subcommand) {
       case 'mode': {
-        const mode = args[1];
+        const mode = args[1]?.toLowerCase();
         if (!mode) {
-          return 'Usage: camera mode <perspective|orthographic|fake_ortho>';
+          const current = getCameraMode?.() || 'unknown';
+          return `Current mode: ${current}\nUsage: camera mode <perspective|orthographic|fake_ortho>`;
         }
-        return `Camera mode: ${mode} (wire to CameraSystem)`;
+        if (!['perspective', 'orthographic', 'fake_ortho'].includes(mode)) {
+          return 'Invalid mode. Use: perspective, orthographic, fake_ortho';
+        }
+        if (setCameraMode) {
+          setCameraMode(mode);
+          return `Camera mode set to: ${mode}`;
+        }
+        return 'Camera system not available';
       }
       
       case 'height': {
         const height = parseFloat(args[1]);
         if (isNaN(height)) {
-          return 'Usage: camera height <number>';
+          const current = getCameraHeight?.() || 'unknown';
+          return `Current height: ${current}\nUsage: camera height <number>`;
         }
-        return `Camera height: ${height} (wire to CameraSystem)`;
+        if (setCameraHeight) {
+          setCameraHeight(height);
+          return `Camera height set to: ${height}`;
+        }
+        return 'Camera system not available';
       }
       
-      case 'pos': {
-        const x = parseFloat(args[1]);
-        const y = parseFloat(args[2]);
-        const z = parseFloat(args[3]);
-        if (isNaN(x) || isNaN(y) || isNaN(z)) {
-          return 'Usage: camera pos <x> <y> <z>';
-        }
-        return `Camera position: ${x}, ${y}, ${z} (wire to CameraSystem)`;
+      case 'info': {
+        const mode = getCameraMode?.() || 'unknown';
+        const height = getCameraHeight?.() || 'unknown';
+        return `Mode: ${mode}\nHeight: ${height}`;
       }
-      
-      case 'reset':
-        return 'Camera reset (wire to CameraSystem)';
         
       default:
-        return 'Subcommands: mode, height, pos, reset';
+        return 'Subcommands: mode <type>, height <n>, info';
     }
   });
 

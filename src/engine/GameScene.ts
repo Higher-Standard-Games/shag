@@ -411,8 +411,12 @@ export class GameScene {
       this.updateCameraOrtho();
     }
     
-    // Note: Don't reset camera target here - it will be set after mapCenterPosition is updated
-    // This prevents using stale coordinates from the previous map
+    // Force camera to update its projection matrix immediately
+    if (this.camera) {
+      this.camera.getProjectionMatrix(true);
+    }
+    
+    console.log(`[GameScene] Camera mode changed to: ${mode}`);
   }
 
   /**
