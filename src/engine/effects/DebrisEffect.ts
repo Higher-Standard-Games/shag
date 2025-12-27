@@ -37,9 +37,9 @@ export interface DebrisSettings {
 const DEFAULT_DEBRIS_SETTINGS: DebrisSettings = {
   type: 'leaves',
   density: 0.5,
-  size: 1.5,
-  height: 15,
-  spread: 150,
+  size: 8,            // Larger for isometric view
+  height: 80,         // Higher to be visible from camera
+  spread: 300,        // Wider spread area
   windInfluence: 0.8,
   turbulence: 0.4,
   opacity: 0.9,
@@ -286,12 +286,12 @@ export class DebrisEffect {
     const s = this.settings;
     const isDust = s.type === 'dust';
     
-    // Emission rate
-    this.particleSystem.emitRate = Math.floor(50 * s.density);
+    // Emission rate - higher for visibility
+    this.particleSystem.emitRate = Math.floor(100 * s.density);
     
     // Lifetime - debris floats around longer
-    this.particleSystem.minLifeTime = 4;
-    this.particleSystem.maxLifeTime = 8;
+    this.particleSystem.minLifeTime = 5;
+    this.particleSystem.maxLifeTime = 10;
     
     // Size
     const baseSize = s.size;
