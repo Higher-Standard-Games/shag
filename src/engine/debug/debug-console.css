@@ -206,6 +206,24 @@
   margin-left: 12px;
 }
 
+/* Syntax highlighting */
+.hl-bracket {
+  color: #54a0ff;
+  font-weight: bold;
+}
+
+.hl-label {
+  color: #feca57;
+}
+
+.hl-number {
+  color: #ff6b9d;
+}
+
+.hl-string {
+  color: #25b678;
+}
+
 /* Help formatting */
 .help-command {
   color: #25b678;

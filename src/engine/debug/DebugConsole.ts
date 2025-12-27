@@ -445,7 +445,7 @@ export class DebugConsole {
     
     const line = document.createElement('div');
     line.className = `console-line ${type}`;
-    line.textContent = message;
+    line.innerHTML = this.formatMessage(message);
     
     this.outputEl.appendChild(line);
     
@@ -487,6 +487,50 @@ export class DebugConsole {
     console.warn = this.originalWarn;
     console.error = this.originalError;
     console.info = this.originalInfo;
+  }
+
+  /**
+   * Format message with syntax highlighting
+   * - [text] becomes highlighted in cyan
+   * - label: value becomes label highlighted
+   * - Numbers are highlighted
+   */
+  private formatMessage(message: string): string {
+    // Escape HTML first
+    let formatted = message
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    // Highlight [bracketed text] in cyan
+    formatted = formatted.replace(
+      /\[([^\]]+)\]/g,
+      '<span class="hl-bracket">[$1]</span>'
+    );
+    
+    // Highlight label: value patterns (word followed by colon)
+    formatted = formatted.replace(
+      /(\b\w+):/g,
+      '<span class="hl-label">$1:</span>'
+    );
+    
+    // Highlight numbers
+    formatted = formatted.replace(
+      /\b(\d+\.?\d*)\b/g,
+      '<span class="hl-number">$1</span>'
+    );
+    
+    // Highlight quoted strings
+    formatted = formatted.replace(
+      /"([^"]+)"/g,
+      '<span class="hl-string">"$1"</span>'
+    );
+    formatted = formatted.replace(
+      /'([^']+)'/g,
+      '<span class="hl-string">\'$1\'</span>'
+    );
+    
+    return formatted;
   }
 
   // ============================================================================
