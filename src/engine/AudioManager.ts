@@ -81,6 +81,12 @@ export class AudioManager {
   }
 
   public stopMusic(fadeOut = true): void {
+    // Also stop any music that's currently fading out
+    if (this.fadingOutMusic) {
+      this.fadingOutMusic.pause();
+      this.fadingOutMusic = null;
+    }
+    
     if (!this.currentMusic) return;
 
     if (fadeOut) {
