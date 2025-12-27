@@ -32,17 +32,31 @@ export interface DebrisSettings {
   windInfluence: number;   // How much wind affects particles (0-1)
   turbulence: number;      // Random motion amount (0-1)
   opacity: number;         // Particle opacity (0-1)
+  // Motion parameters
+  emitPowerMin: number;    // Min emit speed
+  emitPowerMax: number;    // Max emit speed  
+  gravity: number;         // Downward gravity force
+  spinSpeed: number;       // Angular rotation speed
+  lifetime: number;        // How long particles live (seconds)
+  windForce: number;       // Wind force multiplier
 }
 
 const DEFAULT_DEBRIS_SETTINGS: DebrisSettings = {
   type: 'leaves',
   density: 0.5,
-  size: 8,            // Larger for isometric view
-  height: 80,         // Higher to be visible from camera
-  spread: 300,        // Wider spread area
+  size: 8,
+  height: 80,
+  spread: 300,
   windInfluence: 0.8,
   turbulence: 0.4,
   opacity: 0.9,
+  // Motion defaults - tunable via CLI
+  emitPowerMin: 2,
+  emitPowerMax: 5,
+  gravity: 4,
+  spinSpeed: 2,
+  lifetime: 8,
+  windForce: 15,
 };
 
 const LEAVES_COLORS = [
@@ -286,12 +300,12 @@ export class DebrisEffect {
     const s = this.settings;
     const isDust = s.type === 'dust';
     
-    // Emission rate - higher for visibility
+    // Emission rate from density
     this.particleSystem.emitRate = Math.floor(100 * s.density);
     
-    // Lifetime - debris floats around longer
-    this.particleSystem.minLifeTime = 5;
-    this.particleSystem.maxLifeTime = 10;
+    // Lifetime from settings
+    this.particleSystem.minLifeTime = s.lifetime * 0.7;
+    this.particleSystem.maxLifeTime = s.lifetime * 1.3;
     
     // Size
     const baseSize = s.size;
@@ -303,21 +317,21 @@ export class DebrisEffect {
       this.particleSystem.maxSize = baseSize * 1.4;
     }
     
-    // Rotation for tumbling effect - faster spin
-    this.particleSystem.minAngularSpeed = -8;
-    this.particleSystem.maxAngularSpeed = 8;
+    // Rotation from spinSpeed setting
+    this.particleSystem.minAngularSpeed = -s.spinSpeed;
+    this.particleSystem.maxAngularSpeed = s.spinSpeed;
     
-    // Initial direction - much faster horizontal movement for windy effect
-    this.particleSystem.direction1 = new Vector3(-50, -10, -50);
-    this.particleSystem.direction2 = new Vector3(50, 20, 50);
+    // Initial direction - gentle drift
+    this.particleSystem.direction1 = new Vector3(-5, -2, -5);
+    this.particleSystem.direction2 = new Vector3(5, 2, 5);
     
-    // Gravity - light downward pull, wind will override
-    this.particleSystem.gravity = new Vector3(0, -5, 0);
+    // Gravity from settings
+    this.particleSystem.gravity = new Vector3(0, -s.gravity, 0);
     
-    // Speed multiplier for faster particles
-    this.particleSystem.minEmitPower = 15;
-    this.particleSystem.maxEmitPower = 30;
-    this.particleSystem.updateSpeed = 0.02;
+    // Emit power from settings
+    this.particleSystem.minEmitPower = s.emitPowerMin;
+    this.particleSystem.maxEmitPower = s.emitPowerMax;
+    this.particleSystem.updateSpeed = 0.01;
     
     // Colors based on type
     this.applyColors();
@@ -370,42 +384,43 @@ export class DebrisEffect {
   private applyWindToParticles(): void {
     if (!this.particleSystem || !this.currentWindState) return;
     
+    const s = this.settings;
     const wind = this.currentWindState;
-    const influence = this.settings.windInfluence;
-    const turbulence = this.settings.turbulence;
+    const influence = s.windInfluence;
+    const turbulence = s.turbulence;
     
-    // Calculate wind force - much stronger for visible effect
-    const windForce = wind.strength * influence * 150;
+    // Calculate wind force from settings
+    const windForce = wind.strength * influence * s.windForce;
     const windX = wind.direction.x * windForce;
     const windZ = wind.direction.z * windForce;
     
-    // Add turbulence - more chaotic movement
-    const turbX = turbulence * 30;
-    const turbZ = turbulence * 30;
-    const turbY = turbulence * 20;
+    // Add turbulence - scaled by turbulence setting
+    const turbX = turbulence * 10;
+    const turbZ = turbulence * 10;
+    const turbY = turbulence * 5;
     
-    // Update particle directions - fast horizontal sweep
+    // Update particle directions with wind
     this.particleSystem.direction1 = new Vector3(
       windX - turbX,
-      -turbY,
+      -turbY - 1,
       windZ - turbZ
     );
     this.particleSystem.direction2 = new Vector3(
       windX + turbX,
-      turbY * 2,
+      turbY + 1,
       windZ + turbZ
     );
     
-    // Update gravity with wind influence - strong horizontal push
+    // Update gravity with wind push
     this.particleSystem.gravity = new Vector3(
-      windX * 0.5,
-      -8 + wind.gustStrength * 15,  // Gusts lift particles significantly
-      windZ * 0.5
+      windX * 0.3,
+      -s.gravity + wind.gustStrength * (s.gravity * 0.5),
+      windZ * 0.3
     );
     
-    // Boost emit power based on wind
-    this.particleSystem.minEmitPower = 20 + wind.strength * 30;
-    this.particleSystem.maxEmitPower = 40 + wind.strength * 50;
+    // Emit power scales with wind
+    this.particleSystem.minEmitPower = s.emitPowerMin + wind.strength * s.emitPowerMin;
+    this.particleSystem.maxEmitPower = s.emitPowerMax + wind.strength * s.emitPowerMax;
     
     // Adjust emission rate based on wind strength
     const baseRate = 100 * this.settings.density;

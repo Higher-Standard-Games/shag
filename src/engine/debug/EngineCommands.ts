@@ -267,16 +267,81 @@ export function registerEngineCommands(): void {
         return 'Debris stopped';
         
       case 'density': {
-        const density = parseFloat(args[1]);
-        if (isNaN(density)) {
-          return 'Usage: debris density <0-1>';
-        }
-        weather.debrisDensity(density);
-        return `Debris density: ${density}`;
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris density <0-1>';
+        weather.debrisDensity(v);
+        return `Debris density: ${v}`;
       }
+      
+      case 'size': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris size <number>';
+        weather.debrisSize(v);
+        return `Debris size: ${v}`;
+      }
+      
+      case 'speed': {
+        const min = parseFloat(args[1]);
+        const max = parseFloat(args[2]) || min * 2;
+        if (isNaN(min)) return 'Usage: debris speed <min> [max]';
+        weather.debrisSpeed(min, max);
+        return `Debris speed: ${min}-${max}`;
+      }
+      
+      case 'gravity': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris gravity <number>';
+        weather.debrisGravity(v);
+        return `Debris gravity: ${v}`;
+      }
+      
+      case 'spin': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris spin <number>';
+        weather.debrisSpin(v);
+        return `Debris spin: ${v}`;
+      }
+      
+      case 'lifetime': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris lifetime <seconds>';
+        weather.debrisLifetime(v);
+        return `Debris lifetime: ${v}s`;
+      }
+      
+      case 'windforce': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris windforce <number>';
+        weather.debrisWindForce(v);
+        return `Debris windforce: ${v}`;
+      }
+      
+      case 'turbulence': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris turbulence <0-1>';
+        weather.debrisTurbulence(v);
+        return `Debris turbulence: ${v}`;
+      }
+      
+      case 'spread': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris spread <number>';
+        weather.debrisSpread(v);
+        return `Debris spread: ${v}`;
+      }
+      
+      case 'height': {
+        const v = parseFloat(args[1]);
+        if (isNaN(v)) return 'Usage: debris height <number>';
+        weather.debrisHeight(v);
+        return `Debris height: ${v}`;
+      }
+      
+      case 'settings':
+        return JSON.stringify(weather.settings()?.debris, null, 2);
         
       default:
-        return 'Subcommands: leaves, trash, dust, mixed, off, density <0-1>';
+        return 'Subcommands: leaves, trash, dust, mixed, off, density, size, speed, gravity, spin, lifetime, windforce, turbulence, spread, height, settings';
     }
   });
 

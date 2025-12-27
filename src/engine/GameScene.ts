@@ -823,7 +823,17 @@ export class GameScene {
           }
         }
       },
-      debrisDensity: (v: number) => this.debrisEffect?.setDensity(v),
+      // Debris tuning parameters
+      debrisDensity: (v: number) => this.debrisEffect?.updateSettings({ density: v }),
+      debrisSize: (v: number) => this.debrisEffect?.updateSettings({ size: v }),
+      debrisSpeed: (min: number, max: number) => this.debrisEffect?.updateSettings({ emitPowerMin: min, emitPowerMax: max }),
+      debrisGravity: (v: number) => this.debrisEffect?.updateSettings({ gravity: v }),
+      debrisSpin: (v: number) => this.debrisEffect?.updateSettings({ spinSpeed: v }),
+      debrisLifetime: (v: number) => this.debrisEffect?.updateSettings({ lifetime: v }),
+      debrisWindForce: (v: number) => this.debrisEffect?.updateSettings({ windForce: v }),
+      debrisTurbulence: (v: number) => this.debrisEffect?.updateSettings({ turbulence: v }),
+      debrisSpread: (v: number) => this.debrisEffect?.updateSettings({ spread: v }),
+      debrisHeight: (v: number) => this.debrisEffect?.updateSettings({ height: v }),
       
       // Status
       isRaining: () => this.precipitationEffect?.isRaining(),
