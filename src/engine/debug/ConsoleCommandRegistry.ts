@@ -2,9 +2,10 @@
  * ConsoleCommandRegistry - Command registration and execution system
  * 
  * Manages registered command handlers and provides autocomplete functionality.
+ * Supports loading definitions from multiple JSON sources (engine + game).
  */
 
-import commandDefinitions from './console-commands.json';
+import engineCommands from './engine-commands.json';
 
 export interface CommandArg {
   name: string;
@@ -23,6 +24,10 @@ export interface CommandDefinition {
   }[];
 }
 
+export interface CommandsFile {
+  commands: CommandDefinition[];
+}
+
 export type CommandHandler = (args: string[]) => string | void | Promise<string | void>;
 
 interface RegisteredCommand {
@@ -34,10 +39,11 @@ export class ConsoleCommandRegistry {
   private static instance: ConsoleCommandRegistry;
   
   private commands: Map<string, RegisteredCommand> = new Map();
-  private definitions: CommandDefinition[] = [];
+  private definitions: Map<string, CommandDefinition> = new Map();
 
   private constructor() {
-    this.loadDefinitions();
+    // Load engine commands by default
+    this.loadDefinitionsFromJson(engineCommands as CommandsFile);
   }
 
   static getInstance(): ConsoleCommandRegistry {
@@ -48,17 +54,21 @@ export class ConsoleCommandRegistry {
   }
 
   /**
-   * Load command definitions from JSON
+   * Load command definitions from a JSON object
+   * Can be called multiple times to add definitions from different sources
    */
-  private loadDefinitions(): void {
-    this.definitions = commandDefinitions.commands as CommandDefinition[];
+  loadDefinitionsFromJson(json: CommandsFile): void {
+    for (const cmd of json.commands) {
+      this.definitions.set(cmd.name, cmd);
+    }
+    console.log(`[ConsoleCommandRegistry] Loaded ${json.commands.length} command definitions`);
   }
 
   /**
    * Register a command handler
    */
   register(name: string, handler: CommandHandler): void {
-    const definition = this.definitions.find(d => d.name === name);
+    const definition = this.definitions.get(name);
     if (!definition) {
       console.warn(`[ConsoleCommandRegistry] No definition found for command: ${name}`);
       // Create a basic definition

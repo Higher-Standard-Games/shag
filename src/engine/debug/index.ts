@@ -6,4 +6,5 @@
 
 export { DebugConsole } from './DebugConsole';
 export { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
+export type { CommandDefinition, CommandsFile, CommandHandler } from './ConsoleCommandRegistry';
 export { registerEngineCommands } from './EngineCommands';

@@ -11,15 +11,9 @@
       "usage": "clear"
     },
     {
-      "name": "weather",
-      "description": "Control weather effects",
-      "usage": "weather <type> [intensity]",
-      "subcommands": [
-        { "name": "rain", "description": "Start rain", "args": ["intensity?"] },
-        { "name": "snow", "description": "Start snow", "args": ["intensity?"] },
-        { "name": "clear", "description": "Clear weather" },
-        { "name": "fog", "description": "Set fog", "args": ["density?"] }
-      ]
+      "name": "version",
+      "description": "Show engine version",
+      "usage": "version"
     },
     {
       "name": "camera",
@@ -77,27 +71,15 @@
       ]
     },
     {
-      "name": "give",
-      "description": "Give resources (cheat)",
-      "usage": "give <resource> <amount>",
+      "name": "weather",
+      "description": "Control weather effects",
+      "usage": "weather <type> [intensity]",
       "subcommands": [
-        { "name": "money", "description": "Give money", "args": ["amount"] },
-        { "name": "xp", "description": "Give experience", "args": ["amount"] }
+        { "name": "rain", "description": "Start rain", "args": ["intensity?"] },
+        { "name": "snow", "description": "Start snow", "args": ["intensity?"] },
+        { "name": "clear", "description": "Clear weather" },
+        { "name": "fog", "description": "Set fog", "args": ["density?"] }
       ]
-    },
-    {
-      "name": "spawn",
-      "description": "Spawn entities",
-      "usage": "spawn <entity> [args]",
-      "subcommands": [
-        { "name": "npc", "description": "Spawn NPC", "args": ["type"] },
-        { "name": "item", "description": "Spawn item", "args": ["itemid"] }
-      ]
-    },
-    {
-      "name": "version",
-      "description": "Show engine version",
-      "usage": "version"
     }
   ]
 }

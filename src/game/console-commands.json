@@ -1,0 +1,75 @@
+{
+  "commands": [
+    {
+      "name": "give",
+      "description": "Give resources (cheat)",
+      "usage": "give <resource> <amount>",
+      "subcommands": [
+        { "name": "money", "description": "Give money", "args": ["amount"] },
+        { "name": "xp", "description": "Give experience", "args": ["amount"] },
+        { "name": "weed", "description": "Give weed inventory", "args": ["strain", "amount"] }
+      ]
+    },
+    {
+      "name": "spawn",
+      "description": "Spawn entities",
+      "usage": "spawn <entity> [args]",
+      "subcommands": [
+        { "name": "npc", "description": "Spawn NPC", "args": ["type"] },
+        { "name": "dealer", "description": "Spawn dealer NPC" },
+        { "name": "customer", "description": "Spawn customer NPC" }
+      ]
+    },
+    {
+      "name": "quest",
+      "description": "Quest commands",
+      "usage": "quest <command> [args]",
+      "subcommands": [
+        { "name": "list", "description": "List active quests" },
+        { "name": "complete", "description": "Complete a quest", "args": ["questid"] },
+        { "name": "start", "description": "Start a quest", "args": ["questid"] }
+      ]
+    },
+    {
+      "name": "plant",
+      "description": "Plant management",
+      "usage": "plant <command>",
+      "subcommands": [
+        { "name": "grow", "description": "Instantly grow all plants" },
+        { "name": "water", "description": "Water all plants" },
+        { "name": "harvest", "description": "Harvest all ready plants" }
+      ]
+    },
+    {
+      "name": "unlock",
+      "description": "Unlock game features",
+      "usage": "unlock <feature>",
+      "subcommands": [
+        { "name": "all", "description": "Unlock everything" },
+        { "name": "strains", "description": "Unlock all strains" },
+        { "name": "equipment", "description": "Unlock all equipment" },
+        { "name": "areas", "description": "Unlock all areas" }
+      ]
+    },
+    {
+      "name": "save",
+      "description": "Save game",
+      "usage": "save [slot]"
+    },
+    {
+      "name": "load",
+      "description": "Load game",
+      "usage": "load [slot]"
+    },
+    {
+      "name": "teleport",
+      "description": "Teleport to location",
+      "usage": "teleport <area>",
+      "subcommands": [
+        { "name": "home", "description": "Teleport to home base" },
+        { "name": "shop", "description": "Teleport to shop" },
+        { "name": "dealer", "description": "Teleport to dealer" }
+      ]
+    }
+  ]
+}

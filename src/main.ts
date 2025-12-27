@@ -12,6 +12,7 @@ import { SaveManager } from "./game/SaveManager";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
 import { DebugConsole, registerEngineCommands } from "./engine/debug";
+import { registerGameCommands } from "./game/GameCommands";
 
 /**
  * Main application entry point.
@@ -60,6 +61,7 @@ async function main() {
   const debugConsole = DebugConsole.getInstance();
   debugConsole.enable();
   registerEngineCommands();
+  registerGameCommands();
   
   // Initialize settings (loads saved settings and applies to audio)
   SettingsPanel.getInstance();

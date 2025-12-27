@@ -206,35 +206,4 @@ export function registerEngineCommands(): void {
     }
   });
 
-  // ============================================================================
-  // Cheat Commands (placeholder)
-  // ============================================================================
-  
-  registry.register('give', (args) => {
-    const resource = args[0]?.toLowerCase();
-    const amount = parseInt(args[1]) || 1000;
-    
-    switch (resource) {
-      case 'money':
-        return `Gave $${amount} (wire to GameState)`;
-      case 'xp':
-        return `Gave ${amount} XP (wire to GameState)`;
-      default:
-        return 'Usage: give <money|xp> <amount>';
-    }
-  });
-
-  registry.register('spawn', (args) => {
-    const entity = args[0]?.toLowerCase();
-    const type = args[1];
-    
-    switch (entity) {
-      case 'npc':
-        return `Spawning NPC: ${type || 'default'} (not implemented)`;
-      case 'item':
-        return `Spawning item: ${type || 'default'} (not implemented)`;
-      default:
-        return 'Usage: spawn <npc|item> <type>';
-    }
-  });
 }
