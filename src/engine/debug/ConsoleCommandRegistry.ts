@@ -91,8 +91,37 @@ export class ConsoleCommandRegistry {
 
   /**
    * Execute a command string
+   * Supports multiple commands separated by semicolons (;)
+   * Example: "wind on; debris leaves; weather rain 0.5"
    */
   async execute(input: string): Promise<string> {
+    // Split by semicolon for multiple commands
+    const commands = input.split(';').map(cmd => cmd.trim()).filter(cmd => cmd.length > 0);
+    
+    if (commands.length === 0) {
+      return '';
+    }
+    
+    // Execute multiple commands and collect results
+    if (commands.length > 1) {
+      const results: string[] = [];
+      for (const cmd of commands) {
+        const result = await this.executeSingle(cmd);
+        if (result) {
+          results.push(result);
+        }
+      }
+      return results.join('\n');
+    }
+    
+    // Single command
+    return this.executeSingle(commands[0]);
+  }
+  
+  /**
+   * Execute a single command
+   */
+  private async executeSingle(input: string): Promise<string> {
     const parts = input.trim().split(/\s+/);
     if (parts.length === 0 || !parts[0]) {
       return '';
