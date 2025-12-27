@@ -2,13 +2,10 @@
   "game": {
     "title": "Ganjawars",
     "version": "0.0.1",
-    "startMap": "maps/generated/crazy_terrain.map"
+    "startMap": "showcase.map"
   },
   "assets": {
     "maps": [
-      "maps/generated/crazy_terrain.map",
-      "maps/generated/terrain_heightmap.map",
-      "maps/generated/terrain_test.map",
       "showcase.map",
       "test.map",
       "map2.map",
