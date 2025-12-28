@@ -1,4 +1,5 @@
 import type { LoadProgress } from "../engine/AssetLoader";
+import { EngineVersion } from "../engine/core/EngineVersion";
 
 export class LoadingScreen {
   private container: HTMLDivElement;
@@ -63,6 +64,18 @@ export class LoadingScreen {
     this.progressText = document.createElement("div");
     this.progressText.style.cssText = `display: none;`;
     this.container.appendChild(this.progressText);
+
+    // Version text - bottom right corner
+    const versionText = document.createElement("div");
+    versionText.textContent = EngineVersion.getInstance().getVersionString();
+    versionText.style.cssText = `
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.3);
+    `;
+    this.container.appendChild(versionText);
   }
 
   public show(): void {

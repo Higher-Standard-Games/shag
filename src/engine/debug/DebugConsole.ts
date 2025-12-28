@@ -10,6 +10,7 @@
  */
 
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
+import { EngineVersion } from '../core/EngineVersion';
 import './debug-console.css';
 
 const HISTORY_KEY = 'debug_console_history';
@@ -149,7 +150,7 @@ export class DebugConsole {
     this.container.innerHTML = `
       <div class="debug-console-header">
         <span class="debug-console-title">Engine Console</span>
-        <span class="debug-console-version">v1.0</span>
+        <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()}</span>
       </div>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
@@ -586,7 +587,7 @@ export class DebugConsole {
     
     // Version command
     registry.register('version', () => {
-      return 'IWM Engine v1.0.0';
+      return EngineVersion.getInstance().getFullVersionString();
     });
   }
 }
