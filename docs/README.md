@@ -1,4 +1,6 @@
-# Ganjawars Engine Documentation
+# SHAG Engine Documentation
+
+**Standards, High And Games**
 
 A browser-based 3D game engine using Babylon.js with Q3map2/NetRadiant-compatible .map file support.
 

@@ -65,17 +65,34 @@ export class LoadingScreen {
     this.progressText.style.cssText = `display: none;`;
     this.container.appendChild(this.progressText);
 
-    // Version text - bottom right corner
-    const versionText = document.createElement("div");
-    versionText.textContent = EngineVersion.getInstance().getVersionString();
-    versionText.style.cssText = `
+    // Engine branding - bottom right corner
+    const engineBranding = document.createElement("div");
+    engineBranding.style.cssText = `
       position: absolute;
       bottom: 16px;
       right: 16px;
-      font-size: 12px;
+      text-align: right;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.3);
+      line-height: 1.4;
     `;
-    this.container.appendChild(versionText);
+    
+    const engineName = document.createElement("div");
+    engineName.textContent = EngineVersion.getInstance().getEngineName();
+    engineName.style.cssText = `font-weight: 600; font-size: 12px;`;
+    engineBranding.appendChild(engineName);
+    
+    const tagline = document.createElement("div");
+    tagline.textContent = EngineVersion.getInstance().getEngineTagline();
+    tagline.style.cssText = `font-size: 10px; font-style: italic;`;
+    engineBranding.appendChild(tagline);
+    
+    const version = document.createElement("div");
+    version.textContent = EngineVersion.getInstance().getVersionString();
+    version.style.cssText = `font-size: 10px; margin-top: 4px;`;
+    engineBranding.appendChild(version);
+    
+    this.container.appendChild(engineBranding);
   }
 
   public show(): void {

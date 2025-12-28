@@ -1,6 +1,6 @@
 # Engine Architecture Guide
 
-This document describes the architectural patterns and conventions used in the HSG Engine (Higher Standard Games Engine).
+This document describes the architectural patterns and conventions used in the SHAG Engine (Standards, High And Games).
 
 ## Directory Structure
 

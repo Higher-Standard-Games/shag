@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the plan to add Capacitor.js support to the HSG Engine, enabling Android (and iOS) builds from our Vite + TypeScript + Babylon.js web game.
+This document outlines the plan to add Capacitor.js support to the SHAG Engine, enabling Android (and iOS) builds from our Vite + TypeScript + Babylon.js web game.
 
 ## Current Stack Analysis
 
@@ -34,7 +34,7 @@ This document outlines the plan to add Capacitor.js support to the HSG Engine, e
 ### 1.1 Install Capacitor Core
 ```bash
 npm install @capacitor/core @capacitor/cli
-npx cap init "Ganjawars" "com.hsgengine.ganjawars"
+npx cap init "Ganjawars" "com.shagengine.ganjawars"
 ```
 
 ### 1.2 Configure Capacitor
@@ -43,7 +43,7 @@ Create `capacitor.config.ts`:
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.hsgengine.ganjawars',
+  appId: 'com.shagengine.ganjawars',
   appName: 'Ganjawars',
   webDir: 'dist',
   server: {

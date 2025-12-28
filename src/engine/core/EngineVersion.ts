@@ -36,24 +36,24 @@ class EngineVersion {
   }
 
   /**
-   * Get the engine name with version (e.g., "HSG Engine v0.2.0")
+   * Get the engine name with version (e.g., "SHAG Engine v0.2.0")
    */
   public getFullVersionString(): string {
-    return `HSG Engine v${this.version}`;
+    return `SHAG Engine v${this.version}`;
   }
 
   /**
-   * Get the full engine name
+   * Get the full engine name (Standards, High And Games)
    */
   public getEngineName(): string {
-    return 'Higher Standard Games Engine';
+    return 'SHAG Engine';
   }
 
   /**
-   * Get the short engine name
+   * Get the engine tagline
    */
-  public getEngineNameShort(): string {
-    return 'HSG Engine';
+  public getEngineTagline(): string {
+    return 'Standards, High And Games';
   }
 }
 
