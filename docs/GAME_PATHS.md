@@ -1,6 +1,6 @@
 # Game Paths System
 
-The engine supports configurable game directories, similar to Quake3/Warsow's `--game` flag. This allows switching between different games (e.g., "game" vs "example") without code changes.
+The engine supports configurable game directories via a `--game` flag pattern. This allows switching between different games (e.g., "game" vs "example") without code changes.
 
 ## Directory Structure
 

@@ -1,6 +1,6 @@
 # Ganjawars Engine Documentation
 
-A browser-based 3D game engine using Babylon.js with Quake-style .map file support.
+A browser-based 3D game engine using Babylon.js with .map file support.
 
 ## Overview
 
@@ -63,11 +63,11 @@ src/
 Use TrenchBroom or NetRadiant to create .map files. The engine supports:
 
 - **Valve 220 format** (recommended)
-- **Standard Quake format**
+- **Standard format**
 
 ### 3. Coordinate System
 
-| Quake (.map) | Babylon.js |
+| Map File | Babylon.js |
 |--------------|------------|
 | X (right)    | X (right)  |
 | Y (forward)  | Z (forward)|

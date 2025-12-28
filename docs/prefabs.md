@@ -69,7 +69,7 @@ Reference with `misc_model` entity:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `model` | string | required | Prefab filename (e.g., `"tree.map"`) |
-| `origin` | vector3 | `"0 0 0"` | Position in Quake coordinates |
+| `origin` | vector3 | `"0 0 0"` | Position in map coordinates |
 | `angle` | float | `0` | Y-axis rotation in degrees |
 | `scale` | float | `1` | Uniform scale multiplier |
 | `dropToGround` | `"0"` or `"1"` | `"0"` | Raycast down to place on geometry |

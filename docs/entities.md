@@ -85,7 +85,7 @@ Defines the player/camera starting position.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `origin` | vector3 | `"x y z"` - Spawn position (Quake coords) |
+| `origin` | vector3 | `"x y z"` - Spawn position (map coords) |
 
 ```
 {
@@ -138,7 +138,7 @@ Dynamic point light that automatically turns on/off based on time of day. Featur
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `origin` | vector3 | *required* | Position (Quake coords) |
+| `origin` | vector3 | *required* | Position (map coords) |
 | `targetname` | string | auto | Unique identifier |
 | `light` | float | `200` | Intensity (divided by 200 for Babylon) |
 | `_color` | vector3 | `"255 200 150"` | RGB color (0-255 or 0-1 range) |
@@ -279,7 +279,7 @@ The engine auto-detects the format based on file extension.
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `model` | string | *required* | Model path (e.g., `"prefabs/barrel"` or `"models/crate.glb"`) |
-| `origin` | vector3 | `"0 0 0"` | Position (Quake coords: X Y Z where Z is up) |
+| `origin` | vector3 | `"0 0 0"` | Position (map coords: X Y Z where Z is up) |
 | `angle` | float | `0` | Y-axis rotation (degrees) |
 | `scale` | float | `1` | Uniform scale |
 
@@ -380,7 +380,7 @@ Static 2D sprite rendered in 3D world. Perfect for isometric-style buildings, si
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `origin` | vector3 | required | Position (Quake coords) |
+| `origin` | vector3 | required | Position (map coords) |
 | `texture` | string | required | Path to PNG texture (e.g., `"textures/base/shop.png"`) |
 | `targetname` | string | - | Unique identifier |
 | `width` | float | `100` | Width in world units |
@@ -453,7 +453,7 @@ The `emissive` property controls how the sprite interacts with the day/night cyc
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `origin` | vector3 | required | Position (Quake coords) |
+| `origin` | vector3 | required | Position (map coords) |
 | `sprite` | string | required | Path to sprite sheet image |
 | `targetname` | string | - | Unique identifier |
 | `scale` | float | `48` | Size in world units |
@@ -536,7 +536,7 @@ Defines an area where items can be placed (pots, equipment, decorations).
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `origin` | vector3 | required | Center position (Quake coords) |
+| `origin` | vector3 | required | Center position (map coords) |
 | `targetname` | string | auto | Unique zone identifier |
 | `zoneType` | string | `"plant"` | Zone type: `"plant"`, `"equipment"`, `"decoration"` |
 | `size` | float | `64` | Zone size in world units |
@@ -574,7 +574,7 @@ Spawns local debris particles (leaves, trash, dust) in a fixed area. Responds to
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `origin` | vector3 | required | Center position (Quake coords) |
+| `origin` | vector3 | required | Center position (map coords) |
 | `targetname` | string | auto | Unique zone identifier |
 | `type` | string | `"leaves"` | Debris type (see below) |
 | `radius` | float | `128` | Horizontal spawn radius |
@@ -647,12 +647,12 @@ Spawns local debris particles (leaves, trash, dust) in a fixed area. Responds to
 
 ## Coordinate System
 
-The engine converts from Quake coordinates to Babylon.js:
+The engine converts from map coordinates to Babylon.js:
 
-| Axis | Quake | Babylon |
+| Axis | Map File | Babylon |
 |------|-------|---------|
 | Right | +X | +X |
 | Forward | +Y | +Z |
 | Up | +Z | +Y |
 
-When specifying `origin` in entities, use Quake coordinates. The engine handles conversion automatically.
+When specifying `origin` in entities, use map coordinates. The engine handles conversion automatically.

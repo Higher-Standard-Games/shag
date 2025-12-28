@@ -1,6 +1,6 @@
 # .map File Format Documentation
 
-This document describes the Quake 3 / NetRadiant `.map` file format used by this engine. Use this as a reference when generating or editing map files.
+This document describes the `.map` file format used by this engine (NetRadiant/TrenchBroom compatible). Use this as a reference when generating or editing map files.
 
 ## Overview
 
@@ -319,7 +319,7 @@ Player spawn height is typically Z = 100.
 ## Tips for Generation
 
 1. **Always use the layerdef header**: `//@$& layerdef "0" -1 0 0 0`
-2. **Use brushDef format**, not the older Quake 1/2 format
+2. **Use brushDef format**, not older legacy formats
 3. **UV matrix is always**: `( ( 0.03125 0 -0 ) ( -0 0.03125 0 ) )`
 4. **Flags are always**: `0 0 0`
 5. **Plane winding order is critical** - use the template above
