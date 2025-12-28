@@ -46,6 +46,20 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Unlock browser audio context after user interaction.
+   * Must be called from a user gesture (click/tap) to satisfy browser policies.
+   */
+  public unlockAudio(): void {
+    // Create and play a silent audio to unlock the audio context
+    const silentAudio = new Audio();
+    silentAudio.volume = 0;
+    silentAudio.play().catch(() => {
+      // Ignore errors - this is just to unlock the context
+    });
+    console.log('[AudioManager] Audio context unlocked');
+  }
+
   public playMusic(key: string, loop = true, fadeIn = true): void {
     console.log(`[AudioManager] playMusic called: key=${key}, enabled=${this.musicEnabled}, volume=${this.musicVolume}`);
     

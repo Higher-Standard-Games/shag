@@ -6,7 +6,7 @@ import { AudioManager } from "./engine/AudioManager";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { GameScene } from "./engine/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
-import { LoadingScreen } from "./game/LoadingScreen";
+import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
 import { SaveManager } from "./game/SaveManager";
 import { SettingsPanel } from "./ui/SettingsPanel";
@@ -78,7 +78,8 @@ async function main() {
   const uiTheme = UITheme.getInstance();
   await uiTheme.loadNunitoFont();
 
-  // Phase 2: Main Menu
+  // Phase 2: Wait for user interaction (unlocks browser audio)
+  await loadingScreen.waitForReady();
   loadingScreen.hide();
   
   // Hide native splash screen (Capacitor)
