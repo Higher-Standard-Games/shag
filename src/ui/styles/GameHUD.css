@@ -1,5 +1,5 @@
 /**
- * GameHUD Styles
+ * GameHUD Styles - Using UIScale CSS variables
  */
 
 #game-hud {
@@ -21,24 +21,25 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 15px 20px;
+  padding: calc(15px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1));
+  padding-top: calc(15px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
   background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
 }
 
 .hud-resources {
   display: flex;
-  gap: 20px;
+  gap: calc(20px * var(--ui-scale, 1));
 }
 
 .hud-resource {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: calc(10px * var(--ui-scale, 1));
   background: #FAFAFA;
-  padding: 10px 18px;
-  border-radius: 50px;
+  padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-radius: calc(50px * var(--ui-scale, 1));
   color: #333333;
-  font-size: 17px;
+  font-size: calc(17px * var(--ui-scale, 1));
   font-weight: 700;
   border: none;
   border-bottom: 3px solid #CCCCCC;
@@ -55,16 +56,16 @@
 }
 
 .hud-icon {
-  font-size: 20px;
+  font-size: calc(20px * var(--ui-scale, 1));
 }
 
 .hud-xp-bar {
-  width: 60px;
-  height: 6px;
+  width: calc(60px * var(--ui-scale, 1));
+  height: calc(6px * var(--ui-scale, 1));
   background: #E0E0E0;
-  border-radius: 3px;
+  border-radius: calc(3px * var(--ui-scale, 1));
   overflow: hidden;
-  margin-left: 5px;
+  margin-left: calc(5px * var(--ui-scale, 1));
 }
 
 .hud-xp-fill {
@@ -162,12 +163,12 @@
 .hud-time {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: calc(10px * var(--ui-scale, 1));
   color: #333333;
-  font-size: 16px;
+  font-size: calc(16px * var(--ui-scale, 1));
   background: #FAFAFA;
-  padding: 10px 18px;
-  border-radius: 50px;
+  padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-radius: calc(50px * var(--ui-scale, 1));
   border: none;
   border-bottom: 3px solid #CCCCCC;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
@@ -184,32 +185,32 @@
 
 .hud-day {
   font-weight: 800;
-  font-size: 17px;
+  font-size: calc(17px * var(--ui-scale, 1));
   color: #F57C00;
 }
 
 .hud-clock {
   font-family: 'Nunito', 'Courier New', monospace;
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(16px * var(--ui-scale, 1));
   color: #333333;
 }
 
 .hud-period {
-  font-size: 18px;
+  font-size: calc(18px * var(--ui-scale, 1));
 }
 
 .hud-speed-btn {
   background: #E8E8E8;
   border: none;
   border-bottom: 2px solid #BBBBBB;
-  border-radius: 50px;
+  border-radius: calc(50px * var(--ui-scale, 1));
   color: #666666;
-  font-size: 12px;
-  padding: 5px 10px;
+  font-size: calc(12px * var(--ui-scale, 1));
+  padding: calc(5px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
   cursor: pointer;
   transition: all 0.1s ease;
-  margin-left: 4px;
+  margin-left: calc(4px * var(--ui-scale, 1));
   position: relative;
   top: 0;
 }
@@ -246,13 +247,13 @@
   background: #E8E8E8;
   border: none;
   border-bottom: 2px solid #BBBBBB;
-  border-radius: 50px;
+  border-radius: calc(50px * var(--ui-scale, 1));
   color: #666666;
-  font-size: 14px;
-  padding: 5px 10px;
+  font-size: calc(14px * var(--ui-scale, 1));
+  padding: calc(5px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
   cursor: pointer;
   transition: all 0.1s ease;
-  margin-left: 4px;
+  margin-left: calc(4px * var(--ui-scale, 1));
   position: relative;
   top: 0;
 }
