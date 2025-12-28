@@ -9,6 +9,11 @@ src/
 ├── engine/           # Reusable engine code (game-agnostic)
 │   ├── core/         # Core systems (EventBus, Subsystem, etc.)
 │   ├── ui/           # UI framework (themes, styles)
+│   │   ├── hud/      # Generic HUD system
+│   │   │   ├── components/  # HUD components (Pill, Accordion, etc.)
+│   │   │   └── styles/      # HUD CSS styles
+│   │   ├── UIScale.ts       # Cross-platform scaling
+│   │   └── UIStyles.ts      # Style injection
 │   ├── loader/       # Asset loading
 │   ├── camera/       # Camera systems
 │   ├── lighting/     # Lighting systems
@@ -17,7 +22,8 @@ src/
 │   ├── *System.ts    # Game subsystems
 │   └── GameData.ts   # Game configuration
 ├── ui/               # Game UI
-│   └── dialogs/      # Dialog implementations
+│   ├── dialogs/      # Dialog implementations
+│   └── GameHUDSetup.ts  # Game-specific HUD bindings
 └── data/             # JSON configuration files
 ```
 
@@ -183,3 +189,52 @@ Schemas are in `src/data/schemas/` for validation.
 4. **Graceful Degradation**: Handle missing/partial state in `loadState()`
 5. **Cleanup**: Always implement `dispose()` to prevent memory leaks
 6. **EventBus over Callbacks**: Prefer EventBus for loose coupling
+
+## UI System
+
+### UIScale
+
+Cross-platform UI scaling system that provides CSS variables for consistent sizing:
+
+```typescript
+import { UIScale } from "../engine/ui/UIScale";
+
+// Initialize early in app lifecycle
+UIScale.getInstance().init();
+
+// CSS variables available:
+// --ui-scale: Current scale factor (e.g., 1.5)
+// --ui-space-xs/sm/md/lg/xl: Scaled spacing
+// --ui-font-xs/sm/md/lg/xl: Scaled font sizes
+// --ui-radius-sm/md/lg/xl: Scaled border radii
+// --ui-touch-min: Minimum touch target (44px scaled)
+// --ui-safe-top/bottom/left/right: Safe area insets
+```
+
+### HUD System
+
+Declarative HUD with JSON configuration and code bindings:
+
+```typescript
+import { HUD } from "../engine/ui/hud";
+
+// Initialize with config
+await HUD.init("data/hud-config.json");
+
+// Bind values
+HUD.bind("money", () => GameState.getInstance().getPlayer().money);
+HUD.bind("level", () => GameState.getInstance().getPlayer().level);
+
+// Bind lists
+HUD.bindList("quests", {
+  data: () => QuestSystem.getInstance().getActiveQuests()
+});
+
+// Click handlers
+HUD.onClick("money", () => ShopPanel.open());
+
+// Start update loop
+HUD.start();
+```
+
+See [HUD_SYSTEM_DESIGN.md](./HUD_SYSTEM_DESIGN.md) for full documentation.

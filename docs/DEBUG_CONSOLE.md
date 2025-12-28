@@ -85,6 +85,33 @@ time speed <mult>    # Set time speed multiplier
 loadMap <name>       # Load a map by name
 ```
 
+### UI Scaling Commands
+
+```
+ui scale <value>     # Set UI scale (e.g., 1.5 for 150%)
+ui scale auto        # Reset to automatic scaling
+ui mode <type>       # Set scale mode: fit, fill, width, height
+ui debug             # Toggle debug overlay
+ui info              # Show current UI scale info
+```
+
+### HUD Commands
+
+```
+hud info             # Show HUD status and element count
+hud interval <ms>    # Set update interval (default: 100ms)
+hud show <id>        # Show element
+hud hide <id>        # Hide element
+hud toggle <id>      # Toggle element visibility
+hud refresh          # Force refresh all elements
+hud theme <name>     # Switch theme (default, dark)
+hud collapse [id]    # Collapse accordion (or all if no id)
+hud expand <id>      # Expand accordion
+hud start            # Start update loop
+hud stop             # Stop update loop
+hud reset            # Reset to default layout/prefs
+```
+
 ### System Commands
 
 ```

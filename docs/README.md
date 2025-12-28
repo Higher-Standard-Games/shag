@@ -27,6 +27,8 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 | [weather-effects.md](./weather-effects.md) | Weather system (rain, snow, thunder, fog) |
 | [dialogs.md](./dialogs.md) | UI dialog system |
 | [config.md](./config.md) | Game configuration |
+| [HUD_SYSTEM_DESIGN.md](./HUD_SYSTEM_DESIGN.md) | Generic HUD system architecture |
+| [UI_SCALING_PLAN.md](./UI_SCALING_PLAN.md) | Cross-platform UI scaling system |
 
 ### Game Systems
 | Document | Description |
@@ -138,6 +140,8 @@ mypath/mytexture         →  /textures/mypath/mytexture.jpg
 | `SaveManager` | Game-level save/load orchestration |
 | `PersistenceManager` | Engine-level save infrastructure |
 | `GameHUD` | In-game heads-up display |
+| `UIScale` | Cross-platform UI scaling system |
+| `HUDManager` | Declarative HUD component system |
 
 ## Development
 
