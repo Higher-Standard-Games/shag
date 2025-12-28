@@ -46,6 +46,9 @@ editor/gamepacks/games/*
 # KTX2 compressed textures (generated from source PNGs)
 public/textures-ktx2/
 
+# Generated API documentation
+docs/api/
+
 # Capacitor / Android
 android/.gradle/
 android/app/build/

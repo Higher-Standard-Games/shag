@@ -1,0 +1,23 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/engine"],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "skipErrorChecking": true,
+  "name": "SHAG Engine API",
+  "readme": "src/engine/README.md",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "categoryOrder": ["Core", "UI", "Rendering", "Audio", "Debug", "*"],
+  "navigationLinks": {
+    "SHAG Engine": "https://github.com/your-repo",
+    "Changelog": "./changelog/README.md"
+  },
+  "customCss": "docs/api-theme.css",
+  "gitRevision": "main",
+  "hideGenerator": true,
+  "searchInComments": true
+}
