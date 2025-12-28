@@ -594,7 +594,6 @@ export class BuildingSystem {
       zone.borderMesh?.dispose();
     }
     this.zones.clear();
-    console.log("[BuildingSystem] Cleared all zones");
   }
 
   public setCurrentMap(mapId: string): void {

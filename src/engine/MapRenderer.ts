@@ -761,6 +761,7 @@ export class MapRenderer {
 
       // Handle build_zone entities
       if (entity.classname === "build_zone" && entity.properties.origin) {
+        console.log(`[MapRenderer] Registering build_zone: ${entity.properties.targetname}`);
         const buildingSystem = BuildingSystem.getInstance();
 
         // Parse position
@@ -777,6 +778,7 @@ export class MapRenderer {
 
         // Register the zone
         buildingSystem.registerZone(zoneId, position, size, zoneType, mapId);
+        console.log(`[MapRenderer] Zone registered, total zones: ${buildingSystem.getZonesByType(zoneType).length}`);
       }
 
       // Handle info_debris_zone entities (local debris particle spawners)

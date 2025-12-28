@@ -25,6 +25,7 @@ import {
   BuildableEvent,
 } from "../engine/BuildableSystem";
 import { PrefabInstance } from "../engine/loader/PrefabInstance";
+import { EventBus } from "../engine/core/EventBus";
 
 export class BuildableRenderer {
   private static instance: BuildableRenderer;
@@ -83,13 +84,24 @@ export class BuildableRenderer {
   }
 
   /**
-   * Called when a buildable completes - create lights if needed
+   * Called when a buildable completes - create lights if needed and emit EventBus event
    */
   private onComplete(instanceId: string): void {
     const instance = this.buildableSystem.getInstance(instanceId);
     if (!instance) return;
 
     const template = this.buildableSystem.getTemplate(instance.templateId);
+    
+    // Emit EventBus event for game systems (PotActionIndicator, etc.)
+    EventBus.emit("building:completed", {
+      objectId: instanceId,
+      template: {
+        id: template?.id,
+        name: template?.name,
+        zoneType: template?.category, // category maps to zoneType
+      },
+    });
+    
     if (!template?.behaviors?.light) return;
 
     this.createLight(instance);
@@ -151,6 +163,7 @@ export class BuildableRenderer {
           this.visuals.set(instance.id, result.root);
           
           // Tag all meshes with metadata for click detection
+          const template = this.buildableSystem.getTemplate(instance.templateId);
           for (const mesh of result.meshes) {
             mesh.metadata = {
               ...mesh.metadata,
@@ -158,6 +171,7 @@ export class BuildableRenderer {
               buildableObjectId: instance.id,
               templateId: instance.templateId,
               zoneId: instance.zoneId,
+              zoneType: template?.category, // For click detection filtering
             };
           }
         }
@@ -206,11 +220,13 @@ export class BuildableRenderer {
     mesh.material = mat;
 
     // Tag with metadata
+    const template = this.buildableSystem.getTemplate(instance.templateId);
     mesh.metadata = {
       isBuildableObject: true,
       buildableObjectId: instance.id,
       templateId: instance.templateId,
       zoneId: instance.zoneId,
+      zoneType: template?.category,
     };
 
     this.visuals.set(instance.id, mesh);

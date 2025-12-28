@@ -883,7 +883,7 @@ export class GameScene {
 
   private async initBottomBar(): Promise<void> {
     // Load UI config
-    await UIConfig.getInstance().load("/data/ui-config.json");
+    await UIConfig.getInstance().load("/game/data/ui-config.json");
     
     // Create BottomBar with callbacks
     // Engine handles layout/behavior, game provides content/styling via callbacks
@@ -1519,6 +1519,9 @@ export class GameScene {
       if (StreetLampSystem.getInstance().isInitialized()) {
         StreetLampSystem.getInstance().update(deltaTime);
       }
+
+      // Update BuildableSystem (progress builds, trigger completions)
+      BuildableSystem.getInstance().update();
 
       // Force isometric view
       this.camera.alpha = -Math.PI / 4;
