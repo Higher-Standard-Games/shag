@@ -7,6 +7,7 @@
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
 import { AudioManager } from '../AudioManager';
 import { GameClock } from '../../game/GameClock';
+import { UIScale } from '../ui/UIScale';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -621,7 +622,6 @@ export function registerEngineCommands(): void {
   // ============================================================================
   
   registry.register('ui', (args) => {
-    const { UIScale } = require('../ui/UIScale');
     const uiScale = UIScale.getInstance();
     const subcommand = args[0]?.toLowerCase();
     
