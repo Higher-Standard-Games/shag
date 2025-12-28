@@ -158,6 +158,10 @@ export class GameScene {
     BuildableSystem.getInstance().setTimeProvider(() => GameTimer.getInstance().getGameTime());
     BuildableRenderer.getInstance().init(this.scene!);
     
+    // Expose for debugging during migration
+    (window as unknown as Record<string, unknown>).BuildableSystem = BuildableSystem;
+    (window as unknown as Record<string, unknown>).BuildableRenderer = BuildableRenderer;
+    
     HarvestIndicator.getInstance().init(this.scene!);
     
     await this.loadMap(startMap);
