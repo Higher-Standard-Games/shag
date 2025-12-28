@@ -9,7 +9,7 @@
   "excludePrivate": true,
   "excludeInternal": true,
   "excludeExternals": true,
-  "includeVersion": true,
+  "includeVersion": false,
   "categorizeByGroup": true,
   "categoryOrder": ["Core", "UI", "Rendering", "Audio", "Debug", "*"],
   "navigationLinks": {

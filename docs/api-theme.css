@@ -9,6 +9,9 @@
  * - Green (accent): #4ADE80
  */
 
+/* Import Nunito font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
 :root {
   /* SHAG Color Palette */
   --shag-orange: #E85D04;
@@ -53,8 +56,9 @@ header {
 }
 
 header .title {
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif !important;
   color: var(--shag-teal) !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
 }
 
 /* Navigation */
@@ -131,14 +135,25 @@ code {
   border-radius: 4px;
 }
 
-/* Headings */
+/* Headings - Nunito font */
 h1, h2, h3, h4 {
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 700;
   color: var(--color-text);
 }
 
 h1 {
+  font-weight: 800;
   border-bottom: 2px solid var(--shag-teal);
   padding-bottom: 8px;
+}
+
+h2 {
+  font-weight: 700;
+}
+
+h3, h4 {
+  font-weight: 600;
 }
 
 /* Member groups */
