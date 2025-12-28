@@ -50,6 +50,7 @@ import {
   getAllStrainGenetics,
   newGameConfig,
 } from "../data";
+import { registerEngineBuildableTemplates } from "../data/buildableTemplates";
 
 // Re-export data for backwards compatibility
 export {
@@ -99,11 +100,14 @@ export function registerGameData(): void {
   // Register buildable items
   BuildingSystem.getInstance().registerItems(BUILDABLE_ITEMS);
 
-  // Register object templates
+  // Register object templates (old system)
   const objectManager = BuildableObjectManager.getInstance();
   for (const template of OBJECT_TEMPLATES) {
     objectManager.registerTemplate(template);
   }
+
+  // Register templates with new engine BuildableSystem (incremental migration)
+  registerEngineBuildableTemplates();
 
   // Register plant strains, pots, and lighting (strains loaded from strains.json)
   const plantSystem = PlantSystem.getInstance();

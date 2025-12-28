@@ -32,6 +32,8 @@ import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { LampSystem } from "../game/LampSystem";
+import { BuildableRenderer } from "../game/BuildableRenderer";
+import { BuildableSystem } from "./BuildableSystem";
 import { LampInfoPanel } from "../ui/LampInfoPanel";
 import { SaveManager } from "../game/SaveManager";
 import { ScreenTransition } from "./effects/ScreenTransition";
@@ -151,6 +153,11 @@ export class GameScene {
     // Initialize BuildingSystem before loading map (so zones can be registered)
     BuildingSystem.getInstance().init(this.scene!);
     BuildableObjectManager.getInstance().init(this.scene!);
+    
+    // Initialize new engine-level BuildableSystem and renderer (incremental migration)
+    BuildableSystem.getInstance().setTimeProvider(() => GameTimer.getInstance().getGameTime());
+    BuildableRenderer.getInstance().init(this.scene!);
+    
     HarvestIndicator.getInstance().init(this.scene!);
     
     await this.loadMap(startMap);
