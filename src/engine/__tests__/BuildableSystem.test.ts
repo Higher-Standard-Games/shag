@@ -620,4 +620,217 @@ describe('BuildableSystem', () => {
       }));
     });
   });
+
+  // ==================== Container/Child Behavior ====================
+
+  describe('Container Behavior', () => {
+    beforeEach(() => {
+      // Container template (pot)
+      system.registerTemplate({
+        id: 'pot',
+        name: 'Plant Pot',
+        buildTime: 0,
+        stages: createInstantStage('prefabs/pot.map'),
+        behaviors: {
+          container: {
+            maxChildren: 1,
+            allowedTemplates: ['plant'],
+            syncVisualWithChildren: true,
+          },
+        },
+      });
+
+      // Child template (plant)
+      system.registerTemplate({
+        id: 'plant',
+        name: 'Plant',
+        buildTime: 60000,
+        stages: createStages5('prefabs/plant'),
+      });
+
+      // Multi-child container
+      system.registerTemplate({
+        id: 'garden_bed',
+        name: 'Garden Bed',
+        buildTime: 0,
+        stages: createInstantStage('prefabs/garden.map'),
+        behaviors: {
+          container: {
+            maxChildren: 4,
+          },
+        },
+      });
+    });
+
+    it('should initialize container with empty childIds', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      expect(pot?.childIds).toEqual([]);
+    });
+
+    it('should add child to container', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+
+      const result = system.addChild(pot!.id, plant!.id);
+
+      expect(result).toBe(true);
+      expect(pot?.childIds).toContain(plant!.id);
+      expect(plant?.parentId).toBe(pot!.id);
+    });
+
+    it('should emit child_added event', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+
+      const callback = vi.fn();
+      system.on(callback);
+
+      system.addChild(pot!.id, plant!.id);
+
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'child_added',
+        data: expect.objectContaining({ childId: plant!.id }),
+      }));
+    });
+
+    it('should enforce maxChildren limit', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant1 = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant2 = system.create('plant', { x: 1, y: 0, z: 1 }, 'map1');
+
+      system.addChild(pot!.id, plant1!.id);
+      const result = system.addChild(pot!.id, plant2!.id);
+
+      expect(result).toBe(false);
+      expect(pot?.childIds).toHaveLength(1);
+    });
+
+    it('should allow multiple children up to maxChildren', () => {
+      const garden = system.create('garden_bed', { x: 0, y: 0, z: 0 }, 'map1');
+      const plants = [
+        system.create('plant', { x: 0, y: 0, z: 0 }, 'map1'),
+        system.create('plant', { x: 1, y: 0, z: 0 }, 'map1'),
+        system.create('plant', { x: 2, y: 0, z: 0 }, 'map1'),
+      ];
+
+      for (const plant of plants) {
+        system.addChild(garden!.id, plant!.id);
+      }
+
+      expect(garden?.childIds).toHaveLength(3);
+    });
+
+    it('should remove child from container', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+
+      system.addChild(pot!.id, plant!.id);
+      const result = system.removeChild(pot!.id, plant!.id);
+
+      expect(result).toBe(true);
+      expect(pot?.childIds).toHaveLength(0);
+      expect(plant?.parentId).toBeUndefined();
+    });
+
+    it('should emit child_removed event', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      system.addChild(pot!.id, plant!.id);
+
+      const callback = vi.fn();
+      system.on(callback);
+
+      system.removeChild(pot!.id, plant!.id);
+
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'child_removed',
+      }));
+    });
+
+    it('should get children of container', () => {
+      const garden = system.create('garden_bed', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant1 = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant2 = system.create('plant', { x: 1, y: 0, z: 1 }, 'map1');
+
+      system.addChild(garden!.id, plant1!.id);
+      system.addChild(garden!.id, plant2!.id);
+
+      const children = system.getChildren(garden!.id);
+      expect(children).toHaveLength(2);
+    });
+
+    it('should check hasRoomForChild', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      expect(system.hasRoomForChild(pot!.id)).toBe(true);
+
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      system.addChild(pot!.id, plant!.id);
+
+      expect(system.hasRoomForChild(pot!.id)).toBe(false);
+    });
+
+    it('should sync child progress to parent', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      system.addChild(pot!.id, plant!.id);
+
+      system.syncChildProgress(pot!.id, plant!.id, 50);
+
+      expect(pot?.childProgress).toBe(50);
+    });
+
+    it('should emit child_progress event', () => {
+      const pot = system.create('pot', { x: 0, y: 0, z: 0 }, 'map1');
+      const plant = system.create('plant', { x: 0, y: 0, z: 0 }, 'map1');
+      system.addChild(pot!.id, plant!.id);
+
+      const callback = vi.fn();
+      system.on(callback);
+
+      system.syncChildProgress(pot!.id, plant!.id, 75);
+
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'child_progress',
+        data: expect.objectContaining({ progress: 75 }),
+      }));
+    });
+  });
+
+  // ==================== Zone Support ====================
+
+  describe('Zone Support', () => {
+    beforeEach(() => {
+      system.registerTemplate({
+        id: 'item',
+        name: 'Item',
+        buildTime: 0,
+        stages: [],
+      });
+    });
+
+    it('should create instance with zoneId', () => {
+      const instance = system.create('item', { x: 0, y: 0, z: 0 }, 'map1', { zoneId: 'zone_1' });
+      expect(instance?.zoneId).toBe('zone_1');
+    });
+
+    it('should get instances by zone', () => {
+      system.create('item', { x: 0, y: 0, z: 0 }, 'map1', { zoneId: 'zone_a' });
+      system.create('item', { x: 1, y: 0, z: 1 }, 'map1', { zoneId: 'zone_a' });
+      system.create('item', { x: 2, y: 0, z: 2 }, 'map1', { zoneId: 'zone_b' });
+
+      expect(system.getInstancesInZone('zone_a')).toHaveLength(2);
+      expect(system.getInstancesInZone('zone_b')).toHaveLength(1);
+    });
+
+    it('should get instances by template', () => {
+      system.registerTemplate({ id: 'other', name: 'Other', buildTime: 0, stages: [] });
+
+      system.create('item', { x: 0, y: 0, z: 0 }, 'map1');
+      system.create('item', { x: 1, y: 0, z: 1 }, 'map1');
+      system.create('other', { x: 2, y: 0, z: 2 }, 'map1');
+
+      expect(system.getInstancesByTemplate('item')).toHaveLength(2);
+      expect(system.getInstancesByTemplate('other')).toHaveLength(1);
+    });
+  });
 });

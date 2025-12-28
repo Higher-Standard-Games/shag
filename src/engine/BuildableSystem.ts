@@ -109,6 +109,35 @@ export interface UpgradeableBehavior {
 }
 
 /**
+ * Light behavior - object emits light when complete
+ * Game layer interprets this to create actual light sources
+ */
+export interface LightBehavior {
+  /** Light color as RGB (0-1 range) */
+  color: { r: number; g: number; b: number };
+  /** Light intensity (1.0 = normal) */
+  intensity: number;
+  /** Light range in world units */
+  range: number;
+  /** Offset from object position */
+  offset?: { x: number; y: number; z: number };
+  /** Whether light is enabled by default */
+  enabled?: boolean;
+}
+
+/**
+ * Container behavior - can hold child objects
+ */
+export interface ContainerBehavior {
+  /** Maximum number of children allowed */
+  maxChildren: number;
+  /** Allowed child template IDs (empty = any) */
+  allowedTemplates?: string[];
+  /** Whether children affect parent's visual stage */
+  syncVisualWithChildren?: boolean;
+}
+
+/**
  * Combined behaviors for a template
  */
 export interface BuildableBehaviors {
@@ -117,6 +146,8 @@ export interface BuildableBehaviors {
   decay?: DecayBehavior;
   trigger?: TriggerableBehavior;
   upgrade?: UpgradeableBehavior;
+  light?: LightBehavior;
+  container?: ContainerBehavior;
 }
 
 // ==================== Template Definition ====================
@@ -203,6 +234,28 @@ export interface BuildableInstance {
   
   /** Custom data for game-specific state */
   customData?: Record<string, unknown>;
+  
+  // Zone support
+  /** Zone ID where placed (game-specific) */
+  zoneId?: string;
+  
+  // Parent-child relationships (multi-child support)
+  /** Parent instance ID (if this is a child) */
+  parentId?: string;
+  /** Child instance IDs (if this is a container) */
+  childIds?: string[];
+  /** Aggregated child progress (0-100, for visual sync) */
+  childProgress?: number;
+}
+
+/**
+ * Child state for tracking children within a container
+ */
+export interface ChildState {
+  id: string;
+  templateId: string;
+  progress: number;
+  customData?: Record<string, unknown>;
 }
 
 // ==================== Events ====================
@@ -213,6 +266,11 @@ export type BuildableEventType =
   | 'stage_change'
   | 'complete'
   | 'phase_change'
+  | 'child_added'
+  | 'child_removed'
+  | 'child_progress'
+  | 'light_enabled'
+  | 'light_disabled'
   | 'resource_low'
   | 'resource_empty'
   | 'production_ready'
@@ -375,7 +433,10 @@ export class BuildableSystem {
     templateId: string,
     position: { x: number; y: number; z: number },
     mapId: string,
-    customData?: Record<string, unknown>
+    options?: {
+      zoneId?: string;
+      customData?: Record<string, unknown>;
+    }
   ): BuildableInstance | null {
     const template = this.templates.get(templateId);
     if (!template) {
@@ -396,7 +457,9 @@ export class BuildableSystem {
       startedAt: now,
       isComplete: template.buildTime === 0,
       health: 100,
-      customData,
+      customData: options?.customData,
+      zoneId: options?.zoneId,
+      childIds: template.behaviors?.container ? [] : undefined,
     };
 
     // Initialize consumer resources
@@ -451,6 +514,181 @@ export class BuildableSystem {
 
   public getAllInstances(): BuildableInstance[] {
     return Array.from(this.instances.values());
+  }
+
+  public getInstancesInZone(zoneId: string): BuildableInstance[] {
+    return Array.from(this.instances.values()).filter(i => i.zoneId === zoneId);
+  }
+
+  public getInstancesByTemplate(templateId: string): BuildableInstance[] {
+    return Array.from(this.instances.values()).filter(i => i.templateId === templateId);
+  }
+
+  // ==================== Child Management ====================
+
+  /**
+   * Add a child to a container instance
+   */
+  public addChild(parentId: string, childId: string): boolean {
+    const parent = this.instances.get(parentId);
+    const child = this.instances.get(childId);
+    if (!parent || !child) return false;
+
+    const template = this.templates.get(parent.templateId);
+    const container = template?.behaviors?.container;
+    
+    // Check if parent is a container
+    if (!container) {
+      console.warn(`[BuildableSystem] ${parentId} is not a container`);
+      return false;
+    }
+
+    // Initialize childIds array if needed
+    if (!parent.childIds) {
+      parent.childIds = [];
+    }
+
+    // Check max children
+    if (parent.childIds.length >= container.maxChildren) {
+      console.warn(`[BuildableSystem] Container ${parentId} is full`);
+      return false;
+    }
+
+    // Check allowed templates
+    if (container.allowedTemplates && container.allowedTemplates.length > 0) {
+      if (!container.allowedTemplates.includes(child.templateId)) {
+        console.warn(`[BuildableSystem] Template ${child.templateId} not allowed in container`);
+        return false;
+      }
+    }
+
+    // Add child
+    parent.childIds.push(childId);
+    child.parentId = parentId;
+
+    this.emit({
+      type: 'child_added',
+      instanceId: parentId,
+      templateId: parent.templateId,
+      data: { childId, childTemplateId: child.templateId },
+    });
+
+    console.log(`[BuildableSystem] Added child ${childId} to parent ${parentId}`);
+    return true;
+  }
+
+  /**
+   * Remove a child from a container
+   */
+  public removeChild(parentId: string, childId: string): boolean {
+    const parent = this.instances.get(parentId);
+    const child = this.instances.get(childId);
+    if (!parent || !parent.childIds) return false;
+
+    const index = parent.childIds.indexOf(childId);
+    if (index === -1) return false;
+
+    parent.childIds.splice(index, 1);
+    if (child) {
+      child.parentId = undefined;
+    }
+
+    // Reset child progress
+    parent.childProgress = undefined;
+
+    this.emit({
+      type: 'child_removed',
+      instanceId: parentId,
+      templateId: parent.templateId,
+      data: { childId },
+    });
+
+    console.log(`[BuildableSystem] Removed child ${childId} from parent ${parentId}`);
+    return true;
+  }
+
+  /**
+   * Remove all children from a container
+   */
+  public removeAllChildren(parentId: string): void {
+    const parent = this.instances.get(parentId);
+    if (!parent || !parent.childIds) return;
+
+    for (const childId of [...parent.childIds]) {
+      this.removeChild(parentId, childId);
+    }
+  }
+
+  /**
+   * Sync child progress to parent (for visual updates)
+   * Progress is averaged across all children
+   */
+  public syncChildProgress(parentId: string, childId: string, progress: number): void {
+    const parent = this.instances.get(parentId);
+    if (!parent || !parent.childIds?.includes(childId)) return;
+
+    const template = this.templates.get(parent.templateId);
+    const container = template?.behaviors?.container;
+
+    // Calculate average progress of all children
+    let totalProgress = progress;
+    let count = 1;
+    
+    for (const cid of parent.childIds) {
+      if (cid !== childId) {
+        const child = this.instances.get(cid);
+        if (child) {
+          totalProgress += child.progress;
+          count++;
+        }
+      }
+    }
+
+    parent.childProgress = totalProgress / count;
+
+    // Update visual if sync is enabled
+    if (container?.syncVisualWithChildren) {
+      const oldStage = parent.currentStage;
+      parent.currentStage = this.getStageIndex(template!, parent.childProgress);
+      
+      if (parent.currentStage !== oldStage) {
+        this.updateVisual(parent);
+      }
+    }
+
+    this.emit({
+      type: 'child_progress',
+      instanceId: parentId,
+      templateId: parent.templateId,
+      data: { childId, progress, aggregateProgress: parent.childProgress },
+    });
+  }
+
+  /**
+   * Get children of a container
+   */
+  public getChildren(parentId: string): BuildableInstance[] {
+    const parent = this.instances.get(parentId);
+    if (!parent || !parent.childIds) return [];
+
+    return parent.childIds
+      .map(id => this.instances.get(id))
+      .filter((c): c is BuildableInstance => c !== undefined);
+  }
+
+  /**
+   * Check if container has room for more children
+   */
+  public hasRoomForChild(parentId: string): boolean {
+    const parent = this.instances.get(parentId);
+    if (!parent) return false;
+
+    const template = this.templates.get(parent.templateId);
+    const container = template?.behaviors?.container;
+    if (!container) return false;
+
+    const currentCount = parent.childIds?.length ?? 0;
+    return currentCount < container.maxChildren;
   }
 
   /**
