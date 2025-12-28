@@ -29,8 +29,8 @@ export class LoadingScreen {
 
     // Engine logo - centered
     const logo = document.createElement("img");
-    logo.src = "engine.svg";
-    logo.alt = "Engine";
+    logo.src = "engine.png";
+    logo.alt = "SHAG Engine";
     logo.style.cssText = `
       width: 280px;
       height: auto;
