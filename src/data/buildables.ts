@@ -4,8 +4,56 @@
  * Defines items that appear in the build menu and their visual stages.
  */
 
-import { createStages, createInstantStage, type BuildableObjectTemplate } from "../game/BuildableObject";
+// Import types only to avoid circular dependency issues
 import type { BuildableItem } from "../game/BuildingSystem";
+
+// Define ObjectStage interface locally to avoid importing from BuildableObject
+// which may cause circular import issues
+interface ObjectStage {
+  minProgress: number;
+  maxProgress: number;
+  prefab?: string;
+  sprite?: string;
+  scale?: number;
+}
+
+interface BuildableObjectTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  zoneType: string;
+  cost: number;
+  requiredLevel: number;
+  buildTime: number;
+  stages: ObjectStage[];
+  isProducer?: boolean;
+  productionInterval?: number;
+  producesItem?: string;
+  producesAmount?: number;
+  yieldBonus?: number;
+}
+
+// Helper functions defined locally
+function createStages(basePath: string, scale: number = 1): ObjectStage[] {
+  return [
+    { minProgress: 0, maxProgress: 49, prefab: `${basePath}_0.map`, scale },
+    { minProgress: 50, maxProgress: 99, prefab: `${basePath}_50.map`, scale },
+    { minProgress: 100, maxProgress: 100, prefab: `${basePath}_100.map`, scale },
+  ];
+}
+
+function createInstantStage(prefab: string, scale: number = 1): ObjectStage[] {
+  return [{ minProgress: 0, maxProgress: 100, prefab, scale }];
+}
+
+function _createCustomStages(stages: Array<{ progress: number; prefab: string; scale?: number }>): ObjectStage[] {
+  return stages.map((s, i, arr) => ({
+    minProgress: s.progress,
+    maxProgress: i < arr.length - 1 ? arr[i + 1].progress - 1 : 100,
+    prefab: s.prefab,
+    scale: s.scale ?? 1,
+  }));
+}
 
 // ==================== Buildable Items ====================
 // These appear in the build menu
