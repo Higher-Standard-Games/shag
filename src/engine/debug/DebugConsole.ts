@@ -498,14 +498,18 @@ export class DebugConsole {
    * - Numbers are highlighted
    */
   private formatMessage(message: string): string {
-    // Escape HTML entities first
+    // Check if message already contains HTML (from help command etc.)
+    // If so, skip escaping to preserve the formatting
+    const containsHtml = /<span\s+class=/.test(message);
+    
+    // Escape HTML entities first (unless message already has HTML)
     const escapeHtml = (str: string) => str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
     
-    const escaped = escapeHtml(message);
+    const escaped = containsHtml ? message : escapeHtml(message);
     
     // Build result by finding patterns and wrapping them
     // Process in order of priority to avoid nested replacements
