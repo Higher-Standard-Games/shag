@@ -280,6 +280,39 @@ ActionSystem.getInstance().registerAction('place_buildable', (params) => {
 });
 ```
 
+## Migration Status
+
+The engine `BuildableSystem` is being incrementally migrated from the game-level `BuildableObjectManager`.
+
+### Current State (Parallel Operation)
+
+Both systems run simultaneously:
+- **Old**: `BuildableObjectManager` - handles all current game logic (pots, plants, grow lights)
+- **New**: `BuildableSystem` + `BuildableRenderer` - initialized with templates, ready for use
+
+### Testing the New System
+
+```javascript
+// In browser console:
+const bs = BuildableSystem.getInstance();
+
+// Create a test pot
+bs.create('pot_basic', { x: 100, y: 0, z: 100 }, 'test.map', { zoneId: 'test' });
+
+// Check instances
+bs.getAllInstances();
+
+// Update (progress build)
+bs.update();
+```
+
+### Remaining Migration Steps
+
+1. **Migrate BuildingSystem** - Use engine for new builds
+2. **Migrate PlantSystem** - Use container/child for pot-plant relationship  
+3. **Update SaveManager** - Serialize engine state
+4. **Remove old BuildableObjectManager**
+
 ## Example: Strategy Game
 
 ```typescript
