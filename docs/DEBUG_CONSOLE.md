@@ -115,10 +115,20 @@ hud reset            # Reset to default layout/prefs
 ### System Commands
 
 ```
-help                 # Show available commands
+help                 # Show available commands (categorized, color-coded)
+help <command>       # Show detailed help for a specific command
 clear                # Clear console output
+version              # Show engine version
 fps                  # Toggle FPS display
 ```
+
+The `help` command displays commands organized by category:
+- **System** - Core commands (help, clear, version)
+- **Debug** - Development tools (camera, debug, map, weather, etc.)
+- **Game** - Game-specific commands (plant, quest, save, etc.)
+- **Other** - Uncategorized commands
+
+Commands are color-coded: commands in blue, labels in yellow.
 
 ## Example Workflows
 
