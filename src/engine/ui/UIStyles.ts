@@ -695,6 +695,8 @@ export class UIStyles {
   private static getUtilities(): string {
     return `
 /* ==================== Utilities ==================== */
+/* Note: These use UIScale CSS variables when available, with fallbacks */
+
 /* Flex */
 .ui-flex { display: flex; }
 .ui-flex--col { flex-direction: column; }
@@ -703,22 +705,22 @@ export class UIStyles {
 .ui-flex--wrap { flex-wrap: wrap; }
 .ui-flex--1 { flex: 1; }
 
-.ui-gap-xs { gap: 4px; }
-.ui-gap-sm { gap: 8px; }
-.ui-gap-md { gap: 12px; }
-.ui-gap-lg { gap: 16px; }
-.ui-gap-xl { gap: 24px; }
+.ui-gap-xs { gap: var(--ui-space-xs, 4px); }
+.ui-gap-sm { gap: var(--ui-space-sm, 8px); }
+.ui-gap-md { gap: var(--ui-space-md, 12px); }
+.ui-gap-lg { gap: var(--ui-space-lg, 16px); }
+.ui-gap-xl { gap: var(--ui-space-xl, 24px); }
 
 /* Spacing */
-.ui-p-sm { padding: 8px; }
-.ui-p-md { padding: 12px; }
-.ui-p-lg { padding: 16px; }
-.ui-p-xl { padding: 24px; }
+.ui-p-sm { padding: var(--ui-space-sm, 8px); }
+.ui-p-md { padding: var(--ui-space-md, 12px); }
+.ui-p-lg { padding: var(--ui-space-lg, 16px); }
+.ui-p-xl { padding: var(--ui-space-xl, 24px); }
 
 .ui-m-0 { margin: 0; }
-.ui-mb-sm { margin-bottom: 8px; }
-.ui-mb-md { margin-bottom: 12px; }
-.ui-mb-lg { margin-bottom: 16px; }
+.ui-mb-sm { margin-bottom: var(--ui-space-sm, 8px); }
+.ui-mb-md { margin-bottom: var(--ui-space-md, 12px); }
+.ui-mb-lg { margin-bottom: var(--ui-space-lg, 16px); }
 
 /* Text alignment */
 .ui-text-left { text-align: left; }

@@ -1,12 +1,12 @@
 /**
- * SidePanel Styles
+ * SidePanel Styles - Using UIScale CSS variables
  */
 
 .side-panel {
   position: fixed;
-  width: 240px;
+  width: calc(240px * var(--ui-scale, 1));
   background: #FAFAFA;
-  border-radius: 12px;
+  border-radius: var(--ui-radius-lg, 12px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 900;
   font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
@@ -16,11 +16,11 @@
 }
 
 .side-panel.left {
-  left: 16px;
+  left: var(--ui-space-md, 16px);
 }
 
 .side-panel.right {
-  right: 16px;
+  right: var(--ui-space-md, 16px);
 }
 
 /* Header */
@@ -28,11 +28,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: var(--ui-space-md, 12px) var(--ui-space-md, 14px);
   background: #F5F5F5;
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid #E0E0E0;
+  min-height: var(--ui-touch-min, 44px);
 }
 
 .side-panel-header:hover {
@@ -42,23 +43,23 @@
 .side-panel-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--ui-space-sm, 10px);
 }
 
 .side-panel-icon {
-  font-size: 22px;
+  font-size: var(--ui-font-xl, 22px);
 }
 
 .side-panel-title {
   color: #333333;
   font-weight: 800;
-  font-size: 20px;
+  font-size: var(--ui-font-lg, 20px);
   letter-spacing: -0.02em;
 }
 
 .side-panel-toggle {
   color: #888888;
-  font-size: 14px;
+  font-size: var(--ui-font-sm, 14px);
   transition: transform 0.2s;
 }
 
@@ -77,11 +78,14 @@
 
 /* Items */
 .side-panel-item {
-  padding: 12px 16px;
+  padding: var(--ui-space-md, 12px) var(--ui-space-md, 16px);
   border-bottom: 1px solid #E8E8E8;
   color: #333333;
-  font-size: 14px;
+  font-size: var(--ui-font-sm, 14px);
   transition: background 0.15s ease;
+  min-height: var(--ui-touch-min, 44px);
+  display: flex;
+  align-items: center;
 }
 
 .side-panel-item:hover {
@@ -98,8 +102,8 @@
 
 /* Empty state */
 .side-panel-empty {
-  padding: 14px 16px;
+  padding: var(--ui-space-md, 14px) var(--ui-space-md, 16px);
   text-align: center;
   color: #888888;
-  font-size: 14px;
+  font-size: var(--ui-font-sm, 14px);
 }

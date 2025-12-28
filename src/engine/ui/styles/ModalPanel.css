@@ -1,5 +1,5 @@
 /**
- * ModalPanel Styles
+ * ModalPanel Styles - Using UIScale CSS variables
  */
 
 .modal-backdrop {
@@ -15,7 +15,9 @@
   z-index: 2000;
   opacity: 0;
   transition: opacity 0.2s ease;
-  padding: 20px;
+  padding: var(--ui-space-lg, 20px);
+  padding-top: calc(var(--ui-space-lg, 20px) + var(--ui-safe-top, 0px));
+  padding-bottom: calc(var(--ui-space-lg, 20px) + var(--ui-safe-bottom, 0px));
   box-sizing: border-box;
 }
 
@@ -26,7 +28,7 @@
 
 .modal-container {
   background: #FAFAFA;
-  border-radius: 16px;
+  border-radius: var(--ui-radius-xl, 16px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-height: 80vh;
@@ -47,26 +49,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: var(--ui-space-md, 14px) var(--ui-space-md, 16px);
   border-bottom: 1px solid #E0E0E0;
   background: #F5F5F5;
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--ui-radius-xl, 16px) var(--ui-radius-xl, 16px) 0 0;
+  min-height: var(--ui-touch-min, 44px);
 }
 
 .modal-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--ui-space-sm, 10px);
 }
 
 .modal-header-icon {
-  font-size: 24px;
+  font-size: var(--ui-font-xl, 24px);
 }
 
 .modal-title {
   color: #333333;
   font-weight: 600;
-  font-size: 22px;
+  font-size: var(--ui-font-xl, 22px);
 }
 
 .modal-close {
@@ -74,11 +77,11 @@
   border: none;
   border-bottom: 2px solid #CCCCCC;
   color: #666666;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: var(--ui-touch-min, 44px);
+  height: var(--ui-touch-min, 44px);
+  border-radius: var(--ui-radius-md, 8px);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--ui-font-md, 16px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,15 +93,15 @@
 }
 
 .modal-content {
-  padding: 16px;
+  padding: var(--ui-space-md, 16px);
   overflow-y: auto;
   flex: 1;
 }
 
 .modal-actions {
   display: flex;
-  gap: 10px;
-  padding: 16px;
+  gap: var(--ui-space-sm, 10px);
+  padding: var(--ui-space-md, 16px);
   border-top: 1px solid #E0E0E0;
   background: #F5F5F5;
 }
@@ -108,17 +111,17 @@
   border: none;
   border-bottom: 3px solid #CCCCCC;
   color: #333333;
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: var(--ui-space-md, 12px) var(--ui-space-md, 16px);
+  border-radius: var(--ui-radius-md, 10px);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--ui-font-sm, 14px);
   font-weight: 500;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 48px;
+  gap: var(--ui-space-xs, 4px);
+  min-height: var(--ui-touch-comfortable, 48px);
   flex: 1;
   transition: all 0.1s ease;
   position: relative;
@@ -139,8 +142,8 @@
   background: #4CAF50;
   border-bottom-color: #3D9140;
   color: #FFFFFF;
-  min-height: 56px;
-  font-size: 15px;
+  min-height: calc(var(--ui-touch-comfortable, 48px) + var(--ui-space-sm, 8px));
+  font-size: var(--ui-font-md, 15px);
 }
 
 .modal-action.disabled {
@@ -152,5 +155,5 @@
 }
 
 .modal-action-icon {
-  font-size: 24px;
+  font-size: var(--ui-font-xl, 24px);
 }

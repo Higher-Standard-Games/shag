@@ -1,5 +1,5 @@
 /**
- * Button Styles
+ * Button Styles - Using UIScale CSS variables
  */
 
 .ui-button {
@@ -10,7 +10,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--ui-space-sm, 8px);
   position: relative;
   top: 0;
   user-select: none;
@@ -25,26 +25,29 @@
 
 /* Sizes */
 .ui-button-small {
-  padding: 8px 16px;
-  font-size: 0.875rem;
-  min-width: 100px;
-  border-radius: 8px;
+  padding: var(--ui-space-sm, 8px) var(--ui-space-md, 16px);
+  font-size: var(--ui-font-sm, 0.875rem);
+  min-width: calc(100px * var(--ui-scale, 1));
+  min-height: var(--ui-touch-min, 44px);
+  border-radius: var(--ui-radius-md, 8px);
   font-weight: 500;
 }
 
 .ui-button-medium {
-  padding: 12px 32px;
-  font-size: 1rem;
-  min-width: 160px;
-  border-radius: 10px;
+  padding: var(--ui-space-md, 12px) var(--ui-space-xl, 32px);
+  font-size: var(--ui-font-md, 1rem);
+  min-width: calc(160px * var(--ui-scale, 1));
+  min-height: var(--ui-touch-min, 44px);
+  border-radius: var(--ui-radius-md, 10px);
   font-weight: 500;
 }
 
 .ui-button-large {
-  padding: 16px 48px;
-  font-size: 1.1rem;
-  min-width: 220px;
-  border-radius: 12px;
+  padding: var(--ui-space-md, 16px) var(--ui-space-2xl, 48px);
+  font-size: var(--ui-font-lg, 1.1rem);
+  min-width: calc(220px * var(--ui-scale, 1));
+  min-height: var(--ui-touch-comfortable, 48px);
+  border-radius: var(--ui-radius-lg, 12px);
   font-weight: 500;
 }
 
@@ -133,7 +136,7 @@
 /* Button row */
 .ui-button-row {
   display: flex;
-  gap: 12px;
+  gap: var(--ui-space-md, 12px);
   justify-content: center;
   flex-wrap: wrap;
 }
