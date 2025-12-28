@@ -12,6 +12,18 @@ import type { LoadProgress } from '../AssetLoader';
 import { AudioManager } from '../AudioManager';
 import { EngineVersion } from '../core/EngineVersion';
 
+/**
+ * Color palette extracted from the SHAG logo
+ * Used for pulsing dot and background glow animations
+ */
+const LOGO_PALETTE = [
+  { bg: '#E85D04', glow: 'rgba(232, 93, 4, 0.6)' },   // Orange (S)
+  { bg: '#FAC748', glow: 'rgba(250, 199, 72, 0.6)' }, // Yellow (H)
+  { bg: '#2EC4B6', glow: 'rgba(46, 196, 182, 0.6)' }, // Teal (A)
+  { bg: '#E040FB', glow: 'rgba(224, 64, 251, 0.6)' }, // Pink/Magenta (G)
+  { bg: '#4ADE80', glow: 'rgba(74, 222, 128, 0.6)' }, // Green (glow)
+];
+
 export class LoadingScreen {
   private container: HTMLDivElement;
   private progressBar: HTMLDivElement;
@@ -128,7 +140,7 @@ export class LoadingScreen {
       // Hide progress bar, show ready state
       this.progressBar.style.display = 'none';
 
-      // Add subtle green glow at bottom
+      // Animated background glow at bottom - cycles through logo colors
       const glow = document.createElement("div");
       glow.style.cssText = `
         position: absolute;
@@ -137,10 +149,23 @@ export class LoadingScreen {
         transform: translateX(-50%);
         width: 150%;
         height: 40%;
-        background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(10, 35, 15, 0.8) 0%, rgba(5, 20, 8, 0.4) 40%, transparent 70%);
+        background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(232, 93, 4, 0.4) 0%, rgba(232, 93, 4, 0.15) 40%, transparent 70%);
         pointer-events: none;
+        transition: background 1.5s ease-in-out;
       `;
       this.container.appendChild(glow);
+
+      // Animate background glow through logo colors
+      let glowColorIndex = 0;
+      const glowInterval = setInterval(() => {
+        glowColorIndex = (glowColorIndex + 1) % LOGO_PALETTE.length;
+        const color = LOGO_PALETTE[glowColorIndex];
+        // Extract RGB from hex for gradient
+        const r = parseInt(color.bg.slice(1, 3), 16);
+        const g = parseInt(color.bg.slice(3, 5), 16);
+        const b = parseInt(color.bg.slice(5, 7), 16);
+        glow.style.background = `radial-gradient(ellipse 50% 100% at 50% 100%, rgba(${r}, ${g}, ${b}, 0.4) 0%, rgba(${r}, ${g}, ${b}, 0.15) 40%, transparent 70%)`;
+      }, 2000);
 
       // Make container clickable
       this.container.style.cursor = 'pointer';
@@ -157,43 +182,33 @@ export class LoadingScreen {
         margin-top: 20px;
       `;
 
-      // Central pulsing dot with color rotation
+      // Central pulsing dot with color rotation (uses logo palette)
       const centerDot = document.createElement("div");
       centerDot.style.cssText = `
         width: 32px;
         height: 32px;
-        background: rgb(37, 182, 120);
+        background: ${LOGO_PALETTE[0].bg};
         border-radius: 50%;
-        box-shadow: 0 0 20px rgba(37, 182, 120, 0.6);
+        box-shadow: 0 0 20px ${LOGO_PALETTE[0].glow};
         animation: centerPulse 2s ease-in-out infinite;
         z-index: 2;
         transition: background 0.5s ease, box-shadow 0.5s ease;
       `;
       rippleContainer.appendChild(centerDot);
 
-      // Color palette for random rotation
-      const colorPalette = [
-        { bg: 'rgb(37, 182, 120)', glow: 'rgba(37, 182, 120, 0.6)' },
-        { bg: 'rgb(99, 211, 199)', glow: 'rgba(99, 211, 199, 0.6)' },
-        { bg: 'rgb(134, 233, 216)', glow: 'rgba(134, 233, 216, 0.6)' },
-        { bg: 'rgb(254, 200, 49)', glow: 'rgba(254, 200, 49, 0.6)' },
-        { bg: 'rgb(60, 197, 196)', glow: 'rgba(60, 197, 196, 0.6)' },
-        { bg: 'rgb(254, 167, 39)', glow: 'rgba(254, 167, 39, 0.6)' },
-      ];
-
-      // Random color rotation interval
+      // Random color rotation interval using logo palette
       const colorInterval = setInterval(() => {
-        const colorIndex = Math.floor(Math.random() * colorPalette.length);
-        const color = colorPalette[colorIndex];
+        const colorIndex = Math.floor(Math.random() * LOGO_PALETTE.length);
+        const color = LOGO_PALETTE[colorIndex];
         centerDot.style.background = color.bg;
         centerDot.style.boxShadow = `0 0 25px ${color.glow}`;
       }, 800 + Math.random() * 400);
 
-      // Create 3 ripple rings with staggered animations
+      // Create 3 ripple rings with staggered animations (using logo palette)
       const rippleColors = [
-        'rgba(37, 182, 120, 0.6)',
-        'rgba(99, 211, 199, 0.5)',
-        'rgba(134, 233, 216, 0.4)',
+        LOGO_PALETTE[0].glow,  // Orange
+        LOGO_PALETTE[1].glow,  // Yellow
+        LOGO_PALETTE[2].glow,  // Teal
       ];
 
       for (let i = 0; i < 3; i++) {
@@ -250,6 +265,7 @@ export class LoadingScreen {
       // On click, unlock audio and resolve
       const handleClick = () => {
         clearInterval(colorInterval);
+        clearInterval(glowInterval);
         style.remove();
         
         // Unlock browser audio context
