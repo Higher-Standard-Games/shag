@@ -145,11 +145,11 @@ export class LoadingScreen {
       const glowContainer = document.createElement("div");
       glowContainer.style.cssText = `
         position: absolute;
-        bottom: 0;
+        bottom: -5%;
         left: 50%;
         transform: translateX(-50%);
         width: 150%;
-        height: 40%;
+        height: 25%;
         pointer-events: none;
       `;
       
