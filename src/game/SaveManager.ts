@@ -13,7 +13,7 @@
  * 
  * Coordinates saving and loading of all game subsystems:
  * - GameState (player data, inventory, plants, unlocks, stats)
- * - BuildableObjectManager (built items per map)
+ * - BuildableSystem (built items per map)
  * - CuringSystem (barrels, curing slots, fresh storage)
  * - OrderSystem (active orders)
  * - QuestSystem (active/completed quests)
@@ -32,7 +32,7 @@
  */
 
 import { AchievementSystem } from "./AchievementSystem";
-import { BuildableObjectManager, type BuildableObjectState } from "./BuildableObject";
+import { BuildableSystem, type BuildableInstance } from "../engine/BuildableSystem";
 import { CuringSystem } from "./CuringSystem";
 import { DealerSystem } from "./DealerSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
@@ -297,33 +297,38 @@ export class SaveManager {
     console.log(`[SaveManager] Saving map state for: ${mapId}`);
     
     const gameState = GameState.getInstance();
-    const buildableManager = BuildableObjectManager.getInstance();
+    const buildableSystem = BuildableSystem.getInstance();
     
-    // Get current built objects from BuildableObjectManager
-    const builtObjects = buildableManager.getState();
+    // Get current built objects from engine BuildableSystem
+    const instances = buildableSystem.getInstancesInMap(mapId);
     
     // Get or create map data
     const mapData = gameState.getOrCreateMapData(mapId);
     
-    // Convert BuildableObjectState to BuiltObjectState for storage
+    // Convert BuildableInstance to BuiltObjectState for storage
     // Store extra fields in metadata for restoration
-    mapData.builtObjects = builtObjects.map(obj => ({
-      id: obj.id,
-      templateId: obj.templateId,
-      position: obj.position,
-      progress: obj.progress,
-      isComplete: obj.isComplete,
+    mapData.builtObjects = instances.map((inst: BuildableInstance) => ({
+      id: inst.id,
+      templateId: inst.templateId,
+      position: inst.position,
+      progress: inst.progress,
+      isComplete: inst.isComplete,
       metadata: {
-        zoneId: obj.zoneId,
-        mapId: obj.mapId,
-        currentStage: obj.currentStage,
-        startedAt: obj.startedAt,
-        lastProduction: obj.lastProduction,
-        hasPlant: obj.hasPlant,
+        zoneId: inst.zoneId,
+        mapId: inst.mapId,
+        currentStage: inst.currentStage,
+        startedAt: inst.startedAt,
+        health: inst.health,
+        customData: inst.customData,
+        childIds: inst.childIds,
+        childProgress: inst.childProgress,
+        resourceLevels: inst.resourceLevels,
+        storedProduction: inst.storedProduction,
+        lastProductionAt: inst.lastProductionAt,
       },
     }));
     
-    console.log(`[SaveManager] Saved ${builtObjects.length} built objects for map ${mapId}`);
+    console.log(`[SaveManager] Saved ${instances.length} built objects for map ${mapId}`);
   }
   
   /**
@@ -333,14 +338,14 @@ export class SaveManager {
     console.log(`[SaveManager] Loading map state for: ${mapId}`);
     
     const gameState = GameState.getInstance();
-    const buildableManager = BuildableObjectManager.getInstance();
+    const buildableSystem = BuildableSystem.getInstance();
     
     // Get map data
     const mapData = gameState.getMapData(mapId);
     
     if (mapData && mapData.builtObjects.length > 0) {
-      // Convert BuiltObjectState back to BuildableObjectState format
-      const states: BuildableObjectState[] = mapData.builtObjects.map(obj => {
+      // Convert BuiltObjectState back to BuildableInstance format
+      const instances: BuildableInstance[] = mapData.builtObjects.map(obj => {
         const metadata = obj.metadata || {};
         return {
           id: obj.id,
@@ -348,22 +353,27 @@ export class SaveManager {
           position: obj.position,
           progress: obj.progress,
           isComplete: obj.isComplete,
-          zoneId: (metadata.zoneId as string) || '',
+          zoneId: (metadata.zoneId as string) || undefined,
           mapId: (metadata.mapId as string) || mapId,
           currentStage: (metadata.currentStage as number) || 0,
           startedAt: (metadata.startedAt as number) || 0,
-          lastProduction: metadata.lastProduction as number | undefined,
-          hasPlant: metadata.hasPlant as boolean | undefined,
+          health: (metadata.health as number) || 100,
+          customData: metadata.customData as Record<string, unknown> | undefined,
+          childIds: metadata.childIds as string[] | undefined,
+          childProgress: metadata.childProgress as number | undefined,
+          resourceLevels: metadata.resourceLevels as Record<string, number> | undefined,
+          storedProduction: metadata.storedProduction as number | undefined,
+          lastProductionAt: metadata.lastProductionAt as number | undefined,
         };
       });
       
-      // Load into BuildableObjectManager
-      await buildableManager.loadState(states);
+      // Load into engine BuildableSystem
+      buildableSystem.deserialize(instances);
       
-      console.log(`[SaveManager] Loaded ${states.length} built objects for map ${mapId}`);
+      console.log(`[SaveManager] Loaded ${instances.length} built objects for map ${mapId}`);
     } else {
-      // Clear any existing objects (new map with no saved state)
-      buildableManager.clear();
+      // Clear any existing objects for this map (new map with no saved state)
+      buildableSystem.clearMap(mapId);
       console.log(`[SaveManager] No saved state for map ${mapId}, starting fresh`);
     }
     
@@ -504,8 +514,8 @@ export class SaveManager {
    * Reset all subsystems for a new game
    */
   private resetAllSubsystems(): void {
-    // Clear BuildableObjectManager
-    BuildableObjectManager.getInstance().clear();
+    // Clear engine BuildableSystem
+    BuildableSystem.getInstance().clear();
     
     // Clear CuringSystem
     CuringSystem.getInstance().clear();
