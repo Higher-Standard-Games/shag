@@ -1,0 +1,603 @@
+/**
+ * HUD System Styles - Using UIScale CSS variables
+ */
+
+/* ============================================================================
+   Container & Layout
+   ============================================================================ */
+
+.hud-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 500;
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+}
+
+.hud-container * {
+  pointer-events: auto;
+}
+
+/* Area containers */
+.hud-area {
+  position: absolute;
+  display: flex;
+  gap: calc(10px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.hud-area > * {
+  pointer-events: auto;
+}
+
+/* Top row */
+.hud-area-top-left {
+  top: calc(15px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
+  left: calc(15px * var(--ui-scale, 1) + var(--ui-safe-left, 0px));
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.hud-area-top-center {
+  top: calc(15px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+  justify-content: center;
+}
+
+.hud-area-top-right {
+  top: calc(15px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
+  right: calc(15px * var(--ui-scale, 1) + var(--ui-safe-right, 0px));
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+/* Middle row */
+.hud-area-left {
+  top: calc(80px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
+  left: calc(15px * var(--ui-scale, 1) + var(--ui-safe-left, 0px));
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hud-area-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-area-right {
+  top: calc(80px * var(--ui-scale, 1) + var(--ui-safe-top, 0px));
+  right: calc(15px * var(--ui-scale, 1) + var(--ui-safe-right, 0px));
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Bottom row */
+.hud-area-bottom-left {
+  bottom: calc(15px * var(--ui-scale, 1) + var(--ui-safe-bottom, 0px));
+  left: calc(15px * var(--ui-scale, 1) + var(--ui-safe-left, 0px));
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.hud-area-bottom-center {
+  bottom: calc(15px * var(--ui-scale, 1) + var(--ui-safe-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+  justify-content: center;
+}
+
+.hud-area-bottom-right {
+  bottom: calc(15px * var(--ui-scale, 1) + var(--ui-safe-bottom, 0px));
+  right: calc(15px * var(--ui-scale, 1) + var(--ui-safe-right, 0px));
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+/* ============================================================================
+   Pill Component
+   ============================================================================ */
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--ui-scale, 1));
+  background: var(--hud-pill-bg, #FAFAFA);
+  padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-radius: calc(50px * var(--ui-scale, 1));
+  color: var(--hud-pill-text, #333333);
+  font-size: calc(17px * var(--ui-scale, 1));
+  font-weight: 700;
+  border: none;
+  border-bottom: 3px solid var(--hud-pill-border, #CCCCCC);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.1s ease;
+  position: relative;
+  top: 0;
+  min-height: calc(44px * var(--ui-scale, 1));
+}
+
+.hud-pill:hover {
+  background: #FFFFFF;
+  top: -2px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.hud-pill-clickable {
+  cursor: pointer;
+}
+
+.hud-pill-clickable:hover {
+  background: #E8F5E9;
+  border-bottom-color: #4CAF50;
+}
+
+.hud-pill-clickable:active {
+  top: 1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.hud-pill-icon {
+  font-size: calc(20px * var(--ui-scale, 1));
+}
+
+.hud-pill-value {
+  font-weight: 700;
+}
+
+/* Pill with progress bar */
+.hud-pill-progress .hud-pill-progress-bar {
+  width: calc(60px * var(--ui-scale, 1));
+  height: calc(6px * var(--ui-scale, 1));
+  background: #E0E0E0;
+  border-radius: calc(3px * var(--ui-scale, 1));
+  overflow: hidden;
+  margin-left: calc(5px * var(--ui-scale, 1));
+}
+
+.hud-pill-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FFC107, #FF9800);
+  transition: width 0.3s ease;
+}
+
+/* ============================================================================
+   Pill Group Component
+   ============================================================================ */
+
+.hud-pill-group {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--ui-scale, 1));
+  background: var(--hud-pill-bg, #FAFAFA);
+  padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-radius: calc(50px * var(--ui-scale, 1));
+  color: var(--hud-pill-text, #333333);
+  font-size: calc(16px * var(--ui-scale, 1));
+  border: none;
+  border-bottom: 3px solid var(--hud-pill-border, #CCCCCC);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.1s ease;
+  position: relative;
+  top: 0;
+  min-height: calc(44px * var(--ui-scale, 1));
+}
+
+.hud-pill-group:hover {
+  background: #FFFFFF;
+  top: -2px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.hud-pill-group-value {
+  font-weight: 700;
+}
+
+.hud-pill-group-bold {
+  font-weight: 800;
+  color: #F57C00;
+}
+
+.hud-pill-group-muted {
+  color: #666666;
+}
+
+.hud-pill-group-icon {
+  font-size: calc(18px * var(--ui-scale, 1));
+}
+
+.hud-pill-group-btn {
+  background: #E8E8E8;
+  border: none;
+  border-bottom: 2px solid #BBBBBB;
+  border-radius: calc(50px * var(--ui-scale, 1));
+  color: #666666;
+  font-size: calc(12px * var(--ui-scale, 1));
+  padding: calc(5px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
+  cursor: pointer;
+  transition: all 0.1s ease;
+  margin-left: calc(4px * var(--ui-scale, 1));
+  position: relative;
+  top: 0;
+  min-width: calc(32px * var(--ui-scale, 1));
+  min-height: calc(32px * var(--ui-scale, 1));
+}
+
+.hud-pill-group-btn:hover {
+  background: #F5F5F5;
+  top: -1px;
+}
+
+.hud-pill-group-btn:active {
+  top: 1px;
+  border-bottom-width: 1px;
+}
+
+.hud-pill-group-btn.hud-btn-fast {
+  background: #E8F5E9;
+  border-bottom-color: #4CAF50;
+  color: #2E7D32;
+}
+
+.hud-pill-group-btn.hud-btn-debug {
+  background: #FFEBEE;
+  border-bottom-color: #F44336;
+  color: #D32F2F;
+  animation: hud-debug-pulse 0.5s ease-in-out infinite;
+}
+
+.hud-pill-group-btn.hud-btn-active {
+  background: #E3F2FD;
+  border-bottom-color: #2196F3;
+  color: #1976D2;
+}
+
+@keyframes hud-debug-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ============================================================================
+   Button Component
+   ============================================================================ */
+
+.hud-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #E8E8E8;
+  border: none;
+  border-bottom: 2px solid #BBBBBB;
+  border-radius: calc(50px * var(--ui-scale, 1));
+  color: #666666;
+  font-size: calc(14px * var(--ui-scale, 1));
+  padding: calc(8px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+  cursor: pointer;
+  transition: all 0.1s ease;
+  position: relative;
+  top: 0;
+  min-width: calc(44px * var(--ui-scale, 1));
+  min-height: calc(44px * var(--ui-scale, 1));
+}
+
+.hud-button:hover {
+  background: #F5F5F5;
+  top: -1px;
+}
+
+.hud-button:active {
+  top: 1px;
+  border-bottom-width: 1px;
+}
+
+.hud-button-primary {
+  background: linear-gradient(180deg, #4ADE80 0%, #22C55E 100%);
+  border-bottom-color: #16A34A;
+  color: #FFFFFF;
+}
+
+.hud-button-danger {
+  background: linear-gradient(180deg, #F87171 0%, #EF4444 100%);
+  border-bottom-color: #DC2626;
+  color: #FFFFFF;
+}
+
+.hud-button-active {
+  background: #E3F2FD;
+  border-bottom-color: #2196F3;
+  color: #1976D2;
+}
+
+.hud-button-icon {
+  font-size: calc(16px * var(--ui-scale, 1));
+}
+
+/* ============================================================================
+   Accordion Component
+   ============================================================================ */
+
+.hud-accordion {
+  background: var(--hud-accordion-bg, #FAFAFA);
+  border: 1px solid #E0E0E0;
+  border-radius: calc(12px * var(--ui-scale, 1));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-width: calc(200px * var(--ui-scale, 1));
+  max-width: calc(280px * var(--ui-scale, 1));
+}
+
+.hud-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(12px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
+  background: var(--hud-accordion-header, #F5F5F5);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid #E0E0E0;
+  min-height: calc(44px * var(--ui-scale, 1));
+  transition: background 0.15s ease;
+}
+
+.hud-accordion-header:hover {
+  background: #EEEEEE;
+}
+
+.hud-accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--ui-scale, 1));
+}
+
+.hud-accordion-icon {
+  font-size: calc(20px * var(--ui-scale, 1));
+}
+
+.hud-accordion-title {
+  font-weight: 800;
+  font-size: calc(16px * var(--ui-scale, 1));
+  color: #333333;
+}
+
+.hud-accordion-badge {
+  background: #4CAF50;
+  color: #FFFFFF;
+  font-size: calc(12px * var(--ui-scale, 1));
+  font-weight: 700;
+  padding: calc(2px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
+  border-radius: calc(10px * var(--ui-scale, 1));
+  min-width: calc(20px * var(--ui-scale, 1));
+  text-align: center;
+}
+
+.hud-badge-pulse {
+  animation: hud-badge-pulse 0.3s ease;
+}
+
+@keyframes hud-badge-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.hud-accordion-toggle {
+  color: #888888;
+  font-size: calc(12px * var(--ui-scale, 1));
+  transition: transform 0.2s ease;
+}
+
+.hud-accordion-collapsed .hud-accordion-toggle {
+  transform: rotate(0deg);
+}
+
+.hud-accordion:not(.hud-accordion-collapsed) .hud-accordion-toggle {
+  transform: rotate(90deg);
+}
+
+.hud-accordion-collapsed .hud-accordion-header {
+  border-bottom: none;
+}
+
+.hud-accordion-content {
+  background: #FFFFFF;
+  max-height: calc(300px * var(--ui-scale, 1));
+  overflow-y: auto;
+}
+
+.hud-accordion-list {
+  padding: 0;
+}
+
+.hud-accordion-empty {
+  padding: calc(16px * var(--ui-scale, 1));
+  text-align: center;
+  color: #888888;
+  font-size: calc(14px * var(--ui-scale, 1));
+}
+
+/* ============================================================================
+   List Item Styles
+   ============================================================================ */
+
+.hud-accordion-item {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--ui-scale, 1));
+  padding: calc(12px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
+  border-bottom: 1px solid #E8E8E8;
+  transition: background 0.15s ease;
+  min-height: calc(44px * var(--ui-scale, 1));
+}
+
+.hud-accordion-item:last-child {
+  border-bottom: none;
+}
+
+.hud-accordion-item:hover {
+  background: #F5F5F5;
+}
+
+.hud-item-clickable {
+  cursor: pointer;
+}
+
+.hud-item-icon {
+  font-size: calc(20px * var(--ui-scale, 1));
+  flex-shrink: 0;
+}
+
+.hud-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.hud-item-title {
+  font-weight: 600;
+  font-size: calc(14px * var(--ui-scale, 1));
+  color: #333333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-item-description {
+  font-size: calc(12px * var(--ui-scale, 1));
+  color: #666666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-item-progress {
+  height: calc(4px * var(--ui-scale, 1));
+  background: #E0E0E0;
+  border-radius: calc(2px * var(--ui-scale, 1));
+  margin-top: calc(4px * var(--ui-scale, 1));
+  overflow: hidden;
+}
+
+.hud-item-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  transition: width 0.3s ease;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+.hud-animate-fadeIn {
+  animation: hud-fadeIn 0.2s ease-out;
+}
+
+.hud-animate-fadeOut {
+  animation: hud-fadeOut 0.2s ease-out;
+}
+
+.hud-animate-scaleIn {
+  animation: hud-scaleIn 0.2s ease-out;
+}
+
+.hud-animate-scaleOut {
+  animation: hud-scaleOut 0.2s ease-out;
+}
+
+.hud-animate-pulse {
+  animation: hud-pulse 0.5s ease-in-out;
+}
+
+.hud-animate-shake {
+  animation: hud-shake 0.3s ease-in-out;
+}
+
+.hud-animate-bounce {
+  animation: hud-bounce 0.3s ease-in-out;
+}
+
+@keyframes hud-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes hud-fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes hud-scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes hud-scaleOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+@keyframes hud-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes hud-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes hud-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ============================================================================
+   Flash Effects
+   ============================================================================ */
+
+.hud-flash-gain {
+  animation: hud-flash-gain 0.3s ease-out;
+}
+
+.hud-flash-loss {
+  animation: hud-flash-loss 0.3s ease-out;
+}
+
+.hud-flash-damage {
+  animation: hud-flash-damage 0.3s ease-out;
+}
+
+.hud-flash-info {
+  animation: hud-flash-info 0.3s ease-out;
+}
+
+@keyframes hud-flash-gain {
+  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+@keyframes hud-flash-loss {
+  0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(244, 67, 54, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+}
+
+@keyframes hud-flash-damage {
+  0%, 100% { transform: translateX(0); background-color: inherit; }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); background-color: #FFEBEE; }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes hud-flash-info {
+  0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(33, 150, 243, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+}
