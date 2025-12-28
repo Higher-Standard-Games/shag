@@ -28,12 +28,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--ui-space-md, 12px) var(--ui-space-md, 14px);
+  padding: calc(12px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
   background: #F5F5F5;
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid #E0E0E0;
-  min-height: var(--ui-touch-min, 44px);
+  min-height: calc(44px * var(--ui-scale, 1));
 }
 
 .side-panel-header:hover {
@@ -78,12 +78,12 @@
 
 /* Items */
 .side-panel-item {
-  padding: var(--ui-space-md, 12px) var(--ui-space-md, 16px);
+  padding: calc(12px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
   border-bottom: 1px solid #E8E8E8;
   color: #333333;
   font-size: var(--ui-font-sm, 14px);
   transition: background 0.15s ease;
-  min-height: var(--ui-touch-min, 44px);
+  min-height: calc(44px * var(--ui-scale, 1));
   display: flex;
   align-items: center;
 }
