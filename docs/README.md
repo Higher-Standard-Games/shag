@@ -31,6 +31,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 | [config.md](./config.md) | Game configuration |
 | [HUD_SYSTEM_DESIGN.md](./HUD_SYSTEM_DESIGN.md) | Generic HUD system architecture |
 | [UI_SCALING_PLAN.md](./UI_SCALING_PLAN.md) | Cross-platform UI scaling system |
+| [buildable-system.md](./buildable-system.md) | Generic buildable object system |
 
 ### Game Systems
 | Document | Description |
