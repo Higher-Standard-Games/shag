@@ -46,6 +46,7 @@ export class SidePanel {
   private callbacks: SidePanelCallbacks;
   private isCollapsed: boolean;
   private static panels: Map<string, SidePanel> = new Map();
+  private static resizeListenerAdded: boolean = false;
 
   constructor(config: SidePanelConfig, callbacks: SidePanelCallbacks) {
     this.config = config;
@@ -64,6 +65,12 @@ export class SidePanel {
     
     // Register panel for stacking
     SidePanel.panels.set(config.id, this);
+    
+    // Add resize listener once to update positions when window/scale changes
+    if (!SidePanel.resizeListenerAdded) {
+      SidePanel.resizeListenerAdded = true;
+      window.addEventListener('resize', () => SidePanel.updatePositions());
+    }
   }
 
   private createContainer(): HTMLDivElement {
@@ -229,18 +236,21 @@ export class SidePanel {
       rightPanels.sort((a, b) => a.config.order - b.config.order);
       
       // Calculate available height (viewport height minus top bar and bottom bar)
+      // Use UIScale for proper scaling
+      const uiScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale') || '1');
       const viewportHeight = window.innerHeight;
-      const topBarHeight = 80; // Space below top bar pills
-      const bottomBarHeight = 140; // Approximate height of build bar
+      const topBarHeight = Math.round(80 * uiScale); // Space below top bar pills (scaled)
+      const bottomBarHeight = Math.round(140 * uiScale); // Approximate height of build bar (scaled)
       const maxBottomY = viewportHeight - bottomBarHeight;
       
       // Position left panels
+      const panelGap = Math.round(10 * uiScale); // Gap between panels (scaled)
       let topOffset = topBarHeight;
       for (const panel of leftPanels) {
         panel.container.style.top = `${topOffset}px`;
         
         // Calculate remaining space for this panel
-        const remainingSpace = maxBottomY - topOffset - 10; // 10px margin
+        const remainingSpace = maxBottomY - topOffset - panelGap;
         if (remainingSpace > 0) {
           // Limit content height to fit in remaining space
           const headerHeight = panel.headerEl.offsetHeight;
@@ -248,7 +258,7 @@ export class SidePanel {
           panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
         }
         
-        topOffset += panel.container.offsetHeight + 10;
+        topOffset += panel.container.offsetHeight + panelGap;
       }
       
       // Position right panels
@@ -256,14 +266,14 @@ export class SidePanel {
       for (const panel of rightPanels) {
         panel.container.style.top = `${topOffset}px`;
         
-        const remainingSpace = maxBottomY - topOffset - 10;
+        const remainingSpace = maxBottomY - topOffset - panelGap;
         if (remainingSpace > 0) {
           const headerHeight = panel.headerEl.offsetHeight;
           const maxContentHeight = Math.max(50, remainingSpace - headerHeight);
           panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
         }
         
-        topOffset += panel.container.offsetHeight + 10;
+        topOffset += panel.container.offsetHeight + panelGap;
       }
     });
   }
