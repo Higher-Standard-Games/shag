@@ -10,7 +10,7 @@ import {
   StandardMaterial,
   Vector3,
 } from "babylonjs";
-import { BuildableObjectManager } from "./BuildableObject";
+import { BuildableSystem } from "../engine/BuildableSystem";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { QuestSystem } from "./QuestSystem";
@@ -479,13 +479,13 @@ export class BuildingSystem {
     zone.occupied = true;
     zone.occupiedBy = buildItem.id;
 
-    // Create the buildable object with progress tracking
-    const objectManager = BuildableObjectManager.getInstance();
-    objectManager.create(
+    // Create the buildable object with progress tracking (using engine BuildableSystem)
+    const buildableSystem = BuildableSystem.getInstance();
+    buildableSystem.create(
       buildItem.id,
-      zoneId,
-      zone.position,
-      this.currentMapId
+      { x: zone.position.x, y: zone.position.y, z: zone.position.z },
+      this.currentMapId,
+      { zoneId }
     );
 
     // Execute custom build action
@@ -515,6 +515,14 @@ export class BuildingSystem {
     }
 
     const previousItem = zone.occupiedBy;
+    
+    // Destroy the buildable instance in the engine
+    const buildableSystem = BuildableSystem.getInstance();
+    const instances = buildableSystem.getInstancesInZone(zoneId);
+    for (const instance of instances) {
+      buildableSystem.destroy(instance.id);
+    }
+    
     zone.occupied = false;
     zone.occupiedBy = null;
 
