@@ -224,6 +224,11 @@
   color: #25b678;
 }
 
+.hl-command {
+  color: #54a0ff;
+  font-weight: bold;
+}
+
 /* Help formatting */
 .help-command {
   color: #25b678;

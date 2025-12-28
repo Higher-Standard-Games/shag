@@ -556,25 +556,62 @@ export class DebugConsole {
           return `Unknown command: ${args[0]}`;
         }
         
-        let help = `${def.name} - ${def.description}\n`;
+        let help = `<span class="hl-command">${def.name}</span> - ${def.description}\n`;
         if (def.usage) {
-          help += `Usage: ${def.usage}\n`;
+          help += `<span class="hl-label">Usage:</span> <span class="hl-string">${def.usage}</span>\n`;
         }
         if (def.subcommands) {
-          help += 'Subcommands:\n';
+          help += '<span class="hl-label">Subcommands:</span>\n';
           for (const sub of def.subcommands) {
-            help += `  ${sub.name} - ${sub.description}\n`;
+            help += `  <span class="hl-command">${sub.name.padEnd(12)}</span> ${sub.description}\n`;
           }
         }
         return help.trim();
       }
       
       const defs = registry.getAllDefinitions();
-      let help = 'Available commands:\n';
-      for (const def of defs) {
-        help += `  ${def.name.padEnd(12)} ${def.description}\n`;
+      
+      // Sort commands alphabetically
+      const sortedDefs = [...defs].sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Group by category (infer from name patterns)
+      const categories: Record<string, typeof sortedDefs> = {
+        'System': [],
+        'Game': [],
+        'Debug': [],
+        'Other': []
+      };
+      
+      for (const def of sortedDefs) {
+        const name = def.name.toLowerCase();
+        if (['help', 'clear', 'version', 'commands'].includes(name)) {
+          categories['System'].push(def);
+        } else if (['debug', 'camera', 'map', 'weather', 'wind', 'audio', 'time', 'fx'].includes(name)) {
+          categories['Debug'].push(def);
+        } else if (['game', 'plant', 'quest', 'spawn', 'give', 'save', 'load', 'teleport', 'unlock', 'custom'].includes(name)) {
+          categories['Game'].push(def);
+        } else {
+          categories['Other'].push(def);
+        }
       }
-      help += '\nType "help <command>" for more info.';
+      
+      let help = '<span class="hl-label">═══════════════════════════════════════</span>\n';
+      help += '<span class="hl-string">           CONSOLE COMMANDS</span>\n';
+      help += '<span class="hl-label">═══════════════════════════════════════</span>\n\n';
+      
+      for (const [category, cmds] of Object.entries(categories)) {
+        if (cmds.length === 0) continue;
+        
+        help += `<span class="hl-label">▸ ${category}</span>\n`;
+        for (const def of cmds) {
+          help += `  <span class="hl-command">${def.name.padEnd(14)}</span> ${def.description}\n`;
+        }
+        help += '\n';
+      }
+      
+      help += '<span class="hl-label">───────────────────────────────────────</span>\n';
+      help += 'Type <span class="hl-command">help &lt;command&gt;</span> for detailed info.\n';
+      help += 'Use <span class="hl-command">Tab</span> for autocomplete.';
       return help;
     });
     
