@@ -5,7 +5,7 @@
  * Now uses WorldIndicatorSystem for positioning and rendering.
  */
 
-import { BuildableObjectManager } from "../game/BuildableObject";
+import { BuildableSystem } from "../engine/BuildableSystem";
 import { EventBus } from "../engine/core/EventBus";
 import { GameScene } from "../engine/GameScene";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
@@ -56,16 +56,16 @@ export class PotActionIndicator {
       }
     });
 
-    // Listen for plant being planted (stage changed with hasPlant)
+    // Listen for plant being planted (stage changed with plant in customData)
     EventBus.on<{ objectId: string }>("building:stage_changed", (data) => {
-      const buildableManager = BuildableObjectManager.getInstance();
-      const state = buildableManager.getObject(data.objectId);
-      if (state?.hasPlant) {
+      const buildableSystem = BuildableSystem.getInstance();
+      const instance = buildableSystem.getInstance(data.objectId);
+      if (instance?.customData?.plantId) {
         this.hideIndicator(data.objectId);
       }
     });
 
-    // Listen for plant state changed (from BuildableObjectManager.setPlantInPot)
+    // Listen for plant state changed (child added to pot)
     EventBus.on<{ objectId: string; hasPlant: boolean }>("building:plant_state_changed", (data) => {
       if (data.hasPlant) {
         this.hideIndicator(data.objectId);
@@ -95,14 +95,14 @@ export class PotActionIndicator {
       return;
     }
 
-    const buildableManager = BuildableObjectManager.getInstance();
-    const state = buildableManager.getObject(objectId);
+    const buildableSystem = BuildableSystem.getInstance();
+    const instance = buildableSystem.getInstance(objectId);
     
-    if (!state || state.hasPlant) return;
+    if (!instance || instance.customData?.plantId) return;
     
     // Only show indicators for pots in the CURRENT map
     const currentMap = GameScene.getInstance()?.getCurrentMap();
-    if (!currentMap || state.mapId !== currentMap) return;
+    if (!currentMap || instance.mapId !== currentMap) return;
 
     // Check if indicator already exists
     const indicatorId = `${INDICATOR_PREFIX}${objectId}`;
@@ -111,7 +111,7 @@ export class PotActionIndicator {
     // Add indicator using WorldIndicatorSystem
     worldIndicator.addIndicator({
       id: indicatorId,
-      worldPosition: state.position,
+      worldPosition: instance.position,
       config: {
         icon: "🌱",
         label: "Select strain",
@@ -121,7 +121,7 @@ export class PotActionIndicator {
           // Hide indicator immediately when clicked to prevent race conditions
           // (user clicking fast on multiple pots before async plant flow completes)
           this.hideIndicator(objectId);
-          EventBus.emit("pot:needs_seed", { objectId, position: state.position });
+          EventBus.emit("pot:needs_seed", { objectId, position: instance.position });
         },
       },
       data: { objectId },
@@ -142,13 +142,14 @@ export class PotActionIndicator {
    * Check all pots and show indicators for empty ones
    */
   public checkAllPots(mapId: string): void {
-    const buildableManager = BuildableObjectManager.getInstance();
-    const objects = buildableManager.getObjectsInMap(mapId);
+    const buildableSystem = BuildableSystem.getInstance();
+    const instances = buildableSystem.getInstancesInMap(mapId);
 
-    for (const obj of objects) {
-      const template = buildableManager.getTemplate(obj.templateId);
-      if (template?.zoneType === "plant" && obj.isComplete && !obj.hasPlant) {
-        this.showIndicatorForPot(obj.id);
+    for (const inst of instances) {
+      const template = buildableSystem.getTemplate(inst.templateId);
+      // Check if it's a pot (plant category) that's complete and has no plant
+      if (template?.category === "plant" && inst.isComplete && !inst.customData?.plantId) {
+        this.showIndicatorForPot(inst.id);
       }
     }
   }

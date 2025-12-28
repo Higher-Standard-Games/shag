@@ -7,7 +7,6 @@ import {
 } from "babylonjs";
 import { AchievementSystem } from "../game/AchievementSystem";
 import { BuildingSystem } from "../game/BuildingSystem";
-import { BuildableObjectManager } from "../game/BuildableObject";
 import { EquipmentSystem } from "../game/EquipmentSystem";
 import { GameClock } from "../game/GameClock";
 import { registerGameData } from "../game/GameData";
@@ -152,7 +151,6 @@ export class GameScene {
     
     // Initialize BuildingSystem before loading map (so zones can be registered)
     BuildingSystem.getInstance().init(this.scene!);
-    BuildableObjectManager.getInstance().init(this.scene!);
     
     // Initialize new engine-level BuildableSystem and renderer (incremental migration)
     BuildableSystem.getInstance().setTimeProvider(() => GameTimer.getInstance().getGameTime());
@@ -714,7 +712,7 @@ export class GameScene {
         console.log("Saved game cleared. Refresh the page to start fresh.");
       },
       refreshPots: async () => {
-        await BuildableObjectManager.getInstance().refreshAllVisuals();
+        BuildableRenderer.getInstance().refreshAllVisuals();
         console.log("Refreshed all buildable object visuals with metadata");
       },
       // New system debug commands
@@ -1209,10 +1207,11 @@ export class GameScene {
           }
 
           // Check for empty pots needing seeds
-          const buildableManager = BuildableObjectManager.getInstance();
-          const emptyPots = Array.from(buildableManager.getObjectsInMap("")).filter(obj => {
-            const template = buildableManager.getTemplate(obj.templateId);
-            return template?.zoneType === "plant" && obj.isComplete && !obj.hasPlant;
+          const buildableSystem = BuildableSystem.getInstance();
+          const currentMapId = this.currentMap || "";
+          const emptyPots = buildableSystem.getInstancesInMap(currentMapId).filter(inst => {
+            const template = buildableSystem.getTemplate(inst.templateId);
+            return template?.category === "plant" && inst.isComplete && !inst.customData?.plantId;
           });
           if (emptyPots.length > 0) {
             events.push({

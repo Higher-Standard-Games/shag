@@ -9,7 +9,7 @@
  */
 
 import { EventBus } from "../engine/core/EventBus";
-import { BuildableObjectManager } from "./BuildableObject";
+import { BuildableSystem } from "../engine/BuildableSystem";
 import { GameState } from "./GameState";
 
 // ==================== Types ====================
@@ -108,13 +108,13 @@ export class LampSystem {
   }
 
   private loadExistingLamps(): void {
-    const buildableManager = BuildableObjectManager.getInstance();
-    const allObjects = buildableManager.getObjectsInMap("showcase");
+    const buildableSystem = BuildableSystem.getInstance();
+    const allInstances = buildableSystem.getInstancesInMap("showcase");
 
-    for (const obj of allObjects) {
-      const template = buildableManager.getTemplate(obj.templateId);
-      if (template?.zoneType === "growlight" && obj.isComplete) {
-        this.registerLamp(obj.id, obj.templateId);
+    for (const inst of allInstances) {
+      const template = buildableSystem.getTemplate(inst.templateId);
+      if (template?.customData?.zoneType === "growlight" && inst.isComplete) {
+        this.registerLamp(inst.id, inst.templateId);
       }
     }
   }
@@ -124,9 +124,9 @@ export class LampSystem {
   private registerLamp(objectId: string, templateId: string): void {
     if (this.lampStates.has(objectId)) return;
 
-    const buildableManager = BuildableObjectManager.getInstance();
-    const obj = buildableManager.getObject(objectId);
-    if (!obj) return;
+    const buildableSystem = BuildableSystem.getInstance();
+    const inst = buildableSystem.getInstance(objectId);
+    if (!inst) return;
 
     const tier = LAMP_TIERS[templateId] || LAMP_TIERS.grow_light_basic;
 
@@ -137,7 +137,7 @@ export class LampSystem {
       objectId,
       templateId,
       settings: savedSettings || { ...DEFAULT_LAMP_SETTINGS },
-      position: obj.position,
+      position: inst.position,
       coverageRadius: tier.baseRadius,
       powerCostPerDay: tier.basePowerCost,
     };
@@ -335,8 +335,8 @@ export class LampSystem {
     const lamp = this.lampStates.get(objectId);
     if (!lamp) return null;
 
-    const buildableManager = BuildableObjectManager.getInstance();
-    const template = buildableManager.getTemplate(lamp.templateId);
+    const buildableSystem = BuildableSystem.getInstance();
+    const template = buildableSystem.getTemplate(lamp.templateId);
 
     // Spectrum label
     let spectrumLabel = "Balanced";

@@ -19,10 +19,9 @@ export type { StrainDefinition, PlantVisualState } from "./PlantSystem";
 export { BuildingSystem } from "./BuildingSystem";
 export type { BuildZone, BuildableItem } from "./BuildingSystem";
 
-export { BuildableObjectManager, createStages, createInstantStage, createCustomStages } from "./BuildableObject";
+// BuildableObjectManager removed - use engine BuildableSystem instead
+// export { BuildableObjectManager, createStages, createInstantStage, createCustomStages } from "./BuildableObject";
 export type { 
-  BuildableObjectTemplate, 
-  BuildableObjectState, 
   ObjectStage 
 } from "./BuildableObject";
 

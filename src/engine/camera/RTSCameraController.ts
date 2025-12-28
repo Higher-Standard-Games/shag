@@ -10,7 +10,7 @@ import {
 import { EventBus } from "../core/EventBus";
 import { SpawnValidator } from "../SpawnValidator";
 import { GameScene } from "../GameScene";
-import { BuildableObjectManager } from "../../game/BuildableObject";
+import { BuildableSystem } from "../BuildableSystem";
 import { BuildingSystem } from "../../game/BuildingSystem";
 import { GameState } from "../../game/GameState";
 import { HarvestIndicator } from "../../game/HarvestIndicator";
@@ -99,14 +99,14 @@ export class RTSCameraController {
   private setupEventListeners(): void {
     // Listen for pot:needs_seed event from PotActionIndicator
     EventBus.on<{ objectId: string; position: { x: number; y: number; z: number } }>("pot:needs_seed", (data) => {
-      const buildableManager = BuildableObjectManager.getInstance();
-      const buildableObj = buildableManager.getObject(data.objectId);
-      if (!buildableObj) return;
+      const buildableSystem = BuildableSystem.getInstance();
+      const buildableInst = buildableSystem.getInstance(data.objectId);
+      if (!buildableInst) return;
 
       // Show seed selection popup
       SeedSelectionPopup.show(
-        buildableObj.position,
-        buildableObj.mapId,
+        buildableInst.position,
+        buildableInst.mapId,
         (result) => {
           // Just show notification, don't auto-open plant info
           const strain = PlantSystem.getInstance().getStrain(result.strainId);
@@ -114,7 +114,7 @@ export class RTSCameraController {
         },
         () => {
           // On cancel - restore indicator if pot is still empty
-          if (!buildableObj.hasPlant) {
+          if (!buildableInst.customData?.plantId) {
             EventBus.emit("pot:restore_indicator", { objectId: data.objectId });
           }
         }
@@ -167,14 +167,14 @@ export class RTSCameraController {
               if (plantZonePick && plantZonePick.pickedMesh) {
                 const mesh = plantZonePick.pickedMesh;
                 const buildableObjectId = mesh.metadata.buildableObjectId;
-                const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
-                console.log("[RTSCamera] Plant zone clicked, buildableObj:", buildableObj?.id);
-                if (buildableObj) {
+                const buildableInst = BuildableSystem.getInstance().getInstance(buildableObjectId);
+                console.log("[RTSCamera] Plant zone clicked, buildableInst:", buildableInst?.id);
+                if (buildableInst) {
                   // Find plant at this position
                   const plants = GameState.getInstance().getPlants();
                   const plant = plants.find(p => 
-                    Math.abs(p.position.x - buildableObj.position.x) < 5 &&
-                    Math.abs(p.position.z - buildableObj.position.z) < 5
+                    Math.abs(p.position.x - buildableInst.position.x) < 5 &&
+                    Math.abs(p.position.z - buildableInst.position.z) < 5
                   );
                   console.log("[RTSCamera] Found plant:", plant?.id, "strain:", plant?.strain);
                   if (plant) {
@@ -193,8 +193,8 @@ export class RTSCameraController {
                   } else {
                     // No plant in this pot - show seed selection popup
                     SeedSelectionPopup.show(
-                      buildableObj.position,
-                      buildableObj.mapId,
+                      buildableInst.position,
+                      buildableInst.mapId,
                       (result) => {
                         // Just show notification, don't auto-open plant info
                         const strain = PlantSystem.getInstance().getStrain(result.strainId);
@@ -213,9 +213,9 @@ export class RTSCameraController {
                 
                 if (growlightPick && growlightPick.pickedMesh) {
                   const buildableObjectId = growlightPick.pickedMesh.metadata.buildableObjectId;
-                  const buildableObj = BuildableObjectManager.getInstance().getObject(buildableObjectId);
-                  if (buildableObj && buildableObj.isComplete) {
-                    LampInfoPanel.getInstance().show(buildableObjectId, buildableObj.position);
+                  const buildableInst = BuildableSystem.getInstance().getInstance(buildableObjectId);
+                  if (buildableInst && buildableInst.isComplete) {
+                    LampInfoPanel.getInstance().show(buildableObjectId, buildableInst.position);
                   }
                 }
               }

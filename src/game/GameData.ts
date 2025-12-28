@@ -14,7 +14,6 @@
 
 import { AchievementSystem } from "./AchievementSystem";
 import { BuildingSystem } from "./BuildingSystem";
-import { BuildableObjectManager } from "./BuildableObject";
 import { CuringSystem } from "./CuringSystem";
 import { DealerSystem } from "./DealerSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
@@ -100,13 +99,7 @@ export function registerGameData(): void {
   // Register buildable items
   BuildingSystem.getInstance().registerItems(BUILDABLE_ITEMS);
 
-  // Register object templates (old system)
-  const objectManager = BuildableObjectManager.getInstance();
-  for (const template of OBJECT_TEMPLATES) {
-    objectManager.registerTemplate(template);
-  }
-
-  // Register templates with new engine BuildableSystem (incremental migration)
+  // Register templates with engine BuildableSystem
   registerEngineBuildableTemplates();
 
   // Register plant strains, pots, and lighting (strains loaded from strains.json)

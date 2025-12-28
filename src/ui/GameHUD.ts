@@ -5,7 +5,7 @@
 
 import { EventBus } from "../engine/core/EventBus";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { BuildableObjectManager } from "../game/BuildableObject";
+import { BuildableSystem } from "../engine/BuildableSystem";
 import { DealerSystem } from "../game/DealerSystem";
 import { GameClock } from "../game/GameClock";
 import { GameState } from "../game/GameState";
@@ -762,23 +762,26 @@ export class GameHUD {
       this.showNotification(`Level up! Now level ${state.player.level}!`, "success");
     });
 
-    // Listen for buildable object events
-    BuildableObjectManager.getInstance().onObjectEvent((_objectId, event, data) => {
-      switch (event) {
-        case "created":
-          const createData = data as { template: { name: string } };
-          this.showNotification(`Building ${createData.template.name}...`, "success");
+    // Listen for buildable object events via engine BuildableSystem
+    BuildableSystem.getInstance().on((event) => {
+      switch (event.type) {
+        case "created": {
+          const template = BuildableSystem.getInstance().getTemplate(event.templateId);
+          this.showNotification(`Building ${template?.name ?? event.templateId}...`, "success");
           break;
-        case "stage_changed":
-          const stageData = data as { newStage: number; progress: number };
+        }
+        case "stage_change": {
+          const stageData = event.data as { newStage: number; progress: number };
           if (stageData.newStage === 1) {
             this.showNotification(`Construction 50% complete!`, "success");
           }
           break;
-        case "completed":
-          const completeData = data as { template: { name: string } };
-          this.showNotification(`${completeData.template.name} is ready!`, "success");
+        }
+        case "complete": {
+          const template = BuildableSystem.getInstance().getTemplate(event.templateId);
+          this.showNotification(`${template?.name ?? event.templateId} is ready!`, "success");
           break;
+        }
       }
     });
 
