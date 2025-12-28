@@ -282,36 +282,42 @@ ActionSystem.getInstance().registerAction('place_buildable', (params) => {
 
 ## Migration Status
 
-The engine `BuildableSystem` is being incrementally migrated from the game-level `BuildableObjectManager`.
+✅ **Migration Complete** - The engine `BuildableSystem` has fully replaced the old game-level `BuildableObjectManager`.
 
-### Current State (Parallel Operation)
+### Architecture
 
-Both systems run simultaneously:
-- **Old**: `BuildableObjectManager` - handles all current game logic (pots, plants, grow lights)
-- **New**: `BuildableSystem` + `BuildableRenderer` - initialized with templates, ready for use
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    GAME LAYER                               │
+├─────────────────────────────────────────────────────────────┤
+│  PlantSystem          │  BuildableRenderer  │  LampSystem   │
+│  - Uses customData    │  - Babylon.js       │  - Light mgmt │
+│  - plantId tracking   │  - Prefabs/Sprites  │               │
+├─────────────────────────────────────────────────────────────┤
+│                    ENGINE LAYER                             │
+├─────────────────────────────────────────────────────────────┤
+│                   BuildableSystem                           │
+│  - Templates          - Container/Child     - Light         │
+│  - Stages             - Producer/Consumer   - Triggers      │
+│  - Serialization      - Events              - Queries       │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Testing the New System
+### Testing
 
 ```javascript
 // In browser console:
 const bs = BuildableSystem.getInstance();
 
-// Create a test pot
+// Create a pot
 bs.create('pot_basic', { x: 100, y: 0, z: 100 }, 'test.map', { zoneId: 'test' });
 
 // Check instances
 bs.getAllInstances();
 
-// Update (progress build)
-bs.update();
+// Query by zone
+bs.getInstancesInZone('test');
 ```
-
-### Remaining Migration Steps
-
-1. **Migrate BuildingSystem** - Use engine for new builds
-2. **Migrate PlantSystem** - Use container/child for pot-plant relationship  
-3. **Update SaveManager** - Serialize engine state
-4. **Remove old BuildableObjectManager**
 
 ## Example: Strategy Game
 
