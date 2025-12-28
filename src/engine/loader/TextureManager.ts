@@ -1,5 +1,6 @@
 import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
 import { ProceduralTextureGenerator } from "../procedural/ProceduralTextureGenerator";
+import { GamePaths } from "../core/GamePaths";
 
 // Check if we're in production mode (Vite sets this)
 // @ts-ignore - Vite provides import.meta.env
@@ -31,8 +32,8 @@ export class TextureManager {
   private materialCache: Map<string, StandardMaterial> = new Map();
   private scene: Scene | null = null;
 
-  // Base path for textures (can be configured)
-  private basePath: string = "/textures";
+  // Base path for textures (set from GamePaths on init)
+  private basePath: string | null = null;
 
   // Supported extensions in order of preference
   // In production, try KTX2 first for GPU-compressed textures
@@ -64,6 +65,8 @@ export class TextureManager {
    */
   init(scene: Scene): void {
     this.scene = scene;
+    // Set base path from GamePaths
+    this.basePath = GamePaths.getInstance().textures();
     // Initialize procedural texture generator
     ProceduralTextureGenerator.getInstance().initialize(scene);
   }
@@ -202,8 +205,9 @@ export class TextureManager {
     }
 
     // Fall back to regular texture formats
+    const basePath = this.basePath || '/textures';
     for (const ext of this.extensions) {
-      const fullPath = `${this.basePath}/${normalizedPath}${ext}`.replace("textures/textures", "textures");
+      const fullPath = `${basePath}/${normalizedPath}${ext}`.replace("textures/textures", "textures");
 
       try {
         const exists = await this.checkTextureExists(fullPath);

@@ -1,5 +1,6 @@
 import { MapParser, type Entity } from "./loader/MapParser";
 import { PrefabLoader } from "./loader/PrefabLoader";
+import { GamePaths } from "./core/GamePaths";
 
 export interface GameConfig {
   game: {
@@ -157,7 +158,8 @@ export class AssetLoader {
 
   private async loadConfig(): Promise<void> {
     try {
-      const response = await fetch("/game/config.json");
+      const configPath = GamePaths.getInstance().configPath();
+      const response = await fetch(configPath);
       this.config = await response.json();
     } catch (e) {
       console.error("Failed to load config:", e);
@@ -168,7 +170,10 @@ export class AssetLoader {
   private async loadMap(mapName: string): Promise<void> {
     try {
       // Handle both "mapname.map" and "maps/subdir/mapname.map" formats
-      const mapPath = mapName.startsWith("maps/") ? `/${mapName}` : `/maps/${mapName}`;
+      const gamePaths = GamePaths.getInstance();
+      const mapPath = mapName.startsWith("maps/") 
+        ? gamePaths.game(mapName) 
+        : gamePaths.maps(mapName);
       const response = await fetch(mapPath);
       const raw = await response.text();
       const entities = MapParser.parse(raw);
@@ -188,7 +193,8 @@ export class AssetLoader {
 
   private async loadAudio(key: string, path: string): Promise<void> {
     return new Promise((resolve) => {
-      const audio = new Audio(`/game/${path}`);
+      const audioPath = GamePaths.getInstance().game(path);
+      const audio = new Audio(audioPath);
       audio.preload = "auto";
 
       audio.addEventListener("canplaythrough", () => {

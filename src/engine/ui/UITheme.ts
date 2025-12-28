@@ -6,6 +6,8 @@
  * Game can customize by calling UITheme.setTheme() before UI init.
  */
 
+import { GamePaths } from '../core/GamePaths';
+
 export type ThemeMode = "light" | "dark";
 
 export interface UIThemeConfig {
@@ -288,9 +290,12 @@ export class UITheme {
       { weight: "900", file: "Nunito-Black.ttf" },
     ];
 
-    const loadPromises = weights.map(({ weight, file }) =>
-      this.loadFont("Nunito", `/fonts/Nunito/static/${file}`, weight, true)
-    );
+    // Try game fonts first, fallback to engine fonts
+    const gamePaths = GamePaths.getInstance();
+    const loadPromises = weights.map(async ({ weight, file }) => {
+      const fontPath = await gamePaths.resolve(`fonts/Nunito/static/${file}`);
+      return this.loadFont("Nunito", fontPath, weight, true);
+    });
 
     await Promise.all(loadPromises);
     console.log("[UITheme] Nunito font family loaded (7 weights)");

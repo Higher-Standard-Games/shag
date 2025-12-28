@@ -10,6 +10,8 @@
  * - Game: Icons, colors, custom rendering, game-specific logic
  */
 
+import { GamePaths } from '../core/GamePaths';
+
 export interface BuildMenuItem {
   id: string;
   name: string;
@@ -53,7 +55,7 @@ export interface UIConfigData {
 export class UIConfig {
   private static instance: UIConfig;
   private config: UIConfigData | null = null;
-  private configPath: string = "/data/ui-config.json";
+  private configPath: string | null = null;
 
   private constructor() {}
 
@@ -65,12 +67,12 @@ export class UIConfig {
   }
 
   public async load(path?: string): Promise<UIConfigData> {
-    if (path) {
-      this.configPath = path;
-    }
+    // Use provided path, or get from GamePaths
+    const loadPath = path || this.configPath || GamePaths.getInstance().uiConfigPath();
+    this.configPath = loadPath;
 
     try {
-      const response = await fetch(this.configPath);
+      const response = await fetch(loadPath);
       if (!response.ok) {
         throw new Error(`Failed to load UI config: ${response.statusText}`);
       }
