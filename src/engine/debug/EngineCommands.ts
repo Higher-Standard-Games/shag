@@ -8,6 +8,7 @@ import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
 import { AudioManager } from '../AudioManager';
 import { GameClock } from '../../game/GameClock';
 import { UIScale } from '../ui/UIScale';
+import { HUD } from '../ui/hud';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -664,6 +665,97 @@ export function registerEngineCommands(): void {
         
       default:
         return `Subcommands: scale [value|auto], mode [fit|fill|width|height], debug, info\nCurrent scale: ${uiScale.getScale().toFixed(3)}`;
+    }
+  });
+
+  // ============================================================================
+  // HUD Commands
+  // ============================================================================
+  
+  registry.register('hud', (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'info':
+        return HUD.getDebugInfo();
+      
+      case 'interval': {
+        const ms = parseInt(args[1], 10);
+        if (!args[1]) {
+          return `Current interval: ${HUD.getInterval()}ms`;
+        }
+        if (isNaN(ms) || ms < 16) {
+          return `Usage: hud interval <ms>\nCurrent: ${HUD.getInterval()}ms\nMinimum: 16ms`;
+        }
+        HUD.setInterval(ms);
+        return `HUD update interval: ${ms}ms`;
+      }
+      
+      case 'show': {
+        const id = args[1];
+        if (!id) return 'Usage: hud show <element-id>';
+        HUD.show(id);
+        return `Showing: ${id}`;
+      }
+      
+      case 'hide': {
+        const id = args[1];
+        if (!id) return 'Usage: hud hide <element-id>';
+        HUD.hide(id);
+        return `Hidden: ${id}`;
+      }
+      
+      case 'toggle': {
+        const id = args[1];
+        if (!id) return 'Usage: hud toggle <element-id>';
+        HUD.toggle(id);
+        return `Toggled: ${id}`;
+      }
+      
+      case 'refresh':
+        HUD.refresh();
+        return 'HUD refreshed';
+      
+      case 'theme': {
+        const theme = args[1];
+        if (!theme) {
+          return `Current theme: ${HUD.getTheme()}\nAvailable: default, dark`;
+        }
+        HUD.setTheme(theme);
+        return `Theme: ${theme}`;
+      }
+      
+      case 'collapse': {
+        const id = args[1];
+        if (!id) {
+          HUD.collapseAll();
+          return 'All accordions collapsed';
+        }
+        HUD.collapse(id);
+        return `Collapsed: ${id}`;
+      }
+      
+      case 'expand': {
+        const id = args[1];
+        if (!id) return 'Usage: hud expand <element-id>';
+        HUD.expand(id);
+        return `Expanded: ${id}`;
+      }
+      
+      case 'start':
+        HUD.start();
+        return 'HUD update loop started';
+      
+      case 'stop':
+        HUD.stop();
+        return 'HUD update loop stopped';
+      
+      case 'reset':
+        HUD.reset();
+        return 'HUD reset to defaults';
+        
+      default:
+        return `HUD Commands:\n  info - Show HUD status\n  interval <ms> - Set update interval\n  show/hide/toggle <id> - Element visibility\n  refresh - Force refresh\n  theme <name> - Set theme\n  collapse/expand <id> - Accordion control\n  start/stop - Update loop\n  reset - Reset to defaults`;
     }
   });
 
