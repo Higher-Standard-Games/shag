@@ -500,6 +500,15 @@ export class BuildableSystem {
       data: { position, mapId },
     });
 
+    // For instant builds (buildTime === 0), emit complete event immediately
+    if (template.buildTime === 0) {
+      this.emit({
+        type: 'complete',
+        instanceId: id,
+        templateId,
+      });
+    }
+
     console.log(`[BuildableSystem] Created: ${template.name} (${id})`);
     return instance;
   }
