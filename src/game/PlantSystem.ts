@@ -379,6 +379,9 @@ export class PlantSystem {
       // Create a virtual plant instance and add as child to pot
       // Store plant ID in pot's customData for lookup
       potAtPosition.customData = { ...potAtPosition.customData, plantId: plant.id };
+      
+      // Emit event to hide pot action indicator
+      EventBus.emit("building:plant_state_changed", { objectId: potAtPosition.id, hasPlant: true });
     }
 
     return plant;
@@ -1362,8 +1365,9 @@ export class PlantSystem {
         potAtPosition.childProgress = growthPercent;
       }
       
-      // Emit ready event when plant becomes harvestable
-      if (isNowHarvestable && plant.growthStage < strain.stages - 1) {
+      // Emit ready event when plant JUST became harvestable (transition from non-harvestable to harvestable)
+      const wasHarvestable = plant.growthStage >= strain.stages - 1;
+      if (isNowHarvestable && !wasHarvestable) {
         this.emit("ready_to_harvest", plant.id, { strain: plant.strain });
       }
     }

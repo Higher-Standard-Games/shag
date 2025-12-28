@@ -41,11 +41,11 @@ export class WaterPromptUI {
 
   private setupEventListeners(): void {
     // Listen for water prompt events from PlantSystem
-    EventBus.on("plant:water_prompt", (data: { plantId: string; expiresIn: number }) => {
-      this.showPrompt(data.plantId, data.expiresIn);
+    EventBus.on("plant:water_prompt_start", (data: { plantId: string; timeRemaining: number }) => {
+      this.showPrompt(data.plantId, data.timeRemaining);
     });
 
-    EventBus.on("plant:water_prompt_expired", (data: { plantId: string }) => {
+    EventBus.on("plant:water_prompt_missed", (data: { plantId: string }) => {
       this.hidePrompt(data.plantId);
     });
 
