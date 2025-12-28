@@ -511,11 +511,14 @@ export class DebugConsole {
     
     const escaped = containsHtml ? message : escapeHtml(message);
     
+    // Convert newlines to <br> tags
+    let result = escaped.replace(/\n/g, '<br>');
+    
     // Build result by finding patterns and wrapping them
     // Process in order of priority to avoid nested replacements
     
     // 1. Highlight [bracketed text] in cyan - most specific
-    let result = escaped.replace(
+    result = result.replace(
       /\[([^\]]+)\]/g,
       (_, content) => `<span class="hl-bracket">[${content}]</span>`
     );
