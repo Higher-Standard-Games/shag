@@ -629,30 +629,30 @@ export function registerEngineCommands(): void {
       case 'scale': {
         const value = args[1];
         if (!value) {
-          return uiScale.getDebugInfo();
+          return `Current scale: ${uiScale.getScale().toFixed(3)}`;
         }
         if (value === 'auto') {
           uiScale.forceScale(null);
-          return 'UI scale reset to automatic';
+          return `UI scale reset to automatic (now: ${uiScale.getScale().toFixed(3)})`;
         }
         const scale = parseFloat(value);
         if (isNaN(scale) || scale <= 0) {
-          return 'Usage: ui scale <number|auto>';
+          return `Usage: ui scale <number|auto>\nCurrent: ${uiScale.getScale().toFixed(3)}`;
         }
         uiScale.forceScale(scale);
-        return `UI scale forced to: ${scale}`;
+        return `UI scale: ${uiScale.getScale().toFixed(3)}`;
       }
       
       case 'mode': {
         const mode = args[1]?.toLowerCase();
         if (!mode) {
-          return `Current mode: ${uiScale.getScaleFactors().scale}\nModes: fit, fill, width, height`;
+          return `Current mode: fit\nModes: fit, fill, width, height`;
         }
         if (!['fit', 'fill', 'width', 'height'].includes(mode)) {
           return 'Invalid mode. Use: fit, fill, width, height';
         }
         uiScale.setScaleMode(mode as 'fit' | 'fill' | 'width' | 'height');
-        return `UI scale mode set to: ${mode}`;
+        return `UI scale mode: ${mode} (scale: ${uiScale.getScale().toFixed(3)})`;
       }
       
       case 'debug':
@@ -663,7 +663,7 @@ export function registerEngineCommands(): void {
         return uiScale.getDebugInfo();
         
       default:
-        return 'Subcommands: scale [value|auto], mode [fit|fill|width|height], debug, info';
+        return `Subcommands: scale [value|auto], mode [fit|fill|width|height], debug, info\nCurrent scale: ${uiScale.getScale().toFixed(3)}`;
     }
   });
 
