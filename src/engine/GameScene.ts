@@ -606,6 +606,9 @@ export class GameScene {
 
     this.currentMap = mapName;
     
+    // Update BuildingSystem with current map ID
+    BuildingSystem.getInstance().setCurrentMap(mapName);
+    
     // Clear ALL world indicators before notifying systems about map load
     // This prevents any UI elements from leaking between maps
     WorldIndicatorSystem.getInstance().clearAll();

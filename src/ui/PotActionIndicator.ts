@@ -91,7 +91,6 @@ export class PotActionIndicator {
     
     // Don't show if WorldIndicatorSystem not initialized yet
     if (!worldIndicator.isInitialized()) {
-      console.warn("PotActionIndicator: WorldIndicatorSystem not initialized yet");
       return;
     }
 

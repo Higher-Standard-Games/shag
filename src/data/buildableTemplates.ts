@@ -21,10 +21,10 @@ const POT_TEMPLATES: BuildableTemplate[] = [
     name: "Basic Pot",
     icon: "🪴",
     category: "plant",
-    buildTime: 10 * 1000,
+    buildTime: 0, // Instant placement
     cost: 50,
     requiredLevel: 1,
-    stages: createStages3("pot"),
+    stages: createInstantStage("pot_100.map"), // Single stage - plant visuals TBD
     behaviors: {
       container: {
         maxChildren: 1,
@@ -42,10 +42,10 @@ const POT_TEMPLATES: BuildableTemplate[] = [
     name: "Large Pot",
     icon: "🌿",
     category: "plant",
-    buildTime: 30 * 1000,
+    buildTime: 0, // Instant placement
     cost: 150,
     requiredLevel: 3,
-    stages: createStages3("pot", 1.5),
+    stages: createInstantStage("pot_100.map", 1.5), // Single stage - plant visuals TBD
     behaviors: {
       container: {
         maxChildren: 1,
@@ -64,10 +64,10 @@ const POT_TEMPLATES: BuildableTemplate[] = [
     name: "Hydro Pot",
     icon: "💧",
     category: "plant",
-    buildTime: 60 * 1000,
+    buildTime: 0, // Instant placement
     cost: 1000,
     requiredLevel: 10,
-    stages: createStages3("pot", 1.2),
+    stages: createInstantStage("pot_100.map", 1.2), // Single stage - plant visuals TBD
     behaviors: {
       container: {
         maxChildren: 1,
