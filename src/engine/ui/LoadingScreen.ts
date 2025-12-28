@@ -140,32 +140,53 @@ export class LoadingScreen {
       // Hide progress bar, show ready state
       this.progressBar.style.display = 'none';
 
-      // Animated background glow at bottom - cycles through logo colors
-      const glow = document.createElement("div");
-      glow.style.cssText = `
+      // Animated background glow at bottom - crossfades between logo colors
+      // Use two overlapping glow layers for smooth opacity-based crossfade
+      const glowContainer = document.createElement("div");
+      glowContainer.style.cssText = `
         position: absolute;
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
         width: 150%;
         height: 40%;
-        background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(232, 93, 4, 0.4) 0%, rgba(232, 93, 4, 0.15) 40%, transparent 70%);
         pointer-events: none;
-        transition: background 1.5s ease-in-out;
       `;
-      this.container.appendChild(glow);
-
-      // Animate background glow through logo colors
-      let glowColorIndex = 0;
-      const glowInterval = setInterval(() => {
-        glowColorIndex = (glowColorIndex + 1) % LOGO_PALETTE.length;
-        const color = LOGO_PALETTE[glowColorIndex];
-        // Extract RGB from hex for gradient
+      
+      const createGlowLayer = (color: typeof LOGO_PALETTE[0]) => {
         const r = parseInt(color.bg.slice(1, 3), 16);
         const g = parseInt(color.bg.slice(3, 5), 16);
         const b = parseInt(color.bg.slice(5, 7), 16);
-        glow.style.background = `radial-gradient(ellipse 50% 100% at 50% 100%, rgba(${r}, ${g}, ${b}, 0.4) 0%, rgba(${r}, ${g}, ${b}, 0.15) 40%, transparent 70%)`;
-      }, 2000);
+        const layer = document.createElement("div");
+        layer.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(${r}, ${g}, ${b}, 0.5) 0%, rgba(${r}, ${g}, ${b}, 0.2) 40%, transparent 70%);
+          opacity: 0;
+          transition: opacity 1.5s ease-in-out;
+        `;
+        return layer;
+      };
+      
+      // Create glow layers for each color
+      const glowLayers = LOGO_PALETTE.map(color => createGlowLayer(color));
+      glowLayers.forEach(layer => glowContainer.appendChild(layer));
+      this.container.appendChild(glowContainer);
+      
+      // Start with first color visible
+      let currentGlowIndex = 0;
+      glowLayers[0].style.opacity = '1';
+      
+      // Crossfade between colors
+      const glowInterval = setInterval(() => {
+        const prevIndex = currentGlowIndex;
+        currentGlowIndex = (currentGlowIndex + 1) % LOGO_PALETTE.length;
+        glowLayers[prevIndex].style.opacity = '0';
+        glowLayers[currentGlowIndex].style.opacity = '1';
+      }, 2500);
 
       // Make container clickable
       this.container.style.cursor = 'pointer';
