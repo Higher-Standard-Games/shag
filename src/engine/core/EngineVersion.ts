@@ -36,10 +36,24 @@ class EngineVersion {
   }
 
   /**
-   * Get the engine name with version (e.g., "IWM Engine v0.2.0")
+   * Get the engine name with version (e.g., "HSG Engine v0.2.0")
    */
   public getFullVersionString(): string {
-    return `IWM Engine v${this.version}`;
+    return `HSG Engine v${this.version}`;
+  }
+
+  /**
+   * Get the full engine name
+   */
+  public getEngineName(): string {
+    return 'Higher Standard Games Engine';
+  }
+
+  /**
+   * Get the short engine name
+   */
+  public getEngineNameShort(): string {
+    return 'HSG Engine';
   }
 }
 
