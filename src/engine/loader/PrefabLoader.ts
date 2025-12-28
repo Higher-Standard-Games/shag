@@ -1,4 +1,5 @@
 import { type Entity, MapParser } from "./MapParser";
+import { GamePaths } from "../core/GamePaths";
 
 export interface PrefabDefinition {
   name: string;
@@ -15,7 +16,7 @@ export interface PrefabDefinition {
 export class PrefabLoader {
   private static instance: PrefabLoader;
   private prefabCache: Map<string, PrefabDefinition> = new Map();
-  private basePath = "/prefabs";
+  private basePath: string | null = null;
 
   private constructor() {}
 
@@ -45,7 +46,8 @@ export class PrefabLoader {
     try {
       // Normalize path - add .map extension if not present
       const fileName = name.endsWith(".map") ? name : `${name}.map`;
-      const fullPath = `${this.basePath}/${fileName}`;
+      const basePath = this.basePath || GamePaths.getInstance().prefabs();
+      const fullPath = `${basePath}/${fileName}`;
 
       console.log(`Loading prefab: ${fullPath}`);
 

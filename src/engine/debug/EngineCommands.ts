@@ -9,6 +9,7 @@ import { AudioManager } from '../AudioManager';
 import { GameClock } from '../../game/GameClock';
 import { UIScale } from '../ui/UIScale';
 import { HUD } from '../ui/hud';
+import { GamePaths } from '../core/GamePaths';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -756,6 +757,46 @@ export function registerEngineCommands(): void {
         
       default:
         return `HUD Commands:\n  info - Show HUD status\n  interval <ms> - Set update interval\n  show/hide/toggle <id> - Element visibility\n  refresh - Force refresh\n  theme <name> - Set theme\n  collapse/expand <id> - Accordion control\n  start/stop - Update loop\n  reset - Reset to defaults`;
+    }
+  });
+
+  // ============================================================================
+  // Game Path Commands
+  // ============================================================================
+  
+  registry.register('game', (args) => {
+    const gamePaths = GamePaths.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'info':
+        return gamePaths.getDebugInfo();
+      
+      case 'load': {
+        const name = args[1];
+        if (!name) {
+          return `Usage: game load <name>\nCurrent game: ${gamePaths.getGameName()}`;
+        }
+        gamePaths.setGame(name);
+        return `Game set to: ${name}\nReload the page to apply changes, or use: game reload`;
+      }
+      
+      case 'reload':
+        // Reload with current game
+        window.location.href = `${window.location.pathname}?game=${gamePaths.getGameName()}`;
+        return 'Reloading...';
+      
+      case 'switch': {
+        const name = args[1];
+        if (!name) {
+          return `Usage: game switch <name>\nThis will reload the page with the new game.`;
+        }
+        window.location.href = `${window.location.pathname}?game=${name}`;
+        return `Switching to game: ${name}...`;
+      }
+        
+      default:
+        return `Game Commands:\n  info - Show current game paths\n  load <name> - Set game (requires reload)\n  switch <name> - Switch game and reload\n  reload - Reload with current game\n\nCurrent game: ${gamePaths.getGameName()}`;
     }
   });
 

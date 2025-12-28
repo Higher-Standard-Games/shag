@@ -14,6 +14,7 @@ import { UITheme } from "./engine/ui/UITheme";
 import { UIScale } from "./engine/ui/UIScale";
 import { DebugConsole, registerEngineCommands } from "./engine/debug";
 import { registerGameCommands } from "./game/GameCommands";
+import { GamePaths } from "./engine/core/GamePaths";
 
 /**
  * Main application entry point.
@@ -28,6 +29,9 @@ import { registerGameCommands } from "./game/GameCommands";
 async function main() {
   // Initialize Capacitor bridge early (handles native platform setup)
   await CapacitorBridge.getInstance().init();
+  
+  // Initialize GamePaths (reads engine.json and URL params)
+  await GamePaths.getInstance().init();
   
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
   

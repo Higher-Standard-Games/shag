@@ -1,9 +1,11 @@
 /**
  * EngineSettings - Load and apply engine configuration from JSON
  * 
- * Reads settings from public/game/engine-settings.json and applies them
+ * Reads settings from game directory engine-settings.json and applies them
  * to engine systems (camera, lighting, post-processing, etc.)
  */
+
+import { GamePaths } from './GamePaths';
 
 export interface CameraSettings {
   mode: 'perspective' | 'orthographic' | 'fake_ortho';
@@ -62,7 +64,8 @@ export class EngineSettings {
     if (this.loaded) return;
 
     try {
-      const response = await fetch('/game/engine-settings.json');
+      const settingsPath = GamePaths.getInstance().engineSettingsPath();
+      const response = await fetch(settingsPath);
       if (!response.ok) {
         console.log('[EngineSettings] No engine-settings.json found, using defaults');
         this.loaded = true;

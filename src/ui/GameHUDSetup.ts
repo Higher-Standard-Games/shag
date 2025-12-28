@@ -6,6 +6,7 @@
  */
 
 import { HUD } from '../engine/ui/hud';
+import { GamePaths } from '../engine/core/GamePaths';
 import { GameState } from '../game/GameState';
 import { GameClock } from '../game/GameClock';
 import { QuestSystem } from '../game/QuestSystem';
@@ -32,8 +33,9 @@ function getPeriodIcon(period: string): string {
 export async function setupGameHUD(): Promise<void> {
   console.log('[GameHUD] Setting up...');
 
-  // Initialize HUD system with config
-  await HUD.init('data/hud-config.json');
+  // Initialize HUD system with config from game directory
+  const hudConfigPath = GamePaths.getInstance().hudConfigPath();
+  await HUD.init(hudConfigPath);
 
   // ============================================================================
   // Value Bindings
