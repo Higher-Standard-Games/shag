@@ -1,6 +1,6 @@
 # Ganjawars Engine Documentation
 
-A browser-based 3D game engine using Babylon.js with .map file support.
+A browser-based 3D game engine using Babylon.js with Q3map2/NetRadiant-compatible .map file support.
 
 ## Overview
 

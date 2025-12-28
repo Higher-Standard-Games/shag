@@ -1,6 +1,6 @@
 # .map File Format Documentation
 
-This document describes the `.map` file format used by this engine (NetRadiant/TrenchBroom compatible). Use this as a reference when generating or editing map files.
+This document describes the Q3map2/NetRadiant-compatible `.map` file format used by this engine. Use this as a reference when generating or editing map files.
 
 ## Overview
 
