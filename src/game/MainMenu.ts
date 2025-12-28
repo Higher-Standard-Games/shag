@@ -669,8 +669,8 @@ export class MainMenu {
 
       // Engine logo - centered
       const logo = document.createElement("img");
-      logo.src = "engine.svg";
-      logo.alt = "Engine";
+      logo.src = "engine.png";
+      logo.alt = "SHAG Engine";
       logo.style.cssText = `
         width: 320px;
         height: auto;
@@ -703,7 +703,7 @@ export class MainMenu {
       `;
       rippleContainer.appendChild(centerDot);
 
-      // Color palette from engine.svg for random rotation
+      // Color palette for random rotation
       const colorPalette = [
         { bg: 'rgb(37, 182, 120)', glow: 'rgba(37, 182, 120, 0.6)' },    // Main green
         { bg: 'rgb(99, 211, 199)', glow: 'rgba(99, 211, 199, 0.6)' },    // Teal highlight
