@@ -2,7 +2,7 @@
  * PlantSystem - Manages plant growth, watering, and harvesting
  */
 
-import { BuildableObjectManager } from "./BuildableObject";
+import { BuildableSystem } from "../engine/BuildableSystem";
 import { CuringSystem } from "./CuringSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
 import { EventBus } from "../engine/core/EventBus";
@@ -367,15 +367,18 @@ export class PlantSystem {
     console.log(`Planted ${strain.name} at (${position.x}, ${position.y}, ${position.z}) in ${potType} pot at ${initialTemp}°F (+${plantingXp} XP)`);
     this.emit("planted", plant.id, { strain: strainId, potType, temperature: initialTemp, xp: plantingXp });
 
-    // Mark the pot as having a plant (for visual update)
-    const buildableManager = BuildableObjectManager.getInstance();
-    const allObjects = Array.from(buildableManager.getObjectsInMap(mapId));
-    const potAtPosition = allObjects.find(obj => 
-      Math.abs(obj.position.x - position.x) < 5 &&
-      Math.abs(obj.position.z - position.z) < 5
+    // Mark the pot as having a plant using engine container/child relationship
+    const buildableSystem = BuildableSystem.getInstance();
+    const allInstances = buildableSystem.getInstancesInMap(mapId);
+    const potAtPosition = allInstances.find(inst => 
+      Math.abs(inst.position.x - position.x) < 5 &&
+      Math.abs(inst.position.z - position.z) < 5 &&
+      inst.templateId.startsWith('pot_')
     );
     if (potAtPosition) {
-      buildableManager.setPlantInPot(potAtPosition.id, true);
+      // Create a virtual plant instance and add as child to pot
+      // Store plant ID in pot's customData for lookup
+      potAtPosition.customData = { ...potAtPosition.customData, plantId: plant.id };
     }
 
     return plant;
@@ -523,19 +526,19 @@ export class PlantSystem {
     const plant = this.gameState.getPlant(plantId);
     if (!plant) return null;
 
-    const buildableManager = BuildableObjectManager.getInstance();
-    const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
+    const buildableSystem = BuildableSystem.getInstance();
+    const allInstances = buildableSystem.getInstancesInMap(plant.mapId);
     
     // Look for a grow light at the same X/Y position but 128 units higher (Z)
-    const lightAbove = allObjects.find(obj => {
+    const lightAbove = allInstances.find(inst => {
       // Check if it's a grow light type
-      const isGrowLight = obj.templateId.startsWith("grow_light");
+      const isGrowLight = inst.templateId.startsWith("grow_light");
       if (!isGrowLight) return false;
       
       // Check if it's above this plant (same X/Y, Z is ~128 higher)
-      const sameX = Math.abs(obj.position.x - plant.position.x) < 10;
-      const sameY = Math.abs(obj.position.z - plant.position.z) < 10; // Z in 3D = Y in map
-      const abovePlant = obj.position.y > plant.position.y + 50; // Y in 3D = height
+      const sameX = Math.abs(inst.position.x - plant.position.x) < 10;
+      const sameY = Math.abs(inst.position.z - plant.position.z) < 10; // Z in 3D = Y in map
+      const abovePlant = inst.position.y > plant.position.y + 50; // Y in 3D = height
       
       return sameX && sameY && abovePlant;
     });
@@ -543,8 +546,8 @@ export class PlantSystem {
     if (!lightAbove) return null;
 
     // Get the template to find yield bonus
-    const template = buildableManager.getTemplate(lightAbove.templateId);
-    const yieldBonus = template?.yieldBonus ?? 0;
+    const template = buildableSystem.getTemplate(lightAbove.templateId);
+    const yieldBonus = (template?.customData?.yieldBonus as number) ?? 0;
 
     return { templateId: lightAbove.templateId, yieldBonus };
   }
@@ -1087,14 +1090,16 @@ export class PlantSystem {
 
     // Reset the pot visual to empty state (ready for new seed)
     // Find the pot at this plant's position
-    const buildableManager = BuildableObjectManager.getInstance();
-    const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
-    const potAtPosition = allObjects.find(obj => 
-      Math.abs(obj.position.x - plant.position.x) < 5 &&
-      Math.abs(obj.position.z - plant.position.z) < 5
+    const buildableSystem = BuildableSystem.getInstance();
+    const allInstances = buildableSystem.getInstancesInMap(plant.mapId);
+    const potAtPosition = allInstances.find(inst => 
+      Math.abs(inst.position.x - plant.position.x) < 5 &&
+      Math.abs(inst.position.z - plant.position.z) < 5 &&
+      inst.templateId.startsWith('pot_')
     );
     if (potAtPosition) {
-      buildableManager.resetPot(potAtPosition.id);
+      // Clear plant reference from pot's customData
+      potAtPosition.customData = { ...potAtPosition.customData, plantId: undefined };
     }
 
     const phaseText = isPerfectGrow ? "(PERFECT GROW!)" :
@@ -1345,14 +1350,16 @@ export class PlantSystem {
       
       // Sync pot visual with plant growth (only on stage change to avoid loops)
       const growthPercent = (newStage / (strain.stages - 1)) * 100;
-      const buildableManager = BuildableObjectManager.getInstance();
-      const allObjects = Array.from(buildableManager.getObjectsInMap(plant.mapId));
-      const potAtPosition = allObjects.find(obj => 
-        Math.abs(obj.position.x - plant.position.x) < 5 &&
-        Math.abs(obj.position.z - plant.position.z) < 5
+      const buildableSystem = BuildableSystem.getInstance();
+      const allInstances = buildableSystem.getInstancesInMap(plant.mapId);
+      const potAtPosition = allInstances.find(inst => 
+        Math.abs(inst.position.x - plant.position.x) < 5 &&
+        Math.abs(inst.position.z - plant.position.z) < 5 &&
+        inst.templateId.startsWith('pot_')
       );
       if (potAtPosition) {
-        buildableManager.syncPotWithPlant(potAtPosition.id, growthPercent);
+        // Update pot's child progress for visual sync
+        potAtPosition.childProgress = growthPercent;
       }
       
       // Emit ready event when plant becomes harvestable
