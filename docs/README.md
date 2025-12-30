@@ -18,27 +18,56 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 
 ## Documentation Index
 
-### Engine Systems
+### Engine Core
 | Document | Description |
 |----------|-------------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Engine architecture patterns and conventions |
 | [entities.md](./entities.md) | All supported entity types |
 | [triggers.md](./triggers.md) | Trigger system and actions |
-| [sprites.md](./sprites.md) | 2D sprite systems (NPCs and buildings) |
-| [prefabs.md](./prefabs.md) | Prefab/model system |
-| [post-processing.md](./post-processing.md) | Graphics effects (bloom, vignette, SSAO) |
-| [weather-effects.md](./weather-effects.md) | Weather system (rain, snow, thunder, fog) |
-| [dialogs.md](./dialogs.md) | UI dialog system |
+| [prefabs.md](./prefabs.md) | Prefab/model system (.map and .glb) |
+| [MAP_FORMAT.md](./MAP_FORMAT.md) | .map file format specification |
 | [config.md](./config.md) | Game configuration |
-| [HUD_SYSTEM_DESIGN.md](./HUD_SYSTEM_DESIGN.md) | Generic HUD system architecture |
-| [UI_SCALING_PLAN.md](./UI_SCALING_PLAN.md) | Cross-platform UI scaling system |
-| [buildable-system.md](./buildable-system.md) | Generic buildable object system |
 
-### Game Systems
+### Graphics & Rendering
 | Document | Description |
 |----------|-------------|
-| [game-systems.md](./game-systems.md) | Core game systems (GameState, Timer, Save, etc.) |
-| [genetics-system.md](./genetics-system.md) | Plant genetics, breeding, and progression |
+| [sprites.md](./sprites.md) | 2D sprite systems (NPCs and buildings) |
+| [post-processing.md](./post-processing.md) | Graphics effects (bloom, vignette, SSAO) |
+| [weather-effects.md](./weather-effects.md) | Weather system (rain, snow, thunder, fog) |
+| [ktx2-textures.md](./ktx2-textures.md) | Compressed texture format |
+
+### UI Systems
+| Document | Description |
+|----------|-------------|
+| [dialogs.md](./dialogs.md) | UI dialog system |
+| [HUD_SYSTEM_DESIGN.md](./HUD_SYSTEM_DESIGN.md) | Generic HUD system architecture |
+| [ui-scaling.md](./ui-scaling.md) | Cross-platform UI scaling |
+
+### Tools
+| Document | Description |
+|----------|-------------|
+| [map-generator.md](./map-generator.md) | Procedural map generator |
+| [DEBUG_CONSOLE.md](./DEBUG_CONSOLE.md) | In-game debug console commands |
+
+### Performance & Optimization
+| Document | Description |
+|----------|-------------|
+| [engine-optimization.md](./engine-optimization.md) | Mobile optimization guide (instancing, LOD, memory) |
+
+### Platform & Build
+| Document | Description |
+|----------|-------------|
+| [capacitor.md](./capacitor.md) | Mobile (Android/iOS) integration |
+| [ANDROID_BUILD_GUIDE.md](./ANDROID_BUILD_GUIDE.md) | Android build instructions |
+
+### Game-Specific
+| Document | Description |
+|----------|-------------|
+| [game-systems.md](./game-systems.md) | Core game systems (GameState, Timer, Save) |
+| [genetics-system.md](./genetics-system.md) | Plant genetics, breeding, progression |
+| [buildable-system.md](./buildable-system.md) | Buildable object system |
 | [data-files.md](./data-files.md) | JSON data files for game content |
+| [GAME_PATHS.md](./GAME_PATHS.md) | Game progression paths |
 
 ## Quick Start
 

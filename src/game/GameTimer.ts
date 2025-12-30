@@ -3,6 +3,8 @@
  * Handles game time, timers, and scheduled events
  */
 
+import { EventBus } from "../engine/core/EventBus";
+
 /**
  * Game speed modes
  * - normal: 1.0x speed
@@ -60,6 +62,10 @@ export class GameTimer {
   private constructor() {
     this.lastRealTime = performance.now();
     this.debugModeEnabled = DEBUG_SPEED_ENABLED;
+    
+    // Listen for pause/resume events from engine
+    EventBus.on("game:paused", () => this.pause());
+    EventBus.on("game:resumed", () => this.resume());
   }
 
   public static getInstance(): GameTimer {

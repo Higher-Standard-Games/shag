@@ -7,7 +7,6 @@ import {
   type TransformNode,
   Vector3,
 } from "babylonjs";
-import { BuildingSystem } from "../game/BuildingSystem";
 import { BrushGenerator } from "./loader/BrushGenerator";
 import type { Entity } from "./loader/MapParser";
 import { ModelLoader } from "./loader/ModelLoader";
@@ -17,18 +16,10 @@ import { TextureManager } from "./loader/TextureManager";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { 
-  CharacterGenerator, 
-  PRESET_CHARACTERS, 
-  SKIN_TONES, 
-  HAIR_COLORS, 
-  SHIRT_COLORS,
-  type CharacterConfig,
-  type CharacterStyle,
-} from "../game/CharacterGenerator";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
+import { EntityHandlerRegistry, type EntityData } from "./core/EntityHandlerRegistry";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -82,6 +73,17 @@ export class MapRenderer {
     if (!textureManager.isInitialized()) {
       textureManager.init(scene);
     }
+
+    // Convert entities to EntityData for hooks
+    const entityDataList: EntityData[] = entities.map(e => ({
+      classname: e.classname,
+      properties: e.properties,
+      brushes: e.brushes,
+      patches: e.patches,
+    }));
+
+    // Run pre-render hooks (game-specific initialization)
+    await EntityHandlerRegistry.runPreRenderHooks(entityDataList, scene);
 
     let playerStartPosition = new Vector3(0, 10, 0);
     const prefabInstances: TransformNode[] = [];
@@ -659,126 +661,19 @@ export class MapRenderer {
         console.log(`Created sprite: ${entity.properties.targetname || "unnamed"} at ${position.toString()}`);
       }
 
-      // Handle info_npc entities (3D cartoon characters)
-      if (entity.classname === "info_npc" && entity.properties.origin) {
-        const charGen = CharacterGenerator.getInstance();
-        
-        // Initialize if needed
-        if (!charGen.isInitialized()) {
-          charGen.init(scene);
+      // Handle entities via EntityHandlerRegistry (game-specific handlers)
+      const entityHandler = EntityHandlerRegistry.getHandler(entity.classname);
+      if (entityHandler) {
+        const entityData: EntityData = {
+          classname: entity.classname,
+          properties: entity.properties,
+          brushes: entity.brushes,
+          patches: entity.patches,
+        };
+        const result = await entityHandler(entityData, scene);
+        if (result.handled && result.node) {
+          prefabInstances.push(result.node);
         }
-
-        // Parse position
-        const parts = entity.properties.origin.split(" ").map(parseFloat);
-        const position = new Vector3(parts[0], parts[2], parts[1]);
-
-        // Get NPC ID and name
-        const npcId = entity.properties.targetname || `npc_${Date.now()}`;
-        const npcName = entity.properties.name || npcId;
-
-        // Check for preset character
-        const presetId = entity.properties.preset;
-        let character: TransformNode | null = null;
-
-        // Default scale of 32 to match game world units (characters ~48 units tall)
-        const baseScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
-
-        if (presetId) {
-          // Use preset character with world-scale
-          const preset = PRESET_CHARACTERS.find(p => p.id === presetId);
-          if (preset) {
-            const finalScale = baseScale * (preset.scale ?? 1);
-            character = charGen.createCharacter({ 
-              ...preset, 
-              id: npcId,
-              scale: finalScale,
-            });
-          }
-        }
-        
-        if (!character && entity.properties.random === "1") {
-          // Generate random character with world-scale
-          character = charGen.createRandomCharacter(npcId, npcName, baseScale);
-        }
-        
-        if (!character) {
-          // Build custom character from entity properties
-          // Default scale of 32 to match game world units (characters ~48 units tall)
-          const npcScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
-          const config: CharacterConfig = {
-            id: npcId,
-            name: npcName,
-            colors: {
-              skin: entity.properties.skinColor || SKIN_TONES.medium,
-              hair: entity.properties.hairColor || HAIR_COLORS.brown,
-              shirt: entity.properties.shirtColor || SHIRT_COLORS.blue,
-              pants: entity.properties.pantsColor || "#2C2C2C",
-              shoes: entity.properties.shoesColor || "#2C2C2C",
-              accessory: entity.properties.accessoryColor,
-            },
-            style: {
-              bodyType: (entity.properties.bodyType as CharacterStyle["bodyType"]) || "average",
-              hairStyle: (entity.properties.hairStyle as CharacterStyle["hairStyle"]) || "short",
-              gender: (entity.properties.gender as CharacterStyle["gender"]) || "neutral",
-              accessory: (entity.properties.accessory as CharacterStyle["accessory"]) || "none",
-              facialHair: (entity.properties.facialHair as CharacterStyle["facialHair"]) || "none",
-            },
-            scale: npcScale,
-          };
-          character = charGen.createCharacter(config);
-        }
-
-        if (character) {
-          character.position = position;
-          
-          // Apply rotation
-          if (entity.properties.angle) {
-            const angle = parseFloat(entity.properties.angle);
-            character.rotation.y = (angle * Math.PI) / 180;
-          }
-
-          // Store metadata
-          character.metadata = {
-            npcId,
-            npcName,
-            properties: entity.properties,
-          };
-
-          // Add shadow support for NPC meshes
-          const skyLight = SkyLightSystem.getInstance();
-          if (skyLight.getShadowGenerator()) {
-            const childMeshes = character.getChildMeshes();
-            for (const mesh of childMeshes) {
-              skyLight.addShadowCaster(mesh, false);
-              mesh.receiveShadows = true;
-            }
-          }
-
-          prefabInstances.push(character);
-          console.log(`Created NPC: ${npcName} at ${position.toString()}`);
-        }
-      }
-
-      // Handle build_zone entities
-      if (entity.classname === "build_zone" && entity.properties.origin) {
-        console.log(`[MapRenderer] Registering build_zone: ${entity.properties.targetname}`);
-        const buildingSystem = BuildingSystem.getInstance();
-
-        // Parse position
-        const parts = entity.properties.origin.split(" ").map(parseFloat);
-        const position = new Vector3(parts[0], parts[2], parts[1]);
-
-        // Get zone properties
-        const zoneId = entity.properties.targetname || `zone_${Date.now()}`;
-        const zoneType = entity.properties.zoneType || "plant";
-        const size = entity.properties.size ? parseFloat(entity.properties.size) : 64;
-
-        // Get current map ID (from entity or default)
-        const mapId = entity.properties.mapId || "current";
-
-        // Register the zone
-        buildingSystem.registerZone(zoneId, position, size, zoneType, mapId);
-        console.log(`[MapRenderer] Zone registered, total zones: ${buildingSystem.getZonesByType(zoneType).length}`);
       }
 
       // Handle info_debris_zone entities (local debris particle spawners)
@@ -894,8 +789,9 @@ export class MapRenderer {
     // Clear sprites
     SpriteManager.getInstance().clear();
 
-    // Clear build zones
-    BuildingSystem.getInstance().clearZones();
+    // Run pre-render hooks (clears game-specific state like build zones)
+    // Note: This is sync clear, pre-render hooks for actual rendering are async
+    EntityHandlerRegistry.runPreRenderHooks([], scene);
 
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();

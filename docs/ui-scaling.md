@@ -1,49 +1,16 @@
-# UI Scaling System - Design Plan
+# UI Scaling System
 
-## Current Problems
+Cross-platform UI scaling system for consistent sizing across desktop and mobile.
 
-### 1. **Inconsistent Scaling**
-- UI uses mix of `px`, `%`, `vw/vh`, and hardcoded values
-- No unified scaling factor for different screen sizes
-- Elements don't scale proportionally on mobile vs desktop
+## Overview
 
-### 2. **No Reference Resolution**
-- No "design resolution" to scale from
-- Can't predict how UI will look on different devices
-- Manual breakpoints scattered across CSS files
+The `UIScale` class (`src/engine/ui/UIScale.ts`) provides:
+- **Reference resolution scaling** - Design at 1920x1080, auto-scale to any viewport
+- **CSS variables** - Inject scaled values for use in CSS
+- **Platform detection** - Mobile, portrait, touch device detection
+- **Minimum touch targets** - Enforce 44px minimum for accessibility
 
-### 3. **Touch Target Issues**
-- Some buttons too small on mobile
-- Some elements too large on desktop
-- No minimum touch target enforcement
-
-### 4. **Layout Problems**
-- Bottom bar can overflow on small screens
-- Side panels don't adapt well to portrait mode
-- HUD elements overlap on narrow screens
-
----
-
-## Proposed Solution: UIScale System
-
-### Core Concept
-
-Design UI at a **reference resolution** (e.g., 1920x1080), then scale everything proportionally based on actual viewport size.
-
-```typescript
-// Reference design resolution
-const DESIGN_WIDTH = 1920;
-const DESIGN_HEIGHT = 1080;
-
-// Calculate scale factor
-const scaleX = window.innerWidth / DESIGN_WIDTH;
-const scaleY = window.innerHeight / DESIGN_HEIGHT;
-
-// Use minimum to maintain aspect ratio, or average for balanced scaling
-const scale = Math.min(scaleX, scaleY);
-```
-
-### UIScale Class
+## UIScale Class
 
 ```typescript
 interface UIScaleConfig {
@@ -139,33 +106,6 @@ Components use CSS variables instead of hardcoded values:
 
 ---
 
-## Implementation Plan
-
-### Phase 1: Core UIScale System
-1. Create `UIScale.ts` with scale calculation
-2. Add CSS variable injection
-3. Add resize event handling
-4. Add mobile/portrait detection
-
-### Phase 2: Migrate Bottom Bar
-1. Update `BottomBar.css` to use CSS variables
-2. Test on multiple screen sizes
-3. Add mobile-specific layout adjustments
-
-### Phase 3: Migrate Other Components
-1. Update `SidePanel.css`
-2. Update `ModalPanel.css`
-3. Update dialog styles
-4. Update HUD elements
-
-### Phase 4: Testing & Polish
-1. Test on mobile devices (Android via Capacitor)
-2. Test on various desktop resolutions
-3. Add CLI commands for debugging (`ui scale`, `ui debug`)
-4. Document the system
-
----
-
 ## Scale Modes
 
 ### `fit` (Default)
@@ -223,22 +163,3 @@ ui scale auto      # Return to automatic
 ui debug           # Toggle debug overlay showing safe areas
 ```
 
----
-
-## Migration Strategy
-
-1. **Non-breaking**: New system is opt-in via CSS variables
-2. **Gradual**: Migrate components one at a time
-3. **Fallback**: CSS variables have fallback values
-4. **Testing**: Each component tested before moving to next
-
----
-
-## Success Criteria
-
-- [ ] UI looks consistent across 720p to 4K displays
-- [ ] Touch targets are always >= 44px on mobile
-- [ ] No overlapping elements on any screen size
-- [ ] Smooth resize handling (no flicker)
-- [ ] Works on Android via Capacitor
-- [ ] Easy to use for new components

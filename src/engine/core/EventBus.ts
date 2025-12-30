@@ -218,50 +218,61 @@ export class EventBus {
   }
 }
 
-// ==================== Standard Event Types ====================
-// These provide type safety for common events
+// ==================== Engine Event Types ====================
+// These are generic engine-level events, not game-specific
 
-export interface PlantEvents {
-  "plant:planted": { plantId: string; strain: string; position: { x: number; y: number; z: number } };
-  "plant:watered": { plantId: string; waterLevel: number };
-  "plant:fertilized": { plantId: string; speedBoost: number };
-  "plant:stage_change": { plantId: string; oldStage: number; newStage: number };
-  "plant:harvested": { plantId: string; strain: string; yield: number; quality: number };
-  "plant:died": { plantId: string; reason: string };
+/**
+ * Map/Scene lifecycle events
+ */
+export interface MapEvents {
+  "map:loading": { mapName: string };
+  "map:loaded": { mapName: string };
+  "map:unloading": { mapName: string };
+  "map:transition": { from: string; to: string };
 }
 
-export interface ShopEvents {
-  "shop:purchased": { itemId: string; quantity: number; cost: number };
-  "shop:sold": { itemId: string; quantity: number; revenue: number };
-  "shop:restocked": { itemId: string; newStock: number };
+/**
+ * App lifecycle events (mobile/desktop)
+ */
+export interface AppEvents {
+  "app:state_change": { isActive: boolean };
+  "app:back_button": { canGoBack: boolean };
+  "app:resize": { width: number; height: number };
+  "app:orientation_change": { orientation: "portrait" | "landscape" };
 }
 
-export interface BuildingEvents {
-  "building:started": { objectId: string; templateId: string; zoneId: string };
-  "building:progress": { objectId: string; progress: number };
-  "building:completed": { objectId: string; templateId: string; zoneId: string };
-  "building:demolished": { objectId: string; templateId: string };
+/**
+ * Input events
+ */
+export interface InputEvents {
+  "input:click": { x: number; y: number; target?: string };
+  "input:key": { key: string; action: "down" | "up" };
 }
 
-export interface PlayerEvents {
-  "player:levelup": { oldLevel: number; newLevel: number };
-  "player:xp_gained": { amount: number; source: string };
-  "player:money_changed": { oldAmount: number; newAmount: number; delta: number };
+/**
+ * Asset loading events
+ */
+export interface AssetEvents {
+  "assets:progress": { loaded: number; total: number; current: string };
+  "assets:complete": { duration: number };
+  "assets:error": { asset: string; error: string };
 }
 
-export interface CuringEvents {
-  "curing:started": { barrelId: string; strainId: string; amount: number };
-  "curing:completed": { barrelId: string; strainId: string; amount: number };
-  "curing:decayed": { itemId: string; amount: number };
+/**
+ * Audio events
+ */
+export interface AudioEvents {
+  "audio:music_started": { track: string };
+  "audio:music_ended": { track: string };
+  "audio:music_changed": { from: string; to: string };
 }
 
-export interface GameEvents {
-  "game:saved": { timestamp: number };
-  "game:loaded": { timestamp: number };
-  "game:day_changed": { day: number };
-  "game:paused": Record<string, never>;
-  "game:resumed": Record<string, never>;
-}
+/**
+ * Union of all engine event types
+ */
+export type EngineEvents = MapEvents & AppEvents & InputEvents & AssetEvents & AudioEvents;
 
-// Union of all event types for type-safe emit/on
-export type AllEvents = PlantEvents & ShopEvents & BuildingEvents & PlayerEvents & CuringEvents & GameEvents;
+/**
+ * Helper type to get event data type by event name
+ */
+export type EngineEventData<K extends keyof EngineEvents> = EngineEvents[K];

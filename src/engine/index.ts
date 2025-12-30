@@ -41,10 +41,16 @@ export { PatchGenerator } from "./loader/PatchGenerator";
 export type { PatchDefinition } from "./loader/PatchGenerator";
 export { TextureManager } from "./loader/TextureManager";
 export type { TextureInfo } from "./loader/TextureManager";
+export { TextureMemoryManager } from "./loader/TextureMemoryManager";
+export type { TextureMemoryConfig, TrackedTexture, QualityLevel } from "./loader/TextureMemoryManager";
 export { ModelLoader } from "./loader/ModelLoader";
 export type { ModelLoadOptions } from "./loader/ModelLoader";
 export { PrefabLoader } from "./loader/PrefabLoader";
 export { PrefabInstance } from "./loader/PrefabInstance";
+
+// Rendering
+export { InstancedMeshManager } from "./rendering/InstancedMeshManager";
+export type { InstanceData, TemplateData, InstanceTransform } from "./rendering/InstancedMeshManager";
 
 // Sprites
 export { SpriteManager } from "./sprites/SpriteManager";
