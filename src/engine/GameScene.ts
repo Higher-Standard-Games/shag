@@ -45,6 +45,9 @@ import { DebrisEffect } from "./effects/DebrisEffect";
 import { CapacitorBridge } from "./core/CapacitorBridge";
 import { EventBus } from "./core/EventBus";
 import { EngineSettings } from "./core/EngineSettings";
+import { QualityDetector } from "./core/QualityDetector";
+import { TextureMemoryManager } from "./loader/TextureMemoryManager";
+import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
 
 /**
  * Camera rendering modes:
@@ -262,6 +265,20 @@ export class GameScene {
 
     // Initialize TextureManager for this scene
     TextureManager.getInstance().init(this.scene);
+    
+    // Initialize TextureMemoryManager with auto-detected quality
+    const qualityDetector = QualityDetector.getInstance();
+    const { quality, deviceInfo } = qualityDetector.detectQuality();
+    const textureMemory = TextureMemoryManager.getInstance();
+    textureMemory.init(this.scene, {
+      memoryBudgetMB: qualityDetector.getRecommendedTextureBudget(),
+      maxTextureSize: qualityDetector.getRecommendedMaxTextureSize(),
+    });
+    textureMemory.setQuality(quality);
+    console.log(`[GameScene] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
+    
+    // Initialize InstancedMeshManager for GPU instancing
+    InstancedMeshManager.getInstance().init(this.scene);
 
     // Initialize SpriteManager (will be used when loading maps with npc_sprite entities)
     // Camera will be set after it's created

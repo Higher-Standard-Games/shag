@@ -12,6 +12,7 @@ import type { Entity } from "./loader/MapParser";
 import { ModelLoader } from "./loader/ModelLoader";
 import { type PatchDefinition, PatchGenerator } from "./loader/PatchGenerator";
 import { PrefabInstance } from "./loader/PrefabInstance";
+import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
 import { TextureManager } from "./loader/TextureManager";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
@@ -84,6 +85,44 @@ export class MapRenderer {
 
     // Run pre-render hooks (game-specific initialization)
     await EntityHandlerRegistry.runPreRenderHooks(entityDataList, scene);
+
+    // Pre-process: Group misc_model entities by model path for instancing optimization
+    const modelEntityGroups = new Map<string, Entity[]>();
+    for (const entity of entities) {
+      if (entity.classname === "misc_model" && entity.properties.model) {
+        const modelPath = entity.properties.model;
+        if (ModelLoader.isModelFile(modelPath)) {
+          if (!modelEntityGroups.has(modelPath)) {
+            modelEntityGroups.set(modelPath, []);
+          }
+          modelEntityGroups.get(modelPath)!.push(entity);
+        }
+      }
+    }
+    
+    // Register instanced templates for models with multiple instances
+    const instancedModels = new Set<string>();
+    const instanceManager = InstancedMeshManager.getInstance();
+    const modelLoader = ModelLoader.getInstance();
+    
+    if (!modelLoader.isInitialized()) {
+      modelLoader.init(scene);
+    }
+    
+    for (const [modelPath, modelEntities] of modelEntityGroups) {
+      // Use instancing if 3+ instances of the same model
+      if (modelEntities.length >= 3) {
+        const registered = await modelLoader.registerInstanceTemplate(
+          modelPath, 
+          modelPath, 
+          Math.max(100, modelEntities.length * 2)
+        );
+        if (registered) {
+          instancedModels.add(modelPath);
+          console.log(`[MapRenderer] Using instancing for ${modelPath} (${modelEntities.length} instances)`);
+        }
+      }
+    }
 
     let playerStartPosition = new Vector3(0, 10, 0);
     const prefabInstances: TransformNode[] = [];
@@ -445,40 +484,49 @@ export class MapRenderer {
 
         // Check if this is a 3D model file (GLB/glTF/OBJ) or a .map prefab
         if (ModelLoader.isModelFile(modelPath)) {
-          // Load as 3D model (GLB/glTF/OBJ)
-          const modelLoader = ModelLoader.getInstance();
-          
-          // Initialize if needed
-          if (!modelLoader.isInitialized()) {
-            modelLoader.init(scene);
-          }
+          // Check if this model should use GPU instancing
+          if (instancedModels.has(modelPath)) {
+            // Use instanced rendering (much faster for repeated models)
+            const instanceData = instanceManager.createInstance(modelPath, {
+              position,
+              rotation: new Vector3(0, (angle * Math.PI) / 180, 0),
+              scaling: new Vector3(scale, scale, scale),
+            });
+            
+            if (instanceData) {
+              // Note: Instanced meshes don't create a TransformNode root
+              // They're managed by InstancedMeshManager
+              console.log(`[MapRenderer] Created instance of ${modelPath}`);
+            }
+          } else {
+            // Load as individual 3D model (GLB/glTF/OBJ)
+            const hasCollision = entity.properties.collision !== "0";
+            const receiveShadows = entity.properties.receiveShadows !== "0";
+            const castShadows = entity.properties.castShadows === "1";
+            const visible = entity.properties.visible !== "0";
+            const renderingGroupId = entity.properties.renderingGroup 
+              ? parseInt(entity.properties.renderingGroup) 
+              : 0;
 
-          const hasCollision = entity.properties.collision !== "0";
-          const receiveShadows = entity.properties.receiveShadows !== "0";
-          const castShadows = entity.properties.castShadows === "1";
-          const visible = entity.properties.visible !== "0";
-          const renderingGroupId = entity.properties.renderingGroup 
-            ? parseInt(entity.properties.renderingGroup) 
-            : 0;
+            // Get shadow generator if casting shadows
+            const skyLight = SkyLightSystem.getInstance();
+            const shadowGenerator = castShadows ? skyLight.getShadowGenerator() : null;
 
-          // Get shadow generator if casting shadows
-          const skyLight = SkyLightSystem.getInstance();
-          const shadowGenerator = castShadows ? skyLight.getShadowGenerator() : null;
+            const result = await modelLoader.loadModel(modelPath, {
+              position,
+              angle,
+              scale,
+              hasCollision,
+              receiveShadows,
+              castShadows,
+              shadowGenerator,
+              visible,
+              renderingGroupId,
+            });
 
-          const result = await modelLoader.loadModel(modelPath, {
-            position,
-            angle,
-            scale,
-            hasCollision,
-            receiveShadows,
-            castShadows,
-            shadowGenerator,
-            visible,
-            renderingGroupId,
-          });
-
-          if (result) {
-            prefabInstances.push(result.root);
+            if (result) {
+              prefabInstances.push(result.root);
+            }
           }
         } else {
           // Load as .map prefab (existing behavior)
