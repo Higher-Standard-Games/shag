@@ -77,3 +77,6 @@ export type {
   PreRenderHook,
   PostRenderHook,
 } from "./EntityHandlerRegistry";
+
+export { QualityDetector } from "./QualityDetector";
+export type { DeviceInfo, QualityRecommendation } from "./QualityDetector";
