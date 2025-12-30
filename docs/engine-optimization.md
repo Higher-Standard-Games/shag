@@ -87,6 +87,56 @@ manager.createThinInstances('tree_pine', matrices);
 | 500 props | 500 draw calls | ~5 draw calls |
 | Mobile FPS | 15-20 FPS | 45-60 FPS |
 
+### Automatic Instancing in MapRenderer
+
+MapRenderer automatically detects repeated `misc_model` entities and uses GPU instancing:
+
+1. Pre-scans all `misc_model` entities in the map
+2. Groups entities by model path (e.g., `models/tree.glb`)
+3. Models with **3+ instances** are automatically instanced
+4. Single draw call per unique model type
+
+```
+[MapRenderer] Using instancing for models/tree.glb (47 instances)
+[MapRenderer] Using instancing for models/barrel.glb (12 instances)
+```
+
+No code changes needed - just place multiple `misc_model` entities with the same model path.
+
+## Quality Auto-Detection
+
+The `QualityDetector` automatically detects device capabilities and recommends quality settings.
+
+### Usage
+
+```typescript
+import { QualityDetector } from '@engine/core';
+
+const detector = QualityDetector.getInstance();
+const { quality, deviceInfo, reason } = detector.detectQuality();
+
+console.log(`Device: ${deviceInfo.type}, GPU tier: ${deviceInfo.gpuTier}`);
+console.log(`Recommended quality: ${quality} (${reason})`);
+
+// Get recommended settings
+const textureBudget = detector.getRecommendedTextureBudget(); // MB
+const maxTextureSize = detector.getRecommendedMaxTextureSize(); // pixels
+```
+
+### Device Info Detected
+- **type**: `desktop` | `mobile` | `tablet`
+- **platform**: `windows` | `macos` | `linux` | `android` | `ios`
+- **gpuTier**: 1 (low) | 2 (mid) | 3 (high)
+- **memoryMB**: Estimated device memory
+- **cpuCores**: Number of CPU cores
+
+### Automatic Integration
+
+GameScene automatically applies quality detection at startup:
+```
+[GameScene] Texture quality: medium (mobile, GPU tier 2)
+```
+
 ## Texture Memory Management
 
 The `TextureMemoryManager` enforces memory budgets and supports LOD.
@@ -169,7 +219,10 @@ EventBus.on('game:paused', () => {
 | `src/engine/core/ServiceLocator.ts` | Service dependency management |
 | `src/engine/core/EntityHandlerRegistry.ts` | Map entity extension point |
 | `src/engine/core/EngineServices.ts` | Engine service registrations |
+| `src/engine/core/QualityDetector.ts` | Device capability detection |
 | `src/engine/rendering/InstancedMeshManager.ts` | GPU mesh instancing |
 | `src/engine/loader/TextureMemoryManager.ts` | Texture LOD & memory |
+| `src/engine/MapRenderer.ts` | Automatic instancing for repeated models |
+| `src/engine/GameScene.ts` | Quality detection integration |
 | `src/game/EntityHandlers.ts` | Game-specific entity handlers |
 | `src/game/GameEvents.ts` | Game-specific event types |
