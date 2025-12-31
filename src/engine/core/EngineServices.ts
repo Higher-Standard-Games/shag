@@ -29,6 +29,19 @@
  */
 
 import { ServiceLocator, type ServiceRegistration } from './ServiceLocator';
+import { GamePaths } from './GamePaths';
+import { EngineSettings } from './EngineSettings';
+import { TextureManager } from '../loader/TextureManager';
+import { ProceduralTextureGenerator } from '../procedural/ProceduralTextureGenerator';
+import { ModelLoader } from '../loader/ModelLoader';
+import { PrefabLoader } from '../loader/PrefabLoader';
+import { SpriteManager } from '../sprites/SpriteManager';
+import { SpriteBuildingManager } from '../sprites/SpriteBuilding';
+import { SkyLightSystem } from '../lighting/SkyLightSystem';
+import { StreetLampSystem } from '../lighting/StreetLampSystem';
+import { PostProcessingManager } from '../effects/PostProcessingManager';
+import { AudioManager } from '../AudioManager';
+import { WorldIndicatorSystem } from './WorldIndicatorSystem';
 
 /**
  * Core engine service registrations
@@ -37,19 +50,13 @@ import { ServiceLocator, type ServiceRegistration } from './ServiceLocator';
 export const CORE_SERVICES: ServiceRegistration[] = [
   {
     name: 'gamePaths',
-    factory: () => {
-      const { GamePaths } = require('./GamePaths');
-      return GamePaths.getInstance();
-    },
+    factory: () => GamePaths.getInstance(),
     phase: 'core',
     dependencies: [],
   },
   {
     name: 'engineSettings',
-    factory: () => {
-      const { EngineSettings } = require('./EngineSettings');
-      return EngineSettings.getInstance();
-    },
+    factory: () => EngineSettings.getInstance(),
     phase: 'core',
     dependencies: ['gamePaths'],
   },
@@ -62,100 +69,67 @@ export const CORE_SERVICES: ServiceRegistration[] = [
 export const SCENE_SERVICES: ServiceRegistration[] = [
   {
     name: 'textureManager',
-    factory: () => {
-      const { TextureManager } = require('../loader/TextureManager');
-      return TextureManager.getInstance();
-    },
+    factory: () => TextureManager.getInstance(),
     phase: 'scene',
     dependencies: ['gamePaths'],
   },
   {
     name: 'proceduralTextures',
-    factory: () => {
-      const { ProceduralTextureGenerator } = require('../procedural/ProceduralTextureGenerator');
-      return ProceduralTextureGenerator.getInstance();
-    },
+    factory: () => ProceduralTextureGenerator.getInstance(),
     phase: 'scene',
     dependencies: ['textureManager'],
   },
   {
     name: 'modelLoader',
-    factory: () => {
-      const { ModelLoader } = require('../loader/ModelLoader');
-      return ModelLoader.getInstance();
-    },
+    factory: () => ModelLoader.getInstance(),
     phase: 'scene',
     dependencies: ['textureManager'],
   },
   {
     name: 'prefabLoader',
-    factory: () => {
-      const { PrefabLoader } = require('../loader/PrefabLoader');
-      return PrefabLoader.getInstance();
-    },
+    factory: () => PrefabLoader.getInstance(),
     phase: 'scene',
     dependencies: ['textureManager'],
   },
   {
     name: 'spriteManager',
-    factory: () => {
-      const { SpriteManager } = require('../sprites/SpriteManager');
-      return SpriteManager.getInstance();
-    },
+    factory: () => SpriteManager.getInstance(),
     phase: 'scene',
     dependencies: ['textureManager'],
   },
   {
     name: 'spriteBuildingManager',
-    factory: () => {
-      const { SpriteBuildingManager } = require('../sprites/SpriteBuilding');
-      return SpriteBuildingManager.getInstance();
-    },
+    factory: () => SpriteBuildingManager.getInstance(),
     phase: 'scene',
     dependencies: ['textureManager'],
   },
   {
     name: 'skyLightSystem',
-    factory: () => {
-      const { SkyLightSystem } = require('../lighting/SkyLightSystem');
-      return SkyLightSystem.getInstance();
-    },
+    factory: () => SkyLightSystem.getInstance(),
     phase: 'scene',
     dependencies: [],
   },
   {
     name: 'streetLampSystem',
-    factory: () => {
-      const { StreetLampSystem } = require('../lighting/StreetLampSystem');
-      return StreetLampSystem.getInstance();
-    },
+    factory: () => StreetLampSystem.getInstance(),
     phase: 'scene',
     dependencies: ['skyLightSystem'],
   },
   {
     name: 'postProcessing',
-    factory: () => {
-      const { PostProcessingManager } = require('../effects/PostProcessingManager');
-      return PostProcessingManager.getInstance();
-    },
+    factory: () => PostProcessingManager.getInstance(),
     phase: 'scene',
     dependencies: [],
   },
   {
     name: 'audioManager',
-    factory: () => {
-      const { AudioManager } = require('../AudioManager');
-      return AudioManager.getInstance();
-    },
+    factory: () => AudioManager.getInstance(),
     phase: 'scene',
     dependencies: ['gamePaths'],
   },
   {
     name: 'worldIndicators',
-    factory: () => {
-      const { WorldIndicatorSystem } = require('./WorldIndicatorSystem');
-      return WorldIndicatorSystem.getInstance();
-    },
+    factory: () => WorldIndicatorSystem.getInstance(),
     phase: 'scene',
     dependencies: [],
   },

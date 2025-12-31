@@ -25,7 +25,9 @@ import type { Scene } from "babylonjs";
 
 /**
  * Service lifecycle interface
+ * Services can optionally implement init/dispose for lifecycle management
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Service {
   /** Optional async initialization */
   init?(...args: unknown[]): void | Promise<void>;
@@ -33,11 +35,14 @@ export interface Service {
   dispose?(): void;
 }
 
+/** Any object that can be used as a service */
+export type AnyService = Service | object;
+
 /**
  * Service registration info
  */
 interface ServiceInfo {
-  instance: Service;
+  instance: AnyService;
   initialized: boolean;
   dependencies: string[];
 }
@@ -54,7 +59,7 @@ export interface ServiceRegistration {
   /** Unique service name */
   name: string;
   /** Factory function to create the service (usually getInstance) */
-  factory: () => Service;
+  factory: () => AnyService;
   /** Services that must be initialized before this one */
   dependencies?: string[];
   /** When this service should be initialized */
@@ -280,10 +285,11 @@ export class ServiceLocator {
       this.services.set(name, info);
     }
     
-    // Initialize
-    if (info.instance.init) {
+    // Initialize (cast to Service to access optional methods)
+    const service = info.instance as Service;
+    if (service.init) {
       console.log(`[ServiceLocator] Initializing '${name}'...`);
-      await info.instance.init(...args);
+      await service.init(...args);
     }
     
     info.initialized = true;
@@ -331,9 +337,10 @@ export class ServiceLocator {
     const reversed = [...this.initOrder].reverse();
     for (const name of reversed) {
       const info = this.services.get(name);
-      if (info?.instance.dispose) {
+      const service = info?.instance as Service | undefined;
+      if (service?.dispose) {
         console.log(`[ServiceLocator] Disposing '${name}'...`);
-        info.instance.dispose();
+        service.dispose();
       }
     }
     
