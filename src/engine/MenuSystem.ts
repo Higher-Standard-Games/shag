@@ -12,8 +12,8 @@
 
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { Overlay, createButton, ConfirmDialog, UIManager } from "./ui";
-import { GameTimer } from "../game/GameTimer";
 import { AudioManager } from "./AudioManager";
+import { EventBus } from "./core/EventBus";
 
 export type MenuState = "main_menu" | "in_game" | "pause_menu" | "settings";
 
@@ -135,7 +135,7 @@ export class MenuSystem {
     if (this.state !== "in_game") return;
 
     this.state = "pause_menu";
-    GameTimer.getInstance().pause();
+    EventBus.emit("game:paused", {});
     this.createPauseOverlay();
   }
 
@@ -144,7 +144,7 @@ export class MenuSystem {
    */
   public resume(): void {
     this.state = "in_game";
-    GameTimer.getInstance().resume();
+    EventBus.emit("game:resumed", {});
     this.hidePauseOverlay();
     this.callbacks.onResume?.();
   }

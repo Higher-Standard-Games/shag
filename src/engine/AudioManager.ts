@@ -287,7 +287,7 @@ export class AudioManager {
   public async loadPlaylist(playlistPath: string): Promise<void> {
     try {
       // Dynamic import of playlist JSON
-      const module = await import(`../data/${playlistPath}`);
+      const module = await import(/* @vite-ignore */ `../data/${playlistPath}`);
       const playlist = module.default as Playlist;
       this.startPlaylist(playlist, playlistPath);
     } catch (e) {

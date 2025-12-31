@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.4.0](./v0.4.0.md) | Jan 1, 2026 | Mobile optimization: Service Locator, GPU instancing, quality detection |
 | [v0.3.1](./v0.3.1.md) | Dec 28, 2025 | TypeDoc API documentation with SHAG theme |
 | [v0.3.0](./v0.3.0.md) | Dec 28, 2025 | Plant pipeline fixes and console improvements |
 | [v0.2.1](./v0.2.1.md) | Dec 28, 2025 | SHAG Engine branding and new logo |

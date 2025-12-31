@@ -7,28 +7,20 @@ import {
   type TransformNode,
   Vector3,
 } from "babylonjs";
-import { BuildingSystem } from "../game/BuildingSystem";
 import { BrushGenerator } from "./loader/BrushGenerator";
 import type { Entity } from "./loader/MapParser";
 import { ModelLoader } from "./loader/ModelLoader";
 import { type PatchDefinition, PatchGenerator } from "./loader/PatchGenerator";
 import { PrefabInstance } from "./loader/PrefabInstance";
+import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
 import { TextureManager } from "./loader/TextureManager";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 import { SpriteManager } from "./sprites/SpriteManager";
-import { 
-  CharacterGenerator, 
-  PRESET_CHARACTERS, 
-  SKIN_TONES, 
-  HAIR_COLORS, 
-  SHIRT_COLORS,
-  type CharacterConfig,
-  type CharacterStyle,
-} from "../game/CharacterGenerator";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
+import { EntityHandlerRegistry, type EntityData } from "./core/EntityHandlerRegistry";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -81,6 +73,55 @@ export class MapRenderer {
     // Ensure TextureManager is initialized for this scene
     if (!textureManager.isInitialized()) {
       textureManager.init(scene);
+    }
+
+    // Convert entities to EntityData for hooks
+    const entityDataList: EntityData[] = entities.map(e => ({
+      classname: e.classname,
+      properties: e.properties,
+      brushes: e.brushes,
+      patches: e.patches,
+    }));
+
+    // Run pre-render hooks (game-specific initialization)
+    await EntityHandlerRegistry.runPreRenderHooks(entityDataList, scene);
+
+    // Pre-process: Group misc_model entities by model path for instancing optimization
+    const modelEntityGroups = new Map<string, Entity[]>();
+    for (const entity of entities) {
+      if (entity.classname === "misc_model" && entity.properties.model) {
+        const modelPath = entity.properties.model;
+        if (ModelLoader.isModelFile(modelPath)) {
+          if (!modelEntityGroups.has(modelPath)) {
+            modelEntityGroups.set(modelPath, []);
+          }
+          modelEntityGroups.get(modelPath)!.push(entity);
+        }
+      }
+    }
+    
+    // Register instanced templates for models with multiple instances
+    const instancedModels = new Set<string>();
+    const instanceManager = InstancedMeshManager.getInstance();
+    const modelLoader = ModelLoader.getInstance();
+    
+    if (!modelLoader.isInitialized()) {
+      modelLoader.init(scene);
+    }
+    
+    for (const [modelPath, modelEntities] of modelEntityGroups) {
+      // Use instancing if 3+ instances of the same model
+      if (modelEntities.length >= 3) {
+        const registered = await modelLoader.registerInstanceTemplate(
+          modelPath, 
+          modelPath, 
+          Math.max(100, modelEntities.length * 2)
+        );
+        if (registered) {
+          instancedModels.add(modelPath);
+          console.log(`[MapRenderer] Using instancing for ${modelPath} (${modelEntities.length} instances)`);
+        }
+      }
     }
 
     let playerStartPosition = new Vector3(0, 10, 0);
@@ -443,40 +484,49 @@ export class MapRenderer {
 
         // Check if this is a 3D model file (GLB/glTF/OBJ) or a .map prefab
         if (ModelLoader.isModelFile(modelPath)) {
-          // Load as 3D model (GLB/glTF/OBJ)
-          const modelLoader = ModelLoader.getInstance();
-          
-          // Initialize if needed
-          if (!modelLoader.isInitialized()) {
-            modelLoader.init(scene);
-          }
+          // Check if this model should use GPU instancing
+          if (instancedModels.has(modelPath)) {
+            // Use instanced rendering (much faster for repeated models)
+            const instanceData = instanceManager.createInstance(modelPath, {
+              position,
+              rotation: new Vector3(0, (angle * Math.PI) / 180, 0),
+              scaling: new Vector3(scale, scale, scale),
+            });
+            
+            if (instanceData) {
+              // Note: Instanced meshes don't create a TransformNode root
+              // They're managed by InstancedMeshManager
+              console.log(`[MapRenderer] Created instance of ${modelPath}`);
+            }
+          } else {
+            // Load as individual 3D model (GLB/glTF/OBJ)
+            const hasCollision = entity.properties.collision !== "0";
+            const receiveShadows = entity.properties.receiveShadows !== "0";
+            const castShadows = entity.properties.castShadows === "1";
+            const visible = entity.properties.visible !== "0";
+            const renderingGroupId = entity.properties.renderingGroup 
+              ? parseInt(entity.properties.renderingGroup) 
+              : 0;
 
-          const hasCollision = entity.properties.collision !== "0";
-          const receiveShadows = entity.properties.receiveShadows !== "0";
-          const castShadows = entity.properties.castShadows === "1";
-          const visible = entity.properties.visible !== "0";
-          const renderingGroupId = entity.properties.renderingGroup 
-            ? parseInt(entity.properties.renderingGroup) 
-            : 0;
+            // Get shadow generator if casting shadows
+            const skyLight = SkyLightSystem.getInstance();
+            const shadowGenerator = castShadows ? skyLight.getShadowGenerator() : null;
 
-          // Get shadow generator if casting shadows
-          const skyLight = SkyLightSystem.getInstance();
-          const shadowGenerator = castShadows ? skyLight.getShadowGenerator() : null;
+            const result = await modelLoader.loadModel(modelPath, {
+              position,
+              angle,
+              scale,
+              hasCollision,
+              receiveShadows,
+              castShadows,
+              shadowGenerator,
+              visible,
+              renderingGroupId,
+            });
 
-          const result = await modelLoader.loadModel(modelPath, {
-            position,
-            angle,
-            scale,
-            hasCollision,
-            receiveShadows,
-            castShadows,
-            shadowGenerator,
-            visible,
-            renderingGroupId,
-          });
-
-          if (result) {
-            prefabInstances.push(result.root);
+            if (result) {
+              prefabInstances.push(result.root);
+            }
           }
         } else {
           // Load as .map prefab (existing behavior)
@@ -659,126 +709,19 @@ export class MapRenderer {
         console.log(`Created sprite: ${entity.properties.targetname || "unnamed"} at ${position.toString()}`);
       }
 
-      // Handle info_npc entities (3D cartoon characters)
-      if (entity.classname === "info_npc" && entity.properties.origin) {
-        const charGen = CharacterGenerator.getInstance();
-        
-        // Initialize if needed
-        if (!charGen.isInitialized()) {
-          charGen.init(scene);
+      // Handle entities via EntityHandlerRegistry (game-specific handlers)
+      const entityHandler = EntityHandlerRegistry.getHandler(entity.classname);
+      if (entityHandler) {
+        const entityData: EntityData = {
+          classname: entity.classname,
+          properties: entity.properties,
+          brushes: entity.brushes,
+          patches: entity.patches,
+        };
+        const result = await entityHandler(entityData, scene);
+        if (result.handled && result.node) {
+          prefabInstances.push(result.node);
         }
-
-        // Parse position
-        const parts = entity.properties.origin.split(" ").map(parseFloat);
-        const position = new Vector3(parts[0], parts[2], parts[1]);
-
-        // Get NPC ID and name
-        const npcId = entity.properties.targetname || `npc_${Date.now()}`;
-        const npcName = entity.properties.name || npcId;
-
-        // Check for preset character
-        const presetId = entity.properties.preset;
-        let character: TransformNode | null = null;
-
-        // Default scale of 32 to match game world units (characters ~48 units tall)
-        const baseScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
-
-        if (presetId) {
-          // Use preset character with world-scale
-          const preset = PRESET_CHARACTERS.find(p => p.id === presetId);
-          if (preset) {
-            const finalScale = baseScale * (preset.scale ?? 1);
-            character = charGen.createCharacter({ 
-              ...preset, 
-              id: npcId,
-              scale: finalScale,
-            });
-          }
-        }
-        
-        if (!character && entity.properties.random === "1") {
-          // Generate random character with world-scale
-          character = charGen.createRandomCharacter(npcId, npcName, baseScale);
-        }
-        
-        if (!character) {
-          // Build custom character from entity properties
-          // Default scale of 32 to match game world units (characters ~48 units tall)
-          const npcScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
-          const config: CharacterConfig = {
-            id: npcId,
-            name: npcName,
-            colors: {
-              skin: entity.properties.skinColor || SKIN_TONES.medium,
-              hair: entity.properties.hairColor || HAIR_COLORS.brown,
-              shirt: entity.properties.shirtColor || SHIRT_COLORS.blue,
-              pants: entity.properties.pantsColor || "#2C2C2C",
-              shoes: entity.properties.shoesColor || "#2C2C2C",
-              accessory: entity.properties.accessoryColor,
-            },
-            style: {
-              bodyType: (entity.properties.bodyType as CharacterStyle["bodyType"]) || "average",
-              hairStyle: (entity.properties.hairStyle as CharacterStyle["hairStyle"]) || "short",
-              gender: (entity.properties.gender as CharacterStyle["gender"]) || "neutral",
-              accessory: (entity.properties.accessory as CharacterStyle["accessory"]) || "none",
-              facialHair: (entity.properties.facialHair as CharacterStyle["facialHair"]) || "none",
-            },
-            scale: npcScale,
-          };
-          character = charGen.createCharacter(config);
-        }
-
-        if (character) {
-          character.position = position;
-          
-          // Apply rotation
-          if (entity.properties.angle) {
-            const angle = parseFloat(entity.properties.angle);
-            character.rotation.y = (angle * Math.PI) / 180;
-          }
-
-          // Store metadata
-          character.metadata = {
-            npcId,
-            npcName,
-            properties: entity.properties,
-          };
-
-          // Add shadow support for NPC meshes
-          const skyLight = SkyLightSystem.getInstance();
-          if (skyLight.getShadowGenerator()) {
-            const childMeshes = character.getChildMeshes();
-            for (const mesh of childMeshes) {
-              skyLight.addShadowCaster(mesh, false);
-              mesh.receiveShadows = true;
-            }
-          }
-
-          prefabInstances.push(character);
-          console.log(`Created NPC: ${npcName} at ${position.toString()}`);
-        }
-      }
-
-      // Handle build_zone entities
-      if (entity.classname === "build_zone" && entity.properties.origin) {
-        console.log(`[MapRenderer] Registering build_zone: ${entity.properties.targetname}`);
-        const buildingSystem = BuildingSystem.getInstance();
-
-        // Parse position
-        const parts = entity.properties.origin.split(" ").map(parseFloat);
-        const position = new Vector3(parts[0], parts[2], parts[1]);
-
-        // Get zone properties
-        const zoneId = entity.properties.targetname || `zone_${Date.now()}`;
-        const zoneType = entity.properties.zoneType || "plant";
-        const size = entity.properties.size ? parseFloat(entity.properties.size) : 64;
-
-        // Get current map ID (from entity or default)
-        const mapId = entity.properties.mapId || "current";
-
-        // Register the zone
-        buildingSystem.registerZone(zoneId, position, size, zoneType, mapId);
-        console.log(`[MapRenderer] Zone registered, total zones: ${buildingSystem.getZonesByType(zoneType).length}`);
       }
 
       // Handle info_debris_zone entities (local debris particle spawners)
@@ -894,8 +837,9 @@ export class MapRenderer {
     // Clear sprites
     SpriteManager.getInstance().clear();
 
-    // Clear build zones
-    BuildingSystem.getInstance().clearZones();
+    // Run pre-render hooks (clears game-specific state like build zones)
+    // Note: This is sync clear, pre-render hooks for actual rendering are async
+    EntityHandlerRegistry.runPreRenderHooks([], scene);
 
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();

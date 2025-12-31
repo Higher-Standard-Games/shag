@@ -9,6 +9,7 @@ import {
   Vector3,
 } from "babylonjs";
 import "babylonjs-loaders";
+import { InstancedMeshManager, type InstanceTransform } from "../rendering/InstancedMeshManager";
 
 /**
  * Options for loading a 3D model
@@ -199,6 +200,90 @@ export class ModelLoader {
       lower.endsWith(".obj") ||
       lower.endsWith(".babylon")
     );
+  }
+
+  /**
+   * Register a loaded model as an instancing template
+   * Use this for models that will be repeated many times (trees, props, etc.)
+   * 
+   * @param templateName Unique name for this template
+   * @param modelPath Path to the model file
+   * @param maxInstances Maximum number of instances (for buffer sizing)
+   */
+  public async registerInstanceTemplate(
+    templateName: string,
+    modelPath: string,
+    maxInstances: number = 500
+  ): Promise<boolean> {
+    if (!this.scene) {
+      console.error("ModelLoader not initialized");
+      return false;
+    }
+
+    const instanceManager = InstancedMeshManager.getInstance();
+    if (!instanceManager.isInitialized()) {
+      instanceManager.init(this.scene);
+    }
+
+    // Check if already registered
+    if (instanceManager.hasTemplate(templateName)) {
+      return true;
+    }
+
+    // Load the model as template (invisible, for cloning)
+    const result = await this.loadModel(modelPath, {
+      position: Vector3.Zero(),
+      visible: false,
+    });
+
+    if (!result || result.meshes.length === 0) {
+      console.error(`Failed to load model as template: ${modelPath}`);
+      return false;
+    }
+
+    // Register each mesh as a template
+    // For multi-mesh models, we register the first visible mesh
+    const primaryMesh = result.meshes.find(m => m.getTotalVertices() > 0);
+    if (primaryMesh) {
+      instanceManager.registerTemplate(templateName, primaryMesh, maxInstances);
+      console.log(`ModelLoader: Registered instance template '${templateName}'`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Create an instance of a registered template
+   * Much faster than loadModel for repeated geometry
+   * 
+   * @param templateName Name of the registered template
+   * @param transform Position, rotation, scale for the instance
+   */
+  public createInstance(
+    templateName: string,
+    transform: InstanceTransform
+  ): ReturnType<InstancedMeshManager["createInstance"]> {
+    const instanceManager = InstancedMeshManager.getInstance();
+    return instanceManager.createInstance(templateName, transform);
+  }
+
+  /**
+   * Create multiple instances at once (more efficient)
+   */
+  public createInstances(
+    templateName: string,
+    transforms: InstanceTransform[]
+  ): ReturnType<InstancedMeshManager["createInstances"]> {
+    const instanceManager = InstancedMeshManager.getInstance();
+    return instanceManager.createInstances(templateName, transforms);
+  }
+
+  /**
+   * Check if a template is registered for instancing
+   */
+  public hasInstanceTemplate(templateName: string): boolean {
+    return InstancedMeshManager.getInstance().hasTemplate(templateName);
   }
 
   /**

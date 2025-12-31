@@ -19,16 +19,16 @@
   --shag-teal: #2EC4B6;
   --shag-pink: #E040FB;
   --shag-green: #4ADE80;
-  
+
   /* Dark theme base */
   --color-background: #0a0c10;
   --color-background-secondary: #12151a;
   --color-background-warning: rgba(232, 93, 4, 0.1);
-  
+
   /* Text colors */
   --color-text: #e0e0e0;
   --color-text-aside: #a0a0a0;
-  
+
   /* Accent colors - using SHAG palette */
   --color-ts-interface: var(--shag-teal);
   --color-ts-class: var(--shag-orange);
@@ -38,13 +38,13 @@
   --color-ts-variable: var(--shag-teal);
   --color-ts-property: var(--shag-yellow);
   --color-ts-method: var(--shag-orange);
-  
+
   /* Links */
   --color-link: var(--shag-teal);
-  
+
   /* Code */
   --color-code-background: #1a1d24;
-  
+
   /* Borders */
   --color-accent: var(--shag-teal);
 }

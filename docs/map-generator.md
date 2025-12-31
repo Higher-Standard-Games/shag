@@ -245,45 +245,28 @@ The generator outputs a `.map` file with:
 
 ---
 
-## Implementation Phases
+## Features
 
-### Phase 1: Core Terrain ✓
-- [x] Basic grid generation
-- [x] Brush output format
-- [x] Road network (simple grid)
-- [x] Street lamps
-
-### Phase 2: Elevation & Optimization ✓
-- [x] Perlin noise height map
-- [x] Bezier patches for sloped terrain
-- [x] Brush merging optimization (72% reduction)
-- [x] Configurable parameters via JSON
-
-### Phase 3: Textures (Deferred)
-- [ ] Texture definition system
-- [ ] UV mapping for different scales
-- [ ] Texture variants/randomization
-- [x] Color fallback (current approach)
-
-### Phase 4: Natural Elements ✓
-- [x] Terrain elevation variation
-- [x] Dirt blob patches (organic rounded shapes)
-- [x] Rock placement (sprites)
-- [x] Pond generation with terrain depressions
-- [x] Sandy shoreline around ponds
-- [x] Water patches for ponds
-
-### Phase 5: Decorations ✓
-- [x] Street furniture placement
-- [x] Vegetation system (sprites - trees, grass)
-- [ ] Build zone generation
-- [ ] Prop placement rules
-
-### Phase 6: Polish
-- [x] Biome presets (4 biomes)
-- [ ] Preview tool
-- [x] CLI with options
-- [x] Documentation
+| Feature | Status |
+|---------|--------|
+| Basic grid generation | ✅ |
+| Brush output format | ✅ |
+| Road network | ✅ |
+| Street lamps | ✅ |
+| Perlin noise elevation | ✅ |
+| Bezier patches for slopes | ✅ |
+| Brush merging optimization | ✅ |
+| JSON configuration | ✅ |
+| Terrain elevation variation | ✅ |
+| Dirt blob patches | ✅ |
+| Rock sprites | ✅ |
+| Pond generation | ✅ |
+| Sandy shorelines | ✅ |
+| Water patches | ✅ |
+| Street furniture | ✅ |
+| Vegetation sprites | ✅ |
+| 4 biome presets | ✅ |
+| CLI with options | ✅ |
 
 ---
 

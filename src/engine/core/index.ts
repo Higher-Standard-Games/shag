@@ -11,13 +11,13 @@
 export { EventBus } from "./EventBus";
 export type { 
   EventCallback,
-  PlantEvents,
-  ShopEvents,
-  BuildingEvents,
-  PlayerEvents,
-  CuringEvents,
-  GameEvents,
-  AllEvents,
+  MapEvents,
+  AppEvents,
+  InputEvents,
+  AssetEvents,
+  AudioEvents,
+  EngineEvents,
+  EngineEventData,
 } from "./EventBus";
 
 export { ActionSystem, loggingMiddleware, analyticsMiddleware } from "./ActionSystem";
@@ -61,3 +61,22 @@ export type {
 
 export { SubsystemRegistry } from "./Subsystem";
 export type { Subsystem, InitializableSubsystem } from "./Subsystem";
+
+export { ServiceLocator } from "./ServiceLocator";
+export type { Service, ServiceRegistration, InitPhase } from "./ServiceLocator";
+
+export { registerEngineServices, Services, ENGINE_SERVICES } from "./EngineServices";
+export type { ServiceName } from "./EngineServices";
+
+export { EntityHandlerRegistry } from "./EntityHandlerRegistry";
+export type { 
+  EntityData, 
+  EntityHandler, 
+  EntityHandlerOptions, 
+  EntityHandlerResult,
+  PreRenderHook,
+  PostRenderHook,
+} from "./EntityHandlerRegistry";
+
+export { QualityDetector } from "./QualityDetector";
+export type { DeviceInfo, QualityRecommendation } from "./QualityDetector";

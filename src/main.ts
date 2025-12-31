@@ -4,11 +4,13 @@ import "babylonjs-loaders";
 import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";
+import { registerEngineServices, ServiceLocator, QualityDetector } from "./engine/core";
 import { GameScene } from "./engine/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
 import { SaveManager } from "./game/SaveManager";
+import { registerGameEntityHandlers } from "./game/EntityHandlers";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
 import { UIScale } from "./engine/ui/UIScale";
@@ -32,6 +34,19 @@ async function main() {
   
   // Initialize GamePaths (reads engine.json and URL params)
   await GamePaths.getInstance().init();
+  
+  // Register engine services with ServiceLocator for explicit init order
+  registerEngineServices();
+  
+  // Register game-specific entity handlers for MapRenderer
+  registerGameEntityHandlers();
+  
+  // Initialize core services (no scene required)
+  await ServiceLocator.getInstance().initCore();
+  
+  // Auto-detect quality and apply to texture memory manager
+  const qualityRecommendation = QualityDetector.getInstance().detectQuality();
+  console.log(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
   
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
   
