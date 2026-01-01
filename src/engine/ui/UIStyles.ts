@@ -839,9 +839,9 @@ export class UIStyles {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 60%;
+  height: 100%;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Individual smoke puff */
@@ -860,14 +860,17 @@ export class UIStyles {
     transform: translateY(0) translateX(0) rotate(0deg) scale(0.5);
     opacity: 0;
   }
-  10% {
-    opacity: 0.6;
+  5% {
+    opacity: 0.5;
+  }
+  30% {
+    opacity: 0.35;
   }
   50% {
-    opacity: 0.4;
+    opacity: 0;
   }
   100% {
-    transform: translateY(-120vh) translateX(var(--drift-x, 50px)) rotate(var(--rotation, 180deg)) scale(1.5);
+    transform: translateY(-70vh) translateX(var(--drift-x, 50px)) rotate(var(--rotation, 180deg)) scale(1.8);
     opacity: 0;
   }
 }

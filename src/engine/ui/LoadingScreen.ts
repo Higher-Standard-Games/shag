@@ -135,9 +135,9 @@ export class LoadingScreen {
         puff.style.setProperty('--drift-x', `${driftX}px`);
         puff.style.setProperty('--rotation', `${rotation}deg`);
         
-        // Random animation duration (6-12s) and delay
-        const duration = 6 + Math.random() * 6;
-        const delay = Math.random() * 8;
+        // Random animation duration (12-20s) and delay - slow and dreamy
+        const duration = 12 + Math.random() * 8;
+        const delay = Math.random() * 10;
         puff.style.animationDuration = `${duration}s`;
         puff.style.animationDelay = `${delay}s`;
         
