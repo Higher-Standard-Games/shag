@@ -28,6 +28,9 @@ export class FPSController implements ICameraController {
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
+  private isRightMouseDown: boolean = false;
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
   
   // Movement state
   private moveForward: boolean = false;
@@ -88,7 +91,7 @@ export class FPSController implements ICameraController {
     this.camera.inputs.clear();
     
     this.setupInputHandlers();
-    console.log("[FPSController] Attached - W/S move, A/D turn, Q/E strafe, Space/Shift up/down, click for mouse look");
+    console.log("[FPSController] Attached - W/S move, A/D turn, Q/E strafe, Space/Shift up/down, RIGHT-CLICK DRAG to look");
   }
 
   detach(): void {
@@ -182,29 +185,56 @@ export class FPSController implements ICameraController {
     };
     document.addEventListener("pointerlockchange", this.pointerLockChangeHandler);
 
-    // Mouse move handler for look
+    // Mouse move handler for look (works with pointer lock OR right-click drag)
     this.mouseMoveHandler = (e: MouseEvent) => {
-      if (!this.isPointerLocked || !this.camera || !this.enabled) return;
+      if (!this.camera || !this.enabled) return;
       
-      const sensitivity = this.config.mouseSensitivity || 0.002;
-      const invertY = this.config.invertY ? -1 : 1;
+      // Support both pointer lock and right-click drag
+      if (this.isPointerLocked) {
+        const sensitivity = this.config.mouseSensitivity || 0.002;
+        const invertY = this.config.invertY ? -1 : 1;
+        
+        this.camera.rotation.y += e.movementX * sensitivity;
+        this.camera.rotation.x += e.movementY * sensitivity * invertY;
+      } else if (this.isRightMouseDown) {
+        const sensitivity = this.config.mouseSensitivity || 0.002;
+        const invertY = this.config.invertY ? -1 : 1;
+        const deltaX = e.clientX - this.lastMouseX;
+        const deltaY = e.clientY - this.lastMouseY;
+        
+        this.camera.rotation.y += deltaX * sensitivity;
+        this.camera.rotation.x += deltaY * sensitivity * invertY;
+      }
       
-      // Apply rotation
-      this.camera.rotation.y += e.movementX * sensitivity;
-      this.camera.rotation.x += e.movementY * sensitivity * invertY;
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
       
       // Clamp vertical rotation
-      this.camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x));
+      if (this.camera.rotation) {
+        this.camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x));
+      }
     };
     document.addEventListener("mousemove", this.mouseMoveHandler);
 
-    // Click to request pointer lock
+    // Click handlers - left click for pointer lock, right click for drag look
     this.pointerObserver = this.scene.onPointerObservable.add((pointerInfo) => {
       if (!this.enabled) return;
       
       if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-        if (!this.isPointerLocked) {
+        const evt = pointerInfo.event as PointerEvent;
+        if (evt.button === 0 && !this.isPointerLocked) {
+          // Left click - try pointer lock
           this.requestPointerLock();
+        } else if (evt.button === 2) {
+          // Right click - start drag look
+          this.isRightMouseDown = true;
+          this.lastMouseX = evt.clientX;
+          this.lastMouseY = evt.clientY;
+        }
+      } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+        const evt = pointerInfo.event as PointerEvent;
+        if (evt.button === 2) {
+          this.isRightMouseDown = false;
         }
       }
     });
