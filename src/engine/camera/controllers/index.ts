@@ -6,3 +6,5 @@ export type { ICameraController, CameraControllerConfig } from './ICameraControl
 export { IsometricController } from './IsometricController';
 export { FPSController } from './FPSController';
 export { SideScrollController } from './SideScrollController';
+export { FollowController } from './FollowController';
+export type { FollowConfig } from './FollowController';

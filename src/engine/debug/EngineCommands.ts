@@ -10,6 +10,12 @@ import { GameClock } from '../../game/GameClock';
 import { UIScale } from '../ui/UIScale';
 import { HUD } from '../ui/hud';
 import { GamePaths } from '../core/GamePaths';
+import { CameraSystem } from '../camera/CameraSystem';
+import { IsometricController } from '../camera/controllers/IsometricController';
+import { FPSController } from '../camera/controllers/FPSController';
+import { SideScrollController } from '../camera/controllers/SideScrollController';
+import { FollowController } from '../camera/controllers/FollowController';
+import { Vector3 } from 'babylonjs';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -349,11 +355,12 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
-  // Camera Commands (placeholder - needs CameraSystem reference)
+  // Camera Commands - Full CameraSystem integration
   // ============================================================================
   
   registry.register('camera', (args) => {
     const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
     const setCameraMode = (window as any).setCameraMode;
     const getCameraMode = (window as any).getCameraMode;
     const setCameraHeight = (window as any).setCameraHeight;
@@ -389,14 +396,117 @@ export function registerEngineCommands(): void {
         return 'Camera system not available';
       }
       
+      case 'target': {
+        const x = parseFloat(args[1]);
+        const y = parseFloat(args[2]);
+        const z = parseFloat(args[3]);
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+          const target = cameraSystem.getTarget();
+          return `Current target: ${target.x.toFixed(1)}, ${target.y.toFixed(1)}, ${target.z.toFixed(1)}\nUsage: camera target <x> <y> <z>`;
+        }
+        cameraSystem.setTarget(new Vector3(x, y, z));
+        return `Camera target set to: ${x}, ${y}, ${z}`;
+      }
+      
+      case 'controller': {
+        const type = args[1]?.toLowerCase();
+        if (!type) {
+          const active = cameraSystem.getActiveController();
+          return `Active controller: ${active?.type || 'none'}\nUsage: camera controller <isometric|fps|sidescroll>`;
+        }
+        
+        // Register controller if not already registered
+        if (!cameraSystem.getController(type)) {
+          switch (type) {
+            case 'isometric':
+              cameraSystem.registerController(type, new IsometricController());
+              break;
+            case 'fps':
+              cameraSystem.registerController(type, new FPSController());
+              break;
+            case 'sidescroll':
+              cameraSystem.registerController(type, new SideScrollController());
+              break;
+            case 'follow':
+              cameraSystem.registerController(type, new FollowController());
+              break;
+            default:
+              return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow`;
+          }
+        }
+        
+        if (cameraSystem.setController(type)) {
+          return `Switched to controller: ${type}`;
+        }
+        return `Failed to switch to controller: ${type}`;
+      }
+      
+      case 'controllers': {
+        const types = cameraSystem.getControllerTypes();
+        const active = cameraSystem.getActiveController()?.type;
+        if (types.length === 0) {
+          return 'No controllers registered';
+        }
+        return `Registered controllers:\n${types.map(t => `  ${t}${t === active ? ' (active)' : ''}`).join('\n')}`;
+      }
+      
       case 'info': {
         const mode = getCameraMode?.() || 'unknown';
         const height = getCameraHeight?.() || 'unknown';
-        return `Mode: ${mode}\nHeight: ${height}`;
+        const target = cameraSystem.getTarget();
+        const controller = cameraSystem.getActiveController();
+        const cam = cameraSystem.getArcRotateCamera();
+        
+        const lines = [
+          `Mode: ${mode}`,
+          `Height: ${height}`,
+          `Target: ${target.x.toFixed(1)}, ${target.y.toFixed(1)}, ${target.z.toFixed(1)}`,
+          `Controller: ${controller?.type || 'none'}`,
+        ];
+        
+        if (cam) {
+          lines.push(`Alpha: ${cam.alpha.toFixed(4)} rad`);
+          lines.push(`Beta: ${cam.beta.toFixed(4)} rad`);
+          lines.push(`Radius: ${cam.radius.toFixed(1)}`);
+          if (cam.fov) lines.push(`FOV: ${cam.fov.toFixed(3)}`);
+        }
+        
+        return lines.join('\n');
+      }
+      
+      case 'preset': {
+        const presetName = args[1];
+        if (!presetName) {
+          return 'Usage: camera preset <name>\nUse "camera presets" to list available presets';
+        }
+        if (cameraSystem.applyPreset(presetName)) {
+          return `Applied preset: ${presetName}`;
+        }
+        return `Preset not found: ${presetName}`;
+      }
+      
+      case 'presets': {
+        const presets = cameraSystem.getPresetNames();
+        if (presets.length === 0) {
+          return 'No presets available';
+        }
+        return `Available presets:\n  ${presets.join('\n  ')}`;
+      }
+      
+      case 'reset': {
+        // Reset to default isometric view
+        const cam = cameraSystem.getArcRotateCamera();
+        if (cam) {
+          cam.alpha = -Math.PI / 4;
+          cam.beta = Math.PI / 4;
+          cameraSystem.setHeight(800);
+          return 'Camera reset to default isometric view';
+        }
+        return 'Camera not available';
       }
         
       default:
-        return 'Subcommands: mode <type>, height <n>, info';
+        return 'Subcommands: mode, height, target, controller, controllers, info, preset, presets, reset';
     }
   });
 
