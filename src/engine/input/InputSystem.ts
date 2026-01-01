@@ -172,8 +172,8 @@ export class InputSystem {
     canvas.addEventListener("touchend", this.boundTouchEnd);
     canvas.addEventListener("contextmenu", this.boundContextMenu);
     
-    // Register frame update
-    scene.onBeforeRenderObservable.add(() => this.endFrame());
+    // Register frame update - use onAfterRender so controllers can query input first
+    scene.onAfterRenderObservable.add(() => this.endFrame());
     
     console.log("[InputSystem] Initialized");
   }
