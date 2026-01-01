@@ -36,6 +36,8 @@ export class FPSController implements ICameraController {
   private moveRight: boolean = false;
   private moveUp: boolean = false;
   private moveDown: boolean = false;
+  private rotateLeft: boolean = false;
+  private rotateRight: boolean = false;
   
   // Configuration
   private config: CameraControllerConfig = {
@@ -43,6 +45,9 @@ export class FPSController implements ICameraController {
     mouseSensitivity: 0.002,
     invertY: false,
   };
+  
+  // Rotation speed for keyboard turning
+  private rotationSpeed: number = 2.0;
   
   // Observers
   private pointerObserver: Observer<PointerInfo> | null = null;
@@ -83,7 +88,7 @@ export class FPSController implements ICameraController {
     this.camera.inputs.clear();
     
     this.setupInputHandlers();
-    console.log("[FPSController] Attached - WASD to move, click to enable mouse look, ESC to exit");
+    console.log("[FPSController] Attached - W/S move, A/D turn, Q/E strafe, Space/Shift up/down, click for mouse look");
   }
 
   detach(): void {
@@ -105,13 +110,17 @@ export class FPSController implements ICameraController {
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
-    // Calculate movement
+    // Calculate movement (W/S forward/back, Q/E strafe)
     if (this.moveForward) movement.addInPlace(forward.scale(speed));
     if (this.moveBackward) movement.addInPlace(forward.scale(-speed));
     if (this.moveRight) movement.addInPlace(right.scale(speed));
     if (this.moveLeft) movement.addInPlace(right.scale(-speed));
     if (this.moveUp) movement.y += speed;
     if (this.moveDown) movement.y -= speed;
+    
+    // Apply rotation (A/D turn)
+    if (this.rotateLeft) this.camera.rotation.y -= this.rotationSpeed * deltaTime;
+    if (this.rotateRight) this.camera.rotation.y += this.rotationSpeed * deltaTime;
     
     // Apply movement
     this.camera.position.addInPlace(movement);
@@ -216,12 +225,18 @@ export class FPSController implements ICameraController {
           this.moveBackward = pressed;
           break;
         case "KeyA":
-        case "ArrowLeft":
-          this.moveLeft = pressed;
+          this.rotateLeft = pressed;  // A = turn left
           break;
         case "KeyD":
+          this.rotateRight = pressed; // D = turn right
+          break;
+        case "ArrowLeft":
+        case "KeyQ":
+          this.moveLeft = pressed;    // Q/Arrow = strafe left
+          break;
         case "ArrowRight":
-          this.moveRight = pressed;
+        case "KeyE":
+          this.moveRight = pressed;   // E/Arrow = strafe right
           break;
         case "Space":
           this.moveUp = pressed;
@@ -277,5 +292,7 @@ export class FPSController implements ICameraController {
     this.moveRight = false;
     this.moveUp = false;
     this.moveDown = false;
+    this.rotateLeft = false;
+    this.rotateRight = false;
   }
 }
