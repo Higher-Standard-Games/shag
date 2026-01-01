@@ -66,6 +66,13 @@ export class CameraSystem {
   }
 
   /**
+   * Set the camera reference (for cameras created externally)
+   */
+  setCamera(camera: Camera): void {
+    this.camera = camera;
+  }
+
+  /**
    * Register a camera controller
    */
   registerController(type: string, controller: ICameraController): void {
@@ -84,6 +91,13 @@ export class CameraSystem {
    */
   getActiveController(): ICameraController | null {
     return this.activeController;
+  }
+
+  /**
+   * Set the active controller directly (for controllers attached externally)
+   */
+  setActiveController(controller: ICameraController): void {
+    this.activeController = controller;
   }
 
   /**

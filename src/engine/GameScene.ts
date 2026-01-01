@@ -332,13 +332,15 @@ export class GameScene {
     // Initialize Camera System with IsometricController
     const cameraSystem = CameraSystem.getInstance();
     cameraSystem.init(this.scene, this.canvas);
+    cameraSystem.setCamera(this.camera);
     
     // Create and register the isometric controller
     const isometricController = new IsometricController();
     cameraSystem.registerController("isometric", isometricController);
     
-    // Attach controller to camera
+    // Attach controller to camera and set as active
     isometricController.attach(this.camera, this.scene, this.canvas);
+    cameraSystem.setActiveController(isometricController);
     
     // Initialize game input handler and connect to camera controller
     const gameInputHandler = GameInputHandler.init(this.scene);
