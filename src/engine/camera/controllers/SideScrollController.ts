@@ -2,20 +2,19 @@
  * SideScrollController - 2D side-scrolling camera controller
  * 
  * Engine-level camera controller for platformers and side-scrolling games.
- * Supports following a target, smooth scrolling, and axis locking.
+ * Uses InputSystem for movement input.
  */
 
 import {
   ArcRotateCamera,
   Camera,
-  KeyboardEventTypes,
-  KeyboardInfo,
   Observer,
   Scene,
   TransformNode,
   Vector3,
 } from "babylonjs";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
+import { InputSystem } from "../../input";
 
 export class SideScrollController implements ICameraController {
   readonly type = "sidescroll";
@@ -30,12 +29,6 @@ export class SideScrollController implements ICameraController {
   private followOffset: Vector3 = new Vector3(0, 0, 0);
   private targetPosition: Vector3 = Vector3.Zero();
   
-  // Movement state
-  private moveLeft: boolean = false;
-  private moveRight: boolean = false;
-  private moveUp: boolean = false;
-  private moveDown: boolean = false;
-  
   // Configuration
   private config: CameraControllerConfig = {
     smoothing: 0.1,
@@ -46,7 +39,6 @@ export class SideScrollController implements ICameraController {
   
   // Observers
   private renderObserver: Observer<Scene> | null = null;
-  private keyboardObserver: Observer<KeyboardInfo> | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     if (!(camera instanceof ArcRotateCamera)) {
@@ -58,28 +50,30 @@ export class SideScrollController implements ICameraController {
     this.scene = scene;
     this._canvas = canvas;
     
-    // Set up side-scrolling view (camera looks from side)
-    // Store original values for debugging
-    const origAlpha = this.camera.alpha;
-    const origBeta = this.camera.beta;
-    
-    this.camera.alpha = 0;  // Looking from front/back along Z axis
-    this.camera.beta = Math.PI / 2;   // Level with ground (horizontal)
-    
-    console.log(`[SideScrollController] Camera angles: alpha ${origAlpha.toFixed(2)} -> ${this.camera.alpha.toFixed(2)}, beta ${origBeta.toFixed(2)} -> ${this.camera.beta.toFixed(2)}`);
+    // Set up side-scrolling view
+    this.camera.alpha = 0;
+    this.camera.beta = Math.PI / 2;
     
     // Initialize target
     this.targetPosition = camera.target.clone();
     
-    this.setupInputHandlers();
-    console.log("[SideScrollController] Attached - Arrow keys/WASD to move, side view");
+    // Single render observer handles all input via InputSystem
+    this.renderObserver = scene.onBeforeRenderObservable.add(() => {
+      if (!this.enabled || !this.camera) return;
+      this.updateCameraPosition();
+    });
+    
+    console.log("[SideScrollController] Attached - Uses InputSystem");
   }
 
   detach(): void {
-    this.removeInputHandlers();
+    if (this.renderObserver && this.scene) {
+      this.scene.onBeforeRenderObservable.remove(this.renderObserver);
+      this.renderObserver = null;
+    }
     this.camera = null;
     this.scene = null;
-    this._canvas = null; // eslint-disable-line @typescript-eslint/no-unused-vars
+    this._canvas = null;
     this.followTarget = null;
     console.log("[SideScrollController] Detached");
   }
@@ -96,9 +90,6 @@ export class SideScrollController implements ICameraController {
     return this.targetPosition.clone();
   }
 
-  /**
-   * Set a node for the camera to follow
-   */
   setFollowTarget(node: TransformNode, offset?: Vector3): void {
     this.followTarget = node;
     if (offset) {
@@ -106,9 +97,6 @@ export class SideScrollController implements ICameraController {
     }
   }
 
-  /**
-   * Clear the follow target
-   */
   clearFollowTarget(): void {
     this.followTarget = null;
   }
@@ -137,84 +125,28 @@ export class SideScrollController implements ICameraController {
   // Private Methods
   // ============================================================================
 
-  private setupInputHandlers(): void {
-    if (!this.scene) return;
-
-    // Keyboard handler for movement
-    this.keyboardObserver = this.scene.onKeyboardObservable.add((kbInfo) => {
-      if (!this.enabled) return;
-      
-      const pressed = kbInfo.type === KeyboardEventTypes.KEYDOWN;
-      
-      switch (kbInfo.event.code) {
-        case "KeyA":
-        case "ArrowLeft":
-          this.moveLeft = pressed;
-          break;
-        case "KeyD":
-        case "ArrowRight":
-          this.moveRight = pressed;
-          break;
-        case "KeyW":
-        case "ArrowUp":
-          this.moveUp = pressed;
-          break;
-        case "KeyS":
-        case "ArrowDown":
-          this.moveDown = pressed;
-          break;
-      }
-    });
-
-    // Render observer for smooth following and movement
-    this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
-      if (!this.enabled || !this.camera) return;
-      this.updateCameraPosition();
-    });
-  }
-
-  private removeInputHandlers(): void {
-    if (this.keyboardObserver && this.scene) {
-      this.scene.onKeyboardObservable.remove(this.keyboardObserver);
-      this.keyboardObserver = null;
-    }
-    if (this.renderObserver && this.scene) {
-      this.scene.onBeforeRenderObservable.remove(this.renderObserver);
-      this.renderObserver = null;
-    }
-    this.resetMovement();
-  }
-  
-  private resetMovement(): void {
-    this.moveLeft = false;
-    this.moveRight = false;
-    this.moveUp = false;
-    this.moveDown = false;
-  }
-
   private updateCameraPosition(): void {
     if (!this.camera) return;
     
+    const input = InputSystem.getInstance();
     const speed = this.config.speed || 5;
     
-    // Calculate movement delta
+    // Calculate movement delta using InputSystem
     let deltaZ = 0;
     let deltaY = 0;
     
     // With alpha=0, camera looks from +X towards -X
-    // A = left (negative Z), D = right (positive Z)
-    if (this.moveLeft) deltaZ -= speed;
-    if (this.moveRight) deltaZ += speed;
-    if (this.moveUp) deltaY += speed;
-    if (this.moveDown) deltaY -= speed;
+    // A/left = negative Z, D/right = positive Z
+    if (input.isActive("move_left")) deltaZ -= speed;
+    if (input.isActive("move_right")) deltaZ += speed;
+    if (input.isActive("move_forward")) deltaY += speed;  // W = up in sidescroll
+    if (input.isActive("move_back")) deltaY -= speed;     // S = down in sidescroll
     
     // Move both target AND camera position together for true sidescroll panning
-    // This prevents the "freelook" feeling where camera orbits
     if (deltaZ !== 0 || deltaY !== 0) {
       this.targetPosition.z += deltaZ;
       this.targetPosition.y += deltaY;
       
-      // Also move camera position directly to maintain fixed distance
       this.camera.position.z += deltaZ;
       this.camera.position.y += deltaY;
     }
@@ -223,7 +155,6 @@ export class SideScrollController implements ICameraController {
     if (this.followTarget) {
       const targetPos = this.followTarget.position.add(this.followOffset);
       
-      // Apply axis locking
       if (this.config.lockX) {
         this.targetPosition.x = this.camera.target.x;
         this.targetPosition.y = targetPos.y;
@@ -247,7 +178,6 @@ export class SideScrollController implements ICameraController {
         smoothing
       );
       
-      // Snap when close
       if (Vector3.DistanceSquared(this.camera.target, this.targetPosition) < 0.01) {
         this.camera.target.copyFrom(this.targetPosition);
       }

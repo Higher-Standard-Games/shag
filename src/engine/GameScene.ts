@@ -17,6 +17,7 @@ import { ShopSystem } from "../game/ShopSystem";
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { TextureManager } from "./loader/TextureManager";
 import { CameraSystem, IsometricController } from "./camera";
+import { InputSystem } from "./input";
 import { GameInputHandler } from "../game/GameInputHandler";
 import { SpriteManager } from "./sprites/SpriteManager";
 import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "./ui";
@@ -329,6 +330,9 @@ export class GameScene {
       enableShadows: lightingSettings.enableShadows,
     });
 
+    // Initialize Input System (must be before camera controllers)
+    InputSystem.getInstance().init(this.scene, this.canvas);
+    
     // Initialize Camera System with IsometricController
     const cameraSystem = CameraSystem.getInstance();
     cameraSystem.init(this.scene, this.canvas);
