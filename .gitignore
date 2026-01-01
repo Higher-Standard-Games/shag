@@ -58,3 +58,7 @@ android/.idea/
 android/*.iml
 android/app/*.iml
 android/capacitor-cordova-android-plugins/build/
+
+# Electron
+dist-electron/
+release/

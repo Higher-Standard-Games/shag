@@ -1,0 +1,31 @@
+{
+  "name": "My Game",
+  "shortName": "mygame",
+  "version": "0.0.1",
+  "description": "A game built with SHAG Engine",
+  "author": "Game Developer",
+  
+  "display": {
+    "title": "My Game",
+    "subtitle": "Built with SHAG Engine"
+  },
+  
+  "desktop": {
+    "appId": "com.example.mygame",
+    "windowTitle": "My Game",
+    "width": 1280,
+    "height": 720,
+    "minWidth": 800,
+    "minHeight": 600
+  },
+  
+  "mobile": {
+    "appId": "com.example.mygame",
+    "appName": "My Game"
+  },
+  
+  "build": {
+    "outputName": "MyGame",
+    "installerName": "MyGame Setup"
+  }
+}
