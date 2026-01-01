@@ -112,13 +112,12 @@ export class LoadingScreen {
       smokeContainer.className = "ui-loading-smoke-container";
       
       const SMOKE_COUNT = 15;
-      const smokePuffs: HTMLDivElement[] = [];
       
       for (let i = 0; i < SMOKE_COUNT; i++) {
         const puff = document.createElement("div");
         puff.className = "ui-loading-smoke-puff";
         
-        // Random color from palette
+        // Each puff gets its own fixed color from palette
         const color = LOGO_PALETTE[i % LOGO_PALETTE.length];
         
         // Random size between 80-200px
@@ -145,19 +144,9 @@ export class LoadingScreen {
         puff.style.background = `radial-gradient(circle, ${color.bg} 0%, transparent 70%)`;
         
         smokeContainer.appendChild(puff);
-        smokePuffs.push(puff);
       }
       
       this.container.appendChild(smokeContainer);
-      
-      // Color rotation for smoke puffs
-      const smokeColorInterval = setInterval(() => {
-        smokePuffs.forEach((puff, i) => {
-          const colorIndex = (i + Math.floor(Math.random() * LOGO_PALETTE.length)) % LOGO_PALETTE.length;
-          const color = LOGO_PALETTE[colorIndex];
-          puff.style.background = `radial-gradient(circle, ${color.bg} 0%, transparent 70%)`;
-        });
-      }, 3000);
 
       // Ripple container - universal "tap here" indicator
       const rippleContainer = document.createElement("div");
@@ -200,7 +189,6 @@ export class LoadingScreen {
       // On click, unlock audio and resolve
       const handleClick = () => {
         clearInterval(colorInterval);
-        clearInterval(smokeColorInterval);
         
         // Unlock browser audio context
         AudioManager.getInstance().unlockAudio();

@@ -842,6 +842,7 @@ export class UIStyles {
   height: 100%;
   pointer-events: none;
   overflow: visible;
+  z-index: 1;
 }
 
 /* Individual smoke puff */
@@ -880,6 +881,7 @@ export class UIStyles {
   position: relative;
   width: 80px;
   height: 80px;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
