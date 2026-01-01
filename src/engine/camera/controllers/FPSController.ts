@@ -52,24 +52,36 @@ export class FPSController implements ICameraController {
   private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
+    this.scene = scene;
+    this.canvas = canvas;
+    
+    // Get a reasonable starting position from the existing camera
+    let startPos = camera.position.clone();
+    let lookTarget = Vector3.Zero();
+    
+    // If it's an ArcRotateCamera, calculate position at ground level looking at target
+    if ("target" in camera && (camera as any).target instanceof Vector3) {
+      lookTarget = (camera as any).target.clone();
+      // Start at ground level near the target
+      startPos = lookTarget.clone();
+      startPos.y = 5; // Player height
+    }
+    
     if (!(camera instanceof FreeCamera)) {
-      console.warn("[FPSController] Works best with FreeCamera, creating one");
-      // Create a FreeCamera at the current camera position
-      const pos = camera.position.clone();
-      camera.dispose();
-      this.camera = new FreeCamera("fpsCamera", pos, scene);
+      console.log("[FPSController] Creating FreeCamera at position:", startPos.toString());
+      // Create a FreeCamera - don't dispose the old one, CameraSystem manages that
+      this.camera = new FreeCamera("fpsCamera", startPos, scene);
+      this.camera.setTarget(lookTarget);
+      scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
     }
-    
-    this.scene = scene;
-    this.canvas = canvas;
     
     // Clear default inputs
     this.camera.inputs.clear();
     
     this.setupInputHandlers();
-    console.log("[FPSController] Attached");
+    console.log("[FPSController] Attached - WASD to move, click to enable mouse look, ESC to exit");
   }
 
   detach(): void {

@@ -39,6 +39,9 @@ export class CameraSystem {
   private currentHeight: number = 800;
   private _currentPreset: string | null = null;
   
+  // Store original camera for restoration when switching controllers
+  private originalCamera: Camera | null = null;
+  
   // Camera bounds (optional)
   private minBounds: Vector3 | null = null;
   private maxBounds: Vector3 | null = null;
@@ -70,6 +73,7 @@ export class CameraSystem {
    */
   setCamera(camera: Camera): void {
     this.camera = camera;
+    this.originalCamera = camera; // Store as original for restoration
   }
 
   /**
@@ -147,8 +151,21 @@ export class CameraSystem {
       this.activeController.detach();
     }
 
+    // For isometric controller, restore original ArcRotateCamera if it exists
+    let cameraToUse = this.camera;
+    if (type === "isometric" && this.originalCamera && this.originalCamera !== this.scene.activeCamera) {
+      // Dispose the temporary camera created by FPS controller
+      if (this.scene.activeCamera && this.scene.activeCamera !== this.originalCamera) {
+        this.scene.activeCamera.dispose();
+      }
+      this.scene.activeCamera = this.originalCamera;
+      cameraToUse = this.originalCamera;
+      this.camera = this.originalCamera;
+      console.log("[CameraSystem] Restored original ArcRotateCamera");
+    }
+
     // Attach new controller
-    controller.attach(this.camera, this.scene, this.canvas);
+    controller.attach(cameraToUse, this.scene, this.canvas);
     this.activeController = controller;
     
     console.log(`[CameraSystem] Switched to controller: ${type}`);

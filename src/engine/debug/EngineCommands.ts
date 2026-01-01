@@ -504,9 +504,25 @@ export function registerEngineCommands(): void {
         }
         return 'Camera not available';
       }
+      
+      case 'pos':
+      case 'teleport': {
+        const x = parseFloat(args[1]);
+        const y = parseFloat(args[2]);
+        const z = parseFloat(args[3]);
+        const activeCam = cameraSystem.getCamera();
+        if (!activeCam) return 'No active camera';
+        
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+          const pos = activeCam.position;
+          return `Camera position: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}\nUsage: camera pos <x> <y> <z>`;
+        }
+        activeCam.position.set(x, y, z);
+        return `Camera teleported to: ${x}, ${y}, ${z}`;
+      }
         
       default:
-        return 'Subcommands: mode, height, target, controller, controllers, info, preset, presets, reset';
+        return 'Subcommands: mode, height, target, pos, controller, controllers, info, preset, presets, reset';
     }
   });
 
