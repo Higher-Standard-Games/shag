@@ -852,6 +852,7 @@ export class UIStyles {
   filter: blur(40px);
   opacity: 0;
   animation: ui-smoke-rise 8s ease-out infinite;
+  transition: background 2s ease-in-out;
 }
 
 /* Smoke rise animation - drifts up, rotates, fades */
