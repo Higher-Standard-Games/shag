@@ -59,14 +59,20 @@ export class SideScrollController implements ICameraController {
     this._canvas = canvas;
     
     // Set up side-scrolling view (camera looks from side)
-    this.camera.alpha = Math.PI / 2;  // 90 degrees - looking from side
-    this.camera.beta = Math.PI / 2;   // Level with ground
+    // Store original values for debugging
+    const origAlpha = this.camera.alpha;
+    const origBeta = this.camera.beta;
+    
+    this.camera.alpha = 0;  // Looking from front/back along Z axis
+    this.camera.beta = Math.PI / 2;   // Level with ground (horizontal)
+    
+    console.log(`[SideScrollController] Camera angles: alpha ${origAlpha.toFixed(2)} -> ${this.camera.alpha.toFixed(2)}, beta ${origBeta.toFixed(2)} -> ${this.camera.beta.toFixed(2)}`);
     
     // Initialize target
     this.targetPosition = camera.target.clone();
     
     this.setupInputHandlers();
-    console.log("[SideScrollController] Attached - Arrow keys/WASD to move, view from side");
+    console.log("[SideScrollController] Attached - Arrow keys/WASD to move, side view");
   }
 
   detach(): void {
@@ -191,11 +197,14 @@ export class SideScrollController implements ICameraController {
     
     const speed = this.config.speed || 5;
     
-    // Apply keyboard movement (in side-scroll, X is left/right, Y is up/down)
+    // Apply keyboard movement (camera looks along Z, so X is left/right, Y is up/down)
     if (this.moveLeft) this.targetPosition.x -= speed;
     if (this.moveRight) this.targetPosition.x += speed;
     if (this.moveUp) this.targetPosition.y += speed;
     if (this.moveDown) this.targetPosition.y -= speed;
+    
+    // Keep Z fixed for true 2D side-scroll feel
+    // this.targetPosition.z = 0;
     
     // Update target position if following something
     if (this.followTarget) {
