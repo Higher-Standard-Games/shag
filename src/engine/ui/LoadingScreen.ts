@@ -111,7 +111,7 @@ export class LoadingScreen {
       const smokeContainer = document.createElement("div");
       smokeContainer.className = "ui-loading-smoke-container";
       
-      const SMOKE_COUNT = 15;
+      const SMOKE_COUNT = 30;
       
       for (let i = 0; i < SMOKE_COUNT; i++) {
         const puff = document.createElement("div");
@@ -120,8 +120,8 @@ export class LoadingScreen {
         // Each puff gets its own fixed color from palette
         const color = LOGO_PALETTE[i % LOGO_PALETTE.length];
         
-        // Random size between 80-200px
-        const size = 80 + Math.random() * 120;
+        // More variety in sizes - tiny (40px) to large (250px)
+        const size = 40 + Math.random() * 210;
         puff.style.width = `${size}px`;
         puff.style.height = `${size}px`;
         
@@ -129,14 +129,14 @@ export class LoadingScreen {
         puff.style.left = `${Math.random() * 100}%`;
         
         // Random drift direction and rotation
-        const driftX = (Math.random() - 0.5) * 150;
+        const driftX = (Math.random() - 0.5) * 200;
         const rotation = (Math.random() - 0.5) * 360;
         puff.style.setProperty('--drift-x', `${driftX}px`);
         puff.style.setProperty('--rotation', `${rotation}deg`);
         
-        // Random animation duration (12-20s) and delay - slow and dreamy
-        const duration = 12 + Math.random() * 8;
-        const delay = Math.random() * 10;
+        // More variety in speeds - fast (8s) to very slow (25s)
+        const duration = 8 + Math.random() * 17;
+        const delay = Math.random() * 12;
         puff.style.animationDuration = `${duration}s`;
         puff.style.animationDelay = `${delay}s`;
         
