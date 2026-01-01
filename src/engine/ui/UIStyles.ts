@@ -833,6 +833,45 @@ export class UIStyles {
   opacity: 1;
 }
 
+/* Smoke effect container */
+.ui-loading-smoke-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Individual smoke puff */
+.ui-loading-smoke-puff {
+  position: absolute;
+  bottom: -20%;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0;
+  animation: ui-smoke-rise 8s ease-out infinite;
+}
+
+/* Smoke rise animation - drifts up, rotates, fades */
+@keyframes ui-smoke-rise {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-120vh) translateX(var(--drift-x, 50px)) rotate(var(--rotation, 180deg)) scale(1.5);
+    opacity: 0;
+  }
+}
+
 .ui-loading-ripple-container {
   position: relative;
   width: 80px;

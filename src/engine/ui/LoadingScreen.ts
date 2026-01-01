@@ -107,37 +107,57 @@ export class LoadingScreen {
       this.progressBar.style.display = 'none';
       this.container.classList.add('ui-loading-screen--ready');
 
-      // Animated background glow at bottom - crossfades between logo colors
-      const glowContainer = document.createElement("div");
-      glowContainer.className = "ui-loading-glow-container";
+      // Smoke effect - colored puffs rising and fading
+      const smokeContainer = document.createElement("div");
+      smokeContainer.className = "ui-loading-smoke-container";
       
-      const createGlowLayer = (color: typeof LOGO_PALETTE[0]) => {
-        const r = parseInt(color.bg.slice(1, 3), 16);
-        const g = parseInt(color.bg.slice(3, 5), 16);
-        const b = parseInt(color.bg.slice(5, 7), 16);
-        const layer = document.createElement("div");
-        layer.className = "ui-loading-glow-layer";
-        // Dynamic gradient color must be inline
-        layer.style.background = `radial-gradient(ellipse 50% 100% at 50% 100%, rgba(${r}, ${g}, ${b}, 0.5) 0%, rgba(${r}, ${g}, ${b}, 0.2) 40%, transparent 70%)`;
-        return layer;
-      };
+      const SMOKE_COUNT = 15;
+      const smokePuffs: HTMLDivElement[] = [];
       
-      // Create glow layers for each color
-      const glowLayers = LOGO_PALETTE.map(color => createGlowLayer(color));
-      glowLayers.forEach(layer => glowContainer.appendChild(layer));
-      this.container.appendChild(glowContainer);
+      for (let i = 0; i < SMOKE_COUNT; i++) {
+        const puff = document.createElement("div");
+        puff.className = "ui-loading-smoke-puff";
+        
+        // Random color from palette
+        const color = LOGO_PALETTE[i % LOGO_PALETTE.length];
+        
+        // Random size between 80-200px
+        const size = 80 + Math.random() * 120;
+        puff.style.width = `${size}px`;
+        puff.style.height = `${size}px`;
+        
+        // Random horizontal position
+        puff.style.left = `${Math.random() * 100}%`;
+        
+        // Random drift direction and rotation
+        const driftX = (Math.random() - 0.5) * 150;
+        const rotation = (Math.random() - 0.5) * 360;
+        puff.style.setProperty('--drift-x', `${driftX}px`);
+        puff.style.setProperty('--rotation', `${rotation}deg`);
+        
+        // Random animation duration (6-12s) and delay
+        const duration = 6 + Math.random() * 6;
+        const delay = Math.random() * 8;
+        puff.style.animationDuration = `${duration}s`;
+        puff.style.animationDelay = `${delay}s`;
+        
+        // Set color with radial gradient for soft edges
+        puff.style.background = `radial-gradient(circle, ${color.bg} 0%, transparent 70%)`;
+        
+        smokeContainer.appendChild(puff);
+        smokePuffs.push(puff);
+      }
       
-      // Start with first color visible
-      let currentGlowIndex = 0;
-      glowLayers[0].classList.add('ui-loading-glow-layer--active');
+      this.container.appendChild(smokeContainer);
       
-      // Crossfade between colors
-      const glowInterval = setInterval(() => {
-        const prevIndex = currentGlowIndex;
-        currentGlowIndex = (currentGlowIndex + 1) % LOGO_PALETTE.length;
-        glowLayers[prevIndex].classList.remove('ui-loading-glow-layer--active');
-        glowLayers[currentGlowIndex].classList.add('ui-loading-glow-layer--active');
-      }, 2500);
+      // Color rotation for smoke puffs
+      const smokeColorInterval = setInterval(() => {
+        smokePuffs.forEach((puff, i) => {
+          const colorIndex = (i + Math.floor(Math.random() * LOGO_PALETTE.length)) % LOGO_PALETTE.length;
+          const color = LOGO_PALETTE[colorIndex];
+          puff.style.background = `radial-gradient(circle, ${color.bg} 0%, transparent 70%)`;
+        });
+      }, 3000);
 
       // Ripple container - universal "tap here" indicator
       const rippleContainer = document.createElement("div");
@@ -180,7 +200,7 @@ export class LoadingScreen {
       // On click, unlock audio and resolve
       const handleClick = () => {
         clearInterval(colorInterval);
-        clearInterval(glowInterval);
+        clearInterval(smokeColorInterval);
         
         // Unlock browser audio context
         AudioManager.getInstance().unlockAudio();
