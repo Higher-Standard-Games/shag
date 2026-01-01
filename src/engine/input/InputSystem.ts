@@ -172,8 +172,12 @@ export class InputSystem {
     canvas.addEventListener("touchend", this.boundTouchEnd);
     canvas.addEventListener("contextmenu", this.boundContextMenu);
     
-    // Register frame update - use onAfterRender so controllers can query input first
-    scene.onAfterRenderObservable.add(() => this.endFrame());
+    // Update action states BEFORE render (so controllers can query them)
+    scene.onBeforeRenderObservable.addOnce(() => {}); // Ensure we're first
+    scene.onBeforeRenderObservable.add(() => this.updateActionStates(), -1000); // High priority (runs first)
+    
+    // Clear per-frame state AFTER render
+    scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
     
     console.log("[InputSystem] Initialized");
   }
@@ -408,13 +412,10 @@ export class InputSystem {
   }
 
   /**
-   * Called at end of each frame to update action states and clear per-frame state
+   * Clear per-frame state after all systems have had a chance to query
    */
-  private endFrame(): void {
-    // Update action states based on raw input and bindings
-    this.updateActionStates();
-    
-    // Clear per-frame state
+  private clearPerFrameState(): void {
+    // Clear raw per-frame state
     this.rawState.keysPressed.clear();
     this.rawState.keysReleased.clear();
     this.rawState.mouse.buttonsPressed.clear();
