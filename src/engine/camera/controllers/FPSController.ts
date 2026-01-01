@@ -2,87 +2,62 @@
  * FPSController - First-person camera controller
  * 
  * Engine-level camera controller for FPS-style games.
- * Supports WASD movement, mouse look, and jumping.
+ * Uses InputSystem for all input handling - no raw input code here.
  */
 
 import {
   Camera,
   FreeCamera,
-  KeyboardEventTypes,
-  KeyboardInfo,
   Observer,
-  PointerEventTypes,
-  PointerInfo,
   Scene,
   Vector3,
 } from "babylonjs";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
+import { InputSystem } from "../../input";
 
 export class FPSController implements ICameraController {
   readonly type = "fps";
   
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
-  private canvas: HTMLCanvasElement | null = null;
+  private _canvas: HTMLCanvasElement | null = null;
   
   // State
   private enabled: boolean = true;
-  private isPointerLocked: boolean = false;
-  private isRightMouseDown: boolean = false;
-  private lastMouseX: number = 0;
-  private lastMouseY: number = 0;
-  
-  // Movement state
-  private moveForward: boolean = false;
-  private moveBackward: boolean = false;
-  private moveLeft: boolean = false;
-  private moveRight: boolean = false;
-  private moveUp: boolean = false;
-  private moveDown: boolean = false;
-  private rotateLeft: boolean = false;
-  private rotateRight: boolean = false;
   
   // Configuration
   private config: CameraControllerConfig = {
     speed: 10,
     mouseSensitivity: 0.002,
     invertY: false,
-    fov: 0.8, // Field of view in radians (~45 degrees)
+    fov: 0.8,
   };
   
   // Rotation speed for keyboard turning
   private rotationSpeed: number = 2.0;
   
   // Observers
-  private pointerObserver: Observer<PointerInfo> | null = null;
-  private keyboardObserver: Observer<KeyboardInfo> | null = null;
   private renderObserver: Observer<Scene> | null = null;
-  private pointerLockChangeHandler: (() => void) | null = null;
-  private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
-    this.canvas = canvas;
+    this._canvas = canvas;
     
     // Get a reasonable starting position from the existing camera
     let startPos = camera.position.clone();
-    let lookTarget = Vector3.Zero();
     
     // If it's an ArcRotateCamera, calculate position at ground level looking at target
     if ("target" in camera && (camera as any).target instanceof Vector3) {
-      lookTarget = (camera as any).target.clone();
-      // Start at ground level near the target
+      const lookTarget = (camera as any).target.clone();
       startPos = lookTarget.clone();
       startPos.y = 5; // Player height
     }
     
     if (!(camera instanceof FreeCamera)) {
       console.log("[FPSController] Creating FreeCamera at position:", startPos.toString());
-      // Create a FreeCamera - don't dispose the old one, CameraSystem manages that
       this.camera = new FreeCamera("fpsCamera", startPos, scene);
-      // Set rotation to look forward horizontally (not at ground)
-      this.camera.rotation.x = 0; // Look straight ahead, not down
-      this.camera.rotation.y = 0; // Face default direction
+      this.camera.rotation.x = 0;
+      this.camera.rotation.y = 0;
       scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
@@ -93,25 +68,33 @@ export class FPSController implements ICameraController {
       this.camera.fov = this.config.fov;
     }
     
-    // Clear default inputs
+    // Clear default inputs - we use InputSystem instead
     this.camera.inputs.clear();
     
-    this.setupInputHandlers();
-    console.log("[FPSController] Attached - W/S move, A/D turn, Q/E strafe, Space/Shift up/down, RIGHT-CLICK DRAG to look");
+    // Set up render observer for movement update
+    this.renderObserver = scene.onBeforeRenderObservable.add(() => {
+      const deltaTime = scene.getEngine().getDeltaTime() / 1000;
+      this.update(deltaTime);
+    });
+    
+    console.log("[FPSController] Attached - Uses InputSystem for input");
   }
 
   detach(): void {
-    this.removeInputHandlers();
-    this.exitPointerLock();
+    if (this.renderObserver && this.scene) {
+      this.scene.onBeforeRenderObservable.remove(this.renderObserver);
+      this.renderObserver = null;
+    }
     this.camera = null;
     this.scene = null;
-    this.canvas = null;
+    this._canvas = null;
     console.log("[FPSController] Detached");
   }
 
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera) return;
     
+    const input = InputSystem.getInstance();
     const speed = (this.config.speed || 10) * deltaTime;
     const movement = Vector3.Zero();
     
@@ -119,26 +102,52 @@ export class FPSController implements ICameraController {
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
-    // Calculate movement (W/S forward/back, Q/E strafe)
-    if (this.moveForward) movement.addInPlace(forward.scale(speed));
-    if (this.moveBackward) movement.addInPlace(forward.scale(-speed));
-    if (this.moveRight) movement.addInPlace(right.scale(speed));
-    if (this.moveLeft) movement.addInPlace(right.scale(-speed));
-    if (this.moveUp) movement.y += speed;
-    if (this.moveDown) movement.y -= speed;
+    // Query InputSystem for movement actions
+    if (input.isActive("move_forward")) movement.addInPlace(forward.scale(speed));
+    if (input.isActive("move_back")) movement.addInPlace(forward.scale(-speed));
+    if (input.isActive("move_right")) movement.addInPlace(right.scale(speed));
+    if (input.isActive("move_left")) movement.addInPlace(right.scale(-speed));
+    if (input.isActive("move_up")) movement.y += speed;
+    if (input.isActive("move_down")) movement.y -= speed;
     
-    // Apply rotation (A/D turn)
-    if (this.rotateLeft) this.camera.rotation.y -= this.rotationSpeed * deltaTime;
-    if (this.rotateRight) this.camera.rotation.y += this.rotationSpeed * deltaTime;
+    // Query InputSystem for rotation
+    if (input.isActive("rotate_left")) {
+      this.camera.rotation.y -= this.rotationSpeed * deltaTime;
+    }
+    if (input.isActive("rotate_right")) {
+      this.camera.rotation.y += this.rotationSpeed * deltaTime;
+    }
+    
+    // Mouse look via InputSystem raw state (for now - gestures later)
+    const mouseDelta = input.getMouseDelta();
+    if (input.isActive("camera_pan")) {
+      const sensitivity = this.config.mouseSensitivity || 0.002;
+      const invertY = this.config.invertY ? -1 : 1;
+      
+      this.camera.rotation.y += mouseDelta.x * sensitivity;
+      this.camera.rotation.x += mouseDelta.y * sensitivity * invertY;
+      
+      // Clamp vertical rotation
+      this.camera.rotation.x = Math.max(
+        -Math.PI / 2 + 0.1,
+        Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x)
+      );
+    }
     
     // Apply movement
     this.camera.position.addInPlace(movement);
+    
+    // Handle cancel action (exit pointer lock, etc.)
+    if (input.wasPressed("cancel")) {
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    }
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
     
-    // Apply FOV change immediately if camera exists
     if (config.fov && this.camera) {
       this.camera.fov = config.fov;
     }
@@ -150,190 +159,13 @@ export class FPSController implements ICameraController {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-    if (!enabled) {
-      this.resetMovement();
-      this.exitPointerLock();
-    }
   }
 
   isEnabled(): boolean {
     return this.enabled;
   }
 
-  /**
-   * Request pointer lock for mouse look
-   */
-  requestPointerLock(): void {
-    if (this.canvas) {
-      this.canvas.requestPointerLock();
-    }
-  }
-
-  /**
-   * Exit pointer lock
-   */
-  exitPointerLock(): void {
-    if (document.pointerLockElement) {
-      document.exitPointerLock();
-    }
-    this.isPointerLocked = false;
-  }
-
   dispose(): void {
     this.detach();
-  }
-
-  // ============================================================================
-  // Private Methods
-  // ============================================================================
-
-  private setupInputHandlers(): void {
-    if (!this.scene || !this.canvas) return;
-
-    // Pointer lock change handler
-    this.pointerLockChangeHandler = () => {
-      this.isPointerLocked = document.pointerLockElement === this.canvas;
-    };
-    document.addEventListener("pointerlockchange", this.pointerLockChangeHandler);
-
-    // Mouse move handler for look (works with pointer lock OR right-click drag)
-    this.mouseMoveHandler = (e: MouseEvent) => {
-      if (!this.camera || !this.enabled) return;
-      
-      // Support both pointer lock and right-click drag
-      if (this.isPointerLocked) {
-        const sensitivity = this.config.mouseSensitivity || 0.002;
-        const invertY = this.config.invertY ? -1 : 1;
-        
-        this.camera.rotation.y += e.movementX * sensitivity;
-        this.camera.rotation.x += e.movementY * sensitivity * invertY;
-      } else if (this.isRightMouseDown) {
-        const sensitivity = this.config.mouseSensitivity || 0.002;
-        const invertY = this.config.invertY ? -1 : 1;
-        const deltaX = e.clientX - this.lastMouseX;
-        const deltaY = e.clientY - this.lastMouseY;
-        
-        this.camera.rotation.y += deltaX * sensitivity;
-        this.camera.rotation.x += deltaY * sensitivity * invertY;
-      }
-      
-      this.lastMouseX = e.clientX;
-      this.lastMouseY = e.clientY;
-      
-      // Clamp vertical rotation
-      if (this.camera.rotation) {
-        this.camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x));
-      }
-    };
-    document.addEventListener("mousemove", this.mouseMoveHandler);
-
-    // Click handlers - left click for pointer lock, right click for drag look
-    this.pointerObserver = this.scene.onPointerObservable.add((pointerInfo) => {
-      if (!this.enabled) return;
-      
-      if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-        const evt = pointerInfo.event as PointerEvent;
-        if (evt.button === 0 && !this.isPointerLocked) {
-          // Left click - try pointer lock
-          this.requestPointerLock();
-        } else if (evt.button === 2) {
-          // Right click - start drag look
-          this.isRightMouseDown = true;
-          this.lastMouseX = evt.clientX;
-          this.lastMouseY = evt.clientY;
-        }
-      } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
-        const evt = pointerInfo.event as PointerEvent;
-        if (evt.button === 2) {
-          this.isRightMouseDown = false;
-        }
-      }
-    });
-
-    // Keyboard handler for movement
-    this.keyboardObserver = this.scene.onKeyboardObservable.add((kbInfo) => {
-      if (!this.enabled) return;
-      
-      const pressed = kbInfo.type === KeyboardEventTypes.KEYDOWN;
-      
-      switch (kbInfo.event.code) {
-        case "KeyW":
-        case "ArrowUp":
-          this.moveForward = pressed;
-          break;
-        case "KeyS":
-        case "ArrowDown":
-          this.moveBackward = pressed;
-          break;
-        case "KeyA":
-          this.rotateLeft = pressed;  // A = turn left
-          break;
-        case "KeyD":
-          this.rotateRight = pressed; // D = turn right
-          break;
-        case "ArrowLeft":
-        case "KeyQ":
-          this.moveLeft = pressed;    // Q/Arrow = strafe left
-          break;
-        case "ArrowRight":
-        case "KeyE":
-          this.moveRight = pressed;   // E/Arrow = strafe right
-          break;
-        case "Space":
-          this.moveUp = pressed;
-          break;
-        case "ShiftLeft":
-        case "ControlLeft":
-          this.moveDown = pressed;
-          break;
-        case "Escape":
-          if (pressed) this.exitPointerLock();
-          break;
-      }
-    });
-
-    // Render observer for movement update
-    this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
-      const deltaTime = this.scene!.getEngine().getDeltaTime() / 1000;
-      this.update(deltaTime);
-    });
-  }
-
-  private removeInputHandlers(): void {
-    if (this.pointerObserver && this.scene) {
-      this.scene.onPointerObservable.remove(this.pointerObserver);
-      this.pointerObserver = null;
-    }
-    
-    if (this.keyboardObserver && this.scene) {
-      this.scene.onKeyboardObservable.remove(this.keyboardObserver);
-      this.keyboardObserver = null;
-    }
-    
-    if (this.renderObserver && this.scene) {
-      this.scene.onBeforeRenderObservable.remove(this.renderObserver);
-      this.renderObserver = null;
-    }
-    
-    if (this.pointerLockChangeHandler) {
-      document.removeEventListener("pointerlockchange", this.pointerLockChangeHandler);
-      this.pointerLockChangeHandler = null;
-    }
-    
-    if (this.mouseMoveHandler) {
-      document.removeEventListener("mousemove", this.mouseMoveHandler);
-      this.mouseMoveHandler = null;
-    }
-  }
-
-  private resetMovement(): void {
-    this.moveForward = false;
-    this.moveBackward = false;
-    this.moveLeft = false;
-    this.moveRight = false;
-    this.moveUp = false;
-    this.moveDown = false;
-    this.rotateLeft = false;
-    this.rotateRight = false;
   }
 }
