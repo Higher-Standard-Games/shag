@@ -2,7 +2,10 @@
  * IsometricController - RTS/Isometric camera controller
  * 
  * Engine-level camera controller for isometric and RTS-style games.
- * Uses InputSystem for action detection, handles ground raycasting for pan.
+ * Supports pan/drag, edge scrolling, and smooth movement.
+ * 
+ * This is the ENGINE version - game-specific click handling should be
+ * done separately in game code, not in this controller.
  */
 
 import {
@@ -10,12 +13,13 @@ import {
   Camera,
   Matrix,
   Observer,
+  PointerEventTypes,
+  PointerInfo,
   Scene,
   Vector3,
 } from "babylonjs";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { CameraSystem } from "../CameraSystem";
-import { InputSystem } from "../../input";
 
 export class IsometricController implements ICameraController {
   readonly type = "isometric";
@@ -43,6 +47,7 @@ export class IsometricController implements ICameraController {
   };
   
   // Observers
+  private pointerObserver: Observer<PointerInfo> | null = null;
   private renderObserver: Observer<Scene> | null = null;
   private mouseLeaveHandler: (() => void) | null = null;
   private mouseEnterHandler: (() => void) | null = null;
@@ -64,7 +69,7 @@ export class IsometricController implements ICameraController {
     this.targetPosition = camera.target.clone();
     
     this.setupInputHandlers();
-    console.log("[IsometricController] Attached - Uses InputSystem");
+    console.log("[IsometricController] Attached");
   }
 
   detach(): void {
@@ -110,12 +115,19 @@ export class IsometricController implements ICameraController {
     return this.enabled;
   }
 
+  /**
+   * Sync target position with camera's current target
+   * Call this after externally changing camera target
+   */
   syncTargetPosition(): void {
     if (this.camera) {
       this.targetPosition = this.camera.target.clone();
     }
   }
 
+  /**
+   * Set callback for click events (for game-specific handling)
+   */
   setClickCallback(callback: (screenX: number, screenY: number, wasDrag: boolean) => void): void {
     this.onClickCallback = callback;
   }
@@ -131,7 +143,7 @@ export class IsometricController implements ICameraController {
   private setupInputHandlers(): void {
     if (!this.scene || !this.canvas) return;
 
-    // Mouse leave/enter handlers (still needed for edge scroll)
+    // Mouse leave/enter handlers
     this.mouseLeaveHandler = () => {
       this.isDragging = false;
       this.startGroundPosition = null;
@@ -146,17 +158,37 @@ export class IsometricController implements ICameraController {
     this.canvas.addEventListener("mouseleave", this.mouseLeaveHandler);
     this.canvas.addEventListener("mouseenter", this.mouseEnterHandler);
 
-    // Single render observer handles all input via InputSystem
-    this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
+    // Pointer observer for drag handling
+    this.pointerObserver = this.scene.onPointerObservable.add((pointerInfo) => {
       if (!this.enabled) return;
       
-      this.handlePanInput();
+      switch (pointerInfo.type) {
+        case PointerEventTypes.POINTERDOWN:
+          this.handlePointerDown(pointerInfo);
+          break;
+        case PointerEventTypes.POINTERUP:
+          this.handlePointerUp(pointerInfo);
+          break;
+        case PointerEventTypes.POINTERMOVE:
+          this.handlePointerMove();
+          break;
+      }
+    });
+
+    // Render observer for smoothing and edge scroll
+    this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
+      if (!this.enabled) return;
       this.handleEdgeScroll();
       this.applySmoothing();
     });
   }
 
   private removeInputHandlers(): void {
+    if (this.pointerObserver && this.scene) {
+      this.scene.onPointerObservable.remove(this.pointerObserver);
+      this.pointerObserver = null;
+    }
+    
     if (this.renderObserver && this.scene) {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
@@ -172,44 +204,41 @@ export class IsometricController implements ICameraController {
     }
   }
 
-  private handlePanInput(): void {
-    const input = InputSystem.getInstance();
+  private handlePointerDown(pointerInfo: PointerInfo): void {
+    if (pointerInfo.event.button !== 0) return; // Left click only
     
-    // Start drag when camera_pan pressed
-    if (input.wasPressed("camera_pan") && !this.isDragging) {
-      this.isDragging = true;
-      this.pointerDownPos = input.getMousePosition();
-      this.startGroundPosition = this.getGroundPosition();
+    this.isDragging = true;
+    this.pointerDownPos = { 
+      x: this.scene!.pointerX, 
+      y: this.scene!.pointerY 
+    };
+    
+    // Raycast to ground
+    this.startGroundPosition = this.getGroundPosition();
+    
+    // Sync target to current to avoid jump
+    if (this.camera) {
+      this.targetPosition.copyFrom(this.camera.target);
+    }
+  }
+
+  private handlePointerUp(_pointerInfo: PointerInfo): void {
+    if (this.isDragging && this.pointerDownPos) {
+      // Check if this was a click (minimal movement) or drag
+      const dx = this.scene!.pointerX - this.pointerDownPos.x;
+      const dy = this.scene!.pointerY - this.pointerDownPos.y;
+      const distSq = dx * dx + dy * dy;
+      const wasDrag = distSq >= 25; // 5 pixel threshold
       
-      // Sync target to current to avoid jump
-      if (this.camera) {
-        this.targetPosition.copyFrom(this.camera.target);
+      // Notify game code about the click
+      if (this.onClickCallback) {
+        this.onClickCallback(this.scene!.pointerX, this.scene!.pointerY, wasDrag);
       }
     }
     
-    // Handle drag movement
-    if (this.isDragging && input.isActive("camera_pan")) {
-      this.handlePointerMove();
-    }
-    
-    // End drag when camera_pan released
-    if (input.wasReleased("camera_pan") && this.isDragging) {
-      if (this.pointerDownPos) {
-        const currentPos = input.getMousePosition();
-        const dx = currentPos.x - this.pointerDownPos.x;
-        const dy = currentPos.y - this.pointerDownPos.y;
-        const distSq = dx * dx + dy * dy;
-        const wasDrag = distSq >= 25;
-        
-        if (this.onClickCallback && this.scene) {
-          this.onClickCallback(this.scene.pointerX, this.scene.pointerY, wasDrag);
-        }
-      }
-      
-      this.isDragging = false;
-      this.startGroundPosition = null;
-      this.pointerDownPos = null;
-    }
+    this.isDragging = false;
+    this.startGroundPosition = null;
+    this.pointerDownPos = null;
   }
 
   private handlePointerMove(): void {
@@ -220,20 +249,25 @@ export class IsometricController implements ICameraController {
     
     const delta = this.startGroundPosition.subtract(currentGroundPos);
     
+    // Safety checks
     if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y) || !Number.isFinite(delta.z)) return;
-    if (delta.lengthSquared() > 10000) return;
+    if (delta.lengthSquared() > 10000) return; // Prevent massive jumps
     
+    // Apply to target
     this.targetPosition.addInPlace(delta);
     
+    // Apply bounds if set
     const bounds = CameraSystem.getInstance().getBounds();
     if (bounds.min && bounds.max) {
       this.targetPosition = CameraSystem.getInstance().clampToBounds(this.targetPosition);
     }
     
+    // Snap camera immediately while dragging
     if (this.camera) {
       this.camera.target.copyFrom(this.targetPosition);
     }
     
+    // Recalculate start position
     this.startGroundPosition = this.getGroundPosition();
   }
 
@@ -247,6 +281,7 @@ export class IsometricController implements ICameraController {
       this.camera
     );
     
+    // Intersect with Y=0 plane
     if (Math.abs(ray.direction.y) < 0.0001) return null;
     
     const t = -ray.origin.y / ray.direction.y;
@@ -269,11 +304,17 @@ export class IsometricController implements ICameraController {
     let moveX = 0;
     let moveY = 0;
     
-    if (x < threshold) moveX = -speed;
-    else if (x > this.canvas.width - threshold) moveX = speed;
+    if (x < threshold) {
+      moveX = -speed;
+    } else if (x > this.canvas.width - threshold) {
+      moveX = speed;
+    }
     
-    if (y < threshold) moveY = -speed;
-    else if (y > this.canvas.height - threshold) moveY = speed;
+    if (y < threshold) {
+      moveY = -speed;
+    } else if (y > this.canvas.height - threshold) {
+      moveY = speed;
+    }
     
     if (moveX !== 0 || moveY !== 0) {
       const forward = this.camera.getDirection(Vector3.Forward());
@@ -301,6 +342,7 @@ export class IsometricController implements ICameraController {
         smoothing
       );
       
+      // Snap when close enough
       if (Vector3.DistanceSquared(this.camera.target, this.targetPosition) < 0.001) {
         this.camera.target.copyFrom(this.targetPosition);
       }
