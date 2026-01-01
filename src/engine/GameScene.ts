@@ -616,6 +616,15 @@ export class GameScene {
     console.log(`[GameScene] Applying camera mode: ${modeToApply}, height: ${this.cameraHeight}`);
     this.setCameraMode(modeToApply);
     
+    // STEP 3b: Apply camera controller if specified in map
+    if (result.cameraController) {
+      const cameraSystem = CameraSystem.getInstance();
+      console.log(`[GameScene] Map specifies camera controller: ${result.cameraController}`);
+      if (!cameraSystem.setController(result.cameraController)) {
+        console.warn(`[GameScene] Failed to switch to controller: ${result.cameraController}`);
+      }
+    }
+    
     // Log actual camera state after applying
     if (this.camera) {
       console.log(`[GameScene] Camera after mode apply: radius=${this.camera.radius}, fov=${this.camera.fov?.toFixed(3)}`);
