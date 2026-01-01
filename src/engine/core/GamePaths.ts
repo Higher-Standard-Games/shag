@@ -5,18 +5,22 @@
  * Supports multiple games with engine fallback for shared assets.
  * 
  * Directory structure:
+ * ```
  * public/
  * ├── engine/           # Shared engine assets (fonts, default textures)
- * ├── ganjawars/        # Game directory (--game ganjawars)
+ * ├── mygame/           # Game directory (--game mygame)
  * │   ├── config.json
  * │   ├── data/
  * │   ├── maps/
  * │   └── ...
  * └── engine.json       # Root config (defaultGame, engineAssetsPath)
+ * ```
  * 
- * Usage:
- *   await GamePaths.getInstance().init();
- *   const mapPath = GamePaths.getInstance().maps('level1.map');
+ * @example
+ * ```typescript
+ * await GamePaths.getInstance().init();
+ * const mapPath = GamePaths.getInstance().maps('level1.map');
+ * ```
  */
 
 export interface EngineConfig {

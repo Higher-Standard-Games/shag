@@ -1,12 +1,16 @@
 /**
- * TimerManager - Unified timer/cooldown system for growth, curing, cooldowns, etc.
+ * TimerManager - Unified timer/cooldown system for game processes
  * 
- * Usage:
- *   TimerManager.create("plant_growth", plantId, duration, onComplete);
- *   TimerManager.create("curing", barrelId, duration, onComplete, { onProgress });
- *   TimerManager.pause("plant_growth", plantId);
- *   TimerManager.getProgress("plant_growth", plantId);
- *   TimerManager.getTimeRemaining("plant_growth", plantId);
+ * Manages timed events like ability cooldowns, crafting progress,
+ * spawn timers, and other duration-based game mechanics.
+ * 
+ * @example
+ * ```typescript
+ * TimerManager.create("cooldown", abilityId, duration, onComplete);
+ * TimerManager.create("crafting", itemId, duration, onComplete, { onProgress });
+ * TimerManager.pause("cooldown", abilityId);
+ * TimerManager.getProgress("crafting", itemId);
+ * ```
  */
 
 import { EventBus } from "./EventBus";
@@ -41,8 +45,8 @@ export class TimerManager {
 
   /**
    * Create a new timer
-   * @param category Timer category (e.g., "plant_growth", "curing", "cooldown")
-   * @param id Unique ID within category (e.g., plantId, barrelId)
+   * @param category Timer category (e.g., "cooldown", "crafting", "spawn")
+   * @param id Unique ID within category (e.g., abilityId, itemId)
    * @param duration Duration in milliseconds
    * @param onComplete Callback when timer completes
    * @param options Additional options

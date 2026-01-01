@@ -1,17 +1,23 @@
 /**
- * ActionSystem - Central command/action system for all player actions
+ * ActionSystem - Central command/action system for game actions
  * 
- * Benefits:
- * - Validation hooks (can actions be performed?)
- * - Undo/redo support
- * - Action history for replay/debugging
- * - Middleware support (logging, analytics, etc.)
+ * Provides a unified interface for executing, validating, and undoing
+ * game actions with middleware support for logging and analytics.
  * 
- * Usage:
- *   ActionSystem.register("harvest", harvestHandler, harvestValidator);
- *   ActionSystem.execute("harvest", { plantId: "plant_1" });
- *   ActionSystem.canExecute("harvest", { plantId: "plant_1" });
- *   ActionSystem.undo(); // If action supports undo
+ * @example
+ * ```typescript
+ * // Register an action
+ * ActionSystem.register("build", buildHandler, buildValidator);
+ * 
+ * // Execute an action
+ * ActionSystem.execute("build", { entityId: "tower_1", position: { x: 10, y: 0 } });
+ * 
+ * // Check if action can be executed
+ * ActionSystem.canExecute("build", { entityId: "tower_1" });
+ * 
+ * // Undo last action (if supported)
+ * ActionSystem.undo();
+ * ```
  */
 
 import { EventBus } from "./EventBus";
@@ -56,7 +62,7 @@ export class ActionSystem {
 
   /**
    * Register an action handler
-   * @param type Action type name (e.g., "harvest", "purchase", "build")
+   * @param type Action type name (e.g., "move", "interact", "build")
    * @param handler Function that executes the action
    * @param validator Optional function to check if action can be executed
    * @param undoHandler Optional function to undo the action

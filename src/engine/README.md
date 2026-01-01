@@ -9,7 +9,7 @@ A lightweight, modular game engine built on Babylon.js for creating isometric an
 - **Map System** - Q3map2/NetRadiant-compatible .map file loading
 - **Prefab System** - Reusable object templates with entity support
 - **BuildableSystem** - Data-driven buildable objects with stages, production, and decay
-- **Camera System** - RTS-style camera with smooth movement and zoom
+- **Camera System** - Modular camera controllers (Isometric, FPS, SideScroll, Follow)
 - **UI Framework** - Scalable HUD system with responsive design
 - **Audio Manager** - Music and sound effects with browser audio policy handling
 - **Weather Effects** - Rain, snow, wind, fog, and debris particles
@@ -21,7 +21,7 @@ A lightweight, modular game engine built on Babylon.js for creating isometric an
 ```
 src/engine/
 ├── core/           # Core systems (EventBus, GamePaths, Persistence)
-├── camera/         # Camera controllers (RTS, Free)
+├── camera/         # Camera controllers (Isometric, FPS, SideScroll, Follow)
 ├── ui/             # UI components (HUD, BottomBar, LoadingScreen)
 ├── loader/         # Asset loading (Maps, Prefabs, Textures)
 ├── debug/          # Debug console and commands

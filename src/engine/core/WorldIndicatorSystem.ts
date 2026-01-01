@@ -2,19 +2,20 @@
  * WorldIndicatorSystem - Generic engine feature for spawning UI indicators at world positions
  * 
  * Use this for any floating UI elements that need to track world positions:
- * - Water prompts above plants
- * - Action indicators above objects (e.g., "Select strain")
- * - Harvest ready indicators
- * - Damage numbers
- * - Status effects
+ * - Action prompts above interactive objects
+ * - Status indicators above entities
+ * - Damage/healing numbers
+ * - Floating labels and tooltips
  * 
- * Usage:
- *   WorldIndicatorSystem.getInstance().init(scene, camera, engine);
- *   WorldIndicatorSystem.getInstance().addIndicator({
- *     id: "water_plant123",
- *     worldPosition: { x: 100, y: 0, z: 200 },
- *     config: { icon: "💧", label: "Tap to water!", animation: "bounce" }
- *   });
+ * @example
+ * ```typescript
+ * WorldIndicatorSystem.getInstance().init(scene, camera, engine);
+ * WorldIndicatorSystem.getInstance().addIndicator({
+ *   id: "interact_npc_1",
+ *   worldPosition: { x: 100, y: 0, z: 200 },
+ *   config: { icon: "💬", label: "Talk", animation: "bounce" }
+ * });
+ * ```
  */
 
 import { Scene, ArcRotateCamera, Engine, Vector3 } from "babylonjs";

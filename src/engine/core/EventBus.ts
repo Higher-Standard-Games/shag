@@ -1,11 +1,25 @@
 /**
  * EventBus - Global event system for decoupled communication between systems
  * 
- * Usage:
- *   EventBus.emit("plant:harvested", { plantId, yield, quality });
- *   EventBus.on("plant:harvested", (data) => { ... });
- *   EventBus.off("plant:harvested", handler);
- *   EventBus.once("player:levelup", (data) => { ... });
+ * Provides a publish-subscribe pattern for loose coupling between engine
+ * and game systems. Supports priority ordering, one-time subscriptions,
+ * and optional event history for debugging.
+ * 
+ * @example
+ * ```typescript
+ * // Subscribe to an event
+ * EventBus.on("entity:spawned", (data) => console.log(data.id));
+ * 
+ * // Emit an event
+ * EventBus.emit("entity:spawned", { id: "player1", type: "character" });
+ * 
+ * // One-time subscription
+ * EventBus.once("scene:ready", () => startGame());
+ * 
+ * // Unsubscribe
+ * const unsubscribe = EventBus.on("update", handler);
+ * unsubscribe();
+ * ```
  */
 
 export type EventCallback<T = unknown> = (data: T) => void;
@@ -24,7 +38,7 @@ export class EventBus {
 
   /**
    * Subscribe to an event
-   * @param event Event name (e.g., "plant:harvested", "shop:purchased")
+   * @param event Event name (e.g., "map:loaded", "entity:created")
    * @param callback Function to call when event is emitted
    * @param priority Higher priority handlers run first (default: 0)
    * @returns Unsubscribe function
