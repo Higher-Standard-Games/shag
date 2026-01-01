@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.5.1](./v0.5.1.md) | Jan 1, 2026 | Documentation cleanup - game-agnostic engine docs |
 | [v0.5.0](./v0.5.0.md) | Jan 1, 2026 | Camera system refactoring with swappable controllers |
 | [v0.4.2](./v0.4.2.md) | Jan 1, 2026 | Electron desktop support for Windows/Linux |
 | [v0.4.1](./v0.4.1.md) | Jan 1, 2026 | UI CSS refactoring: centralized styles in UIStyles.ts |

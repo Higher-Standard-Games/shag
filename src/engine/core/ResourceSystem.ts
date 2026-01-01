@@ -1,12 +1,14 @@
 /**
- * ResourceSystem - Unified resource management for money, items, XP, etc.
+ * ResourceSystem - Unified resource management for currencies, items, and stats
  * 
- * Usage:
- *   ResourceSystem.add("money", 500);
- *   ResourceSystem.consume("seed_basic", 1);
- *   ResourceSystem.canAfford({ money: 100, seed_basic: 1 });
- *   ResourceSystem.get("money");
- *   ResourceSystem.transfer("money", 100, "player", "shop");
+ * @example
+ * ```typescript
+ * ResourceSystem.add("gold", 500);
+ * ResourceSystem.consume("wood", 10);
+ * ResourceSystem.canAfford({ gold: 100, wood: 5 });
+ * ResourceSystem.get("gold");
+ * ResourceSystem.transfer("gold", 100, "player", "vendor");
+ * ```
  */
 
 import { EventBus } from "./EventBus";
