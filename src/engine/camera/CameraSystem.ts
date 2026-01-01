@@ -151,9 +151,10 @@ export class CameraSystem {
       this.activeController.detach();
     }
 
-    // For isometric controller, restore original ArcRotateCamera if it exists
+    // For controllers that need ArcRotateCamera, restore original if it exists
     let cameraToUse = this.camera;
-    if (type === "isometric" && this.originalCamera && this.originalCamera !== this.scene.activeCamera) {
+    const needsArcRotate = ["isometric", "sidescroll", "follow"].includes(type);
+    if (needsArcRotate && this.originalCamera && this.originalCamera !== this.scene.activeCamera) {
       // Dispose the temporary camera created by FPS controller
       if (this.scene.activeCamera && this.scene.activeCamera !== this.originalCamera) {
         this.scene.activeCamera.dispose();

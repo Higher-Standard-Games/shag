@@ -8,6 +8,8 @@
 import {
   ArcRotateCamera,
   Camera,
+  KeyboardEventTypes,
+  KeyboardInfo,
   Observer,
   Scene,
   TransformNode,
@@ -28,15 +30,23 @@ export class SideScrollController implements ICameraController {
   private followOffset: Vector3 = new Vector3(0, 0, 0);
   private targetPosition: Vector3 = Vector3.Zero();
   
+  // Movement state
+  private moveLeft: boolean = false;
+  private moveRight: boolean = false;
+  private moveUp: boolean = false;
+  private moveDown: boolean = false;
+  
   // Configuration
   private config: CameraControllerConfig = {
     smoothing: 0.1,
+    speed: 5,
     lockY: false,
     lockX: false,
   };
   
   // Observers
   private renderObserver: Observer<Scene> | null = null;
+  private keyboardObserver: Observer<KeyboardInfo> | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     if (!(camera instanceof ArcRotateCamera)) {
@@ -56,7 +66,7 @@ export class SideScrollController implements ICameraController {
     this.targetPosition = camera.target.clone();
     
     this.setupInputHandlers();
-    console.log("[SideScrollController] Attached");
+    console.log("[SideScrollController] Attached - Arrow keys/WASD to move, view from side");
   }
 
   detach(): void {
@@ -124,7 +134,33 @@ export class SideScrollController implements ICameraController {
   private setupInputHandlers(): void {
     if (!this.scene) return;
 
-    // Render observer for smooth following
+    // Keyboard handler for movement
+    this.keyboardObserver = this.scene.onKeyboardObservable.add((kbInfo) => {
+      if (!this.enabled) return;
+      
+      const pressed = kbInfo.type === KeyboardEventTypes.KEYDOWN;
+      
+      switch (kbInfo.event.code) {
+        case "KeyA":
+        case "ArrowLeft":
+          this.moveLeft = pressed;
+          break;
+        case "KeyD":
+        case "ArrowRight":
+          this.moveRight = pressed;
+          break;
+        case "KeyW":
+        case "ArrowUp":
+          this.moveUp = pressed;
+          break;
+        case "KeyS":
+        case "ArrowDown":
+          this.moveDown = pressed;
+          break;
+      }
+    });
+
+    // Render observer for smooth following and movement
     this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
       if (!this.enabled || !this.camera) return;
       this.updateCameraPosition();
@@ -132,14 +168,34 @@ export class SideScrollController implements ICameraController {
   }
 
   private removeInputHandlers(): void {
+    if (this.keyboardObserver && this.scene) {
+      this.scene.onKeyboardObservable.remove(this.keyboardObserver);
+      this.keyboardObserver = null;
+    }
     if (this.renderObserver && this.scene) {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
+    this.resetMovement();
+  }
+  
+  private resetMovement(): void {
+    this.moveLeft = false;
+    this.moveRight = false;
+    this.moveUp = false;
+    this.moveDown = false;
   }
 
   private updateCameraPosition(): void {
     if (!this.camera) return;
+    
+    const speed = this.config.speed || 5;
+    
+    // Apply keyboard movement (in side-scroll, X is left/right, Y is up/down)
+    if (this.moveLeft) this.targetPosition.x -= speed;
+    if (this.moveRight) this.targetPosition.x += speed;
+    if (this.moveUp) this.targetPosition.y += speed;
+    if (this.moveDown) this.targetPosition.y -= speed;
     
     // Update target position if following something
     if (this.followTarget) {
