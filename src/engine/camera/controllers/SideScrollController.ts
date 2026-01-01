@@ -197,14 +197,12 @@ export class SideScrollController implements ICameraController {
     
     const speed = this.config.speed || 5;
     
-    // Apply keyboard movement (camera looks along Z, so X is left/right, Y is up/down)
-    if (this.moveLeft) this.targetPosition.x -= speed;
-    if (this.moveRight) this.targetPosition.x += speed;
+    // With alpha=0, camera looks from +X towards -X
+    // So Z is left/right in the view, Y is up/down
+    if (this.moveLeft) this.targetPosition.z += speed;
+    if (this.moveRight) this.targetPosition.z -= speed;
     if (this.moveUp) this.targetPosition.y += speed;
     if (this.moveDown) this.targetPosition.y -= speed;
-    
-    // Keep Z fixed for true 2D side-scroll feel
-    // this.targetPosition.z = 0;
     
     // Update target position if following something
     if (this.followTarget) {
