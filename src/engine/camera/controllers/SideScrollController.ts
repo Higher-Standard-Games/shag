@@ -197,12 +197,27 @@ export class SideScrollController implements ICameraController {
     
     const speed = this.config.speed || 5;
     
+    // Calculate movement delta
+    let deltaZ = 0;
+    let deltaY = 0;
+    
     // With alpha=0, camera looks from +X towards -X
-    // So Z is left/right in the view, Y is up/down
-    if (this.moveLeft) this.targetPosition.z += speed;
-    if (this.moveRight) this.targetPosition.z -= speed;
-    if (this.moveUp) this.targetPosition.y += speed;
-    if (this.moveDown) this.targetPosition.y -= speed;
+    // A = left (negative Z), D = right (positive Z)
+    if (this.moveLeft) deltaZ -= speed;
+    if (this.moveRight) deltaZ += speed;
+    if (this.moveUp) deltaY += speed;
+    if (this.moveDown) deltaY -= speed;
+    
+    // Move both target AND camera position together for true sidescroll panning
+    // This prevents the "freelook" feeling where camera orbits
+    if (deltaZ !== 0 || deltaY !== 0) {
+      this.targetPosition.z += deltaZ;
+      this.targetPosition.y += deltaY;
+      
+      // Also move camera position directly to maintain fixed distance
+      this.camera.position.z += deltaZ;
+      this.camera.position.y += deltaY;
+    }
     
     // Update target position if following something
     if (this.followTarget) {
