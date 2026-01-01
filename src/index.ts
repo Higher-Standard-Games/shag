@@ -15,7 +15,7 @@ import { BrushGenerator } from "./engine/loader/BrushGenerator";
 import { MapParser } from "./engine/loader/MapParser";
 import { type PatchDefinition, PatchGenerator } from "./engine/loader/PatchGenerator";
 import { TextureManager } from "./engine/loader/TextureManager";
-import { RTSCameraController } from "./engine/camera/RTSCameraController";
+import { IsometricController } from "./engine/camera";
 import { UIManager } from "./ui/UIManager";
 import { GameState } from "./game/GameState";
 import { EventBus } from "./engine/core/EventBus";
@@ -230,8 +230,9 @@ const createScene = async () => {
   const startingArea = WORLD_AREAS[0];
   loadMap(startingArea.mapFile);
 
-  // Initialize RTS Camera Controller
-  new RTSCameraController(scene, camera, canvas);
+  // Initialize Isometric Camera Controller
+  const cameraController = new IsometricController();
+  cameraController.attach(camera, scene, canvas);
 
   // Handle Trigger Clicks
   scene.onPointerObservable.add((pointerInfo) => {

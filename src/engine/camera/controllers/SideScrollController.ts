@@ -8,6 +8,8 @@
 import {
   ArcRotateCamera,
   Camera,
+  KeyboardEventTypes,
+  KeyboardInfo,
   Observer,
   Scene,
   TransformNode,
@@ -28,15 +30,23 @@ export class SideScrollController implements ICameraController {
   private followOffset: Vector3 = new Vector3(0, 0, 0);
   private targetPosition: Vector3 = Vector3.Zero();
   
+  // Movement state
+  private moveLeft: boolean = false;
+  private moveRight: boolean = false;
+  private moveUp: boolean = false;
+  private moveDown: boolean = false;
+  
   // Configuration
   private config: CameraControllerConfig = {
     smoothing: 0.1,
+    speed: 5,
     lockY: false,
     lockX: false,
   };
   
   // Observers
   private renderObserver: Observer<Scene> | null = null;
+  private keyboardObserver: Observer<KeyboardInfo> | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     if (!(camera instanceof ArcRotateCamera)) {
@@ -49,14 +59,20 @@ export class SideScrollController implements ICameraController {
     this._canvas = canvas;
     
     // Set up side-scrolling view (camera looks from side)
-    this.camera.alpha = Math.PI / 2;  // 90 degrees - looking from side
-    this.camera.beta = Math.PI / 2;   // Level with ground
+    // Store original values for debugging
+    const origAlpha = this.camera.alpha;
+    const origBeta = this.camera.beta;
+    
+    this.camera.alpha = 0;  // Looking from front/back along Z axis
+    this.camera.beta = Math.PI / 2;   // Level with ground (horizontal)
+    
+    console.log(`[SideScrollController] Camera angles: alpha ${origAlpha.toFixed(2)} -> ${this.camera.alpha.toFixed(2)}, beta ${origBeta.toFixed(2)} -> ${this.camera.beta.toFixed(2)}`);
     
     // Initialize target
     this.targetPosition = camera.target.clone();
     
     this.setupInputHandlers();
-    console.log("[SideScrollController] Attached");
+    console.log("[SideScrollController] Attached - Arrow keys/WASD to move, side view");
   }
 
   detach(): void {
@@ -124,7 +140,33 @@ export class SideScrollController implements ICameraController {
   private setupInputHandlers(): void {
     if (!this.scene) return;
 
-    // Render observer for smooth following
+    // Keyboard handler for movement
+    this.keyboardObserver = this.scene.onKeyboardObservable.add((kbInfo) => {
+      if (!this.enabled) return;
+      
+      const pressed = kbInfo.type === KeyboardEventTypes.KEYDOWN;
+      
+      switch (kbInfo.event.code) {
+        case "KeyA":
+        case "ArrowLeft":
+          this.moveLeft = pressed;
+          break;
+        case "KeyD":
+        case "ArrowRight":
+          this.moveRight = pressed;
+          break;
+        case "KeyW":
+        case "ArrowUp":
+          this.moveUp = pressed;
+          break;
+        case "KeyS":
+        case "ArrowDown":
+          this.moveDown = pressed;
+          break;
+      }
+    });
+
+    // Render observer for smooth following and movement
     this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
       if (!this.enabled || !this.camera) return;
       this.updateCameraPosition();
@@ -132,14 +174,50 @@ export class SideScrollController implements ICameraController {
   }
 
   private removeInputHandlers(): void {
+    if (this.keyboardObserver && this.scene) {
+      this.scene.onKeyboardObservable.remove(this.keyboardObserver);
+      this.keyboardObserver = null;
+    }
     if (this.renderObserver && this.scene) {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
+    this.resetMovement();
+  }
+  
+  private resetMovement(): void {
+    this.moveLeft = false;
+    this.moveRight = false;
+    this.moveUp = false;
+    this.moveDown = false;
   }
 
   private updateCameraPosition(): void {
     if (!this.camera) return;
+    
+    const speed = this.config.speed || 5;
+    
+    // Calculate movement delta
+    let deltaZ = 0;
+    let deltaY = 0;
+    
+    // With alpha=0, camera looks from +X towards -X
+    // A = left (negative Z), D = right (positive Z)
+    if (this.moveLeft) deltaZ -= speed;
+    if (this.moveRight) deltaZ += speed;
+    if (this.moveUp) deltaY += speed;
+    if (this.moveDown) deltaY -= speed;
+    
+    // Move both target AND camera position together for true sidescroll panning
+    // This prevents the "freelook" feeling where camera orbits
+    if (deltaZ !== 0 || deltaY !== 0) {
+      this.targetPosition.z += deltaZ;
+      this.targetPosition.y += deltaY;
+      
+      // Also move camera position directly to maintain fixed distance
+      this.camera.position.z += deltaZ;
+      this.camera.position.y += deltaY;
+    }
     
     // Update target position if following something
     if (this.followTarget) {

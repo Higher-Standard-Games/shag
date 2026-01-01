@@ -34,6 +34,8 @@ export interface MapRenderResult {
   cameraAlpha: number | null;
   /** Camera beta angle specified in worldspawn, or null if not specified */
   cameraBeta: number | null;
+  /** Camera controller type specified in worldspawn, or null if not specified */
+  cameraController: "isometric" | "fps" | "sidescroll" | "follow" | null;
   /** Playlist file specified in worldspawn, or null to keep current/default */
   playlist: string | null;
   /** Whether this map is indoors (disables rain/snow effects) */
@@ -131,6 +133,7 @@ export class MapRenderer {
     let cameraHeight: number | null = null;
     let cameraAlpha: number | null = null;
     let cameraBeta: number | null = null;
+    let cameraController: "isometric" | "fps" | "sidescroll" | "follow" | null = null;
     let playlist: string | null = null;
     let indoor: boolean = false;
     let lighting: MapRenderResult['lighting'] = null;
@@ -178,6 +181,17 @@ export class MapRenderer {
           if (!isNaN(beta)) {
             cameraBeta = beta;
             console.log(`Map specifies camera_beta: ${cameraBeta}`);
+          }
+        }
+        
+        // Parse camera_controller if specified (controller type for this map)
+        if (entity.properties.camera_controller) {
+          const controller = entity.properties.camera_controller.toLowerCase();
+          if (controller === "isometric" || controller === "fps" || controller === "sidescroll" || controller === "follow") {
+            cameraController = controller;
+            console.log(`Map specifies camera_controller: ${cameraController}`);
+          } else {
+            console.warn(`Unknown camera_controller in worldspawn: ${entity.properties.camera_controller}`);
           }
         }
         
@@ -778,6 +792,7 @@ export class MapRenderer {
       cameraHeight,
       cameraAlpha,
       cameraBeta,
+      cameraController,
       playlist, 
       indoor,
       lighting,

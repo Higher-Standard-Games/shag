@@ -28,6 +28,9 @@ export class FPSController implements ICameraController {
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
+  private isRightMouseDown: boolean = false;
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
   
   // Movement state
   private moveForward: boolean = false;
@@ -36,13 +39,19 @@ export class FPSController implements ICameraController {
   private moveRight: boolean = false;
   private moveUp: boolean = false;
   private moveDown: boolean = false;
+  private rotateLeft: boolean = false;
+  private rotateRight: boolean = false;
   
   // Configuration
   private config: CameraControllerConfig = {
     speed: 10,
     mouseSensitivity: 0.002,
     invertY: false,
+    fov: 0.8, // Field of view in radians (~45 degrees)
   };
+  
+  // Rotation speed for keyboard turning
+  private rotationSpeed: number = 2.0;
   
   // Observers
   private pointerObserver: Observer<PointerInfo> | null = null;
@@ -52,24 +61,43 @@ export class FPSController implements ICameraController {
   private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
+    this.scene = scene;
+    this.canvas = canvas;
+    
+    // Get a reasonable starting position from the existing camera
+    let startPos = camera.position.clone();
+    let lookTarget = Vector3.Zero();
+    
+    // If it's an ArcRotateCamera, calculate position at ground level looking at target
+    if ("target" in camera && (camera as any).target instanceof Vector3) {
+      lookTarget = (camera as any).target.clone();
+      // Start at ground level near the target
+      startPos = lookTarget.clone();
+      startPos.y = 5; // Player height
+    }
+    
     if (!(camera instanceof FreeCamera)) {
-      console.warn("[FPSController] Works best with FreeCamera, creating one");
-      // Create a FreeCamera at the current camera position
-      const pos = camera.position.clone();
-      camera.dispose();
-      this.camera = new FreeCamera("fpsCamera", pos, scene);
+      console.log("[FPSController] Creating FreeCamera at position:", startPos.toString());
+      // Create a FreeCamera - don't dispose the old one, CameraSystem manages that
+      this.camera = new FreeCamera("fpsCamera", startPos, scene);
+      // Set rotation to look forward horizontally (not at ground)
+      this.camera.rotation.x = 0; // Look straight ahead, not down
+      this.camera.rotation.y = 0; // Face default direction
+      scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
     }
     
-    this.scene = scene;
-    this.canvas = canvas;
+    // Apply FOV
+    if (this.config.fov && this.camera) {
+      this.camera.fov = this.config.fov;
+    }
     
     // Clear default inputs
     this.camera.inputs.clear();
     
     this.setupInputHandlers();
-    console.log("[FPSController] Attached");
+    console.log("[FPSController] Attached - W/S move, A/D turn, Q/E strafe, Space/Shift up/down, RIGHT-CLICK DRAG to look");
   }
 
   detach(): void {
@@ -91,7 +119,7 @@ export class FPSController implements ICameraController {
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
-    // Calculate movement
+    // Calculate movement (W/S forward/back, Q/E strafe)
     if (this.moveForward) movement.addInPlace(forward.scale(speed));
     if (this.moveBackward) movement.addInPlace(forward.scale(-speed));
     if (this.moveRight) movement.addInPlace(right.scale(speed));
@@ -99,12 +127,21 @@ export class FPSController implements ICameraController {
     if (this.moveUp) movement.y += speed;
     if (this.moveDown) movement.y -= speed;
     
+    // Apply rotation (A/D turn)
+    if (this.rotateLeft) this.camera.rotation.y -= this.rotationSpeed * deltaTime;
+    if (this.rotateRight) this.camera.rotation.y += this.rotationSpeed * deltaTime;
+    
     // Apply movement
     this.camera.position.addInPlace(movement);
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
+    
+    // Apply FOV change immediately if camera exists
+    if (config.fov && this.camera) {
+      this.camera.fov = config.fov;
+    }
   }
 
   getConfig(): CameraControllerConfig {
@@ -159,29 +196,56 @@ export class FPSController implements ICameraController {
     };
     document.addEventListener("pointerlockchange", this.pointerLockChangeHandler);
 
-    // Mouse move handler for look
+    // Mouse move handler for look (works with pointer lock OR right-click drag)
     this.mouseMoveHandler = (e: MouseEvent) => {
-      if (!this.isPointerLocked || !this.camera || !this.enabled) return;
+      if (!this.camera || !this.enabled) return;
       
-      const sensitivity = this.config.mouseSensitivity || 0.002;
-      const invertY = this.config.invertY ? -1 : 1;
+      // Support both pointer lock and right-click drag
+      if (this.isPointerLocked) {
+        const sensitivity = this.config.mouseSensitivity || 0.002;
+        const invertY = this.config.invertY ? -1 : 1;
+        
+        this.camera.rotation.y += e.movementX * sensitivity;
+        this.camera.rotation.x += e.movementY * sensitivity * invertY;
+      } else if (this.isRightMouseDown) {
+        const sensitivity = this.config.mouseSensitivity || 0.002;
+        const invertY = this.config.invertY ? -1 : 1;
+        const deltaX = e.clientX - this.lastMouseX;
+        const deltaY = e.clientY - this.lastMouseY;
+        
+        this.camera.rotation.y += deltaX * sensitivity;
+        this.camera.rotation.x += deltaY * sensitivity * invertY;
+      }
       
-      // Apply rotation
-      this.camera.rotation.y += e.movementX * sensitivity;
-      this.camera.rotation.x += e.movementY * sensitivity * invertY;
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
       
       // Clamp vertical rotation
-      this.camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x));
+      if (this.camera.rotation) {
+        this.camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x));
+      }
     };
     document.addEventListener("mousemove", this.mouseMoveHandler);
 
-    // Click to request pointer lock
+    // Click handlers - left click for pointer lock, right click for drag look
     this.pointerObserver = this.scene.onPointerObservable.add((pointerInfo) => {
       if (!this.enabled) return;
       
       if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-        if (!this.isPointerLocked) {
+        const evt = pointerInfo.event as PointerEvent;
+        if (evt.button === 0 && !this.isPointerLocked) {
+          // Left click - try pointer lock
           this.requestPointerLock();
+        } else if (evt.button === 2) {
+          // Right click - start drag look
+          this.isRightMouseDown = true;
+          this.lastMouseX = evt.clientX;
+          this.lastMouseY = evt.clientY;
+        }
+      } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+        const evt = pointerInfo.event as PointerEvent;
+        if (evt.button === 2) {
+          this.isRightMouseDown = false;
         }
       }
     });
@@ -202,12 +266,18 @@ export class FPSController implements ICameraController {
           this.moveBackward = pressed;
           break;
         case "KeyA":
-        case "ArrowLeft":
-          this.moveLeft = pressed;
+          this.rotateLeft = pressed;  // A = turn left
           break;
         case "KeyD":
+          this.rotateRight = pressed; // D = turn right
+          break;
+        case "ArrowLeft":
+        case "KeyQ":
+          this.moveLeft = pressed;    // Q/Arrow = strafe left
+          break;
         case "ArrowRight":
-          this.moveRight = pressed;
+        case "KeyE":
+          this.moveRight = pressed;   // E/Arrow = strafe right
           break;
         case "Space":
           this.moveUp = pressed;
@@ -263,5 +333,7 @@ export class FPSController implements ICameraController {
     this.moveRight = false;
     this.moveUp = false;
     this.moveDown = false;
+    this.rotateLeft = false;
+    this.rotateRight = false;
   }
 }

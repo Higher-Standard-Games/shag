@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.5.0](./v0.5.0.md) | Jan 1, 2026 | Camera system refactoring with swappable controllers |
 | [v0.4.2](./v0.4.2.md) | Jan 1, 2026 | Electron desktop support for Windows/Linux |
 | [v0.4.1](./v0.4.1.md) | Jan 1, 2026 | UI CSS refactoring: centralized styles in UIStyles.ts |
 | [v0.4.0](./v0.4.0.md) | Jan 1, 2026 | Mobile optimization: Service Locator, GPU instancing, quality detection |
@@ -13,10 +14,10 @@ All notable changes to this project are documented in version-specific files.
 | [v0.3.0](./v0.3.0.md) | Dec 28, 2025 | Plant pipeline fixes and console improvements |
 | [v0.2.1](./v0.2.1.md) | Dec 28, 2025 | SHAG Engine branding and new logo |
 | [v0.2.0](./v0.2.0.md) | Dec 28, 2025 | UI Scaling System and Generic HUD Framework |
-| [v0.1.3](./v0.1.3.md) | Dec 2025 | Android mobile UI improvements and touch fixes |
-| [v0.1.2](./v0.1.2.md) | Dec 2025 | UI fixes and map indicator leak prevention |
-| [v0.1.1](./v0.1.1.md) | Dec 2025 | Camera and weather fixes |
-| [v0.1.0](./v0.1.0.md) | Dec 2025 | Map transitions, camera system, indicator scoping |
+| [v0.1.3](./v0.1.3.md) | Dec 25, 2025 | Android mobile UI improvements and touch fixes |
+| [v0.1.2](./v0.1.2.md) | Dec 25, 2025 | UI fixes and map indicator leak prevention |
+| [v0.1.1](./v0.1.1.md) | Dec 25, 2025 | Camera and weather fixes |
+| [v0.1.0](./v0.1.0.md) | Dec 24, 2025 | Map transitions, camera system, indicator scoping |
 
 ## Format
 

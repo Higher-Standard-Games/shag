@@ -16,7 +16,8 @@ import { QuestSystem } from "../game/QuestSystem";
 import { ShopSystem } from "../game/ShopSystem";
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { TextureManager } from "./loader/TextureManager";
-import { RTSCameraController } from "./camera/RTSCameraController";
+import { CameraSystem, IsometricController } from "./camera";
+import { GameInputHandler } from "../game/GameInputHandler";
 import { SpriteManager } from "./sprites/SpriteManager";
 import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "./ui";
 import { GameHUD } from "../ui/GameHUD";
@@ -328,8 +329,29 @@ export class GameScene {
       enableShadows: lightingSettings.enableShadows,
     });
 
-    // RTS Camera Controller
-    new RTSCameraController(this.scene, this.camera, this.canvas);
+    // Initialize Camera System with IsometricController
+    const cameraSystem = CameraSystem.getInstance();
+    cameraSystem.init(this.scene, this.canvas);
+    cameraSystem.setCamera(this.camera);
+    
+    // Create and register the isometric controller
+    const isometricController = new IsometricController();
+    cameraSystem.registerController("isometric", isometricController);
+    
+    // Attach controller to camera and set as active
+    isometricController.attach(this.camera, this.scene, this.canvas);
+    cameraSystem.setActiveController(isometricController);
+    
+    // Initialize game input handler and connect to camera controller
+    const gameInputHandler = GameInputHandler.init(this.scene);
+    isometricController.setClickCallback((screenX, screenY, wasDrag) => {
+      gameInputHandler.handleClick(screenX, screenY, wasDrag);
+    });
+    
+    // Listen for map:loaded to sync camera target
+    EventBus.on("map:loaded", () => {
+      isometricController.syncTargetPosition();
+    });
 
     // Initialize SpriteManager with scene and camera
     SpriteManager.getInstance().init(this.scene, this.camera);
@@ -596,6 +618,15 @@ export class GameScene {
     console.log(`[GameScene] Applying camera mode: ${modeToApply}, height: ${this.cameraHeight}`);
     this.setCameraMode(modeToApply);
     
+    // STEP 3b: Apply camera controller if specified in map
+    if (result.cameraController) {
+      const cameraSystem = CameraSystem.getInstance();
+      console.log(`[GameScene] Map specifies camera controller: ${result.cameraController}`);
+      if (!cameraSystem.setController(result.cameraController)) {
+        console.warn(`[GameScene] Failed to switch to controller: ${result.cameraController}`);
+      }
+    }
+    
     // Log actual camera state after applying
     if (this.camera) {
       console.log(`[GameScene] Camera after mode apply: radius=${this.camera.radius}, fov=${this.camera.fov?.toFixed(3)}`);
@@ -614,9 +645,9 @@ export class GameScene {
       // Restore radius in case setTarget modified it
       this.camera.radius = desiredRadius;
       
-      // CRITICAL: Sync RTSCameraController's internal target IMMEDIATELY after setting camera target
+      // CRITICAL: Sync camera controller's internal target IMMEDIATELY after setting camera target
       // This must happen before the next render frame to prevent smoothing from fighting
-      RTSCameraController.getInstance()?.syncTargetPosition();
+      CameraSystem.getInstance().getActiveController()?.setTarget?.(this.mapCenterPosition);
       
       console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, radius=${this.camera.radius}, pos=${this.camera.position.toString()}`);
     }
@@ -630,8 +661,8 @@ export class GameScene {
     // This prevents any UI elements from leaking between maps
     WorldIndicatorSystem.getInstance().clearAll();
     
-    // Notify systems to sync with new map (RTSCameraController, PlantStatusIndicator, etc.)
-    // RTSCameraController listens for this and syncs its internal targetPosition
+    // Notify systems to sync with new map (camera controller, PlantStatusIndicator, etc.)
+    // IsometricController listens for this and syncs its internal targetPosition
     EventBus.emit("map:loaded", { mapName });
     
     // Load saved state for this map (built objects, etc.)
@@ -669,7 +700,7 @@ export class GameScene {
   }
 
   private setupTriggerHandling(): void {
-    // Trigger handling is done in RTSCameraController to avoid duplicate events
+    // Trigger handling is done in GameInputHandler
     // This method is kept for potential future non-click trigger logic
   }
 
@@ -1543,9 +1574,13 @@ export class GameScene {
       // Update BuildableSystem (progress builds, trigger completions)
       BuildableSystem.getInstance().update();
 
-      // Force isometric view
-      this.camera.alpha = -Math.PI / 4;
-      this.camera.beta = Math.PI / 4;
+      // Only force isometric angles if using isometric controller
+      // Other controllers (fps, sidescroll, follow) manage their own angles
+      const activeController = CameraSystem.getInstance().getActiveController();
+      if (!activeController || activeController.type === "isometric") {
+        this.camera.alpha = -Math.PI / 4;
+        this.camera.beta = Math.PI / 4;
+      }
 
       this.scene.render();
     });

@@ -23,7 +23,13 @@
         { "name": "mode", "description": "Set camera mode", "args": ["perspective|orthographic|fake_ortho"] },
         { "name": "height", "description": "Set camera height", "args": ["number"] },
         { "name": "pos", "description": "Set camera position", "args": ["x", "y", "z"] },
-        { "name": "reset", "description": "Reset camera to default" }
+        { "name": "target", "description": "Set camera target", "args": ["x", "y", "z"] },
+        { "name": "reset", "description": "Reset camera to default" },
+        { "name": "controller", "description": "Switch camera controller", "args": ["isometric|fps|sidescroll"] },
+        { "name": "controllers", "description": "List available controllers" },
+        { "name": "info", "description": "Show current camera info" },
+        { "name": "preset", "description": "Apply camera preset", "args": ["presetname"] },
+        { "name": "presets", "description": "List available presets" }
       ]
     },
     {

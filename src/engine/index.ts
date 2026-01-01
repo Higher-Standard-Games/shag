@@ -23,8 +23,8 @@ export type { CameraMode } from "./GameScene";
 export { MapRenderer } from "./MapRenderer";
 export type { MapRenderResult } from "./MapRenderer";
 
-// Camera
-export { RTSCameraController } from "./camera/RTSCameraController";
+// Camera System
+export * from "./camera";
 
 // Lighting
 export { SkyLightSystem } from "./lighting/SkyLightSystem";

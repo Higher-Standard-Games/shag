@@ -39,6 +39,9 @@ export class CameraSystem {
   private currentHeight: number = 800;
   private _currentPreset: string | null = null;
   
+  // Store original camera for restoration when switching controllers
+  private originalCamera: Camera | null = null;
+  
   // Camera bounds (optional)
   private minBounds: Vector3 | null = null;
   private maxBounds: Vector3 | null = null;
@@ -66,6 +69,14 @@ export class CameraSystem {
   }
 
   /**
+   * Set the camera reference (for cameras created externally)
+   */
+  setCamera(camera: Camera): void {
+    this.camera = camera;
+    this.originalCamera = camera; // Store as original for restoration
+  }
+
+  /**
    * Register a camera controller
    */
   registerController(type: string, controller: ICameraController): void {
@@ -84,6 +95,13 @@ export class CameraSystem {
    */
   getActiveController(): ICameraController | null {
     return this.activeController;
+  }
+
+  /**
+   * Set the active controller directly (for controllers attached externally)
+   */
+  setActiveController(controller: ICameraController): void {
+    this.activeController = controller;
   }
 
   /**
@@ -133,8 +151,22 @@ export class CameraSystem {
       this.activeController.detach();
     }
 
+    // For controllers that need ArcRotateCamera, restore original if it exists
+    let cameraToUse = this.camera;
+    const needsArcRotate = ["isometric", "sidescroll", "follow"].includes(type);
+    if (needsArcRotate && this.originalCamera && this.originalCamera !== this.scene.activeCamera) {
+      // Dispose the temporary camera created by FPS controller
+      if (this.scene.activeCamera && this.scene.activeCamera !== this.originalCamera) {
+        this.scene.activeCamera.dispose();
+      }
+      this.scene.activeCamera = this.originalCamera;
+      cameraToUse = this.originalCamera;
+      this.camera = this.originalCamera;
+      console.log("[CameraSystem] Restored original ArcRotateCamera");
+    }
+
     // Attach new controller
-    controller.attach(this.camera, this.scene, this.canvas);
+    controller.attach(cameraToUse, this.scene, this.canvas);
     this.activeController = controller;
     
     console.log(`[CameraSystem] Switched to controller: ${type}`);

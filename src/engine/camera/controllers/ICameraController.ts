@@ -28,6 +28,8 @@ export interface CameraControllerConfig {
   mouseSensitivity?: number;
   /** Invert Y axis */
   invertY?: boolean;
+  /** Field of view in radians (for FPS/perspective cameras) */
+  fov?: number;
 }
 
 export interface ICameraController {
