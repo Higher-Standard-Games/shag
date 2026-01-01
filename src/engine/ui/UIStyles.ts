@@ -905,6 +905,8 @@ export class UIStyles {
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  border-style: solid;
+  border-width: 3px;
   animation: ui-loading-ripple-wave 2.4s ease-out infinite;
   opacity: 0;
 }
