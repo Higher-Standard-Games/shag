@@ -1574,9 +1574,13 @@ export class GameScene {
       // Update BuildableSystem (progress builds, trigger completions)
       BuildableSystem.getInstance().update();
 
-      // Force isometric view
-      this.camera.alpha = -Math.PI / 4;
-      this.camera.beta = Math.PI / 4;
+      // Only force isometric angles if using isometric controller
+      // Other controllers (fps, sidescroll, follow) manage their own angles
+      const activeController = CameraSystem.getInstance().getActiveController();
+      if (!activeController || activeController.type === "isometric") {
+        this.camera.alpha = -Math.PI / 4;
+        this.camera.beta = Math.PI / 4;
+      }
 
       this.scene.render();
     });
