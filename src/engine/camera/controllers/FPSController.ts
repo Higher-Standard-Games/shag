@@ -47,6 +47,7 @@ export class FPSController implements ICameraController {
     speed: 10,
     mouseSensitivity: 0.002,
     invertY: false,
+    fov: 0.8, // Field of view in radians (~45 degrees)
   };
   
   // Rotation speed for keyboard turning
@@ -85,6 +86,11 @@ export class FPSController implements ICameraController {
       scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
+    }
+    
+    // Apply FOV
+    if (this.config.fov && this.camera) {
+      this.camera.fov = this.config.fov;
     }
     
     // Clear default inputs
@@ -131,6 +137,11 @@ export class FPSController implements ICameraController {
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
+    
+    // Apply FOV change immediately if camera exists
+    if (config.fov && this.camera) {
+      this.camera.fov = config.fov;
+    }
   }
 
   getConfig(): CameraControllerConfig {

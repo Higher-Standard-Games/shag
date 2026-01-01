@@ -505,6 +505,24 @@ export function registerEngineCommands(): void {
         return 'Camera not available';
       }
       
+      case 'fov': {
+        const fovValue = parseFloat(args[1]);
+        const scene = cameraSystem.getCamera()?.getScene();
+        const activeCam = scene?.activeCamera;
+        if (!activeCam) return 'No active camera';
+        
+        if (isNaN(fovValue)) {
+          return `Current FOV: ${activeCam.fov?.toFixed(3) || 'N/A'} radians\nUsage: camera fov <radians>\nTypical values: 0.4 (narrow) to 1.5 (wide)`;
+        }
+        activeCam.fov = fovValue;
+        // Also update controller config if it's FPS
+        const controller = cameraSystem.getActiveController();
+        if (controller?.type === 'fps') {
+          controller.configure({ fov: fovValue });
+        }
+        return `FOV set to: ${fovValue} radians`;
+      }
+      
       case 'pos':
       case 'teleport': {
         const x = parseFloat(args[1]);
@@ -524,7 +542,7 @@ export function registerEngineCommands(): void {
       }
         
       default:
-        return 'Subcommands: mode, height, target, pos, controller, controllers, info, preset, presets, reset';
+        return 'Subcommands: mode, height, target, fov, pos, controller, controllers, info, preset, presets, reset';
     }
   });
 
