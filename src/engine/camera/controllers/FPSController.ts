@@ -71,7 +71,9 @@ export class FPSController implements ICameraController {
       console.log("[FPSController] Creating FreeCamera at position:", startPos.toString());
       // Create a FreeCamera - don't dispose the old one, CameraSystem manages that
       this.camera = new FreeCamera("fpsCamera", startPos, scene);
-      this.camera.setTarget(lookTarget);
+      // Set rotation to look forward horizontally (not at ground)
+      this.camera.rotation.x = 0; // Look straight ahead, not down
+      this.camera.rotation.y = 0; // Face default direction
       scene.activeCamera = this.camera;
     } else {
       this.camera = camera;

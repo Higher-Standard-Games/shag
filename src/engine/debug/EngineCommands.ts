@@ -510,7 +510,9 @@ export function registerEngineCommands(): void {
         const x = parseFloat(args[1]);
         const y = parseFloat(args[2]);
         const z = parseFloat(args[3]);
-        const activeCam = cameraSystem.getCamera();
+        // Use scene's active camera since controller may have created a new one
+        const scene = cameraSystem.getCamera()?.getScene();
+        const activeCam = scene?.activeCamera;
         if (!activeCam) return 'No active camera';
         
         if (isNaN(x) || isNaN(y) || isNaN(z)) {
