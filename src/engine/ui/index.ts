@@ -45,3 +45,5 @@ export type {
 
 export { UITheme } from "./UITheme";
 export type { UIThemeConfig } from "./UITheme";
+
+export { UIStyles } from "./UIStyles";

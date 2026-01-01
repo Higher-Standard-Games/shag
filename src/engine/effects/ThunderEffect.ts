@@ -11,6 +11,7 @@
 
 import { Scene, Color3 } from "babylonjs";
 import { PostProcessingManager } from "./PostProcessingManager";
+import { UIStyles } from "../ui/UIStyles";
 
 export interface ThunderSettings {
   duration: number;        // How long the storm effect lasts (ms)
@@ -71,20 +72,11 @@ export class ThunderEffect {
    * Uses a subtle blue-white tint instead of pure white for eye safety
    */
   private createFlashOverlay(): void {
+    UIStyles.injectBase();
+    
     this.flashOverlay = document.createElement("div");
     this.flashOverlay.id = "thunder-flash-overlay";
-    this.flashOverlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: linear-gradient(180deg, rgba(200, 210, 255, 0.3) 0%, rgba(180, 190, 230, 0.1) 100%);
-      opacity: 0;
-      pointer-events: none;
-      z-index: 9999;
-      transition: opacity 0.08s ease-out;
-    `;
+    this.flashOverlay.className = "ui-thunder-flash";
     document.body.appendChild(this.flashOverlay);
   }
 

@@ -11,7 +11,7 @@
  */
 
 import { SettingsPanel } from "../ui/SettingsPanel";
-import { Overlay, createButton, ConfirmDialog, UIManager } from "./ui";
+import { Overlay, createButton, ConfirmDialog, UIManager, UIStyles } from "./ui";
 import { AudioManager } from "./AudioManager";
 import { EventBus } from "./core/EventBus";
 
@@ -34,6 +34,7 @@ export class MenuSystem {
   private constructor() {
     // Ensure UIManager styles are injected
     UIManager.getInstance();
+    UIStyles.injectBase();
   }
 
   public static getInstance(): MenuSystem {
@@ -203,31 +204,13 @@ export class MenuSystem {
     // Create pause panel
     this.pausePanel = document.createElement("div");
     this.pausePanel.id = "pause-panel";
-    this.pausePanel.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      z-index: ${UIManager.getInstance().getZIndex("PAUSE_MENU") + 1};
-      animation: uiScaleInCentered 0.2s ease;
-    `;
+    this.pausePanel.className = "ui-pause-panel";
+    this.pausePanel.style.zIndex = String(UIManager.getInstance().getZIndex("PAUSE_MENU") + 1);
 
     // Title
     const title = document.createElement("h2");
     title.textContent = "PAUSED";
-    title.style.cssText = `
-      color: #fff;
-      font-size: 2.5rem;
-      font-weight: 300;
-      letter-spacing: 0.3em;
-      margin: 0 0 24px 0;
-      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-      font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-    `;
+    title.className = "ui-pause-title";
     this.pausePanel.appendChild(title);
 
     // Buttons using unified component
@@ -279,7 +262,7 @@ export class MenuSystem {
   private hidePauseOverlay(): void {
     // Hide panel with animation
     if (this.pausePanel) {
-      this.pausePanel.style.animation = "uiFadeOut 0.2s ease";
+      this.pausePanel.classList.add("ui-pause-panel--hiding");
       setTimeout(() => {
         this.pausePanel?.remove();
         this.pausePanel = null;

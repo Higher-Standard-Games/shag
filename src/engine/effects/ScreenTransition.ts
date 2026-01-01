@@ -7,6 +7,7 @@
  */
 
 import { SkyLightSystem } from "../lighting/SkyLightSystem";
+import { UIStyles } from "../ui/UIStyles";
 
 export type TransitionType = "fade" | "fadeWhite" | "fadeColor" | "fadeSky";
 
@@ -43,24 +44,15 @@ export class ScreenTransition {
   public init(): void {
     if (this.overlay) return;
 
+    UIStyles.injectBase();
+
     // Find the game canvas container
     const canvas = document.getElementById("renderCanvas");
     const container = canvas?.parentElement || document.body;
 
     this.overlay = document.createElement("div");
     this.overlay.id = "screen-transition-overlay";
-    this.overlay.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: black;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 100;
-      transition: opacity 0.2s ease-in-out;
-    `;
+    this.overlay.className = "ui-screen-transition";
     
     // Insert overlay into canvas container (so UI stays on top)
     if (container !== document.body) {
@@ -72,7 +64,6 @@ export class ScreenTransition {
       container.appendChild(this.overlay);
     } else {
       // Fallback: append to body but use lower z-index
-      this.overlay.style.zIndex = "100";
       document.body.appendChild(this.overlay);
     }
   }
