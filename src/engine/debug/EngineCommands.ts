@@ -1592,6 +1592,25 @@ export function registerEngineCommands(): void {
           return 'No scene available';
         }
 
+        // Parse optional face type filter: "bsp render poly" or "bsp render 1 3"
+        let faceTypes: number[] | undefined;
+        if (args[1]) {
+          const typeArg = args[1].toLowerCase();
+          if (typeArg === 'poly' || typeArg === 'polygon') {
+            faceTypes = [1];
+          } else if (typeArg === 'patch') {
+            faceTypes = [2];
+          } else if (typeArg === 'mesh') {
+            faceTypes = [3];
+          } else if (typeArg === 'all') {
+            faceTypes = undefined;
+          } else {
+            // Parse as numbers: "1 2 3"
+            faceTypes = args.slice(1).map(Number).filter(n => n >= 1 && n <= 4);
+            if (faceTypes.length === 0) faceTypes = undefined;
+          }
+        }
+
         // Clear previous render
         if (bspRenderResult) {
           bspRenderResult.worldMesh.dispose();
@@ -1602,7 +1621,10 @@ export function registerEngineCommands(): void {
         }
 
         try {
-          bspRenderResult = BspMeshBuilder.build(loadedBsp, scene);
+          bspRenderResult = BspMeshBuilder.build(loadedBsp, scene, {
+            faceTypes,
+            filterTextures: true,
+          });
 
           // Position camera to view the map
           const world = loadedBsp.models[0];
@@ -1611,14 +1633,15 @@ export function registerEngineCommands(): void {
             const centerZ = (world.mins[1] + world.maxs[1]) / 2;
             const centerY = (world.mins[2] + world.maxs[2]) / 2;
 
-            const camera = cameraSystem.getCamera();
-            if (camera) {
+            const camera = cameraSystem.getCamera() as any;
+            if (camera?.target) {
               camera.target = new Vector3(centerX, centerY, centerZ);
             }
           }
 
+          const filterInfo = faceTypes ? ` (types: ${faceTypes.join(',')})` : '';
           return [
-            `=== BSP Rendered ===`,
+            `=== BSP Rendered${filterInfo} ===`,
             `Vertices: ${bspRenderResult.stats.totalVertices}`,
             `Triangles: ${bspRenderResult.stats.totalTriangles}`,
             `Lightmaps: ${bspRenderResult.lightmapTextures.length}`,
@@ -1652,7 +1675,7 @@ export function registerEngineCommands(): void {
           '  bsp worldspawn      - Show worldspawn properties',
           '  bsp clusters        - Show PVS cluster info',
           '  bsp lightmaps       - Show lightmap info',
-          '  bsp render          - Render BSP to scene',
+          '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }

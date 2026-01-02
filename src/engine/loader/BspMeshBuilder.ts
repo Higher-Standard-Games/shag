@@ -124,21 +124,69 @@ function getVertexColor(v: BspVertex): [number, number, number, number] {
 // BspMeshBuilder Class
 // ============================================================================
 
+// Textures that should not be rendered (tool textures)
+const NON_DRAWABLE_TEXTURES = [
+  'common/nodraw',
+  'common/clip',
+  'common/caulk',
+  'common/trigger',
+  'common/hint',
+  'common/skip',
+  'common/areaportal',
+  'common/clusterportal',
+  'common/donotenter',
+  'common/origin',
+  'common/noimpact',
+  'common/invisible',
+  'textures/common/',
+  'noshader',
+];
+
+export interface BuildOptions {
+  /** Only render specific face types (1=polygon, 2=patch, 3=mesh) */
+  faceTypes?: number[];
+  /** Skip non-drawable textures */
+  filterTextures?: boolean;
+}
+
 export class BspMeshBuilder {
   private bsp: BspFile;
   private scene: Scene;
+  private options: BuildOptions;
 
-  private constructor(bsp: BspFile, scene: Scene) {
+  private constructor(bsp: BspFile, scene: Scene, options: BuildOptions = {}) {
     this.bsp = bsp;
     this.scene = scene;
+    this.options = {
+      filterTextures: true,
+      ...options,
+    };
   }
 
   /**
    * Build meshes from BSP file
    */
-  public static build(bsp: BspFile, scene: Scene): BspMeshBuildResult {
-    const builder = new BspMeshBuilder(bsp, scene);
+  public static build(bsp: BspFile, scene: Scene, options?: BuildOptions): BspMeshBuildResult {
+    const builder = new BspMeshBuilder(bsp, scene, options);
     return builder.buildAll();
+  }
+
+  /**
+   * Check if a texture should be rendered
+   */
+  private shouldRenderTexture(textureIndex: number): boolean {
+    if (!this.options.filterTextures) return true;
+    if (textureIndex < 0 || textureIndex >= this.bsp.textures.length) return false;
+    
+    const texName = this.bsp.textures[textureIndex].name.toLowerCase();
+    
+    for (const skip of NON_DRAWABLE_TEXTURES) {
+      if (texName.includes(skip)) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 
   private buildAll(): BspMeshBuildResult {
@@ -170,9 +218,24 @@ export class BspMeshBuilder {
       throw new Error('[BspMeshBuilder] No world model found');
     }
 
+    let skippedTextures = 0;
+    let skippedFaceTypes = 0;
+
     for (let i = worldModel.firstFace; i < worldModel.firstFace + worldModel.numFaces; i++) {
       const face = this.bsp.faces[i];
       if (!face) continue;
+
+      // Skip non-drawable textures
+      if (!this.shouldRenderTexture(face.textureIndex)) {
+        skippedTextures++;
+        continue;
+      }
+
+      // Skip face types if filtering is enabled
+      if (this.options.faceTypes && !this.options.faceTypes.includes(face.faceType)) {
+        skippedFaceTypes++;
+        continue;
+      }
 
       let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
 
@@ -264,6 +327,12 @@ export class BspMeshBuilder {
 
     console.log(`[BspMeshBuilder] Built world mesh: ${stats.totalVertices} vertices, ${stats.totalTriangles} triangles`);
     console.log(`[BspMeshBuilder] Face breakdown: ${stats.polygonFaces} polygons, ${stats.patchFaces} patches, ${stats.meshFaces} meshes, ${stats.billboardFaces} billboards`);
+    if (skippedTextures > 0) {
+      console.log(`[BspMeshBuilder] Skipped ${skippedTextures} faces with non-drawable textures`);
+    }
+    if (skippedFaceTypes > 0) {
+      console.log(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
+    }
 
     return {
       worldMesh,
@@ -361,8 +430,14 @@ export class BspMeshBuilder {
     const tessLevel = 4;
 
     // Process each 3x3 patch segment
-    const numPatchesX = (width - 1) / 2;
-    const numPatchesY = (height - 1) / 2;
+    // Patches are stored as overlapping 3x3 grids: width=3 means 1 patch, width=5 means 2, etc.
+    const numPatchesX = Math.floor((width - 1) / 2);
+    const numPatchesY = Math.floor((height - 1) / 2);
+    
+    if (numPatchesX <= 0 || numPatchesY <= 0) {
+      console.warn(`[BspMeshBuilder] Invalid patch size: ${width}x${height}`);
+      return { positions, normals, uvs, uv2s, colors, indices };
+    }
 
     let vertexIndex = 0;
 
