@@ -479,25 +479,68 @@ export class BspMeshBuilder {
     // Get all materials from world mesh and children
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
     
+    // Get shader registry for looking up actual texture paths
+    const { Q3ShaderRegistry } = await import('./Q3ShaderRegistry');
+    const shaderRegistry = Q3ShaderRegistry.getInstance();
+
     for (const group of result.textureGroups) {
       const texName = group.textureName;
       if (!texName || texName.toLowerCase().includes('common/')) continue;
       
       progressCallback?.(loadedCount, total, texName);
       
+      // Build list of paths to try
+      const pathsToTry: string[] = [];
+      
+      // 1. Check shader for actual texture path
+      const shader = shaderRegistry.getShader(texName);
+      if (shader && shader.stages.length > 0) {
+        const firstStage = shader.stages[0];
+        if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
+          pathsToTry.push(firstStage.map);
+        }
+      }
+      
+      // 2. Try texture name as-is (for paths with slashes)
+      pathsToTry.push(texName);
+      
+      // 3. If name has underscores but no slashes, try converting underscores to slashes
+      if (texName.includes('_') && !texName.includes('/')) {
+        // models_mapobjects_lamp_lamp_halo -> models/mapobjects/lamp/lamp_halo
+        // But we need to be smart - not all underscores are path separators
+        // Try progressively: first underscore, then second, etc.
+        const parts = texName.split('_');
+        if (parts.length >= 2) {
+          // Try common patterns
+          pathsToTry.push(parts.join('/')); // all underscores to slashes
+          if (parts.length >= 3) {
+            // First two segments as path: models/mapobjects/rest
+            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join('_')}`);
+          }
+          if (parts.length >= 4) {
+            // First three segments as path
+            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join('_')}`);
+          }
+        }
+      }
+      
+      // 4. If doesn't start with textures/, add that prefix to each path
+      const allPaths: string[] = [];
+      for (const p of pathsToTry) {
+        allPaths.push(p);
+        if (!p.toLowerCase().startsWith('textures/') && !p.toLowerCase().startsWith('models/')) {
+          allPaths.push(`textures/${p}`);
+        }
+      }
+      
       // Try to load texture with various extensions
-      // BSP texture names are already paths like "textures/exwsw/wall" or "models/mapobjects/foo"
       const extensions = ['.tga', '.jpg', '.png', '.ktx'];
       let texture: any = null;
       
-      for (const ext of extensions) {
-        // First try the texture name as-is (it's usually a full path)
-        texture = await texLoader.loadTexture(`${texName}${ext}`);
+      for (const basePath of allPaths) {
         if (texture) break;
-        
-        // If texture name doesn't start with textures/, try adding it
-        if (!texName.toLowerCase().startsWith('textures/')) {
-          texture = await texLoader.loadTexture(`textures/${texName}${ext}`);
+        for (const ext of extensions) {
+          texture = await texLoader.loadTexture(`${basePath}${ext}`);
           if (texture) break;
         }
       }
