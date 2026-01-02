@@ -1846,4 +1846,112 @@ export function registerEngineCommands(): void {
     }
   });
 
+  // ============================================================================
+  // Q3 Shader Commands
+  // ============================================================================
+
+  registry.register('shader', async (args) => {
+    const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+    const shaderRegistry = Q3ShaderRegistry.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+
+    switch (subcommand) {
+      case 'load': {
+        const count = await shaderRegistry.loadShaders();
+        return `Loaded ${count} shaders from PK3`;
+      }
+
+      case 'count': {
+        return `Shaders loaded: ${shaderRegistry.getShaderCount()}`;
+      }
+
+      case 'list': {
+        const filter = args[1]?.toLowerCase();
+        let names = shaderRegistry.getShaderNames();
+        
+        if (filter) {
+          names = names.filter(n => n.includes(filter));
+        }
+        
+        if (names.length === 0) {
+          return filter ? `No shaders matching "${filter}"` : 'No shaders loaded (use "shader load")';
+        }
+        
+        const display = names.slice(0, 30);
+        return display.length < names.length
+          ? `${display.join('\n')}\n... and ${names.length - display.length} more`
+          : display.join('\n');
+      }
+
+      case 'info': {
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader info <texture_path>';
+        }
+        
+        shaderRegistry.debugShader(textureName);
+        
+        const shader = shaderRegistry.getShader(textureName);
+        if (!shader) {
+          return `No shader defined for: ${textureName}`;
+        }
+        
+        const lines = [
+          `Shader: ${shader.name}`,
+          `Cull: ${shader.cull}`,
+          `Surface parms: ${Array.from(shader.surfaceParms).join(', ') || 'none'}`,
+          `Stages: ${shader.stages.length}`,
+        ];
+        
+        shader.stages.forEach((stage, i) => {
+          lines.push(`  Stage ${i}: map=${stage.map}`);
+          if (stage.blendFunc) {
+            lines.push(`    blendFunc: ${stage.blendFunc.join(', ')}`);
+          }
+          if (stage.alphaFunc) {
+            lines.push(`    alphaFunc: ${stage.alphaFunc}`);
+          }
+        });
+        
+        return lines.join('\n');
+      }
+
+      case 'resolve': {
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader resolve <texture_path>';
+        }
+        
+        const props = shaderRegistry.resolveMaterialProps(textureName);
+        return [
+          `Resolved material for: ${textureName}`,
+          `  alphaMode: ${props.alphaMode}`,
+          `  backFaceCulling: ${props.backFaceCulling}`,
+          `  depthWrite: ${props.depthWrite}`,
+          `  isTransparent: ${props.isTransparent}`,
+          `  useLightmap: ${props.useLightmap}`,
+          `  polygonOffset: ${props.polygonOffset}`,
+          props.alphaCutoff !== undefined ? `  alphaCutoff: ${props.alphaCutoff}` : '',
+          props.diffuseTexture ? `  diffuseTexture: ${props.diffuseTexture}` : '',
+        ].filter(Boolean).join('\n');
+      }
+
+      case 'clear': {
+        shaderRegistry.clear();
+        return 'Shader registry cleared';
+      }
+
+      default:
+        return [
+          'Shader Commands (Q3/Warsow):',
+          '  shader load         - Load shaders from PK3',
+          '  shader count        - Show loaded shader count',
+          '  shader list [filter] - List shader names',
+          '  shader info <path>  - Show shader definition',
+          '  shader resolve <path> - Show resolved material props',
+          '  shader clear        - Clear shader registry',
+        ].join('\n');
+    }
+  });
+
 }
