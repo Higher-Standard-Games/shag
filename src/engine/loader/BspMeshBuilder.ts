@@ -327,101 +327,51 @@ export class BspMeshBuilder {
 
     console.log(`[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`);
 
-    // Merge all opaque geometry into single arrays
-    const allPositions: number[] = [];
-    const allNormals: number[] = [];
-    const allUVs: number[] = [];
-    const allUV2s: number[] = [];
-    const allColors: number[] = [];
-    const allIndices: number[] = [];
-    let indexOffset = 0;
-
-    // Add opaque geometry first
-    for (const group of opaqueGroups) {
-      const numVerts = group.positions.length / 3;
-      for (const p of group.positions) allPositions.push(p);
-      for (const n of group.normals) allNormals.push(n);
-      for (const uv of group.uvs) allUVs.push(uv);
-      for (const uv2 of group.uv2s) allUV2s.push(uv2);
-      for (const c of group.colors) allColors.push(c);
-      for (const idx of group.indices) allIndices.push(idx + indexOffset);
-      indexOffset += numVerts;
-    }
-
-    // Add transparent geometry after opaque
-    for (const group of transparentGroups) {
-      const numVerts = group.positions.length / 3;
-      for (const p of group.positions) allPositions.push(p);
-      for (const n of group.normals) allNormals.push(n);
-      for (const uv of group.uvs) allUVs.push(uv);
-      for (const uv2 of group.uv2s) allUV2s.push(uv2);
-      for (const c of group.colors) allColors.push(c);
-      for (const idx of group.indices) allIndices.push(idx + indexOffset);
-      indexOffset += numVerts;
-    }
-
-    // Create world mesh
+    // Create a parent mesh to hold all texture group meshes
     const worldMesh = new Mesh("bsp_world", this.scene);
-
-    const vertexData = new VertexData();
-    vertexData.positions = allPositions;
-    vertexData.normals = allNormals;
-    vertexData.uvs = allUVs;
-    if (allUV2s.length > 0) {
-      vertexData.uvs2 = allUV2s;
-    }
-    if (allColors.length > 0) {
-      vertexData.colors = allColors;
-    }
-    vertexData.indices = allIndices;
-    vertexData.applyToMesh(worldMesh);
-
-    // Create default material for opaque geometry
-    const material = new StandardMaterial("bsp_material", this.scene);
-    material.diffuseColor = new Color3(0.8, 0.8, 0.8);
-    material.specularColor = new Color3(0.1, 0.1, 0.1);
-    material.backFaceCulling = false; // BSP faces can be visible from both sides
-    worldMesh.material = material;
-
-    // Enable collisions
     worldMesh.checkCollisions = true;
 
-    // Create separate meshes for each transparent texture group
-    const transparentMeshes: Mesh[] = [];
-    for (const group of transparentGroups) {
+    // Combine all groups (opaque first, then transparent for proper sorting)
+    const allGroups = [...opaqueGroups, ...transparentGroups];
+    const childMeshes: Mesh[] = [];
+
+    // Create a separate mesh for each texture group
+    for (const group of allGroups) {
       if (group.indices.length === 0) continue;
       
-      const meshName = `bsp_transparent_${group.textureIndex}`;
-      const transMesh = new Mesh(meshName, this.scene);
+      const meshName = `bsp_tex_${group.textureIndex}`;
+      const mesh = new Mesh(meshName, this.scene);
       
-      const transVertexData = new VertexData();
-      transVertexData.positions = group.positions;
-      transVertexData.normals = group.normals;
-      transVertexData.uvs = group.uvs;
+      const meshVertexData = new VertexData();
+      meshVertexData.positions = group.positions;
+      meshVertexData.normals = group.normals;
+      meshVertexData.uvs = group.uvs;
       if (group.uv2s.length > 0) {
-        transVertexData.uvs2 = group.uv2s;
+        meshVertexData.uvs2 = group.uv2s;
       }
       if (group.colors.length > 0) {
-        transVertexData.colors = group.colors;
+        meshVertexData.colors = group.colors;
       }
-      // Indices are already relative within the group
-      transVertexData.indices = group.indices;
-      transVertexData.applyToMesh(transMesh);
+      meshVertexData.indices = group.indices;
+      meshVertexData.applyToMesh(mesh);
       
       // Create material with shader properties
-      const transMaterial = this.createMaterialFromShaderProps(
+      const meshMaterial = this.createMaterialFromShaderProps(
         `bsp_mat_${group.textureIndex}`,
         group.shaderProps,
         group.textureName
       );
-      transMesh.material = transMaterial;
+      mesh.material = meshMaterial;
+      
+      // Store texture name in metadata for later texture loading
+      mesh.metadata = { textureName: group.textureName, textureIndex: group.textureIndex };
       
       // Parent to world mesh for easy disposal
-      transMesh.parent = worldMesh;
-      transparentMeshes.push(transMesh);
-      
-      console.log(`[BspMeshBuilder] Created transparent mesh: ${group.textureName} (${group.shaderProps.alphaMode})`);
+      mesh.parent = worldMesh;
+      childMeshes.push(mesh);
     }
+
+    console.log(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
     // Create lightmap textures
     const lightmapTextures = this.buildLightmapTextures();
@@ -433,9 +383,6 @@ export class BspMeshBuilder {
     }
     if (skippedFaceTypes > 0) {
       console.log(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
-    }
-    if (transparentMeshes.length > 0) {
-      console.log(`[BspMeshBuilder] Created ${transparentMeshes.length} transparent sub-meshes`);
     }
 
     // Collect texture group info for later loading
@@ -546,8 +493,8 @@ export class BspMeshBuilder {
       }
       
       if (texture) {
-        // Find the mesh/material for this texture index
-        const meshName = `bsp_transparent_${group.textureIndex}`;
+        // Find the mesh/material for this texture index (new naming: bsp_tex_)
+        const meshName = `bsp_tex_${group.textureIndex}`;
         const mesh = meshes.find(m => m.name === meshName);
         
         if (mesh && mesh.material instanceof StandardMaterial) {
