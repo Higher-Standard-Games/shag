@@ -486,17 +486,20 @@ export class BspMeshBuilder {
       progressCallback?.(loadedCount, total, texName);
       
       // Try to load texture with various extensions
+      // BSP texture names are already paths like "textures/exwsw/wall" or "models/mapobjects/foo"
       const extensions = ['.tga', '.jpg', '.png', '.ktx'];
       let texture: any = null;
       
       for (const ext of extensions) {
-        const path = `textures/${texName}${ext}`;
-        texture = await texLoader.loadTexture(path);
-        if (texture) break;
-        
-        // Try without textures/ prefix
+        // First try the texture name as-is (it's usually a full path)
         texture = await texLoader.loadTexture(`${texName}${ext}`);
         if (texture) break;
+        
+        // If texture name doesn't start with textures/, try adding it
+        if (!texName.toLowerCase().startsWith('textures/')) {
+          texture = await texLoader.loadTexture(`textures/${texName}${ext}`);
+          if (texture) break;
+        }
       }
       
       if (texture) {
