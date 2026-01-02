@@ -570,10 +570,17 @@ export class GameScene {
     // Clear existing map
     MapRenderer.clearMap(this.scene);
 
-    // Get pre-loaded map data
-    const mapData = AssetLoader.getInstance().getMap(mapName);
+    // Get pre-loaded map data, or try to load dynamically
+    let mapData = AssetLoader.getInstance().getMap(mapName);
     if (!mapData) {
-      console.error(`Map not found in cache: ${mapName}`);
+      console.log(`[GameScene] Map not in cache, trying dynamic load: ${mapName}`);
+      const loaded = await AssetLoader.getInstance().loadMapDynamic(mapName);
+      if (loaded) {
+        mapData = AssetLoader.getInstance().getMap(mapName);
+      }
+    }
+    if (!mapData) {
+      console.error(`Map not found: ${mapName}`);
       console.log("Available maps:", Array.from(AssetLoader.getInstance().getAllMaps().keys()));
       return;
     }

@@ -231,4 +231,21 @@ export class AssetLoader {
   public getAllMaps(): Map<string, LoadedMap> {
     return this.loadedMaps;
   }
+
+  /**
+   * Dynamically load a map that wasn't in the initial config
+   */
+  public async loadMapDynamic(mapName: string): Promise<boolean> {
+    if (this.loadedMaps.has(mapName)) {
+      return true; // Already loaded
+    }
+    
+    try {
+      await this.loadMap(mapName);
+      return this.loadedMaps.has(mapName);
+    } catch (e) {
+      console.error(`Failed to dynamically load map: ${mapName}`, e);
+      return false;
+    }
+  }
 }
