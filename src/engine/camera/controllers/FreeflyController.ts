@@ -85,10 +85,17 @@ export class FreeflyController implements ICameraController {
     this.setupMouseHandlers();
     
     // Set up render observer for movement
+    let frameCount = 0;
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaTime = scene.getEngine().getDeltaTime() / 1000;
+      frameCount++;
+      if (frameCount % 60 === 1) {
+        console.log('[FreeflyController] Observer tick, camera:', this.camera ? 'yes' : 'no', 'enabled:', this.enabled, 'L:', this.isLeftDown, 'R:', this.isRightDown);
+      }
       this.update(deltaTime);
     });
+    
+    console.log('[FreeflyController] Render observer attached to scene:', scene.uid, 'camera:', this.camera?.name);
     
     console.log("[FreeflyController] Attached - LMB forward, RMB backward, mouse freelook");
   }
@@ -195,10 +202,14 @@ export class FreeflyController implements ICameraController {
     
     // Left mouse = forward, Right mouse = backward
     if (this.isLeftDown) {
-      this.camera.position.addInPlace(forward.scale(speed));
+      const movement = forward.scale(speed);
+      this.camera.position.addInPlace(movement);
+      console.log('[FreeflyController] Moving forward:', movement.toString(), 'pos:', this.camera.position.toString());
     }
     if (this.isRightDown) {
-      this.camera.position.addInPlace(forward.scale(-speed));
+      const movement = forward.scale(-speed);
+      this.camera.position.addInPlace(movement);
+      console.log('[FreeflyController] Moving backward:', movement.toString(), 'pos:', this.camera.position.toString());
     }
   }
 
