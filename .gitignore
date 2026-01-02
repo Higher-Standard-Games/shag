@@ -62,3 +62,6 @@ android/capacitor-cordova-android-plugins/build/
 # Electron
 dist-electron/
 release/
+
+# Game packages (test assets)
+*.pk3
