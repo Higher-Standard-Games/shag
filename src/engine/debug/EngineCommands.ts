@@ -1831,6 +1831,64 @@ export function registerEngineCommands(): void {
         return lines.join('\n');
       }
 
+      case 'loadrequired':
+      case 'preload': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const { getBspUsedTextures: getTextures } = await import('../loader/BspLoader');
+        const { PK3Index } = await import('../loader/PK3Index');
+        
+        const usedTextures = getTextures(loadedBsp);
+        const index = PK3Index.getInstance();
+        
+        if (!index.hasIndex()) {
+          return 'No index built. Run "pk3 path game/basewsw/" then "pk3 index build" first.';
+        }
+        
+        // Find which PK3s are needed
+        const requiredPK3s = index.findPK3sForTextures(usedTextures);
+        
+        if (requiredPK3s.size === 0) {
+          return 'No additional PK3s needed (or textures not found in index)';
+        }
+        
+        // Check which are already loaded
+        const pk3Loader = PK3Loader.getInstance();
+        const loadedPackages = pk3Loader.getPackageInfo().map(p => p.filename);
+        const toLoad = Array.from(requiredPK3s).filter(pk3 => !loadedPackages.includes(pk3));
+        
+        if (toLoad.length === 0) {
+          return `All ${requiredPK3s.size} required PK3s already loaded`;
+        }
+        
+        const lines = [`Loading ${toLoad.length} required PK3s...`];
+        let loaded = 0;
+        let failed = 0;
+        
+        for (const pk3 of toLoad) {
+          try {
+            await pk3Loader.loadPK3(pk3);
+            loaded++;
+            lines.push(`  ✓ ${pk3}`);
+          } catch (e) {
+            failed++;
+            lines.push(`  ✗ ${pk3}: ${e}`);
+          }
+        }
+        
+        lines.push('');
+        lines.push(`Loaded: ${loaded}, Failed: ${failed}`);
+        
+        if (loaded > 0) {
+          lines.push('');
+          lines.push('Tip: Run "shader load" to load shaders from these PK3s');
+        }
+        
+        return lines.join('\n');
+      }
+
       case 'worldspawn': {
         if (!loadedBsp) {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
@@ -1991,6 +2049,7 @@ export function registerEngineCommands(): void {
           '  bsp entities [filter] - List entity types',
           '  bsp textures [limit]  - List textures',
           '  bsp required        - Show required PK3s for textures',
+          '  bsp loadrequired    - Auto-load required PK3s',
           '  bsp faces           - Show face type breakdown',
           '  bsp worldspawn      - Show worldspawn properties',
           '  bsp clusters        - Show PVS cluster info',
