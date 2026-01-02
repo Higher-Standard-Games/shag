@@ -745,8 +745,9 @@ export function registerEngineCommands(): void {
   // Map Commands (placeholder)
   // ============================================================================
   
-  registry.register('map', (args) => {
+  registry.register('map', async (args) => {
     const subcommand = args[0]?.toLowerCase();
+    const loadMap = (window as any).loadMap;
     
     switch (subcommand) {
       case 'load': {
@@ -754,17 +755,31 @@ export function registerEngineCommands(): void {
         if (!mapName) {
           return 'Usage: map load <mapname>';
         }
-        return `Loading map: ${mapName} (wire to GameScene)`;
+        if (!loadMap) {
+          return 'Map loading not available (game not started?)';
+        }
+        try {
+          await loadMap(mapName);
+          return `Loaded map: ${mapName}`;
+        } catch (e) {
+          return `Failed to load map: ${e}`;
+        }
       }
       
-      case 'reload':
-        return 'Reloading current map (wire to GameScene)';
+      case 'reload': {
+        const currentMap = (window as any).currentMap;
+        if (!loadMap || !currentMap) {
+          return 'Map reload not available';
+        }
+        await loadMap(currentMap);
+        return `Reloaded map: ${currentMap}`;
+      }
         
       case 'list':
-        return 'Available maps: (wire to AssetLoader)';
+        return 'Available maps: test, texture_test, farm (check public/game/maps/)';
         
       default:
-        return 'Subcommands: load, reload, list';
+        return 'Subcommands: load <mapname>, reload, list';
     }
   });
 
