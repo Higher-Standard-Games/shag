@@ -1113,4 +1113,164 @@ export function registerEngineCommands(): void {
     }
   });
 
+  // ============================================================================
+  // Memory Stats Commands
+  // ============================================================================
+  
+  registry.register('mem', (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+    const engine = scene?.getEngine();
+    
+    const formatBytes = (bytes: number): string => {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    };
+    
+    switch (subcommand) {
+      case 'textures': {
+        if (!scene) return 'Scene not available';
+        
+        const textures = scene.textures;
+        let totalSize = 0;
+        const textureList: string[] = [];
+        
+        for (const tex of textures) {
+          const size = tex.getSize();
+          const width = size.width || 0;
+          const height = size.height || 0;
+          // Estimate: 4 bytes per pixel (RGBA)
+          const estimatedBytes = width * height * 4;
+          totalSize += estimatedBytes;
+          
+          const name = tex.name || 'unnamed';
+          const shortName = name.length > 40 ? '...' + name.slice(-37) : name;
+          textureList.push(`${shortName} (${width}x${height})`);
+        }
+        
+        const lines = [
+          `Textures loaded: ${textures.length}`,
+          `Estimated VRAM: ${formatBytes(totalSize)}`,
+          '',
+          'Textures:',
+          ...textureList.slice(0, 30).map(t => `  ${t}`),
+        ];
+        
+        if (textureList.length > 30) {
+          lines.push(`  ... and ${textureList.length - 30} more`);
+        }
+        
+        return lines.join('\n');
+      }
+      
+      case 'meshes': {
+        if (!scene) return 'Scene not available';
+        
+        const meshes = scene.meshes;
+        let totalVertices = 0;
+        let totalFaces = 0;
+        
+        for (const mesh of meshes) {
+          totalVertices += mesh.getTotalVertices();
+          totalFaces += mesh.getTotalIndices() / 3;
+        }
+        
+        return [
+          `Meshes: ${meshes.length}`,
+          `Total vertices: ${totalVertices.toLocaleString()}`,
+          `Total triangles: ${Math.floor(totalFaces).toLocaleString()}`,
+          `Estimated vertex data: ${formatBytes(totalVertices * 32)}`, // position + normal + uv
+        ].join('\n');
+      }
+      
+      case 'engine': {
+        if (!engine) return 'Engine not available';
+        
+        const caps = engine.getCaps();
+        const webglVersion = (engine as any).webGLVersion || 'unknown';
+        const lines = [
+          `WebGL version: ${webglVersion}`,
+          `Max texture size: ${caps.maxTextureSize}`,
+          `Max textures: ${caps.maxTexturesImageUnits}`,
+          `Max vertex textures: ${caps.maxVertexTextureImageUnits}`,
+          `Compressed textures:`,
+          `  S3TC (DXT): ${caps.s3tc ? 'Yes' : 'No'}`,
+          `  ETC1: ${caps.etc1 ? 'Yes' : 'No'}`,
+          `  ETC2: ${caps.etc2 ? 'Yes' : 'No'}`,
+          `  ASTC: ${caps.astc ? 'Yes' : 'No'}`,
+          `  PVRTC: ${caps.pvrtc ? 'Yes' : 'No'}`,
+        ];
+        return lines.join('\n');
+      }
+      
+      case 'js': {
+        // Chrome-only memory API
+        const perf = (performance as any);
+        if (perf.memory) {
+          return [
+            `JS Heap Used: ${formatBytes(perf.memory.usedJSHeapSize)}`,
+            `JS Heap Total: ${formatBytes(perf.memory.totalJSHeapSize)}`,
+            `JS Heap Limit: ${formatBytes(perf.memory.jsHeapSizeLimit)}`,
+          ].join('\n');
+        }
+        return 'JS memory info not available (Chrome only)';
+      }
+      
+      case 'pk3': {
+        const pk3 = PK3Loader.getInstance();
+        const pk3Tex = PK3TextureLoader.getInstance();
+        const packages = pk3.getPackageInfo();
+        const cache = pk3Tex.getCacheInfo();
+        
+        const totalFiles = packages.reduce((sum, p) => sum + p.fileCount, 0);
+        
+        return [
+          `PK3 packages loaded: ${packages.length}`,
+          `Total files indexed: ${totalFiles}`,
+          `PK3 textures cached: ${cache.count}`,
+        ].join('\n');
+      }
+      
+      default: {
+        if (!scene || !engine) {
+          return 'Memory stats not available (game not started?)';
+        }
+        
+        // Overview
+        const textures = scene.textures.length;
+        const meshes = scene.meshes.length;
+        const materials = scene.materials.length;
+        
+        let textureVRAM = 0;
+        for (const tex of scene.textures) {
+          const size = tex.getSize();
+          textureVRAM += (size.width || 0) * (size.height || 0) * 4;
+        }
+        
+        let totalVertices = 0;
+        for (const mesh of scene.meshes) {
+          totalVertices += mesh.getTotalVertices();
+        }
+        
+        const pk3 = PK3Loader.getInstance();
+        const pk3Packages = pk3.getPackageInfo().length;
+        
+        const lines = [
+          '=== Memory Overview ===',
+          `Textures: ${textures} (~${formatBytes(textureVRAM)} VRAM)`,
+          `Meshes: ${meshes} (${totalVertices.toLocaleString()} verts)`,
+          `Materials: ${materials}`,
+          `PK3 packages: ${pk3Packages}`,
+          '',
+          'Subcommands: textures, meshes, engine, js, pk3',
+        ];
+        
+        return lines.join('\n');
+      }
+    }
+  });
+
 }
