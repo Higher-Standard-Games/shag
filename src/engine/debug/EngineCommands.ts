@@ -15,6 +15,7 @@ import { IsometricController } from '../camera/controllers/IsometricController';
 import { FPSController } from '../camera/controllers/FPSController';
 import { SideScrollController } from '../camera/controllers/SideScrollController';
 import { FollowController } from '../camera/controllers/FollowController';
+import { FreeflyController } from '../camera/controllers/FreeflyController';
 import { Vector3 } from 'babylonjs';
 import { PK3Loader } from '../loader/PK3Loader';
 import { parseKTX1 } from '../loader/KTX1Loader';
@@ -506,8 +507,11 @@ export function registerEngineCommands(): void {
             case 'follow':
               cameraSystem.registerController(type, new FollowController());
               break;
+            case 'freefly':
+              cameraSystem.registerController(type, new FreeflyController());
+              break;
             default:
-              return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow`;
+              return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow, freefly`;
           }
         }
         

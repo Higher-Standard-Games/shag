@@ -412,8 +412,11 @@ export class BspMeshBuilder {
     const height = face.patchSize[1];
 
     if (width < 3 || height < 3) {
+      console.warn(`[BspMeshBuilder] Skipping patch with invalid size: ${width}x${height}`);
       return { positions, normals, uvs, uv2s, colors, indices };
     }
+    
+    console.log(`[BspMeshBuilder] Building patch: ${width}x${height} control points`);
 
     // Get control points
     const controlPoints: BspVertex[][] = [];

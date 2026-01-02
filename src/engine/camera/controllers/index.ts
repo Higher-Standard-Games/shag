@@ -8,3 +8,4 @@ export { FPSController } from './FPSController';
 export { SideScrollController } from './SideScrollController';
 export { FollowController } from './FollowController';
 export type { FollowConfig } from './FollowController';
+export { FreeflyController } from './FreeflyController';
