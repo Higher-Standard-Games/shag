@@ -6,6 +6,23 @@
       "usage": "help [command]"
     },
     {
+      "name": "bsp",
+      "description": "BSP map loading and debugging (Quake3/Warsow FBSP)",
+      "usage": "bsp <command> [args]",
+      "subcommands": [
+        { "name": "load", "description": "Load BSP from PK3", "args": ["mapname"] },
+        { "name": "info", "description": "Show loaded BSP statistics" },
+        { "name": "entities", "description": "List entities in BSP", "args": ["filter?"] },
+        { "name": "textures", "description": "List textures in BSP", "args": ["limit?"] },
+        { "name": "render", "description": "Render BSP to scene" },
+        { "name": "clear", "description": "Clear rendered BSP geometry" },
+        { "name": "faces", "description": "Show face type breakdown" },
+        { "name": "clusters", "description": "Show PVS cluster info" },
+        { "name": "lightmaps", "description": "Show lightmap info" },
+        { "name": "worldspawn", "description": "Show worldspawn properties" }
+      ]
+    },
+    {
       "name": "clear",
       "description": "Clear console output",
       "usage": "clear"

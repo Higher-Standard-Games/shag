@@ -19,6 +19,9 @@ import { Vector3 } from 'babylonjs';
 import { PK3Loader } from '../loader/PK3Loader';
 import { parseKTX1 } from '../loader/KTX1Loader';
 import { PK3TextureLoader } from '../loader/PK3TextureLoader';
+import { BspLoader, type BspFile } from '../loader/BspLoader';
+import { BspMeshBuilder, type BspMeshBuildResult } from '../loader/BspMeshBuilder';
+import { Mesh, StandardMaterial, Color3 } from 'babylonjs';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -108,20 +111,90 @@ export function registerEngineCommands(): void {
   registry.register('debug', (args) => {
     const subcommand = args[0]?.toLowerCase();
     
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
     switch (subcommand) {
-      case 'fps':
-        // Toggle FPS display - would need to wire to actual system
-        return 'FPS display toggled (not yet implemented)';
-        
-      case 'wireframe':
-        return 'Wireframe mode toggled (not yet implemented)';
-        
-      case 'bounds':
-        return 'Bounding boxes toggled (not yet implemented)';
-        
-      case 'lights':
-        return 'Light gizmos toggled (not yet implemented)';
-        
+      case 'fps': {
+        if (!scene) return 'No scene available';
+        const engine = scene.getEngine();
+        // Toggle FPS display using engine's built-in performance monitor
+        if ((window as any)._fpsElement) {
+          document.body.removeChild((window as any)._fpsElement);
+          (window as any)._fpsElement = null;
+          return 'FPS display hidden';
+        } else {
+          const div = document.createElement('div');
+          div.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#0f0;padding:8px 12px;font-family:monospace;font-size:14px;z-index:9999;border-radius:4px;';
+          document.body.appendChild(div);
+          (window as any)._fpsElement = div;
+          const update = () => {
+            if ((window as any)._fpsElement) {
+              div.textContent = `FPS: ${engine.getFps().toFixed(0)}`;
+              requestAnimationFrame(update);
+            }
+          };
+          update();
+          return 'FPS display shown';
+        }
+      }
+
+      case 'wireframe': {
+        if (!scene) return 'No scene available';
+        // Toggle wireframe on all materials
+        let wireframeState = !(window as any)._wireframeMode;
+        (window as any)._wireframeMode = wireframeState;
+
+        for (const material of scene.materials) {
+          if (material && 'wireframe' in material) {
+            (material as any).wireframe = wireframeState;
+          }
+        }
+        return `Wireframe mode: ${wireframeState ? 'ON' : 'OFF'}`;
+      }
+
+      case 'bounds': {
+        if (!scene) return 'No scene available';
+        let showBounds = !(window as any)._showBounds;
+        (window as any)._showBounds = showBounds;
+
+        for (const mesh of scene.meshes) {
+          mesh.showBoundingBox = showBounds;
+        }
+        return `Bounding boxes: ${showBounds ? 'ON' : 'OFF'}`;
+      }
+
+      case 'lights': {
+        if (!scene) return 'No scene available';
+        let showLights = !(window as any)._showLights;
+        (window as any)._showLights = showLights;
+
+        // Create/toggle light gizmos
+        if (showLights) {
+          let count = 0;
+          for (const light of scene.lights) {
+            if ('position' in light) {
+              const sphere = Mesh.CreateSphere(`lightGizmo_${count}`, 8, 10, scene);
+              sphere.position = (light as any).position.clone();
+              const mat = new StandardMaterial(`lightGizmoMat_${count}`, scene);
+              mat.emissiveColor = new Color3(1, 1, 0);
+              mat.disableLighting = true;
+              sphere.material = mat;
+              sphere.metadata = { isLightGizmo: true };
+              count++;
+            }
+          }
+          return `Light gizmos: ON (${count} lights)`;
+        } else {
+          // Remove light gizmos
+          const toRemove = scene.meshes.filter(m => m.metadata?.isLightGizmo);
+          for (const mesh of toRemove) {
+            mesh.dispose();
+          }
+          return 'Light gizmos: OFF';
+        }
+      }
+
       default:
         return 'Subcommands: fps, wireframe, bounds, lights';
     }
@@ -1267,9 +1340,321 @@ export function registerEngineCommands(): void {
           '',
           'Subcommands: textures, meshes, engine, js, pk3',
         ];
-        
+
         return lines.join('\n');
       }
+    }
+  });
+
+  // ============================================================================
+  // BSP Commands - Quake3/Warsow FBSP map loading and debugging
+  // ============================================================================
+
+  // State for loaded BSP and rendered meshes
+  let loadedBsp: BspFile | null = null;
+  let bspRenderResult: BspMeshBuildResult | null = null;
+
+  registry.register('bsp', async (args) => {
+    const pk3 = PK3Loader.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
+    switch (subcommand) {
+      case 'load': {
+        const mapName = args[1];
+        if (!mapName) {
+          return 'Usage: bsp load <mapname>\nExample: bsp load wdm11';
+        }
+
+        // Check if map PK3 is loaded, if not load it
+        const pk3Name = `map_${mapName}.pk3`;
+        const packages = pk3.getPackageInfo();
+        const isLoaded = packages.some(p => p.filename === pk3Name);
+
+        if (!isLoaded) {
+          try {
+            await pk3.loadPK3(pk3Name);
+          } catch (e) {
+            return `Failed to load PK3 ${pk3Name}: ${e}`;
+          }
+        }
+
+        // Load BSP from PK3
+        const bspPath = `maps/${mapName}.bsp`;
+        const bsp = await BspLoader.loadFromPK3(pk3, bspPath);
+
+        if (!bsp) {
+          return `Failed to load BSP: ${bspPath}`;
+        }
+
+        loadedBsp = bsp;
+
+        // Summary
+        const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+        return [
+          `Loaded: ${bspPath}`,
+          `Format: ${format} v${bsp.header.version}`,
+          `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+          `Entities: ${bsp.entities.length}`,
+          `Faces: ${bsp.faces.length}`,
+          `Vertices: ${bsp.vertices.length}`,
+          `Lightmaps: ${bsp.lightmaps.length}`,
+          `Textures: ${bsp.textures.length}`,
+          '',
+          'Use "bsp info" for details, "bsp render" to display',
+        ].join('\n');
+      }
+
+      case 'info': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const bsp = loadedBsp;
+        const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+
+        return [
+          `=== BSP Info ===`,
+          `Format: ${format} v${bsp.header.version}`,
+          `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+          '',
+          `Entities: ${bsp.entities.length}`,
+          `Textures: ${bsp.textures.length}`,
+          `Planes: ${bsp.planes.length}`,
+          `Nodes: ${bsp.nodes.length}`,
+          `Leafs: ${bsp.leafs.length}`,
+          `Models: ${bsp.models.length}`,
+          `Brushes: ${bsp.brushes.length}`,
+          `Vertices: ${bsp.vertices.length}`,
+          `Faces: ${bsp.faces.length}`,
+          `MeshVerts: ${bsp.meshVerts.length}`,
+          `Lightmaps: ${bsp.lightmaps.length}`,
+          `LightVols: ${bsp.lightVols.length}`,
+          `VisData: ${bsp.visData ? `${bsp.visData.numClusters} clusters` : 'none'}`,
+        ].join('\n');
+      }
+
+      case 'faces': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const counts = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
+        for (const face of loadedBsp.faces) {
+          switch (face.faceType) {
+            case 1: counts.polygon++; break;
+            case 2: counts.patch++; break;
+            case 3: counts.mesh++; break;
+            case 4: counts.billboard++; break;
+          }
+        }
+
+        return [
+          `=== Face Types ===`,
+          `Polygons (type 1): ${counts.polygon}`,
+          `Patches (type 2): ${counts.patch}`,
+          `Meshes (type 3): ${counts.mesh}`,
+          `Billboards (type 4): ${counts.billboard}`,
+          `Total: ${loadedBsp.faces.length}`,
+        ].join('\n');
+      }
+
+      case 'entities': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const filter = args[1]?.toLowerCase();
+
+        // Count entity types
+        const entityTypes: Record<string, number> = {};
+        for (const ent of loadedBsp.entities) {
+          if (filter && !ent.classname.toLowerCase().includes(filter)) continue;
+          entityTypes[ent.classname] = (entityTypes[ent.classname] || 0) + 1;
+        }
+
+        const sorted = Object.entries(entityTypes)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 30);
+
+        const lines = [`=== Entity Types${filter ? ` (filter: ${filter})` : ''} ===`];
+        for (const [type, count] of sorted) {
+          lines.push(`  ${type}: ${count}`);
+        }
+
+        const total = Object.values(entityTypes).reduce((a, b) => a + b, 0);
+        if (sorted.length < Object.keys(entityTypes).length) {
+          lines.push(`  ... and ${Object.keys(entityTypes).length - sorted.length} more types`);
+        }
+        lines.push(`Total: ${total}`);
+
+        return lines.join('\n');
+      }
+
+      case 'textures': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const limit = parseInt(args[1]) || 30;
+        const textures = loadedBsp.textures.slice(0, limit);
+
+        const lines = [`=== Textures (${limit} of ${loadedBsp.textures.length}) ===`];
+        textures.forEach((tex, i) => {
+          lines.push(`  ${i}: ${tex.name}`);
+        });
+
+        if (loadedBsp.textures.length > limit) {
+          lines.push(`  ... and ${loadedBsp.textures.length - limit} more`);
+        }
+
+        return lines.join('\n');
+      }
+
+      case 'worldspawn': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const worldspawn = loadedBsp.entities.find(e => e.classname === 'worldspawn');
+        if (!worldspawn) {
+          return 'No worldspawn entity found';
+        }
+
+        const lines = ['=== Worldspawn Properties ==='];
+        for (const [key, value] of Object.entries(worldspawn.properties)) {
+          if (key !== 'classname') {
+            lines.push(`  ${key}: ${value}`);
+          }
+        }
+
+        return lines.join('\n');
+      }
+
+      case 'clusters': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const vis = loadedBsp.visData;
+        if (!vis) {
+          return 'No visibility data in this BSP';
+        }
+
+        // Count leafs per cluster
+        const clusterLeafs: Record<number, number> = {};
+        for (const leaf of loadedBsp.leafs) {
+          if (leaf.cluster >= 0) {
+            clusterLeafs[leaf.cluster] = (clusterLeafs[leaf.cluster] || 0) + 1;
+          }
+        }
+
+        return [
+          `=== PVS Cluster Info ===`,
+          `Total clusters: ${vis.numClusters}`,
+          `Bytes per cluster: ${vis.bytesPerCluster}`,
+          `PVS data size: ${vis.bitVectors.length} bytes`,
+          `Leafs with clusters: ${Object.keys(clusterLeafs).length}`,
+          `Leafs outside world: ${loadedBsp.leafs.filter(l => l.cluster < 0).length}`,
+        ].join('\n');
+      }
+
+      case 'lightmaps': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const count = loadedBsp.lightmaps.length;
+        const size = loadedBsp.lightmapSize;
+        const bytesEach = size * size * 3;
+        const totalMB = (count * bytesEach / 1024 / 1024).toFixed(2);
+
+        // Count faces using lightmaps
+        const lmFaces = loadedBsp.faces.filter(f => f.lightmapIndex >= 0).length;
+
+        return [
+          `=== Lightmap Info ===`,
+          `Count: ${count}`,
+          `Size: ${size}x${size} (${loadedBsp.header.isFBSP ? 'FBSP' : 'IBSP'})`,
+          `Format: RGB (3 bytes/pixel)`,
+          `Total size: ${totalMB} MB`,
+          `Faces using lightmaps: ${lmFaces}`,
+        ].join('\n');
+      }
+
+      case 'render': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        if (!scene) {
+          return 'No scene available';
+        }
+
+        // Clear previous render
+        if (bspRenderResult) {
+          bspRenderResult.worldMesh.dispose();
+          for (const tex of bspRenderResult.lightmapTextures) {
+            tex.dispose();
+          }
+          bspRenderResult = null;
+        }
+
+        try {
+          bspRenderResult = BspMeshBuilder.build(loadedBsp, scene);
+
+          // Position camera to view the map
+          const world = loadedBsp.models[0];
+          if (world) {
+            const centerX = (world.mins[0] + world.maxs[0]) / 2;
+            const centerZ = (world.mins[1] + world.maxs[1]) / 2;
+            const centerY = (world.mins[2] + world.maxs[2]) / 2;
+
+            const camera = cameraSystem.getCamera();
+            if (camera) {
+              camera.target = new Vector3(centerX, centerY, centerZ);
+            }
+          }
+
+          return [
+            `=== BSP Rendered ===`,
+            `Vertices: ${bspRenderResult.stats.totalVertices}`,
+            `Triangles: ${bspRenderResult.stats.totalTriangles}`,
+            `Lightmaps: ${bspRenderResult.lightmapTextures.length}`,
+            `Faces: ${bspRenderResult.stats.polygonFaces} poly, ${bspRenderResult.stats.patchFaces} patch, ${bspRenderResult.stats.meshFaces} mesh`,
+          ].join('\n');
+        } catch (e) {
+          return `Render failed: ${e}`;
+        }
+      }
+
+      case 'clear': {
+        if (bspRenderResult) {
+          bspRenderResult.worldMesh.dispose();
+          for (const tex of bspRenderResult.lightmapTextures) {
+            tex.dispose();
+          }
+          bspRenderResult = null;
+          return 'BSP geometry cleared';
+        }
+        return 'No BSP geometry to clear';
+      }
+
+      default:
+        return [
+          'BSP Commands (Quake3/Warsow FBSP):',
+          '  bsp load <mapname>  - Load BSP from PK3',
+          '  bsp info            - Show BSP statistics',
+          '  bsp entities [filter] - List entity types',
+          '  bsp textures [limit]  - List textures',
+          '  bsp faces           - Show face type breakdown',
+          '  bsp worldspawn      - Show worldspawn properties',
+          '  bsp clusters        - Show PVS cluster info',
+          '  bsp lightmaps       - Show lightmap info',
+          '  bsp render          - Render BSP to scene',
+          '  bsp clear           - Clear rendered geometry',
+        ].join('\n');
     }
   });
 
