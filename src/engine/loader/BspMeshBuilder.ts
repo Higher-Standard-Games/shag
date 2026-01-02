@@ -17,6 +17,7 @@ import {
   Vector3,
   RawTexture,
   Texture,
+  Constants,
 } from "babylonjs";
 import type {
   BspFile,
@@ -25,6 +26,8 @@ import type {
   BspVertexIBSP,
   BspVertexFBSP,
 } from "./BspLoader";
+import { Q3ShaderRegistry } from "./Q3ShaderRegistry";
+import type { ResolvedMaterialProps } from "./Q3ShaderTypes";
 
 // ============================================================================
 // Types
@@ -202,15 +205,22 @@ export class BspMeshBuilder {
       totalTriangles: 0,
     };
 
-    // Collect all geometry into single mesh for efficiency
-    const allPositions: number[] = [];
-    const allNormals: number[] = [];
-    const allUVs: number[] = [];
-    const allUV2s: number[] = []; // Lightmap UVs
-    const allColors: number[] = [];
-    const allIndices: number[] = [];
+    // Group faces by texture for proper material assignment
+    interface TextureGroup {
+      textureIndex: number;
+      textureName: string;
+      shaderProps: ResolvedMaterialProps;
+      positions: number[];
+      normals: number[];
+      uvs: number[];
+      uv2s: number[];
+      colors: number[];
+      indices: number[];
+      indexOffset: number;
+    }
 
-    let indexOffset = 0;
+    const textureGroups = new Map<number, TextureGroup>();
+    const shaderRegistry = Q3ShaderRegistry.getInstance();
 
     // Build first model only (model 0 = world geometry)
     const worldModel = this.bsp.models[0];
@@ -237,6 +247,26 @@ export class BspMeshBuilder {
         continue;
       }
 
+      // Get or create texture group
+      let group = textureGroups.get(face.textureIndex);
+      if (!group) {
+        const textureName = this.bsp.textures[face.textureIndex]?.name || '';
+        const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
+        group = {
+          textureIndex: face.textureIndex,
+          textureName,
+          shaderProps,
+          positions: [],
+          normals: [],
+          uvs: [],
+          uv2s: [],
+          colors: [],
+          indices: [],
+          indexOffset: 0,
+        };
+        textureGroups.set(face.textureIndex, group);
+      }
+
       let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
 
       switch (face.faceType) {
@@ -259,41 +289,73 @@ export class BspMeshBuilder {
       }
 
       if (faceData) {
-        // Add positions
-        for (const p of faceData.positions) {
-          allPositions.push(p);
-        }
-
-        // Add normals
-        for (const n of faceData.normals) {
-          allNormals.push(n);
-        }
-
-        // Add UVs
-        for (const uv of faceData.uvs) {
-          allUVs.push(uv);
-        }
-
-        // Add lightmap UVs
-        for (const uv2 of faceData.uv2s) {
-          allUV2s.push(uv2);
-        }
-
-        // Add colors
-        for (const c of faceData.colors) {
-          allColors.push(c);
-        }
-
-        // Add indices (offset by current vertex count)
+        // Add to texture group
         const numVerts = faceData.positions.length / 3;
+        
+        for (const p of faceData.positions) group.positions.push(p);
+        for (const n of faceData.normals) group.normals.push(n);
+        for (const uv of faceData.uvs) group.uvs.push(uv);
+        for (const uv2 of faceData.uv2s) group.uv2s.push(uv2);
+        for (const c of faceData.colors) group.colors.push(c);
+        
+        // Add indices with offset
         for (const idx of faceData.indices) {
-          allIndices.push(idx + indexOffset);
+          group.indices.push(idx + group.indexOffset);
         }
-        indexOffset += numVerts;
+        group.indexOffset += numVerts;
 
         stats.totalVertices += numVerts;
         stats.totalTriangles += faceData.indices.length / 3;
       }
+    }
+
+    // Separate opaque and transparent groups
+    const opaqueGroups: TextureGroup[] = [];
+    const transparentGroups: TextureGroup[] = [];
+    
+    for (const group of textureGroups.values()) {
+      if (group.indices.length === 0) continue;
+      
+      if (group.shaderProps.isTransparent) {
+        transparentGroups.push(group);
+      } else {
+        opaqueGroups.push(group);
+      }
+    }
+
+    console.log(`[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`);
+
+    // Merge all opaque geometry into single arrays
+    const allPositions: number[] = [];
+    const allNormals: number[] = [];
+    const allUVs: number[] = [];
+    const allUV2s: number[] = [];
+    const allColors: number[] = [];
+    const allIndices: number[] = [];
+    let indexOffset = 0;
+
+    // Add opaque geometry first
+    for (const group of opaqueGroups) {
+      const numVerts = group.positions.length / 3;
+      for (const p of group.positions) allPositions.push(p);
+      for (const n of group.normals) allNormals.push(n);
+      for (const uv of group.uvs) allUVs.push(uv);
+      for (const uv2 of group.uv2s) allUV2s.push(uv2);
+      for (const c of group.colors) allColors.push(c);
+      for (const idx of group.indices) allIndices.push(idx + indexOffset);
+      indexOffset += numVerts;
+    }
+
+    // Add transparent geometry after opaque
+    for (const group of transparentGroups) {
+      const numVerts = group.positions.length / 3;
+      for (const p of group.positions) allPositions.push(p);
+      for (const n of group.normals) allNormals.push(n);
+      for (const uv of group.uvs) allUVs.push(uv);
+      for (const uv2 of group.uv2s) allUV2s.push(uv2);
+      for (const c of group.colors) allColors.push(c);
+      for (const idx of group.indices) allIndices.push(idx + indexOffset);
+      indexOffset += numVerts;
     }
 
     // Create world mesh
@@ -312,7 +374,7 @@ export class BspMeshBuilder {
     vertexData.indices = allIndices;
     vertexData.applyToMesh(worldMesh);
 
-    // Create default material
+    // Create default material for opaque geometry
     const material = new StandardMaterial("bsp_material", this.scene);
     material.diffuseColor = new Color3(0.8, 0.8, 0.8);
     material.specularColor = new Color3(0.1, 0.1, 0.1);
@@ -321,6 +383,43 @@ export class BspMeshBuilder {
 
     // Enable collisions
     worldMesh.checkCollisions = true;
+
+    // Create separate meshes for each transparent texture group
+    const transparentMeshes: Mesh[] = [];
+    for (const group of transparentGroups) {
+      if (group.indices.length === 0) continue;
+      
+      const meshName = `bsp_transparent_${group.textureIndex}`;
+      const transMesh = new Mesh(meshName, this.scene);
+      
+      const transVertexData = new VertexData();
+      transVertexData.positions = group.positions;
+      transVertexData.normals = group.normals;
+      transVertexData.uvs = group.uvs;
+      if (group.uv2s.length > 0) {
+        transVertexData.uvs2 = group.uv2s;
+      }
+      if (group.colors.length > 0) {
+        transVertexData.colors = group.colors;
+      }
+      // Indices are already relative within the group
+      transVertexData.indices = group.indices;
+      transVertexData.applyToMesh(transMesh);
+      
+      // Create material with shader properties
+      const transMaterial = this.createMaterialFromShaderProps(
+        `bsp_mat_${group.textureIndex}`,
+        group.shaderProps,
+        group.textureName
+      );
+      transMesh.material = transMaterial;
+      
+      // Parent to world mesh for easy disposal
+      transMesh.parent = worldMesh;
+      transparentMeshes.push(transMesh);
+      
+      console.log(`[BspMeshBuilder] Created transparent mesh: ${group.textureName} (${group.shaderProps.alphaMode})`);
+    }
 
     // Create lightmap textures
     const lightmapTextures = this.buildLightmapTextures();
@@ -333,12 +432,77 @@ export class BspMeshBuilder {
     if (skippedFaceTypes > 0) {
       console.log(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
     }
+    if (transparentMeshes.length > 0) {
+      console.log(`[BspMeshBuilder] Created ${transparentMeshes.length} transparent sub-meshes`);
+    }
 
     return {
       worldMesh,
       lightmapTextures,
       stats,
     };
+  }
+
+  /**
+   * Create a Babylon material from resolved shader properties
+   */
+  private createMaterialFromShaderProps(
+    name: string,
+    props: ResolvedMaterialProps,
+    _textureName: string // Will be used for texture loading later
+  ): StandardMaterial {
+    const mat = new StandardMaterial(name, this.scene);
+    
+    // Base color
+    mat.diffuseColor = new Color3(1, 1, 1);
+    mat.specularColor = new Color3(0.1, 0.1, 0.1);
+    mat.emissiveColor = new Color3(0, 0, 0);
+    
+    // Culling
+    mat.backFaceCulling = props.backFaceCulling;
+    mat.twoSidedLighting = props.twoSidedLighting;
+    
+    // Alpha mode
+    switch (props.alphaMode) {
+      case 'add':
+        // Additive blending (GL_ONE, GL_ONE)
+        mat.alphaMode = Constants.ALPHA_ADD;
+        mat.alpha = 1;
+        // Make emissive for additive glow effect
+        mat.emissiveColor = new Color3(1, 1, 1);
+        mat.diffuseColor = new Color3(0, 0, 0);
+        break;
+      case 'blend':
+        // Standard alpha blending
+        mat.alphaMode = Constants.ALPHA_COMBINE;
+        mat.alpha = 1;
+        mat.useAlphaFromDiffuseTexture = true;
+        break;
+      case 'multiply':
+        // Multiply blending
+        mat.alphaMode = Constants.ALPHA_MULTIPLY;
+        mat.alpha = 1;
+        break;
+      default:
+        // Opaque
+        mat.alphaMode = Constants.ALPHA_DISABLE;
+        break;
+    }
+    
+    // Alpha cutoff for alpha testing
+    if (props.alphaCutoff !== undefined) {
+      mat.alphaCutOff = props.alphaCutoff;
+    }
+    
+    // Depth write
+    mat.disableDepthWrite = !props.depthWrite;
+    
+    // Polygon offset for decals
+    if (props.polygonOffset) {
+      mat.zOffset = -1;
+    }
+    
+    return mat;
   }
 
   // ============================================================================
