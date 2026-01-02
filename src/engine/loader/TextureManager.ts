@@ -1,6 +1,8 @@
 import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
 import { ProceduralTextureGenerator } from "../procedural/ProceduralTextureGenerator";
 import { GamePaths } from "../core/GamePaths";
+import { PK3Loader } from "./PK3Loader";
+import { PK3TextureLoader } from "./PK3TextureLoader";
 
 // Check if we're in production mode (Vite sets this)
 // @ts-ignore - Vite provides import.meta.env
@@ -170,7 +172,7 @@ export class TextureManager {
 
   /**
    * Try loading a texture with various extensions
-   * In production, tries KTX2 (GPU-compressed) first for better mobile performance
+   * Priority: PK3 packages → KTX2 (production) → regular files
    */
   private async tryLoadTexture(textureName: string): Promise<Texture | null> {
     if (!this.scene) return null;
@@ -182,6 +184,12 @@ export class TextureManager {
     }
     // Remove the "textures/" prefix for building paths
     const cleanPath = normalizedPath.replace(/^textures\//, "");
+
+    // Try PK3 packages first
+    const pk3Texture = await this.tryLoadFromPK3(normalizedPath);
+    if (pk3Texture) {
+      return pk3Texture;
+    }
 
     // In production, try KTX2 first (GPU-compressed textures)
     if (IS_PRODUCTION) {
@@ -228,6 +236,43 @@ export class TextureManager {
     }
 
     console.warn(`Texture not found: ${textureName}`);
+    return null;
+  }
+
+  /**
+   * Try loading a texture from PK3 packages
+   */
+  private async tryLoadFromPK3(texturePath: string): Promise<Texture | null> {
+    if (!this.scene) return null;
+    
+    const pk3 = PK3Loader.getInstance();
+    const pk3Tex = PK3TextureLoader.getInstance();
+    
+    // Check if any PK3 packages are loaded
+    if (pk3.getPackageInfo().length === 0) {
+      return null;
+    }
+    
+    // PK3 texture extensions to try
+    const pk3Extensions = ['.ktx', '.tga', '.png', '.jpg'];
+    
+    for (const ext of pk3Extensions) {
+      const fullPath = `${texturePath}${ext}`;
+      if (pk3.hasFile(fullPath)) {
+        // Initialize PK3TextureLoader if needed
+        pk3Tex.init(this.scene.getEngine() as any, this.scene);
+        
+        const texture = await pk3Tex.loadTexture(fullPath);
+        if (texture) {
+          texture.name = texturePath;
+          texture.wrapU = Texture.WRAP_ADDRESSMODE;
+          texture.wrapV = Texture.WRAP_ADDRESSMODE;
+          console.log(`[TextureManager] Loaded from PK3: ${fullPath}`);
+          return texture;
+        }
+      }
+    }
+    
     return null;
   }
 
