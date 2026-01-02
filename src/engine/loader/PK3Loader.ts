@@ -65,12 +65,12 @@ export class PK3Loader {
   public async loadPK3(filename: string): Promise<void> {
     const url = `${this.config.basePath}${filename}`;
     
-    console.log(`[PK3Loader] Loading ${filename}...`);
+    console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
     
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const arrayBuffer = await response.arrayBuffer();
