@@ -18,6 +18,7 @@ import { FollowController } from '../camera/controllers/FollowController';
 import { Vector3 } from 'babylonjs';
 import { PK3Loader } from '../loader/PK3Loader';
 import { parseKTX1 } from '../loader/KTX1Loader';
+import { PK3TextureLoader } from '../loader/PK3TextureLoader';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -1030,8 +1031,69 @@ export function registerEngineCommands(): void {
         pk3.unloadAll();
         return 'All PK3 packages unloaded';
         
+      case 'texture': {
+        const texPath = args[1];
+        if (!texPath) {
+          return 'Usage: pk3 texture <path>\nLoads a texture and its companions (_gloss, _norm)';
+        }
+        
+        const texLoader = PK3TextureLoader.getInstance();
+        const scene = (window as any).scene;
+        const engine = scene?.getEngine();
+        
+        if (!engine || !scene) {
+          return 'Engine/Scene not available';
+        }
+        
+        // Initialize if needed
+        texLoader.init(engine, scene);
+        
+        try {
+          const textureSet = await texLoader.loadTextureSet(texPath);
+          const parts = [
+            `Diffuse: ${textureSet.diffuse ? 'loaded' : 'failed'}`,
+            `Gloss: ${textureSet.gloss ? 'loaded' : 'not found'}`,
+            `Normal: ${textureSet.normal ? 'loaded' : 'not found'}`,
+          ];
+          return `Texture set "${textureSet.name}":\n  ${parts.join('\n  ')}`;
+        } catch (e) {
+          return `Failed to load texture: ${e}`;
+        }
+      }
+      
+      case 'sets': {
+        const dir = args[1] || 'textures';
+        const texLoader = PK3TextureLoader.getInstance();
+        const sets = texLoader.findTextureSets(dir);
+        
+        if (sets.length === 0) {
+          return `No texture sets found in: ${dir}`;
+        }
+        
+        const display = sets.slice(0, 20).map(s => {
+          const companions = [];
+          if (s.gloss) companions.push('gloss');
+          if (s.normal) companions.push('norm');
+          const companionStr = companions.length > 0 ? ` [+${companions.join(',')}]` : '';
+          return `${s.diffuse}${companionStr}`;
+        });
+        
+        return sets.length > 20 
+          ? `${display.join('\n')}\n... and ${sets.length - 20} more`
+          : display.join('\n');
+      }
+      
+      case 'cache': {
+        const texLoader = PK3TextureLoader.getInstance();
+        const info = texLoader.getCacheInfo();
+        if (info.count === 0) {
+          return 'Texture cache is empty';
+        }
+        return `Cached textures (${info.count}):\n  ${info.textures.join('\n  ')}`;
+      }
+        
       default:
-        return 'PK3 Commands:\n  load <file.pk3> - Load a PK3 package\n  list [pattern] - List files (* wildcard)\n  dir [path] - List directory contents\n  info - Show loaded packages\n  test <filepath> - Test loading a file\n  unload - Unload all packages';
+        return 'PK3 Commands:\n  load <file.pk3> - Load a PK3 package\n  list [pattern] - List files (* wildcard)\n  dir [path] - List directory contents\n  info - Show loaded packages\n  test <filepath> - Test loading a file\n  texture <path> - Load texture with companions\n  sets [dir] - Find texture sets in directory\n  cache - Show texture cache\n  unload - Unload all packages';
     }
   });
 
