@@ -40,6 +40,8 @@ export interface BspMeshBuildResult {
   faceMeshes?: Mesh[];
   /** Lightmap textures */
   lightmapTextures: Texture[];
+  /** Texture groups info for later texture loading */
+  textureGroups?: { textureIndex: number; textureName: string }[];
   /** Statistics */
   stats: {
     totalFaces: number;
@@ -436,11 +438,83 @@ export class BspMeshBuilder {
       console.log(`[BspMeshBuilder] Created ${transparentMeshes.length} transparent sub-meshes`);
     }
 
+    // Collect texture group info for later loading
+    const allTextureGroups = [...opaqueGroups, ...transparentGroups]
+      .filter(g => g.indices.length > 0)
+      .map(g => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
+
     return {
       worldMesh,
       lightmapTextures,
+      textureGroups: allTextureGroups,
       stats,
     };
+  }
+
+  /**
+   * Apply textures to a rendered BSP from PK3
+   * Call this after bsp render to load actual textures
+   */
+  public static async applyTextures(
+    result: BspMeshBuildResult,
+    _bsp: BspFile, // Reserved for future use
+    scene: Scene,
+    progressCallback?: (loaded: number, total: number, name: string) => void
+  ): Promise<number> {
+    const { PK3TextureLoader } = await import('./PK3TextureLoader');
+    const texLoader = PK3TextureLoader.getInstance();
+    const engine = scene.getEngine();
+    
+    // Initialize texture loader if needed
+    texLoader.init(engine as any, scene);
+    
+    if (!result.textureGroups || result.textureGroups.length === 0) {
+      console.log('[BspMeshBuilder] No texture groups to load');
+      return 0;
+    }
+
+    let loadedCount = 0;
+    const total = result.textureGroups.length;
+    
+    // Get all materials from world mesh and children
+    const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
+    
+    for (const group of result.textureGroups) {
+      const texName = group.textureName;
+      if (!texName || texName.toLowerCase().includes('common/')) continue;
+      
+      progressCallback?.(loadedCount, total, texName);
+      
+      // Try to load texture with various extensions
+      const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+      let texture: any = null;
+      
+      for (const ext of extensions) {
+        const path = `textures/${texName}${ext}`;
+        texture = await texLoader.loadTexture(path);
+        if (texture) break;
+        
+        // Try without textures/ prefix
+        texture = await texLoader.loadTexture(`${texName}${ext}`);
+        if (texture) break;
+      }
+      
+      if (texture) {
+        // Find the mesh/material for this texture index
+        const meshName = `bsp_transparent_${group.textureIndex}`;
+        const mesh = meshes.find(m => m.name === meshName);
+        
+        if (mesh && mesh.material instanceof StandardMaterial) {
+          mesh.material.diffuseTexture = texture;
+          loadedCount++;
+        }
+      }
+    }
+    
+    // Also try to apply texture to main world mesh (first opaque texture)
+    // For now, just count what we loaded
+    console.log(`[BspMeshBuilder] Applied ${loadedCount} textures`);
+    return loadedCount;
   }
 
   /**

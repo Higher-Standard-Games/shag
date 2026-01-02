@@ -2049,6 +2049,31 @@ export function registerEngineCommands(): void {
         return 'No BSP geometry to clear';
       }
 
+      case 'applytextures':
+      case 'loadtextures': {
+        if (!loadedBsp || !bspRenderResult) {
+          return 'No BSP rendered. Use "bsp load <map>" then "bsp render" first.';
+        }
+        
+        if (!scene) {
+          return 'Scene not available';
+        }
+        
+        try {
+          const count = await BspMeshBuilder.applyTextures(
+            bspRenderResult,
+            loadedBsp,
+            scene,
+            (loaded, total, name) => {
+              console.log(`[BSP] Loading texture ${loaded}/${total}: ${name}`);
+            }
+          );
+          return `Applied ${count} textures to BSP`;
+        } catch (e) {
+          return `Failed to apply textures: ${e}`;
+        }
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
@@ -2063,6 +2088,7 @@ export function registerEngineCommands(): void {
           '  bsp clusters        - Show PVS cluster info',
           '  bsp lightmaps       - Show lightmap info',
           '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
+          '  bsp applytextures   - Load and apply textures from PK3',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }
