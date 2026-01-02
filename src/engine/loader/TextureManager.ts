@@ -289,6 +289,75 @@ export class TextureManager {
   }
 
   /**
+   * Load companion maps (_norm, _gloss) for a texture - Quake/Warsow standard
+   */
+  private async loadCompanionMaps(material: StandardMaterial, textureInfo: TextureInfo): Promise<void> {
+    if (!this.scene) return;
+    
+    // Get base path without extension
+    const basePath = textureInfo.path.replace(/\.[^/.]+$/, '');
+    
+    // Try to load normal map (_norm)
+    const normTexture = await this.tryLoadCompanionTexture(`${basePath}_norm`);
+    if (normTexture) {
+      material.bumpTexture = normTexture;
+      // Apply same UV transform as diffuse
+      this.applyUVTransform(normTexture, textureInfo);
+      console.log(`[TextureManager] Loaded normal map: ${basePath}_norm`);
+    }
+    
+    // Try to load gloss/specular map (_gloss)
+    const glossTexture = await this.tryLoadCompanionTexture(`${basePath}_gloss`);
+    if (glossTexture) {
+      material.specularTexture = glossTexture;
+      // Enable specular for gloss maps
+      material.specularColor = new Color3(0.3, 0.3, 0.3);
+      // Apply same UV transform as diffuse
+      this.applyUVTransform(glossTexture, textureInfo);
+      console.log(`[TextureManager] Loaded gloss map: ${basePath}_gloss`);
+    }
+  }
+
+  /**
+   * Try to load a companion texture (norm/gloss) from PK3 or filesystem
+   */
+  private async tryLoadCompanionTexture(basePath: string): Promise<Texture | null> {
+    if (!this.scene) return null;
+    
+    // Normalize path
+    let normalizedPath = basePath;
+    if (!normalizedPath.startsWith("textures/")) {
+      normalizedPath = `textures/${normalizedPath}`;
+    }
+    
+    // Try PK3 first
+    const pk3Texture = await this.tryLoadFromPK3(normalizedPath);
+    if (pk3Texture) {
+      return pk3Texture;
+    }
+    
+    // Try filesystem with various extensions
+    const extensions = ['.tga', '.png', '.jpg', '.jpeg'];
+    for (const ext of extensions) {
+      const fullPath = `/textures/${normalizedPath}${ext}`.replace("textures/textures", "textures");
+      try {
+        const exists = await this.checkTextureExists(fullPath);
+        if (exists) {
+          const texture = new Texture(fullPath, this.scene);
+          texture.name = basePath;
+          texture.wrapU = Texture.WRAP_ADDRESSMODE;
+          texture.wrapV = Texture.WRAP_ADDRESSMODE;
+          return texture;
+        }
+      } catch {
+        // Continue to next extension
+      }
+    }
+    
+    return null;
+  }
+
+  /**
    * Get or create a material for a texture with UV parameters
    */
   async getMaterial(textureInfo: TextureInfo): Promise<StandardMaterial> {
@@ -335,6 +404,9 @@ export class TextureManager {
 
         // Apply UV transformations
         this.applyUVTransform(texture, textureInfo);
+        
+        // Try to load companion maps (_norm, _gloss) - Quake/Warsow standard
+        await this.loadCompanionMaps(material, textureInfo);
       } else {
         // Fallback color for missing textures
         material.diffuseColor = new Color3(0.8, 0.8, 0.8);
