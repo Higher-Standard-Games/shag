@@ -5,6 +5,7 @@
  */
 
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
+import { DebugConsole } from './DebugConsole';
 import { AudioManager } from '../AudioManager';
 import { GameClock } from '../../game/GameClock';
 import { UIScale } from '../ui/UIScale';
@@ -1472,6 +1473,12 @@ export function registerEngineCommands(): void {
           window.removeEventListener('keydown', emptySceneEscHandler);
         }
         emptySceneEscHandler = (e: KeyboardEvent) => {
+          // Don't dispose if debug console is open (let it handle ESC to close)
+          const debugConsole = DebugConsole.getInstance();
+          if (debugConsole.getIsOpen()) {
+            return; // Let console handle ESC
+          }
+          
           if (e.key === 'Escape' && emptyScene) {
             e.preventDefault();
             e.stopPropagation();

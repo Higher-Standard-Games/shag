@@ -143,6 +143,13 @@ export class DebugConsole {
     this.toggle();
   }
 
+  /**
+   * Check if console is currently open
+   */
+  getIsOpen(): boolean {
+    return this.isOpen;
+  }
+
   // ============================================================================
   // DOM Creation
   // ============================================================================
