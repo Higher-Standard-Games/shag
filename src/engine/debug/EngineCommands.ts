@@ -16,6 +16,8 @@ import { FPSController } from '../camera/controllers/FPSController';
 import { SideScrollController } from '../camera/controllers/SideScrollController';
 import { FollowController } from '../camera/controllers/FollowController';
 import { Vector3 } from 'babylonjs';
+import { PK3Loader } from '../loader/PK3Loader';
+import { parseKTX1 } from '../loader/KTX1Loader';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -943,6 +945,93 @@ export function registerEngineCommands(): void {
         
       default:
         return `Game Commands:\n  info - Show current game paths\n  load <name> - Set game (requires reload)\n  switch <name> - Switch game and reload\n  reload - Reload with current game\n\nCurrent game: ${gamePaths.getGameName()}`;
+    }
+  });
+
+  // ============================================================================
+  // PK3 Package Commands
+  // ============================================================================
+  
+  registry.register('pk3', async (args) => {
+    const pk3 = PK3Loader.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+    
+    switch (subcommand) {
+      case 'load': {
+        const filename = args[1];
+        if (!filename) {
+          return 'Usage: pk3 load <filename.pk3>';
+        }
+        try {
+          await pk3.loadPK3(filename);
+          return `Loaded: ${filename}`;
+        } catch (e) {
+          return `Failed to load ${filename}: ${e}`;
+        }
+      }
+      
+      case 'list': {
+        const pattern = args[1];
+        const files = pk3.listFiles(pattern);
+        if (files.length === 0) {
+          return pattern ? `No files matching: ${pattern}` : 'No files loaded';
+        }
+        const display = files.slice(0, 50);
+        const result = display.join('\n');
+        return files.length > 50 
+          ? `${result}\n... and ${files.length - 50} more`
+          : result;
+      }
+      
+      case 'dir': {
+        const dir = args[1] || '';
+        const items = pk3.listDirectory(dir);
+        if (items.length === 0) {
+          return `Empty or not found: ${dir}`;
+        }
+        return items.join('\n');
+      }
+      
+      case 'info': {
+        const packages = pk3.getPackageInfo();
+        if (packages.length === 0) {
+          return 'No PK3 packages loaded';
+        }
+        return packages.map(p => 
+          `${p.filename} (priority ${p.priority}, ${p.fileCount} files)`
+        ).join('\n');
+      }
+      
+      case 'test': {
+        const path = args[1];
+        if (!path) {
+          return 'Usage: pk3 test <filepath>\nTests loading a file from pk3';
+        }
+        
+        const data = await pk3.getFile(path);
+        if (!data) {
+          return `File not found: ${path}`;
+        }
+        
+        // If it's a KTX file, try to parse it
+        if (path.toLowerCase().endsWith('.ktx')) {
+          try {
+            const ktx = parseKTX1(data);
+            return `KTX1 parsed: ${ktx.formatName}, ${ktx.header.pixelWidth}x${ktx.header.pixelHeight}, ${ktx.mipLevels.length} mips, compressed: ${ktx.isCompressed}`;
+          } catch (e) {
+            return `KTX parse error: ${e}`;
+          }
+        }
+        
+        return `File loaded: ${path} (${data.byteLength} bytes)`;
+      }
+      
+      case 'unload':
+        pk3.unloadAll();
+        return 'All PK3 packages unloaded';
+        
+      default:
+        return 'PK3 Commands:\n  load <file.pk3> - Load a PK3 package\n  list [pattern] - List files (* wildcard)\n  dir [path] - List directory contents\n  info - Show loaded packages\n  test <filepath> - Test loading a file\n  unload - Unload all packages';
     }
   });
 
