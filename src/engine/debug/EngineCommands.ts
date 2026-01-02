@@ -1357,6 +1357,31 @@ export function registerEngineCommands(): void {
   // Store the empty scene reference
   let emptyScene: Scene | null = null;
   let emptySceneCamera: FreeCamera | null = null;
+  let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  // Helper to dispose empty scene
+  const disposeEmptyScene = () => {
+    if (emptyScene) {
+      // Remove ESC handler
+      if (emptySceneEscHandler) {
+        window.removeEventListener('keydown', emptySceneEscHandler);
+        emptySceneEscHandler = null;
+      }
+      
+      // Stop render loop
+      const engine = emptyScene.getEngine();
+      engine.stopRenderLoop();
+      
+      // Dispose scene
+      emptyScene.dispose();
+      emptyScene = null;
+      emptySceneCamera = null;
+      
+      console.log('[EmptyScene] Disposed - press any key or refresh to continue');
+      return true;
+    }
+    return false;
+  };
 
   registry.register('scene', (args) => {
     const subcommand = args[0]?.toLowerCase();
@@ -1416,18 +1441,29 @@ export function registerEngineCommands(): void {
         }
         cameraSystem.setController('freefly');
 
+        // Add ESC key handler to exit empty scene
+        if (emptySceneEscHandler) {
+          window.removeEventListener('keydown', emptySceneEscHandler);
+        }
+        emptySceneEscHandler = (e: KeyboardEvent) => {
+          if (e.key === 'Escape' && emptyScene) {
+            e.preventDefault();
+            e.stopPropagation();
+            disposeEmptyScene();
+          }
+        };
+        window.addEventListener('keydown', emptySceneEscHandler, { capture: true });
+
         return [
           'Created empty scene for BSP testing',
           'Camera: freefly mode (LMB forward, RMB backward, freelook)',
+          'Press ESC to exit empty scene',
           'Now run: bsp load <mapname> && bsp render',
         ].join('\n');
       }
 
       case 'dispose': {
-        if (emptyScene) {
-          emptyScene.dispose();
-          emptyScene = null;
-          emptySceneCamera = null;
+        if (disposeEmptyScene()) {
           return 'Empty scene disposed';
         }
         return 'No empty scene to dispose';
