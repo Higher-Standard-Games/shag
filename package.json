@@ -53,6 +53,7 @@
     "@capacitor/status-bar": "^8.0.0",
     "babylonjs": "^8.42.0",
     "babylonjs-loaders": "^8.42.0",
+    "jszip": "^3.10.1",
     "pngjs": "^7.0.0"
   }
 }
