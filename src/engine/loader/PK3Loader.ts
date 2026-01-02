@@ -19,8 +19,10 @@ export interface PK3File {
 }
 
 export interface PK3LoaderConfig {
-  /** Base path for pk3 files */
+  /** Primary base path for pk3 files */
   basePath: string;
+  /** Additional search paths (searched after basePath) */
+  additionalPaths?: string[];
 }
 
 /**
@@ -38,7 +40,7 @@ export class PK3Loader {
   private static instance: PK3Loader | null = null;
   
   private packages: Map<string, PK3File> = new Map();
-  private config: PK3LoaderConfig = { basePath: "game/" };
+  private config: PK3LoaderConfig = { basePath: "game/", additionalPaths: [] };
   private fileIndex: Map<string, string> = new Map(); // path -> pk3 filename
   
   private constructor() {}
@@ -58,22 +60,88 @@ export class PK3Loader {
   }
   
   /**
-   * Load a PK3 file
+   * Add an additional search path for PK3 files
+   * @param path - Path to add (e.g., "game/basewsw/")
+   */
+  public addSearchPath(path: string): void {
+    // Ensure path ends with /
+    const normalizedPath = path.endsWith('/') ? path : path + '/';
+    if (!this.config.additionalPaths) {
+      this.config.additionalPaths = [];
+    }
+    if (!this.config.additionalPaths.includes(normalizedPath)) {
+      this.config.additionalPaths.push(normalizedPath);
+      console.log(`[PK3Loader] Added search path: ${normalizedPath}`);
+    }
+  }
+  
+  /**
+   * Get all search paths (primary + additional)
+   */
+  public getSearchPaths(): string[] {
+    return [this.config.basePath, ...(this.config.additionalPaths || [])];
+  }
+  
+  /**
+   * Load a PK3 file by full URL path
+   * @param url - Full URL to the pk3 file (e.g., "game/basewsw/tex_concrete.pk3")
+   * @returns Promise that resolves when loaded
+   */
+  public async loadPK3FromUrl(url: string): Promise<void> {
+    // Extract filename from URL
+    const filename = url.split('/').pop() || url;
+    
+    console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+  }
+
+  /**
+   * Load a PK3 file (searches all paths)
    * @param filename - Name of the pk3 file (e.g., "exwsw.pk3")
    * @returns Promise that resolves when loaded
    */
   public async loadPK3(filename: string): Promise<void> {
-    const url = `${this.config.basePath}${filename}`;
+    const searchPaths = this.getSearchPaths();
+    let loadedFrom: string | null = null;
+    let arrayBuffer: ArrayBuffer | null = null;
     
-    console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+    // Try each search path until we find the file
+    for (const basePath of searchPaths) {
+      const url = `${basePath}${filename}`;
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          arrayBuffer = await response.arrayBuffer();
+          loadedFrom = url;
+          break;
+        }
+      } catch {
+        // Try next path
+      }
+    }
+    
+    if (!arrayBuffer || !loadedFrom) {
+      const pathsStr = searchPaths.join(', ');
+      throw new Error(`PK3 not found in any search path: ${filename} (searched: ${pathsStr})`);
+    }
+    
+    console.log(`[PK3Loader] Loading ${filename} from ${loadedFrom}...`);
+    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+  }
+
+  /**
+   * Process a loaded PK3 ArrayBuffer
+   */
+  private async processPK3ArrayBuffer(filename: string, arrayBuffer: ArrayBuffer): Promise<void> {
     
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const arrayBuffer = await response.arrayBuffer();
       const zip = await JSZip.loadAsync(arrayBuffer);
       
       // Determine priority from filename

@@ -47,6 +47,29 @@ export { ModelLoader } from "./loader/ModelLoader";
 export type { ModelLoadOptions } from "./loader/ModelLoader";
 export { PrefabLoader } from "./loader/PrefabLoader";
 export { PrefabInstance } from "./loader/PrefabInstance";
+export { PK3Loader } from "./loader/PK3Loader";
+export type { PK3File, PK3LoaderConfig } from "./loader/PK3Loader";
+
+// BSP Loading (Quake 3 / Warsow FBSP)
+export { BspLoader, isClusterVisible, findLeafForPoint } from "./loader/BspLoader";
+export type {
+  BspFile,
+  BspHeader,
+  BspEntity,
+  BspVertex,
+  BspVertexIBSP,
+  BspVertexFBSP,
+  BspFace,
+  BspTexture,
+  BspPlane,
+  BspNode,
+  BspLeaf,
+  BspModel,
+  BspVisData,
+} from "./loader/BspLoader";
+export { BspMeshBuilder, getVisibleFaces } from "./loader/BspMeshBuilder";
+export type { BspMeshBuildResult } from "./loader/BspMeshBuilder";
+export { testBspLoading, printBspStats, testBspRendering, quickBspTest } from "./loader/BspTest";
 
 // Rendering
 export { InstancedMeshManager } from "./rendering/InstancedMeshManager";

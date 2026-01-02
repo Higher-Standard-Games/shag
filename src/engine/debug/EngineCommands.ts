@@ -5,6 +5,7 @@
  */
 
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
+import { DebugConsole } from './DebugConsole';
 import { AudioManager } from '../AudioManager';
 import { GameClock } from '../../game/GameClock';
 import { UIScale } from '../ui/UIScale';
@@ -15,10 +16,15 @@ import { IsometricController } from '../camera/controllers/IsometricController';
 import { FPSController } from '../camera/controllers/FPSController';
 import { SideScrollController } from '../camera/controllers/SideScrollController';
 import { FollowController } from '../camera/controllers/FollowController';
+import { FreeflyController } from '../camera/controllers/FreeflyController';
 import { Vector3 } from 'babylonjs';
 import { PK3Loader } from '../loader/PK3Loader';
 import { parseKTX1 } from '../loader/KTX1Loader';
 import { PK3TextureLoader } from '../loader/PK3TextureLoader';
+import { BspLoader, type BspFile } from '../loader/BspLoader';
+import { BspMeshBuilder, type BspMeshBuildResult } from '../loader/BspMeshBuilder';
+import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
+import { MenuSystem } from '../MenuSystem';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -108,20 +114,90 @@ export function registerEngineCommands(): void {
   registry.register('debug', (args) => {
     const subcommand = args[0]?.toLowerCase();
     
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
     switch (subcommand) {
-      case 'fps':
-        // Toggle FPS display - would need to wire to actual system
-        return 'FPS display toggled (not yet implemented)';
-        
-      case 'wireframe':
-        return 'Wireframe mode toggled (not yet implemented)';
-        
-      case 'bounds':
-        return 'Bounding boxes toggled (not yet implemented)';
-        
-      case 'lights':
-        return 'Light gizmos toggled (not yet implemented)';
-        
+      case 'fps': {
+        if (!scene) return 'No scene available';
+        const engine = scene.getEngine();
+        // Toggle FPS display using engine's built-in performance monitor
+        if ((window as any)._fpsElement) {
+          document.body.removeChild((window as any)._fpsElement);
+          (window as any)._fpsElement = null;
+          return 'FPS display hidden';
+        } else {
+          const div = document.createElement('div');
+          div.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#0f0;padding:8px 12px;font-family:monospace;font-size:14px;z-index:9999;border-radius:4px;';
+          document.body.appendChild(div);
+          (window as any)._fpsElement = div;
+          const update = () => {
+            if ((window as any)._fpsElement) {
+              div.textContent = `FPS: ${engine.getFps().toFixed(0)}`;
+              requestAnimationFrame(update);
+            }
+          };
+          update();
+          return 'FPS display shown';
+        }
+      }
+
+      case 'wireframe': {
+        if (!scene) return 'No scene available';
+        // Toggle wireframe on all materials
+        let wireframeState = !(window as any)._wireframeMode;
+        (window as any)._wireframeMode = wireframeState;
+
+        for (const material of scene.materials) {
+          if (material && 'wireframe' in material) {
+            (material as any).wireframe = wireframeState;
+          }
+        }
+        return `Wireframe mode: ${wireframeState ? 'ON' : 'OFF'}`;
+      }
+
+      case 'bounds': {
+        if (!scene) return 'No scene available';
+        let showBounds = !(window as any)._showBounds;
+        (window as any)._showBounds = showBounds;
+
+        for (const mesh of scene.meshes) {
+          mesh.showBoundingBox = showBounds;
+        }
+        return `Bounding boxes: ${showBounds ? 'ON' : 'OFF'}`;
+      }
+
+      case 'lights': {
+        if (!scene) return 'No scene available';
+        let showLights = !(window as any)._showLights;
+        (window as any)._showLights = showLights;
+
+        // Create/toggle light gizmos
+        if (showLights) {
+          let count = 0;
+          for (const light of scene.lights) {
+            if ('position' in light) {
+              const sphere = Mesh.CreateSphere(`lightGizmo_${count}`, 8, 10, scene);
+              sphere.position = (light as any).position.clone();
+              const mat = new StandardMaterial(`lightGizmoMat_${count}`, scene);
+              mat.emissiveColor = new Color3(1, 1, 0);
+              mat.disableLighting = true;
+              sphere.material = mat;
+              sphere.metadata = { isLightGizmo: true };
+              count++;
+            }
+          }
+          return `Light gizmos: ON (${count} lights)`;
+        } else {
+          // Remove light gizmos
+          const toRemove = scene.meshes.filter(m => m.metadata?.isLightGizmo);
+          for (const mesh of toRemove) {
+            mesh.dispose();
+          }
+          return 'Light gizmos: OFF';
+        }
+      }
+
       default:
         return 'Subcommands: fps, wireframe, bounds, lights';
     }
@@ -433,8 +509,11 @@ export function registerEngineCommands(): void {
             case 'follow':
               cameraSystem.registerController(type, new FollowController());
               break;
+            case 'freefly':
+              cameraSystem.registerController(type, new FreeflyController());
+              break;
             default:
-              return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow`;
+              return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow, freefly`;
           }
         }
         
@@ -1107,9 +1186,97 @@ export function registerEngineCommands(): void {
         }
         return `Cached textures (${info.count}):\n  ${info.textures.join('\n  ')}`;
       }
+      
+      case 'path': {
+        const newPath = args[1];
+        if (newPath) {
+          pk3.addSearchPath(newPath);
+          return `Added search path: ${newPath}`;
+        }
+        const paths = pk3.getSearchPaths();
+        return `Search paths:\n  ${paths.join('\n  ')}`;
+      }
+      
+      case 'index': {
+        const { PK3Index } = await import('../loader/PK3Index');
+        const index = PK3Index.getInstance();
+        const subCmd = args[1]?.toLowerCase();
+        
+        switch (subCmd) {
+          case 'build': {
+            // Sync search paths
+            index.setSearchPaths(pk3.getSearchPaths());
+            const count = await index.buildIndex((msg) => console.log(`[PK3Index] ${msg}`));
+            return `Index built: ${count} files indexed`;
+          }
+          
+          case 'find': {
+            const filePath = args[2];
+            if (!filePath) {
+              return 'Usage: pk3 index find <filepath>';
+            }
+            const foundPk3 = index.findFile(filePath);
+            return foundPk3 
+              ? `Found in: ${foundPk3}`
+              : `Not found in index: ${filePath}`;
+          }
+          
+          case 'search': {
+            const pattern = args[2];
+            if (!pattern) {
+              return 'Usage: pk3 index search <pattern>';
+            }
+            const results = index.findByPattern(pattern);
+            if (results.length === 0) {
+              return `No matches for: ${pattern}`;
+            }
+            const display = results.slice(0, 20).map(r => `${r.file} -> ${r.pk3}`);
+            return results.length > 20
+              ? `${display.join('\n')}\n... and ${results.length - 20} more`
+              : display.join('\n');
+          }
+          
+          case 'clear': {
+            index.clear();
+            return 'Index cleared';
+          }
+          
+          case 'stats':
+          default: {
+            const stats = index.getStats();
+            if (!index.hasIndex()) {
+              return 'No index built. Use "pk3 index build" to create one.';
+            }
+            const packages = index.getPackages();
+            return [
+              `Index Stats:`,
+              `  Files: ${stats.fileCount}`,
+              `  Packages: ${stats.packageCount}`,
+              `  Last updated: ${stats.lastUpdated?.toLocaleString() || 'never'}`,
+              '',
+              'Indexed packages:',
+              ...packages.slice(0, 10).map(p => `  ${p.pk3} (${p.fileCount} files)`),
+              packages.length > 10 ? `  ... and ${packages.length - 10} more` : '',
+            ].filter(Boolean).join('\n');
+          }
+        }
+      }
         
       default:
-        return 'PK3 Commands:\n  load <file.pk3> - Load a PK3 package\n  list [pattern] - List files (* wildcard)\n  dir [path] - List directory contents\n  info - Show loaded packages\n  test <filepath> - Test loading a file\n  texture <path> - Load texture with companions\n  sets [dir] - Find texture sets in directory\n  cache - Show texture cache\n  unload - Unload all packages';
+        return [
+          'PK3 Commands:',
+          '  load <file.pk3> - Load a PK3 package',
+          '  list [pattern] - List files (* wildcard)',
+          '  dir [path] - List directory contents',
+          '  info - Show loaded packages',
+          '  path [add] - Show/add search paths',
+          '  index [build|find|search|stats|clear] - PK3 index',
+          '  test <filepath> - Test loading a file',
+          '  texture <path> - Load texture with companions',
+          '  sets [dir] - Find texture sets in directory',
+          '  cache - Show texture cache',
+          '  unload - Unload all packages',
+        ].join('\n');
     }
   });
 
@@ -1267,9 +1434,772 @@ export function registerEngineCommands(): void {
           '',
           'Subcommands: textures, meshes, engine, js, pk3',
         ];
+
+        return lines.join('\n');
+      }
+    }
+  });
+
+  // ============================================================================
+  // Scene Commands - Create empty scenes for testing
+  // ============================================================================
+
+  // Store the empty scene reference
+  let emptyScene: Scene | null = null;
+  let emptySceneCamera: FreeCamera | null = null;
+  let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  // Helper to dispose empty scene
+  const disposeEmptyScene = () => {
+    if (emptyScene) {
+      // Remove ESC handler
+      if (emptySceneEscHandler) {
+        window.removeEventListener('keydown', emptySceneEscHandler);
+        emptySceneEscHandler = null;
+      }
+      
+      // Stop render loop
+      const engine = emptyScene.getEngine();
+      engine.stopRenderLoop();
+      
+      // Dispose scene
+      emptyScene.dispose();
+      emptyScene = null;
+      emptySceneCamera = null;
+      
+      // Return to main menu state and trigger the callback to create new MainMenu
+      // Note: enterMainMenu() just sets state, returnToMainMenu() also calls the callback
+      const menuSystem = MenuSystem.getInstance();
+      menuSystem.returnToMainMenu();
+      
+      console.log('[EmptyScene] Disposed - returned to main menu');
+      return true;
+    }
+    return false;
+  };
+
+  registry.register('scene', (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    
+    if (!canvas) {
+      return 'No canvas found';
+    }
+
+    switch (subcommand) {
+      case 'empty': {
+        // Get or create engine
+        const existingEngine = (window as any).babylonEngine;
+        const engine = existingEngine || new Engine(canvas, true);
+        
+        if (!existingEngine) {
+          (window as any).babylonEngine = engine;
+        }
+
+        // Dispose previous empty scene if exists
+        if (emptyScene) {
+          emptyScene.dispose();
+        }
+
+        // Create new empty scene
+        emptyScene = new Scene(engine);
+        emptyScene.clearColor = new Color4(0.1, 0.1, 0.15, 1); // Dark blue-gray
+
+        // Create camera at origin
+        emptySceneCamera = new FreeCamera("emptySceneCamera", new Vector3(0, 100, -500), emptyScene);
+        emptySceneCamera.setTarget(Vector3.Zero());
+        emptySceneCamera.fov = 1.0;
+        emptySceneCamera.minZ = 1;
+        emptySceneCamera.maxZ = 50000;
+        emptySceneCamera.inputs.clear(); // We'll use freefly controller
+        
+        // Add basic lighting
+        const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
+        light.intensity = 1.0;
+
+        // Set as active scene
+        engine.stopRenderLoop();
+        engine.runRenderLoop(() => {
+          if (emptyScene) {
+            emptyScene.render();
+          }
+        });
+
+        // Initialize camera system with this scene
+        const cameraSystem = CameraSystem.getInstance();
+        cameraSystem.init(emptyScene, canvas);
+        cameraSystem.setCamera(emptySceneCamera);
+
+        // Always create fresh freefly controller for empty scene
+        // (reusing old controller causes issues with stale state)
+        const existingFreefly = cameraSystem.getController('freefly');
+        if (existingFreefly) {
+          existingFreefly.dispose();
+        }
+        const freeflyController = new FreeflyController();
+        cameraSystem.registerController('freefly', freeflyController);
+        cameraSystem.setController('freefly');
+
+        // Enter "in_game" state so ESC shows pause menu, not main menu
+        MenuSystem.getInstance().enterGame();
+        
+        // Properly hide the main menu (stops its render loop and disposes its scene)
+        const mainMenu = (window as any).mainMenu;
+        if (mainMenu && typeof mainMenu.hide === 'function') {
+          mainMenu.hide();
+          console.log('[EmptyScene] Called mainMenu.hide()');
+        } else {
+          // Fallback: just hide the element
+          const mainMenuEl = document.getElementById('main-menu');
+          if (mainMenuEl) {
+            mainMenuEl.style.display = 'none';
+          }
+        }
+
+        // Add ESC key handler to exit empty scene
+        if (emptySceneEscHandler) {
+          window.removeEventListener('keydown', emptySceneEscHandler);
+        }
+        emptySceneEscHandler = (e: KeyboardEvent) => {
+          // Don't dispose if debug console is open (let it handle ESC to close)
+          const debugConsole = DebugConsole.getInstance();
+          if (debugConsole.getIsOpen()) {
+            return; // Let console handle ESC
+          }
+          
+          if (e.key === 'Escape' && emptyScene) {
+            e.preventDefault();
+            e.stopPropagation();
+            disposeEmptyScene();
+          }
+        };
+        window.addEventListener('keydown', emptySceneEscHandler, { capture: true });
+
+        return [
+          'Created empty scene for BSP testing',
+          'Camera: freefly mode (LMB forward, RMB backward, freelook)',
+          'Press ESC to exit empty scene',
+          'Now run: bsp load <mapname> && bsp render',
+        ].join('\n');
+      }
+
+      case 'dispose': {
+        if (disposeEmptyScene()) {
+          return 'Empty scene disposed';
+        }
+        return 'No empty scene to dispose';
+      }
+
+      default:
+        return [
+          'Scene Commands:',
+          '  scene empty   - Create empty scene for BSP testing',
+          '  scene dispose - Dispose empty scene',
+        ].join('\n');
+    }
+  });
+
+  // ============================================================================
+  // BSP Commands - Quake3/Warsow FBSP map loading and debugging
+  // ============================================================================
+
+  // State for loaded BSP and rendered meshes
+  let loadedBsp: BspFile | null = null;
+  let bspRenderResult: BspMeshBuildResult | null = null;
+
+  registry.register('bsp', async (args) => {
+    const pk3 = PK3Loader.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
+    switch (subcommand) {
+      case 'load': {
+        const mapName = args[1];
+        if (!mapName) {
+          return 'Usage: bsp load <mapname>\nExample: bsp load wdm11';
+        }
+
+        // Check if map PK3 is loaded, if not load it
+        const pk3Name = `map_${mapName}.pk3`;
+        const packages = pk3.getPackageInfo();
+        const isLoaded = packages.some(p => p.filename === pk3Name);
+
+        if (!isLoaded) {
+          try {
+            await pk3.loadPK3(pk3Name);
+          } catch (e) {
+            return `Failed to load PK3 ${pk3Name}: ${e}`;
+          }
+        }
+
+        // Load BSP from PK3
+        const bspPath = `maps/${mapName}.bsp`;
+        const bsp = await BspLoader.loadFromPK3(pk3, bspPath);
+
+        if (!bsp) {
+          return `Failed to load BSP: ${bspPath}`;
+        }
+
+        loadedBsp = bsp;
+
+        // Don't auto-load shaders here - user should call "shader load" after "bsp loadrequired"
+        // to ensure all texture PK3 shaders are available
+        const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+        const shaderCount = Q3ShaderRegistry.getInstance().getShaderCount();
+
+        // Summary
+        const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+        return [
+          `Loaded: ${bspPath}`,
+          `Format: ${format} v${bsp.header.version}`,
+          `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+          `Entities: ${bsp.entities.length}`,
+          `Faces: ${bsp.faces.length}`,
+          `Vertices: ${bsp.vertices.length}`,
+          `Lightmaps: ${bsp.lightmaps.length}`,
+          `Textures: ${bsp.textures.length}`,
+          `Shaders: ${shaderCount}`,
+          '',
+          'Use "bsp info" for details, "bsp render" to display',
+        ].join('\n');
+      }
+
+      case 'info': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const bsp = loadedBsp;
+        const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+
+        return [
+          `=== BSP Info ===`,
+          `Format: ${format} v${bsp.header.version}`,
+          `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+          '',
+          `Entities: ${bsp.entities.length}`,
+          `Textures: ${bsp.textures.length}`,
+          `Planes: ${bsp.planes.length}`,
+          `Nodes: ${bsp.nodes.length}`,
+          `Leafs: ${bsp.leafs.length}`,
+          `Models: ${bsp.models.length}`,
+          `Brushes: ${bsp.brushes.length}`,
+          `Vertices: ${bsp.vertices.length}`,
+          `Faces: ${bsp.faces.length}`,
+          `MeshVerts: ${bsp.meshVerts.length}`,
+          `Lightmaps: ${bsp.lightmaps.length}`,
+          `LightVols: ${bsp.lightVols.length}`,
+          `VisData: ${bsp.visData ? `${bsp.visData.numClusters} clusters` : 'none'}`,
+        ].join('\n');
+      }
+
+      case 'faces': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const counts = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
+        for (const face of loadedBsp.faces) {
+          switch (face.faceType) {
+            case 1: counts.polygon++; break;
+            case 2: counts.patch++; break;
+            case 3: counts.mesh++; break;
+            case 4: counts.billboard++; break;
+          }
+        }
+
+        return [
+          `=== Face Types ===`,
+          `Polygons (type 1): ${counts.polygon}`,
+          `Patches (type 2): ${counts.patch}`,
+          `Meshes (type 3): ${counts.mesh}`,
+          `Billboards (type 4): ${counts.billboard}`,
+          `Total: ${loadedBsp.faces.length}`,
+        ].join('\n');
+      }
+
+      case 'entities': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const filter = args[1]?.toLowerCase();
+
+        // Count entity types
+        const entityTypes: Record<string, number> = {};
+        for (const ent of loadedBsp.entities) {
+          if (filter && !ent.classname.toLowerCase().includes(filter)) continue;
+          entityTypes[ent.classname] = (entityTypes[ent.classname] || 0) + 1;
+        }
+
+        const sorted = Object.entries(entityTypes)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 30);
+
+        const lines = [`=== Entity Types${filter ? ` (filter: ${filter})` : ''} ===`];
+        for (const [type, count] of sorted) {
+          lines.push(`  ${type}: ${count}`);
+        }
+
+        const total = Object.values(entityTypes).reduce((a, b) => a + b, 0);
+        if (sorted.length < Object.keys(entityTypes).length) {
+          lines.push(`  ... and ${Object.keys(entityTypes).length - sorted.length} more types`);
+        }
+        lines.push(`Total: ${total}`);
+
+        return lines.join('\n');
+      }
+
+      case 'textures': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const limit = parseInt(args[1]) || 30;
+        const textures = loadedBsp.textures.slice(0, limit);
+
+        const lines = [`=== Textures (${limit} of ${loadedBsp.textures.length}) ===`];
+        textures.forEach((tex, i) => {
+          lines.push(`  ${i}: ${tex.name}`);
+        });
+
+        if (loadedBsp.textures.length > limit) {
+          lines.push(`  ... and ${loadedBsp.textures.length - limit} more`);
+        }
+
+        return lines.join('\n');
+      }
+
+      case 'required': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const { getBspUsedTextures } = await import('../loader/BspLoader');
+        const { PK3Index } = await import('../loader/PK3Index');
+        
+        const usedTextures = getBspUsedTextures(loadedBsp);
+        const index = PK3Index.getInstance();
+        
+        if (!index.hasIndex()) {
+          return [
+            `=== Used Textures (${usedTextures.length}) ===`,
+            usedTextures.slice(0, 20).join('\n'),
+            usedTextures.length > 20 ? `... and ${usedTextures.length - 20} more` : '',
+            '',
+            'Note: Run "pk3 index build" first to see which PK3s are needed.',
+          ].filter(Boolean).join('\n');
+        }
+        
+        // Find which PK3s are needed
+        const requiredPK3s = index.findPK3sForTextures(usedTextures);
+        const notFound: string[] = [];
+        
+        for (const tex of usedTextures) {
+          const pk3 = index.findFile(`textures/${tex}.tga`) || 
+                      index.findFile(`textures/${tex}.jpg`) ||
+                      index.findFile(`textures/${tex}.ktx`) ||
+                      index.findFile(`${tex}.tga`) ||
+                      index.findFile(`${tex}.jpg`) ||
+                      index.findFile(`${tex}.ktx`);
+          if (!pk3) {
+            notFound.push(tex);
+          }
+        }
+        
+        const lines = [
+          `=== BSP Required Resources ===`,
+          `Used textures: ${usedTextures.length}`,
+          `Required PK3s: ${requiredPK3s.size}`,
+        ];
+        
+        if (requiredPK3s.size > 0) {
+          lines.push('', 'PK3s to load:');
+          for (const pk3 of requiredPK3s) {
+            lines.push(`  ${pk3}`);
+          }
+        }
+        
+        if (notFound.length > 0) {
+          lines.push('', `Not found in index: ${notFound.length}`);
+          lines.push(...notFound.slice(0, 10).map(t => `  ${t}`));
+          if (notFound.length > 10) {
+            lines.push(`  ... and ${notFound.length - 10} more`);
+          }
+        }
         
         return lines.join('\n');
       }
+
+      case 'loadrequired':
+      case 'preload': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const { getBspUsedTextures: getTextures } = await import('../loader/BspLoader');
+        const { PK3Index } = await import('../loader/PK3Index');
+        
+        const usedTextures = getTextures(loadedBsp);
+        const index = PK3Index.getInstance();
+        
+        if (!index.hasIndex()) {
+          return 'No index built. Run "pk3 path game/basewsw/" then "pk3 index build" first.';
+        }
+        
+        // Find which PK3s are needed
+        const requiredPK3s = index.findPK3sForTextures(usedTextures);
+        
+        if (requiredPK3s.size === 0) {
+          return 'No additional PK3s needed (or textures not found in index)';
+        }
+        
+        // Check which are already loaded
+        const pk3Loader = PK3Loader.getInstance();
+        const loadedPackages = pk3Loader.getPackageInfo().map(p => p.filename);
+        const toLoad = Array.from(requiredPK3s).filter(pk3 => !loadedPackages.includes(pk3));
+        
+        if (toLoad.length === 0) {
+          return `All ${requiredPK3s.size} required PK3s already loaded`;
+        }
+        
+        const lines = [`Loading ${toLoad.length} required PK3s...`];
+        let loaded = 0;
+        let failed = 0;
+        
+        for (const pk3 of toLoad) {
+          try {
+            // Get full URL path from index
+            const fullPath = index.getPK3Path(pk3);
+            if (fullPath) {
+              await pk3Loader.loadPK3FromUrl(fullPath);
+            } else {
+              // Fallback to search path
+              await pk3Loader.loadPK3(pk3);
+            }
+            loaded++;
+            lines.push(`  ✓ ${pk3}`);
+          } catch (e) {
+            failed++;
+            const errMsg = e instanceof Error ? e.message : String(e);
+            lines.push(`  ✗ ${pk3}: ${errMsg}`);
+          }
+        }
+        
+        lines.push('');
+        lines.push(`Loaded: ${loaded}, Failed: ${failed}`);
+        
+        if (loaded > 0) {
+          lines.push('');
+          lines.push('Tip: Run "shader load" to load shaders from these PK3s');
+        }
+        
+        return lines.join('\n');
+      }
+
+      case 'worldspawn': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const worldspawn = loadedBsp.entities.find(e => e.classname === 'worldspawn');
+        if (!worldspawn) {
+          return 'No worldspawn entity found';
+        }
+
+        const lines = ['=== Worldspawn Properties ==='];
+        for (const [key, value] of Object.entries(worldspawn.properties)) {
+          if (key !== 'classname') {
+            lines.push(`  ${key}: ${value}`);
+          }
+        }
+
+        return lines.join('\n');
+      }
+
+      case 'clusters': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const vis = loadedBsp.visData;
+        if (!vis) {
+          return 'No visibility data in this BSP';
+        }
+
+        // Count leafs per cluster
+        const clusterLeafs: Record<number, number> = {};
+        for (const leaf of loadedBsp.leafs) {
+          if (leaf.cluster >= 0) {
+            clusterLeafs[leaf.cluster] = (clusterLeafs[leaf.cluster] || 0) + 1;
+          }
+        }
+
+        return [
+          `=== PVS Cluster Info ===`,
+          `Total clusters: ${vis.numClusters}`,
+          `Bytes per cluster: ${vis.bytesPerCluster}`,
+          `PVS data size: ${vis.bitVectors.length} bytes`,
+          `Leafs with clusters: ${Object.keys(clusterLeafs).length}`,
+          `Leafs outside world: ${loadedBsp.leafs.filter(l => l.cluster < 0).length}`,
+        ].join('\n');
+      }
+
+      case 'lightmaps': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const count = loadedBsp.lightmaps.length;
+        const size = loadedBsp.lightmapSize;
+        const bytesEach = size * size * 3;
+        const totalMB = (count * bytesEach / 1024 / 1024).toFixed(2);
+
+        // Count faces using lightmaps
+        const lmFaces = loadedBsp.faces.filter(f => f.lightmapIndex >= 0).length;
+
+        return [
+          `=== Lightmap Info ===`,
+          `Count: ${count}`,
+          `Size: ${size}x${size} (${loadedBsp.header.isFBSP ? 'FBSP' : 'IBSP'})`,
+          `Format: RGB (3 bytes/pixel)`,
+          `Total size: ${totalMB} MB`,
+          `Faces using lightmaps: ${lmFaces}`,
+        ].join('\n');
+      }
+
+      case 'render': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        if (!scene) {
+          return 'No scene available';
+        }
+
+        // Parse optional face type filter: "bsp render poly" or "bsp render 1 3"
+        let faceTypes: number[] | undefined;
+        if (args[1]) {
+          const typeArg = args[1].toLowerCase();
+          if (typeArg === 'poly' || typeArg === 'polygon') {
+            faceTypes = [1];
+          } else if (typeArg === 'patch') {
+            faceTypes = [2];
+          } else if (typeArg === 'mesh') {
+            faceTypes = [3];
+          } else if (typeArg === 'all') {
+            faceTypes = undefined;
+          } else {
+            // Parse as numbers: "1 2 3"
+            faceTypes = args.slice(1).map(Number).filter(n => n >= 1 && n <= 4);
+            if (faceTypes.length === 0) faceTypes = undefined;
+          }
+        }
+
+        // Clear previous render
+        if (bspRenderResult) {
+          bspRenderResult.worldMesh.dispose();
+          for (const tex of bspRenderResult.lightmapTextures) {
+            tex.dispose();
+          }
+          bspRenderResult = null;
+        }
+
+        try {
+          bspRenderResult = BspMeshBuilder.build(loadedBsp, scene, {
+            faceTypes,
+            filterTextures: true,
+          });
+
+          // Position camera to view the map
+          const world = loadedBsp.models[0];
+          if (world) {
+            const centerX = (world.mins[0] + world.maxs[0]) / 2;
+            const centerZ = (world.mins[1] + world.maxs[1]) / 2;
+            const centerY = (world.mins[2] + world.maxs[2]) / 2;
+
+            const camera = cameraSystem.getCamera() as any;
+            if (camera?.target) {
+              camera.target = new Vector3(centerX, centerY, centerZ);
+            }
+          }
+
+          const filterInfo = faceTypes ? ` (types: ${faceTypes.join(',')})` : '';
+          return [
+            `=== BSP Rendered${filterInfo} ===`,
+            `Vertices: ${bspRenderResult.stats.totalVertices}`,
+            `Triangles: ${bspRenderResult.stats.totalTriangles}`,
+            `Lightmaps: ${bspRenderResult.lightmapTextures.length}`,
+            `Faces: ${bspRenderResult.stats.polygonFaces} poly, ${bspRenderResult.stats.patchFaces} patch, ${bspRenderResult.stats.meshFaces} mesh`,
+          ].join('\n');
+        } catch (e) {
+          return `Render failed: ${e}`;
+        }
+      }
+
+      case 'clear': {
+        if (bspRenderResult) {
+          bspRenderResult.worldMesh.dispose();
+          for (const tex of bspRenderResult.lightmapTextures) {
+            tex.dispose();
+          }
+          bspRenderResult = null;
+          return 'BSP geometry cleared';
+        }
+        return 'No BSP geometry to clear';
+      }
+
+      case 'applytextures':
+      case 'loadtextures': {
+        if (!loadedBsp || !bspRenderResult) {
+          return 'No BSP rendered. Use "bsp load <map>" then "bsp render" first.';
+        }
+        
+        if (!scene) {
+          return 'Scene not available';
+        }
+        
+        try {
+          const count = await BspMeshBuilder.applyTextures(
+            bspRenderResult,
+            loadedBsp,
+            scene,
+            (loaded, total, name) => {
+              console.log(`[BSP] Loading texture ${loaded}/${total}: ${name}`);
+            }
+          );
+          return `Applied ${count} textures to BSP`;
+        } catch (e) {
+          return `Failed to apply textures: ${e}`;
+        }
+      }
+
+      default:
+        return [
+          'BSP Commands (Quake3/Warsow FBSP):',
+          '  bsp load <mapname>  - Load BSP from PK3',
+          '  bsp info            - Show BSP statistics',
+          '  bsp entities [filter] - List entity types',
+          '  bsp textures [limit]  - List textures',
+          '  bsp required        - Show required PK3s for textures',
+          '  bsp loadrequired    - Auto-load required PK3s',
+          '  bsp faces           - Show face type breakdown',
+          '  bsp worldspawn      - Show worldspawn properties',
+          '  bsp clusters        - Show PVS cluster info',
+          '  bsp lightmaps       - Show lightmap info',
+          '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
+          '  bsp applytextures   - Load and apply textures from PK3',
+          '  bsp clear           - Clear rendered geometry',
+        ].join('\n');
+    }
+  });
+
+  // ============================================================================
+  // Q3 Shader Commands
+  // ============================================================================
+
+  registry.register('shader', async (args) => {
+    const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+    const shaderRegistry = Q3ShaderRegistry.getInstance();
+    const subcommand = args[0]?.toLowerCase();
+
+    switch (subcommand) {
+      case 'load': {
+        const count = await shaderRegistry.loadShaders();
+        return `Loaded ${count} shaders from PK3`;
+      }
+
+      case 'count': {
+        return `Shaders loaded: ${shaderRegistry.getShaderCount()}`;
+      }
+
+      case 'list': {
+        const filter = args[1]?.toLowerCase();
+        let names = shaderRegistry.getShaderNames();
+        
+        if (filter) {
+          names = names.filter(n => n.includes(filter));
+        }
+        
+        if (names.length === 0) {
+          return filter ? `No shaders matching "${filter}"` : 'No shaders loaded (use "shader load")';
+        }
+        
+        const display = names.slice(0, 30);
+        return display.length < names.length
+          ? `${display.join('\n')}\n... and ${names.length - display.length} more`
+          : display.join('\n');
+      }
+
+      case 'info': {
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader info <texture_path>';
+        }
+        
+        shaderRegistry.debugShader(textureName);
+        
+        const shader = shaderRegistry.getShader(textureName);
+        if (!shader) {
+          return `No shader defined for: ${textureName}`;
+        }
+        
+        const lines = [
+          `Shader: ${shader.name}`,
+          `Cull: ${shader.cull}`,
+          `Surface parms: ${Array.from(shader.surfaceParms).join(', ') || 'none'}`,
+          `Stages: ${shader.stages.length}`,
+        ];
+        
+        shader.stages.forEach((stage, i) => {
+          lines.push(`  Stage ${i}: map=${stage.map}`);
+          if (stage.blendFunc) {
+            lines.push(`    blendFunc: ${stage.blendFunc.join(', ')}`);
+          }
+          if (stage.alphaFunc) {
+            lines.push(`    alphaFunc: ${stage.alphaFunc}`);
+          }
+        });
+        
+        return lines.join('\n');
+      }
+
+      case 'resolve': {
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader resolve <texture_path>';
+        }
+        
+        const props = shaderRegistry.resolveMaterialProps(textureName);
+        return [
+          `Resolved material for: ${textureName}`,
+          `  alphaMode: ${props.alphaMode}`,
+          `  backFaceCulling: ${props.backFaceCulling}`,
+          `  depthWrite: ${props.depthWrite}`,
+          `  isTransparent: ${props.isTransparent}`,
+          `  useLightmap: ${props.useLightmap}`,
+          `  polygonOffset: ${props.polygonOffset}`,
+          props.alphaCutoff !== undefined ? `  alphaCutoff: ${props.alphaCutoff}` : '',
+          props.diffuseTexture ? `  diffuseTexture: ${props.diffuseTexture}` : '',
+        ].filter(Boolean).join('\n');
+      }
+
+      case 'clear': {
+        shaderRegistry.clear();
+        return 'Shader registry cleared';
+      }
+
+      default:
+        return [
+          'Shader Commands (Q3/Warsow):',
+          '  shader load         - Load shaders from PK3',
+          '  shader count        - Show loaded shader count',
+          '  shader list [filter] - List shader names',
+          '  shader info <path>  - Show shader definition',
+          '  shader resolve <path> - Show resolved material props',
+          '  shader clear        - Clear shader registry',
+        ].join('\n');
     }
   });
 
