@@ -1038,11 +1038,12 @@ export function registerEngineCommands(): void {
         }
         
         const texLoader = PK3TextureLoader.getInstance();
-        const scene = (window as any).scene;
-        const engine = scene?.getEngine();
+        const cameraSystem = CameraSystem.getInstance();
+        const scene = cameraSystem.getCamera()?.getScene();
+        const engine = scene?.getEngine() as any;
         
         if (!engine || !scene) {
-          return 'Engine/Scene not available';
+          return 'Engine/Scene not available (game not started?)';
         }
         
         // Initialize if needed
