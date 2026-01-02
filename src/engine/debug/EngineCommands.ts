@@ -22,7 +22,7 @@ import { parseKTX1 } from '../loader/KTX1Loader';
 import { PK3TextureLoader } from '../loader/PK3TextureLoader';
 import { BspLoader, type BspFile } from '../loader/BspLoader';
 import { BspMeshBuilder, type BspMeshBuildResult } from '../loader/BspMeshBuilder';
-import { Mesh, StandardMaterial, Color3 } from 'babylonjs';
+import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -1347,6 +1347,98 @@ export function registerEngineCommands(): void {
 
         return lines.join('\n');
       }
+    }
+  });
+
+  // ============================================================================
+  // Scene Commands - Create empty scenes for testing
+  // ============================================================================
+
+  // Store the empty scene reference
+  let emptyScene: Scene | null = null;
+  let emptySceneCamera: FreeCamera | null = null;
+
+  registry.register('scene', (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    
+    if (!canvas) {
+      return 'No canvas found';
+    }
+
+    switch (subcommand) {
+      case 'empty': {
+        // Get or create engine
+        const existingEngine = (window as any).babylonEngine;
+        const engine = existingEngine || new Engine(canvas, true);
+        
+        if (!existingEngine) {
+          (window as any).babylonEngine = engine;
+        }
+
+        // Dispose previous empty scene if exists
+        if (emptyScene) {
+          emptyScene.dispose();
+        }
+
+        // Create new empty scene
+        emptyScene = new Scene(engine);
+        emptyScene.clearColor = new Color4(0.1, 0.1, 0.15, 1); // Dark blue-gray
+
+        // Create camera at origin
+        emptySceneCamera = new FreeCamera("emptySceneCamera", new Vector3(0, 100, -500), emptyScene);
+        emptySceneCamera.setTarget(Vector3.Zero());
+        emptySceneCamera.fov = 1.0;
+        emptySceneCamera.minZ = 1;
+        emptySceneCamera.maxZ = 50000;
+        emptySceneCamera.inputs.clear(); // We'll use freefly controller
+        
+        // Add basic lighting
+        const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
+        light.intensity = 1.0;
+
+        // Set as active scene
+        engine.stopRenderLoop();
+        engine.runRenderLoop(() => {
+          if (emptyScene) {
+            emptyScene.render();
+          }
+        });
+
+        // Initialize camera system with this scene
+        const cameraSystem = CameraSystem.getInstance();
+        cameraSystem.init(emptyScene, canvas);
+        cameraSystem.setCamera(emptySceneCamera);
+
+        // Auto-switch to freefly controller
+        if (!cameraSystem.getController('freefly')) {
+          cameraSystem.registerController('freefly', new FreeflyController());
+        }
+        cameraSystem.setController('freefly');
+
+        return [
+          'Created empty scene for BSP testing',
+          'Camera: freefly mode (LMB forward, RMB backward, freelook)',
+          'Now run: bsp load <mapname> && bsp render',
+        ].join('\n');
+      }
+
+      case 'dispose': {
+        if (emptyScene) {
+          emptyScene.dispose();
+          emptyScene = null;
+          emptySceneCamera = null;
+          return 'Empty scene disposed';
+        }
+        return 'No empty scene to dispose';
+      }
+
+      default:
+        return [
+          'Scene Commands:',
+          '  scene empty   - Create empty scene for BSP testing',
+          '  scene dispose - Dispose empty scene',
+        ].join('\n');
     }
   });
 
