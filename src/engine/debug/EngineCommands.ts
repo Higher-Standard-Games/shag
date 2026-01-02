@@ -23,6 +23,7 @@ import { PK3TextureLoader } from '../loader/PK3TextureLoader';
 import { BspLoader, type BspFile } from '../loader/BspLoader';
 import { BspMeshBuilder, type BspMeshBuildResult } from '../loader/BspMeshBuilder';
 import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
+import { MenuSystem } from '../MenuSystem';
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -1377,7 +1378,10 @@ export function registerEngineCommands(): void {
       emptyScene = null;
       emptySceneCamera = null;
       
-      console.log('[EmptyScene] Disposed - press any key or refresh to continue');
+      // Return to main menu state
+      MenuSystem.getInstance().enterMainMenu();
+      
+      console.log('[EmptyScene] Disposed - returned to main menu');
       return true;
     }
     return false;
@@ -1440,6 +1444,9 @@ export function registerEngineCommands(): void {
           cameraSystem.registerController('freefly', new FreeflyController());
         }
         cameraSystem.setController('freefly');
+
+        // Enter "in_game" state so ESC shows pause menu, not main menu
+        MenuSystem.getInstance().enterGame();
 
         // Add ESC key handler to exit empty scene
         if (emptySceneEscHandler) {
