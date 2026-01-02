@@ -160,6 +160,8 @@ async function main() {
       onLoadGame: loadGame,
       onContinue: continueGame,
     });
+    // Expose for debug console commands
+    (window as any).mainMenu = menu;
     await menu.show();
   };
 

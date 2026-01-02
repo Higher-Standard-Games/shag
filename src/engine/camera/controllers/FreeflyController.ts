@@ -97,8 +97,14 @@ export class FreeflyController implements ICameraController {
     if (!this.canvas) return;
     
     this.onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) this.isLeftDown = true;
-      if (e.button === 2) this.isRightDown = true;
+      if (e.button === 0) {
+        this.isLeftDown = true;
+        console.log('[FreeflyController] LMB down - forward');
+      }
+      if (e.button === 2) {
+        this.isRightDown = true;
+        console.log('[FreeflyController] RMB down - backward');
+      }
     };
     
     this.onMouseUp = (e: MouseEvent) => {
@@ -134,10 +140,11 @@ export class FreeflyController implements ICameraController {
       e.preventDefault();
     };
     
-    this.canvas.addEventListener("mousedown", this.onMouseDown);
-    this.canvas.addEventListener("mouseup", this.onMouseUp);
-    this.canvas.addEventListener("mousemove", this.onMouseMove);
-    this.canvas.addEventListener("contextmenu", this.onContextMenu);
+    // Use document instead of canvas to ensure events aren't blocked by UI
+    document.addEventListener("mousedown", this.onMouseDown);
+    document.addEventListener("mouseup", this.onMouseUp);
+    document.addEventListener("mousemove", this.onMouseMove);
+    document.addEventListener("contextmenu", this.onContextMenu);
     
     // Also track mouse up on window (in case mouse leaves canvas)
     window.addEventListener("mouseup", this.onMouseUp);
@@ -147,17 +154,17 @@ export class FreeflyController implements ICameraController {
     if (!this.canvas) return;
     
     if (this.onMouseDown) {
-      this.canvas.removeEventListener("mousedown", this.onMouseDown);
+      document.removeEventListener("mousedown", this.onMouseDown);
     }
     if (this.onMouseUp) {
-      this.canvas.removeEventListener("mouseup", this.onMouseUp);
+      document.removeEventListener("mouseup", this.onMouseUp);
       window.removeEventListener("mouseup", this.onMouseUp);
     }
     if (this.onMouseMove) {
-      this.canvas.removeEventListener("mousemove", this.onMouseMove);
+      document.removeEventListener("mousemove", this.onMouseMove);
     }
     if (this.onContextMenu) {
-      this.canvas.removeEventListener("contextmenu", this.onContextMenu);
+      document.removeEventListener("contextmenu", this.onContextMenu);
     }
   }
 

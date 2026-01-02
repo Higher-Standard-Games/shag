@@ -1378,14 +1378,8 @@ export function registerEngineCommands(): void {
       emptyScene = null;
       emptySceneCamera = null;
       
-      // Return to main menu state
+      // Return to main menu state - this triggers showMainMenu callback which creates new MainMenu
       MenuSystem.getInstance().enterMainMenu();
-      
-      // Show the main menu UI element again
-      const mainMenuEl = document.getElementById('main-menu');
-      if (mainMenuEl) {
-        mainMenuEl.style.display = '';
-      }
       
       console.log('[EmptyScene] Disposed - returned to main menu');
       return true;
@@ -1454,10 +1448,17 @@ export function registerEngineCommands(): void {
         // Enter "in_game" state so ESC shows pause menu, not main menu
         MenuSystem.getInstance().enterGame();
         
-        // Hide the main menu UI element directly
-        const mainMenuEl = document.getElementById('main-menu');
-        if (mainMenuEl) {
-          mainMenuEl.style.display = 'none';
+        // Properly hide the main menu (stops its render loop and disposes its scene)
+        const mainMenu = (window as any).mainMenu;
+        if (mainMenu && typeof mainMenu.hide === 'function') {
+          mainMenu.hide();
+          console.log('[EmptyScene] Called mainMenu.hide()');
+        } else {
+          // Fallback: just hide the element
+          const mainMenuEl = document.getElementById('main-menu');
+          if (mainMenuEl) {
+            mainMenuEl.style.display = 'none';
+          }
         }
 
         // Add ESC key handler to exit empty scene
