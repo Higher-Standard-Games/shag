@@ -1555,6 +1555,10 @@ export function registerEngineCommands(): void {
 
         loadedBsp = bsp;
 
+        // Auto-load shaders from PK3
+        const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+        const shaderCount = await Q3ShaderRegistry.getInstance().loadShaders();
+
         // Summary
         const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
         return [
@@ -1566,6 +1570,7 @@ export function registerEngineCommands(): void {
           `Vertices: ${bsp.vertices.length}`,
           `Lightmaps: ${bsp.lightmaps.length}`,
           `Textures: ${bsp.textures.length}`,
+          `Shaders: ${shaderCount}`,
           '',
           'Use "bsp info" for details, "bsp render" to display',
         ].join('\n');
