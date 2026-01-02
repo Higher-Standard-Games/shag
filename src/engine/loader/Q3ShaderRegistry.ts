@@ -27,24 +27,33 @@ export class Q3ShaderRegistry {
     return Q3ShaderRegistry.instance;
   }
 
+  /** Track which shader files have been processed */
+  private processedShaderFiles: Set<string> = new Set();
+
   /**
    * Load all shaders from PK3Loader (uses singleton)
+   * Can be called multiple times - will load from any new PK3s
    */
   async loadShaders(): Promise<number> {
-    if (this.loaded) {
-      console.log(`[Q3ShaderRegistry] Shaders already loaded (${this.shaders.size})`);
+    const pk3Loader = PK3Loader.getInstance();
+    let newShaderCount = 0;
+
+    // Find all .shader files in scripts/ folder from ALL loaded PK3s
+    const shaderFiles = pk3Loader.listFiles('scripts/*.shader');
+    
+    // Filter to only new shader files
+    const newShaderFiles = shaderFiles.filter(f => !this.processedShaderFiles.has(f));
+
+    if (newShaderFiles.length === 0) {
+      console.log(`[Q3ShaderRegistry] No new shader files (${this.shaders.size} total)`);
       return this.shaders.size;
     }
 
-    const pk3Loader = PK3Loader.getInstance();
-    let shaderCount = 0;
+    console.log(`[Q3ShaderRegistry] Found ${newShaderFiles.length} new shader files`);
 
-    // Find all .shader files in scripts/ folder
-    const shaderFiles = pk3Loader.listFiles('scripts/*.shader');
-
-    console.log(`[Q3ShaderRegistry] Found ${shaderFiles.length} shader files`);
-
-    for (const shaderFile of shaderFiles) {
+    for (const shaderFile of newShaderFiles) {
+      this.processedShaderFiles.add(shaderFile);
+      
       try {
         const data = await pk3Loader.getFile(shaderFile);
         if (!data) continue;
@@ -56,7 +65,7 @@ export class Q3ShaderRegistry {
           // Store by normalized name (lowercase, no extension)
           const name = shader.name.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
           this.shaders.set(name, shader);
-          shaderCount++;
+          newShaderCount++;
         }
       } catch (err) {
         console.warn(`[Q3ShaderRegistry] Failed to parse ${shaderFile}:`, err);
@@ -64,9 +73,9 @@ export class Q3ShaderRegistry {
     }
 
     this.loaded = true;
-    console.log(`[Q3ShaderRegistry] Loaded ${shaderCount} shaders`);
+    console.log(`[Q3ShaderRegistry] Loaded ${newShaderCount} new shaders (${this.shaders.size} total)`);
     
-    return shaderCount;
+    return this.shaders.size;
   }
 
   /**
@@ -250,6 +259,7 @@ export class Q3ShaderRegistry {
    */
   clear(): void {
     this.shaders.clear();
+    this.processedShaderFiles.clear();
     this.loaded = false;
   }
 
