@@ -85,6 +85,40 @@ time speed <mult>    # Set time speed multiplier
 loadMap <name>       # Load a map by name
 ```
 
+### PK3 Archive Commands
+
+```
+pk3 load <file>           # Load a PK3 archive
+pk3 list [filter]         # List files in loaded PK3s
+pk3 path <path>           # Add search path for PK3s
+pk3 index build           # Build file→package index
+pk3 index find <file>     # Find which PK3 contains a file
+pk3 index search <term>   # Search indexed files
+pk3 index clear           # Clear the index
+```
+
+### BSP Map Commands
+
+```
+bsp load <mapname>        # Load BSP from map PK3
+bsp info                  # Show BSP details
+bsp render                # Render BSP to scene
+bsp clear                 # Remove BSP from scene
+bsp textures              # List textures used by map
+bsp loadrequired          # Auto-load PK3s needed for textures
+bsp applytextures         # Apply textures to rendered meshes
+```
+
+### Q3 Shader Commands
+
+```
+shader load               # Load shaders from all PK3s
+shader list [filter]      # List loaded shader names
+shader info <name>        # Show shader definition
+shader resolve <name>     # Show resolved material properties
+shader clear              # Clear shader registry
+```
+
 ### UI Scaling Commands
 
 ```
@@ -155,6 +189,23 @@ time 6               # Morning
 time 12              # Noon
 time 18              # Evening
 time 22              # Night
+```
+
+### Loading a Warsow Map
+```
+pk3 path game/basewsw/
+pk3 index build
+scene empty
+bsp load wdm11
+bsp loadrequired
+shader load
+bsp render
+bsp applytextures
+```
+
+Or as a single command:
+```
+pk3 path game/basewsw/; pk3 index build; scene empty; bsp load wdm11; bsp loadrequired; shader load; bsp render; bsp applytextures
 ```
 
 ## Notes
