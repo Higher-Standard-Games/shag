@@ -1186,9 +1186,31 @@ export function registerEngineCommands(): void {
         }
         return `Cached textures (${info.count}):\n  ${info.textures.join('\n  ')}`;
       }
+      
+      case 'path': {
+        const newPath = args[1];
+        if (newPath) {
+          pk3.addSearchPath(newPath);
+          return `Added search path: ${newPath}`;
+        }
+        const paths = pk3.getSearchPaths();
+        return `Search paths:\n  ${paths.join('\n  ')}`;
+      }
         
       default:
-        return 'PK3 Commands:\n  load <file.pk3> - Load a PK3 package\n  list [pattern] - List files (* wildcard)\n  dir [path] - List directory contents\n  info - Show loaded packages\n  test <filepath> - Test loading a file\n  texture <path> - Load texture with companions\n  sets [dir] - Find texture sets in directory\n  cache - Show texture cache\n  unload - Unload all packages';
+        return [
+          'PK3 Commands:',
+          '  load <file.pk3> - Load a PK3 package',
+          '  list [pattern] - List files (* wildcard)',
+          '  dir [path] - List directory contents',
+          '  info - Show loaded packages',
+          '  path [add] - Show/add search paths',
+          '  test <filepath> - Test loading a file',
+          '  texture <path> - Load texture with companions',
+          '  sets [dir] - Find texture sets in directory',
+          '  cache - Show texture cache',
+          '  unload - Unload all packages',
+        ].join('\n');
     }
   });
 
