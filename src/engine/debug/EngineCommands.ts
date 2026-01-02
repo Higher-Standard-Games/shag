@@ -1196,6 +1196,71 @@ export function registerEngineCommands(): void {
         const paths = pk3.getSearchPaths();
         return `Search paths:\n  ${paths.join('\n  ')}`;
       }
+      
+      case 'index': {
+        const { PK3Index } = await import('../loader/PK3Index');
+        const index = PK3Index.getInstance();
+        const subCmd = args[1]?.toLowerCase();
+        
+        switch (subCmd) {
+          case 'build': {
+            // Sync search paths
+            index.setSearchPaths(pk3.getSearchPaths());
+            const count = await index.buildIndex((msg) => console.log(`[PK3Index] ${msg}`));
+            return `Index built: ${count} files indexed`;
+          }
+          
+          case 'find': {
+            const filePath = args[2];
+            if (!filePath) {
+              return 'Usage: pk3 index find <filepath>';
+            }
+            const foundPk3 = index.findFile(filePath);
+            return foundPk3 
+              ? `Found in: ${foundPk3}`
+              : `Not found in index: ${filePath}`;
+          }
+          
+          case 'search': {
+            const pattern = args[2];
+            if (!pattern) {
+              return 'Usage: pk3 index search <pattern>';
+            }
+            const results = index.findByPattern(pattern);
+            if (results.length === 0) {
+              return `No matches for: ${pattern}`;
+            }
+            const display = results.slice(0, 20).map(r => `${r.file} -> ${r.pk3}`);
+            return results.length > 20
+              ? `${display.join('\n')}\n... and ${results.length - 20} more`
+              : display.join('\n');
+          }
+          
+          case 'clear': {
+            index.clear();
+            return 'Index cleared';
+          }
+          
+          case 'stats':
+          default: {
+            const stats = index.getStats();
+            if (!index.hasIndex()) {
+              return 'No index built. Use "pk3 index build" to create one.';
+            }
+            const packages = index.getPackages();
+            return [
+              `Index Stats:`,
+              `  Files: ${stats.fileCount}`,
+              `  Packages: ${stats.packageCount}`,
+              `  Last updated: ${stats.lastUpdated?.toLocaleString() || 'never'}`,
+              '',
+              'Indexed packages:',
+              ...packages.slice(0, 10).map(p => `  ${p.pk3} (${p.fileCount} files)`),
+              packages.length > 10 ? `  ... and ${packages.length - 10} more` : '',
+            ].filter(Boolean).join('\n');
+          }
+        }
+      }
         
       default:
         return [
@@ -1205,6 +1270,7 @@ export function registerEngineCommands(): void {
           '  dir [path] - List directory contents',
           '  info - Show loaded packages',
           '  path [add] - Show/add search paths',
+          '  index [build|find|search|stats|clear] - PK3 index',
           '  test <filepath> - Test loading a file',
           '  texture <path> - Load texture with companions',
           '  sets [dir] - Find texture sets in directory',
@@ -1704,6 +1770,67 @@ export function registerEngineCommands(): void {
         return lines.join('\n');
       }
 
+      case 'required': {
+        if (!loadedBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const { getBspUsedTextures } = await import('../loader/BspLoader');
+        const { PK3Index } = await import('../loader/PK3Index');
+        
+        const usedTextures = getBspUsedTextures(loadedBsp);
+        const index = PK3Index.getInstance();
+        
+        if (!index.hasIndex()) {
+          return [
+            `=== Used Textures (${usedTextures.length}) ===`,
+            usedTextures.slice(0, 20).join('\n'),
+            usedTextures.length > 20 ? `... and ${usedTextures.length - 20} more` : '',
+            '',
+            'Note: Run "pk3 index build" first to see which PK3s are needed.',
+          ].filter(Boolean).join('\n');
+        }
+        
+        // Find which PK3s are needed
+        const requiredPK3s = index.findPK3sForTextures(usedTextures);
+        const notFound: string[] = [];
+        
+        for (const tex of usedTextures) {
+          const pk3 = index.findFile(`textures/${tex}.tga`) || 
+                      index.findFile(`textures/${tex}.jpg`) ||
+                      index.findFile(`textures/${tex}.ktx`) ||
+                      index.findFile(`${tex}.tga`) ||
+                      index.findFile(`${tex}.jpg`) ||
+                      index.findFile(`${tex}.ktx`);
+          if (!pk3) {
+            notFound.push(tex);
+          }
+        }
+        
+        const lines = [
+          `=== BSP Required Resources ===`,
+          `Used textures: ${usedTextures.length}`,
+          `Required PK3s: ${requiredPK3s.size}`,
+        ];
+        
+        if (requiredPK3s.size > 0) {
+          lines.push('', 'PK3s to load:');
+          for (const pk3 of requiredPK3s) {
+            lines.push(`  ${pk3}`);
+          }
+        }
+        
+        if (notFound.length > 0) {
+          lines.push('', `Not found in index: ${notFound.length}`);
+          lines.push(...notFound.slice(0, 10).map(t => `  ${t}`));
+          if (notFound.length > 10) {
+            lines.push(`  ... and ${notFound.length - 10} more`);
+          }
+        }
+        
+        return lines.join('\n');
+      }
+
       case 'worldspawn': {
         if (!loadedBsp) {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
@@ -1863,6 +1990,7 @@ export function registerEngineCommands(): void {
           '  bsp info            - Show BSP statistics',
           '  bsp entities [filter] - List entity types',
           '  bsp textures [limit]  - List textures',
+          '  bsp required        - Show required PK3s for textures',
           '  bsp faces           - Show face type breakdown',
           '  bsp worldspawn      - Show worldspawn properties',
           '  bsp clusters        - Show PVS cluster info',

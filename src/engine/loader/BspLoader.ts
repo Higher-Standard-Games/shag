@@ -968,3 +968,28 @@ export function findLeafForPoint(
   const leafIndex = -(nodeIndex + 1);
   return leafs[leafIndex] ?? null;
 }
+
+/**
+ * Get list of texture names used by a BSP
+ * Useful for pre-loading required PK3s
+ */
+export function getBspTextureNames(bsp: BspFile): string[] {
+  return bsp.textures.map(t => t.name);
+}
+
+/**
+ * Get unique texture names actually used by faces (not just defined)
+ */
+export function getBspUsedTextures(bsp: BspFile): string[] {
+  const usedIndices = new Set<number>();
+  
+  for (const face of bsp.faces) {
+    if (face.textureIndex >= 0 && face.textureIndex < bsp.textures.length) {
+      usedIndices.add(face.textureIndex);
+    }
+  }
+  
+  return Array.from(usedIndices)
+    .map(idx => bsp.textures[idx].name)
+    .filter(name => !name.toLowerCase().includes('common/'));
+}
