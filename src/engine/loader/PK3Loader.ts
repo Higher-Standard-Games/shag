@@ -83,6 +83,26 @@ export class PK3Loader {
   }
   
   /**
+   * Load a PK3 file by full URL path
+   * @param url - Full URL to the pk3 file (e.g., "game/basewsw/tex_concrete.pk3")
+   * @returns Promise that resolves when loaded
+   */
+  public async loadPK3FromUrl(url: string): Promise<void> {
+    // Extract filename from URL
+    const filename = url.split('/').pop() || url;
+    
+    console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+  }
+
+  /**
    * Load a PK3 file (searches all paths)
    * @param filename - Name of the pk3 file (e.g., "exwsw.pk3")
    * @returns Promise that resolves when loaded
@@ -113,6 +133,13 @@ export class PK3Loader {
     }
     
     console.log(`[PK3Loader] Loading ${filename} from ${loadedFrom}...`);
+    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+  }
+
+  /**
+   * Process a loaded PK3 ArrayBuffer
+   */
+  private async processPK3ArrayBuffer(filename: string, arrayBuffer: ArrayBuffer): Promise<void> {
     
     try {
       const zip = await JSZip.loadAsync(arrayBuffer);

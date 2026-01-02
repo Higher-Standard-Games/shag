@@ -1869,12 +1869,20 @@ export function registerEngineCommands(): void {
         
         for (const pk3 of toLoad) {
           try {
-            await pk3Loader.loadPK3(pk3);
+            // Get full URL path from index
+            const fullPath = index.getPK3Path(pk3);
+            if (fullPath) {
+              await pk3Loader.loadPK3FromUrl(fullPath);
+            } else {
+              // Fallback to search path
+              await pk3Loader.loadPK3(pk3);
+            }
             loaded++;
             lines.push(`  ✓ ${pk3}`);
           } catch (e) {
             failed++;
-            lines.push(`  ✗ ${pk3}: ${e}`);
+            const errMsg = e instanceof Error ? e.message : String(e);
+            lines.push(`  ✗ ${pk3}: ${errMsg}`);
           }
         }
         

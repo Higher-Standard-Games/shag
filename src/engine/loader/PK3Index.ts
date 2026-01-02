@@ -320,6 +320,16 @@ export class PK3Index {
   }
 
   /**
+   * Get the full URL path for a PK3 filename
+   * Returns the path where it was indexed from
+   */
+  getPK3Path(pk3Filename: string): string | null {
+    if (!this.index) return null;
+    const entry = this.index.packages.find(p => p.pk3 === pk3Filename);
+    return entry?.path || null;
+  }
+
+  /**
    * Clear the index
    */
   clear(): void {
