@@ -1378,8 +1378,10 @@ export function registerEngineCommands(): void {
       emptyScene = null;
       emptySceneCamera = null;
       
-      // Return to main menu state - this triggers showMainMenu callback which creates new MainMenu
-      MenuSystem.getInstance().enterMainMenu();
+      // Return to main menu state and trigger the callback to create new MainMenu
+      // Note: enterMainMenu() just sets state, returnToMainMenu() also calls the callback
+      const menuSystem = MenuSystem.getInstance();
+      menuSystem.returnToMainMenu();
       
       console.log('[EmptyScene] Disposed - returned to main menu');
       return true;
