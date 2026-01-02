@@ -520,7 +520,7 @@ export class BspMeshBuilder {
   ): StandardMaterial {
     const mat = new StandardMaterial(name, this.scene);
     
-    // Base color
+    // Base color - white so texture shows properly
     mat.diffuseColor = new Color3(1, 1, 1);
     mat.specularColor = new Color3(0.1, 0.1, 0.1);
     mat.emissiveColor = new Color3(0, 0, 0);
@@ -529,44 +529,53 @@ export class BspMeshBuilder {
     mat.backFaceCulling = props.backFaceCulling;
     mat.twoSidedLighting = props.twoSidedLighting;
     
-    // Alpha mode
-    switch (props.alphaMode) {
-      case 'add':
-        // Additive blending (GL_ONE, GL_ONE)
-        mat.alphaMode = Constants.ALPHA_ADD;
-        mat.alpha = 1;
-        // Make emissive for additive glow effect
-        mat.emissiveColor = new Color3(1, 1, 1);
-        mat.diffuseColor = new Color3(0, 0, 0);
-        break;
-      case 'blend':
-        // Standard alpha blending
-        mat.alphaMode = Constants.ALPHA_COMBINE;
-        mat.alpha = 1;
-        mat.useAlphaFromDiffuseTexture = true;
-        break;
-      case 'multiply':
-        // Multiply blending
-        mat.alphaMode = Constants.ALPHA_MULTIPLY;
-        mat.alpha = 1;
-        break;
-      default:
-        // Opaque
-        mat.alphaMode = Constants.ALPHA_DISABLE;
-        break;
-    }
-    
-    // Alpha cutoff for alpha testing
-    if (props.alphaCutoff !== undefined) {
+    // Alpha testing (for things like plant leaves with alpha cutout)
+    if (props.alphaCutoff !== undefined && props.alphaCutoff > 0) {
+      // Use alpha test mode - pixels below cutoff are discarded
+      mat.transparencyMode = 1; // MATERIAL_ALPHATEST
       mat.alphaCutOff = props.alphaCutoff;
+      mat.useAlphaFromDiffuseTexture = true;
+      // Don't set alphaMode for alpha test - it uses the cutoff instead
+    } else {
+      // Alpha blending modes
+      switch (props.alphaMode) {
+        case 'add':
+          // Additive blending (GL_ONE, GL_ONE)
+          mat.alphaMode = Constants.ALPHA_ADD;
+          mat.alpha = 1;
+          // Make emissive for additive glow effect
+          mat.emissiveColor = new Color3(1, 1, 1);
+          mat.diffuseColor = new Color3(0, 0, 0);
+          mat.useAlphaFromDiffuseTexture = true;
+          break;
+        case 'blend':
+          // Standard alpha blending
+          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
+          mat.alphaMode = Constants.ALPHA_COMBINE;
+          mat.alpha = 1;
+          mat.useAlphaFromDiffuseTexture = true;
+          break;
+        case 'multiply':
+          // Multiply blending
+          mat.alphaMode = Constants.ALPHA_MULTIPLY;
+          mat.alpha = 1;
+          break;
+        default:
+          // Opaque
+          mat.transparencyMode = 0; // MATERIAL_OPAQUE
+          mat.alphaMode = Constants.ALPHA_DISABLE;
+          break;
+      }
     }
     
     // Depth write
     mat.disableDepthWrite = !props.depthWrite;
     
-    // Polygon offset for decals
+    // Polygon offset for decals - use larger offset to prevent z-fighting
     if (props.polygonOffset) {
-      mat.zOffset = -1;
+      mat.zOffset = -2;
+      // Also slightly reduce depth for decals
+      mat.separateCullingPass = true;
     }
     
     return mat;
