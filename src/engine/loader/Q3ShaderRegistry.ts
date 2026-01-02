@@ -76,15 +76,39 @@ export class Q3ShaderRegistry {
   getShader(textureName: string): Q3Shader | undefined {
     // Normalize: lowercase, no extension
     const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
-    return this.shaders.get(name);
+    
+    // Try exact match first
+    let shader = this.shaders.get(name);
+    if (shader) return shader;
+    
+    // If name has underscores but no slashes, try converting underscores to slashes
+    // BSP texture names like "models_mapobjects_lamp_lamp_halo" -> "models/mapobjects/lamp/lamp_halo"
+    if (name.includes('_') && !name.includes('/')) {
+      const parts = name.split('_');
+      
+      // Try progressively more path segments
+      // e.g., models/mapobjects/lamp/lamp_halo, models/mapobjects/lamp_lamp_halo, etc.
+      for (let pathSegments = parts.length - 1; pathSegments >= 1; pathSegments--) {
+        const pathPart = parts.slice(0, pathSegments).join('/');
+        const namePart = parts.slice(pathSegments).join('_');
+        const candidate = `${pathPart}/${namePart}`;
+        shader = this.shaders.get(candidate);
+        if (shader) return shader;
+      }
+      
+      // Also try all underscores as slashes
+      shader = this.shaders.get(parts.join('/'));
+      if (shader) return shader;
+    }
+    
+    return undefined;
   }
 
   /**
    * Check if a shader exists for a texture
    */
   hasShader(textureName: string): boolean {
-    const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
-    return this.shaders.has(name);
+    return this.getShader(textureName) !== undefined;
   }
 
   /**
