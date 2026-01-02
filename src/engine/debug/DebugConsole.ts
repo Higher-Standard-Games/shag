@@ -14,14 +14,17 @@ import { EngineVersion } from '../core/EngineVersion';
 import './debug-console.css';
 
 const HISTORY_KEY = 'debug_console_history';
+const CONSOLE_SIZE_KEY = 'debug_console_size';
 const MAX_HISTORY = 100;
 const MAX_OUTPUT_LINES = 500;
+const DEFAULT_CONSOLE_SIZE = 0.5; // 0.5 = half screen, 1.0 = full screen
 
 export class DebugConsole {
   private static instance: DebugConsole;
   
   private enabled: boolean = false;
   private isOpen: boolean = false;
+  private consoleSize: number = DEFAULT_CONSOLE_SIZE;
   
   // DOM elements
   private container: HTMLDivElement | null = null;
@@ -53,6 +56,7 @@ export class DebugConsole {
     this.originalInfo = console.info.bind(console);
     
     this.loadHistory();
+    this.loadConsoleSize();
   }
 
   static getInstance(): DebugConsole {
@@ -170,6 +174,9 @@ export class DebugConsole {
     // Setup input handlers
     this.inputEl?.addEventListener('keydown', (e) => this.handleInputKeydown(e));
     this.inputEl?.addEventListener('input', () => this.handleInputChange());
+    
+    // Apply saved console size
+    this.applyConsoleSize();
   }
 
   private destroyDOM(): void {
@@ -349,6 +356,65 @@ export class DebugConsole {
     } catch {
       // Ignore storage errors
     }
+  }
+
+  // ============================================================================
+  // Console Size (con_size)
+  // ============================================================================
+
+  private loadConsoleSize(): void {
+    try {
+      const saved = localStorage.getItem(CONSOLE_SIZE_KEY);
+      if (saved) {
+        const size = parseFloat(saved);
+        if (!isNaN(size) && size >= 0.1 && size <= 1.0) {
+          this.consoleSize = size;
+        }
+      }
+    } catch {
+      this.consoleSize = DEFAULT_CONSOLE_SIZE;
+    }
+  }
+
+  private saveConsoleSize(): void {
+    try {
+      localStorage.setItem(CONSOLE_SIZE_KEY, this.consoleSize.toString());
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Set console size (0.1 to 1.0, where 1.0 = full screen height)
+   */
+  setSize(size: number): string {
+    if (size < 0.1 || size > 1.0) {
+      return `Invalid size: ${size}. Must be between 0.1 and 1.0`;
+    }
+    
+    this.consoleSize = size;
+    this.saveConsoleSize();
+    this.applyConsoleSize();
+    
+    return `Console size set to ${(size * 100).toFixed(0)}%`;
+  }
+
+  /**
+   * Get current console size
+   */
+  getSize(): number {
+    return this.consoleSize;
+  }
+
+  /**
+   * Apply console size to DOM
+   */
+  private applyConsoleSize(): void {
+    if (!this.container) return;
+    
+    const heightPercent = this.consoleSize * 100;
+    this.container.style.height = `${heightPercent}%`;
+    this.container.style.maxHeight = this.consoleSize >= 1.0 ? '100%' : `${heightPercent}vh`;
   }
 
   // ============================================================================
@@ -632,6 +698,21 @@ export class DebugConsole {
     // Version command
     registry.register('version', () => {
       return EngineVersion.getInstance().getFullVersionString();
+    });
+    
+    // Console size command (con_size)
+    registry.register('con_size', (args) => {
+      if (args.length === 0) {
+        const current = this.getSize();
+        return `Console size: ${(current * 100).toFixed(0)}% (${current.toFixed(2)})\nUsage: con_size <0.1-1.0>`;
+      }
+      
+      const size = parseFloat(args[0]);
+      if (isNaN(size)) {
+        return `Invalid size: ${args[0]}. Must be a number between 0.1 and 1.0`;
+      }
+      
+      return this.setSize(size);
     });
   }
 }
