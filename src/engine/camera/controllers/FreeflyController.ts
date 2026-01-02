@@ -1,10 +1,12 @@
 /**
  * FreeflyController - Debug camera controller for free flight
  * 
- * Simple flying camera for debugging maps/BSP:
- * - Left mouse button: fly forward
- * - Right mouse button: fly backward
- * - Mouse movement: freelook (always active)
+ * Controls:
+ * - Click canvas to capture mouse (pointer lock)
+ * - ESC to release mouse
+ * - WASD to move (W forward, S backward, A left, D right)
+ * - Mouse movement: freelook (when captured)
+ * - Space to go up, Shift to go down
  * - No gravity, no collision, flies through everything
  */
 
@@ -26,15 +28,22 @@ export class FreeflyController implements ICameraController {
   
   // State
   private enabled: boolean = true;
-  private isLeftDown: boolean = false;
-  private isRightDown: boolean = false;
-  private lastMouseX: number = 0;
-  private lastMouseY: number = 0;
+  private isPointerLocked: boolean = false;
+  
+  // Movement keys state
+  private keys = {
+    forward: false,  // W
+    backward: false, // S
+    left: false,     // A
+    right: false,    // D
+    up: false,       // Space
+    down: false,     // Shift
+  };
   
   // Configuration
   private config: CameraControllerConfig = {
-    speed: 100, // Fast for map exploration
-    mouseSensitivity: 0.003,
+    speed: 200, // Fast for map exploration
+    mouseSensitivity: 0.002,
     invertY: false,
     fov: 1.0, // Wider FOV for debugging
   };
@@ -43,10 +52,11 @@ export class FreeflyController implements ICameraController {
   private renderObserver: Observer<Scene> | null = null;
   
   // Event handlers (bound for removal)
-  private onMouseDown: ((e: MouseEvent) => void) | null = null;
-  private onMouseUp: ((e: MouseEvent) => void) | null = null;
+  private onCanvasClick: ((e: MouseEvent) => void) | null = null;
   private onMouseMove: ((e: MouseEvent) => void) | null = null;
-  private onContextMenu: ((e: MouseEvent) => void) | null = null;
+  private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
+  private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
+  private onPointerLockChange: (() => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
@@ -61,7 +71,6 @@ export class FreeflyController implements ICameraController {
     }
     
     if (!(camera instanceof FreeCamera)) {
-      console.log("[FreeflyController] Creating FreeCamera at:", startPos.toString());
       this.camera = new FreeCamera("freeflyCamera", startPos, scene);
       this.camera.rotation.x = 0;
       this.camera.rotation.y = 0;
@@ -81,59 +90,55 @@ export class FreeflyController implements ICameraController {
     // Clear default inputs - we handle everything
     this.camera.inputs.clear();
     
-    // Set up mouse handlers
-    this.setupMouseHandlers();
+    // Set up input handlers
+    this.setupInputHandlers();
     
     // Set up render observer for movement
-    let frameCount = 0;
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaTime = scene.getEngine().getDeltaTime() / 1000;
-      frameCount++;
-      if (frameCount % 60 === 1) {
-        console.log('[FreeflyController] Observer tick, camera:', this.camera ? 'yes' : 'no', 'enabled:', this.enabled, 'L:', this.isLeftDown, 'R:', this.isRightDown);
-      }
       this.update(deltaTime);
     });
     
-    console.log('[FreeflyController] Render observer attached to scene:', scene.uid, 'camera:', this.camera?.name);
-    
-    console.log("[FreeflyController] Attached - LMB forward, RMB backward, mouse freelook");
+    console.log("[FreeflyController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
-  private setupMouseHandlers(): void {
+  private setupInputHandlers(): void {
     if (!this.canvas) return;
     
-    this.onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) {
-        this.isLeftDown = true;
-        console.log('[FreeflyController] LMB down - forward');
-      }
-      if (e.button === 2) {
-        this.isRightDown = true;
-        console.log('[FreeflyController] RMB down - backward');
+    // Click to capture mouse
+    this.onCanvasClick = () => {
+      if (!this.isPointerLocked && this.canvas) {
+        this.canvas.requestPointerLock();
       }
     };
     
-    this.onMouseUp = (e: MouseEvent) => {
-      if (e.button === 0) this.isLeftDown = false;
-      if (e.button === 2) this.isRightDown = false;
+    // Handle pointer lock change
+    this.onPointerLockChange = () => {
+      this.isPointerLocked = document.pointerLockElement === this.canvas;
+      if (this.isPointerLocked) {
+        console.log('[FreeflyController] Mouse captured - WASD to move, ESC to release');
+      } else {
+        console.log('[FreeflyController] Mouse released - Click to capture');
+        // Reset movement keys when releasing
+        this.keys.forward = false;
+        this.keys.backward = false;
+        this.keys.left = false;
+        this.keys.right = false;
+        this.keys.up = false;
+        this.keys.down = false;
+      }
     };
     
+    // Mouse look (only when pointer is locked)
     this.onMouseMove = (e: MouseEvent) => {
-      if (!this.enabled || !this.camera) return;
+      if (!this.enabled || !this.camera || !this.isPointerLocked) return;
       
-      const sensitivity = this.config.mouseSensitivity || 0.003;
+      const sensitivity = this.config.mouseSensitivity || 0.002;
       const invertY = this.config.invertY ? -1 : 1;
       
-      const deltaX = e.movementX || (e.clientX - this.lastMouseX);
-      const deltaY = e.movementY || (e.clientY - this.lastMouseY);
-      
-      this.lastMouseX = e.clientX;
-      this.lastMouseY = e.clientY;
-      
-      // Always apply freelook (no button required)
-      this.camera.rotation.y += deltaX * sensitivity;
-      this.camera.rotation.x += deltaY * sensitivity * invertY;
+      // Apply freelook
+      this.camera.rotation.y += e.movementX * sensitivity;
+      this.camera.rotation.x += e.movementY * sensitivity * invertY;
       
       // Clamp vertical rotation
       this.camera.rotation.x = Math.max(
@@ -142,36 +147,59 @@ export class FreeflyController implements ICameraController {
       );
     };
     
-    // Prevent context menu on right click
-    this.onContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
+    // Keyboard input
+    this.onKeyDown = (e: KeyboardEvent) => {
+      if (!this.isPointerLocked) return;
+      
+      switch (e.code) {
+        case 'KeyW': this.keys.forward = true; break;
+        case 'KeyS': this.keys.backward = true; break;
+        case 'KeyA': this.keys.left = true; break;
+        case 'KeyD': this.keys.right = true; break;
+        case 'Space': this.keys.up = true; e.preventDefault(); break;
+        case 'ShiftLeft': case 'ShiftRight': this.keys.down = true; break;
+      }
     };
     
-    // Use document instead of canvas to ensure events aren't blocked by UI
-    document.addEventListener("mousedown", this.onMouseDown);
-    document.addEventListener("mouseup", this.onMouseUp);
-    document.addEventListener("mousemove", this.onMouseMove);
-    document.addEventListener("contextmenu", this.onContextMenu);
+    this.onKeyUp = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyW': this.keys.forward = false; break;
+        case 'KeyS': this.keys.backward = false; break;
+        case 'KeyA': this.keys.left = false; break;
+        case 'KeyD': this.keys.right = false; break;
+        case 'Space': this.keys.up = false; break;
+        case 'ShiftLeft': case 'ShiftRight': this.keys.down = false; break;
+      }
+    };
     
-    // Also track mouse up on window (in case mouse leaves canvas)
-    window.addEventListener("mouseup", this.onMouseUp);
+    // Add event listeners
+    this.canvas.addEventListener('click', this.onCanvasClick);
+    document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('keydown', this.onKeyDown);
+    document.addEventListener('keyup', this.onKeyUp);
   }
 
-  private removeMouseHandlers(): void {
-    if (!this.canvas) return;
-    
-    if (this.onMouseDown) {
-      document.removeEventListener("mousedown", this.onMouseDown);
+  private removeInputHandlers(): void {
+    // Exit pointer lock if active
+    if (this.isPointerLocked) {
+      document.exitPointerLock();
     }
-    if (this.onMouseUp) {
-      document.removeEventListener("mouseup", this.onMouseUp);
-      window.removeEventListener("mouseup", this.onMouseUp);
+    
+    if (this.canvas && this.onCanvasClick) {
+      this.canvas.removeEventListener('click', this.onCanvasClick);
+    }
+    if (this.onPointerLockChange) {
+      document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     }
     if (this.onMouseMove) {
-      document.removeEventListener("mousemove", this.onMouseMove);
+      document.removeEventListener('mousemove', this.onMouseMove);
     }
-    if (this.onContextMenu) {
-      document.removeEventListener("contextmenu", this.onContextMenu);
+    if (this.onKeyDown) {
+      document.removeEventListener('keydown', this.onKeyDown);
+    }
+    if (this.onKeyUp) {
+      document.removeEventListener('keyup', this.onKeyUp);
     }
   }
 
@@ -181,35 +209,39 @@ export class FreeflyController implements ICameraController {
       this.renderObserver = null;
     }
     
-    this.removeMouseHandlers();
+    this.removeInputHandlers();
     
     this.camera = null;
     this.scene = null;
     this.canvas = null;
-    this.isLeftDown = false;
-    this.isRightDown = false;
+    this.isPointerLocked = false;
     
     console.log("[FreeflyController] Detached");
   }
 
   update(deltaTime: number): void {
-    if (!this.enabled || !this.camera) return;
+    if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
-    const speed = (this.config.speed || 100) * deltaTime;
+    const speed = (this.config.speed || 200) * deltaTime;
     
-    // Get camera forward direction
+    // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
+    const right = this.camera.getDirection(Vector3.Right());
+    const up = Vector3.Up();
     
-    // Left mouse = forward, Right mouse = backward
-    if (this.isLeftDown) {
-      const movement = forward.scale(speed);
+    // Calculate movement
+    const movement = Vector3.Zero();
+    
+    if (this.keys.forward) movement.addInPlace(forward.scale(speed));
+    if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
+    if (this.keys.left) movement.addInPlace(right.scale(-speed));
+    if (this.keys.right) movement.addInPlace(right.scale(speed));
+    if (this.keys.up) movement.addInPlace(up.scale(speed));
+    if (this.keys.down) movement.addInPlace(up.scale(-speed));
+    
+    // Apply movement
+    if (movement.length() > 0) {
       this.camera.position.addInPlace(movement);
-      console.log('[FreeflyController] Moving forward:', movement.toString(), 'pos:', this.camera.position.toString());
-    }
-    if (this.isRightDown) {
-      const movement = forward.scale(-speed);
-      this.camera.position.addInPlace(movement);
-      console.log('[FreeflyController] Moving backward:', movement.toString(), 'pos:', this.camera.position.toString());
     }
   }
 
@@ -228,8 +260,15 @@ export class FreeflyController implements ICameraController {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {
-      this.isLeftDown = false;
-      this.isRightDown = false;
+      this.keys.forward = false;
+      this.keys.backward = false;
+      this.keys.left = false;
+      this.keys.right = false;
+      this.keys.up = false;
+      this.keys.down = false;
+      if (this.isPointerLocked) {
+        document.exitPointerLock();
+      }
     }
   }
 
