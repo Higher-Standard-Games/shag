@@ -105,8 +105,12 @@ export class FreeflyController implements ICameraController {
   private setupInputHandlers(): void {
     if (!this.canvas) return;
     
-    // Click to capture mouse
-    this.onCanvasClick = () => {
+    // Click to capture mouse - use document click and check target
+    this.onCanvasClick = (e: MouseEvent) => {
+      // Only respond to clicks on the canvas itself
+      if (e.target !== this.canvas) return;
+      
+      console.log('[FreeflyController] Canvas clicked, requesting pointer lock');
       if (!this.isPointerLocked && this.canvas) {
         this.canvas.requestPointerLock();
       }
@@ -172,8 +176,8 @@ export class FreeflyController implements ICameraController {
       }
     };
     
-    // Add event listeners
-    this.canvas.addEventListener('click', this.onCanvasClick);
+    // Add event listeners - use document for click to ensure we catch it
+    document.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('keydown', this.onKeyDown);
@@ -186,8 +190,8 @@ export class FreeflyController implements ICameraController {
       document.exitPointerLock();
     }
     
-    if (this.canvas && this.onCanvasClick) {
-      this.canvas.removeEventListener('click', this.onCanvasClick);
+    if (this.onCanvasClick) {
+      document.removeEventListener('click', this.onCanvasClick);
     }
     if (this.onPointerLockChange) {
       document.removeEventListener('pointerlockchange', this.onPointerLockChange);
