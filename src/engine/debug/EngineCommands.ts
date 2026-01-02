@@ -1439,10 +1439,14 @@ export function registerEngineCommands(): void {
         cameraSystem.init(emptyScene, canvas);
         cameraSystem.setCamera(emptySceneCamera);
 
-        // Auto-switch to freefly controller
-        if (!cameraSystem.getController('freefly')) {
-          cameraSystem.registerController('freefly', new FreeflyController());
+        // Always create fresh freefly controller for empty scene
+        // (reusing old controller causes issues with stale state)
+        const existingFreefly = cameraSystem.getController('freefly');
+        if (existingFreefly) {
+          existingFreefly.dispose();
         }
+        const freeflyController = new FreeflyController();
+        cameraSystem.registerController('freefly', freeflyController);
         cameraSystem.setController('freefly');
 
         // Enter "in_game" state so ESC shows pause menu, not main menu
