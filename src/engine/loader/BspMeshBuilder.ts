@@ -254,6 +254,12 @@ export class BspMeshBuilder {
       if (!group) {
         const textureName = this.bsp.textures[face.textureIndex]?.name || '';
         const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
+        
+        // Debug: log transparent/special shaders
+        if (shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') {
+          console.log(`[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`);
+        }
+        
         group = {
           textureIndex: face.textureIndex,
           textureName,
