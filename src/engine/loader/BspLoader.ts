@@ -778,20 +778,40 @@ export class BspLoader {
   }
 
   private parseFacesFBSP(lump: { offset: number; length: number; data: DataView }): BspFace[] {
-    // FBSP face has 4 lightmap indices instead of 1
-    // Size: 104 + 3*4 = 116 bytes
-    const FACE_SIZE = 116;
+    // RBSP/FBSP face structure (148 bytes):
+    // - textureIndex: 0 (4)
+    // - effectIndex: 4 (4)
+    // - faceType: 8 (4)
+    // - firstVertex: 12 (4)
+    // - numVertices: 16 (4)
+    // - firstMeshVert: 20 (4)
+    // - numMeshVerts: 24 (4)
+    // - lightmapStyles[4]: 28 (4 bytes as uint8)
+    // - vertexStyles[4]: 32 (4 bytes as uint8)
+    // - lightmapNum[4]: 36 (16)
+    // - lightmapX[4]: 52 (16)
+    // - lightmapY[4]: 68 (16)
+    // - lightmapWidth: 84 (4)
+    // - lightmapHeight: 88 (4)
+    // - lightmapOrigin: 92 (12)
+    // - lightmapVecs[2]: 104 (24)
+    // - normal: 128 (12)
+    // - patchWidth: 140 (4)
+    // - patchHeight: 144 (4)
+    // Total: 148 bytes
+    const FACE_SIZE = 148;
     const count = Math.floor(lump.length / FACE_SIZE);
     const faces: BspFace[] = [];
 
     for (let i = 0; i < count; i++) {
       const offset = i * FACE_SIZE;
 
+      // 4 lightmap indices at offset 36
       const lightmapIndices: [number, number, number, number] = [
-        lump.data.getInt32(offset + 28, true),
-        lump.data.getInt32(offset + 32, true),
         lump.data.getInt32(offset + 36, true),
         lump.data.getInt32(offset + 40, true),
+        lump.data.getInt32(offset + 44, true),
+        lump.data.getInt32(offset + 48, true),
       ];
 
       faces.push({
@@ -804,31 +824,33 @@ export class BspLoader {
         numMeshVerts: lump.data.getInt32(offset + 24, true),
         lightmapIndex: lightmapIndices[0],
         lightmapIndices,
+        // lightmapX[0] and lightmapY[0] for lightmapStart
         lightmapStart: [
-          lump.data.getInt32(offset + 44, true),
-          lump.data.getInt32(offset + 48, true),
-        ],
-        lightmapSize: [
           lump.data.getInt32(offset + 52, true),
-          lump.data.getInt32(offset + 56, true),
+          lump.data.getInt32(offset + 68, true),
+        ],
+        // lightmapWidth and lightmapHeight for lightmapSize
+        lightmapSize: [
+          lump.data.getInt32(offset + 84, true),
+          lump.data.getInt32(offset + 88, true),
         ],
         lightmapOrigin: [
-          lump.data.getFloat32(offset + 60, true),
-          lump.data.getFloat32(offset + 64, true),
-          lump.data.getFloat32(offset + 68, true),
-        ],
-        lightmapVecs: [
-          [lump.data.getFloat32(offset + 72, true), lump.data.getFloat32(offset + 76, true), lump.data.getFloat32(offset + 80, true)],
-          [lump.data.getFloat32(offset + 84, true), lump.data.getFloat32(offset + 88, true), lump.data.getFloat32(offset + 92, true)],
-        ],
-        normal: [
+          lump.data.getFloat32(offset + 92, true),
           lump.data.getFloat32(offset + 96, true),
           lump.data.getFloat32(offset + 100, true),
-          lump.data.getFloat32(offset + 104, true),
+        ],
+        lightmapVecs: [
+          [lump.data.getFloat32(offset + 104, true), lump.data.getFloat32(offset + 108, true), lump.data.getFloat32(offset + 112, true)],
+          [lump.data.getFloat32(offset + 116, true), lump.data.getFloat32(offset + 120, true), lump.data.getFloat32(offset + 124, true)],
+        ],
+        normal: [
+          lump.data.getFloat32(offset + 128, true),
+          lump.data.getFloat32(offset + 132, true),
+          lump.data.getFloat32(offset + 136, true),
         ],
         patchSize: [
-          lump.data.getInt32(offset + 108, true),
-          lump.data.getInt32(offset + 112, true),
+          lump.data.getInt32(offset + 140, true),
+          lump.data.getInt32(offset + 144, true),
         ],
       });
     }
