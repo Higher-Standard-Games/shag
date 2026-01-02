@@ -1643,9 +1643,10 @@ export function registerEngineCommands(): void {
 
         loadedBsp = bsp;
 
-        // Auto-load shaders from PK3
+        // Don't auto-load shaders here - user should call "shader load" after "bsp loadrequired"
+        // to ensure all texture PK3 shaders are available
         const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
-        const shaderCount = await Q3ShaderRegistry.getInstance().loadShaders();
+        const shaderCount = Q3ShaderRegistry.getInstance().getShaderCount();
 
         // Summary
         const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
