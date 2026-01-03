@@ -281,7 +281,7 @@ bsp sky
 
 ---
 
-## Current Status (v0.8.2 WIP)
+## Current Status (v0.8.2 - RELEASED)
 
 ### What Works
 - ✅ Sky surface detection (`surfaceparm sky`)
@@ -291,59 +291,53 @@ bsp sky
 - ✅ RawCubeTexture creation with 6 faces
 - ✅ Skybox mesh with infinite distance
 - ✅ Console commands: `bsp sky info/apply/toggle/remove`
-- ✅ One corner of skybox aligns correctly
+- ✅ **All 6 skybox faces align correctly!**
 
-### Known Bug: Skybox Face Alignment
+### Skybox Face Alignment Fix (v0.8.2)
 
-**Status:** PARTIALLY WORKING - One corner aligns, other faces have visible seams
+**Status:** ✅ FIXED AND WORKING
 
-**Problem Description:**
-The Q3/Warsow skybox face mapping to Babylon.js RawCubeTexture is not fully correct. 
-After multiple iterations, we've achieved alignment on one corner of the skybox, but 
-the other 3 corners and some faces show visible seams where textures don't connect.
+**Root Cause Found:**
+1. **Wrong suffix order**: Original code had `_ft, _bk, _lf, _rt, _up, _dn` but Q3 uses `_rt, _bk, _lf, _ft, _up, _dn`
+2. **Coordinate system mapping**: Q3 uses Z-up (right-handed), Babylon uses Y-up (left-handed)
+3. **Handedness correction**: Required horizontal flip for side faces
+4. **Top/bottom rotation**: Required compound transforms (rotate + flip) for ceiling/floor
 
-**Technical Details:**
-- Q3 skybox suffixes: `_ft`, `_bk`, `_lf`, `_rt`, `_up`, `_dn` (front, back, left, right, up, down)
-- Babylon.js RawCubeTexture order: px, py, pz, nx, ny, nz (+X, +Y, +Z, -X, -Y, -Z)
-- OpenGL convention (from Anton's tutorial): front=-Z, back=+Z, top=+Y, bottom=-Y, left=-X, right=+X
+**Q3 Source Analysis:**
+From `tr_shader.c`:
+```c
+static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+```
 
-**Current Mapping (in SkyboxLoader.ts):**
+**Final Working Mapping (in SkyboxLoader.ts):**
 ```typescript
+const Q3_FACE_SUFFIXES = ['_rt', '_bk', '_lf', '_ft', '_up', '_dn'];
+
+// Babylon RawCubeTexture order: [nx, px, py, ny, nz, pz]
 const Q3_TO_BABYLON_FACE_MAP = [
-  { index: 3, transform: 'none' },  // px (+X/right) <- rt
-  { index: 4, transform: 'none' },  // py (+Y/top) <- up
-  { index: 1, transform: 'none' },  // pz (+Z/back) <- bk
-  { index: 2, transform: 'none' },  // nx (-X/left) <- lf
-  { index: 5, transform: 'none' },  // ny (-Y/bottom) <- dn
-  { index: 0, transform: 'none' },  // nz (-Z/front) <- ft
+  { index: 2, transform: 'flipH' },           // slot 0: nx ← lf
+  { index: 0, transform: 'flipH' },           // slot 1: px ← rt
+  { index: 4, transform: 'rotate90CCW_flipH' }, // slot 2: py ← up (ceiling)
+  { index: 5, transform: 'rotate90CW_flipH' },  // slot 3: ny ← dn (floor)
+  { index: 1, transform: 'flipH' },           // slot 4: nz ← bk
+  { index: 3, transform: 'flipH' },           // slot 5: pz ← ft
 ];
 ```
 
-**What We've Tried:**
-1. Various face index permutations (swapping left/right, front/back)
-2. Transform operations: flipH, flipV, rotate180, rotate90CW, rotate90CCW
-3. Rotating the skybox mesh itself (-90° on X axis)
-4. Studied Q3 source code `tr_sky.c` for `st_to_vec` and `sky_texorder` arrays
-5. Consulted OpenGL cubemap documentation
+**Key Discoveries:**
+- Babylon.js RawCubeTexture order is `[nx, px, py, ny, nz, pz]`, NOT `[px, py, pz, nx, ny, nz]`
+- Side faces (lf, rt, bk, ft) need `flipH` for handedness correction
+- Ceiling (up) needs `rotate90CCW_flipH` compound transform
+- Floor (dn) needs `rotate90CW_flipH` compound transform (opposite rotation from ceiling)
 
-**Next Steps to Investigate:**
-1. Look at actual qfusion/Warsow renderer source for skybox face handling
-2. Compare with working WebGL Q3 implementations (toji/webgl-quake3)
-3. Each face may need individual transform (not all 'none')
-4. The Q3 Z-up to Babylon Y-up coordinate system conversion may need mesh rotation + face transforms
-
-**Workaround:**
-Currently requires manual `pk3 load tex_env.pk3` before `bsp sky apply` because 
-`bsp loadrequired` doesn't detect shader texture dependencies.
-
-### Other Issues
+### Known Limitations
 
 1. **tex_env.pk3 not auto-loaded:** The `bsp loadrequired` command only finds PK3s 
    containing textures directly referenced by the BSP, not textures referenced by 
-   shaders (like skybox textures from `skyparms`).
+   shaders (like skybox textures from `skyparms`). Workaround: manual `pk3 load`.
 
 2. **PK3s in basewsw/ fail to load:** JSZip errors when loading PK3s from 
-   `game/basewsw/` path. Workaround: copied all PK3s to `game/` root.
+   `game/basewsw/` path. Workaround: copy PK3s to `game/` root.
 
 ---
 

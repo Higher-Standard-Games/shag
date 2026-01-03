@@ -2175,7 +2175,40 @@ export function registerEngineCommands(): void {
           return 'Skybox removed.';
         }
 
-        return 'Sky subcommands: info, apply, toggle, remove';
+        if (skySubcommand === 'debug') {
+          if (!scene) {
+            return 'No scene available.';
+          }
+
+          // Remove existing skybox first
+          const existingSkybox = scene.getMeshByName('skybox');
+          if (existingSkybox) {
+            existingSkybox.dispose();
+          }
+
+          const { SkyboxLoader } = await import('../loader/SkyboxLoader');
+          const skyboxLoader = SkyboxLoader.getInstance();
+          skyboxLoader.init(scene);
+          const result = skyboxLoader.createDebugSkybox();
+
+          if (result.success) {
+            return [
+              'Debug skybox created with colored/labeled faces.',
+              'Look around to verify face positions:',
+              '  RT (red) = RIGHT (+X)',
+              '  LF (blue) = LEFT (-X)',
+              '  FT (yellow) = FRONT (+Z in Babylon)',
+              '  BK (green) = BACK (-Z in Babylon)',
+              '  UP (magenta) = UP (+Y in Babylon)',
+              '  DN (cyan) = DOWN (-Y in Babylon)',
+              'The "TOP" marker shows which edge should be up.',
+            ].join('\n');
+          } else {
+            return `Failed to create debug skybox: ${result.error}`;
+          }
+        }
+
+        return 'Sky subcommands: info, apply, toggle, remove, debug';
       }
 
       default:
@@ -2194,7 +2227,7 @@ export function registerEngineCommands(): void {
           '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
           '  bsp applytextures   - Load and apply textures from PK3',
           '  bsp applylightmaps [mobile|desktop] [intensity] - Apply lightmaps',
-          '  bsp sky [info|apply|toggle|remove] - Skybox commands',
+          '  bsp sky [info|apply|toggle|remove|debug] - Skybox commands',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }
