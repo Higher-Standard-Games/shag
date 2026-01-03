@@ -270,4 +270,7 @@ export interface ResolvedMaterialProps {
 
   /** Sky parameters if this is a sky shader */
   skyParms?: SkyParms;
+
+  /** Fullbright surface - uses emissive, no lightmap (lamps, signs) */
+  isFullbright: boolean;
 }

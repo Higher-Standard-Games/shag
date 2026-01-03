@@ -143,6 +143,7 @@ export class Q3ShaderRegistry {
       needsAnimation: false,
       polygonOffset: false,
       isSky: false,
+      isFullbright: false,
     };
 
     if (!shader) {
@@ -178,6 +179,13 @@ export class Q3ShaderRegistry {
     // Surface params
     if (shader.surfaceParms.has('trans') || shader.surfaceParms.has('alphashadow')) {
       props.isTransparent = true;
+    }
+
+    // Fullbright detection - lamp/light surfaces that don't use lightmap
+    // These surfaces should appear at full brightness regardless of surrounding darkness
+    if (shader.surfaceParms.has('nolightmap')) {
+      props.isFullbright = true;
+      props.useLightmap = false;
     }
 
     // Check stages for blend modes

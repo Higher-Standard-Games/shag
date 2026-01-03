@@ -736,6 +736,21 @@ export class BspMeshBuilder {
             mat.diffuseColor = new Color3(0, 0, 0);
           }
 
+          // Fullbright surfaces (lamps, light panels) - appear self-lit
+          if (shaderProps.isFullbright) {
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new Color3(1, 1, 1);
+            // Keep diffuse for base color but reduce to avoid over-brightness
+            mat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+            // Mark mesh to skip lightmap application
+            if (mesh.metadata) {
+              mesh.metadata.isFullbright = true;
+            } else {
+              mesh.metadata = { isFullbright: true };
+            }
+            console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
+          }
+
           // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
           if (shaderProps.needsAnimation && shader) {
             const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');
@@ -789,6 +804,9 @@ export class BspMeshBuilder {
 
     for (const mesh of meshes) {
       if (!mesh.metadata?.lightmapIndex || mesh.metadata.lightmapIndex < 0) continue;
+
+      // Skip fullbright surfaces - they should not receive lightmap darkening
+      if (mesh.metadata?.isFullbright) continue;
 
       const lightmapIndex = mesh.metadata.lightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
