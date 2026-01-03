@@ -13,8 +13,8 @@ This document tracks the implementation status of Quake 3 / Warsow map support i
 | Feature | Status | Notes |
 |---------|--------|-------|
 | PK3 loading (ZIP extraction) | ✅ Done | JSZip-based |
-| Multi-path support (`game/`, `game/basewsw/`) | ✅ Done | `pk3 path` command |
-| PK3 manifest for browser directory listing | ✅ Done | `pk3_manifest.json` |
+| Multi-path support | ✅ Done | `pk3 path` command |
+| PK3 manifest for browser directory listing | ✅ Done | User creates `pk3_manifest.json` |
 | PK3 index system (file → package lookup) | ✅ Done | localStorage cached |
 | Auto-load required PK3s for map | ✅ Done | `bsp loadrequired` |
 | Texture loading from PK3 (TGA, JPG, PNG) | ✅ Done | PK3TextureLoader |
