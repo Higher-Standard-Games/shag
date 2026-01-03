@@ -216,4 +216,11 @@ export class GlowOverlayShaderMaterial {
   static setGlowIntensity(material: ShaderMaterial, intensity: number): void {
     material.setFloat('glowIntensity', intensity);
   }
+
+  /**
+   * Toggle between additive (0) and alpha blend (1) modes
+   */
+  static setGlowBlendMode(material: ShaderMaterial, useAlphaBlend: boolean): void {
+    material.setFloat('glowBlendMode', useAlphaBlend ? 1.0 : 0.0);
+  }
 }

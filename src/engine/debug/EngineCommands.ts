@@ -2396,6 +2396,32 @@ export function registerEngineCommands(): void {
         return `Lightmap intensity set to ${intensity} on ${count} materials`;
       }
 
+      case 'blendmode': {
+        // Toggle glow blend mode: 0=additive, 1=alpha
+        const mode = args[1]?.toLowerCase();
+        if (mode !== 'add' && mode !== 'alpha') {
+          return 'Usage: shader blendmode <add|alpha>\n  add = base*lightmap + glow (additive)\n  alpha = mix(base*lightmap, glow, glow.a) (alpha blend)';
+        }
+
+        const cameraSystem = CameraSystem.getInstance();
+        const scene = cameraSystem.getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { ShaderMaterial } = await import('babylonjs');
+        const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+
+        const useAlpha = mode === 'alpha';
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('glowBlendMode')) {
+            GlowOverlayShaderMaterial.setGlowBlendMode(mat, useAlpha);
+            count++;
+          }
+        }
+
+        return `Glow blend mode set to ${mode} on ${count} materials`;
+      }
+
       case 'clear': {
         shaderRegistry.clear();
         return 'Shader registry cleared';
