@@ -39,6 +39,8 @@ export interface PatternAnalysis {
   hasAlpha: boolean;
   hasTcMod: boolean;
   tcModStages: number[];
+  /** Whether glow uses alpha blend (true) or additive (false) */
+  glowIsAlphaBlend: boolean;
 }
 
 // ============================================================================
@@ -90,6 +92,7 @@ export function analyzeShaderPattern(shader: Q3Shader): PatternAnalysis {
     hasAlpha: false,
     hasTcMod: false,
     tcModStages: [],
+    glowIsAlphaBlend: false,
   };
 
   // Find special stages
@@ -124,6 +127,8 @@ export function analyzeShaderPattern(shader: Q3Shader): PatternAnalysis {
       // Additive after base = glow
       // Also detect by texture name pattern (_glow, _add, etc.)
       result.glowStageIndex = i;
+      // Check if glow uses alpha blend instead of additive
+      result.glowIsAlphaBlend = isAlphaBlend(stage);
     }
   }
 
@@ -228,7 +233,9 @@ export function createQ3Material(
         baseTexture,
         lightmapTexture || null,
         glowTexture,
-        options.lightmapIntensity || 2.0
+        options.lightmapIntensity || 2.0,
+        1.0, // glowIntensity
+        analysis.glowIsAlphaBlend
       );
 
       // Handle culling
@@ -360,6 +367,7 @@ export function debugShaderPattern(shader: Q3Shader): string {
     `Base stage: ${analysis.baseStageIndex}`,
     `Lightmap stage: ${analysis.lightmapStageIndex}`,
     `Glow stage: ${analysis.glowStageIndex}`,
+    `Glow blend mode: ${analysis.glowIsAlphaBlend ? 'alpha' : 'additive'}`,
     `Has alpha: ${analysis.hasAlpha}`,
     `Has tcMod: ${analysis.hasTcMod}`,
     `tcMod stages: [${analysis.tcModStages.join(', ')}]`,

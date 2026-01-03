@@ -64,21 +64,33 @@ uniform sampler2D glowSampler;
 uniform float lightmapIntensity;
 uniform float glowIntensity;
 uniform float hasLightmap;  // 0.0 or 1.0 (GLSL bool from float uniform)
+uniform float glowBlendMode; // 0.0 = additive, 1.0 = alpha blend
 
 void main() {
   // Sample textures
   vec4 baseColor = texture2D(baseSampler, vUV);
-  vec3 glowColor = texture2D(glowSampler, vGlowUV).rgb;
+  vec4 glowColor = texture2D(glowSampler, vGlowUV);
+
+  vec3 litBase;
+
+  if (hasLightmap > 0.5) {
+    // Apply lightmap to base
+    vec3 lightmap = texture2D(lightmapSampler, vUV2).rgb * lightmapIntensity;
+    litBase = baseColor.rgb * lightmap;
+  } else {
+    litBase = baseColor.rgb;
+  }
 
   vec3 finalColor;
 
-  if (hasLightmap > 0.5) {
-    // Full glow overlay formula: (base * lightmap) + glow
-    vec3 lightmap = texture2D(lightmapSampler, vUV2).rgb * lightmapIntensity;
-    finalColor = baseColor.rgb * lightmap + glowColor * glowIntensity;
+  if (glowBlendMode > 0.5) {
+    // Alpha blend mode: mix(base, glow, glow.alpha)
+    // This is for shaders using blendFunc blend on glow
+    finalColor = mix(litBase, glowColor.rgb, glowColor.a * glowIntensity);
   } else {
-    // No lightmap: just base + glow
-    finalColor = baseColor.rgb + glowColor * glowIntensity;
+    // Additive mode: base + glow
+    // This is for shaders using blendFunc add on glow
+    finalColor = litBase + glowColor.rgb * glowIntensity;
   }
 
   gl_FragColor = vec4(finalColor, baseColor.a);
@@ -115,6 +127,7 @@ export class GlowOverlayShaderMaterial {
    * @param glowTexture Additive glow texture
    * @param lightmapIntensity Lightmap brightness multiplier (default 2.0)
    * @param glowIntensity Glow brightness multiplier (default 1.0)
+   * @param useAlphaBlend If true, use alpha blend mode instead of additive
    */
   static create(
     name: string,
@@ -123,7 +136,8 @@ export class GlowOverlayShaderMaterial {
     lightmapTexture: Texture | null,
     glowTexture: Texture,
     lightmapIntensity: number = 2.0,
-    glowIntensity: number = 1.0
+    glowIntensity: number = 1.0,
+    useAlphaBlend: boolean = false
   ): ShaderMaterial {
     ensureShaderRegistered();
 
@@ -143,6 +157,7 @@ export class GlowOverlayShaderMaterial {
           'lightmapIntensity',
           'glowIntensity',
           'hasLightmap',
+          'glowBlendMode',
         ],
         samplers: ['baseSampler', 'lightmapSampler', 'glowSampler'],
       }
@@ -164,6 +179,7 @@ export class GlowOverlayShaderMaterial {
     // Set uniforms
     material.setFloat('lightmapIntensity', lightmapIntensity);
     material.setFloat('glowIntensity', glowIntensity);
+    material.setFloat('glowBlendMode', useAlphaBlend ? 1.0 : 0.0);
     material.setVector2('uvOffset', { x: 0, y: 0 });
     material.setVector2('glowUvOffset', { x: 0, y: 0 });
 
