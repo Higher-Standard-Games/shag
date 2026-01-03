@@ -2327,6 +2327,101 @@ export function registerEngineCommands(): void {
         ].filter(Boolean).join('\n');
       }
 
+      case 'pattern': {
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader pattern <texture_path>';
+        }
+
+        const shader = shaderRegistry.getShader(textureName);
+        if (!shader) {
+          return `No shader defined for: ${textureName}`;
+        }
+
+        const { debugShaderPattern } = await import('../loader/shader/Q3ShaderMaterialFactory');
+        return debugShaderPattern(shader);
+      }
+
+      case 'glow': {
+        // Adjust glow intensity for all glow overlay materials
+        const intensity = parseFloat(args[1]);
+        if (isNaN(intensity)) {
+          return 'Usage: shader glow <intensity>\nDefault: 1.0, try 0.5-3.0';
+        }
+
+        const cameraSystem = CameraSystem.getInstance();
+        const scene = cameraSystem.getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { ShaderMaterial } = await import('babylonjs');
+        const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('glowIntensity')) {
+            GlowOverlayShaderMaterial.setGlowIntensity(mat, intensity);
+            count++;
+          }
+        }
+
+        // Store for future materials
+        (window as any)._glowIntensity = intensity;
+        return `Glow intensity set to ${intensity} on ${count} materials`;
+      }
+
+      case 'lightmap': {
+        // Adjust lightmap intensity for all glow overlay materials
+        const intensity = parseFloat(args[1]);
+        if (isNaN(intensity)) {
+          return 'Usage: shader lightmap <intensity>\nDefault: 2.0, try 1.0-4.0';
+        }
+
+        const cameraSystem = CameraSystem.getInstance();
+        const scene = cameraSystem.getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { ShaderMaterial } = await import('babylonjs');
+        const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('lightmapIntensity')) {
+            GlowOverlayShaderMaterial.setLightmapIntensity(mat, intensity);
+            count++;
+          }
+        }
+
+        // Store for future materials
+        (window as any)._lightmapIntensity = intensity;
+        return `Lightmap intensity set to ${intensity} on ${count} materials`;
+      }
+
+      case 'blendmode': {
+        // Toggle glow blend mode: 0=additive, 1=alpha
+        const mode = args[1]?.toLowerCase();
+        if (mode !== 'add' && mode !== 'alpha') {
+          return 'Usage: shader blendmode <add|alpha>\n  add = base*lightmap + glow (additive)\n  alpha = mix(base*lightmap, glow, glow.a) (alpha blend)';
+        }
+
+        const cameraSystem = CameraSystem.getInstance();
+        const scene = cameraSystem.getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { ShaderMaterial } = await import('babylonjs');
+        const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+
+        const useAlpha = mode === 'alpha';
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('glowBlendMode')) {
+            GlowOverlayShaderMaterial.setGlowBlendMode(mat, useAlpha);
+            count++;
+          }
+        }
+
+        return `Glow blend mode set to ${mode} on ${count} materials`;
+      }
+
       case 'clear': {
         shaderRegistry.clear();
         return 'Shader registry cleared';
@@ -2406,6 +2501,9 @@ export function registerEngineCommands(): void {
           '  shader list [filter] - List shader names',
           '  shader info <path>  - Show shader definition',
           '  shader resolve <path> - Show resolved material props',
+          '  shader pattern <path> - Analyze shader pattern (glow_overlay, etc.)',
+          '  shader glow <n>     - Set glow intensity (default 1.0)',
+          '  shader lightmap <n> - Set lightmap intensity (default 2.0)',
           '  shader clear        - Clear shader registry',
           '  shader anim [...]   - Animation system commands',
         ].join('\n');

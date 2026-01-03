@@ -12,6 +12,7 @@ import {
   Mesh,
   Scene,
   StandardMaterial,
+  ShaderMaterial,
   Color3,
   VertexData,
   Vector3,
@@ -689,10 +690,62 @@ export class BspMeshBuilder {
 
         if (!mesh) continue;
 
-        // NOTE: Multi-stage NodeMaterial support is available via Q3NodeMaterialBuilder
-        // but disabled by default as it needs more work for transparency/animation.
-        // For now, use StandardMaterial with first stage only.
+        // Check if this shader needs special material (glow overlay, etc.)
+        if (shader) {
+          const { analyzeShaderPattern, createQ3Material } = await import('../shader/Q3ShaderMaterialFactory');
+          const analysis = analyzeShaderPattern(shader);
 
+          if (analysis.pattern === 'glow_overlay') {
+            // Load all required textures for glow overlay
+            const stages = shader.stages;
+            const baseStage = stages[analysis.baseStageIndex];
+            const glowStage = stages[analysis.glowStageIndex];
+
+            // Load glow texture
+            let glowTexture: Texture | null = null;
+            if (glowStage && glowStage.map) {
+              const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+              for (const ext of extensions) {
+                glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);
+                if (glowTexture) break;
+                // Try with textures/ prefix
+                if (!glowPath.startsWith('textures/')) {
+                  glowTexture = await texLoader.loadTexture(`textures/${glowPath}${ext}`);
+                  if (glowTexture) break;
+                }
+              }
+            }
+
+            if (texture && glowTexture) {
+              // Create glow overlay material
+              const textureMap = new Map<string, Texture>();
+              textureMap.set(baseStage.map, texture);
+              textureMap.set(glowStage.map, glowTexture);
+
+              const materialResult = createQ3Material(shader, scene, {
+                textures: textureMap,
+                lightmapTexture: undefined, // Will be set in applyLightmaps
+                lightmapIntensity: 2.0,
+                debug: false,
+              });
+
+              if (materialResult) {
+                mesh.material = materialResult.material;
+                // Store info for lightmap application later
+                if (!mesh.metadata) mesh.metadata = {};
+                mesh.metadata.isGlowOverlay = true;
+                mesh.metadata.needsAnimation = materialResult.needsAnimation;
+                console.log(`[BspMeshBuilder] Created glow overlay material: ${texName}`);
+                loadedCount++;
+                continue; // Skip StandardMaterial path
+              }
+            } else if (!glowTexture) {
+              console.warn(`[BspMeshBuilder] Glow texture not found for: ${texName}`);
+            }
+          }
+        }
+
+        // Standard material path (fallback and non-glow shaders)
         if (mesh.material instanceof StandardMaterial) {
           const mat = mesh.material;
           mat.diffuseTexture = texture;
@@ -734,6 +787,21 @@ export class BspMeshBuilder {
             // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
             mat.emissiveColor = new Color3(1, 1, 1);
             mat.diffuseColor = new Color3(0, 0, 0);
+          }
+
+          // Fullbright surfaces (lamps, light panels) - appear self-lit
+          if (shaderProps.isFullbright) {
+            mat.emissiveTexture = texture;
+            mat.emissiveColor = new Color3(1, 1, 1);
+            // Keep diffuse for base color but reduce to avoid over-brightness
+            mat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+            // Mark mesh to skip lightmap application
+            if (mesh.metadata) {
+              mesh.metadata.isFullbright = true;
+            } else {
+              mesh.metadata = { isFullbright: true };
+            }
+            console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
           }
 
           // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
@@ -790,6 +858,9 @@ export class BspMeshBuilder {
     for (const mesh of meshes) {
       if (!mesh.metadata?.lightmapIndex || mesh.metadata.lightmapIndex < 0) continue;
 
+      // Skip fullbright surfaces - they should not receive lightmap darkening
+      if (mesh.metadata?.isFullbright) continue;
+
       const lightmapIndex = mesh.metadata.lightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
 
@@ -817,6 +888,15 @@ export class BspMeshBuilder {
         }
 
         appliedCount++;
+      } else if (mesh.metadata?.isGlowOverlay) {
+        // Glow overlay ShaderMaterial - update lightmap texture
+        if (mat instanceof ShaderMaterial) {
+          mat.setTexture('lightmapSampler', lightmapTex);
+          mat.setFloat('hasLightmap', 1.0);
+          mat.setFloat('lightmapIntensity', intensity);
+          console.log(`[BspMeshBuilder] Applied lightmap to glow overlay: ${mesh.name}`);
+          appliedCount++;
+        }
       }
     }
 
