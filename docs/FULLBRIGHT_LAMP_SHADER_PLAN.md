@@ -118,14 +118,30 @@ if (isFullbright) {
 
 ## Edge Cases
 
-### 1. Partial Fullbright
-Some shaders have a diffuse texture + fullbright overlay. These would need multi-stage NodeMaterial. For v1, we'll treat the whole surface as fullbright.
+### 1. Partial Fullbright (NEEDS NODEMATERIAL)
+Some shaders have a diffuse texture + fullbright overlay. These would need multi-stage NodeMaterial.
+
+**Example:** `textures/boqu/lightstripe_blue_800`
+```
+{
+  { map textures/boqu/lightstripe_blue.tga, rgbGen identity }  // Base
+  { map $lightmap, blendFunc filter }                          // Darken with lightmap
+  { map textures/boqu/lightstripe_blue_glow.tga, blendFunc add } // Add glow overlay
+}
+```
+
+This is NOT a `nolightmap` shader - it uses lightmap but adds a separate glow texture on top.
+**Status:** Requires NodeMaterial for proper rendering.
 
 ### 2. Animated Lamps
 Lamps with `rgbGen wave` should still animate. The animation system already handles this.
 
 ### 3. Colored Lights
 Lamp textures often have colored regions. The emissive approach preserves these colors.
+
+### 4. rgbGen identity without nolightmap
+Some shaders use `rgbGen identity` (full brightness) but still have a lightmap stage.
+These are partially supported - base appears bright but glow overlays won't render.
 
 ---
 
