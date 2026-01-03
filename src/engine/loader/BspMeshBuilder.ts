@@ -121,7 +121,7 @@ function createRadialGradientTexture(scene: Scene, size: number = 64): RawTextur
       const alpha = Math.max(0, 1 - dist / maxDist);
       // Smooth falloff using squared alpha
       const smoothAlpha = alpha * alpha;
-      
+
       const idx = (y * size + x) * 4;
       data[idx + 0] = 255; // R
       data[idx + 1] = 255; // G
@@ -276,15 +276,15 @@ export class BspMeshBuilder {
   private shouldRenderTexture(textureIndex: number): boolean {
     if (!this.options.filterTextures) return true;
     if (textureIndex < 0 || textureIndex >= this.bsp.textures.length) return false;
-    
+
     const texName = this.bsp.textures[textureIndex].name.toLowerCase();
-    
+
     for (const skip of NON_DRAWABLE_TEXTURES) {
       if (texName.includes(skip)) {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -421,13 +421,13 @@ export class BspMeshBuilder {
       if (faceData) {
         // Add to texture group
         const numVerts = faceData.positions.length / 3;
-        
+
         for (const p of faceData.positions) group.positions.push(p);
         for (const n of faceData.normals) group.normals.push(n);
         for (const uv of faceData.uvs) group.uvs.push(uv);
         for (const uv2 of faceData.uv2s) group.uv2s.push(uv2);
         for (const c of faceData.colors) group.colors.push(c);
-        
+
         // Add indices with offset
         for (const idx of faceData.indices) {
           group.indices.push(idx + group.indexOffset);
@@ -442,10 +442,10 @@ export class BspMeshBuilder {
     // Separate opaque and transparent groups
     const opaqueGroups: TextureGroup[] = [];
     const transparentGroups: TextureGroup[] = [];
-    
+
     for (const group of textureGroups.values()) {
       if (group.indices.length === 0) continue;
-      
+
       if (group.shaderProps.isTransparent) {
         transparentGroups.push(group);
       } else {
@@ -469,10 +469,10 @@ export class BspMeshBuilder {
     // Create a separate mesh for each texture group
     for (const group of allGroups) {
       if (group.indices.length === 0) continue;
-      
+
       const meshName = `bsp_tex_${group.textureIndex}`;
       const mesh = new Mesh(meshName, this.scene);
-      
+
       const meshVertexData = new VertexData();
       meshVertexData.positions = group.positions;
       meshVertexData.normals = group.normals;
@@ -485,7 +485,7 @@ export class BspMeshBuilder {
       }
       meshVertexData.indices = group.indices;
       meshVertexData.applyToMesh(mesh);
-      
+
       // Create material with shader properties
       const meshMaterial = this.createMaterialFromShaderProps(
         `bsp_mat_${group.textureIndex}`,
@@ -575,10 +575,10 @@ export class BspMeshBuilder {
     const { PK3TextureLoader } = await import('./PK3TextureLoader');
     const texLoader = PK3TextureLoader.getInstance();
     const engine = scene.getEngine();
-    
+
     // Initialize texture loader if needed
     texLoader.init(engine as any, scene);
-    
+
     if (!result.textureGroups || result.textureGroups.length === 0) {
       console.log('[BspMeshBuilder] No texture groups to load');
       return 0;
@@ -586,10 +586,10 @@ export class BspMeshBuilder {
 
     let loadedCount = 0;
     const total = result.textureGroups.length;
-    
+
     // Get all materials from world mesh and children
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
-    
+
     // Get shader registry for looking up actual texture paths
     const { Q3ShaderRegistry } = await import('./Q3ShaderRegistry');
     const shaderRegistry = Q3ShaderRegistry.getInstance();
@@ -597,12 +597,12 @@ export class BspMeshBuilder {
     for (const group of result.textureGroups) {
       const texName = group.textureName;
       if (!texName || texName.toLowerCase().includes('common/')) continue;
-      
+
       progressCallback?.(loadedCount, total, texName);
-      
+
       // Build list of paths to try
       const pathsToTry: string[] = [];
-      
+
       // 1. Check shader for actual texture path (override)
       const shader = shaderRegistry.getShader(texName);
       if (shader && shader.stages.length > 0) {
@@ -612,10 +612,10 @@ export class BspMeshBuilder {
           console.log(`[BspMeshBuilder] Shader override: ${texName} -> ${firstStage.map}`);
         }
       }
-      
+
       // 2. Try texture name as-is (for paths with slashes)
       pathsToTry.push(texName);
-      
+
       // 3. If name has underscores but no slashes, try converting underscores to slashes
       if (texName.includes('_') && !texName.includes('/')) {
         // models_mapobjects_lamp_lamp_halo -> models/mapobjects/lamp/lamp_halo
@@ -635,7 +635,7 @@ export class BspMeshBuilder {
           }
         }
       }
-      
+
       // 4. If doesn't start with textures/, add that prefix to each path
       const allPaths: string[] = [];
       for (const p of pathsToTry) {
@@ -644,10 +644,11 @@ export class BspMeshBuilder {
           allPaths.push(`textures/${p}`);
         }
       }
-      
+
       // Try to load texture with various extensions
       const extensions = ['.tga', '.jpg', '.png', '.ktx'];
       let texture: any = null;
+      let foundCleanPath: string = ''; // Track which path succeeded for normal map loading
 
       for (const basePath of allPaths) {
         if (texture) break;
@@ -657,13 +658,16 @@ export class BspMeshBuilder {
 
         for (const ext of extensions) {
           texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
-          if (texture) break;
+          if (texture) {
+            foundCleanPath = cleanPath;
+            break;
+          }
         }
       }
-      
+
       // Get shader props to check if we need fallback texture
       const shaderProps = shaderRegistry.resolveMaterialProps(texName);
-      
+
       // If no texture found, check if we should generate a fallback
       if (!texture && shaderProps.alphaMode === 'add') {
         // Additive shader with missing texture = generate radial gradient for halo effect
@@ -676,7 +680,7 @@ export class BspMeshBuilder {
         texture = createSolidColorTexture(scene, 0, 0, 0);
         console.log(`[BspMeshBuilder] Using fallback $blackimage for: ${texName}`);
       }
-      
+
       if (texture) {
         // Find the mesh/material for this texture index (new naming: bsp_tex_)
         const meshName = `bsp_tex_${group.textureIndex}`;
@@ -685,6 +689,23 @@ export class BspMeshBuilder {
         if (mesh && mesh.material instanceof StandardMaterial) {
           const mat = mesh.material;
           mat.diffuseTexture = texture;
+
+          // Try to load normal map companion texture (_norm, _normal, _bump)
+          const normalSuffixes = ['_norm', '_normal', '_bump'];
+          for (const suffix of normalSuffixes) {
+            let normalTexFound = false;
+            for (const ext of extensions) {
+              const normalTex = await texLoader.loadTexture(`${foundCleanPath}${suffix}${ext}`);
+              if (normalTex) {
+                mat.bumpTexture = normalTex;
+                mat.bumpTexture.level = 1.0;
+                console.log(`[BspMeshBuilder] Loaded normal map: ${foundCleanPath}${suffix}${ext}`);
+                normalTexFound = true;
+                break;
+              }
+            }
+            if (normalTexFound) break;
+          }
 
           if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
             // Alpha testing mode - needs texture to be loaded
@@ -712,7 +733,7 @@ export class BspMeshBuilder {
         }
       }
     }
-    
+
     // Also try to apply texture to main world mesh (first opaque texture)
     // For now, just count what we loaded
     console.log(`[BspMeshBuilder] Applied ${loadedCount} textures`);
@@ -820,16 +841,16 @@ export class BspMeshBuilder {
     _textureName: string // Will be used for texture loading later
   ): StandardMaterial {
     const mat = new StandardMaterial(name, this.scene);
-    
+
     // Base color - white so texture shows properly
     mat.diffuseColor = new Color3(1, 1, 1);
     mat.specularColor = new Color3(0.1, 0.1, 0.1);
     mat.emissiveColor = new Color3(0, 0, 0);
-    
+
     // Culling
     mat.backFaceCulling = props.backFaceCulling;
     mat.twoSidedLighting = props.twoSidedLighting;
-    
+
     // Alpha testing (for things like plant leaves with alpha cutout)
     if (props.alphaCutoff !== undefined && props.alphaCutoff > 0) {
       // Use alpha test mode - pixels below cutoff are discarded
@@ -868,17 +889,17 @@ export class BspMeshBuilder {
           break;
       }
     }
-    
+
     // Depth write
     mat.disableDepthWrite = !props.depthWrite;
-    
+
     // Polygon offset for decals - use larger offset to prevent z-fighting
     if (props.polygonOffset) {
       mat.zOffset = -2;
       // Also slightly reduce depth for decals
       mat.separateCullingPass = true;
     }
-    
+
     return mat;
   }
 
@@ -956,7 +977,7 @@ export class BspMeshBuilder {
       console.warn(`[BspMeshBuilder] Skipping patch with invalid size: ${width}x${height}`);
       return { positions, normals, uvs, uv2s, colors, indices };
     }
-    
+
     console.log(`[BspMeshBuilder] Building patch: ${width}x${height} control points`);
 
     // Get control points
@@ -977,7 +998,7 @@ export class BspMeshBuilder {
     // Patches are stored as overlapping 3x3 grids: width=3 means 1 patch, width=5 means 2, etc.
     const numPatchesX = Math.floor((width - 1) / 2);
     const numPatchesY = Math.floor((height - 1) / 2);
-    
+
     if (numPatchesX <= 0 || numPatchesY <= 0) {
       console.warn(`[BspMeshBuilder] Invalid patch size: ${width}x${height}`);
       return { positions, normals, uvs, uv2s, colors, indices };
