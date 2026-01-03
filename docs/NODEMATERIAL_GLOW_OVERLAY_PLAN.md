@@ -108,6 +108,47 @@ function needsGlowOverlayNodeMaterial(shader: Q3Shader): boolean {
 
 ---
 
+## Implementation Status
+
+- [x] Pattern analysis utility (`Q3ShaderMaterialFactory.analyzeShaderPattern`)
+- [x] GlowOverlayShaderMaterial class (custom GLSL)
+- [x] Integration with BspMeshBuilder
+- [x] Animation support (UV offsets ready)
+- [x] Console commands for debugging (`shader glow`, `shader lightmap`, `shader blendmode`)
+- [x] Alpha blend mode support for `blendFunc blend` glow stages
+
+## Known Limitations
+
+### 1. `if/endif` Conditional Blocks Not Parsed
+Q3/Warsow shaders can have conditional blocks like:
+``` 
+if ! deluxe
+  { ... stages ... }
+endif
+if deluxe
+  { ... stages ... }
+endif
+``` 
+Currently, **all stages from all blocks are merged**, causing duplicate or incorrect stages.
+
+**Affected shaders:** `textures/boqu/lightstripe_blue_800` and similar.
+
+**Workaround:** None currently. These shaders may render incorrectly.
+
+### 2. `material` Directive Not Supported
+The `material` directive used in deluxe lighting paths is not parsed:
+``` 
+material textures/foo.tga textures/foo_norm.tga textures/foo_gloss.tga textures/foo_glow.tga
+``` 
+
+### 3. Complex Multi-Stage Shaders
+Shaders with more than 3 stages or unusual blend combinations may not render correctly.
+
+### 4. Glow Texture Alpha
+If the glow texture has `alpha=1.0` everywhere, alpha-blend mode will completely replace the base texture. Use `shader blendmode add` as a workaround.
+
+---
+
 ## Implementation Steps
 
 ### Phase 1: Glow-Specific NodeMaterial Builder

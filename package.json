@@ -1,7 +1,7 @@
 {
   "name": "isometric-game-prototype",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.8.5",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
