@@ -237,14 +237,39 @@ function parseShaderBody(
         }
         break;
 
-      case 'skyparms':
-        // Skip sky params for now
+      case 'skyparms': {
+        // Parse: skyparms <farbox> <cloudheight> <nearbox>
+        // farbox: texture path prefix for 6 skybox faces, or '-' for none
+        // cloudheight: height for cloud layer, or '-' for none  
+        // nearbox: near skybox path prefix, or '-' for none
+        // Be careful not to consume tokens belonging to next directive
         pos++;
-        while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && 
-               !isDirective(tokens[pos])) {
+        
+        let farbox = '-';
+        let cloudHeightStr = '-';
+        let nearbox = '-';
+        
+        // Read up to 3 parameters, stopping if we hit a directive or brace
+        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          farbox = tokens[pos];
           pos++;
         }
+        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          cloudHeightStr = tokens[pos];
+          pos++;
+        }
+        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          nearbox = tokens[pos];
+          pos++;
+        }
+
+        shader.skyParms = {
+          farbox: farbox !== '-' ? farbox : '',
+          cloudHeight: cloudHeightStr !== '-' ? parseFloat(cloudHeightStr) : 0,
+          nearbox: nearbox !== '-' ? nearbox : '',
+        };
         break;
+      }
 
       default:
         // Skip q3map_*, qer_*, and other unknown directives

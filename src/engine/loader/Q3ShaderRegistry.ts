@@ -137,6 +137,7 @@ export class Q3ShaderRegistry {
       isTransparent: false,
       needsAnimation: false,
       polygonOffset: false,
+      isSky: false,
     };
 
     if (!shader) {
@@ -144,6 +145,15 @@ export class Q3ShaderRegistry {
     }
 
     const props: ResolvedMaterialProps = { ...defaults };
+
+    // Sky detection - surfaceparm sky or has skyparms
+    if (shader.surfaceParms.has('sky') || shader.skyParms) {
+      props.isSky = true;
+      props.useLightmap = false;
+      if (shader.skyParms) {
+        props.skyParms = shader.skyParms;
+      }
+    }
 
     // Cull mode
     if (shader.cull === 'none' || shader.cull === 'disable') {

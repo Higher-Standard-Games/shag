@@ -5,6 +5,7 @@ export default defineConfig({
     port: 3000,
     host: true, // Allow external access for Capacitor live reload
   },
+  assetsInclude: ['**/*.pk3'], // Treat PK3 files as static assets
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

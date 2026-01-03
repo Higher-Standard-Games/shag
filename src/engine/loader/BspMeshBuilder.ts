@@ -42,6 +42,8 @@ export interface BspMeshBuildResult {
   lightmapTextures: Texture[];
   /** Texture groups info for later texture loading */
   textureGroups?: { textureIndex: number; textureName: string }[];
+  /** Sky shader names found in the map (for skybox creation) */
+  skyShaders: { textureName: string; skyParms?: { farbox: string; cloudHeight: number; nearbox: string } }[];
   /** Statistics */
   stats: {
     totalFaces: number;
@@ -49,6 +51,7 @@ export interface BspMeshBuildResult {
     patchFaces: number;
     meshFaces: number;
     billboardFaces: number;
+    skippedSkyFaces: number;
     totalVertices: number;
     totalTriangles: number;
   };
@@ -294,6 +297,7 @@ export class BspMeshBuilder {
       patchFaces: 0,
       meshFaces: 0,
       billboardFaces: 0,
+      skippedSkyFaces: 0,
       totalVertices: 0,
       totalTriangles: 0,
     };
@@ -316,6 +320,10 @@ export class BspMeshBuilder {
 
     const textureGroups = new Map<number, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
+
+    // Track sky shaders found
+    const skyShaders: BspMeshBuildResult['skyShaders'] = [];
+    const foundSkyTextures = new Set<number>();
 
     // Build first model only (model 0 = world geometry)
     const worldModel = this.bsp.models[0];
@@ -347,6 +355,20 @@ export class BspMeshBuilder {
       if (!group) {
         const textureName = this.bsp.textures[face.textureIndex]?.name || '';
         const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
+
+        // Sky shader detection - skip geometry but track for skybox creation
+        if (shaderProps.isSky) {
+          if (!foundSkyTextures.has(face.textureIndex)) {
+            foundSkyTextures.add(face.textureIndex);
+            skyShaders.push({
+              textureName,
+              skyParms: shaderProps.skyParms,
+            });
+            console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ''}`);
+          }
+          stats.skippedSkyFaces++;
+          continue; // Skip sky faces - they will be rendered as skybox
+        }
 
         // Debug: log transparent/special shaders
         if (shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') {
@@ -527,10 +549,15 @@ export class BspMeshBuilder {
       .filter(g => g.indices.length > 0)
       .map(g => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
 
+    if (skyShaders.length > 0) {
+      console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces`);
+    }
+
     return {
       worldMesh,
       lightmapTextures,
       textureGroups: allTextureGroups,
+      skyShaders,
       stats,
     };
   }
@@ -747,6 +774,41 @@ export class BspMeshBuilder {
 
     console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (mode: ${mode})`);
     return appliedCount;
+  }
+
+  /**
+   * Apply skybox from BSP sky shaders
+   * Call this after bsp render to create skybox from detected sky shaders
+   */
+  public static async applySkybox(
+    result: BspMeshBuildResult,
+    scene: Scene
+  ): Promise<{ success: boolean; skybox?: Mesh; error?: string }> {
+    if (result.skyShaders.length === 0) {
+      return { success: false, error: 'No sky shaders found in BSP' };
+    }
+
+    // Use the first sky shader with valid skyParms
+    const skyShader = result.skyShaders.find(s => s.skyParms?.farbox);
+    if (!skyShader || !skyShader.skyParms) {
+      return { success: false, error: 'No sky shader with valid skyparms found' };
+    }
+
+    const { SkyboxLoader } = await import('./SkyboxLoader');
+    const skyboxLoader = SkyboxLoader.getInstance();
+    skyboxLoader.init(scene);
+
+    // Dispose existing skybox
+    skyboxLoader.disposeSkybox();
+
+    // Load the skybox
+    const loadResult = await skyboxLoader.loadSkybox(skyShader.skyParms.farbox);
+
+    if (loadResult.success) {
+      console.log(`[BspMeshBuilder] Created skybox from: ${skyShader.textureName}`);
+    }
+
+    return loadResult;
   }
 
   /**

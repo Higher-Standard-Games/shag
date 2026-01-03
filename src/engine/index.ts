@@ -71,6 +71,8 @@ export { BspMeshBuilder, getVisibleFaces } from "./loader/BspMeshBuilder";
 export type { BuildOptions as BspBuildOptions } from "./loader/BspMeshBuilder";
 export type { BspMeshBuildResult } from "./loader/BspMeshBuilder";
 export { testBspLoading, printBspStats, testBspRendering, quickBspTest } from "./loader/BspTest";
+export { SkyboxLoader } from "./loader/SkyboxLoader";
+export type { SkyboxLoadResult } from "./loader/SkyboxLoader";
 
 // Rendering
 export { InstancedMeshManager } from "./rendering/InstancedMeshManager";

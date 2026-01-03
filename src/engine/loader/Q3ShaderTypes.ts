@@ -234,34 +234,40 @@ export interface Q3Shader {
 export interface ResolvedMaterialProps {
   /** Primary diffuse texture path */
   diffuseTexture?: string;
-  
+
   /** Use lightmap */
   useLightmap: boolean;
-  
+
   /** Alpha mode: opaque, blend, add, multiply */
   alphaMode: 'opaque' | 'blend' | 'add' | 'multiply';
-  
+
   /** Alpha cutoff for alpha testing */
   alphaCutoff?: number;
-  
+
   /** Back face culling */
   backFaceCulling: boolean;
-  
+
   /** Two-sided lighting */
   twoSidedLighting: boolean;
-  
+
   /** Depth write */
   depthWrite: boolean;
-  
+
   /** Is transparent (affects render order) */
   isTransparent: boolean;
-  
+
   /** Needs animation updates */
   needsAnimation: boolean;
-  
+
   /** TC modifiers for animation */
   tcMod?: TcMod[];
-  
+
   /** Polygon offset for decals */
   polygonOffset: boolean;
+
+  /** Is a sky surface - should not be rendered as geometry */
+  isSky: boolean;
+
+  /** Sky parameters if this is a sky shader */
+  skyParms?: SkyParms;
 }

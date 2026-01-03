@@ -2104,6 +2104,80 @@ export function registerEngineCommands(): void {
         }
       }
 
+      case 'sky': {
+        const skySubcommand = args[1]?.toLowerCase();
+
+        if (!skySubcommand || skySubcommand === 'info') {
+          // Show sky shader info
+          if (!bspRenderResult) {
+            return 'No BSP rendered. Use "bsp render" first.';
+          }
+
+          const skyShaders = bspRenderResult.skyShaders;
+          if (skyShaders.length === 0) {
+            return 'No sky shaders found in this map.';
+          }
+
+          const lines = [`=== Sky Shaders (${skyShaders.length}) ===`];
+          for (const sky of skyShaders) {
+            lines.push(`  ${sky.textureName}`);
+            if (sky.skyParms) {
+              lines.push(`    farbox: ${sky.skyParms.farbox || '(none)'}`);
+              lines.push(`    cloudHeight: ${sky.skyParms.cloudHeight || 0}`);
+              lines.push(`    nearbox: ${sky.skyParms.nearbox || '(none)'}`);
+            }
+          }
+          return lines.join('\n');
+        }
+
+        if (skySubcommand === 'apply') {
+          if (!bspRenderResult || !scene) {
+            return 'No BSP rendered. Use "bsp render" first.';
+          }
+
+          try {
+            const result = await BspMeshBuilder.applySkybox(bspRenderResult, scene);
+            if (result.success) {
+              return 'Skybox created successfully.';
+            } else {
+              return `Failed to create skybox: ${result.error}`;
+            }
+          } catch (e) {
+            return `Failed to apply skybox: ${e}`;
+          }
+        }
+
+        if (skySubcommand === 'toggle') {
+          if (!scene) {
+            return 'No scene available.';
+          }
+
+          const skybox = scene.getMeshByName('skybox');
+          if (!skybox) {
+            return 'No skybox found. Use "bsp sky apply" first.';
+          }
+
+          skybox.isVisible = !skybox.isVisible;
+          return `Skybox visibility: ${skybox.isVisible ? 'ON' : 'OFF'}`;
+        }
+
+        if (skySubcommand === 'remove') {
+          if (!scene) {
+            return 'No scene available.';
+          }
+
+          const skybox = scene.getMeshByName('skybox');
+          if (!skybox) {
+            return 'No skybox found.';
+          }
+
+          skybox.dispose();
+          return 'Skybox removed.';
+        }
+
+        return 'Sky subcommands: info, apply, toggle, remove';
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
@@ -2120,6 +2194,7 @@ export function registerEngineCommands(): void {
           '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
           '  bsp applytextures   - Load and apply textures from PK3',
           '  bsp applylightmaps [mobile|desktop] [intensity] - Apply lightmaps',
+          '  bsp sky [info|apply|toggle|remove] - Skybox commands',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }

@@ -273,16 +273,19 @@ export class PK3Index {
    */
   findPK3sForTextures(texturePaths: string[]): Set<string> {
     const pk3s = new Set<string>();
+    const shaderDirsToCheck = new Set<string>();
     
     for (const texPath of texturePaths) {
       // Try multiple extensions
       const extensions = ['', '.tga', '.jpg', '.png', '.ktx'];
       const basePath = texPath.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
       
+      let found = false;
       for (const ext of extensions) {
         const pk3 = this.findFile(basePath + ext);
         if (pk3) {
           pk3s.add(pk3);
+          found = true;
           break;
         }
         // Also check textures/ prefix
@@ -290,8 +293,27 @@ export class PK3Index {
         const pk3WithPrefix = this.findFile(withPrefix);
         if (pk3WithPrefix) {
           pk3s.add(pk3WithPrefix);
+          found = true;
           break;
         }
+      }
+      
+      // If no texture file found, collect shader directories to check
+      // e.g., textures/sky/stormydays -> look for scripts/sky.shader
+      if (!found) {
+        const parts = basePath.replace(/^textures\//, '').split('/');
+        if (parts.length > 0) {
+          shaderDirsToCheck.add(parts[0]); // e.g., "sky"
+        }
+      }
+    }
+    
+    // Look for shader PK3s based on texture directory names
+    for (const dir of shaderDirsToCheck) {
+      const shaderPath = `scripts/${dir}.shader`;
+      const pk3 = this.findFile(shaderPath);
+      if (pk3) {
+        pk3s.add(pk3);
       }
     }
     
@@ -321,12 +343,16 @@ export class PK3Index {
 
   /**
    * Get the full URL path for a PK3 filename
-   * Returns the path where it was indexed from
+   * Returns the path where it was indexed from (prefers entries with files)
    */
   getPK3Path(pk3Filename: string): string | null {
     if (!this.index) return null;
-    const entry = this.index.packages.find(p => p.pk3 === pk3Filename);
-    return entry?.path || null;
+    // Find all matching entries
+    const entries = this.index.packages.filter(p => p.pk3 === pk3Filename);
+    if (entries.length === 0) return null;
+    // Prefer entries that actually have files indexed (fileCount > 0)
+    const validEntry = entries.find(e => e.fileCount > 0) || entries[0];
+    return validEntry?.path || null;
   }
 
   /**

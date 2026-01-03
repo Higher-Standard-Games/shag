@@ -109,7 +109,7 @@ textures/skies/clouds
 
 ## Implementation Plan
 
-### Phase 1: Sky Surface Detection ⬜
+### Phase 1: Sky Surface Detection ✅
 **Goal:** Identify and skip sky faces in BSP rendering
 
 **Tasks:**
@@ -125,7 +125,7 @@ textures/skies/clouds
 - `src/engine/loader/Q3ShaderRegistry.ts` - Add `isSky` to resolved props
 - `src/engine/loader/BspMeshBuilder.ts` - Skip sky faces, track sky shaders
 
-### Phase 2: Skyparms Parsing ⬜
+### Phase 2: Skyparms Parsing ✅
 **Goal:** Parse skybox texture paths from shaders
 
 **Tasks:**
@@ -145,7 +145,7 @@ textures/skies/clouds
 **Files to modify:**
 - `src/engine/loader/Q3ShaderParser.ts`
 
-### Phase 3: Skybox Texture Loading ⬜
+### Phase 3: Skybox Texture Loading ✅
 **Goal:** Load 6 skybox textures from PK3s
 
 **Tasks:**
@@ -160,7 +160,7 @@ textures/skies/clouds
 **Files to create:**
 - `src/engine/loader/SkyboxLoader.ts`
 
-### Phase 4: Skybox Mesh Creation ⬜
+### Phase 4: Skybox Mesh Creation ✅
 **Goal:** Render skybox in scene
 
 **Tasks:**
@@ -184,7 +184,7 @@ textures/skies/clouds
 - `src/engine/loader/SkyboxLoader.ts`
 - `src/engine/loader/BspMeshBuilder.ts`
 
-### Phase 5: Console Commands ⬜
+### Phase 5: Console Commands ✅
 **Goal:** Debug and control sky rendering
 
 **Commands:**
@@ -278,6 +278,72 @@ bsp sky
 2. **Texture format conversion** - TGA to web-compatible format
 3. **Cloud layers** - Requires `tcMod` implementation (future)
 4. **Multiple sky shaders** - Some maps have multiple sky types
+
+---
+
+## Current Status (v0.8.2 WIP)
+
+### What Works
+- ✅ Sky surface detection (`surfaceparm sky`)
+- ✅ `skyparms` parsing with proper token boundary detection
+- ✅ Sky faces skipped from BSP geometry rendering
+- ✅ Skybox textures load from PK3s (TGA/JPG/PNG)
+- ✅ RawCubeTexture creation with 6 faces
+- ✅ Skybox mesh with infinite distance
+- ✅ Console commands: `bsp sky info/apply/toggle/remove`
+- ✅ One corner of skybox aligns correctly
+
+### Known Bug: Skybox Face Alignment
+
+**Status:** PARTIALLY WORKING - One corner aligns, other faces have visible seams
+
+**Problem Description:**
+The Q3/Warsow skybox face mapping to Babylon.js RawCubeTexture is not fully correct. 
+After multiple iterations, we've achieved alignment on one corner of the skybox, but 
+the other 3 corners and some faces show visible seams where textures don't connect.
+
+**Technical Details:**
+- Q3 skybox suffixes: `_ft`, `_bk`, `_lf`, `_rt`, `_up`, `_dn` (front, back, left, right, up, down)
+- Babylon.js RawCubeTexture order: px, py, pz, nx, ny, nz (+X, +Y, +Z, -X, -Y, -Z)
+- OpenGL convention (from Anton's tutorial): front=-Z, back=+Z, top=+Y, bottom=-Y, left=-X, right=+X
+
+**Current Mapping (in SkyboxLoader.ts):**
+```typescript
+const Q3_TO_BABYLON_FACE_MAP = [
+  { index: 3, transform: 'none' },  // px (+X/right) <- rt
+  { index: 4, transform: 'none' },  // py (+Y/top) <- up
+  { index: 1, transform: 'none' },  // pz (+Z/back) <- bk
+  { index: 2, transform: 'none' },  // nx (-X/left) <- lf
+  { index: 5, transform: 'none' },  // ny (-Y/bottom) <- dn
+  { index: 0, transform: 'none' },  // nz (-Z/front) <- ft
+];
+```
+
+**What We've Tried:**
+1. Various face index permutations (swapping left/right, front/back)
+2. Transform operations: flipH, flipV, rotate180, rotate90CW, rotate90CCW
+3. Rotating the skybox mesh itself (-90° on X axis)
+4. Studied Q3 source code `tr_sky.c` for `st_to_vec` and `sky_texorder` arrays
+5. Consulted OpenGL cubemap documentation
+
+**Next Steps to Investigate:**
+1. Look at actual qfusion/Warsow renderer source for skybox face handling
+2. Compare with working WebGL Q3 implementations (toji/webgl-quake3)
+3. Each face may need individual transform (not all 'none')
+4. The Q3 Z-up to Babylon Y-up coordinate system conversion may need mesh rotation + face transforms
+
+**Workaround:**
+Currently requires manual `pk3 load tex_env.pk3` before `bsp sky apply` because 
+`bsp loadrequired` doesn't detect shader texture dependencies.
+
+### Other Issues
+
+1. **tex_env.pk3 not auto-loaded:** The `bsp loadrequired` command only finds PK3s 
+   containing textures directly referenced by the BSP, not textures referenced by 
+   shaders (like skybox textures from `skyparms`).
+
+2. **PK3s in basewsw/ fail to load:** JSZip errors when loading PK3s from 
+   `game/basewsw/` path. Workaround: copied all PK3s to `game/` root.
 
 ---
 
