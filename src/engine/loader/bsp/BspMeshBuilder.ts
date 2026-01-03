@@ -730,6 +730,26 @@ export class BspMeshBuilder {
             mat.diffuseColor = new Color3(0, 0, 0);
           }
 
+          // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
+          if (shaderProps.needsAnimation && shader) {
+            const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');
+            const animSystem = ShaderAnimationSystem.getInstance();
+            animSystem.init(scene);
+
+            // Get animation data from first stage
+            const firstStage = shader.stages[0];
+            if (firstStage) {
+              animSystem.registerMaterial(
+                texName,
+                mat,
+                texture,
+                firstStage.tcMod || [],
+                firstStage.rgbGen,
+                firstStage.alphaGen
+              );
+            }
+          }
+
           loadedCount++;
         }
       }

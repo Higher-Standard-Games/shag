@@ -2332,6 +2332,72 @@ export function registerEngineCommands(): void {
         return 'Shader registry cleared';
       }
 
+      case 'anim': {
+        const { ShaderAnimationSystem } = await import('../loader');
+        const animSystem = ShaderAnimationSystem.getInstance();
+        const animSubcommand = args[1]?.toLowerCase();
+
+        switch (animSubcommand) {
+          case 'status':
+          case 'info': {
+            const info = animSystem.getInfo();
+            if (info.length === 0) {
+              return 'No animated materials registered.';
+            }
+            const lines = [
+              `=== Shader Animation System ===`,
+              `Enabled: ${animSystem.isEnabled()}`,
+              `Time scale: ${animSystem.getTimeScale()}`,
+              `Total time: ${animSystem.getTotalTime().toFixed(2)}s`,
+              `Animated materials: ${animSystem.getCount()}`,
+              '',
+            ];
+            for (const entry of info) {
+              lines.push(`  ${entry.id}`);
+              lines.push(`    tcMods: ${entry.tcModCount}, rgbGen: ${entry.hasRgbGen}, alphaGen: ${entry.hasAlphaGen}`);
+            }
+            return lines.join('\n');
+          }
+
+          case 'pause':
+            animSystem.setEnabled(false);
+            return 'Shader animations paused.';
+
+          case 'resume':
+          case 'play':
+            animSystem.setEnabled(true);
+            return 'Shader animations resumed.';
+
+          case 'toggle':
+            animSystem.setEnabled(!animSystem.isEnabled());
+            return `Shader animations: ${animSystem.isEnabled() ? 'ON' : 'OFF'}`;
+
+          case 'speed': {
+            const speed = parseFloat(args[2]);
+            if (isNaN(speed)) {
+              return `Current speed: ${animSystem.getTimeScale()}x\nUsage: shader anim speed <multiplier>`;
+            }
+            animSystem.setTimeScale(speed);
+            return `Animation speed set to ${speed}x`;
+          }
+
+          case 'clear':
+            animSystem.clear();
+            return 'Cleared all animated materials.';
+
+          default:
+            return [
+              'Shader Animation Commands:',
+              '  shader anim status  - Show animation system status',
+              '  shader anim pause   - Pause all animations',
+              '  shader anim resume  - Resume animations',
+              '  shader anim toggle  - Toggle animations on/off',
+              '  shader anim speed <n> - Set time scale (1.0 = normal)',
+              '  shader anim clear   - Clear all registered animations',
+            ].join('\n');
+        }
+      }
+
       default:
         return [
           'Shader Commands (Q3/Warsow):',
@@ -2341,6 +2407,7 @@ export function registerEngineCommands(): void {
           '  shader info <path>  - Show shader definition',
           '  shader resolve <path> - Show resolved material props',
           '  shader clear        - Clear shader registry',
+          '  shader anim [...]   - Animation system commands',
         ].join('\n');
     }
   });
