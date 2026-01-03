@@ -2075,6 +2075,28 @@ export function registerEngineCommands(): void {
         }
       }
 
+      case 'applylightmaps':
+      case 'lightmap': {
+        if (!bspRenderResult) {
+          return 'No BSP rendered. Use "bsp render" first.';
+        }
+
+        // Parse options: bsp applylightmaps [mode] [intensity]
+        const mode = args[1]?.toLowerCase() === 'mobile' ? 'mobile' : 'desktop';
+        const intensityArg = args[mode === 'mobile' ? 2 : 1];
+        const intensity = intensityArg ? parseFloat(intensityArg) : 1.5;
+
+        try {
+          const count = BspMeshBuilder.applyLightmaps(bspRenderResult, {
+            mode,
+            intensity: isNaN(intensity) ? 1.5 : intensity,
+          });
+          return `Applied ${count} lightmaps (mode: ${mode}, intensity: ${intensity.toFixed(1)})`;
+        } catch (e) {
+          return `Failed to apply lightmaps: ${e}`;
+        }
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
@@ -2090,6 +2112,7 @@ export function registerEngineCommands(): void {
           '  bsp lightmaps       - Show lightmap info',
           '  bsp render [type]   - Render BSP (poly/patch/mesh/all)',
           '  bsp applytextures   - Load and apply textures from PK3',
+          '  bsp applylightmaps [mobile|desktop] [intensity] - Apply lightmaps',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }

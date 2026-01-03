@@ -68,6 +68,7 @@ export type {
   BspVisData,
 } from "./loader/BspLoader";
 export { BspMeshBuilder, getVisibleFaces } from "./loader/BspMeshBuilder";
+export type { BuildOptions as BspBuildOptions } from "./loader/BspMeshBuilder";
 export type { BspMeshBuildResult } from "./loader/BspMeshBuilder";
 export { testBspLoading, printBspStats, testBspRendering, quickBspTest } from "./loader/BspTest";
 

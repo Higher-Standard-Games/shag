@@ -88,6 +88,7 @@ This document tracks the implementation status of Quake 3 / Warsow map support i
 | `bsp textures` | ✅ Done | List textures used |
 | `bsp loadrequired` | ✅ Done | Auto-load needed PK3s |
 | `bsp applytextures` | ✅ Done | Apply textures to meshes |
+| `bsp applylightmaps` | ✅ Done | Apply lightmaps (desktop/mobile) |
 | `shader load` | ✅ Done | Load shaders from PK3s |
 | `shader list [filter]` | ✅ Done | List loaded shaders |
 | `shader info <name>` | ✅ Done | Show shader definition |
@@ -98,20 +99,21 @@ This document tracks the implementation status of Quake 3 / Warsow map support i
 
 ## Known Issues (v0.8.0)
 
-1. **Alpha blending timing** - Transparent textures may not render correctly if shaders load after mesh creation
+1. ~~**Alpha blending timing** - Transparent textures may not render correctly if shaders load after mesh creation~~ ✅ Fixed in v0.8.1
 2. **Decal z-fighting** - Some decals still flicker despite polygonOffset
-3. **Double extension bug** - Some texture paths get `.tga.tga`
-4. **Halo/fence overlap** - Transparency sorting issues with overlapping alpha meshes
+3. ~~**Double extension bug** - Some texture paths get `.tga.tga`~~ ✅ Fixed in v0.8.1
+4. ~~**Halo/fence overlap** - Transparency sorting issues with overlapping alpha meshes~~ ✅ Fixed in v0.8.1
 
 ---
 
 ## Roadmap
 
-### v0.8.1 (Next Patch)
-- [ ] Fix alpha blending material timing
-- [ ] Fix double extension texture path bug
-- [ ] Improve transparency sorting
-- [ ] Apply lightmaps to materials
+### v0.8.1 (Current)
+- [x] Fix alpha blending material timing
+- [x] Fix double extension texture path bug
+- [x] Improve transparency sorting (alphaIndex, mustDepthSortFacets)
+- [x] Apply lightmaps to materials (desktop/mobile modes)
+- [x] Add `bsp applylightmaps` console command
 
 ### v0.9.0 (Future)
 - [ ] `tcMod` UV animations (scroll, rotate, scale)

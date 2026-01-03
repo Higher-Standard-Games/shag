@@ -219,6 +219,8 @@ export class BspMeshBuilder {
       colors: number[];
       indices: number[];
       indexOffset: number;
+      // Track lightmap usage for this texture group
+      lightmapIndices: Map<number, number>; // lightmap index -> count
     }
 
     const textureGroups = new Map<number, TextureGroup>();
@@ -254,12 +256,12 @@ export class BspMeshBuilder {
       if (!group) {
         const textureName = this.bsp.textures[face.textureIndex]?.name || '';
         const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
-        
+
         // Debug: log transparent/special shaders
         if (shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') {
           console.log(`[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`);
         }
-        
+
         group = {
           textureIndex: face.textureIndex,
           textureName,
@@ -271,8 +273,15 @@ export class BspMeshBuilder {
           colors: [],
           indices: [],
           indexOffset: 0,
+          lightmapIndices: new Map(),
         };
         textureGroups.set(face.textureIndex, group);
+      }
+
+      // Track lightmap index usage for this group
+      if (face.lightmapIndex >= 0) {
+        const count = group.lightmapIndices.get(face.lightmapIndex) || 0;
+        group.lightmapIndices.set(face.lightmapIndex, count + 1);
       }
 
       let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
@@ -341,6 +350,9 @@ export class BspMeshBuilder {
     const allGroups = [...opaqueGroups, ...transparentGroups];
     const childMeshes: Mesh[] = [];
 
+    // Track alpha index for transparent meshes (higher = render later)
+    let alphaIndex = 0;
+
     // Create a separate mesh for each texture group
     for (const group of allGroups) {
       if (group.indices.length === 0) continue;
@@ -368,10 +380,38 @@ export class BspMeshBuilder {
         group.textureName
       );
       mesh.material = meshMaterial;
-      
-      // Store texture name in metadata for later texture loading
-      mesh.metadata = { textureName: group.textureName, textureIndex: group.textureIndex };
-      
+
+      // Find the most commonly used lightmap for this texture group
+      let primaryLightmapIndex = -1;
+      let maxCount = 0;
+      for (const [lmIdx, count] of group.lightmapIndices) {
+        if (count > maxCount) {
+          maxCount = count;
+          primaryLightmapIndex = lmIdx;
+        }
+      }
+
+      // Store texture name and lightmap info in metadata for later loading
+      mesh.metadata = {
+        textureName: group.textureName,
+        textureIndex: group.textureIndex,
+        lightmapIndex: primaryLightmapIndex,
+      };
+
+      // Handle transparency sorting
+      if (group.shaderProps.isTransparent) {
+        // Additive blending (halos, lights) should render last
+        if (group.shaderProps.alphaMode === 'add') {
+          mesh.alphaIndex = 1000 + alphaIndex;
+        } else {
+          mesh.alphaIndex = alphaIndex;
+        }
+        alphaIndex++;
+
+        // Use back-to-front sorting for transparent meshes
+        mesh.mustDepthSortFacets = true;
+      }
+
       // Parent to world mesh for easy disposal
       mesh.parent = worldMesh;
       childMeshes.push(mesh);
@@ -489,11 +529,15 @@ export class BspMeshBuilder {
       // Try to load texture with various extensions
       const extensions = ['.tga', '.jpg', '.png', '.ktx'];
       let texture: any = null;
-      
+
       for (const basePath of allPaths) {
         if (texture) break;
+
+        // Strip any existing extension to avoid .tga.tga bug
+        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+
         for (const ext of extensions) {
-          texture = await texLoader.loadTexture(`${basePath}${ext}`);
+          texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
           if (texture) break;
         }
       }
@@ -502,9 +546,33 @@ export class BspMeshBuilder {
         // Find the mesh/material for this texture index (new naming: bsp_tex_)
         const meshName = `bsp_tex_${group.textureIndex}`;
         const mesh = meshes.find(m => m.name === meshName);
-        
+
         if (mesh && mesh.material instanceof StandardMaterial) {
-          mesh.material.diffuseTexture = texture;
+          const mat = mesh.material;
+          mat.diffuseTexture = texture;
+
+          // Re-apply alpha settings now that texture is loaded
+          // This fixes the alpha blending timing issue
+          const shaderProps = shaderRegistry.resolveMaterialProps(texName);
+
+          if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
+            // Alpha testing mode - needs texture to be loaded
+            mat.transparencyMode = 1; // MATERIAL_ALPHATEST
+            mat.alphaCutOff = shaderProps.alphaCutoff;
+            mat.useAlphaFromDiffuseTexture = true;
+            // Force material to recognize the new texture's alpha
+            texture.hasAlpha = true;
+          } else if (shaderProps.alphaMode === 'blend') {
+            mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
+            mat.alphaMode = Constants.ALPHA_COMBINE;
+            mat.useAlphaFromDiffuseTexture = true;
+            texture.hasAlpha = true;
+          } else if (shaderProps.alphaMode === 'add') {
+            mat.alphaMode = Constants.ALPHA_ADD;
+            mat.useAlphaFromDiffuseTexture = true;
+            texture.hasAlpha = true;
+          }
+
           loadedCount++;
         }
       }
@@ -514,6 +582,63 @@ export class BspMeshBuilder {
     // For now, just count what we loaded
     console.log(`[BspMeshBuilder] Applied ${loadedCount} textures`);
     return loadedCount;
+  }
+
+  /**
+   * Apply lightmaps to BSP materials
+   * Call this after bsp render to enable lightmapping
+   */
+  public static applyLightmaps(
+    result: BspMeshBuildResult,
+    options?: { intensity?: number; mode?: 'desktop' | 'mobile' }
+  ): number {
+    const { intensity = 1.5, mode = 'desktop' } = options || {};
+    const lightmaps = result.lightmapTextures;
+
+    if (lightmaps.length === 0) {
+      console.log('[BspMeshBuilder] No lightmaps to apply');
+      return 0;
+    }
+
+    // Get all meshes from world mesh and children
+    const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
+    let appliedCount = 0;
+
+    for (const mesh of meshes) {
+      if (!mesh.metadata?.lightmapIndex || mesh.metadata.lightmapIndex < 0) continue;
+
+      const lightmapIndex = mesh.metadata.lightmapIndex;
+      if (lightmapIndex >= lightmaps.length) continue;
+
+      const lightmapTex = lightmaps[lightmapIndex];
+      const mat = mesh.material;
+
+      if (mat instanceof StandardMaterial) {
+        if (mode === 'mobile') {
+          // Mobile mode: Use ambient texture for simple multiply
+          // This is more performant than full lightmap blending
+          mat.ambientTexture = lightmapTex;
+          mat.ambientTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+        } else {
+          // Desktop mode: Use lightmap texture for better quality
+          mat.lightmapTexture = lightmapTex;
+          mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+          mat.useLightmapAsShadowmap = true;
+
+          // Boost the overall brightness
+          mat.emissiveColor = new Color3(
+            intensity * 0.3,
+            intensity * 0.3,
+            intensity * 0.3
+          );
+        }
+
+        appliedCount++;
+      }
+    }
+
+    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (mode: ${mode})`);
+    return appliedCount;
   }
 
   /**
