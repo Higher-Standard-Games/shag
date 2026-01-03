@@ -687,7 +687,49 @@ export class BspMeshBuilder {
         const meshName = `bsp_tex_${group.textureIndex}`;
         const mesh = meshes.find(m => m.name === meshName);
 
-        if (mesh && mesh.material instanceof StandardMaterial) {
+        if (!mesh) continue;
+
+        // Check if this shader needs multi-stage NodeMaterial
+        const { Q3NodeMaterialBuilder } = await import('../shader/Q3NodeMaterialBuilder');
+        if (shader && Q3NodeMaterialBuilder.needsNodeMaterial(shader.stages)) {
+          // Multi-stage shader - load all textures and build NodeMaterial
+          const stagePaths = Q3NodeMaterialBuilder.getRequiredTextures(shader.stages);
+          const stageTextures: (any | null)[] = [];
+          
+          for (const stagePath of stagePaths) {
+            let stageTex: any = null;
+            const cleanPath = stagePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+            for (const ext of extensions) {
+              stageTex = await texLoader.loadTexture(`${cleanPath}${ext}`);
+              if (stageTex) break;
+            }
+            stageTextures.push(stageTex);
+          }
+          
+          // Build NodeMaterial
+          const buildResult = Q3NodeMaterialBuilder.build(
+            `nodeMat_${texName}`,
+            shader.stages,
+            stageTextures,
+            scene,
+            { includeLightmap: false } // Lightmap applied separately
+          );
+          
+          if (buildResult) {
+            mesh.material = buildResult.material;
+            console.log(`[BspMeshBuilder] Applied NodeMaterial for multi-stage shader: ${texName}`);
+            
+            // TODO: Register NodeMaterial animation inputs with ShaderAnimationSystem
+            // This requires extending ShaderAnimationSystem to support InputBlock updates
+            
+            loadedCount++;
+            continue; // Skip standard material handling
+          }
+          // Fall through to standard material if NodeMaterial build failed
+          console.warn(`[BspMeshBuilder] NodeMaterial build failed for ${texName}, using StandardMaterial`);
+        }
+
+        if (mesh.material instanceof StandardMaterial) {
           const mat = mesh.material;
           mat.diffuseTexture = texture;
 
