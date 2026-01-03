@@ -485,12 +485,13 @@ export class BspMeshBuilder {
       // Build list of paths to try
       const pathsToTry: string[] = [];
       
-      // 1. Check shader for actual texture path
+      // 1. Check shader for actual texture path (override)
       const shader = shaderRegistry.getShader(texName);
       if (shader && shader.stages.length > 0) {
         const firstStage = shader.stages[0];
         if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
           pathsToTry.push(firstStage.map);
+          console.log(`[BspMeshBuilder] Shader override: ${texName} -> ${firstStage.map}`);
         }
       }
       
@@ -568,9 +569,13 @@ export class BspMeshBuilder {
             mat.useAlphaFromDiffuseTexture = true;
             texture.hasAlpha = true;
           } else if (shaderProps.alphaMode === 'add') {
+            // Additive blending for glow effects (halos, flares)
             mat.alphaMode = Constants.ALPHA_ADD;
             mat.useAlphaFromDiffuseTexture = true;
             texture.hasAlpha = true;
+            // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
+            mat.emissiveColor = new Color3(1, 1, 1);
+            mat.diffuseColor = new Color3(0, 0, 0);
           }
 
           loadedCount++;
