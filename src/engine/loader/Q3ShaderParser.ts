@@ -305,6 +305,22 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         pos += 2;
         break;
 
+      case 'material':
+        // Warsow/QFusion extension: material <diffuse> [<normalmap>]
+        // Sets the diffuse texture (and optionally normal map)
+        if (tokens[pos + 1]) {
+          stage.map = tokens[pos + 1];
+          pos += 2;
+          // Check for optional normal map (we store but don't use yet)
+          if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== '}') {
+            // Skip the normal map parameter for now
+            pos++;
+          }
+        } else {
+          pos++;
+        }
+        break;
+
       case 'animmap':
         // animMap <frequency> <frame1> <frame2> ...
         if (tokens[pos + 1]) {
@@ -420,7 +436,7 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
  */
 function isStageDirective(token: string): boolean {
   const directives = [
-    'map', 'clampmap', 'animmap', 'blendfunc', 'alphafunc', 'rgbgen',
+    'map', 'clampmap', 'animmap', 'material', 'blendfunc', 'alphafunc', 'rgbgen',
     'alphagen', 'tcmod', 'tcgen', 'depthwrite', 'depthfunc', 'detail',
   ];
   return directives.includes(token.toLowerCase());
