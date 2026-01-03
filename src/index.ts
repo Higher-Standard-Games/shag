@@ -11,10 +11,10 @@ import {
   StandardMaterial,
   Vector3,
 } from "babylonjs";
-import { BrushGenerator } from "./engine/loader/BrushGenerator";
-import { MapParser } from "./engine/loader/MapParser";
-import { type PatchDefinition, PatchGenerator } from "./engine/loader/PatchGenerator";
-import { TextureManager } from "./engine/loader/TextureManager";
+import { BrushGenerator } from "./engine/loader";
+import { MapParser } from "./engine/loader";
+import { type PatchDefinition, PatchGenerator } from "./engine/loader";
+import { TextureManager } from "./engine/loader";
 import { IsometricController } from "./engine/camera";
 import { UIManager } from "./ui/UIManager";
 import { GameState } from "./game/GameState";

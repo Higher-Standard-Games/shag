@@ -67,7 +67,7 @@ const QUALITY_PRESETS: Record<QualityLevel, Partial<TextureMemoryConfig>> = {
  */
 export class TextureMemoryManager {
   private static instance: TextureMemoryManager;
-  private scene: Scene | null = null;
+  private _scene: Scene | null = null;
   
   private config: TextureMemoryConfig = {
     memoryBudgetMB: 256,
@@ -95,7 +95,7 @@ export class TextureMemoryManager {
    * Initialize with scene and optional config
    */
   public init(scene: Scene, config?: Partial<TextureMemoryConfig>): void {
-    this.scene = scene;
+    this._scene = scene;
     
     if (config) {
       this.config = { ...this.config, ...config };
@@ -125,6 +125,11 @@ export class TextureMemoryManager {
    */
   public getConfig(): Readonly<TextureMemoryConfig> {
     return { ...this.config };
+  }
+
+  /** Get scene reference */
+  public getScene(): Scene | null {
+    return this._scene;
   }
   
   /**
@@ -342,7 +347,7 @@ export class TextureMemoryManager {
    */
   public dispose(): void {
     this.clear();
-    this.scene = null;
+    this._scene = null;
   }
   
   /**

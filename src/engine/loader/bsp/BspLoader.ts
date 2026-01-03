@@ -57,7 +57,7 @@ const IBSP_LIGHTMAP_SIZE = 128;
 const FBSP_LIGHTMAP_SIZE = 512;
 
 // Max lightmaps per surface (FBSP supports lightstyles)
-const MAX_LIGHTMAPS = 4;
+export const MAX_LIGHTMAPS = 4;
 
 // ============================================================================
 // BSP Data Structures

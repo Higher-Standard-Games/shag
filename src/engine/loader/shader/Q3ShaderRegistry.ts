@@ -5,26 +5,31 @@
  * loading shaders from PK3 archives.
  */
 
-import { PK3Loader } from './PK3Loader';
+import { PK3Loader } from '../pk3/PK3Loader';
 import { parseShaderFile } from './Q3ShaderParser';
 import type { Q3Shader, ResolvedMaterialProps } from './Q3ShaderTypes';
 
 export class Q3ShaderRegistry {
   private static instance: Q3ShaderRegistry;
-  
+
   /** Map of shader name (lowercase) to shader definition */
   private shaders: Map<string, Q3Shader> = new Map();
-  
+
   /** Whether shaders have been loaded */
   private loaded = false;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): Q3ShaderRegistry {
     if (!Q3ShaderRegistry.instance) {
       Q3ShaderRegistry.instance = new Q3ShaderRegistry();
     }
     return Q3ShaderRegistry.instance;
+  }
+
+  /** Check if shaders have been loaded */
+  isLoaded(): boolean {
+    return this.loaded;
   }
 
   /** Track which shader files have been processed */
@@ -40,7 +45,7 @@ export class Q3ShaderRegistry {
 
     // Find all .shader files in scripts/ folder from ALL loaded PK3s
     const shaderFiles = pk3Loader.listFiles('scripts/*.shader');
-    
+
     // Filter to only new shader files
     const newShaderFiles = shaderFiles.filter(f => !this.processedShaderFiles.has(f));
 
@@ -53,7 +58,7 @@ export class Q3ShaderRegistry {
 
     for (const shaderFile of newShaderFiles) {
       this.processedShaderFiles.add(shaderFile);
-      
+
       try {
         const data = await pk3Loader.getFile(shaderFile);
         if (!data) continue;
@@ -74,7 +79,7 @@ export class Q3ShaderRegistry {
 
     this.loaded = true;
     console.log(`[Q3ShaderRegistry] Loaded ${newShaderCount} new shaders (${this.shaders.size} total)`);
-    
+
     return this.shaders.size;
   }
 
@@ -85,16 +90,16 @@ export class Q3ShaderRegistry {
   getShader(textureName: string): Q3Shader | undefined {
     // Normalize: lowercase, no extension
     const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
-    
+
     // Try exact match first
     let shader = this.shaders.get(name);
     if (shader) return shader;
-    
+
     // If name has underscores but no slashes, try converting underscores to slashes
     // BSP texture names like "models_mapobjects_lamp_lamp_halo" -> "models/mapobjects/lamp/lamp_halo"
     if (name.includes('_') && !name.includes('/')) {
       const parts = name.split('_');
-      
+
       // Try progressively more path segments
       // e.g., models/mapobjects/lamp/lamp_halo, models/mapobjects/lamp_lamp_halo, etc.
       for (let pathSegments = parts.length - 1; pathSegments >= 1; pathSegments--) {
@@ -104,12 +109,12 @@ export class Q3ShaderRegistry {
         shader = this.shaders.get(candidate);
         if (shader) return shader;
       }
-      
+
       // Also try all underscores as slashes
       shader = this.shaders.get(parts.join('/'));
       if (shader) return shader;
     }
-    
+
     return undefined;
   }
 
@@ -126,7 +131,7 @@ export class Q3ShaderRegistry {
    */
   resolveMaterialProps(textureName: string): ResolvedMaterialProps {
     const shader = this.getShader(textureName);
-    
+
     // Default opaque material
     const defaults: ResolvedMaterialProps = {
       useLightmap: true,
@@ -178,7 +183,7 @@ export class Q3ShaderRegistry {
     // Check stages for blend modes
     if (shader.stages.length > 0) {
       const firstStage = shader.stages[0];
-      
+
       // Get diffuse texture from first stage
       if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
         props.diffuseTexture = firstStage.map;
@@ -190,7 +195,7 @@ export class Q3ShaderRegistry {
       // Determine alpha mode from blend function
       if (firstStage.blendFunc) {
         const [src, dst] = firstStage.blendFunc;
-        
+
         // Additive: GL_ONE, GL_ONE
         if (src === 'GL_ONE' && dst === 'GL_ONE') {
           props.alphaMode = 'add';
@@ -287,7 +292,7 @@ export class Q3ShaderRegistry {
     console.log(`  Cull: ${shader.cull}`);
     console.log(`  Surface parms: ${Array.from(shader.surfaceParms).join(', ')}`);
     console.log(`  Stages: ${shader.stages.length}`);
-    
+
     shader.stages.forEach((stage, i) => {
       console.log(`  Stage ${i}:`);
       console.log(`    Map: ${stage.map}`);

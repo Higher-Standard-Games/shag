@@ -1,8 +1,8 @@
 import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
-import { ProceduralTextureGenerator } from "../procedural/ProceduralTextureGenerator";
-import { GamePaths } from "../core/GamePaths";
-import { PK3Loader } from "./PK3Loader";
-import { PK3TextureLoader } from "./PK3TextureLoader";
+import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
+import { GamePaths } from "../../core/GamePaths";
+import { PK3Loader } from "../pk3/PK3Loader";
+import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
 
 // Check if we're in production mode (Vite sets this)
 // @ts-ignore - Vite provides import.meta.env
@@ -53,7 +53,7 @@ export class TextureManager {
     "common/origin",
   ]);
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): TextureManager {
     if (!TextureManager.instance) {
@@ -244,24 +244,24 @@ export class TextureManager {
    */
   private async tryLoadFromPK3(texturePath: string): Promise<Texture | null> {
     if (!this.scene) return null;
-    
+
     const pk3 = PK3Loader.getInstance();
     const pk3Tex = PK3TextureLoader.getInstance();
-    
+
     // Check if any PK3 packages are loaded
     if (pk3.getPackageInfo().length === 0) {
       return null;
     }
-    
+
     // PK3 texture extensions to try
     const pk3Extensions = ['.ktx', '.tga', '.png', '.jpg'];
-    
+
     for (const ext of pk3Extensions) {
       const fullPath = `${texturePath}${ext}`;
       if (pk3.hasFile(fullPath)) {
         // Initialize PK3TextureLoader if needed
         pk3Tex.init(this.scene.getEngine() as any, this.scene);
-        
+
         const texture = await pk3Tex.loadTexture(fullPath);
         if (texture) {
           texture.name = texturePath;
@@ -272,7 +272,7 @@ export class TextureManager {
         }
       }
     }
-    
+
     return null;
   }
 
@@ -293,10 +293,10 @@ export class TextureManager {
    */
   private async loadCompanionMaps(material: StandardMaterial, textureInfo: TextureInfo): Promise<void> {
     if (!this.scene) return;
-    
+
     // Get base path without extension
     const basePath = textureInfo.path.replace(/\.[^/.]+$/, '');
-    
+
     // Try to load normal map (_norm)
     const normTexture = await this.tryLoadCompanionTexture(`${basePath}_norm`);
     if (normTexture) {
@@ -305,7 +305,7 @@ export class TextureManager {
       this.applyUVTransform(normTexture, textureInfo);
       console.log(`[TextureManager] Loaded normal map: ${basePath}_norm`);
     }
-    
+
     // Try to load gloss/specular map (_gloss)
     const glossTexture = await this.tryLoadCompanionTexture(`${basePath}_gloss`);
     if (glossTexture) {
@@ -323,19 +323,19 @@ export class TextureManager {
    */
   private async tryLoadCompanionTexture(basePath: string): Promise<Texture | null> {
     if (!this.scene) return null;
-    
+
     // Normalize path
     let normalizedPath = basePath;
     if (!normalizedPath.startsWith("textures/")) {
       normalizedPath = `textures/${normalizedPath}`;
     }
-    
+
     // Try PK3 first
     const pk3Texture = await this.tryLoadFromPK3(normalizedPath);
     if (pk3Texture) {
       return pk3Texture;
     }
-    
+
     // Try filesystem with various extensions
     const extensions = ['.tga', '.png', '.jpg', '.jpeg'];
     for (const ext of extensions) {
@@ -353,7 +353,7 @@ export class TextureManager {
         // Continue to next extension
       }
     }
-    
+
     return null;
   }
 
@@ -404,7 +404,7 @@ export class TextureManager {
 
         // Apply UV transformations
         this.applyUVTransform(texture, textureInfo);
-        
+
         // Try to load companion maps (_norm, _gloss) - Quake/Warsow standard
         await this.loadCompanionMaps(material, textureInfo);
       } else {
@@ -505,26 +505,26 @@ export class TextureManager {
 
     // Noise parameters
     const noiseAmount = 18;
-    
+
     // Use seeded random for consistent results per color
     const seed = r * 1000 + g * 100 + b;
     const seededRandom = this.createSeededRandom(seed);
-    
+
     // Generate seamless tileable noise
     // Use multiple octaves of seamless noise
     const noiseGrid = this.generateTileableNoise(size, seededRandom);
-    
+
     // Draw pixels
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const noiseVal = noiseGrid[y][x];
         const totalNoise = noiseVal * noiseAmount;
-        
+
         // Apply noise
         const pr = Math.max(0, Math.min(255, Math.floor(r + totalNoise)));
         const pg = Math.max(0, Math.min(255, Math.floor(g + totalNoise * 0.9)));
         const pb = Math.max(0, Math.min(255, Math.floor(b + totalNoise * 0.8)));
-        
+
         ctx.fillStyle = `rgb(${pr},${pg},${pb})`;
         ctx.fillRect(x, y, 1, 1);
       }
@@ -560,7 +560,7 @@ export class TextureManager {
   private generateTileableNoise(size: number, random: () => number): number[][] {
     const grid: number[][] = [];
     const halfSize = size / 2;
-    
+
     // Generate noise for one quadrant
     const baseNoise: number[][] = [];
     for (let y = 0; y <= halfSize; y++) {
@@ -574,7 +574,7 @@ export class TextureManager {
         baseNoise[y][x] = value;
       }
     }
-    
+
     // Mirror to create seamless tiling
     for (let y = 0; y < size; y++) {
       grid[y] = [];
@@ -582,15 +582,15 @@ export class TextureManager {
         // Mirror coordinates
         const mx = x < halfSize ? x : size - x;
         const my = y < halfSize ? y : size - y;
-        
+
         // Blend at edges for smoother transition
         const bx = Math.min(mx, halfSize);
         const by = Math.min(my, halfSize);
-        
+
         grid[y][x] = baseNoise[by]?.[bx] ?? 0;
       }
     }
-    
+
     return grid;
   }
 }

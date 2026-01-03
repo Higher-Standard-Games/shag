@@ -31,10 +31,10 @@
 import { ServiceLocator, type ServiceRegistration } from './ServiceLocator';
 import { GamePaths } from './GamePaths';
 import { EngineSettings } from './EngineSettings';
-import { TextureManager } from '../loader/TextureManager';
+import { TextureManager } from "../loader/texture/TextureManager";
 import { ProceduralTextureGenerator } from '../procedural/ProceduralTextureGenerator';
-import { ModelLoader } from '../loader/ModelLoader';
-import { PrefabLoader } from '../loader/PrefabLoader';
+import { ModelLoader } from "../loader/model/ModelLoader";
+import { PrefabLoader } from "../loader/model/PrefabLoader";
 import { SpriteManager } from '../sprites/SpriteManager';
 import { SpriteBuildingManager } from '../sprites/SpriteBuilding';
 import { SkyLightSystem } from '../lighting/SkyLightSystem';
@@ -160,7 +160,7 @@ export const Services = {
   // Core
   GAME_PATHS: 'gamePaths',
   ENGINE_SETTINGS: 'engineSettings',
-  
+
   // Scene
   TEXTURE_MANAGER: 'textureManager',
   PROCEDURAL_TEXTURES: 'proceduralTextures',

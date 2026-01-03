@@ -21,7 +21,7 @@ export class SideScrollController implements ICameraController {
   
   private camera: ArcRotateCamera | null = null;
   private scene: Scene | null = null;
-  private _canvas: HTMLCanvasElement | null = null;
+  private canvas: HTMLCanvasElement | null = null;
   
   // State
   private enabled: boolean = true;
@@ -48,7 +48,7 @@ export class SideScrollController implements ICameraController {
     
     this.camera = camera;
     this.scene = scene;
-    this._canvas = canvas;
+    this.canvas = canvas;
     
     // Set up side-scrolling view
     this.camera.alpha = 0;
@@ -73,7 +73,7 @@ export class SideScrollController implements ICameraController {
     }
     this.camera = null;
     this.scene = null;
-    this._canvas = null;
+    this.canvas = null;
     this.followTarget = null;
     console.log("[SideScrollController] Detached");
   }
@@ -182,5 +182,10 @@ export class SideScrollController implements ICameraController {
         this.camera.target.copyFrom(this.targetPosition);
       }
     }
+  }
+
+  /** Get canvas element */
+  getCanvas(): HTMLCanvasElement | null {
+    return this.canvas;
   }
 }

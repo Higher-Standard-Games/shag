@@ -46,7 +46,8 @@ function createInstantStage(prefab: string, scale: number = 1): ObjectStage[] {
   return [{ minProgress: 0, maxProgress: 100, prefab, scale }];
 }
 
-function _createCustomStages(stages: Array<{ progress: number; prefab: string; scale?: number }>): ObjectStage[] {
+/** Create custom multi-stage buildable progression (exported for future use) */
+export function createCustomStages(stages: Array<{ progress: number; prefab: string; scale?: number }>): ObjectStage[] {
   return stages.map((s, i, arr) => ({
     minProgress: s.progress,
     maxProgress: i < arr.length - 1 ? arr[i + 1].progress - 1 : 100,

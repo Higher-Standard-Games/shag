@@ -18,11 +18,15 @@ import { SideScrollController } from '../camera/controllers/SideScrollController
 import { FollowController } from '../camera/controllers/FollowController';
 import { FreeflyController } from '../camera/controllers/FreeflyController';
 import { Vector3 } from 'babylonjs';
-import { PK3Loader } from '../loader/PK3Loader';
-import { parseKTX1 } from '../loader/KTX1Loader';
-import { PK3TextureLoader } from '../loader/PK3TextureLoader';
-import { BspLoader, type BspFile } from '../loader/BspLoader';
-import { BspMeshBuilder, type BspMeshBuildResult } from '../loader/BspMeshBuilder';
+import {
+  PK3Loader,
+  parseKTX1,
+  PK3TextureLoader,
+  BspLoader,
+  type BspFile,
+  BspMeshBuilder,
+  type BspMeshBuildResult
+} from '../loader';
 import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
 import { MenuSystem } from '../MenuSystem';
 
@@ -32,11 +36,11 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Audio Commands
   // ============================================================================
-  
+
   registry.register('audio', (args) => {
     const audio = AudioManager.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'volume': {
         const vol = parseFloat(args[1]);
@@ -46,15 +50,15 @@ export function registerEngineCommands(): void {
         audio.setMusicVolume(vol);
         return `Music volume set to ${vol}`;
       }
-      
+
       case 'mute':
         audio.setMusicEnabled(false);
         return 'Audio muted';
-        
+
       case 'unmute':
         audio.setMusicEnabled(true);
         return 'Audio unmuted';
-        
+
       case 'play': {
         const track = args[1];
         if (!track) {
@@ -63,11 +67,11 @@ export function registerEngineCommands(): void {
         audio.playMusic(track);
         return `Playing: ${track}`;
       }
-      
+
       case 'stop':
         audio.stopMusic();
         return 'Music stopped';
-        
+
       default:
         return 'Subcommands: volume, mute, unmute, play, stop';
     }
@@ -76,11 +80,11 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Time Commands
   // ============================================================================
-  
+
   registry.register('time', (args) => {
     const clock = GameClock.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'set': {
         const hour = parseFloat(args[1]);
@@ -90,18 +94,18 @@ export function registerEngineCommands(): void {
         clock.setTime(hour);
         return `Time set to ${hour}:00`;
       }
-      
+
       case 'speed':
         return 'Time speed not yet implemented';
-      
+
       case 'pause':
         clock.pause();
         return 'Time paused';
-        
+
       case 'resume':
         clock.resume();
         return 'Time resumed';
-        
+
       default:
         return `Current time: ${clock.formatTime()}, Day ${clock.getCurrentDay()}`;
     }
@@ -110,10 +114,10 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Debug Commands
   // ============================================================================
-  
+
   registry.register('debug', (args) => {
     const subcommand = args[0]?.toLowerCase();
-    
+
     const cameraSystem = CameraSystem.getInstance();
     const scene = cameraSystem.getCamera()?.getScene();
 
@@ -206,46 +210,46 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Weather Commands
   // ============================================================================
-  
+
   registry.register('weather', (args) => {
     // Weather API is exposed on window.weather by GameScene
     const weather = (window as any).weather;
-    
+
     if (!weather) {
       return 'Weather system not available (game not started)';
     }
-    
+
     const subcommand = args[0]?.toLowerCase();
     const intensity = parseFloat(args[1]) || 0.5;
-    
+
     switch (subcommand) {
       case 'rain':
         weather.rain(true);
         if (args[1]) weather.rainIntensity(intensity);
         return `Rain started (intensity: ${intensity})`;
-        
+
       case 'snow':
         weather.snow(true);
         if (args[1]) weather.snowIntensity(intensity);
         return `Snow started (intensity: ${intensity})`;
-        
+
       case 'clear':
         weather.rain(false);
         weather.snow(false);
         weather.fog(false);
         return 'Weather cleared';
-        
+
       case 'fog': {
         const density = parseFloat(args[1]) || 0.02;
         weather.fog(true);
         weather.fogDensity(density);
         return `Fog set (density: ${density})`;
       }
-      
+
       case 'thunder':
         weather.thunder();
         return 'Thunder triggered';
-        
+
       case 'status': {
         const raining = weather.isRaining?.();
         const snowing = weather.isSnowing?.();
@@ -253,34 +257,34 @@ export function registerEngineCommands(): void {
         const windy = weather.isWindy?.();
         return `Weather: ${raining ? 'raining' : snowing ? 'snowing' : 'clear'}${foggy ? ', foggy' : ''}${windy ? ', windy' : ''}`;
       }
-        
+
       default:
         return 'Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, wind, debris, status';
     }
   });
-  
+
   // ============================================================================
   // Wind Commands
   // ============================================================================
-  
+
   registry.register('wind', (args) => {
     const weather = (window as any).weather;
-    
+
     if (!weather) {
       return 'Weather system not available (game not started)';
     }
-    
+
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'on':
         weather.wind(true);
         return 'Wind started';
-        
+
       case 'off':
         weather.wind(false);
         return 'Wind stopped';
-        
+
       case 'strength': {
         const strength = parseFloat(args[1]);
         if (isNaN(strength)) {
@@ -289,7 +293,7 @@ export function registerEngineCommands(): void {
         weather.windStrength(strength);
         return `Wind strength: ${strength}`;
       }
-      
+
       case 'angle': {
         const angle = parseFloat(args[1]);
         if (isNaN(angle)) {
@@ -298,76 +302,76 @@ export function registerEngineCommands(): void {
         weather.windAngle(angle);
         return `Wind angle: ${angle} rad`;
       }
-      
+
       case 'gust':
         weather.gust();
         return 'Gust triggered';
-        
+
       case 'calm':
         weather.calmBreeze();
         return 'Calm breeze preset';
-        
+
       case 'moderate':
         weather.moderateWind();
         return 'Moderate wind preset';
-        
+
       case 'storm':
         weather.stormWind();
         return 'Storm wind preset';
-        
+
       default:
         return 'Subcommands: on, off, strength <0-1>, angle <rad>, gust, calm, moderate, storm';
     }
   });
-  
+
   // ============================================================================
   // Debris Commands
   // ============================================================================
-  
+
   registry.register('debris', (args) => {
     const weather = (window as any).weather;
-    
+
     if (!weather) {
       return 'Weather system not available (game not started)';
     }
-    
+
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'leaves':
         weather.debris('leaves');
         return 'Leaves debris started';
-        
+
       case 'trash':
         weather.debris('trash');
         return 'Trash debris started';
-        
+
       case 'dust':
         weather.debris('dust');
         return 'Dust debris started';
-        
+
       case 'mixed':
         weather.debris('mixed');
         return 'Mixed debris started';
-        
+
       case 'off':
         weather.debris(false);
         return 'Debris stopped';
-        
+
       case 'density': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris density <0-1>';
         weather.debrisDensity(v);
         return `Debris density: ${v}`;
       }
-      
+
       case 'size': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris size <number>';
         weather.debrisSize(v);
         return `Debris size: ${v}`;
       }
-      
+
       case 'speed': {
         const min = parseFloat(args[1]);
         const max = parseFloat(args[2]) || min * 2;
@@ -375,59 +379,59 @@ export function registerEngineCommands(): void {
         weather.debrisSpeed(min, max);
         return `Debris speed: ${min}-${max}`;
       }
-      
+
       case 'gravity': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris gravity <number>';
         weather.debrisGravity(v);
         return `Debris gravity: ${v}`;
       }
-      
+
       case 'spin': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris spin <number>';
         weather.debrisSpin(v);
         return `Debris spin: ${v}`;
       }
-      
+
       case 'lifetime': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris lifetime <seconds>';
         weather.debrisLifetime(v);
         return `Debris lifetime: ${v}s`;
       }
-      
+
       case 'windforce': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris windforce <number>';
         weather.debrisWindForce(v);
         return `Debris windforce: ${v}`;
       }
-      
+
       case 'turbulence': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris turbulence <0-1>';
         weather.debrisTurbulence(v);
         return `Debris turbulence: ${v}`;
       }
-      
+
       case 'spread': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris spread <number>';
         weather.debrisSpread(v);
         return `Debris spread: ${v}`;
       }
-      
+
       case 'height': {
         const v = parseFloat(args[1]);
         if (isNaN(v)) return 'Usage: debris height <number>';
         weather.debrisHeight(v);
         return `Debris height: ${v}`;
       }
-      
+
       case 'settings':
         return JSON.stringify(weather.settings()?.debris, null, 2);
-        
+
       default:
         return 'Subcommands: leaves, trash, dust, mixed, off, density, size, speed, gravity, spin, lifetime, windforce, turbulence, spread, height, settings';
     }
@@ -436,7 +440,7 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Camera Commands - Full CameraSystem integration
   // ============================================================================
-  
+
   registry.register('camera', (args) => {
     const subcommand = args[0]?.toLowerCase();
     const cameraSystem = CameraSystem.getInstance();
@@ -444,7 +448,7 @@ export function registerEngineCommands(): void {
     const getCameraMode = (window as any).getCameraMode;
     const setCameraHeight = (window as any).setCameraHeight;
     const getCameraHeight = (window as any).getCameraHeight;
-    
+
     switch (subcommand) {
       case 'mode': {
         const mode = args[1]?.toLowerCase();
@@ -461,7 +465,7 @@ export function registerEngineCommands(): void {
         }
         return 'Camera system not available';
       }
-      
+
       case 'height': {
         const height = parseFloat(args[1]);
         if (isNaN(height)) {
@@ -474,7 +478,7 @@ export function registerEngineCommands(): void {
         }
         return 'Camera system not available';
       }
-      
+
       case 'target': {
         const x = parseFloat(args[1]);
         const y = parseFloat(args[2]);
@@ -486,14 +490,14 @@ export function registerEngineCommands(): void {
         cameraSystem.setTarget(new Vector3(x, y, z));
         return `Camera target set to: ${x}, ${y}, ${z}`;
       }
-      
+
       case 'controller': {
         const type = args[1]?.toLowerCase();
         if (!type) {
           const active = cameraSystem.getActiveController();
           return `Active controller: ${active?.type || 'none'}\nUsage: camera controller <isometric|fps|sidescroll>`;
         }
-        
+
         // Register controller if not already registered
         if (!cameraSystem.getController(type)) {
           switch (type) {
@@ -516,13 +520,13 @@ export function registerEngineCommands(): void {
               return `Unknown controller: ${type}. Available: isometric, fps, sidescroll, follow, freefly`;
           }
         }
-        
+
         if (cameraSystem.setController(type)) {
           return `Switched to controller: ${type}`;
         }
         return `Failed to switch to controller: ${type}`;
       }
-      
+
       case 'controllers': {
         const types = cameraSystem.getControllerTypes();
         const active = cameraSystem.getActiveController()?.type;
@@ -531,31 +535,31 @@ export function registerEngineCommands(): void {
         }
         return `Registered controllers:\n${types.map(t => `  ${t}${t === active ? ' (active)' : ''}`).join('\n')}`;
       }
-      
+
       case 'info': {
         const mode = getCameraMode?.() || 'unknown';
         const height = getCameraHeight?.() || 'unknown';
         const target = cameraSystem.getTarget();
         const controller = cameraSystem.getActiveController();
         const cam = cameraSystem.getArcRotateCamera();
-        
+
         const lines = [
           `Mode: ${mode}`,
           `Height: ${height}`,
           `Target: ${target.x.toFixed(1)}, ${target.y.toFixed(1)}, ${target.z.toFixed(1)}`,
           `Controller: ${controller?.type || 'none'}`,
         ];
-        
+
         if (cam) {
           lines.push(`Alpha: ${cam.alpha.toFixed(4)} rad`);
           lines.push(`Beta: ${cam.beta.toFixed(4)} rad`);
           lines.push(`Radius: ${cam.radius.toFixed(1)}`);
           if (cam.fov) lines.push(`FOV: ${cam.fov.toFixed(3)}`);
         }
-        
+
         return lines.join('\n');
       }
-      
+
       case 'preset': {
         const presetName = args[1];
         if (!presetName) {
@@ -566,7 +570,7 @@ export function registerEngineCommands(): void {
         }
         return `Preset not found: ${presetName}`;
       }
-      
+
       case 'presets': {
         const presets = cameraSystem.getPresetNames();
         if (presets.length === 0) {
@@ -574,7 +578,7 @@ export function registerEngineCommands(): void {
         }
         return `Available presets:\n  ${presets.join('\n  ')}`;
       }
-      
+
       case 'reset': {
         // Reset to default isometric view
         const cam = cameraSystem.getArcRotateCamera();
@@ -586,13 +590,13 @@ export function registerEngineCommands(): void {
         }
         return 'Camera not available';
       }
-      
+
       case 'fov': {
         const fovValue = parseFloat(args[1]);
         const scene = cameraSystem.getCamera()?.getScene();
         const activeCam = scene?.activeCamera;
         if (!activeCam) return 'No active camera';
-        
+
         if (isNaN(fovValue)) {
           return `Current FOV: ${activeCam.fov?.toFixed(3) || 'N/A'} radians\nUsage: camera fov <radians>\nTypical values: 0.4 (narrow) to 1.5 (wide)`;
         }
@@ -604,7 +608,7 @@ export function registerEngineCommands(): void {
         }
         return `FOV set to: ${fovValue} radians`;
       }
-      
+
       case 'pos':
       case 'teleport': {
         const x = parseFloat(args[1]);
@@ -614,7 +618,7 @@ export function registerEngineCommands(): void {
         const scene = cameraSystem.getCamera()?.getScene();
         const activeCam = scene?.activeCamera;
         if (!activeCam) return 'No active camera';
-        
+
         if (isNaN(x) || isNaN(y) || isNaN(z)) {
           const pos = activeCam.position;
           return `Camera position: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}\nUsage: camera pos <x> <y> <z>`;
@@ -622,7 +626,7 @@ export function registerEngineCommands(): void {
         activeCam.position.set(x, y, z);
         return `Camera teleported to: ${x}, ${y}, ${z}`;
       }
-        
+
       default:
         return 'Subcommands: mode, height, target, fov, pos, controller, controllers, info, preset, presets, reset';
     }
@@ -631,18 +635,18 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Map Commands (placeholder)
   // ============================================================================
-  
+
   // ============================================================================
   // Export Commands - Export current settings to JSON for engine-settings.json
   // ============================================================================
-  
+
   registry.register('export', (args) => {
     const subcommand = args[0]?.toLowerCase();
-    
+
     // Get current settings from window globals
     const camera = (window as any).camera;
     const fx = (window as any).fx;
-    
+
     const getCameraSettings = () => {
       if (!camera) return null;
       const cam = camera.get?.();
@@ -656,7 +660,7 @@ export function registerEngineCommands(): void {
         smoothing: 0.15
       };
     };
-    
+
     const getFxSettings = () => {
       if (!fx) return null;
       const settings = fx.settings?.();
@@ -679,7 +683,7 @@ export function registerEngineCommands(): void {
         }
       };
     };
-    
+
     const copyToClipboard = (text: string) => {
       navigator.clipboard.writeText(text).then(() => {
         console.log('[Export] Copied to clipboard!');
@@ -687,7 +691,7 @@ export function registerEngineCommands(): void {
         console.log('[Export] Could not copy to clipboard - see output above');
       });
     };
-    
+
     switch (subcommand) {
       case 'camera': {
         const cameraSettings = getCameraSettings();
@@ -697,7 +701,7 @@ export function registerEngineCommands(): void {
         copyToClipboard(json);
         return 'Camera settings exported (copied to clipboard)';
       }
-      
+
       case 'fx': {
         const fxSettings = getFxSettings();
         if (!fxSettings) return 'Post-processing not available';
@@ -706,16 +710,16 @@ export function registerEngineCommands(): void {
         copyToClipboard(json);
         return 'Post-processing settings exported (copied to clipboard)';
       }
-      
+
       case 'all': {
         const allSettings: Record<string, unknown> = {};
-        
+
         const cameraSettings = getCameraSettings();
         if (cameraSettings) allSettings.camera = cameraSettings;
-        
+
         const fxSettings = getFxSettings();
         if (fxSettings) allSettings.postProcessing = fxSettings;
-        
+
         // Add lighting defaults
         allSettings.lighting = {
           sunIntensity: 0.6,
@@ -723,20 +727,20 @@ export function registerEngineCommands(): void {
           ambientIntensity: 0.25,
           enableShadows: true
         };
-        
+
         // Add time defaults
         allSettings.time = {
           dayLengthSeconds: 180,
           startHour: 8,
           startDay: 1
         };
-        
+
         const json = JSON.stringify(allSettings, null, 2);
         console.log(json);
         copyToClipboard(json);
         return 'All settings exported (copied to clipboard) - paste into public/game/engine-settings.json';
       }
-      
+
       case 'show': {
         const allSettings: Record<string, unknown> = {};
         const cameraSettings = getCameraSettings();
@@ -745,12 +749,12 @@ export function registerEngineCommands(): void {
         if (fxSettings) allSettings.postProcessing = fxSettings;
         return JSON.stringify(allSettings, null, 2);
       }
-      
+
       case 'map': {
         // Export current settings as worldspawn entity values for NetRadiant
         const cam = camera?.get?.();
         const weatherApi = (window as any).weather;
-        
+
         const lines: string[] = [
           '// ============================================',
           '// Worldspawn entity values for NetRadiant',
@@ -761,7 +765,7 @@ export function registerEngineCommands(): void {
           `"camera_mode" "${camera?.getMode?.() || 'fake_ortho'}"`,
           `"camera_height" "${camera?.getHeight?.() || 800}"`,
         ];
-        
+
         // Add camera angles if non-default
         if (cam) {
           const alpha = cam.alpha?.toFixed(4);
@@ -773,19 +777,19 @@ export function registerEngineCommands(): void {
             lines.push(`"camera_beta" "${beta}"`);
           }
         }
-        
+
         lines.push('');
         lines.push('// Lighting settings (optional overrides)');
         lines.push('"sun_intensity" "0.6"');
         lines.push('"moon_intensity" "0.12"');
         lines.push('"ambient_intensity" "0.25"');
         lines.push('"shadows" "1"');
-        
+
         lines.push('');
         lines.push('// Time settings (optional)');
         lines.push('"day_length" "180"');
         lines.push('"start_hour" "8"');
-        
+
         lines.push('');
         lines.push('// Weather defaults (optional)');
         if (weatherApi?.isRaining?.()) {
@@ -799,22 +803,22 @@ export function registerEngineCommands(): void {
           lines.push('"fog" "1"');
           lines.push('"fog_density" "0.02"');
         }
-        
+
         lines.push('');
         lines.push('// Map flags');
         lines.push('// "indoor" "1"  // Uncomment to disable rain/snow');
         lines.push('// "playlist" "playlists/ambient.json"  // Music playlist');
-        
+
         const output = lines.join('\n');
         console.log(output);
-        
+
         navigator.clipboard.writeText(output).then(() => {
           console.log('[Export] Copied to clipboard!');
-        }).catch(() => {});
-        
+        }).catch(() => { });
+
         return 'Map worldspawn values exported (copied to clipboard) - paste into NetRadiant entity editor';
       }
-        
+
       default:
         return 'Subcommands: camera, fx, all, map, show';
     }
@@ -823,11 +827,11 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Map Commands (placeholder)
   // ============================================================================
-  
+
   registry.register('map', async (args) => {
     const subcommand = args[0]?.toLowerCase();
     const loadMap = (window as any).loadMap;
-    
+
     switch (subcommand) {
       case 'load': {
         const mapName = args[1];
@@ -844,7 +848,7 @@ export function registerEngineCommands(): void {
           return `Failed to load map: ${e}`;
         }
       }
-      
+
       case 'reload': {
         const currentMap = (window as any).currentMap;
         if (!loadMap || !currentMap) {
@@ -853,10 +857,10 @@ export function registerEngineCommands(): void {
         await loadMap(currentMap);
         return `Reloaded map: ${currentMap}`;
       }
-        
+
       case 'list':
         return 'Available maps: test, texture_test, farm (check public/game/maps/)';
-        
+
       default:
         return 'Subcommands: load <mapname>, reload, list';
     }
@@ -865,11 +869,11 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // UI Scale Commands
   // ============================================================================
-  
+
   registry.register('ui', (args) => {
     const uiScale = UIScale.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'scale': {
         const value = args[1];
@@ -887,7 +891,7 @@ export function registerEngineCommands(): void {
         uiScale.forceScale(scale);
         return `UI scale: ${uiScale.getScale().toFixed(3)}`;
       }
-      
+
       case 'mode': {
         const mode = args[1]?.toLowerCase();
         if (!mode) {
@@ -899,14 +903,14 @@ export function registerEngineCommands(): void {
         uiScale.setScaleMode(mode as 'fit' | 'fill' | 'width' | 'height');
         return `UI scale mode: ${mode} (scale: ${uiScale.getScale().toFixed(3)})`;
       }
-      
+
       case 'debug':
         uiScale.toggleDebug();
         return 'UI debug overlay toggled';
-      
+
       case 'info':
         return uiScale.getDebugInfo();
-        
+
       default:
         return `Subcommands: scale [value|auto], mode [fit|fill|width|height], debug, info\nCurrent scale: ${uiScale.getScale().toFixed(3)}`;
     }
@@ -915,14 +919,14 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // HUD Commands
   // ============================================================================
-  
+
   registry.register('hud', (args) => {
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'info':
         return HUD.getDebugInfo();
-      
+
       case 'interval': {
         const ms = parseInt(args[1], 10);
         if (!args[1]) {
@@ -934,32 +938,32 @@ export function registerEngineCommands(): void {
         HUD.setInterval(ms);
         return `HUD update interval: ${ms}ms`;
       }
-      
+
       case 'show': {
         const id = args[1];
         if (!id) return 'Usage: hud show <element-id>';
         HUD.show(id);
         return `Showing: ${id}`;
       }
-      
+
       case 'hide': {
         const id = args[1];
         if (!id) return 'Usage: hud hide <element-id>';
         HUD.hide(id);
         return `Hidden: ${id}`;
       }
-      
+
       case 'toggle': {
         const id = args[1];
         if (!id) return 'Usage: hud toggle <element-id>';
         HUD.toggle(id);
         return `Toggled: ${id}`;
       }
-      
+
       case 'refresh':
         HUD.refresh();
         return 'HUD refreshed';
-      
+
       case 'theme': {
         const theme = args[1];
         if (!theme) {
@@ -968,7 +972,7 @@ export function registerEngineCommands(): void {
         HUD.setTheme(theme);
         return `Theme: ${theme}`;
       }
-      
+
       case 'collapse': {
         const id = args[1];
         if (!id) {
@@ -978,26 +982,26 @@ export function registerEngineCommands(): void {
         HUD.collapse(id);
         return `Collapsed: ${id}`;
       }
-      
+
       case 'expand': {
         const id = args[1];
         if (!id) return 'Usage: hud expand <element-id>';
         HUD.expand(id);
         return `Expanded: ${id}`;
       }
-      
+
       case 'start':
         HUD.start();
         return 'HUD update loop started';
-      
+
       case 'stop':
         HUD.stop();
         return 'HUD update loop stopped';
-      
+
       case 'reset':
         HUD.reset();
         return 'HUD reset to defaults';
-        
+
       default:
         return `HUD Commands:\n  info - Show HUD status\n  interval <ms> - Set update interval\n  show/hide/toggle <id> - Element visibility\n  refresh - Force refresh\n  theme <name> - Set theme\n  collapse/expand <id> - Accordion control\n  start/stop - Update loop\n  reset - Reset to defaults`;
     }
@@ -1006,15 +1010,15 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Game Path Commands
   // ============================================================================
-  
+
   registry.register('game', (args) => {
     const gamePaths = GamePaths.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'info':
         return gamePaths.getDebugInfo();
-      
+
       case 'load': {
         const name = args[1];
         if (!name) {
@@ -1023,12 +1027,12 @@ export function registerEngineCommands(): void {
         gamePaths.setGame(name);
         return `Game set to: ${name}\nReload the page to apply changes, or use: game reload`;
       }
-      
+
       case 'reload':
         // Reload with current game
         window.location.href = `${window.location.pathname}?game=${gamePaths.getGameName()}`;
         return 'Reloading...';
-      
+
       case 'switch': {
         const name = args[1];
         if (!name) {
@@ -1037,7 +1041,7 @@ export function registerEngineCommands(): void {
         window.location.href = `${window.location.pathname}?game=${name}`;
         return `Switching to game: ${name}...`;
       }
-        
+
       default:
         return `Game Commands:\n  info - Show current game paths\n  load <name> - Set game (requires reload)\n  switch <name> - Switch game and reload\n  reload - Reload with current game\n\nCurrent game: ${gamePaths.getGameName()}`;
     }
@@ -1046,11 +1050,11 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // PK3 Package Commands
   // ============================================================================
-  
+
   registry.register('pk3', async (args) => {
     const pk3 = PK3Loader.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    
+
     switch (subcommand) {
       case 'load': {
         const filename = args[1];
@@ -1064,7 +1068,7 @@ export function registerEngineCommands(): void {
           return `Failed to load ${filename}: ${e}`;
         }
       }
-      
+
       case 'list': {
         const pattern = args[1];
         const files = pk3.listFiles(pattern);
@@ -1073,11 +1077,11 @@ export function registerEngineCommands(): void {
         }
         const display = files.slice(0, 50);
         const result = display.join('\n');
-        return files.length > 50 
+        return files.length > 50
           ? `${result}\n... and ${files.length - 50} more`
           : result;
       }
-      
+
       case 'dir': {
         const dir = args[1] || '';
         const items = pk3.listDirectory(dir);
@@ -1086,28 +1090,28 @@ export function registerEngineCommands(): void {
         }
         return items.join('\n');
       }
-      
+
       case 'info': {
         const packages = pk3.getPackageInfo();
         if (packages.length === 0) {
           return 'No PK3 packages loaded';
         }
-        return packages.map(p => 
+        return packages.map(p =>
           `${p.filename} (priority ${p.priority}, ${p.fileCount} files)`
         ).join('\n');
       }
-      
+
       case 'test': {
         const path = args[1];
         if (!path) {
           return 'Usage: pk3 test <filepath>\nTests loading a file from pk3';
         }
-        
+
         const data = await pk3.getFile(path);
         if (!data) {
           return `File not found: ${path}`;
         }
-        
+
         // If it's a KTX file, try to parse it
         if (path.toLowerCase().endsWith('.ktx')) {
           try {
@@ -1117,32 +1121,32 @@ export function registerEngineCommands(): void {
             return `KTX parse error: ${e}`;
           }
         }
-        
+
         return `File loaded: ${path} (${data.byteLength} bytes)`;
       }
-      
+
       case 'unload':
         pk3.unloadAll();
         return 'All PK3 packages unloaded';
-        
+
       case 'texture': {
         const texPath = args[1];
         if (!texPath) {
           return 'Usage: pk3 texture <path>\nLoads a texture and its companions (_gloss, _norm)';
         }
-        
+
         const texLoader = PK3TextureLoader.getInstance();
         const cameraSystem = CameraSystem.getInstance();
         const scene = cameraSystem.getCamera()?.getScene();
         const engine = scene?.getEngine() as any;
-        
+
         if (!engine || !scene) {
           return 'Engine/Scene not available (game not started?)';
         }
-        
+
         // Initialize if needed
         texLoader.init(engine, scene);
-        
+
         try {
           const textureSet = await texLoader.loadTextureSet(texPath);
           const parts = [
@@ -1155,16 +1159,16 @@ export function registerEngineCommands(): void {
           return `Failed to load texture: ${e}`;
         }
       }
-      
+
       case 'sets': {
         const dir = args[1] || 'textures';
         const texLoader = PK3TextureLoader.getInstance();
         const sets = texLoader.findTextureSets(dir);
-        
+
         if (sets.length === 0) {
           return `No texture sets found in: ${dir}`;
         }
-        
+
         const display = sets.slice(0, 20).map(s => {
           const companions = [];
           if (s.gloss) companions.push('gloss');
@@ -1172,12 +1176,12 @@ export function registerEngineCommands(): void {
           const companionStr = companions.length > 0 ? ` [+${companions.join(',')}]` : '';
           return `${s.diffuse}${companionStr}`;
         });
-        
-        return sets.length > 20 
+
+        return sets.length > 20
           ? `${display.join('\n')}\n... and ${sets.length - 20} more`
           : display.join('\n');
       }
-      
+
       case 'cache': {
         const texLoader = PK3TextureLoader.getInstance();
         const info = texLoader.getCacheInfo();
@@ -1186,7 +1190,7 @@ export function registerEngineCommands(): void {
         }
         return `Cached textures (${info.count}):\n  ${info.textures.join('\n  ')}`;
       }
-      
+
       case 'path': {
         const newPath = args[1];
         if (newPath) {
@@ -1196,12 +1200,12 @@ export function registerEngineCommands(): void {
         const paths = pk3.getSearchPaths();
         return `Search paths:\n  ${paths.join('\n  ')}`;
       }
-      
+
       case 'index': {
-        const { PK3Index } = await import('../loader/PK3Index');
+        const { PK3Index } = await import('../loader');
         const index = PK3Index.getInstance();
         const subCmd = args[1]?.toLowerCase();
-        
+
         switch (subCmd) {
           case 'build': {
             // Sync search paths
@@ -1209,18 +1213,18 @@ export function registerEngineCommands(): void {
             const count = await index.buildIndex((msg) => console.log(`[PK3Index] ${msg}`));
             return `Index built: ${count} files indexed`;
           }
-          
+
           case 'find': {
             const filePath = args[2];
             if (!filePath) {
               return 'Usage: pk3 index find <filepath>';
             }
             const foundPk3 = index.findFile(filePath);
-            return foundPk3 
+            return foundPk3
               ? `Found in: ${foundPk3}`
               : `Not found in index: ${filePath}`;
           }
-          
+
           case 'search': {
             const pattern = args[2];
             if (!pattern) {
@@ -1235,12 +1239,12 @@ export function registerEngineCommands(): void {
               ? `${display.join('\n')}\n... and ${results.length - 20} more`
               : display.join('\n');
           }
-          
+
           case 'clear': {
             index.clear();
             return 'Index cleared';
           }
-          
+
           case 'stats':
           default: {
             const stats = index.getStats();
@@ -1261,7 +1265,7 @@ export function registerEngineCommands(): void {
           }
         }
       }
-        
+
       default:
         return [
           'PK3 Commands:',
@@ -1283,28 +1287,28 @@ export function registerEngineCommands(): void {
   // ============================================================================
   // Memory Stats Commands
   // ============================================================================
-  
+
   registry.register('mem', (args) => {
     const subcommand = args[0]?.toLowerCase();
     const cameraSystem = CameraSystem.getInstance();
     const scene = cameraSystem.getCamera()?.getScene();
     const engine = scene?.getEngine();
-    
+
     const formatBytes = (bytes: number): string => {
       if (bytes < 1024) return `${bytes} B`;
       if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
       if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
       return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
     };
-    
+
     switch (subcommand) {
       case 'textures': {
         if (!scene) return 'Scene not available';
-        
+
         const textures = scene.textures;
         let totalSize = 0;
         const textureList: string[] = [];
-        
+
         for (const tex of textures) {
           const size = tex.getSize();
           const width = size.width || 0;
@@ -1312,12 +1316,12 @@ export function registerEngineCommands(): void {
           // Estimate: 4 bytes per pixel (RGBA)
           const estimatedBytes = width * height * 4;
           totalSize += estimatedBytes;
-          
+
           const name = tex.name || 'unnamed';
           const shortName = name.length > 40 ? '...' + name.slice(-37) : name;
           textureList.push(`${shortName} (${width}x${height})`);
         }
-        
+
         const lines = [
           `Textures loaded: ${textures.length}`,
           `Estimated VRAM: ${formatBytes(totalSize)}`,
@@ -1325,26 +1329,26 @@ export function registerEngineCommands(): void {
           'Textures:',
           ...textureList.slice(0, 30).map(t => `  ${t}`),
         ];
-        
+
         if (textureList.length > 30) {
           lines.push(`  ... and ${textureList.length - 30} more`);
         }
-        
+
         return lines.join('\n');
       }
-      
+
       case 'meshes': {
         if (!scene) return 'Scene not available';
-        
+
         const meshes = scene.meshes;
         let totalVertices = 0;
         let totalFaces = 0;
-        
+
         for (const mesh of meshes) {
           totalVertices += mesh.getTotalVertices();
           totalFaces += mesh.getTotalIndices() / 3;
         }
-        
+
         return [
           `Meshes: ${meshes.length}`,
           `Total vertices: ${totalVertices.toLocaleString()}`,
@@ -1352,10 +1356,10 @@ export function registerEngineCommands(): void {
           `Estimated vertex data: ${formatBytes(totalVertices * 32)}`, // position + normal + uv
         ].join('\n');
       }
-      
+
       case 'engine': {
         if (!engine) return 'Engine not available';
-        
+
         const caps = engine.getCaps();
         const webglVersion = (engine as any).webGLVersion || 'unknown';
         const lines = [
@@ -1372,7 +1376,7 @@ export function registerEngineCommands(): void {
         ];
         return lines.join('\n');
       }
-      
+
       case 'js': {
         // Chrome-only memory API
         const perf = (performance as any);
@@ -1385,46 +1389,46 @@ export function registerEngineCommands(): void {
         }
         return 'JS memory info not available (Chrome only)';
       }
-      
+
       case 'pk3': {
         const pk3 = PK3Loader.getInstance();
         const pk3Tex = PK3TextureLoader.getInstance();
         const packages = pk3.getPackageInfo();
         const cache = pk3Tex.getCacheInfo();
-        
+
         const totalFiles = packages.reduce((sum, p) => sum + p.fileCount, 0);
-        
+
         return [
           `PK3 packages loaded: ${packages.length}`,
           `Total files indexed: ${totalFiles}`,
           `PK3 textures cached: ${cache.count}`,
         ].join('\n');
       }
-      
+
       default: {
         if (!scene || !engine) {
           return 'Memory stats not available (game not started?)';
         }
-        
+
         // Overview
         const textures = scene.textures.length;
         const meshes = scene.meshes.length;
         const materials = scene.materials.length;
-        
+
         let textureVRAM = 0;
         for (const tex of scene.textures) {
           const size = tex.getSize();
           textureVRAM += (size.width || 0) * (size.height || 0) * 4;
         }
-        
+
         let totalVertices = 0;
         for (const mesh of scene.meshes) {
           totalVertices += mesh.getTotalVertices();
         }
-        
+
         const pk3 = PK3Loader.getInstance();
         const pk3Packages = pk3.getPackageInfo().length;
-        
+
         const lines = [
           '=== Memory Overview ===',
           `Textures: ${textures} (~${formatBytes(textureVRAM)} VRAM)`,
@@ -1457,21 +1461,21 @@ export function registerEngineCommands(): void {
         window.removeEventListener('keydown', emptySceneEscHandler);
         emptySceneEscHandler = null;
       }
-      
+
       // Stop render loop
       const engine = emptyScene.getEngine();
       engine.stopRenderLoop();
-      
+
       // Dispose scene
       emptyScene.dispose();
       emptyScene = null;
       emptySceneCamera = null;
-      
+
       // Return to main menu state and trigger the callback to create new MainMenu
       // Note: enterMainMenu() just sets state, returnToMainMenu() also calls the callback
       const menuSystem = MenuSystem.getInstance();
       menuSystem.returnToMainMenu();
-      
+
       console.log('[EmptyScene] Disposed - returned to main menu');
       return true;
     }
@@ -1481,7 +1485,7 @@ export function registerEngineCommands(): void {
   registry.register('scene', (args) => {
     const subcommand = args[0]?.toLowerCase();
     const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-    
+
     if (!canvas) {
       return 'No canvas found';
     }
@@ -1491,7 +1495,7 @@ export function registerEngineCommands(): void {
         // Get or create engine
         const existingEngine = (window as any).babylonEngine;
         const engine = existingEngine || new Engine(canvas, true);
-        
+
         if (!existingEngine) {
           (window as any).babylonEngine = engine;
         }
@@ -1512,7 +1516,7 @@ export function registerEngineCommands(): void {
         emptySceneCamera.minZ = 1;
         emptySceneCamera.maxZ = 50000;
         emptySceneCamera.inputs.clear(); // We'll use freefly controller
-        
+
         // Add basic lighting
         const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
         light.intensity = 1.0;
@@ -1542,7 +1546,7 @@ export function registerEngineCommands(): void {
 
         // Enter "in_game" state so ESC shows pause menu, not main menu
         MenuSystem.getInstance().enterGame();
-        
+
         // Properly hide the main menu (stops its render loop and disposes its scene)
         const mainMenu = (window as any).mainMenu;
         if (mainMenu && typeof mainMenu.hide === 'function') {
@@ -1566,7 +1570,7 @@ export function registerEngineCommands(): void {
           if (debugConsole.getIsOpen()) {
             return; // Let console handle ESC
           }
-          
+
           if (e.key === 'Escape' && emptyScene) {
             e.preventDefault();
             e.stopPropagation();
@@ -1645,7 +1649,7 @@ export function registerEngineCommands(): void {
 
         // Don't auto-load shaders here - user should call "shader load" after "bsp loadrequired"
         // to ensure all texture PK3 shaders are available
-        const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+        const { Q3ShaderRegistry } = await import('../loader');
         const shaderCount = Q3ShaderRegistry.getInstance().getShaderCount();
 
         // Summary
@@ -1758,15 +1762,15 @@ export function registerEngineCommands(): void {
 
         const filter = args[1]?.toLowerCase();
         let textures = loadedBsp.textures.map((tex, i) => ({ index: i, name: tex.name }));
-        
+
         if (filter) {
           textures = textures.filter(t => t.name.toLowerCase().includes(filter));
         }
 
-        const lines = filter 
+        const lines = filter
           ? [`=== Textures matching "${filter}" (${textures.length} of ${loadedBsp.textures.length}) ===`]
           : [`=== All Textures (${loadedBsp.textures.length}) ===`];
-        
+
         textures.forEach((tex) => {
           lines.push(`${tex.index}: ${tex.name}`);
         });
@@ -1783,12 +1787,12 @@ export function registerEngineCommands(): void {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
-        const { getBspUsedTextures } = await import('../loader/BspLoader');
-        const { PK3Index } = await import('../loader/PK3Index');
-        
+        const { getBspUsedTextures } = await import('../loader');
+        const { PK3Index } = await import('../loader');
+
         const usedTextures = getBspUsedTextures(loadedBsp);
         const index = PK3Index.getInstance();
-        
+
         if (!index.hasIndex()) {
           return [
             `=== Used Textures (${usedTextures.length}) ===`,
@@ -1798,36 +1802,36 @@ export function registerEngineCommands(): void {
             'Note: Run "pk3 index build" first to see which PK3s are needed.',
           ].filter(Boolean).join('\n');
         }
-        
+
         // Find which PK3s are needed
         const requiredPK3s = index.findPK3sForTextures(usedTextures);
         const notFound: string[] = [];
-        
+
         for (const tex of usedTextures) {
-          const pk3 = index.findFile(`textures/${tex}.tga`) || 
-                      index.findFile(`textures/${tex}.jpg`) ||
-                      index.findFile(`textures/${tex}.ktx`) ||
-                      index.findFile(`${tex}.tga`) ||
-                      index.findFile(`${tex}.jpg`) ||
-                      index.findFile(`${tex}.ktx`);
+          const pk3 = index.findFile(`textures/${tex}.tga`) ||
+            index.findFile(`textures/${tex}.jpg`) ||
+            index.findFile(`textures/${tex}.ktx`) ||
+            index.findFile(`${tex}.tga`) ||
+            index.findFile(`${tex}.jpg`) ||
+            index.findFile(`${tex}.ktx`);
           if (!pk3) {
             notFound.push(tex);
           }
         }
-        
+
         const lines = [
           `=== BSP Required Resources ===`,
           `Used textures: ${usedTextures.length}`,
           `Required PK3s: ${requiredPK3s.size}`,
         ];
-        
+
         if (requiredPK3s.size > 0) {
           lines.push('', 'PK3s to load:');
           for (const pk3 of requiredPK3s) {
             lines.push(`  ${pk3}`);
           }
         }
-        
+
         if (notFound.length > 0) {
           lines.push('', `Not found in index: ${notFound.length}`);
           lines.push(...notFound.slice(0, 10).map(t => `  ${t}`));
@@ -1835,7 +1839,7 @@ export function registerEngineCommands(): void {
             lines.push(`  ... and ${notFound.length - 10} more`);
           }
         }
-        
+
         return lines.join('\n');
       }
 
@@ -1845,36 +1849,36 @@ export function registerEngineCommands(): void {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
-        const { getBspUsedTextures: getTextures } = await import('../loader/BspLoader');
-        const { PK3Index } = await import('../loader/PK3Index');
-        
+        const { getBspUsedTextures: getTextures } = await import('../loader');
+        const { PK3Index } = await import('../loader');
+
         const usedTextures = getTextures(loadedBsp);
         const index = PK3Index.getInstance();
-        
+
         if (!index.hasIndex()) {
           return 'No index built. Run "pk3 path game/basewsw/" then "pk3 index build" first.';
         }
-        
+
         // Find which PK3s are needed
         const requiredPK3s = index.findPK3sForTextures(usedTextures);
-        
+
         if (requiredPK3s.size === 0) {
           return 'No additional PK3s needed (or textures not found in index)';
         }
-        
+
         // Check which are already loaded
         const pk3Loader = PK3Loader.getInstance();
         const loadedPackages = pk3Loader.getPackageInfo().map(p => p.filename);
         const toLoad = Array.from(requiredPK3s).filter(pk3 => !loadedPackages.includes(pk3));
-        
+
         if (toLoad.length === 0) {
           return `All ${requiredPK3s.size} required PK3s already loaded`;
         }
-        
+
         const lines = [`Loading ${toLoad.length} required PK3s...`];
         let loaded = 0;
         let failed = 0;
-        
+
         for (const pk3 of toLoad) {
           try {
             // Get full URL path from index
@@ -1893,15 +1897,15 @@ export function registerEngineCommands(): void {
             lines.push(`  ✗ ${pk3}: ${errMsg}`);
           }
         }
-        
+
         lines.push('');
         lines.push(`Loaded: ${loaded}, Failed: ${failed}`);
-        
+
         if (loaded > 0) {
           lines.push('');
           lines.push('Tip: Run "shader load" to load shaders from these PK3s');
         }
-        
+
         return lines.join('\n');
       }
 
@@ -2062,11 +2066,11 @@ export function registerEngineCommands(): void {
         if (!loadedBsp || !bspRenderResult) {
           return 'No BSP rendered. Use "bsp load <map>" then "bsp render" first.';
         }
-        
+
         if (!scene) {
           return 'Scene not available';
         }
-        
+
         try {
           const count = await BspMeshBuilder.applyTextures(
             bspRenderResult,
@@ -2186,7 +2190,7 @@ export function registerEngineCommands(): void {
             existingSkybox.dispose();
           }
 
-          const { SkyboxLoader } = await import('../loader/SkyboxLoader');
+          const { SkyboxLoader } = await import('../loader');
           const skyboxLoader = SkyboxLoader.getInstance();
           skyboxLoader.init(scene);
           const result = skyboxLoader.createDebugSkybox();
@@ -2238,7 +2242,7 @@ export function registerEngineCommands(): void {
   // ============================================================================
 
   registry.register('shader', async (args) => {
-    const { Q3ShaderRegistry } = await import('../loader/Q3ShaderRegistry');
+    const { Q3ShaderRegistry } = await import('../loader');
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     const subcommand = args[0]?.toLowerCase();
 
@@ -2255,15 +2259,15 @@ export function registerEngineCommands(): void {
       case 'list': {
         const filter = args[1]?.toLowerCase();
         let names = shaderRegistry.getShaderNames();
-        
+
         if (filter) {
           names = names.filter(n => n.includes(filter));
         }
-        
+
         if (names.length === 0) {
           return filter ? `No shaders matching "${filter}"` : 'No shaders loaded (use "shader load")';
         }
-        
+
         const display = names.slice(0, 30);
         return display.length < names.length
           ? `${display.join('\n')}\n... and ${names.length - display.length} more`
@@ -2275,21 +2279,21 @@ export function registerEngineCommands(): void {
         if (!textureName) {
           return 'Usage: shader info <texture_path>';
         }
-        
+
         shaderRegistry.debugShader(textureName);
-        
+
         const shader = shaderRegistry.getShader(textureName);
         if (!shader) {
           return `No shader defined for: ${textureName}`;
         }
-        
+
         const lines = [
           `Shader: ${shader.name}`,
           `Cull: ${shader.cull}`,
           `Surface parms: ${Array.from(shader.surfaceParms).join(', ') || 'none'}`,
           `Stages: ${shader.stages.length}`,
         ];
-        
+
         shader.stages.forEach((stage, i) => {
           lines.push(`  Stage ${i}: map=${stage.map}`);
           if (stage.blendFunc) {
@@ -2299,7 +2303,7 @@ export function registerEngineCommands(): void {
             lines.push(`    alphaFunc: ${stage.alphaFunc}`);
           }
         });
-        
+
         return lines.join('\n');
       }
 
@@ -2308,7 +2312,7 @@ export function registerEngineCommands(): void {
         if (!textureName) {
           return 'Usage: shader resolve <texture_path>';
         }
-        
+
         const props = shaderRegistry.resolveMaterialProps(textureName);
         return [
           `Resolved material for: ${textureName}`,

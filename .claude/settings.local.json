@@ -10,7 +10,8 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:webglfundamentals.org)"
     ]
   }
 }

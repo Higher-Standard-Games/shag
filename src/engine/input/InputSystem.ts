@@ -97,7 +97,7 @@ export class InputSystem {
   private static instance: InputSystem;
   
   // Scene reference (stored for future gesture/raycast support)
-  private _scene: Scene | null = null;
+  private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
   
   // Definitions
@@ -157,7 +157,7 @@ export class InputSystem {
    * Initialize the input system with a scene and canvas
    */
   init(scene: Scene, canvas: HTMLCanvasElement): void {
-    this._scene = scene;
+    this.scene = scene;
     this.canvas = canvas;
     
     // Add event listeners
@@ -576,6 +576,13 @@ export class InputSystem {
     }
   }
 
+  // ==================== Accessors ====================
+
+  /** Get scene reference (for future gesture/raycast support) */
+  getScene(): Scene | null {
+    return this.scene;
+  }
+
   // ==================== Cleanup ====================
 
   dispose(): void {
@@ -591,7 +598,7 @@ export class InputSystem {
       this.canvas.removeEventListener("touchend", this.boundTouchEnd);
       this.canvas.removeEventListener("contextmenu", this.boundContextMenu);
     }
-    this._scene = null;
+    this.scene = null;
     this.canvas = null;
   }
 }

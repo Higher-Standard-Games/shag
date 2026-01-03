@@ -24,10 +24,10 @@ import type {
   BspFace,
   BspVertex,
   BspVertexIBSP,
-  BspVertexFBSP,
+  // BspVertexFBSP, // Currently unused
 } from "./BspLoader";
-import { Q3ShaderRegistry } from "./Q3ShaderRegistry";
-import type { ResolvedMaterialProps } from "./Q3ShaderTypes";
+import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 
 // ============================================================================
 // Types
@@ -75,7 +75,8 @@ function q3ToBabylon(x: number, y: number, z: number): [number, number, number] 
   return [x, z, y];
 }
 
-function q3ToBabylonVec3(pos: [number, number, number]): Vector3 {
+/** Convert Q3 position array to Babylon Vector3 (exported for future use) */
+export function q3ToBabylonVec3(pos: [number, number, number]): Vector3 {
   return new Vector3(pos[0], pos[2], pos[1]);
 }
 
@@ -84,7 +85,7 @@ function q3ToBabylonVec3(pos: [number, number, number]): Vector3 {
  * Input: [i0, i1, i2, i3, i4, i5, ...]
  * Output: [i0, i2, i1, i3, i5, i4, ...]
  */
-function reverseTriangleWinding(indices: number[]): number[] {
+export function reverseTriangleWinding(indices: number[]): number[] {
   const result: number[] = [];
   for (let i = 0; i < indices.length; i += 3) {
     result.push(indices[i], indices[i + 2], indices[i + 1]);
@@ -572,7 +573,7 @@ export class BspMeshBuilder {
     scene: Scene,
     progressCallback?: (loaded: number, total: number, name: string) => void
   ): Promise<number> {
-    const { PK3TextureLoader } = await import('./PK3TextureLoader');
+    const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
     const texLoader = PK3TextureLoader.getInstance();
     const engine = scene.getEngine();
 
@@ -591,7 +592,7 @@ export class BspMeshBuilder {
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
 
     // Get shader registry for looking up actual texture paths
-    const { Q3ShaderRegistry } = await import('./Q3ShaderRegistry');
+    const { Q3ShaderRegistry } = await import('../shader/Q3ShaderRegistry');
     const shaderRegistry = Q3ShaderRegistry.getInstance();
 
     for (const group of result.textureGroups) {
@@ -815,7 +816,7 @@ export class BspMeshBuilder {
       return { success: false, error: 'No sky shader with valid skyparms found' };
     }
 
-    const { SkyboxLoader } = await import('./SkyboxLoader');
+    const { SkyboxLoader } = await import('../texture/SkyboxLoader');
     const skyboxLoader = SkyboxLoader.getInstance();
     skyboxLoader.init(scene);
 

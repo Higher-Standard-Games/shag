@@ -14,7 +14,7 @@ import {
   Vector3,
 } from "babylonjs";
 import { EventBus } from "../engine/core/EventBus";
-import { PrefabInstance } from "../engine/loader/PrefabInstance";
+import { PrefabInstance } from "../engine/loader";
 import { GameTimer } from "./GameTimer";
 
 /**
@@ -150,7 +150,7 @@ export class BuildableObjectManager {
   private eventListeners: ObjectEventCallback[] = [];
   private updateTaskId = "buildable_objects_update";
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): BuildableObjectManager {
     if (!BuildableObjectManager.instance) {
@@ -169,7 +169,7 @@ export class BuildableObjectManager {
     // Create grow lights for any existing completed growlight objects
     this.recreateGrowLights();
   }
-  
+
   /**
    * Recreate grow lights for all existing completed growlight objects
    * Called on init to handle objects loaded from save before scene was ready
@@ -272,7 +272,7 @@ export class BuildableObjectManager {
       if (!state.isComplete && template.buildTime > 0 && !state.hasPlant) {
         const elapsed = now - state.startedAt;
         const newProgress = Math.min(100, (elapsed / template.buildTime) * 100);
-        
+
         if (newProgress !== state.progress) {
           const oldStage = state.currentStage;
           state.progress = newProgress;
@@ -282,8 +282,8 @@ export class BuildableObjectManager {
           // Check for stage change
           if (state.currentStage !== oldStage) {
             this.updateVisual(state);
-            this.emit("stage_changed", id, { 
-              oldStage, 
+            this.emit("stage_changed", id, {
+              oldStage,
               newStage: state.currentStage,
               progress: newProgress,
             });
@@ -344,7 +344,7 @@ export class BuildableObjectManager {
 
     // Determine which prefab to use
     let prefabPath = stage.prefab;
-    
+
     // For plant pots: only show plant growth stages if hasPlant is true
     // Otherwise show pot_empty.map (pot without plant geometry)
     if (template.zoneType === "plant" && !state.hasPlant) {
@@ -431,10 +431,10 @@ export class BuildableObjectManager {
    */
   private createGrowLight(state: BuildableObjectState, template: BuildableObjectTemplate): void {
     if (!this.scene) return;
-    
+
     // Don't create duplicate lights
     if (this.growLights.has(state.id)) return;
-    
+
     // Grow light trigger is at ceiling height (e.g., Y=128)
     // Place light source at the trigger position (where lamp hangs) to illuminate downward
     // The light will cast down onto plants below
@@ -443,26 +443,26 @@ export class BuildableObjectManager {
       state.position.y,  // At trigger height (ceiling where lamp hangs)
       state.position.z
     );
-    
+
     console.log(`[GrowLight] Creating light at position: X=${lightPos.x}, Y=${lightPos.y}, Z=${lightPos.z}`);
-    
+
     const light = new PointLight(
       `growlight_${state.id}`,
       lightPos,
       this.scene
     );
-    
+
     // Warm purple/pink grow light color
     light.diffuse = new Color3(0.9, 0.3, 0.9);  // Purple-pink
     light.specular = new Color3(0.5, 0.2, 0.5);
-    
+
     // Intensity based on lamp tier - needs to be visible in dark room
     const yieldBonus = template.yieldBonus ?? 0;
     light.intensity = 3.0 + (yieldBonus * 4);  // 3.0, 3.6, 4.2
-    
+
     // Range needs to reach from ceiling (Y=128) to floor (Y=0) plus some margin
     light.range = 300;
-    
+
     this.growLights.set(state.id, light);
     console.log(`Created grow light for ${state.id} at Y=${lightPos.y}, intensity=${light.intensity}`);
   }
@@ -503,7 +503,7 @@ export class BuildableObjectManager {
 
     // Update visual to show empty pot
     await this.updateVisual(state);
-    
+
     console.log(`Reset pot ${id} to empty state`);
     this.emit("pot_reset", id, { state });
   }
@@ -519,19 +519,19 @@ export class BuildableObjectManager {
     if (!template || template.zoneType !== "plant") return;
 
     state.hasPlant = hasPlant;
-    
+
     // When planting, reset progress to 0 so plant starts at first growth stage
     // When removing plant, keep pot at 100% (built)
     if (hasPlant) {
       state.progress = 0;
       state.currentStage = 0;
     }
-    
+
     // Update visual - will show plant stages if hasPlant, empty pot if not
     await this.updateVisual(state);
-    
+
     console.log(`Pot ${id} hasPlant set to ${hasPlant}, progress reset to ${state.progress}`);
-    
+
     // Emit event so PotActionIndicator can hide the "Select strain" indicator
     this.emit("plant_state_changed", id, { hasPlant, progress: state.progress });
   }
@@ -572,9 +572,9 @@ export class BuildableObjectManager {
   /**
    * Get progress info for UI display
    */
-  public getProgressInfo(id: string): { 
-    progress: number; 
-    stage: number; 
+  public getProgressInfo(id: string): {
+    progress: number;
+    stage: number;
     stageName: string;
     timeRemaining: number;
     isComplete: boolean;
@@ -586,8 +586,8 @@ export class BuildableObjectManager {
     if (!template) return null;
 
     const stageNames = ["Building", "Growing", "Complete"];
-    const timeRemaining = state.isComplete 
-      ? 0 
+    const timeRemaining = state.isComplete
+      ? 0
       : Math.max(0, template.buildTime - (GameTimer.getInstance().getGameTime() - state.startedAt));
 
     return {
@@ -611,7 +611,7 @@ export class BuildableObjectManager {
       visual.dispose();
       this.visuals.delete(id);
     }
-    
+
     // Remove grow light if this was a growlight
     this.removeGrowLight(id);
 
@@ -639,7 +639,7 @@ export class BuildableObjectManager {
     for (const callback of this.eventListeners) {
       callback(objectId, event, data);
     }
-    
+
     // Global EventBus - allows any system to listen to building events
     EventBus.emit(`building:${event}`, { objectId, ...data as object });
   }
@@ -660,7 +660,7 @@ export class BuildableObjectManager {
     for (const state of states) {
       this.objects.set(state.id, state);
       await this.updateVisual(state);
-      
+
       // Recreate grow lights for completed growlight objects
       if (state.isComplete) {
         const template = this.templates.get(state.templateId);
@@ -678,13 +678,13 @@ export class BuildableObjectManager {
       visual.dispose();
     }
     this.visuals.clear();
-    
+
     // Clean up grow lights
     for (const light of this.growLights.values()) {
       light.dispose();
     }
     this.growLights.clear();
-    
+
     this.objects.clear();
   }
 

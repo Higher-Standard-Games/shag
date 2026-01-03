@@ -37,7 +37,7 @@ export class CameraSystem {
   
   private currentMode: CameraMode = "perspective";
   private currentHeight: number = 800;
-  private _currentPreset: string | null = null;
+  private currentPreset: string | null = null;
   
   // Store original camera for restoration when switching controllers
   private originalCamera: Camera | null = null;
@@ -53,6 +53,11 @@ export class CameraSystem {
       CameraSystem.instance = new CameraSystem();
     }
     return CameraSystem.instance;
+  }
+
+  /** Get current preset name */
+  getCurrentPreset(): string | null {
+    return this.currentPreset;
   }
 
   /**
@@ -336,7 +341,7 @@ export class CameraSystem {
       }
     }
 
-    this._currentPreset = preset.name;
+    this.currentPreset = preset.name;
     console.log(`[CameraSystem] Applied preset: ${preset.name}`);
     EventBus.emit("camera:preset_changed", { preset: preset.name });
 

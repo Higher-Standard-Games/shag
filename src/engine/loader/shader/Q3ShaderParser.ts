@@ -19,7 +19,7 @@ import type {
   Q3ShaderStage,
   BlendFactor,
   AlphaFunc,
-  CullMode,
+  // CullMode, // Currently unused
   TcMod,
   WaveFunc,
   RgbGen,

@@ -1,6 +1,6 @@
 import { Color3, Mesh, Plane, type Scene, StandardMaterial, Vector3, VertexData } from "babylonjs";
 import type { Brush, PlaneDefinition } from "./MapParser";
-import { SkyLightSystem } from "../lighting/SkyLightSystem";
+import { SkyLightSystem } from "../../lighting/SkyLightSystem";
 
 export interface BrushFace {
   vertices: Vector3[];

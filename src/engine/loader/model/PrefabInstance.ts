@@ -5,10 +5,10 @@ import {
   TransformNode,
   Vector3,
 } from "babylonjs";
-import { BrushGenerator } from "./BrushGenerator";
-import { type PatchDefinition, PatchGenerator } from "./PatchGenerator";
+import { BrushGenerator } from "../map/BrushGenerator";
+import { type PatchDefinition, PatchGenerator } from "../map/PatchGenerator";
 import { PrefabLoader } from "./PrefabLoader";
-import { TextureManager } from "./TextureManager";
+import { TextureManager } from "../texture/TextureManager";
 
 export interface PrefabInstanceOptions {
   /** Position in world space (Babylon coords: X, Y, Z where Y is up) */
@@ -51,7 +51,7 @@ export class PrefabInstance {
     options: PrefabInstanceOptions
   ): Promise<PrefabInstanceResult | null> {
     const prefab = PrefabLoader.getInstance().getPrefab(prefabName);
-    
+
     if (!prefab) {
       // Try loading it
       const loaded = await PrefabLoader.getInstance().loadPrefab(prefabName);

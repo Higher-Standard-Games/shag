@@ -10,7 +10,7 @@
 
 import { Engine, Texture, RawTexture, Scene, PBRMaterial, Color3 } from "babylonjs";
 import { PK3Loader } from "./PK3Loader";
-import { parseKTX1, createTextureFromKTX1, isFormatSupported } from "./KTX1Loader";
+import { parseKTX1, createTextureFromKTX1, isFormatSupported } from "../texture/KTX1Loader";
 
 export interface TextureSet {
   /** Base/diffuse texture path */

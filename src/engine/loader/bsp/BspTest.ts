@@ -6,7 +6,7 @@
  *   await testBspLoading();
  */
 
-import { PK3Loader } from "./PK3Loader";
+import { PK3Loader } from "../pk3/PK3Loader";
 import { BspLoader, type BspFile } from "./BspLoader";
 import { BspMeshBuilder } from "./BspMeshBuilder";
 import type { Scene } from "babylonjs";

@@ -17,7 +17,7 @@ import {
   Mesh,
   Constants,
 } from "babylonjs";
-import { PK3Loader } from "./PK3Loader";
+import { PK3Loader } from "../pk3/PK3Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
@@ -95,7 +95,7 @@ export class SkyboxLoader {
   private static instance: SkyboxLoader;
   private scene: Scene | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): SkyboxLoader {
     if (!SkyboxLoader.instance) {
@@ -586,7 +586,7 @@ export class SkyboxLoader {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         if (x < borderWidth || x >= size - borderWidth ||
-            y < borderWidth || y >= size - borderWidth) {
+          y < borderWidth || y >= size - borderWidth) {
           const i = (y * size + x) * 4;
           data[i + 0] = 255;
           data[i + 1] = 255;

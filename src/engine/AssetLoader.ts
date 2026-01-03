@@ -1,5 +1,5 @@
-import { MapParser, type Entity } from "./loader/MapParser";
-import { PrefabLoader } from "./loader/PrefabLoader";
+import { MapParser, type Entity } from "./loader/map/MapParser";
+import { PrefabLoader } from "./loader/model/PrefabLoader";
 import { GamePaths } from "./core/GamePaths";
 
 export interface GameConfig {
@@ -48,7 +48,7 @@ export class AssetLoader {
   private loadedMaps: Map<string, LoadedMap> = new Map();
   private loadedAudio: Map<string, HTMLAudioElement> = new Map();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): AssetLoader {
     if (!AssetLoader.instance) {
@@ -171,8 +171,8 @@ export class AssetLoader {
     try {
       // Handle both "mapname.map" and "maps/subdir/mapname.map" formats
       const gamePaths = GamePaths.getInstance();
-      const mapPath = mapName.startsWith("maps/") 
-        ? gamePaths.game(mapName) 
+      const mapPath = mapName.startsWith("maps/")
+        ? gamePaths.game(mapName)
         : gamePaths.maps(mapName);
       const response = await fetch(mapPath);
       const raw = await response.text();
@@ -239,7 +239,7 @@ export class AssetLoader {
     if (this.loadedMaps.has(mapName)) {
       return true; // Already loaded
     }
-    
+
     try {
       await this.loadMap(mapName);
       return this.loadedMaps.has(mapName);

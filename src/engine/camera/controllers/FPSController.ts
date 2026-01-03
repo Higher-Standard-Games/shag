@@ -20,7 +20,7 @@ export class FPSController implements ICameraController {
   
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
-  private _canvas: HTMLCanvasElement | null = null;
+  private canvas: HTMLCanvasElement | null = null;
   
   // State
   private enabled: boolean = true;
@@ -41,7 +41,7 @@ export class FPSController implements ICameraController {
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
-    this._canvas = canvas;
+    this.canvas = canvas;
     
     // Get a reasonable starting position from the existing camera
     let startPos = camera.position.clone();
@@ -87,7 +87,7 @@ export class FPSController implements ICameraController {
     }
     this.camera = null;
     this.scene = null;
-    this._canvas = null;
+    this.canvas = null;
     console.log("[FPSController] Detached");
   }
 
@@ -155,6 +155,11 @@ export class FPSController implements ICameraController {
 
   getConfig(): CameraControllerConfig {
     return { ...this.config };
+  }
+
+  /** Get canvas element (for pointer lock support) */
+  getCanvas(): HTMLCanvasElement | null {
+    return this.canvas;
   }
 
   setEnabled(enabled: boolean): void {

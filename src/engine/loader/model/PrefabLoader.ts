@@ -1,5 +1,5 @@
-import { type Entity, MapParser } from "./MapParser";
-import { GamePaths } from "../core/GamePaths";
+import { type Entity, MapParser } from "../map/MapParser";
+import { GamePaths } from "../../core/GamePaths";
 
 export interface PrefabDefinition {
   name: string;
@@ -18,7 +18,7 @@ export class PrefabLoader {
   private prefabCache: Map<string, PrefabDefinition> = new Map();
   private basePath: string | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): PrefabLoader {
     if (!PrefabLoader.instance) {

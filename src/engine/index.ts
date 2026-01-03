@@ -33,25 +33,25 @@ export { StreetLampSystem } from "./lighting/StreetLampSystem";
 export type { StreetLampConfig } from "./lighting/StreetLampSystem";
 
 // Loaders
-export { MapParser } from "./loader/MapParser";
-export type { Entity, Brush, PlaneDefinition } from "./loader/MapParser";
-export { BrushGenerator } from "./loader/BrushGenerator";
-export type { BrushFace } from "./loader/BrushGenerator";
-export { PatchGenerator } from "./loader/PatchGenerator";
-export type { PatchDefinition } from "./loader/PatchGenerator";
-export { TextureManager } from "./loader/TextureManager";
-export type { TextureInfo } from "./loader/TextureManager";
-export { TextureMemoryManager } from "./loader/TextureMemoryManager";
-export type { TextureMemoryConfig, TrackedTexture, QualityLevel } from "./loader/TextureMemoryManager";
-export { ModelLoader } from "./loader/ModelLoader";
-export type { ModelLoadOptions } from "./loader/ModelLoader";
-export { PrefabLoader } from "./loader/PrefabLoader";
-export { PrefabInstance } from "./loader/PrefabInstance";
-export { PK3Loader } from "./loader/PK3Loader";
-export type { PK3File, PK3LoaderConfig } from "./loader/PK3Loader";
+export { MapParser } from "./loader/map/MapParser";
+export type { Entity, Brush, PlaneDefinition } from "./loader/map/MapParser";
+export { BrushGenerator } from "./loader/map/BrushGenerator";
+export type { BrushFace } from "./loader/map/BrushGenerator";
+export { PatchGenerator } from "./loader/map/PatchGenerator";
+export type { PatchDefinition } from "./loader/map/PatchGenerator";
+export { TextureManager } from "./loader/texture/TextureManager";
+export type { TextureInfo } from "./loader/texture/TextureManager";
+export { TextureMemoryManager } from "./loader/texture/TextureMemoryManager";
+export type { TextureMemoryConfig, TrackedTexture, QualityLevel } from "./loader/texture/TextureMemoryManager";
+export { ModelLoader } from "./loader/model/ModelLoader";
+export type { ModelLoadOptions } from "./loader/model/ModelLoader";
+export { PrefabLoader } from "./loader/model/PrefabLoader";
+export { PrefabInstance } from "./loader/model/PrefabInstance";
+export { PK3Loader } from "./loader/pk3/PK3Loader";
+export type { PK3File, PK3LoaderConfig } from "./loader/pk3/PK3Loader";
 
 // BSP Loading (Quake 3 / Warsow FBSP)
-export { BspLoader, isClusterVisible, findLeafForPoint } from "./loader/BspLoader";
+export { BspLoader, isClusterVisible, findLeafForPoint } from "./loader/bsp/BspLoader";
 export type {
   BspFile,
   BspHeader,
@@ -66,13 +66,13 @@ export type {
   BspLeaf,
   BspModel,
   BspVisData,
-} from "./loader/BspLoader";
-export { BspMeshBuilder, getVisibleFaces } from "./loader/BspMeshBuilder";
-export type { BuildOptions as BspBuildOptions } from "./loader/BspMeshBuilder";
-export type { BspMeshBuildResult } from "./loader/BspMeshBuilder";
-export { testBspLoading, printBspStats, testBspRendering, quickBspTest } from "./loader/BspTest";
-export { SkyboxLoader } from "./loader/SkyboxLoader";
-export type { SkyboxLoadResult } from "./loader/SkyboxLoader";
+} from "./loader/bsp/BspLoader";
+export { BspMeshBuilder, getVisibleFaces } from "./loader/bsp/BspMeshBuilder";
+export type { BuildOptions as BspBuildOptions } from "./loader/bsp/BspMeshBuilder";
+export type { BspMeshBuildResult } from "./loader/bsp/BspMeshBuilder";
+export { testBspLoading, printBspStats, testBspRendering, quickBspTest } from "./loader/bsp/BspTest";
+export { SkyboxLoader } from "./loader/texture/SkyboxLoader";
+export type { SkyboxLoadResult } from "./loader/texture/SkyboxLoader";
 
 // Rendering
 export { InstancedMeshManager } from "./rendering/InstancedMeshManager";

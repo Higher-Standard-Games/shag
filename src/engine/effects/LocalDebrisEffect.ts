@@ -119,7 +119,7 @@ export class LocalDebrisEffect {
   }
 
   private createParticleSystem(): void {
-    const { position, radius, height, type, density } = this.config;
+    const { position, radius, height, type: _type, density } = this.config;
 
     // Create emitter at zone center
     this.emitter = MeshBuilder.CreateBox(`debrisEmitter_${this.id}`, { size: 1 }, this.scene);

@@ -15,7 +15,7 @@ import { OrderSystem } from "../game/OrderSystem";
 import { QuestSystem } from "../game/QuestSystem";
 import { ShopSystem } from "../game/ShopSystem";
 import { SettingsPanel } from "../ui/SettingsPanel";
-import { TextureManager } from "./loader/TextureManager";
+import { TextureManager } from "./loader";
 import { CameraSystem, IsometricController } from "./camera";
 import { InputSystem } from "./input";
 import { GameInputHandler } from "../game/GameInputHandler";
@@ -48,7 +48,7 @@ import { CapacitorBridge } from "./core/CapacitorBridge";
 import { EventBus } from "./core/EventBus";
 import { EngineSettings } from "./core/EngineSettings";
 import { QualityDetector } from "./core/QualityDetector";
-import { TextureMemoryManager } from "./loader/TextureMemoryManager";
+import { TextureMemoryManager } from "./loader";
 import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
 
 /**
@@ -72,7 +72,7 @@ const DEFAULT_CAMERA_HEIGHT: Record<CameraMode, number> = {
 
 export class GameScene {
   private static instance: GameScene;
-  
+
   private engine: Engine;
   private canvas: HTMLCanvasElement;
   private scene: Scene | null = null;
@@ -81,7 +81,7 @@ export class GameScene {
   private cameraHeight: number | null = null;  // Custom height from map
   private currentMap: string | null = null;
   private mapCenterPosition: Vector3 = Vector3.Zero();  // Store map center for camera reset
-  
+
   // Track the trigger position that was used to enter each map
   // Key: destination map name, Value: trigger position in the SOURCE map
   // When returning FROM a map, we look up where the trigger TO that map was located
@@ -92,15 +92,15 @@ export class GameScene {
   private eventsPanel: SidePanel | null = null;
   private plantModal: ModalPanel | null = null;
   private selectedPlantId: string | null = null;
-  
+
   // Performance mode: FPS throttling
   private targetFPS: number = 999;
   private lastRenderTime: number = 0;
   private frameInterval: number = 0;
-  
+
   // Autosave interval
   private autoSaveInterval: number | null = null;
-  
+
   // Weather effects
   private precipitationEffect: PrecipitationEffect | null = null;
   private thunderEffect: ThunderEffect | null = null;
@@ -113,17 +113,17 @@ export class GameScene {
     this.engine = engine;
     this.canvas = canvas;
     GameScene.instance = this;
-    
+
     // Read performance setting (respects user's choice, defaults based on device)
     const settings = SettingsPanel.getInstance().getSettings();
     this.updatePerformanceMode(settings.highPerformanceRendering);
-    
+
     // Listen for performance setting changes
     window.addEventListener("performanceSettingChanged", ((e: CustomEvent) => {
       this.updatePerformanceMode(e.detail.highPerformance);
     }) as EventListener);
   }
-  
+
   /**
    * Update FPS target based on performance mode
    */
@@ -151,22 +151,22 @@ export class GameScene {
 
     // Load engine settings before creating scene
     await EngineSettings.getInstance().load();
-    
+
     await this.createScene();
-    
+
     // Initialize BuildingSystem before loading map (so zones can be registered)
     BuildingSystem.getInstance().init(this.scene!);
-    
+
     // Initialize new engine-level BuildableSystem and renderer (incremental migration)
     BuildableSystem.getInstance().setTimeProvider(() => GameTimer.getInstance().getGameTime());
     BuildableRenderer.getInstance().init(this.scene!);
-    
+
     // Expose for debugging during migration
     (window as unknown as Record<string, unknown>).BuildableSystem = BuildableSystem;
     (window as unknown as Record<string, unknown>).BuildableRenderer = BuildableRenderer;
-    
+
     HarvestIndicator.getInstance().init(this.scene!);
-    
+
     await this.loadMap(startMap);
 
     // Start game music if configured
@@ -177,16 +177,16 @@ export class GameScene {
 
     // Start periodic autosave using SaveManager (every 30 seconds)
     this.startAutoSave();
-    
+
     // Clear the loading flag now that scene is fully initialized
     SaveManager.getInstance().clearLoadingFlag();
 
     this.startRenderLoop();
-    
+
     // Setup Capacitor app lifecycle handlers
     this.setupCapacitorListeners();
   }
-  
+
   /**
    * Setup Capacitor app lifecycle listeners (pause/resume, back button)
    */
@@ -206,7 +206,7 @@ export class GameScene {
         SaveManager.getInstance().autoSave();
       }
     });
-    
+
     // Handle Android back button
     EventBus.on<{ canGoBack: boolean }>("app:back_button", () => {
       // Import MenuSystem dynamically to avoid circular dependency
@@ -221,10 +221,10 @@ export class GameScene {
         }
       });
     });
-    
+
     console.log("[GameScene] Capacitor listeners registered");
   }
-  
+
   /**
    * Start periodic autosave
    */
@@ -233,15 +233,15 @@ export class GameScene {
     if (this.autoSaveInterval !== null) {
       clearInterval(this.autoSaveInterval);
     }
-    
+
     // Autosave every 30 seconds
     this.autoSaveInterval = window.setInterval(() => {
       SaveManager.getInstance().autoSave();
     }, 30000);
-    
+
     console.log("[GameScene] Autosave started (30s interval)");
   }
-  
+
   /**
    * Stop periodic autosave
    */
@@ -267,7 +267,7 @@ export class GameScene {
 
     // Initialize TextureManager for this scene
     TextureManager.getInstance().init(this.scene);
-    
+
     // Initialize TextureMemoryManager with auto-detected quality
     const qualityDetector = QualityDetector.getInstance();
     const { quality, deviceInfo } = qualityDetector.detectQuality();
@@ -278,7 +278,7 @@ export class GameScene {
     });
     textureMemory.setQuality(quality);
     console.log(`[GameScene] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
-    
+
     // Initialize InstancedMeshManager for GPU instancing
     InstancedMeshManager.getInstance().init(this.scene);
 
@@ -288,7 +288,7 @@ export class GameScene {
     // Load camera settings from engine-settings.json
     const engineSettings = EngineSettings.getInstance();
     const cameraSettings = engineSettings.getCameraSettings();
-    
+
     // Isometric Camera - supports multiple rendering modes
     this.camera = new ArcRotateCamera(
       "camera",
@@ -298,7 +298,7 @@ export class GameScene {
       Vector3.Zero(),
       this.scene
     );
-    
+
     // Apply camera mode from settings
     const cameraMode = cameraSettings.mode as CameraMode;
     this.cameraHeight = cameraSettings.height;
@@ -332,26 +332,26 @@ export class GameScene {
 
     // Initialize Input System (must be before camera controllers)
     InputSystem.getInstance().init(this.scene, this.canvas);
-    
+
     // Initialize Camera System with IsometricController
     const cameraSystem = CameraSystem.getInstance();
     cameraSystem.init(this.scene, this.canvas);
     cameraSystem.setCamera(this.camera);
-    
+
     // Create and register the isometric controller
     const isometricController = new IsometricController();
     cameraSystem.registerController("isometric", isometricController);
-    
+
     // Attach controller to camera and set as active
     isometricController.attach(this.camera, this.scene, this.canvas);
     cameraSystem.setActiveController(isometricController);
-    
+
     // Initialize game input handler and connect to camera controller
     const gameInputHandler = GameInputHandler.init(this.scene);
     isometricController.setClickCallback((screenX, screenY, wasDrag) => {
       gameInputHandler.handleClick(screenX, screenY, wasDrag);
     });
-    
+
     // Listen for map:loaded to sync camera target
     EventBus.on("map:loaded", () => {
       isometricController.syncTargetPosition();
@@ -359,7 +359,7 @@ export class GameScene {
 
     // Initialize SpriteManager with scene and camera
     SpriteManager.getInstance().init(this.scene, this.camera);
-    
+
     // Load sprite manifest for static sprites (rocks, vegetation, etc.)
     SpriteManager.getInstance().loadManifest('game/sprites.json').catch(err => {
       console.warn('Failed to load sprite manifest:', err);
@@ -372,7 +372,7 @@ export class GameScene {
     this.precipitationEffect = new PrecipitationEffect(this.scene);
     this.thunderEffect = new ThunderEffect(this.scene);
     this.fogEffect = new FogEffect(this.scene);
-    
+
     // Initialize wind and debris systems
     this.windSystem = WindSystem.getInstance(this.scene);
     this.debrisEffect = new DebrisEffect(this.scene);
@@ -454,20 +454,20 @@ export class GameScene {
       console.error(`Invalid camera mode: ${mode}. Use 'perspective', 'orthographic', or 'fake_ortho'`);
       return;
     }
-    
+
     CAMERA_MODE = mode;
     this.applyCameraMode(mode);
-    
+
     // Update ortho bounds if switching to orthographic
     if (mode === "orthographic") {
       this.updateCameraOrtho();
     }
-    
+
     // Force camera to update its projection matrix immediately
     if (this.camera) {
       this.camera.getProjectionMatrix(true);
     }
-    
+
     console.log(`[GameScene] Camera mode changed to: ${mode}`);
   }
 
@@ -489,10 +489,10 @@ export class GameScene {
       console.error(`Invalid camera height: ${height}`);
       return;
     }
-    
+
     this.cameraHeight = numHeight;
     this.applyCameraMode(CAMERA_MODE);  // Re-apply mode with new height
-    
+
     // Reset camera to map center to prevent getting lost
     if (this.camera && this.mapCenterPosition) {
       this.camera.setTarget(this.mapCenterPosition);
@@ -525,7 +525,7 @@ export class GameScene {
    */
   public setMapEntryTrigger(destinationMap: string, triggerPosition: Vector3): void {
     if (!this.currentMap) return;
-    
+
     this.mapEntryTriggers.set(destinationMap, {
       sourceMap: this.currentMap,
       triggerPosition: triggerPosition.clone()
@@ -561,7 +561,7 @@ export class GameScene {
 
     const previousMap = this.currentMap;
     console.log(`[GameScene] Loading map: ${mapName}, previous: ${previousMap}`);
-    
+
     // Save current map state before switching (if we have a previous map)
     if (previousMap && previousMap !== mapName) {
       SaveManager.getInstance().saveCurrentMapState(previousMap);
@@ -628,7 +628,7 @@ export class GameScene {
     const modeToApply = result.cameraMode || "perspective";
     console.log(`[GameScene] Applying camera mode: ${modeToApply}, height: ${this.cameraHeight}`);
     this.setCameraMode(modeToApply);
-    
+
     // STEP 3b: Apply camera controller if specified in map
     if (result.cameraController) {
       const cameraSystem = CameraSystem.getInstance();
@@ -637,7 +637,7 @@ export class GameScene {
         console.warn(`[GameScene] Failed to switch to controller: ${result.cameraController}`);
       }
     }
-    
+
     // Log actual camera state after applying
     if (this.camera) {
       console.log(`[GameScene] Camera after mode apply: radius=${this.camera.radius}, fov=${this.camera.fov?.toFixed(3)}`);
@@ -648,34 +648,34 @@ export class GameScene {
     if (this.camera) {
       // Store the radius we want BEFORE any operations that might change it
       const desiredRadius = this.camera.radius;
-      
+
       this.camera.alpha = -Math.PI / 4;  // Default horizontal rotation
       this.camera.beta = Math.PI / 4;    // Default 45° from top (isometric)
       this.camera.setTarget(this.mapCenterPosition);
-      
+
       // Restore radius in case setTarget modified it
       this.camera.radius = desiredRadius;
-      
+
       // CRITICAL: Sync camera controller's internal target IMMEDIATELY after setting camera target
       // This must happen before the next render frame to prevent smoothing from fighting
       CameraSystem.getInstance().getActiveController()?.setTarget?.(this.mapCenterPosition);
-      
+
       console.log(`[GameScene] Camera configured: target=${this.mapCenterPosition.toString()}, radius=${this.camera.radius}, pos=${this.camera.position.toString()}`);
     }
 
     this.currentMap = mapName;
-    
+
     // Update BuildingSystem with current map ID
     BuildingSystem.getInstance().setCurrentMap(mapName);
-    
+
     // Clear ALL world indicators before notifying systems about map load
     // This prevents any UI elements from leaking between maps
     WorldIndicatorSystem.getInstance().clearAll();
-    
+
     // Notify systems to sync with new map (camera controller, PlantStatusIndicator, etc.)
     // IsometricController listens for this and syncs its internal targetPosition
     EventBus.emit("map:loaded", { mapName });
-    
+
     // Load saved state for this map (built objects, etc.)
     await SaveManager.getInstance().loadMapState(mapName);
 
@@ -691,7 +691,7 @@ export class GameScene {
       audioManager.startDefaultPlaylist();
     }
     // If no playlist specified but one is already playing, keep it playing
-    
+
     // Handle indoor flag - stop weather effects immediately if entering indoor map
     this.isIndoorMap = result.indoor;
     if (this.isIndoorMap) {
@@ -722,26 +722,26 @@ export class GameScene {
       this.updateCameraOrtho();
       console.log(`Zoom set to ${this.orthoSize}`);
     };
-    
+
     // Camera mode toggle
     (window as any).setCameraMode = (mode: CameraMode) => {
       this.setCameraMode(mode);
     };
     (window as any).getCameraMode = () => this.getCameraMode();
-    
+
     // Camera height/distance control
     (window as any).setCameraHeight = (height: number) => {
       this.setCameraHeight(height);
     };
     (window as any).getCameraHeight = () => this.getCameraHeight();
-    
+
     // Camera object for export command
     (window as any).camera = {
       get: () => this.camera,
       getMode: () => this.getCameraMode(),
       getHeight: () => this.getCameraHeight(),
     };
-    
+
     console.log("Camera: setCameraMode('perspective'|'orthographic'|'fake_ortho'), setCameraHeight(number)");
 
     // Game system debug functions
@@ -809,34 +809,34 @@ export class GameScene {
         console.log(`Day length set to ${seconds} seconds`);
       },
     };
-    
+
     // Post-processing effects debug commands
     const pp = PostProcessingManager.getInstance();
     (window as any).fx = {
       // Master toggle
       enabled: (on: boolean) => pp.setEnabled(on),
-      
+
       // Bloom
       bloom: (on: boolean) => pp.setBloomEnabled(on),
       bloomIntensity: (v: number) => pp.setBloomIntensity(v),
       bloomThreshold: (v: number) => pp.setBloomThreshold(v),
-      
+
       // Vignette
       vignette: (on: boolean) => pp.setVignetteEnabled(on),
       vignetteIntensity: (v: number) => pp.setVignetteIntensity(v),
-      
+
       // SSAO
       ssao: (on: boolean) => pp.setSSAOEnabled(on),
       ssaoIntensity: (v: number) => pp.setSSAOIntensity(v),
-      
+
       // Chromatic Aberration
       chromatic: (on: boolean) => pp.setChromaticAberrationEnabled(on),
-      
+
       // Presets
       reset: () => pp.resetToDefaults(),
       settings: () => pp.getSettings(),
     };
-    
+
     // Weather effects debug commands
     (window as any).weather = {
       // Rain (blocked on indoor maps)
@@ -851,7 +851,7 @@ export class GameScene {
       rainSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
       rainSpeed: (v: number) => this.precipitationEffect?.updateSettings({ speed: v }),
       rainWind: (angle: number, strength: number) => this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
-      
+
       // Snow (blocked on indoor maps)
       snow: (on: boolean) => {
         if (on && this.isIndoorMap) {
@@ -862,11 +862,11 @@ export class GameScene {
       },
       snowIntensity: (v: number) => { this.precipitationEffect?.updateSettings({ intensity: v }); },
       snowSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
-      
+
       // Thunder (self-fading storm effect)
       thunder: (duration?: number) => this.thunderEffect?.trigger(duration ? { duration } : undefined),
       thunderStop: () => this.thunderEffect?.stop(),
-      
+
       // Fog
       fog: (on: boolean) => on ? this.fogEffect?.start() : this.fogEffect?.stop(),
       fogDensity: (v: number) => this.fogEffect?.setDensity(v),
@@ -875,7 +875,7 @@ export class GameScene {
       heavyFog: () => this.fogEffect?.heavyFog(),
       morningFog: () => this.fogEffect?.morningFog(),
       spookyFog: () => this.fogEffect?.spookyFog(),
-      
+
       // Wind system
       wind: (on: boolean) => {
         if (on && this.isIndoorMap) {
@@ -890,7 +890,7 @@ export class GameScene {
       calmBreeze: () => this.windSystem?.calmBreeze(),
       moderateWind: () => this.windSystem?.moderateWind(),
       stormWind: () => this.windSystem?.stormWind(),
-      
+
       // Debris effects
       debris: (type: 'leaves' | 'trash' | 'dust' | 'mixed' | false) => {
         if (type && this.isIndoorMap) {
@@ -919,7 +919,7 @@ export class GameScene {
       debrisTurbulence: (v: number) => { console.log("[Weather] debrisTurbulence:", v); this.debrisEffect?.updateSettings({ turbulence: v }); },
       debrisSpread: (v: number) => { console.log("[Weather] debrisSpread:", v); this.debrisEffect?.updateSettings({ spread: v }); },
       debrisHeight: (v: number) => { console.log("[Weather] debrisHeight:", v); this.debrisEffect?.updateSettings({ height: v }); },
-      
+
       // Status
       isRaining: () => this.precipitationEffect?.isRaining(),
       isSnowing: () => this.precipitationEffect?.isSnowing(),
@@ -946,7 +946,7 @@ export class GameScene {
   private async initBottomBar(): Promise<void> {
     // Load UI config
     await UIConfig.getInstance().load("/game/data/ui-config.json");
-    
+
     // Create BottomBar with callbacks
     // Engine handles layout/behavior, game provides content/styling via callbacks
     this.bottomBar = new BottomBar({
@@ -966,7 +966,7 @@ export class GameScene {
         // Exit build mode when minimizing the build bar
         BuildingSystem.getInstance().exitBuildMode();
       },
-      
+
       // Data providers
       getPlayerLevel: () => GameState.getInstance().getPlayer().level,
       getPlayerMoney: () => GameState.getInstance().getPlayer().money,
@@ -988,12 +988,12 @@ export class GameScene {
         }
         return slots;
       },
-      
+
       // Game-specific customization (icons, styling)
       renderItemIcon: (item: BuildMenuItem) => this.getBuildItemIcon(item.id),
       renderInventoryIcon: (itemId: string) => this.getInventoryIcon(itemId),
     });
-    
+
     await this.bottomBar.init();
     this.bottomBar.show();
   }
@@ -1304,10 +1304,10 @@ export class GameScene {
           const plants = GameState.getInstance().getPlants();
           const needsWater = plants.filter(p => p.waterLevel < 30).length;
           const lowHealth = plants.filter(p => p.health < 50 && p.health > 0).length;
-          
+
           const urgentCount = harvestables.filter(h => h.phase === "spoiled" || h.phase === "overripe").length;
           const totalCount = harvestables.length + needsWater + lowHealth;
-          
+
           if (urgentCount > 0) {
             return `<span style="background: #F44336; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; animation: pulse 1s infinite;">${urgentCount}</span>`;
           }
@@ -1352,27 +1352,27 @@ export class GameScene {
 
   private renderPlantContent(): string {
     if (!this.selectedPlantId) return "<div>No plant selected</div>";
-    
+
     const plant = GameState.getInstance().getPlant(this.selectedPlantId);
     if (!plant) return "<div>Plant not found</div>";
-    
+
     const strain = PlantSystem.getInstance().getStrain(plant.strain);
     if (!strain) return "<div>Unknown strain</div>";
-    
+
     const mastery = PlantSystem.getInstance().getMastery(plant.strain);
     const stars = "★".repeat(mastery.level) + "☆".repeat(5 - mastery.level);
-    
+
     // Calculate progress percentages
     // Overall growth = (current stage + stage progress) / (total stages - 1)
     // Stage 0 = 0%, final stage (stages-1) = 100%
     const maxStage = strain.stages - 1;
-    const overallGrowth = maxStage > 0 
+    const overallGrowth = maxStage > 0
       ? ((plant.growthStage + (plant.growthProgress / 100)) / maxStage) * 100
       : 100;
     const growthPercent = Math.min(100, overallGrowth);
     const waterPercent = Math.min(100, plant.waterLevel);
     const healthPercent = Math.min(100, plant.health);
-    
+
     return `
       <div style="text-align: center; margin-bottom: 12px;">
         <div style="font-size: 14px; color: #FFD700; letter-spacing: 2px;">${stars}</div>
@@ -1415,12 +1415,12 @@ export class GameScene {
 
   private getPlantActions(): ModalAction[] {
     if (!this.selectedPlantId) return [];
-    
+
     const plant = GameState.getInstance().getPlant(this.selectedPlantId);
     if (!plant) return [];
-    
+
     const canHarvest = plant.growthProgress >= 100 && plant.growthStage >= 3;
-    
+
     return [
       {
         id: "water",
@@ -1478,10 +1478,10 @@ export class GameScene {
       console.log("[GameScene] Plant not found:", plantId);
       return;
     }
-    
+
     const strain = PlantSystem.getInstance().getStrain(plant.strain);
     this.selectedPlantId = plantId;
-    
+
     console.log("[GameScene] plantModal exists:", !!this.plantModal);
     if (this.plantModal) {
       this.plantModal.setTitle(strain?.name || "Plant");
@@ -1500,53 +1500,53 @@ export class GameScene {
     QuestSystem.getInstance().init(); // Start quest tracking
     AchievementSystem.getInstance(); // Initialize achievements
     // BuildingSystem already initialized in start()
-    
+
     // Register game-specific data (items, strains, etc.)
     registerGameData();
-    
+
     // Check for auto-start quests
     QuestSystem.getInstance().checkAutoStart();
-    
+
     // Initialize UI theme (centralized styling)
     const uiTheme = UITheme.getInstance();
     uiTheme.init();
-    
+
     // Add game-active class to body to prevent text selection
     document.body.classList.add("game-active");
-    
+
     // Nunito font is already loaded in main.ts
     // Just ensure the font family is set correctly
     uiTheme.setFontFamily(
       "'Nunito', 'Segoe UI', system-ui, sans-serif",  // Body font (regular weight)
       "'Nunito', 'Segoe UI', system-ui, sans-serif"   // Heading font (use bold weight via CSS)
     );
-    
+
     // Show UI
     GameHUD.getInstance().show();
-    
+
     // Initialize and show new BottomBar UI
     await this.initBottomBar();
-    
+
     // Initialize side panels (Quests and Orders on left)
     this.initSidePanels();
-    
+
     // Initialize plant info modal
     this.initPlantModal();
-    
+
     // Initialize WorldIndicatorSystem (generic world-positioned UI indicators)
     if (this.scene && this.camera) {
       WorldIndicatorSystem.getInstance().init(this.scene, this.camera, this.engine);
     }
-    
+
     // Initialize water prompt UI (uses WorldIndicatorSystem)
     WaterPromptUI.getInstance().init();
-    
+
     // Initialize harvest celebration (listens for harvest events)
     HarvestCelebration.init();
-    
+
     // Initialize pot action indicator (uses WorldIndicatorSystem)
     PotActionIndicator.getInstance().initialize();
-    
+
     // Initialize plant status indicators (floating health/water/growth bars)
     PlantStatusIndicator.getInstance().initialize();
 
@@ -1561,12 +1561,12 @@ export class GameScene {
       if (this.frameInterval > 0) {
         const currentTime = performance.now();
         const elapsed = currentTime - this.lastRenderTime;
-        
+
         if (elapsed < this.frameInterval) {
           // Skip this frame - not enough time has passed
           return;
         }
-        
+
         // Adjust for drift to maintain consistent frame rate
         this.lastRenderTime = currentTime - (elapsed % this.frameInterval);
       }
@@ -1604,24 +1604,24 @@ export class GameScene {
   public dispose(): void {
     // Stop autosave
     this.stopAutoSave();
-    
+
     // Hide all game UI
     GameHUD.getInstance().hide();
-    
+
     // Hide side panels
     this.questPanel?.hide();
     this.orderPanel?.hide();
     this.eventsPanel?.hide();
-    
+
     // Hide bottom bar
     this.bottomBar?.hide();
-    
+
     // Remove game-active class
     document.body.classList.remove("game-active");
-    
+
     // Save game state via SaveManager (collects all subsystem states)
     SaveManager.getInstance().saveGame();
-    
+
     if (this.scene) {
       this.scene.dispose();
       this.scene = null;

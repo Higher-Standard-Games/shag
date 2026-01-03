@@ -7,13 +7,13 @@ import {
   type TransformNode,
   Vector3,
 } from "babylonjs";
-import { BrushGenerator } from "./loader/BrushGenerator";
-import type { Entity } from "./loader/MapParser";
-import { ModelLoader } from "./loader/ModelLoader";
-import { type PatchDefinition, PatchGenerator } from "./loader/PatchGenerator";
-import { PrefabInstance } from "./loader/PrefabInstance";
+import { BrushGenerator } from "./loader";
+import { type Entity } from "./loader";
+import { ModelLoader } from "./loader";
+import { type PatchDefinition, PatchGenerator } from "./loader";
+import { PrefabInstance } from "./loader";
 import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
-import { TextureManager } from "./loader/TextureManager";
+import { TextureManager } from "./loader";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 import { SpriteManager } from "./sprites/SpriteManager";
@@ -101,22 +101,22 @@ export class MapRenderer {
         }
       }
     }
-    
+
     // Register instanced templates for models with multiple instances
     const instancedModels = new Set<string>();
     const instanceManager = InstancedMeshManager.getInstance();
     const modelLoader = ModelLoader.getInstance();
-    
+
     if (!modelLoader.isInitialized()) {
       modelLoader.init(scene);
     }
-    
+
     for (const [modelPath, modelEntities] of modelEntityGroups) {
       // Use instancing if 3+ instances of the same model
       if (modelEntities.length >= 3) {
         const registered = await modelLoader.registerInstanceTemplate(
-          modelPath, 
-          modelPath, 
+          modelPath,
+          modelPath,
           Math.max(100, modelEntities.length * 2)
         );
         if (registered) {
@@ -139,7 +139,7 @@ export class MapRenderer {
     let lighting: MapRenderResult['lighting'] = null;
     let weather: MapRenderResult['weather'] = null;
     let time: MapRenderResult['time'] = null;
-    
+
     // Collect static point lights for clustered rendering
     const staticLights: PointLight[] = [];
 
@@ -156,7 +156,7 @@ export class MapRenderer {
             console.warn(`Unknown camera_mode in worldspawn: ${entity.properties.camera_mode}`);
           }
         }
-        
+
         // Parse camera_height if specified (controls zoom/distance)
         if (entity.properties.camera_height) {
           const height = parseFloat(entity.properties.camera_height);
@@ -165,7 +165,7 @@ export class MapRenderer {
             console.log(`Map specifies camera_height: ${cameraHeight}`);
           }
         }
-        
+
         // Parse camera_alpha if specified (horizontal rotation)
         if (entity.properties.camera_alpha) {
           const alpha = parseFloat(entity.properties.camera_alpha);
@@ -174,7 +174,7 @@ export class MapRenderer {
             console.log(`Map specifies camera_alpha: ${cameraAlpha}`);
           }
         }
-        
+
         // Parse camera_beta if specified (vertical angle)
         if (entity.properties.camera_beta) {
           const beta = parseFloat(entity.properties.camera_beta);
@@ -183,7 +183,7 @@ export class MapRenderer {
             console.log(`Map specifies camera_beta: ${cameraBeta}`);
           }
         }
-        
+
         // Parse camera_controller if specified (controller type for this map)
         if (entity.properties.camera_controller) {
           const controller = entity.properties.camera_controller.toLowerCase();
@@ -194,22 +194,22 @@ export class MapRenderer {
             console.warn(`Unknown camera_controller in worldspawn: ${entity.properties.camera_controller}`);
           }
         }
-        
+
         // Parse playlist if specified (music playlist for this map)
         if (entity.properties.playlist) {
           playlist = entity.properties.playlist;
           console.log(`Map specifies playlist: ${playlist}`);
         }
-        
+
         // Parse indoor flag (disables rain/snow effects)
         if (entity.properties.indoor === "1") {
           indoor = true;
           console.log(`Map is marked as indoor - weather effects disabled`);
         }
-        
+
         // Parse lighting overrides
-        if (entity.properties.sun_intensity || entity.properties.moon_intensity || 
-            entity.properties.ambient_intensity || entity.properties.shadows) {
+        if (entity.properties.sun_intensity || entity.properties.moon_intensity ||
+          entity.properties.ambient_intensity || entity.properties.shadows) {
           lighting = {};
           if (entity.properties.sun_intensity) {
             lighting.sunIntensity = parseFloat(entity.properties.sun_intensity);
@@ -225,7 +225,7 @@ export class MapRenderer {
           }
           console.log(`Map specifies lighting overrides:`, lighting);
         }
-        
+
         // Parse weather settings
         if (entity.properties.weather || entity.properties.fog) {
           weather = {};
@@ -246,7 +246,7 @@ export class MapRenderer {
           }
           console.log(`Map specifies weather:`, weather);
         }
-        
+
         // Parse time settings
         if (entity.properties.day_length || entity.properties.start_hour) {
           time = {};
@@ -277,14 +277,14 @@ export class MapRenderer {
         const quakeIntensity = entity.properties.light
           ? parseFloat(entity.properties.light)
           : 300;
-        
+
         // Convert to Babylon intensity and set range
         // Quake light values are roughly: 200-300 = normal, 500+ = bright
         light.intensity = quakeIntensity / 100.0; // Increased divisor for brighter lights
-        
+
         // Set range based on intensity - Quake lights have infinite range but we need to limit
         // Use the light value as a rough guide for range
-        light.range = entity.properties.range 
+        light.range = entity.properties.range
           ? parseFloat(entity.properties.range)
           : quakeIntensity; // Range roughly equals light value in world units
 
@@ -303,7 +303,7 @@ export class MapRenderer {
         } else {
           light.diffuse = new Color3(1, 1, 1);
         }
-        
+
         staticLights.push(light);
         console.log(`Created light at ${lightPos.toString()}, intensity: ${light.intensity}, range: ${light.range}`);
       }
@@ -314,7 +314,7 @@ export class MapRenderer {
         console.log(`MapRenderer: Found ${entity.classname} entity:`, entity.properties);
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const position = new Vector3(parts[0], parts[2], parts[1]);
-        
+
         const spritePath = entity.properties.sprite;
         const width = parseFloat(entity.properties.width || "32");
         const height = parseFloat(entity.properties.height || "32");
@@ -323,7 +323,7 @@ export class MapRenderer {
         const shadowOpacity = parseFloat(entity.properties.shadowOpacity || "0.3");
         const isBillboard = entity.properties.billboard !== "0"; // Default true
         const anchor = (entity.properties.anchor || "bottom-center") as "bottom-center" | "center" | "bottom-left" | "bottom-right";
-        
+
         if (spritePath) {
           const spriteManager = SpriteManager.getInstance();
           const sprite = spriteManager.createStaticSprite(
@@ -349,7 +349,7 @@ export class MapRenderer {
       // Handle street lamps (lights that turn on at night)
       if (entity.classname === "street_lamp" && entity.properties.origin) {
         const lampSystem = StreetLampSystem.getInstance();
-        
+
         // Initialize if needed
         if (!lampSystem.isInitialized()) {
           lampSystem.init(scene);
@@ -370,25 +370,25 @@ export class MapRenderer {
         }
 
         // Parse other properties
-        const intensity = entity.properties.light 
-          ? parseFloat(entity.properties.light) / 200.0 
+        const intensity = entity.properties.light
+          ? parseFloat(entity.properties.light) / 200.0
           : 1.0;
-        const range = entity.properties.range 
-          ? parseFloat(entity.properties.range) 
+        const range = entity.properties.range
+          ? parseFloat(entity.properties.range)
           : 100;
-        const fadeTime = entity.properties.fadeTime 
-          ? parseFloat(entity.properties.fadeTime) 
+        const fadeTime = entity.properties.fadeTime
+          ? parseFloat(entity.properties.fadeTime)
           : 2;
-        const turnOnHour = entity.properties.turnOnHour 
-          ? parseFloat(entity.properties.turnOnHour) 
+        const turnOnHour = entity.properties.turnOnHour
+          ? parseFloat(entity.properties.turnOnHour)
           : 18;
-        const turnOffHour = entity.properties.turnOffHour 
-          ? parseFloat(entity.properties.turnOffHour) 
+        const turnOffHour = entity.properties.turnOffHour
+          ? parseFloat(entity.properties.turnOffHour)
           : 6;
         const flickerEnabled = entity.properties.flicker === "1";
         const showBulb = entity.properties.showBulb !== "0";
-        const bulbSize = entity.properties.bulbSize 
-          ? parseFloat(entity.properties.bulbSize) 
+        const bulbSize = entity.properties.bulbSize
+          ? parseFloat(entity.properties.bulbSize)
           : 3;
 
         const lampId = entity.properties.targetname || `lamp_${Date.now()}_${Math.random()}`;
@@ -478,7 +478,7 @@ export class MapRenderer {
       if (entity.classname === "misc_model" && entity.properties.model) {
         const modelPath = entity.properties.model;
         console.log(`misc_model: ${modelPath}, isModelFile: ${ModelLoader.isModelFile(modelPath)}`);
-        
+
         // Parse origin (Quake coords: X Y Z where Z is up)
         let position = Vector3.Zero();
         if (entity.properties.origin) {
@@ -487,13 +487,13 @@ export class MapRenderer {
         }
 
         // Parse angle (Y rotation in degrees)
-        const angle = entity.properties.angle 
-          ? parseFloat(entity.properties.angle) 
+        const angle = entity.properties.angle
+          ? parseFloat(entity.properties.angle)
           : 0;
 
         // Parse scale
-        const scale = entity.properties.scale 
-          ? parseFloat(entity.properties.scale) 
+        const scale = entity.properties.scale
+          ? parseFloat(entity.properties.scale)
           : 1;
 
         // Check if this is a 3D model file (GLB/glTF/OBJ) or a .map prefab
@@ -506,7 +506,7 @@ export class MapRenderer {
               rotation: new Vector3(0, (angle * Math.PI) / 180, 0),
               scaling: new Vector3(scale, scale, scale),
             });
-            
+
             if (instanceData) {
               // Note: Instanced meshes don't create a TransformNode root
               // They're managed by InstancedMeshManager
@@ -518,8 +518,8 @@ export class MapRenderer {
             const receiveShadows = entity.properties.receiveShadows !== "0";
             const castShadows = entity.properties.castShadows === "1";
             const visible = entity.properties.visible !== "0";
-            const renderingGroupId = entity.properties.renderingGroup 
-              ? parseInt(entity.properties.renderingGroup) 
+            const renderingGroupId = entity.properties.renderingGroup
+              ? parseInt(entity.properties.renderingGroup)
               : 0;
 
             // Get shadow generator if casting shadows
@@ -545,8 +545,8 @@ export class MapRenderer {
         } else {
           // Load as .map prefab (existing behavior)
           const dropToGround = entity.properties.dropToGround === "1";
-          const dropOffset = entity.properties.dropOffset 
-            ? parseFloat(entity.properties.dropOffset) 
+          const dropOffset = entity.properties.dropOffset
+            ? parseFloat(entity.properties.dropOffset)
             : 0;
 
           const result = await PrefabInstance.create(modelPath, scene, {
@@ -566,7 +566,7 @@ export class MapRenderer {
       // Handle sprite_building entities (2D isometric sprites as buildings)
       if (entity.classname === "sprite_building" && entity.properties.origin) {
         const spriteBuildingManager = SpriteBuildingManager.getInstance();
-        
+
         // Initialize if needed
         if (!spriteBuildingManager["scene"]) {
           spriteBuildingManager.init(scene);
@@ -588,16 +588,16 @@ export class MapRenderer {
         const height = entity.properties.height ? parseFloat(entity.properties.height) : 100;
 
         // Parse rotation (for fixed isometric angle)
-        const rotation = entity.properties.angle 
-          ? (parseFloat(entity.properties.angle) * Math.PI / 180) 
+        const rotation = entity.properties.angle
+          ? (parseFloat(entity.properties.angle) * Math.PI / 180)
           : 0;
 
         // Billboard mode (face camera)
         const billboard = entity.properties.billboard === "1";
 
         // Emissive for glowing effects
-        const emissiveIntensity = entity.properties.emissive 
-          ? parseFloat(entity.properties.emissive) 
+        const emissiveIntensity = entity.properties.emissive
+          ? parseFloat(entity.properties.emissive)
           : 0;
 
         // Trigger properties
@@ -650,7 +650,7 @@ export class MapRenderer {
       // Handle npc_sprite entities
       if (entity.classname === "npc_sprite" && entity.properties.origin) {
         const spriteManager = SpriteManager.getInstance();
-        
+
         if (!spriteManager.isInitialized()) {
           console.warn("SpriteManager not initialized - skipping npc_sprite");
           continue;
@@ -784,16 +784,16 @@ export class MapRenderer {
       console.log(`Created clustered light container with ${staticLights.length} static lights`);
     }
 
-    return { 
-      playerStartPosition, 
-      prefabInstances, 
-      sprites, 
-      cameraMode, 
+    return {
+      playerStartPosition,
+      prefabInstances,
+      sprites,
+      cameraMode,
       cameraHeight,
       cameraAlpha,
       cameraBeta,
       cameraController,
-      playlist, 
+      playlist,
       indoor,
       lighting,
       weather,
@@ -819,7 +819,7 @@ export class MapRenderer {
       // Also catch any mesh with map-related metadata
       mesh.metadata?.properties?.classname
     );
-    
+
     for (const mesh of meshesToDispose) {
       mesh.dispose();
     }
@@ -832,7 +832,7 @@ export class MapRenderer {
       // Also catch any node with NPC metadata
       node.metadata?.npcId
     );
-    
+
     for (const node of nodesToDispose) {
       node.dispose();
     }
@@ -841,7 +841,7 @@ export class MapRenderer {
     const lightsToDispose = scene.lights.filter((light) =>
       light.name.startsWith("light_")
     );
-    
+
     for (const light of lightsToDispose) {
       light.dispose();
     }

@@ -15,7 +15,7 @@ import { Scene, Vector3 } from "babylonjs";
 import { EventBus } from "../engine/core/EventBus";
 import { BuildableSystem } from "../engine/BuildableSystem";
 import { SpawnValidator } from "../engine/SpawnValidator";
-import { PrefabInstance } from "../engine/loader/PrefabInstance";
+import { PrefabInstance } from "../engine/loader";
 import { GameScene } from "../engine/GameScene";
 import { BuildingSystem } from "./BuildingSystem";
 import { GameState } from "./GameState";
@@ -28,7 +28,7 @@ import { LampInfoPanel } from "../ui/LampInfoPanel";
 
 export class GameInputHandler {
   private static instance: GameInputHandler | null = null;
-  
+
   private scene: Scene;
 
   private constructor(scene: Scene) {
@@ -109,10 +109,10 @@ export class GameInputHandler {
   }
 
   private handleHarvestIndicatorClick(multiPick: ReturnType<Scene["multiPick"]>): boolean {
-    const harvestIndicatorPick = multiPick?.find(p => 
+    const harvestIndicatorPick = multiPick?.find(p =>
       p.hit && p.pickedMesh?.metadata?.isHarvestIndicator
     );
-    
+
     if (harvestIndicatorPick && harvestIndicatorPick.pickedMesh) {
       const plantId = harvestIndicatorPick.pickedMesh.metadata.plantId;
       HarvestIndicator.getInstance().handleIndicatorClick(plantId);
@@ -122,23 +122,23 @@ export class GameInputHandler {
   }
 
   private handlePlantZoneClick(multiPick: ReturnType<Scene["multiPick"]>): boolean {
-    const plantZonePick = multiPick?.find(p => 
-      p.hit && 
-      p.pickedMesh?.metadata?.isBuildableObject && 
+    const plantZonePick = multiPick?.find(p =>
+      p.hit &&
+      p.pickedMesh?.metadata?.isBuildableObject &&
       p.pickedMesh?.metadata?.zoneType === "plant"
     );
-    
+
     if (!plantZonePick || !plantZonePick.pickedMesh) return false;
 
     const mesh = plantZonePick.pickedMesh;
     const buildableObjectId = mesh.metadata.buildableObjectId;
     const buildableInst = BuildableSystem.getInstance().getInstance(buildableObjectId);
-    
+
     if (!buildableInst) return false;
 
     // Find plant at this position
     const plants = GameState.getInstance().getPlants();
-    const plant = plants.find(p => 
+    const plant = plants.find(p =>
       Math.abs(p.position.x - buildableInst.position.x) < 5 &&
       Math.abs(p.position.z - buildableInst.position.z) < 5
     );
@@ -147,7 +147,7 @@ export class GameInputHandler {
       // Check if plant is harvestable
       const harvestIndicator = HarvestIndicator.getInstance();
       const isHarvestable = harvestIndicator.isHarvestable(plant.id);
-      
+
       if (isHarvestable) {
         harvestIndicator.showHarvestPanel(plant.id);
       } else {
@@ -165,44 +165,44 @@ export class GameInputHandler {
         }
       );
     }
-    
+
     return true;
   }
 
   private handleGrowlightClick(multiPick: ReturnType<Scene["multiPick"]>): boolean {
-    const growlightPick = multiPick?.find(p => 
-      p.hit && 
-      p.pickedMesh?.metadata?.isBuildableObject && 
+    const growlightPick = multiPick?.find(p =>
+      p.hit &&
+      p.pickedMesh?.metadata?.isBuildableObject &&
       p.pickedMesh?.metadata?.zoneType === "growlight"
     );
-    
+
     if (!growlightPick || !growlightPick.pickedMesh) return false;
 
     const buildableObjectId = growlightPick.pickedMesh.metadata.buildableObjectId;
     const buildableInst = BuildableSystem.getInstance().getInstance(buildableObjectId);
-    
+
     if (buildableInst && buildableInst.isComplete) {
       LampInfoPanel.getInstance().show(buildableObjectId, buildableInst.position);
       return true;
     }
-    
+
     return false;
   }
 
   private handleBuildZoneClick(multiPick: ReturnType<Scene["multiPick"]>, _screenX: number, _screenY: number): boolean {
     const buildingSystem = BuildingSystem.getInstance();
-    
+
     if (!buildingSystem.inBuildMode || !buildingSystem.selectedItem) return false;
 
     const targetZoneType = buildingSystem.selectedItem.zoneType;
-    
+
     // Find a build zone that matches our selected item's zone type
-    const matchingZone = multiPick?.find(p => 
-      p.hit && 
-      p.pickedMesh?.metadata?.isBuildZone && 
+    const matchingZone = multiPick?.find(p =>
+      p.hit &&
+      p.pickedMesh?.metadata?.isBuildZone &&
       p.pickedMesh?.metadata?.zoneType === targetZoneType
     );
-    
+
     if (matchingZone && matchingZone.pickedMesh) {
       const zoneId = matchingZone.pickedMesh.metadata.zoneId;
       buildingSystem.buildAt(zoneId);
@@ -212,18 +212,18 @@ export class GameInputHandler {
       buildingSystem.exitBuildMode();
       return true;
     }
-    
+
     // If clicked on wrong zone type, stay in build mode
     return false;
   }
 
   private handleTriggerClick(multiPick: ReturnType<Scene["multiPick"]>): boolean {
-    const triggerPick = multiPick?.find(p => 
-      p.hit && 
+    const triggerPick = multiPick?.find(p =>
+      p.hit &&
       p.pickedMesh?.metadata &&
       (p.pickedMesh.metadata.isTrigger || p.pickedMesh.metadata.properties?.classname?.includes("trigger"))
     );
-    
+
     if (!triggerPick || !triggerPick.pickedMesh) return false;
 
     const mesh = triggerPick.pickedMesh;
@@ -252,7 +252,7 @@ export class GameInputHandler {
     if (props.requiredLevel) {
       const playerLevel = GameState.getInstance().getPlayer().level;
       const requiredLevel = parseInt(props.requiredLevel, 10);
-      
+
       if (playerLevel < requiredLevel) {
         const message = props.deniedMessage || `Requires level ${requiredLevel}`;
         GameHUD.getInstance().showNotification(message, "warning");
@@ -289,7 +289,7 @@ export class GameInputHandler {
     }
 
     // Validate spawn
-    const validatorIds = props.spawnValidators 
+    const validatorIds = props.spawnValidators
       ? props.spawnValidators.split(",").map((s: string) => s.trim())
       : undefined;
 
@@ -326,7 +326,7 @@ export class GameInputHandler {
 
   private updateHoveredBuildZone(screenX: number, screenY: number): void {
     const buildingSystem = BuildingSystem.getInstance();
-    
+
     // Only track hover when in build mode
     if (!buildingSystem.inBuildMode || !buildingSystem.selectedItem) {
       if (buildingSystem.hoveredZoneId !== null) {
@@ -338,14 +338,14 @@ export class GameInputHandler {
     // Use multiPick to find ALL meshes under cursor
     const multiPick = this.scene.multiPick(screenX, screenY);
     const targetZoneType = buildingSystem.selectedItem.zoneType;
-    
+
     // Find a build zone that matches our selected item's zone type
-    const matchingZone = multiPick?.find(p => 
-      p.hit && 
-      p.pickedMesh?.metadata?.isBuildZone && 
+    const matchingZone = multiPick?.find(p =>
+      p.hit &&
+      p.pickedMesh?.metadata?.isBuildZone &&
       p.pickedMesh?.metadata?.zoneType === targetZoneType
     );
-    
+
     if (matchingZone && matchingZone.pickedMesh) {
       const zoneId = matchingZone.pickedMesh.metadata.zoneId;
       buildingSystem.setHoveredZone(zoneId);

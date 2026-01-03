@@ -9,7 +9,7 @@ import {
   Vector3,
 } from "babylonjs";
 import "babylonjs-loaders";
-import { InstancedMeshManager, type InstanceTransform } from "../rendering/InstancedMeshManager";
+import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
 
 /**
  * Options for loading a 3D model
@@ -52,11 +52,11 @@ export interface ModelLoadResult {
 export class ModelLoader {
   private static instance: ModelLoader;
   private scene: Scene | null = null;
-  
+
   // Cache for loaded model data (for cloning)
   private modelCache: Map<string, { meshes: Mesh[] }> = new Map();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): ModelLoader {
     if (!ModelLoader.instance) {
@@ -110,7 +110,7 @@ export class ModelLoader {
     try {
       // Ensure path starts with /
       const fullPath = modelPath.startsWith("/") ? modelPath : "/" + modelPath;
-      
+
       // Extract directory and filename
       const lastSlash = fullPath.lastIndexOf("/");
       const rootUrl = fullPath.substring(0, lastSlash + 1);
@@ -133,7 +133,7 @@ export class ModelLoader {
 
       // Create root transform node
       const root = new TransformNode(`model_${fileName}_${Date.now()}`, this.scene);
-      
+
       // Set transform on root
       root.position = position;
       root.rotation.y = (angle * Math.PI) / 180;
@@ -147,12 +147,12 @@ export class ModelLoader {
           if (mesh.parent === null || mesh.name === "__root__") {
             mesh.parent = root;
           }
-          
+
           mesh.checkCollisions = hasCollision;
           mesh.receiveShadows = receiveShadows;
           mesh.isVisible = visible;
           mesh.renderingGroupId = renderingGroupId;
-          
+
           // Configure materials to work with clustered lighting
           // PBR materials from GLB need usePhysicalLightFalloff disabled for clustered lights
           if (mesh.material) {
@@ -165,12 +165,12 @@ export class ModelLoader {
               mesh.material.freeze();
             }
           }
-          
+
           // Add to shadow generator if requested
           if (castShadows && shadowGenerator) {
             shadowGenerator.addShadowCaster(mesh, false);
           }
-          
+
           meshes.push(mesh);
         }
       }

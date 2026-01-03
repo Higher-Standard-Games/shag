@@ -18,18 +18,18 @@ import {
   TransformNode,
   Vector3,
 } from "babylonjs";
-import { 
-  BuildableSystem, 
-  BuildableInstance, 
+import {
+  BuildableSystem,
+  BuildableInstance,
   BuildableStage,
   BuildableEvent,
 } from "../engine/BuildableSystem";
-import { PrefabInstance } from "../engine/loader/PrefabInstance";
+import { PrefabInstance } from "../engine/loader";
 import { EventBus } from "../engine/core/EventBus";
 
 export class BuildableRenderer {
   private static instance: BuildableRenderer;
-  
+
   private scene: Scene | null = null;
   private visuals: Map<string, TransformNode | Mesh> = new Map();
   private lights: Map<string, PointLight> = new Map();
@@ -51,7 +51,7 @@ export class BuildableRenderer {
    */
   public init(scene: Scene): void {
     this.scene = scene;
-    
+
     // Set visual update callback on BuildableSystem
     this.buildableSystem.setVisualUpdateCallback((instance, stage) => {
       this.updateVisual(instance, stage);
@@ -62,7 +62,7 @@ export class BuildableRenderer {
 
     // Refresh visuals for any existing instances
     this.refreshAllVisuals();
-    
+
     console.log('[BuildableRenderer] Initialized');
   }
 
@@ -91,7 +91,7 @@ export class BuildableRenderer {
     if (!instance) return;
 
     const template = this.buildableSystem.getTemplate(instance.templateId);
-    
+
     // Emit EventBus event for game systems (PotActionIndicator, etc.)
     EventBus.emit("building:completed", {
       objectId: instanceId,
@@ -101,7 +101,7 @@ export class BuildableRenderer {
         zoneType: template?.category, // category maps to zoneType
       },
     });
-    
+
     if (!template?.behaviors?.light) return;
 
     this.createLight(instance);
@@ -144,7 +144,7 @@ export class BuildableRenderer {
     const template = this.buildableSystem.getTemplate(instance.templateId);
     if (template?.behaviors?.container) {
       const hasChildren = (instance.childIds?.length ?? 0) > 0;
-      
+
       // If container has no children and customData has emptyPrefab, use that
       if (!hasChildren && instance.customData?.emptyPrefab) {
         prefabPath = instance.customData.emptyPrefab as string;
@@ -158,10 +158,10 @@ export class BuildableRenderer {
           position: new Vector3(instance.position.x, instance.position.y, instance.position.z),
           scale: stage.scale || 1,
         });
-        
+
         if (result) {
           this.visuals.set(instance.id, result.root);
-          
+
           // Tag all meshes with metadata for click detection
           const template = this.buildableSystem.getTemplate(instance.templateId);
           for (const mesh of result.meshes) {
@@ -325,7 +325,7 @@ export class BuildableRenderer {
       const template = this.buildableSystem.getTemplate(instance.templateId);
       if (template && template.stages[instance.currentStage]) {
         this.updateVisual(instance, template.stages[instance.currentStage]);
-        
+
         // Create lights for complete instances with light behavior
         if (instance.isComplete && template.behaviors?.light) {
           this.createLight(instance);
