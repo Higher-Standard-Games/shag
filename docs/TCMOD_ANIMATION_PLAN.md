@@ -381,19 +381,24 @@ Speed/time scale should respect shader defaults. Commands for debug/override onl
 - [ ] **animMap** - Animated texture sequences (flipbook)
 - [ ] **fogParms** - Volumetric fog per-shader
 
-### Partially Implemented
-- [x] **tcMod scroll** - ✅ Planned
-- [x] **tcMod scale** - ✅ Planned  
-- [x] **tcMod rotate** - ✅ Planned
-- [x] **tcMod stretch** - ✅ Planned (wave-based)
+### Implemented (v0.8.4)
+- [x] **tcMod scroll** - ✅ Working (water, lava flow)
+- [x] **tcMod scale** - ✅ Working (static UV scale)
+- [x] **tcMod rotate** - ✅ Working (fans, spinners)
+- [x] **tcMod stretch** - ✅ Working (wave-based scale)
 - [x] **tcMod turb** - ⚠️ Simplified (oscillation, not true distortion)
 - [ ] **tcMod transform** - Full 2D matrix (low priority)
-- [x] **rgbGen wave** - ✅ Planned
-- [x] **alphaGen wave** - ✅ Planned
+- [x] **rgbGen wave** - ✅ Working (color pulsing)
+- [x] **alphaGen wave** - ✅ Working (alpha pulsing)
+
+### Multi-Stage NodeMaterial (Experimental)
+- [x] **Q3NodeMaterialBuilder** - Created but disabled by default
+- [ ] **Auto-detection** - Disabled (broke transparency/animation)
+- [ ] **NodeMaterial animation** - Needs InputBlock uniform integration
 
 ### Known Differences from Q3/Warsow
 1. **Turbulence** - Faked with UV oscillation instead of vertex distortion
-2. **Multi-pass blending** - Single-stage only for now
+2. **Multi-pass blending** - Single-stage only for now (NodeMaterial WIP)
 3. **Overbright** - No `identityLighting` overbright adjustment
 
 ---
