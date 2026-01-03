@@ -1756,16 +1756,23 @@ export function registerEngineCommands(): void {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
-        const limit = parseInt(args[1]) || 30;
-        const textures = loadedBsp.textures.slice(0, limit);
+        const filter = args[1]?.toLowerCase();
+        let textures = loadedBsp.textures.map((tex, i) => ({ index: i, name: tex.name }));
+        
+        if (filter) {
+          textures = textures.filter(t => t.name.toLowerCase().includes(filter));
+        }
 
-        const lines = [`=== Textures (${limit} of ${loadedBsp.textures.length}) ===`];
-        textures.forEach((tex, i) => {
-          lines.push(`  ${i}: ${tex.name}`);
+        const lines = filter 
+          ? [`=== Textures matching "${filter}" (${textures.length} of ${loadedBsp.textures.length}) ===`]
+          : [`=== All Textures (${loadedBsp.textures.length}) ===`];
+        
+        textures.forEach((tex) => {
+          lines.push(`${tex.index}: ${tex.name}`);
         });
 
-        if (loadedBsp.textures.length > limit) {
-          lines.push(`  ... and ${loadedBsp.textures.length - limit} more`);
+        if (textures.length === 0) {
+          lines.push(`  No textures found${filter ? ` matching "${filter}"` : ''}`);
         }
 
         return lines.join('\n');
@@ -2103,7 +2110,7 @@ export function registerEngineCommands(): void {
           '  bsp load <mapname>  - Load BSP from PK3',
           '  bsp info            - Show BSP statistics',
           '  bsp entities [filter] - List entity types',
-          '  bsp textures [limit]  - List textures',
+          '  bsp textures [filter] - List textures (filter optional)',
           '  bsp required        - Show required PK3s for textures',
           '  bsp loadrequired    - Auto-load required PK3s',
           '  bsp faces           - Show face type breakdown',
