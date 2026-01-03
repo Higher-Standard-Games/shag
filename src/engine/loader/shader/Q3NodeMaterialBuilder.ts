@@ -199,15 +199,15 @@ export class Q3NodeMaterialBuilder {
       const blendMode = getBlendMode(stage);
       
       if (currentColor === null) {
-        // First stage - just use texture color
-        currentColor = texBlock.rgba;
+        // First stage - just use texture RGB (not RGBA to avoid component mismatch)
+        currentColor = texBlock.rgb;
       } else {
         // Blend with previous based on blend mode
         switch (blendMode) {
           case 'add': {
             const addBlend = new AddBlock(`blend${index}`);
             currentColor.connectTo(addBlend.left);
-            texBlock.rgba.connectTo(addBlend.right);
+            texBlock.rgb.connectTo(addBlend.right);
             currentColor = addBlend.output;
             break;
           }
@@ -215,7 +215,7 @@ export class Q3NodeMaterialBuilder {
           case 'filter': {
             const mulBlend = new MultiplyBlock(`blend${index}`);
             currentColor.connectTo(mulBlend.left);
-            texBlock.rgba.connectTo(mulBlend.right);
+            texBlock.rgb.connectTo(mulBlend.right);
             currentColor = mulBlend.output;
             break;
           }
@@ -223,14 +223,14 @@ export class Q3NodeMaterialBuilder {
             // Lerp by texture alpha
             const lerpBlend = new LerpBlock(`blend${index}`);
             currentColor.connectTo(lerpBlend.left);
-            texBlock.rgba.connectTo(lerpBlend.right);
+            texBlock.rgb.connectTo(lerpBlend.right);
             texBlock.a.connectTo(lerpBlend.gradient);
             currentColor = lerpBlend.output;
             break;
           }
           case 'replace':
           default:
-            currentColor = texBlock.rgba;
+            currentColor = texBlock.rgb;
             break;
         }
       }
