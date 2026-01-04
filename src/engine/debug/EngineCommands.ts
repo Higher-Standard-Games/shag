@@ -375,7 +375,7 @@ export function registerEngineCommands(): void {
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = pos.add(forward.scale(100));
       
-      const result = cm.trace(pos as never, end as never);
+      const result = cm.trace(pos as never, end as never, { debug: true });
       
       return [
         `=== Collision Test from Camera ===`,

@@ -168,6 +168,9 @@ export class ClipBrushBackend implements CollisionBackend {
 
     let closestFrac = 1.0;
     let hitPlane: CollisionPlane | null = null;
+    let debugBoundsSkip = 0;
+    let debugDistSkip = 0;
+    let debugPlanesChecked = 0;
 
     // Test against all collision planes
     for (const plane of this.collisionPlanes) {
@@ -180,9 +183,11 @@ export class ClipBrushBackend implements CollisionBackend {
       const traceMaxZ = Math.max(q3Start.z, q3End.z);
       
       // Skip if trace bounds don't overlap plane bounds
-      if (traceMaxX < plane.minBounds.x || traceMinX > plane.maxBounds.x) continue;
-      if (traceMaxY < plane.minBounds.y || traceMinY > plane.maxBounds.y) continue;
-      if (traceMaxZ < plane.minBounds.z || traceMinZ > plane.maxBounds.z) continue;
+      if (traceMaxX < plane.minBounds.x || traceMinX > plane.maxBounds.x) { debugBoundsSkip++; continue; }
+      if (traceMaxY < plane.minBounds.y || traceMinY > plane.maxBounds.y) { debugBoundsSkip++; continue; }
+      if (traceMaxZ < plane.minBounds.z || traceMinZ > plane.maxBounds.z) { debugBoundsSkip++; continue; }
+
+      debugPlanesChecked++;
 
       // Compute distances to plane
       const startDist = Vector3.Dot(q3Start, plane.normal) - plane.distance;
@@ -192,8 +197,8 @@ export class ClipBrushBackend implements CollisionBackend {
       // 1. Start is in FRONT of plane (positive distance) - we're outside the surface
       // 2. End is BEHIND plane (negative distance) - we're moving into the surface
       // This prevents false positives when camera is already behind a plane
-      if (startDist <= DIST_EPSILON) continue;  // Already behind or on plane
-      if (endDist >= -DIST_EPSILON) continue;   // Not crossing into solid
+      if (startDist <= DIST_EPSILON) { debugDistSkip++; continue; }  // Already behind or on plane
+      if (endDist >= -DIST_EPSILON) { debugDistSkip++; continue; }   // Not crossing into solid
 
       // Calculate intersection fraction (0 = start, 1 = end)
       const frac = startDist / (startDist - endDist);
@@ -201,6 +206,10 @@ export class ClipBrushBackend implements CollisionBackend {
         closestFrac = frac;
         hitPlane = plane;
       }
+    }
+    
+    if (debug) {
+      console.log(`[ClipBrush] Checked ${debugPlanesChecked} planes (${debugBoundsSkip} bounds skip, ${debugDistSkip} dist skip)`);
     }
 
     if (hitPlane) {
