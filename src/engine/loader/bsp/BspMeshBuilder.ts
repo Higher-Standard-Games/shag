@@ -327,10 +327,15 @@ export class BspMeshBuilder {
       indexOffset: number;
       // Track lightmap usage for this texture group
       lightmapIndices: Map<number, number>; // lightmap index -> count
+      // Fog params if any face in this group has a fog effect
+      fogParams?: { color: [number, number, number]; depthForOpaque: number };
     }
 
     const textureGroups = new Map<number, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
+    
+    // Track fog effects found
+    let fogFacesCount = 0;
 
     // Track sky shaders found
     const skyShaders: BspMeshBuildResult['skyShaders'] = [];
@@ -406,6 +411,20 @@ export class BspMeshBuilder {
       if (face.lightmapIndex >= 0) {
         const count = group.lightmapIndices.get(face.lightmapIndex) || 0;
         group.lightmapIndices.set(face.lightmapIndex, count + 1);
+      }
+
+      // Check for fog effect on this face
+      if (face.effectIndex >= 0 && face.effectIndex < this.bsp.effects.length && !group.fogParams) {
+        const effect = this.bsp.effects[face.effectIndex];
+        const fogShader = shaderRegistry.getShader(effect.name);
+        if (fogShader?.fogParms) {
+          group.fogParams = {
+            color: fogShader.fogParms.color,
+            depthForOpaque: fogShader.fogParms.depthForOpaque,
+          };
+          fogFacesCount++;
+          console.log(`[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(',')}), depth=${fogShader.fogParms.depthForOpaque}`);
+        }
       }
 
       let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
@@ -515,12 +534,21 @@ export class BspMeshBuilder {
         }
       }
 
-      // Store texture name and lightmap info in metadata for later loading
+      // Store texture name, lightmap info, and fog params in metadata
       mesh.metadata = {
         textureName: group.textureName,
         textureIndex: group.textureIndex,
         lightmapIndex: primaryLightmapIndex,
+        fogParams: group.fogParams,
       };
+      
+      // Note: Per-face fog detection works, but applying global scene fog here is wrong
+      // for Warsow maps with localized fog volumes (hallways, pits, etc.)
+      // True per-volume fog would require custom shaders with volume bounds checking.
+      // For now, just log that fog was detected - use 'fog on' command for global testing.
+      if (group.fogParams) {
+        console.log(`[BspMeshBuilder] Mesh ${meshName} has fog effect (use 'fog on' for global fog testing)`);
+      }
 
       // Handle transparency sorting
       if (group.shaderProps.isTransparent) {

@@ -340,12 +340,14 @@ function isFogBrush(texture: BspTexture): boolean {
 - ✅ `fogParms` parsing from shaders
 - ✅ Effects lump → brush mapping
 - ✅ Fog volume data extraction
-- ✅ Custom fog shader material
+- ✅ **Per-face fog detection** - faces with `effectIndex` are identified
+- ✅ Fog params stored in mesh metadata
+- ✅ Global fog console commands for testing
 
 ### What Doesn't Work
-- ❌ Brush geometry reconstruction fails for most fog brushes
-- ❌ Many fog brushes are intentionally unbounded (2D slabs, not 3D volumes)
-- ❌ Some maps have corrupted/invalid plane indices
+- ❌ Brush geometry reconstruction (Q3 fog doesn't work this way)
+- ❌ **Global scene fog** - wrong for localized fog volumes
+- ❌ Per-volume fog - requires custom shaders
 
 ### Root Cause Discovery
 
@@ -369,40 +371,49 @@ This means our approach of reconstructing fog brush meshes is fundamentally inco
 
 ---
 
-## Proper Implementation Plan (Per-Face Fog)
+## Proper Implementation Plan (Per-Volume Fog)
 
-To properly implement Q3 fog, we need to:
+**Status: ✅ Phase 1 complete, Phase 2-3 blocked on shader work**
 
-### Phase 1: Identify Fog Faces
+### Phase 1: Identify Fog Faces ✅ DONE
 ```typescript
 // In BspMeshBuilder, when processing faces:
-for (const face of bsp.faces) {
-  if (face.effect >= 0 && face.effect < bsp.effects.length) {
-    const effect = bsp.effects[face.effect];
-    const shader = shaderRegistry.getShader(effect.name);
-    if (shader?.fogParms) {
-      // This face needs fog applied
-      face.fogParams = shader.fogParms;
-    }
+if (face.effectIndex >= 0 && face.effectIndex < this.bsp.effects.length) {
+  const effect = this.bsp.effects[face.effectIndex];
+  const fogShader = shaderRegistry.getShader(effect.name);
+  if (fogShader?.fogParms) {
+    group.fogParams = {
+      color: fogShader.fogParms.color,
+      depthForOpaque: fogShader.fogParms.depthForOpaque,
+    };
   }
 }
 ```
 
-### Phase 2: Modify Face Materials
-Create a fog-enabled variant of the standard material that:
-1. Accepts fog color and depthForOpaque uniforms
-2. Calculates distance from camera to fragment
-3. Blends fog color based on depth
+### Phase 2: Per-Volume Fog Shader (NOT DONE)
 
-### Phase 3: Per-Face Fog Uniforms
-Each mesh with fog needs:
-- `fogColor: vec3`
-- `depthForOpaque: float`
-- `fogVolumeMin/Max: vec3` (optional, for bounded fog)
+**Why global fog doesn't work:**
+- Warsow maps have **localized fog volumes** (hallways, pits, specific areas)
+- Global scene fog applies everywhere, not just inside volumes
+- Need per-fragment "am I inside this volume?" check
+
+**What's needed:**
+1. Custom ShaderMaterial or NodeMaterial with fog support
+2. Pass fog volume bounds (AABB or planes) to shader
+3. Per-fragment volume intersection test
+4. Blend fog based on depth INTO the volume, not just camera distance
+
+### Phase 3: Multiple Fog Volumes (NOT DONE)
+
+For maps with multiple fog volumes:
+- Array of fog volume bounds + params
+- Check each volume per-fragment
+- Handle overlapping volumes
 
 ### Estimated Effort
-- **Medium-High** - Requires modifying the material system
-- Affects: `BspMeshBuilder.ts`, `Q3ShaderMaterialFactory.ts`, shader code
+- **High** - Requires custom shader pipeline
+- Affects: All material creation, shader code
+- Alternative: Port quake3.js fog implementation?
 
 ---
 
