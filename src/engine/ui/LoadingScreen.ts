@@ -26,10 +26,16 @@ const LOGO_PALETTE = [
 ];
 
 export class LoadingScreen {
+  private static instance: LoadingScreen | null = null;
+
   private container: HTMLDivElement;
   private progressBar: HTMLDivElement;
   private progressFill: HTMLDivElement;
   private progressText: HTMLDivElement;
+
+  // For force-dismiss from console
+  private readyResolver: (() => void) | null = null;
+  private colorInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Ensure styles are injected
@@ -88,7 +94,40 @@ export class LoadingScreen {
   }
 
   public show(): void {
+    LoadingScreen.instance = this;
     document.body.appendChild(this.container);
+  }
+
+  /**
+   * Check if loading screen is currently waiting for ready
+   */
+  public static isWaitingForReady(): boolean {
+    return LoadingScreen.instance?.readyResolver !== null;
+  }
+
+  /**
+   * Force dismiss the loading screen (e.g., when console opens)
+   * This unlocks audio and resolves the waitForReady promise
+   */
+  public static forceDismiss(): void {
+    const instance = LoadingScreen.instance;
+    if (!instance || !instance.readyResolver) return;
+
+    // Clean up
+    if (instance.colorInterval) {
+      clearInterval(instance.colorInterval);
+      instance.colorInterval = null;
+    }
+
+    // Unlock browser audio context
+    AudioManager.getInstance().unlockAudio();
+
+    // Resolve the promise
+    const resolver = instance.readyResolver;
+    instance.readyResolver = null;
+    resolver();
+
+    console.log('[LoadingScreen] Force dismissed by console');
   }
 
   public updateProgress(progress: LoadProgress): void {
@@ -103,6 +142,9 @@ export class LoadingScreen {
    */
   public waitForReady(): Promise<void> {
     return new Promise((resolve) => {
+      // Store resolver for force-dismiss capability
+      this.readyResolver = resolve;
+
       // Hide progress bar, show ready state
       this.progressBar.style.display = 'none';
       this.container.classList.add('ui-loading-screen--ready');
@@ -161,7 +203,7 @@ export class LoadingScreen {
       rippleContainer.appendChild(centerDot);
 
       // Random color rotation interval using logo palette
-      const colorInterval = setInterval(() => {
+      this.colorInterval = setInterval(() => {
         const colorIndex = Math.floor(Math.random() * LOGO_PALETTE.length);
         const color = LOGO_PALETTE[colorIndex];
         centerDot.style.background = color.bg;
@@ -188,11 +230,16 @@ export class LoadingScreen {
 
       // On click, unlock audio and resolve
       const handleClick = () => {
-        clearInterval(colorInterval);
-        
+        if (this.colorInterval) {
+          clearInterval(this.colorInterval);
+          this.colorInterval = null;
+        }
+
         // Unlock browser audio context
         AudioManager.getInstance().unlockAudio();
-        
+
+        // Clear resolver and resolve
+        this.readyResolver = null;
         resolve();
       };
 

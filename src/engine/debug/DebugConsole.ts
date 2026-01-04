@@ -112,19 +112,41 @@ export class DebugConsole {
    */
   toggle(): void {
     if (!this.enabled) return;
-    
+
     this.isOpen = !this.isOpen;
-    
+
     if (this.container) {
       this.container.classList.toggle('open', this.isOpen);
     }
-    
+
     if (this.isOpen) {
+      // Opening console - release input grabs and dismiss loading screen
+      this.onConsoleOpen();
       this.inputEl?.focus();
     } else {
       this.inputEl?.blur();
       this.hideAutocomplete();
     }
+  }
+
+  /**
+   * Called when console opens - handles input release and loading screen dismiss
+   */
+  private onConsoleOpen(): void {
+    // Release pointer lock so user can type freely
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    // Dismiss loading screen if waiting for ready
+    // Use dynamic import to avoid circular dependency
+    import('../ui/LoadingScreen').then(({ LoadingScreen }) => {
+      if (LoadingScreen.isWaitingForReady()) {
+        LoadingScreen.forceDismiss();
+      }
+    }).catch(() => {
+      // Ignore import errors (loading screen may not be available)
+    });
   }
 
   /**

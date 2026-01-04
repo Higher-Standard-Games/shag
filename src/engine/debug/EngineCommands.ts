@@ -221,6 +221,38 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
+  // Freefly Speed Command
+  // ============================================================================
+
+  registry.register('freefly_speed', (args) => {
+    const value = args[0];
+
+    // No argument - show current speed
+    if (value === undefined) {
+      const currentSpeed = FreeflyController.getDefaultSpeed();
+      return `freefly_speed = ${currentSpeed}`;
+    }
+
+    // Parse speed value
+    const speed = parseFloat(value);
+    if (isNaN(speed) || speed <= 0) {
+      return 'Usage: freefly_speed <speed>\nExample: freefly_speed 500';
+    }
+
+    // Set the default speed
+    FreeflyController.setDefaultSpeed(speed);
+
+    // Also update current controller if it's freefly
+    const cameraSystem = CameraSystem.getInstance();
+    const controller = cameraSystem.getActiveController();
+    if (controller?.type === 'freefly') {
+      controller.configure({ speed });
+    }
+
+    return `freefly_speed = ${speed}`;
+  });
+
+  // ============================================================================
   // Debug Commands
   // ============================================================================
 
@@ -971,10 +1003,18 @@ export function registerEngineCommands(): void {
         });
 
         if (result.success) {
+          // Auto-enable PVS culling for BSP maps
+          let pvsStatus = '';
+          if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
+            const pvsResult = await registry.execute('pvs on');
+            pvsStatus = pvsResult ? `  PVS: enabled` : '';
+          }
+
           return [
             `Loaded map: ${mapName} (${result.mapType})`,
             result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
             result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
+            pvsStatus,
           ].filter(Boolean).join('\n');
         } else {
           return `Failed to load map: ${result.error}`;
@@ -1051,10 +1091,18 @@ export function registerEngineCommands(): void {
           });
 
           if (result.success) {
+            // Auto-enable PVS culling for BSP maps
+            let pvsStatus = '';
+            if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
+              const pvsResult = await registry.execute('pvs on');
+              pvsStatus = pvsResult ? `  PVS: enabled` : '';
+            }
+
             return [
               `Loaded map: ${mapName}`,
               result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
               result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
+              pvsStatus,
             ].filter(Boolean).join('\n');
           } else {
             return `Failed to load map: ${result.error}`;
