@@ -36,6 +36,17 @@ export interface MapBounds {
   maxs: [number, number, number];
 }
 
+/**
+ * Simple AABB for fog volume bounds
+ */
+export interface FogAABB {
+  min: Vector3;
+  max: Vector3;
+  fogColor: [number, number, number];
+  depthForOpaque: number;
+  shaderName: string;
+}
+
 export interface FogVolumeBuildResult {
   volumes: FogVolumeData[];
   meshes: Mesh[];
@@ -530,4 +541,328 @@ export class FogVolumeManager {
     }
     this.fogMeshes = [];
   }
+}
+
+// ============================================================================
+// CamFog - Camera-based fog for when player is inside fog volume
+// ============================================================================
+
+/**
+ * CamFog Manager
+ * 
+ * Simpler approach to fog: when camera is inside a fog volume's AABB,
+ * enable Babylon's scene fog with the volume's parameters.
+ * 
+ * Works well for "atmosphere fog" covering large areas (like wdm11).
+ * Does NOT handle "looking into fog from outside" (fog pits).
+ */
+export class CamFog {
+  private fogVolumes: FogAABB[] = [];
+  private scene: Scene | null = null;
+  private observer: any = null;
+  private currentFogVolume: FogAABB | null = null;
+  private enabled: boolean = false;
+  
+  /** Scale factor for fog distances (adjustable for tuning) */
+  public fogScale: number = 1.0;
+
+  /**
+   * Initialize CamFog with fog volumes from BSP
+   * Uses world bounds for large fog volumes (doesn't require valid brush geometry)
+   */
+  init(bspData: BspFile, scene: Scene): void {
+    this.scene = scene;
+    this.fogVolumes = [];
+
+    const shaderRegistry = Q3ShaderRegistry.getInstance();
+    const worldModel = bspData.models[0];
+    
+    if (!worldModel) {
+      console.warn('[CamFog] No world model found');
+      return;
+    }
+
+    // Convert world bounds Q3 (Z-up) to Babylon (Y-up)
+    const worldMin = new Vector3(worldModel.mins[0], worldModel.mins[2], worldModel.mins[1]);
+    const worldMax = new Vector3(worldModel.maxs[0], worldModel.maxs[2], worldModel.maxs[1]);
+
+    console.log(`[CamFog] World bounds: (${worldMin.x.toFixed(0)},${worldMin.y.toFixed(0)},${worldMin.z.toFixed(0)}) -> ` +
+                `(${worldMax.x.toFixed(0)},${worldMax.y.toFixed(0)},${worldMax.z.toFixed(0)})`);
+
+    // Extract fog params directly from effects lump (bypass brush geometry issues)
+    for (const effect of bspData.effects) {
+      const shader = shaderRegistry.getShader(effect.name);
+      if (!shader?.fogParms) continue;
+
+      // For CamFog, we use world bounds - this works for large "atmosphere" fog
+      const aabb: FogAABB = {
+        min: worldMin.clone(),
+        max: worldMax.clone(),
+        fogColor: shader.fogParms.color,
+        depthForOpaque: shader.fogParms.depthForOpaque,
+        shaderName: effect.name,
+      };
+
+      this.fogVolumes.push(aabb);
+      console.log(`[CamFog] Registered fog "${effect.name}" with world bounds, ` +
+                  `color=(${shader.fogParms.color.join(',')}), depth=${shader.fogParms.depthForOpaque}`);
+    }
+
+    console.log(`[CamFog] Initialized with ${this.fogVolumes.length} fog volumes`);
+  }
+
+  /**
+   * Enable CamFog updates
+   */
+  enable(): void {
+    if (this.enabled || !this.scene) return;
+
+    this.enabled = true;
+    this.observer = this.scene.onBeforeRenderObservable.add(() => {
+      this.update();
+    });
+
+    console.log('[CamFog] Enabled');
+  }
+
+  /**
+   * Disable CamFog updates
+   */
+  disable(): void {
+    if (!this.enabled || !this.scene) return;
+
+    this.enabled = false;
+    if (this.observer) {
+      this.scene.onBeforeRenderObservable.remove(this.observer);
+      this.observer = null;
+    }
+
+    // Clear fog
+    this.scene.fogMode = 0;
+    this.currentFogVolume = null;
+
+    console.log('[CamFog] Disabled');
+  }
+
+  /**
+   * Check if camera is inside any fog volume and apply fog
+   */
+  private update(): void {
+    if (!this.scene?.activeCamera) return;
+
+    const camPos = this.scene.activeCamera.position;
+
+    // Check if camera is inside any fog volume
+    let insideVolume: FogAABB | null = null;
+    for (const vol of this.fogVolumes) {
+      if (this.isPointInAABB(camPos, vol)) {
+        insideVolume = vol;
+        break;
+      }
+    }
+
+    // Apply or clear fog based on camera position
+    if (insideVolume && insideVolume !== this.currentFogVolume) {
+      // Entered a fog volume - enable fog
+      this.applyFog(insideVolume);
+      this.currentFogVolume = insideVolume;
+    } else if (!insideVolume && this.currentFogVolume) {
+      // Left fog volume - disable fog
+      this.scene.fogMode = 0;
+      this.currentFogVolume = null;
+      console.log('[CamFog] Left fog volume');
+    }
+  }
+
+  /**
+   * Check if point is inside AABB
+   */
+  private isPointInAABB(point: Vector3, aabb: FogAABB): boolean {
+    return point.x >= aabb.min.x && point.x <= aabb.max.x &&
+           point.y >= aabb.min.y && point.y <= aabb.max.y &&
+           point.z >= aabb.min.z && point.z <= aabb.max.z;
+  }
+
+  /**
+   * Apply fog from volume parameters
+   * 
+   * Q3 fogParms: depthForOpaque = distance at which fog is ~95% opaque
+   * Using EXP2 fog: fogFactor = exp(-density² * distance²)
+   * 
+   * Calculate density so that at depthForOpaque, fog is 95% opaque:
+   * 0.05 = exp(-d² * depth²) => d = sqrt(-ln(0.05)) / depth ≈ 1.73 / depth
+   */
+  private applyFog(vol: FogAABB): void {
+    if (!this.scene) return;
+
+    // Calculate EXP2 density from depthForOpaque
+    // density = sqrt(-ln(0.05)) / depthForOpaque ≈ 1.73 / depth
+    const scaledDepth = vol.depthForOpaque * this.fogScale;
+    const density = 1.73 / scaledDepth;
+
+    this.scene.fogMode = 3; // FOGMODE_EXP2
+    this.scene.fogColor = new Color3(vol.fogColor[0], vol.fogColor[1], vol.fogColor[2]);
+    this.scene.fogDensity = density;
+
+    console.log(`[CamFog] Fog applied: scale=${this.fogScale}, depth=${scaledDepth.toFixed(0)}, density=${density.toFixed(6)}`);
+  }
+
+  /**
+   * Set fog scale factor (for tuning fog distances)
+   */
+  setScale(scale: number): void {
+    this.fogScale = scale;
+    // Re-apply fog if currently in a volume
+    if (this.currentFogVolume && this.scene) {
+      this.applyFog(this.currentFogVolume);
+      // Debug: verify scene fog was updated
+      console.log(`[CamFog] setScale: scene.fogDensity = ${this.scene.fogDensity}`);
+    }
+  }
+
+  /**
+   * Get status info
+   */
+  getStatus(): string {
+    const lines = [
+      `CamFog: ${this.enabled ? 'ENABLED' : 'DISABLED'}`,
+      `Fog volumes: ${this.fogVolumes.length}`,
+      `Current: ${this.currentFogVolume?.shaderName || 'none'}`,
+      `Scale: ${this.fogScale}`,
+    ];
+    if (this.currentFogVolume) {
+      const scaledDepth = this.currentFogVolume.depthForOpaque * this.fogScale;
+      lines.push(`Depth: ${this.currentFogVolume.depthForOpaque} (scaled: ${scaledDepth.toFixed(0)})`);
+    }
+    return lines.join('\n');
+  }
+
+  /**
+   * Dispose resources
+   */
+  dispose(): void {
+    this.disable();
+    this.fogVolumes = [];
+    this.scene = null;
+  }
+}
+
+// ============================================================================
+// Worldspawn Fog Support
+// ============================================================================
+
+/**
+ * Parsed fog settings from worldspawn
+ */
+export interface WorldspawnFog {
+  color: [number, number, number];
+  density: number;
+  mode: 'exp' | 'exp2' | 'linear';
+  start?: number;  // For linear fog
+  end?: number;    // For linear fog
+}
+
+/**
+ * Parse fog settings from BSP worldspawn entity
+ * 
+ * Supported formats:
+ *   "fog" "r g b density"           - EXP2 fog with color and density
+ *   "fog" "r g b density mode"      - Fog with explicit mode (exp/exp2/linear)
+ *   "fog_color" "r g b"             - Separate color key
+ *   "fog_density" "0.0001"          - Separate density key
+ *   "fog_start" "100"               - For linear fog
+ *   "fog_end" "5000"                - For linear fog
+ */
+export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
+  // Find worldspawn entity (first entity with classname "worldspawn")
+  const worldspawn = bspData.entities.find(e => e.classname === 'worldspawn');
+  if (!worldspawn) return null;
+
+  const props = worldspawn.properties;
+
+  // Check for combined "fog" key
+  if (props.fog) {
+    const parts = props.fog.trim().split(/\s+/).map(s => s.toLowerCase());
+    if (parts.length >= 4) {
+      const r = parseFloat(parts[0]) || 0;
+      const g = parseFloat(parts[1]) || 0;
+      const b = parseFloat(parts[2]) || 0;
+      const density = parseFloat(parts[3]) || 0.0001;
+      const modeStr = parts[4] || 'exp2';
+      
+      let mode: 'exp' | 'exp2' | 'linear' = 'exp2';
+      if (modeStr === 'exp') mode = 'exp';
+      else if (modeStr === 'linear') mode = 'linear';
+
+      return { color: [r, g, b], density, mode };
+    }
+  }
+
+  // Check for separate keys
+  let color: [number, number, number] | null = null;
+  let density: number | null = null;
+  let mode: 'exp' | 'exp2' | 'linear' = 'exp2';
+  let start: number | undefined;
+  let end: number | undefined;
+
+  if (props.fog_color) {
+    const parts = props.fog_color.trim().split(/\s+/);
+    if (parts.length >= 3) {
+      color = [parseFloat(parts[0]) || 0, parseFloat(parts[1]) || 0, parseFloat(parts[2]) || 0];
+    }
+  }
+
+  if (props.fog_density) {
+    density = parseFloat(props.fog_density) || 0.0001;
+  }
+
+  if (props.fog_mode) {
+    const m = props.fog_mode.toLowerCase();
+    if (m === 'exp') mode = 'exp';
+    else if (m === 'linear') mode = 'linear';
+  }
+
+  if (props.fog_start) start = parseFloat(props.fog_start);
+  if (props.fog_end) end = parseFloat(props.fog_end);
+
+  // Return if we have at least color or density
+  if (color || density !== null) {
+    return {
+      color: color || [0.5, 0.5, 0.6],
+      density: density ?? 0.0001,
+      mode,
+      start,
+      end,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Apply worldspawn fog settings to scene
+ */
+export function applyWorldspawnFog(bspData: BspFile, scene: Scene): boolean {
+  const fog = parseWorldspawnFog(bspData);
+  if (!fog) {
+    console.log('[WorldspawnFog] No fog settings found in worldspawn');
+    return false;
+  }
+
+  scene.fogColor = new Color3(fog.color[0], fog.color[1], fog.color[2]);
+
+  if (fog.mode === 'linear') {
+    scene.fogMode = 1; // FOGMODE_LINEAR
+    scene.fogStart = fog.start ?? 100;
+    scene.fogEnd = fog.end ?? 1000;
+    console.log(`[WorldspawnFog] Applied LINEAR fog: color=(${fog.color.join(',')}), ` +
+                `start=${scene.fogStart}, end=${scene.fogEnd}`);
+  } else {
+    scene.fogMode = fog.mode === 'exp' ? 2 : 3; // FOGMODE_EXP or FOGMODE_EXP2
+    scene.fogDensity = fog.density;
+    console.log(`[WorldspawnFog] Applied ${fog.mode.toUpperCase()} fog: color=(${fog.color.join(',')}), ` +
+                `density=${fog.density}`);
+  }
+
+  return true;
 }

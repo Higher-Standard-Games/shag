@@ -17,6 +17,8 @@ import { PK3Loader } from '../pk3/PK3Loader';
 import { BspLoader, type BspFile } from '../bsp/BspLoader';
 import { BspMeshBuilder, type BspMeshBuildResult } from '../bsp/BspMeshBuilder';
 import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
+import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandlerRegistry';
+import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
 
 export interface MapLoadResult {
   success: boolean;
@@ -198,6 +200,12 @@ export class MapLoader {
     progress('Lightmaps', 'Applying');
     BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
 
+    // Phase 9: Process BSP entities through EntityHandlerRegistry
+    progress('Entities', 'Processing');
+    registerBspEntityHandlers(); // Register func_door, etc.
+    setCurrentBspForHandlers(bsp); // Set BSP reference for handlers
+    await this.processBspEntities(bsp, scene);
+
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
 
@@ -342,6 +350,47 @@ export class MapLoader {
    */
   getCurrentMap(): string | null {
     return this.currentMap;
+  }
+
+  /**
+   * Process BSP entities through EntityHandlerRegistry
+   * This bridges BSP entities to the same handler system used by .map files
+   */
+  private async processBspEntities(bsp: BspFile, scene: Scene): Promise<void> {
+    // Convert BSP entities to EntityData format
+    const entityDataList: EntityData[] = bsp.entities.map(e => ({
+      classname: e.classname,
+      properties: e.properties,
+    }));
+
+    // Run pre-render hooks (game-specific initialization)
+    await EntityHandlerRegistry.runPreRenderHooks(entityDataList, scene);
+
+    // Process each entity through registered handlers
+    let handledCount = 0;
+    for (const entity of entityDataList) {
+      const handler = EntityHandlerRegistry.getHandler(entity.classname);
+      if (handler) {
+        try {
+          const result = await handler(entity, scene);
+          if (result.handled) {
+            handledCount++;
+          }
+        } catch (e) {
+          console.warn(`[MapLoader] Entity handler failed for '${entity.classname}':`, e);
+        }
+      }
+    }
+
+    if (handledCount > 0) {
+      console.log(`[MapLoader] Processed ${handledCount} BSP entities via EntityHandlerRegistry`);
+    }
+
+    // Log registered handlers for debugging
+    const registered = EntityHandlerRegistry.getRegisteredClassnames();
+    if (registered.length > 0) {
+      console.log(`[MapLoader] Available entity handlers: ${registered.join(', ')}`);
+    }
   }
 
   /**

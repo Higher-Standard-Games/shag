@@ -2000,6 +2000,30 @@ export function registerEngineCommands(): void {
         }
 
         const filter = args[1]?.toLowerCase();
+        const showDetails = args[2] === 'details' || args[2] === 'd';
+
+        // If showing details for a specific classname
+        if (filter && showDetails) {
+          const matching = effectiveBsp.entities.filter(e => 
+            e.classname.toLowerCase().includes(filter)
+          );
+          
+          if (matching.length === 0) {
+            return `No entities matching "${filter}"`;
+          }
+
+          const lines = [`=== Entities matching "${filter}" (${matching.length}) ===`];
+          for (const ent of matching.slice(0, 10)) {
+            lines.push(`\n[${ent.classname}]`);
+            for (const [key, value] of Object.entries(ent.properties)) {
+              lines.push(`  ${key}: ${value}`);
+            }
+          }
+          if (matching.length > 10) {
+            lines.push(`\n... and ${matching.length - 10} more`);
+          }
+          return lines.join('\n');
+        }
 
         // Count entity types
         const entityTypes: Record<string, number> = {};
@@ -2022,6 +2046,8 @@ export function registerEngineCommands(): void {
           lines.push(`  ... and ${Object.keys(entityTypes).length - sorted.length} more types`);
         }
         lines.push(`Total: ${total}`);
+        lines.push('');
+        lines.push('Use "bsp entities <classname> details" to see properties');
 
         return lines.join('\n');
       }
@@ -2547,12 +2573,57 @@ export function registerEngineCommands(): void {
         return 'Fog subcommands: info, apply, clear';
       }
 
+      case 'door': {
+        // Door control commands
+        const { getDoorController, getDoorNames } = await import('../loader/bsp/BspEntityHandlers');
+        const doorSubcmd = args[1]?.toLowerCase();
+        const doorName = args[2];
+
+        if (doorSubcmd === 'list') {
+          const names = getDoorNames();
+          if (names.length === 0) {
+            return 'No doors registered. Load a BSP map with func_door entities.';
+          }
+          return `Doors (${names.length}):\n  ${names.join('\n  ')}`;
+        }
+
+        if (doorSubcmd === 'open' && doorName) {
+          const controller = getDoorController(doorName);
+          if (!controller) return `Door "${doorName}" not found`;
+          controller.open();
+          return `Opening door: ${doorName}`;
+        }
+
+        if (doorSubcmd === 'close' && doorName) {
+          const controller = getDoorController(doorName);
+          if (!controller) return `Door "${doorName}" not found`;
+          controller.close();
+          return `Closing door: ${doorName}`;
+        }
+
+        if (doorSubcmd === 'toggle' && doorName) {
+          const controller = getDoorController(doorName);
+          if (!controller) return `Door "${doorName}" not found`;
+          controller.toggle();
+          return `Toggling door: ${doorName}`;
+        }
+
+        return [
+          'Door Commands:',
+          '  bsp door list              - List all doors',
+          '  bsp door open <name>       - Open a door',
+          '  bsp door close <name>      - Close a door',
+          '  bsp door toggle <name>     - Toggle a door',
+        ].join('\n');
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
           '  bsp load <mapname>  - Load BSP from PK3',
           '  bsp info            - Show BSP statistics',
           '  bsp entities [filter] - List entity types',
+          '  bsp door            - Door control commands',
           '  bsp textures [filter] - List textures (filter optional)',
           '  bsp required        - Show required PK3s for textures',
           '  bsp loadrequired    - Auto-load required PK3s',
@@ -3203,25 +3274,110 @@ export function registerEngineCommands(): void {
         const mode = modes[fogScene.fogMode] || 'UNKNOWN';
         const color = fogScene.fogColor;
 
+        // Check if CamFog is running
+        const camFog = (window as any)._camFog;
+        const camFogStatus = camFog?.enabled ? 'ACTIVE (overriding!)' : 'inactive';
+
         return [
           '=== Global Fog Status ===',
-          `Mode: ${mode}`,
+          `Mode: ${mode} (${fogScene.fogMode})`,
           `Color: (${color.r.toFixed(2)}, ${color.g.toFixed(2)}, ${color.b.toFixed(2)})`,
-          fogScene.fogMode === 1 ? `Start: ${fogScene.fogStart}, End: ${fogScene.fogEnd}` : `Density: ${fogScene.fogDensity}`,
+          `Density: ${fogScene.fogDensity}`,
+          `Start: ${fogScene.fogStart}, End: ${fogScene.fogEnd}`,
+          `CamFog: ${camFogStatus}`,
+        ].join('\n');
+      }
+
+      case 'worldspawn': {
+        // Apply fog from BSP worldspawn entity
+        const { applyWorldspawnFog } = await import('../loader/bsp/BspFogVolume');
+        const MapLoader = (await import('../loader/map/MapLoader')).MapLoader;
+        const bsp = MapLoader.getInstance().getCurrentBsp();
+        
+        if (!bsp) {
+          return 'No BSP loaded. Use "map <name>" first.';
+        }
+        
+        const applied = applyWorldspawnFog(bsp, fogScene);
+        return applied 
+          ? 'Worldspawn fog applied' 
+          : 'No fog settings found in worldspawn. Add "fog" key to worldspawn entity.';
+      }
+
+      case 'cam': {
+        // CamFog - camera-based fog when inside fog volumes
+        const camSubcmd = args[1]?.toLowerCase();
+        const { CamFog } = await import('../loader/bsp/BspFogVolume');
+        const MapLoader = (await import('../loader/map/MapLoader')).MapLoader;
+        const mapLoader = MapLoader.getInstance();
+        const effectiveBsp = mapLoader.getCurrentBsp();
+        
+        // Get or create CamFog instance
+        let camFog = (window as any)._camFog as InstanceType<typeof CamFog> | undefined;
+        
+        if (camSubcmd === 'on') {
+          if (!effectiveBsp) {
+            return 'No BSP loaded. Use "map <name>" first.';
+          }
+          if (!camFog) {
+            camFog = new CamFog();
+            (window as any)._camFog = camFog;
+          }
+          camFog.init(effectiveBsp, fogScene);
+          camFog.enable();
+          return 'CamFog enabled - fog will activate when camera enters fog volumes';
+        }
+        
+        if (camSubcmd === 'off') {
+          if (camFog) {
+            camFog.disable();
+          }
+          return 'CamFog disabled';
+        }
+        
+        if (camSubcmd === 'status') {
+          if (!camFog) {
+            return 'CamFog not initialized. Use "fog cam on" first.';
+          }
+          return camFog.getStatus();
+        }
+        
+        if (camSubcmd === 'scale') {
+          const scale = parseFloat(args[2]);
+          if (isNaN(scale)) {
+            return `Current fog scale: ${camFog?.fogScale ?? 1.0}\nUsage: fog cam scale <value>`;
+          }
+          if (!camFog) {
+            return 'CamFog not initialized. Use "fog cam on" first.';
+          }
+          camFog.setScale(scale);
+          return `Fog scale set to ${scale}`;
+        }
+        
+        return [
+          'CamFog Commands:',
+          '  fog cam on          - Enable camera-based fog',
+          '  fog cam off         - Disable camera-based fog',
+          '  fog cam status      - Show CamFog status',
+          '  fog cam scale <n>   - Set fog distance scale (default: 1.0)',
         ].join('\n');
       }
 
       default:
         return [
-          'Global Fog Commands (for testing):',
-          '  fog on [r] [g] [b] [density] - Enable exponential fog',
+          'Fog Commands:',
+          '',
+          'Global Fog (manual):',
+          '  fog on [r] [g] [b] [density] - Enable EXP2 fog',
           '  fog off                      - Disable fog',
           '  fog color <r> <g> <b>        - Set fog color (0-1)',
           '  fog density <value>          - Set fog density',
           '  fog linear <start> <end>     - Enable linear fog',
           '  fog status                   - Show fog settings',
           '',
-          'Note: This is global scene fog, not Q3 volume fog.',
+          'BSP Fog:',
+          '  fog worldspawn               - Apply fog from BSP worldspawn entity',
+          '  fog cam on/off/status/scale  - Camera-based fog from BSP volumes',
         ].join('\n');
     }
   });

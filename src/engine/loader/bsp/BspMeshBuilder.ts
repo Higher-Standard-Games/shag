@@ -19,6 +19,7 @@ import {
   RawTexture,
   Texture,
   Constants,
+  Engine,
 } from "babylonjs";
 import type {
   BspFile,
@@ -1426,4 +1427,244 @@ export function getVisibleFaces(
   }
 
   return Array.from(visibleFaces);
+}
+
+// ============================================================================
+// Brush Model Builder (for func_door, func_button, etc.)
+// ============================================================================
+
+/**
+ * Build a mesh for a specific brush model (inline model like *5, *6, etc.)
+ * Used for func_door, func_button, func_rotating, etc.
+ * 
+ * Creates a parent mesh with child meshes per texture group for proper texturing.
+ */
+export async function buildBrushModel(
+  bsp: BspFile,
+  modelIndex: number,
+  scene: Scene,
+  name: string
+): Promise<Mesh | null> {
+  if (modelIndex < 0 || modelIndex >= bsp.models.length) {
+    console.warn(`[BspMeshBuilder] Invalid model index: ${modelIndex}`);
+    return null;
+  }
+
+  const model = bsp.models[modelIndex];
+  if (model.numFaces === 0) {
+    console.warn(`[BspMeshBuilder] Model ${modelIndex} has no faces`);
+    return null;
+  }
+
+  // Group faces by texture (like main builder)
+  const textureGroups = new Map<number, {
+    textureIndex: number;
+    textureName: string;
+    positions: number[];
+    normals: number[];
+    uvs: number[];
+    uv2s: number[]; // Lightmap UVs
+    indices: number[];
+    vertexOffset: number;
+    lightmapIndex: number; // Primary lightmap for this group
+  }>();
+
+  for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) {
+    const face = bsp.faces[i];
+    if (!face || face.numVertices < 3) continue;
+
+    // Skip non-polygon/mesh face types for now (patches need tessellation)
+    if (face.faceType !== 1 && face.faceType !== 3) continue;
+
+    // Get or create texture group
+    let group = textureGroups.get(face.textureIndex);
+    if (!group) {
+      const textureName = bsp.textures[face.textureIndex]?.name || '';
+      group = {
+        textureIndex: face.textureIndex,
+        textureName,
+        positions: [],
+        normals: [],
+        uvs: [],
+        uv2s: [],
+        indices: [],
+        vertexOffset: 0,
+        lightmapIndex: face.lightmapIndex,
+      };
+      textureGroups.set(face.textureIndex, group);
+    }
+
+    const vertexOffset = group.vertexOffset;
+
+    // Get face vertices with proper coordinate conversion
+    for (let v = 0; v < face.numVertices; v++) {
+      const vertex = bsp.vertices[face.firstVertex + v];
+      if (!vertex) continue;
+
+      // Convert Q3 (Z-up) to Babylon (Y-up): [x, y, z] -> [x, z, y]
+      group.positions.push(vertex.position[0], vertex.position[2], vertex.position[1]);
+      group.normals.push(vertex.normal[0], vertex.normal[2], vertex.normal[1]);
+      group.uvs.push(vertex.texCoord[0], vertex.texCoord[1]);
+      const lmCoord = getVertexLightmapCoord(vertex);
+      group.uv2s.push(lmCoord[0], lmCoord[1]);
+    }
+
+    // Get indices from meshVerts (proper triangle indices, not fan)
+    // Reverse winding for coordinate system change: (i0, i1, i2) -> (i0, i2, i1)
+    for (let m = 0; m < face.numMeshVerts; m += 3) {
+      const i0 = bsp.meshVerts[face.firstMeshVert + m] + vertexOffset;
+      const i1 = bsp.meshVerts[face.firstMeshVert + m + 1] + vertexOffset;
+      const i2 = bsp.meshVerts[face.firstMeshVert + m + 2] + vertexOffset;
+      group.indices.push(i0, i2, i1); // Reversed winding
+    }
+
+    group.vertexOffset += face.numVertices;
+  }
+
+  if (textureGroups.size === 0) {
+    console.warn(`[BspMeshBuilder] Model ${modelIndex} produced no geometry`);
+    return null;
+  }
+
+  // Create parent mesh
+  const parentMesh = new Mesh(name, scene);
+
+  // Calculate model center for pivot (convert Q3 to Babylon coords)
+  const centerX = (model.mins[0] + model.maxs[0]) / 2;
+  const centerY = (model.mins[2] + model.maxs[2]) / 2; // Z->Y
+  const centerZ = (model.mins[1] + model.maxs[1]) / 2; // Y->Z
+
+  // Get texture loader
+  const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
+  const texLoader = PK3TextureLoader.getInstance();
+
+  let totalVertices = 0;
+  let totalTriangles = 0;
+
+  // Create child mesh for each texture group
+  for (const [texIndex, group] of textureGroups) {
+    if (group.indices.length === 0) continue;
+
+    const childName = `${name}_tex${texIndex}`;
+    const childMesh = new Mesh(childName, scene);
+
+    const vertexData = new VertexData();
+    vertexData.positions = group.positions;
+    vertexData.normals = group.normals;
+    vertexData.uvs = group.uvs;
+    if (group.uv2s.length > 0) {
+      vertexData.uvs2 = group.uv2s;
+    }
+    vertexData.indices = group.indices;
+    vertexData.applyToMesh(childMesh);
+
+    // Store lightmap index for later application
+    childMesh.metadata = {
+      lightmapIndex: group.lightmapIndex,
+      textureName: group.textureName,
+    };
+
+    // Create material and try to load texture
+    const mat = new StandardMaterial(`${childName}_mat`, scene);
+    mat.backFaceCulling = true;
+
+    // Try to load texture (use same path resolution as main BSP)
+    if (group.textureName && !group.textureName.toLowerCase().includes('common/')) {
+      const texName = group.textureName;
+      const { Q3ShaderRegistry } = await import('../shader/Q3ShaderRegistry');
+      const shaderRegistry = Q3ShaderRegistry.getInstance();
+
+      // Build paths to try
+      const pathsToTry: string[] = [];
+
+      // 1. Check shader for texture override
+      const shader = shaderRegistry.getShader(texName);
+      if (shader && shader.stages.length > 0) {
+        const firstStage = shader.stages[0];
+        if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
+          pathsToTry.push(firstStage.map);
+        }
+      }
+
+      // 2. Try texture name as-is
+      pathsToTry.push(texName);
+
+      // 3. Add textures/ prefix if needed
+      const allPaths: string[] = [];
+      for (const p of pathsToTry) {
+        allPaths.push(p);
+        if (!p.toLowerCase().startsWith('textures/') && !p.toLowerCase().startsWith('models/')) {
+          allPaths.push(`textures/${p}`);
+        }
+      }
+
+      // Try loading with various extensions
+      const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+      let texture: Texture | null = null;
+
+      for (const basePath of allPaths) {
+        if (texture) break;
+        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+        for (const ext of extensions) {
+          texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
+          if (texture) break;
+        }
+      }
+
+      if (texture) {
+        mat.diffuseTexture = texture;
+        // Try to load and apply lightmap
+        if (group.lightmapIndex >= 0 && group.lightmapIndex < bsp.lightmaps.length) {
+          const lmData = bsp.lightmaps[group.lightmapIndex];
+          if (lmData && lmData.length > 0) {
+            const lmSize = bsp.lightmapSize;
+            const lmTex = new RawTexture(
+              lmData,
+              lmSize,
+              lmSize,
+              Engine.TEXTUREFORMAT_RGB,
+              scene,
+              false, // generateMipMaps
+              false, // invertY
+              Texture.BILINEAR_SAMPLINGMODE
+            );
+            lmTex.name = `${childName}_lightmap`;
+            mat.lightmapTexture = lmTex;
+            mat.useLightmapAsShadowmap = true;
+            mat.lightmapTexture.coordinatesIndex = 1; // Use UV2
+          }
+        }
+        // Slight emissive boost for visibility
+        mat.emissiveColor = new Color3(0.15, 0.15, 0.15);
+      } else {
+        mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
+        mat.emissiveColor = new Color3(0.3, 0.3, 0.3);
+      }
+    } else {
+      mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
+      mat.emissiveColor = new Color3(0.3, 0.3, 0.3);
+    }
+
+    childMesh.material = mat;
+    childMesh.parent = parentMesh;
+
+    totalVertices += group.positions.length / 3;
+    totalTriangles += group.indices.length / 3;
+  }
+
+  // Set pivot to model center
+  parentMesh.setPivotPoint(new Vector3(centerX, centerY, centerZ));
+
+  // Store model info in metadata
+  parentMesh.metadata = {
+    brushModelIndex: modelIndex,
+    modelBounds: {
+      min: new Vector3(model.mins[0], model.mins[2], model.mins[1]),
+      max: new Vector3(model.maxs[0], model.maxs[2], model.maxs[1]),
+    },
+  };
+
+  console.log(`[BspMeshBuilder] Built brush model *${modelIndex}: ${totalVertices} vertices, ${totalTriangles} triangles, ${textureGroups.size} textures`);
+
+  return parentMesh;
 }
