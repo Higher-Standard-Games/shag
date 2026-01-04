@@ -17,6 +17,7 @@ import {
 } from './CollisionBackend';
 import { ClipBrushBackend } from './ClipBrushBackend';
 import { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
+import { BrushCollisionBackend } from './BrushCollisionBackend';
 
 /**
  * Singleton collision manager
@@ -35,8 +36,9 @@ export class CollisionManager {
 
   private constructor() {
     // Register available backends
-    this.backends.set('clipbrush', new ClipBrushBackend());
-    this.backends.set('babylon', new BabylonPhysicsBackend());
+    this.backends.set('brush', new BrushCollisionBackend());  // Q3-style brush collision
+    this.backends.set('clipbrush', new ClipBrushBackend());   // Face-based collision
+    this.backends.set('babylon', new BabylonPhysicsBackend()); // Babylon raycasting
     console.log(`[CollisionManager] Created instance ${this.instanceId}`);
   }
 
@@ -65,8 +67,8 @@ export class CollisionManager {
       }
     }
 
-    // Set active backend
-    const backendType = preferredBackend ?? 'clipbrush';
+    // Set active backend - default to brush collision (Q3-style)
+    const backendType = preferredBackend ?? 'brush';
     this.setBackend(backendType);
     
     this.initialized = true;
