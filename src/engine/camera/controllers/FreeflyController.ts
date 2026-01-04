@@ -314,52 +314,31 @@ export class FreeflyController implements ICameraController {
   private static _lastDebugTime = 0;
   
   /**
-   * Collision movement with Q3-style sliding along walls
+   * Apply collision using Babylon's native moveWithCollisions
+   * This uses the mesh checkCollisions system which is proven to work
    */
-  private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
-    const start = this.camera!.position.clone();
-    const end = start.add(originalMovement);
-    
-    const result = cm.trace(start as never, end as never);
+  private slideMove(originalMovement: Vector3, _cm: ReturnType<typeof getCollisionManager>): void {
+    if (!this.camera || !this.scene) return;
     
     // Debug logging once per second
     const now = Date.now();
     if (now - FreeflyController._lastDebugTime > 1000) {
       FreeflyController._lastDebugTime = now;
-      console.log(`[Freefly DEBUG] instance=${cm.getInstanceId()} pos=(${start.x.toFixed(0)},${start.y.toFixed(0)},${start.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)} frac=${result.fraction.toFixed(3)} backend=${cm.getBackendType()}`);
+      const pos = this.camera.position;
+      console.log(`[Freefly DEBUG] Using Babylon collision, pos=(${pos.x.toFixed(0)},${pos.y.toFixed(0)},${pos.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)}`);
     }
     
-    if (result.fraction >= 1.0) {
-      // No collision - move full distance
-      this.camera!.position.addInPlace(originalMovement);
-    } else if (result.fraction > 0.001 && result.normal) {
-      // Collision detected - move to collision point, then slide
-      const moveToWall = originalMovement.scale(result.fraction * 0.99);
-      this.camera!.position.addInPlace(moveToWall);
-      
-      // Calculate remaining movement and slide along wall
-      const remainingMove = originalMovement.scale(1.0 - result.fraction);
-      const normal = result.normal as unknown as Vector3;
-      
-      // Remove component going into wall (dot product with normal)
-      const into = Vector3.Dot(remainingMove, normal);
-      if (into < 0) {
-        // Subtract the component going into the wall
-        const slideMove = remainingMove.subtract(normal.scale(into));
-        
-        // Only apply slide if it's significant
-        if (slideMove.length() > 0.001) {
-          // Trace the slide movement to make sure it's clear
-          const slideEnd = this.camera!.position.add(slideMove);
-          const slideResult = cm.trace(this.camera!.position as never, slideEnd as never);
-          
-          if (slideResult.fraction > 0.1) {
-            this.camera!.position.addInPlace(slideMove.scale(slideResult.fraction * 0.99));
-          }
-        }
-      }
+    // Use Babylon's built-in collision system
+    // This requires camera.checkCollisions = true and mesh.checkCollisions = true
+    this.camera.checkCollisions = true;
+    
+    // Set collision ellipsoid if not set (player-sized)
+    if (!this.camera.ellipsoid || this.camera.ellipsoid.length() < 1) {
+      this.camera.ellipsoid = new Vector3(16, 28, 16); // Q3 player size
     }
-    // If fraction <= 0.001, we're inside something - don't move
+    
+    // moveWithCollisions handles sliding automatically
+    this.camera._collideWithWorld(originalMovement);
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
