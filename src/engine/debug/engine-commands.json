@@ -16,6 +16,11 @@
       "usage": "freefly_speed [speed]"
     },
     {
+      "name": "freefly_collision",
+      "description": "Toggle collision detection in freefly mode (0=off, 1=on)",
+      "usage": "freefly_collision [0|1]"
+    },
+    {
       "name": "bsp",
       "description": "BSP map loading and debugging (Quake3/Warsow FBSP)",
       "usage": "bsp <command> [args]",
@@ -30,7 +35,11 @@
         { "name": "clusters", "description": "Show PVS cluster info" },
         { "name": "lightmaps", "description": "Show lightmap info" },
         { "name": "worldspawn", "description": "Show worldspawn properties" },
-        { "name": "fog", "description": "Fog volume commands (info, apply, clear)" }
+        { "name": "fog", "description": "Fog volume commands (info, apply, clear)" },
+        { "name": "collision", "description": "Collision detection commands (trace, backend, test)" },
+        { "name": "sky", "description": "Skybox commands (info, apply, toggle)" },
+        { "name": "applytextures", "description": "Load and apply textures from PK3" },
+        { "name": "applylightmaps", "description": "Apply lightmaps to rendered geometry" }
       ]
     },
     {
