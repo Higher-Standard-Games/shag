@@ -18,19 +18,21 @@ import {
 } from './CollisionBackend';
 
 /**
- * Generated floor plane for collision
+ * Generated collision plane from a face
  */
-interface FloorPlane {
-  /** Plane normal (always roughly upward) */
+interface CollisionPlane {
+  /** Plane normal */
   normal: Vector3;
-  /** Distance from origin */
+  /** Distance from origin (plane equation: dot(normal, point) = distance) */
   distance: number;
-  /** Bounding box min (XY only) */
+  /** Bounding box min */
   minBounds: Vector3;
-  /** Bounding box max (XY only) */
+  /** Bounding box max */
   maxBounds: Vector3;
   /** Original face index */
   faceIndex: number;
+  /** Type: floor, wall, ceiling */
+  type: 'floor' | 'wall' | 'ceiling';
 }
 
 const FLOOR_NORMAL_THRESHOLD = 0.7; // cos(45°) - surfaces more than 45° from vertical
@@ -38,22 +40,24 @@ const DIST_EPSILON = 0.03125;
 
 export class ClipBrushBackend implements CollisionBackend {
   readonly type: CollisionBackendType = 'clipbrush';
-  readonly name = 'Clip Brush (Generated Floors)';
+  readonly name = 'Clip Brush (All Surfaces)';
 
   private bsp: BspFile | null = null;
-  private floorPlanes: FloorPlane[] = [];
+  private collisionPlanes: CollisionPlane[] = [];
   private stats: CollisionStats = {
     traceCount: 0,
     hitCount: 0,
     avgTraceTimeMs: 0,
-    backendStats: { floorPlanes: 0 },
+    backendStats: { collisionPlanes: 0, floors: 0, walls: 0, ceilings: 0 },
   };
 
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
-    this.floorPlanes = [];
+    this.collisionPlanes = [];
 
-    // Generate floor planes from upward-facing faces
+    let floors = 0, walls = 0, ceilings = 0;
+
+    // Generate collision planes from ALL faces (floors, walls, ceilings)
     // Include all face types: 1=polygon, 2=patch, 3=mesh
     for (let fi = 0; fi < bsp.faces.length; fi++) {
       const face = bsp.faces[fi];
@@ -62,25 +66,23 @@ export class ClipBrushBackend implements CollisionBackend {
       if (face.faceType === 4) continue;
       
       // Get face vertices to compute normal and bounds
-      const floorPlane = this.extractFloorPlane(face, fi);
-      if (floorPlane) {
-        this.floorPlanes.push(floorPlane);
+      const plane = this.extractCollisionPlane(face, fi);
+      if (plane) {
+        this.collisionPlanes.push(plane);
+        if (plane.type === 'floor') floors++;
+        else if (plane.type === 'wall') walls++;
+        else ceilings++;
       }
     }
 
-    this.stats.backendStats.floorPlanes = this.floorPlanes.length;
-    console.log(`[ClipBrushBackend] Generated ${this.floorPlanes.length} floor planes from ${bsp.faces.length} faces`);
-    
-    // Log some sample floor planes for debugging
-    if (this.floorPlanes.length > 0) {
-      const sample = this.floorPlanes.slice(0, 3);
-      for (const p of sample) {
-        console.log(`[ClipBrushBackend] Sample floor: normal=(${p.normal.x.toFixed(2)}, ${p.normal.y.toFixed(2)}, ${p.normal.z.toFixed(2)}) dist=${p.distance.toFixed(1)} bounds X[${p.minBounds.x.toFixed(0)},${p.maxBounds.x.toFixed(0)}] Y[${p.minBounds.y.toFixed(0)},${p.maxBounds.y.toFixed(0)}]`);
-      }
-    }
+    this.stats.backendStats.collisionPlanes = this.collisionPlanes.length;
+    this.stats.backendStats.floors = floors;
+    this.stats.backendStats.walls = walls;
+    this.stats.backendStats.ceilings = ceilings;
+    console.log(`[ClipBrushBackend] Generated ${this.collisionPlanes.length} collision planes (${floors} floors, ${walls} walls, ${ceilings} ceilings) from ${bsp.faces.length} faces`);
   }
 
-  private extractFloorPlane(face: BspFace, faceIndex: number): FloorPlane | null {
+  private extractCollisionPlane(face: BspFace, faceIndex: number): CollisionPlane | null {
     if (!this.bsp) return null;
 
     // Get vertices for this face
@@ -102,35 +104,48 @@ export class ClipBrushBackend implements CollisionBackend {
     const edge2 = v2.subtract(v0);
     let normal = Vector3.Cross(edge1, edge2).normalize();
 
-    // Check if this is a floor (normal pointing up in Q3 coords = +Z)
-    // Also check for inverted normals (winding order may vary)
-    if (Math.abs(normal.z) < FLOOR_NORMAL_THRESHOLD) return null;
-    
-    // Flip if pointing down
-    if (normal.z < 0) {
-      normal = normal.scale(-1);
+    // Skip degenerate faces
+    if (normal.length() < 0.5) return null;
+
+    // Determine surface type based on normal direction in Q3 coords (Z-up)
+    // For collision, we want all normals pointing "outward" (toward empty space)
+    let surfaceType: 'floor' | 'wall' | 'ceiling';
+    if (Math.abs(normal.z) > FLOOR_NORMAL_THRESHOLD) {
+      // Vertical-ish surface (floor or ceiling)
+      if (normal.z < 0) {
+        // Normal points down - flip to point up for consistent collision
+        normal = normal.scale(-1);
+        surfaceType = 'ceiling';
+      } else {
+        surfaceType = 'floor';
+      }
+    } else {
+      surfaceType = 'wall';
     }
 
     // Compute plane distance (dot of normal with any vertex)
     const distance = Vector3.Dot(normal, v0);
 
-    // Compute XY bounding box
-    let minX = Infinity, minY = Infinity;
-    let maxX = -Infinity, maxY = -Infinity;
+    // Compute 3D bounding box for quick rejection
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
     
     for (const v of vertices) {
       minX = Math.min(minX, v.x);
       minY = Math.min(minY, v.y);
+      minZ = Math.min(minZ, v.z);
       maxX = Math.max(maxX, v.x);
       maxY = Math.max(maxY, v.y);
+      maxZ = Math.max(maxZ, v.z);
     }
 
     return {
       normal,
       distance,
-      minBounds: new Vector3(minX, minY, -Infinity),
-      maxBounds: new Vector3(maxX, maxY, Infinity),
+      minBounds: new Vector3(minX, minY, minZ),
+      maxBounds: new Vector3(maxX, maxY, maxZ),
       faceIndex,
+      type: surfaceType,
     };
   }
 
@@ -152,16 +167,22 @@ export class ClipBrushBackend implements CollisionBackend {
     }
 
     let closestFrac = 1.0;
-    let hitPlane: FloorPlane | null = null;
+    let hitPlane: CollisionPlane | null = null;
 
-    // Test against all floor planes
-    for (const plane of this.floorPlanes) {
-      // Quick XY bounds check
-      const traceX = q3Start.x;
-      const traceY = q3Start.y;
+    // Test against all collision planes
+    for (const plane of this.collisionPlanes) {
+      // Quick 3D bounds check - does trace potentially intersect this plane's bounds?
+      const traceMinX = Math.min(q3Start.x, q3End.x);
+      const traceMaxX = Math.max(q3Start.x, q3End.x);
+      const traceMinY = Math.min(q3Start.y, q3End.y);
+      const traceMaxY = Math.max(q3Start.y, q3End.y);
+      const traceMinZ = Math.min(q3Start.z, q3End.z);
+      const traceMaxZ = Math.max(q3Start.z, q3End.z);
       
-      if (traceX < plane.minBounds.x || traceX > plane.maxBounds.x) continue;
-      if (traceY < plane.minBounds.y || traceY > plane.maxBounds.y) continue;
+      // Skip if trace bounds don't overlap plane bounds
+      if (traceMaxX < plane.minBounds.x || traceMinX > plane.maxBounds.x) continue;
+      if (traceMaxY < plane.minBounds.y || traceMinY > plane.maxBounds.y) continue;
+      if (traceMaxZ < plane.minBounds.z || traceMinZ > plane.maxBounds.z) continue;
 
       // Compute distances to plane
       const startDist = Vector3.Dot(q3Start, plane.normal) - plane.distance;
@@ -173,7 +194,7 @@ export class ClipBrushBackend implements CollisionBackend {
 
       // Calculate intersection fraction
       if (startDist > endDist) {
-        // Entering the solid (floor)
+        // Entering the solid
         const frac = (startDist - DIST_EPSILON) / (startDist - endDist);
         if (frac > 0 && frac < closestFrac) {
           closestFrac = frac;
@@ -195,7 +216,7 @@ export class ClipBrushBackend implements CollisionBackend {
       this.stats.hitCount++;
 
       if (debug) {
-        console.log(`[ClipBrush] HIT floor at fraction ${result.fraction.toFixed(4)}, face ${hitPlane.faceIndex}`);
+        console.log(`[ClipBrush] HIT ${hitPlane.type} at fraction ${result.fraction.toFixed(4)}, face ${hitPlane.faceIndex}`);
       }
     }
 
@@ -209,10 +230,11 @@ export class ClipBrushBackend implements CollisionBackend {
     // Convert to Q3 coords
     const q3Point = new Vector3(point.x, point.z, point.y);
 
-    // Check if point is below any floor plane within its bounds
-    for (const plane of this.floorPlanes) {
+    // Check if point is inside any collision plane
+    for (const plane of this.collisionPlanes) {
       if (q3Point.x < plane.minBounds.x || q3Point.x > plane.maxBounds.x) continue;
       if (q3Point.y < plane.minBounds.y || q3Point.y > plane.maxBounds.y) continue;
+      if (q3Point.z < plane.minBounds.z || q3Point.z > plane.maxBounds.z) continue;
 
       const dist = Vector3.Dot(q3Point, plane.normal) - plane.distance;
       if (dist < 0) {
@@ -253,7 +275,7 @@ export class ClipBrushBackend implements CollisionBackend {
   }
 
   dispose(): void {
-    this.floorPlanes = [];
+    this.collisionPlanes = [];
     this.bsp = null;
   }
 }
