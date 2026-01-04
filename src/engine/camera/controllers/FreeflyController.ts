@@ -300,6 +300,9 @@ export class FreeflyController implements ICameraController {
   
   private static _warnedNotInit = false;
   
+  // Debug: log once per second
+  private static _lastDebugTime = 0;
+  
   /**
    * Simple collision: trace and stop at collision point (no sliding)
    * This blocks movement completely when hitting a wall
@@ -310,6 +313,13 @@ export class FreeflyController implements ICameraController {
     
     const result = cm.trace(start as never, end as never);
     
+    // Debug logging once per second
+    const now = Date.now();
+    if (now - FreeflyController._lastDebugTime > 1000) {
+      FreeflyController._lastDebugTime = now;
+      console.log(`[Freefly DEBUG] pos=(${start.x.toFixed(0)},${start.y.toFixed(0)},${start.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)} frac=${result.fraction.toFixed(3)} backend=${cm.getBackendType()}`);
+    }
+    
     if (result.fraction >= 1.0) {
       // No collision - move full distance
       this.camera!.position.addInPlace(originalMovement);
@@ -317,8 +327,10 @@ export class FreeflyController implements ICameraController {
       // Collision detected - move to just before collision point
       const safeMove = originalMovement.scale(result.fraction * 0.95);
       this.camera!.position.addInPlace(safeMove);
+      console.log(`[Freefly] BLOCKED at frac=${result.fraction.toFixed(3)}`);
+    } else {
+      console.log(`[Freefly] TOO CLOSE frac=${result.fraction.toFixed(3)} - not moving`);
     }
-    // If fraction <= 0.01, we're very close to or inside something - don't move
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
