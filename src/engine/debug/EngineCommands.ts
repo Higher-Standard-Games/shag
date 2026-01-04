@@ -2486,6 +2486,67 @@ export function registerEngineCommands(): void {
         return 'Sky subcommands: info, apply, toggle, remove, debug';
       }
 
+      case 'fog': {
+        // Fog volume commands
+        const fogSubcommand = args[1]?.toLowerCase();
+
+        if (!fogSubcommand || fogSubcommand === 'info') {
+          // Show fog volume info from effects lump
+          if (!effectiveBsp) {
+            return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
+          }
+
+          const effects = effectiveBsp.effects;
+          if (effects.length === 0) {
+            return 'No effects (fog) entries in this BSP.';
+          }
+
+          const lines: string[] = ['Effects lump entries:'];
+          for (let i = 0; i < Math.min(effects.length, 20); i++) {
+            const eff = effects[i];
+            lines.push(`  [${i}] "${eff.name}" brush=${eff.brushIndex}`);
+          }
+          if (effects.length > 20) {
+            lines.push(`  ... and ${effects.length - 20} more`);
+          }
+          return lines.join('\n');
+        }
+
+        if (fogSubcommand === 'apply') {
+          if (!effectiveResult || !scene) {
+            return 'No BSP rendered. Use "bsp render" or "map <name>" first.';
+          }
+
+          try {
+            const result = await BspMeshBuilder.applyFogVolumes(effectiveResult, scene);
+            if (result.success) {
+              return `Created ${result.fogMeshes.length} fog volume mesh(es).`;
+            } else {
+              return `No fog volumes created: ${result.error || 'No fog volumes found in BSP'}`;
+            }
+          } catch (error) {
+            return `Failed to apply fog volumes: ${error}`;
+          }
+        }
+
+        if (fogSubcommand === 'clear') {
+          if (!effectiveResult?.fogVolumes) {
+            return 'No fog volumes to clear.';
+          }
+
+          for (const mesh of effectiveResult.fogVolumes) {
+            if (mesh.material) {
+              mesh.material.dispose();
+            }
+            mesh.dispose();
+          }
+          effectiveResult.fogVolumes = [];
+          return 'Fog volumes cleared.';
+        }
+
+        return 'Fog subcommands: info, apply, clear';
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
@@ -2503,6 +2564,7 @@ export function registerEngineCommands(): void {
           '  bsp applytextures   - Load and apply textures from PK3',
           '  bsp applylightmaps [mobile|desktop] [intensity] - Apply lightmaps',
           '  bsp sky [info|apply|toggle|remove|debug] - Skybox commands',
+          '  bsp fog [info|apply|clear] - Fog volume commands',
           '  bsp clear           - Clear rendered geometry',
         ].join('\n');
     }
@@ -3062,6 +3124,104 @@ export function registerEngineCommands(): void {
           '  pvs status  - Show detailed statistics',
           '  pvs cluster - Show current cluster info',
           '  pvs debug   - Toggle debug overlay',
+        ].join('\n');
+    }
+  });
+
+  // ============================================================================
+  // Global Fog Commands (for testing)
+  // ============================================================================
+
+  registry.register('fog', async (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
+    const camera = cameraSystem.getCamera();
+    const fogScene = camera?.getScene();
+
+    if (!fogScene) {
+      return 'Scene not available';
+    }
+
+    switch (subcommand) {
+      case 'on': {
+        // fog on [r] [g] [b] [density]
+        const r = parseFloat(args[1]) || 0.5;
+        const g = parseFloat(args[2]) || 0.5;
+        const b = parseFloat(args[3]) || 0.6;
+        const density = parseFloat(args[4]) || 0.01;
+
+        fogScene.fogMode = 3; // FOGMODE_EXP2
+        fogScene.fogColor = new Color3(r, g, b);
+        fogScene.fogDensity = density;
+
+        return `Global fog enabled: color=(${r.toFixed(2)}, ${g.toFixed(2)}, ${b.toFixed(2)}), density=${density}`;
+      }
+
+      case 'off': {
+        fogScene.fogMode = 0; // FOGMODE_NONE
+        return 'Global fog disabled';
+      }
+
+      case 'color': {
+        const r = parseFloat(args[1]);
+        const g = parseFloat(args[2]);
+        const b = parseFloat(args[3]);
+
+        if (isNaN(r) || isNaN(g) || isNaN(b)) {
+          return 'Usage: fog color <r> <g> <b> (values 0-1)';
+        }
+
+        fogScene.fogColor = new Color3(r, g, b);
+        return `Fog color set to (${r.toFixed(2)}, ${g.toFixed(2)}, ${b.toFixed(2)})`;
+      }
+
+      case 'density': {
+        const density = parseFloat(args[1]);
+
+        if (isNaN(density)) {
+          return 'Usage: fog density <value> (e.g., 0.01)';
+        }
+
+        fogScene.fogDensity = density;
+        return `Fog density set to ${density}`;
+      }
+
+      case 'linear': {
+        // fog linear <start> <end>
+        const start = parseFloat(args[1]) || 100;
+        const end = parseFloat(args[2]) || 1000;
+
+        fogScene.fogMode = 1; // FOGMODE_LINEAR
+        fogScene.fogStart = start;
+        fogScene.fogEnd = end;
+
+        return `Linear fog enabled: start=${start}, end=${end}`;
+      }
+
+      case 'status': {
+        const modes = ['NONE', 'LINEAR', 'EXP', 'EXP2'];
+        const mode = modes[fogScene.fogMode] || 'UNKNOWN';
+        const color = fogScene.fogColor;
+
+        return [
+          '=== Global Fog Status ===',
+          `Mode: ${mode}`,
+          `Color: (${color.r.toFixed(2)}, ${color.g.toFixed(2)}, ${color.b.toFixed(2)})`,
+          fogScene.fogMode === 1 ? `Start: ${fogScene.fogStart}, End: ${fogScene.fogEnd}` : `Density: ${fogScene.fogDensity}`,
+        ].join('\n');
+      }
+
+      default:
+        return [
+          'Global Fog Commands (for testing):',
+          '  fog on [r] [g] [b] [density] - Enable exponential fog',
+          '  fog off                      - Disable fog',
+          '  fog color <r> <g> <b>        - Set fog color (0-1)',
+          '  fog density <value>          - Set fog density',
+          '  fog linear <start> <end>     - Enable linear fog',
+          '  fog status                   - Show fog settings',
+          '',
+          'Note: This is global scene fog, not Q3 volume fog.',
         ].join('\n');
     }
   });

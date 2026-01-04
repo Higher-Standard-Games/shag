@@ -29,7 +29,8 @@
         { "name": "faces", "description": "Show face type breakdown" },
         { "name": "clusters", "description": "Show PVS cluster info" },
         { "name": "lightmaps", "description": "Show lightmap info" },
-        { "name": "worldspawn", "description": "Show worldspawn properties" }
+        { "name": "worldspawn", "description": "Show worldspawn properties" },
+        { "name": "fog", "description": "Fog volume commands (info, apply, clear)" }
       ]
     },
     {

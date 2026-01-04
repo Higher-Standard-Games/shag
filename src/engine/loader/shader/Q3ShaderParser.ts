@@ -228,14 +228,51 @@ function parseShaderBody(
         }
         break;
 
-      case 'fogparms':
-        // Skip fog params for now
+      case 'fogparms': {
+        // Parse: fogParms ( R G B ) depthForOpaque
+        // or: fogParms R G B depthForOpaque
+        // Color values are 0-1 range, depthForOpaque is distance in units
         pos++;
-        while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && 
-               !isDirective(tokens[pos])) {
+
+        // Skip opening parenthesis if present
+        if (pos < tokens.length && tokens[pos] === '(') {
           pos++;
         }
+
+        let r = 0.5, g = 0.5, b = 0.5;
+        let depthForOpaque = 512;
+
+        // Read R G B values
+        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          r = parseFloat(tokens[pos]) || 0;
+          pos++;
+        }
+        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          g = parseFloat(tokens[pos]) || 0;
+          pos++;
+        }
+        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          b = parseFloat(tokens[pos]) || 0;
+          pos++;
+        }
+
+        // Skip closing parenthesis if present
+        if (pos < tokens.length && tokens[pos] === ')') {
+          pos++;
+        }
+
+        // Read depthForOpaque
+        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          depthForOpaque = parseFloat(tokens[pos]) || 512;
+          pos++;
+        }
+
+        shader.fogParms = {
+          color: [r, g, b],
+          depthForOpaque
+        };
         break;
+      }
 
       case 'skyparms': {
         // Parse: skyparms <farbox> <cloudheight> <nearbox>

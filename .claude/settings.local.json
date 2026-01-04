@@ -11,7 +11,9 @@
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebFetch(domain:webglfundamentals.org)"
+      "WebFetch(domain:webglfundamentals.org)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)"
     ]
   }
 }

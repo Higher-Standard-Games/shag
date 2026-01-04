@@ -63,6 +63,8 @@ export interface BspMeshBuildResult {
     numClusters: number;
     hasPVS: boolean;
   };
+  /** Fog volume meshes */
+  fogVolumes?: Mesh[];
 }
 
 // ============================================================================
@@ -1316,6 +1318,31 @@ export class BspMeshBuilder {
     console.log(`[BspMeshBuilder] Created ${textures.length} lightmap textures (${size}x${size})`);
 
     return textures;
+  }
+
+  /**
+   * Apply fog volumes from BSP effects
+   * Call this after bsp render to create fog volume meshes
+   */
+  public static async applyFogVolumes(
+    result: BspMeshBuildResult,
+    scene: Scene
+  ): Promise<{ success: boolean; fogMeshes: Mesh[]; error?: string }> {
+    try {
+      const { FogVolumeManager } = await import('./BspFogVolume');
+      const fogManager = new FogVolumeManager();
+      const fogResult = await fogManager.buildFogVolumes(result.bspData, scene);
+
+      if (fogResult.meshes.length > 0) {
+        result.fogVolumes = fogResult.meshes;
+        return { success: true, fogMeshes: fogResult.meshes };
+      } else {
+        return { success: false, fogMeshes: [], error: 'No fog volumes found in BSP' };
+      }
+    } catch (error) {
+      console.error('[BspMeshBuilder] Failed to apply fog volumes:', error);
+      return { success: false, fogMeshes: [], error: String(error) };
+    }
   }
 }
 
