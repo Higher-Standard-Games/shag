@@ -2707,6 +2707,323 @@ export function registerEngineCommands(): void {
         ].join('\n');
       }
 
+      case 'collision':
+      case 'trace': {
+        const { MapLoader } = await import('../loader/map/MapLoader');
+        const mapLoader = MapLoader.getInstance();
+        const traceBsp = loadedBsp || mapLoader.getCurrentBsp();
+        if (!traceBsp) return 'No BSP loaded';
+        
+        const { BspCollision } = await import('../physics');
+        const collision = new BspCollision(traceBsp);
+
+        const traceSubcmd = args[1]?.toLowerCase();
+        const traceScene = cameraSystem.getCamera()?.getScene();
+
+        if (traceSubcmd === 'point') {
+          if (!traceScene?.activeCamera) return 'No active camera';
+          const cam = traceScene.activeCamera;
+          const pos = cam.position;
+
+          const contents = collision.pointContents(pos);
+          const inSolid = (contents & 0x1) !== 0;
+          const inWater = (contents & 0x20) !== 0;
+          const inPlayerClip = (contents & 0x10000) !== 0;
+
+          return [
+            `Position: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`,
+            `Contents: 0x${contents.toString(16)}`,
+            `  Solid: ${inSolid}`,
+            `  Water: ${inWater}`,
+            `  PlayerClip: ${inPlayerClip}`,
+          ].join('\n');
+        }
+
+        if (traceSubcmd === 'down') {
+          if (!traceScene?.activeCamera) return 'No active camera';
+          const cam = traceScene.activeCamera;
+          const start = cam.position.clone();
+          const end = start.clone();
+          end.y -= 1000; // Trace 1000 units down
+
+          const result = collision.tracePoint(start, end, true); // debug=true
+          const distance = (1 - result.fraction) * 1000;
+
+          return [
+            `Trace down from (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
+            `Fraction: ${result.fraction.toFixed(4)}`,
+            `Ground distance: ${distance.toFixed(1)} units`,
+            `Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+            `Start solid: ${result.startSolid}`,
+            result.plane ? `Plane normal: (${result.plane.normal[0].toFixed(2)}, ${result.plane.normal[1].toFixed(2)}, ${result.plane.normal[2].toFixed(2)})` : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        if (traceSubcmd === 'forward') {
+          if (!traceScene?.activeCamera) return 'No active camera';
+          const cam = traceScene.activeCamera as any;
+          const start = cam.position.clone();
+          
+          // Get forward direction from camera
+          const forward = cam.getDirection ? cam.getDirection(new Vector3(0, 0, 1)) : new Vector3(0, 0, 1);
+          const end = start.add(forward.scale(1000));
+
+          const result = collision.tracePoint(start, end);
+          const distance = result.fraction * 1000;
+
+          return [
+            `Trace forward from camera`,
+            `Fraction: ${result.fraction.toFixed(4)}`,
+            `Distance to wall: ${distance.toFixed(1)} units`,
+            `Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+            result.plane ? `Plane normal: (${result.plane.normal[0].toFixed(2)}, ${result.plane.normal[1].toFixed(2)}, ${result.plane.normal[2].toFixed(2)})` : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        if (traceSubcmd === 'leaf') {
+          // Find which leaf the camera is in and what brushes it contains
+          const camPos = traceScene?.activeCamera?.position;
+          if (!camPos) return 'No camera';
+          
+          const q3Pos: [number, number, number] = [camPos.x, camPos.z, camPos.y];
+          
+          // Traverse BSP tree to find leaf
+          let nodeIndex = 0;
+          const path: string[] = [];
+          
+          while (nodeIndex >= 0) {
+            const node = traceBsp.nodes[nodeIndex];
+            if (!node) break;
+            const plane = traceBsp.planes[node.planeIndex];
+            if (!plane) break;
+            
+            const dist = q3Pos[0] * plane.normal[0] + q3Pos[1] * plane.normal[1] + q3Pos[2] * plane.normal[2] - plane.dist;
+            const side = dist >= 0 ? 'front' : 'back';
+            const nextNode = dist >= 0 ? node.children[0] : node.children[1];
+            path.push(`Node ${nodeIndex}: ${side} (d=${dist.toFixed(1)}) → ${nextNode}`);
+            nodeIndex = nextNode;
+          }
+          
+          const leafIndex = -(nodeIndex + 1);
+          const leaf = traceBsp.leafs[leafIndex];
+          
+          // Get brushes in this leaf
+          const brushInfo: string[] = [];
+          if (leaf) {
+            for (let i = 0; i < leaf.numLeafBrushes; i++) {
+              const brushIdx = traceBsp.leafBrushes[leaf.firstLeafBrush + i];
+              const brush = traceBsp.brushes[brushIdx];
+              const tex = traceBsp.textures[brush?.shaderIndex];
+              brushInfo.push(`  Brush ${brushIdx}: ${brush?.numSides || 0} sides, flags=0x${tex?.contentFlags?.toString(16) || '?'}`);
+            }
+          }
+          
+          return [
+            `Camera Q3: (${q3Pos[0].toFixed(1)}, ${q3Pos[1].toFixed(1)}, ${q3Pos[2].toFixed(1)})`,
+            `Leaf index: ${leafIndex}`,
+            `Leaf brushes: ${leaf?.numLeafBrushes || 0}`,
+            '',
+            'Path (last 5 nodes):',
+            ...path.slice(-5),
+            '',
+            'Brushes in leaf:',
+            ...brushInfo.slice(0, 10),
+            brushInfo.length === 0 ? '  (none)' : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        if (traceSubcmd === 'dump') {
+          // Dump details of brushes that could be hit from CAMERA position
+          const camPos = traceScene?.activeCamera?.position;
+          if (!camPos) return 'No camera';
+          
+          // Convert camera to Q3 coords
+          const q3Pos: [number, number, number] = [camPos.x, camPos.z, camPos.y];
+          
+          // Helper to check if a point is inside brush XY bounds
+          const pointInsideBrushXY = (brush: typeof traceBsp.brushes[0], x: number, y: number): boolean => {
+            for (let si = 0; si < brush.numSides; si++) {
+              const side = traceBsp.brushSides[brush.firstSide + si];
+              if (!side) continue;
+              const plane = traceBsp.planes[side.planeIndex];
+              if (!plane) continue;
+              // Only check XY planes (ignore Z)
+              if (Math.abs(plane.normal[2]) > 0.1) continue;
+              // Check if point is on positive side (outside)
+              const dist = plane.normal[0] * x + plane.normal[1] * y - plane.dist;
+              if (dist > 0) return false;
+            }
+            return true;
+          };
+          
+          // Find ALL brushes where camera XY is inside (ignore content flags for now)
+          const matchingBrushes: string[] = [];
+          for (let bi = 0; bi < traceBsp.brushes.length && matchingBrushes.length < 5; bi++) {
+            const brush = traceBsp.brushes[bi];
+            const tex = traceBsp.textures[brush.shaderIndex];
+            // Don't filter by content flags - show ALL brushes
+            
+            // Check XY bounds first
+            if (!pointInsideBrushXY(brush, q3Pos[0], q3Pos[1])) continue;
+            
+            // Check for floor plane below camera
+            let floorZ = -Infinity;
+            for (let si = 0; si < brush.numSides; si++) {
+              const side = traceBsp.brushSides[brush.firstSide + si];
+              if (!side) continue;
+              const plane = traceBsp.planes[side.planeIndex];
+              if (!plane) continue;
+              if (plane.normal[2] > 0.9 && plane.dist < q3Pos[2]) {
+                floorZ = Math.max(floorZ, plane.dist);
+              }
+            }
+            
+            if (floorZ > -Infinity) {
+              const flags = tex ? `0x${tex.contentFlags.toString(16)}` : 'none';
+              const texName = tex?.name || 'unknown';
+              matchingBrushes.push(`Brush ${bi}: floor at Z=${floorZ.toFixed(0)}, flags=${flags}, tex=${texName}`);
+            }
+          }
+          
+          return [
+            `Camera Q3: (${q3Pos[0].toFixed(1)}, ${q3Pos[1].toFixed(1)}, ${q3Pos[2].toFixed(1)})`,
+            `Looking for brushes containing camera XY with floor below...`,
+            '',
+            ...matchingBrushes,
+            matchingBrushes.length === 0 ? 'NO BRUSHES FOUND containing camera XY!' : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        if (traceSubcmd === 'brushes') {
+          // Analyze brush data to find floor brushes
+          const solidBrushes = traceBsp.brushes.filter(b => {
+            const tex = traceBsp.textures[b.shaderIndex];
+            return tex && (tex.contentFlags & 0x1); // SOLID
+          });
+          
+          // Find ALL floor plane Z values
+          const floorZValues: number[] = [];
+          
+          for (const brush of solidBrushes) {
+            for (let si = 0; si < brush.numSides; si++) {
+              const side = traceBsp.brushSides[brush.firstSide + si];
+              if (!side) continue;
+              const plane = traceBsp.planes[side.planeIndex];
+              if (!plane) continue;
+              
+              // Check for upward-facing plane (floor)
+              if (plane.normal[2] > 0.9) { // Z-up normal
+                floorZValues.push(plane.dist);
+                break;
+              }
+            }
+          }
+          
+          floorZValues.sort((a, b) => a - b);
+          const minZ = floorZValues.length > 0 ? floorZValues[0] : 0;
+          const maxZ = floorZValues.length > 0 ? floorZValues[floorZValues.length - 1] : 0;
+          
+          // Get spawn for comparison
+          const spawn = traceBsp.entities.find(e => 
+            e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+          );
+          const spawnOrigin = spawn?.properties.origin?.split(' ').map(Number) || [0, 0, 0];
+          
+          // Camera position
+          const camPos = traceScene?.activeCamera?.position;
+          
+          // Sample vertex Z values to compare
+          const vertexZValues = traceBsp.vertices.slice(0, 1000).map(v => v.position[2]);
+          const vertexMinZ = Math.min(...vertexZValues);
+          const vertexMaxZ = Math.max(...vertexZValues);
+          
+          return [
+            `Total brushes: ${traceBsp.brushes.length}`,
+            `Solid brushes: ${solidBrushes.length}`,
+            `Brushes with floor planes: ${floorZValues.length}`,
+            '',
+            `Floor PLANE Z range (Q3): ${minZ.toFixed(0)} to ${maxZ.toFixed(0)}`,
+            `Vertex Z range (Q3): ${vertexMinZ.toFixed(0)} to ${vertexMaxZ.toFixed(0)}`,
+            '',
+            `Spawn origin (Q3): (${spawnOrigin[0]}, ${spawnOrigin[1]}, ${spawnOrigin[2]})`,
+            `  → Babylon: (${spawnOrigin[0]}, ${spawnOrigin[2]}, ${spawnOrigin[1]})`,
+            '',
+            camPos ? `Camera (Babylon): (${camPos.x.toFixed(1)}, ${camPos.y.toFixed(1)}, ${camPos.z.toFixed(1)})` : 'No camera',
+            camPos ? `  → Q3: (${camPos.x.toFixed(1)}, ${camPos.z.toFixed(1)}, ${camPos.y.toFixed(1)})` : '',
+          ].join('\n');
+        }
+
+        if (traceSubcmd === 'spawn') {
+          // Find a spawn point and trace from there
+          const spawn = traceBsp.entities.find(e => 
+            e.classname === 'info_player_deathmatch' || 
+            e.classname === 'info_player_start'
+          );
+          
+          if (!spawn || !spawn.properties.origin) {
+            return 'No spawn point found in BSP';
+          }
+          
+          // Parse Q3 origin (space-separated x y z)
+          const parts = spawn.properties.origin.split(' ').map(Number);
+          const q3Origin: [number, number, number] = [parts[0], parts[1], parts[2]];
+          
+          // Trace down 500 units from spawn (in Q3 coords) - more distance
+          const q3End: [number, number, number] = [q3Origin[0], q3Origin[1], q3Origin[2] - 500];
+          
+          const { BspCollision } = await import('../physics');
+          const coll = new BspCollision(traceBsp);
+          
+          // Convert to Babylon for tracePoint (which converts back to Q3)
+          const babylonStart = new Vector3(q3Origin[0], q3Origin[2], q3Origin[1]);
+          const babylonEnd = new Vector3(q3End[0], q3End[2], q3End[1]);
+          
+          console.log(`[Spawn Trace] Q3: (${q3Origin[0]}, ${q3Origin[1]}, ${q3Origin[2]}) → (${q3End[0]}, ${q3End[1]}, ${q3End[2]})`);
+          console.log(`[Spawn Trace] Babylon: (${babylonStart.x}, ${babylonStart.y}, ${babylonStart.z}) → (${babylonEnd.x}, ${babylonEnd.y}, ${babylonEnd.z})`);
+          
+          const result = coll.tracePoint(babylonStart, babylonEnd, true); // enable debug
+          
+          return [
+            `Spawn: ${spawn.classname}`,
+            `Q3 origin: (${q3Origin[0]}, ${q3Origin[1]}, ${q3Origin[2]})`,
+            `Babylon: (${babylonStart.x}, ${babylonStart.y}, ${babylonStart.z})`,
+            `Trace down 500 units:`,
+            `  Fraction: ${result.fraction.toFixed(4)}`,
+            `  Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+            `  Distance to floor: ${(result.fraction * 500).toFixed(1)} units`,
+            `  Start solid: ${result.startSolid}`,
+            result.plane ? `  Hit plane normal (Q3): (${result.plane.normal[0].toFixed(2)}, ${result.plane.normal[1].toFixed(2)}, ${result.plane.normal[2].toFixed(2)})` : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        if (traceSubcmd === 'bounds') {
+          // Show BSP world bounds from nodes[0]
+          const rootNode = traceBsp.nodes[0];
+          if (!rootNode) return 'No root node';
+          
+          return [
+            'BSP World Bounds (Q3 coords):',
+            `  Mins: (${rootNode.mins[0]}, ${rootNode.mins[1]}, ${rootNode.mins[2]})`,
+            `  Maxs: (${rootNode.maxs[0]}, ${rootNode.maxs[1]}, ${rootNode.maxs[2]})`,
+            '',
+            'Camera position (Babylon → Q3):',
+            traceScene?.activeCamera ? 
+              `  Babylon: (${traceScene.activeCamera.position.x.toFixed(1)}, ${traceScene.activeCamera.position.y.toFixed(1)}, ${traceScene.activeCamera.position.z.toFixed(1)})` +
+              `\n  Q3: (${traceScene.activeCamera.position.x.toFixed(1)}, ${traceScene.activeCamera.position.z.toFixed(1)}, ${traceScene.activeCamera.position.y.toFixed(1)})` 
+              : '  No camera',
+          ].join('\n');
+        }
+
+        return [
+          'Collision Commands:',
+          '  bsp collision point    - Check contents at camera position',
+          '  bsp collision down     - Trace down to find ground',
+          '  bsp collision forward  - Trace forward to find wall',
+          '  bsp collision spawn    - Trace from spawn point (debug)',
+          '  bsp collision bounds   - Show BSP world bounds',
+        ].join('\n');
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
