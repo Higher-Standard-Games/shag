@@ -21,15 +21,18 @@ import { ICameraController, CameraControllerConfig } from "./ICameraController";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
-  
+
+  // Static default speed that persists between controller changes
+  private static defaultSpeed: number = 200;
+
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
-  
+
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
-  
+
   // Movement keys state
   private keys = {
     forward: false,  // W
@@ -39,14 +42,28 @@ export class FreeflyController implements ICameraController {
     up: false,       // Space
     down: false,     // Shift
   };
-  
+
   // Configuration
   private config: CameraControllerConfig = {
-    speed: 200, // Fast for map exploration
+    speed: FreeflyController.defaultSpeed,
     mouseSensitivity: 0.002,
     invertY: false,
     fov: 1.0, // Wider FOV for debugging
   };
+
+  /**
+   * Get the current default speed
+   */
+  static getDefaultSpeed(): number {
+    return FreeflyController.defaultSpeed;
+  }
+
+  /**
+   * Set the default speed (persists between controller changes)
+   */
+  static setDefaultSpeed(speed: number): void {
+    FreeflyController.defaultSpeed = speed;
+  }
   
   // Observers
   private renderObserver: Observer<Scene> | null = null;

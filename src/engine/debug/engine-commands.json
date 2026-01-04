@@ -11,6 +11,11 @@
       "usage": "show_fps <0|1>"
     },
     {
+      "name": "freefly_speed",
+      "description": "Get or set freefly camera speed",
+      "usage": "freefly_speed [speed]"
+    },
+    {
       "name": "bsp",
       "description": "BSP map loading and debugging (Quake3/Warsow FBSP)",
       "usage": "bsp <command> [args]",
