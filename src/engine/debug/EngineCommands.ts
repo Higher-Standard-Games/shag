@@ -3014,6 +3014,154 @@ export function registerEngineCommands(): void {
           ].join('\n');
         }
 
+        // Headless-friendly trace command with explicit Q3 coordinates
+        if (traceSubcmd === 'trace') {
+          const x = parseFloat(args[2]);
+          const y = parseFloat(args[3]);
+          const z = parseFloat(args[4]);
+          const distance = parseFloat(args[5]) || 500;
+          
+          if (isNaN(x) || isNaN(y) || isNaN(z)) {
+            return 'Usage: bsp collision trace <x> <y> <z> [distance]\n  Traces down from Q3 coordinates (x, y, z) for [distance] units (default 500)';
+          }
+          
+          const { BspCollision } = await import('../physics');
+          const coll = new BspCollision(traceBsp);
+          
+          console.log(`[Trace] Q3: (${x}, ${y}, ${z}) → (${x}, ${y}, ${z - distance})`);
+          
+          const result = coll.tracePoint(
+            new Vector3(x, z, y),  // Convert to Babylon for tracePoint
+            new Vector3(x, z - distance, y),
+            true  // Enable debug output
+          );
+          
+          return [
+            `Trace from Q3 (${x}, ${y}, ${z}) down ${distance} units:`,
+            `  Fraction: ${result.fraction.toFixed(4)}`,
+            `  Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+            `  Distance to floor: ${(result.fraction * distance).toFixed(1)} units`,
+            `  Start solid: ${result.startSolid}`,
+            `  All solid: ${result.allSolid}`,
+            result.plane ? `  Hit plane: normal=(${result.plane.normal[0].toFixed(2)}, ${result.plane.normal[1].toFixed(2)}, ${result.plane.normal[2].toFixed(2)}) dist=${result.plane.dist.toFixed(1)}` : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        // Headless-friendly leaf lookup with explicit Q3 coordinates
+        if (traceSubcmd === 'findleaf') {
+          const x = parseFloat(args[2]);
+          const y = parseFloat(args[3]);
+          const z = parseFloat(args[4]);
+          
+          if (isNaN(x) || isNaN(y) || isNaN(z)) {
+            return 'Usage: bsp collision findleaf <x> <y> <z>\n  Find BSP leaf containing Q3 coordinates';
+          }
+          
+          const q3Pos: [number, number, number] = [x, y, z];
+          
+          // Traverse BSP tree to find leaf
+          let nodeIndex = 0;
+          const path: string[] = [];
+          
+          while (nodeIndex >= 0) {
+            const node = traceBsp.nodes[nodeIndex];
+            if (!node) break;
+            const plane = traceBsp.planes[node.planeIndex];
+            if (!plane) break;
+            
+            const dist = q3Pos[0] * plane.normal[0] + q3Pos[1] * plane.normal[1] + q3Pos[2] * plane.normal[2] - plane.dist;
+            const side = dist >= 0 ? 'front' : 'back';
+            const nextNode = dist >= 0 ? node.children[0] : node.children[1];
+            path.push(`Node ${nodeIndex}: ${side} (d=${dist.toFixed(1)}) → ${nextNode}`);
+            nodeIndex = nextNode;
+          }
+          
+          const leafIndex = -(nodeIndex + 1);
+          const leaf = traceBsp.leafs[leafIndex];
+          
+          // Get brushes in this leaf
+          const brushInfo: string[] = [];
+          if (leaf) {
+            for (let i = 0; i < leaf.numLeafBrushes; i++) {
+              const brushIdx = traceBsp.leafBrushes[leaf.firstLeafBrush + i];
+              const brush = traceBsp.brushes[brushIdx];
+              const tex = traceBsp.textures[brush?.shaderIndex];
+              brushInfo.push(`  Brush ${brushIdx}: ${brush?.numSides || 0} sides, flags=0x${tex?.contentFlags?.toString(16) || '?'}`);
+            }
+          }
+          
+          return [
+            `Q3 Position: (${x}, ${y}, ${z})`,
+            `Leaf index: ${leafIndex}`,
+            `Leaf brushes: ${leaf?.numLeafBrushes || 0}`,
+            `Leaf cluster: ${leaf?.cluster ?? -1}`,
+            '',
+            'Path (last 5 nodes):',
+            ...path.slice(-5),
+            '',
+            'Brushes in leaf:',
+            ...brushInfo.slice(0, 10),
+            brushInfo.length === 0 ? '  (none)' : '',
+          ].filter(Boolean).join('\n');
+        }
+
+        // Headless-friendly brush finder with explicit Q3 coordinates
+        if (traceSubcmd === 'findbrush') {
+          const x = parseFloat(args[2]);
+          const y = parseFloat(args[3]);
+          const z = parseFloat(args[4]);
+          
+          if (isNaN(x) || isNaN(y) || isNaN(z)) {
+            return 'Usage: bsp collision findbrush <x> <y> <z>\n  Find brushes containing Q3 XY with floor below Z';
+          }
+          
+          // Helper to check if a point is inside brush XY bounds
+          const pointInsideBrushXY = (brush: typeof traceBsp.brushes[0], px: number, py: number): boolean => {
+            for (let si = 0; si < brush.numSides; si++) {
+              const side = traceBsp.brushSides[brush.firstSide + si];
+              if (!side) continue;
+              const plane = traceBsp.planes[side.planeIndex];
+              if (!plane) continue;
+              if (Math.abs(plane.normal[2]) > 0.1) continue;
+              const dist = plane.normal[0] * px + plane.normal[1] * py - plane.dist;
+              if (dist > 0) return false;
+            }
+            return true;
+          };
+          
+          const matchingBrushes: string[] = [];
+          for (let bi = 0; bi < traceBsp.brushes.length && matchingBrushes.length < 10; bi++) {
+            const brush = traceBsp.brushes[bi];
+            const tex = traceBsp.textures[brush.shaderIndex];
+            
+            if (!pointInsideBrushXY(brush, x, y)) continue;
+            
+            let floorZ = -Infinity;
+            for (let si = 0; si < brush.numSides; si++) {
+              const side = traceBsp.brushSides[brush.firstSide + si];
+              if (!side) continue;
+              const plane = traceBsp.planes[side.planeIndex];
+              if (!plane) continue;
+              if (plane.normal[2] > 0.9 && plane.dist < z) {
+                floorZ = Math.max(floorZ, plane.dist);
+              }
+            }
+            
+            if (floorZ > -Infinity) {
+              const flags = tex ? `0x${tex.contentFlags.toString(16)}` : 'none';
+              matchingBrushes.push(`Brush ${bi}: floor at Z=${floorZ.toFixed(0)}, flags=${flags}`);
+            }
+          }
+          
+          return [
+            `Q3 Position: (${x}, ${y}, ${z})`,
+            `Looking for brushes containing XY with floor below Z...`,
+            '',
+            ...matchingBrushes,
+            matchingBrushes.length === 0 ? 'NO BRUSHES FOUND' : '',
+          ].filter(Boolean).join('\n');
+        }
+
         return [
           'Collision Commands:',
           '  bsp collision point    - Check contents at camera position',
@@ -3021,6 +3169,11 @@ export function registerEngineCommands(): void {
           '  bsp collision forward  - Trace forward to find wall',
           '  bsp collision spawn    - Trace from spawn point (debug)',
           '  bsp collision bounds   - Show BSP world bounds',
+          '',
+          'Headless Commands (explicit Q3 coords):',
+          '  bsp collision trace <x> <y> <z> [dist] - Trace down from Q3 coords',
+          '  bsp collision findleaf <x> <y> <z>     - Find leaf at Q3 coords',
+          '  bsp collision findbrush <x> <y> <z>    - Find brushes at Q3 XY',
         ].join('\n');
       }
 
