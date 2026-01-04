@@ -165,6 +165,20 @@ export class MapLoader {
     progress('Shaders', 'Loading shader definitions');
     await this.shaderRegistry.loadShaders();
 
+    // Phase 4b: Resolve sky texture dependencies (needs shaders loaded first)
+    const skyPk3s = await this.resolveSkyDependencies(bsp);
+    for (const pk3 of skyPk3s) {
+      progress('Dependencies', `Loading sky textures from ${pk3}`);
+      try {
+        const pk3Path = this.pk3Index.getPK3Path(pk3);
+        if (pk3Path) {
+          await this.pk3Loader.loadPK3FromUrl(pk3Path);
+        }
+      } catch (e) {
+        console.warn(`[MapLoader] Failed to load sky dependency ${pk3}:`, e);
+      }
+    }
+
     // Phase 5: Build mesh
     progress('Geometry', 'Building mesh');
     const meshResult = BspMeshBuilder.build(bsp, scene, {
@@ -239,6 +253,47 @@ export class MapLoader {
     for (const pk3 of morePk3s) {
       if (!loadedPackages.has(pk3)) {
         requiredPk3s.add(pk3);
+      }
+    }
+
+    return requiredPk3s;
+  }
+
+  /**
+   * Resolve sky texture dependencies (call after shaders are loaded)
+   */
+  private async resolveSkyDependencies(bsp: BspFile): Promise<Set<string>> {
+    const requiredPk3s = new Set<string>();
+    const loadedPackages = new Set(
+      this.pk3Loader.getPackageInfo().map(p => p.filename)
+    );
+
+    const textureNames = bsp.textures.map(t => t.name);
+
+    for (const texName of textureNames) {
+      const shader = this.shaderRegistry.getShader(texName);
+      if (shader?.skyParms?.farbox) {
+        // Sky textures have _ft, _bk, _lf, _rt, _up, _dn suffixes
+        // farbox may or may not include "env/" prefix already
+        let skyPath = shader.skyParms.farbox;
+        if (!skyPath.startsWith('env/')) {
+          skyPath = `env/${skyPath}`;
+        }
+        
+        const suffixes = ['_ft', '_bk', '_lf', '_rt', '_up', '_dn'];
+        const extensions = ['.tga', '.jpg', '.png'];
+        
+        for (const suffix of suffixes) {
+          for (const ext of extensions) {
+            const envPath = `${skyPath}${suffix}${ext}`;
+            const pk3 = this.pk3Index.findFile(envPath);
+            if (pk3 && !loadedPackages.has(pk3)) {
+              requiredPk3s.add(pk3);
+              console.log(`[MapLoader] Sky texture dependency: ${envPath} -> ${pk3}`);
+              break;
+            }
+          }
+        }
       }
     }
 

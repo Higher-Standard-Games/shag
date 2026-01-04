@@ -1722,6 +1722,12 @@ export function registerEngineCommands(): void {
     const cameraSystem = CameraSystem.getInstance();
     const scene = cameraSystem.getCamera()?.getScene();
 
+    // Get effective BSP state (local or from MapLoader)
+    const { MapLoader } = await import('../loader/map/MapLoader');
+    const mapLoader = MapLoader.getInstance();
+    const effectiveBsp = loadedBsp || mapLoader.getCurrentBsp();
+    const effectiveResult = bspRenderResult || mapLoader.getCurrentMeshResult();
+
     switch (subcommand) {
       case 'load': {
         const mapName = args[1];
@@ -1775,11 +1781,11 @@ export function registerEngineCommands(): void {
       }
 
       case 'info': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
-        const bsp = loadedBsp;
+        const bsp = effectiveBsp;
         const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
 
         return [
@@ -1804,12 +1810,12 @@ export function registerEngineCommands(): void {
       }
 
       case 'faces': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         const counts = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
-        for (const face of loadedBsp.faces) {
+        for (const face of effectiveBsp.faces) {
           switch (face.faceType) {
             case 1: counts.polygon++; break;
             case 2: counts.patch++; break;
@@ -1824,20 +1830,20 @@ export function registerEngineCommands(): void {
           `Patches (type 2): ${counts.patch}`,
           `Meshes (type 3): ${counts.mesh}`,
           `Billboards (type 4): ${counts.billboard}`,
-          `Total: ${loadedBsp.faces.length}`,
+          `Total: ${effectiveBsp.faces.length}`,
         ].join('\n');
       }
 
       case 'entities': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         const filter = args[1]?.toLowerCase();
 
         // Count entity types
         const entityTypes: Record<string, number> = {};
-        for (const ent of loadedBsp.entities) {
+        for (const ent of effectiveBsp.entities) {
           if (filter && !ent.classname.toLowerCase().includes(filter)) continue;
           entityTypes[ent.classname] = (entityTypes[ent.classname] || 0) + 1;
         }
@@ -1861,20 +1867,20 @@ export function registerEngineCommands(): void {
       }
 
       case 'textures': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         const filter = args[1]?.toLowerCase();
-        let textures = loadedBsp.textures.map((tex, i) => ({ index: i, name: tex.name }));
+        let textures = effectiveBsp.textures.map((tex, i) => ({ index: i, name: tex.name }));
 
         if (filter) {
           textures = textures.filter(t => t.name.toLowerCase().includes(filter));
         }
 
         const lines = filter
-          ? [`=== Textures matching "${filter}" (${textures.length} of ${loadedBsp.textures.length}) ===`]
-          : [`=== All Textures (${loadedBsp.textures.length}) ===`];
+          ? [`=== Textures matching "${filter}" (${textures.length} of ${effectiveBsp.textures.length}) ===`]
+          : [`=== All Textures (${effectiveBsp.textures.length}) ===`];
 
         textures.forEach((tex) => {
           lines.push(`${tex.index}: ${tex.name}`);
@@ -1888,14 +1894,14 @@ export function registerEngineCommands(): void {
       }
 
       case 'required': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         const { getBspUsedTextures } = await import('../loader');
         const { PK3Index } = await import('../loader');
 
-        const usedTextures = getBspUsedTextures(loadedBsp);
+        const usedTextures = getBspUsedTextures(effectiveBsp);
         const index = PK3Index.getInstance();
 
         if (!index.hasIndex()) {
@@ -1950,14 +1956,14 @@ export function registerEngineCommands(): void {
 
       case 'loadrequired':
       case 'preload': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         const { getBspUsedTextures: getTextures } = await import('../loader');
         const { PK3Index } = await import('../loader');
 
-        const usedTextures = getTextures(loadedBsp);
+        const usedTextures = getTextures(effectiveBsp);
         const index = PK3Index.getInstance();
 
         if (!index.hasIndex()) {
@@ -2015,11 +2021,11 @@ export function registerEngineCommands(): void {
       }
 
       case 'worldspawn': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
-        const worldspawn = loadedBsp.entities.find(e => e.classname === 'worldspawn');
+        const worldspawn = effectiveBsp.entities.find(e => e.classname === 'worldspawn');
         if (!worldspawn) {
           return 'No worldspawn entity found';
         }
@@ -2035,18 +2041,18 @@ export function registerEngineCommands(): void {
       }
 
       case 'clusters': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
-        const vis = loadedBsp.visData;
+        const vis = effectiveBsp.visData;
         if (!vis) {
           return 'No visibility data in this BSP';
         }
 
         // Count leafs per cluster
         const clusterLeafs: Record<number, number> = {};
-        for (const leaf of loadedBsp.leafs) {
+        for (const leaf of effectiveBsp.leafs) {
           if (leaf.cluster >= 0) {
             clusterLeafs[leaf.cluster] = (clusterLeafs[leaf.cluster] || 0) + 1;
           }
@@ -2058,27 +2064,27 @@ export function registerEngineCommands(): void {
           `Bytes per cluster: ${vis.bytesPerCluster}`,
           `PVS data size: ${vis.bitVectors.length} bytes`,
           `Leafs with clusters: ${Object.keys(clusterLeafs).length}`,
-          `Leafs outside world: ${loadedBsp.leafs.filter(l => l.cluster < 0).length}`,
+          `Leafs outside world: ${effectiveBsp.leafs.filter(l => l.cluster < 0).length}`,
         ].join('\n');
       }
 
       case 'lightmaps': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
-        const count = loadedBsp.lightmaps.length;
-        const size = loadedBsp.lightmapSize;
+        const count = effectiveBsp.lightmaps.length;
+        const size = effectiveBsp.lightmapSize;
         const bytesEach = size * size * 3;
         const totalMB = (count * bytesEach / 1024 / 1024).toFixed(2);
 
         // Count faces using lightmaps
-        const lmFaces = loadedBsp.faces.filter(f => f.lightmapIndex >= 0).length;
+        const lmFaces = effectiveBsp.faces.filter(f => f.lightmapIndex >= 0).length;
 
         return [
           `=== Lightmap Info ===`,
           `Count: ${count}`,
-          `Size: ${size}x${size} (${loadedBsp.header.isFBSP ? 'FBSP' : 'IBSP'})`,
+          `Size: ${size}x${size} (${effectiveBsp.header.isFBSP ? 'FBSP' : 'IBSP'})`,
           `Format: RGB (3 bytes/pixel)`,
           `Total size: ${totalMB} MB`,
           `Faces using lightmaps: ${lmFaces}`,
@@ -2086,8 +2092,8 @@ export function registerEngineCommands(): void {
       }
 
       case 'render': {
-        if (!loadedBsp) {
-          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" or "map <name>" first.';
         }
 
         if (!scene) {
@@ -2123,13 +2129,13 @@ export function registerEngineCommands(): void {
         }
 
         try {
-          bspRenderResult = BspMeshBuilder.build(loadedBsp, scene, {
+          bspRenderResult = BspMeshBuilder.build(effectiveBsp, scene, {
             faceTypes,
             filterTextures: true,
           });
 
           // Position camera to view the map
-          const world = loadedBsp.models[0];
+          const world = effectiveBsp.models[0];
           if (world) {
             const centerX = (world.mins[0] + world.maxs[0]) / 2;
             const centerZ = (world.mins[1] + world.maxs[1]) / 2;
@@ -2168,8 +2174,8 @@ export function registerEngineCommands(): void {
 
       case 'applytextures':
       case 'loadtextures': {
-        if (!loadedBsp || !bspRenderResult) {
-          return 'No BSP rendered. Use "bsp load <map>" then "bsp render" first.';
+        if (!effectiveBsp || !effectiveResult) {
+          return 'No BSP rendered. Use "bsp load <map>" then "bsp render", or "map <name>" first.';
         }
 
         if (!scene) {
@@ -2178,8 +2184,8 @@ export function registerEngineCommands(): void {
 
         try {
           const count = await BspMeshBuilder.applyTextures(
-            bspRenderResult,
-            loadedBsp,
+            effectiveResult,
+            effectiveBsp,
             scene,
             (loaded, total, name) => {
               console.log(`[BSP] Loading texture ${loaded}/${total}: ${name}`);
@@ -2193,8 +2199,8 @@ export function registerEngineCommands(): void {
 
       case 'applylightmaps':
       case 'lightmap': {
-        if (!bspRenderResult) {
-          return 'No BSP rendered. Use "bsp render" first.';
+        if (!effectiveResult) {
+          return 'No BSP rendered. Use "bsp render" or "map <name>" first.';
         }
 
         // Parse options: bsp applylightmaps [mode] [intensity]
@@ -2203,7 +2209,7 @@ export function registerEngineCommands(): void {
         const intensity = intensityArg ? parseFloat(intensityArg) : 1.5;
 
         try {
-          const count = BspMeshBuilder.applyLightmaps(bspRenderResult, {
+          const count = BspMeshBuilder.applyLightmaps(effectiveResult, {
             mode,
             intensity: isNaN(intensity) ? 1.5 : intensity,
           });
@@ -2218,11 +2224,11 @@ export function registerEngineCommands(): void {
 
         if (!skySubcommand || skySubcommand === 'info') {
           // Show sky shader info
-          if (!bspRenderResult) {
-            return 'No BSP rendered. Use "bsp render" first.';
+          if (!effectiveResult) {
+            return 'No BSP rendered. Use "bsp render" or "map <name>" first.';
           }
 
-          const skyShaders = bspRenderResult.skyShaders;
+          const skyShaders = effectiveResult.skyShaders;
           if (skyShaders.length === 0) {
             return 'No sky shaders found in this map.';
           }
@@ -2240,12 +2246,12 @@ export function registerEngineCommands(): void {
         }
 
         if (skySubcommand === 'apply') {
-          if (!bspRenderResult || !scene) {
-            return 'No BSP rendered. Use "bsp render" first.';
+          if (!effectiveResult || !scene) {
+            return 'No BSP rendered. Use "bsp render" or "map <name>" first.';
           }
 
           try {
-            const result = await BspMeshBuilder.applySkybox(bspRenderResult, scene);
+            const result = await BspMeshBuilder.applySkybox(effectiveResult, scene);
             if (result.success) {
               return 'Skybox created successfully.';
             } else {
@@ -2447,6 +2453,75 @@ export function registerEngineCommands(): void {
         return debugShaderPattern(shader);
       }
 
+      case 'deps': {
+        // Debug shader dependencies - which PK3s contain the textures?
+        const textureName = args[1];
+        if (!textureName) {
+          return 'Usage: shader deps <texture_path>\nShows which PK3s contain the shader and its textures.';
+        }
+
+        const { PK3Index } = await import('../loader/pk3/PK3Index');
+        const { PK3Loader } = await import('../loader/pk3/PK3Loader');
+        const pk3Index = PK3Index.getInstance();
+        const pk3Loader = PK3Loader.getInstance();
+
+        const lines: string[] = [`Dependency check for: ${textureName}`];
+
+        // Check shader definition
+        const shaderPk3 = pk3Index.findShader(textureName);
+        lines.push(`\nShader definition: ${shaderPk3 || 'NOT INDEXED'}`);
+
+        // Check if shader is loaded
+        const shader = shaderRegistry.getShader(textureName);
+        lines.push(`Shader loaded: ${shader ? 'YES' : 'NO'}`);
+
+        if (shader) {
+          lines.push(`\nStages (${shader.stages.length}):`);
+          for (let i = 0; i < shader.stages.length; i++) {
+            const stage = shader.stages[i];
+            if (stage.map && !stage.map.startsWith('$')) {
+              const texPk3 = pk3Index.findFile(stage.map) ||
+                pk3Index.findFile(`${stage.map}.tga`) ||
+                pk3Index.findFile(`${stage.map}.jpg`);
+              const loaded = pk3Loader.hasFile(stage.map) ||
+                pk3Loader.hasFile(`${stage.map}.tga`) ||
+                pk3Loader.hasFile(`${stage.map}.jpg`);
+              lines.push(`  [${i}] ${stage.map}`);
+              lines.push(`      PK3: ${texPk3 || 'NOT INDEXED'}`);
+              lines.push(`      Loaded: ${loaded ? 'YES' : 'NO'}`);
+              if (stage.blendFunc) {
+                lines.push(`      Blend: ${stage.blendFunc.join(' ')}`);
+              }
+            } else if (stage.map) {
+              lines.push(`  [${i}] ${stage.map} (special)`);
+            }
+          }
+
+          // Surface params
+          if (shader.surfaceParms.size > 0) {
+            lines.push(`\nSurfaceParms: ${Array.from(shader.surfaceParms).join(', ')}`);
+          }
+        }
+
+        // Check texture file directly
+        const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+        lines.push(`\nTexture file search:`);
+        for (const ext of extensions) {
+          const path = textureName.includes('.') ? textureName : `${textureName}${ext}`;
+          const pk3 = pk3Index.findFile(path) || pk3Index.findFile(`textures/${path}`);
+          if (pk3) {
+            const loaded = pk3Loader.hasFile(path) || pk3Loader.hasFile(`textures/${path}`);
+            lines.push(`  ${path}: ${pk3} (loaded: ${loaded ? 'YES' : 'NO'})`);
+          }
+        }
+
+        // Show loaded PK3s
+        const loadedPk3s = pk3Loader.getPackageInfo().map(p => p.filename);
+        lines.push(`\nLoaded PK3s (${loadedPk3s.length}): ${loadedPk3s.slice(0, 10).join(', ')}${loadedPk3s.length > 10 ? '...' : ''}`);
+
+        return lines.join('\n');
+      }
+
       case 'glow': {
         // Adjust glow intensity for all glow overlay materials
         const intensity = parseFloat(args[1]);
@@ -2607,6 +2682,7 @@ export function registerEngineCommands(): void {
           '  shader info <path>  - Show shader definition',
           '  shader resolve <path> - Show resolved material props',
           '  shader pattern <path> - Analyze shader pattern (glow_overlay, etc.)',
+          '  shader deps <path>  - Debug shader/texture dependencies',
           '  shader glow <n>     - Set glow intensity (default 1.0)',
           '  shader lightmap <n> - Set lightmap intensity (default 2.0)',
           '  shader clear        - Clear shader registry',

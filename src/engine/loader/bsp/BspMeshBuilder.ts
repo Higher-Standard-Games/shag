@@ -1000,11 +1000,11 @@ export class BspMeshBuilder {
     // Depth write
     mat.disableDepthWrite = !props.depthWrite;
 
-    // Polygon offset for decals - use larger offset to prevent z-fighting
+    // Polygon offset for decals
+    // NOTE: polygonOffset with multiply blend (decals) still has z-fighting issues
+    // TODO: Investigate proper decal rendering with depth sorting or stencil buffer
     if (props.polygonOffset) {
       mat.zOffset = -2;
-      // Also slightly reduce depth for decals
-      mat.separateCullingPass = true;
     }
 
     return mat;

@@ -215,13 +215,32 @@ export class Q3ShaderRegistry {
           props.alphaMode = 'blend';
           props.isTransparent = true;
         }
-        // Filter/multiply: GL_DST_COLOR, GL_ZERO
+        // Filter/multiply: GL_DST_COLOR, GL_ZERO (used for decals)
         else if (src === 'GL_DST_COLOR' && dst === 'GL_ZERO') {
           props.alphaMode = 'multiply';
           props.isTransparent = true;
+          props.depthWrite = false;
         }
         // Additive with alpha: GL_SRC_ALPHA, GL_ONE
         else if (src === 'GL_SRC_ALPHA' && dst === 'GL_ONE') {
+          props.alphaMode = 'add';
+          props.isTransparent = true;
+          props.depthWrite = false;
+        }
+        // Soft additive / screen: GL_ONE, GL_ONE_MINUS_SRC_COLOR
+        // Used for flares, glows - adds light but caps at white
+        else if (src === 'GL_ONE' && dst === 'GL_ONE_MINUS_SRC_COLOR') {
+          props.alphaMode = 'add';
+          props.isTransparent = true;
+          props.depthWrite = false;
+        }
+        // Inverse multiply: GL_ZERO, GL_ONE_MINUS_SRC_COLOR  
+        else if (src === 'GL_ZERO' && dst === 'GL_ONE_MINUS_SRC_COLOR') {
+          props.alphaMode = 'multiply';
+          props.isTransparent = true;
+        }
+        // Any other blend with GL_ONE as source is likely additive-ish
+        else if (src === 'GL_ONE' && dst !== 'GL_ZERO') {
           props.alphaMode = 'add';
           props.isTransparent = true;
           props.depthWrite = false;
