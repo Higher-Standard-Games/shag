@@ -413,7 +413,37 @@ For maps with multiple fog volumes:
 ### Estimated Effort
 - **High** - Requires custom shader pipeline
 - Affects: All material creation, shader code
-- Alternative: Port quake3.js fog implementation?
+
+---
+
+## Q3 Fog Algorithm (Confirmed by Carmack)
+
+From Khronos forum discussion where someone spoke directly with John Carmack:
+
+### Key Insights
+
+1. **Fog brushes have ONE visible surface** - the other 5 sides have normals set to `(0,0,0)`
+2. **Each face has `effectIndex`** - tells which fog volume it's inside (-1 if not)
+3. **Render algorithm:**
+   - Determine if camera is inside/outside fog volume using the visible surface
+   - For faces inside the volume: "shoot rays" to vertices, calculate fog based on depth INTO volume
+   - If inside, also render the visible fog surface (represents "far edge")
+   - Fog is rendered as extra pass with gradient texture
+
+### Carmack's Comments
+
+> "If the fog surface has visible passes, it is rendered both when you are inside and outside the fog volume. When you are inside, the fog surface will have the additional fog blending on top of it."
+
+> "Note that you may run into some issues with border colors when in large fogged areas unless you use GL_NEAREST filtering and clamped texture repeat on the fog texture."
+
+### Implementation Requirements
+
+1. Identify the ONE visible surface per fog brush (non-zero normal)
+2. Calculate per-vertex fog depth (ray-plane intersection)
+3. Multi-pass rendering with fog gradient texture
+4. Handle camera inside/outside volume transitions
+
+**Source:** https://community.khronos.org/t/how-to-render-quake-3-volumetric-fog/36357
 
 ---
 
