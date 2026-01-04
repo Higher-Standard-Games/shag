@@ -3252,6 +3252,72 @@ export function registerEngineCommands(): void {
           ].join('\n');
         }
 
+        // Backend management commands
+        if (traceSubcmd === 'backend') {
+          const { getCollisionManager } = await import('../physics');
+          const cm = getCollisionManager();
+          const backendArg = args[2]?.toLowerCase();
+          
+          if (!backendArg || backendArg === 'list') {
+            const backends = cm.getAvailableBackends();
+            const current = cm.getBackendType();
+            return [
+              'Available collision backends:',
+              ...backends.map(b => `  ${b.type === current ? '>' : ' '} ${b.type}: ${b.name}`),
+              '',
+              `Current: ${current ?? 'none'}`,
+              'Use: bsp collision backend <type> to switch',
+            ].join('\n');
+          }
+          
+          if (backendArg === 'clipbrush' || backendArg === 'babylon') {
+            if (!cm.isInitialized()) {
+              await cm.init(traceBsp, (traceScene as unknown) as undefined, backendArg);
+            } else {
+              cm.setBackend(backendArg);
+            }
+            return `Switched to ${cm.getBackendType()} backend`;
+          }
+          
+          return 'Unknown backend. Use: clipbrush, babylon';
+        }
+
+        // Test new backend trace
+        if (traceSubcmd === 'test') {
+          const { getCollisionManager } = await import('../physics');
+          const cm = getCollisionManager();
+          
+          if (!cm.isInitialized()) {
+            await cm.init(traceBsp, (traceScene as unknown) as undefined);
+          }
+          
+          // Get spawn point
+          const spawn = traceBsp.entities.find(e => 
+            e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+          );
+          const origin = spawn?.properties.origin?.split(' ').map(Number) || [0, 0, 100];
+          
+          // Convert Q3 to Babylon coords
+          const babylonPos = new Vector3(origin[0], origin[2], origin[1]);
+          const babylonEnd = babylonPos.add(new Vector3(0, -500, 0));
+          
+          const result = cm.trace(babylonPos as never, babylonEnd as never, { debug: true });
+          const stats = cm.getStats();
+          
+          return [
+            `Backend: ${cm.getBackendType()}`,
+            `Spawn: Q3(${origin[0]}, ${origin[1]}, ${origin[2]}) → Babylon(${babylonPos.x.toFixed(0)}, ${babylonPos.y.toFixed(0)}, ${babylonPos.z.toFixed(0)})`,
+            '',
+            'Trace Result:',
+            `  Fraction: ${result.fraction.toFixed(4)}`,
+            `  Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+            `  Distance: ${(result.fraction * 500).toFixed(1)} units`,
+            result.normal ? `  Normal: (${result.normal.x.toFixed(2)}, ${result.normal.y.toFixed(2)}, ${result.normal.z.toFixed(2)})` : '',
+            '',
+            stats ? `Stats: ${stats.traceCount} traces, ${stats.hitCount} hits, ${stats.avgTraceTimeMs.toFixed(3)}ms avg` : '',
+          ].filter(Boolean).join('\n');
+        }
+
         return [
           'Collision Commands:',
           '  bsp collision point    - Check contents at camera position',
@@ -3260,11 +3326,16 @@ export function registerEngineCommands(): void {
           '  bsp collision spawn    - Trace from spawn point (debug)',
           '  bsp collision bounds   - Show BSP world bounds',
           '',
+          'Backend Commands:',
+          '  bsp collision backend [type]  - List or switch collision backends',
+          '  bsp collision test            - Test current backend from spawn',
+          '',
           'Headless Commands (explicit Q3 coords):',
           '  bsp collision trace <x> <y> <z> [dist] - Trace down from Q3 coords',
           '  bsp collision findleaf <x> <y> <z>     - Find leaf at Q3 coords',
           '  bsp collision findbrush <x> <y> <z>    - Find brushes at Q3 XY',
           '  bsp collision brushinleaf <id>         - Find leaf containing brush',
+          '  bsp collision brushinfo <id>           - Show brush plane details',
           '  bsp collision leafstats                - Show leaf/brush statistics',
         ].join('\n');
       }

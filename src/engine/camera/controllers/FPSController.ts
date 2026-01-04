@@ -14,6 +14,7 @@ import {
 } from "babylonjs";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { InputSystem } from "../../input";
+import { getCollisionManager } from "../../physics";
 
 export class FPSController implements ICameraController {
   readonly type = "fps";
@@ -134,8 +135,29 @@ export class FPSController implements ICameraController {
       );
     }
     
-    // Apply movement
-    this.camera.position.addInPlace(movement);
+    // Apply movement with collision detection
+    if (movement.length() > 0) {
+      const cm = getCollisionManager();
+      if (cm.isInitialized()) {
+        const start = this.camera.position.clone();
+        const end = start.add(movement);
+        
+        // Trace movement
+        const result = cm.trace(start as never, end as never);
+        
+        if (result.fraction < 1.0) {
+          // Hit something - move to collision point with small offset
+          const safeMove = movement.scale(result.fraction * 0.95);
+          this.camera.position.addInPlace(safeMove);
+        } else {
+          // No collision - apply full movement
+          this.camera.position.addInPlace(movement);
+        }
+      } else {
+        // No collision system - apply movement directly
+        this.camera.position.addInPlace(movement);
+      }
+    }
     
     // Handle cancel action (exit pointer lock, etc.)
     if (input.wasPressed("cancel")) {

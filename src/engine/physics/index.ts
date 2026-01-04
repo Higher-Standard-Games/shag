@@ -2,12 +2,18 @@
  * Physics module - BSP collision and player movement
  */
 
-export { BspCollision, type TraceResult } from './BspCollision';
-export {
-  ContentFlags,
-  SurfaceFlags,
-  CollisionMasks,
-  isPlayerSolid,
-  isSolid,
-  isLiquid,
-} from './ContentFlags';
+export { BspCollision } from './BspCollision';
+export { ContentFlags, SurfaceFlags } from './ContentFlags';
+
+// Collision Backend System
+export type {
+  CollisionBackend,
+  CollisionBackendType,
+  TraceResult,
+  TraceOptions,
+  CollisionStats,
+} from './CollisionBackend';
+export { Contents, createDefaultTraceResult } from './CollisionBackend';
+export { ClipBrushBackend } from './ClipBrushBackend';
+export { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
+export { CollisionManager, getCollisionManager } from './CollisionManager';
