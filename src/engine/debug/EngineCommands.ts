@@ -343,6 +343,33 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
+  // Freefly Collision Command
+  // ============================================================================
+
+  registry.register('freefly_collision', async (args) => {
+    const value = args[0]?.toLowerCase();
+
+    // No argument - show current state
+    if (value === undefined) {
+      const enabled = FreeflyController.isCollisionEnabled();
+      return `freefly_collision = ${enabled ? '1' : '0'}`;
+    }
+
+    // Parse value
+    const enabled = value === '1' || value === 'true' || value === 'on';
+    FreeflyController.setCollisionEnabled(enabled);
+
+    // Show collision backend info
+    const { getCollisionManager } = await import('../physics');
+    const cm = getCollisionManager();
+    const backendInfo = cm.isInitialized() 
+      ? `Backend: ${cm.getBackendType()}` 
+      : 'Warning: Collision not initialized (load a map first)';
+
+    return `freefly_collision = ${enabled ? '1' : '0'}\n${backendInfo}`;
+  });
+
+  // ============================================================================
   // Debug Commands
   // ============================================================================
 

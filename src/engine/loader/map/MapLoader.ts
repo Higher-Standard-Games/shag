@@ -200,7 +200,18 @@ export class MapLoader {
     progress('Lightmaps', 'Applying');
     BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
 
-    // Phase 9: Process BSP entities through EntityHandlerRegistry
+    // Phase 9: Initialize collision system
+    progress('Collision', 'Initializing');
+    try {
+      const { getCollisionManager } = await import('../../physics');
+      const cm = getCollisionManager();
+      await cm.init(bsp, scene as never);
+      console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
+    } catch (e) {
+      console.warn('[MapLoader] Failed to initialize collision:', e);
+    }
+
+    // Phase 10: Process BSP entities through EntityHandlerRegistry
     progress('Entities', 'Processing');
     registerBspEntityHandlers(); // Register func_door, etc.
     setCurrentBspForHandlers(bsp); // Set BSP reference for handlers

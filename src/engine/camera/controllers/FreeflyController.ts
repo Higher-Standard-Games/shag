@@ -18,12 +18,16 @@ import {
   Vector3,
 } from "babylonjs";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
+import { getCollisionManager } from "../../physics";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
 
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
+  
+  // Static collision enable flag (toggled via console command)
+  private static collisionEnabled: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -63,6 +67,21 @@ export class FreeflyController implements ICameraController {
    */
   static setDefaultSpeed(speed: number): void {
     FreeflyController.defaultSpeed = speed;
+  }
+  
+  /**
+   * Get collision enabled state
+   */
+  static isCollisionEnabled(): boolean {
+    return FreeflyController.collisionEnabled;
+  }
+  
+  /**
+   * Set collision enabled state
+   */
+  static setCollisionEnabled(enabled: boolean): void {
+    FreeflyController.collisionEnabled = enabled;
+    console.log(`[FreeflyController] Collision ${enabled ? 'enabled' : 'disabled'}`);
   }
   
   // Observers
@@ -260,9 +279,28 @@ export class FreeflyController implements ICameraController {
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
     
-    // Apply movement
+    // Apply movement with optional collision
     if (movement.length() > 0) {
-      this.camera.position.addInPlace(movement);
+      if (FreeflyController.collisionEnabled) {
+        const cm = getCollisionManager();
+        if (cm.isInitialized()) {
+          const start = this.camera.position.clone();
+          const end = start.add(movement);
+          const result = cm.trace(start as never, end as never);
+          
+          if (result.fraction < 1.0) {
+            // Hit something - move to collision point with safety margin
+            const safeMove = movement.scale(result.fraction * 0.95);
+            this.camera.position.addInPlace(safeMove);
+          } else {
+            this.camera.position.addInPlace(movement);
+          }
+        } else {
+          this.camera.position.addInPlace(movement);
+        }
+      } else {
+        this.camera.position.addInPlace(movement);
+      }
     }
   }
 
