@@ -1,6 +1,21 @@
 # Changelog
 
-## v0.8.8 (in progress)
+## v0.8.9
+
+### CLI Tools
+- Headless game runner now uses all engine commands (26 commands vs 10 before)
+- Fixed vite-node dynamic import issues with static imports for command system
+- Added `help` command to headless mode
+- Fixed `localStorage` errors in PK3Index for Node.js headless mode
+- Updated CLI_TOOLS.md documentation with accurate commands and examples
+
+### Engine Improvements
+- EngineCommands now uses lazy imports for DOM-dependent modules (supports headless mode)
+- PK3Index gracefully handles missing localStorage in Node.js environments
+
+---
+
+## v0.8.8
 
 ### Engine Features
 - Added `freefly_speed` console command for configuring camera flight speed

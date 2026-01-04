@@ -115,9 +115,17 @@ export class PK3Index {
   }
 
   /**
+   * Check if localStorage is available (browser only, not Node.js)
+   */
+  private hasLocalStorage(): boolean {
+    return typeof localStorage !== 'undefined';
+  }
+
+  /**
    * Load index from localStorage
    */
   private loadFromStorage(): void {
+    if (!this.hasLocalStorage()) return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -138,7 +146,7 @@ export class PK3Index {
    * Save index to localStorage
    */
   private saveToStorage(): void {
-    if (!this.index) return;
+    if (!this.index || !this.hasLocalStorage()) return;
     try {
       const json = JSON.stringify(this.index);
       localStorage.setItem(STORAGE_KEY, json);
@@ -512,7 +520,9 @@ export class PK3Index {
    */
   clear(): void {
     this.index = null;
-    localStorage.removeItem(STORAGE_KEY);
+    if (this.hasLocalStorage()) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
     console.log('[PK3Index] Index cleared');
   }
 

@@ -53,7 +53,32 @@ class EngineVersion {
    * Get the engine tagline
    */
   public getEngineTagline(): string {
-    return 'Standards, High And Games';
+    const taglines = [
+      "Simulated Hallucination Architecture Grid",
+      "Smoked Heavily And Generated",
+      "Somehow Holding A Game",
+      "State of Higher Awareness Gaming",
+      "Spaghetti Hiding All Glitches",
+      "Seeing Hyper-dimensional Abstract Geometry",
+      "Still Hasn't Any Graphics",
+      "Software High As Galaxy",
+      "Secretly Hiding All Garbage",
+      "System Has Ascended Gravity",
+      "Super Hazy Algorithm Guesses",
+      "Solo Human Attempting Greatness",
+      "Source Has Archaic Garbage",
+      "Start Hallucinating A Game",
+      "Scary Hacks And Glue",
+      "Software Highly Augmented by Grass",
+      "Sensory Highs And Glitches",
+      "Sativa Helped Assemble Geometry",
+      "Sleep Has Abandoned Group",
+      "Stoned Human Arranging Glyphs",
+      "Sublime Hallucinations Are Guaranteed",
+      "Simply High And Gaming",
+      "Someone Hide All Gins"
+    ];
+    return taglines[Math.floor(Math.random() * taglines.length)];
   }
 }
 

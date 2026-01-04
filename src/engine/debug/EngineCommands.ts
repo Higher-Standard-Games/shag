@@ -1,22 +1,14 @@
 /**
  * EngineCommands - Register engine-level debug commands
- * 
+ *
  * Connects console commands to actual engine systems.
+ *
+ * NOTE: Uses lazy imports for DOM-dependent modules to support headless mode.
+ * Commands that require DOM will return "Not available in headless mode" when
+ * running without a browser environment.
  */
 
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
-import { DebugConsole } from './DebugConsole';
-import { AudioManager } from '../AudioManager';
-import { GameClock } from '../../game/GameClock';
-import { UIScale } from '../ui/UIScale';
-import { HUD } from '../ui/hud';
-import { GamePaths } from '../core/GamePaths';
-import { CameraSystem } from '../camera/CameraSystem';
-import { IsometricController } from '../camera/controllers/IsometricController';
-import { FPSController } from '../camera/controllers/FPSController';
-import { SideScrollController } from '../camera/controllers/SideScrollController';
-import { FollowController } from '../camera/controllers/FollowController';
-import { FreeflyController } from '../camera/controllers/FreeflyController';
 import { Vector3 } from 'babylonjs';
 import {
   PK3Loader,
@@ -28,7 +20,101 @@ import {
   type BspMeshBuildResult
 } from '../loader';
 import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
-import { MenuSystem } from '../MenuSystem';
+
+// Camera controllers (used directly, not as singletons)
+import { IsometricController } from '../camera/controllers/IsometricController';
+import { FPSController } from '../camera/controllers/FPSController';
+import { SideScrollController } from '../camera/controllers/SideScrollController';
+import { FollowController } from '../camera/controllers/FollowController';
+import { FreeflyController } from '../camera/controllers/FreeflyController';
+
+// Other direct imports
+import { GamePaths } from '../core/GamePaths';
+import { HUD, HUDManager } from '../ui/hud/HUDManager';
+
+// ============================================================================
+// Lazy imports for DOM-dependent modules (enables headless mode)
+// ============================================================================
+
+// Cache for lazy-loaded singletons
+let _audioManager: typeof import('../AudioManager').AudioManager | null = null;
+let _cameraSystem: typeof import('../camera/CameraSystem').CameraSystem | null = null;
+let _debugConsole: typeof import('./DebugConsole').DebugConsole | null = null;
+let _gameClock: typeof import('../../game/GameClock').GameClock | null = null;
+let _uiScale: typeof import('../ui/UIScale').UIScale | null = null;
+let _hud: typeof import('../ui/hud/HUDManager').HUDManager | null = null;
+let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
+
+async function getAudioManager() {
+  if (!_audioManager) {
+    const mod = await import('../AudioManager');
+    _audioManager = mod.AudioManager;
+  }
+  return _audioManager.getInstance();
+}
+
+async function getCameraSystem() {
+  if (!_cameraSystem) {
+    const mod = await import('../camera/CameraSystem');
+    _cameraSystem = mod.CameraSystem;
+  }
+  return _cameraSystem.getInstance();
+}
+
+async function getDebugConsole() {
+  if (!_debugConsole) {
+    const mod = await import('./DebugConsole');
+    _debugConsole = mod.DebugConsole;
+  }
+  return _debugConsole.getInstance();
+}
+
+async function getGameClock() {
+  if (!_gameClock) {
+    const mod = await import('../../game/GameClock');
+    _gameClock = mod.GameClock;
+  }
+  return _gameClock.getInstance();
+}
+
+async function getUIScale() {
+  if (!_uiScale) {
+    const mod = await import('../ui/UIScale');
+    _uiScale = mod.UIScale;
+  }
+  return _uiScale.getInstance();
+}
+
+async function getHUD() {
+  if (!_hud) {
+    const mod = await import('../ui/hud/HUDManager');
+    _hud = mod.HUDManager;
+  }
+  return _hud.getInstance();
+}
+
+async function getMenuSystem() {
+  if (!_menuSystem) {
+    const mod = await import('../MenuSystem');
+    _menuSystem = mod.MenuSystem;
+  }
+  return _menuSystem.getInstance();
+}
+
+// Helper to get scene from camera system (returns null in headless)
+async function getScene(): Promise<Scene | null> {
+  try {
+    const cameraSystem = await getCameraSystem();
+    return cameraSystem.getCamera()?.getScene() || null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper for commands that require DOM
+function notAvailableInHeadless(): string {
+  return '[Headless] This command requires a browser environment';
+}
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
@@ -37,43 +123,47 @@ export function registerEngineCommands(): void {
   // Audio Commands
   // ============================================================================
 
-  registry.register('audio', (args) => {
-    const audio = AudioManager.getInstance();
-    const subcommand = args[0]?.toLowerCase();
+  registry.register('audio', async (args) => {
+    try {
+      const audio = await getAudioManager();
+      const subcommand = args[0]?.toLowerCase();
 
-    switch (subcommand) {
-      case 'volume': {
-        const vol = parseFloat(args[1]);
-        if (isNaN(vol) || vol < 0 || vol > 1) {
-          return 'Usage: audio volume <0-1>';
+      switch (subcommand) {
+        case 'volume': {
+          const vol = parseFloat(args[1]);
+          if (isNaN(vol) || vol < 0 || vol > 1) {
+            return 'Usage: audio volume <0-1>';
+          }
+          audio.setMusicVolume(vol);
+          return `Music volume set to ${vol}`;
         }
-        audio.setMusicVolume(vol);
-        return `Music volume set to ${vol}`;
-      }
 
-      case 'mute':
-        audio.setMusicEnabled(false);
-        return 'Audio muted';
+        case 'mute':
+          audio.setMusicEnabled(false);
+          return 'Audio muted';
 
-      case 'unmute':
-        audio.setMusicEnabled(true);
-        return 'Audio unmuted';
+        case 'unmute':
+          audio.setMusicEnabled(true);
+          return 'Audio unmuted';
 
-      case 'play': {
-        const track = args[1];
-        if (!track) {
-          return 'Usage: audio play <trackname>';
+        case 'play': {
+          const track = args[1];
+          if (!track) {
+            return 'Usage: audio play <trackname>';
+          }
+          audio.playMusic(track);
+          return `Playing: ${track}`;
         }
-        audio.playMusic(track);
-        return `Playing: ${track}`;
+
+        case 'stop':
+          audio.stopMusic();
+          return 'Music stopped';
+
+        default:
+          return 'Subcommands: volume, mute, unmute, play, stop';
       }
-
-      case 'stop':
-        audio.stopMusic();
-        return 'Music stopped';
-
-      default:
-        return 'Subcommands: volume, mute, unmute, play, stop';
+    } catch {
+      return notAvailableInHeadless();
     }
   });
 
@@ -81,8 +171,8 @@ export function registerEngineCommands(): void {
   // Time Commands
   // ============================================================================
 
-  registry.register('time', (args) => {
-    const clock = GameClock.getInstance();
+  registry.register('time', async (args) => {
+    const clock = await getGameClock();
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
@@ -115,8 +205,8 @@ export function registerEngineCommands(): void {
   // FPS Display Command (show_fps 0/1)
   // ============================================================================
 
-  registry.register('show_fps', (args) => {
-    const cameraSystem = CameraSystem.getInstance();
+  registry.register('show_fps', async (args) => {
+    const cameraSystem = await getCameraSystem();
     const scene = cameraSystem.getCamera()?.getScene();
 
     if (!scene) return 'No scene available';
@@ -224,7 +314,7 @@ export function registerEngineCommands(): void {
   // Freefly Speed Command
   // ============================================================================
 
-  registry.register('freefly_speed', (args) => {
+  registry.register('freefly_speed', async (args) => {
     const value = args[0];
 
     // No argument - show current speed
@@ -243,7 +333,7 @@ export function registerEngineCommands(): void {
     FreeflyController.setDefaultSpeed(speed);
 
     // Also update current controller if it's freefly
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const controller = cameraSystem.getActiveController();
     if (controller?.type === 'freefly') {
       controller.configure({ speed });
@@ -256,10 +346,10 @@ export function registerEngineCommands(): void {
   // Debug Commands
   // ============================================================================
 
-  registry.register('debug', (args) => {
+  registry.register('debug', async (args) => {
     const subcommand = args[0]?.toLowerCase();
 
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const scene = cameraSystem.getCamera()?.getScene();
 
     switch (subcommand) {
@@ -352,7 +442,7 @@ export function registerEngineCommands(): void {
   // Weather Commands
   // ============================================================================
 
-  registry.register('weather', (args) => {
+  registry.register('weather', async (args) => {
     // Weather API is exposed on window.weather by GameScene
     const weather = (window as any).weather;
 
@@ -408,7 +498,7 @@ export function registerEngineCommands(): void {
   // Wind Commands
   // ============================================================================
 
-  registry.register('wind', (args) => {
+  registry.register('wind', async (args) => {
     const weather = (window as any).weather;
 
     if (!weather) {
@@ -469,7 +559,7 @@ export function registerEngineCommands(): void {
   // Debris Commands
   // ============================================================================
 
-  registry.register('debris', (args) => {
+  registry.register('debris', async (args) => {
     const weather = (window as any).weather;
 
     if (!weather) {
@@ -582,9 +672,9 @@ export function registerEngineCommands(): void {
   // Camera Commands - Full CameraSystem integration
   // ============================================================================
 
-  registry.register('camera', (args) => {
+  registry.register('camera', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const setCameraMode = (window as any).setCameraMode;
     const getCameraMode = (window as any).getCameraMode;
     const setCameraHeight = (window as any).setCameraHeight;
@@ -781,7 +871,7 @@ export function registerEngineCommands(): void {
   // Export Commands - Export current settings to JSON for engine-settings.json
   // ============================================================================
 
-  registry.register('export', (args) => {
+  registry.register('export', async (args) => {
     const subcommand = args[0]?.toLowerCase();
 
     // Get current settings from window globals
@@ -971,7 +1061,7 @@ export function registerEngineCommands(): void {
 
   registry.register('map', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const scene = cameraSystem.getCamera()?.getScene();
 
     // Import MapLoader dynamically
@@ -1126,8 +1216,8 @@ export function registerEngineCommands(): void {
   // UI Scale Commands
   // ============================================================================
 
-  registry.register('ui', (args) => {
-    const uiScale = UIScale.getInstance();
+  registry.register('ui', async (args) => {
+    const uiScale = await getUIScale();
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
@@ -1176,7 +1266,7 @@ export function registerEngineCommands(): void {
   // HUD Commands
   // ============================================================================
 
-  registry.register('hud', (args) => {
+  registry.register('hud', async (args) => {
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
@@ -1267,7 +1357,7 @@ export function registerEngineCommands(): void {
   // Game Path Commands
   // ============================================================================
 
-  registry.register('game', (args) => {
+  registry.register('game', async (args) => {
     const gamePaths = GamePaths.getInstance();
     const subcommand = args[0]?.toLowerCase();
 
@@ -1392,7 +1482,7 @@ export function registerEngineCommands(): void {
         }
 
         const texLoader = PK3TextureLoader.getInstance();
-        const cameraSystem = CameraSystem.getInstance();
+        const cameraSystem = await getCameraSystem();
         const scene = cameraSystem.getCamera()?.getScene();
         const engine = scene?.getEngine() as any;
 
@@ -1550,9 +1640,9 @@ export function registerEngineCommands(): void {
   // Memory Stats Commands
   // ============================================================================
 
-  registry.register('mem', (args) => {
+  registry.register('mem', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const scene = cameraSystem.getCamera()?.getScene();
     const engine = scene?.getEngine();
 
@@ -1716,7 +1806,7 @@ export function registerEngineCommands(): void {
   let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
   // Helper to dispose empty scene
-  const disposeEmptyScene = () => {
+  const disposeEmptyScene = async () => {
     if (emptyScene) {
       // Remove ESC handler
       if (emptySceneEscHandler) {
@@ -1735,7 +1825,7 @@ export function registerEngineCommands(): void {
 
       // Return to main menu state and trigger the callback to create new MainMenu
       // Note: enterMainMenu() just sets state, returnToMainMenu() also calls the callback
-      const menuSystem = MenuSystem.getInstance();
+      const menuSystem = await getMenuSystem();
       menuSystem.returnToMainMenu();
 
       console.log('[EmptyScene] Disposed - returned to main menu');
@@ -1744,7 +1834,7 @@ export function registerEngineCommands(): void {
     return false;
   };
 
-  registry.register('scene', (args) => {
+  registry.register('scene', async (args) => {
     const subcommand = args[0]?.toLowerCase();
     const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 
@@ -1792,7 +1882,7 @@ export function registerEngineCommands(): void {
         });
 
         // Initialize camera system with this scene
-        const cameraSystem = CameraSystem.getInstance();
+        const cameraSystem = await getCameraSystem();
         cameraSystem.init(emptyScene, canvas);
         cameraSystem.setCamera(emptySceneCamera);
 
@@ -1807,7 +1897,7 @@ export function registerEngineCommands(): void {
         cameraSystem.setController('freefly');
 
         // Enter "in_game" state so ESC shows pause menu, not main menu
-        MenuSystem.getInstance().enterGame();
+        (await getMenuSystem()).enterGame();
 
         // Properly hide the main menu (stops its render loop and disposes its scene)
         const mainMenu = (window as any).mainMenu;
@@ -1826,9 +1916,9 @@ export function registerEngineCommands(): void {
         if (emptySceneEscHandler) {
           window.removeEventListener('keydown', emptySceneEscHandler);
         }
-        emptySceneEscHandler = (e: KeyboardEvent) => {
+        emptySceneEscHandler = async (e: KeyboardEvent) => {
           // Don't dispose if debug console is open (let it handle ESC to close)
-          const debugConsole = DebugConsole.getInstance();
+          const debugConsole = await getDebugConsole();
           if (debugConsole.getIsOpen()) {
             return; // Let console handle ESC
           }
@@ -1879,7 +1969,7 @@ export function registerEngineCommands(): void {
   registry.register('bsp', async (args) => {
     const pk3 = PK3Loader.getInstance();
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const scene = cameraSystem.getCamera()?.getScene();
 
     // Get effective BSP state (local or from MapLoader)
@@ -2822,7 +2912,7 @@ export function registerEngineCommands(): void {
           return 'Usage: shader glow <intensity>\nDefault: 1.0, try 0.5-3.0';
         }
 
-        const cameraSystem = CameraSystem.getInstance();
+        const cameraSystem = await getCameraSystem();
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
@@ -2849,7 +2939,7 @@ export function registerEngineCommands(): void {
           return 'Usage: shader lightmap <intensity>\nDefault: 2.0, try 1.0-4.0';
         }
 
-        const cameraSystem = CameraSystem.getInstance();
+        const cameraSystem = await getCameraSystem();
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
@@ -2876,7 +2966,7 @@ export function registerEngineCommands(): void {
           return 'Usage: shader blendmode <add|alpha>\n  add = base*lightmap + glow (additive)\n  alpha = mix(base*lightmap, glow, glow.a) (alpha blend)';
         }
 
-        const cameraSystem = CameraSystem.getInstance();
+        const cameraSystem = await getCameraSystem();
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
@@ -2990,7 +3080,7 @@ export function registerEngineCommands(): void {
 
   registry.register('pvs', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const camera = cameraSystem.getCamera();
 
     // Get effective BSP state (local or from MapLoader)
@@ -3205,7 +3295,7 @@ export function registerEngineCommands(): void {
 
   registry.register('fog', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const cameraSystem = CameraSystem.getInstance();
+    const cameraSystem = await getCameraSystem();
     const camera = cameraSystem.getCamera();
     const fogScene = camera?.getScene();
 

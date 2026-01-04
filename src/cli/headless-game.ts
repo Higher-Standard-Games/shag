@@ -17,9 +17,11 @@ import { NullEngine, Scene, FreeCamera, Vector3 } from "babylonjs";
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
-
-// Polyfill fetch for Node.js (needed by PK3Loader)
 import { fileURLToPath } from "url";
+
+// Static imports for command system (avoids vite-node dynamic import issues)
+import { ConsoleCommandRegistry } from "../engine/debug/ConsoleCommandRegistry";
+import { registerEngineCommands } from "../engine/debug/EngineCommands";
 
 // ============================================================================
 // Console Output Capture
@@ -129,177 +131,14 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
 async function registerCommands(ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Registering commands...");
 
-  const { ConsoleCommandRegistry } = await import("../engine/debug/ConsoleCommandRegistry");
   const registry = ConsoleCommandRegistry.getInstance();
 
-  // Import headless-compatible modules only (no DOM dependencies)
-  const { PK3Loader } = await import("../engine/loader/pk3/PK3Loader");
-  const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
-  const { BspMeshBuilder } = await import("../engine/loader/bsp/BspMeshBuilder");
-  const { Q3ShaderRegistry } = await import("../engine/loader/shader/Q3ShaderRegistry");
-
-  // Store loaded BSP for commands
-  let currentBsp: ReturnType<typeof BspLoader.load> | null = null;
-  let currentBspName: string | null = null;
+  // Register all engine commands (uses lazy imports internally for DOM modules)
+  registerEngineCommands();
+  console.log("[Init] Engine commands registered");
 
   // ============================================================================
-  // PK3 Commands
-  // ============================================================================
-
-  registry.register("pk3", (args) => {
-    const pk3Loader = PK3Loader.getInstance();
-    const sub = args[0]?.toLowerCase();
-
-    switch (sub) {
-      case "list": {
-        const packages = pk3Loader.getPackageInfo();
-        if (packages.length === 0) return "No PK3 files loaded";
-        return packages
-          .map((p) => `  ${p.filename} (${p.fileCount} files, priority ${p.priority})`)
-          .join("\n");
-      }
-
-      case "find": {
-        const pattern = args[1];
-        if (!pattern) return "Usage: pk3 find <pattern>";
-        const files = pk3Loader.listFiles(pattern);
-        if (files.length === 0) return `No files matching: ${pattern}`;
-        return files.slice(0, 50).join("\n") + (files.length > 50 ? `\n... and ${files.length - 50} more` : "");
-      }
-
-      default:
-        return "Subcommands: list, find <pattern>";
-    }
-  });
-
-  // ============================================================================
-  // Map Command
-  // ============================================================================
-
-  registry.register("map", async (args) => {
-    const mapName = args[0];
-    if (!mapName) return "Usage: map <mapname>";
-
-    console.log(`[Map] Loading map: ${mapName}`);
-
-    const pk3Loader = PK3Loader.getInstance();
-    const bspPath = `maps/${mapName}.bsp`;
-
-    // Try to find BSP in PK3 files
-    const bspData = await pk3Loader.getFile(bspPath);
-    if (!bspData) {
-      // Try loading from local file
-      const localPath = path.join(process.env.GAME_PATH || "./public/game", bspPath);
-      if (fs.existsSync(localPath)) {
-        const buffer = fs.readFileSync(localPath);
-        const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-        currentBsp = BspLoader.load(arrayBuffer);
-        currentBspName = mapName;
-        return `[Map] Loaded from file: ${localPath}\n  ${currentBsp.faces.length} faces, ${currentBsp.vertices.length} vertices`;
-      }
-      return `[Map] BSP not found: ${bspPath}`;
-    }
-
-    currentBsp = BspLoader.load(bspData);
-    currentBspName = mapName;
-    return `[Map] Loaded: ${mapName}\n  ${currentBsp.faces.length} faces, ${currentBsp.vertices.length} vertices`;
-  });
-
-  // ============================================================================
-  // BSP Commands
-  // ============================================================================
-
-  registry.register("bsp", (args) => {
-    const sub = args[0]?.toLowerCase();
-
-    if (!currentBsp) {
-      return "No map loaded. Use: map <mapname>";
-    }
-
-    switch (sub) {
-      case "info":
-        return [
-          `Map: ${currentBspName}`,
-          `Format: ${currentBsp.header.isFBSP ? "FBSP (Warsow)" : "IBSP (Quake3)"}`,
-          `Version: ${currentBsp.header.version}`,
-          `Entities: ${currentBsp.entities.length}`,
-          `Textures: ${currentBsp.textures.length}`,
-          `Faces: ${currentBsp.faces.length}`,
-          `Vertices: ${currentBsp.vertices.length}`,
-          `Lightmaps: ${currentBsp.lightmaps.length}`,
-          `Brushes: ${currentBsp.brushes.length}`,
-        ].join("\n");
-
-      case "entities": {
-        const classCounts = new Map<string, number>();
-        for (const ent of currentBsp.entities) {
-          classCounts.set(ent.classname, (classCounts.get(ent.classname) || 0) + 1);
-        }
-        const sorted = [...classCounts.entries()].sort((a, b) => b[1] - a[1]);
-        return sorted.map(([name, count]) => `  ${count.toString().padStart(4)} ${name}`).join("\n");
-      }
-
-      case "textures": {
-        return currentBsp.textures.slice(0, 30).map((t, i) => `  [${i}] ${t.name}`).join("\n") +
-          (currentBsp.textures.length > 30 ? `\n  ... and ${currentBsp.textures.length - 30} more` : "");
-      }
-
-      case "build": {
-        console.log("[BSP] Building meshes...");
-        const result = BspMeshBuilder.build(currentBsp, ctx.scene);
-        return [
-          `[BSP] Build complete:`,
-          `  Vertices: ${result.stats.totalVertices}`,
-          `  Triangles: ${result.stats.totalTriangles}`,
-          `  Polygon faces: ${result.stats.polygonFaces}`,
-          `  Patch faces: ${result.stats.patchFaces}`,
-          `  Lightmaps: ${result.lightmapTextures.length}`,
-        ].join("\n");
-      }
-
-      default:
-        return "Subcommands: info, entities, textures, build";
-    }
-  });
-
-  // ============================================================================
-  // Shader Commands
-  // ============================================================================
-
-  registry.register("shader", (args) => {
-    const shaderRegistry = Q3ShaderRegistry.getInstance();
-    const sub = args[0]?.toLowerCase();
-
-    switch (sub) {
-      case "list": {
-        const shaders = shaderRegistry.getAllShaderNames();
-        return `${shaders.length} shaders loaded\n` +
-          shaders.slice(0, 30).join("\n") +
-          (shaders.length > 30 ? `\n... and ${shaders.length - 30} more` : "");
-      }
-
-      case "find": {
-        const pattern = args[1];
-        if (!pattern) return "Usage: shader find <pattern>";
-        const shaders = shaderRegistry.getAllShaderNames().filter((s) => s.includes(pattern));
-        return shaders.length > 0 ? shaders.join("\n") : `No shaders matching: ${pattern}`;
-      }
-
-      case "info": {
-        const name = args[1];
-        if (!name) return "Usage: shader info <name>";
-        const shader = shaderRegistry.getShader(name);
-        if (!shader) return `Shader not found: ${name}`;
-        return JSON.stringify(shader, null, 2);
-      }
-
-      default:
-        return "Subcommands: list, find <pattern>, info <name>";
-    }
-  });
-
-  // ============================================================================
-  // Headless-specific Commands
+  // Headless-specific Commands (override/extend engine commands)
   // ============================================================================
 
   registry.register("writeconsole", (args) => {
@@ -336,6 +175,7 @@ async function registerCommands(ctx: HeadlessContext): Promise<void> {
     }
   });
 
+  // Override version for headless mode
   registry.register("version", () => {
     return [
       "SHAG Engine - Headless Mode",
@@ -344,34 +184,42 @@ async function registerCommands(ctx: HeadlessContext): Promise<void> {
     ].join("\n");
   });
 
-  registry.register("help", () => {
-    const commands = registry.getCommandNames().sort();
-    return [
-      "=== Headless Game Commands ===",
-      "",
-      "PK3/Asset Commands:",
-      "  pk3 list              List loaded PK3 files",
-      "  pk3 find <pattern>    Find files in PK3 archives",
-      "  shader list           List loaded shaders",
-      "  shader find <pat>     Find shaders by name",
-      "  shader info <name>    Show shader definition",
-      "",
-      "Map Commands:",
-      "  map <name>            Load a map by name",
-      "  bsp info              Show BSP information",
-      "  bsp entities          List entities in map",
-      "  bsp textures          List textures used",
-      "  bsp build             Build meshes headlessly",
-      "",
-      "Headless Commands:",
-      "  headless info         Show headless engine info",
-      "  headless history [n]  Show last n console lines",
-      "  writeconsole [file]   Write console to file",
-      "  version               Show version info",
-      "  quit                  Exit headless mode",
-      "",
-      `Available: ${commands.join(", ")}`,
-    ].join("\n");
+  // Help command for headless mode
+  registry.register("help", (args) => {
+    const cmdName = args[0]?.toLowerCase();
+
+    if (cmdName) {
+      // Show help for specific command
+      const def = registry.getDefinition(cmdName);
+      if (!def) {
+        return `Unknown command: ${cmdName}`;
+      }
+
+      let result = `${def.name}: ${def.description}`;
+      if (def.usage) {
+        result += `\nUsage: ${def.usage}`;
+      }
+      if (def.subcommands && def.subcommands.length > 0) {
+        result += "\n\nSubcommands:";
+        for (const sub of def.subcommands) {
+          result += `\n  ${sub.name} - ${sub.description}`;
+        }
+      }
+      return result;
+    }
+
+    // Show all commands
+    const defs = registry.getAllDefinitions();
+    const lines = ["Available commands:", ""];
+
+    for (const def of defs.sort((a, b) => a.name.localeCompare(b.name))) {
+      lines.push(`  ${def.name.padEnd(15)} ${def.description}`);
+    }
+
+    lines.push("");
+    lines.push("Type 'help <command>' for detailed help");
+
+    return lines.join("\n");
   });
 
   console.log("[Init] Commands registered: " + registry.getCommandNames().length);
@@ -382,7 +230,6 @@ async function registerCommands(ctx: HeadlessContext): Promise<void> {
 // ============================================================================
 
 async function runREPL(): Promise<void> {
-  const { ConsoleCommandRegistry } = await import("../engine/debug/ConsoleCommandRegistry");
   const registry = ConsoleCommandRegistry.getInstance();
 
   const rl = readline.createInterface({
@@ -418,7 +265,6 @@ async function runREPL(): Promise<void> {
 }
 
 async function runBatch(commands: string): Promise<void> {
-  const { ConsoleCommandRegistry } = await import("../engine/debug/ConsoleCommandRegistry");
   const registry = ConsoleCommandRegistry.getInstance();
 
   console.log(`\n[Batch] Executing: ${commands}\n`);
