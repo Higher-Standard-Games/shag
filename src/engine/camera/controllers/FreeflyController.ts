@@ -279,26 +279,13 @@ export class FreeflyController implements ICameraController {
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
     
-    // Apply movement with optional collision
+    // Apply movement with optional collision (Q3-style slide move)
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
         const cm = getCollisionManager();
         if (cm.isInitialized()) {
-          const start = this.camera.position.clone();
-          const end = start.add(movement);
-          const result = cm.trace(start as never, end as never);
-          
-          if (result.fraction < 1.0) {
-            // Hit something - move to collision point with safety margin
-            const safeMove = movement.scale(result.fraction * 0.95);
-            this.camera.position.addInPlace(safeMove);
-            // Debug: log collision
-            console.log(`[Freefly] HIT at ${result.fraction.toFixed(3)}`);
-          } else {
-            this.camera.position.addInPlace(movement);
-          }
+          this.slideMove(movement, cm);
         } else {
-          // Debug: warn once if collision not initialized
           if (!FreeflyController._warnedNotInit) {
             console.warn('[Freefly] Collision enabled but not initialized!');
             FreeflyController._warnedNotInit = true;
@@ -312,6 +299,54 @@ export class FreeflyController implements ICameraController {
   }
   
   private static _warnedNotInit = false;
+  
+  /**
+   * Q3-style slide move: move and slide along surfaces
+   * Based on PM_SlideMove from Quake 3
+   */
+  private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
+    const MAX_BUMPS = 4;
+    const OVERCLIP = 1.001;
+    
+    let movement = originalMovement.clone();
+    let timeLeft = 1.0;
+    
+    for (let bump = 0; bump < MAX_BUMPS; bump++) {
+      if (movement.length() < 0.001) break;
+      
+      const start = this.camera!.position.clone();
+      const end = start.add(movement.scale(timeLeft));
+      
+      const result = cm.trace(start as never, end as never);
+      
+      if (result.fraction > 0) {
+        // Move to the collision point (with small safety margin)
+        const moveDistance = movement.scale(timeLeft * result.fraction * 0.99);
+        this.camera!.position.addInPlace(moveDistance);
+      }
+      
+      if (result.fraction >= 1.0) {
+        // Moved full distance, done
+        break;
+      }
+      
+      // Hit something - clip velocity to slide along surface
+      timeLeft -= timeLeft * result.fraction;
+      
+      if (result.normal && timeLeft > 0.001) {
+        // PM_ClipVelocity: remove component going into the wall
+        // clipVelocity = velocity - (dot(velocity, normal) * overbounce) * normal
+        const normal = result.normal as unknown as Vector3;
+        const backoff = Vector3.Dot(movement, normal) * OVERCLIP;
+        movement = movement.subtract(normal.scale(backoff));
+        
+        // Prevent tiny movements
+        if (movement.length() < 0.1) break;
+      } else {
+        break;
+      }
+    }
+  }
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
