@@ -188,18 +188,18 @@ export class ClipBrushBackend implements CollisionBackend {
       const startDist = Vector3.Dot(q3Start, plane.normal) - plane.distance;
       const endDist = Vector3.Dot(q3End, plane.normal) - plane.distance;
 
-      // Both on same side = no intersection
-      if (startDist > 0 && endDist > 0) continue;
-      if (startDist < 0 && endDist < 0) continue;
+      // Only collide if:
+      // 1. Start is in FRONT of plane (positive distance) - we're outside the surface
+      // 2. End is BEHIND plane (negative distance) - we're moving into the surface
+      // This prevents false positives when camera is already behind a plane
+      if (startDist <= DIST_EPSILON) continue;  // Already behind or on plane
+      if (endDist >= -DIST_EPSILON) continue;   // Not crossing into solid
 
-      // Calculate intersection fraction
-      if (startDist > endDist) {
-        // Entering the solid
-        const frac = (startDist - DIST_EPSILON) / (startDist - endDist);
-        if (frac > 0 && frac < closestFrac) {
-          closestFrac = frac;
-          hitPlane = plane;
-        }
+      // Calculate intersection fraction (0 = start, 1 = end)
+      const frac = startDist / (startDist - endDist);
+      if (frac > 0 && frac < closestFrac) {
+        closestFrac = frac;
+        hitPlane = plane;
       }
     }
 
