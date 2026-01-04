@@ -301,51 +301,24 @@ export class FreeflyController implements ICameraController {
   private static _warnedNotInit = false;
   
   /**
-   * Q3-style slide move: move and slide along surfaces
-   * Based on PM_SlideMove from Quake 3
+   * Simple collision: trace and stop at collision point (no sliding)
+   * This blocks movement completely when hitting a wall
    */
   private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
-    const MAX_BUMPS = 4;
-    const OVERCLIP = 1.001;
+    const start = this.camera!.position.clone();
+    const end = start.add(originalMovement);
     
-    let movement = originalMovement.clone();
-    let timeLeft = 1.0;
+    const result = cm.trace(start as never, end as never);
     
-    for (let bump = 0; bump < MAX_BUMPS; bump++) {
-      if (movement.length() < 0.001) break;
-      
-      const start = this.camera!.position.clone();
-      const end = start.add(movement.scale(timeLeft));
-      
-      const result = cm.trace(start as never, end as never);
-      
-      if (result.fraction > 0) {
-        // Move to the collision point (with small safety margin)
-        const moveDistance = movement.scale(timeLeft * result.fraction * 0.99);
-        this.camera!.position.addInPlace(moveDistance);
-      }
-      
-      if (result.fraction >= 1.0) {
-        // Moved full distance, done
-        break;
-      }
-      
-      // Hit something - clip velocity to slide along surface
-      timeLeft -= timeLeft * result.fraction;
-      
-      if (result.normal && timeLeft > 0.001) {
-        // PM_ClipVelocity: remove component going into the wall
-        // clipVelocity = velocity - (dot(velocity, normal) * overbounce) * normal
-        const normal = result.normal as unknown as Vector3;
-        const backoff = Vector3.Dot(movement, normal) * OVERCLIP;
-        movement = movement.subtract(normal.scale(backoff));
-        
-        // Prevent tiny movements
-        if (movement.length() < 0.1) break;
-      } else {
-        break;
-      }
+    if (result.fraction >= 1.0) {
+      // No collision - move full distance
+      this.camera!.position.addInPlace(originalMovement);
+    } else if (result.fraction > 0.01) {
+      // Collision detected - move to just before collision point
+      const safeMove = originalMovement.scale(result.fraction * 0.95);
+      this.camera!.position.addInPlace(safeMove);
     }
+    // If fraction <= 0.01, we're very close to or inside something - don't move
   }
 
   configure(config: Partial<CameraControllerConfig>): void {

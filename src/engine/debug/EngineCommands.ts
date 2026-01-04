@@ -3365,6 +3365,97 @@ export function registerEngineCommands(): void {
           ].filter(Boolean).join('\n');
         }
 
+        // Simulate movement with collision (headless test)
+        if (traceSubcmd === 'move') {
+          const { getCollisionManager } = await import('../physics');
+          const cm = getCollisionManager();
+          
+          if (!cm.isInitialized()) {
+            await cm.init(traceBsp, (traceScene as unknown) as undefined);
+          }
+          
+          // Parse movement direction: bsp collision move <dx> <dy> <dz>
+          // In Babylon coords (Y-up)
+          const dx = parseFloat(args[2]) || 0;
+          const dy = parseFloat(args[3]) || 0;
+          const dz = parseFloat(args[4]) || 0;
+          
+          if (dx === 0 && dy === 0 && dz === 0) {
+            return 'Usage: bsp collision move <dx> <dy> <dz>\nExample: bsp collision move 100 0 0 (move 100 units on X axis)';
+          }
+          
+          // Get spawn point as starting position
+          const spawn = traceBsp.entities.find(e => 
+            e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+          );
+          const origin = spawn?.properties.origin?.split(' ').map(Number) || [0, 0, 100];
+          
+          // Convert Q3 to Babylon coords: Q3(x,y,z) -> Babylon(x,z,y)
+          const startPos = new Vector3(origin[0], origin[2], origin[1]);
+          const movement = new Vector3(dx, dy, dz);
+          
+          // Simulate Q3-style slide move
+          const MAX_BUMPS = 4;
+          const OVERCLIP = 1.001;
+          let currentPos = startPos.clone();
+          let currentMove = movement.clone();
+          let timeLeft = 1.0;
+          const bumps: string[] = [];
+          
+          for (let bump = 0; bump < MAX_BUMPS; bump++) {
+            if (currentMove.length() < 0.001) break;
+            
+            const end = currentPos.add(currentMove.scale(timeLeft));
+            const result = cm.trace(currentPos as never, end as never);
+            
+            bumps.push(`Bump ${bump}: frac=${result.fraction.toFixed(3)}, move=(${currentMove.x.toFixed(1)}, ${currentMove.y.toFixed(1)}, ${currentMove.z.toFixed(1)})`);
+            
+            if (result.fraction > 0) {
+              // Move to collision point
+              const moveDistance = currentMove.scale(timeLeft * result.fraction * 0.99);
+              currentPos = currentPos.add(moveDistance);
+            }
+            
+            if (result.fraction >= 1.0) {
+              bumps.push('  → Moved full distance');
+              break;
+            }
+            
+            // Clip velocity
+            timeLeft -= timeLeft * result.fraction;
+            
+            if (result.normal && timeLeft > 0.001) {
+              const normal = new Vector3(result.normal.x, result.normal.y, result.normal.z);
+              const backoff = Vector3.Dot(currentMove, normal) * OVERCLIP;
+              currentMove = currentMove.subtract(normal.scale(backoff));
+              bumps.push(`  → Hit! Normal=(${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)}), clipped move=(${currentMove.x.toFixed(1)}, ${currentMove.y.toFixed(1)}, ${currentMove.z.toFixed(1)})`);
+              
+              if (currentMove.length() < 0.1) {
+                bumps.push('  → Movement too small, stopping');
+                break;
+              }
+            } else {
+              bumps.push('  → No normal or no time left, stopping');
+              break;
+            }
+          }
+          
+          const totalMoved = currentPos.subtract(startPos);
+          const blocked = totalMoved.length() < movement.length() * 0.5;
+          
+          return [
+            `=== Slide Move Simulation ===`,
+            `Start: Babylon(${startPos.x.toFixed(1)}, ${startPos.y.toFixed(1)}, ${startPos.z.toFixed(1)})`,
+            `Requested: (${movement.x.toFixed(1)}, ${movement.y.toFixed(1)}, ${movement.z.toFixed(1)}) = ${movement.length().toFixed(1)} units`,
+            `End: Babylon(${currentPos.x.toFixed(1)}, ${currentPos.y.toFixed(1)}, ${currentPos.z.toFixed(1)})`,
+            `Actually moved: ${totalMoved.length().toFixed(1)} units`,
+            `Blocked: ${blocked ? 'YES' : 'NO'}`,
+            '',
+            'Trace log:',
+            ...bumps,
+          ].join('\n');
+        }
+
         return [
           'Collision Commands:',
           '  bsp collision point    - Check contents at camera position',
@@ -3372,6 +3463,7 @@ export function registerEngineCommands(): void {
           '  bsp collision forward  - Trace forward to find wall',
           '  bsp collision spawn    - Trace from spawn point (debug)',
           '  bsp collision bounds   - Show BSP world bounds',
+          '  bsp collision move <dx> <dy> <dz> - Simulate movement with collision',
           '',
           'Backend Commands:',
           '  bsp collision backend [type]  - List or switch collision backends',
