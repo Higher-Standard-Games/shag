@@ -3162,6 +3162,96 @@ export function registerEngineCommands(): void {
           ].filter(Boolean).join('\n');
         }
 
+        // Find which leaf contains a specific brush
+        if (traceSubcmd === 'brushinleaf') {
+          const brushId = parseInt(args[2]);
+          if (isNaN(brushId)) {
+            return 'Usage: bsp collision brushinleaf <brushId>\n  Find which leaf(s) contain a specific brush';
+          }
+          
+          const leafsWithBrush: string[] = [];
+          for (let li = 0; li < traceBsp.leafs.length; li++) {
+            const leaf = traceBsp.leafs[li];
+            for (let i = 0; i < leaf.numLeafBrushes; i++) {
+              const brushIdx = traceBsp.leafBrushes[leaf.firstLeafBrush + i];
+              if (brushIdx === brushId) {
+                leafsWithBrush.push(`Leaf ${li}: cluster=${leaf.cluster}, brushes=${leaf.numLeafBrushes}`);
+                break;
+              }
+            }
+          }
+          
+          return [
+            `Searching for brush ${brushId} in all ${traceBsp.leafs.length} leafs...`,
+            '',
+            leafsWithBrush.length > 0 ? `Found in ${leafsWithBrush.length} leaf(s):` : 'NOT FOUND in any leaf!',
+            ...leafsWithBrush.slice(0, 20),
+          ].filter(Boolean).join('\n');
+        }
+
+        // Dump all planes of a specific brush
+        if (traceSubcmd === 'brushinfo') {
+          const brushId = parseInt(args[2]);
+          if (isNaN(brushId)) {
+            return 'Usage: bsp collision brushinfo <brushId>\n  Show all planes of a specific brush';
+          }
+          
+          const brush = traceBsp.brushes[brushId];
+          if (!brush) return `Brush ${brushId} not found`;
+          
+          const tex = traceBsp.textures[brush.shaderIndex];
+          const lines: string[] = [
+            `Brush ${brushId}: ${brush.numSides} sides`,
+            `  Texture: ${tex?.name || 'unknown'}`,
+            `  Content flags: 0x${tex?.contentFlags?.toString(16) || '?'}`,
+            '',
+            'Planes:'
+          ];
+          
+          for (let si = 0; si < brush.numSides; si++) {
+            const side = traceBsp.brushSides[brush.firstSide + si];
+            if (!side) continue;
+            const plane = traceBsp.planes[side.planeIndex];
+            if (!plane) continue;
+            const n = plane.normal;
+            const type = Math.abs(n[0]) > 0.9 ? 'X' : Math.abs(n[1]) > 0.9 ? 'Y' : Math.abs(n[2]) > 0.9 ? 'Z' : 'angled';
+            lines.push(`  ${si}: normal=(${n[0].toFixed(2)}, ${n[1].toFixed(2)}, ${n[2].toFixed(2)}) dist=${plane.dist.toFixed(1)} [${type}]`);
+          }
+          
+          return lines.join('\n');
+        }
+
+        // Analyze leafBrushes array
+        if (traceSubcmd === 'leafstats') {
+          let totalBrushRefs = 0;
+          let leafsWithBrushes = 0;
+          let maxBrushes = 0;
+          const brushesInLeafs = new Set<number>();
+          
+          for (const leaf of traceBsp.leafs) {
+            if (leaf.numLeafBrushes > 0) {
+              leafsWithBrushes++;
+              totalBrushRefs += leaf.numLeafBrushes;
+              maxBrushes = Math.max(maxBrushes, leaf.numLeafBrushes);
+              for (let i = 0; i < leaf.numLeafBrushes; i++) {
+                brushesInLeafs.add(traceBsp.leafBrushes[leaf.firstLeafBrush + i]);
+              }
+            }
+          }
+          
+          return [
+            'Leaf/Brush Statistics:',
+            `  Total leafs: ${traceBsp.leafs.length}`,
+            `  Leafs with brushes: ${leafsWithBrushes}`,
+            `  Total brush references: ${totalBrushRefs}`,
+            `  Unique brushes in leafs: ${brushesInLeafs.size}`,
+            `  Total brushes in BSP: ${traceBsp.brushes.length}`,
+            `  Max brushes in one leaf: ${maxBrushes}`,
+            '',
+            `  Brushes NOT in any leaf: ${traceBsp.brushes.length - brushesInLeafs.size}`,
+          ].join('\n');
+        }
+
         return [
           'Collision Commands:',
           '  bsp collision point    - Check contents at camera position',
@@ -3174,6 +3264,8 @@ export function registerEngineCommands(): void {
           '  bsp collision trace <x> <y> <z> [dist] - Trace down from Q3 coords',
           '  bsp collision findleaf <x> <y> <z>     - Find leaf at Q3 coords',
           '  bsp collision findbrush <x> <y> <z>    - Find brushes at Q3 XY',
+          '  bsp collision brushinleaf <id>         - Find leaf containing brush',
+          '  bsp collision leafstats                - Show leaf/brush statistics',
         ].join('\n');
       }
 
