@@ -279,11 +279,19 @@ export class FreeflyController implements ICameraController {
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
     
-    // Apply movement with optional collision (Q3-style slide move)
+    // Apply movement with optional collision
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
         const cm = getCollisionManager();
-        if (cm.isInitialized()) {
+        const isInit = cm.isInitialized();
+        
+        // Debug: log state once
+        if (!FreeflyController._loggedState) {
+          FreeflyController._loggedState = true;
+          console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
+        }
+        
+        if (isInit) {
           this.slideMove(movement, cm);
         } else {
           if (!FreeflyController._warnedNotInit) {
@@ -297,6 +305,8 @@ export class FreeflyController implements ICameraController {
       }
     }
   }
+  
+  private static _loggedState = false;
   
   private static _warnedNotInit = false;
   
