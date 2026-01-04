@@ -830,39 +830,138 @@ export function registerEngineCommands(): void {
 
   registry.register('map', async (args) => {
     const subcommand = args[0]?.toLowerCase();
-    const loadMap = (window as any).loadMap;
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
+    // Import MapLoader dynamically
+    const { MapLoader } = await import('../loader/map/MapLoader');
+    const mapLoader = MapLoader.getInstance();
 
     switch (subcommand) {
       case 'load': {
         const mapName = args[1];
         if (!mapName) {
-          return 'Usage: map load <mapname>';
+          return 'Usage: map load <mapname>\nExample: map load wdm1';
         }
-        if (!loadMap) {
-          return 'Map loading not available (game not started?)';
+
+        if (!scene) {
+          // Try to create empty scene first
+          await registry.execute('scene empty');
+          if (!cameraSystem.getCamera()?.getScene()) {
+            return 'No scene available. Run "scene empty" first.';
+          }
         }
-        try {
-          await loadMap(mapName);
-          return `Loaded map: ${mapName}`;
-        } catch (e) {
-          return `Failed to load map: ${e}`;
+
+        const activeScene = cameraSystem.getCamera()?.getScene();
+        if (!activeScene) {
+          return 'No scene available';
+        }
+
+        const result = await mapLoader.loadMap(mapName, activeScene, (progress) => {
+          console.log(`[Map] ${progress.phase}${progress.detail ? ': ' + progress.detail : ''}`);
+        });
+
+        if (result.success) {
+          return [
+            `Loaded map: ${mapName} (${result.mapType})`,
+            result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
+            result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
+          ].filter(Boolean).join('\n');
+        } else {
+          return `Failed to load map: ${result.error}`;
         }
       }
 
       case 'reload': {
-        const currentMap = (window as any).currentMap;
-        if (!loadMap || !currentMap) {
-          return 'Map reload not available';
+        const currentMap = mapLoader.getCurrentMap();
+        if (!currentMap) {
+          return 'No map currently loaded';
         }
-        await loadMap(currentMap);
-        return `Reloaded map: ${currentMap}`;
+        const activeScene = cameraSystem.getCamera()?.getScene();
+        if (!activeScene) {
+          return 'No scene available';
+        }
+        const result = await mapLoader.loadMap(currentMap, activeScene);
+        return result.success
+          ? `Reloaded map: ${currentMap}`
+          : `Failed to reload: ${result.error}`;
       }
 
-      case 'list':
-        return 'Available maps: test, texture_test, farm (check public/game/maps/)';
+      case 'list': {
+        const { PK3Index } = await import('../loader/pk3/PK3Index');
+        const pk3Index = PK3Index.getInstance();
 
-      default:
-        return 'Subcommands: load <mapname>, reload, list';
+        if (!pk3Index.hasIndex()) {
+          return 'No PK3 index. Run "pk3 index build" first to discover maps.';
+        }
+
+        const maps = mapLoader.getAvailableMaps();
+        if (maps.length === 0) {
+          return 'No maps found in index.';
+        }
+
+        const lines = [`Available maps (${maps.length}):`];
+        const displayMaps = maps.slice(0, 30);
+        for (const map of displayMaps) {
+          lines.push(`  ${map.name} (${map.pk3})`);
+        }
+        if (maps.length > 30) {
+          lines.push(`  ... and ${maps.length - 30} more`);
+        }
+        return lines.join('\n');
+      }
+
+      case 'current': {
+        const current = mapLoader.getCurrentMap();
+        return current ? `Current map: ${current}` : 'No map loaded';
+      }
+
+      case 'unload': {
+        mapLoader.disposeCurrentMap();
+        return 'Map unloaded';
+      }
+
+      default: {
+        // If no subcommand but has argument, treat as map name (shortcut)
+        if (subcommand && !['load', 'reload', 'list', 'current', 'unload'].includes(subcommand)) {
+          const mapName = subcommand;
+          const activeScene = cameraSystem.getCamera()?.getScene();
+
+          if (!activeScene) {
+            // Try to create empty scene first
+            await registry.execute('scene empty');
+          }
+
+          const finalScene = cameraSystem.getCamera()?.getScene();
+          if (!finalScene) {
+            return 'No scene available. Run "scene empty" first.';
+          }
+
+          const result = await mapLoader.loadMap(mapName, finalScene, (progress) => {
+            console.log(`[Map] ${progress.phase}${progress.detail ? ': ' + progress.detail : ''}`);
+          });
+
+          if (result.success) {
+            return [
+              `Loaded map: ${mapName}`,
+              result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
+              result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
+            ].filter(Boolean).join('\n');
+          } else {
+            return `Failed to load map: ${result.error}`;
+          }
+        }
+
+        return [
+          'Map Commands:',
+          '  map <name>      - Load a map (BSP from PK3)',
+          '  map load <name> - Same as above',
+          '  map list        - List available maps',
+          '  map current     - Show current map',
+          '  map reload      - Reload current map',
+          '  map unload      - Unload current map',
+        ].join('\n');
+      }
     }
   });
 
@@ -1252,11 +1351,17 @@ export function registerEngineCommands(): void {
               return 'No index built. Use "pk3 index build" to create one.';
             }
             const packages = index.getPackages();
+            const mapNames = index.getMapNames();
             return [
               `Index Stats:`,
               `  Files: ${stats.fileCount}`,
+              `  Shaders: ${stats.shaderCount}`,
+              `  Maps: ${stats.mapCount}`,
               `  Packages: ${stats.packageCount}`,
+              `  Checksum: ${stats.checksum}`,
               `  Last updated: ${stats.lastUpdated?.toLocaleString() || 'never'}`,
+              '',
+              mapNames.length > 0 ? `Maps available: ${mapNames.slice(0, 10).join(', ')}${mapNames.length > 10 ? '...' : ''}` : '',
               '',
               'Indexed packages:',
               ...packages.slice(0, 10).map(p => `  ${p.pk3} (${p.fileCount} files)`),
