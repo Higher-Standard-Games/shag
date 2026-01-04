@@ -314,8 +314,7 @@ export class FreeflyController implements ICameraController {
   private static _lastDebugTime = 0;
   
   /**
-   * Simple collision: trace and stop at collision point (no sliding)
-   * This blocks movement completely when hitting a wall
+   * Collision movement with Q3-style sliding along walls
    */
   private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     const start = this.camera!.position.clone();
@@ -333,14 +332,34 @@ export class FreeflyController implements ICameraController {
     if (result.fraction >= 1.0) {
       // No collision - move full distance
       this.camera!.position.addInPlace(originalMovement);
-    } else if (result.fraction > 0.01) {
-      // Collision detected - move to just before collision point
-      const safeMove = originalMovement.scale(result.fraction * 0.95);
-      this.camera!.position.addInPlace(safeMove);
-      console.log(`[Freefly] BLOCKED at frac=${result.fraction.toFixed(3)}`);
-    } else {
-      console.log(`[Freefly] TOO CLOSE frac=${result.fraction.toFixed(3)} - not moving`);
+    } else if (result.fraction > 0.001 && result.normal) {
+      // Collision detected - move to collision point, then slide
+      const moveToWall = originalMovement.scale(result.fraction * 0.99);
+      this.camera!.position.addInPlace(moveToWall);
+      
+      // Calculate remaining movement and slide along wall
+      const remainingMove = originalMovement.scale(1.0 - result.fraction);
+      const normal = result.normal as unknown as Vector3;
+      
+      // Remove component going into wall (dot product with normal)
+      const into = Vector3.Dot(remainingMove, normal);
+      if (into < 0) {
+        // Subtract the component going into the wall
+        const slideMove = remainingMove.subtract(normal.scale(into));
+        
+        // Only apply slide if it's significant
+        if (slideMove.length() > 0.001) {
+          // Trace the slide movement to make sure it's clear
+          const slideEnd = this.camera!.position.add(slideMove);
+          const slideResult = cm.trace(this.camera!.position as never, slideEnd as never);
+          
+          if (slideResult.fraction > 0.1) {
+            this.camera!.position.addInPlace(slideMove.scale(slideResult.fraction * 0.99));
+          }
+        }
+      }
     }
+    // If fraction <= 0.001, we're inside something - don't move
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
