@@ -365,12 +365,38 @@ export function registerEngineCommands(): void {
       return `freefly_collision = ${enabled ? '1' : '0'}\n${status}`;
     }
 
+    // Test subcommand - trace from camera position
+    if (value === 'test') {
+      const cameraSystem = await getCameraSystem();
+      const camera = cameraSystem.getCamera();
+      if (!camera) return 'No camera available';
+      
+      const pos = camera.position;
+      const forward = camera.getDirection(new Vector3(0, 0, 1));
+      const end = pos.add(forward.scale(100));
+      
+      const result = cm.trace(pos as never, end as never);
+      
+      return [
+        `=== Collision Test from Camera ===`,
+        `Instance: ${cm.getInstanceId()}`,
+        `Backend: ${cm.getBackendType()}`,
+        `Camera: (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`,
+        `Forward 100 units: fraction=${result.fraction.toFixed(3)}`,
+        result.fraction < 1.0 ? `HIT at ${(result.fraction * 100).toFixed(1)} units` : 'NO HIT',
+        result.normal ? `Normal: (${result.normal.x.toFixed(2)}, ${result.normal.y.toFixed(2)}, ${result.normal.z.toFixed(2)})` : '',
+      ].filter(Boolean).join('\n');
+    }
+
     // Parse value
     const enabled = value === '1' || value === 'true' || value === 'on';
     FreeflyController.setCollisionEnabled(enabled);
+    
+    // Reset logged state so we get fresh debug output
+    (FreeflyController as any)._loggedState = false;
 
     const backendInfo = isInit 
-      ? `Backend: ${cm.getBackendType()} (${planeCount} planes)` 
+      ? `Backend: ${cm.getBackendType()} (${planeCount} planes), Instance: ${cm.getInstanceId()}` 
       : 'WARNING: Collision not initialized (load a map first)';
 
     return `freefly_collision = ${enabled ? '1' : '0'}\n${backendInfo}`;
