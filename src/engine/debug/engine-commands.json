@@ -150,6 +150,18 @@
         { "name": "map", "description": "Export worldspawn values for NetRadiant" },
         { "name": "show", "description": "Preview settings without copying" }
       ]
+    },
+    {
+      "name": "pvs",
+      "description": "PVS (Potentially Visible Set) culling control",
+      "usage": "pvs <command>",
+      "subcommands": [
+        { "name": "on", "description": "Enable PVS culling" },
+        { "name": "off", "description": "Disable PVS culling" },
+        { "name": "status", "description": "Show PVS culling stats" },
+        { "name": "cluster", "description": "Show current cluster info" },
+        { "name": "debug", "description": "Toggle debug visualization" }
+      ]
     }
   ]
 }

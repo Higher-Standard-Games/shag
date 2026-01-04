@@ -1825,6 +1825,9 @@ export function registerEngineCommands(): void {
   let loadedBsp: BspFile | null = null;
   let bspRenderResult: BspMeshBuildResult | null = null;
 
+  // PVS culler instance
+  let pvsCuller: import('../loader/bsp/PVSCuller').PVSCuller | null = null;
+
   registry.register('bsp', async (args) => {
     const pk3 = PK3Loader.getInstance();
     const subcommand = args[0]?.toLowerCase();
@@ -2796,6 +2799,221 @@ export function registerEngineCommands(): void {
           '  shader lightmap <n> - Set lightmap intensity (default 2.0)',
           '  shader clear        - Clear shader registry',
           '  shader anim [...]   - Animation system commands',
+        ].join('\n');
+    }
+  });
+
+  // ============================================================================
+  // PVS Culling Commands
+  // ============================================================================
+
+  registry.register('pvs', async (args) => {
+    const subcommand = args[0]?.toLowerCase();
+    const cameraSystem = CameraSystem.getInstance();
+    const camera = cameraSystem.getCamera();
+
+    // Get effective BSP state (local or from MapLoader)
+    const { MapLoader } = await import('../loader/map/MapLoader');
+    const { createPVSCuller } = await import('../loader/bsp/PVSCuller');
+    const mapLoader = MapLoader.getInstance();
+    const effectiveBsp = loadedBsp || mapLoader.getCurrentBsp();
+    const effectiveResult = bspRenderResult || mapLoader.getCurrentMeshResult();
+
+    // Initialize or get PVS culler
+    if (!pvsCuller && effectiveBsp) {
+      pvsCuller = createPVSCuller(effectiveBsp);
+      if (pvsCuller && effectiveResult) {
+        pvsCuller.registerFromWorldMesh(effectiveResult.worldMesh);
+      }
+    }
+
+    switch (subcommand) {
+      case 'on': {
+        if (!pvsCuller) {
+          if (!effectiveBsp) {
+            return 'No BSP loaded. Load a map first with "map <name>" or "bsp load <name>"';
+          }
+          pvsCuller = createPVSCuller(effectiveBsp);
+          if (pvsCuller && effectiveResult) {
+            pvsCuller.registerFromWorldMesh(effectiveResult.worldMesh);
+          }
+        }
+
+        if (!pvsCuller) {
+          return 'PVS data not available in this map';
+        }
+
+        pvsCuller.setEnabled(true);
+
+        // Start update loop using Babylon's render observer (more efficient than rAF)
+        const scene = camera?.getScene();
+        if (scene && !(window as any)._pvsObserver) {
+          (window as any)._pvsObserver = scene.onBeforeRenderObservable.add(() => {
+            if (pvsCuller && pvsCuller.isEnabled() && camera) {
+              pvsCuller.update(camera.position);
+            }
+          });
+        }
+
+        return 'PVS culling: ON';
+      }
+
+      case 'off': {
+        if (pvsCuller) {
+          pvsCuller.setEnabled(false);
+        }
+
+        // Stop update loop
+        const sceneOff = camera?.getScene();
+        if (sceneOff && (window as any)._pvsObserver) {
+          sceneOff.onBeforeRenderObservable.remove((window as any)._pvsObserver);
+          (window as any)._pvsObserver = null;
+        }
+
+        return 'PVS culling: OFF';
+      }
+
+      case 'status': {
+        if (!pvsCuller) {
+          if (!effectiveBsp) {
+            return 'No BSP loaded';
+          }
+          return effectiveBsp.visData
+            ? `PVS available: ${effectiveBsp.visData.numClusters} clusters (not initialized)`
+            : 'No PVS data in this map';
+        }
+
+        // Force an update to get fresh stats
+        if (camera) {
+          pvsCuller.update(camera.position);
+        }
+
+        const stats = pvsCuller.getStats();
+        const culledPct = stats.totalMeshes > 0
+          ? ((stats.culledMeshes / stats.totalMeshes) * 100).toFixed(1)
+          : '0';
+
+        return [
+          '=== PVS Culling Status ===',
+          `Enabled: ${stats.enabled ? 'YES' : 'NO'}`,
+          `Current cluster: ${stats.currentCluster}`,
+          `Total clusters: ${stats.totalClusters}`,
+          `Visible clusters: ${stats.visibleClusters}`,
+          '',
+          `Total meshes: ${stats.totalMeshes}`,
+          `Visible meshes: ${stats.visibleMeshes}`,
+          `Culled meshes: ${stats.culledMeshes} (${culledPct}%)`,
+          `Update time: ${stats.lastUpdateTime.toFixed(2)}ms`,
+        ].join('\n');
+      }
+
+      case 'cluster': {
+        if (!effectiveBsp) {
+          return 'No BSP loaded';
+        }
+
+        if (!camera) {
+          return 'No camera available';
+        }
+
+        // Find current cluster
+        const { findLeafForPoint } = await import('../loader/bsp/BspLoader');
+        const q3Pos: [number, number, number] = [camera.position.x, camera.position.z, camera.position.y];
+        const leaf = findLeafForPoint(q3Pos, effectiveBsp.nodes, effectiveBsp.leafs, effectiveBsp.planes);
+
+        if (!leaf) {
+          return 'Camera position not in BSP tree (outside world?)';
+        }
+
+        const visData = effectiveBsp.visData;
+        let visibleCount = 0;
+        if (visData && leaf.cluster >= 0) {
+          for (let i = 0; i < visData.numClusters; i++) {
+            const byteIdx = leaf.cluster * visData.bytesPerCluster + Math.floor(i / 8);
+            const bitIdx = i % 8;
+            if (visData.bitVectors[byteIdx] & (1 << bitIdx)) {
+              visibleCount++;
+            }
+          }
+        }
+
+        return [
+          `=== Current Cluster Info ===`,
+          `Camera: (${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`,
+          `Cluster: ${leaf.cluster}`,
+          `Area: ${leaf.area}`,
+          `Leaf bounds:`,
+          `  min: (${leaf.mins.join(', ')})`,
+          `  max: (${leaf.maxs.join(', ')})`,
+          `Faces in leaf: ${leaf.numLeafFaces}`,
+          `Brushes in leaf: ${leaf.numLeafBrushes}`,
+          visData ? `Visible clusters: ${visibleCount} / ${visData.numClusters}` : 'No PVS data',
+        ].join('\n');
+      }
+
+      case 'debug': {
+        // Toggle debug visualization overlay
+        if ((window as any)._pvsDebugElement) {
+          document.body.removeChild((window as any)._pvsDebugElement);
+          (window as any)._pvsDebugElement = null;
+          return 'PVS debug overlay: OFF';
+        }
+
+        if (!pvsCuller) {
+          return 'Initialize PVS first with "pvs on"';
+        }
+
+        const div = document.createElement('div');
+        div.style.cssText = `
+          position: fixed;
+          top: 80px;
+          left: 10px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #00ff00;
+          padding: 8px 12px;
+          font-family: 'Consolas', 'Monaco', monospace;
+          font-size: 11px;
+          z-index: 9999;
+          border-radius: 4px;
+          min-width: 140px;
+          line-height: 1.4;
+          pointer-events: none;
+        `.replace(/\s+/g, ' ').trim();
+
+        document.body.appendChild(div);
+        (window as any)._pvsDebugElement = div;
+
+        const updateDebug = () => {
+          if (!(window as any)._pvsDebugElement || !pvsCuller) return;
+
+          const stats = pvsCuller.getStats();
+          const culledPct = stats.totalMeshes > 0
+            ? ((stats.culledMeshes / stats.totalMeshes) * 100).toFixed(0)
+            : '0';
+
+          div.innerHTML = `
+            <div style="color:#ff0;font-weight:bold;">PVS Debug</div>
+            <div>Cluster: ${stats.currentCluster}</div>
+            <div>Visible: ${stats.visibleClusters}/${stats.totalClusters}</div>
+            <div style="color:#0f0;">Meshes: ${stats.visibleMeshes}/${stats.totalMeshes}</div>
+            <div style="color:#f88;">Culled: ${stats.culledMeshes} (${culledPct}%)</div>
+          `.trim();
+
+          requestAnimationFrame(updateDebug);
+        };
+
+        updateDebug();
+        return 'PVS debug overlay: ON';
+      }
+
+      default:
+        return [
+          'PVS Culling Commands:',
+          '  pvs on      - Enable PVS culling',
+          '  pvs off     - Disable PVS culling',
+          '  pvs status  - Show detailed statistics',
+          '  pvs cluster - Show current cluster info',
+          '  pvs debug   - Toggle debug overlay',
         ].join('\n');
     }
   });

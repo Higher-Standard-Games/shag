@@ -56,6 +56,13 @@ export interface BspMeshBuildResult {
     totalVertices: number;
     totalTriangles: number;
   };
+  /** Reference to BSP data for PVS culling */
+  bspData: BspFile;
+  /** Cluster info for PVS culling (cluster -> mesh indices) */
+  clusterInfo?: {
+    numClusters: number;
+    hasPVS: boolean;
+  };
 }
 
 // ============================================================================
@@ -561,6 +568,11 @@ export class BspMeshBuilder {
       textureGroups: allTextureGroups,
       skyShaders,
       stats,
+      bspData: this.bsp,
+      clusterInfo: {
+        numClusters: this.bsp.visData?.numClusters ?? 0,
+        hasPVS: this.bsp.visData !== null,
+      },
     };
   }
 
