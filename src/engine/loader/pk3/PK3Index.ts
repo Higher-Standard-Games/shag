@@ -8,7 +8,7 @@
 import JSZip from "jszip";
 
 const STORAGE_KEY = 'pk3_index';
-const INDEX_VERSION = 1;
+const INDEX_VERSION = 2; // v2: Added shaders, maps indexes and listChecksum
 
 export interface PK3IndexEntry {
   /** PK3 filename */
@@ -17,23 +17,72 @@ export interface PK3IndexEntry {
   path: string;
   /** File count */
   fileCount: number;
+  /** File size in bytes (for checksum) */
+  size?: number;
   /** Last modified timestamp (if available) */
   timestamp?: number;
 }
 
 export interface PK3IndexData {
   version: number;
+  /** Checksum of PK3 file list for cache invalidation */
+  listChecksum: string;
   /** Map of normalized file path -> PK3 filename */
   files: Record<string, string>;
+  /** Map of shader name -> PK3 filename */
+  shaders: Record<string, string>;
+  /** Map of map name (without .bsp) -> PK3 filename */
+  maps: Record<string, string>;
   /** List of indexed PK3s */
   packages: PK3IndexEntry[];
   /** When the index was last updated */
   lastUpdated: number;
 }
 
+/**
+ * Simple hash function for checksum (djb2)
+ */
+function simpleHash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+/**
+ * Extract shader names from .shader file content
+ * Shader names are paths followed by { on the same or next line
+ */
+function extractShaderNames(content: string): string[] {
+  const names: string[] = [];
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Skip comments and empty lines
+    if (line.startsWith('//') || line === '') continue;
+
+    // Check if this line looks like a shader name (path-like, no spaces before {)
+    // Format: "textures/myshader" or "textures/myshader {"
+    // Use broader match to catch special characters in shader names
+    const match = line.match(/^([^\s{]+)\s*\{?\s*$/);
+    if (match) {
+      const potentialName = match[1].toLowerCase();
+      // Validate it looks like a texture path
+      if (potentialName.includes('/') && !potentialName.startsWith('{')) {
+        names.push(potentialName);
+      }
+    }
+  }
+
+  return names;
+}
+
 export class PK3Index {
   private static instance: PK3Index;
-  
+
   private index: PK3IndexData | null = null;
   private searchPaths: string[] = ['game/'];
 
@@ -143,50 +192,92 @@ export class PK3Index {
   }
 
   /**
-   * Index a single PK3 file (fetch headers only to get file list)
+   * Index a single PK3 file - extracts files, shaders, and maps
    */
   async indexPK3(basePath: string, filename: string): Promise<PK3IndexEntry | null> {
     const url = `${basePath}${filename}`;
-    
+
     try {
       console.log(`[PK3Index] Indexing ${url}...`);
       const response = await fetch(url);
       if (!response.ok) {
         return null;
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
       const zip = await JSZip.loadAsync(arrayBuffer);
-      
+
       const files: string[] = [];
+      const shaderFiles: string[] = [];
+      const mapFiles: string[] = [];
+
       zip.forEach((relativePath) => {
         const normalized = relativePath.toLowerCase().replace(/\\/g, '/');
         if (!normalized.endsWith('/')) {
           files.push(normalized);
+
+          // Track shader files for extraction
+          if (normalized.endsWith('.shader') &&
+              (normalized.startsWith('scripts/') || normalized.startsWith('shaders/'))) {
+            shaderFiles.push(relativePath);
+          }
+
+          // Track map files
+          if (normalized.startsWith('maps/') && normalized.endsWith('.bsp')) {
+            mapFiles.push(normalized);
+          }
         }
       });
-      
-      // Add files to index
+
+      // Initialize index if needed
       if (!this.index) {
         this.index = {
           version: INDEX_VERSION,
+          listChecksum: '',
           files: {},
+          shaders: {},
+          maps: {},
           packages: [],
           lastUpdated: Date.now(),
         };
       }
-      
+
+      // Add files to index (later packages override earlier ones)
       for (const file of files) {
-        // Later packages override earlier ones
         this.index.files[file] = filename;
       }
-      
+
+      // Extract shader names from .shader files
+      let shaderCount = 0;
+      for (const shaderFile of shaderFiles) {
+        try {
+          const content = await zip.file(shaderFile)?.async('string');
+          if (content) {
+            const shaderNames = extractShaderNames(content);
+            for (const name of shaderNames) {
+              this.index.shaders[name] = filename;
+              shaderCount++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[PK3Index] Failed to parse shader ${shaderFile}:`, e);
+        }
+      }
+
+      // Add maps to index
+      for (const mapFile of mapFiles) {
+        // Extract map name: "maps/wdm1.bsp" -> "wdm1"
+        const mapName = mapFile.replace(/^maps\//, '').replace(/\.bsp$/, '');
+        this.index.maps[mapName] = filename;
+      }
+
       const entry: PK3IndexEntry = {
         pk3: filename,
         path: url,
         fileCount: files.length,
+        size: arrayBuffer.byteLength,
       };
-      
+
       // Update or add package entry
       const existingIdx = this.index.packages.findIndex(p => p.pk3 === filename && p.path === url);
       if (existingIdx >= 0) {
@@ -194,8 +285,13 @@ export class PK3Index {
       } else {
         this.index.packages.push(entry);
       }
-      
-      console.log(`[PK3Index] Indexed ${filename}: ${files.length} files`);
+
+      const extras = [];
+      if (shaderCount > 0) extras.push(`${shaderCount} shaders`);
+      if (mapFiles.length > 0) extras.push(`${mapFiles.length} maps`);
+      const extraStr = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+
+      console.log(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
       return entry;
     } catch (e) {
       console.warn(`[PK3Index] Failed to index ${url}:`, e);
@@ -209,32 +305,44 @@ export class PK3Index {
   async buildIndex(progressCallback?: (msg: string) => void): Promise<number> {
     this.index = {
       version: INDEX_VERSION,
+      listChecksum: '',
       files: {},
+      shaders: {},
+      maps: {},
       packages: [],
       lastUpdated: Date.now(),
     };
-    
+
     let totalFiles = 0;
-    
+    const checksumParts: string[] = [];
+
     for (const basePath of this.searchPaths) {
       progressCallback?.(`Discovering PK3s in ${basePath}...`);
       const pk3Files = await this.discoverPK3s(basePath);
-      
+
       progressCallback?.(`Found ${pk3Files.length} PK3s in ${basePath}`);
-      
+
       for (const pk3 of pk3Files) {
         progressCallback?.(`Indexing ${pk3}...`);
         const entry = await this.indexPK3(basePath, pk3);
         if (entry) {
           totalFiles += entry.fileCount;
+          // Add to checksum: filename:size
+          checksumParts.push(`${pk3}:${entry.size || 0}`);
         }
       }
     }
-    
+
+    // Compute checksum from sorted list of pk3:size pairs
+    checksumParts.sort();
+    this.index.listChecksum = simpleHash(checksumParts.join('|'));
+
     this.index.lastUpdated = Date.now();
     this.saveToStorage();
-    
-    progressCallback?.(`Index complete: ${totalFiles} files from ${this.index.packages.length} packages`);
+
+    const shaderCount = Object.keys(this.index.shaders).length;
+    const mapCount = Object.keys(this.index.maps).length;
+    progressCallback?.(`Index complete: ${totalFiles} files, ${shaderCount} shaders, ${mapCount} maps from ${this.index.packages.length} packages`);
     return totalFiles;
   }
 
@@ -245,6 +353,40 @@ export class PK3Index {
     if (!this.index) return null;
     const normalized = path.toLowerCase().replace(/\\/g, '/');
     return this.index.files[normalized] || null;
+  }
+
+  /**
+   * Find which PK3 contains a shader definition
+   */
+  findShader(shaderName: string): string | null {
+    if (!this.index) return null;
+    const normalized = shaderName.toLowerCase();
+    return this.index.shaders[normalized] || null;
+  }
+
+  /**
+   * Find which PK3 contains a map
+   */
+  findMap(mapName: string): string | null {
+    if (!this.index) return null;
+    const normalized = mapName.toLowerCase();
+    return this.index.maps[normalized] || null;
+  }
+
+  /**
+   * Get all indexed map names
+   */
+  getMapNames(): string[] {
+    if (!this.index) return [];
+    return Object.keys(this.index.maps);
+  }
+
+  /**
+   * Get all indexed shader names
+   */
+  getShaderNames(): string[] {
+    if (!this.index) return [];
+    return Object.keys(this.index.shaders);
   }
 
   /**
@@ -323,13 +465,23 @@ export class PK3Index {
   /**
    * Get index stats
    */
-  getStats(): { fileCount: number; packageCount: number; lastUpdated: Date | null } {
+  getStats(): {
+    fileCount: number;
+    shaderCount: number;
+    mapCount: number;
+    packageCount: number;
+    checksum: string;
+    lastUpdated: Date | null;
+  } {
     if (!this.index) {
-      return { fileCount: 0, packageCount: 0, lastUpdated: null };
+      return { fileCount: 0, shaderCount: 0, mapCount: 0, packageCount: 0, checksum: '', lastUpdated: null };
     }
     return {
       fileCount: Object.keys(this.index.files).length,
+      shaderCount: Object.keys(this.index.shaders).length,
+      mapCount: Object.keys(this.index.maps).length,
       packageCount: this.index.packages.length,
+      checksum: this.index.listChecksum,
       lastUpdated: new Date(this.index.lastUpdated),
     };
   }
