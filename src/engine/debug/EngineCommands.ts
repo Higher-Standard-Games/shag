@@ -349,22 +349,29 @@ export function registerEngineCommands(): void {
   registry.register('freefly_collision', async (args) => {
     const value = args[0]?.toLowerCase();
 
+    // Show collision backend info
+    const { getCollisionManager } = await import('../physics');
+    const cm = getCollisionManager();
+    const isInit = cm.isInitialized();
+    const stats = isInit ? cm.getStats() : null;
+    const planeCount = (stats?.backendStats as any)?.collisionPlanes || 0;
+
     // No argument - show current state
     if (value === undefined) {
       const enabled = FreeflyController.isCollisionEnabled();
-      return `freefly_collision = ${enabled ? '1' : '0'}`;
+      const status = isInit 
+        ? `Backend: ${cm.getBackendType()} (${planeCount} planes)` 
+        : 'WARNING: Collision not initialized (load a map first)';
+      return `freefly_collision = ${enabled ? '1' : '0'}\n${status}`;
     }
 
     // Parse value
     const enabled = value === '1' || value === 'true' || value === 'on';
     FreeflyController.setCollisionEnabled(enabled);
 
-    // Show collision backend info
-    const { getCollisionManager } = await import('../physics');
-    const cm = getCollisionManager();
-    const backendInfo = cm.isInitialized() 
-      ? `Backend: ${cm.getBackendType()}` 
-      : 'Warning: Collision not initialized (load a map first)';
+    const backendInfo = isInit 
+      ? `Backend: ${cm.getBackendType()} (${planeCount} planes)` 
+      : 'WARNING: Collision not initialized (load a map first)';
 
     return `freefly_collision = ${enabled ? '1' : '0'}\n${backendInfo}`;
   });
@@ -2451,13 +2458,26 @@ export function registerEngineCommands(): void {
           }
 
           const filterInfo = faceTypes ? ` (types: ${faceTypes.join(',')})` : '';
+          
+          // Initialize collision system
+          let collisionInfo = '';
+          try {
+            const { getCollisionManager } = await import('../physics');
+            const cm = getCollisionManager();
+            await cm.init(effectiveBsp, scene as never);
+            const stats = cm.getStats();
+            collisionInfo = `\nCollision: ${cm.getBackendType()} (${(stats.backendStats as any)?.collisionPlanes || 0} planes)`;
+          } catch (e) {
+            console.warn('[bsp render] Failed to init collision:', e);
+          }
+          
           return [
             `=== BSP Rendered${filterInfo} ===`,
             `Vertices: ${bspRenderResult.stats.totalVertices}`,
             `Triangles: ${bspRenderResult.stats.totalTriangles}`,
             `Lightmaps: ${bspRenderResult.lightmapTextures.length}`,
             `Faces: ${bspRenderResult.stats.polygonFaces} poly, ${bspRenderResult.stats.patchFaces} patch, ${bspRenderResult.stats.meshFaces} mesh`,
-          ].join('\n');
+          ].join('\n') + collisionInfo;
         } catch (e) {
           return `Render failed: ${e}`;
         }

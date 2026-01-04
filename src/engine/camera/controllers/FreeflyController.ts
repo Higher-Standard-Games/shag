@@ -292,10 +292,17 @@ export class FreeflyController implements ICameraController {
             // Hit something - move to collision point with safety margin
             const safeMove = movement.scale(result.fraction * 0.95);
             this.camera.position.addInPlace(safeMove);
+            // Debug: log collision
+            console.log(`[Freefly] HIT at ${result.fraction.toFixed(3)}`);
           } else {
             this.camera.position.addInPlace(movement);
           }
         } else {
+          // Debug: warn once if collision not initialized
+          if (!FreeflyController._warnedNotInit) {
+            console.warn('[Freefly] Collision enabled but not initialized!');
+            FreeflyController._warnedNotInit = true;
+          }
           this.camera.position.addInPlace(movement);
         }
       } else {
@@ -303,6 +310,8 @@ export class FreeflyController implements ICameraController {
       }
     }
   }
+  
+  private static _warnedNotInit = false;
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
