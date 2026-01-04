@@ -6,6 +6,11 @@
       "usage": "help [command]"
     },
     {
+      "name": "show_fps",
+      "description": "Toggle FPS/performance metrics display (0=off, 1=on)",
+      "usage": "show_fps <0|1>"
+    },
+    {
       "name": "bsp",
       "description": "BSP map loading and debugging (Quake3/Warsow FBSP)",
       "usage": "bsp <command> [args]",

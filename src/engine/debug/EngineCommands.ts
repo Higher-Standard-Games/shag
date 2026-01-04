@@ -112,6 +112,115 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
+  // FPS Display Command (show_fps 0/1)
+  // ============================================================================
+
+  registry.register('show_fps', (args) => {
+    const cameraSystem = CameraSystem.getInstance();
+    const scene = cameraSystem.getCamera()?.getScene();
+
+    if (!scene) return 'No scene available';
+
+    const engine = scene.getEngine();
+    const value = args[0];
+
+    // Parse argument: 0 = off, 1 = on, no arg = show current state
+    if (value === undefined) {
+      const isOn = !!(window as any)._showFpsElement;
+      return `show_fps is ${isOn ? '1 (on)' : '0 (off)'}`;
+    }
+
+    const shouldShow = value === '1' || value.toLowerCase() === 'on' || value.toLowerCase() === 'true';
+    const shouldHide = value === '0' || value.toLowerCase() === 'off' || value.toLowerCase() === 'false';
+
+    if (!shouldShow && !shouldHide) {
+      return 'Usage: show_fps <0|1>';
+    }
+
+    // Remove existing element if present
+    if ((window as any)._showFpsElement) {
+      document.body.removeChild((window as any)._showFpsElement);
+      (window as any)._showFpsElement = null;
+      (window as any)._showFpsAnimFrame = null;
+    }
+
+    if (shouldHide) {
+      return 'FPS display: OFF';
+    }
+
+    // Create FPS display element (top-left corner)
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #00ff00;
+      padding: 8px 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      z-index: 9999;
+      border-radius: 4px;
+      min-width: 120px;
+      line-height: 1.4;
+      pointer-events: none;
+    `.replace(/\s+/g, ' ').trim();
+
+    document.body.appendChild(div);
+    (window as any)._showFpsElement = div;
+
+    // Track frame times for more detailed metrics
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let minFps = Infinity;
+    let maxFps = 0;
+
+    const update = () => {
+      if (!(window as any)._showFpsElement) return;
+
+      const now = performance.now();
+      const deltaTime = now - lastTime;
+      frameCount++;
+
+      // Update display every 500ms for stability
+      if (deltaTime >= 500) {
+        const fps = engine.getFps();
+
+        minFps = Math.min(minFps, fps);
+        maxFps = Math.max(maxFps, fps);
+
+        // Reset min/max every 5 seconds
+        if (deltaTime >= 5000) {
+          minFps = fps;
+          maxFps = fps;
+        }
+
+        const drawCalls = engine._drawCalls?.current ?? 0;
+        const triangles = scene.getActiveIndices() / 3;
+        const meshes = scene.getActiveMeshes().length;
+
+        div.innerHTML = `
+          <div style="color:#0f0;font-weight:bold;">FPS: ${fps.toFixed(0)}</div>
+          <div style="color:#888;font-size:10px;">min: ${minFps.toFixed(0)} / max: ${maxFps.toFixed(0)}</div>
+          <div style="color:#aaa;font-size:10px;margin-top:4px;">
+            Draw calls: ${drawCalls}<br>
+            Triangles: ${(triangles / 1000).toFixed(1)}K<br>
+            Meshes: ${meshes}
+          </div>
+        `.trim();
+
+        frameCount = 0;
+        lastTime = now;
+      }
+
+      (window as any)._showFpsAnimFrame = requestAnimationFrame(update);
+    };
+
+    update();
+    return 'FPS display: ON';
+  });
+
+  // ============================================================================
   // Debug Commands
   // ============================================================================
 
