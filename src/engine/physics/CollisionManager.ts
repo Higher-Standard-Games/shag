@@ -24,6 +24,9 @@ import { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
 export class CollisionManager {
   private static instance: CollisionManager | null = null;
   
+  // Debug: unique ID to track singleton
+  private readonly instanceId = Math.random().toString(36).slice(2, 8);
+  
   private backends: Map<CollisionBackendType, CollisionBackend> = new Map();
   private activeBackend: CollisionBackend | null = null;
   private bsp: BspFile | null = null;
@@ -34,6 +37,7 @@ export class CollisionManager {
     // Register available backends
     this.backends.set('clipbrush', new ClipBrushBackend());
     this.backends.set('babylon', new BabylonPhysicsBackend());
+    console.log(`[CollisionManager] Created instance ${this.instanceId}`);
   }
 
   static getInstance(): CollisionManager {
@@ -47,6 +51,7 @@ export class CollisionManager {
    * Initialize collision with BSP data
    */
   async init(bsp: BspFile, scene?: Scene, preferredBackend?: CollisionBackendType): Promise<void> {
+    console.log(`[CollisionManager:${this.instanceId}] init() called with ${bsp.faces.length} faces`);
     this.bsp = bsp;
     this.scene = scene ?? null;
 
@@ -54,9 +59,9 @@ export class CollisionManager {
     for (const [type, backend] of this.backends) {
       try {
         await backend.init(bsp, scene);
-        console.log(`[CollisionManager] Initialized ${backend.name}`);
+        console.log(`[CollisionManager:${this.instanceId}] Initialized ${backend.name}`);
       } catch (err) {
-        console.warn(`[CollisionManager] Failed to init ${type}:`, err);
+        console.warn(`[CollisionManager:${this.instanceId}] Failed to init ${type}:`, err);
       }
     }
 
@@ -65,7 +70,7 @@ export class CollisionManager {
     this.setBackend(backendType);
     
     this.initialized = true;
-    console.log(`[CollisionManager] Ready with ${this.activeBackend?.name ?? 'no backend'}`);
+    console.log(`[CollisionManager:${this.instanceId}] Ready with ${this.activeBackend?.name ?? 'no backend'}`);
   }
 
   /**
@@ -142,7 +147,15 @@ export class CollisionManager {
    * Check if collision is initialized
    */
   isInitialized(): boolean {
-    return this.initialized && this.activeBackend !== null;
+    const result = this.initialized && this.activeBackend !== null;
+    return result;
+  }
+  
+  /**
+   * Get instance ID for debugging
+   */
+  getInstanceId(): string {
+    return this.instanceId;
   }
 
   /**

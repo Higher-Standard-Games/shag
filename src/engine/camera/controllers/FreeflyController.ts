@@ -317,7 +317,7 @@ export class FreeflyController implements ICameraController {
     const now = Date.now();
     if (now - FreeflyController._lastDebugTime > 1000) {
       FreeflyController._lastDebugTime = now;
-      console.log(`[Freefly DEBUG] pos=(${start.x.toFixed(0)},${start.y.toFixed(0)},${start.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)} frac=${result.fraction.toFixed(3)} backend=${cm.getBackendType()}`);
+      console.log(`[Freefly DEBUG] instance=${cm.getInstanceId()} pos=(${start.x.toFixed(0)},${start.y.toFixed(0)},${start.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)} frac=${result.fraction.toFixed(3)} backend=${cm.getBackendType()}`);
     }
     
     if (result.fraction >= 1.0) {
