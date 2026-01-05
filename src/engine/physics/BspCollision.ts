@@ -43,6 +43,91 @@ export class BspCollision {
     console.log(`[BspCollision] Initialized for ${this.isFBSP ? 'FBSP' : 'IBSP'} format`);
   }
 
+  private getPlaneWithFlip(plane: BspPlane, flip: boolean): BspPlane {
+    const sign = (this.isFBSP ? -1 : 1) * (flip ? -1 : 1);
+    if (sign === 1) return plane;
+    return {
+      normal: [-plane.normal[0], -plane.normal[1], -plane.normal[2]],
+      dist: -plane.dist,
+    };
+  }
+
+  private traceBrushWithFlip(
+    start: [number, number, number],
+    end: [number, number, number],
+    brush: BspBrush,
+    result: TraceResult,
+    debug: boolean,
+    flip: boolean
+  ): void {
+    let enterFrac = -1.0;
+    let leaveFrac = 1.0;
+    let hitPlane: BspPlane | null = null;
+    let startOut = false;
+    let endOut = false;
+
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = this.bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+
+      const plane = this.bsp.planes[side.planeIndex];
+      if (!plane) continue;
+
+      const startDist = this.brushPlaneDistWithFlip(start, plane, flip);
+      const endDist = this.brushPlaneDistWithFlip(end, plane, flip);
+
+      if (startDist > 0) startOut = true;
+      if (endDist > 0) endOut = true;
+
+      if (startDist > 0 && endDist > 0) {
+        if (debug) console.log(`  Side ${i}: both outside (${startDist.toFixed(1)}, ${endDist.toFixed(1)}) - SKIP BRUSH`);
+        return;
+      }
+
+      if (startDist <= 0 && endDist <= 0) {
+        if (debug) console.log(`  Side ${i}: both inside (${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        continue;
+      }
+
+      if (startDist > endDist) {
+        // Entering the brush
+        const frac = (startDist - DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Side ${i}: ENTER at ${frac.toFixed(4)} (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        if (frac > enterFrac) {
+          enterFrac = frac;
+          hitPlane = this.getPlaneWithFlip(plane, flip);
+        }
+      } else {
+        // Leaving the brush
+        const frac = (startDist + DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Side ${i}: LEAVE at ${frac.toFixed(4)} (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        if (frac < leaveFrac) {
+          leaveFrac = frac;
+        }
+      }
+    }
+
+    if (!startOut) {
+      result.startSolid = true;
+      if (!endOut) {
+        result.allSolid = true;
+        result.fraction = 0;
+        result.endPos = new Vector3(start[0], start[2], start[1]);
+        if (debug) console.log(`  allSolid=true (never left brush)`);
+      }
+      return;
+    }
+
+    if (enterFrac < leaveFrac) {
+      if (enterFrac > -1 && enterFrac < result.fraction) {
+        if (enterFrac < 0) enterFrac = 0;
+        result.fraction = enterFrac;
+        result.plane = hitPlane;
+        if (debug) console.log(`  HIT! fraction=${result.fraction.toFixed(4)}`);
+      }
+    }
+  }
+
   /**
    * Update BSP reference (e.g., after map change)
    */
@@ -424,7 +509,20 @@ export class BspCollision {
       // Test trace against brush
       const prevFrac = result.fraction;
       const prevStartSolid = result.startSolid;
-      this.traceBrush(start, end, brush, result, debug);
+      if (clipTexturesOnly && this.isFBSP) {
+        const snap = this.cloneTraceResult(result);
+
+        const candA = this.cloneTraceResult(result);
+        this.traceBrushWithFlip(start, end, brush, candA, debug, false);
+
+        const candB = this.cloneTraceResult(result);
+        this.traceBrushWithFlip(start, end, brush, candB, debug, true);
+
+        const best = this.pickBetterTraceResult(candA, candB);
+        this.applyTraceResult(result, snap, best);
+      } else {
+        this.traceBrush(start, end, brush, result, debug);
+      }
       if (result.fraction < prevFrac || (!prevStartSolid && result.startSolid)) {
         result.hitBrushIndex = brushIndex;
         result.hitTextureName = texture.name;
@@ -495,7 +593,107 @@ export class BspCollision {
         if (frac > enterFrac) {
           enterFrac = frac;
           enterFrac2 = frac2;
-          hitPlane = plane;
+          hitPlane = this.getPlaneWithFlip(plane, false);
+        }
+      } else {
+        // Leaving the brush
+        const frac = (startDist + DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Box Side ${i}: LEAVE at ${frac.toFixed(4)} (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        if (frac < leaveFrac) {
+          leaveFrac = frac;
+        }
+      }
+    }
+
+    if (!startOut) {
+      result.startSolid = true;
+      if (!endOut) {
+        result.allSolid = true;
+        result.fraction = 0;
+        result.endPos = new Vector3(start[0], start[2], start[1]);
+        if (debug) console.log(`  BOX: allSolid=true (never left brush)`);
+      }
+      return;
+    }
+
+    // If we entered before leaving, we hit the brush
+    if (enterFrac > leaveFrac) return;
+
+    if (enterFrac < result.realfraction) {
+      if (enterFrac2 < result.fraction) {
+        result.realfraction = enterFrac;
+        result.fraction = Math.max(0, Math.min(1, enterFrac2));
+        result.plane = hitPlane;
+        if (debug) console.log(`  BOX HIT! fraction=${result.fraction.toFixed(4)}`);
+      }
+    }
+  }
+
+  private traceBrushBoxWithFlip(
+    start: [number, number, number],
+    end: [number, number, number],
+    mins: [number, number, number],
+    maxs: [number, number, number],
+    brush: BspBrush,
+    result: TraceResult & { realfraction: number },
+    debug: boolean,
+    flip: boolean
+  ): void {
+    let enterFrac = -1.0;
+    let enterFrac2 = -1.0;
+    let leaveFrac = 1.0;
+    let hitPlane: BspPlane | null = null;
+    let startOut = false;
+    let endOut = false;
+
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = this.bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+
+      const plane = this.bsp.planes[side.planeIndex];
+      if (!plane) continue;
+
+      // Calculate distances using box extents
+      let startDist = 0;
+      let endDist = 0;
+      for (let j = 0; j < 3; j++) {
+        const n = plane.normal[j];
+        if (n > 0) {
+          startDist += n * mins[j];
+          endDist += n * mins[j];
+        } else {
+          startDist += n * maxs[j];
+          endDist += n * maxs[j];
+        }
+      }
+      startDist = this.brushPlaneDistWithFlip(start, plane, flip) + startDist;
+      endDist = this.brushPlaneDistWithFlip(end, plane, flip) + endDist;
+
+      if (startDist > 0) startOut = true;
+      if (endDist > 0) endOut = true;
+
+      // Both points outside this plane - no collision with brush
+      if (startDist > 0 && endDist > 0) {
+        if (debug) console.log(`  Box Side ${i}: both outside (${startDist.toFixed(1)}, ${endDist.toFixed(1)}) - SKIP BRUSH`);
+        return;
+      }
+
+      // Both points inside this plane - check other planes
+      if (startDist <= 0 && endDist <= 0) {
+        if (debug) console.log(`  Box Side ${i}: both inside (${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        continue;
+      }
+
+      // Ray crosses this plane
+      if (startDist > endDist) {
+        // Entering the brush
+        const frac = (startDist - DIST_EPSILON) / (startDist - endDist);
+        const frac2 = (startDist - 2 * DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Box Side ${i}: ENTER at ${frac.toFixed(4)} (nudged ${frac2.toFixed(4)}) (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
+        if (frac > enterFrac) {
+          enterFrac = frac;
+          enterFrac2 = frac2;
+          hitPlane = this.getPlaneWithFlip(plane, flip);
         }
       } else {
         // Leaving the brush
@@ -519,7 +717,7 @@ export class BspCollision {
       return;
     }
 
-    // If we entered before leaving, we hit the brush
+    // If we entered before leaving, no hit
     if (enterFrac > leaveFrac) return;
 
     if (enterFrac < result.realfraction) {
@@ -561,13 +759,102 @@ export class BspCollision {
 
       const prevRealFrac = result.realfraction;
       const prevStartSolid = result.startSolid;
-      this.traceBrushBox(start, end, mins, maxs, brush, result, debug);
+      if (clipTexturesOnly && this.isFBSP) {
+        const snap = this.cloneTraceResultBox(result);
+
+        const candA = this.cloneTraceResultBox(result);
+        this.traceBrushBoxWithFlip(start, end, mins, maxs, brush, candA, debug, false);
+
+        const candB = this.cloneTraceResultBox(result);
+        this.traceBrushBoxWithFlip(start, end, mins, maxs, brush, candB, debug, true);
+
+        const best = this.pickBetterTraceResultBox(candA, candB);
+        this.applyTraceResultBox(result, snap, best);
+      } else {
+        this.traceBrushBox(start, end, mins, maxs, brush, result, debug);
+      }
       if (result.realfraction < prevRealFrac || (!prevStartSolid && result.startSolid)) {
         (result as TraceResult).hitBrushIndex = brushIndex;
         (result as TraceResult).hitTextureName = texture.name;
       }
       if (result.fraction === 0) return;
     }
+  }
+
+  private cloneTraceResult(r: TraceResult): TraceResult {
+    return {
+      fraction: r.fraction,
+      endPos: r.endPos.clone(),
+      plane: r.plane,
+      startSolid: r.startSolid,
+      allSolid: r.allSolid,
+      contents: r.contents,
+      hitBrushIndex: r.hitBrushIndex,
+      hitTextureName: r.hitTextureName,
+    };
+  }
+
+  private applyTraceResult(dst: TraceResult, snap: TraceResult, best: TraceResult): void {
+    // Only update if the candidate improved over the snapshot.
+    if (best.fraction < snap.fraction || (!snap.startSolid && best.startSolid)) {
+      dst.fraction = best.fraction;
+      dst.endPos = best.endPos;
+      dst.plane = best.plane;
+      dst.startSolid = best.startSolid;
+      dst.allSolid = best.allSolid;
+      dst.contents = best.contents;
+      dst.hitBrushIndex = best.hitBrushIndex;
+      dst.hitTextureName = best.hitTextureName;
+    }
+  }
+
+  private pickBetterTraceResult(a: TraceResult, b: TraceResult): TraceResult {
+    if (a.fraction < b.fraction) return a;
+    if (b.fraction < a.fraction) return b;
+    if (!a.startSolid && b.startSolid) return b;
+    return a;
+  }
+
+  private cloneTraceResultBox(r: TraceResult & { realfraction: number }): TraceResult & { realfraction: number } {
+    return {
+      fraction: r.fraction,
+      realfraction: r.realfraction,
+      endPos: r.endPos.clone(),
+      plane: r.plane,
+      startSolid: r.startSolid,
+      allSolid: r.allSolid,
+      contents: r.contents,
+      hitBrushIndex: (r as any).hitBrushIndex,
+      hitTextureName: (r as any).hitTextureName,
+    };
+  }
+
+  private applyTraceResultBox(
+    dst: TraceResult & { realfraction: number },
+    snap: TraceResult & { realfraction: number },
+    best: TraceResult & { realfraction: number }
+  ): void {
+    if (best.realfraction < snap.realfraction || (!snap.startSolid && best.startSolid)) {
+      dst.fraction = best.fraction;
+      dst.realfraction = best.realfraction;
+      dst.endPos = best.endPos;
+      dst.plane = best.plane;
+      dst.startSolid = best.startSolid;
+      dst.allSolid = best.allSolid;
+      dst.contents = best.contents;
+      (dst as any).hitBrushIndex = (best as any).hitBrushIndex;
+      (dst as any).hitTextureName = (best as any).hitTextureName;
+    }
+  }
+
+  private pickBetterTraceResultBox(
+    a: TraceResult & { realfraction: number },
+    b: TraceResult & { realfraction: number }
+  ): TraceResult & { realfraction: number } {
+    if (a.realfraction < b.realfraction) return a;
+    if (b.realfraction < a.realfraction) return b;
+    if (!a.startSolid && b.startSolid) return b;
+    return a;
   }
 
   private isContentsSolid(contentFlags: number, contentsMask: number): boolean {
@@ -633,7 +920,7 @@ export class BspCollision {
         if (debug) console.log(`  Side ${i}: ENTER at ${frac.toFixed(4)} (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
         if (frac > enterFrac) {
           enterFrac = frac;
-          hitPlane = plane;
+          hitPlane = this.getPlaneWithFlip(plane, false);
         }
       } else {
         // Leaving the brush
@@ -749,5 +1036,16 @@ export class BspCollision {
     );
     // FBSP uses inverted plane convention - negate to match Q3 expected behavior
     return this.isFBSP ? -dist : dist;
+  }
+
+  private brushPlaneDistWithFlip(point: [number, number, number], plane: BspPlane, flip: boolean): number {
+    const dist = (
+      point[0] * plane.normal[0] +
+      point[1] * plane.normal[1] +
+      point[2] * plane.normal[2] -
+      plane.dist
+    );
+    const sign = (this.isFBSP ? -1 : 1) * (flip ? -1 : 1);
+    return sign * dist;
   }
 }

@@ -423,8 +423,8 @@ export class FreeflyController implements ICameraController {
       }
 
       const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
-      const traceStart = posBefore.subtract(ellipsoidOffset);
-      const traceEnd = posAfterBabylon.subtract(ellipsoidOffset);
+      const traceStart = posBefore.add(ellipsoidOffset);
+      const traceEnd = posAfterBabylon.add(ellipsoidOffset);
 
       const clipTrace = cm.trace(traceStart as never, traceEnd as never, {
         radius: 16,
@@ -442,14 +442,15 @@ export class FreeflyController implements ICameraController {
       if (!clipTrace.startSolid && clipTrace.fraction < 1.0) {
         // Apply BSP-resolved end position, with a tiny push-out to reduce re-colliding next frame
         const endPos: any = clipTrace.endPos;
-        this.camera.position.x = endPos.x + ellipsoidOffset.x;
-        this.camera.position.y = endPos.y + ellipsoidOffset.y;
-        this.camera.position.z = endPos.z + ellipsoidOffset.z;
+        this.camera.position.x = endPos.x - ellipsoidOffset.x;
+        this.camera.position.y = endPos.y - ellipsoidOffset.y;
+        this.camera.position.z = endPos.z - ellipsoidOffset.z;
         if (clipTrace.normal) {
           const n: any = clipTrace.normal;
-          this.camera.position.x += n.x * 0.5;
-          this.camera.position.y += n.y * 0.5;
-          this.camera.position.z += n.z * 0.5;
+          const push = clipTrace.fraction < 0.01 ? 2.0 : 0.5;
+          this.camera.position.x += n.x * push;
+          this.camera.position.y += n.y * push;
+          this.camera.position.z += n.z * push;
         }
 
         const now = Date.now();
@@ -461,6 +462,46 @@ export class FreeflyController implements ICameraController {
           FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
           console.log(`[Freefly][Clip] HIT frac=${clipTrace.fraction.toFixed(3)} brush=${hitBrushIndex} tex=${hitTextureName}`);
         }
+      } else if (clipTrace.startSolid) {
+        const now = Date.now();
+        if (now - FreeflyController._lastClipHitLogTime > 250) {
+          FreeflyController._lastClipHitLogTime = now;
+          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
+          const hitTextureName = (clipTrace as any).hitTextureName;
+          FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
+          FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
+          console.log(`[Freefly][Clip] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
+        }
+
+        const base = posAfterBabylon.clone();
+        const nudgeSteps = [0.5, 1.0, 2.0, 4.0, 8.0];
+        const testDirs = [
+          new Vector3(1, 0, 0), new Vector3(-1, 0, 0),
+          new Vector3(0, 1, 0), new Vector3(0, -1, 0),
+          new Vector3(0, 0, 1), new Vector3(0, 0, -1),
+          new Vector3(1, 1, 0), new Vector3(-1, -1, 0),
+          new Vector3(1, 0, 1), new Vector3(-1, 0, -1),
+          new Vector3(0, 1, 1), new Vector3(0, -1, -1)
+        ];
+
+        for (const nudge of nudgeSteps) {
+          for (const dir of testDirs) {
+            const testPos = base.add(dir.scale(nudge));
+            const testStart = testPos.add(ellipsoidOffset);
+            const testTrace = cm.trace(testStart as never, testStart as never, {
+              radius: 16,
+              height: 56,
+              clipTexturesOnly: true,
+              contentMask: 0x1 | 0x10000,
+            });
+            if (!testTrace.startSolid) {
+              this.camera.position.copyFrom(testPos);
+              return;
+            }
+          }
+        }
+
+        this.camera.position.copyFrom(posBefore);
       }
 
       // Debug: log if collision occurred (position changed differently than expected)

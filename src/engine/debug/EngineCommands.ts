@@ -502,7 +502,7 @@ export function registerEngineCommands(): void {
       }
 
       const ellipsoidOffset = (camera as any).ellipsoidOffset ? (camera as any).ellipsoidOffset : Vector3.Zero();
-      const start = camera.position.subtract(ellipsoidOffset);
+      const start = camera.position.add(ellipsoidOffset);
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = start.add(forward.scale(dist));
 
