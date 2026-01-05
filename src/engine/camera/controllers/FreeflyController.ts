@@ -377,14 +377,47 @@ export class FreeflyController implements ICameraController {
       console.log(`[FreeflyController] Camera ellipsoid: (${this.camera.ellipsoid.x}, ${this.camera.ellipsoid.y}, ${this.camera.ellipsoid.z})`);
     }
     
-    // Use Babylon's built-in moveWithCollisions
-    // This handles all collision detection against meshes with checkCollisions=true
-    this.camera.position.addInPlace(movement);
+    // IMPORTANT: camera.position.addInPlace() bypasses collision!
+    // We must use Babylon's internal collision system
     
-    // Alternative: use _collideWithWorld for more control (internal API)
-    // For now, simple position update with camera.checkCollisions should work
-    // since Babylon handles collision in its internal update loop
+    // Debug: check what methods are available
+    const cam = this.camera as any;
+    if (!FreeflyController._debuggedMethods) {
+      FreeflyController._debuggedMethods = true;
+      console.log(`[FreeflyController] Camera type: ${this.camera.getClassName()}`);
+      console.log(`[FreeflyController] Has _collideWithWorld: ${typeof cam._collideWithWorld}`);
+      console.log(`[FreeflyController] Has _checkInputs: ${typeof cam._checkInputs}`);
+      console.log(`[FreeflyController] checkCollisions: ${this.camera.checkCollisions}`);
+      console.log(`[FreeflyController] scene.collisionsEnabled: ${this.scene.collisionsEnabled}`);
+      
+      // List meshes with collision enabled
+      const collisionMeshes = this.scene.meshes.filter(m => m.checkCollisions);
+      console.log(`[FreeflyController] Meshes with checkCollisions=true: ${collisionMeshes.length}`);
+      if (collisionMeshes.length > 0) {
+        console.log(`[FreeflyController] Sample collision mesh: "${collisionMeshes[0].name}"`);
+      }
+    }
+    
+    // Try using _collideWithWorld if available
+    if (cam._collideWithWorld && this.camera.checkCollisions) {
+      const posBefore = this.camera.position.clone();
+      cam._collideWithWorld(movement);
+      const posAfter = this.camera.position;
+      
+      // Debug: log if collision occurred (position changed differently than expected)
+      const actualMove = posAfter.subtract(posBefore);
+      const moveDiff = actualMove.subtract(movement).length();
+      if (moveDiff > 0.01) {
+        console.log(`[FreeflyController] Collision detected! Expected move: ${movement.length().toFixed(2)}, Actual: ${actualMove.length().toFixed(2)}`);
+      }
+    } else {
+      // Fallback: no collision available, just move
+      console.log(`[FreeflyController] WARNING: _collideWithWorld not available, falling back to direct move`);
+      this.camera.position.addInPlace(movement);
+    }
   }
+  
+  private static _debuggedMethods = false;
   
   /**
    * Apply collision using BSP trace with Q3-style sliding
