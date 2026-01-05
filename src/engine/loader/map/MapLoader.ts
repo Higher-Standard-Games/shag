@@ -422,24 +422,49 @@ export class MapLoader {
     const DETAIL = 0x8000000;
     
     let meshCount = 0;
+    let debugChecked = 0;
+    let debugClipByFlag = 0;
+    let debugClipByName = 0;
     
-    // Find brushes that are PLAYERCLIP but not SOLID (invisible clip brushes)
+    // Find clip brushes - either by content flag OR by texture name
     for (let bi = 0; bi < bsp.brushes.length; bi++) {
       const brush = bsp.brushes[bi];
       const texture = bsp.textures[brush.shaderIndex];
       if (!texture) continue;
       
       const contentFlags = texture.contentFlags;
+      const texName = texture.name?.toLowerCase() || '';
       
       // Skip detail brushes
       if (contentFlags & DETAIL) continue;
       
-      // We want PLAYERCLIP brushes that are NOT already solid (those are rendered)
-      const isPlayerClip = (contentFlags & PLAYERCLIP) !== 0;
+      // Check if this is a clip brush by content flag
+      const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
       const isSolid = (contentFlags & SOLID) !== 0;
       
-      // Only generate mesh for pure clip brushes (not already solid/rendered)
-      if (!isPlayerClip || isSolid) continue;
+      // Also check by texture name (common clip texture names)
+      const isClipByName = texName.includes('clip') || 
+                           texName.includes('fullclip') || 
+                           texName.includes('playerclip') ||
+                           texName.includes('common/clip') ||
+                           texName.includes('system/clip') ||
+                           texName === 'nodraw';
+      
+      // Debug: log first 5 potential clip brushes
+      if ((isPlayerClipByFlag || isClipByName) && debugChecked < 5) {
+        console.log(`[ClipBrush] Brush ${bi}: "${texName}" flags=0x${contentFlags.toString(16)} solid=${isSolid} clipFlag=${isPlayerClipByFlag} clipName=${isClipByName}`);
+        debugChecked++;
+      }
+      
+      // Generate collision mesh if:
+      // 1. Has PLAYERCLIP flag and is NOT solid (pure invisible clip)
+      // 2. OR has clip-related texture name and is NOT solid
+      const shouldGenerate = (isPlayerClipByFlag && !isSolid) || (isClipByName && !isSolid);
+      
+      if (!shouldGenerate) continue;
+      
+      if (isPlayerClipByFlag) debugClipByFlag++;
+      if (isClipByName) debugClipByName++;
       
       // Generate mesh from brush planes
       const vertices = this.brushToVertices(brush, bsp);
@@ -495,8 +520,11 @@ export class MapLoader {
         meshCount++;
       } catch (e) {
         // Skip invalid brushes
+        console.warn(`[ClipBrush] Failed to create mesh for brush ${bi}:`, e);
       }
     }
+    
+    console.log(`[ClipBrush] Summary: byFlag=${debugClipByFlag}, byName=${debugClipByName}, generated=${meshCount}`);
     
     return meshCount;
   }
