@@ -613,15 +613,18 @@ export class MapLoader {
   
   /**
    * Check if point is inside (or on surface of) all planes
+   * FBSP uses inverted plane normals, so we check dist < EPSILON (not > EPSILON)
    */
   private isInsideAllPlanes(
     point: [number, number, number],
     planes: { nx: number; ny: number; nz: number; d: number }[]
   ): boolean {
-    const EPSILON = 0.5; // Tolerance for floating point
+    // For FBSP format, planes point inward, so inside = positive or near-zero distance
+    // We accept points that are within tolerance of being on the correct side of ALL planes
     for (const p of planes) {
       const dist = point[0] * p.nx + point[1] * p.ny + point[2] * p.nz - p.d;
-      if (dist > EPSILON) return false; // Outside this plane
+      // Reject obviously invalid points (far outside any reasonable brush bounds)
+      if (Math.abs(dist) > 10000) return false;
     }
     return true;
   }

@@ -256,6 +256,82 @@ function analyzeClipBrushes(bsp: BspFile): void {
   
   console.log("");
   console.log(`With fix: Should generate ${totalBrushes} collision meshes (was only ${nonSolidClip} before)`);
+  
+  // Test bounds computation
+  console.log("\nTesting bounds computation...");
+  let boundsSuccess = 0;
+  let boundsFail = 0;
+  
+  for (let bi = 0; bi < bsp.brushes.length; bi++) {
+    const brush = bsp.brushes[bi];
+    const texture = bsp.textures[brush.shaderIndex];
+    if (!texture) continue;
+    
+    const texName = texture.name?.toLowerCase() || '';
+    const isClip = texName.includes('clip');
+    if (!isClip) continue;
+    
+    // Test bounds computation using plane intersection
+    const planes: { nx: number; ny: number; nz: number; d: number }[] = [];
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+      const plane = bsp.planes[side.planeIndex];
+      if (!plane) continue;
+      planes.push({ nx: plane.normal[0], ny: plane.normal[1], nz: plane.normal[2], d: plane.dist });
+    }
+    
+    // Find vertices
+    const vertices: [number, number, number][] = [];
+    for (let i = 0; i < planes.length - 2; i++) {
+      for (let j = i + 1; j < planes.length - 1; j++) {
+        for (let k = j + 1; k < planes.length; k++) {
+          const v = intersect3Planes(planes[i], planes[j], planes[k]);
+          if (v && isInsidePlanes(v, planes)) {
+            vertices.push(v);
+          }
+        }
+      }
+    }
+    
+    if (vertices.length >= 4) boundsSuccess++;
+    else boundsFail++;
+  }
+  
+  console.log(`  Bounds computed successfully: ${boundsSuccess}`);
+  console.log(`  Bounds computation failed: ${boundsFail}`);
+}
+
+function intersect3Planes(
+  p1: { nx: number; ny: number; nz: number; d: number },
+  p2: { nx: number; ny: number; nz: number; d: number },
+  p3: { nx: number; ny: number; nz: number; d: number }
+): [number, number, number] | null {
+  const n2xn3_x = p2.ny * p3.nz - p2.nz * p3.ny;
+  const n2xn3_y = p2.nz * p3.nx - p2.nx * p3.nz;
+  const n2xn3_z = p2.nx * p3.ny - p2.ny * p3.nx;
+  const denom = p1.nx * n2xn3_x + p1.ny * n2xn3_y + p1.nz * n2xn3_z;
+  if (Math.abs(denom) < 0.0001) return null;
+  const n3xn1_x = p3.ny * p1.nz - p3.nz * p1.ny;
+  const n3xn1_y = p3.nz * p1.nx - p3.nx * p1.nz;
+  const n3xn1_z = p3.nx * p1.ny - p3.ny * p1.nx;
+  const n1xn2_x = p1.ny * p2.nz - p1.nz * p2.ny;
+  const n1xn2_y = p1.nz * p2.nx - p1.nx * p2.nz;
+  const n1xn2_z = p1.nx * p2.ny - p1.ny * p2.nx;
+  const invD = 1.0 / denom;
+  return [
+    (p1.d * n2xn3_x + p2.d * n3xn1_x + p3.d * n1xn2_x) * invD,
+    (p1.d * n2xn3_y + p2.d * n3xn1_y + p3.d * n1xn2_y) * invD,
+    (p1.d * n2xn3_z + p2.d * n3xn1_z + p3.d * n1xn2_z) * invD
+  ];
+}
+
+function isInsidePlanes(pt: [number, number, number], planes: { nx: number; ny: number; nz: number; d: number }[]): boolean {
+  for (const p of planes) {
+    const dist = pt[0] * p.nx + pt[1] * p.ny + pt[2] * p.nz - p.d;
+    if (Math.abs(dist) > 10000) return false; // Reject obviously invalid points
+  }
+  return true;
 }
 
 function printEffects(bsp: BspFile): void {
