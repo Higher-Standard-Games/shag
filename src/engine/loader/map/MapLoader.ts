@@ -414,8 +414,9 @@ export class MapLoader {
    * These brushes block the player but have no visible geometry
    */
   private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
-    // Mesh and VertexData imported at top of file
+    console.log(`[ClipBrush] Starting clip brush generation for ${bsp.brushes?.length || 0} brushes`);
     
+    try {
     // Content flags for clip brushes
     const PLAYERCLIP = 0x10000;
     const SOLID = 0x1;
@@ -514,6 +515,10 @@ export class MapLoader {
     console.log(`[ClipBrush] Summary: byFlag=${debugClipByFlag}, byName=${debugClipByName}, generated=${meshCount}`);
     
     return meshCount;
+    } catch (error) {
+      console.error(`[ClipBrush] Error during clip brush generation:`, error);
+      return 0;
+    }
   }
   
   /**
