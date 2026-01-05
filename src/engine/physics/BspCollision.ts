@@ -60,11 +60,15 @@ export class BspCollision {
     };
 
     // Convert from Babylon (Y-up) to Q3 (Z-up) coordinates
+    // Babylon: x=right, y=up, z=forward
+    // Q3:      x=right, y=forward, z=up
+    // So: Q3.x=Babylon.x, Q3.y=Babylon.z, Q3.z=Babylon.y
     const q3Start: [number, number, number] = [start.x, start.z, start.y];
     const q3End: [number, number, number] = [end.x, end.z, end.y];
 
     if (debug) {
-      console.log(`[BspCollision] Trace Q3 coords: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)}) → (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`);
+      console.log(`[BspCollision] Babylon input: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`);
+      console.log(`[BspCollision] Q3 coords: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)}) → (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`);
       console.log(`[BspCollision] BSP has ${this.bsp.brushes.length} brushes, ${this.bsp.leafs.length} leafs`);
     }
 
@@ -295,9 +299,9 @@ export class BspCollision {
       const plane = this.bsp.planes[side.planeIndex];
       if (!plane) continue;
 
-      // Calculate distances from start/end to plane
-      const startDist = this.planeDist(start, plane);
-      const endDist = this.planeDist(end, plane);
+      // Calculate distances from start/end to plane (brush planes use negated convention)
+      const startDist = this.brushPlaneDist(start, plane);
+      const endDist = this.brushPlaneDist(end, plane);
 
       if (startDist > 0) startOut = true;
       if (endDist > 0) endOut = true;
@@ -369,7 +373,8 @@ export class BspCollision {
       const plane = this.bsp.planes[side.planeIndex];
       if (!plane) continue;
 
-      const dist = this.planeDist(point, plane);
+      // Use brush plane distance (negated for FBSP)
+      const dist = this.brushPlaneDist(point, plane);
       if (dist > 0) {
         return false; // Outside this plane = outside brush
       }
@@ -406,9 +411,24 @@ export class BspCollision {
   }
 
   /**
-   * Calculate signed distance from point to plane
+   * Calculate signed distance from point to plane (for BSP node traversal)
+   * Returns positive if point is in front of plane, negative if behind.
    */
   private planeDist(point: [number, number, number], plane: BspPlane): number {
+    return (
+      point[0] * plane.normal[0] +
+      point[1] * plane.normal[1] +
+      point[2] * plane.normal[2] -
+      plane.dist
+    );
+  }
+
+  /**
+   * Calculate signed distance for brush collision testing.
+   * In FBSP, brush plane normals point OUTWARD from the brush.
+   * So positive distance = outside brush (already correct convention).
+   */
+  private brushPlaneDist(point: [number, number, number], plane: BspPlane): number {
     return (
       point[0] * plane.normal[0] +
       point[1] * plane.normal[1] +

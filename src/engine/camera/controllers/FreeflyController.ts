@@ -314,31 +314,104 @@ export class FreeflyController implements ICameraController {
   private static _lastDebugTime = 0;
   
   /**
-   * Apply collision using Babylon's native moveWithCollisions
-   * This uses the mesh checkCollisions system which is proven to work
+   * Apply collision using BSP trace with Q3-style sliding
    */
-  private slideMove(originalMovement: Vector3, _cm: ReturnType<typeof getCollisionManager>): void {
+  private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     if (!this.camera || !this.scene) return;
-    
+
+    const start = this.camera.position.clone();
+    const end = start.add(originalMovement);
+
+    // Trace through BSP (cast to handle babylonjs vs @babylonjs/core type mismatch)
+    const trace = cm.trace(start as never, end as never);
+
     // Debug logging once per second
     const now = Date.now();
     if (now - FreeflyController._lastDebugTime > 1000) {
       FreeflyController._lastDebugTime = now;
-      const pos = this.camera.position;
-      console.log(`[Freefly DEBUG] Using Babylon collision, pos=(${pos.x.toFixed(0)},${pos.y.toFixed(0)},${pos.z.toFixed(0)}) move=${originalMovement.length().toFixed(1)}`);
+      const camPos = this.camera.position;
+      console.log(`[Freefly] pos=(${camPos.x.toFixed(0)}, ${camPos.y.toFixed(0)}, ${camPos.z.toFixed(0)}) → trace: frac=${trace.fraction.toFixed(3)}, startSolid=${trace.startSolid}, hit=${trace.fraction < 1.0}`);
     }
-    
-    // Use Babylon's built-in collision system
-    // This requires camera.checkCollisions = true and mesh.checkCollisions = true
-    this.camera.checkCollisions = true;
-    
-    // Set collision ellipsoid if not set (player-sized)
-    if (!this.camera.ellipsoid || this.camera.ellipsoid.length() < 1) {
-      this.camera.ellipsoid = new Vector3(16, 28, 16); // Q3 player size
+
+    // Log every hit for debugging
+    if (trace.fraction < 1.0) {
+      console.log(`[Freefly] HIT at fraction=${trace.fraction.toFixed(3)}, normal=(${trace.normal?.x.toFixed(2)}, ${trace.normal?.y.toFixed(2)}, ${trace.normal?.z.toFixed(2)})`);
     }
-    
-    // moveWithCollisions handles sliding automatically
-    this.camera._collideWithWorld(originalMovement);
+
+    // If we started in solid, don't move (stuck detection)
+    if (trace.startSolid) {
+      // Try to nudge out of solid
+      const nudge = 1.0;
+      const testDirs = [
+        new Vector3(nudge, 0, 0), new Vector3(-nudge, 0, 0),
+        new Vector3(0, nudge, 0), new Vector3(0, -nudge, 0),
+        new Vector3(0, 0, nudge), new Vector3(0, 0, -nudge),
+      ];
+      for (const dir of testDirs) {
+        const testPos = start.add(dir);
+        const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never);
+        if (!testTrace.startSolid) {
+          this.camera.position = testPos;
+          return;
+        }
+      }
+      // Couldn't nudge out - don't move
+      return;
+    }
+
+    if (trace.fraction >= 1.0) {
+      // No collision - apply full movement
+      this.camera.position = end;
+    } else if (trace.fraction > 0) {
+      // Partial collision - move to contact point with small offset
+      const contactPoint = Vector3.Lerp(start, end, trace.fraction);
+
+      // Push back slightly from the wall (use plain numbers to avoid type issues)
+      if (trace.normal) {
+        const n = trace.normal;
+        contactPoint.x += n.x * 0.125;
+        contactPoint.y += n.y * 0.125;
+        contactPoint.z += n.z * 0.125;
+      }
+
+      this.camera.position = contactPoint;
+
+      // Slide along the wall (Q3-style)
+      if (trace.normal) {
+        const n = trace.normal;
+        const remaining = originalMovement.scale(1.0 - trace.fraction);
+
+        // Calculate dot product manually
+        const dot = remaining.x * n.x + remaining.y * n.y + remaining.z * n.z;
+
+        // Slide = remaining - normal * dot
+        const slideMove = new Vector3(
+          remaining.x - n.x * dot,
+          remaining.y - n.y * dot,
+          remaining.z - n.z * dot
+        );
+
+        // Only apply slide if it's significant
+        if (slideMove.length() > 0.01) {
+          // Trace the slide move
+          const slideStart = this.camera.position.clone();
+          const slideEnd = slideStart.add(slideMove);
+          const slideTrace = cm.trace(slideStart as never, slideEnd as never);
+
+          if (slideTrace.fraction > 0) {
+            const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction, 1.0));
+            if (slideTrace.fraction < 1.0 && slideTrace.normal) {
+              const sn = slideTrace.normal;
+              slidePos.x += sn.x * 0.125;
+              slidePos.y += sn.y * 0.125;
+              slidePos.z += sn.z * 0.125;
+            }
+            this.camera.position = slidePos;
+          }
+        }
+      }
+    }
+    // If fraction == 0, we started in solid - don't move
   }
 
   configure(config: Partial<CameraControllerConfig>): void {

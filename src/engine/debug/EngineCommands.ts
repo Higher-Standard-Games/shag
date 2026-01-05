@@ -3505,11 +3505,72 @@ export function registerEngineCommands(): void {
         ].join('\n');
       }
 
+      case 'spawn': {
+        // Teleport camera to spawn point with proper Q3→Babylon conversion
+        if (!effectiveBsp) {
+          return 'No BSP loaded. Use "bsp load <mapname>" first.';
+        }
+
+        const scene = cameraSystem?.getCamera()?.getScene?.();
+        const camera = scene?.activeCamera;
+        if (!camera) {
+          return 'No active camera';
+        }
+
+        // Find spawn point
+        const spawnIndex = parseInt(args[1]) || 0;
+        const spawns = effectiveBsp.entities.filter(e =>
+          e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+        );
+
+        if (spawns.length === 0) {
+          return 'No spawn points found in BSP';
+        }
+
+        const spawn = spawns[Math.min(spawnIndex, spawns.length - 1)];
+        if (!spawn.properties.origin) {
+          return 'Spawn has no origin property';
+        }
+
+        // Parse Q3 origin: "x y z" (Q3: x=right, y=forward, z=up)
+        const parts = spawn.properties.origin.split(' ').map(Number);
+        const q3Origin = { x: parts[0], y: parts[1], z: parts[2] };
+
+        // Convert to Babylon: (Q3.x, Q3.z, Q3.y) -> Babylon (x, y, z) where y=up
+        // Also add some height to spawn above ground
+        const babylonPos = new Vector3(q3Origin.x, q3Origin.z + 56, q3Origin.y);
+
+        camera.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
+
+        // Test collision from this position
+        const { getCollisionManager } = await import('../physics');
+        const cm = getCollisionManager();
+        let collisionInfo = '';
+        if (cm.isInitialized()) {
+          const testEnd = babylonPos.add(new Vector3(0, -100, 0));
+          const trace = cm.trace(babylonPos as never, testEnd as never);
+          collisionInfo = `\nCollision test: fraction=${trace.fraction.toFixed(3)}, startSolid=${trace.startSolid}`;
+          if (trace.fraction < 1.0) {
+            collisionInfo += ` (floor at ${(trace.fraction * 100).toFixed(1)} units down)`;
+          }
+        } else {
+          collisionInfo = '\n[Warning: Collision not initialized - run "bsp render" first]';
+        }
+
+        return [
+          `Teleported to spawn ${spawnIndex} of ${spawns.length}:`,
+          `  Q3 origin: (${q3Origin.x}, ${q3Origin.y}, ${q3Origin.z})`,
+          `  Babylon pos: (${babylonPos.x.toFixed(0)}, ${babylonPos.y.toFixed(0)}, ${babylonPos.z.toFixed(0)})`,
+          collisionInfo,
+        ].join('\n');
+      }
+
       default:
         return [
           'BSP Commands (Quake3/Warsow FBSP):',
           '  bsp load <mapname>  - Load BSP from PK3',
           '  bsp info            - Show BSP statistics',
+          '  bsp spawn [index]   - Teleport camera to spawn point',
           '  bsp entities [filter] - List entity types',
           '  bsp door            - Door control commands',
           '  bsp textures [filter] - List textures (filter optional)',
