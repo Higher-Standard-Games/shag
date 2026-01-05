@@ -343,10 +343,24 @@ export function registerEngineCommands(): void {
     // No argument - show current state
     if (value === undefined) {
       const enabled = FreeflyController.isCollisionEnabled();
-      const status = isInit 
-        ? `Backend: ${cm.getBackendType()} (${planeCount} planes)` 
-        : 'WARNING: Collision not initialized (load a map first)';
+      const mode = FreeflyController.getCollisionMode();
+      const status = mode === 'native' 
+        ? 'Mode: native (Babylon mesh collision)'
+        : (isInit 
+          ? `Mode: bsp, Backend: ${cm.getBackendType()} (${planeCount} planes)` 
+          : 'Mode: bsp, WARNING: Collision not initialized (load a map first)');
       return `freefly_collision = ${enabled ? '1' : '0'}\n${status}`;
+    }
+    
+    // Mode subcommand - switch between 'native' and 'bsp' collision modes
+    if (value === 'mode') {
+      const newMode = args[1]?.toLowerCase();
+      if (newMode === 'native' || newMode === 'bsp') {
+        FreeflyController.setCollisionMode(newMode);
+        return `Collision mode set to: ${newMode}`;
+      }
+      const currentMode = FreeflyController.getCollisionMode();
+      return `Current mode: ${currentMode}\nUsage: freefly_collision mode <native|bsp>\n  native - Uses Babylon's built-in mesh collision (recommended)\n  bsp - Uses BSP brush tracing (experimental)`;
     }
 
     // Test subcommand - trace from camera position

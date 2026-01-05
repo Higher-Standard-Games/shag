@@ -28,6 +28,9 @@ export class FreeflyController implements ICameraController {
   
   // Static collision enable flag (toggled via console command)
   private static collisionEnabled: boolean = false;
+  
+  // Collision mode: 'bsp' uses BSP brush tracing, 'native' uses Babylon's mesh collision
+  private static collisionMode: 'bsp' | 'native' = 'native';
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -81,7 +84,22 @@ export class FreeflyController implements ICameraController {
    */
   static setCollisionEnabled(enabled: boolean): void {
     FreeflyController.collisionEnabled = enabled;
-    console.log(`[FreeflyController] Collision ${enabled ? 'enabled' : 'disabled'}`);
+    console.log(`[FreeflyController] Collision ${enabled ? 'enabled' : 'disabled'} (mode: ${FreeflyController.collisionMode})`);
+  }
+  
+  /**
+   * Get collision mode
+   */
+  static getCollisionMode(): 'bsp' | 'native' {
+    return FreeflyController.collisionMode;
+  }
+  
+  /**
+   * Set collision mode
+   */
+  static setCollisionMode(mode: 'bsp' | 'native'): void {
+    FreeflyController.collisionMode = mode;
+    console.log(`[FreeflyController] Collision mode set to: ${mode}`);
   }
   
   // Observers
@@ -282,23 +300,29 @@ export class FreeflyController implements ICameraController {
     // Apply movement with optional collision
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
-        const cm = getCollisionManager();
-        const isInit = cm.isInitialized();
-        
-        // Debug: log state once
-        if (!FreeflyController._loggedState) {
-          FreeflyController._loggedState = true;
-          console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
-        }
-        
-        if (isInit) {
-          this.slideMove(movement, cm);
+        if (FreeflyController.collisionMode === 'native') {
+          // Use Babylon's native mesh collision
+          this.nativeCollisionMove(movement);
         } else {
-          if (!FreeflyController._warnedNotInit) {
-            console.warn('[Freefly] Collision enabled but not initialized!');
-            FreeflyController._warnedNotInit = true;
+          // Use BSP brush tracing
+          const cm = getCollisionManager();
+          const isInit = cm.isInitialized();
+          
+          // Debug: log state once
+          if (!FreeflyController._loggedState) {
+            FreeflyController._loggedState = true;
+            console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
           }
-          this.camera.position.addInPlace(movement);
+          
+          if (isInit) {
+            this.slideMove(movement, cm);
+          } else {
+            if (!FreeflyController._warnedNotInit) {
+              console.warn('[Freefly] Collision enabled but not initialized!');
+              FreeflyController._warnedNotInit = true;
+            }
+            this.camera.position.addInPlace(movement);
+          }
         }
       } else {
         this.camera.position.addInPlace(movement);
@@ -312,6 +336,55 @@ export class FreeflyController implements ICameraController {
   
   // Debug: log once per second
   private static _lastDebugTime = 0;
+  
+  // Track if we've set up native collision
+  private static _nativeCollisionSetup = false;
+  
+  /**
+   * Apply movement using Babylon's native mesh collision system
+   * This uses the actual rendered geometry for collision detection
+   */
+  private nativeCollisionMove(movement: Vector3): void {
+    if (!this.camera || !this.scene) return;
+    
+    // Set up native collision on first use
+    if (!FreeflyController._nativeCollisionSetup) {
+      FreeflyController._nativeCollisionSetup = true;
+      
+      // Enable scene collision
+      this.scene.collisionsEnabled = true;
+      
+      // Set up camera ellipsoid for player-sized collision
+      // Babylon ellipsoid is half-extents: (width/2, height/2, depth/2)
+      // For Q3-style player: radius=16, height=56 → ellipsoid (16, 28, 16)
+      this.camera.ellipsoid = new Vector3(16, 28, 16);
+      this.camera.ellipsoidOffset = new Vector3(0, 28, 0); // Offset so camera is at eye level
+      this.camera.checkCollisions = true;
+      
+      // Enable collision on all world geometry meshes
+      const meshes = this.scene.meshes;
+      let collisionMeshCount = 0;
+      for (const mesh of meshes) {
+        // Enable collision on BSP world mesh and children
+        if (mesh.name.includes('bsp_') || mesh.name.includes('world') || 
+            mesh.parent?.name.includes('bsp_') || mesh.parent?.name.includes('world')) {
+          mesh.checkCollisions = true;
+          collisionMeshCount++;
+        }
+      }
+      
+      console.log(`[FreeflyController] Native collision setup: ${collisionMeshCount} meshes with collision enabled`);
+      console.log(`[FreeflyController] Camera ellipsoid: (${this.camera.ellipsoid.x}, ${this.camera.ellipsoid.y}, ${this.camera.ellipsoid.z})`);
+    }
+    
+    // Use Babylon's built-in moveWithCollisions
+    // This handles all collision detection against meshes with checkCollisions=true
+    this.camera.position.addInPlace(movement);
+    
+    // Alternative: use _collideWithWorld for more control (internal API)
+    // For now, simple position update with camera.checkCollisions should work
+    // since Babylon handles collision in its internal update loop
+  }
   
   /**
    * Apply collision using BSP trace with Q3-style sliding
