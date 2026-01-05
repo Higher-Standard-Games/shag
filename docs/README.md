@@ -47,7 +47,7 @@ This engine renders 3D environments from standard .map files (TrenchBroom/NetRad
 | Document | Description |
 |----------|-------------|
 | [map-generator.md](./map-generator.md) | Procedural map generator |
-| [DEBUG_CONSOLE.md](./DEBUG_CONSOLE.md) | In-game debug console commands |
+| [DEBUG_CONSOLE.md](./DEBUG_CONSOLE.md) | Debug console usage and commands. See also freefly collision and clip brush debugging commands. |
 | [CLI_TOOLS.md](./CLI_TOOLS.md) | Headless CLI tools (BSP analysis, batch processing) |
 
 ### Performance & Optimization

@@ -18,11 +18,15 @@
     {
       "name": "freefly_collision",
       "description": "Toggle collision detection in freefly mode (0=off, 1=on)",
-      "usage": "freefly_collision [0|1|test|draw|clear]",
+      "usage": "freefly_collision [0|1|mode|test|draw|clear|clipviz|clipdump|cliptrace]",
       "subcommands": [
+        { "name": "mode", "description": "Get/set collision mode", "args": ["native|bsp?"] },
         { "name": "test", "description": "Trace forward from camera and print result" },
         { "name": "draw", "description": "Draw trace + hit normal in the scene", "args": ["dist?", "normalLen?", "radius?", "height?"] },
-        { "name": "clear", "description": "Clear collision visualization meshes" }
+        { "name": "clear", "description": "Clear collision visualization meshes" },
+        { "name": "clipviz", "description": "Visualize clip brushes (fullclip/playerclip) as wireframes", "args": ["off|clear|last|brush <index>|<max>?", "max?"] },
+        { "name": "clipdump", "description": "Dump brush sides/planes for a clip brush", "args": ["last|brush <index>|<index>"] },
+        { "name": "cliptrace", "description": "Trace against clip brushes only (for debugging)", "args": ["dist?", "radius?", "height?", "debug?"] }
       ]
     },
     {

@@ -109,6 +109,44 @@ bsp loadrequired          # Auto-load PK3s needed for textures
 bsp applytextures         # Apply textures to rendered meshes
 ```
 
+### Freefly Collision Debugging
+
+``` 
+freefly_collision 1                    # Enable collision in freefly
+freefly_collision mode native          # Use Babylon mesh collision (recommended)
+```
+
+Clip brushes (typically `textures/common/fullclip` and `textures/common/playerclip`) can be debugged without generating Babylon collision meshes:
+
+```
+freefly_collision clipviz [mode]       # Draw clip brushes as wireframes
+freefly_collision clipdump <mode>      # Dump brush plane data for a clip brush
+freefly_collision cliptrace [args...]  # Trace against clip brushes only
+```
+
+**clipviz modes:**
+
+```
+freefly_collision clipviz clear
+freefly_collision clipviz last
+freefly_collision clipviz brush <index>
+freefly_collision clipviz <max>
+```
+
+**clipdump modes:**
+
+```
+freefly_collision clipdump last
+freefly_collision clipdump brush <index>
+freefly_collision clipdump <index>
+```
+
+**cliptrace:**
+
+```
+freefly_collision cliptrace [dist] [radius] [height] [debug]
+```
+
 ### Q3 Shader Commands
 
 ```
@@ -201,6 +239,17 @@ bsp loadrequired
 shader load
 bsp render
 bsp applytextures
+```
+
+### Clip Brush Debug Workflow (Warsow/FBSP)
+
+```
+freefly_collision 1
+freefly_collision mode native
+freefly_collision clipviz 200
+freefly_collision cliptrace 300 16 56
+freefly_collision clipdump last
+freefly_collision clipviz last
 ```
 
 Or as a single command:
