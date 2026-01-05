@@ -321,7 +321,6 @@ export class FreeflyController implements ICameraController {
 
     const start = this.camera.position.clone();
     const end = start.add(originalMovement);
-
     const traceOpts = { radius: 16, height: 56 };
 
     // Trace through BSP (cast to handle babylonjs vs @babylonjs/core type mismatch)
@@ -342,21 +341,29 @@ export class FreeflyController implements ICameraController {
 
     // If we started in solid, don't move (stuck detection)
     if (trace.startSolid) {
-      // Try to nudge out of solid
-      const nudge = 1.0;
+      console.log(`[Freefly] BLOCKED: startSolid=true, attempting nudge out`);
+      // Try to nudge out of solid with more aggressive steps
+      const nudgeSteps = [1.0, 2.0, 4.0];
       const testDirs = [
-        new Vector3(nudge, 0, 0), new Vector3(-nudge, 0, 0),
-        new Vector3(0, nudge, 0), new Vector3(0, -nudge, 0),
-        new Vector3(0, 0, nudge), new Vector3(0, 0, -nudge),
+        new Vector3(1, 0, 0), new Vector3(-1, 0, 0),
+        new Vector3(0, 1, 0), new Vector3(0, -1, 0),
+        new Vector3(0, 0, 1), new Vector3(0, 0, -1),
+        new Vector3(1, 1, 0), new Vector3(-1, -1, 0),
+        new Vector3(1, 0, 1), new Vector3(-1, 0, -1),
+        new Vector3(0, 1, 1), new Vector3(0, -1, -1)
       ];
-      for (const dir of testDirs) {
-        const testPos = start.add(dir);
-        const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
-        if (!testTrace.startSolid) {
-          this.camera.position = testPos;
-          return;
+      for (const nudge of nudgeSteps) {
+        for (const dir of testDirs) {
+          const testPos = start.add(dir.scale(nudge));
+          const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
+          if (!testTrace.startSolid) {
+            console.log(`[Freefly] Nudge successful at (${testPos.x.toFixed(1)}, ${testPos.y.toFixed(1)}, ${testPos.z.toFixed(1)})`);
+            this.camera.position = testPos;
+            return;
+          }
         }
       }
+      console.log(`[Freefly] Nudge failed, stuck in solid`);
       // Couldn't nudge out - don't move
       return;
     }
@@ -371,49 +378,61 @@ export class FreeflyController implements ICameraController {
       // Push back slightly from the wall (use plain numbers to avoid type issues)
       if (trace.normal) {
         const n = trace.normal;
-        contactPoint.x += n.x * 0.125;
-        contactPoint.y += n.y * 0.125;
-        contactPoint.z += n.z * 0.125;
+        contactPoint.x += n.x * 0.5;
+        contactPoint.y += n.y * 0.5;
+        contactPoint.z += n.z * 0.5;
       }
 
       this.camera.position = contactPoint;
 
-      // Slide along the wall (Q3-style)
+      // Slide along the wall (Q3-style, multiple iterations)
       if (trace.normal) {
-        const n = trace.normal;
-        const remaining = originalMovement.scale(1.0 - trace.fraction);
+        let velocity = originalMovement.clone();
+        let timeLeft = 1.0 - trace.fraction;
+        const maxTries = 4; // Quake 3 uses up to 4-5 slide attempts
+        for (let i = 0; i < maxTries && timeLeft > 0.01 && velocity.length() > 0.01; i++) {
+          const n = trace.normal;
+          const remaining = velocity.scale(timeLeft);
+          // Calculate dot product manually
+          const dot = remaining.x * n.x + remaining.y * n.y + remaining.z * n.z;
+          // Slide = remaining - normal * dot
+          const slideMove = new Vector3(
+            remaining.x - n.x * dot,
+            remaining.y - n.y * dot,
+            remaining.z - n.z * dot
+          );
 
-        // Calculate dot product manually
-        const dot = remaining.x * n.x + remaining.y * n.y + remaining.z * n.z;
+          if (slideMove.length() < 0.01) {
+            console.log(`[Freefly] Slide ${i+1}/${maxTries}: negligible movement, stopping`);
+            break;
+          }
 
-        // Slide = remaining - normal * dot
-        const slideMove = new Vector3(
-          remaining.x - n.x * dot,
-          remaining.y - n.y * dot,
-          remaining.z - n.z * dot
-        );
-
-        // Only apply slide if it's significant
-        if (slideMove.length() > 0.01) {
-          // Trace the slide move
+          console.log(`[Freefly] Slide ${i+1}/${maxTries}: attempting (${slideMove.x.toFixed(1)}, ${slideMove.y.toFixed(1)}, ${slideMove.z.toFixed(1)})`);
           const slideStart = this.camera.position.clone();
           const slideEnd = slideStart.add(slideMove);
           const slideTrace = cm.trace(slideStart as never, slideEnd as never, traceOpts);
 
           if (slideTrace.fraction > 0) {
-            const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction, 1.0));
+            const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction * 0.9, 1.0));
             if (slideTrace.fraction < 1.0 && slideTrace.normal) {
               const sn = slideTrace.normal;
-              slidePos.x += sn.x * 0.125;
-              slidePos.y += sn.y * 0.125;
-              slidePos.z += sn.z * 0.125;
+              slidePos.x += sn.x * 0.5;
+              slidePos.y += sn.y * 0.5;
+              slidePos.z += sn.z * 0.5;
+              console.log(`[Freefly] Slide ${i+1}/${maxTries}: hit again at frac=${slideTrace.fraction.toFixed(3)}`);
+            } else {
+              console.log(`[Freefly] Slide ${i+1}/${maxTries}: moved successfully`);
             }
             this.camera.position = slidePos;
+            timeLeft *= (1.0 - slideTrace.fraction);
+            velocity = slideMove.normalize().scale(velocity.length());
+          } else {
+            console.log(`[Freefly] Slide ${i+1}/${maxTries}: blocked completely`);
+            break;
           }
         }
       }
     }
-    // If fraction == 0, we started in solid - don't move
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
