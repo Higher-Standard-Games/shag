@@ -551,15 +551,10 @@ export class BspCollision {
 
   private isClipTexture(textureName: string, contentFlags: number): boolean {
     if ((contentFlags & ContentFlags.DETAIL) !== 0) return false;
-    if ((contentFlags & ContentFlags.PLAYERCLIP) !== 0) return true;
+
+    // Warsow standard clip textures (verified via headless output)
     const name = (textureName || '').toLowerCase();
-    // Warsow/Quake3 common clip textures
-    if (name.includes('fullclip')) return true;
-    if (name.includes('playerclip')) return true;
-    if (name.includes('common/clip')) return true;
-    if (name.endsWith('/clip')) return true;
-    if (name.includes('/clip_')) return true;
-    return false;
+    return name === 'textures/common/fullclip' || name === 'textures/common/playerclip';
   }
 
   /**

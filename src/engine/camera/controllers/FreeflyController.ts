@@ -435,8 +435,15 @@ export class FreeflyController implements ICameraController {
         cm.setBackend(wasBackend);
       }
 
-      if (clipTrace.fraction < 1.0) {
+      if (!clipTrace.startSolid && clipTrace.fraction < 1.0) {
+        // Apply BSP-resolved end position, with a tiny push-out to reduce re-colliding next frame
         this.camera.position = clipTrace.endPos as unknown as Vector3;
+        if (clipTrace.normal) {
+          const n: any = clipTrace.normal;
+          this.camera.position.x += n.x * 0.5;
+          this.camera.position.y += n.y * 0.5;
+          this.camera.position.z += n.z * 0.5;
+        }
       }
 
       // Debug: log if collision occurred (position changed differently than expected)
