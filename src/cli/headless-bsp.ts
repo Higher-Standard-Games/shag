@@ -14,7 +14,6 @@
 
 import { NullEngine, Scene, FreeCamera, Vector3, MeshBuilder, Mesh } from "babylonjs";
 import * as fs from "fs";
-import * as path from "path";
 
 // Import BSP loader
 import { BspLoader, type BspFile } from "../engine/loader/bsp/BspLoader";
@@ -217,7 +216,7 @@ async function buildMeshes(bsp: BspFile): Promise<void> {
   const scene = new Scene(engine);
 
   // Need a camera for scene.render()
-  const camera = new FreeCamera("camera", new Vector3(0, 0, 0), scene);
+  new FreeCamera("camera", new Vector3(0, 0, 0), scene);
 
   console.log("[Build] NullEngine created");
   console.log("[Build] Building world geometry...\n");
@@ -277,7 +276,7 @@ async function runTest(): Promise<void> {
 
   const engine = new NullEngine();
   const scene = new Scene(engine);
-  const camera = new FreeCamera("camera", new Vector3(0, 5, -10), scene);
+  new FreeCamera("camera", new Vector3(0, 5, -10), scene);
 
   console.log("NullEngine created:", engine.description);
   console.log("Scene UID:", scene.uid);

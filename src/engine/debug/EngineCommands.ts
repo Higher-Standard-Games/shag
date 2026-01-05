@@ -30,7 +30,7 @@ import { FreeflyController } from '../camera/controllers/FreeflyController';
 
 // Other direct imports
 import { GamePaths } from '../core/GamePaths';
-import { HUD, HUDManager } from '../ui/hud/HUDManager';
+import { HUD } from '../ui/hud/HUDManager';
 
 // ============================================================================
 // Lazy imports for DOM-dependent modules (enables headless mode)
@@ -42,7 +42,6 @@ let _cameraSystem: typeof import('../camera/CameraSystem').CameraSystem | null =
 let _debugConsole: typeof import('./DebugConsole').DebugConsole | null = null;
 let _gameClock: typeof import('../../game/GameClock').GameClock | null = null;
 let _uiScale: typeof import('../ui/UIScale').UIScale | null = null;
-let _hud: typeof import('../ui/hud/HUDManager').HUDManager | null = null;
 let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
 
 // Debug collision visualization meshes
@@ -88,30 +87,12 @@ async function getUIScale() {
   return _uiScale.getInstance();
 }
 
-async function getHUD() {
-  if (!_hud) {
-    const mod = await import('../ui/hud/HUDManager');
-    _hud = mod.HUDManager;
-  }
-  return _hud.getInstance();
-}
-
 async function getMenuSystem() {
   if (!_menuSystem) {
     const mod = await import('../MenuSystem');
     _menuSystem = mod.MenuSystem;
   }
   return _menuSystem.getInstance();
-}
-
-// Helper to get scene from camera system (returns null in headless)
-async function getScene(): Promise<Scene | null> {
-  try {
-    const cameraSystem = await getCameraSystem();
-    return cameraSystem.getCamera()?.getScene() || null;
-  } catch {
-    return null;
-  }
 }
 
 // Helper for commands that require DOM
@@ -415,15 +396,20 @@ export function registerEngineCommands(): void {
 
       const dist = Number(args[1] ?? '200');
       const normalLen = Number(args[2] ?? '32');
+      const radius = Number(args[3] ?? '16');
+      const height = Number(args[4] ?? '56');
       if (!Number.isFinite(dist) || dist <= 0) {
-        return 'Usage: freefly_collision draw [dist] [normalLen]';
+        return 'Usage: freefly_collision draw [dist] [normalLen] [radius] [height]';
       }
 
       const start = camera.position.clone();
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = start.add(forward.scale(dist));
 
-      const trace = cm.trace(start as never, end as never);
+      const trace = cm.trace(start as never, end as never, {
+        radius: Number.isFinite(radius) ? radius : 16,
+        height: Number.isFinite(height) ? height : 56,
+      });
       const hit = trace.fraction < 1.0;
       const hitPos = hit ? Vector3.Lerp(start, end, trace.fraction) : end;
 
@@ -469,6 +455,7 @@ export function registerEngineCommands(): void {
         '=== Collision Viz ===',
         `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
         `End:   (${end.x.toFixed(1)}, ${end.y.toFixed(1)}, ${end.z.toFixed(1)})`,
+        `Hull: radius=${Number.isFinite(radius) ? radius : 16}, height=${Number.isFinite(height) ? height : 56}`,
         `Hit: ${hit ? 'YES' : 'NO'} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
         hit && trace.normal
           ? `Normal: (${(trace.normal as any).x.toFixed(3)}, ${(trace.normal as any).y.toFixed(3)}, ${(trace.normal as any).z.toFixed(3)})`

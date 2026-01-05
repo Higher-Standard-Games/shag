@@ -64,8 +64,26 @@ export class BrushCollisionBackend implements CollisionBackend {
     }
 
     const debug = options?.debug ?? false;
+    const radius = options?.radius ?? 0;
+    const height = options?.height ?? 0;
+
+    // Quake3-style player hull is not centered on origin:
+    // mins.z = -24, maxs.z = 32 (total height 56)
+    // We scale this proportionally if a different height is provided.
+    const h = height > 0 ? height : 56;
+    const minsY = -(h * (24 / 56));
+    const maxY = h + minsY;
+
     // Cast to any to handle babylonjs vs @babylonjs/core type mismatch
-    const bspResult = this.bspCollision.tracePoint(start as never, end as never, debug);
+    const bspResult = (radius > 0 || height > 0)
+      ? this.bspCollision.traceBox(
+          start as never,
+          end as never,
+          new Vector3(-radius, minsY, -radius) as never,
+          new Vector3(radius, maxY, radius) as never,
+          debug
+        )
+      : this.bspCollision.tracePoint(start as never, end as never, debug);
 
     result.fraction = bspResult.fraction;
     result.endPos = bspResult.endPos as unknown as Vector3;

@@ -17,7 +17,6 @@ import { NullEngine, Scene, FreeCamera, Vector3 } from "babylonjs";
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
-import { fileURLToPath } from "url";
 
 // Static imports for command system (avoids vite-node dynamic import issues)
 import { ConsoleCommandRegistry } from "../engine/debug/ConsoleCommandRegistry";
@@ -75,7 +74,7 @@ async function initializeEngine(): Promise<HeadlessContext> {
   return { engine, scene, camera };
 }
 
-async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
+async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Loading game systems...");
 
   // Initialize PK3 loader with game path
@@ -128,7 +127,7 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
   }
 }
 
-async function registerCommands(ctx: HeadlessContext): Promise<void> {
+async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Registering commands...");
 
   const registry = ConsoleCommandRegistry.getInstance();

@@ -322,8 +322,10 @@ export class FreeflyController implements ICameraController {
     const start = this.camera.position.clone();
     const end = start.add(originalMovement);
 
+    const traceOpts = { radius: 16, height: 56 };
+
     // Trace through BSP (cast to handle babylonjs vs @babylonjs/core type mismatch)
-    const trace = cm.trace(start as never, end as never);
+    const trace = cm.trace(start as never, end as never, traceOpts);
 
     // Debug logging once per second
     const now = Date.now();
@@ -349,7 +351,7 @@ export class FreeflyController implements ICameraController {
       ];
       for (const dir of testDirs) {
         const testPos = start.add(dir);
-        const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never);
+        const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
         if (!testTrace.startSolid) {
           this.camera.position = testPos;
           return;
@@ -396,7 +398,7 @@ export class FreeflyController implements ICameraController {
           // Trace the slide move
           const slideStart = this.camera.position.clone();
           const slideEnd = slideStart.add(slideMove);
-          const slideTrace = cm.trace(slideStart as never, slideEnd as never);
+          const slideTrace = cm.trace(slideStart as never, slideEnd as never, traceOpts);
 
           if (slideTrace.fraction > 0) {
             const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction, 1.0));

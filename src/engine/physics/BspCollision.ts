@@ -87,6 +87,36 @@ export class BspCollision {
     return result;
   }
 
+  traceBox(start: Vector3, end: Vector3, mins: Vector3, maxs: Vector3, debug: boolean = false): TraceResult {
+    const result: TraceResult & { realfraction: number } = {
+      fraction: 1.0,
+      realfraction: 1.0 + DIST_EPSILON,
+      endPos: end.clone(),
+      plane: null,
+      startSolid: false,
+      allSolid: false,
+      contents: 0,
+    };
+
+    const q3Start: [number, number, number] = [start.x, start.z, start.y];
+    const q3End: [number, number, number] = [end.x, end.z, end.y];
+    const q3Mins: [number, number, number] = [mins.x, mins.z, mins.y];
+    const q3Maxs: [number, number, number] = [maxs.x, maxs.z, maxs.y];
+    const extents: [number, number, number] = [
+      Math.max(Math.abs(q3Mins[0]), Math.abs(q3Maxs[0])),
+      Math.max(Math.abs(q3Mins[1]), Math.abs(q3Maxs[1])),
+      Math.max(Math.abs(q3Mins[2]), Math.abs(q3Maxs[2])),
+    ];
+
+    this.traceNodeBox(q3Start, q3End, 0, 0, 1, result, q3Mins, q3Maxs, extents, debug);
+
+    if (result.fraction < 1.0) {
+      result.endPos = Vector3.Lerp(start, end, result.fraction);
+    }
+
+    return result;
+  }
+
   /**
    * Get content flags at a point
    */
@@ -242,6 +272,90 @@ export class BspCollision {
     this.traceNode(mid2, end, farNode, midFrac2, endFrac, result, debug);
   }
 
+  private traceNodeBox(
+    start: [number, number, number],
+    end: [number, number, number],
+    nodeIndex: number,
+    startFrac: number,
+    endFrac: number,
+    result: TraceResult & { realfraction: number },
+    mins: [number, number, number],
+    maxs: [number, number, number],
+    extents: [number, number, number],
+    debug: boolean = false
+  ): void {
+    if (result.realfraction <= startFrac) return;
+
+    if (nodeIndex < 0) {
+      const leafIndex = -(nodeIndex + 1);
+      const leaf = this.bsp.leafs[leafIndex];
+      if (leaf) {
+        this.traceLeafBox(start, end, leaf, result, mins, maxs, debug);
+      }
+      return;
+    }
+
+    const node = this.bsp.nodes[nodeIndex];
+    if (!node) return;
+
+    const plane = this.bsp.planes[node.planeIndex];
+    if (!plane) return;
+
+    const t1 = this.planeDist(start, plane);
+    const t2 = this.planeDist(end, plane);
+    const offset =
+      Math.abs(extents[0] * plane.normal[0]) +
+      Math.abs(extents[1] * plane.normal[1]) +
+      Math.abs(extents[2] * plane.normal[2]);
+
+    if (t1 >= offset && t2 >= offset) {
+      this.traceNodeBox(start, end, node.children[0], startFrac, endFrac, result, mins, maxs, extents, debug);
+      return;
+    }
+    if (t1 < -offset && t2 < -offset) {
+      this.traceNodeBox(start, end, node.children[1], startFrac, endFrac, result, mins, maxs, extents, debug);
+      return;
+    }
+
+    let side = 0;
+    let frac = 1;
+    let frac2 = 0;
+
+    if (t1 < t2) {
+      const idist = 1.0 / (t1 - t2);
+      side = 1;
+      frac2 = (t1 + offset) * idist;
+      frac = (t1 - offset) * idist;
+    } else if (t1 > t2) {
+      const idist = 1.0 / (t1 - t2);
+      side = 0;
+      frac2 = (t1 - offset) * idist;
+      frac = (t1 + offset) * idist;
+    }
+
+    frac = Math.max(0, Math.min(1, frac));
+    const midFrac = startFrac + (endFrac - startFrac) * frac;
+    const mid: [number, number, number] = [
+      start[0] + frac * (end[0] - start[0]),
+      start[1] + frac * (end[1] - start[1]),
+      start[2] + frac * (end[2] - start[2]),
+    ];
+
+    const nearNode = node.children[side];
+    this.traceNodeBox(start, mid, nearNode, startFrac, midFrac, result, mins, maxs, extents, debug);
+
+    frac2 = Math.max(0, Math.min(1, frac2));
+    const midFrac2 = startFrac + (endFrac - startFrac) * frac2;
+    const mid2: [number, number, number] = [
+      start[0] + frac2 * (end[0] - start[0]),
+      start[1] + frac2 * (end[1] - start[1]),
+      start[2] + frac2 * (end[2] - start[2]),
+    ];
+
+    const farNode = node.children[side ^ 1];
+    this.traceNodeBox(mid2, end, farNode, midFrac2, endFrac, result, mins, maxs, extents, debug);
+  }
+
   /**
    * Test trace against all solid brushes in a leaf
    */
@@ -272,6 +386,126 @@ export class BspCollision {
 
       // Test trace against brush
       this.traceBrush(start, end, brush, result, debug);
+    }
+  }
+
+  private traceBrushBox(
+    start: [number, number, number],
+    end: [number, number, number],
+    mins: [number, number, number],
+    maxs: [number, number, number],
+    brush: BspBrush,
+    result: TraceResult & { realfraction: number },
+    debug: boolean = false
+  ): void {
+    let enterFrac = -1;
+    let leaveFrac = 1;
+    let enterFrac2 = -1;
+    let hitPlane: BspPlane | null = null;
+    let startOut = false;
+    let getOut = false;
+
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = this.bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+
+      const plane = this.bsp.planes[side.planeIndex];
+      if (!plane) continue;
+
+      // Qfusion-style: evaluate plane distance using the box corner that is
+      // farthest along the plane normal.
+      const off0 = plane.normal[0] >= 0 ? maxs[0] : mins[0];
+      const off1 = plane.normal[1] >= 0 ? maxs[1] : mins[1];
+      const off2 = plane.normal[2] >= 0 ? maxs[2] : mins[2];
+
+      const d1 =
+        (start[0] + off0) * plane.normal[0] +
+        (start[1] + off1) * plane.normal[1] +
+        (start[2] + off2) * plane.normal[2] -
+        plane.dist;
+      const d2 =
+        (end[0] + off0) * plane.normal[0] +
+        (end[1] + off1) * plane.normal[1] +
+        (end[2] + off2) * plane.normal[2] -
+        plane.dist;
+
+      if (d2 > 0) getOut = true;
+      if (d1 > 0) startOut = true;
+
+      // If completely in front of the face, no intersection
+      if (d1 > 0 && d2 >= d1) {
+        return;
+      }
+
+      // If both behind plane, continue
+      if (d1 <= 0 && d2 <= 0) {
+        continue;
+      }
+
+      // Crosses face
+      const f = d1 - d2;
+      if (f > 0) {
+        // Enter
+        const frac = d1 / f;
+        if (frac > enterFrac) {
+          enterFrac = frac;
+          hitPlane = plane;
+          enterFrac2 = (d1 - DIST_EPSILON) / (d1 - d2);
+        }
+      } else if (f < 0) {
+        // Leave
+        const frac = d1 / f;
+        if (frac < leaveFrac) {
+          leaveFrac = frac;
+        }
+      }
+    }
+
+    if (!startOut) {
+      // Original point was inside brush
+      result.startSolid = true;
+      result.contents = 1;
+      if (!getOut) {
+        result.allSolid = true;
+        result.realfraction = 0;
+        result.fraction = 0;
+      }
+      return;
+    }
+
+    if (enterFrac <= -1) return;
+    if (enterFrac > leaveFrac) return;
+
+    if (enterFrac < result.realfraction) {
+      if (enterFrac2 < result.fraction) {
+        result.realfraction = enterFrac;
+        result.fraction = Math.max(0, Math.min(1, enterFrac2));
+        result.plane = hitPlane;
+        if (debug) console.log(`  BOX HIT! fraction=${result.fraction.toFixed(4)}`);
+      }
+    }
+  }
+
+  private traceLeafBox(
+    start: [number, number, number],
+    end: [number, number, number],
+    leaf: BspLeaf,
+    result: TraceResult & { realfraction: number },
+    mins: [number, number, number],
+    maxs: [number, number, number],
+    debug: boolean = false
+  ): void {
+    for (let i = 0; i < leaf.numLeafBrushes; i++) {
+      const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
+      const brush = this.bsp.brushes[brushIndex];
+      if (!brush || brush.numSides < 1) continue;
+
+      const texture = this.bsp.textures[brush.shaderIndex];
+      if (!texture) continue;
+      if (!isPlayerSolid(texture.contentFlags)) continue;
+
+      this.traceBrushBox(start, end, mins, maxs, brush, result, debug);
+      if (result.fraction === 0) return;
     }
   }
 
