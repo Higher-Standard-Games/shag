@@ -589,6 +589,28 @@ export function registerEngineCommands(): void {
   });
 
   // ============================================================================
+  // Console Debug Overlay Command
+  // ============================================================================
+
+  registry.register('console_debug', async (args) => {
+    const { getDebugOverlay } = await import('./DebugOverlay');
+    const overlay = getDebugOverlay();
+    
+    const value = args[0]?.toLowerCase();
+    
+    // No argument - show current state
+    if (value === undefined) {
+      return `console_debug = ${overlay.isEnabled() ? '1' : '0'}\nSmall debug overlay at bottom-left showing last 8 console lines`;
+    }
+    
+    // Parse value
+    const enabled = value === '1' || value === 'true' || value === 'on';
+    overlay.setEnabled(enabled);
+    
+    return `Debug overlay: ${enabled ? 'ON' : 'OFF'}`;
+  });
+
+  // ============================================================================
   // Weather Commands
   // ============================================================================
 
