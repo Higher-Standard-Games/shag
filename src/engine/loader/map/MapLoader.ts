@@ -524,52 +524,106 @@ export class MapLoader {
   /**
    * Calculate bounding box from brush planes
    * Returns bounds in Q3 coordinates
+   * Works with both axial and non-axial (beveled) brushes
    */
   private brushToBounds(brush: any, bsp: BspFile): { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null {
-    // Initialize with extreme values
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
+    // Collect all planes
+    const planes: { nx: number; ny: number; nz: number; d: number }[] = [];
     
-    // Calculate bounds from brush planes
-    // Each axial plane (normal along X, Y, or Z) gives us a bound
     for (let i = 0; i < brush.numSides; i++) {
       const side = bsp.brushSides[brush.firstSide + i];
       if (!side) continue;
       const plane = bsp.planes[side.planeIndex];
       if (!plane) continue;
       
-      const nx = plane.normal[0];
-      const ny = plane.normal[1];
-      const nz = plane.normal[2];
-      const d = plane.dist;
-      
-      // Check for axial planes (normal is along one axis)
-      const AXIS_THRESHOLD = 0.99;
-      
-      if (Math.abs(nx) > AXIS_THRESHOLD) {
-        // X-axis plane
-        if (nx > 0) maxX = Math.max(maxX, d);
-        else minX = Math.min(minX, -d);
-      } else if (Math.abs(ny) > AXIS_THRESHOLD) {
-        // Y-axis plane
-        if (ny > 0) maxY = Math.max(maxY, d);
-        else minY = Math.min(minY, -d);
-      } else if (Math.abs(nz) > AXIS_THRESHOLD) {
-        // Z-axis plane
-        if (nz > 0) maxZ = Math.max(maxZ, d);
-        else minZ = Math.min(minZ, -d);
+      planes.push({
+        nx: plane.normal[0],
+        ny: plane.normal[1],
+        nz: plane.normal[2],
+        d: plane.dist
+      });
+    }
+    
+    if (planes.length < 4) return null;
+    
+    // Find all vertices by intersecting every combination of 3 planes
+    const vertices: [number, number, number][] = [];
+    
+    for (let i = 0; i < planes.length - 2; i++) {
+      for (let j = i + 1; j < planes.length - 1; j++) {
+        for (let k = j + 1; k < planes.length; k++) {
+          const vertex = this.intersectPlanes(planes[i], planes[j], planes[k]);
+          if (vertex && this.isInsideAllPlanes(vertex, planes)) {
+            vertices.push(vertex);
+          }
+        }
       }
     }
     
-    // Check if we got valid bounds
-    if (!Number.isFinite(minX) || !Number.isFinite(maxX) ||
-        !Number.isFinite(minY) || !Number.isFinite(maxY) ||
-        !Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
-      return null;
+    if (vertices.length < 4) return null;
+    
+    // Compute bounding box from vertices
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    
+    for (const [x, y, z] of vertices) {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
     }
     
     return { minX, maxX, minY, maxY, minZ, maxZ };
+  }
+  
+  /**
+   * Intersect three planes to find a point
+   */
+  private intersectPlanes(
+    p1: { nx: number; ny: number; nz: number; d: number },
+    p2: { nx: number; ny: number; nz: number; d: number },
+    p3: { nx: number; ny: number; nz: number; d: number }
+  ): [number, number, number] | null {
+    // Cross product of p2.normal and p3.normal
+    const n2xn3_x = p2.ny * p3.nz - p2.nz * p3.ny;
+    const n2xn3_y = p2.nz * p3.nx - p2.nx * p3.nz;
+    const n2xn3_z = p2.nx * p3.ny - p2.ny * p3.nx;
+    
+    // Denominator: dot(p1.normal, n2xn3)
+    const denom = p1.nx * n2xn3_x + p1.ny * n2xn3_y + p1.nz * n2xn3_z;
+    
+    if (Math.abs(denom) < 0.0001) return null;
+    
+    // Cross products for numerator
+    const n3xn1_x = p3.ny * p1.nz - p3.nz * p1.ny;
+    const n3xn1_y = p3.nz * p1.nx - p3.nx * p1.nz;
+    const n3xn1_z = p3.nx * p1.ny - p3.ny * p1.nx;
+    
+    const n1xn2_x = p1.ny * p2.nz - p1.nz * p2.ny;
+    const n1xn2_y = p1.nz * p2.nx - p1.nx * p2.nz;
+    const n1xn2_z = p1.nx * p2.ny - p1.ny * p2.nx;
+    
+    const invDenom = 1.0 / denom;
+    return [
+      (p1.d * n2xn3_x + p2.d * n3xn1_x + p3.d * n1xn2_x) * invDenom,
+      (p1.d * n2xn3_y + p2.d * n3xn1_y + p3.d * n1xn2_y) * invDenom,
+      (p1.d * n2xn3_z + p2.d * n3xn1_z + p3.d * n1xn2_z) * invDenom
+    ];
+  }
+  
+  /**
+   * Check if point is inside (or on surface of) all planes
+   */
+  private isInsideAllPlanes(
+    point: [number, number, number],
+    planes: { nx: number; ny: number; nz: number; d: number }[]
+  ): boolean {
+    const EPSILON = 0.5; // Tolerance for floating point
+    for (const p of planes) {
+      const dist = point[0] * p.nx + point[1] * p.ny + point[2] * p.nz - p.d;
+      if (dist > EPSILON) return false; // Outside this plane
+    }
+    return true;
   }
 
   /**
