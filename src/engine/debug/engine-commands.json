@@ -18,7 +18,12 @@
     {
       "name": "freefly_collision",
       "description": "Toggle collision detection in freefly mode (0=off, 1=on)",
-      "usage": "freefly_collision [0|1]"
+      "usage": "freefly_collision [0|1|test|draw|clear]",
+      "subcommands": [
+        { "name": "test", "description": "Trace forward from camera and print result" },
+        { "name": "draw", "description": "Draw trace + hit normal in the scene", "args": ["dist?", "normalLen?"] },
+        { "name": "clear", "description": "Clear collision visualization meshes" }
+      ]
     },
     {
       "name": "bsp",

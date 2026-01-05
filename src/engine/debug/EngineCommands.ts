@@ -19,7 +19,7 @@ import {
   BspMeshBuilder,
   type BspMeshBuildResult
 } from '../loader';
-import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4 } from 'babylonjs';
+import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder } from 'babylonjs';
 
 // Camera controllers (used directly, not as singletons)
 import { IsometricController } from '../camera/controllers/IsometricController';
@@ -44,6 +44,9 @@ let _gameClock: typeof import('../../game/GameClock').GameClock | null = null;
 let _uiScale: typeof import('../ui/UIScale').UIScale | null = null;
 let _hud: typeof import('../ui/hud/HUDManager').HUDManager | null = null;
 let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
+
+// Debug collision visualization meshes
+let _collisionVizMeshes: Mesh[] = [];
 
 async function getAudioManager() {
   if (!_audioManager) {
@@ -385,6 +388,92 @@ export function registerEngineCommands(): void {
         `Forward 100 units: fraction=${result.fraction.toFixed(3)}`,
         result.fraction < 1.0 ? `HIT at ${(result.fraction * 100).toFixed(1)} units` : 'NO HIT',
         result.normal ? `Normal: (${result.normal.x.toFixed(2)}, ${result.normal.y.toFixed(2)}, ${result.normal.z.toFixed(2)})` : '',
+      ].filter(Boolean).join('\n');
+    }
+
+    // Clear subcommand - remove debug visualization meshes
+    if (value === 'clear') {
+      const disposed = _collisionVizMeshes.length;
+      for (const m of _collisionVizMeshes) {
+        try {
+          m.dispose(false, true);
+        } catch {
+          // ignore
+        }
+      }
+      _collisionVizMeshes = [];
+      return `Collision viz cleared (${disposed} meshes)`;
+    }
+
+    // Draw subcommand - visualize trace + hit normal in 3D
+    if (value === 'draw') {
+      const cameraSystem = await getCameraSystem();
+      const camera = cameraSystem.getCamera();
+      const scene = camera?.getScene?.();
+      if (!camera || !scene) return 'No active camera/scene available';
+      if (!cm.isInitialized()) return 'Collision not initialized (load a map first)';
+
+      const dist = Number(args[1] ?? '200');
+      const normalLen = Number(args[2] ?? '32');
+      if (!Number.isFinite(dist) || dist <= 0) {
+        return 'Usage: freefly_collision draw [dist] [normalLen]';
+      }
+
+      const start = camera.position.clone();
+      const forward = camera.getDirection(new Vector3(0, 0, 1));
+      const end = start.add(forward.scale(dist));
+
+      const trace = cm.trace(start as never, end as never);
+      const hit = trace.fraction < 1.0;
+      const hitPos = hit ? Vector3.Lerp(start, end, trace.fraction) : end;
+
+      // Trace segment
+      const segColor = hit ? Color3.Yellow() : Color3.Green();
+      const traceLine = MeshBuilder.CreateLines(
+        'collision_trace',
+        { points: [start, hitPos], updatable: false },
+        scene
+      );
+      traceLine.color = segColor;
+      traceLine.isPickable = false;
+      _collisionVizMeshes.push(traceLine);
+
+      // Remaining segment (after hit)
+      if (hit) {
+        const restLine = MeshBuilder.CreateLines(
+          'collision_trace_rest',
+          { points: [hitPos, end], updatable: false },
+          scene
+        );
+        restLine.color = Color3.Red();
+        restLine.isPickable = false;
+        _collisionVizMeshes.push(restLine);
+      }
+
+      // Hit normal
+      if (hit && trace.normal && Number.isFinite(normalLen) && normalLen > 0) {
+        const n = trace.normal as any;
+        const normal = new Vector3(n.x, n.y, n.z);
+        const normalEnd = hitPos.add(normal.scale(normalLen));
+        const normalLine = MeshBuilder.CreateLines(
+          'collision_normal',
+          { points: [hitPos, normalEnd], updatable: false },
+          scene
+        );
+        normalLine.color = new Color3(0, 1, 1);
+        normalLine.isPickable = false;
+        _collisionVizMeshes.push(normalLine);
+      }
+
+      return [
+        '=== Collision Viz ===',
+        `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
+        `End:   (${end.x.toFixed(1)}, ${end.y.toFixed(1)}, ${end.z.toFixed(1)})`,
+        `Hit: ${hit ? 'YES' : 'NO'} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
+        hit && trace.normal
+          ? `Normal: (${(trace.normal as any).x.toFixed(3)}, ${(trace.normal as any).y.toFixed(3)}, ${(trace.normal as any).z.toFixed(3)})`
+          : '',
+        'Use: freefly_collision clear',
       ].filter(Boolean).join('\n');
     }
 
@@ -2000,7 +2089,7 @@ export function registerEngineCommands(): void {
       }
 
       case 'dispose': {
-        if (disposeEmptyScene()) {
+        if (await disposeEmptyScene()) {
           return 'Empty scene disposed';
         }
         return 'No empty scene to dispose';
@@ -2492,7 +2581,7 @@ export function registerEngineCommands(): void {
             const cm = getCollisionManager();
             await cm.init(effectiveBsp, scene as never);
             const stats = cm.getStats();
-            collisionInfo = `\nCollision: ${cm.getBackendType()} (${(stats.backendStats as any)?.collisionPlanes || 0} planes)`;
+            collisionInfo = `\nCollision: ${cm.getBackendType()} (${((stats?.backendStats as any)?.collisionPlanes ?? 0)} planes)`;
           } catch (e) {
             console.warn('[bsp render] Failed to init collision:', e);
           }
