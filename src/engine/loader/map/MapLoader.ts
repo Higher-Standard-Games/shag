@@ -11,7 +11,7 @@
  * - Skybox textures
  */
 
-import { Scene, Mesh, VertexData } from 'babylonjs';
+import { Scene, MeshBuilder, Vector3 } from 'babylonjs';
 import { PK3Index } from '../pk3/PK3Index';
 import { PK3Loader } from '../pk3/PK3Loader';
 import { BspLoader, type BspFile } from '../bsp/BspLoader';
@@ -467,66 +467,46 @@ export class MapLoader {
       if (isPlayerClipByFlag) debugClipByFlag++;
       if (isClipByName) debugClipByName++;
       
-      // Generate mesh from brush planes
-      const vertices = this.brushToVertices(brush, bsp);
-      if (vertices.length < 4) {
-        // Debug: log why we're skipping
+      // Calculate bounding box from brush planes
+      const bounds = this.brushToBounds(brush, bsp);
+      if (!bounds) {
         if (debugChecked < 10) {
-          console.log(`[ClipBrush] Brush ${bi}: Only ${vertices.length} vertices (need 4+), sides=${brush.numSides}`);
+          console.log(`[ClipBrush] Brush ${bi}: Could not compute bounds, sides=${brush.numSides}`);
         }
         continue;
       }
       
+      // Calculate size and center (convert Q3 to Babylon coords)
+      // Q3: (x, y, z) -> Babylon: (x, z, y)
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxZ - bounds.minZ; // Q3 Z is Babylon Y
+      const depth = bounds.maxY - bounds.minY;  // Q3 Y is Babylon Z
+      
+      // Skip tiny brushes
+      if (width < 1 || height < 1 || depth < 1) continue;
+      
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minZ + bounds.maxZ) / 2; // Q3 Z -> Babylon Y
+      const centerZ = (bounds.minY + bounds.maxY) / 2; // Q3 Y -> Babylon Z
+      
       try {
-        // Create convex hull mesh from vertices
-        const mesh = new Mesh(`clip_brush_${bi}`, scene);
+        // Create a proper box mesh using MeshBuilder - this works perfectly with collision
+        const mesh = MeshBuilder.CreateBox(`clip_brush_${bi}`, {
+          width: width,
+          height: height,
+          depth: depth,
+        }, scene);
         
-        // For simple collision, create a convex hull
-        // Use vertex data to create the mesh
-        const positions: number[] = [];
-        const indices: number[] = [];
-        
-        // Add all vertices
-        for (const v of vertices) {
-          positions.push(v[0], v[2], v[1]); // Q3 to Babylon: (x,y,z) -> (x,z,y)
-        }
-        
-        // Create simple triangle fan from center (approximate convex hull)
-        if (vertices.length >= 4) {
-          // Calculate center
-          let cx = 0, cy = 0, cz = 0;
-          for (const v of vertices) {
-            cx += v[0]; cy += v[1]; cz += v[2];
-          }
-          cx /= vertices.length;
-          cy /= vertices.length;
-          cz /= vertices.length;
-          
-          // Add center vertex
-          const centerIdx = vertices.length;
-          positions.push(cx, cz, cy); // Q3 to Babylon conversion
-          
-          // Create triangles from center to each edge
-          for (let i = 0; i < vertices.length; i++) {
-            const next = (i + 1) % vertices.length;
-            indices.push(centerIdx, i, next);
-            indices.push(centerIdx, next, i); // Double-sided
-          }
-        }
-        
-        const vertexData = new VertexData();
-        vertexData.positions = positions;
-        vertexData.indices = indices;
-        vertexData.applyToMesh(mesh);
+        // Position at brush center
+        mesh.position = new Vector3(centerX, centerY, centerZ);
         
         // Make invisible but enable collision
         mesh.isVisible = false;
         mesh.checkCollisions = true;
-        mesh.metadata = { isClipBrush: true, brushIndex: bi };
+        mesh.metadata = { isClipBrush: true, brushIndex: bi, textureName: texName };
         
         meshCount++;
       } catch (e) {
-        // Skip invalid brushes
         console.warn(`[ClipBrush] Failed to create mesh for brush ${bi}:`, e);
       }
     }
@@ -537,123 +517,54 @@ export class MapLoader {
   }
   
   /**
-   * Convert brush planes to vertex positions
+   * Calculate bounding box from brush planes
+   * Returns bounds in Q3 coordinates
    */
-  private brushToVertices(brush: any, bsp: BspFile): [number, number, number][] {
-    const vertices: [number, number, number][] = [];
-    const planes: { normal: [number, number, number]; dist: number }[] = [];
+  private brushToBounds(brush: any, bsp: BspFile): { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null {
+    // Initialize with extreme values
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
     
-    // Collect all planes for this brush
+    // Calculate bounds from brush planes
+    // Each axial plane (normal along X, Y, or Z) gives us a bound
     for (let i = 0; i < brush.numSides; i++) {
       const side = bsp.brushSides[brush.firstSide + i];
       if (!side) continue;
       const plane = bsp.planes[side.planeIndex];
       if (!plane) continue;
-      planes.push({
-        normal: [plane.normal[0], plane.normal[1], plane.normal[2]],
-        dist: plane.dist
-      });
-    }
-    
-    if (planes.length < 4) return vertices;
-    
-    // Find vertices by intersecting every combination of 3 planes
-    for (let i = 0; i < planes.length - 2; i++) {
-      for (let j = i + 1; j < planes.length - 1; j++) {
-        for (let k = j + 1; k < planes.length; k++) {
-          const vertex = this.intersectThreePlanes(planes[i], planes[j], planes[k]);
-          if (vertex && this.isVertexInsideBrush(vertex, planes)) {
-            // Check for duplicate
-            let isDupe = false;
-            for (const v of vertices) {
-              const dx = v[0] - vertex[0];
-              const dy = v[1] - vertex[1];
-              const dz = v[2] - vertex[2];
-              if (dx*dx + dy*dy + dz*dz < 1) {
-                isDupe = true;
-                break;
-              }
-            }
-            if (!isDupe) {
-              vertices.push(vertex);
-            }
-          }
-        }
+      
+      const nx = plane.normal[0];
+      const ny = plane.normal[1];
+      const nz = plane.normal[2];
+      const d = plane.dist;
+      
+      // Check for axial planes (normal is along one axis)
+      const AXIS_THRESHOLD = 0.99;
+      
+      if (Math.abs(nx) > AXIS_THRESHOLD) {
+        // X-axis plane
+        if (nx > 0) maxX = Math.max(maxX, d);
+        else minX = Math.min(minX, -d);
+      } else if (Math.abs(ny) > AXIS_THRESHOLD) {
+        // Y-axis plane
+        if (ny > 0) maxY = Math.max(maxY, d);
+        else minY = Math.min(minY, -d);
+      } else if (Math.abs(nz) > AXIS_THRESHOLD) {
+        // Z-axis plane
+        if (nz > 0) maxZ = Math.max(maxZ, d);
+        else minZ = Math.min(minZ, -d);
       }
     }
     
-    return vertices;
-  }
-  
-  /**
-   * Intersect three planes to find a point
-   */
-  private intersectThreePlanes(
-    p1: { normal: [number, number, number]; dist: number },
-    p2: { normal: [number, number, number]; dist: number },
-    p3: { normal: [number, number, number]; dist: number }
-  ): [number, number, number] | null {
-    // Cross product of p2.normal and p3.normal
-    const n2xn3 = [
-      p2.normal[1] * p3.normal[2] - p2.normal[2] * p3.normal[1],
-      p2.normal[2] * p3.normal[0] - p2.normal[0] * p3.normal[2],
-      p2.normal[0] * p3.normal[1] - p2.normal[1] * p3.normal[0]
-    ];
-    
-    // Denominator: dot(p1.normal, n2xn3)
-    const denom = p1.normal[0] * n2xn3[0] + p1.normal[1] * n2xn3[1] + p1.normal[2] * n2xn3[2];
-    
-    if (Math.abs(denom) < 0.0001) return null; // Planes don't intersect at a point
-    
-    // Cross products for numerator
-    const n3xn1 = [
-      p3.normal[1] * p1.normal[2] - p3.normal[2] * p1.normal[1],
-      p3.normal[2] * p1.normal[0] - p3.normal[0] * p1.normal[2],
-      p3.normal[0] * p1.normal[1] - p3.normal[1] * p1.normal[0]
-    ];
-    const n1xn2 = [
-      p1.normal[1] * p2.normal[2] - p1.normal[2] * p2.normal[1],
-      p1.normal[2] * p2.normal[0] - p1.normal[0] * p2.normal[2],
-      p1.normal[0] * p2.normal[1] - p1.normal[1] * p2.normal[0]
-    ];
-    
-    const invDenom = 1.0 / denom;
-    return [
-      (p1.dist * n2xn3[0] + p2.dist * n3xn1[0] + p3.dist * n1xn2[0]) * invDenom,
-      (p1.dist * n2xn3[1] + p2.dist * n3xn1[1] + p3.dist * n1xn2[1]) * invDenom,
-      (p1.dist * n2xn3[2] + p2.dist * n3xn1[2] + p3.dist * n1xn2[2]) * invDenom
-    ];
-  }
-  
-  /**
-   * Check if a vertex is inside (or on) all brush planes
-   * Note: BSP brush planes point outward, so inside = negative distance from all planes
-   * But FBSP might use different convention, so we check both directions
-   */
-  private isVertexInsideBrush(
-    vertex: [number, number, number],
-    planes: { normal: [number, number, number]; dist: number }[]
-  ): boolean {
-    const EPSILON = 1.0; // More lenient epsilon for brush vertex detection
-    
-    // Count how many planes this vertex is on the "inside" of
-    let insideCount = 0;
-    let outsideCount = 0;
-    
-    for (const plane of planes) {
-      const dist = 
-        vertex[0] * plane.normal[0] +
-        vertex[1] * plane.normal[1] +
-        vertex[2] * plane.normal[2] -
-        plane.dist;
-      
-      if (dist > EPSILON) outsideCount++;
-      else insideCount++;
+    // Check if we got valid bounds
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) ||
+        !Number.isFinite(minY) || !Number.isFinite(maxY) ||
+        !Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+      return null;
     }
     
-    // Vertex is valid if it's inside most planes (allows for some floating point error)
-    // A proper brush vertex should be inside ALL planes, but be lenient
-    return outsideCount <= 1; // Allow 1 plane to be "outside" due to precision
+    return { minX, maxX, minY, maxY, minZ, maxZ };
   }
 
   /**
