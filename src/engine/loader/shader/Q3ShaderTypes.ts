@@ -273,4 +273,10 @@ export interface ResolvedMaterialProps {
 
   /** Fullbright surface - uses emissive, no lightmap (lamps, signs) */
   isFullbright: boolean;
+
+  /** Autosprite - full billboard, always faces camera */
+  autosprite: boolean;
+
+  /** Autosprite2 - cylindrical billboard, rotates around vertical axis only */
+  autosprite2: boolean;
 }

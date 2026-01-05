@@ -194,6 +194,25 @@ version              # Show engine version
 fps                  # Toggle FPS display
 ```
 
+### Log Search Commands
+
+```
+find <pattern> [max]        # Search log history with wildcards
+log_history [size]          # View/set log history size (100-50000)
+con_size [0.1-1.0]          # View/set console height (% of screen)
+```
+
+**Examples:**
+```
+find BspMeshBuilder         # Find all BspMeshBuilder lines
+find *Sprite*               # Wildcard search for anything with "Sprite"
+find *error* 100            # Find up to 100 error lines
+log_history                 # Show current history usage
+log_history 10000           # Increase history to 10000 lines
+```
+
+The log history keeps all console output in memory (default 5000 lines) even after it scrolls out of the visible console. Settings are persisted to localStorage.
+
 The `help` command displays commands organized by category:
 - **System** - Core commands (help, clear, version)
 - **Debug** - Development tools (camera, debug, map, weather, etc.)

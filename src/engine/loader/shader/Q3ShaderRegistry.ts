@@ -144,6 +144,8 @@ export class Q3ShaderRegistry {
       polygonOffset: false,
       isSky: false,
       isFullbright: false,
+      autosprite: false,
+      autosprite2: false,
     };
 
     if (!shader) {
@@ -276,6 +278,17 @@ export class Q3ShaderRegistry {
       // Explicit depth write in stage
       if (firstStage.depthWrite !== undefined) {
         props.depthWrite = firstStage.depthWrite;
+      }
+    }
+
+    // Autosprite detection from deformVertexes
+    if (shader.deformVertexes) {
+      for (const deform of shader.deformVertexes) {
+        if (deform.type === 'autosprite') {
+          props.autosprite = true;
+        } else if (deform.type === 'autosprite2') {
+          props.autosprite2 = true;
+        }
       }
     }
 
