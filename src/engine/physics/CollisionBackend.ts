@@ -38,6 +38,11 @@ export interface TraceOptions {
   height?: number;
   /** Content mask - only collide with these contents */
   contentMask?: number;
+  /**
+   * If true, restricts brush-based collision to clip textures only
+   * (e.g. textures/common/fullclip, textures/common/playerclip)
+   */
+  clipTexturesOnly?: boolean;
   /** Enable debug logging */
   debug?: boolean;
 }

@@ -202,7 +202,10 @@ export class MapLoader {
 
     // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
     progress('Collision', 'Building clip brush meshes');
-    const clipMeshCount = this.buildClipBrushMeshes(bsp, scene);
+    if (false) {
+      this.buildClipBrushMeshes(bsp as BspFile, scene);
+    }
+    const clipMeshCount = 0;
     console.log(`[MapLoader] Generated ${clipMeshCount} invisible clip brush collision meshes`);
 
     // Phase 9b: Initialize collision system

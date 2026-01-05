@@ -52,7 +52,13 @@ export class BspCollision {
    * Trace a point from start to end
    * Returns collision info including fraction and hit plane
    */
-  tracePoint(start: Vector3, end: Vector3, debug: boolean = false, contentsMask: number = CollisionMasks.PLAYERSOLID): TraceResult {
+  tracePoint(
+    start: Vector3,
+    end: Vector3,
+    debug: boolean = false,
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
+  ): TraceResult {
     const result: TraceResult = {
       fraction: 1.0,
       endPos: end.clone(),
@@ -76,7 +82,7 @@ export class BspCollision {
     }
 
     // Trace through BSP tree
-    this.traceNode(q3Start, q3End, 0, 0, 1, result, debug, contentsMask);
+    this.traceNode(q3Start, q3End, 0, 0, 1, result, debug, contentsMask, clipTexturesOnly);
 
     // Calculate end position based on fraction
     if (result.fraction < 1.0) {
@@ -90,7 +96,15 @@ export class BspCollision {
     return result;
   }
 
-  traceBox(start: Vector3, end: Vector3, mins: Vector3, maxs: Vector3, debug: boolean = false, contentsMask: number = CollisionMasks.PLAYERSOLID): TraceResult {
+  traceBox(
+    start: Vector3,
+    end: Vector3,
+    mins: Vector3,
+    maxs: Vector3,
+    debug: boolean = false,
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
+  ): TraceResult {
     const result: TraceResult & { realfraction: number } = {
       fraction: 1.0,
       realfraction: 1.0 + DIST_EPSILON,
@@ -111,7 +125,7 @@ export class BspCollision {
       Math.max(Math.abs(q3Mins[2]), Math.abs(q3Maxs[2])),
     ];
 
-    this.traceNodeBox(q3Start, q3End, 0, 0, 1, result, q3Mins, q3Maxs, extents, debug, contentsMask);
+    this.traceNodeBox(q3Start, q3End, 0, 0, 1, result, q3Mins, q3Maxs, extents, debug, contentsMask, clipTexturesOnly);
 
     if (result.fraction < 1.0) {
       result.endPos = Vector3.Lerp(start, end, result.fraction);
@@ -171,7 +185,8 @@ export class BspCollision {
     endFrac: number,
     result: TraceResult,
     debug: boolean = false,
-    contentsMask: number = CollisionMasks.PLAYERSOLID
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
   ): void {
     // If we already hit something closer, skip
     if (result.fraction <= startFrac) return;
@@ -184,7 +199,7 @@ export class BspCollision {
         if (debug) {
           console.log(`[BspCollision] Leaf ${leafIndex}: ${leaf.numLeafBrushes} brushes`);
         }
-        this.traceLeaf(start, end, leaf, result, debug, contentsMask);
+        this.traceLeaf(start, end, leaf, result, debug, contentsMask, clipTexturesOnly);
       }
       return;
     }
@@ -215,14 +230,14 @@ export class BspCollision {
     if (startDist >= DIST_EPSILON && endDist >= DIST_EPSILON) {
       // Both in front - recurse front only
       if (debug) console.log(`[BspCollision] Node ${nodeIndex}: both in front, going to ${node.children[0]}`);
-      this.traceNode(start, end, node.children[0], startFrac, endFrac, result, debug, contentsMask);
+      this.traceNode(start, end, node.children[0], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly);
       return;
     }
     
     if (startDist < -DIST_EPSILON && endDist < -DIST_EPSILON) {
       // Both behind - recurse back only
       if (debug) console.log(`[BspCollision] Node ${nodeIndex}: both behind, going to ${node.children[1]}`);
-      this.traceNode(start, end, node.children[1], startFrac, endFrac, result, debug, contentsMask);
+      this.traceNode(start, end, node.children[1], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly);
       return;
     }
 
@@ -261,7 +276,7 @@ export class BspCollision {
 
     // Trace near side
     const nearNode = side === 0 ? node.children[0] : node.children[1];
-    this.traceNode(start, mid, nearNode, startFrac, midFrac, result, debug, contentsMask);
+    this.traceNode(start, mid, nearNode, startFrac, midFrac, result, debug, contentsMask, clipTexturesOnly);
 
     // Calculate far middle point
     const midFrac2 = startFrac + (endFrac - startFrac) * frac2;
@@ -273,7 +288,7 @@ export class BspCollision {
 
     // Trace far side
     const farNode = side === 0 ? node.children[1] : node.children[0];
-    this.traceNode(mid2, end, farNode, midFrac2, endFrac, result, debug, contentsMask);
+    this.traceNode(mid2, end, farNode, midFrac2, endFrac, result, debug, contentsMask, clipTexturesOnly);
   }
 
   private traceNodeBox(
@@ -287,7 +302,8 @@ export class BspCollision {
     maxs: [number, number, number],
     extents: [number, number, number],
     debug: boolean = false,
-    contentsMask: number = CollisionMasks.PLAYERSOLID
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
   ): void {
     if (result.realfraction <= startFrac) return;
 
@@ -295,7 +311,7 @@ export class BspCollision {
       const leafIndex = -(nodeIndex + 1);
       const leaf = this.bsp.leafs[leafIndex];
       if (leaf) {
-        this.traceLeafBox(start, end, leaf, result, mins, maxs, debug, contentsMask);
+        this.traceLeafBox(start, end, leaf, result, mins, maxs, debug, contentsMask, clipTexturesOnly);
       }
       return;
     }
@@ -314,11 +330,11 @@ export class BspCollision {
       Math.abs(extents[2] * plane.normal[2]);
 
     if (t1 >= offset && t2 >= offset) {
-      this.traceNodeBox(start, end, node.children[0], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask);
+      this.traceNodeBox(start, end, node.children[0], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
       return;
     }
     if (t1 < -offset && t2 < -offset) {
-      this.traceNodeBox(start, end, node.children[1], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask);
+      this.traceNodeBox(start, end, node.children[1], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
       return;
     }
 
@@ -347,7 +363,7 @@ export class BspCollision {
     ];
 
     const nearNode = node.children[side];
-    this.traceNodeBox(start, mid, nearNode, startFrac, midFrac, result, mins, maxs, extents, debug, contentsMask);
+    this.traceNodeBox(start, mid, nearNode, startFrac, midFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
 
     frac2 = Math.max(0, Math.min(1, frac2));
     const midFrac2 = startFrac + (endFrac - startFrac) * frac2;
@@ -358,7 +374,7 @@ export class BspCollision {
     ];
 
     const farNode = node.children[side ^ 1];
-    this.traceNodeBox(mid2, end, farNode, midFrac2, endFrac, result, mins, maxs, extents, debug, contentsMask);
+    this.traceNodeBox(mid2, end, farNode, midFrac2, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
   }
 
   /**
@@ -370,7 +386,8 @@ export class BspCollision {
     leaf: BspLeaf,
     result: TraceResult,
     debug: boolean = false,
-    contentsMask: number = CollisionMasks.PLAYERSOLID
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
   ): void {
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
@@ -383,6 +400,11 @@ export class BspCollision {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: no texture`);
         continue;
       }
+
+      if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) {
+        continue;
+      }
+
       if (!this.isContentsSolid(texture.contentFlags, contentsMask)) {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: not solid (flags=0x${texture.contentFlags.toString(16)}, tex=${texture.name})`);
         continue;
@@ -503,7 +525,8 @@ export class BspCollision {
     mins: [number, number, number],
     maxs: [number, number, number],
     debug: boolean = false,
-    contentsMask: number = CollisionMasks.PLAYERSOLID
+    contentsMask: number = CollisionMasks.PLAYERSOLID,
+    clipTexturesOnly: boolean = false
   ): void {
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
@@ -512,6 +535,8 @@ export class BspCollision {
 
       const texture = this.bsp.textures[brush.shaderIndex];
       if (!texture) continue;
+
+      if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) continue;
       if (!this.isContentsSolid(texture.contentFlags, contentsMask)) continue;
 
       this.traceBrushBox(start, end, mins, maxs, brush, result, debug);
@@ -522,6 +547,19 @@ export class BspCollision {
   private isContentsSolid(contentFlags: number, contentsMask: number): boolean {
     if (contentFlags & ContentFlags.DETAIL) return false;
     return (contentFlags & contentsMask) !== 0;
+  }
+
+  private isClipTexture(textureName: string, contentFlags: number): boolean {
+    if ((contentFlags & ContentFlags.DETAIL) !== 0) return false;
+    if ((contentFlags & ContentFlags.PLAYERCLIP) !== 0) return true;
+    const name = (textureName || '').toLowerCase();
+    // Warsow/Quake3 common clip textures
+    if (name.includes('fullclip')) return true;
+    if (name.includes('playerclip')) return true;
+    if (name.includes('common/clip')) return true;
+    if (name.endsWith('/clip')) return true;
+    if (name.includes('/clip_')) return true;
+    return false;
   }
 
   /**

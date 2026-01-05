@@ -413,10 +413,34 @@ export class FreeflyController implements ICameraController {
     if (cam._collideWithWorld && this.camera.checkCollisions) {
       const posBefore = this.camera.position.clone();
       cam._collideWithWorld(movement);
-      const posAfter = this.camera.position;
-      
+      const posAfterBabylon = this.camera.position.clone();
+
+      // Clamp against BSP clip brushes (fullclip/playerclip) without generating Babylon meshes
+      const cm = getCollisionManager();
+      const wasBackend = cm.getBackendType();
+      if (wasBackend !== 'brush') {
+        cm.setBackend('brush');
+      }
+
+      const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, {
+        radius: 16,
+        height: 56,
+        // We only want clip volumes here; rendered SOLID geometry is handled by Babylon
+        clipTexturesOnly: true,
+        // Include PLAYERCLIP and SOLID so fullclip (SOLID) is considered, but filtered by name
+        contentMask: 0x1 | 0x10000,
+      });
+
+      if (wasBackend !== 'brush' && wasBackend) {
+        cm.setBackend(wasBackend);
+      }
+
+      if (clipTrace.fraction < 1.0) {
+        this.camera.position = clipTrace.endPos as unknown as Vector3;
+      }
+
       // Debug: log if collision occurred (position changed differently than expected)
-      const actualMove = posAfter.subtract(posBefore);
+      const actualMove = this.camera.position.subtract(posBefore);
       const moveDiff = actualMove.subtract(movement).length();
       if (moveDiff > 0.01) {
         console.log(`[FreeflyController] Collision detected! Expected move: ${movement.length().toFixed(2)}, Actual: ${actualMove.length().toFixed(2)}`);
