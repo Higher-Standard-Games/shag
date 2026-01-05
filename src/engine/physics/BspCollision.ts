@@ -33,9 +33,12 @@ export interface TraceResult {
  */
 export class BspCollision {
   private bsp: BspFile;
+  private isFBSP: boolean;
 
   constructor(bsp: BspFile) {
     this.bsp = bsp;
+    this.isFBSP = bsp.header.isFBSP;
+    console.log(`[BspCollision] Initialized for ${this.isFBSP ? 'FBSP' : 'IBSP'} format`);
   }
 
   /**
@@ -401,12 +404,12 @@ export class BspCollision {
     result: TraceResult & { realfraction: number },
     debug: boolean = false
   ): void {
-    let enterFrac = -1;
-    let leaveFrac = 1;
-    let enterFrac2 = -1;
+    let enterFrac = -1.0;
+    let enterFrac2 = -1.0;
+    let leaveFrac = 1.0;
     let hitPlane: BspPlane | null = null;
     let startOut = false;
-    let getOut = false;
+    let endOut = false;
 
     for (let i = 0; i < brush.numSides; i++) {
       const side = this.bsp.brushSides[brush.firstSide + i];
@@ -415,68 +418,71 @@ export class BspCollision {
       const plane = this.bsp.planes[side.planeIndex];
       if (!plane) continue;
 
-      // Qfusion-style: evaluate plane distance using the box corner that is
-      // farthest along the plane normal.
-      const off0 = plane.normal[0] >= 0 ? maxs[0] : mins[0];
-      const off1 = plane.normal[1] >= 0 ? maxs[1] : mins[1];
-      const off2 = plane.normal[2] >= 0 ? maxs[2] : mins[2];
+      // Calculate distances using box extents
+      let startDist = 0;
+      let endDist = 0;
+      for (let j = 0; j < 3; j++) {
+        const n = plane.normal[j];
+        if (n > 0) {
+          startDist += n * mins[j];
+          endDist += n * mins[j];
+        } else {
+          startDist += n * maxs[j];
+          endDist += n * maxs[j];
+        }
+      }
+      startDist = this.brushPlaneDist(start, plane) + startDist;
+      endDist = this.brushPlaneDist(end, plane) + endDist;
 
-      const d1 =
-        (start[0] + off0) * plane.normal[0] +
-        (start[1] + off1) * plane.normal[1] +
-        (start[2] + off2) * plane.normal[2] -
-        plane.dist;
-      const d2 =
-        (end[0] + off0) * plane.normal[0] +
-        (end[1] + off1) * plane.normal[1] +
-        (end[2] + off2) * plane.normal[2] -
-        plane.dist;
+      if (startDist > 0) startOut = true;
+      if (endDist > 0) endOut = true;
 
-      if (d2 > 0) getOut = true;
-      if (d1 > 0) startOut = true;
-
-      // If completely in front of the face, no intersection
-      if (d1 > 0 && d2 >= d1) {
+      // Both points outside this plane - no collision with brush
+      if (startDist > 0 && endDist > 0) {
+        if (debug) console.log(`  Box Side ${i}: both outside (${startDist.toFixed(1)}, ${endDist.toFixed(1)}) - SKIP BRUSH`);
         return;
       }
 
-      // If both behind plane, continue
-      if (d1 <= 0 && d2 <= 0) {
+      // Both points inside this plane - check other planes
+      if (startDist <= 0 && endDist <= 0) {
+        if (debug) console.log(`  Box Side ${i}: both inside (${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
         continue;
       }
 
-      // Crosses face
-      const f = d1 - d2;
-      if (f > 0) {
-        // Enter
-        const frac = d1 / f;
+      // Ray crosses this plane
+      if (startDist > endDist) {
+        // Entering the brush
+        let frac = (startDist - DIST_EPSILON) / (startDist - endDist);
+        let frac2 = (startDist - 2 * DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Box Side ${i}: ENTER at ${frac.toFixed(4)} (nudged ${frac2.toFixed(4)}) (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
         if (frac > enterFrac) {
           enterFrac = frac;
+          enterFrac2 = frac2;
           hitPlane = plane;
-          enterFrac2 = (d1 - DIST_EPSILON) / (d1 - d2);
         }
-      } else if (f < 0) {
-        // Leave
-        const frac = d1 / f;
+      } else {
+        // Leaving the brush
+        const frac = (startDist + DIST_EPSILON) / (startDist - endDist);
+        if (debug) console.log(`  Box Side ${i}: LEAVE at ${frac.toFixed(4)} (dists: ${startDist.toFixed(1)}, ${endDist.toFixed(1)})`);
         if (frac < leaveFrac) {
           leaveFrac = frac;
         }
       }
     }
 
-    if (!startOut) {
-      // Original point was inside brush
+    // If we never left the brush, no collision
+    if (!startOut && !endOut) {
       result.startSolid = true;
-      result.contents = 1;
-      if (!getOut) {
+      if (!startOut && !endOut) {
         result.allSolid = true;
-        result.realfraction = 0;
         result.fraction = 0;
+        result.endPos = new Vector3(start[0], start[2], start[1]);
+        if (debug) console.log(`  BOX: allSolid=true (never left brush)`);
       }
       return;
     }
 
-    if (enterFrac <= -1) return;
+    // If we entered before leaving, we hit the brush
     if (enterFrac > leaveFrac) return;
 
     if (enterFrac < result.realfraction) {
@@ -668,15 +674,21 @@ export class BspCollision {
 
   /**
    * Calculate signed distance for brush collision testing.
-   * In FBSP, brush plane normals point OUTWARD from the brush.
-   * So positive distance = outside brush (already correct convention).
+   * 
+   * IMPORTANT: FBSP (Warsow/qfusion) uses a DIFFERENT plane convention than IBSP (Q3)!
+   * - IBSP: brush plane normals point OUTWARD from brush (standard Q3)
+   * - FBSP: brush plane normals point INWARD into the brush (inverted)
+   * 
+   * For FBSP, we negate the distance so positive = outside brush.
    */
   private brushPlaneDist(point: [number, number, number], plane: BspPlane): number {
-    return (
+    const dist = (
       point[0] * plane.normal[0] +
       point[1] * plane.normal[1] +
       point[2] * plane.normal[2] -
       plane.dist
     );
+    // FBSP uses inverted plane convention - negate to match Q3 expected behavior
+    return this.isFBSP ? -dist : dist;
   }
 }
