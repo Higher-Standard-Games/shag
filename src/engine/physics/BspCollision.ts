@@ -407,6 +407,13 @@ export class BspCollision {
         continue;
       }
 
+      // Clip volumes must be closed convex brushes. Degenerate brushes (few sides)
+      // behave like open half-spaces and can cause one-sided phantom blocking.
+      if (clipTexturesOnly && brush.numSides < 4) {
+        if (debug) console.log(`[BspCollision] Brush ${brushIndex}: skipped (degenerate clip brush numSides=${brush.numSides})`);
+        continue;
+      }
+
       if (!this.isContentsSolid(texture.contentFlags, contentsMask)) {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: not solid (flags=0x${texture.contentFlags.toString(16)}, tex=${texture.name})`);
         continue;
@@ -546,6 +553,11 @@ export class BspCollision {
 
       if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) continue;
       if (!this.isContentsSolid(texture.contentFlags, contentsMask)) continue;
+
+      if (clipTexturesOnly && brush.numSides < 4) {
+        if (debug) console.log(`[BspCollision] Brush ${brushIndex}: skipped (degenerate clip brush numSides=${brush.numSides})`);
+        continue;
+      }
 
       const prevRealFrac = result.realfraction;
       const prevStartSolid = result.startSolid;

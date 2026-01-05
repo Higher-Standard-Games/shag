@@ -422,7 +422,11 @@ export class FreeflyController implements ICameraController {
         cm.setBackend('brush');
       }
 
-      const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, {
+      const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
+      const traceStart = posBefore.subtract(ellipsoidOffset);
+      const traceEnd = posAfterBabylon.subtract(ellipsoidOffset);
+
+      const clipTrace = cm.trace(traceStart as never, traceEnd as never, {
         radius: 16,
         height: 56,
         // We only want clip volumes here; rendered SOLID geometry is handled by Babylon
@@ -437,7 +441,10 @@ export class FreeflyController implements ICameraController {
 
       if (!clipTrace.startSolid && clipTrace.fraction < 1.0) {
         // Apply BSP-resolved end position, with a tiny push-out to reduce re-colliding next frame
-        this.camera.position = clipTrace.endPos as unknown as Vector3;
+        const endPos: any = clipTrace.endPos;
+        this.camera.position.x = endPos.x + ellipsoidOffset.x;
+        this.camera.position.y = endPos.y + ellipsoidOffset.y;
+        this.camera.position.z = endPos.z + ellipsoidOffset.z;
         if (clipTrace.normal) {
           const n: any = clipTrace.normal;
           this.camera.position.x += n.x * 0.5;
@@ -450,6 +457,8 @@ export class FreeflyController implements ICameraController {
           FreeflyController._lastClipHitLogTime = now;
           const hitBrushIndex = (clipTrace as any).hitBrushIndex;
           const hitTextureName = (clipTrace as any).hitTextureName;
+          FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
+          FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
           console.log(`[Freefly][Clip] HIT frac=${clipTrace.fraction.toFixed(3)} brush=${hitBrushIndex} tex=${hitTextureName}`);
         }
       }
@@ -469,6 +478,16 @@ export class FreeflyController implements ICameraController {
   
   private static _debuggedMethods = false;
   private static _lastClipHitLogTime = 0;
+  private static _lastClipHitBrushIndex: number | null = null;
+  private static _lastClipHitTextureName: string | null = null;
+
+  static getLastClipHitBrushIndex(): number | null {
+    return FreeflyController._lastClipHitBrushIndex;
+  }
+
+  static getLastClipHitTextureName(): string | null {
+    return FreeflyController._lastClipHitTextureName;
+  }
   
   /**
    * Check if a mesh should be excluded from collision detection

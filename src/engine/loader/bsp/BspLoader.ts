@@ -121,6 +121,7 @@ export interface BspBrush {
 export interface BspBrushSide {
   planeIndex: number;
   shaderIndex: number;
+  surfaceNum?: number;
 }
 
 /** IBSP vertex (Q3 format) - 44 bytes */
@@ -563,16 +564,20 @@ export class BspLoader {
 
   private parseBrushSides(): BspBrushSide[] {
     const lump = this.getLump(LumpIndex.BRUSHSIDES);
-    const SIDE_SIZE = 8;
+    const SIDE_SIZE = this.isFBSP ? 12 : 8;
     const count = Math.floor(lump.length / SIDE_SIZE);
     const sides: BspBrushSide[] = [];
 
     for (let i = 0; i < count; i++) {
       const offset = i * SIDE_SIZE;
-      sides.push({
-        planeIndex: lump.data.getInt32(offset, true),
-        shaderIndex: lump.data.getInt32(offset + 4, true),
-      });
+      const planeIndex = lump.data.getInt32(offset, true);
+      const shaderIndex = lump.data.getInt32(offset + 4, true);
+      if (this.isFBSP) {
+        const surfaceNum = lump.data.getInt32(offset + 8, true);
+        sides.push({ planeIndex, shaderIndex, surfaceNum });
+      } else {
+        sides.push({ planeIndex, shaderIndex });
+      }
     }
 
     return sides;

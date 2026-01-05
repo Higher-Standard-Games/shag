@@ -19,7 +19,7 @@ import {
   BspMeshBuilder,
   type BspMeshBuildResult
 } from '../loader';
-import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder } from 'babylonjs';
+import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder, VertexData } from 'babylonjs';
 
 // Camera controllers (used directly, not as singletons)
 import { IsometricController } from '../camera/controllers/IsometricController';
@@ -46,6 +46,7 @@ let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
 
 // Debug collision visualization meshes
 let _collisionVizMeshes: Mesh[] = [];
+let _clipBrushVizMeshes: Mesh[] = [];
 
 async function getAudioManager() {
   if (!_audioManager) {
@@ -388,7 +389,7 @@ export function registerEngineCommands(): void {
 
     // Clear subcommand - remove debug visualization meshes
     if (value === 'clear') {
-      const disposed = _collisionVizMeshes.length;
+      const disposed = _collisionVizMeshes.length + _clipBrushVizMeshes.length;
       for (const m of _collisionVizMeshes) {
         try {
           m.dispose(false, true);
@@ -397,6 +398,14 @@ export function registerEngineCommands(): void {
         }
       }
       _collisionVizMeshes = [];
+      for (const m of _clipBrushVizMeshes) {
+        try {
+          m.dispose(false, true);
+        } catch {
+          // ignore
+        }
+      }
+      _clipBrushVizMeshes = [];
       return `Collision viz cleared (${disposed} meshes)`;
     }
 
@@ -476,6 +485,400 @@ export function registerEngineCommands(): void {
           : '',
         'Use: freefly_collision clear',
       ].filter(Boolean).join('\n');
+    }
+
+    if (value === 'cliptrace') {
+      const cameraSystem = await getCameraSystem();
+      const camera = cameraSystem.getCamera();
+      if (!camera) return 'No camera available';
+      if (!cm.isInitialized()) return 'Collision not initialized (load a map first)';
+
+      const dist = Number(args[1] ?? '200');
+      const radius = Number(args[2] ?? '16');
+      const height = Number(args[3] ?? '56');
+      const debug = (args[4] ?? '').toLowerCase() === 'debug';
+      if (!Number.isFinite(dist) || dist <= 0) {
+        return 'Usage: freefly_collision cliptrace [dist] [radius] [height] [debug]';
+      }
+
+      const ellipsoidOffset = (camera as any).ellipsoidOffset ? (camera as any).ellipsoidOffset : Vector3.Zero();
+      const start = camera.position.subtract(ellipsoidOffset);
+      const forward = camera.getDirection(new Vector3(0, 0, 1));
+      const end = start.add(forward.scale(dist));
+
+      const trace = cm.trace(start as never, end as never, {
+        radius: Number.isFinite(radius) ? radius : 16,
+        height: Number.isFinite(height) ? height : 56,
+        clipTexturesOnly: true,
+        contentMask: 0x1 | 0x10000,
+        debug,
+      } as any);
+
+      const hit = trace.fraction < 1.0;
+      const hitBrushIndex = (trace as any).hitBrushIndex;
+      const hitTextureName = (trace as any).hitTextureName;
+      return [
+        '=== Clip Trace ===',
+        `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
+        `End:   (${end.x.toFixed(1)}, ${end.y.toFixed(1)}, ${end.z.toFixed(1)})`,
+        `Hull: radius=${Number.isFinite(radius) ? radius : 16}, height=${Number.isFinite(height) ? height : 56}`,
+        `Hit: ${hit ? 'YES' : 'NO'} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
+        hit ? `Brush: ${hitBrushIndex} Tex: ${hitTextureName}` : '',
+      ].filter(Boolean).join('\n');
+    }
+
+    if (value === 'clipdump') {
+      const { MapLoader } = await import('../loader/map/MapLoader');
+      const mapLoader = MapLoader.getInstance();
+      const bsp = mapLoader.getCurrentBsp();
+      if (!bsp) return 'No BSP loaded (load a map first)';
+
+      const mode = args[1]?.toLowerCase();
+      let brushIndex: number | null = null;
+      if (mode === 'last') {
+        brushIndex = FreeflyController.getLastClipHitBrushIndex();
+        if (brushIndex === null) return 'No last clip hit recorded yet';
+      } else if (mode === 'brush') {
+        const idx = Number(args[2]);
+        if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipdump brush <index>';
+        brushIndex = idx;
+      } else if (args[1] !== undefined) {
+        const idx = Number(args[1]);
+        if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipdump <index> | last | brush <index>';
+        brushIndex = idx;
+      } else {
+        return 'Usage: freefly_collision clipdump <index> | last | brush <index>';
+      }
+
+      const brush = bsp.brushes[brushIndex];
+      if (!brush) return `Brush ${brushIndex} not found`;
+      const tex = bsp.textures[brush.shaderIndex];
+      const texName = tex?.name ?? '<none>';
+      const contentFlags = tex?.contentFlags ?? 0;
+
+      const lines: string[] = [];
+      lines.push('=== Clip Brush Dump ===');
+      lines.push(`Brush: ${brushIndex}`);
+      lines.push(`Texture: ${texName}`);
+      lines.push(`contentFlags: 0x${contentFlags.toString(16)}`);
+      lines.push(`firstSide: ${brush.firstSide} numSides: ${brush.numSides}`);
+      lines.push(`Format: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'}`);
+
+      if (brush.numSides < 4) {
+        lines.push('WARNING: numSides < 4 => not a closed convex volume; will behave like open half-space (one-sided blocking)');
+      }
+
+      const dupPlanes = new Map<number, number>();
+      for (let si = 0; si < brush.numSides; si++) {
+        const side = bsp.brushSides[brush.firstSide + si];
+        if (!side) {
+          lines.push(`Side ${si}: <missing>`);
+          continue;
+        }
+        dupPlanes.set(side.planeIndex, (dupPlanes.get(side.planeIndex) ?? 0) + 1);
+        const plane = bsp.planes[side.planeIndex];
+        if (!plane) {
+          lines.push(`Side ${si}: planeIndex=${side.planeIndex} <missing plane>`);
+          continue;
+        }
+        const n = plane.normal;
+        lines.push(
+          `Side ${si}: plane=${side.planeIndex} n=(${n[0].toFixed(4)}, ${n[1].toFixed(4)}, ${n[2].toFixed(4)}) dist=${plane.dist.toFixed(4)}`
+        );
+      }
+
+      const dupList = Array.from(dupPlanes.entries()).filter(([, c]) => c > 1);
+      if (dupList.length > 0) {
+        lines.push('Duplicate plane indices (can indicate degeneracy):');
+        for (const [pi, c] of dupList) {
+          lines.push(`  plane ${pi}: ${c}x`);
+        }
+      }
+
+      return lines.join('\n');
+    }
+
+    if (value === 'clipviz') {
+      const cameraSystem = await getCameraSystem();
+      const camera = cameraSystem.getCamera();
+      const scene = camera?.getScene?.();
+      if (!camera || !scene) return 'No active camera/scene available';
+
+      const rawMode = args[1]?.toLowerCase();
+      const numericModeVal = Number(args[1]);
+      const numericMode = args[1] !== undefined && Number.isFinite(numericModeVal) && rawMode !== 'off' && rawMode !== 'clear' && rawMode !== 'last' && rawMode !== 'brush';
+      const mode = numericMode ? undefined : rawMode;
+      if (mode === 'off' || mode === 'clear') {
+        const disposed = _clipBrushVizMeshes.length;
+        for (const m of _clipBrushVizMeshes) {
+          try {
+            m.dispose(false, true);
+          } catch {
+            // ignore
+          }
+        }
+        _clipBrushVizMeshes = [];
+        return `Clip viz cleared (${disposed} meshes)`;
+      }
+
+      const { MapLoader } = await import('../loader/map/MapLoader');
+      const mapLoader = MapLoader.getInstance();
+      const bsp = mapLoader.getCurrentBsp();
+      if (!bsp) return 'No BSP loaded (load a map first)';
+
+      for (const m of _clipBrushVizMeshes) {
+        try {
+          m.dispose(false, true);
+        } catch {
+          // ignore
+        }
+      }
+      _clipBrushVizMeshes = [];
+
+      const isFBSP = bsp.header.isFBSP;
+      let targetBrushIndex: number | null = null;
+      if (mode === 'last') {
+        targetBrushIndex = FreeflyController.getLastClipHitBrushIndex();
+        if (targetBrushIndex === null) return 'No last clip hit recorded yet';
+      } else if (mode === 'brush') {
+        const idx = Number(args[2]);
+        if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipviz brush <index>';
+        targetBrushIndex = idx;
+      }
+
+      const max = targetBrushIndex !== null ? 1 : (numericMode ? numericModeVal : (Number.isFinite(Number(args[2])) ? Number(args[2]) : Infinity));
+      let created = 0;
+      let skipped = 0;
+      let skippedOob = 0;
+      let skippedHuge = 0;
+      let usedFlip = 0;
+
+      const root = bsp.nodes[0];
+      const mins = root?.mins ?? [0, 0, 0];
+      const maxs = root?.maxs ?? [0, 0, 0];
+      const worldMin = new Vector3(mins[0], mins[2], mins[1]);
+      const worldMax = new Vector3(maxs[0], maxs[2], maxs[1]);
+      const oobMargin = 1024;
+      const oobMin = worldMin.subtract(new Vector3(oobMargin, oobMargin, oobMargin));
+      const oobMax = worldMax.add(new Vector3(oobMargin, oobMargin, oobMargin));
+      const maxDiag = 16384;
+
+      const isWithinWorld = (p: Vector3): boolean => {
+        return (
+          p.x >= oobMin.x && p.x <= oobMax.x &&
+          p.y >= oobMin.y && p.y <= oobMax.y &&
+          p.z >= oobMin.z && p.z <= oobMax.z
+        );
+      };
+
+      type PlaneEq = { n: Vector3; d: number; dist: number };
+
+      const buildMeshData = (planes: PlaneEq[], flipInside: boolean): { positions: number[]; indices: number[]; normals: number[]; verts: Vector3[]; diag: number } | null => {
+        const epsInside = 0.1;
+        const epsOnPlane = 0.2;
+        const epsDedupSq = 0.25;
+
+        const intersect3 = (p1: PlaneEq, p2: PlaneEq, p3: PlaneEq): Vector3 | null => {
+          const n1 = p1.n;
+          const n2 = p2.n;
+          const n3 = p3.n;
+          const det = Vector3.Dot(n1, Vector3.Cross(n2, n3));
+          if (Math.abs(det) < 0.000001) return null;
+          const c23 = Vector3.Cross(n2, n3).scale(-p1.d);
+          const c31 = Vector3.Cross(n3, n1).scale(-p2.d);
+          const c12 = Vector3.Cross(n1, n2).scale(-p3.d);
+          return c23.add(c31).add(c12).scale(1 / det);
+        };
+
+        const outsideMetric = (pl: PlaneEq, p: Vector3): number => {
+          const q3Dist = Vector3.Dot(pl.n, p) - pl.dist;
+          return flipInside ? -q3Dist : q3Dist;
+        };
+
+        const isInside = (p: Vector3): boolean => {
+          for (const pl of planes) {
+            if (outsideMetric(pl, p) > epsInside) return false;
+          }
+          return true;
+        };
+
+        const uniqueVerts: Vector3[] = [];
+        for (let i = 0; i < planes.length; i++) {
+          for (let j = i + 1; j < planes.length; j++) {
+            for (let k = j + 1; k < planes.length; k++) {
+              const p = intersect3(planes[i], planes[j], planes[k]);
+              if (!p) continue;
+              if (!isInside(p)) continue;
+              if (!uniqueVerts.some(v => Vector3.DistanceSquared(v, p) < epsDedupSq)) {
+                uniqueVerts.push(p);
+              }
+            }
+          }
+        }
+
+        if (uniqueVerts.length < 4) return null;
+
+        let vmin = uniqueVerts[0].clone();
+        let vmax = uniqueVerts[0].clone();
+        for (let i = 1; i < uniqueVerts.length; i++) {
+          const v = uniqueVerts[i];
+          vmin.x = Math.min(vmin.x, v.x);
+          vmin.y = Math.min(vmin.y, v.y);
+          vmin.z = Math.min(vmin.z, v.z);
+          vmax.x = Math.max(vmax.x, v.x);
+          vmax.y = Math.max(vmax.y, v.y);
+          vmax.z = Math.max(vmax.z, v.z);
+        }
+
+        const diag = vmax.subtract(vmin).length();
+
+        const centroid = uniqueVerts.reduce((a, b) => a.add(b), Vector3.Zero()).scale(1 / uniqueVerts.length);
+
+        const positions: number[] = [];
+        const indices: number[] = [];
+        const normals: number[] = [];
+        let indexOffset = 0;
+
+        for (const pl of planes) {
+          const faceVerts: Vector3[] = [];
+          for (const v of uniqueVerts) {
+            if (Math.abs(Vector3.Dot(pl.n, v) - pl.dist) < epsOnPlane) {
+              faceVerts.push(v);
+            }
+          }
+
+          if (faceVerts.length < 3) continue;
+
+          const faceCenter = faceVerts.reduce((a, b) => a.add(b), Vector3.Zero()).scale(1 / faceVerts.length);
+          const along = centroid.add(pl.n);
+          const faceN = outsideMetric(pl, along) > outsideMetric(pl, centroid) ? pl.n : pl.n.scale(-1);
+
+          let tangent = Vector3.Cross(faceN, Vector3.Up());
+          if (tangent.lengthSquared() < 0.001) {
+            tangent = Vector3.Cross(faceN, Vector3.Right());
+          }
+          tangent.normalize();
+          const bitangent = Vector3.Cross(faceN, tangent);
+
+          faceVerts.sort((a, b) => {
+            const va = a.subtract(faceCenter);
+            const vb = b.subtract(faceCenter);
+            const angleA = Math.atan2(Vector3.Dot(va, bitangent), Vector3.Dot(va, tangent));
+            const angleB = Math.atan2(Vector3.Dot(vb, bitangent), Vector3.Dot(vb, tangent));
+            return angleA - angleB;
+          });
+
+          for (let fj = 1; fj < faceVerts.length - 1; fj++) {
+            const v0 = faceVerts[0];
+            const v1 = faceVerts[fj];
+            const v2 = faceVerts[fj + 1];
+
+            positions.push(v0.x, v0.y, v0.z);
+            positions.push(v1.x, v1.y, v1.z);
+            positions.push(v2.x, v2.y, v2.z);
+
+            normals.push(faceN.x, faceN.y, faceN.z);
+            normals.push(faceN.x, faceN.y, faceN.z);
+            normals.push(faceN.x, faceN.y, faceN.z);
+
+            indices.push(indexOffset, indexOffset + 1, indexOffset + 2);
+            indexOffset += 3;
+          }
+        }
+
+        if (indices.length === 0) return null;
+        return { positions, indices, normals, verts: uniqueVerts, diag };
+      };
+
+      for (let bi = 0; bi < bsp.brushes.length; bi++) {
+        if (created >= max) break;
+        if (targetBrushIndex !== null && bi !== targetBrushIndex) continue;
+
+        const brush = bsp.brushes[bi];
+        const tex = bsp.textures[brush.shaderIndex];
+        const texName = tex?.name?.toLowerCase() || '';
+        const isFullclip = texName === 'textures/common/fullclip' || texName === 'common/fullclip';
+        const isPlayerclip = texName === 'textures/common/playerclip' || texName === 'common/playerclip';
+        if (!isFullclip && !isPlayerclip) continue;
+
+        const planes: PlaneEq[] = [];
+        for (let si = 0; si < brush.numSides; si++) {
+          const side = bsp.brushSides[brush.firstSide + si];
+          if (!side) continue;
+          const plane = bsp.planes[side.planeIndex];
+          if (!plane) continue;
+
+          // BSP planes are in Q3 coords; convert to Babylon coords: (x,y,z)->(x,z,y)
+          // BSP plane form: dot(n, p) - dist = 0
+          const nx = plane.normal[0];
+          const ny = plane.normal[1];
+          const nz = plane.normal[2];
+          const dist = plane.dist;
+
+          const n = new Vector3(nx, nz, ny);
+          const d = -dist; // Babylon plane: dot(n, p) + d = 0
+          planes.push({ n, d, dist });
+        }
+        const a = buildMeshData(planes, isFBSP);
+        const b = buildMeshData(planes, !isFBSP);
+        const candidates = [a, b].filter(Boolean) as Array<{ positions: number[]; indices: number[]; normals: number[]; verts: Vector3[]; diag: number }>;
+        if (candidates.length === 0) {
+          skipped++;
+          continue;
+        }
+
+        candidates.sort((c1, c2) => {
+          if (c2.indices.length !== c1.indices.length) return c2.indices.length - c1.indices.length;
+          return c1.diag - c2.diag;
+        });
+
+        const chosen = candidates[0];
+        const flipChosen = chosen === a;
+        if (flipChosen) usedFlip++;
+
+        if (!chosen.verts.every(isWithinWorld)) {
+          skippedOob++;
+          continue;
+        }
+
+        if (chosen.diag > maxDiag) {
+          skippedHuge++;
+          continue;
+        }
+
+        const mesh = new Mesh(`clipviz_${isFullclip ? 'fullclip' : 'playerclip'}_${bi}`, scene);
+        const vd = new VertexData();
+        vd.positions = chosen.positions;
+        vd.indices = chosen.indices;
+        vd.normals = chosen.normals;
+        vd.applyToMesh(mesh);
+
+        mesh.isPickable = false;
+        mesh.checkCollisions = false;
+        mesh.renderingGroupId = 3;
+
+        const mat = new StandardMaterial(`clipviz_mat_${bi}`, scene);
+        const c = isFullclip ? new Color3(1, 0.2, 0.2) : new Color3(0.2, 1, 0.2);
+        mat.diffuseColor = c;
+        mat.emissiveColor = c;
+        mat.alpha = 0.22;
+        mat.wireframe = true;
+        mat.backFaceCulling = false;
+        mesh.material = mat;
+
+        _clipBrushVizMeshes.push(mesh);
+        created++;
+      }
+
+      return [
+        '=== Clip Brush Viz ===',
+        targetBrushIndex !== null ? `Brush: ${targetBrushIndex}` : '',
+        `Meshes: ${created} (skipped: ${skipped}, oob: ${skippedOob}, huge: ${skippedHuge}, flip: ${usedFlip})`,
+        'Colors: fullclip=red, playerclip=green',
+        'Use: freefly_collision clipviz last',
+        'Use: freefly_collision clipviz brush <index>',
+        'Use: freefly_collision clipviz clear',
+      ].join('\n');
     }
 
     // Parse value
