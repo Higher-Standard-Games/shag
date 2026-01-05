@@ -458,8 +458,9 @@ export class MapLoader {
       
       // Generate collision mesh if:
       // 1. Has PLAYERCLIP flag and is NOT solid (pure invisible clip)
-      // 2. OR has clip-related texture name and is NOT solid
-      const shouldGenerate = (isPlayerClipByFlag && !isSolid) || (isClipByName && !isSolid);
+      // 2. OR has clip-related texture name (fullclip has SOLID but is invisible/NODRAW!)
+      // Note: fullclip textures have SOLID flag but are not rendered - they need collision meshes
+      const shouldGenerate = (isPlayerClipByFlag && !isSolid) || isClipByName;
       
       if (!shouldGenerate) continue;
       
