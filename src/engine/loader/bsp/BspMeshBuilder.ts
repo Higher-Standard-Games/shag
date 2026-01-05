@@ -314,10 +314,12 @@ export class BspMeshBuilder {
       totalTriangles: 0,
     };
 
-    // Group faces by texture for proper material assignment
+    // Group faces by (texture + lightmap) for correct lightmap UV alignment
+    // Each face's UV2 coords reference a specific lightmap, so we must not mix them
     interface TextureGroup {
       textureIndex: number;
       textureName: string;
+      lightmapIndex: number;
       shaderProps: ResolvedMaterialProps;
       positions: number[];
       normals: number[];
@@ -326,13 +328,12 @@ export class BspMeshBuilder {
       colors: number[];
       indices: number[];
       indexOffset: number;
-      // Track lightmap usage for this texture group
-      lightmapIndices: Map<number, number>; // lightmap index -> count
       // Fog params if any face in this group has a fog effect
       fogParams?: { color: [number, number, number]; depthForOpaque: number };
     }
 
-    const textureGroups = new Map<number, TextureGroup>();
+    // Key: "textureIndex_lightmapIndex" for unique (texture, lightmap) pairs
+    const textureGroups = new Map<string, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     
     // Track fog effects found
@@ -367,34 +368,36 @@ export class BspMeshBuilder {
         continue;
       }
 
-      // Get or create texture group
-      let group = textureGroups.get(face.textureIndex);
-      if (!group) {
-        const textureName = this.bsp.textures[face.textureIndex]?.name || '';
-        const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
-
-        // Sky shader detection - skip geometry but track for skybox creation
-        if (shaderProps.isSky) {
-          if (!foundSkyTextures.has(face.textureIndex)) {
-            foundSkyTextures.add(face.textureIndex);
-            skyShaders.push({
-              textureName,
-              skyParms: shaderProps.skyParms,
-            });
-            console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ''}`);
-          }
-          stats.skippedSkyFaces++;
-          continue; // Skip sky faces - they will be rendered as skybox
+      // Sky shader detection - skip geometry but track for skybox creation
+      const textureName = this.bsp.textures[face.textureIndex]?.name || '';
+      const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
+      if (shaderProps.isSky) {
+        if (!foundSkyTextures.has(face.textureIndex)) {
+          foundSkyTextures.add(face.textureIndex);
+          skyShaders.push({
+            textureName,
+            skyParms: shaderProps.skyParms,
+          });
+          console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ''}`);
         }
+        stats.skippedSkyFaces++;
+        continue; // Skip sky faces - they will be rendered as skybox
+      }
 
-        // Debug: log transparent/special shaders
-        if (shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') {
+      // Get or create texture+lightmap group (key by both to preserve UV2 alignment)
+      const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
+      const groupKey = `${face.textureIndex}_${lmIdx}`;
+      let group = textureGroups.get(groupKey);
+      if (!group) {
+        // Debug: log transparent/special shaders (only once per texture)
+        if ((shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') && lmIdx === -1) {
           console.log(`[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`);
         }
 
         group = {
           textureIndex: face.textureIndex,
           textureName,
+          lightmapIndex: lmIdx,
           shaderProps,
           positions: [],
           normals: [],
@@ -403,15 +406,8 @@ export class BspMeshBuilder {
           colors: [],
           indices: [],
           indexOffset: 0,
-          lightmapIndices: new Map(),
         };
-        textureGroups.set(face.textureIndex, group);
-      }
-
-      // Track lightmap index usage for this group
-      if (face.lightmapIndex >= 0) {
-        const count = group.lightmapIndices.get(face.lightmapIndex) || 0;
-        group.lightmapIndices.set(face.lightmapIndex, count + 1);
+        textureGroups.set(groupKey, group);
       }
 
       // Check for fog effect on this face
@@ -525,21 +521,12 @@ export class BspMeshBuilder {
       );
       mesh.material = meshMaterial;
 
-      // Find the most commonly used lightmap for this texture group
-      let primaryLightmapIndex = -1;
-      let maxCount = 0;
-      for (const [lmIdx, count] of group.lightmapIndices) {
-        if (count > maxCount) {
-          maxCount = count;
-          primaryLightmapIndex = lmIdx;
-        }
-      }
-
       // Store texture name, lightmap info, and fog params in metadata
+      // Each group now has exactly one lightmap (grouped by texture+lightmap)
       mesh.metadata = {
         textureName: group.textureName,
         textureIndex: group.textureIndex,
-        lightmapIndex: primaryLightmapIndex,
+        lightmapIndex: group.lightmapIndex,
         fogParams: group.fogParams,
       };
       
@@ -727,11 +714,14 @@ export class BspMeshBuilder {
       }
 
       if (texture) {
-        // Find the mesh/material for this texture index (new naming: bsp_tex_)
+        // Find ALL meshes for this texture index (there may be multiple with different lightmaps)
         const meshName = `bsp_tex_${group.textureIndex}`;
-        const mesh = meshes.find(m => m.name === meshName);
+        const matchingMeshes = meshes.filter(m => m.name === meshName);
 
-        if (!mesh) continue;
+        if (matchingMeshes.length === 0) continue;
+
+        // Apply texture to all matching meshes
+        for (const mesh of matchingMeshes) {
 
         // Check if this shader needs special material (glow overlay, etc.)
         if (shader) {
@@ -869,6 +859,7 @@ export class BspMeshBuilder {
 
           loadedCount++;
         }
+        } // end for (const mesh of matchingMeshes)
       }
     }
 
