@@ -11,7 +11,7 @@
  * - Skybox textures
  */
 
-import { Scene } from 'babylonjs';
+import { Scene, Mesh, VertexData } from 'babylonjs';
 import { PK3Index } from '../pk3/PK3Index';
 import { PK3Loader } from '../pk3/PK3Loader';
 import { BspLoader, type BspFile } from '../bsp/BspLoader';
@@ -414,7 +414,7 @@ export class MapLoader {
    * These brushes block the player but have no visible geometry
    */
   private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
-    const { Mesh, VertexData } = require('babylonjs');
+    // Mesh and VertexData imported at top of file
     
     // Content flags for clip brushes
     const PLAYERCLIP = 0x10000;
