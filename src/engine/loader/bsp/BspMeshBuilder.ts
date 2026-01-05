@@ -15,6 +15,7 @@ import {
   ShaderMaterial,
   Color3,
   VertexData,
+  VertexBuffer,
   Vector3,
   RawTexture,
   Texture,
@@ -66,6 +67,16 @@ export interface BspMeshBuildResult {
   };
   /** Fog volume meshes */
   fogVolumes?: Mesh[];
+  /** Autosprite meshes that need per-frame billboard updates */
+  autospriteMeshes?: {
+    mesh: Mesh;
+    center: [number, number, number];
+    halfWidth: number;
+    halfHeight: number;
+    isAutosprite2: boolean; // true = Y-axis only, false = full billboard
+    // Normalized offsets for each vertex: [rightFrac, upFrac] where -1 to 1 maps to -halfWidth/halfHeight to +halfWidth/halfHeight
+    vertexOffsets: [number, number][];
+  }[];
 }
 
 // ============================================================================
@@ -336,6 +347,22 @@ export class BspMeshBuilder {
     const textureGroups = new Map<string, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     
+    // Track individual autosprite faces (not merged, each becomes its own mesh)
+    interface AutospriteFace {
+      faceIndex: number;
+      textureIndex: number;
+      textureName: string;
+      shaderProps: ResolvedMaterialProps;
+      positions: number[];
+      normals: number[];
+      uvs: number[];
+      uv2s: number[];
+      colors: number[];
+      indices: number[];
+      center: [number, number, number];
+    }
+    const autospriteFaces: AutospriteFace[] = [];
+    
     // Track fog effects found
     let fogFacesCount = 0;
 
@@ -382,6 +409,50 @@ export class BspMeshBuilder {
         }
         stats.skippedSkyFaces++;
         continue; // Skip sky faces - they will be rendered as skybox
+      }
+
+      // Autosprite faces need to be individual meshes (not merged)
+      // Each sprite must rotate around its own center
+      if (shaderProps.autosprite || shaderProps.autosprite2) {
+        let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
+        
+        switch (face.faceType) {
+          case 1: faceData = this.buildPolygonFace(face); break;
+          case 2: faceData = this.buildPatchFace(face); break;
+          case 3: faceData = this.buildMeshFace(face); break;
+        }
+        
+        if (faceData && faceData.positions.length > 0) {
+          // Calculate center of this sprite face
+          let cx = 0, cy = 0, cz = 0;
+          const numVerts = faceData.positions.length / 3;
+          for (let v = 0; v < numVerts; v++) {
+            cx += faceData.positions[v * 3];
+            cy += faceData.positions[v * 3 + 1];
+            cz += faceData.positions[v * 3 + 2];
+          }
+          cx /= numVerts;
+          cy /= numVerts;
+          cz /= numVerts;
+          
+          autospriteFaces.push({
+            faceIndex: i,
+            textureIndex: face.textureIndex,
+            textureName,
+            shaderProps,
+            positions: faceData.positions,
+            normals: faceData.normals,
+            uvs: faceData.uvs,
+            uv2s: faceData.uv2s,
+            colors: faceData.colors,
+            indices: faceData.indices,
+            center: [cx, cy, cz],
+          });
+          
+          stats.totalVertices += numVerts;
+          stats.totalTriangles += faceData.indices.length / 3;
+        }
+        continue; // Don't add to regular texture groups
       }
 
       // Get or create texture+lightmap group (key by both to preserve UV2 alignment)
@@ -528,8 +599,10 @@ export class BspMeshBuilder {
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
         fogParams: group.fogParams,
+        autosprite: group.shaderProps.autosprite,
+        autosprite2: group.shaderProps.autosprite2,
       };
-      
+
       // Note: Per-face fog detection works, but applying global scene fog here is wrong
       // for Warsow maps with localized fog volumes (hallways, pits, etc.)
       // True per-volume fog would require custom shaders with volume bounds checking.
@@ -559,6 +632,160 @@ export class BspMeshBuilder {
 
     console.log(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
+    // Create individual meshes for autosprite faces with per-frame billboard updates
+    const autospriteMeshData: BspMeshBuildResult['autospriteMeshes'] = [];
+    
+    for (let si = 0; si < autospriteFaces.length; si++) {
+      const sprite = autospriteFaces[si];
+      const spriteMeshName = `bsp_sprite_${sprite.textureIndex}_${si}`;
+      const spriteMesh = new Mesh(spriteMeshName, this.scene);
+
+      // Calculate sprite dimensions from original geometry
+      // Find bounding box to get width/height
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
+      const numVerts = sprite.positions.length / 3;
+      for (let v = 0; v < numVerts; v++) {
+        const x = sprite.positions[v * 3];
+        const y = sprite.positions[v * 3 + 1];
+        const z = sprite.positions[v * 3 + 2];
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+      }
+      
+      // Calculate half-dimensions (sprite is a quad, find largest extent)
+      const extentX = (maxX - minX) / 2;
+      const extentY = (maxY - minY) / 2;
+      const extentZ = (maxZ - minZ) / 2;
+      // For a quad, two dimensions will be large, one will be ~0
+      // halfWidth = horizontal extent, halfHeight = vertical extent
+      const halfWidth = Math.max(extentX, extentZ);
+      const halfHeight = extentY > 0.01 ? extentY : Math.max(extentX, extentZ);
+
+      // Apply original geometry initially
+      const spriteVertexData = new VertexData();
+      spriteVertexData.positions = [...sprite.positions]; // Copy for modification
+      spriteVertexData.normals = sprite.normals;
+      spriteVertexData.uvs = sprite.uvs;
+      if (sprite.uv2s.length > 0) {
+        spriteVertexData.uvs2 = sprite.uv2s;
+      }
+      if (sprite.colors.length > 0) {
+        spriteVertexData.colors = sprite.colors;
+      }
+      spriteVertexData.indices = sprite.indices;
+      spriteVertexData.applyToMesh(spriteMesh, true); // updatable = true
+
+      // Create material
+      const spriteMaterial = this.createMaterialFromShaderProps(
+        `bsp_sprite_mat_${sprite.textureIndex}_${si}`,
+        sprite.shaderProps,
+        sprite.textureName
+      );
+      spriteMesh.material = spriteMaterial;
+
+      // Store metadata for texture loading
+      spriteMesh.metadata = {
+        textureName: sprite.textureName,
+        textureIndex: sprite.textureIndex,
+        lightmapIndex: -1, // Sprites typically don't use lightmaps
+        autosprite: sprite.shaderProps.autosprite,
+        autosprite2: sprite.shaderProps.autosprite2,
+      };
+
+      // Transparency handling
+      if (sprite.shaderProps.isTransparent) {
+        if (sprite.shaderProps.alphaMode === 'add') {
+          spriteMesh.alphaIndex = 2000 + si; // After regular transparent meshes
+        } else {
+          spriteMesh.alphaIndex = 1500 + si;
+        }
+      }
+
+      spriteMesh.parent = worldMesh;
+      childMeshes.push(spriteMesh);
+      
+      // Calculate normalized vertex offsets from original positions relative to center
+      // This allows proper interpolation for triangulated sprites (not just 4 corners)
+      const [cx, cy, cz] = sprite.center;
+      
+      // Collect all vertex offsets from center
+      const offsets: [number, number, number][] = [];
+      for (let v = 0; v < numVerts; v++) {
+        offsets.push([
+          sprite.positions[v * 3] - cx,
+          sprite.positions[v * 3 + 1] - cy,
+          sprite.positions[v * 3 + 2] - cz,
+        ]);
+      }
+      
+      // Find max extent on each axis to determine sprite orientation
+      let maxExtentX = 0, maxExtentY = 0, maxExtentZ = 0;
+      for (const [ox, oy, oz] of offsets) {
+        maxExtentX = Math.max(maxExtentX, Math.abs(ox));
+        maxExtentY = Math.max(maxExtentY, Math.abs(oy));
+        maxExtentZ = Math.max(maxExtentZ, Math.abs(oz));
+      }
+      
+      // Calculate normalized offsets for each vertex
+      // Maps each vertex position to a fraction of the quad (-1 to 1 range)
+      const vertexOffsets: [number, number][] = [];
+      for (const [ox, oy, oz] of offsets) {
+        let rightFrac: number, upFrac: number;
+        
+        if (maxExtentY < maxExtentX && maxExtentY < maxExtentZ) {
+          // Horizontal sprite (XZ plane) - Y is normal
+          rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
+          upFrac = maxExtentZ > 0.001 ? oz / maxExtentZ : 0;
+        } else if (maxExtentX < maxExtentY && maxExtentX < maxExtentZ) {
+          // YZ plane - X is normal
+          rightFrac = maxExtentZ > 0.001 ? oz / maxExtentZ : 0;
+          upFrac = maxExtentY > 0.001 ? oy / maxExtentY : 0;
+        } else {
+          // XY plane or default - Z is normal (most common for vertical sprites)
+          rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
+          upFrac = maxExtentY > 0.001 ? oy / maxExtentY : 0;
+        }
+        
+        vertexOffsets.push([rightFrac, upFrac]);
+      }
+      
+      // Track for per-frame billboard updates
+      autospriteMeshData.push({
+        mesh: spriteMesh,
+        center: sprite.center,
+        halfWidth,
+        halfHeight,
+        isAutosprite2: sprite.shaderProps.autosprite2,
+        vertexOffsets,
+      });
+    }
+
+    if (autospriteFaces.length > 0) {
+      console.log(`[BspMeshBuilder] Created ${autospriteFaces.length} autosprite meshes (billboarded)`);
+      // Debug: log sprite info with orientation details
+      for (let sdi = 0; sdi < autospriteMeshData.length; sdi++) {
+        const spriteData = autospriteMeshData[sdi];
+        const sprite = autospriteFaces[sdi];
+        const numVerts = spriteData.vertexOffsets.length;
+        
+        // Recalculate extents for logging
+        const [cx, cy, cz] = spriteData.center;
+        let maxX = 0, maxY = 0, maxZ = 0;
+        for (let v = 0; v < numVerts; v++) {
+          maxX = Math.max(maxX, Math.abs(sprite.positions[v * 3] - cx));
+          maxY = Math.max(maxY, Math.abs(sprite.positions[v * 3 + 1] - cy));
+          maxZ = Math.max(maxZ, Math.abs(sprite.positions[v * 3 + 2] - cz));
+        }
+        const orient = maxY < maxX && maxY < maxZ ? 'XZ(horiz)' : 
+                       maxX < maxY && maxX < maxZ ? 'YZ' : 'XY(vert)';
+        
+        console.log(`[BspMeshBuilder] Sprite "${spriteData.mesh.name}": ${numVerts}v, extents=[${maxX.toFixed(1)},${maxY.toFixed(1)},${maxZ.toFixed(1)}], orient=${orient}, hw=${spriteData.halfWidth.toFixed(1)}, hh=${spriteData.halfHeight.toFixed(1)}, as2=${spriteData.isAutosprite2}`);
+      }
+    }
+
     // Create lightmap textures
     const lightmapTextures = this.buildLightmapTextures();
 
@@ -571,10 +798,19 @@ export class BspMeshBuilder {
       console.log(`[BspMeshBuilder] Skipped ${skippedFaceTypes} faces due to face type filter`);
     }
 
-    // Collect texture group info for later loading
+    // Collect texture group info for later loading (including autosprite textures)
     const allTextureGroups = [...opaqueGroups, ...transparentGroups]
       .filter(g => g.indices.length > 0)
       .map(g => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
+    
+    // Add autosprite textures (deduplicated)
+    const seenTextureIndices = new Set(allTextureGroups.map(g => g.textureIndex));
+    for (const sprite of autospriteFaces) {
+      if (!seenTextureIndices.has(sprite.textureIndex)) {
+        seenTextureIndices.add(sprite.textureIndex);
+        allTextureGroups.push({ textureIndex: sprite.textureIndex, textureName: sprite.textureName });
+      }
+    }
 
     if (skyShaders.length > 0) {
       console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces`);
@@ -591,7 +827,101 @@ export class BspMeshBuilder {
         numClusters: this.bsp.visData?.numClusters ?? 0,
         hasPVS: this.bsp.visData !== null,
       },
+      autospriteMeshes: autospriteMeshData.length > 0 ? autospriteMeshData : undefined,
     };
+  }
+
+  /**
+   * Update autosprite meshes to face the camera (call each frame)
+   * Q3 autosprite: full billboard, always faces camera
+   * Q3 autosprite2: cylindrical billboard, rotates around Y axis only
+   */
+  public static updateAutosprites(
+    result: BspMeshBuildResult,
+    cameraPosition: Vector3
+  ): void {
+    if (!result.autospriteMeshes || result.autospriteMeshes.length === 0) return;
+
+    for (const sprite of result.autospriteMeshes) {
+      const { mesh, center, halfWidth, halfHeight, isAutosprite2 } = sprite;
+      
+      // Calculate direction from sprite center to camera
+      const cx = center[0], cy = center[1], cz = center[2];
+      let dx = cameraPosition.x - cx;
+      let dy = cameraPosition.y - cy;
+      let dz = cameraPosition.z - cz;
+      
+      // Normalize direction
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < 0.001) continue; // Camera at sprite center, skip
+      dx /= dist; dy /= dist; dz /= dist;
+
+      // Calculate right and up vectors for the sprite quad
+      let rightX: number, rightY: number, rightZ: number;
+      let upX: number, upY: number, upZ: number;
+
+      if (isAutosprite2) {
+        // Autosprite2: cylindrical billboard (rotate around Y axis only)
+        // Right vector is perpendicular to camera direction in XZ plane
+        const horizDist = Math.sqrt(dx * dx + dz * dz);
+        if (horizDist < 0.001) {
+          // Looking straight up/down, use default right
+          rightX = 1; rightY = 0; rightZ = 0;
+        } else {
+          // Right = cross(up, forward) where up = (0,1,0)
+          rightX = -dz / horizDist;
+          rightY = 0;
+          rightZ = dx / horizDist;
+        }
+        // Up is always world up for autosprite2
+        upX = 0; upY = 1; upZ = 0;
+      } else {
+        // Autosprite: full billboard (face camera on all axes)
+        // Up vector: world up projected onto plane perpendicular to view direction
+        // Right = cross(worldUp, viewDir), then Up = cross(viewDir, right)
+        const worldUpX = 0, worldUpY = 1, worldUpZ = 0;
+        
+        // Right = cross(worldUp, forward)
+        rightX = worldUpY * dz - worldUpZ * dy;
+        rightY = worldUpZ * dx - worldUpX * dz;
+        rightZ = worldUpX * dy - worldUpY * dx;
+        
+        // Normalize right
+        const rightLen = Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
+        if (rightLen < 0.001) {
+          // Looking straight up/down, use default
+          rightX = 1; rightY = 0; rightZ = 0;
+          upX = 0; upY = 0; upZ = -1;
+        } else {
+          rightX /= rightLen; rightY /= rightLen; rightZ /= rightLen;
+          
+          // Up = cross(forward, right)
+          upX = dy * rightZ - dz * rightY;
+          upY = dz * rightX - dx * rightZ;
+          upZ = dx * rightY - dy * rightX;
+        }
+      }
+
+      // Reconstruct all vertices using pre-calculated normalized offsets
+      // This handles both simple quads and triangulated sprites correctly
+      const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+      if (!positions || positions.length < 12) continue;
+      
+      const numVerts = positions.length / 3;
+      const hw = halfWidth, hh = halfHeight;
+
+      // Use normalized offsets to position each vertex on the billboard
+      for (let v = 0; v < numVerts; v++) {
+        const [rightFrac, upFrac] = sprite.vertexOffsets[v] ?? [0, 0];
+        // Position = center + right * (rightFrac * halfWidth) + up * (upFrac * halfHeight)
+        positions[v * 3] = cx + rightX * (rightFrac * hw) + upX * (upFrac * hh);
+        positions[v * 3 + 1] = cy + rightY * (rightFrac * hw) + upY * (upFrac * hh);
+        positions[v * 3 + 2] = cz + rightZ * (rightFrac * hw) + upZ * (upFrac * hh);
+      }
+
+      // Update mesh vertices
+      mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+    }
   }
 
   /**
@@ -715,8 +1045,12 @@ export class BspMeshBuilder {
 
       if (texture) {
         // Find ALL meshes for this texture index (there may be multiple with different lightmaps)
+        // Also include sprite meshes which have names like bsp_sprite_${textureIndex}_*
         const meshName = `bsp_tex_${group.textureIndex}`;
-        const matchingMeshes = meshes.filter(m => m.name === meshName);
+        const spritePrefix = `bsp_sprite_${group.textureIndex}_`;
+        const matchingMeshes = meshes.filter(m => 
+          m.name === meshName || m.name.startsWith(spritePrefix)
+        );
 
         if (matchingMeshes.length === 0) continue;
 

@@ -15,9 +15,11 @@ import './debug-console.css';
 
 const HISTORY_KEY = 'debug_console_history';
 const CONSOLE_SIZE_KEY = 'debug_console_size';
+const LOG_HISTORY_SIZE_KEY = 'debug_console_log_history_size';
 const MAX_HISTORY = 100;
 const MAX_OUTPUT_LINES = 500;
 const DEFAULT_CONSOLE_SIZE = 0.5; // 0.5 = half screen, 1.0 = full screen
+const DEFAULT_LOG_HISTORY_SIZE = 5000; // Number of log lines to keep in memory
 
 export class DebugConsole {
   private static instance: DebugConsole;
@@ -36,7 +38,8 @@ export class DebugConsole {
   private commandHistory: string[] = [];
   private historyIndex: number = -1;
   private currentInput: string = '';
-  // private outputLines: string[] = []; // Reserved for future use
+  private logHistory: string[] = []; // Full log history for searching
+  private logHistorySize: number = DEFAULT_LOG_HISTORY_SIZE;
   private autocompleteItems: string[] = [];
   private autocompleteIndex: number = -1;
   
@@ -57,6 +60,7 @@ export class DebugConsole {
     
     this.loadHistory();
     this.loadConsoleSize();
+    this.loadLogHistorySize();
   }
 
   static getInstance(): DebugConsole {
@@ -413,6 +417,79 @@ export class DebugConsole {
     }
   }
 
+  private loadLogHistorySize(): void {
+    try {
+      const saved = localStorage.getItem(LOG_HISTORY_SIZE_KEY);
+      if (saved) {
+        const size = parseInt(saved, 10);
+        if (!isNaN(size) && size >= 100 && size <= 50000) {
+          this.logHistorySize = size;
+        }
+      }
+    } catch {
+      this.logHistorySize = DEFAULT_LOG_HISTORY_SIZE;
+    }
+  }
+
+  private saveLogHistorySize(): void {
+    try {
+      localStorage.setItem(LOG_HISTORY_SIZE_KEY, this.logHistorySize.toString());
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Set log history size (100 to 50000)
+   */
+  setLogHistorySize(size: number): string {
+    if (size < 100 || size > 50000) {
+      return `Invalid size: ${size}. Must be between 100 and 50000`;
+    }
+    
+    this.logHistorySize = size;
+    this.saveLogHistorySize();
+    
+    // Trim existing history if needed
+    while (this.logHistory.length > this.logHistorySize) {
+      this.logHistory.shift();
+    }
+    
+    return `Log history size set to ${size} lines`;
+  }
+
+  /**
+   * Get current log history size
+   */
+  getLogHistorySize(): number {
+    return this.logHistorySize;
+  }
+
+  /**
+   * Search log history with wildcard pattern
+   */
+  findInLog(pattern: string, maxResults: number = 50): string[] {
+    if (!pattern) return [];
+    
+    // Convert wildcard pattern to regex (case-insensitive)
+    // * matches any characters, ? matches single character
+    const regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+    
+    const regex = new RegExp(regexPattern, 'i');
+    const results: string[] = [];
+    
+    for (let i = this.logHistory.length - 1; i >= 0 && results.length < maxResults; i--) {
+      if (regex.test(this.logHistory[i])) {
+        results.unshift(this.logHistory[i]);
+      }
+    }
+    
+    return results;
+  }
+
   /**
    * Set console size (0.1 to 1.0, where 1.0 = full screen height)
    */
@@ -538,6 +615,12 @@ export class DebugConsole {
   // ============================================================================
 
   log(type: 'command' | 'result' | 'error' | 'warn' | 'info' | 'log' | 'system', message: string): void {
+    // Store in log history (before any DOM operations)
+    this.logHistory.push(message);
+    while (this.logHistory.length > this.logHistorySize) {
+      this.logHistory.shift();
+    }
+    
     if (!this.outputEl) return;
     
     const line = document.createElement('div');
@@ -742,6 +825,49 @@ export class DebugConsole {
       }
       
       return this.setSize(size);
+    });
+    
+    // Find command - search log history
+    registry.register('find', (args) => {
+      if (args.length === 0) {
+        return `Usage: find <pattern> [maxResults]\nSearches log history. Use * as wildcard.\nExamples:\n  find BspMeshBuilder\n  find *Sprite*\n  find *error* 100`;
+      }
+      
+      const pattern = args[0];
+      const maxResults = args.length > 1 ? parseInt(args[1], 10) : 50;
+      
+      if (isNaN(maxResults) || maxResults < 1) {
+        return `Invalid maxResults: ${args[1]}. Must be a positive number.`;
+      }
+      
+      const results = this.findInLog(pattern, maxResults);
+      
+      if (results.length === 0) {
+        return `No matches found for "${pattern}"`;
+      }
+      
+      let output = `Found ${results.length} match${results.length === 1 ? '' : 'es'} for "${pattern}":\n`;
+      output += '<span class="hl-label">───────────────────────────────────────</span>\n';
+      for (const line of results) {
+        output += line + '\n';
+      }
+      return output.trim();
+    });
+    
+    // Log history size command
+    registry.register('log_history', (args) => {
+      if (args.length === 0) {
+        const current = this.getLogHistorySize();
+        const used = this.logHistory.length;
+        return `Log history: ${used}/${current} lines\nUsage: log_history <100-50000>`;
+      }
+      
+      const size = parseInt(args[0], 10);
+      if (isNaN(size)) {
+        return `Invalid size: ${args[0]}. Must be a number between 100 and 50000`;
+      }
+      
+      return this.setLogHistorySize(size);
     });
   }
 }

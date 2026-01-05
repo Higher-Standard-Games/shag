@@ -219,14 +219,31 @@ function parseShaderBody(
         pos++;
         break;
 
-      case 'deformvertexes':
-        // Skip deformVertexes for now (complex)
+      case 'deformvertexes': {
+        // Parse deformVertexes directive
         pos++;
-        while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && 
-               !isDirective(tokens[pos])) {
-          pos++;
+        if (pos >= tokens.length) break;
+        
+        const deformType = tokens[pos].toLowerCase();
+        pos++;
+        
+        if (!shader.deformVertexes) {
+          shader.deformVertexes = [];
+        }
+        
+        if (deformType === 'autosprite') {
+          shader.deformVertexes.push({ type: 'autosprite' });
+        } else if (deformType === 'autosprite2') {
+          shader.deformVertexes.push({ type: 'autosprite2' });
+        } else {
+          // Skip other deformVertexes types for now (wave, bulge, etc.)
+          while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && 
+                 !isDirective(tokens[pos])) {
+            pos++;
+          }
         }
         break;
+      }
 
       case 'fogparms': {
         // Parse: fogParms ( R G B ) depthForOpaque

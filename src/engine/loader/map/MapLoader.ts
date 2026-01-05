@@ -200,6 +200,16 @@ export class MapLoader {
     progress('Lightmaps', 'Applying');
     BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
 
+    // Phase 8b: Register autosprite billboard updates (per-frame)
+    if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
+      progress('Autosprites', `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
+      scene.registerBeforeRender(() => {
+        if (scene.activeCamera) {
+          BspMeshBuilder.updateAutosprites(meshResult, scene.activeCamera.position);
+        }
+      });
+    }
+
     // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
     progress('Collision', 'Building clip brush meshes');
     if (false) {
