@@ -361,17 +361,28 @@ export class FreeflyController implements ICameraController {
       this.camera.ellipsoidOffset = new Vector3(0, 28, 0); // Offset so camera is at eye level
       this.camera.checkCollisions = true;
       
-      // Enable collision on all world geometry meshes
+      // Enable collision on world geometry meshes, excluding non-solid elements
       const meshes = this.scene.meshes;
       let collisionMeshCount = 0;
+      let skippedCount = 0;
       for (const mesh of meshes) {
         // Enable collision on BSP world mesh and children
         if (mesh.name.includes('bsp_') || mesh.name.includes('world') || 
             mesh.parent?.name.includes('bsp_') || mesh.parent?.name.includes('world')) {
+          
+          // Skip non-solid meshes (light halos, flares, billboards, effects)
+          const shouldSkip = this.shouldSkipCollision(mesh);
+          if (shouldSkip) {
+            mesh.checkCollisions = false;
+            skippedCount++;
+            continue;
+          }
+          
           mesh.checkCollisions = true;
           collisionMeshCount++;
         }
       }
+      console.log(`[FreeflyController] Skipped ${skippedCount} non-solid meshes (halos, flares, etc.)`)
       
       console.log(`[FreeflyController] Native collision setup: ${collisionMeshCount} meshes with collision enabled`);
       console.log(`[FreeflyController] Camera ellipsoid: (${this.camera.ellipsoid.x}, ${this.camera.ellipsoid.y}, ${this.camera.ellipsoid.z})`);
@@ -418,6 +429,49 @@ export class FreeflyController implements ICameraController {
   }
   
   private static _debuggedMethods = false;
+  
+  /**
+   * Check if a mesh should be excluded from collision detection
+   * Excludes: billboards, light halos, flares, transparent/additive effects
+   */
+  private shouldSkipCollision(mesh: any): boolean {
+    const name = mesh.name?.toLowerCase() || '';
+    const textureName = mesh.metadata?.textureName?.toLowerCase() || '';
+    
+    // Skip by mesh name patterns
+    if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||
+        name.includes('billboard') || name.includes('sprite') || name.includes('particle') ||
+        name.includes('effect') || name.includes('light_')) {
+      return true;
+    }
+    
+    // Skip by texture name patterns (common Q3/Warsow light textures)
+    if (textureName.includes('flare') || textureName.includes('halo') || 
+        textureName.includes('glow') || textureName.includes('flareshader') ||
+        textureName.includes('lights/') || textureName.includes('sfx/')) {
+      return true;
+    }
+    
+    // Skip meshes with additive blending (light effects)
+    const material = mesh.material;
+    if (material) {
+      // Check for additive alpha mode (used for light effects)
+      if (material.alphaMode === 1 || material.alphaMode === 2) { // ADD or MULTIPLY
+        return true;
+      }
+      // Check for high transparency
+      if (material.alpha !== undefined && material.alpha < 0.5) {
+        return true;
+      }
+    }
+    
+    // Skip billboard faces (faceType 4 in BSP)
+    if (mesh.metadata?.faceType === 4) {
+      return true;
+    }
+    
+    return false;
+  }
   
   /**
    * Apply collision using BSP trace with Q3-style sliding

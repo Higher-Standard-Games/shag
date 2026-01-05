@@ -200,7 +200,12 @@ export class MapLoader {
     progress('Lightmaps', 'Applying');
     BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
 
-    // Phase 9: Initialize collision system
+    // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
+    progress('Collision', 'Building clip brush meshes');
+    const clipMeshCount = this.buildClipBrushMeshes(bsp, scene);
+    console.log(`[MapLoader] Generated ${clipMeshCount} invisible clip brush collision meshes`);
+
+    // Phase 9b: Initialize collision system
     progress('Collision', 'Initializing');
     try {
       const { getCollisionManager } = await import('../../physics');
@@ -402,6 +407,206 @@ export class MapLoader {
     if (registered.length > 0) {
       console.log(`[MapLoader] Available entity handlers: ${registered.join(', ')}`);
     }
+  }
+
+  /**
+   * Build invisible collision meshes for PLAYERCLIP and similar brushes
+   * These brushes block the player but have no visible geometry
+   */
+  private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
+    const { Mesh, VertexData } = require('babylonjs');
+    
+    // Content flags for clip brushes
+    const PLAYERCLIP = 0x10000;
+    const SOLID = 0x1;
+    const DETAIL = 0x8000000;
+    
+    let meshCount = 0;
+    
+    // Find brushes that are PLAYERCLIP but not SOLID (invisible clip brushes)
+    for (let bi = 0; bi < bsp.brushes.length; bi++) {
+      const brush = bsp.brushes[bi];
+      const texture = bsp.textures[brush.shaderIndex];
+      if (!texture) continue;
+      
+      const contentFlags = texture.contentFlags;
+      
+      // Skip detail brushes
+      if (contentFlags & DETAIL) continue;
+      
+      // We want PLAYERCLIP brushes that are NOT already solid (those are rendered)
+      const isPlayerClip = (contentFlags & PLAYERCLIP) !== 0;
+      const isSolid = (contentFlags & SOLID) !== 0;
+      
+      // Only generate mesh for pure clip brushes (not already solid/rendered)
+      if (!isPlayerClip || isSolid) continue;
+      
+      // Generate mesh from brush planes
+      const vertices = this.brushToVertices(brush, bsp);
+      if (vertices.length < 4) continue; // Need at least a tetrahedron
+      
+      try {
+        // Create convex hull mesh from vertices
+        const mesh = new Mesh(`clip_brush_${bi}`, scene);
+        
+        // For simple collision, create a convex hull
+        // Use vertex data to create the mesh
+        const positions: number[] = [];
+        const indices: number[] = [];
+        
+        // Add all vertices
+        for (const v of vertices) {
+          positions.push(v[0], v[2], v[1]); // Q3 to Babylon: (x,y,z) -> (x,z,y)
+        }
+        
+        // Create simple triangle fan from center (approximate convex hull)
+        if (vertices.length >= 4) {
+          // Calculate center
+          let cx = 0, cy = 0, cz = 0;
+          for (const v of vertices) {
+            cx += v[0]; cy += v[1]; cz += v[2];
+          }
+          cx /= vertices.length;
+          cy /= vertices.length;
+          cz /= vertices.length;
+          
+          // Add center vertex
+          const centerIdx = vertices.length;
+          positions.push(cx, cz, cy); // Q3 to Babylon conversion
+          
+          // Create triangles from center to each edge
+          for (let i = 0; i < vertices.length; i++) {
+            const next = (i + 1) % vertices.length;
+            indices.push(centerIdx, i, next);
+            indices.push(centerIdx, next, i); // Double-sided
+          }
+        }
+        
+        const vertexData = new VertexData();
+        vertexData.positions = positions;
+        vertexData.indices = indices;
+        vertexData.applyToMesh(mesh);
+        
+        // Make invisible but enable collision
+        mesh.isVisible = false;
+        mesh.checkCollisions = true;
+        mesh.metadata = { isClipBrush: true, brushIndex: bi };
+        
+        meshCount++;
+      } catch (e) {
+        // Skip invalid brushes
+      }
+    }
+    
+    return meshCount;
+  }
+  
+  /**
+   * Convert brush planes to vertex positions
+   */
+  private brushToVertices(brush: any, bsp: BspFile): [number, number, number][] {
+    const vertices: [number, number, number][] = [];
+    const planes: { normal: [number, number, number]; dist: number }[] = [];
+    
+    // Collect all planes for this brush
+    for (let i = 0; i < brush.numSides; i++) {
+      const side = bsp.brushSides[brush.firstSide + i];
+      if (!side) continue;
+      const plane = bsp.planes[side.planeIndex];
+      if (!plane) continue;
+      planes.push({
+        normal: [plane.normal[0], plane.normal[1], plane.normal[2]],
+        dist: plane.dist
+      });
+    }
+    
+    if (planes.length < 4) return vertices;
+    
+    // Find vertices by intersecting every combination of 3 planes
+    for (let i = 0; i < planes.length - 2; i++) {
+      for (let j = i + 1; j < planes.length - 1; j++) {
+        for (let k = j + 1; k < planes.length; k++) {
+          const vertex = this.intersectThreePlanes(planes[i], planes[j], planes[k]);
+          if (vertex && this.isVertexInsideBrush(vertex, planes)) {
+            // Check for duplicate
+            let isDupe = false;
+            for (const v of vertices) {
+              const dx = v[0] - vertex[0];
+              const dy = v[1] - vertex[1];
+              const dz = v[2] - vertex[2];
+              if (dx*dx + dy*dy + dz*dz < 1) {
+                isDupe = true;
+                break;
+              }
+            }
+            if (!isDupe) {
+              vertices.push(vertex);
+            }
+          }
+        }
+      }
+    }
+    
+    return vertices;
+  }
+  
+  /**
+   * Intersect three planes to find a point
+   */
+  private intersectThreePlanes(
+    p1: { normal: [number, number, number]; dist: number },
+    p2: { normal: [number, number, number]; dist: number },
+    p3: { normal: [number, number, number]; dist: number }
+  ): [number, number, number] | null {
+    // Cross product of p2.normal and p3.normal
+    const n2xn3 = [
+      p2.normal[1] * p3.normal[2] - p2.normal[2] * p3.normal[1],
+      p2.normal[2] * p3.normal[0] - p2.normal[0] * p3.normal[2],
+      p2.normal[0] * p3.normal[1] - p2.normal[1] * p3.normal[0]
+    ];
+    
+    // Denominator: dot(p1.normal, n2xn3)
+    const denom = p1.normal[0] * n2xn3[0] + p1.normal[1] * n2xn3[1] + p1.normal[2] * n2xn3[2];
+    
+    if (Math.abs(denom) < 0.0001) return null; // Planes don't intersect at a point
+    
+    // Cross products for numerator
+    const n3xn1 = [
+      p3.normal[1] * p1.normal[2] - p3.normal[2] * p1.normal[1],
+      p3.normal[2] * p1.normal[0] - p3.normal[0] * p1.normal[2],
+      p3.normal[0] * p1.normal[1] - p3.normal[1] * p1.normal[0]
+    ];
+    const n1xn2 = [
+      p1.normal[1] * p2.normal[2] - p1.normal[2] * p2.normal[1],
+      p1.normal[2] * p2.normal[0] - p1.normal[0] * p2.normal[2],
+      p1.normal[0] * p2.normal[1] - p1.normal[1] * p2.normal[0]
+    ];
+    
+    const invDenom = 1.0 / denom;
+    return [
+      (p1.dist * n2xn3[0] + p2.dist * n3xn1[0] + p3.dist * n1xn2[0]) * invDenom,
+      (p1.dist * n2xn3[1] + p2.dist * n3xn1[1] + p3.dist * n1xn2[1]) * invDenom,
+      (p1.dist * n2xn3[2] + p2.dist * n3xn1[2] + p3.dist * n1xn2[2]) * invDenom
+    ];
+  }
+  
+  /**
+   * Check if a vertex is inside (or on) all brush planes
+   */
+  private isVertexInsideBrush(
+    vertex: [number, number, number],
+    planes: { normal: [number, number, number]; dist: number }[]
+  ): boolean {
+    const EPSILON = 0.1;
+    for (const plane of planes) {
+      const dist = 
+        vertex[0] * plane.normal[0] +
+        vertex[1] * plane.normal[1] +
+        vertex[2] * plane.normal[2] -
+        plane.dist;
+      if (dist > EPSILON) return false; // Outside this plane
+    }
+    return true;
   }
 
   /**
