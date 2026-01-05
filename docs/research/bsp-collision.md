@@ -134,6 +134,84 @@ For each plane in brush:
 2. Update collision when door moves
 3. Consider simplified AABB for doors
 
+## Implementation Progress (Jan 2026)
+
+### What Works ✓
+
+1. **BSP brush data loading** - All 2086 brushes loaded from wdm1
+2. **Content flag filtering** - ~2003 solid brushes identified (excludes DETAIL)
+3. **BSP tree traversal** - `BspCollision.traceNode()` correctly walks the tree
+4. **Brush collision detection** - `traceBrush()` detects intersections with brush planes
+5. **Coordinate conversion** - Q3 (x,y,z) ↔ Babylon (x,z,y) for positions
+6. **Collision commands** - `bsp collision move/trace`, `freefly_collision`, `bsp spawn`
+
+### What Partially Works ⚠️
+
+1. **Camera stopping at walls** - Collision is detected (fraction < 1.0) and camera position is updated, but "feels wrong"
+2. **Slide movement** - Q3-style sliding implemented but may have coordinate issues
+3. **Stuck detection** - Nudge-out-of-solid works sometimes
+
+### Known Issues / Areas to Investigate
+
+1. **Normal coordinate conversion** - When hit normal is returned, it's converted from Q3 to Babylon. May have subtle issues with the Y/Z swap for normals vs positions.
+
+2. **FBSP plane convention** - Warsow uses FBSP (variant of Q3 BSP). Plane normals may have different conventions than standard Q3. Added `brushPlaneDist()` to investigate.
+
+3. **Contact point accuracy** - Using `Vector3.Lerp(start, end, fraction)` for contact point. The 0.125 push-back epsilon may be wrong scale.
+
+4. **BSP tree vs brute-force** - Current implementation traces through BSP tree. For debugging, could try brute-force testing all brushes to see if tree traversal is missing some.
+
+5. **Timing/frame issues** - Direct position assignment may cause one-frame glitches.
+
+### Debug Commands Available
+
+```
+freefly_collision 1       # Enable collision for freefly camera
+freefly_collision 0       # Disable collision
+freefly_collision test    # Trace from camera position forward
+
+bsp collision trace X Y Z # Trace from spawn to offset
+bsp collision move X Y Z  # Simulate Q3 slide move
+bsp collision stats       # Show collision statistics
+
+bsp spawn [index]         # Teleport to spawn point
+```
+
+### Console Output Analysis
+
+When working:
+```
+[Freefly] HIT at fraction=0.798, normal=(0.00, 0.37, -0.93)
+```
+
+When NOT working (fraction=1.0 means no hit):
+```
+[Freefly] pos=(576, 24, -888) → trace: frac=1.000, startSolid=false, hit=false
+```
+
+When stuck (startSolid=true):
+```
+[Freefly] pos=(100, 50, -200) → trace: frac=0.000, startSolid=true, hit=false
+```
+
+### Files Modified
+
+- `src/engine/physics/BspCollision.ts` - Core BSP brush tracing
+- `src/engine/physics/BrushCollisionBackend.ts` - Wrapper for CollisionManager
+- `src/engine/physics/CollisionManager.ts` - Backend management
+- `src/engine/camera/controllers/FreeflyController.ts` - Q3-style slideMove
+- `src/engine/debug/EngineCommands.ts` - Debug commands
+
+### Next Steps to Try
+
+1. **Visualize collision** - Draw debug lines for trace rays and hit normals
+2. **Compare with Babylon collision** - Test `camera._collideWithWorld()` to see if it "feels" better
+3. **Log raw Q3 coordinates** - Before and after conversion to catch any swaps
+4. **Test single brush** - Create minimal test case with one known brush
+5. **Check Warsow source** - Compare FBSP handling with their collision code
+
+---
+
 ## Your Quirks/Notes
 
 (Add any specific quirks you remember from Warsow!)
