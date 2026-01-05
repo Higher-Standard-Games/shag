@@ -26,6 +26,8 @@ export interface TraceResult {
   allSolid: boolean;
   /** Content flags at end position */
   contents: number;
+  hitBrushIndex?: number;
+  hitTextureName?: string;
 }
 
 /**
@@ -413,7 +415,13 @@ export class BspCollision {
       if (debug) console.log(`[BspCollision] Testing brush ${brushIndex}: ${brush.numSides} sides, flags=0x${texture.contentFlags.toString(16)}`);
 
       // Test trace against brush
+      const prevFrac = result.fraction;
+      const prevStartSolid = result.startSolid;
       this.traceBrush(start, end, brush, result, debug);
+      if (result.fraction < prevFrac || (!prevStartSolid && result.startSolid)) {
+        result.hitBrushIndex = brushIndex;
+        result.hitTextureName = texture.name;
+      }
     }
   }
 
@@ -539,7 +547,13 @@ export class BspCollision {
       if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) continue;
       if (!this.isContentsSolid(texture.contentFlags, contentsMask)) continue;
 
+      const prevRealFrac = result.realfraction;
+      const prevStartSolid = result.startSolid;
       this.traceBrushBox(start, end, mins, maxs, brush, result, debug);
+      if (result.realfraction < prevRealFrac || (!prevStartSolid && result.startSolid)) {
+        (result as TraceResult).hitBrushIndex = brushIndex;
+        (result as TraceResult).hitTextureName = texture.name;
+      }
       if (result.fraction === 0) return;
     }
   }

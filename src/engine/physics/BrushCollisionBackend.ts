@@ -94,6 +94,8 @@ export class BrushCollisionBackend implements CollisionBackend {
     result.startSolid = bspResult.startSolid;
     result.allSolid = bspResult.allSolid;
     result.contents = bspResult.contents;
+    result.hitBrushIndex = (bspResult as any).hitBrushIndex;
+    result.hitTextureName = (bspResult as any).hitTextureName;
 
     // Convert plane normal to Vector3 if we hit something
     if (bspResult.plane && bspResult.fraction < 1.0) {

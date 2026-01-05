@@ -26,6 +26,8 @@ export interface TraceResult {
   allSolid: boolean;
   /** Content flags at hit point */
   contents: number;
+  hitBrushIndex?: number;
+  hitTextureName?: string;
 }
 
 /**

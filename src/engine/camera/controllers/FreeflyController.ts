@@ -444,6 +444,14 @@ export class FreeflyController implements ICameraController {
           this.camera.position.y += n.y * 0.5;
           this.camera.position.z += n.z * 0.5;
         }
+
+        const now = Date.now();
+        if (now - FreeflyController._lastClipHitLogTime > 250) {
+          FreeflyController._lastClipHitLogTime = now;
+          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
+          const hitTextureName = (clipTrace as any).hitTextureName;
+          console.log(`[Freefly][Clip] HIT frac=${clipTrace.fraction.toFixed(3)} brush=${hitBrushIndex} tex=${hitTextureName}`);
+        }
       }
 
       // Debug: log if collision occurred (position changed differently than expected)
@@ -460,6 +468,7 @@ export class FreeflyController implements ICameraController {
   }
   
   private static _debuggedMethods = false;
+  private static _lastClipHitLogTime = 0;
   
   /**
    * Check if a mesh should be excluded from collision detection
