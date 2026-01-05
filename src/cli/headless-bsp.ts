@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   let command = "info";
   let bspFile: string;
 
-  const validCommands = ["info", "entities", "textures", "effects", "build", "test", "collision"];
+  const validCommands = ["info", "entities", "textures", "effects", "build", "test", "collision", "clipbrushes"];
   if (validCommands.includes(args[0])) {
     command = args[0];
     bspFile = args[1];
@@ -91,6 +91,9 @@ async function main(): Promise<void> {
         break;
       case "collision":
         await testCollision(bsp);
+        break;
+      case "clipbrushes":
+        analyzeClipBrushes(bsp);
         break;
       default:
         printInfo(bsp);
@@ -185,6 +188,74 @@ function printTextures(bsp: BspFile): void {
     const flagStr = flags.length > 0 ? ` [${flags.join(", ")}]` : "";
     console.log(`  [${i.toString().padStart(3)}] ${tex.name}${flagStr}`);
   }
+}
+
+function analyzeClipBrushes(bsp: BspFile): void {
+  console.log("=== Clip Brush Analysis ===\n");
+  
+  const PLAYERCLIP = 0x10000;
+  const SOLID = 0x1;
+  const DETAIL = 0x8000000;
+  
+  let totalBrushes = 0;
+  let clipByFlag = 0;
+  let clipByName = 0;
+  let solidClip = 0;
+  let nonSolidClip = 0;
+  
+  const clipTextures: Map<string, { count: number; flags: number; solid: boolean }> = new Map();
+  
+  for (let bi = 0; bi < bsp.brushes.length; bi++) {
+    const brush = bsp.brushes[bi];
+    const texture = bsp.textures[brush.shaderIndex];
+    if (!texture) continue;
+    
+    const contentFlags = texture.contentFlags;
+    const texName = texture.name?.toLowerCase() || '';
+    
+    // Skip detail
+    if (contentFlags & DETAIL) continue;
+    
+    const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
+    const isSolid = (contentFlags & SOLID) !== 0;
+    const isClipByName = texName.includes('clip') || 
+                         texName.includes('fullclip') || 
+                         texName.includes('playerclip') ||
+                         texName.includes('common/clip') ||
+                         texName.includes('system/clip') ||
+                         texName === 'nodraw';
+    
+    if (isPlayerClipByFlag || isClipByName) {
+      totalBrushes++;
+      if (isPlayerClipByFlag) clipByFlag++;
+      if (isClipByName) clipByName++;
+      if (isSolid) solidClip++;
+      else nonSolidClip++;
+      
+      // Track by texture name
+      const existing = clipTextures.get(texName);
+      if (existing) {
+        existing.count++;
+      } else {
+        clipTextures.set(texName, { count: 1, flags: contentFlags, solid: isSolid });
+      }
+    }
+  }
+  
+  console.log(`Total clip brushes found: ${totalBrushes}`);
+  console.log(`  By PLAYERCLIP flag: ${clipByFlag}`);
+  console.log(`  By texture name: ${clipByName}`);
+  console.log(`  With SOLID flag: ${solidClip}`);
+  console.log(`  Without SOLID flag: ${nonSolidClip}`);
+  console.log("");
+  console.log("Clip textures breakdown:");
+  
+  for (const [name, info] of clipTextures) {
+    console.log(`  "${name}": ${info.count} brushes, flags=0x${info.flags.toString(16)}, solid=${info.solid}`);
+  }
+  
+  console.log("");
+  console.log(`With fix: Should generate ${totalBrushes} collision meshes (was only ${nonSolidClip} before)`);
 }
 
 function printEffects(bsp: BspFile): void {

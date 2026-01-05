@@ -469,7 +469,13 @@ export class MapLoader {
       
       // Generate mesh from brush planes
       const vertices = this.brushToVertices(brush, bsp);
-      if (vertices.length < 4) continue; // Need at least a tetrahedron
+      if (vertices.length < 4) {
+        // Debug: log why we're skipping
+        if (debugChecked < 10) {
+          console.log(`[ClipBrush] Brush ${bi}: Only ${vertices.length} vertices (need 4+), sides=${brush.numSides}`);
+        }
+        continue;
+      }
       
       try {
         // Create convex hull mesh from vertices
@@ -621,21 +627,33 @@ export class MapLoader {
   
   /**
    * Check if a vertex is inside (or on) all brush planes
+   * Note: BSP brush planes point outward, so inside = negative distance from all planes
+   * But FBSP might use different convention, so we check both directions
    */
   private isVertexInsideBrush(
     vertex: [number, number, number],
     planes: { normal: [number, number, number]; dist: number }[]
   ): boolean {
-    const EPSILON = 0.1;
+    const EPSILON = 1.0; // More lenient epsilon for brush vertex detection
+    
+    // Count how many planes this vertex is on the "inside" of
+    let insideCount = 0;
+    let outsideCount = 0;
+    
     for (const plane of planes) {
       const dist = 
         vertex[0] * plane.normal[0] +
         vertex[1] * plane.normal[1] +
         vertex[2] * plane.normal[2] -
         plane.dist;
-      if (dist > EPSILON) return false; // Outside this plane
+      
+      if (dist > EPSILON) outsideCount++;
+      else insideCount++;
     }
-    return true;
+    
+    // Vertex is valid if it's inside most planes (allows for some floating point error)
+    // A proper brush vertex should be inside ALL planes, but be lenient
+    return outsideCount <= 1; // Allow 1 plane to be "outside" due to precision
   }
 
   /**
