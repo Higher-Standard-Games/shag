@@ -44,7 +44,12 @@ export interface BspMeshBuildResult {
   /** Texture groups info for later texture loading */
   textureGroups?: { textureIndex: number; textureName: string }[];
   /** Sky shader names found in the map (for skybox creation) */
-  skyShaders: { textureName: string; skyParms?: { farbox: string; cloudHeight: number; nearbox: string } }[];
+  skyShaders: { 
+    textureName: string; 
+    skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
+    /** Stage textures for sky shaders without skyparms (for textured skybox) */
+    stageTextures?: string[];
+  }[];
   /** Statistics */
   stats: {
     totalFaces: number;
@@ -399,19 +404,26 @@ export class BspMeshBuilder {
       if (shaderProps.isSky) {
         if (!foundSkyTextures.has(face.textureIndex)) {
           foundSkyTextures.add(face.textureIndex);
+          // Get full shader to extract stage textures for fallback skybox
+          const shader = shaderRegistry.getShader(textureName);
+          const stageTextures = shader?.stages
+            ?.map((s: { map?: string }) => s.map)
+            .filter((m: string | undefined): m is string => !!m && m !== '$lightmap');
           skyShaders.push({
             textureName,
             skyParms: shaderProps.skyParms,
+            stageTextures,
           });
-          console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms?.farbox ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ' (no farbox - rendering as textured sky)'}`);
+          if (shaderProps.skyParms?.farbox) {
+            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> farbox: ${shaderProps.skyParms.farbox}`);
+          } else if (stageTextures?.length) {
+            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> textured sky: ${stageTextures[0]}`);
+          } else {
+            console.log(`[BspMeshBuilder] Found sky shader: ${textureName} (no skybox textures)`);
+          }
         }
-        // Only skip sky faces if we have a valid skybox to replace them with
-        // If no skyparms.farbox, render the sky faces with their textures (2D sky)
-        if (shaderProps.skyParms?.farbox) {
-          stats.skippedSkyFaces++;
-          continue; // Skip - will be rendered as cubemap skybox
-        }
-        // Fall through to render sky faces with their textures
+        stats.skippedSkyFaces++;
+        continue; // Skip sky faces - will be rendered as skybox
       }
 
       // Autosprite faces need to be individual meshes (not merged)
@@ -817,10 +829,13 @@ export class BspMeshBuilder {
 
     if (skyShaders.length > 0) {
       const hasCubemap = skyShaders.some(s => s.skyParms?.farbox);
+      const hasTextured = skyShaders.some(s => !s.skyParms?.farbox && s.stageTextures?.length);
       if (hasCubemap) {
         console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for cubemap skybox`);
+      } else if (hasTextured) {
+        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for textured skybox`);
       } else {
-        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with textured sky (no cubemap)`);
+        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with no skybox textures`);
       }
     }
 
@@ -1297,6 +1312,7 @@ export class BspMeshBuilder {
   /**
    * Apply skybox from BSP sky shaders
    * Call this after bsp render to create skybox from detected sky shaders
+   * Supports both cubemap skyboxes (skyparms farbox) and textured skyboxes (stage textures)
    */
   public static async applySkybox(
     result: BspMeshBuildResult,
@@ -1306,12 +1322,6 @@ export class BspMeshBuilder {
       return { success: false, error: 'No sky shaders found in BSP' };
     }
 
-    // Use the first sky shader with valid skyParms
-    const skyShader = result.skyShaders.find(s => s.skyParms?.farbox);
-    if (!skyShader || !skyShader.skyParms) {
-      return { success: false, error: 'No sky shader with valid skyparms found' };
-    }
-
     const { SkyboxLoader } = await import('../texture/SkyboxLoader');
     const skyboxLoader = SkyboxLoader.getInstance();
     skyboxLoader.init(scene);
@@ -1319,14 +1329,29 @@ export class BspMeshBuilder {
     // Dispose existing skybox
     skyboxLoader.disposeSkybox();
 
-    // Load the skybox
-    const loadResult = await skyboxLoader.loadSkybox(skyShader.skyParms.farbox);
-
-    if (loadResult.success) {
-      console.log(`[BspMeshBuilder] Created skybox from: ${skyShader.textureName}`);
+    // Try cubemap skybox first (skyparms farbox)
+    const cubemapShader = result.skyShaders.find(s => s.skyParms?.farbox);
+    if (cubemapShader?.skyParms?.farbox) {
+      const loadResult = await skyboxLoader.loadSkybox(cubemapShader.skyParms.farbox);
+      if (loadResult.success) {
+        console.log(`[BspMeshBuilder] Created cubemap skybox from: ${cubemapShader.textureName}`);
+        return loadResult;
+      }
     }
 
-    return loadResult;
+    // Fallback: textured skybox from shader stage textures
+    const texturedShader = result.skyShaders.find(s => s.stageTextures?.length);
+    if (texturedShader?.stageTextures?.length) {
+      const skyTexture = texturedShader.stageTextures[0];
+      const loadResult = await skyboxLoader.loadSkyboxFromTexture(skyTexture);
+      if (loadResult.success) {
+        console.log(`[BspMeshBuilder] Created textured skybox from: ${skyTexture}`);
+        return loadResult;
+      }
+      return { success: false, error: `Failed to load textured skybox: ${skyTexture}` };
+    }
+
+    return { success: false, error: 'No sky shader with valid skyparms or stage textures found' };
   }
 
   /**

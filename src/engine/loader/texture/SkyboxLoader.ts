@@ -198,6 +198,68 @@ export class SkyboxLoader {
   }
 
   /**
+   * Create a skybox from a single texture (for sky shaders without skyparms farbox)
+   * Uses the same texture on all 6 faces to create a simple sky dome effect
+   * @param texturePath - Path to the sky texture (e.g., "textures/Factory/blx_wt3_sky_orange.tga")
+   * @param size - Skybox size (default 10000)
+   */
+  async loadSkyboxFromTexture(texturePath: string, size: number = 10000): Promise<SkyboxLoadResult> {
+    if (!this.scene) {
+      return { success: false, error: "SkyboxLoader not initialized" };
+    }
+
+    console.log(`[SkyboxLoader] Creating skybox from texture: ${texturePath}`);
+
+    const pk3 = PK3Loader.getInstance();
+    
+    // Try to load the texture
+    const data = await pk3.getFile(texturePath);
+    if (!data) {
+      // Try with textures/ prefix
+      const altPath = texturePath.startsWith('textures/') ? texturePath : `textures/${texturePath}`;
+      const altData = await pk3.getFile(altPath);
+      if (!altData) {
+        return { success: false, error: `Failed to load sky texture: ${texturePath}` };
+      }
+    }
+
+    // Create skybox mesh
+    const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
+    skybox.infiniteDistance = true;
+    skybox.renderingGroupId = 0; // Render first
+
+    // Create skybox material with emissive texture (unlit sky)
+    const skyMaterial = new StandardMaterial("skyboxMat", this.scene);
+    skyMaterial.backFaceCulling = false;
+    skyMaterial.disableLighting = true;
+    skyMaterial.diffuseColor = new Color3(0, 0, 0);
+    skyMaterial.specularColor = new Color3(0, 0, 0);
+    
+    // Load the texture as emissive so it's fully lit
+    const texture = new Texture(
+      `pk3://${texturePath}`,
+      this.scene,
+      false, // noMipmaps
+      true,  // invertY
+      Texture.TRILINEAR_SAMPLINGMODE,
+      () => console.log(`[SkyboxLoader] Loaded sky texture: ${texturePath}`),
+      (msg) => console.warn(`[SkyboxLoader] Failed to load sky texture: ${msg}`)
+    );
+    skyMaterial.emissiveTexture = texture;
+    skyMaterial.emissiveColor = new Color3(1, 1, 1);
+
+    skybox.material = skyMaterial;
+
+    console.log(`[SkyboxLoader] Created textured skybox mesh`);
+
+    return {
+      success: true,
+      skybox,
+      loadedFaces: [texturePath],
+    };
+  }
+
+  /**
    * Load a single skybox face texture
    */
   private async loadSkyboxFace(
