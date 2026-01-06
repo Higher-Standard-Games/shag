@@ -114,6 +114,8 @@ export class PostProcessingManager {
   private settings: PostProcessingSettings = { ...DEFAULT_SETTINGS };
   private initialized = false;
 
+  private _cameraChangeUnsub: (() => void) | null = null;
+
   private constructor() {}
 
   public static getInstance(): PostProcessingManager {
@@ -140,6 +142,30 @@ export class PostProcessingManager {
     
     this.initialized = true;
     console.log("[PostProcessingManager] Initialized with default settings");
+  }
+
+  /**
+   * Rebind post-processing to a new active camera.
+   * This is needed when the engine swaps scene.activeCamera (e.g. BSP/freefly).
+   */
+  public setCamera(camera: Camera): void {
+    if (!this.initialized) return;
+    if (!this.scene) return;
+    if (this.camera === camera) return;
+
+    this.camera = camera;
+
+    // Recreate the pipelines to ensure they are attached to the new camera
+    if (this.pipeline) {
+      this.pipeline.dispose();
+      this.pipeline = null;
+    }
+    if (this.ssaoPipeline) {
+      this.ssaoPipeline.dispose();
+      this.ssaoPipeline = null;
+    }
+
+    this.createPipeline();
   }
 
   /**
@@ -261,6 +287,17 @@ export class PostProcessingManager {
     EventBus.on<{ hour: number; minute: number }>("clock:tick", (data) => {
       this.updateColorGradingForTime(data.hour, data.minute);
     });
+
+    // Keep pipeline attached to the current active camera
+    if (!this._cameraChangeUnsub) {
+      this._cameraChangeUnsub = EventBus.on<{ type: string }>("camera:controller_changed", () => {
+        if (!this.scene) return;
+        const active = this.scene.activeCamera;
+        if (active) {
+          this.setCamera(active);
+        }
+      });
+    }
   }
 
   /**
@@ -429,6 +466,10 @@ export class PostProcessingManager {
     if (this.ssaoPipeline) {
       this.ssaoPipeline.dispose();
       this.ssaoPipeline = null;
+    }
+    if (this._cameraChangeUnsub) {
+      this._cameraChangeUnsub();
+      this._cameraChangeUnsub = null;
     }
     this.initialized = false;
     console.log("[PostProcessingManager] Disposed");

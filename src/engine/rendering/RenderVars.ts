@@ -178,6 +178,10 @@ export class RenderVars {
         return;
       }
 
+      if (this.scene?.activeCamera) {
+        pp.setCamera(this.scene.activeCamera);
+      }
+
       const s = pp.getSettings();
       const anyOverride = bloomMul !== 1.0 || exposureMul !== 1.0 || contrastMul !== 1.0;
       const baseKey = '_renderVarPostProcessBaseline';
