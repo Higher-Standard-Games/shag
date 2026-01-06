@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.12
+
+### Tree-Shaking Optimization (Mobile-Critical)
+- Migrated from `babylonjs` (UMD) to `@babylonjs/core` (ES6 modules)
+- **Babylon.js bundle reduced from 8 MB to 3.4 MB (-58%)**
+- Gzip size reduced from 1.75 MB to 755 KB (-57%)
+- Significantly faster mobile load times
+- All 74 source files updated with ES6 module imports
+
+### Developer Experience
+- Added `npm run cli:game` for headless game engine testing
+- Added `npm run cli:bsp` for headless BSP loader testing
+
+---
+
 ## v0.8.11
 
 ### Shader Improvements
