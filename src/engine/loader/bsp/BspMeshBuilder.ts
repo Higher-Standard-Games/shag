@@ -393,7 +393,7 @@ export class BspMeshBuilder {
         continue;
       }
 
-      // Sky shader detection - skip geometry but track for skybox creation
+      // Sky shader detection - track for skybox creation
       const textureName = this.bsp.textures[face.textureIndex]?.name || '';
       const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
       if (shaderProps.isSky) {
@@ -403,10 +403,15 @@ export class BspMeshBuilder {
             textureName,
             skyParms: shaderProps.skyParms,
           });
-          console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ''}`);
+          console.log(`[BspMeshBuilder] Found sky shader: ${textureName}${shaderProps.skyParms?.farbox ? ` -> farbox: ${shaderProps.skyParms.farbox}` : ' (no farbox - rendering as textured sky)'}`);
         }
-        stats.skippedSkyFaces++;
-        continue; // Skip sky faces - they will be rendered as skybox
+        // Only skip sky faces if we have a valid skybox to replace them with
+        // If no skyparms.farbox, render the sky faces with their textures (2D sky)
+        if (shaderProps.skyParms?.farbox) {
+          stats.skippedSkyFaces++;
+          continue; // Skip - will be rendered as cubemap skybox
+        }
+        // Fall through to render sky faces with their textures
       }
 
       // Autosprite faces need to be individual meshes (not merged)
@@ -811,7 +816,12 @@ export class BspMeshBuilder {
     }
 
     if (skyShaders.length > 0) {
-      console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces`);
+      const hasCubemap = skyShaders.some(s => s.skyParms?.farbox);
+      if (hasCubemap) {
+        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for cubemap skybox`);
+      } else {
+        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with textured sky (no cubemap)`);
+      }
     }
 
     return {
