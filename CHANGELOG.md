@@ -21,6 +21,14 @@
 - Disabled source maps in production builds
 - Enabled CSS minification
 
+### QA & Polish
+- Loading screen now shows status text (bottom left): "loading map: X", "loading audio: X", etc.
+- Loading screen shows "ready" (green) when complete, fades out after 2 seconds
+- `map` command now auto-clears scene before loading new map (prevents artifacts)
+- `map` command auto-spawns camera at first spawn point (`info_player_deathmatch`/`info_player_start`)
+- Added `scene clear` console command for manual scene cleanup
+- Enabled `freefly_collision` by default (prevents falling through floors)
+
 ---
 
 ## v0.8.10
