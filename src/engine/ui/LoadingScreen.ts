@@ -32,6 +32,7 @@ export class LoadingScreen {
   private progressBar: HTMLDivElement;
   private progressFill: HTMLDivElement;
   private progressText: HTMLDivElement;
+  private statusText: HTMLDivElement;
 
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
@@ -66,6 +67,12 @@ export class LoadingScreen {
     this.progressText = document.createElement("div");
     this.progressText.style.display = "none";
     this.container.appendChild(this.progressText);
+
+    // Status text - bottom left corner (shows what's being loaded)
+    this.statusText = document.createElement("div");
+    this.statusText.className = "ui-loading-status";
+    this.statusText.textContent = "Initializing...";
+    this.container.appendChild(this.statusText);
 
     // Engine branding - bottom right corner
     this.createBranding();
@@ -134,6 +141,23 @@ export class LoadingScreen {
     const percent = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
     this.progressFill.style.width = `${percent}%`;
     this.progressText.textContent = progress.currentAsset || "Initializing...";
+  }
+
+  /**
+   * Update the status text shown on the loading screen
+   * @param status - Status message to display (e.g., "Indexing packages...", "Loading textures...")
+   */
+  public setStatus(status: string): void {
+    this.statusText.textContent = status;
+  }
+
+  /**
+   * Static method to update status from anywhere
+   */
+  public static setStatus(status: string): void {
+    if (LoadingScreen.instance) {
+      LoadingScreen.instance.setStatus(status);
+    }
   }
 
   /**
