@@ -17,6 +17,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    // Target modern browsers only (smaller output, no legacy polyfills)
+    target: 'es2020',
+    // Disable source maps in production (saves ~30-50% of JS size)
+    sourcemap: false,
+    // Minification settings
+    minify: 'esbuild',
+    cssMinify: true,
     // Optimize chunk splitting for mobile
     rollupOptions: {
       output: {
