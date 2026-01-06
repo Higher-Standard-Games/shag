@@ -52,6 +52,26 @@
       ]
     },
     {
+      "name": "shader",
+      "description": "Q3/Warsow shader debugging utilities",
+      "usage": "shader <command> [args]",
+      "subcommands": [
+        { "name": "load", "description": "Load shaders from PK3" },
+        { "name": "count", "description": "Show loaded shader count" },
+        { "name": "list", "description": "List shader names", "args": ["filter?"] },
+        { "name": "info", "description": "Show shader definition (or aimed surface when no path)", "args": ["texture_path?"] },
+        { "name": "aim", "description": "Toggle aimed-surface highlight (edges)", "args": ["0|1"] },
+        { "name": "resolve", "description": "Show resolved material props", "args": ["texture_path"] },
+        { "name": "pattern", "description": "Analyze shader pattern", "args": ["texture_path"] },
+        { "name": "deps", "description": "Debug shader/texture dependencies", "args": ["texture_path"] },
+        { "name": "glow", "description": "Set glow intensity", "args": ["intensity"] },
+        { "name": "lightmap", "description": "Set lightmap intensity", "args": ["intensity"] },
+        { "name": "blendmode", "description": "Toggle glow blend mode", "args": ["add|alpha"] },
+        { "name": "clear", "description": "Clear shader registry" },
+        { "name": "anim", "description": "Shader animation system commands", "args": ["..."] }
+      ]
+    },
+    {
       "name": "clear",
       "description": "Clear console output",
       "usage": "clear"
