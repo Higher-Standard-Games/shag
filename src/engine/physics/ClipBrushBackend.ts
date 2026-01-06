@@ -5,7 +5,7 @@
  * and generates simple collision planes from them.
  */
 
-import { Vector3, Scene } from '@babylonjs/core';
+import { Vector3, Scene } from 'babylonjs';
 import type { BspFile, BspFace } from '../loader/bsp/BspLoader';
 import {
   CollisionBackend,

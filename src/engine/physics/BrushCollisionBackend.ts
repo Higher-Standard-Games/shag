@@ -5,7 +5,7 @@
  * filters brushes by content flags (only solid brushes).
  */
 
-import { Vector3 } from '@babylonjs/core';
+import { Vector3 } from 'babylonjs';
 import type { BspFile } from '../loader/bsp/BspLoader';
 import {
   CollisionBackend,

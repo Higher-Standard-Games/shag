@@ -11,6 +11,16 @@
 - Fixed z-fighting for decal surfaces with proper `zOffset`
 - Improved compatibility with Warsow/Q3 decal rendering
 
+### Build Size Optimization
+- Removed duplicate `@babylonjs/core` and `@babylonjs/loaders` packages (~5.8 MB savings)
+- Added Vite resolve alias to prevent Babylon.js duplication
+- Migrated physics module imports to use `babylonjs` directly
+- Added `rollup-plugin-visualizer` for bundle analysis (generates `dist/stats.html`)
+- Improved chunk splitting: separate chunks for babylon, jszip, capacitor
+- Target ES2020 for smaller output (no legacy polyfills)
+- Disabled source maps in production builds
+- Enabled CSS minification
+
 ---
 
 ## v0.8.10
