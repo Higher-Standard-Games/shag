@@ -212,41 +212,61 @@ export class SkyboxLoader {
 
     const pk3 = PK3Loader.getInstance();
     
-    // Try to load the texture
-    const data = await pk3.getFile(texturePath);
-    if (!data) {
+    // Try to load the texture from PK3
+    let fileData = await pk3.getFile(texturePath);
+    let actualPath = texturePath;
+    
+    if (!fileData) {
       // Try with textures/ prefix
       const altPath = texturePath.startsWith('textures/') ? texturePath : `textures/${texturePath}`;
-      const altData = await pk3.getFile(altPath);
-      if (!altData) {
-        return { success: false, error: `Failed to load sky texture: ${texturePath}` };
-      }
+      fileData = await pk3.getFile(altPath);
+      actualPath = altPath;
     }
+    
+    if (!fileData) {
+      return { success: false, error: `Failed to load sky texture: ${texturePath}` };
+    }
+
+    // Parse the image to get RGBA data
+    const ext = actualPath.substring(actualPath.lastIndexOf('.')).toLowerCase();
+    const rgba = await this.parseImageToRGBA(new Uint8Array(fileData), ext);
+    if (!rgba) {
+      return { success: false, error: `Failed to parse sky texture: ${actualPath}` };
+    }
+
+    console.log(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
+
+    // Create a RawCubeTexture using the same texture for all 6 faces
+    const faces: Uint8Array[] = [];
+    for (let i = 0; i < 6; i++) {
+      faces.push(rgba.data);
+    }
+
+    const cubeTexture = new RawCubeTexture(
+      this.scene,
+      faces,
+      rgba.size,
+      Constants.TEXTUREFORMAT_RGBA,
+      Constants.TEXTURETYPE_UNSIGNED_INT,
+      false, // generateMipMaps
+      false, // invertY
+      Texture.TRILINEAR_SAMPLINGMODE
+    );
+    cubeTexture.name = `skybox_textured_${actualPath.replace(/\//g, '_')}`;
 
     // Create skybox mesh
     const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
     skybox.infiniteDistance = true;
     skybox.renderingGroupId = 0; // Render first
 
-    // Create skybox material with emissive texture (unlit sky)
+    // Create skybox material
     const skyMaterial = new StandardMaterial("skyboxMat", this.scene);
     skyMaterial.backFaceCulling = false;
+    skyMaterial.reflectionTexture = cubeTexture;
+    skyMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
     skyMaterial.disableLighting = true;
     skyMaterial.diffuseColor = new Color3(0, 0, 0);
     skyMaterial.specularColor = new Color3(0, 0, 0);
-    
-    // Load the texture as emissive so it's fully lit
-    const texture = new Texture(
-      `pk3://${texturePath}`,
-      this.scene,
-      false, // noMipmaps
-      true,  // invertY
-      Texture.TRILINEAR_SAMPLINGMODE,
-      () => console.log(`[SkyboxLoader] Loaded sky texture: ${texturePath}`),
-      (msg) => console.warn(`[SkyboxLoader] Failed to load sky texture: ${msg}`)
-    );
-    skyMaterial.emissiveTexture = texture;
-    skyMaterial.emissiveColor = new Color3(1, 1, 1);
 
     skybox.material = skyMaterial;
 
@@ -255,7 +275,7 @@ export class SkyboxLoader {
     return {
       success: true,
       skybox,
-      loadedFaces: [texturePath],
+      loadedFaces: [actualPath],
     };
   }
 
