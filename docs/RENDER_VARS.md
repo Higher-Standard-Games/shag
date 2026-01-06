@@ -35,6 +35,14 @@ r_reset             # Reset all to defaults
 |----------|---------|-------|-------------|
 | `r_wireframe` | 0 | 0-1 | Wireframe mode toggle |
 
+### Display / Post-processing
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `r_bloom` | 1.0 | 0-3 | Bloom intensity multiplier |
+| `r_exposure` | 1.0 | 0-3 | Exposure multiplier |
+| `r_contrast` | 1.0 | 0-3 | Contrast multiplier |
+
 ### Utility Commands
 
 | Command | Description |
@@ -93,10 +101,7 @@ The following variables are documented for future implementation:
 | Variable | Description |
 |----------|-------------|
 | `r_gamma` | Display gamma correction |
-| `r_contrast` | Contrast adjustment |
 | `r_saturation` | Color saturation |
-| `r_exposure` | HDR exposure (if using tone mapping) |
-| `r_bloom` | Bloom intensity |
 
 ### Texture Quality
 | Variable | Description |
@@ -134,6 +139,9 @@ The following variables are documented for future implementation:
 | `r_emissive` | `emissiveColor` multiplier | `emissiveColor` multiplier |
 | `r_anisotropy` | `*.anisotropicFilteringLevel` | `*.anisotropicFilteringLevel` |
 | `r_wireframe` | `material.wireframe` | `material.wireframe` |
+| `r_bloom` | `DefaultRenderingPipeline.bloomWeight` multiplier | `DefaultRenderingPipeline.bloomWeight` multiplier |
+| `r_exposure` | `imageProcessing.exposure` multiplier | `imageProcessing.exposure` multiplier |
+| `r_contrast` | `imageProcessing.contrast` multiplier | `imageProcessing.contrast` multiplier |
 
 ### Adding New Variables
 

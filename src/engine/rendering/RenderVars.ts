@@ -9,6 +9,7 @@
  */
 
 import { Scene, AbstractMesh, StandardMaterial, PBRMaterial } from 'babylonjs';
+import { PostProcessingManager } from '../effects/PostProcessingManager';
 
 // ==================== Types ====================
 
@@ -30,14 +31,14 @@ export type RenderVarName =
   | 'r_emissive'
   | 'r_anisotropy'
   | 'r_wireframe'
+  | 'r_bloom'
+  | 'r_exposure'
+  | 'r_contrast'
   // Future vars (documented but not yet implemented)
   | 'r_lightintensity'
   | 'r_shadows'
   | 'r_gamma'
-  | 'r_contrast'
   | 'r_saturation'
-  | 'r_exposure'
-  | 'r_bloom'
   | 'r_picmip'
   | 'r_showtris'
   | 'r_shownormals'
@@ -105,6 +106,37 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     description: 'Wireframe mode toggle (0/1)',
     category: 'debug',
   },
+  // Post-processing (multipliers)
+  r_bloom: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Bloom intensity multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+  r_exposure: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Exposure multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+  r_contrast: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Contrast multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+};
+
+type RenderVarPostProcessBaseline = {
+  bloomWeight: number;
+  exposure: number;
+  contrast: number;
 };
 
 // ==================== RenderVars Singleton ====================
@@ -136,6 +168,66 @@ export class RenderVars {
   private initializeDefaults(): void {
     for (const [name, def] of Object.entries(DEFAULT_VARS)) {
       this.vars.set(name, { name, ...def });
+    }
+  }
+
+  private applyToPostProcessing(bloomMul: number, exposureMul: number, contrastMul: number): void {
+    try {
+      const pp = PostProcessingManager.getInstance();
+      if (!pp.isInitialized()) {
+        return;
+      }
+
+      const s = pp.getSettings();
+      const anyOverride = bloomMul !== 1.0 || exposureMul !== 1.0 || contrastMul !== 1.0;
+      const baseKey = '_renderVarPostProcessBaseline';
+
+      const currentBase = (pp as any)[baseKey] as RenderVarPostProcessBaseline | undefined;
+      if (!anyOverride) {
+        // Restore baseline when returning to defaults
+        if (currentBase) {
+          pp.updateSettings({
+            bloom: {
+              ...s.bloom,
+              weight: currentBase.bloomWeight,
+            },
+            colorGrading: {
+              ...s.colorGrading,
+              exposure: currentBase.exposure,
+              contrast: currentBase.contrast,
+            },
+          });
+          delete (pp as any)[baseKey];
+        }
+        return;
+      }
+
+      // Capture baseline once when first overriding
+      const base: RenderVarPostProcessBaseline = currentBase ?? {
+        bloomWeight: s.bloom.weight,
+        exposure: s.colorGrading.exposure,
+        contrast: s.colorGrading.contrast,
+      };
+      (pp as any)[baseKey] = base;
+
+      const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+      const nextBloomWeight = clamp01(base.bloomWeight * bloomMul);
+      const nextExposure = base.exposure * exposureMul;
+      const nextContrast = base.contrast * contrastMul;
+
+      pp.updateSettings({
+        bloom: {
+          ...s.bloom,
+          weight: nextBloomWeight,
+        },
+        colorGrading: {
+          ...s.colorGrading,
+          exposure: nextExposure,
+          contrast: nextContrast,
+        },
+      });
+    } catch {
+      // Ignore if post-processing is unavailable
     }
   }
 
@@ -332,8 +424,6 @@ export class RenderVars {
    * Apply current vars to all scene materials
    */
   public applyToScene(): void {
-    if (!this.scene) return;
-
     const normalIntensity = this.get('r_normalmap') ?? 1.0;
     const glossIntensity = this.get('r_glossmap') ?? 1.0;
     const lightmapIntensity = this.get('r_lightmap') ?? 1.0;
@@ -341,6 +431,14 @@ export class RenderVars {
     const emissiveIntensity = this.get('r_emissive') ?? 1.0;
     const anisotropy = this.get('r_anisotropy') ?? 8;
     const wireframe = (this.get('r_wireframe') ?? 0) >= 0.5;
+
+    // Post-processing
+    const bloomMul = this.get('r_bloom') ?? 1.0;
+    const exposureMul = this.get('r_exposure') ?? 1.0;
+    const contrastMul = this.get('r_contrast') ?? 1.0;
+    this.applyToPostProcessing(bloomMul, exposureMul, contrastMul);
+
+    if (!this.scene) return;
 
     // Update all meshes
     for (const mesh of this.scene.meshes) {
