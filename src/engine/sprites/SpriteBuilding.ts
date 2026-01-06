@@ -36,15 +36,13 @@
  * - High emissive (0.5+): Neon signs, lit windows stay bright
  */
 
-import {
-  Mesh,
-  MeshBuilder,
-  Scene,
-  StandardMaterial,
-  Texture,
-  Vector3,
-  Color3,
-} from "babylonjs";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 
 export interface SpriteBuildingConfig {
   /** Unique identifier */

@@ -9,16 +9,16 @@
  * - Animated idle/walk states
  */
 
-import {
-  Color3,
-  Mesh,
-  MeshBuilder,
-  Scene,
-  StandardMaterial,
-  TransformNode,
-  Vector3,
-  Animation,
-} from "babylonjs";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Animation } from "@babylonjs/core/Animations/animation";
+// Side-effect: registers beginAnimation on Scene
+import "@babylonjs/core/Animations/animatable";
 
 // ==================== Types ====================
 

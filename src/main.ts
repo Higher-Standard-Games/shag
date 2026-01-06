@@ -1,6 +1,6 @@
 import "./style.css";
-import { Engine } from "babylonjs";
-import "babylonjs-loaders";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import "@babylonjs/loaders/glTF";
 import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";

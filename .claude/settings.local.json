@@ -14,7 +14,11 @@
       "WebFetch(domain:webglfundamentals.org)",
       "Bash(git merge:*)",
       "Bash(git push:*)",
-      "Bash(npx vite-node:*)"
+      "Bash(npx vite-node:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -1,11 +1,9 @@
-import {
-  ArcRotateCamera,
-  Color4,
-  Engine,
-  HemisphericLight,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { AssetLoader } from "../engine/AssetLoader";
 import { AudioManager } from "../engine/AudioManager";
 import { MapRenderer } from "../engine/MapRenderer";

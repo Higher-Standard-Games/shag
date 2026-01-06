@@ -20,7 +20,8 @@
  *   }
  */
 
-import type { Scene, TransformNode } from "babylonjs";
+import type { Scene } from "@babylonjs/core/scene";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
 /**
  * Entity data passed to handlers (matches MapParser Entity structure)

@@ -9,7 +9,7 @@
  *   registerGameEntityHandlers(); // Call once at startup
  */
 
-import { Vector3 } from "babylonjs";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { 
   EntityHandlerRegistry, 
   type EntityData, 

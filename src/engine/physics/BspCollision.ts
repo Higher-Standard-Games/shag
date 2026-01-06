@@ -5,7 +5,7 @@
  * Based on Q3/Warsow collision system.
  */
 
-import { Vector3 } from 'babylonjs';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { BspFile, BspBrush, BspPlane, BspLeaf } from '../loader/bsp/BspLoader';
 import { CollisionMasks, ContentFlags } from './ContentFlags';
 

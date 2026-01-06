@@ -13,7 +13,10 @@
  *   npx vite-node src/cli/headless-game.ts --exec "map wdm11; bsp info"
  */
 
-import { NullEngine, Scene, FreeCamera, Vector3 } from "babylonjs";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Scene } from "@babylonjs/core/scene";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
@@ -205,11 +208,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const dz = parseFloat(args[6]) || 0;
       const dist = parseFloat(args[7]) || 1000;
       
-      const { Vector3 } = await import("babylonjs");
       const start = new Vector3(x, y, z);
       const dir = new Vector3(dx, dy, dz).normalize();
       const end = start.add(dir.scale(dist));
-      
+
       console.log(`[TraceTest] Point trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist}`);
       
       const result = cm.trace(start as never, end as never, { debug: true });
@@ -237,11 +239,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const radius = parseFloat(args[8]) || 16;
       const height = parseFloat(args[9]) || 56;
       
-      const { Vector3 } = await import("babylonjs");
       const start = new Vector3(x, y, z);
       const dir = new Vector3(dx, dy, dz).normalize();
       const end = start.add(dir.scale(dist));
-      
+
       console.log(`[TraceTest] Box trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist} radius=${radius} height=${height}`);
       
       const result = cm.trace(start as never, end as never, { debug: true, radius, height });
@@ -271,7 +272,6 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       
       if (spawns.length === 0) return "No spawn points found";
       
-      const { Vector3 } = await import("babylonjs");
       const lines: string[] = [`Found ${spawns.length} spawn points:`, ''];
       
       for (let i = 0; i < Math.min(spawns.length, 5); i++) {

@@ -5,13 +5,11 @@
  * Allows runtime switching between different camera behaviors.
  */
 
-import {
-  ArcRotateCamera,
-  Camera,
-  FreeCamera,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Camera } from "@babylonjs/core/Cameras/camera";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController } from "./controllers/ICameraController";
 import { CameraPreset, CameraMode, CAMERA_PRESETS, getCameraPreset } from "./CameraPresets";
 import { EventBus } from "../core/EventBus";

@@ -18,7 +18,10 @@
  * ```
  */
 
-import { Scene, ArcRotateCamera, Engine, Vector3 } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 // ==================== Types ====================
 

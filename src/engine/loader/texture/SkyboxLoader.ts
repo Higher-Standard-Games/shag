@@ -7,16 +7,14 @@
  * - Creates Babylon.js skybox mesh with proper coordinate mapping
  */
 
-import {
-  Scene,
-  MeshBuilder,
-  StandardMaterial,
-  Texture,
-  Color3,
-  RawCubeTexture,
-  Mesh,
-  Constants,
-} from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { PK3Loader } from "../pk3/PK3Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!

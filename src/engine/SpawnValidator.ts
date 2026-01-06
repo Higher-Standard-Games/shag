@@ -1,4 +1,5 @@
-import { Scene, Vector3 } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 /**
  * Context passed to spawn validators

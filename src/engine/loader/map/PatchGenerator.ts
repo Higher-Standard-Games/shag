@@ -1,4 +1,7 @@
-import { Mesh, type Scene, Vector3, VertexData } from "babylonjs";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 
 export interface PatchControlPoint {
   position: Vector3;

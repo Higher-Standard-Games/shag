@@ -8,13 +8,11 @@
  * alpha from inverse luminance: white = transparent, dark/colored = opaque.
  */
 
-import {
-  Scene,
-  ShaderMaterial,
-  Texture,
-  Effect,
-  Constants,
-} from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Effect } from '@babylonjs/core/Materials/effect';
+import { Constants } from '@babylonjs/core/Engines/constants';
 
 // Register the custom shader
 Effect.ShadersStore["filterBlendVertexShader"] = `

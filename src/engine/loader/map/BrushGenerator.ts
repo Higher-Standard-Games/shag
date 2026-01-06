@@ -1,4 +1,10 @@
-import { Color3, Mesh, Plane, type Scene, StandardMaterial, Vector3, VertexData } from "babylonjs";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Plane } from "@babylonjs/core/Maths/math.plane";
+import type { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Brush, PlaneDefinition } from "./MapParser";
 import { SkyLightSystem } from "../../lighting/SkyLightSystem";
 

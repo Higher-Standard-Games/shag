@@ -1,10 +1,8 @@
-import {
-  Mesh,
-  Ray,
-  Scene,
-  TransformNode,
-  Vector3,
-} from "babylonjs";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Ray } from "@babylonjs/core/Culling/ray";
+import { Scene } from "@babylonjs/core/scene";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BrushGenerator } from "../map/BrushGenerator";
 import { type PatchDefinition, PatchGenerator } from "../map/PatchGenerator";
 import { PrefabLoader } from "./PrefabLoader";

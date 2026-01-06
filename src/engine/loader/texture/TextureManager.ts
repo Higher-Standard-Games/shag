@@ -1,4 +1,8 @@
-import { Color3, DynamicTexture, type Scene, StandardMaterial, Texture } from "babylonjs";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+import type { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
 import { GamePaths } from "../../core/GamePaths";
 import { PK3Loader } from "../pk3/PK3Loader";

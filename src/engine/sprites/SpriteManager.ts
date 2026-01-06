@@ -1,4 +1,11 @@
-import { type Camera, Scene, Mesh, MeshBuilder, StandardMaterial, Texture, Color3, Vector3 } from "babylonjs";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
+import { Scene } from "@babylonjs/core/scene";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BillboardSprite } from "./BillboardSprite";
 import { SpriteSheet, type SpriteSheetConfig } from "./SpriteSheet";
 import type { SpriteManifest, SpriteDefinition, SpriteCategory, AnchorPoint } from "./SpriteTypes";

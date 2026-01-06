@@ -5,16 +5,14 @@
  * Uses Babylon.js ParticleSystem for efficient GPU-accelerated rendering.
  */
 
-import {
-  Scene,
-  ParticleSystem,
-  Texture,
-  Vector3,
-  Color4,
-  AbstractMesh,
-  MeshBuilder,
-  Observer,
-} from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { WindSystem, WindState } from "./WindSystem";
 
 export type PrecipitationType = 'rain' | 'snow';

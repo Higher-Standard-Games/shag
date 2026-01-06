@@ -5,7 +5,11 @@
  * for BSP materials. Runs as a centralized system with one render observer.
  */
 
-import { Scene, Observer, Texture, StandardMaterial, Color3 } from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import type { Observer } from '@babylonjs/core/Misc/observable';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { TcMod, WaveFunc, RgbGen, AlphaGen } from './Q3ShaderTypes';
 
 // ============================================================================

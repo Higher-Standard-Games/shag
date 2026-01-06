@@ -5,7 +5,8 @@
  * between different backend implementations at runtime.
  */
 
-import { Vector3, Scene } from 'babylonjs';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Scene } from '@babylonjs/core/scene';
 import type { BspFile } from '../loader/bsp/BspLoader';
 import {
   CollisionBackend,

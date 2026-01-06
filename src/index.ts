@@ -1,16 +1,13 @@
 import "./style.css";
-import {
-  ArcRotateCamera,
-  Color3,
-  Color4,
-  Engine,
-  HemisphericLight,
-  PointerEventTypes,
-  PointLight,
-  Scene,
-  StandardMaterial,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BrushGenerator } from "./engine/loader";
 import { MapParser } from "./engine/loader";
 import { type PatchDefinition, PatchGenerator } from "./engine/loader";

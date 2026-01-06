@@ -7,13 +7,11 @@
  * - Q3NodeMaterialBuilder for complex multi-stage shaders
  */
 
-import {
-  Scene,
-  Material,
-  StandardMaterial,
-  Texture,
-  Constants,
-} from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { Material } from '@babylonjs/core/Materials/material';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Constants } from '@babylonjs/core/Engines/constants';
 import type { Q3Shader, Q3ShaderStage } from './Q3ShaderTypes';
 import { GlowOverlayShaderMaterial } from './GlowOverlayShaderMaterial';
 

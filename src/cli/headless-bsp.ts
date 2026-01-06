@@ -12,7 +12,12 @@
  *   npx vite-node src/cli/headless-bsp.ts build <bspfile>
  */
 
-import { NullEngine, Scene, FreeCamera, Vector3, MeshBuilder, Mesh } from "babylonjs";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Scene } from "@babylonjs/core/scene";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import * as fs from "fs";
 
 // Import BSP loader

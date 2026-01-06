@@ -1,4 +1,7 @@
-import { Color3, Scene, StandardMaterial, Texture } from "babylonjs";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 
 /**
  * Configuration for a sprite sheet

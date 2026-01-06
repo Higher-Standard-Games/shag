@@ -5,14 +5,12 @@
  * Supports configurable offset, smoothing, and look-at behavior.
  */
 
-import {
-  ArcRotateCamera,
-  Camera,
-  Observer,
-  Scene,
-  TransformNode,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Camera } from "@babylonjs/core/Cameras/camera";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import { Scene } from "@babylonjs/core/scene";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 
 export interface FollowConfig extends CameraControllerConfig {

@@ -8,12 +8,10 @@
  * that still receive lightmap shadows on non-emissive parts.
  */
 
-import {
-  Scene,
-  ShaderMaterial,
-  Texture,
-  Effect,
-} from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Effect } from '@babylonjs/core/Materials/effect';
 
 // ============================================================================
 // GLSL Shaders

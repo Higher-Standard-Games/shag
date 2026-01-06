@@ -11,7 +11,8 @@
  * This separates game logic from the engine-level camera controller.
  */
 
-import { Scene, Vector3 } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { EventBus } from "../engine/core/EventBus";
 import { BuildableSystem } from "../engine/BuildableSystem";
 import { SpawnValidator } from "../engine/SpawnValidator";
