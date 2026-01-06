@@ -32,6 +32,7 @@ export class LoadingScreen {
   private progressBar: HTMLDivElement;
   private progressFill: HTMLDivElement;
   private progressText: HTMLDivElement;
+  private statusText: HTMLDivElement;
 
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
@@ -66,6 +67,12 @@ export class LoadingScreen {
     this.progressText = document.createElement("div");
     this.progressText.style.display = "none";
     this.container.appendChild(this.progressText);
+
+    // Status text - bottom left corner (shows what's being loaded)
+    this.statusText = document.createElement("div");
+    this.statusText.className = "ui-loading-status";
+    this.statusText.textContent = "Initializing...";
+    this.container.appendChild(this.statusText);
 
     // Engine branding - bottom right corner
     this.createBranding();
@@ -137,6 +144,23 @@ export class LoadingScreen {
   }
 
   /**
+   * Update the status text shown on the loading screen
+   * @param status - Status message to display (e.g., "Indexing packages...", "Loading textures...")
+   */
+  public setStatus(status: string): void {
+    this.statusText.textContent = status;
+  }
+
+  /**
+   * Static method to update status from anywhere
+   */
+  public static setStatus(status: string): void {
+    if (LoadingScreen.instance) {
+      LoadingScreen.instance.setStatus(status);
+    }
+  }
+
+  /**
    * Show "tap to start" overlay and wait for user interaction.
    * This unlocks browser audio context.
    */
@@ -148,6 +172,13 @@ export class LoadingScreen {
       // Hide progress bar, show ready state
       this.progressBar.style.display = 'none';
       this.container.classList.add('ui-loading-screen--ready');
+
+      // Show "ready" status and fade it out after 2 seconds
+      this.statusText.textContent = 'ready';
+      this.statusText.classList.add('ui-loading-status--ready');
+      setTimeout(() => {
+        this.statusText.classList.add('ui-loading-status--fade');
+      }, 2000);
 
       // Smoke effect - colored puffs rising and fading
       const smokeContainer = document.createElement("div");

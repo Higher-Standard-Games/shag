@@ -69,6 +69,24 @@ async function main() {
   try {
     await AssetLoader.getInstance().loadAll((progress) => {
       loadingScreen.updateProgress(progress);
+      // Update status text based on loading phase
+      switch (progress.phase) {
+        case 'config':
+          loadingScreen.setStatus('loading configuration...');
+          break;
+        case 'maps':
+          loadingScreen.setStatus(`loading map: ${progress.currentAsset}`);
+          break;
+        case 'prefabs':
+          loadingScreen.setStatus(`loading prefab: ${progress.currentAsset}`);
+          break;
+        case 'audio':
+          loadingScreen.setStatus(`loading audio: ${progress.currentAsset}`);
+          break;
+        case 'complete':
+          loadingScreen.setStatus('initializing...');
+          break;
+      }
     });
   } catch (e) {
     console.error("Failed to load assets:", e);

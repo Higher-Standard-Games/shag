@@ -804,6 +804,26 @@ export class UIStyles {
   margin-top: 4px;
 }
 
+/* Status text - bottom left corner */
+.ui-loading-status {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Consolas', 'Monaco', monospace;
+  text-transform: lowercase;
+  transition: opacity 0.5s ease;
+}
+
+.ui-loading-status--ready {
+  color: rgba(74, 222, 128, 0.6);
+}
+
+.ui-loading-status--fade {
+  opacity: 0;
+}
+
 /* Ready state (tap to start) */
 .ui-loading-screen--ready {
   cursor: pointer;

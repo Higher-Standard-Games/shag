@@ -1773,6 +1773,9 @@ export function registerEngineCommands(): void {
           if (!cameraSystem.getCamera()?.getScene()) {
             return 'No scene available. Run "scene empty" first.';
           }
+        } else {
+          // Clear existing scene before loading new map
+          await registry.execute('scene clear');
         }
 
         const activeScene = cameraSystem.getCamera()?.getScene();
@@ -1785,6 +1788,22 @@ export function registerEngineCommands(): void {
         });
 
         if (result.success) {
+          // Auto-spawn camera at first spawn point for BSP maps (do this first for smoother UX)
+          let spawnStatus = '';
+          if (result.mapType === 'bsp' && result.bsp) {
+            const spawns = result.bsp.entities.filter((e: { classname: string }) =>
+              e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+            );
+            if (spawns.length > 0 && spawns[0].properties?.origin) {
+              const parts = spawns[0].properties.origin.split(' ').map(Number);
+              const cam = cameraSystem.getCamera();
+              if (cam) {
+                cam.position.set(parts[0], parts[2] + 56, parts[1]);
+                spawnStatus = `  Spawned at: (${parts[0]}, ${parts[2] + 56}, ${parts[1]})`;
+              }
+            }
+          }
+
           // Auto-enable PVS culling for BSP maps
           let pvsStatus = '';
           if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
@@ -1797,6 +1816,7 @@ export function registerEngineCommands(): void {
             result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
             result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
             pvsStatus,
+            spawnStatus,
           ].filter(Boolean).join('\n');
         } else {
           return `Failed to load map: ${result.error}`;
@@ -1861,6 +1881,9 @@ export function registerEngineCommands(): void {
           if (!activeScene) {
             // Try to create empty scene first
             await registry.execute('scene empty');
+          } else {
+            // Clear existing scene before loading new map
+            await registry.execute('scene clear');
           }
 
           const finalScene = cameraSystem.getCamera()?.getScene();
@@ -1873,6 +1896,22 @@ export function registerEngineCommands(): void {
           });
 
           if (result.success) {
+            // Auto-spawn camera at first spawn point for BSP maps (do this first for smoother UX)
+            let spawnStatus = '';
+            if (result.mapType === 'bsp' && result.bsp) {
+              const spawns = result.bsp.entities.filter((e: { classname: string }) =>
+                e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+              );
+              if (spawns.length > 0 && spawns[0].properties?.origin) {
+                const parts = spawns[0].properties.origin.split(' ').map(Number);
+                const cam = cameraSystem.getCamera();
+                if (cam) {
+                  cam.position.set(parts[0], parts[2] + 56, parts[1]);
+                  spawnStatus = `  Spawned at: (${parts[0]}, ${parts[2] + 56}, ${parts[1]})`;
+                }
+              }
+            }
+
             // Auto-enable PVS culling for BSP maps
             let pvsStatus = '';
             if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
@@ -1885,6 +1924,7 @@ export function registerEngineCommands(): void {
               result.meshResult ? `  Vertices: ${result.meshResult.stats.totalVertices}` : '',
               result.meshResult ? `  Triangles: ${result.meshResult.stats.totalTriangles}` : '',
               pvsStatus,
+              spawnStatus,
             ].filter(Boolean).join('\n');
           } else {
             return `Failed to load map: ${result.error}`;
@@ -2638,11 +2678,74 @@ export function registerEngineCommands(): void {
         return 'No empty scene to dispose';
       }
 
+      case 'clear': {
+        // Clear all scene objects for clean map reloading
+        const cameraSystem = await getCameraSystem();
+        const scene = cameraSystem.getCamera()?.getScene();
+        
+        if (!scene) {
+          return 'No active scene to clear';
+        }
+
+        const stats = {
+          meshes: 0,
+          materials: 0,
+          textures: 0,
+        };
+
+        // Dispose all meshes except camera
+        const meshesToDispose = [...scene.meshes];
+        for (const mesh of meshesToDispose) {
+          if (mesh.name !== 'emptySceneCamera') {
+            mesh.dispose(false, true); // Don't dispose parent, dispose materials
+            stats.meshes++;
+          }
+        }
+
+        // Dispose remaining materials
+        const materialsToDispose = [...scene.materials];
+        for (const material of materialsToDispose) {
+          material.dispose(true, true); // Force disposal, dispose textures
+          stats.materials++;
+        }
+
+        // Dispose remaining textures
+        const texturesToDispose = [...scene.textures];
+        for (const texture of texturesToDispose) {
+          texture.dispose();
+          stats.textures++;
+        }
+
+        // Clear shader animation system
+        try {
+          const { ShaderAnimationSystem } = await import('../loader/shader/ShaderAnimationSystem');
+          ShaderAnimationSystem.getInstance().clear();
+        } catch {
+          // Ignore if not available
+        }
+
+        // Clear MapLoader state
+        try {
+          const { MapLoader } = await import('../loader/map/MapLoader');
+          MapLoader.getInstance().disposeCurrentMap();
+        } catch {
+          // Ignore if not available
+        }
+
+        return [
+          'Scene cleared:',
+          `  Meshes disposed: ${stats.meshes}`,
+          `  Materials disposed: ${stats.materials}`,
+          `  Textures disposed: ${stats.textures}`,
+        ].join('\n');
+      }
+
       default:
         return [
           'Scene Commands:',
           '  scene empty   - Create empty scene for BSP testing',
           '  scene dispose - Dispose empty scene',
+          '  scene clear   - Clear all scene objects (meshes, materials, textures)',
         ].join('\n');
     }
   });
