@@ -258,6 +258,21 @@
       "usage": "r_contrast [value|reset]"
     },
     {
+      "name": "r_lightintensity",
+      "description": "Global light intensity multiplier (0-4, default: 1)",
+      "usage": "r_lightintensity [value|reset]"
+    },
+    {
+      "name": "r_showtris",
+      "description": "Force wireframe on entire scene (0/1, default: 0)",
+      "usage": "r_showtris [0|1|reset]"
+    },
+    {
+      "name": "r_shownormals",
+      "description": "Show normal direction debug colors (0/1, default: 0)",
+      "usage": "r_shownormals [0|1|reset]"
+    },
+    {
       "name": "r_list",
       "description": "List all render variables and their current values",
       "usage": "r_list"

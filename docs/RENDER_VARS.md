@@ -29,11 +29,19 @@ r_reset             # Reset all to defaults
 |----------|---------|-------|-------------|
 | `r_anisotropy` | 8 | 1-16 | Anisotropic filtering level |
 
+### Lighting
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-----------|
+| `r_lightintensity` | 1.0 | 0-4 | Global light intensity multiplier |
+
 ### Debug / Visualization
 
 | Variable | Default | Range | Description |
-|----------|---------|-------|-------------|
-| `r_wireframe` | 0 | 0-1 | Wireframe mode toggle |
+|----------|---------|-------|-----------|
+| `r_wireframe` | 0 | 0-1 | Wireframe mode toggle (per-material) |
+| `r_showtris` | 0 | 0-1 | Force wireframe on entire scene |
+| `r_shownormals` | 0 | 0-1 | Show normal direction debug colors (PBR only) |
 
 ### Display / Post-processing
 
@@ -95,7 +103,6 @@ The following variables are documented for future implementation:
 ### Lighting
 | Variable | Description |
 |----------|-------------|
-| `r_lightintensity` | Global light intensity multiplier |
 | `r_shadows` | Shadow intensity (0-1) or toggle |
 | `r_shadowquality` | Shadow map resolution |
 
@@ -113,8 +120,7 @@ The following variables are documented for future implementation:
 ### Debug / Visualization
 | Variable | Description |
 |----------|-------------|
-| `r_showtris` | Show triangle edges |
-| `r_shownormals` | Visualize normal vectors |
+| `r_showlightmaps` | Show only lightmaps (no diffuse) |
 
 ---
 
@@ -141,6 +147,9 @@ The following variables are documented for future implementation:
 | `r_emissive` | `emissiveColor` multiplier | `emissiveColor` multiplier |
 | `r_anisotropy` | `*.anisotropicFilteringLevel` | `*.anisotropicFilteringLevel` |
 | `r_wireframe` | `material.wireframe` | `material.wireframe` |
+| `r_lightintensity` | `light.intensity` multiplier | `light.intensity` multiplier |
+| `r_showtris` | `scene.forceWireframe` | `scene.forceWireframe` |
+| `r_shownormals` | N/A | `material.debugMode = 2` |
 | `r_bloom` | `DefaultRenderingPipeline.bloomWeight` multiplier | `DefaultRenderingPipeline.bloomWeight` multiplier |
 | `r_exposure` | `imageProcessing.exposure` multiplier | `imageProcessing.exposure` multiplier |
 | `r_contrast` | `imageProcessing.contrast` multiplier | `imageProcessing.contrast` multiplier |

@@ -131,6 +131,32 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     description: 'Contrast multiplier (applies to post-processing pipeline)',
     category: 'display',
   },
+  // Lighting
+  r_lightintensity: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4.0,
+    description: 'Global light intensity multiplier',
+    category: 'lighting',
+  },
+  // Debug visualization
+  r_showtris: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Force wireframe on entire scene (0/1)',
+    category: 'debug',
+  },
+  r_shownormals: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Show normal direction debug colors (0/1)',
+    category: 'debug',
+  },
 };
 
 type RenderVarPostProcessBaseline = {
@@ -461,6 +487,39 @@ export class RenderVars {
         this.scene.ambientColor.r = baseAmbient.r * ambientIntensity;
         this.scene.ambientColor.g = baseAmbient.g * ambientIntensity;
         this.scene.ambientColor.b = baseAmbient.b * ambientIntensity;
+      }
+    }
+
+    // Light intensity multiplier
+    const lightIntensity = this.get('r_lightintensity') ?? 1.0;
+    for (const light of this.scene.lights) {
+      const hasOriginal = (light as any)._originalIntensity !== undefined;
+      if (lightIntensity !== 1.0) {
+        if (!hasOriginal) {
+          (light as any)._originalIntensity = light.intensity;
+        }
+        light.intensity = (light as any)._originalIntensity * lightIntensity;
+      } else if (hasOriginal) {
+        light.intensity = (light as any)._originalIntensity;
+        delete (light as any)._originalIntensity;
+      }
+    }
+
+    // Force wireframe (r_showtris) - scene-level toggle
+    const showTris = (this.get('r_showtris') ?? 0) >= 0.5;
+    this.scene.forceWireframe = showTris;
+
+    // Show normals debug mode (r_shownormals)
+    // This uses material debug mode to visualize normals as colors
+    const showNormals = (this.get('r_shownormals') ?? 0) >= 0.5;
+    for (const mat of this.scene.materials) {
+      if (mat instanceof StandardMaterial || mat instanceof PBRMaterial) {
+        // Use forceNormalForward to help visualize but mainly we toggle debug mode
+        (mat as any)._forceNormalForward = showNormals;
+        // For PBR materials, we can use debugMode
+        if (mat instanceof PBRMaterial) {
+          mat.debugMode = showNormals ? 2 : 0; // 2 = normals
+        }
       }
     }
   }
