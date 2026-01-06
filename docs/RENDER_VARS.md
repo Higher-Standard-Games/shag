@@ -41,7 +41,6 @@ r_reset             # Reset all to defaults
 |----------|---------|-------|-----------|
 | `r_wireframe` | 0 | 0-1 | Wireframe mode toggle (per-material) |
 | `r_showtris` | 0 | 0-1 | Force wireframe on entire scene |
-| `r_shownormals` | 0 | 0-1 | Show normal direction debug colors (PBR only) |
 
 ### Display / Post-processing
 
@@ -149,7 +148,6 @@ The following variables are documented for future implementation:
 | `r_wireframe` | `material.wireframe` | `material.wireframe` |
 | `r_lightintensity` | `light.intensity` multiplier | `light.intensity` multiplier |
 | `r_showtris` | `scene.forceWireframe` | `scene.forceWireframe` |
-| `r_shownormals` | N/A | `material.debugMode = 2` |
 | `r_bloom` | `DefaultRenderingPipeline.bloomWeight` multiplier | `DefaultRenderingPipeline.bloomWeight` multiplier |
 | `r_exposure` | `imageProcessing.exposure` multiplier | `imageProcessing.exposure` multiplier |
 | `r_contrast` | `imageProcessing.contrast` multiplier | `imageProcessing.contrast` multiplier |

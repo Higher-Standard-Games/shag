@@ -16,7 +16,6 @@
   - `r_contrast` - Contrast multiplier (0-3)
   - `r_lightintensity` - Global light intensity (0-4)
   - `r_showtris` - Force wireframe on entire scene (0/1)
-  - `r_shownormals` - Show normal debug colors (0/1, PBR only)
   - `r_list`, `r_reset`, `r_export`, `r_apply` utility commands
 - Values persist to localStorage and apply live to scene materials
 - See [docs/RENDER_VARS.md](docs/RENDER_VARS.md) for full documentation

@@ -5098,7 +5098,6 @@ export function registerEngineCommands(): void {
   // Batch 3 render variables (lighting + debug)
   registerRenderVar('r_lightintensity');
   registerRenderVar('r_showtris');
-  registerRenderVar('r_shownormals');
 
   // r_list - list all render variables
   registry.register('r_list', async () => {

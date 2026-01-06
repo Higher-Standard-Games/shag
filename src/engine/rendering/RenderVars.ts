@@ -149,14 +149,6 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     description: 'Force wireframe on entire scene (0/1)',
     category: 'debug',
   },
-  r_shownormals: {
-    value: 0,
-    defaultValue: 0,
-    min: 0,
-    max: 1,
-    description: 'Show normal direction debug colors (0/1)',
-    category: 'debug',
-  },
 };
 
 type RenderVarPostProcessBaseline = {
@@ -509,19 +501,6 @@ export class RenderVars {
     const showTris = (this.get('r_showtris') ?? 0) >= 0.5;
     this.scene.forceWireframe = showTris;
 
-    // Show normals debug mode (r_shownormals)
-    // This uses material debug mode to visualize normals as colors
-    const showNormals = (this.get('r_shownormals') ?? 0) >= 0.5;
-    for (const mat of this.scene.materials) {
-      if (mat instanceof StandardMaterial || mat instanceof PBRMaterial) {
-        // Use forceNormalForward to help visualize but mainly we toggle debug mode
-        (mat as any)._forceNormalForward = showNormals;
-        // For PBR materials, we can use debugMode
-        if (mat instanceof PBRMaterial) {
-          mat.debugMode = showNormals ? 2 : 0; // 2 = normals
-        }
-      }
-    }
   }
 
   private applyToMesh(
