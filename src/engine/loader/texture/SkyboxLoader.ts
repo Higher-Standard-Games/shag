@@ -198,17 +198,17 @@ export class SkyboxLoader {
   }
 
   /**
-   * Create a skybox from a single texture (for sky shaders without skyparms farbox)
-   * Uses the same texture on all 6 faces to create a simple sky dome effect
+   * Create a sky sphere from a single texture (for sky shaders without skyparms farbox)
+   * Uses a sphere with the texture wrapped around for seamless appearance
    * @param texturePath - Path to the sky texture (e.g., "textures/Factory/blx_wt3_sky_orange.tga")
-   * @param size - Skybox size (default 10000)
+   * @param size - Sky sphere diameter (default 10000)
    */
   async loadSkyboxFromTexture(texturePath: string, size: number = 10000): Promise<SkyboxLoadResult> {
     if (!this.scene) {
       return { success: false, error: "SkyboxLoader not initialized" };
     }
 
-    console.log(`[SkyboxLoader] Creating skybox from texture: ${texturePath}`);
+    console.log(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
     
@@ -236,45 +236,46 @@ export class SkyboxLoader {
 
     console.log(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
 
-    // Create a RawCubeTexture using the same texture for all 6 faces
-    const faces: Uint8Array[] = [];
-    for (let i = 0; i < 6; i++) {
-      faces.push(rgba.data);
-    }
-
-    const cubeTexture = new RawCubeTexture(
-      this.scene,
-      faces,
+    // Create a RawTexture from the RGBA data
+    const { RawTexture } = await import("@babylonjs/core/Materials/Textures/rawTexture");
+    const texture = RawTexture.CreateRGBATexture(
+      rgba.data,
       rgba.size,
-      Constants.TEXTUREFORMAT_RGBA,
-      Constants.TEXTURETYPE_UNSIGNED_INT,
+      rgba.size,
+      this.scene,
       false, // generateMipMaps
       false, // invertY
       Texture.TRILINEAR_SAMPLINGMODE
     );
-    cubeTexture.name = `skybox_textured_${actualPath.replace(/\//g, '_')}`;
+    texture.name = `sky_texture_${actualPath.replace(/\//g, '_')}`;
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
 
-    // Create skybox mesh
-    const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
-    skybox.infiniteDistance = true;
-    skybox.renderingGroupId = 0; // Render first
+    // Create sky sphere - use inverted sphere so texture shows on inside
+    const skySphere = MeshBuilder.CreateSphere("skybox", { 
+      diameter: size, 
+      segments: 32,
+      sideOrientation: Mesh.BACKSIDE // Render inside of sphere
+    }, this.scene);
+    skySphere.infiniteDistance = true;
+    skySphere.renderingGroupId = 0; // Render first
 
-    // Create skybox material
-    const skyMaterial = new StandardMaterial("skyboxMat", this.scene);
+    // Create sky material with emissive texture (unlit)
+    const skyMaterial = new StandardMaterial("skySphereMat", this.scene);
     skyMaterial.backFaceCulling = false;
-    skyMaterial.reflectionTexture = cubeTexture;
-    skyMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
     skyMaterial.disableLighting = true;
+    skyMaterial.emissiveTexture = texture;
+    skyMaterial.emissiveColor = new Color3(1, 1, 1);
     skyMaterial.diffuseColor = new Color3(0, 0, 0);
     skyMaterial.specularColor = new Color3(0, 0, 0);
 
-    skybox.material = skyMaterial;
+    skySphere.material = skyMaterial;
 
-    console.log(`[SkyboxLoader] Created textured skybox mesh`);
+    console.log(`[SkyboxLoader] Created sky sphere mesh`);
 
     return {
       success: true,
-      skybox,
+      skybox: skySphere,
       loadedFaces: [actualPath],
     };
   }
