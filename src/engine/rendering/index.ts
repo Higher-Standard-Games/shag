@@ -8,3 +8,6 @@ export type {
   TemplateData, 
   InstanceTransform 
 } from "./InstancedMeshManager";
+
+export { RenderVars } from "./RenderVars";
+export type { RenderVar, RenderVarName } from "./RenderVars";

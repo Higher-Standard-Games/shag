@@ -159,6 +159,21 @@ shader resolve <name>     # Show resolved material properties
 shader clear              # Clear shader registry
 ```
 
+### Render Variables (r_*)
+
+Q3/Warsow-style runtime renderer configuration. See [RENDER_VARS.md](RENDER_VARS.md) for full docs.
+
+```
+r_normalmap [value]   # Normal/bump map intensity (0-4, default: 1)
+r_glossmap [value]    # Specular/gloss intensity (0-4, default: 1)
+r_lightmap [value]    # Lightmap intensity (0-4, default: 1)
+r_ambient [value]     # Ambient light intensity (0-4, default: 1)
+r_list                # List all render variables
+r_reset               # Reset all to defaults
+r_export              # Export as config text
+r_apply               # Force apply to scene
+```
+
 ### UI Scaling Commands
 
 ```

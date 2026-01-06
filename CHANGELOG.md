@@ -2,6 +2,16 @@
 
 ## v0.8.10
 
+### Render Variables (r_*)
+- Added Q3/Warsow-style runtime renderer configuration:
+  - `r_normalmap` - Normal/bump map intensity (0-4)
+  - `r_glossmap` - Specular/gloss intensity (0-4)
+  - `r_lightmap` - Lightmap intensity (0-4)
+  - `r_ambient` - Ambient light intensity (0-4)
+  - `r_list`, `r_reset`, `r_export`, `r_apply` utility commands
+- Values persist to localStorage and apply live to scene materials
+- See [docs/RENDER_VARS.md](docs/RENDER_VARS.md) for full documentation
+
 ### Debug Console Enhancements
 - Added shader aim debugging helpers:
   - `shader info` (no args) prints info for the surface under the crosshair (material + bound textures)

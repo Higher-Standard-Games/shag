@@ -5034,4 +5034,102 @@ export function registerEngineCommands(): void {
     }
   });
 
+  // ============================================================================
+  // Render Variables (r_*) - Q3/Warsow-style configurable rendering settings
+  // ============================================================================
+
+  const registerRenderVar = (name: string) => {
+    registry.register(name, async (args) => {
+      const { RenderVars } = await import('../rendering/RenderVars');
+      const renderVars = RenderVars.getInstance();
+
+      // Ensure scene is set
+      const cameraSystem = await getCameraSystem();
+      const scene = cameraSystem.getCamera()?.getScene();
+      if (scene) {
+        renderVars.setScene(scene);
+      }
+
+      const varInfo = renderVars.getVar(name);
+      if (!varInfo) {
+        return `Unknown render variable: ${name}`;
+      }
+
+      // No args = print current value
+      if (args.length === 0) {
+        return `${name} = ${varInfo.value} (default: ${varInfo.defaultValue}, range: ${varInfo.min}-${varInfo.max})\n${varInfo.description}`;
+      }
+
+      // Parse value
+      const valueStr = args[0].toLowerCase();
+      
+      // Handle "default" or "reset"
+      if (valueStr === 'default' || valueStr === 'reset') {
+        renderVars.reset(name);
+        return `${name} reset to ${varInfo.defaultValue}`;
+      }
+
+      const value = parseFloat(valueStr);
+      if (isNaN(value)) {
+        return `Invalid value: ${args[0]}. Expected number or "reset".`;
+      }
+
+      renderVars.set(name, value);
+      return `${name} = ${renderVars.get(name)}`;
+    });
+  };
+
+  // Register core render variables
+  registerRenderVar('r_normalmap');
+  registerRenderVar('r_glossmap');
+  registerRenderVar('r_lightmap');
+  registerRenderVar('r_ambient');
+
+  // r_list - list all render variables
+  registry.register('r_list', async () => {
+    const { RenderVars } = await import('../rendering/RenderVars');
+    const renderVars = RenderVars.getInstance();
+    const vars = renderVars.getAll();
+
+    const lines = ['Render Variables:', ''];
+    for (const v of vars) {
+      const modified = v.value !== v.defaultValue ? ' *' : '';
+      lines.push(`  ${v.name} = ${v.value}${modified}`);
+    }
+    lines.push('', '* = modified from default');
+    lines.push('Use "<varname> reset" to restore default');
+    return lines.join('\n');
+  });
+
+  // r_reset - reset all render variables
+  registry.register('r_reset', async () => {
+    const { RenderVars } = await import('../rendering/RenderVars');
+    const renderVars = RenderVars.getInstance();
+    renderVars.resetAll();
+    return 'All render variables reset to defaults';
+  });
+
+  // r_export - export config
+  registry.register('r_export', async () => {
+    const { RenderVars } = await import('../rendering/RenderVars');
+    const renderVars = RenderVars.getInstance();
+    return renderVars.exportConfig();
+  });
+
+  // r_apply - force apply to scene
+  registry.register('r_apply', async () => {
+    const { RenderVars } = await import('../rendering/RenderVars');
+    const renderVars = RenderVars.getInstance();
+
+    const cameraSystem = await getCameraSystem();
+    const scene = cameraSystem.getCamera()?.getScene();
+    if (!scene) {
+      return 'No scene available';
+    }
+
+    renderVars.setScene(scene);
+    renderVars.applyToScene();
+    return 'Render variables applied to scene';
+  });
+
 }

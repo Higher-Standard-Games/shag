@@ -206,6 +206,46 @@
         { "name": "cluster", "description": "Show current cluster info" },
         { "name": "debug", "description": "Toggle debug visualization" }
       ]
+    },
+    {
+      "name": "r_normalmap",
+      "description": "Normal/bump map intensity multiplier (0-4, default: 1)",
+      "usage": "r_normalmap [value|reset]"
+    },
+    {
+      "name": "r_glossmap",
+      "description": "Specular/gloss map intensity multiplier (0-4, default: 1)",
+      "usage": "r_glossmap [value|reset]"
+    },
+    {
+      "name": "r_lightmap",
+      "description": "Lightmap intensity multiplier (0-4, default: 1)",
+      "usage": "r_lightmap [value|reset]"
+    },
+    {
+      "name": "r_ambient",
+      "description": "Ambient light intensity multiplier (0-4, default: 1)",
+      "usage": "r_ambient [value|reset]"
+    },
+    {
+      "name": "r_list",
+      "description": "List all render variables and their current values",
+      "usage": "r_list"
+    },
+    {
+      "name": "r_reset",
+      "description": "Reset all render variables to defaults",
+      "usage": "r_reset"
+    },
+    {
+      "name": "r_export",
+      "description": "Export render variables as config text",
+      "usage": "r_export"
+    },
+    {
+      "name": "r_apply",
+      "description": "Force apply render variables to current scene",
+      "usage": "r_apply"
     }
   ]
 }
