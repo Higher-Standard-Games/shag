@@ -36,6 +36,7 @@
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
     "jsdom": "^27.2.0",
+    "rollup-plugin-visualizer": "^6.0.5",
     "typedoc": "^0.28.15",
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
@@ -43,8 +44,6 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
-    "@babylonjs/core": "^8.42.0",
-    "@babylonjs/loaders": "^8.42.0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.0.0",

@@ -5,7 +5,7 @@
  * against the actual rendered BSP geometry.
  */
 
-import { Vector3, Scene, Ray, Mesh, AbstractMesh } from '@babylonjs/core';
+import { Vector3, Scene, Ray, Mesh, AbstractMesh } from 'babylonjs';
 import type { BspFile } from '../loader/bsp/BspLoader';
 import {
   CollisionBackend,

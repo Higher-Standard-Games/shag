@@ -7,7 +7,7 @@
  * - BabylonPhysicsBackend: Babylon.js mesh-based collision
  */
 
-import { Vector3, Scene } from '@babylonjs/core';
+import { Vector3, Scene } from 'babylonjs';
 import type { BspFile } from '../loader/bsp/BspLoader';
 
 /**
