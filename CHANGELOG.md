@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.13
+
+### Bug Fixes
+- **Camera System**: Fixed `camera height` command to use `CameraSystem.setHeight()` fallback
+- **Camera System**: Fixed switching to isometric controller now properly creates `ArcRotateCamera` when needed
+- **Render Variables**: Debug vars (`r_wireframe`, `r_showtris`) no longer persist to localStorage - they reset on reload
+- **Skybox Loading**: Fixed sky shaders without `skyparms` (like wdm7) now render properly
+  - Added textured sky sphere fallback for shaders with `surfaceparm sky` but no cubemap farbox
+  - Extracts stage textures from sky shader definition
+  - Creates inverted sphere at infinite distance with sky texture
+
+---
+
 ## v0.8.12
 
 ### Tree-Shaking Optimization (Mobile-Critical)
