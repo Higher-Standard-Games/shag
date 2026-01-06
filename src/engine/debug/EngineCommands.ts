@@ -19,7 +19,7 @@ import {
   BspMeshBuilder,
   type BspMeshBuildResult
 } from '../loader';
-import { Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder, VertexData } from 'babylonjs';
+import { AbstractMesh, Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder, Ray, VertexData } from 'babylonjs';
 
 // Camera controllers (used directly, not as singletons)
 import { IsometricController } from '../camera/controllers/IsometricController';
@@ -47,6 +47,10 @@ let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
 // Debug collision visualization meshes
 let _collisionVizMeshes: Mesh[] = [];
 let _clipBrushVizMeshes: Mesh[] = [];
+
+// Shader aim debug state
+let _shaderAimObserver: any = null;
+let _shaderAimLastMesh: AbstractMesh | null = null;
 
 async function getAudioManager() {
   if (!_audioManager) {
@@ -99,6 +103,119 @@ async function getMenuSystem() {
 // Helper for commands that require DOM
 function notAvailableInHeadless(): string {
   return '[Headless] This command requires a browser environment';
+}
+
+function getAimedPick(scene: Scene, camera: any) {
+  const ray = camera?.getForwardRay ? camera.getForwardRay(10000) : new Ray(camera.position, camera.getDirection(new Vector3(0, 0, 1)), 10000);
+  return scene.pickWithRay(
+    ray,
+    (m) => {
+      if (!m) return false;
+      if (m.isPickable === false) return false;
+      if ((m as any).metadata?.isLightGizmo) return false;
+      if (m.name?.startsWith('collision_')) return false;
+      if (m.name?.startsWith('lightGizmo_')) return false;
+      return true;
+    },
+    false
+  );
+}
+
+function formatBabylonTexture(tex: any): string {
+  if (!tex) return '<none>';
+  const name = (tex.name as string | undefined) ?? '';
+  const url = (tex.url as string | undefined) ?? '';
+  const label = name || url || '<unnamed>';
+  return `${label}`;
+}
+
+async function buildShaderDebugInfoFromMesh(mesh: AbstractMesh, textureNameOverride?: string): Promise<string> {
+  const { Q3ShaderRegistry } = await import('../loader');
+  const shaderRegistry = Q3ShaderRegistry.getInstance();
+
+  const textureName = textureNameOverride || (mesh as any)?.metadata?.textureName;
+  const mat: any = (mesh as any).material;
+
+  const lines: string[] = [];
+  lines.push('=== Shader Aim Info ===');
+  lines.push(`Mesh: ${mesh.name}`);
+  lines.push(`Texture name: ${textureName ?? '<unknown>'}`);
+  lines.push(`Material: ${mat?.name ?? '<none>'} (${mat?.getClassName?.() ?? mat?.constructor?.name ?? 'unknown'})`);
+
+  if (mat) {
+    const diffuse = mat.diffuseTexture ?? mat.albedoTexture;
+    const bump = mat.bumpTexture;
+    const spec = mat.specularTexture ?? mat.reflectivityTexture;
+    lines.push('--- Bound textures (Babylon material) ---');
+    lines.push(`diffuse/albedo: ${formatBabylonTexture(diffuse)}`);
+    lines.push(`normal/bump:   ${formatBabylonTexture(bump)}`);
+    lines.push(`gloss/spec:    ${formatBabylonTexture(spec)}`);
+  }
+
+  if (!textureName) {
+    return lines.join('\n');
+  }
+
+  // Shader definition (if any)
+  const shader = shaderRegistry.getShader(textureName);
+  if (shader) {
+    lines.push('--- Q3 shader definition ---');
+    lines.push(`Shader: ${shader.name}`);
+    lines.push(`Cull: ${shader.cull}`);
+    lines.push(`Surface parms: ${Array.from(shader.surfaceParms).join(', ') || 'none'}`);
+    lines.push(`Stages: ${shader.stages.length}`);
+  } else {
+    lines.push(`--- Q3 shader definition ---`);
+    lines.push(`No shader defined for: ${textureName}`);
+  }
+
+  // Resolved material props
+  const props = shaderRegistry.resolveMaterialProps(textureName);
+  lines.push('--- Resolved material props ---');
+  lines.push(`alphaMode: ${props.alphaMode}`);
+  lines.push(`backFaceCulling: ${props.backFaceCulling}`);
+  lines.push(`depthWrite: ${props.depthWrite}`);
+  lines.push(`isTransparent: ${props.isTransparent}`);
+  lines.push(`useLightmap: ${props.useLightmap}`);
+  lines.push(`polygonOffset: ${props.polygonOffset}`);
+  if (props.alphaCutoff !== undefined) lines.push(`alphaCutoff: ${props.alphaCutoff}`);
+  if (props.diffuseTexture) lines.push(`diffuseTexture (resolved): ${props.diffuseTexture}`);
+
+  // Companion map availability (PK3)
+  try {
+    const { PK3Index } = await import('../loader/pk3/PK3Index');
+    const { PK3Loader } = await import('../loader/pk3/PK3Loader');
+    const pk3Index = PK3Index.getInstance();
+    const pk3Loader = PK3Loader.getInstance();
+
+    const exts = ['.ktx', '.tga', '.png', '.jpg'];
+    let base = textureName;
+    base = base.replace(/\.[^/.]+$/, '');
+    if (!base.startsWith('textures/')) base = `textures/${base}`;
+
+    const checkCompanion = (suffix: string) => {
+      for (const ext of exts) {
+        const candidate = `${base}${suffix}${ext}`;
+        const indexedPk3 = pk3Index.findFile(candidate);
+        if (indexedPk3) {
+          const loaded = pk3Loader.hasFile(candidate);
+          return { candidate, pk3: indexedPk3, loaded };
+        }
+      }
+      return null;
+    };
+
+    const norm = checkCompanion('_norm') || checkCompanion('_normal') || checkCompanion('_bump');
+    const gloss = checkCompanion('_gloss') || checkCompanion('_spec');
+
+    lines.push('--- Companion maps (PK3 index) ---');
+    lines.push(`normal: ${norm ? `${norm.candidate} (PK3: ${norm.pk3}, loaded: ${norm.loaded ? 'YES' : 'NO'})` : '<not indexed>'}`);
+    lines.push(`gloss:  ${gloss ? `${gloss.candidate} (PK3: ${gloss.pk3}, loaded: ${gloss.loaded ? 'YES' : 'NO'})` : '<not indexed>'}`);
+  } catch {
+    // ignore
+  }
+
+  return lines.join('\n');
 }
 
 export function registerEngineCommands(): void {
@@ -4143,13 +4260,20 @@ export function registerEngineCommands(): void {
       }
 
       case 'info': {
+        const cameraSystem = await getCameraSystem();
+        const scene = cameraSystem.getCamera()?.getScene();
+        const camera = cameraSystem.getCamera();
+
         const textureName = args[1];
         if (!textureName) {
-          return 'Usage: shader info <texture_path>';
+          if (!scene || !camera) return 'No scene/camera available';
+          const pick = getAimedPick(scene, camera);
+          const mesh = pick?.hit ? (pick.pickedMesh as AbstractMesh | null) : null;
+          if (!mesh) return 'No mesh hit under crosshair';
+          return await buildShaderDebugInfoFromMesh(mesh);
         }
 
         shaderRegistry.debugShader(textureName);
-
         const shader = shaderRegistry.getShader(textureName);
         if (!shader) {
           return `No shader defined for: ${textureName}`;
@@ -4173,6 +4297,69 @@ export function registerEngineCommands(): void {
         });
 
         return lines.join('\n');
+      }
+
+      case 'aim': {
+        const cameraSystem = await getCameraSystem();
+        const scene = cameraSystem.getCamera()?.getScene();
+        const camera = cameraSystem.getCamera();
+        if (!scene || !camera) return 'No scene/camera available';
+
+        const value = args[1]?.toLowerCase();
+        if (value === undefined) {
+          return `shader aim = ${(window as any)._shaderAimEnabled ? '1' : '0'}`;
+        }
+
+        const enable = value === '1' || value === 'true' || value === 'on';
+        (window as any)._shaderAimEnabled = enable;
+
+        if (!enable) {
+          if (_shaderAimObserver) {
+            scene.onBeforeRenderObservable.remove(_shaderAimObserver);
+            _shaderAimObserver = null;
+          }
+          if (_shaderAimLastMesh) {
+            try {
+              _shaderAimLastMesh.disableEdgesRendering();
+            } catch {
+              // ignore
+            }
+            _shaderAimLastMesh = null;
+          }
+          return 'Shader aim highlight: OFF';
+        }
+
+        if (!_shaderAimObserver) {
+          _shaderAimObserver = scene.onBeforeRenderObservable.add(() => {
+            try {
+              if (!(window as any)._shaderAimEnabled) return;
+              const pick = getAimedPick(scene, camera);
+              const mesh = pick?.hit ? (pick.pickedMesh as AbstractMesh | null) : null;
+              if (mesh === _shaderAimLastMesh) return;
+              if (_shaderAimLastMesh) {
+                try {
+                  _shaderAimLastMesh.disableEdgesRendering();
+                } catch {
+                  // ignore
+                }
+              }
+              _shaderAimLastMesh = mesh;
+              if (mesh) {
+                try {
+                  mesh.enableEdgesRendering();
+                  (mesh as any).edgesWidth = 6;
+                  (mesh as any).edgesColor = new Color4(1, 1, 1, 1);
+                } catch {
+                  // ignore
+                }
+              }
+            } catch {
+              // ignore
+            }
+          });
+        }
+
+        return 'Shader aim highlight: ON';
       }
 
       case 'resolve': {
@@ -4436,10 +4623,11 @@ export function registerEngineCommands(): void {
           '  shader load         - Load shaders from PK3',
           '  shader count        - Show loaded shader count',
           '  shader list [filter] - List shader names',
-          '  shader info <path>  - Show shader definition',
+          '  shader info [path]  - Show shader definition (or aimed surface when no path)',
           '  shader resolve <path> - Show resolved material props',
           '  shader pattern <path> - Analyze shader pattern (glow_overlay, etc.)',
           '  shader deps <path>  - Debug shader/texture dependencies',
+          '  shader aim <0|1>    - Toggle aimed-surface highlight (edges)',
           '  shader glow <n>     - Set glow intensity (default 1.0)',
           '  shader lightmap <n> - Set lightmap intensity (default 2.0)',
           '  shader clear        - Clear shader registry',
