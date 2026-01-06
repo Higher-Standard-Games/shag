@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.11
+
+### Shader Improvements
+- Added `animClampMap` directive parsing for animated textures with clamping
+- Implemented custom `FilterBlendShaderMaterial` for Q3 `blendFunc filter` (multiply blend) decals
+  - Computes alpha from inverse luminance (white = transparent, colored = visible)
+  - Darkens colors to simulate Q3's multiply effect where graffiti tints the wall
+  - Configurable parameters: `alphaThreshold`, `alphaPower`, `colorDarken`, `alphaMultiplier`
+- Fixed z-fighting for decal surfaces with proper `zOffset`
+- Improved compatibility with Warsow/Q3 decal rendering
+
+---
+
 ## v0.8.10
 
 ### Render Variables (r_*)

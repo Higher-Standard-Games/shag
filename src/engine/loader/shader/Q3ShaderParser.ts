@@ -419,6 +419,26 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         break;
 
+      case 'animclampmap':
+        // animClampMap <frequency> <frame1> <frame2> ... (same as animMap but with clamping)
+        if (tokens[pos + 1]) {
+          const freq = parseFloat(tokens[pos + 1]);
+          const frames: string[] = [];
+          pos += 2;
+          while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+            frames.push(tokens[pos]);
+            pos++;
+          }
+          stage.animMap = { frequency: freq, frames };
+          stage.clampMap = true; // Enable clamping for animated textures
+          if (frames.length > 0) {
+            stage.map = frames[0]; // Use first frame as default
+          }
+        } else {
+          pos++;
+        }
+        break;
+
       case 'blendfunc':
         stage.blendFunc = parseBlendFunc(tokens, pos + 1);
         pos += 2;
@@ -515,7 +535,7 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
  */
 function isStageDirective(token: string): boolean {
   const directives = [
-    'map', 'clampmap', 'animmap', 'material', 'blendfunc', 'alphafunc', 'rgbgen',
+    'map', 'clampmap', 'animmap', 'animclampmap', 'material', 'blendfunc', 'alphafunc', 'rgbgen',
     'alphagen', 'tcmod', 'tcgen', 'depthwrite', 'depthfunc', 'detail',
   ];
   return directives.includes(token.toLowerCase());
