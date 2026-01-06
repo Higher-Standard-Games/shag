@@ -43,6 +43,8 @@ r_reset             # Reset all to defaults
 | `r_exposure` | 1.0 | 0-3 | Exposure multiplier |
 | `r_contrast` | 1.0 | 0-3 | Contrast multiplier |
 
+> **Note:** Post-processing variables (`r_bloom`, `r_exposure`, `r_contrast`) only work on pure Babylon.js scenes. They do not affect BSP maps loaded via `scene empty` + `bsp render` (which use a separate scene without post-processing pipeline).
+
 ### Utility Commands
 
 | Command | Description |
