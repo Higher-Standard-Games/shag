@@ -228,6 +228,21 @@
       "usage": "r_ambient [value|reset]"
     },
     {
+      "name": "r_emissive",
+      "description": "Emissive/glow intensity multiplier (0-4, default: 1)",
+      "usage": "r_emissive [value|reset]"
+    },
+    {
+      "name": "r_anisotropy",
+      "description": "Anisotropic filtering level (1-16, default: 8)",
+      "usage": "r_anisotropy [value|reset]"
+    },
+    {
+      "name": "r_wireframe",
+      "description": "Wireframe mode toggle (0/1, default: 0)",
+      "usage": "r_wireframe [0|1|reset]"
+    },
+    {
       "name": "r_list",
       "description": "List all render variables and their current values",
       "usage": "r_list"

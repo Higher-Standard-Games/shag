@@ -21,6 +21,19 @@ r_reset             # Reset all to defaults
 | `r_glossmap` | 1.0 | 0-4 | Specular/gloss map intensity multiplier |
 | `r_lightmap` | 1.0 | 0-4 | Lightmap intensity multiplier |
 | `r_ambient` | 1.0 | 0-4 | Ambient light intensity multiplier |
+| `r_emissive` | 1.0 | 0-4 | Emissive/glow intensity multiplier |
+
+### Texture Quality
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `r_anisotropy` | 8 | 1-16 | Anisotropic filtering level |
+
+### Debug / Visualization
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `r_wireframe` | 0 | 0-1 | Wireframe mode toggle |
 
 ### Utility Commands
 
@@ -67,7 +80,7 @@ The following variables are documented for future implementation:
 ### Material Intensities
 | Variable | Description |
 |----------|-------------|
-| `r_emissive` | Emissive/glow intensity multiplier |
+| `r_showlightmaps` | Show only lightmaps (no diffuse) |
 
 ### Lighting
 | Variable | Description |
@@ -89,15 +102,12 @@ The following variables are documented for future implementation:
 | Variable | Description |
 |----------|-------------|
 | `r_picmip` | Texture mipmap bias (classic Q3 style) |
-| `r_anisotropy` | Anisotropic filtering level (1-16) |
 
 ### Debug / Visualization
 | Variable | Description |
 |----------|-------------|
-| `r_wireframe` | Wireframe mode toggle |
 | `r_showtris` | Show triangle edges |
 | `r_shownormals` | Visualize normal vectors |
-| `r_showlightmaps` | Show only lightmaps (no diffuse) |
 
 ---
 
@@ -121,6 +131,9 @@ The following variables are documented for future implementation:
 | `r_glossmap` | `specularPower` multiplier | `reflectivityTexture.level` |
 | `r_lightmap` | `lightmapTexture.level` | `lightmapTexture.level` |
 | `r_ambient` | `scene.ambientColor` multiplier | `scene.ambientColor` multiplier |
+| `r_emissive` | `emissiveColor` multiplier | `emissiveColor` multiplier |
+| `r_anisotropy` | `*.anisotropicFilteringLevel` | `*.anisotropicFilteringLevel` |
+| `r_wireframe` | `material.wireframe` | `material.wireframe` |
 
 ### Adding New Variables
 

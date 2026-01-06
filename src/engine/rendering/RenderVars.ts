@@ -27,8 +27,10 @@ export type RenderVarName =
   | 'r_glossmap'
   | 'r_lightmap'
   | 'r_ambient'
-  // Future vars (documented but not yet implemented)
   | 'r_emissive'
+  | 'r_anisotropy'
+  | 'r_wireframe'
+  // Future vars (documented but not yet implemented)
   | 'r_lightintensity'
   | 'r_shadows'
   | 'r_gamma'
@@ -37,8 +39,6 @@ export type RenderVarName =
   | 'r_exposure'
   | 'r_bloom'
   | 'r_picmip'
-  | 'r_anisotropy'
-  | 'r_wireframe'
   | 'r_showtris'
   | 'r_shownormals'
   | 'r_showlightmaps';
@@ -80,6 +80,30 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     max: 4.0,
     description: 'Ambient light intensity multiplier',
     category: 'lighting',
+  },
+  r_emissive: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4.0,
+    description: 'Emissive/glow intensity multiplier',
+    category: 'material',
+  },
+  r_anisotropy: {
+    value: 8,
+    defaultValue: 8,
+    min: 1,
+    max: 16,
+    description: 'Anisotropic filtering level (1-16)',
+    category: 'texture',
+  },
+  r_wireframe: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Wireframe mode toggle (0/1)',
+    category: 'debug',
   },
 };
 
@@ -145,6 +169,11 @@ export class RenderVars {
     const varDef = this.vars.get(name);
     if (!varDef) {
       return false;
+    }
+
+    // Integer-like vars
+    if (name === 'r_anisotropy' || name === 'r_wireframe') {
+      value = Math.round(value);
     }
 
     // Clamp to valid range
@@ -303,10 +332,13 @@ export class RenderVars {
     const glossIntensity = this.get('r_glossmap') ?? 1.0;
     const lightmapIntensity = this.get('r_lightmap') ?? 1.0;
     const ambientIntensity = this.get('r_ambient') ?? 1.0;
+    const emissiveIntensity = this.get('r_emissive') ?? 1.0;
+    const anisotropy = this.get('r_anisotropy') ?? 8;
+    const wireframe = (this.get('r_wireframe') ?? 0) >= 0.5;
 
     // Update all meshes
     for (const mesh of this.scene.meshes) {
-      this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity);
+      this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity, emissiveIntensity, anisotropy, wireframe);
     }
 
     // Update ambient color
@@ -329,12 +361,17 @@ export class RenderVars {
     mesh: AbstractMesh,
     normalIntensity: number,
     glossIntensity: number,
-    lightmapIntensity: number
+    lightmapIntensity: number,
+    emissiveIntensity: number,
+    anisotropy: number,
+    wireframe: boolean
   ): void {
     const mat = mesh.material;
     if (!mat) return;
 
     if (mat instanceof StandardMaterial) {
+      (mat as any).wireframe = wireframe;
+
       // Normal map intensity
       if (mat.bumpTexture) {
         mat.bumpTexture.level = normalIntensity;
@@ -352,7 +389,32 @@ export class RenderVars {
       if (mat.lightmapTexture) {
         mat.lightmapTexture.level = lightmapIntensity;
       }
+
+      if ((mat as any)._originalEmissiveColor === undefined && mat.emissiveColor) {
+        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+      }
+      const baseEmissive = (mat as any)._originalEmissiveColor;
+      if (baseEmissive) {
+        mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+        mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+        mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+      }
+
+      const setAniso = (tex: any) => {
+        if (tex && typeof tex === 'object') {
+          (tex as any).anisotropicFilteringLevel = anisotropy;
+        }
+      };
+      setAniso((mat as any).diffuseTexture);
+      setAniso((mat as any).albedoTexture);
+      setAniso((mat as any).bumpTexture);
+      setAniso((mat as any).specularTexture);
+      setAniso((mat as any).reflectivityTexture);
+      setAniso((mat as any).lightmapTexture);
+      setAniso((mat as any).emissiveTexture);
     } else if (mat instanceof PBRMaterial) {
+      (mat as any).wireframe = wireframe;
+
       // PBR normal map
       if (mat.bumpTexture) {
         mat.bumpTexture.level = normalIntensity;
@@ -367,6 +429,27 @@ export class RenderVars {
       if (mat.lightmapTexture) {
         mat.lightmapTexture.level = lightmapIntensity;
       }
+
+      if ((mat as any)._originalEmissiveColor === undefined && mat.emissiveColor) {
+        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+      }
+      const baseEmissive = (mat as any)._originalEmissiveColor;
+      if (baseEmissive) {
+        mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+        mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+        mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+      }
+
+      const setAniso = (tex: any) => {
+        if (tex && typeof tex === 'object') {
+          (tex as any).anisotropicFilteringLevel = anisotropy;
+        }
+      };
+      setAniso((mat as any).albedoTexture);
+      setAniso((mat as any).bumpTexture);
+      setAniso((mat as any).reflectivityTexture);
+      setAniso((mat as any).lightmapTexture);
+      setAniso((mat as any).emissiveTexture);
     }
   }
 
