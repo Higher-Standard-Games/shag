@@ -1402,11 +1402,16 @@ export function registerEngineCommands(): void {
       case 'height': {
         const height = parseFloat(args[1]);
         if (isNaN(height)) {
-          const current = getCameraHeight?.() || 'unknown';
+          const current = getCameraHeight?.() || cameraSystem.getHeight?.() || 'unknown';
           return `Current height: ${current}\nUsage: camera height <number>`;
         }
+        // Try game-specific callback first, then fall back to CameraSystem
         if (setCameraHeight) {
           setCameraHeight(height);
+          return `Camera height set to: ${height}`;
+        }
+        if (cameraSystem.setHeight) {
+          cameraSystem.setHeight(height);
           return `Camera height set to: ${height}`;
         }
         return 'Camera system not available';
