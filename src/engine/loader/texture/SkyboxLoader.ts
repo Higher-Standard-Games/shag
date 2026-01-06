@@ -258,23 +258,24 @@ export class SkyboxLoader {
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
 
-    // Create sky sphere - use inverted sphere so texture shows on inside
+    // Create sky sphere - flip inside-out with negative scale
     const skySphere = MeshBuilder.CreateSphere("skybox", { 
       diameter: size, 
-      segments: 32,
-      sideOrientation: Mesh.BACKSIDE // Render inside of sphere
+      segments: 32
     }, this.scene);
+    skySphere.scaling.x = -1; // Flip to render inside
     skySphere.infiniteDistance = true;
     skySphere.renderingGroupId = 0; // Render first
 
-    // Create sky material with emissive texture (unlit)
+    // Create sky material - use diffuseTexture with lighting disabled
     const skyMaterial = new StandardMaterial("skySphereMat", this.scene);
     skyMaterial.backFaceCulling = false;
     skyMaterial.disableLighting = true;
-    skyMaterial.emissiveTexture = texture;
-    skyMaterial.emissiveColor = new Color3(1, 1, 1);
-    skyMaterial.diffuseColor = new Color3(0, 0, 0);
+    skyMaterial.diffuseTexture = texture;
+    skyMaterial.diffuseTexture.hasAlpha = false;
+    skyMaterial.emissiveColor = new Color3(1, 1, 1); // Full brightness
     skyMaterial.specularColor = new Color3(0, 0, 0);
+    skyMaterial.ambientColor = new Color3(1, 1, 1);
 
     skySphere.material = skyMaterial;
 
