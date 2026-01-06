@@ -154,18 +154,47 @@ export class CameraSystem {
       this.activeController.detach();
     }
 
-    // For controllers that need ArcRotateCamera, restore original if it exists
+    // For controllers that need ArcRotateCamera
     let cameraToUse = this.camera;
     const needsArcRotate = ["isometric", "sidescroll", "follow"].includes(type);
-    if (needsArcRotate && this.originalCamera && this.originalCamera !== this.scene.activeCamera) {
-      // Dispose the temporary camera created by FPS controller
-      if (this.scene.activeCamera && this.scene.activeCamera !== this.originalCamera) {
-        this.scene.activeCamera.dispose();
+    
+    if (needsArcRotate) {
+      // Check if we have an ArcRotateCamera to use
+      if (this.originalCamera instanceof ArcRotateCamera) {
+        // Restore original ArcRotateCamera
+        if (this.scene.activeCamera && this.scene.activeCamera !== this.originalCamera) {
+          this.scene.activeCamera.dispose();
+        }
+        this.scene.activeCamera = this.originalCamera;
+        cameraToUse = this.originalCamera;
+        this.camera = this.originalCamera;
+        console.log("[CameraSystem] Restored original ArcRotateCamera");
+      } else if (!(this.camera instanceof ArcRotateCamera)) {
+        // Create a new ArcRotateCamera since we don't have one
+        const currentPos = this.camera.position.clone();
+        const target = currentPos.add(this.camera.getDirection(Vector3.Forward()).scale(100));
+        
+        const arcCamera = new ArcRotateCamera(
+          "isometric_camera",
+          -Math.PI / 4,  // alpha
+          Math.PI / 4,   // beta (45 degrees from top)
+          500,           // radius
+          target,
+          this.scene
+        );
+        arcCamera.inputs.clear();
+        arcCamera.minZ = 1;
+        arcCamera.maxZ = 10000;
+        
+        // Dispose old camera and set new one
+        if (this.scene.activeCamera) {
+          this.scene.activeCamera.dispose();
+        }
+        this.scene.activeCamera = arcCamera;
+        this.camera = arcCamera;
+        cameraToUse = arcCamera;
+        console.log("[CameraSystem] Created new ArcRotateCamera for isometric controller");
       }
-      this.scene.activeCamera = this.originalCamera;
-      cameraToUse = this.originalCamera;
-      this.camera = this.originalCamera;
-      console.log("[CameraSystem] Restored original ArcRotateCamera");
     }
 
     // Attach new controller
