@@ -8,7 +8,10 @@
  * as config blocks.
  */
 
-import { Scene, AbstractMesh, StandardMaterial, PBRMaterial } from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { PostProcessingManager } from '../effects/PostProcessingManager';
 
 // ==================== Types ====================

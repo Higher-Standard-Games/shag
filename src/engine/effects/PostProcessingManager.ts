@@ -11,13 +11,11 @@
  * Designed to be extensible for future weather effects.
  */
 
-import {
-  Scene,
-  Camera,
-  DefaultRenderingPipeline,
-  Color4,
-  SSAO2RenderingPipeline,
-} from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import { EventBus } from "../core/EventBus";
 
 export interface PostProcessingSettings {

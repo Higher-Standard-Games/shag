@@ -21,7 +21,7 @@
  *   ServiceLocator.getInstance().dispose();
  */
 
-import type { Scene } from "babylonjs";
+import type { Scene } from "@babylonjs/core/scene";
 
 /**
  * Service lifecycle interface

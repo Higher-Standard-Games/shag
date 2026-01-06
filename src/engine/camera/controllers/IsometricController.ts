@@ -8,16 +8,13 @@
  * done separately in game code, not in this controller.
  */
 
-import {
-  ArcRotateCamera,
-  Camera,
-  Matrix,
-  Observer,
-  PointerEventTypes,
-  PointerInfo,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Camera } from "@babylonjs/core/Cameras/camera";
+import { Matrix } from "@babylonjs/core/Maths/math.vector";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import { PointerEventTypes, PointerInfo } from "@babylonjs/core/Events/pointerEvents";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { CameraSystem } from "../CameraSystem";
 

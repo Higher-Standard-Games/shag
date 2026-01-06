@@ -8,16 +8,15 @@
  * - Optional flickering effect
  */
 
-import {
-  ClusteredLightContainer,
-  Color3,
-  Mesh,
-  MeshBuilder,
-  PointLight,
-  Scene,
-  StandardMaterial,
-  Vector3,
-} from "babylonjs";
+import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
+import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { GameClock, type TimePeriod } from "../../game/GameClock";
 
 // ==================== Types ====================

@@ -11,7 +11,9 @@
  * 4. We then show only meshes belonging to visible clusters
  */
 
-import { Vector3, Mesh, AbstractMesh } from 'babylonjs';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import type { BspFile } from './BspLoader';
 import { findLeafForPoint, isClusterVisible } from './BspLoader';
 

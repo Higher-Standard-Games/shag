@@ -7,7 +7,9 @@
  * @see https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
  */
 
-import { Engine, InternalTexture, Constants } from "babylonjs";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
+import { Constants } from "@babylonjs/core/Engines/constants";
 
 // KTX1 file header structure
 const KTX_IDENTIFIER = [0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];

@@ -8,7 +8,12 @@
  * - Create PBR materials from texture sets
  */
 
-import { Engine, Texture, RawTexture, Scene, PBRMaterial, Color3 } from "babylonjs";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Scene } from "@babylonjs/core/scene";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PK3Loader } from "./PK3Loader";
 import { parseKTX1, createTextureFromKTX1, isFormatSupported } from "../texture/KTX1Loader";
 

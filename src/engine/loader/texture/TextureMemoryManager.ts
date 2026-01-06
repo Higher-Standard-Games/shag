@@ -20,7 +20,8 @@
  *   }
  */
 
-import { BaseTexture, Scene } from "babylonjs";
+import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import { Scene } from "@babylonjs/core/scene";
 
 export interface TextureMemoryConfig {
   /** Memory budget in MB (default: 256 for desktop, 128 for mobile) */

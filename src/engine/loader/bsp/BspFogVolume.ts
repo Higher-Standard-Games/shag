@@ -5,16 +5,14 @@
  * The Effects lump links fog shaders to brush geometry.
  */
 
-import {
-  Color3,
-  Mesh,
-  Plane,
-  Scene,
-  ShaderMaterial,
-  Vector3,
-  VertexData,
-  Effect,
-} from "babylonjs";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Plane } from "@babylonjs/core/Maths/math.plane";
+import { Scene } from "@babylonjs/core/scene";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import { Effect } from "@babylonjs/core/Materials/effect";
 
 import type { BspFile, BspPlane } from "./BspLoader";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";

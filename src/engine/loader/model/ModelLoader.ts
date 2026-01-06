@@ -1,14 +1,12 @@
-import {
-  Mesh,
-  PBRMaterial,
-  Scene,
-  SceneLoader,
-  type ShadowGenerator,
-  StandardMaterial,
-  TransformNode,
-  Vector3,
-} from "babylonjs";
-import "babylonjs-loaders";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { Scene } from "@babylonjs/core/scene";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import "@babylonjs/loaders/glTF";
 import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
 
 /**

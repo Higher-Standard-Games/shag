@@ -5,7 +5,10 @@
  * (isometric, FPS, side-scroll, follow) to be swapped at runtime.
  */
 
-import { Camera, Scene, TransformNode, Vector3 } from "babylonjs";
+import { Camera } from "@babylonjs/core/Cameras/camera";
+import { Scene } from "@babylonjs/core/scene";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 export interface CameraControllerConfig {
   /** Smoothing factor for camera movement (0-1, higher = faster) */

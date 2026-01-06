@@ -9,7 +9,7 @@
  */
 
 import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
-import { Vector3 } from 'babylonjs';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import {
   PK3Loader,
   parseKTX1,
@@ -19,7 +19,17 @@ import {
   BspMeshBuilder,
   type BspMeshBuildResult
 } from '../loader';
-import { AbstractMesh, Mesh, StandardMaterial, Color3, Scene, Engine, FreeCamera, HemisphericLight, Color4, MeshBuilder, Ray, VertexData } from 'babylonjs';
+import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { Scene } from '@babylonjs/core/scene';
+import { Engine } from '@babylonjs/core/Engines/engine';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Ray } from '@babylonjs/core/Culling/ray';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 
 // Camera controllers (used directly, not as singletons)
 import { IsometricController } from '../camera/controllers/IsometricController';
@@ -4580,8 +4590,8 @@ export function registerEngineCommands(): void {
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
-        const { ShaderMaterial } = await import('babylonjs');
         const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
 
         let count = 0;
         for (const mat of scene.materials) {
@@ -4607,8 +4617,8 @@ export function registerEngineCommands(): void {
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
-        const { ShaderMaterial } = await import('babylonjs');
         const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
 
         let count = 0;
         for (const mat of scene.materials) {
@@ -4634,8 +4644,8 @@ export function registerEngineCommands(): void {
         const scene = cameraSystem.getCamera()?.getScene();
         if (!scene) return 'No scene available';
 
-        const { ShaderMaterial } = await import('babylonjs');
         const { GlowOverlayShaderMaterial } = await import('../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
 
         const useAlpha = mode === 'alpha';
         let count = 0;

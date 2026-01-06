@@ -11,7 +11,9 @@
  * - Skybox textures
  */
 
-import { Scene, MeshBuilder, Vector3 } from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { PK3Index } from '../pk3/PK3Index';
 import { PK3Loader } from '../pk3/PK3Loader';
 import { BspLoader, type BspFile } from '../bsp/BspLoader';

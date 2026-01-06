@@ -9,7 +9,7 @@
 import { PK3Loader } from "../pk3/PK3Loader";
 import { BspLoader, type BspFile } from "./BspLoader";
 import { BspMeshBuilder } from "./BspMeshBuilder";
-import type { Scene } from "babylonjs";
+import type { Scene } from "@babylonjs/core/scene";
 
 /**
  * Test loading a BSP file from a PK3

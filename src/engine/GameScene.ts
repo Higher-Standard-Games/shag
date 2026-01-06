@@ -1,10 +1,10 @@
-import {
-  ArcRotateCamera,
-  Color4,
-  Engine,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+// Side-effect: registers collision coordinator with the engine
+import "@babylonjs/core/Collisions/collisionCoordinator";
 import { AchievementSystem } from "../game/AchievementSystem";
 import { BuildingSystem } from "../game/BuildingSystem";
 import { EquipmentSystem } from "../game/EquipmentSystem";

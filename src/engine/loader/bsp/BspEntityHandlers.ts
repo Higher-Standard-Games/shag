@@ -5,7 +5,10 @@
  * These handlers build brush model meshes and wire up animations.
  */
 
-import { Vector3, Animation, Scene, Mesh } from 'babylonjs';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Animation } from '@babylonjs/core/Animations/animation';
+import { Scene } from '@babylonjs/core/scene';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { EntityHandlerRegistry, type EntityData, type EntityHandlerResult } from '../../core/EntityHandlerRegistry';
 import { buildBrushModel } from './BspMeshBuilder';
 import type { BspFile } from './BspLoader';

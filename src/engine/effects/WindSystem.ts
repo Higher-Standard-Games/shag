@@ -9,7 +9,9 @@
  * Wind can vary over time with gusts and direction changes.
  */
 
-import { Scene, Vector3, Observer } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 
 export interface WindState {
   direction: Vector3;      // Normalized wind direction (XZ plane)

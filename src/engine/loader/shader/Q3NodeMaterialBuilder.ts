@@ -5,21 +5,19 @@
  * texture blending, UV animation support, and lightmap integration.
  */
 
-import {
-  Scene,
-  NodeMaterial,
-  Texture,
-  InputBlock,
-  TextureBlock,
-  MultiplyBlock,
-  AddBlock,
-  LerpBlock,
-  FragmentOutputBlock,
-  VertexOutputBlock,
-  TransformBlock,
-  VectorMergerBlock,
-  NodeMaterialSystemValues,
-} from 'babylonjs';
+import { Scene } from '@babylonjs/core/scene';
+import { NodeMaterial } from '@babylonjs/core/Materials/Node/nodeMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { InputBlock } from '@babylonjs/core/Materials/Node/Blocks/Input/inputBlock';
+import { TextureBlock } from '@babylonjs/core/Materials/Node/Blocks/Dual/textureBlock';
+import { MultiplyBlock } from '@babylonjs/core/Materials/Node/Blocks/multiplyBlock';
+import { AddBlock } from '@babylonjs/core/Materials/Node/Blocks/addBlock';
+import { LerpBlock } from '@babylonjs/core/Materials/Node/Blocks/lerpBlock';
+import { FragmentOutputBlock } from '@babylonjs/core/Materials/Node/Blocks/Fragment/fragmentOutputBlock';
+import { VertexOutputBlock } from '@babylonjs/core/Materials/Node/Blocks/Vertex/vertexOutputBlock';
+import { TransformBlock } from '@babylonjs/core/Materials/Node/Blocks/transformBlock';
+import { VectorMergerBlock } from '@babylonjs/core/Materials/Node/Blocks/vectorMergerBlock';
+import { NodeMaterialSystemValues } from '@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues';
 import type { Q3ShaderStage } from './Q3ShaderTypes';
 
 // ============================================================================

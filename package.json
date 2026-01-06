@@ -44,14 +44,14 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
+    "@babylonjs/core": "^8.44.1",
+    "@babylonjs/loaders": "^8.44.1",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/splash-screen": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
-    "babylonjs": "^8.42.0",
-    "babylonjs-loaders": "^8.42.0",
     "jszip": "^3.10.1",
     "pngjs": "^7.0.0"
   }

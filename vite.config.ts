@@ -7,13 +7,7 @@ export default defineConfig({
     host: true, // Allow external access for Capacitor live reload
   },
   assetsInclude: ['**/*.pk3'], // Treat PK3 files as static assets
-  resolve: {
-    alias: {
-      // Redirect @babylonjs/core to babylonjs to avoid bundling both
-      '@babylonjs/core': 'babylonjs',
-      '@babylonjs/loaders': 'babylonjs-loaders',
-    },
-  },
+  // ES6 @babylonjs packages used directly - no alias needed for tree-shaking
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -28,8 +22,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Babylon.js - core 3D engine
-          if (id.includes('node_modules/babylonjs')) {
+          // Babylon.js - core 3D engine (ES6 modules for tree-shaking)
+          if (id.includes('node_modules/@babylonjs')) {
             return 'babylon';
           }
           // JSZip - PK3 archive handling

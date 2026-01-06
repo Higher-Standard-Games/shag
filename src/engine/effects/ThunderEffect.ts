@@ -9,7 +9,8 @@
  * Designed to be triggered on top of rain for storm weather.
  */
 
-import { Scene, Color3 } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PostProcessingManager } from "./PostProcessingManager";
 import { UIStyles } from "../ui/UIStyles";
 

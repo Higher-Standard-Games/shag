@@ -10,13 +10,11 @@
  * - No gravity, no collision, flies through everything
  */
 
-import {
-  Camera,
-  FreeCamera,
-  Observer,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { Camera } from "@babylonjs/core/Cameras/camera";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import { Scene } from "@babylonjs/core/scene";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 

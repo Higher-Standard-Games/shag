@@ -8,7 +8,8 @@
  * Can be combined with other weather effects.
  */
 
-import { Scene, Color3 } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 
 export type FogMode = 'none' | 'linear' | 'exp' | 'exp2';
 

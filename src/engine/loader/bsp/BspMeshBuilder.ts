@@ -8,20 +8,18 @@
  * - Billboard faces (type 4) - flares/sprites
  */
 
-import {
-  Mesh,
-  Scene,
-  StandardMaterial,
-  ShaderMaterial,
-  Color3,
-  VertexData,
-  VertexBuffer,
-  Vector3,
-  RawTexture,
-  Texture,
-  Constants,
-  Engine,
-} from "babylonjs";
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Scene } from '@babylonjs/core/scene';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Constants } from '@babylonjs/core/Engines/constants';
+import { Engine } from '@babylonjs/core/Engines/engine';
 import type {
   BspFile,
   BspFace,

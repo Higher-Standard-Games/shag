@@ -5,7 +5,9 @@
  * Games can register custom presets for their specific needs.
  */
 
-import { Scene, DynamicTexture, Texture } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { ValueNoise } from "../math/Noise";
 
 export type NoiseType = 'value' | 'perlin';

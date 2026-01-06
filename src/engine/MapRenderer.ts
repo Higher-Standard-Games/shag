@@ -1,12 +1,11 @@
-import {
-  ClusteredLightContainer,
-  Color3,
-  PointLight,
-  Scene,
-  StandardMaterial,
-  type TransformNode,
-  Vector3,
-} from "babylonjs";
+import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
+import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { Scene } from "@babylonjs/core/scene";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BrushGenerator } from "./loader";
 import { type Entity } from "./loader";
 import { ModelLoader } from "./loader";

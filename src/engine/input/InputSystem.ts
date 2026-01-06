@@ -21,7 +21,7 @@
  * ```
  */
 
-import { Scene } from "babylonjs";
+import { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
 import {
   ActionDefinition,

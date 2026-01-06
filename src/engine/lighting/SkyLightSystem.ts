@@ -9,15 +9,13 @@
  * - Scene clear color (sky) changes
  */
 
-import {
-  Color3,
-  Color4,
-  DirectionalLight,
-  HemisphericLight,
-  Scene,
-  ShadowGenerator,
-  Vector3,
-} from "babylonjs";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Scene } from "@babylonjs/core/scene";
+import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { GameClock, type TimeOfDay } from "../../game/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 
@@ -432,7 +430,7 @@ export class SkyLightSystem {
   /**
    * Add a mesh as a shadow caster
    */
-  public addShadowCaster(mesh: import("babylonjs").AbstractMesh, includeDescendants: boolean = true): void {
+  public addShadowCaster(mesh: AbstractMesh, includeDescendants: boolean = true): void {
     if (this.shadowGenerator) {
       this.shadowGenerator.addShadowCaster(mesh, includeDescendants);
     }
@@ -441,7 +439,7 @@ export class SkyLightSystem {
   /**
    * Enable shadow receiving on a mesh
    */
-  public enableShadowReceiver(mesh: import("babylonjs").AbstractMesh): void {
+  public enableShadowReceiver(mesh: AbstractMesh): void {
     mesh.receiveShadows = true;
   }
 

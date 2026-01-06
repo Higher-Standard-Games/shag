@@ -19,14 +19,10 @@
  *   manager.removeInstance(instance1);
  */
 
-import {
-  InstancedMesh,
-  Matrix,
-  Mesh,
-  Quaternion,
-  Scene,
-  Vector3,
-} from "babylonjs";
+import { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Scene } from "@babylonjs/core/scene";
 
 export interface InstanceData {
   /** Unique ID for this instance */

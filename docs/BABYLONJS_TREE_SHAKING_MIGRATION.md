@@ -41,7 +41,7 @@ Migrate from `babylonjs` (UMD bundle) to `@babylonjs/core` (ES6 modules) to enab
 import { Scene, Vector3, Mesh } from 'babylonjs';
 ```
 
-### Files Using Babylon.js (17 files)
+### Files Using Babylon.js (18 files)
 
 | File | Imports |
 |------|---------|
@@ -118,7 +118,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 | `AbstractMesh` | `@babylonjs/core/Meshes/abstractMesh` |
 | `MeshBuilder` | `@babylonjs/core/Meshes/meshBuilder` |
 | `VertexData` | `@babylonjs/core/Meshes/mesh.vertexData` |
-| `VertexBuffer` | `@babylonjs/core/Buffers/buffer` |
+| `VertexBuffer` | `@babylonjs/core/Buffers/buffer` | ⚠️ Also exports `Buffer` |
 
 ### Materials
 
@@ -177,7 +177,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 | Class | ES6 Import Path |
 |-------|-----------------|
 | `Ray` | `@babylonjs/core/Culling/ray` |
-| `Observer` | `@babylonjs/core/Misc/observable` |
+| `Observer` | `@babylonjs/core/Misc/observable` | ⚠️ Usually import `Observable` instead |
 | `Constants` | `@babylonjs/core/Engines/constants` |
 | `NodeMaterialSystemValues` | `@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues` |
 
@@ -247,26 +247,33 @@ Migrate imports file-by-file in this order:
 
 ### Issue 1: Side-Effect Imports
 
-Some Babylon.js features require side-effect imports to register themselves.
+Some Babylon.js features require side-effect imports to register themselves with the engine.
 
 ```typescript
 // May need explicit side-effect imports for:
-import '@babylonjs/core/Materials/standardMaterial';
-import '@babylonjs/core/Meshes/meshBuilder';
+import '@babylonjs/core/Materials/standardMaterial';  // Material plugin registration
+import '@babylonjs/core/Meshes/meshBuilder';          // MeshBuilder methods (CreateBox, etc.)
+import '@babylonjs/core/Loading/loadingScreen';       // Loading screen functionality
+import '@babylonjs/core/Animations/animatable';       // Animation system
 ```
 
-**Solution:** Add side-effect imports as needed when features don't work.
+**Solution:** Add side-effect imports as needed when features don't work. Create a central `src/engine/babylon-imports.ts` file to collect all required side-effects in one place for easier management.
 
 ### Issue 2: NodeMaterial Blocks
 
 NodeMaterial blocks need explicit registration.
 
 ```typescript
-// Blocks must be imported to be available
+// ⚠️ AVOID: Importing all blocks defeats tree-shaking
 import '@babylonjs/core/Materials/Node/Blocks';
+
+// ✅ PREFERRED: Import individual blocks as needed
+import { InputBlock } from '@babylonjs/core/Materials/Node/Blocks/Input/inputBlock';
+import { TextureBlock } from '@babylonjs/core/Materials/Node/Blocks/Dual/textureBlock';
+import { MultiplyBlock } from '@babylonjs/core/Materials/Node/Blocks/multiplyBlock';
 ```
 
-**Solution:** Import the blocks index or individual blocks explicitly.
+**Solution:** Import only the specific blocks used in `Q3NodeMaterialBuilder.ts`. The individual paths are listed in the ES6 Module Paths table above.
 
 ### Issue 3: Effect.ShadersStore
 
@@ -285,6 +292,29 @@ If GLTF/GLB loading is needed, the loaders package must be imported.
 import '@babylonjs/loaders/glTF';
 ```
 
+### Issue 5: Constants Enum
+
+The `Constants` enum contains WebGL constants. Ensure they're accessible:
+
+```typescript
+import { Constants } from '@babylonjs/core/Engines/constants';
+// Used for: Constants.TEXTURE_NEAREST, Constants.ALPHA_COMBINE, etc.
+```
+
+**Solution:** Verify all Constants usages compile correctly after migration.
+
+---
+
+## Pre-Migration Verification
+
+Before starting Phase 3 (import migration), verify the package swap works:
+
+1. **After Phase 2**, run `npm run build` to ensure no immediate breakage
+2. **Check that Vite resolves** `@babylonjs/core` correctly (no alias conflicts)
+3. **Run the app** briefly to catch any obvious runtime issues
+
+This catches configuration problems before investing time in import rewrites.
+
 ---
 
 ## Rollback Plan
@@ -299,23 +329,23 @@ If migration causes issues:
 
 ## Success Criteria
 
-- [ ] Build succeeds with no errors
-- [ ] Bundle size reduced by at least 40%
-- [ ] All existing features work correctly
-- [ ] Mobile build loads faster
-- [ ] No runtime errors in console
+- [x] Build succeeds with no errors
+- [x] Bundle size reduced by at least 40% (achieved ~58% on Babylon chunk)
+- [ ] All existing features work correctly (runtime testing needed)
+- [ ] Mobile build loads faster (mobile testing needed)
+- [ ] No runtime errors in console (runtime testing needed)
 
 ---
 
-## Timeline Estimate
+## Migration Results (Actual)
 
-| Phase | Effort | Risk |
-|-------|--------|------|
-| Phase 1: Preparation | 1 hour | Low |
-| Phase 2: Package Migration | 30 min | Medium |
-| Phase 3: Import Migration | 3-4 hours | Medium |
-| Phase 4: Verification | 1-2 hours | Low |
-| **Total** | **6-8 hours** | Medium |
+| Metric | Before | After | Savings |
+|--------|--------|-------|---------|
+| Babylon chunk | ~8 MB | 3.36 MB | **58%** |
+| Total JS bundle | ~9 MB | 4.24 MB | **53%** |
+| Gzipped Babylon | ~1.8 MB | 754 KB | **58%** |
+
+**Build completed successfully on 2026-01-06**
 
 ---
 
