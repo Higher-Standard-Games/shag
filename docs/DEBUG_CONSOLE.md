@@ -168,6 +168,14 @@ r_normalmap [value]   # Normal/bump map intensity (0-4, default: 1)
 r_glossmap [value]    # Specular/gloss intensity (0-4, default: 1)
 r_lightmap [value]    # Lightmap intensity (0-4, default: 1)
 r_ambient [value]     # Ambient light intensity (0-4, default: 1)
+r_emissive [value]    # Emissive/glow intensity (0-4, default: 1)
+r_anisotropy [value]  # Anisotropic filtering level (1-16, default: 8)
+r_wireframe [0|1]     # Wireframe mode toggle (0/1, default: 0)
+r_bloom [value]       # Bloom intensity multiplier (0-3, default: 1)
+r_exposure [value]    # Exposure multiplier (0-3, default: 1)
+r_contrast [value]    # Contrast multiplier (0-3, default: 1)
+r_lightintensity [value] # Global light intensity (0-4, default: 1)
+r_showtris [0|1]      # Force wireframe on entire scene (0/1, default: 0)
 r_list                # List all render variables
 r_reset               # Reset all to defaults
 r_export              # Export as config text

@@ -21,6 +21,36 @@ r_reset             # Reset all to defaults
 | `r_glossmap` | 1.0 | 0-4 | Specular/gloss map intensity multiplier |
 | `r_lightmap` | 1.0 | 0-4 | Lightmap intensity multiplier |
 | `r_ambient` | 1.0 | 0-4 | Ambient light intensity multiplier |
+| `r_emissive` | 1.0 | 0-4 | Emissive/glow intensity multiplier |
+
+### Texture Quality
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `r_anisotropy` | 8 | 1-16 | Anisotropic filtering level |
+
+### Lighting
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-----------|
+| `r_lightintensity` | 1.0 | 0-4 | Global light intensity multiplier |
+
+### Debug / Visualization
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-----------|
+| `r_wireframe` | 0 | 0-1 | Wireframe mode toggle (per-material) |
+| `r_showtris` | 0 | 0-1 | Force wireframe on entire scene |
+
+### Display / Post-processing
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `r_bloom` | 1.0 | 0-3 | Bloom intensity multiplier |
+| `r_exposure` | 1.0 | 0-3 | Exposure multiplier |
+| `r_contrast` | 1.0 | 0-3 | Contrast multiplier |
+
+> **Note:** Post-processing variables (`r_bloom`, `r_exposure`, `r_contrast`) only work on pure Babylon.js scenes. They do not affect BSP maps loaded via `scene empty` + `bsp render` (which use a separate scene without post-processing pipeline).
 
 ### Utility Commands
 
@@ -67,12 +97,11 @@ The following variables are documented for future implementation:
 ### Material Intensities
 | Variable | Description |
 |----------|-------------|
-| `r_emissive` | Emissive/glow intensity multiplier |
+| `r_showlightmaps` | Show only lightmaps (no diffuse) |
 
 ### Lighting
 | Variable | Description |
 |----------|-------------|
-| `r_lightintensity` | Global light intensity multiplier |
 | `r_shadows` | Shadow intensity (0-1) or toggle |
 | `r_shadowquality` | Shadow map resolution |
 
@@ -80,23 +109,16 @@ The following variables are documented for future implementation:
 | Variable | Description |
 |----------|-------------|
 | `r_gamma` | Display gamma correction |
-| `r_contrast` | Contrast adjustment |
 | `r_saturation` | Color saturation |
-| `r_exposure` | HDR exposure (if using tone mapping) |
-| `r_bloom` | Bloom intensity |
 
 ### Texture Quality
 | Variable | Description |
 |----------|-------------|
 | `r_picmip` | Texture mipmap bias (classic Q3 style) |
-| `r_anisotropy` | Anisotropic filtering level (1-16) |
 
 ### Debug / Visualization
 | Variable | Description |
 |----------|-------------|
-| `r_wireframe` | Wireframe mode toggle |
-| `r_showtris` | Show triangle edges |
-| `r_shownormals` | Visualize normal vectors |
 | `r_showlightmaps` | Show only lightmaps (no diffuse) |
 
 ---
@@ -121,6 +143,14 @@ The following variables are documented for future implementation:
 | `r_glossmap` | `specularPower` multiplier | `reflectivityTexture.level` |
 | `r_lightmap` | `lightmapTexture.level` | `lightmapTexture.level` |
 | `r_ambient` | `scene.ambientColor` multiplier | `scene.ambientColor` multiplier |
+| `r_emissive` | `emissiveColor` multiplier | `emissiveColor` multiplier |
+| `r_anisotropy` | `*.anisotropicFilteringLevel` | `*.anisotropicFilteringLevel` |
+| `r_wireframe` | `material.wireframe` | `material.wireframe` |
+| `r_lightintensity` | `light.intensity` multiplier | `light.intensity` multiplier |
+| `r_showtris` | `scene.forceWireframe` | `scene.forceWireframe` |
+| `r_bloom` | `DefaultRenderingPipeline.bloomWeight` multiplier | `DefaultRenderingPipeline.bloomWeight` multiplier |
+| `r_exposure` | `imageProcessing.exposure` multiplier | `imageProcessing.exposure` multiplier |
+| `r_contrast` | `imageProcessing.contrast` multiplier | `imageProcessing.contrast` multiplier |
 
 ### Adding New Variables
 

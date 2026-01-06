@@ -8,6 +8,14 @@
   - `r_glossmap` - Specular/gloss intensity (0-4)
   - `r_lightmap` - Lightmap intensity (0-4)
   - `r_ambient` - Ambient light intensity (0-4)
+  - `r_emissive` - Emissive/glow intensity (0-4)
+  - `r_anisotropy` - Texture anisotropic filtering (1-16)
+  - `r_wireframe` - Wireframe mode toggle (0/1)
+  - `r_bloom` - Bloom intensity multiplier (0-3)
+  - `r_exposure` - Exposure multiplier (0-3)
+  - `r_contrast` - Contrast multiplier (0-3)
+  - `r_lightintensity` - Global light intensity (0-4)
+  - `r_showtris` - Force wireframe on entire scene (0/1)
   - `r_list`, `r_reset`, `r_export`, `r_apply` utility commands
 - Values persist to localStorage and apply live to scene materials
 - See [docs/RENDER_VARS.md](docs/RENDER_VARS.md) for full documentation

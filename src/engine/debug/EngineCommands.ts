@@ -5085,6 +5085,20 @@ export function registerEngineCommands(): void {
   registerRenderVar('r_lightmap');
   registerRenderVar('r_ambient');
 
+  // Batch 1 render variables
+  registerRenderVar('r_emissive');
+  registerRenderVar('r_anisotropy');
+  registerRenderVar('r_wireframe');
+
+  // Batch 2 render variables (post-processing)
+  registerRenderVar('r_bloom');
+  registerRenderVar('r_exposure');
+  registerRenderVar('r_contrast');
+
+  // Batch 3 render variables (lighting + debug)
+  registerRenderVar('r_lightintensity');
+  registerRenderVar('r_showtris');
+
   // r_list - list all render variables
   registry.register('r_list', async () => {
     const { RenderVars } = await import('../rendering/RenderVars');

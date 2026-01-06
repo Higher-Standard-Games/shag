@@ -9,6 +9,7 @@
  */
 
 import { Scene, AbstractMesh, StandardMaterial, PBRMaterial } from 'babylonjs';
+import { PostProcessingManager } from '../effects/PostProcessingManager';
 
 // ==================== Types ====================
 
@@ -27,18 +28,18 @@ export type RenderVarName =
   | 'r_glossmap'
   | 'r_lightmap'
   | 'r_ambient'
-  // Future vars (documented but not yet implemented)
   | 'r_emissive'
+  | 'r_anisotropy'
+  | 'r_wireframe'
+  | 'r_bloom'
+  | 'r_exposure'
+  | 'r_contrast'
+  // Future vars (documented but not yet implemented)
   | 'r_lightintensity'
   | 'r_shadows'
   | 'r_gamma'
-  | 'r_contrast'
   | 'r_saturation'
-  | 'r_exposure'
-  | 'r_bloom'
   | 'r_picmip'
-  | 'r_anisotropy'
-  | 'r_wireframe'
   | 'r_showtris'
   | 'r_shownormals'
   | 'r_showlightmaps';
@@ -81,6 +82,79 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     description: 'Ambient light intensity multiplier',
     category: 'lighting',
   },
+  r_emissive: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4.0,
+    description: 'Emissive/glow intensity multiplier',
+    category: 'material',
+  },
+  r_anisotropy: {
+    value: 8,
+    defaultValue: 8,
+    min: 1,
+    max: 16,
+    description: 'Anisotropic filtering level (1-16)',
+    category: 'texture',
+  },
+  r_wireframe: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Wireframe mode toggle (0/1)',
+    category: 'debug',
+  },
+  // Post-processing (multipliers)
+  r_bloom: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Bloom intensity multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+  r_exposure: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Exposure multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+  r_contrast: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 3.0,
+    description: 'Contrast multiplier (applies to post-processing pipeline)',
+    category: 'display',
+  },
+  // Lighting
+  r_lightintensity: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 4.0,
+    description: 'Global light intensity multiplier',
+    category: 'lighting',
+  },
+  // Debug visualization
+  r_showtris: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Force wireframe on entire scene (0/1)',
+    category: 'debug',
+  },
+};
+
+type RenderVarPostProcessBaseline = {
+  bloomWeight: number;
+  exposure: number;
+  contrast: number;
 };
 
 // ==================== RenderVars Singleton ====================
@@ -112,6 +186,70 @@ export class RenderVars {
   private initializeDefaults(): void {
     for (const [name, def] of Object.entries(DEFAULT_VARS)) {
       this.vars.set(name, { name, ...def });
+    }
+  }
+
+  private applyToPostProcessing(bloomMul: number, exposureMul: number, contrastMul: number): void {
+    try {
+      const pp = PostProcessingManager.getInstance();
+      if (!pp.isInitialized()) {
+        return;
+      }
+
+      if (this.scene?.activeCamera) {
+        pp.setCamera(this.scene.activeCamera);
+      }
+
+      const s = pp.getSettings();
+      const anyOverride = bloomMul !== 1.0 || exposureMul !== 1.0 || contrastMul !== 1.0;
+      const baseKey = '_renderVarPostProcessBaseline';
+
+      const currentBase = (pp as any)[baseKey] as RenderVarPostProcessBaseline | undefined;
+      if (!anyOverride) {
+        // Restore baseline when returning to defaults
+        if (currentBase) {
+          pp.updateSettings({
+            bloom: {
+              ...s.bloom,
+              weight: currentBase.bloomWeight,
+            },
+            colorGrading: {
+              ...s.colorGrading,
+              exposure: currentBase.exposure,
+              contrast: currentBase.contrast,
+            },
+          });
+          delete (pp as any)[baseKey];
+        }
+        return;
+      }
+
+      // Capture baseline once when first overriding
+      const base: RenderVarPostProcessBaseline = currentBase ?? {
+        bloomWeight: s.bloom.weight,
+        exposure: s.colorGrading.exposure,
+        contrast: s.colorGrading.contrast,
+      };
+      (pp as any)[baseKey] = base;
+
+      const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+      const nextBloomWeight = clamp01(base.bloomWeight * bloomMul);
+      const nextExposure = base.exposure * exposureMul;
+      const nextContrast = base.contrast * contrastMul;
+
+      pp.updateSettings({
+        bloom: {
+          ...s.bloom,
+          weight: nextBloomWeight,
+        },
+        colorGrading: {
+          ...s.colorGrading,
+          exposure: nextExposure,
+          contrast: nextContrast,
+        },
+      });
+    } catch {
+      // Ignore if post-processing is unavailable
     }
   }
 
@@ -147,8 +285,19 @@ export class RenderVars {
       return false;
     }
 
+    // Integer-like vars
+    if (name === 'r_anisotropy' || name === 'r_wireframe') {
+      value = Math.round(value);
+    }
+
     // Clamp to valid range
     const clamped = Math.max(varDef.min, Math.min(varDef.max, value));
+
+    // No-op: avoid re-applying to the entire scene when nothing changed
+    if (varDef.value === clamped) {
+      return true;
+    }
+
     varDef.value = clamped;
 
     // Save and apply
@@ -297,16 +446,25 @@ export class RenderVars {
    * Apply current vars to all scene materials
    */
   public applyToScene(): void {
-    if (!this.scene) return;
-
     const normalIntensity = this.get('r_normalmap') ?? 1.0;
     const glossIntensity = this.get('r_glossmap') ?? 1.0;
     const lightmapIntensity = this.get('r_lightmap') ?? 1.0;
     const ambientIntensity = this.get('r_ambient') ?? 1.0;
+    const emissiveIntensity = this.get('r_emissive') ?? 1.0;
+    const anisotropy = this.get('r_anisotropy') ?? 8;
+    const wireframe = (this.get('r_wireframe') ?? 0) >= 0.5;
+
+    // Post-processing
+    const bloomMul = this.get('r_bloom') ?? 1.0;
+    const exposureMul = this.get('r_exposure') ?? 1.0;
+    const contrastMul = this.get('r_contrast') ?? 1.0;
+    this.applyToPostProcessing(bloomMul, exposureMul, contrastMul);
+
+    if (!this.scene) return;
 
     // Update all meshes
     for (const mesh of this.scene.meshes) {
-      this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity);
+      this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity, emissiveIntensity, anisotropy, wireframe);
     }
 
     // Update ambient color
@@ -323,21 +481,60 @@ export class RenderVars {
         this.scene.ambientColor.b = baseAmbient.b * ambientIntensity;
       }
     }
+
+    // Light intensity multiplier
+    const lightIntensity = this.get('r_lightintensity') ?? 1.0;
+    for (const light of this.scene.lights) {
+      const hasOriginal = (light as any)._originalIntensity !== undefined;
+      if (lightIntensity !== 1.0) {
+        if (!hasOriginal) {
+          (light as any)._originalIntensity = light.intensity;
+        }
+        light.intensity = (light as any)._originalIntensity * lightIntensity;
+      } else if (hasOriginal) {
+        light.intensity = (light as any)._originalIntensity;
+        delete (light as any)._originalIntensity;
+      }
+    }
+
+    // Force wireframe (r_showtris) - scene-level toggle
+    const showTris = (this.get('r_showtris') ?? 0) >= 0.5;
+    this.scene.forceWireframe = showTris;
+
   }
 
   private applyToMesh(
     mesh: AbstractMesh,
     normalIntensity: number,
     glossIntensity: number,
-    lightmapIntensity: number
+    lightmapIntensity: number,
+    emissiveIntensity: number,
+    anisotropy: number,
+    wireframe: boolean
   ): void {
     const mat = mesh.material;
     if (!mat) return;
 
     if (mat instanceof StandardMaterial) {
+      (mat as any).wireframe = wireframe;
+
+      const shouldApplyNormal = normalIntensity !== 1.0;
+      const shouldApplyGloss = glossIntensity !== 1.0;
+      const shouldApplyLightmap = lightmapIntensity !== 1.0;
+      const shouldApplyEmissive = emissiveIntensity !== 1.0;
+
       // Normal map intensity
       if (mat.bumpTexture) {
-        mat.bumpTexture.level = normalIntensity;
+        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        if (shouldApplyNormal) {
+          if (!hasOriginal) {
+            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+          }
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+        } else if (hasOriginal) {
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
+          delete (mat as any)._originalBumpLevel;
+        }
       }
 
       // Specular intensity (gloss)
@@ -346,27 +543,141 @@ export class RenderVars {
         (mat as any)._originalSpecularPower = mat.specularPower;
       }
       const baseSpecPower = (mat as any)._originalSpecularPower ?? 64;
-      mat.specularPower = baseSpecPower * glossIntensity;
+      if (shouldApplyGloss) {
+        mat.specularPower = baseSpecPower * glossIntensity;
+      } else if ((mat as any)._originalSpecularPower !== undefined) {
+        mat.specularPower = (mat as any)._originalSpecularPower;
+        delete (mat as any)._originalSpecularPower;
+      }
 
       // Lightmap intensity (via emissive or lightmapTexture level)
       if (mat.lightmapTexture) {
-        mat.lightmapTexture.level = lightmapIntensity;
+        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        if (shouldApplyLightmap) {
+          if (!hasOriginal) {
+            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+          }
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+        } else if (hasOriginal) {
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
+          delete (mat as any)._originalLightmapLevel;
+        }
       }
+
+      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      if (shouldApplyEmissive) {
+        if (!hasOriginalEmissive && mat.emissiveColor) {
+          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+        }
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive) {
+          mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+          mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+          mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+        }
+      } else if (hasOriginalEmissive) {
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive && mat.emissiveColor) {
+          mat.emissiveColor.r = baseEmissive.r;
+          mat.emissiveColor.g = baseEmissive.g;
+          mat.emissiveColor.b = baseEmissive.b;
+        }
+        delete (mat as any)._originalEmissiveColor;
+      }
+
+      const setAniso = (tex: any) => {
+        if (tex && typeof tex === 'object') {
+          (tex as any).anisotropicFilteringLevel = anisotropy;
+        }
+      };
+      setAniso((mat as any).diffuseTexture);
+      setAniso((mat as any).albedoTexture);
+      setAniso((mat as any).bumpTexture);
+      setAniso((mat as any).specularTexture);
+      setAniso((mat as any).reflectivityTexture);
+      setAniso((mat as any).lightmapTexture);
+      setAniso((mat as any).emissiveTexture);
     } else if (mat instanceof PBRMaterial) {
+      (mat as any).wireframe = wireframe;
+
+      const shouldApplyNormal = normalIntensity !== 1.0;
+      const shouldApplyGloss = glossIntensity !== 1.0;
+      const shouldApplyLightmap = lightmapIntensity !== 1.0;
+      const shouldApplyEmissive = emissiveIntensity !== 1.0;
+
       // PBR normal map
       if (mat.bumpTexture) {
-        mat.bumpTexture.level = normalIntensity;
+        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        if (shouldApplyNormal) {
+          if (!hasOriginal) {
+            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+          }
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+        } else if (hasOriginal) {
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
+          delete (mat as any)._originalBumpLevel;
+        }
       }
 
       // PBR roughness/metallic (inverse of gloss)
       if (mat.reflectivityTexture) {
-        mat.reflectivityTexture.level = glossIntensity;
+        const hasOriginal = (mat as any)._originalReflectivityLevel !== undefined;
+        if (shouldApplyGloss) {
+          if (!hasOriginal) {
+            (mat as any)._originalReflectivityLevel = mat.reflectivityTexture.level;
+          }
+          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel * glossIntensity;
+        } else if (hasOriginal) {
+          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel;
+          delete (mat as any)._originalReflectivityLevel;
+        }
       }
 
       // Lightmap
       if (mat.lightmapTexture) {
-        mat.lightmapTexture.level = lightmapIntensity;
+        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        if (shouldApplyLightmap) {
+          if (!hasOriginal) {
+            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+          }
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+        } else if (hasOriginal) {
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
+          delete (mat as any)._originalLightmapLevel;
+        }
       }
+
+      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      if (shouldApplyEmissive) {
+        if (!hasOriginalEmissive && mat.emissiveColor) {
+          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+        }
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive) {
+          mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+          mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+          mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+        }
+      } else if (hasOriginalEmissive) {
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive && mat.emissiveColor) {
+          mat.emissiveColor.r = baseEmissive.r;
+          mat.emissiveColor.g = baseEmissive.g;
+          mat.emissiveColor.b = baseEmissive.b;
+        }
+        delete (mat as any)._originalEmissiveColor;
+      }
+
+      const setAniso = (tex: any) => {
+        if (tex && typeof tex === 'object') {
+          (tex as any).anisotropicFilteringLevel = anisotropy;
+        }
+      };
+      setAniso((mat as any).albedoTexture);
+      setAniso((mat as any).bumpTexture);
+      setAniso((mat as any).reflectivityTexture);
+      setAniso((mat as any).lightmapTexture);
+      setAniso((mat as any).emissiveTexture);
     }
   }
 

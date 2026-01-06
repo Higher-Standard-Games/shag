@@ -1,7 +1,7 @@
 {
-  "name": "isometric-game-prototype",
+  "name": "shag-engine",
   "private": true,
-  "version": "0.8.6",
+  "version": "0.8.10",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
