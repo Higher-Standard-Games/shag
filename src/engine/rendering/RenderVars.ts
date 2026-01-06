@@ -178,6 +178,12 @@ export class RenderVars {
 
     // Clamp to valid range
     const clamped = Math.max(varDef.min, Math.min(varDef.max, value));
+
+    // No-op: avoid re-applying to the entire scene when nothing changed
+    if (varDef.value === clamped) {
+      return true;
+    }
+
     varDef.value = clamped;
 
     // Save and apply
@@ -372,9 +378,23 @@ export class RenderVars {
     if (mat instanceof StandardMaterial) {
       (mat as any).wireframe = wireframe;
 
+      const shouldApplyNormal = normalIntensity !== 1.0;
+      const shouldApplyGloss = glossIntensity !== 1.0;
+      const shouldApplyLightmap = lightmapIntensity !== 1.0;
+      const shouldApplyEmissive = emissiveIntensity !== 1.0;
+
       // Normal map intensity
       if (mat.bumpTexture) {
-        mat.bumpTexture.level = normalIntensity;
+        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        if (shouldApplyNormal) {
+          if (!hasOriginal) {
+            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+          }
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+        } else if (hasOriginal) {
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
+          delete (mat as any)._originalBumpLevel;
+        }
       }
 
       // Specular intensity (gloss)
@@ -383,21 +403,46 @@ export class RenderVars {
         (mat as any)._originalSpecularPower = mat.specularPower;
       }
       const baseSpecPower = (mat as any)._originalSpecularPower ?? 64;
-      mat.specularPower = baseSpecPower * glossIntensity;
+      if (shouldApplyGloss) {
+        mat.specularPower = baseSpecPower * glossIntensity;
+      } else if ((mat as any)._originalSpecularPower !== undefined) {
+        mat.specularPower = (mat as any)._originalSpecularPower;
+        delete (mat as any)._originalSpecularPower;
+      }
 
       // Lightmap intensity (via emissive or lightmapTexture level)
       if (mat.lightmapTexture) {
-        mat.lightmapTexture.level = lightmapIntensity;
+        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        if (shouldApplyLightmap) {
+          if (!hasOriginal) {
+            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+          }
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+        } else if (hasOriginal) {
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
+          delete (mat as any)._originalLightmapLevel;
+        }
       }
 
-      if ((mat as any)._originalEmissiveColor === undefined && mat.emissiveColor) {
-        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
-      }
-      const baseEmissive = (mat as any)._originalEmissiveColor;
-      if (baseEmissive) {
-        mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
-        mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
-        mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      if (shouldApplyEmissive) {
+        if (!hasOriginalEmissive && mat.emissiveColor) {
+          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+        }
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive) {
+          mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+          mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+          mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+        }
+      } else if (hasOriginalEmissive) {
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive && mat.emissiveColor) {
+          mat.emissiveColor.r = baseEmissive.r;
+          mat.emissiveColor.g = baseEmissive.g;
+          mat.emissiveColor.b = baseEmissive.b;
+        }
+        delete (mat as any)._originalEmissiveColor;
       }
 
       const setAniso = (tex: any) => {
@@ -415,29 +460,72 @@ export class RenderVars {
     } else if (mat instanceof PBRMaterial) {
       (mat as any).wireframe = wireframe;
 
+      const shouldApplyNormal = normalIntensity !== 1.0;
+      const shouldApplyGloss = glossIntensity !== 1.0;
+      const shouldApplyLightmap = lightmapIntensity !== 1.0;
+      const shouldApplyEmissive = emissiveIntensity !== 1.0;
+
       // PBR normal map
       if (mat.bumpTexture) {
-        mat.bumpTexture.level = normalIntensity;
+        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        if (shouldApplyNormal) {
+          if (!hasOriginal) {
+            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+          }
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+        } else if (hasOriginal) {
+          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
+          delete (mat as any)._originalBumpLevel;
+        }
       }
 
       // PBR roughness/metallic (inverse of gloss)
       if (mat.reflectivityTexture) {
-        mat.reflectivityTexture.level = glossIntensity;
+        const hasOriginal = (mat as any)._originalReflectivityLevel !== undefined;
+        if (shouldApplyGloss) {
+          if (!hasOriginal) {
+            (mat as any)._originalReflectivityLevel = mat.reflectivityTexture.level;
+          }
+          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel * glossIntensity;
+        } else if (hasOriginal) {
+          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel;
+          delete (mat as any)._originalReflectivityLevel;
+        }
       }
 
       // Lightmap
       if (mat.lightmapTexture) {
-        mat.lightmapTexture.level = lightmapIntensity;
+        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        if (shouldApplyLightmap) {
+          if (!hasOriginal) {
+            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+          }
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+        } else if (hasOriginal) {
+          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
+          delete (mat as any)._originalLightmapLevel;
+        }
       }
 
-      if ((mat as any)._originalEmissiveColor === undefined && mat.emissiveColor) {
-        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
-      }
-      const baseEmissive = (mat as any)._originalEmissiveColor;
-      if (baseEmissive) {
-        mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
-        mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
-        mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      if (shouldApplyEmissive) {
+        if (!hasOriginalEmissive && mat.emissiveColor) {
+          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+        }
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive) {
+          mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
+          mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
+          mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
+        }
+      } else if (hasOriginalEmissive) {
+        const baseEmissive = (mat as any)._originalEmissiveColor;
+        if (baseEmissive && mat.emissiveColor) {
+          mat.emissiveColor.r = baseEmissive.r;
+          mat.emissiveColor.g = baseEmissive.g;
+          mat.emissiveColor.b = baseEmissive.b;
+        }
+        delete (mat as any)._originalEmissiveColor;
       }
 
       const setAniso = (tex: any) => {
