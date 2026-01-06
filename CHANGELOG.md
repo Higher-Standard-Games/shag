@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.10
+
+### Debug Console Enhancements
+- Added shader aim debugging helpers:
+  - `shader info` (no args) prints info for the surface under the crosshair (material + bound textures)
+  - `shader aim 1` highlights the surface under the crosshair (outline/edges)
+
+---
+
 ## v0.8.9
 
 ### CLI Tools

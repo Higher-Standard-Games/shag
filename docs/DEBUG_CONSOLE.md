@@ -152,7 +152,9 @@ freefly_collision cliptrace [dist] [radius] [height] [debug]
 ```
 shader load               # Load shaders from all PK3s
 shader list [filter]      # List loaded shader names
-shader info <name>        # Show shader definition
+shader info [name]        # Show shader definition (or aimed surface when no name)
+shader aim 1              # Highlight the surface under the crosshair (outline/edges)
+shader aim 0              # Disable aim highlight
 shader resolve <name>     # Show resolved material properties
 shader clear              # Clear shader registry
 ```
