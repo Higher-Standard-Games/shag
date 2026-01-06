@@ -1154,6 +1154,20 @@ export class BspMeshBuilder {
             // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
             mat.emissiveColor = new Color3(1, 1, 1);
             mat.diffuseColor = new Color3(0, 0, 0);
+          } else if (shaderProps.alphaMode === 'multiply') {
+            // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
+            // Use custom shader that computes alpha from luminance (white = transparent)
+            const { createFilterBlendMaterial } = await import('../shader/FilterBlendShaderMaterial');
+            const filterMat = createFilterBlendMaterial(
+              `filterBlend_${texName}`,
+              scene,
+              texture,
+              { alphaThreshold: 0.85, alphaPower: 1.2, colorDarken: 0.5, alphaMultiplier: 0.6 }
+            );
+            mesh.material = filterMat;
+            // Skip the rest of the texture application for this mesh
+            loadedCount++;
+            continue;
           }
 
           // Fullbright surfaces (lamps, light panels) - appear self-lit
@@ -1353,9 +1367,12 @@ export class BspMeshBuilder {
           mat.useAlphaFromDiffuseTexture = true;
           break;
         case 'multiply':
-          // Multiply blending
-          mat.alphaMode = Constants.ALPHA_MULTIPLY;
+          // Multiply/filter blending (GL_DST_COLOR, GL_ZERO) - for decals
+          // Use alpha blend - decal textures should have alpha for transparency
+          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
+          mat.alphaMode = Constants.ALPHA_COMBINE;
           mat.alpha = 1;
+          mat.useAlphaFromDiffuseTexture = true;
           break;
         default:
           // Opaque
