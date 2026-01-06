@@ -236,15 +236,22 @@ export class SkyboxLoader {
 
     console.log(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
 
-    // Create a RawTexture from the RGBA data
-    const { RawTexture } = await import("@babylonjs/core/Materials/Textures/rawTexture");
-    const texture = RawTexture.CreateRGBATexture(
-      rgba.data,
-      rgba.size,
-      rgba.size,
+    // Create texture from blob URL (more reliable than RawTexture)
+    const canvas = document.createElement('canvas');
+    canvas.width = rgba.size;
+    canvas.height = rgba.size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return { success: false, error: 'Failed to create canvas context' };
+    }
+    const imageData = new ImageData(new Uint8ClampedArray(rgba.data), rgba.size, rgba.size);
+    ctx.putImageData(imageData, 0, 0);
+    
+    const texture = new Texture(
+      canvas.toDataURL(),
       this.scene,
-      false, // generateMipMaps
-      false, // invertY
+      false, // noMipmap
+      true,  // invertY
       Texture.TRILINEAR_SAMPLINGMODE
     );
     texture.name = `sky_texture_${actualPath.replace(/\//g, '_')}`;
