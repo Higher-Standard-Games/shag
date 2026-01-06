@@ -365,7 +365,8 @@ export class RenderVars {
         const data = JSON.parse(saved) as Record<string, number>;
         for (const [name, value] of Object.entries(data)) {
           const varDef = this.vars.get(name);
-          if (varDef && typeof value === 'number') {
+          // Skip debug vars - they should always start at defaults
+          if (varDef && varDef.category !== 'debug' && typeof value === 'number') {
             varDef.value = Math.max(varDef.min, Math.min(varDef.max, value));
           }
         }
@@ -379,6 +380,8 @@ export class RenderVars {
     try {
       const data: Record<string, number> = {};
       for (const [name, varDef] of this.vars) {
+        // Don't persist debug vars (wireframe, showtris, etc.) - they should reset on reload
+        if (varDef.category === 'debug') continue;
         data[name] = varDef.value;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
