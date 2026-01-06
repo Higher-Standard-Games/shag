@@ -813,6 +813,15 @@ export class UIStyles {
   color: rgba(255, 255, 255, 0.4);
   font-family: 'Consolas', 'Monaco', monospace;
   text-transform: lowercase;
+  transition: opacity 0.5s ease;
+}
+
+.ui-loading-status--ready {
+  color: rgba(74, 222, 128, 0.6);
+}
+
+.ui-loading-status--fade {
+  opacity: 0;
 }
 
 /* Ready state (tap to start) */

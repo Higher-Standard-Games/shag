@@ -1773,6 +1773,9 @@ export function registerEngineCommands(): void {
           if (!cameraSystem.getCamera()?.getScene()) {
             return 'No scene available. Run "scene empty" first.';
           }
+        } else {
+          // Clear existing scene before loading new map
+          await registry.execute('scene clear');
         }
 
         const activeScene = cameraSystem.getCamera()?.getScene();
@@ -1785,14 +1788,7 @@ export function registerEngineCommands(): void {
         });
 
         if (result.success) {
-          // Auto-enable PVS culling for BSP maps
-          let pvsStatus = '';
-          if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
-            const pvsResult = await registry.execute('pvs on');
-            pvsStatus = pvsResult ? `  PVS: enabled` : '';
-          }
-
-          // Auto-spawn camera at first spawn point for BSP maps
+          // Auto-spawn camera at first spawn point for BSP maps (do this first for smoother UX)
           let spawnStatus = '';
           if (result.mapType === 'bsp' && result.bsp) {
             const spawns = result.bsp.entities.filter((e: { classname: string }) =>
@@ -1802,11 +1798,17 @@ export function registerEngineCommands(): void {
               const parts = spawns[0].properties.origin.split(' ').map(Number);
               const cam = cameraSystem.getCamera();
               if (cam) {
-                // Convert Q3 coords to Babylon: (x, z+56, y)
                 cam.position.set(parts[0], parts[2] + 56, parts[1]);
                 spawnStatus = `  Spawned at: (${parts[0]}, ${parts[2] + 56}, ${parts[1]})`;
               }
             }
+          }
+
+          // Auto-enable PVS culling for BSP maps
+          let pvsStatus = '';
+          if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
+            const pvsResult = await registry.execute('pvs on');
+            pvsStatus = pvsResult ? `  PVS: enabled` : '';
           }
 
           return [
@@ -1879,6 +1881,9 @@ export function registerEngineCommands(): void {
           if (!activeScene) {
             // Try to create empty scene first
             await registry.execute('scene empty');
+          } else {
+            // Clear existing scene before loading new map
+            await registry.execute('scene clear');
           }
 
           const finalScene = cameraSystem.getCamera()?.getScene();
@@ -1891,14 +1896,7 @@ export function registerEngineCommands(): void {
           });
 
           if (result.success) {
-            // Auto-enable PVS culling for BSP maps
-            let pvsStatus = '';
-            if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
-              const pvsResult = await registry.execute('pvs on');
-              pvsStatus = pvsResult ? `  PVS: enabled` : '';
-            }
-
-            // Auto-spawn camera at first spawn point for BSP maps
+            // Auto-spawn camera at first spawn point for BSP maps (do this first for smoother UX)
             let spawnStatus = '';
             if (result.mapType === 'bsp' && result.bsp) {
               const spawns = result.bsp.entities.filter((e: { classname: string }) =>
@@ -1908,11 +1906,17 @@ export function registerEngineCommands(): void {
                 const parts = spawns[0].properties.origin.split(' ').map(Number);
                 const cam = cameraSystem.getCamera();
                 if (cam) {
-                  // Convert Q3 coords to Babylon: (x, z+56, y)
                   cam.position.set(parts[0], parts[2] + 56, parts[1]);
                   spawnStatus = `  Spawned at: (${parts[0]}, ${parts[2] + 56}, ${parts[1]})`;
                 }
               }
+            }
+
+            // Auto-enable PVS culling for BSP maps
+            let pvsStatus = '';
+            if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
+              const pvsResult = await registry.execute('pvs on');
+              pvsStatus = pvsResult ? `  PVS: enabled` : '';
             }
 
             return [

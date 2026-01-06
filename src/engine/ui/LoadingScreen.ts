@@ -173,6 +173,13 @@ export class LoadingScreen {
       this.progressBar.style.display = 'none';
       this.container.classList.add('ui-loading-screen--ready');
 
+      // Show "ready" status and fade it out after 2 seconds
+      this.statusText.textContent = 'ready';
+      this.statusText.classList.add('ui-loading-status--ready');
+      setTimeout(() => {
+        this.statusText.classList.add('ui-loading-status--fade');
+      }, 2000);
+
       // Smoke effect - colored puffs rising and fading
       const smokeContainer = document.createElement("div");
       smokeContainer.className = "ui-loading-smoke-container";
