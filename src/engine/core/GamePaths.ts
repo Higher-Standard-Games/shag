@@ -63,24 +63,36 @@ export class GamePaths {
     const urlParams = new URLSearchParams(window.location.search);
     const urlGame = urlParams.get('game');
 
+    // Load engine.json (required)
+    let config: EngineConfig | null = null;
+    try {
+      const response = await fetch('/engine.json');
+      if (response.ok) {
+        config = await response.json();
+      }
+    } catch (error) {
+      // Fetch failed
+    }
+
+    if (!config) {
+      throw new Error('[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "game" }');
+    }
+
+    if (!config.defaultGame) {
+      throw new Error('[GamePaths] engine.json missing "defaultGame" field');
+    }
+
+    // URL param overrides config (for development/testing)
     if (urlGame) {
       this.gameName = urlGame;
-      console.log(`[GamePaths] Game set from URL param: ${this.gameName}`);
+      console.log(`[GamePaths] Game overridden by URL param: ${this.gameName}`);
     } else {
-      // Try to load engine.json
-      try {
-        const response = await fetch('/engine.json');
-        if (response.ok) {
-          const config: EngineConfig = await response.json();
-          this.gameName = config.defaultGame || 'game';
-          this.enginePath = config.engineAssetsPath || '/engine';
-          this.gameTitle = config.title || null;
-          console.log(`[GamePaths] Loaded from engine.json: game=${this.gameName}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
-        }
-      } catch (error) {
-        console.log('[GamePaths] No engine.json found, using defaults');
-      }
+      this.gameName = config.defaultGame;
     }
+
+    this.enginePath = config.engineAssetsPath || '/engine';
+    this.gameTitle = config.title || null;
+    console.log(`[GamePaths] Loaded: game=${this.gameName}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
 
     this.initialized = true;
     console.log(`[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}`);
