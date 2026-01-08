@@ -1,4 +1,5 @@
 import { AssetLoader } from "./AssetLoader";
+import { Cvar } from "./core/Cvar";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -43,6 +44,42 @@ export class AudioManager {
       this.musicVolume = config.settings.defaultVolume;
       this.musicEnabled = config.settings.musicEnabled;
     }
+  }
+
+  /**
+   * Register audio cvars for console control.
+   * Call after ConsoleCommandRegistry is initialized.
+   */
+  public registerCvars(): void {
+    Cvar.register('s_volume', this.musicVolume, {
+      type: 'float',
+      min: 0,
+      max: 1,
+      description: 'Music volume (0-1)',
+      onChange: (v) => this.setMusicVolume(v as number),
+    });
+
+    Cvar.register('s_musicenabled', this.musicEnabled, {
+      type: 'bool',
+      description: 'Music enabled (0/1)',
+      onChange: (v) => this.setMusicEnabled(v as boolean),
+    });
+
+    Cvar.register('s_sfxvolume', this.sfxVolume, {
+      type: 'float',
+      min: 0,
+      max: 1,
+      description: 'Sound effects volume (0-1)',
+      onChange: (v) => this.setSfxVolume(v as number),
+    });
+
+    Cvar.register('s_sfxenabled', this.sfxEnabled, {
+      type: 'bool',
+      description: 'Sound effects enabled (0/1)',
+      onChange: (v) => this.setSfxEnabled(v as boolean),
+    });
+
+    console.log('[AudioManager] Registered 4 cvars');
   }
 
   /**

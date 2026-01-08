@@ -242,6 +242,12 @@ export function registerEngineCommands(): void {
   
   // Register RenderVars as cvars (r_bloom, r_wireframe, etc.)
   RenderVars.getInstance().registerCvars();
+  
+  // Register AudioManager cvars (s_volume, s_musicenabled, etc.)
+  // Note: Use lazy import since AudioManager may not be initialized yet
+  import('../AudioManager').then(({ AudioManager }) => {
+    AudioManager.getInstance().registerCvars();
+  });
 
   // ============================================================================
   // Audio Commands
