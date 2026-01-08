@@ -59,7 +59,7 @@ export class ConsoleCommandRegistry {
    */
   loadDefinitionsFromJson(json: CommandsFile): void {
     for (const cmd of json.commands) {
-      this.definitions.set(cmd.name, cmd);
+      this.definitions.set(cmd.name.toLowerCase(), cmd);
     }
     console.log(`[ConsoleCommandRegistry] Loaded ${json.commands.length} command definitions`);
   }
@@ -68,25 +68,26 @@ export class ConsoleCommandRegistry {
    * Register a command handler
    */
   register(name: string, handler: CommandHandler): void {
-    const definition = this.definitions.get(name);
+    const key = name.toLowerCase();
+    const definition = this.definitions.get(key);
     if (!definition) {
-      console.warn(`[ConsoleCommandRegistry] No definition found for command: ${name}`);
+      console.warn(`[ConsoleCommandRegistry] No definition found for command: ${key}`);
       // Create a basic definition
-      this.commands.set(name, {
-        definition: { name, description: 'Custom command' },
+      this.commands.set(key, {
+        definition: { name: key, description: 'No description available' },
         handler
       });
       return;
     }
     
-    this.commands.set(name, { definition, handler });
+    this.commands.set(key, { definition, handler });
   }
 
   /**
    * Unregister a command
    */
   unregister(name: string): void {
-    this.commands.delete(name);
+    this.commands.delete(name.toLowerCase());
   }
 
   /**
@@ -187,7 +188,7 @@ export class ConsoleCommandRegistry {
    * Get command definition
    */
   getDefinition(name: string): CommandDefinition | undefined {
-    return this.commands.get(name)?.definition;
+    return this.commands.get(name.toLowerCase())?.definition;
   }
 
   /**
@@ -201,6 +202,6 @@ export class ConsoleCommandRegistry {
    * Check if a command is registered
    */
   hasCommand(name: string): boolean {
-    return this.commands.has(name);
+    return this.commands.has(name.toLowerCase());
   }
 }

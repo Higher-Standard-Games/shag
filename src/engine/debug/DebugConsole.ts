@@ -42,6 +42,11 @@ export class DebugConsole {
   private logHistorySize: number = DEFAULT_LOG_HISTORY_SIZE;
   private autocompleteItems: string[] = [];
   private autocompleteIndex: number = -1;
+
+  // Tab completion state
+  private lastTabTime: number = 0;
+  private lastTabInput: string = '';
+  private lastTabMatches: string[] = [];
   
   // Original console methods
   private originalLog: typeof console.log;
@@ -584,19 +589,75 @@ export class DebugConsole {
   }
 
   private handleTabComplete(): void {
+    const input = this.inputEl?.value || '';
+    if (!input) return;
+
+    // Ensure suggestions for current input
     if (this.autocompleteItems.length === 0) {
-      this.updateAutocomplete(this.inputEl?.value || '');
+      this.updateAutocomplete(input);
+      if (this.autocompleteItems.length === 0) return;
+    }
+
+    if (this.autocompleteItems.length === 1) {
+      this.selectAutocomplete(0);
       return;
     }
-    
-    if (this.autocompleteItems.length === 1) {
-      // Single match - complete it
-      this.selectAutocomplete(0);
-    } else {
-      // Multiple matches - cycle through
-      this.autocompleteIndex = (this.autocompleteIndex + 1) % this.autocompleteItems.length;
-      this.showAutocomplete();
+
+    const now = Date.now();
+    const trimmedInput = input.trimEnd();
+
+    // Try completing to common prefix first
+    const commonPrefix = this.getLongestCommonPrefix(this.autocompleteItems);
+    if (commonPrefix && commonPrefix.length > trimmedInput.length) {
+      if (this.inputEl) {
+        this.inputEl.value = commonPrefix;
+        this.inputEl.focus();
+      }
+      this.updateAutocomplete(commonPrefix);
+      this.lastTabTime = 0;
+      this.lastTabInput = '';
+      this.lastTabMatches = [];
+      return;
     }
+
+    // No further completion possible: double-tab prints matches, otherwise cycle
+    const isSameInput = this.lastTabInput === input;
+    const isSameMatches = this.lastTabMatches.length === this.autocompleteItems.length &&
+      this.lastTabMatches.every((v, i) => v === this.autocompleteItems[i]);
+    const isDoubleTap = isSameInput && isSameMatches && (now - this.lastTabTime) < 600;
+
+    if (isDoubleTap) {
+      const lines = ['Matches:', ...this.autocompleteItems.map(s => `  ${s}`)];
+      this.log('system', lines.join('\n'));
+      this.lastTabTime = 0;
+      this.lastTabInput = '';
+      this.lastTabMatches = [];
+      return;
+    }
+
+    // Single tab: cycle selection for convenience
+    this.lastTabTime = now;
+    this.lastTabInput = input;
+    this.lastTabMatches = [...this.autocompleteItems];
+    this.autocompleteIndex = (this.autocompleteIndex + 1) % this.autocompleteItems.length;
+    this.showAutocomplete();
+  }
+
+  private getLongestCommonPrefix(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+
+    let prefix = items[0];
+    for (let i = 1; i < items.length; i++) {
+      const s = items[i];
+      let j = 0;
+      while (j < prefix.length && j < s.length && prefix[j] === s[j]) {
+        j++;
+      }
+      prefix = prefix.slice(0, j);
+      if (!prefix) return '';
+    }
+    return prefix;
   }
 
   private selectAutocomplete(index: number): void {
@@ -769,9 +830,9 @@ export class DebugConsole {
       
       for (const def of sortedDefs) {
         const name = def.name.toLowerCase();
-        if (['help', 'clear', 'version', 'commands'].includes(name)) {
+        if (['help', 'clear', 'version', 'con_size', 'console_debug'].includes(name)) {
           categories['System'].push(def);
-        } else if (['debug', 'camera', 'map', 'weather', 'wind', 'audio', 'time', 'fx'].includes(name)) {
+        } else if (['debug', 'camera', 'map', 'weather', 'wind', 'audio', 'time', 'export', 'shader', 'bsp', 'pvs', 'fog', 'pk3', 'mem', 'scene', 'ui', 'hud', 'show_fps', 'freefly_speed', 'freefly_collision'].includes(name)) {
           categories['Debug'].push(def);
         } else if (['game', 'plant', 'quest', 'spawn', 'give', 'save', 'load', 'teleport', 'unlock', 'custom'].includes(name)) {
           categories['Game'].push(def);

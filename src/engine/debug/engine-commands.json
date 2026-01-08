@@ -38,6 +38,9 @@
         { "name": "info", "description": "Show loaded BSP statistics" },
         { "name": "entities", "description": "List entities in BSP", "args": ["filter?"] },
         { "name": "textures", "description": "List textures in BSP", "args": ["limit?"] },
+        { "name": "required", "description": "Show used textures and required PK3s (uses pk3 index)", "args": [] },
+        { "name": "loadrequired", "description": "Load required PK3s for current BSP (uses pk3 index)", "args": [] },
+        { "name": "preload", "description": "Alias for loadrequired", "args": [] },
         { "name": "render", "description": "Render BSP to scene" },
         { "name": "clear", "description": "Clear rendered BSP geometry" },
         { "name": "faces", "description": "Show face type breakdown" },
@@ -52,23 +55,99 @@
       ]
     },
     {
-      "name": "shader",
-      "description": "Q3/Warsow shader debugging utilities",
-      "usage": "shader <command> [args]",
+      "name": "pk3",
+      "description": "PK3 package and virtual filesystem commands",
+      "usage": "pk3 <command> [args]",
       "subcommands": [
-        { "name": "load", "description": "Load shaders from PK3" },
-        { "name": "count", "description": "Show loaded shader count" },
-        { "name": "list", "description": "List shader names", "args": ["filter?"] },
-        { "name": "info", "description": "Show shader definition (or aimed surface when no path)", "args": ["texture_path?"] },
-        { "name": "aim", "description": "Toggle aimed-surface highlight (edges)", "args": ["0|1"] },
-        { "name": "resolve", "description": "Show resolved material props", "args": ["texture_path"] },
-        { "name": "pattern", "description": "Analyze shader pattern", "args": ["texture_path"] },
-        { "name": "deps", "description": "Debug shader/texture dependencies", "args": ["texture_path"] },
-        { "name": "glow", "description": "Set glow intensity", "args": ["intensity"] },
-        { "name": "lightmap", "description": "Set lightmap intensity", "args": ["intensity"] },
-        { "name": "blendmode", "description": "Toggle glow blend mode", "args": ["add|alpha"] },
-        { "name": "clear", "description": "Clear shader registry" },
-        { "name": "anim", "description": "Shader animation system commands", "args": ["..."] }
+        { "name": "load", "description": "Load a PK3 package", "args": ["filename.pk3"] },
+        { "name": "list", "description": "List files (supports wildcard pattern)", "args": ["pattern?"] },
+        { "name": "dir", "description": "List directory contents", "args": ["path?"] },
+        { "name": "info", "description": "Show loaded packages" },
+        { "name": "path", "description": "Show/add search paths", "args": ["add?"] },
+        { "name": "index", "description": "PK3 index commands (build/find/search/stats/clear)", "args": ["..."] },
+        { "name": "test", "description": "Test loading a file from PK3", "args": ["filepath"] },
+        { "name": "texture", "description": "Load a texture and companions (_gloss/_norm)", "args": ["path"] },
+        { "name": "sets", "description": "Find texture sets in directory", "args": ["dir?"] },
+        { "name": "cache", "description": "Show texture cache" },
+        { "name": "unload", "description": "Unload all PK3 packages" }
+      ]
+    },
+    {
+      "name": "mem",
+      "description": "Memory and asset statistics",
+      "usage": "mem [textures|meshes|engine|js|pk3]",
+      "subcommands": [
+        { "name": "textures", "description": "List textures and estimate VRAM" },
+        { "name": "meshes", "description": "Mesh/vertex/triangle statistics" },
+        { "name": "engine", "description": "WebGL capability information" },
+        { "name": "js", "description": "JavaScript heap info (Chrome only)" },
+        { "name": "pk3", "description": "PK3 package and texture-cache stats" }
+      ]
+    },
+    {
+      "name": "scene",
+      "description": "Scene utilities (empty scene + cleanup)",
+      "usage": "scene <empty|dispose|clear>",
+      "subcommands": [
+        { "name": "empty", "description": "Create an empty scene for testing" },
+        { "name": "dispose", "description": "Dispose the empty test scene" },
+        { "name": "clear", "description": "Clear meshes/materials/textures from active scene" }
+      ]
+    },
+    {
+      "name": "fog",
+      "description": "Fog commands (global + BSP fog helpers)",
+      "usage": "fog <on|off|color|density|linear|status|worldspawn|cam> [args]",
+      "subcommands": [
+        { "name": "on", "description": "Enable EXP2 fog (optional rgb + density)", "args": ["r?", "g?", "b?", "density?"] },
+        { "name": "off", "description": "Disable fog" },
+        { "name": "color", "description": "Set fog color", "args": ["r", "g", "b"] },
+        { "name": "density", "description": "Set fog density", "args": ["value"] },
+        { "name": "linear", "description": "Enable linear fog", "args": ["start", "end"] },
+        { "name": "status", "description": "Show current fog settings" },
+        { "name": "worldspawn", "description": "Apply fog from BSP worldspawn" },
+        { "name": "cam", "description": "Camera-based fog from BSP volumes (on/off/status/scale)", "args": ["..."] }
+      ]
+    },
+    {
+      "name": "ui",
+      "description": "UI scaling and debug utilities",
+      "usage": "ui <scale|mode|debug|info> [args]",
+      "subcommands": [
+        { "name": "scale", "description": "Get/set UI scale (or auto)", "args": ["number|auto"] },
+        { "name": "mode", "description": "Set scaling mode", "args": ["fit|fill|width|height"] },
+        { "name": "debug", "description": "Toggle UI debug overlay" },
+        { "name": "info", "description": "Show UI scaling info" }
+      ]
+    },
+    {
+      "name": "hud",
+      "description": "HUD debug controls",
+      "usage": "hud <command> [args]",
+      "subcommands": [
+        { "name": "info", "description": "Show HUD status" },
+        { "name": "interval", "description": "Set update interval (ms)", "args": ["ms"] },
+        { "name": "show", "description": "Show HUD element", "args": ["element-id"] },
+        { "name": "hide", "description": "Hide HUD element", "args": ["element-id"] },
+        { "name": "toggle", "description": "Toggle HUD element", "args": ["element-id"] },
+        { "name": "refresh", "description": "Force HUD refresh" },
+        { "name": "theme", "description": "Set HUD theme", "args": ["name"] },
+        { "name": "collapse", "description": "Collapse accordions", "args": ["element-id?"] },
+        { "name": "expand", "description": "Expand accordion", "args": ["element-id"] },
+        { "name": "start", "description": "Start HUD update loop" },
+        { "name": "stop", "description": "Stop HUD update loop" },
+        { "name": "reset", "description": "Reset HUD to defaults" }
+      ]
+    },
+    {
+      "name": "game",
+      "description": "Game path selection / reload helpers",
+      "usage": "game <info|load|switch|reload> [args]",
+      "subcommands": [
+        { "name": "info", "description": "Show current game paths" },
+        { "name": "load", "description": "Set game (requires reload)", "args": ["name"] },
+        { "name": "switch", "description": "Switch game and reload", "args": ["name"] },
+        { "name": "reload", "description": "Reload with current game" }
       ]
     },
     {
@@ -77,9 +156,19 @@
       "usage": "clear"
     },
     {
+      "name": "con_size",
+      "description": "Set console height as a fraction of the screen",
+      "usage": "con_size <0.1-1.0>"
+    },
+    {
       "name": "version",
       "description": "Show engine version",
       "usage": "version"
+    },
+    {
+      "name": "console_debug",
+      "description": "Toggle small debug overlay showing recent console lines",
+      "usage": "console_debug [0|1]"
     },
     {
       "name": "camera",
@@ -139,7 +228,9 @@
       "subcommands": [
         { "name": "load", "description": "Load a map", "args": ["mapname"] },
         { "name": "reload", "description": "Reload current map" },
-        { "name": "list", "description": "List available maps" }
+        { "name": "list", "description": "List available maps" },
+        { "name": "current", "description": "Show current map" },
+        { "name": "unload", "description": "Unload current map" }
       ]
     },
     {
@@ -180,7 +271,16 @@
         { "name": "dust", "description": "Start dust particles" },
         { "name": "mixed", "description": "Start mixed debris" },
         { "name": "off", "description": "Stop debris" },
-        { "name": "density", "description": "Set debris density", "args": ["0-1"] }
+        { "name": "density", "description": "Set debris density", "args": ["0-1"] },
+        { "name": "size", "description": "Set debris size", "args": ["number"] },
+        { "name": "speed", "description": "Set debris speed range", "args": ["min", "max?"] },
+        { "name": "gravity", "description": "Set debris gravity", "args": ["number"] },
+        { "name": "spin", "description": "Set debris spin", "args": ["number"] },
+        { "name": "lifetime", "description": "Set debris particle lifetime", "args": ["seconds"] },
+        { "name": "windforce", "description": "Set wind force applied to debris", "args": ["number"] },
+        { "name": "turbulence", "description": "Set turbulence", "args": ["0-1"] },
+        { "name": "spread", "description": "Set spawn spread", "args": ["number"] },
+        { "name": "height", "description": "Set spawn height", "args": ["number"] }
       ]
     },
     {
