@@ -259,6 +259,9 @@ export class AudioManager {
 
     console.log(`[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`);
 
+    // Stop any currently playing music (single track or playlist)
+    this.stopMusic(true);
+
     this.currentPlaylist = playlist;
     this.playlistName = name || null;
     this.currentTrackIndex = 0;
