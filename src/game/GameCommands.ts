@@ -5,6 +5,7 @@
  */
 
 import { ConsoleCommandRegistry, CommandsFile } from '../engine/debug';
+import { Cvar } from '../engine/core/Cvar';
 import gameCommands from './console-commands.json';
 import { GameState } from './GameState';
 import { SaveManager } from './SaveManager';
@@ -14,6 +15,21 @@ export function registerGameCommands(): void {
   
   // Load game command definitions
   registry.loadDefinitionsFromJson(gameCommands as CommandsFile);
+
+  // ============================================================================
+  // Game Cvars (g_* prefix)
+  // ============================================================================
+
+  Cvar.register('g_autosave', true, {
+    type: 'bool',
+    description: 'Enable autosave',
+  });
+
+  Cvar.register('g_cheats', false, {
+    type: 'bool',
+    description: 'Enable cheat commands',
+    persist: false, // Don't persist cheats
+  });
 
   // ============================================================================
   // Give Commands (Cheats)
