@@ -16,18 +16,22 @@ Render variables (r_*) control how the scene is rendered. They can be changed at
 
 ## Listing All Variables
 
-```
-r_list
-```
-
-Shows all available variables with current values:
+Render variables are part of the [Cvar System](../../guides/cvar-system.md):
 
 ```
-r_normalmap: 1 (0-4)
-r_lightmap: 1 (0-4)
-r_wireframe: 0 (0-1)
+cvarlist r_
+```
+
+Shows all r_* cvars with current values:
+
+```
+ r_normalmap = "1"
+ r_lightmap = "1"
+ r_wireframe = "0"
 ...
 ```
+
+Use `help r_lightmap` for detailed info on a specific cvar.
 
 ## Common Variables
 
@@ -82,35 +86,28 @@ r_lightintensity 2      # Bright
 
 ## Applying Changes
 
-Most changes apply automatically. Force apply with:
-
-```
-r_apply
-```
+Changes apply automatically via the cvar system's onChange callbacks.
 
 ## Resetting to Defaults
 
 ```
-r_reset
+reset r_lightmap    # Reset single cvar
+resetall            # Reset all cvars to defaults
 ```
-
-Resets all r_* variables to their default values.
 
 ## Exporting Settings
 
-Save your settings as text:
+Save your modified settings as text:
 
 ```
-r_export
+cvarexport
 ```
 
-Outputs:
+Outputs only cvars that differ from defaults:
 
 ```
-r_normalmap 1
 r_lightmap 1.5
 r_bloom 0.8
-...
 ```
 
 You can paste these commands to restore settings.
