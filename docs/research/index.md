@@ -10,6 +10,7 @@ These documents capture the design process and technical research that went into
 |----------|-------------|
 | [bsp-collision.md](./bsp-collision.md) | BSP collision detection research |
 | [BSP_FOG_VOLUMES_PLAN.md](./BSP_FOG_VOLUMES_PLAN.md) | BSP fog volume implementation plan |
+| [CVAR_SYSTEM_DESIGN.md](./CVAR_SYSTEM_DESIGN.md) | Console variable system design |
 | [BSP_PK3_ROADMAP.md](./BSP_PK3_ROADMAP.md) | PK3 package support roadmap |
 | [BSP_SUPPORT_INVESTIGATION.md](./BSP_SUPPORT_INVESTIGATION.md) | BSP format investigation |
 | [BABYLONJS_TREE_SHAKING_MIGRATION.md](./BABYLONJS_TREE_SHAKING_MIGRATION.md) | Babylon.js tree shaking migration |

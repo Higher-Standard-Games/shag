@@ -60,6 +60,20 @@ freefly_speed <n>         // Movement speed
 freefly_collision <0/1>   // Toggle collision
 ```
 
+### Cvars (Console Variables)
+
+```
+cvarlist             // List all cvars
+cvarlist r_          // List r_* cvars only
+r_bloom 0.5          // Set cvar value
+toggle s_musicenabled // Toggle boolean cvar
+reset r_bloom        // Reset to default
+resetall             // Reset all cvars
+cvarexport           // Export modified cvars
+```
+
+See [Cvar System](./cvar-system.md) for full documentation.
+
 ### Render Variables
 
 ```
@@ -192,5 +206,7 @@ The console UI is a separate component that:
 
 ## Related
 
+- [Cvar System](./cvar-system.md)
+- [Render Variables](./render-variables.md)
 - [Tutorial: Using the Console](../tutorials/beginner/using-console.md)
 - [Tutorial: Custom Commands](../tutorials/intermediate/custom-commands.md)

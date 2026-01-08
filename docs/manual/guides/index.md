@@ -16,6 +16,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | Guide | Description |
 |-------|-------------|
 | [Console System](./console-system.md) | Command registration and execution |
+| [Cvar System](./cvar-system.md) | Console variables for configuration |
 | [Render Variables](./render-variables.md) | Runtime graphics configuration |
 | [Skybox System](./skybox-system.md) | Cubemap and textured sky loading |
 
