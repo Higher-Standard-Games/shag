@@ -72,7 +72,7 @@ export class GamePaths {
         const response = await fetch('/engine.json');
         if (response.ok) {
           const config: EngineConfig = await response.json();
-          this.gameName = config.defaultGame || 'ganjawars';
+          this.gameName = config.defaultGame || 'game';
           this.enginePath = config.engineAssetsPath || '/engine';
           this.gameTitle = config.title || null;
           console.log(`[GamePaths] Loaded from engine.json: game=${this.gameName}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
