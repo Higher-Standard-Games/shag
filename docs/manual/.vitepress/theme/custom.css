@@ -1,0 +1,39 @@
+/* Google Fonts - Inter for UI, JetBrains Mono for code */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Font families */
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  
+  /* Brand colors - can customize these */
+  --vp-c-brand-1: #5b8af0;
+  --vp-c-brand-2: #4a7ae0;
+  --vp-c-brand-3: #3a6ad0;
+}
+
+/* Make the logo bigger in the navbar */
+.VPNavBarTitle .logo {
+  height: 32px;
+  width: auto;
+}
+
+/* Slightly larger logo on mobile too */
+.VPNavBarHamburger + .VPNavBarTitle .logo {
+  height: 28px;
+}
+
+/* Optional: Add some spacing after the logo */
+.VPNavBarTitle .logo {
+  margin-right: 8px;
+}
+
+/* Improve code block appearance */
+.vp-code-group .tabs label {
+  font-family: var(--vp-font-family-mono);
+}
+
+/* Sidebar styling */
+.VPSidebar .VPSidebarItem .text {
+  font-weight: 500;
+}
