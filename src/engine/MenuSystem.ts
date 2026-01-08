@@ -5,12 +5,11 @@
  * - Menu state transitions (main menu, in-game, pause menu)
  * - ESC key to toggle pause menu
  * - Blur/darken overlay effect
- * - Integration with SettingsPanel
+ * - Settings callback (game provides its own settings UI)
  * 
  * Uses unified UI components: Overlay, Button, ConfirmDialog
  */
 
-import { SettingsPanel } from "../game/ui/SettingsPanel";
 import { Overlay, createButton, ConfirmDialog, UIManager, UIStyles } from "./ui";
 import { EventBus } from "./core/EventBus";
 
@@ -20,6 +19,10 @@ export interface MenuSystemCallbacks {
   onResume?: () => void;
   onMainMenu?: () => void;
   onQuitGame?: () => void;
+  /** Game provides its own settings UI. Called when settings button is pressed. */
+  onShowSettings?: (onClose: () => void) => void;
+  /** Called when ESC is pressed while in settings state */
+  onHideSettings?: () => void;
 }
 
 export class MenuSystem {
@@ -88,8 +91,8 @@ export class MenuSystem {
         this.resume();
         break;
       case "settings":
-        // Settings panel handles its own close, then we go back to pause
-        SettingsPanel.getInstance().hide();
+        // Game's settings panel handles its own close
+        this.callbacks.onHideSettings?.();
         if (this.overlay) {
           this.state = "pause_menu";
         } else {
@@ -152,6 +155,11 @@ export class MenuSystem {
    * Show settings from pause menu
    */
   public showSettings(): void {
+    if (!this.callbacks.onShowSettings) {
+      console.warn("[MenuSystem] No settings callback provided");
+      return;
+    }
+
     this.state = "settings";
     
     // Hide pause panel but keep overlay
@@ -159,7 +167,8 @@ export class MenuSystem {
       this.pausePanel.style.display = "none";
     }
     
-    SettingsPanel.getInstance().show(() => {
+    // Call game's settings UI with a close callback
+    this.callbacks.onShowSettings(() => {
       // When settings closes, show pause panel again
       if (this.pausePanel) {
         this.pausePanel.style.display = "flex";

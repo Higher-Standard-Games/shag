@@ -186,6 +186,12 @@ async function main() {
   // Initialize menu system with callbacks
   MenuSystem.getInstance().init({
     onMainMenu: showMainMenu,
+    onShowSettings: (onClose) => {
+      SettingsPanel.getInstance().show(onClose);
+    },
+    onHideSettings: () => {
+      SettingsPanel.getInstance().hide();
+    },
   });
 
   // Show initial main menu
