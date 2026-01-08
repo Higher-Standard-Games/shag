@@ -74,16 +74,6 @@ cvarexport           // Export modified cvars
 
 See [Cvar System](./cvar-system.md) for full documentation.
 
-### Render Variables
-
-```
-r_list               // Show all r_* variables
-r_<name> <value>     // Set variable
-r_reset              // Reset all to defaults
-r_apply              // Force apply to scene
-r_export             // Export as config text
-```
-
 ### Debug Commands
 
 ```

@@ -1,14 +1,15 @@
 # Render Variables (r_*)
 
-Runtime-configurable renderer settings in Q3/Warsow style. All variables are persisted to localStorage and applied live to the scene.
+Runtime-configurable renderer settings in Q3/Warsow style. All variables are registered as [cvars](../manual/guides/cvar-system.md) for console access, persisted to localStorage, and applied live to the scene.
 
 ## Quick Start
 
 ```
 r_normalmap 2.0     # Increase normal map intensity
 r_lightmap 1.5      # Brighten lightmaps
-r_list              # Show all variables
-r_reset             # Reset all to defaults
+cvarlist r_         # Show all r_* cvars
+reset r_normalmap   # Reset single cvar to default
+resetall            # Reset all cvars to defaults
 ```
 
 ## Currently Implemented
@@ -52,31 +53,35 @@ r_reset             # Reset all to defaults
 
 > **Note:** Post-processing variables (`r_bloom`, `r_exposure`, `r_contrast`) only work on pure Babylon.js scenes. They do not affect BSP maps loaded via `scene empty` + `bsp render` (which use a separate scene without post-processing pipeline).
 
-### Utility Commands
+### Console Commands (via Cvar System)
 
 | Command | Description |
 |---------|-------------|
-| `r_list` | List all render variables and their current values |
-| `r_reset` | Reset all render variables to defaults |
-| `r_export` | Export render variables as config text |
-| `r_apply` | Force apply render variables to current scene |
+| `cvarlist r_` | List all r_* cvars with current values |
+| `r_<name>` | Show current value, default, and range |
+| `r_<name> <val>` | Set cvar to value |
+| `help r_<name>` | Show detailed cvar info (type, range) |
+| `reset r_<name>` | Reset single cvar to default |
+| `resetall` | Reset all cvars to defaults |
+| `cvarexport` | Export modified cvars as config text |
 
 ## Usage
 
 ### Getting Values
 ```
 r_normalmap         # Prints current value, default, and range
+help r_normalmap    # Shows type, range, usage
 ```
 
 ### Setting Values
 ```
 r_normalmap 2.0     # Set to 2.0
-r_normalmap reset   # Reset to default
+reset r_normalmap   # Reset to default
 ```
 
 ### Exporting Config
 ```
-r_export            # Outputs config block you can copy/paste
+cvarexport          # Outputs all modified cvars as config
 ```
 
 Example output:
@@ -158,13 +163,13 @@ To add a new render variable:
 
 1. Add definition to `DEFAULT_VARS` in `src/engine/rendering/RenderVars.ts`
 2. Add type to `RenderVarName` union
-3. Register console command in `src/engine/debug/EngineCommands.ts`
-4. Add to `engine-commands.json` for autocomplete
-5. Implement application logic in `applyToMesh()` or `applyToScene()`
+3. The cvar is auto-registered via `RenderVars.registerCvars()` - no manual console setup needed
+4. Implement application logic in `applyToMesh()` or `applyToScene()`
 
 ---
 
 ## See Also
 
+- [Cvar System](../manual/guides/cvar-system.md) - Unified console variable system
 - [Debug Console](DEBUG_CONSOLE.md) - Full console command reference
 - [Shader Commands](DEBUG_CONSOLE.md#q3-shader-commands) - Shader debugging utilities

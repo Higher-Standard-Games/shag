@@ -4,7 +4,7 @@ Runtime-configurable rendering settings.
 
 ## Overview
 
-Render variables (r_*) allow adjusting graphics at runtime without restarting. They're inspired by Quake 3's cvar system.
+Render variables (r_*) allow adjusting graphics at runtime without restarting. They integrate with the unified [Cvar System](./cvar-system.md) for console access.
 
 ## Architecture
 
@@ -16,7 +16,11 @@ RenderVars (Singleton)
     │
     ├── get(name) → number
     ├── set(name, value)
-    └── applyToScene()
+    ├── applyToScene()
+    │
+    └── registerCvars() → registers all r_* as cvars
+            │
+            └── Cvar system provides console integration
 ```
 
 ## Available Variables
@@ -55,14 +59,16 @@ RenderVars (Singleton)
 
 ## Using RenderVars
 
-### Console
+### Console (via Cvar System)
 
 ```
-r_list                  # List all variables
+cvarlist r_             # List all r_* variables
 r_lightmap 2            # Set value
-r_reset                 # Reset to defaults
-r_apply                 # Force apply to scene
-r_export                # Export as commands
+r_lightmap              # Show current value
+help r_lightmap         # Show type, range, default
+reset r_lightmap        # Reset to default
+resetall                # Reset all cvars to defaults
+cvarexport              # Export modified cvars
 ```
 
 ### Code
@@ -156,16 +162,20 @@ Variables are grouped by category:
 
 ## Console Commands
 
+Via the unified [Cvar System](./cvar-system.md):
+
 | Command | Description |
 |---------|-------------|
-| `r_list` | List all with values |
-| `r_<name>` | Get value |
+| `cvarlist r_` | List all r_* cvars with values |
+| `r_<name>` | Get current value and info |
 | `r_<name> <val>` | Set value |
-| `r_reset` | Reset to defaults |
-| `r_apply` | Force scene update |
-| `r_export` | Export config |
+| `help r_<name>` | Show type, range, default |
+| `reset r_<name>` | Reset to default |
+| `toggle r_wireframe` | Toggle debug cvars |
+| `cvarexport` | Export modified cvars |
 
 ## Related
 
+- [Cvar System](./cvar-system.md)
 - [Tutorial: Tweaking Render Variables](../tutorials/beginner/render-variables.md)
 - [Tutorial: Export Settings](../tutorials/recipes/export-settings.md)
