@@ -12,7 +12,6 @@
 
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { Overlay, createButton, ConfirmDialog, UIManager, UIStyles } from "./ui";
-import { AudioManager } from "./AudioManager";
 import { EventBus } from "./core/EventBus";
 
 export type MenuState = "main_menu" | "in_game" | "pause_menu" | "settings";
@@ -117,8 +116,7 @@ export class MenuSystem {
     this.state = "in_game";
     this.hidePauseOverlay();
     
-    // Stop menu music - game scene will start its own playlist
-    AudioManager.getInstance().stopMusic(true);
+    // Note: Game code (MainMenu/GameAudio) handles music transitions
   }
 
   /**

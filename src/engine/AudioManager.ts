@@ -1,5 +1,4 @@
 import { AssetLoader } from "./AssetLoader";
-import defaultPlaylist from "../game/data/defaultPlaylist.json";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -247,13 +246,6 @@ export class AudioManager {
   // ==================== Playlist System ====================
 
   /**
-   * Start playing the default playlist
-   */
-  public startDefaultPlaylist(): void {
-    this.startPlaylist(defaultPlaylist as Playlist, "default");
-  }
-
-  /**
    * Start playing a playlist
    * @param playlist The playlist to play
    * @param name Optional name to identify the playlist (prevents reloading same playlist)
@@ -281,19 +273,19 @@ export class AudioManager {
   }
 
   /**
-   * Load and start a playlist from a JSON file path
-   * @param playlistPath Path to the playlist JSON file (relative to data folder)
+   * Load and start a playlist from a URL
+   * @param playlistUrl URL to the playlist JSON file
    */
-  public async loadPlaylist(playlistPath: string): Promise<void> {
+  public async loadPlaylist(playlistUrl: string): Promise<void> {
     try {
-      // Dynamic import of playlist JSON
-      const module = await import(/* @vite-ignore */ `../data/${playlistPath}`);
-      const playlist = module.default as Playlist;
-      this.startPlaylist(playlist, playlistPath);
+      const response = await fetch(playlistUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const playlist = await response.json() as Playlist;
+      this.startPlaylist(playlist, playlistUrl);
     } catch (e) {
-      console.error(`[AudioManager] Failed to load playlist: ${playlistPath}`, e);
-      // Fall back to default playlist
-      this.startDefaultPlaylist();
+      console.error(`[AudioManager] Failed to load playlist: ${playlistUrl}`, e);
     }
   }
 

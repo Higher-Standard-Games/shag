@@ -27,7 +27,7 @@ import { PotActionIndicator } from "../ui/PotActionIndicator";
 import { PlantStatusIndicator } from "../ui/PlantStatusIndicator";
 import { WaterPromptUI } from "../ui/WaterPromptUI";
 import { AssetLoader } from "./AssetLoader";
-import { AudioManager } from "./AudioManager";
+import { GameAudio } from "../game/GameAudio";
 import { MapRenderer } from "./MapRenderer";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
@@ -169,11 +169,8 @@ export class GameScene {
 
     await this.loadMap(startMap);
 
-    // Start game music if configured
-    const musicKey = config?.assets.music.maps[startMap];
-    if (musicKey) {
-      AudioManager.getInstance().playMusic(startMap);
-    }
+    // Start game music playlist
+    await GameAudio.getInstance().startGamePlaylist();
 
     // Start periodic autosave using SaveManager (every 30 seconds)
     this.startAutoSave();
@@ -680,15 +677,15 @@ export class GameScene {
     await SaveManager.getInstance().loadMapState(mapName);
 
     // Handle playlist from map worldspawn
-    const audioManager = AudioManager.getInstance();
+    const gameAudio = GameAudio.getInstance();
     if (result.playlist) {
       // Map specifies a playlist - load it
       console.log(`[GameScene] Map specifies playlist: ${result.playlist}`);
-      await audioManager.loadPlaylist(result.playlist);
-    } else if (!audioManager.isPlaylistPlaying()) {
-      // No playlist specified and none playing - start default
-      console.log("[GameScene] No playlist specified, starting default playlist");
-      audioManager.startDefaultPlaylist();
+      await gameAudio.loadMapPlaylist(result.playlist);
+    } else if (!gameAudio.isPlaylistPlaying()) {
+      // No playlist specified and none playing - start game playlist
+      console.log("[GameScene] No playlist specified, starting game playlist");
+      await gameAudio.startGamePlaylist();
     }
     // If no playlist specified but one is already playing, keep it playing
 

@@ -6,6 +6,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { AssetLoader } from "../engine/AssetLoader";
 import { AudioManager } from "../engine/AudioManager";
+import { GameAudio } from "./GameAudio";
 import { MapRenderer } from "../engine/MapRenderer";
 import { SettingsPanel } from "../ui/SettingsPanel";
 import { GameState } from "./GameState";
@@ -626,7 +627,7 @@ export class MainMenu {
     this.startRenderLoop();
     
     // Start menu music (audio already unlocked by LoadingScreen)
-    AudioManager.getInstance().playMusic("menu");
+    GameAudio.getInstance().playMenuMusic();
   }
 
   public hide(): void {
@@ -649,7 +650,7 @@ export class MainMenu {
     }, 500);
 
     // Stop menu music
-    AudioManager.getInstance().stopMusic();
+    GameAudio.getInstance().stopMenuMusic();
   }
 
   private async createBackgroundScene(): Promise<void> {
