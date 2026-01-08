@@ -2,7 +2,7 @@
 
 Step-by-step guides to learn SHAG Engine, organized by difficulty.
 
-## 🟢 Beginner
+## Beginner
 
 Start here if you're new to SHAG Engine.
 
@@ -13,7 +13,7 @@ Start here if you're new to SHAG Engine.
 | [Using the Console](./beginner/using-console.md) | 10 min | Console commands basics |
 | [Tweaking Render Variables](./beginner/render-variables.md) | 10 min | Adjust graphics at runtime |
 
-## 🟡 Intermediate
+## Intermediate
 
 Build complete features and applications.
 
@@ -26,7 +26,7 @@ Build complete features and applications.
 | [Custom Console Commands](./intermediate/custom-commands.md) | 20 min | Add your own commands |
 | [Working with PK3 Mods](./intermediate/pk3-mods.md) | 20 min | Load custom asset packs |
 
-## 🔴 Advanced
+## Advanced
 
 Deep customization and optimization.
 
@@ -38,7 +38,7 @@ Deep customization and optimization.
 | [Headless Testing & CI/CD](./advanced/headless-testing.md) | 30 min | Automated testing |
 | [Performance Optimization](./advanced/performance.md) | 45 min | PVS, profiling, optimization |
 
-## 🎯 Recipes
+## Recipes
 
 Quick solutions for common tasks.
 

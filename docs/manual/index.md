@@ -13,30 +13,30 @@ Welcome to the SHAG Engine documentation - a TypeScript/WebGL game engine built 
 
 ---
 
-## 📚 Full Documentation Tree
+## Full Documentation Tree
 
 ```
 docs/manual/
 │
-├── 📖 Introduction
+├── Introduction
 │   ├── index.md                    # What is SHAG Engine?
 │   └── features.md                 # Complete feature list
 │
-├── 🚀 Getting Started
+├── Getting Started
 │   ├── index.md                    # Installation & setup
 │   ├── project-structure.md        # Directory layout explained
 │   └── building.md                 # Production builds
 │
-├── 📘 Tutorials
+├── Tutorials
 │   ├── index.md                    # Tutorial overview
 │   │
-│   ├── 🟢 beginner/
+│   ├── beginner/
 │   │   ├── first-map-load.md       # Load and explore a map
 │   │   ├── camera-navigation.md    # Camera controls
 │   │   ├── using-console.md        # Console basics
 │   │   └── render-variables.md     # Tweaking r_* variables
 │   │
-│   ├── 🟡 intermediate/
+│   ├── intermediate/
 │   │   ├── map-viewer.md           # Build a map browser app
 │   │   ├── fps-skeleton.md         # FPS game foundation
 │   │   ├── isometric-game.md       # Isometric strategy setup
@@ -44,14 +44,14 @@ docs/manual/
 │   │   ├── custom-commands.md      # Add console commands
 │   │   └── pk3-mods.md             # Working with PK3 mods
 │   │
-│   ├── 🔴 advanced/
+│   ├── advanced/
 │   │   ├── custom-camera.md        # Build custom camera controller
 │   │   ├── custom-shaders.md       # Custom Babylon.js materials
 │   │   ├── entity-system.md        # Entity parsing & spawning
 │   │   ├── headless-testing.md     # CI/CD integration
 │   │   └── performance.md          # Optimization techniques
 │   │
-│   └── 🎯 recipes/
+│   └── recipes/
 │       ├── change-skybox.md        # Swap skybox at runtime
 │       ├── toggle-wireframe.md     # Debug visualization
 │       ├── get-spawn-points.md     # Extract player spawns
@@ -59,7 +59,7 @@ docs/manual/
 │       ├── debug-shader.md         # Inspect surface materials
 │       └── export-settings.md      # Save render configuration
 │
-├── 🔧 Guides
+├── Guides
 │   ├── index.md                    # Guide overview
 │   ├── bsp-system.md               # BSP map loading & rendering
 │   ├── shader-system.md            # Q3 shader parsing
@@ -72,21 +72,21 @@ docs/manual/
 │   ├── entity-system.md            # BSP entity handling
 │   └── performance.md              # PVS, optimization
 │
-├── 🛠️ Tools
+├── Tools
 │   ├── index.md                    # Tools overview
 │   ├── headless-game.md            # Full headless CLI
 │   └── headless-bsp.md             # BSP-only CLI
 │
-├── 🚢 Deployment
+├── Deployment
 │   ├── index.md                    # Platform overview
 │   ├── web.md                      # Static web hosting
 │   ├── mobile.md                   # Capacitor (iOS/Android)
 │   └── desktop.md                  # Electron apps
 │
-├── ❓ FAQ
+├── FAQ
 │   └── index.md                    # Troubleshooting
 │
-└── 📝 Contributing
+└── Contributing
     └── index.md                    # How to contribute
 ```
 
