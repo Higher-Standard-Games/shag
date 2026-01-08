@@ -797,9 +797,31 @@ export class DebugConsole {
     // Help command
     registry.register('help', (args) => {
       if (args.length > 0) {
-        const def = registry.getDefinition(args[0]);
+        const name = args[0].toLowerCase();
+        
+        // Check if it's a cvar - show detailed cvar info
+        if (registry.isCvar(name)) {
+          const { Cvar } = require('../core/Cvar');
+          const cvar = Cvar.getCvar(name);
+          if (cvar) {
+            let help = `<span class="hl-command">${cvar.name}</span> - ${cvar.description || 'Console variable'}\n`;
+            help += `<span class="hl-label">Type:</span> <span class="hl-string">${cvar.type}</span>\n`;
+            help += `<span class="hl-label">Value:</span> <span class="hl-number">${cvar.value}</span>`;
+            if (cvar.value !== cvar.defaultValue) {
+              help += ` <span class="hl-label">(default: ${cvar.defaultValue})</span>`;
+            }
+            help += '\n';
+            if (cvar.min !== undefined || cvar.max !== undefined) {
+              help += `<span class="hl-label">Range:</span> <span class="hl-number">${cvar.min ?? '-∞'}</span> to <span class="hl-number">${cvar.max ?? '∞'}</span>\n`;
+            }
+            help += `<span class="hl-label">Usage:</span> <span class="hl-string">${name} [value]</span>`;
+            return help;
+          }
+        }
+        
+        const def = registry.getDefinition(name);
         if (!def) {
-          return `Unknown command: ${args[0]}`;
+          return `Unknown command: ${name}`;
         }
         
         let help = `<span class="hl-command">${def.name}</span> - ${def.description}\n`;
@@ -823,15 +845,27 @@ export class DebugConsole {
       // Group by category (infer from name patterns)
       const categories: Record<string, typeof sortedDefs> = {
         'System': [],
+        'Cvars': [],
         'Game': [],
         'Debug': [],
         'Other': []
       };
       
+      // Cvar management commands
+      const cvarCommands = ['cvarlist', 'toggle', 'reset', 'resetall', 'set', 'cvarexport'];
+      
       for (const def of sortedDefs) {
         const name = def.name.toLowerCase();
+        
+        // Skip cvars in main help - too many. Show cvar management commands instead.
+        if (registry.isCvar(name)) {
+          continue;
+        }
+        
         if (['help', 'clear', 'version', 'con_size', 'console_debug'].includes(name)) {
           categories['System'].push(def);
+        } else if (cvarCommands.includes(name)) {
+          categories['Cvars'].push(def);
         } else if (['debug', 'camera', 'map', 'weather', 'wind', 'audio', 'time', 'export', 'shader', 'bsp', 'pvs', 'fog', 'pk3', 'mem', 'scene', 'ui', 'hud', 'show_fps', 'freefly_speed', 'freefly_collision'].includes(name)) {
           categories['Debug'].push(def);
         } else if (['game', 'plant', 'quest', 'spawn', 'give', 'save', 'load', 'teleport', 'unlock', 'custom'].includes(name)) {
@@ -854,6 +888,11 @@ export class DebugConsole {
         }
         help += '\n';
       }
+      
+      // Add cvar hint
+      help += '<span class="hl-label">▸ Console Variables</span>\n';
+      help += '  Use <span class="hl-command">cvarlist</span> to see all cvars (r_*, s_*, g_*)\n';
+      help += '  Use <span class="hl-command">help &lt;cvar&gt;</span> for cvar details\n\n';
       
       help += '<span class="hl-label">───────────────────────────────────────</span>\n';
       help += 'Type <span class="hl-command">help &lt;command&gt;</span> for detailed info.\n';
