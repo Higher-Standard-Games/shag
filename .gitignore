@@ -49,6 +49,10 @@ public/textures-ktx2/
 # Generated API documentation
 docs/api/
 
+# VitePress cache
+docs/manual/.vitepress/cache/
+dist-docs/
+
 # Capacitor / Android
 android/.gradle/
 android/app/build/
