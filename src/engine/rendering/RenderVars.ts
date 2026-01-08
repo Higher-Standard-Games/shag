@@ -13,6 +13,7 @@ import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { PostProcessingManager } from '../effects/PostProcessingManager';
+import { Cvar } from '../core/Cvar';
 
 // ==================== Types ====================
 
@@ -190,6 +191,31 @@ export class RenderVars {
     for (const [name, def] of Object.entries(DEFAULT_VARS)) {
       this.vars.set(name, { name, ...def });
     }
+  }
+
+  /**
+   * Register all render vars as Cvars for console integration.
+   * Call this after ConsoleCommandRegistry is initialized.
+   */
+  public registerCvars(): void {
+    for (const [name, def] of this.vars) {
+      // Determine type based on var characteristics
+      const isDebug = def.category === 'debug';
+      const isInt = name === 'r_anisotropy' || def.max === 1;
+      
+      Cvar.register(name, def.value, {
+        type: isInt ? 'int' : 'float',
+        min: def.min,
+        max: def.max,
+        description: def.description,
+        persist: !isDebug, // Don't persist debug vars
+        onChange: (value) => {
+          // Route cvar changes back to RenderVars
+          this.set(name, value as number);
+        },
+      });
+    }
+    console.log(`[RenderVars] Registered ${this.vars.size} cvars`);
   }
 
   private applyToPostProcessing(bloomMul: number, exposureMul: number, contrastMul: number): void {

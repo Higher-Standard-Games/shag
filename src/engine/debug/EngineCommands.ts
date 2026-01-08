@@ -41,6 +41,8 @@ import { FreeflyController } from '../camera/controllers/FreeflyController';
 // Other direct imports
 import { GamePaths } from '../core/GamePaths';
 import { HUD } from '../ui/hud/HUDManager';
+import { Cvar } from '../core/Cvar';
+import { RenderVars } from '../rendering/RenderVars';
 
 // ============================================================================
 // Lazy imports for DOM-dependent modules (enables headless mode)
@@ -230,6 +232,16 @@ async function buildShaderDebugInfoFromMesh(mesh: AbstractMesh, textureNameOverr
 
 export function registerEngineCommands(): void {
   const registry = ConsoleCommandRegistry.getInstance();
+
+  // ============================================================================
+  // Initialize Cvar System
+  // ============================================================================
+  
+  // Initialize cvar system (loads persisted values)
+  Cvar.init();
+  
+  // Register RenderVars as cvars (r_bloom, r_wireframe, etc.)
+  RenderVars.getInstance().registerCvars();
 
   // ============================================================================
   // Audio Commands

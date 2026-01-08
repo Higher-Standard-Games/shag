@@ -80,3 +80,6 @@ export type {
 
 export { QualityDetector } from "./QualityDetector";
 export type { DeviceInfo, QualityRecommendation } from "./QualityDetector";
+
+export { Cvar } from "./Cvar";
+export type { CvarType, CvarValue, CvarFlags, CvarOptions, CvarInstance } from "./Cvar";
