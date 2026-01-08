@@ -7,8 +7,8 @@ All notable changes to this project are documented in version-specific files.
 | Version | Date | Summary |
 |---------|------|---------|
 | [v0.8.14](./v0.8.14.md) | Jan 8, 2026 | Documentation & Console Improvements |
-| [v0.8.13](./v0.8.13.md) | Jan 7, 2026 | BSP rendering fixes |
-| [v0.8.12](./v0.8.12.md) | Jan 6, 2026 | Shader animation system |
+| [v0.8.13](./v0.8.13.md) | Jan 7, 2026 | Bug fixes (camera, render vars, skybox) |
+| [v0.8.12](./v0.8.12.md) | Jan 6, 2026 | Tree-shaking optimization (-58% bundle) |
 | [v0.8.10](./v0.8.10.md) | Jan 5, 2026 | Graphical fixes & console search |
 | [v0.8.9](./v0.8.9.md) | Jan 5, 2026 | PK3 indexing & BSP fog volumes |
 | [v0.8.8](./v0.8.8.md) | Jan 4, 2026 | Sky shader support |
