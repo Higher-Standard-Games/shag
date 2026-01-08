@@ -2,7 +2,7 @@
 
 ## What is SHAG Engine?
 
-SHAG Engine is a modern TypeScript/WebGL game engine built on [Babylon.js](https://babylonjs.com) that loads idTech3-era assets. It parses BSP maps, PK3 archives, and Q3/QFusion shaders, making it easy to use existing level design tools and asset libraries.
+SHAG Engine is a cross-platform WebGL game engine built on [Babylon.js](https://babylonjs.com). It integrates with NetRadiant-custom and idTech3 tooling, enabling streamlined level design workflows while targeting web, mobile, and desktop from a single TypeScript codebase.
 
 ### Key Features
 

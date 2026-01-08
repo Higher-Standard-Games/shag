@@ -1,6 +1,6 @@
 # SHAG Engine Documentation
 
-Welcome to the SHAG Engine documentation - a TypeScript/WebGL game engine built on Babylon.js that loads idTech3-era assets (BSP maps, PK3 archives, Q3/QFusion shaders).
+Welcome to the SHAG Engine documentation. SHAG Engine is a cross-platform WebGL game engine built on Babylon.js, designed for streamlined development using NetRadiant-custom and idTech3 tooling.
 
 ---
 
