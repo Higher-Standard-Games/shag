@@ -8,7 +8,7 @@
 import { HUD } from '../../engine/ui/hud';
 import { GamePaths } from '../../engine/core/GamePaths';
 import { GameState } from '../GameState';
-import { GameClock } from '../GameClock';
+import { GameClock } from '../../engine/core/GameClock';
 import { QuestSystem } from '../QuestSystem';
 import { OrderSystem } from '../OrderSystem';
 

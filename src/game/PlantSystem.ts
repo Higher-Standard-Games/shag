@@ -7,7 +7,7 @@ import { CuringSystem } from "./CuringSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
 import { EventBus } from "../engine/core/EventBus";
 import { GameState, type PlantState } from "./GameState";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 import { LampSystem } from "./LampSystem";
 import { QuestSystem } from "./QuestSystem";
 

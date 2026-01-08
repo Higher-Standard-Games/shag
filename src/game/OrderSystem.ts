@@ -10,7 +10,7 @@
 
 import { EventBus } from "../engine/core/EventBus";
 import { GameState } from "./GameState";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 import { PlantSystem } from "./PlantSystem";
 import { QuestSystem } from "./QuestSystem";
 

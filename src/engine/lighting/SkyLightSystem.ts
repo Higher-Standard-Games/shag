@@ -16,7 +16,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import { GameClock, type TimeOfDay } from "../../game/GameClock";
+import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 
 // ==================== Types ====================

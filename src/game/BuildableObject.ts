@@ -13,7 +13,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { EventBus } from "../engine/core/EventBus";
 import { PrefabInstance } from "../engine/loader";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 
 /**
  * Visual stage definition for a buildable object

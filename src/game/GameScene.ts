@@ -12,7 +12,7 @@
 import { AchievementSystem } from "./AchievementSystem";
 import { BuildingSystem } from "./BuildingSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
-import { GameClock } from "./GameClock";
+import { GameClock } from "../engine/core/GameClock";
 import { registerGameData } from "./GameData";
 import { GameState, GameTimer, HarvestIndicator, PlantSystem } from "./index";
 import { OrderSystem } from "./OrderSystem";

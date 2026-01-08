@@ -28,7 +28,7 @@ globalThis.performance = {
 } as any;
 
 import { GameState } from "../GameState";
-import { GameTimer } from "../GameTimer";
+import { GameTimer } from "../../engine/core/GameTimer";
 import { PlantSystem, type StrainDefinition } from "../PlantSystem";
 
 import type { PotDefinition, LightingLevel } from "../PlantSystem";

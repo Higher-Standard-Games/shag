@@ -17,7 +17,7 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { GameClock, type TimePeriod } from "../../game/GameClock";
+import { GameClock, type TimePeriod } from "../core/GameClock";
 
 // ==================== Types ====================
 

@@ -10,8 +10,8 @@ export type {
   GameStats,
 } from "./GameState";
 
-export { GameTimer } from "./GameTimer";
-export type { TimerEvent, ScheduledTask } from "./GameTimer";
+export { GameTimer } from "../engine/core/GameTimer";
+export type { TimerEvent, ScheduledTask } from "../engine/core/GameTimer";
 
 export { PlantSystem } from "./PlantSystem";
 export type { StrainDefinition, PlantVisualState } from "./PlantSystem";

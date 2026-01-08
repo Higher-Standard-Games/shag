@@ -8,7 +8,7 @@
  * - Automation (auto-watering, etc.)
  */
 
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 
 /**
  * Equipment effect types

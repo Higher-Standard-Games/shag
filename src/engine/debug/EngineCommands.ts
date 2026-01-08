@@ -52,7 +52,7 @@ import { RenderVars } from '../rendering/RenderVars';
 let _audioManager: typeof import('../AudioManager').AudioManager | null = null;
 let _cameraSystem: typeof import('../camera/CameraSystem').CameraSystem | null = null;
 let _debugConsole: typeof import('./DebugConsole').DebugConsole | null = null;
-let _gameClock: typeof import('../../game/GameClock').GameClock | null = null;
+let _gameClock: typeof import('../core/GameClock').GameClock | null = null;
 let _uiScale: typeof import('../ui/UIScale').UIScale | null = null;
 let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
 
@@ -90,7 +90,7 @@ async function getDebugConsole() {
 
 async function getGameClock() {
   if (!_gameClock) {
-    const mod = await import('../../game/GameClock');
+    const mod = await import('../core/GameClock');
     _gameClock = mod.GameClock;
   }
   return _gameClock.getInstance();

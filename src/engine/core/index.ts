@@ -83,3 +83,9 @@ export type { DeviceInfo, QualityRecommendation } from "./QualityDetector";
 
 export { Cvar } from "./Cvar";
 export type { CvarType, CvarValue, CvarFlags, CvarOptions, CvarInstance } from "./Cvar";
+
+export { GameClock } from "./GameClock";
+export type { TimeOfDay, TimePeriod, GameClockConfig, ScheduledEvent } from "./GameClock";
+
+export { GameTimer, SPEED_MULTIPLIERS, DEBUG_SPEED_ENABLED } from "./GameTimer";
+export type { GameSpeedMode, TimerEvent, ScheduledTask } from "./GameTimer";

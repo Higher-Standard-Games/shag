@@ -14,7 +14,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { EventBus } from "../engine/core/EventBus";
 import { GameScene } from "./GameScene";
 import { GameState } from "./GameState";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 import { PlantSystem, type PlantPhase } from "./PlantSystem";
 
 export interface HarvestableInfo {

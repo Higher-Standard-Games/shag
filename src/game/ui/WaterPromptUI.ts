@@ -11,7 +11,7 @@ import { EventBus } from "../../engine/core/EventBus";
 import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
 import { GameScene } from "../GameScene";
 import { GameState } from "../GameState";
-import { GameTimer } from "../GameTimer";
+import { GameTimer } from "../../engine/core/GameTimer";
 import { PlantSystem } from "../PlantSystem";
 
 const INDICATOR_PREFIX = "water_";

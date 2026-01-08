@@ -3,7 +3,7 @@
  * Handles game time, timers, and scheduled events
  */
 
-import { EventBus } from "../engine/core/EventBus";
+import { EventBus } from "./EventBus";
 
 /**
  * Game speed modes

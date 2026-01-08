@@ -14,7 +14,7 @@
  */
 
 import { EventBus } from "./EventBus";
-import { GameTimer } from "../../game/GameTimer";
+import { GameTimer } from "./GameTimer";
 
 export interface TimerOptions {
   onProgress?: (progress: number, timeRemaining: number) => void;

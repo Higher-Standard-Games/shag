@@ -36,9 +36,9 @@ import { BuildableSystem, type BuildableInstance } from "../engine/BuildableSyst
 import { CuringSystem } from "./CuringSystem";
 import { DealerSystem } from "./DealerSystem";
 import { EquipmentSystem } from "./EquipmentSystem";
-import { GameClock } from "./GameClock";
+import { GameClock } from "../engine/core/GameClock";
 import { GameState } from "./GameState";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 import { OrderSystem } from "./OrderSystem";
 import { QuestSystem } from "./QuestSystem";
 import { ShopSystem } from "./ShopSystem";

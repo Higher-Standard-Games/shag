@@ -10,7 +10,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { BuildableSystem } from "../engine/BuildableSystem";
 import { GameState } from "./GameState";
-import { GameTimer } from "./GameTimer";
+import { GameTimer } from "../engine/core/GameTimer";
 import { QuestSystem } from "./QuestSystem";
 
 export interface BuildZone {
