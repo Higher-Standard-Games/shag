@@ -6,7 +6,7 @@ Common questions and solutions.
 
 ### What is SHAG Engine?
 
-SHAG Engine is a TypeScript/WebGL game engine built on Babylon.js with full Quake 3/Warsow BSP map compatibility.
+SHAG Engine is a cross-platform WebGL game engine built on Babylon.js, designed for streamlined development using NetRadiant-custom and idTech3 tooling.
 
 ### What can I build with it?
 
@@ -16,9 +16,9 @@ SHAG Engine is a TypeScript/WebGL game engine built on Babylon.js with full Quak
 - Sidescrollers
 - Any game using Q3/Warsow assets
 
-### Is it free?
+### What is the license?
 
-Yes, SHAG Engine is open source.
+SHAG Engine is released under the **MIT License**. You can use it freely in personal and commercial projects. See the [LICENSE](https://github.com/user/shag-engine/blob/main/LICENSE) file for details.
 
 ## Installation
 
