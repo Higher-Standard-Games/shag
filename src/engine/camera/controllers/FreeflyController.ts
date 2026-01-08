@@ -17,6 +17,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
+import { Cvar } from "../../core/Cvar";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -189,8 +190,11 @@ export class FreeflyController implements ICameraController {
     this.onMouseMove = (e: MouseEvent) => {
       if (!this.enabled || !this.camera || !this.isPointerLocked) return;
       
-      const sensitivity = this.config.mouseSensitivity || 0.002;
-      const invertY = this.config.invertY ? -1 : 1;
+      const baseSensitivity = this.config.mouseSensitivity || 0.002;
+      const sensitivityMultiplier = Cvar.getNumber('cam_sensitivity') || 1.0;
+      const sensitivity = baseSensitivity * sensitivityMultiplier;
+      const invertYCvar = Cvar.getBool('cam_invertY');
+      const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
       
       // Apply freelook
       this.camera.rotation.y += e.movementX * sensitivity;

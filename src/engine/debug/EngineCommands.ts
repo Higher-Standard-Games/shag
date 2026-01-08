@@ -249,6 +249,19 @@ export function registerEngineCommands(): void {
     AudioManager.getInstance().registerCvars();
   });
 
+  // Register camera cvars
+  Cvar.register('cam_sensitivity', 1.0, {
+    type: 'float',
+    min: 0.1,
+    max: 10,
+    description: 'Mouse sensitivity multiplier',
+  });
+
+  Cvar.register('cam_invertY', false, {
+    type: 'bool',
+    description: 'Invert Y axis for mouse look',
+  });
+
   // ============================================================================
   // Audio Commands
   // ============================================================================

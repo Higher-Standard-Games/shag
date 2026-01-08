@@ -11,6 +11,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
+import { Cvar } from "../../core/Cvar";
 import { InputSystem } from "../../input";
 import { getCollisionManager } from "../../physics";
 
@@ -120,8 +121,11 @@ export class FPSController implements ICameraController {
     // Mouse look via InputSystem raw state (for now - gestures later)
     const mouseDelta = input.getMouseDelta();
     if (input.isActive("camera_pan")) {
-      const sensitivity = this.config.mouseSensitivity || 0.002;
-      const invertY = this.config.invertY ? -1 : 1;
+      const baseSensitivity = this.config.mouseSensitivity || 0.002;
+      const sensitivityMultiplier = Cvar.getNumber('cam_sensitivity') || 1.0;
+      const sensitivity = baseSensitivity * sensitivityMultiplier;
+      const invertYCvar = Cvar.getBool('cam_invertY');
+      const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
       
       this.camera.rotation.y += mouseDelta.x * sensitivity;
       this.camera.rotation.x += mouseDelta.y * sensitivity * invertY;
