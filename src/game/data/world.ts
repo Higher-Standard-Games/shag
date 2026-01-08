@@ -4,7 +4,7 @@
  * Areas, lots, and world structure.
  */
 
-import type { AreaTemplate, LotTemplate } from "../game/WorldSystem";
+import type { AreaTemplate, LotTemplate } from "../WorldSystem";
 
 // ==================== World Areas ====================
 

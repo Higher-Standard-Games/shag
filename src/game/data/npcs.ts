@@ -4,7 +4,7 @@
  * NPC templates and dialogues.
  */
 
-import type { NPCTemplate, NPCDialogue } from "../game/NPCSystem";
+import type { NPCTemplate, NPCDialogue } from "../NPCSystem";
 
 // ==================== NPCs ====================
 

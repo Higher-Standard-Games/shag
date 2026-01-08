@@ -4,9 +4,9 @@
  * Dealers, customers, shop categories, and shop items.
  */
 
-import type { Dealer } from "../game/DealerSystem";
-import type { CustomerTemplate } from "../game/OrderSystem";
-import type { ShopItem, ShopCategory } from "../game/ShopSystem";
+import type { Dealer } from "../DealerSystem";
+import type { CustomerTemplate } from "../OrderSystem";
+import type { ShopItem, ShopCategory } from "../ShopSystem";
 import { generateSeedShopItems } from "./StrainLoader";
 
 // ==================== Dealers ====================

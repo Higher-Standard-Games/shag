@@ -48,8 +48,8 @@ import {
   getAllStrainDefinitions,
   getAllStrainGenetics,
   newGameConfig,
-} from "../data";
-import { registerEngineBuildableTemplates } from "../data/buildableTemplates";
+} from "./data";
+import { registerEngineBuildableTemplates } from "./data/buildableTemplates";
 
 // Re-export data for backwards compatibility
 export {
@@ -69,10 +69,10 @@ export {
   WORLD_LOTS,
   NPCS,
   NPC_DIALOGUES,
-} from "../data";
+} from "./data";
 
 // Also re-export SHOP_ITEMS_BASE for any code that needs it
-export { SHOP_ITEMS_BASE } from "../data/commerce";
+export { SHOP_ITEMS_BASE } from "./data/commerce";
 
 // ==================== Starting Resources (loaded from newgame.json) ====================
 

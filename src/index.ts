@@ -16,7 +16,7 @@ import { IsometricController } from "./engine/camera";
 import { UIManager } from "./ui/UIManager";
 import { GameState } from "./game/GameState";
 import { EventBus } from "./engine/core/EventBus";
-import { WORLD_AREAS } from "./data/world";
+import { WORLD_AREAS } from "./game/data/world";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 

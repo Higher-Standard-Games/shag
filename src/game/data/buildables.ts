@@ -5,7 +5,7 @@
  */
 
 // Import types only to avoid circular dependency issues
-import type { BuildableItem } from "../game/BuildingSystem";
+import type { BuildableItem } from "../BuildingSystem";
 
 // Define ObjectStage interface locally to avoid importing from BuildableObject
 // which may cause circular import issues

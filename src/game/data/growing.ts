@@ -4,8 +4,8 @@
  * Pot types, lighting levels, and curing barrels.
  */
 
-import type { PotDefinition, LightingLevel } from "../game/PlantSystem";
-import type { CuringBarrel } from "../game/CuringSystem";
+import type { PotDefinition, LightingLevel } from "../PlantSystem";
+import type { CuringBarrel } from "../CuringSystem";
 
 // ==================== Pot Types ====================
 // Pots affect grow speed and have size categories for strain compatibility

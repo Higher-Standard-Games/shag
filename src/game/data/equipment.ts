@@ -4,7 +4,7 @@
  * Defines equipment that can be placed in the grow room.
  */
 
-import type { EquipmentTemplate } from "../game/EquipmentSystem";
+import type { EquipmentTemplate } from "../EquipmentSystem";
 
 // ==================== Equipment Templates ====================
 

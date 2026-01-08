@@ -5,8 +5,8 @@
  * Converts JSON data to both StrainDefinition (PlantSystem) and StrainGenetics (GeneticsSystem).
  */
 
-import type { StrainDefinition } from "../game/PlantSystem";
-import type { StrainGenetics, StrainType, SpecialTrait, GeneticTier } from "../game/GeneticsSystem";
+import type { StrainDefinition } from "../PlantSystem";
+import type { StrainGenetics, StrainType, SpecialTrait, GeneticTier } from "../GeneticsSystem";
 import strainsData from "./strains.json";
 
 /**

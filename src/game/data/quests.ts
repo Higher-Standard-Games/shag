@@ -4,8 +4,8 @@
  * Quest definitions and achievement definitions.
  */
 
-import type { Quest } from "../game/QuestSystem";
-import type { Achievement } from "../game/AchievementSystem";
+import type { Quest } from "../QuestSystem";
+import type { Achievement } from "../AchievementSystem";
 
 // ==================== Quests ====================
 

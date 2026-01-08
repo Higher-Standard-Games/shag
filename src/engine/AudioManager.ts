@@ -1,5 +1,5 @@
 import { AssetLoader } from "./AssetLoader";
-import defaultPlaylist from "../data/defaultPlaylist.json";
+import defaultPlaylist from "../game/data/defaultPlaylist.json";
 
 // Playlist types
 export interface PlaylistTrack {
