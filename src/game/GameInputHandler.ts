@@ -22,10 +22,10 @@ import { BuildingSystem } from "./BuildingSystem";
 import { GameState } from "./GameState";
 import { HarvestIndicator } from "./HarvestIndicator";
 import { PlantSystem } from "./PlantSystem";
-import { GameHUD } from "../ui/GameHUD";
-import { SeedSelectionPopup } from "../ui/SeedSelectionPopup";
-import { UIManager } from "../ui/UIManager";
-import { LampInfoPanel } from "../ui/LampInfoPanel";
+import { GameHUD } from "./ui/GameHUD";
+import { SeedSelectionPopup } from "./ui/SeedSelectionPopup";
+import { UIManager } from "./ui/UIManager";
+import { LampInfoPanel } from "./ui/LampInfoPanel";
 
 export class GameInputHandler {
   private static instance: GameInputHandler | null = null;

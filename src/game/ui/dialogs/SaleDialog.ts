@@ -1,6 +1,6 @@
-import { OrderSystem } from "../../game/OrderSystem";
-import { GameState } from "../../game/GameState";
-import { PlantSystem } from "../../game/PlantSystem";
+import { OrderSystem } from "../../OrderSystem";
+import { GameState } from "../../GameState";
+import { PlantSystem } from "../../PlantSystem";
 import { BaseDialog, type DialogContext } from "./BaseDialog";
 import { GameHUD } from "../GameHUD";
 

@@ -1,5 +1,5 @@
-import { GameState } from "../../game/GameState";
-import { ShopSystem } from "../../game/ShopSystem";
+import { GameState } from "../../GameState";
+import { ShopSystem } from "../../ShopSystem";
 import { BaseDialog, type DialogContext } from "./BaseDialog";
 
 /**

@@ -9,9 +9,9 @@
  * - Power cost display
  */
 
-import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { LampSystem } from "../game/LampSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
+import { LampSystem } from "../LampSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import lampInfoPanelCSS from "./styles/LampInfoPanel.css?raw";
 
 const SELECTION_INDICATOR_ID = "lamp_selection";

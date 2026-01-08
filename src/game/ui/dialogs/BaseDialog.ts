@@ -1,5 +1,5 @@
 import { UIManager } from "../UIManager";
-import { UIStyles } from "../../engine/ui/UIStyles";
+import { UIStyles } from "../../../engine/ui/UIStyles";
 import baseDialogCSS from "./styles/BaseDialog.css?raw";
 
 export interface DialogContext {

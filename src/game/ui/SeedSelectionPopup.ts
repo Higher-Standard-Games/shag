@@ -5,11 +5,11 @@
  * Uses the new ModalPanel engine component for consistent UI styling.
  */
 
-import { ModalPanel } from "../engine/ui/ModalPanel";
-import { GameState } from "../game/GameState";
-import { PlantSystem, StrainDefinition } from "../game/PlantSystem";
+import { ModalPanel } from "../../engine/ui/ModalPanel";
+import { GameState } from "../GameState";
+import { PlantSystem, StrainDefinition } from "../PlantSystem";
 import { GameHUD } from "./GameHUD";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import seedSelectionPopupCSS from "./styles/SeedSelectionPopup.css?raw";
 
 export interface SeedSelectionResult {

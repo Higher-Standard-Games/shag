@@ -2,10 +2,10 @@
  * ShopPanel - UI for the shop/store
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { ShopSystem, type ShopItem } from "../game/ShopSystem";
-import { GameState } from "../game/GameState";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { ShopSystem, type ShopItem } from "../ShopSystem";
+import { GameState } from "../GameState";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import shopPanelCSS from "./styles/ShopPanel.css?raw";
 
 export class ShopPanel {

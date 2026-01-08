@@ -2,9 +2,9 @@
  * QuestPanel - UI for displaying quests and objectives
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { QuestSystem, type ActiveQuest, type Quest } from "../game/QuestSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { QuestSystem, type ActiveQuest, type Quest } from "../QuestSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import questPanelCSS from "./styles/QuestPanel.css?raw";
 
 export class QuestPanel {

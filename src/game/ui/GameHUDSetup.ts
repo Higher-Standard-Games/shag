@@ -5,12 +5,12 @@
  * GameState, GameClock, QuestSystem, OrderSystem, etc.
  */
 
-import { HUD } from '../engine/ui/hud';
-import { GamePaths } from '../engine/core/GamePaths';
-import { GameState } from '../game/GameState';
-import { GameClock } from '../game/GameClock';
-import { QuestSystem } from '../game/QuestSystem';
-import { OrderSystem } from '../game/OrderSystem';
+import { HUD } from '../../engine/ui/hud';
+import { GamePaths } from '../../engine/core/GamePaths';
+import { GameState } from '../GameState';
+import { GameClock } from '../GameClock';
+import { QuestSystem } from '../QuestSystem';
+import { OrderSystem } from '../OrderSystem';
 
 /**
  * Get period icon based on time of day

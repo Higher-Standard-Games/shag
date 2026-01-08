@@ -1,6 +1,6 @@
-import { CuringSystem, type CuringBarrel } from "../../game/CuringSystem";
-import { PlantSystem } from "../../game/PlantSystem";
-import { GameState } from "../../game/GameState";
+import { CuringSystem, type CuringBarrel } from "../../CuringSystem";
+import { PlantSystem } from "../../PlantSystem";
+import { GameState } from "../../GameState";
 import { BaseDialog, type DialogContext } from "./BaseDialog";
 
 /**

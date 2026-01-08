@@ -7,12 +7,12 @@
  * Now uses WorldIndicatorSystem for positioning and rendering.
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { GameScene } from "../game/GameScene";
-import { GameState } from "../game/GameState";
-import { GameTimer } from "../game/GameTimer";
-import { PlantSystem } from "../game/PlantSystem";
+import { EventBus } from "../../engine/core/EventBus";
+import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
+import { GameScene } from "../GameScene";
+import { GameState } from "../GameState";
+import { GameTimer } from "../GameTimer";
+import { PlantSystem } from "../PlantSystem";
 
 const INDICATOR_PREFIX = "water_";
 

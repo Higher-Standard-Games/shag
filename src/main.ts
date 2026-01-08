@@ -11,7 +11,7 @@ import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
 import { SaveManager } from "./game/SaveManager";
 import { registerGameEntityHandlers } from "./game/EntityHandlers";
-import { SettingsPanel } from "./ui/SettingsPanel";
+import { SettingsPanel } from "./game/ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
 import { UIScale } from "./engine/ui/UIScale";
 import { DebugConsole, registerEngineCommands } from "./engine/debug";

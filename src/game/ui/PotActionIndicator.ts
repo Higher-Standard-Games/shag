@@ -5,10 +5,10 @@
  * Now uses WorldIndicatorSystem for positioning and rendering.
  */
 
-import { BuildableSystem } from "../engine/BuildableSystem";
-import { EventBus } from "../engine/core/EventBus";
-import { GameScene } from "../game/GameScene";
-import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
+import { BuildableSystem } from "../../engine/BuildableSystem";
+import { EventBus } from "../../engine/core/EventBus";
+import { GameScene } from "../GameScene";
+import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
 
 const INDICATOR_PREFIX = "pot_action_";
 

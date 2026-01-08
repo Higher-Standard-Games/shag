@@ -15,7 +15,7 @@ import { StatusBar } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { EventBus } from './EventBus';
 import { UIStyles } from '../ui/UIStyles';
-import mobileCSS from '../../ui/styles/mobile.css?raw';
+import mobileCSS from '../../game/ui/styles/mobile.css?raw';
 
 export interface SafeAreaInsets {
   top: number;

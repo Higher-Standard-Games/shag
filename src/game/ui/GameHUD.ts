@@ -3,15 +3,15 @@
  * Shows player resources, quick inventory, and notifications
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { BuildableSystem } from "../engine/BuildableSystem";
-import { DealerSystem } from "../game/DealerSystem";
-import { GameClock } from "../game/GameClock";
-import { GameState } from "../game/GameState";
-import { GameTimer, type GameSpeedMode } from "../game/GameTimer";
-import { PlantSystem } from "../game/PlantSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
+import { BuildableSystem } from "../../engine/BuildableSystem";
+import { DealerSystem } from "../DealerSystem";
+import { GameClock } from "../GameClock";
+import { GameState } from "../GameState";
+import { GameTimer, type GameSpeedMode } from "../GameTimer";
+import { PlantSystem } from "../PlantSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import gameHUDCSS from "./styles/GameHUD.css?raw";
 import { UIManager } from "./UIManager";
 

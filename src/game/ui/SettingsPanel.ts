@@ -7,11 +7,11 @@
  * Uses unified UI components: Overlay, Button
  */
 
-import { AudioManager } from "../engine/AudioManager";
-import { PostProcessingManager } from "../engine/effects/PostProcessingManager";
-import { Overlay, createButton, UIManager } from "../engine/ui";
-import { UITheme, type ThemeMode } from "../engine/ui/UITheme";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { AudioManager } from "../../engine/AudioManager";
+import { PostProcessingManager } from "../../engine/effects/PostProcessingManager";
+import { Overlay, createButton, UIManager } from "../../engine/ui";
+import { UITheme, type ThemeMode } from "../../engine/ui/UITheme";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import settingsPanelCSS from "./styles/SettingsPanel.css?raw";
 
 const SETTINGS_STORAGE_KEY = "ganjawars_settings";

@@ -8,7 +8,7 @@ import { AssetLoader } from "../engine/AssetLoader";
 import { AudioManager } from "../engine/AudioManager";
 import { GameAudio } from "./GameAudio";
 import { MapRenderer } from "../engine/MapRenderer";
-import { SettingsPanel } from "../ui/SettingsPanel";
+import { SettingsPanel } from "./ui/SettingsPanel";
 import { GameState } from "./GameState";
 
 export interface MainMenuCallbacks {

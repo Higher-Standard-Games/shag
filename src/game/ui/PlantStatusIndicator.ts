@@ -8,12 +8,12 @@
  * - Red/Pink bar: Health
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { GameScene } from "../game/GameScene";
-import { GameState } from "../game/GameState";
-import { PlantSystem } from "../game/PlantSystem";
-import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { GameScene } from "../GameScene";
+import { GameState } from "../GameState";
+import { PlantSystem } from "../PlantSystem";
+import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import plantStatusIndicatorCSS from "./styles/PlantStatusIndicator.css?raw";
 
 const INDICATOR_PREFIX = "plant_status_";

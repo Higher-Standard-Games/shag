@@ -4,7 +4,7 @@
  * Shows available dealers, sellable products, and handles transactions
  */
 
-import { DealerSystem, type Dealer } from "../../game/DealerSystem";
+import { DealerSystem, type Dealer } from "../../DealerSystem";
 import { GameHUD } from "../GameHUD";
 import { BaseDialog, type DialogContext } from "./BaseDialog";
 

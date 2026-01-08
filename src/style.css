@@ -1,5 +1,5 @@
 /* Import mobile responsive overrides (must be first) */
-@import "./ui/styles/mobile.css";
+@import "./game/ui/styles/mobile.css";
 
 html,
 body {

@@ -2,9 +2,9 @@
  * BuildMenu - Bottom bar UI for building/placing items
  */
 
-import { BuildingSystem } from "../game/BuildingSystem";
-import { GameState } from "../game/GameState";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { BuildingSystem } from "../BuildingSystem";
+import { GameState } from "../GameState";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import buildMenuCSS from "./styles/BuildMenu.css?raw";
 
 export class BuildMenu {

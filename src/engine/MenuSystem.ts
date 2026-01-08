@@ -10,7 +10,7 @@
  * Uses unified UI components: Overlay, Button, ConfirmDialog
  */
 
-import { SettingsPanel } from "../ui/SettingsPanel";
+import { SettingsPanel } from "../game/ui/SettingsPanel";
 import { Overlay, createButton, ConfirmDialog, UIManager, UIStyles } from "./ui";
 import { EventBus } from "./core/EventBus";
 

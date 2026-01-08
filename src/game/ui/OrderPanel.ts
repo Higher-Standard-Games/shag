@@ -2,11 +2,11 @@
  * OrderPanel - UI for displaying customer orders
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { OrderSystem, type Order } from "../game/OrderSystem";
-import { GameState } from "../game/GameState";
-import { PlantSystem } from "../game/PlantSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { OrderSystem, type Order } from "../OrderSystem";
+import { GameState } from "../GameState";
+import { PlantSystem } from "../PlantSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import orderPanelCSS from "./styles/OrderPanel.css?raw";
 import { UIManager } from "./UIManager";
 

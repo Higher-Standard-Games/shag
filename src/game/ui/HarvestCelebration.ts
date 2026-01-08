@@ -4,10 +4,10 @@
  * Shows yield breakdown, quality bonuses, and celebratory effects
  */
 
-import { EventBus } from "../engine/core/EventBus";
-import { PopupSystem } from "../engine/core/PopupSystem";
-import { PlantSystem } from "../game/PlantSystem";
-import { UIStyles } from "../engine/ui/UIStyles";
+import { EventBus } from "../../engine/core/EventBus";
+import { PopupSystem } from "../../engine/core/PopupSystem";
+import { PlantSystem } from "../PlantSystem";
+import { UIStyles } from "../../engine/ui/UIStyles";
 import harvestCelebrationCSS from "./styles/HarvestCelebration.css?raw";
 
 export interface HarvestResult {

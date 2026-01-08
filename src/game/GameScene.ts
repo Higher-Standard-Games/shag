@@ -24,13 +24,13 @@ import { BuildableRenderer } from "./BuildableRenderer";
 import { SaveManager } from "./SaveManager";
 import { GameAudio } from "./GameAudio";
 
-import { SettingsPanel } from "../ui/SettingsPanel";
-import { GameHUD } from "../ui/GameHUD";
-import { HarvestCelebration } from "../ui/HarvestCelebration";
-import { PotActionIndicator } from "../ui/PotActionIndicator";
-import { PlantStatusIndicator } from "../ui/PlantStatusIndicator";
-import { WaterPromptUI } from "../ui/WaterPromptUI";
-import { LampInfoPanel } from "../ui/LampInfoPanel";
+import { SettingsPanel } from "./ui/SettingsPanel";
+import { GameHUD } from "./ui/GameHUD";
+import { HarvestCelebration } from "./ui/HarvestCelebration";
+import { PotActionIndicator } from "./ui/PotActionIndicator";
+import { PlantStatusIndicator } from "./ui/PlantStatusIndicator";
+import { WaterPromptUI } from "./ui/WaterPromptUI";
+import { LampInfoPanel } from "./ui/LampInfoPanel";
 
 import { EngineScene, type MapLoadResult } from "../engine/EngineScene";
 import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "../engine/ui";
