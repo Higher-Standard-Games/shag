@@ -1,4 +1,5 @@
 {
   "defaultGame": "game",
-  "engineAssetsPath": "/engine"
+  "engineAssetsPath": "/engine",
+  "title": "Isometric Game Test"
 }
