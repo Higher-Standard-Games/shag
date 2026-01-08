@@ -17,7 +17,7 @@ import { EventBus } from "../engine/core/EventBus";
 import { BuildableSystem } from "../engine/BuildableSystem";
 import { SpawnValidator } from "../engine/SpawnValidator";
 import { PrefabInstance } from "../engine/loader";
-import { GameScene } from "../engine/GameScene";
+import { GameScene } from "./GameScene";
 import { BuildingSystem } from "./BuildingSystem";
 import { GameState } from "./GameState";
 import { HarvestIndicator } from "./HarvestIndicator";

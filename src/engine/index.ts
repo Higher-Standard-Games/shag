@@ -16,8 +16,8 @@ export type { GameConfig, LoadedMap, LoadProgress, ProgressCallback } from "./As
 export { AudioManager } from "./AudioManager";
 
 // Scene management
-export { GameScene } from "./GameScene";
-export type { CameraMode } from "./GameScene";
+export { EngineScene } from "./EngineScene";
+export type { CameraMode, MapLoadResult } from "./EngineScene";
 
 // Map rendering
 export { MapRenderer } from "./MapRenderer";

@@ -12,7 +12,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { EventBus } from "../engine/core/EventBus";
-import { GameScene } from "../engine/GameScene";
+import { GameScene } from "./GameScene";
 import { GameState } from "./GameState";
 import { GameTimer } from "./GameTimer";
 import { PlantSystem, type PlantPhase } from "./PlantSystem";

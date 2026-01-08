@@ -9,7 +9,7 @@
  */
 
 import { EventBus } from "../engine/core/EventBus";
-import { GameScene } from "../engine/GameScene";
+import { GameScene } from "../game/GameScene";
 import { GameState } from "../game/GameState";
 import { PlantSystem } from "../game/PlantSystem";
 import { WorldIndicatorSystem } from "../engine/core/WorldIndicatorSystem";

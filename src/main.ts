@@ -5,7 +5,7 @@ import { AssetLoader } from "./engine/AssetLoader";
 import { AudioManager } from "./engine/AudioManager";
 import { CapacitorBridge } from "./engine/core/CapacitorBridge";
 import { registerEngineServices, ServiceLocator, QualityDetector } from "./engine/core";
-import { GameScene } from "./engine/GameScene";
+import { GameScene } from "./game/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MainMenu } from "./game/MainMenu";
