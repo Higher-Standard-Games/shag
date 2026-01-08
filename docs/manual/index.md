@@ -1,15 +1,6 @@
 # SHAG Engine Documentation
 
-Welcome to the SHAG Engine documentation - a TypeScript/WebGL game engine built on Babylon.js with full Quake 3/Warsow compatibility.
-
-## Highlights
-
-| Metric | Value |
-|--------|-------|
-| Lines of TypeScript | 80,000+ |
-| Q3 Shaders Supported | 1,700+ |
-| Console Commands | 45+ |
-| Bundle Size (gzip) | ~755 KB |
+Welcome to the SHAG Engine documentation - a TypeScript/WebGL game engine built on Babylon.js that loads idTech3-era assets (BSP maps, PK3 archives, Q3/QFusion shaders).
 
 ---
 

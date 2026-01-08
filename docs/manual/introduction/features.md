@@ -15,23 +15,24 @@ Complete list of SHAG Engine features and capabilities.
 
 | Feature | Description |
 |---------|-------------|
-| IBSP/FBSP Support | Full Quake 3 and Warsow BSP format support |
+| IBSP/FBSP Support | Quake 3 and Warsow BSP geometry and lightmaps |
 | Lightmap Rendering | Pre-baked lightmaps with configurable intensity |
-| Entity Parsing | Full entity lump parsing (spawn points, lights, triggers) |
+| Entity Parsing | Entity lump parsing (spawn points, lights, doors) |
 | Face Types | Polygons, patches (Bezier curves), meshes, billboards |
-| Collision Detection | BSP-based collision for camera and entities |
+| Collision Detection | BSP-based collision for camera |
 | PVS Culling | Potentially Visible Set for occlusion optimization |
 
 ## Shader System
 
 | Feature | Description |
 |---------|-------------|
-| 1,700+ Shaders | Parses complete Warsow shader library |
-| Blend Functions | `blendFunc` support (add, blend, filter, etc.) |
-| Texture Mods | `tcMod` scroll, scale, rotate, turb, stretch |
-| Vertex Deformations | `deformVertexes` wave, move, autosprite |
-| Surface Parameters | `surfaceparm` sky, trans, alphashadow, etc. |
-| Animated Textures | `animMap` and `animClampMap` support |
+| Shader Parsing | Parses Q3/QFusion shader syntax |
+| Blend Functions | `blendFunc` support (add, blend, filter) |
+| Texture Mods | `tcMod` scroll, scale, rotate, turb |
+| Vertex Deformations | `deformVertexes` wave, autosprite (partial) |
+| Surface Parameters | `surfaceparm` sky, trans, nonsolid |
+| Animated Textures | `animMap` support |
+| Skyparms | Skybox loading from shader definitions |
 
 ## Camera System
 
@@ -48,7 +49,7 @@ Complete list of SHAG Engine features and capabilities.
 
 | Feature | Description |
 |---------|-------------|
-| 45+ Commands | Comprehensive command library |
+| Built-in Commands | Map loading, render variables, camera control |
 | Q3-Style Syntax | Familiar `command arg1 arg2` format |
 | Tab Completion | Auto-complete for commands |
 | Command History | Up/down arrow navigation |
@@ -81,13 +82,11 @@ Runtime-configurable rendering:
 | Mobile | Capacitor (iOS/Android) |
 | Desktop | Electron (Windows/Mac/Linux) |
 
-## Statistics
+## Limitations
 
-| Metric | Value |
-|--------|-------|
-| Lines of TypeScript | 80,000+ |
-| TypeScript Files | 220+ |
-| PK3 Archives Supported | 94 |
-| Shaders Parsed | 1,741 |
-| Console Commands | 45+ |
-| Bundle Size (gzip) | ~755 KB |
+SHAG Engine focuses on **asset loading**, not full game logic replication:
+
+- **No trigger system** - Triggers must be implemented in your game code
+- **No weapon/item logic** - Entity data is parsed but behavior is yours to implement
+- **Partial shader support** - Not all Q3 shader directives are implemented
+- **No networking** - Single-player/local multiplayer only (add your own netcode)

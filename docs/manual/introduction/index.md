@@ -2,15 +2,15 @@
 
 ## What is SHAG Engine?
 
-SHAG Engine is a modern TypeScript/WebGL game engine built on [Babylon.js](https://babylonjs.com), designed for creating arena-style games with full compatibility for Quake 3 and Warsow assets.
+SHAG Engine is a modern TypeScript/WebGL game engine built on [Babylon.js](https://babylonjs.com) that loads idTech3-era assets. It parses BSP maps, PK3 archives, and Q3/QFusion shaders, making it easy to use existing level design tools and asset libraries.
 
 ### Key Features
 
-- **Full BSP Support** - Load IBSP (Quake 3) and FBSP (Warsow) maps with lightmaps, entities, and collision
-- **Q3 Shader System** - 1,700+ shaders with blendFunc, tcMod, deformVertexes support
+- **BSP Map Loading** - Load IBSP (Quake 3) and FBSP (Warsow) maps with lightmaps and geometry
+- **Q3 Shader Parsing** - Supports common shader directives: blendFunc, tcMod, animMap, skyparms
 - **PK3 Virtual Filesystem** - Priority-based archive loading for mod support
 - **Multiple Camera Modes** - Freefly, isometric, sidescroll, follow controllers
-- **Console Command System** - 45+ commands with Q3-style syntax
+- **Console Command System** - Q3-style command syntax with extensible registry
 - **Headless Mode** - NullEngine CLI for testing and CI/CD
 - **Cross-Platform** - Web, mobile (Capacitor), desktop (Electron)
 
@@ -19,9 +19,9 @@ SHAG Engine is a modern TypeScript/WebGL game engine built on [Babylon.js](https
 | Traditional Approach | SHAG Engine |
 |---------------------|-------------|
 | Port Q3 engine to WebGL | Native TypeScript, modern tooling |
-| Large monolithic bundle | Tree-shaken, 3.4 MB gzipped |
 | Desktop only | Web + Mobile + Desktop |
 | C/C++ knowledge required | TypeScript, accessible to web devs |
+| Full game logic port | Asset loading only - bring your own game logic |
 
 ## Architecture Overview
 
