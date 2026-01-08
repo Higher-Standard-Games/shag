@@ -17,6 +17,7 @@ import { UIScale } from "./engine/ui/UIScale";
 import { DebugConsole, registerEngineCommands } from "./engine/debug";
 import { registerGameCommands } from "./game/GameCommands";
 import { GamePaths } from "./engine/core/GamePaths";
+import { EngineVersion } from "./engine/core/EngineVersion";
 
 /**
  * Main application entry point.
@@ -29,6 +30,9 @@ import { GamePaths } from "./engine/core/GamePaths";
  * 5. ESC key shows pause menu during gameplay
  */
 async function main() {
+  // Set browser title to "SHAG Engine v<version>"
+  EngineVersion.getInstance().setDocumentTitle();
+  
   // Initialize Capacitor bridge early (handles native platform setup)
   await CapacitorBridge.getInstance().init();
   

@@ -50,6 +50,15 @@ class EngineVersion {
   }
 
   /**
+   * Set the browser document title to "SHAG Engine v<version>"
+   */
+  public setDocumentTitle(): void {
+    if (typeof document !== 'undefined') {
+      document.title = this.getFullVersionString();
+    }
+  }
+
+  /**
    * Get the engine tagline
    */
   public getEngineTagline(): string {
