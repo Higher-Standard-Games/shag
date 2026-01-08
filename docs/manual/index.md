@@ -1,6 +1,6 @@
 # SHAG Engine Documentation
 
-Welcome to the SHAG Engine documentation. SHAG Engine is a cross-platform WebGL game engine built on Babylon.js, designed for streamlined development using NetRadiant-custom and idTech3 tooling.
+Welcome to the SHAG Engine documentation. SHAG Engine is a cross-platform WebGL game engine built on Babylon.js, designed for streamlined development using NetRadiant-custom and idTech3 tooling. With headless mode and AI-agent friendly architecture, SHAG Engine enables rapid prototyping, automated testing, and AI-assisted development workflows.
 
 ---
 
