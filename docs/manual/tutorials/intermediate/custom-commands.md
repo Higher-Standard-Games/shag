@@ -15,7 +15,7 @@ Learn to extend the console with your own commands.
 Commands are registered with `ConsoleCommandRegistry`:
 
 ```typescript
-import { ConsoleCommandRegistry } from '../../engine/console/ConsoleCommandRegistry';
+import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
 
 const registry = ConsoleCommandRegistry.getInstance();
 ```
@@ -173,7 +173,7 @@ Create a commands file:
 
 ```typescript
 // src/game/commands/GameCommands.ts
-import { ConsoleCommandRegistry } from '../../engine/console/ConsoleCommandRegistry';
+import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
 
 export function registerGameCommands(registry: ConsoleCommandRegistry) {
   registry.registerCommand({

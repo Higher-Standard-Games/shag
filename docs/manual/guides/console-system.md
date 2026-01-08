@@ -86,7 +86,7 @@ version              // Engine version
 ### Simple Command
 
 ```typescript
-import { ConsoleCommandRegistry } from './engine/console/ConsoleCommandRegistry';
+import { ConsoleCommandRegistry } from './engine/debug/ConsoleCommandRegistry';
 
 const registry = ConsoleCommandRegistry.getInstance();
 

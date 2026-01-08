@@ -180,7 +180,7 @@ export class OrbitController implements ICameraController {
 ## Adding Console Commands
 
 ```typescript
-import { ConsoleCommandRegistry } from '../../engine/console/ConsoleCommandRegistry';
+import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
 
 const registry = ConsoleCommandRegistry.getInstance();
 

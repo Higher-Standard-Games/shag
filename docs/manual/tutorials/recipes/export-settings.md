@@ -57,7 +57,7 @@ navigator.clipboard.writeText(exportSettings());
 ### Import Settings
 
 ```typescript
-import { ConsoleCommandRegistry } from '../../engine/console/ConsoleCommandRegistry';
+import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
 
 function importSettings(config: string) {
   const registry = ConsoleCommandRegistry.getInstance();
