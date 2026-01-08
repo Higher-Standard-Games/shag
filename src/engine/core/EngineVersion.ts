@@ -5,6 +5,7 @@
  */
 
 import versionText from '../version.txt?raw';
+import { GamePaths } from './GamePaths';
 
 class EngineVersion {
   private static instance: EngineVersion;
@@ -50,11 +51,19 @@ class EngineVersion {
   }
 
   /**
-   * Set the browser document title to "SHAG Engine v<version>"
+   * Set the browser document title.
+   * Uses game title from config if set, otherwise "SHAG Engine v<version>"
    */
   public setDocumentTitle(): void {
     if (typeof document !== 'undefined') {
-      document.title = this.getFullVersionString();
+      const gamePaths = GamePaths.getInstance();
+      const gameTitle = gamePaths.isInitialized() ? gamePaths.getGameTitle() : null;
+      
+      if (gameTitle) {
+        document.title = gameTitle;
+      } else {
+        document.title = this.getFullVersionString();
+      }
     }
   }
 

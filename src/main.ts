@@ -30,14 +30,14 @@ import { EngineVersion } from "./engine/core/EngineVersion";
  * 5. ESC key shows pause menu during gameplay
  */
 async function main() {
-  // Set browser title to "SHAG Engine v<version>"
-  EngineVersion.getInstance().setDocumentTitle();
-  
   // Initialize Capacitor bridge early (handles native platform setup)
   await CapacitorBridge.getInstance().init();
   
   // Initialize GamePaths (reads engine.json and URL params)
   await GamePaths.getInstance().init();
+  
+  // Set browser title (uses game title from config if set, else "SHAG Engine v<version>")
+  EngineVersion.getInstance().setDocumentTitle();
   
   // Register engine services with ServiceLocator for explicit init order
   registerEngineServices();

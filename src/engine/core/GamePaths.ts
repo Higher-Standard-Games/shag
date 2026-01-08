@@ -26,12 +26,14 @@
 export interface EngineConfig {
   defaultGame: string;
   engineAssetsPath: string;
+  title?: string;  // Optional game title for browser tab
 }
 
 export class GamePaths {
   private static instance: GamePaths;
   
   private gameName: string = 'game';
+  private gameTitle: string | null = null;  // Optional title from config
   private enginePath: string = '/engine';
   private initialized: boolean = false;
 
@@ -72,7 +74,8 @@ export class GamePaths {
           const config: EngineConfig = await response.json();
           this.gameName = config.defaultGame || 'ganjawars';
           this.enginePath = config.engineAssetsPath || '/engine';
-          console.log(`[GamePaths] Loaded from engine.json: game=${this.gameName}`);
+          this.gameTitle = config.title || null;
+          console.log(`[GamePaths] Loaded from engine.json: game=${this.gameName}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
         }
       } catch (error) {
         console.log('[GamePaths] No engine.json found, using defaults');
@@ -95,6 +98,13 @@ export class GamePaths {
    */
   public getGameName(): string {
     return this.gameName;
+  }
+
+  /**
+   * Get game title from config (if set)
+   */
+  public getGameTitle(): string | null {
+    return this.gameTitle;
   }
 
   /**
