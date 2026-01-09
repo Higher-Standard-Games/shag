@@ -22,7 +22,6 @@ import * as path from "path";
 import * as readline from "readline";
 
 // Static imports for command system
-import { ConsoleCommandRegistry } from "../engine/debug/ConsoleCommandRegistry";
 import { registerEngineCommands } from "../engine/console/commands";
 
 // ============================================================================
@@ -144,8 +143,6 @@ async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
 async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Registering commands...");
 
-  const registry = ConsoleCommandRegistry.getInstance();
-
   // Register all engine commands
   await registerEngineCommands();
   console.log("[Init] Engine commands registered");
@@ -154,7 +151,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   // Headless-specific Commands (override/extend engine commands)
   // ============================================================================
 
-  registry.register("writeconsole", (args) => {
+  const { CommandRegistry } = await import("../engine/console/CommandRegistry");
+  const registry = CommandRegistry.getInstance();
+
+  registry.register("writeconsole", (args: string[]) => {
     const outputPath = args[0] || "console.log";
     fs.writeFileSync(outputPath, consoleHistory.join("\n"));
     return `Console output written to ${outputPath} (${consoleHistory.length} lines)`;
@@ -169,7 +169,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     process.exit(0);
   });
 
-  registry.register("headless", (args) => {
+  registry.register("headless", (args: string[]) => {
     const sub = args[0]?.toLowerCase();
     switch (sub) {
       case "info":
@@ -198,7 +198,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   });
 
   // Collision trace test command
-  registry.register("trace_test", async (args) => {
+  registry.register("trace_test", async (args: string[]) => {
     const sub = args[0]?.toLowerCase();
     
     // Import collision manager
@@ -353,7 +353,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   });
 
   // Help command for headless mode
-  registry.register("help", (args) => {
+  registry.register("help", (args: string[]) => {
     const cmdName = args[0]?.toLowerCase();
 
     if (cmdName) {
@@ -380,7 +380,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     const defs = registry.getAllDefinitions();
     const lines = ["Available commands:", ""];
 
-    for (const def of defs.sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const def of defs.sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name))) {
       lines.push(`  ${def.name.padEnd(15)} ${def.description}`);
     }
 
@@ -390,7 +390,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     return lines.join("\n");
   });
 
-  console.log("[Init] Commands registered: " + registry.getCommandNames().length);
+  console.log("[Init] Commands registered: " + registry.getCommands().size);
 }
 
 // ============================================================================

@@ -4,17 +4,13 @@
  * Connects console commands to game systems (not engine systems).
  */
 
-import { ConsoleCommandRegistry, CommandsFile } from '../../engine/debug';
+import { CommandRegistry } from '../../engine/console/CommandRegistry';
 import { Cvar } from '../../engine/core/Cvar';
-import gameCommands from './console-commands.json';
 import { GameState } from './GameState';
 import { SaveManager } from './SaveManager';
 
 export function registerGameCommands(): void {
-  const registry = ConsoleCommandRegistry.getInstance();
-  
-  // Load game command definitions
-  registry.loadDefinitionsFromJson(gameCommands as CommandsFile);
+  const registry = CommandRegistry.getInstance();
 
   // ============================================================================
   // Game Cvars (g_* prefix)
