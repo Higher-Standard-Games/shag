@@ -197,6 +197,95 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     ].join("\n");
   });
 
+  registry.register("leaktest", async (args: string[]) => {
+    const sub = args[0]?.toLowerCase();
+    if (sub !== "maprenderer") {
+      return [
+        "Leak test commands:",
+        "  leaktest maprenderer <iterations> [mapName]",
+      ].join("\n");
+    }
+
+    if (!context?.scene) {
+      process.exitCode = 1;
+      return "No scene available";
+    }
+
+    const iterations = Math.max(1, parseInt(args[1] || "5", 10) || 5);
+    const mapName = args[2] || "leaktest";
+
+    const scene = context.scene;
+    const { MapRenderer } = await import("../engine/MapRenderer");
+    const { MeshBuilder } = await import("@babylonjs/core/Meshes/meshBuilder");
+    const { TransformNode } = await import("@babylonjs/core/Meshes/transformNode");
+
+    const ownedCounts = () => {
+      const isOwned = (m: any) => m?.metadata?.mapOwned && m?.metadata?.mapName === mapName;
+      const ownedMeshes = scene.meshes.filter(isOwned);
+      const ownedNodes = scene.transformNodes.filter(isOwned);
+      const ownedLights = scene.lights.filter(isOwned);
+      return {
+        meshes: ownedMeshes.length,
+        nodes: ownedNodes.length,
+        lights: ownedLights.length,
+        total: ownedMeshes.length + ownedNodes.length + ownedLights.length,
+      };
+    };
+
+    let failures = 0;
+    for (let i = 0; i < iterations; i++) {
+      await MapRenderer.renderEntities(
+        [
+          {
+            classname: "light",
+            properties: {
+              origin: "0 0 0",
+              light: "300",
+            },
+            brushes: [],
+            patches: [],
+          },
+        ] as any,
+        scene,
+        mapName
+      );
+
+      const box = MeshBuilder.CreateBox(`leaktest_box_${i}`, { size: 1 }, scene);
+      box.metadata = { mapOwned: true, mapName };
+
+      const node = new TransformNode(`leaktest_node_${i}`, scene);
+      node.metadata = { mapOwned: true, mapName };
+
+      const before = ownedCounts();
+      MapRenderer.clearMap(scene, mapName);
+      const after = ownedCounts();
+
+      console.log(
+        `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': before=${before.total} (m=${before.meshes},n=${before.nodes},l=${before.lights}) after=${after.total} (m=${after.meshes},n=${after.nodes},l=${after.lights})`
+      );
+
+      if (after.total !== 0) {
+        failures++;
+      }
+
+      const clustered = (scene.metadata as any)?.clusteredLightContainer;
+      if (clustered) {
+        failures++;
+        console.log("[LeakTest] ClusteredLightContainer still present after clearMap");
+      }
+    }
+
+    const final = ownedCounts();
+    const ok = failures === 0 && final.total === 0;
+    if (!ok) {
+      process.exitCode = 1;
+    }
+
+    return ok
+      ? `LeakTest OK (maprenderer) iterations=${iterations} map='${mapName}'`
+      : `LeakTest FAILED (maprenderer) iterations=${iterations} map='${mapName}' remaining=${final.total} failures=${failures}`;
+  });
+
   // Collision trace test command
   registry.register("trace_test", async (args: string[]) => {
     const sub = args[0]?.toLowerCase();
