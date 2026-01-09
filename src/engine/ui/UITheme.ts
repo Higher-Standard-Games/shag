@@ -294,12 +294,12 @@ export class UITheme {
       { weight: "900", file: "Nunito-Black.ttf" },
     ];
 
-    // Load fonts sequentially to avoid race conditions with dev server
+    // Use engine fonts directly (these are engine assets, not game-overridable)
     const gamePaths = GamePaths.getInstance();
     let loadedCount = 0;
     
     for (const { weight, file } of weights) {
-      const fontPath = await this.resolveFontPath(`fonts/Nunito/static/${file}`, gamePaths);
+      const fontPath = gamePaths.engine(`fonts/Nunito/static/${file}`);
       const success = await this.loadFont("Nunito", fontPath, weight, true);
       if (success) loadedCount++;
     }
@@ -311,46 +311,15 @@ export class UITheme {
    * Load Share Tech Mono font for debug console
    */
   public async loadShareTechMonoFont(): Promise<void> {
-    // Try game fonts first, fallback to engine fonts
+    // Use engine fonts directly (these are engine assets)
     const gamePaths = GamePaths.getInstance();
-    const fontPath = await this.resolveFontPath('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf', gamePaths);
+    const fontPath = gamePaths.engine('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
     const success = await this.loadFont('Share Tech Mono', fontPath, '400', true);
     if (success) {
       console.log("[UITheme] Share Tech Mono font loaded (debug console)");
     } else {
       console.warn("[UITheme] Share Tech Mono font failed to load from:", fontPath);
     }
-  }
-
-  /**
-   * Resolve font path - checks game directory first (silently), falls back to engine
-   */
-  private async resolveFontPath(relativePath: string, gamePaths: GamePaths): Promise<string> {
-    // Check game path first (silently - no error logs)
-    const gamePath = gamePaths.game(relativePath);
-    try {
-      const response = await fetch(gamePath, { method: 'HEAD' });
-      if (response.ok) {
-        return gamePath;
-      }
-    } catch {
-      // Silently fall through to engine path
-    }
-    
-    // Default to engine path
-    const enginePath = gamePaths.engine(relativePath);
-    
-    // Verify engine path exists
-    try {
-      const response = await fetch(enginePath, { method: 'HEAD' });
-      if (!response.ok) {
-        console.warn(`[UITheme] Font not found at engine path: ${enginePath}`);
-      }
-    } catch {
-      console.warn(`[UITheme] Failed to check font path: ${enginePath}`);
-    }
-    
-    return enginePath;
   }
 
   /**
