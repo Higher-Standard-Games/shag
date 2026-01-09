@@ -290,10 +290,10 @@ export class UITheme {
       { weight: "900", file: "Nunito-Black.ttf" },
     ];
 
-    // Try game fonts first, fallback to engine fonts
+    // Fonts are engine assets - load from engine path directly
     const gamePaths = GamePaths.getInstance();
     const loadPromises = weights.map(async ({ weight, file }) => {
-      const fontPath = await gamePaths.resolve(`fonts/Nunito/static/${file}`);
+      const fontPath = gamePaths.engine(`fonts/Nunito/static/${file}`);
       return this.loadFont("Nunito", fontPath, weight, true);
     });
 
@@ -305,8 +305,9 @@ export class UITheme {
    * Load Share Tech Mono font for debug console
    */
   public async loadShareTechMonoFont(): Promise<void> {
+    // Fonts are engine assets - load from engine path directly
     const gamePaths = GamePaths.getInstance();
-    const fontPath = await gamePaths.resolve('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
+    const fontPath = gamePaths.engine('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
     await this.loadFont('Share Tech Mono', fontPath, '400', false);
     console.log("[UITheme] Share Tech Mono font loaded (debug console)");
   }
