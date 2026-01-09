@@ -57,6 +57,13 @@ export class GameInputHandler {
     // Only process clicks, not drags
     if (wasDrag) return;
 
+    // Check if click is over UI elements - don't process scene clicks on UI
+    const elementAtPoint = document.elementFromPoint(screenX, screenY);
+    if (elementAtPoint && elementAtPoint !== document.body && elementAtPoint.tagName !== 'CANVAS') {
+      // Click is on UI element, not the canvas - skip scene handling
+      return;
+    }
+
     // Use multiPick to find ALL meshes under cursor
     const multiPick = this.scene.multiPick(screenX, screenY);
     if (!multiPick || multiPick.length === 0) return;
