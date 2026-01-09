@@ -174,7 +174,7 @@ export class UITheme {
    * Load a custom font from URL
    * Supports WOFF2, WOFF, TTF, OTF formats
    */
-  public async loadFont(fontName: string, fontUrl: string, weight: string = "400", silent: boolean = false): Promise<void> {
+  public async loadFont(fontName: string, fontUrl: string, weight: string = "400", silent: boolean = false): Promise<boolean> {
     const font = new FontFace(fontName, `url(${fontUrl})`, {
       weight,
       style: "normal",
@@ -186,8 +186,12 @@ export class UITheme {
       if (!silent) {
         console.log(`Font loaded: ${fontName}`);
       }
+      return true;
     } catch (error) {
-      console.warn(`Failed to load font ${fontName}:`, error);
+      if (!silent) {
+        console.warn(`Failed to load font ${fontName}:`, error);
+      }
+      return false;
     }
   }
 
@@ -290,15 +294,17 @@ export class UITheme {
       { weight: "900", file: "Nunito-Black.ttf" },
     ];
 
-    // Try game fonts first (allows game to override), fallback to engine fonts
+    // Load fonts sequentially to avoid race conditions with dev server
     const gamePaths = GamePaths.getInstance();
-    const loadPromises = weights.map(async ({ weight, file }) => {
+    let loadedCount = 0;
+    
+    for (const { weight, file } of weights) {
       const fontPath = await this.resolveFontPath(`fonts/Nunito/static/${file}`, gamePaths);
-      return this.loadFont("Nunito", fontPath, weight, true);
-    });
+      const success = await this.loadFont("Nunito", fontPath, weight, true);
+      if (success) loadedCount++;
+    }
 
-    await Promise.all(loadPromises);
-    console.log("[UITheme] Nunito font family loaded (7 weights)");
+    console.log(`[UITheme] Nunito font family loaded (${loadedCount}/${weights.length} weights)`);
   }
 
   /**
