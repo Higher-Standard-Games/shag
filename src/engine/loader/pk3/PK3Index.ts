@@ -84,7 +84,7 @@ export class PK3Index {
   private static instance: PK3Index;
 
   private index: PK3IndexData | null = null;
-  private searchPaths: string[] = ['game/'];
+  private searchPaths: string[] = ['games/default/'];
 
   private constructor() {
     this.loadFromStorage();

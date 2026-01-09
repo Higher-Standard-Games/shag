@@ -1707,7 +1707,7 @@ export function registerEngineCommands(): void {
         const json = JSON.stringify(allSettings, null, 2);
         console.log(json);
         copyToClipboard(json);
-        return 'All settings exported (copied to clipboard) - paste into public/game/engine-settings.json';
+        return 'All settings exported (copied to clipboard) - paste into public/games/default/engine-settings.json';
       }
 
       case 'show': {

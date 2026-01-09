@@ -1,6 +1,6 @@
 # Engine Configuration
 
-SHAG Engine uses a central configuration file to define game paths, browser title, and security settings.
+SHAG Engine uses a central configuration file to define game paths and browser title. Game selection happens at **build time**, ensuring each build is self-contained.
 
 ## engine.json
 
@@ -10,7 +10,7 @@ Create `public/engine.json` in your project root. This file is **required** - th
 
 ```json
 {
-  "defaultGame": "game"
+  "defaultGame": "default"
 }
 ```
 
@@ -18,10 +18,9 @@ Create `public/engine.json` in your project root. This file is **required** - th
 
 ```json
 {
-  "defaultGame": "game",
+  "defaultGame": "default",
   "engineAssetsPath": "/engine",
-  "title": "My Game Title",
-  "allowGameOverride": false
+  "title": "My Game Title"
 }
 ```
 
@@ -29,7 +28,9 @@ Create `public/engine.json` in your project root. This file is **required** - th
 
 ### defaultGame (required)
 
-The game directory name under `public/`. This determines where game assets are loaded from.
+The game directory name. This determines:
+- **Source code**: `src/games/{defaultGame}/` - bundled at build time
+- **Assets**: `public/games/{defaultGame}/` - loaded at runtime
 
 ```json
 {
@@ -38,9 +39,9 @@ The game directory name under `public/`. This determines where game assets are l
 ```
 
 Asset paths will resolve to:
-- Maps: `/mygame/maps/`
-- Audio: `/mygame/audio/`
-- Data: `/mygame/data/`
+- Maps: `/games/mygame/maps/`
+- Audio: `/games/mygame/audio/`
+- Data: `/games/mygame/data/`
 
 ### engineAssetsPath
 
@@ -62,73 +63,84 @@ Browser tab title. If not set, defaults to "SHAG Engine v{version}".
 }
 ```
 
-### allowGameOverride
+## Build-Time Game Selection
 
-**Security option.** When `true`, allows the `?game=` URL parameter to override the default game directory.
+Games are selected at **build time**, not runtime. This ensures:
+- Only the selected game's code is bundled
+- Clean separation between engine and game code
+- Self-contained builds for distribution
 
-```json
-{
-  "allowGameOverride": true
-}
+### Default Build
+
+Uses the game specified in `engine.json`:
+
+```bash
+npm run build
 ```
 
-| Value | Behavior |
-|-------|----------|
-| `true` | `?game=other` loads from `/other/` directory |
-| `false` or missing | `?game=` parameter is ignored (warning logged) |
+### Override with Environment Variable
 
-**Recommendation:** 
-- Set `true` during development to test different game directories
-- Set `false` or remove for production builds
+Build a different game by setting `GAME`:
 
-## Usage Example
+```bash
+# Windows PowerShell
+$env:GAME="demo"; npm run build
 
-### Development (multiple games)
-
-```json
-{
-  "defaultGame": "game",
-  "allowGameOverride": true
-}
+# Linux/macOS
+GAME=demo npm run build
 ```
 
-Test different games:
-- `http://localhost:5173/` → loads `/game/`
-- `http://localhost:5173/?game=demo` → loads `/demo/`
-- `http://localhost:5173/?game=test` → loads `/test/`
+### Development Server
 
-### Production (locked)
+```bash
+# Use default game
+npm run dev
 
-```json
-{
-  "defaultGame": "mygame",
-  "title": "My Game",
-  "allowGameOverride": false
-}
+# Use different game
+$env:GAME="demo"; npm run dev
 ```
-
-The `?game=` parameter is ignored for security.
 
 ## Directory Structure
 
 ```
-public/
-├── engine.json          # Engine configuration
-├── engine/              # Shared engine assets
-│   ├── fonts/
-│   └── textures/
-├── game/                # Default game (or your game name)
-│   ├── maps/
-│   ├── audio/
-│   └── data/
-└── demo/                # Additional game (if allowGameOverride: true)
-    ├── maps/
-    └── ...
+project/
+├── src/
+│   └── games/
+│       ├── default/         # Default game source
+│       │   ├── GameScene.ts
+│       │   ├── ui/
+│       │   └── ...
+│       └── demo/            # Another game (build with GAME=demo)
+│           └── ...
+└── public/
+    ├── engine.json          # Engine configuration
+    ├── engine/              # Shared engine assets
+    │   ├── fonts/
+    │   └── textures/
+    └── games/
+        ├── default/         # Default game assets
+        │   ├── maps/
+        │   ├── data/
+        │   └── music/
+        └── demo/            # Demo game assets
+            └── ...
 ```
+
+## @game Import Alias
+
+Use the `@game` alias to import from the selected game's source:
+
+```typescript
+// In main.ts or engine code
+import { GameScene } from "@game/GameScene";
+import { SaveManager } from "@game/SaveManager";
+```
+
+The alias resolves to `src/games/{selectedGame}/` at build time.
 
 ## GamePaths API
 
-Access configuration in code via `GamePaths`:
+Access runtime asset paths via `GamePaths`:
 
 ```typescript
 import { GamePaths } from './engine/core/GamePaths';
@@ -136,27 +148,60 @@ import { GamePaths } from './engine/core/GamePaths';
 // After init()
 const paths = GamePaths.getInstance();
 
-paths.getGameName();    // "game"
-paths.getGameTitle();   // "My Game Title" or null
-paths.maps('level.map'); // "/game/maps/level.map"
-paths.audio('music.mp3'); // "/game/audio/music.mp3"
-paths.data('config.json'); // "/game/data/config.json"
+paths.getGameName();     // "default"
+paths.getGameTitle();    // "My Game Title" or null
+paths.maps('level.map'); // "/games/default/maps/level.map"
+paths.music('theme.mp3'); // "/games/default/music/theme.mp3"
+paths.data('config.json'); // "/games/default/data/config.json"
 paths.engine('font.ttf'); // "/engine/font.ttf"
 ```
+
+## Customizing UI Styles
+
+Games can customize the engine's UI colors before initialization.
+
+### Console Colors
+
+The debug console uses the SHAG logo palette by default. Customize via `UIStyles.setConsoleColors()`:
+
+```typescript
+import { UIStyles } from './engine/ui/UIStyles';
+
+// Call BEFORE UIStyles.injectBase() or any UI initialization
+UIStyles.setConsoleColors({
+  primary: '#ff6600',      // Main accent color
+  primaryDim: 'rgba(255, 102, 0, 0.4)',
+  primaryGlow: 'rgba(255, 102, 0, 0.6)',
+  error: '#ff4444',
+  warn: '#ffaa00',
+  success: '#44ff44',
+});
+```
+
+Available color keys:
+- `primary`, `primaryDim`, `primaryGlow` - Main accent
+- `orange`, `yellow`, `teal`, `magenta`, `green` - SHAG palette
+- `error`, `warn`, `info`, `success` - Semantic colors
+- `text`, `textBright`, `textDim` - Text colors
+- `bg`, `bgHeader`, `bgInput` - Background colors
+
+### Loading Screen Colors
+
+The loading screen uses the SHAG logo palette defined in `LoadingScreen.ts`:
+- Orange: `#E85D04`
+- Yellow: `#FAC748`
+- Teal: `#2EC4B6`
+- Magenta: `#E040FB`
+- Green: `#4ADE80`
 
 ## Error Handling
 
 The engine throws clear errors for configuration issues:
 
 ```
-[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "game" }
+[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "default" }
 ```
 
 ```
 [GamePaths] engine.json missing "defaultGame" field
-```
-
-If `?game=` is used but not allowed:
-```
-[GamePaths] ?game= ignored - set allowGameOverride: true in engine.json to enable
 ```

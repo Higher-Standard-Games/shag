@@ -172,7 +172,7 @@ registry.registerCommand({
 Create a commands file:
 
 ```typescript
-// src/game/commands/GameCommands.ts
+// src/games/mygame/commands/GameCommands.ts
 import { ConsoleCommandRegistry } from '../../engine/debug/ConsoleCommandRegistry';
 
 export function registerGameCommands(registry: ConsoleCommandRegistry) {

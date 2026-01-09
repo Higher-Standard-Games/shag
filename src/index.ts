@@ -13,10 +13,10 @@ import { MapParser } from "./engine/loader";
 import { type PatchDefinition, PatchGenerator } from "./engine/loader";
 import { TextureManager } from "./engine/loader";
 import { IsometricController } from "./engine/camera";
-import { UIManager } from "./game/ui/UIManager";
-import { GameState } from "./game/GameState";
+import { UIManager } from "@game/ui/UIManager";
+import { GameState } from "@game/GameState";
 import { EventBus } from "./engine/core/EventBus";
-import { WORLD_AREAS } from "./game/data/world";
+import { WORLD_AREAS } from "@game/data/world";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 

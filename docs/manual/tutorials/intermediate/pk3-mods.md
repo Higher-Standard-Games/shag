@@ -29,7 +29,7 @@ data0_15pure.pk3   (priority 0)
 ### Method 1: Place in Game Directory
 
 ```
-public/game/
+public/games/default/
 ├── data0_15pure.pk3     # Base assets
 ├── map_wdm7.pk3         # Map
 └── my_custom_mod.pk3    # Your mod (auto-loaded)

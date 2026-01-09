@@ -77,7 +77,7 @@ PK3 files are large. Consider:
 
 ### Option 1: Include in Build
 
-Place in `public/game/`, included in `dist/`.
+Place in `public/games/default/`, included in `dist/`.
 
 **Pros:** Simple, works offline  
 **Cons:** Large initial download

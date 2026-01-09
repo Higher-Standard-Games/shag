@@ -8,11 +8,12 @@
  * ```
  * public/
  * ├── engine/           # Shared engine assets (fonts, default textures)
- * ├── mygame/           # Game directory (--game mygame)
- * │   ├── config.json
- * │   ├── data/
- * │   ├── maps/
- * │   └── ...
+ * ├── games/
+ * │   └── default/      # Game directory (defaultGame: "default")
+ * │       ├── config.json
+ * │       ├── data/
+ * │       ├── maps/
+ * │       └── ...
  * └── engine.json       # Root config (defaultGame, engineAssetsPath)
  * ```
  * 
@@ -25,15 +26,14 @@
 
 export interface EngineConfig {
   defaultGame: string;
-  engineAssetsPath: string;
+  engineAssetsPath?: string;
   title?: string;  // Optional game title for browser tab
-  allowGameOverride?: boolean;  // Allow ?game= URL param (default: false, enable for dev)
 }
 
 export class GamePaths {
   private static instance: GamePaths;
   
-  private gameName: string = 'game';
+  private gameName: string = 'default';
   private gameTitle: string | null = null;  // Optional title from config
   private enginePath: string = '/engine';
   private initialized: boolean = false;
@@ -55,14 +55,10 @@ export class GamePaths {
   }
 
   /**
-   * Initialize from engine.json and URL params
+   * Initialize from engine.json
    */
   public async init(): Promise<void> {
     if (this.initialized) return;
-
-    // Check URL param first (highest priority)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlGame = urlParams.get('game');
 
     // Load engine.json (required)
     let config: EngineConfig | null = null;
@@ -76,30 +72,19 @@ export class GamePaths {
     }
 
     if (!config) {
-      throw new Error('[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "game" }');
+      throw new Error('[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "default" }');
     }
 
     if (!config.defaultGame) {
       throw new Error('[GamePaths] engine.json missing "defaultGame" field');
     }
 
-    // URL param overrides config only if explicitly allowed (security)
-    if (urlGame && config.allowGameOverride) {
-      this.gameName = urlGame;
-      console.log(`[GamePaths] Game overridden by URL param: ${this.gameName}`);
-    } else {
-      if (urlGame && !config.allowGameOverride) {
-        console.warn(`[GamePaths] ?game= ignored - set allowGameOverride: true in engine.json to enable`);
-      }
-      this.gameName = config.defaultGame;
-    }
-
+    this.gameName = config.defaultGame;
     this.enginePath = config.engineAssetsPath || '/engine';
     this.gameTitle = config.title || null;
-    console.log(`[GamePaths] Loaded: game=${this.gameName}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
 
     this.initialized = true;
-    console.log(`[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}`);
+    console.log(`[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
   }
 
   /**
@@ -149,7 +134,7 @@ export class GamePaths {
    * @param relativePath Optional path relative to game root
    */
   public game(relativePath?: string): string {
-    const base = `/${this.gameName}`;
+    const base = `/games/${this.gameName}`;
     if (!relativePath) return base;
     return `${base}/${relativePath.replace(/^\//, '')}`;
   }

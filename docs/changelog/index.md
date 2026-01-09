@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.8.16](./v0.8.16.md) | Jan 9, 2026 | GamePaths Refactor & Build-Time Game Selection |
 | [v0.8.15](./v0.8.15.md) | Jan 9, 2026 | Cvar System & Engine Refactoring |
 | [v0.8.14](./v0.8.14.md) | Jan 8, 2026 | Documentation & Console Improvements |
 | [v0.8.13](./v0.8.13.md) | Jan 7, 2026 | Bug fixes (camera, render vars, skybox) |

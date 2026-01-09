@@ -1,7 +1,22 @@
 import { defineConfig } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Read engine.json for default game configuration
+const engineConfigPath = path.resolve(__dirname, 'public/engine.json');
+const engineConfig = JSON.parse(fs.readFileSync(engineConfigPath, 'utf-8'));
+
+// GAME env var overrides engine.json's defaultGame (for development/testing)
+const selectedGame = process.env.GAME || engineConfig.defaultGame || 'default';
+console.log(`[Vite] Building game: ${selectedGame}`);
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@game': path.resolve(__dirname, `src/games/${selectedGame}`),
+    },
+  },
   server: {
     port: 3000,
     host: true, // Allow external access for Capacitor live reload

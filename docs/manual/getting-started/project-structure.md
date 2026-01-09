@@ -58,16 +58,22 @@ src/engine/
     └── RenderVars.ts           # Runtime render config
 ```
 
-### Game (`src/game/`)
+### Games (`src/games/`)
 
-Game-specific code that uses the engine.
+Game-specific code that uses the engine. Each game lives in its own directory.
 
 ```
-src/game/
-├── GameState.ts
-├── SaveManager.ts
-└── systems/                    # Game systems
+src/games/
+└── default/                   # Default game (set in engine.json)
+    ├── GameScene.ts           # Main game scene
+    ├── GameState.ts           # Game state management
+    ├── SaveManager.ts         # Save/load coordination
+    ├── data/                  # Game data definitions
+    ├── ui/                    # Game-specific UI components
+    └── systems/               # Game systems
 ```
+
+The active game is selected at build time via `engine.json` or `GAME` env variable.
 
 ### CLI (`src/cli/`)
 
@@ -86,12 +92,15 @@ public/
 ├── engine.json                # Engine configuration (required)
 ├── engine/                    # Shared engine assets
 │   ├── fonts/                 # Engine fonts (Inter, Nunito, Share Tech Mono)
-│   └── textures/             # Shared textures
-└── game/                      # Game assets
-    ├── data0_15pure.pk3       # Core Warsow assets
-    ├── map_wdm7.pk3           # Map files
-    ├── tex_*.pk3              # Texture packs
-    └── ...
+│   └── textures/              # Shared textures
+└── games/                     # Game assets directory
+    └── default/               # Assets for 'default' game
+        ├── config.json        # Game configuration
+        ├── maps/              # Map files
+        ├── data/              # JSON data files
+        ├── textures/          # Game textures
+        ├── music/             # Music files
+        └── *.pk3              # PK3 archives
 ```
 
 ## Key Singletons

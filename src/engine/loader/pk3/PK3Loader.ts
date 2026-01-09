@@ -40,7 +40,7 @@ export class PK3Loader {
   private static instance: PK3Loader | null = null;
   
   private packages: Map<string, PK3File> = new Map();
-  private config: PK3LoaderConfig = { basePath: "game/", additionalPaths: [] };
+  private config: PK3LoaderConfig = { basePath: "games/default/", additionalPaths: [] };
   private fileIndex: Map<string, string> = new Map(); // path -> pk3 filename
   
   private constructor() {}

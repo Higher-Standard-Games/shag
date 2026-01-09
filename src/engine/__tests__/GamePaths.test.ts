@@ -44,7 +44,7 @@ describe('GamePaths', () => {
   describe('default values', () => {
     it('should have default game name', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.getGameName()).toBe('game');
+      expect(paths.getGameName()).toBe('default');
     });
 
     it('should have default engine path', () => {
@@ -56,17 +56,17 @@ describe('GamePaths', () => {
   describe('path builders', () => {
     it('should build game root path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.game()).toBe('/game');
+      expect(paths.game()).toBe('/games/default');
     });
 
     it('should build game relative path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.game('config.json')).toBe('/game/config.json');
+      expect(paths.game('config.json')).toBe('/games/default/config.json');
     });
 
     it('should strip leading slash from relative path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.game('/config.json')).toBe('/game/config.json');
+      expect(paths.game('/config.json')).toBe('/games/default/config.json');
     });
 
     it('should build engine root path', () => {
@@ -83,60 +83,60 @@ describe('GamePaths', () => {
   describe('convenience methods', () => {
     it('should build maps path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.maps()).toBe('/game/maps');
-      expect(paths.maps('level1.map')).toBe('/game/maps/level1.map');
+      expect(paths.maps()).toBe('/games/default/maps');
+      expect(paths.maps('level1.map')).toBe('/games/default/maps/level1.map');
     });
 
     it('should build textures path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.textures()).toBe('/game/textures');
-      expect(paths.textures('wall.jpg')).toBe('/game/textures/wall.jpg');
+      expect(paths.textures()).toBe('/games/default/textures');
+      expect(paths.textures('wall.jpg')).toBe('/games/default/textures/wall.jpg');
     });
 
     it('should build prefabs path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.prefabs()).toBe('/game/prefabs');
-      expect(paths.prefabs('pot.map')).toBe('/game/prefabs/pot.map');
+      expect(paths.prefabs()).toBe('/games/default/prefabs');
+      expect(paths.prefabs('pot.map')).toBe('/games/default/prefabs/pot.map');
     });
 
     it('should build data path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.data()).toBe('/game/data');
-      expect(paths.data('strains.json')).toBe('/game/data/strains.json');
+      expect(paths.data()).toBe('/games/default/data');
+      expect(paths.data('strains.json')).toBe('/games/default/data/strains.json');
     });
 
     it('should build music path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.music()).toBe('/game/music');
-      expect(paths.music('theme.mp3')).toBe('/game/music/theme.mp3');
+      expect(paths.music()).toBe('/games/default/music');
+      expect(paths.music('theme.mp3')).toBe('/games/default/music/theme.mp3');
     });
 
     it('should build fonts path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.fonts()).toBe('/game/fonts');
-      expect(paths.fonts('Nunito/Nunito-Bold.ttf')).toBe('/game/fonts/Nunito/Nunito-Bold.ttf');
+      expect(paths.fonts()).toBe('/games/default/fonts');
+      expect(paths.fonts('Nunito/Nunito-Bold.ttf')).toBe('/games/default/fonts/Nunito/Nunito-Bold.ttf');
     });
   });
 
   describe('config file paths', () => {
     it('should return config.json path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.configPath()).toBe('/game/config.json');
+      expect(paths.configPath()).toBe('/games/default/config.json');
     });
 
     it('should return engine-settings.json path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.engineSettingsPath()).toBe('/game/engine-settings.json');
+      expect(paths.engineSettingsPath()).toBe('/games/default/engine-settings.json');
     });
 
     it('should return ui-config.json path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.uiConfigPath()).toBe('/game/data/ui-config.json');
+      expect(paths.uiConfigPath()).toBe('/games/default/data/ui-config.json');
     });
 
     it('should return hud-config.json path', () => {
       const paths = GamePaths.getInstance();
-      expect(paths.hudConfigPath()).toBe('/game/data/hud-config.json');
+      expect(paths.hudConfigPath()).toBe('/games/default/data/hud-config.json');
     });
   });
 
@@ -150,27 +150,12 @@ describe('GamePaths', () => {
     it('should update all paths after game change', () => {
       const paths = GamePaths.getInstance();
       paths.setGame('example');
-      expect(paths.game()).toBe('/example');
-      expect(paths.maps()).toBe('/example/maps');
-      expect(paths.configPath()).toBe('/example/config.json');
+      expect(paths.game()).toBe('/games/example');
+      expect(paths.maps()).toBe('/games/example/maps');
+      expect(paths.configPath()).toBe('/games/example/config.json');
     });
   });
 
-  describe('init with URL param', () => {
-    it('should use game from URL param', async () => {
-      // Set URL param
-      mockWindow.location = {
-        search: '?game=testgame',
-        pathname: '/',
-        href: 'http://localhost/?game=testgame'
-      };
-
-      const paths = GamePaths.getInstance();
-      await paths.init();
-      
-      expect(paths.getGameName()).toBe('testgame');
-    });
-  });
 
   describe('init with engine.json', () => {
     it('should load config from engine.json', async () => {
@@ -190,7 +175,7 @@ describe('GamePaths', () => {
       expect(paths.getEnginePath()).toBe('/custom-engine');
     });
 
-    it('should use defaults if engine.json not found', async () => {
+    it('should throw if engine.json not found', async () => {
       // Mock fetch to fail
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
@@ -198,34 +183,7 @@ describe('GamePaths', () => {
       });
 
       const paths = GamePaths.getInstance();
-      await paths.init();
-      
-      expect(paths.getGameName()).toBe('game');
-      expect(paths.getEnginePath()).toBe('/engine');
-    });
-
-    it('should prefer URL param over engine.json', async () => {
-      // Set URL param
-      mockWindow.location = {
-        search: '?game=urlgame',
-        pathname: '/',
-        href: 'http://localhost/?game=urlgame'
-      };
-
-      // Mock fetch
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          defaultGame: 'jsongame',
-          engineAssetsPath: '/engine'
-        })
-      });
-
-      const paths = GamePaths.getInstance();
-      await paths.init();
-      
-      // URL param should win
-      expect(paths.getGameName()).toBe('urlgame');
+      await expect(paths.init()).rejects.toThrow('Missing engine.json');
     });
   });
 
@@ -235,9 +193,9 @@ describe('GamePaths', () => {
       const info = paths.getDebugInfo();
       
       expect(info).toContain('GamePaths');
-      expect(info).toContain('Game: game');
+      expect(info).toContain('Game: default');
       expect(info).toContain('Engine: /engine');
-      expect(info).toContain('config: /game/config.json');
+      expect(info).toContain('config: /games/default/config.json');
     });
   });
 });

@@ -19,7 +19,7 @@ npm run cli:bsp -- <command> <bsp-file>
 Show BSP file statistics:
 
 ```bash
-npm run cli:bsp -- info ./public/game/maps/wdm7.bsp
+npm run cli:bsp -- info ./public/games/default/maps/wdm7.bsp
 ```
 
 Output:
@@ -40,7 +40,7 @@ Brushes: 1,234
 Extract entity data:
 
 ```bash
-npm run cli:bsp -- entities ./public/game/maps/wdm7.bsp
+npm run cli:bsp -- entities ./public/games/default/maps/wdm7.bsp
 ```
 
 Output:
@@ -58,7 +58,7 @@ item_health_large @ 384 192 48
 List referenced textures:
 
 ```bash
-npm run cli:bsp -- textures ./public/game/maps/wdm7.bsp
+npm run cli:bsp -- textures ./public/games/default/maps/wdm7.bsp
 ```
 
 Output:
@@ -75,7 +75,7 @@ textures/wdm7/sky
 Check BSP for common issues:
 
 ```bash
-npm run cli:bsp -- validate ./public/game/maps/wdm7.bsp
+npm run cli:bsp -- validate ./public/games/default/maps/wdm7.bsp
 ```
 
 Output:
@@ -96,7 +96,7 @@ Extract BSP from PK3 first or use the full headless game:
 
 ```bash
 # Extract from PK3
-unzip -p public/game/map_wdm7.pk3 maps/wdm7.bsp > wdm7.bsp
+unzip -p public/games/default/map_wdm7.pk3 maps/wdm7.bsp > wdm7.bsp
 
 # Then use headless-bsp
 npm run cli:bsp -- info wdm7.bsp

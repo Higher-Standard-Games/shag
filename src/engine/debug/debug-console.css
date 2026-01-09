@@ -1,7 +1,8 @@
 /**
  * Debug Console Styles - Quake-style dropdown console
  * 
- * Separate CSS for easy customization and future background image support.
+ * Colors are defined via CSS variables in UIStyles.getConsoleStyles()
+ * Games can customize by calling UIStyles.setConsoleColors() before init.
  */
 
 /* Console Container - slides down from top */
@@ -12,8 +13,8 @@
   right: 0;
   height: 50%;
   max-height: 50vh; /* Controlled by JS via con_size */
-  background: rgba(10, 12, 16, 0.95);
-  border-bottom: 2px solid #25b678;
+  background: var(--console-bg, rgba(10, 12, 16, 0.95));
+  border-bottom: 2px solid var(--console-primary, #2EC4B6);
   font-family: 'Share Tech Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   z-index: 99999;
@@ -49,13 +50,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 4px 10px;
-  background: rgba(37, 182, 120, 0.15);
-  border-bottom: 1px solid rgba(37, 182, 120, 0.3);
+  background: var(--console-bg-header, rgba(46, 196, 182, 0.15));
+  border-bottom: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.3));
   flex-shrink: 0;
 }
 
 .debug-console-title {
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
   font-weight: bold;
   font-size: 11px;
   text-transform: uppercase;
@@ -63,7 +64,7 @@
 }
 
 .debug-console-version {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--console-text-dim, rgba(255, 255, 255, 0.4));
   font-size: 10px;
 }
 
@@ -72,7 +73,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 8px 10px;
-  color: #c8c8c8;
+  color: var(--console-text, #c8c8c8);
   line-height: 1.4;
 }
 
@@ -85,12 +86,12 @@
 }
 
 .debug-console-output::-webkit-scrollbar-thumb {
-  background: rgba(37, 182, 120, 0.4);
+  background: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
   border-radius: 4px;
 }
 
 .debug-console-output::-webkit-scrollbar-thumb:hover {
-  background: rgba(37, 182, 120, 0.6);
+  background: var(--console-primary-glow, rgba(46, 196, 182, 0.6));
 }
 
 /* Log entry types */
@@ -100,29 +101,29 @@
 }
 
 .console-line.command {
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
 }
 
 .console-line.command::before {
   content: '> ';
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
 }
 
 .console-line.result {
-  color: #e8e8e8;
+  color: var(--console-text-bright, #e8e8e8);
   padding-left: 12px;
 }
 
 .console-line.error {
-  color: #ff6b6b;
+  color: var(--console-error, #ff6b6b);
 }
 
 .console-line.warn {
-  color: #feca57;
+  color: var(--console-warn, #FAC748);
 }
 
 .console-line.info {
-  color: #54a0ff;
+  color: var(--console-info, #54a0ff);
 }
 
 .console-line.log {
@@ -130,7 +131,7 @@
 }
 
 .console-line.system {
-  color: #25b678;
+  color: var(--console-success, #4ADE80);
   font-style: italic;
 }
 
@@ -139,13 +140,13 @@
   display: flex;
   align-items: center;
   padding: 8px 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(37, 182, 120, 0.2);
+  background: var(--console-bg-input, rgba(0, 0, 0, 0.3));
+  border-top: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.2));
   flex-shrink: 0;
 }
 
 .debug-console-prompt {
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
   margin-right: 8px;
   font-weight: bold;
 }
@@ -158,11 +159,11 @@
   color: #ffffff;
   font-family: inherit;
   font-size: inherit;
-  caret-color: #25b678;
+  caret-color: var(--console-primary, #2EC4B6);
 }
 
 .debug-console-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--console-text-dim, rgba(255, 255, 255, 0.3));
 }
 
 /* Autocomplete dropdown */
@@ -174,7 +175,7 @@
   max-height: 150px;
   overflow-y: auto;
   background: rgba(20, 24, 30, 0.98);
-  border: 1px solid rgba(37, 182, 120, 0.4);
+  border: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.4));
   border-radius: 4px 4px 0 0;
   display: none;
 }
@@ -193,50 +194,50 @@
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
-  background: rgba(37, 182, 120, 0.2);
+  background: var(--console-bg-header, rgba(46, 196, 182, 0.2));
 }
 
 .autocomplete-item-name {
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
 }
 
 .autocomplete-item-desc {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--console-text-dim, rgba(255, 255, 255, 0.4));
   font-size: 11px;
   margin-left: 12px;
 }
 
-/* Syntax highlighting */
+/* Syntax highlighting - uses SHAG palette for variety */
 .hl-bracket {
-  color: #54a0ff;
+  color: var(--console-info, #54a0ff);
   font-weight: bold;
 }
 
 .hl-label {
-  color: #feca57;
+  color: var(--console-yellow, #FAC748);
 }
 
 .hl-number {
-  color: #ff6b9d;
+  color: var(--console-magenta, #E040FB);
 }
 
 .hl-string {
-  color: #25b678;
+  color: var(--console-green, #4ADE80);
 }
 
 .hl-command {
-  color: #54a0ff;
+  color: var(--console-info, #54a0ff);
   font-weight: bold;
 }
 
 /* Help formatting */
 .help-command {
-  color: #25b678;
+  color: var(--console-primary, #2EC4B6);
   font-weight: bold;
 }
 
 .help-usage {
-  color: #54a0ff;
+  color: var(--console-info, #54a0ff);
   margin-left: 8px;
 }
 

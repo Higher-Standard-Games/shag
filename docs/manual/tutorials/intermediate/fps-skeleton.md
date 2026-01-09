@@ -21,7 +21,7 @@ A basic FPS foundation with:
 ## Step 1: Game State
 
 ```typescript
-// src/game/fps/GameState.ts
+// src/games/fps/GameState.ts
 export interface PlayerState {
   health: number;
   armor: number;
@@ -53,7 +53,7 @@ export class FPSGameState {
 ## Step 2: Player Spawning
 
 ```typescript
-// src/game/fps/PlayerSpawner.ts
+// src/games/fps/PlayerSpawner.ts
 import { parseEntities } from '../../engine/loader/bsp/EntityParser';
 
 export function findSpawnPoints(entityString: string) {
@@ -83,7 +83,7 @@ export function spawnPlayer(
 ## Step 3: FPS Camera Setup
 
 ```typescript
-// src/game/fps/FPSController.ts
+// src/games/fps/FPSController.ts
 import { CameraSystem } from '../../engine/camera/CameraSystem';
 
 export function setupFPSCamera(scene: Scene) {
@@ -102,7 +102,7 @@ export function setupFPSCamera(scene: Scene) {
 ## Step 4: Game Loop
 
 ```typescript
-// src/game/fps/GameLoop.ts
+// src/games/fps/GameLoop.ts
 export class FPSGameLoop {
   private state: FPSGameState;
   private lastTime = 0;
@@ -158,7 +158,7 @@ export class FPSGameLoop {
 ## Step 5: HUD
 
 ```typescript
-// src/game/fps/HUD.ts
+// src/games/fps/HUD.ts
 export class FPSHUD {
   private container: HTMLDivElement;
   
@@ -194,7 +194,7 @@ export class FPSHUD {
 ## Step 6: Main Entry Point
 
 ```typescript
-// src/game/fps/main.ts
+// src/games/fps/main.ts
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
 

@@ -94,6 +94,7 @@ export class UIStyles {
 
     const allStyles = [
       this.getBaseStyles(),
+      this.getConsoleStyles(),
       this.getAnimations(),
       this.getTypography(),
       this.getButtons(),
@@ -123,6 +124,92 @@ export class UIStyles {
 
 .ui-base *, .ui-base *::before, .ui-base *::after {
   box-sizing: inherit;
+}
+`;
+  }
+
+  // ==================== Console Styles (SHAG Palette) ====================
+
+  /**
+   * Console color scheme using SHAG logo palette.
+   * Games can override by calling UIStyles.setConsoleColors() before init.
+   */
+  private static consoleColors = {
+    // Primary accent (teal from SHAG logo)
+    primary: '#2EC4B6',
+    primaryDim: 'rgba(46, 196, 182, 0.4)',
+    primaryGlow: 'rgba(46, 196, 182, 0.6)',
+    
+    // SHAG palette for variety
+    orange: '#E85D04',
+    yellow: '#FAC748',
+    teal: '#2EC4B6',
+    magenta: '#E040FB',
+    green: '#4ADE80',
+    
+    // Semantic colors
+    error: '#ff6b6b',
+    warn: '#FAC748',
+    info: '#54a0ff',
+    success: '#4ADE80',
+    
+    // Text
+    text: '#c8c8c8',
+    textBright: '#e8e8e8',
+    textDim: 'rgba(255, 255, 255, 0.4)',
+    
+    // Background
+    bg: 'rgba(10, 12, 16, 0.95)',
+    bgHeader: 'rgba(46, 196, 182, 0.15)',
+    bgInput: 'rgba(0, 0, 0, 0.3)',
+  };
+
+  /**
+   * Allow games to customize console colors before UIStyles.injectBase()
+   */
+  public static setConsoleColors(colors: Partial<typeof UIStyles.consoleColors>): void {
+    this.consoleColors = { ...this.consoleColors, ...colors };
+  }
+
+  /**
+   * Get current console colors (for programmatic access)
+   */
+  public static getConsoleColors(): typeof UIStyles.consoleColors {
+    return { ...this.consoleColors };
+  }
+
+  private static getConsoleStyles(): string {
+    const c = this.consoleColors;
+    return `
+/* ==================== Console Color Variables ==================== */
+:root {
+  /* Console primary accent */
+  --console-primary: ${c.primary};
+  --console-primary-dim: ${c.primaryDim};
+  --console-primary-glow: ${c.primaryGlow};
+  
+  /* SHAG palette */
+  --console-orange: ${c.orange};
+  --console-yellow: ${c.yellow};
+  --console-teal: ${c.teal};
+  --console-magenta: ${c.magenta};
+  --console-green: ${c.green};
+  
+  /* Semantic */
+  --console-error: ${c.error};
+  --console-warn: ${c.warn};
+  --console-info: ${c.info};
+  --console-success: ${c.success};
+  
+  /* Text */
+  --console-text: ${c.text};
+  --console-text-bright: ${c.textBright};
+  --console-text-dim: ${c.textDim};
+  
+  /* Backgrounds */
+  --console-bg: ${c.bg};
+  --console-bg-header: ${c.bgHeader};
+  --console-bg-input: ${c.bgInput};
 }
 `;
   }
