@@ -58,9 +58,20 @@ export class GameInputHandler {
     if (wasDrag) return;
 
     // Check if click is over UI elements - don't process scene clicks on UI
-    const elementAtPoint = document.elementFromPoint(screenX, screenY);
-    if (elementAtPoint && elementAtPoint !== document.body && elementAtPoint.tagName !== 'CANVAS') {
-      // Click is on UI element, not the canvas - skip scene handling
+    const bottomBar = document.getElementById('bottom-bar');
+    const gameHud = document.getElementById('game-hud');
+    const debugConsole = document.getElementById('debug-console');
+    
+    // Check if click is within any UI element bounds
+    const isOverUI = [bottomBar, gameHud, debugConsole].some(el => {
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      return screenX >= rect.left && screenX <= rect.right && 
+             screenY >= rect.top && screenY <= rect.bottom;
+    });
+    
+    if (isOverUI) {
+      // Click is on UI element - skip scene handling
       return;
     }
 
