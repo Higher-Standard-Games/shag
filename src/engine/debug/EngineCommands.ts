@@ -39,7 +39,7 @@ import { FollowController } from '../camera/controllers/FollowController';
 import { FreeflyController } from '../camera/controllers/FreeflyController';
 
 // Other direct imports
-import { GamePaths } from '../core/GamePaths';
+// GamePaths moved to GameCommand.ts
 import { HUD } from '../ui/hud/HUDManager';
 import { Cvar } from '../core/Cvar';
 import { RenderVars } from '../rendering/RenderVars';
@@ -1460,48 +1460,10 @@ export function registerEngineCommands(): void {
     }
   });
 
-  // ============================================================================
-  // Game Path Commands
-  // ============================================================================
-
-  registry.register('game', async (args) => {
-    const gamePaths = GamePaths.getInstance();
-    const subcommand = args[0]?.toLowerCase();
-
-    switch (subcommand) {
-      case 'info':
-        return gamePaths.getDebugInfo();
-
-      case 'load': {
-        const name = args[1];
-        if (!name) {
-          return `Usage: game load <name>\nCurrent game: ${gamePaths.getGameName()}`;
-        }
-        gamePaths.setGame(name);
-        return `Game set to: ${name}\nReload the page to apply changes, or use: game reload`;
-      }
-
-      case 'reload':
-        // Reload with current game
-        window.location.href = `${window.location.pathname}?game=${gamePaths.getGameName()}`;
-        return 'Reloading...';
-
-      case 'switch': {
-        const name = args[1];
-        if (!name) {
-          return `Usage: game switch <name>\nThis will reload the page with the new game.`;
-        }
-        window.location.href = `${window.location.pathname}?game=${name}`;
-        return `Switching to game: ${name}...`;
-      }
-
-      default:
-        return `Game Commands:\n  info - Show current game paths\n  load <name> - Set game (requires reload)\n  switch <name> - Switch game and reload\n  reload - Reload with current game\n\nCurrent game: ${gamePaths.getGameName()}`;
-    }
-  });
+  // game command moved to GameCommand.ts
 
   // ============================================================================
-  // PK3 Package Commands
+  // PK3 Package Commands (KEPT - complex PK3Loader integration)
   // ============================================================================
 
   registry.register('pk3', async (args) => {
