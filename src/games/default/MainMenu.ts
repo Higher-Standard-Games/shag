@@ -688,7 +688,7 @@ export class MainMenu {
     // Load menu map
     const mapData = AssetLoader.getInstance().getMap(config.assets.menuMap);
     if (mapData) {
-      await MapRenderer.renderEntities(mapData.entities, this.scene);
+      await MapRenderer.renderEntities(mapData.entities, this.scene, config.assets.menuMap);
     }
   }
 

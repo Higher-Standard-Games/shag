@@ -67,9 +67,18 @@ export class MapRenderer {
    */
   public static async renderEntities(
     entities: Entity[],
-    scene: Scene
+    scene: Scene,
+    mapName?: string
   ): Promise<MapRenderResult> {
     const textureManager = TextureManager.getInstance();
+
+    const resolvedMapName = mapName ?? "unknown";
+    const tagMapOwned = (obj: { metadata?: any } | null | undefined): void => {
+      if (!obj) return;
+      if (!obj.metadata) obj.metadata = {};
+      obj.metadata.mapOwned = true;
+      obj.metadata.mapName = resolvedMapName;
+    };
 
     // Ensure TextureManager is initialized for this scene
     if (!textureManager.isInitialized()) {
@@ -271,6 +280,7 @@ export class MapRenderer {
         const lightPos = new Vector3(parts[0], parts[2], parts[1]);
 
         const light = new PointLight("light_" + Math.random(), lightPos, scene);
+        tagMapOwned(light as any);
 
         // Parse intensity from Quake light value (default 300)
         const quakeIntensity = entity.properties.light
@@ -340,6 +350,8 @@ export class MapRenderer {
             scale
           );
           if (sprite) {
+            tagMapOwned(sprite.mesh as any);
+            tagMapOwned((sprite.shadowMesh ?? null) as any);
             console.log(`Created sprite at ${position.toString()}: ${spritePath}`);
           }
         }
@@ -411,6 +423,7 @@ export class MapRenderer {
       for (const brush of entity.brushes) {
         const mesh = BrushGenerator.buildMesh(brush, scene);
         if (mesh) {
+          tagMapOwned(mesh as any);
           if (!mesh.material) {
             const textureName = brush.planes[0]?.texture;
             const planeDef = brush.planes[0];
@@ -458,6 +471,7 @@ export class MapRenderer {
 
         const mesh = PatchGenerator.buildMesh(patchDef, scene);
         if (mesh) {
+          tagMapOwned(mesh as any);
           const material = await textureManager.getMaterial({
             path: patch.texture,
             u_offset: 0,
@@ -469,7 +483,8 @@ export class MapRenderer {
           material.twoSidedLighting = true;
           mesh.material = material;
           mesh.checkCollisions = true;
-          mesh.metadata = { properties: entity.properties };
+          if (!mesh.metadata) mesh.metadata = {};
+          mesh.metadata.properties = entity.properties;
         }
       }
 
@@ -507,6 +522,10 @@ export class MapRenderer {
             });
 
             if (instanceData) {
+              tagMapOwned(instanceData.mesh as any);
+              if (!instanceData.mesh.metadata) instanceData.mesh.metadata = {};
+              instanceData.mesh.metadata.instanceId = instanceData.id;
+              instanceData.mesh.metadata.templateName = instanceData.templateName;
               // Note: Instanced meshes don't create a TransformNode root
               // They're managed by InstancedMeshManager
               console.log(`[MapRenderer] Created instance of ${modelPath}`);
@@ -538,6 +557,8 @@ export class MapRenderer {
             });
 
             if (result) {
+              tagMapOwned(result.root as any);
+              for (const m of result.meshes) tagMapOwned(m as any);
               prefabInstances.push(result.root);
             }
           }
@@ -557,6 +578,8 @@ export class MapRenderer {
           });
 
           if (result) {
+            tagMapOwned(result.root as any);
+            for (const m of result.meshes) tagMapOwned(m as any);
             prefabInstances.push(result.root);
           }
         }
@@ -642,6 +665,7 @@ export class MapRenderer {
         });
 
         if (building) {
+          tagMapOwned(building.getMesh() as any);
           console.log(`Created sprite building: ${building.getId()} at ${position.toString()}`);
         }
       }
@@ -682,6 +706,8 @@ export class MapRenderer {
           `sprite_${entity.properties.targetname || Date.now()}`,
           config
         );
+
+        tagMapOwned(sprite.mesh as any);
 
         // Set position and scale (default bigger size)
         sprite.position = position;
@@ -733,6 +759,7 @@ export class MapRenderer {
         };
         const result = await entityHandler(entityData, scene);
         if (result.handled && result.node) {
+          tagMapOwned(result.node as any);
           prefabInstances.push(result.node);
         }
       }
@@ -772,7 +799,13 @@ export class MapRenderer {
     // Use ClusteredLightContainer for static point lights
     // This allows many lights without hitting WebGL uniform buffer limits
     if (staticLights.length > 0) {
+      if (!scene.metadata) scene.metadata = {};
+      const existing = (scene.metadata as any).clusteredLightContainer;
+      if (existing && typeof existing.dispose === "function") {
+        existing.dispose();
+      }
       const clusteredLights = new ClusteredLightContainer("mapLightsCluster", staticLights, scene);
+      (scene.metadata as any).clusteredLightContainer = clusteredLights;
       // Configure for orthographic camera compatibility
       // Very few depth slices and coarse tiles minimize artifacts
       clusteredLights.depthSlices = 4;
@@ -803,9 +836,20 @@ export class MapRenderer {
   /**
    * Clears all map-related meshes and lights from a scene.
    */
-  public static clearMap(scene: Scene): void {
+  public static clearMap(scene: Scene, mapName?: string): void {
+    // Dispose sprite buildings first so their trigger/collision meshes are released
+    // and do not linger in manager-owned references.
+    SpriteBuildingManager.getInstance().dispose();
+
+    const matchesMap = (metadata: any): boolean => {
+      if (!metadata?.mapOwned) return false;
+      if (!mapName) return true;
+      return metadata.mapName === mapName;
+    };
+
     // Collect meshes to dispose first (avoid modifying array during iteration)
     const meshesToDispose = scene.meshes.filter((mesh) =>
+      matchesMap(mesh.metadata) ||
       mesh.name === "brush" ||
       mesh.name === "patch" ||
       mesh.name.startsWith("light_") ||
@@ -819,12 +863,19 @@ export class MapRenderer {
       mesh.metadata?.properties?.classname
     );
 
+    const instanceManager = InstancedMeshManager.getInstance();
     for (const mesh of meshesToDispose) {
-      mesh.dispose();
+      const instanceId = mesh.metadata?.instanceId;
+      if (instanceId && instanceManager.isInitialized()) {
+        instanceManager.removeInstance(instanceId);
+      } else {
+        mesh.dispose();
+      }
     }
 
     // Dispose transform nodes (NPCs, prefabs, etc.)
     const nodesToDispose = scene.transformNodes.filter((node) =>
+      matchesMap(node.metadata) ||
       node.name.startsWith("prefab_") ||
       node.name.startsWith("npc_") ||
       node.name.startsWith("character_") ||
@@ -838,6 +889,7 @@ export class MapRenderer {
 
     // Dispose map lights
     const lightsToDispose = scene.lights.filter((light) =>
+      matchesMap((light as any).metadata) ||
       light.name.startsWith("light_")
     );
 
@@ -857,6 +909,12 @@ export class MapRenderer {
 
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();
+
+    const clustered = (scene.metadata as any)?.clusteredLightContainer;
+    if (clustered && typeof clustered.dispose === "function") {
+      clustered.dispose();
+      (scene.metadata as any).clusteredLightContainer = null;
+    }
 
     TextureManager.getInstance().clearCache();
   }
