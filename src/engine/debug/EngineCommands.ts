@@ -49,10 +49,9 @@ import { RenderVars } from '../rendering/RenderVars';
 // ============================================================================
 
 // Cache for lazy-loaded singletons
-let _audioManager: typeof import('../AudioManager').AudioManager | null = null;
+// Removed: _audioManager, _gameClock (moved to command classes)
 let _cameraSystem: typeof import('../camera/CameraSystem').CameraSystem | null = null;
 let _debugConsole: typeof import('./DebugConsole').DebugConsole | null = null;
-let _gameClock: typeof import('../core/GameClock').GameClock | null = null;
 let _uiScale: typeof import('../ui/UIScale').UIScale | null = null;
 let _menuSystem: typeof import('../MenuSystem').MenuSystem | null = null;
 
@@ -64,13 +63,7 @@ let _clipBrushVizMeshes: Mesh[] = [];
 let _shaderAimObserver: any = null;
 let _shaderAimLastMesh: AbstractMesh | null = null;
 
-async function getAudioManager() {
-  if (!_audioManager) {
-    const mod = await import('../AudioManager');
-    _audioManager = mod.AudioManager;
-  }
-  return _audioManager.getInstance();
-}
+// getAudioManager moved to AudioCommand.ts
 
 async function getCameraSystem() {
   if (!_cameraSystem) {
@@ -88,13 +81,7 @@ async function getDebugConsole() {
   return _debugConsole.getInstance();
 }
 
-async function getGameClock() {
-  if (!_gameClock) {
-    const mod = await import('../core/GameClock');
-    _gameClock = mod.GameClock;
-  }
-  return _gameClock.getInstance();
-}
+// getGameClock moved to TimeCommand.ts
 
 async function getUIScale() {
   if (!_uiScale) {
@@ -112,10 +99,7 @@ async function getMenuSystem() {
   return _menuSystem.getInstance();
 }
 
-// Helper for commands that require DOM
-function notAvailableInHeadless(): string {
-  return '[Headless] This command requires a browser environment';
-}
+// notAvailableInHeadless moved to individual command classes
 
 function getAimedPick(scene: Scene, camera: any) {
   const ray = camera?.getForwardRay ? camera.getForwardRay(10000) : new Ray(camera.position, camera.getDirection(new Vector3(0, 0, 1)), 10000);
@@ -262,228 +246,9 @@ export function registerEngineCommands(): void {
     description: 'Invert Y axis for mouse look',
   });
 
-  // ============================================================================
-  // Audio Commands
-  // ============================================================================
+  // audio, time commands moved to AudioCommand.ts, TimeCommand.ts
 
-  registry.register('audio', async (args) => {
-    try {
-      const audio = await getAudioManager();
-      const subcommand = args[0]?.toLowerCase();
-
-      switch (subcommand) {
-        case 'volume': {
-          const vol = parseFloat(args[1]);
-          if (isNaN(vol) || vol < 0 || vol > 1) {
-            return 'Usage: audio volume <0-1>';
-          }
-          audio.setMusicVolume(vol);
-          return `Music volume set to ${vol}`;
-        }
-
-        case 'mute':
-          audio.setMusicEnabled(false);
-          return 'Audio muted';
-
-        case 'unmute':
-          audio.setMusicEnabled(true);
-          return 'Audio unmuted';
-
-        case 'play': {
-          const track = args[1];
-          if (!track) {
-            return 'Usage: audio play <trackname>';
-          }
-          audio.playMusic(track);
-          return `Playing: ${track}`;
-        }
-
-        case 'stop':
-          audio.stopMusic();
-          return 'Music stopped';
-
-        default:
-          return 'Subcommands: volume, mute, unmute, play, stop';
-      }
-    } catch {
-      return notAvailableInHeadless();
-    }
-  });
-
-  // ============================================================================
-  // Time Commands
-  // ============================================================================
-
-  registry.register('time', async (args) => {
-    const clock = await getGameClock();
-    const subcommand = args[0]?.toLowerCase();
-
-    switch (subcommand) {
-      case 'set': {
-        const hour = parseFloat(args[1]);
-        if (isNaN(hour) || hour < 0 || hour > 24) {
-          return 'Usage: time set <0-24>';
-        }
-        clock.setTime(hour);
-        return `Time set to ${hour}:00`;
-      }
-
-      case 'speed':
-        return 'Time speed not yet implemented';
-
-      case 'pause':
-        clock.pause();
-        return 'Time paused';
-
-      case 'resume':
-        clock.resume();
-        return 'Time resumed';
-
-      default:
-        return `Current time: ${clock.formatTime()}, Day ${clock.getCurrentDay()}`;
-    }
-  });
-
-  // ============================================================================
-  // FPS Display Command (show_fps 0/1)
-  // ============================================================================
-
-  registry.register('show_fps', async (args) => {
-    const cameraSystem = await getCameraSystem();
-    const scene = cameraSystem.getCamera()?.getScene();
-
-    if (!scene) return 'No scene available';
-
-    const engine = scene.getEngine();
-    const value = args[0];
-
-    // Parse argument: 0 = off, 1 = on, no arg = show current state
-    if (value === undefined) {
-      const isOn = !!(window as any)._showFpsElement;
-      return `show_fps is ${isOn ? '1 (on)' : '0 (off)'}`;
-    }
-
-    const shouldShow = value === '1' || value.toLowerCase() === 'on' || value.toLowerCase() === 'true';
-    const shouldHide = value === '0' || value.toLowerCase() === 'off' || value.toLowerCase() === 'false';
-
-    if (!shouldShow && !shouldHide) {
-      return 'Usage: show_fps <0|1>';
-    }
-
-    // Remove existing element if present
-    if ((window as any)._showFpsElement) {
-      document.body.removeChild((window as any)._showFpsElement);
-      (window as any)._showFpsElement = null;
-      (window as any)._showFpsAnimFrame = null;
-    }
-
-    if (shouldHide) {
-      return 'FPS display: OFF';
-    }
-
-    // Create FPS display element (top-left corner)
-    const div = document.createElement('div');
-    div.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.75);
-      color: #00ff00;
-      padding: 8px 12px;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 12px;
-      z-index: 9999;
-      border-radius: 4px;
-      min-width: 120px;
-      line-height: 1.4;
-      pointer-events: none;
-    `.replace(/\s+/g, ' ').trim();
-
-    document.body.appendChild(div);
-    (window as any)._showFpsElement = div;
-
-    // Track frame times for more detailed metrics
-    let frameCount = 0;
-    let lastTime = performance.now();
-    let minFps = Infinity;
-    let maxFps = 0;
-
-    const update = () => {
-      if (!(window as any)._showFpsElement) return;
-
-      const now = performance.now();
-      const deltaTime = now - lastTime;
-      frameCount++;
-
-      // Update display every 500ms for stability
-      if (deltaTime >= 500) {
-        const fps = engine.getFps();
-
-        minFps = Math.min(minFps, fps);
-        maxFps = Math.max(maxFps, fps);
-
-        // Reset min/max every 5 seconds
-        if (deltaTime >= 5000) {
-          minFps = fps;
-          maxFps = fps;
-        }
-
-        const drawCalls = engine._drawCalls?.current ?? 0;
-        const triangles = scene.getActiveIndices() / 3;
-        const meshes = scene.getActiveMeshes().length;
-
-        div.innerHTML = `
-          <div style="color:#0f0;font-weight:bold;">FPS: ${fps.toFixed(0)}</div>
-          <div style="color:#888;font-size:10px;">min: ${minFps.toFixed(0)} / max: ${maxFps.toFixed(0)}</div>
-          <div style="color:#aaa;font-size:10px;margin-top:4px;">
-            Draw calls: ${drawCalls}<br>
-            Triangles: ${(triangles / 1000).toFixed(1)}K<br>
-            Meshes: ${meshes}
-          </div>
-        `.trim();
-
-        frameCount = 0;
-        lastTime = now;
-      }
-
-      (window as any)._showFpsAnimFrame = requestAnimationFrame(update);
-    };
-
-    update();
-    return 'FPS display: ON';
-  });
-
-  // ============================================================================
-  // Freefly Speed Command
-  // ============================================================================
-
-  registry.register('freefly_speed', async (args) => {
-    const value = args[0];
-
-    // No argument - show current speed
-    if (value === undefined) {
-      const currentSpeed = FreeflyController.getDefaultSpeed();
-      return `freefly_speed = ${currentSpeed}`;
-    }
-
-    // Parse speed value
-    const speed = parseFloat(value);
-    if (isNaN(speed) || speed <= 0) {
-      return 'Usage: freefly_speed <speed>\nExample: freefly_speed 500';
-    }
-
-    // Set the default speed
-    FreeflyController.setDefaultSpeed(speed);
-
-    // Also update current controller if it's freefly
-    const cameraSystem = await getCameraSystem();
-    const controller = cameraSystem.getActiveController();
-    if (controller?.type === 'freefly') {
-      controller.configure({ speed });
-    }
-
-    return `freefly_speed = ${speed}`;
-  });
+  // show_fps, freefly_speed moved to ShowFpsCommand.ts, FreeflyCommand.ts
 
   // ============================================================================
   // Freefly Collision Command
@@ -5248,51 +5013,6 @@ export function registerEngineCommands(): void {
   registerRenderVar('r_lightintensity');
   registerRenderVar('r_showtris');
 
-  // r_list - list all render variables
-  registry.register('r_list', async () => {
-    const { RenderVars } = await import('../rendering/RenderVars');
-    const renderVars = RenderVars.getInstance();
-    const vars = renderVars.getAll();
-
-    const lines = ['Render Variables:', ''];
-    for (const v of vars) {
-      const modified = v.value !== v.defaultValue ? ' *' : '';
-      lines.push(`  ${v.name} = ${v.value}${modified}`);
-    }
-    lines.push('', '* = modified from default');
-    lines.push('Use "<varname> reset" to restore default');
-    return lines.join('\n');
-  });
-
-  // r_reset - reset all render variables
-  registry.register('r_reset', async () => {
-    const { RenderVars } = await import('../rendering/RenderVars');
-    const renderVars = RenderVars.getInstance();
-    renderVars.resetAll();
-    return 'All render variables reset to defaults';
-  });
-
-  // r_export - export config
-  registry.register('r_export', async () => {
-    const { RenderVars } = await import('../rendering/RenderVars');
-    const renderVars = RenderVars.getInstance();
-    return renderVars.exportConfig();
-  });
-
-  // r_apply - force apply to scene
-  registry.register('r_apply', async () => {
-    const { RenderVars } = await import('../rendering/RenderVars');
-    const renderVars = RenderVars.getInstance();
-
-    const cameraSystem = await getCameraSystem();
-    const scene = cameraSystem.getCamera()?.getScene();
-    if (!scene) {
-      return 'No scene available';
-    }
-
-    renderVars.setScene(scene);
-    renderVars.applyToScene();
-    return 'Render variables applied to scene';
-  });
+  // r_list, r_reset, r_export, r_apply moved to RenderCommand.ts
 
 }
