@@ -1,16 +1,30 @@
 /**
- * SceneCommand - Scene information and debugging
+ * SceneCommand - Scene creation, management and debugging
  */
 
 import { Command, CommandDef } from '../Command';
+import { Scene } from '@babylonjs/core/scene';
+import { Engine } from '@babylonjs/core/Engines/engine';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color4 } from '@babylonjs/core/Maths/math.color';
+
+// Module-level state for empty scene management
+let emptyScene: Scene | null = null;
+let emptySceneCamera: FreeCamera | null = null;
+let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export default class SceneCommand extends Command {
   readonly definition: CommandDef = {
     name: 'scene',
-    description: 'Scene information and debugging',
+    description: 'Scene creation, management and debugging',
     usage: 'scene [subcommand]',
     developer: true,
     subcommands: [
+      { name: 'empty', description: 'Create empty scene for BSP testing' },
+      { name: 'clear', description: 'Clear all scene objects' },
+      { name: 'dispose', description: 'Dispose empty scene' },
       { name: 'info', description: 'Show scene statistics' },
       { name: 'meshes', description: 'List all meshes' },
       { name: 'materials', description: 'List all materials' },
@@ -19,7 +33,20 @@ export default class SceneCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | void> {
-    // Get scene from camera system
+    const subcommand = args[0]?.toLowerCase();
+
+    // Handle empty/clear/dispose first (don't require existing scene)
+    if (subcommand === 'empty') {
+      return this.createEmptyScene();
+    }
+    if (subcommand === 'dispose') {
+      return this.disposeEmptyScene();
+    }
+    if (subcommand === 'clear') {
+      return this.clearScene();
+    }
+
+    // Get scene from camera system for other commands
     let scene;
     try {
       const { CameraSystem } = await import('../../camera/CameraSystem');
@@ -29,10 +56,8 @@ export default class SceneCommand extends Command {
     }
 
     if (!scene) {
-      return 'No active scene';
+      return 'No active scene. Run "scene empty" first.';
     }
-
-    const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
       case 'meshes': {
@@ -90,8 +115,187 @@ export default class SceneCommand extends Command {
   
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['info', 'meshes', 'materials', 'lights'];
+      return ['empty', 'clear', 'dispose', 'info', 'meshes', 'materials', 'lights'];
     }
     return [];
+  }
+
+  private async createEmptyScene(): Promise<string> {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    if (!canvas) {
+      return 'No canvas found';
+    }
+
+    // Get or create engine
+    const existingEngine = (window as any).babylonEngine;
+    const engine = existingEngine || new Engine(canvas, true);
+
+    if (!existingEngine) {
+      (window as any).babylonEngine = engine;
+    }
+
+    // Dispose previous empty scene if exists
+    if (emptyScene) {
+      emptyScene.dispose();
+    }
+
+    // Create new empty scene
+    emptyScene = new Scene(engine);
+    emptyScene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
+
+    // Create camera at origin
+    emptySceneCamera = new FreeCamera("emptySceneCamera", new Vector3(0, 100, -500), emptyScene);
+    emptySceneCamera.setTarget(Vector3.Zero());
+    emptySceneCamera.fov = 1.0;
+    emptySceneCamera.minZ = 1;
+    emptySceneCamera.maxZ = 50000;
+    emptySceneCamera.inputs.clear();
+
+    // Add basic lighting
+    const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
+    light.intensity = 1.0;
+
+    // Set as active scene
+    engine.stopRenderLoop();
+    engine.runRenderLoop(() => {
+      if (emptyScene) {
+        emptyScene.render();
+      }
+    });
+
+    // Initialize camera system with this scene
+    const { CameraSystem } = await import('../../camera/CameraSystem');
+    const cameraSystem = CameraSystem.getInstance();
+    cameraSystem.init(emptyScene, canvas);
+    cameraSystem.setCamera(emptySceneCamera);
+
+    // Create fresh freefly controller
+    const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
+    const existingFreefly = cameraSystem.getController('freefly');
+    if (existingFreefly) {
+      existingFreefly.dispose();
+    }
+    const freeflyController = new FreeflyController();
+    cameraSystem.registerController('freefly', freeflyController);
+    cameraSystem.setController('freefly');
+
+    // Enter "in_game" state
+    const { MenuSystem } = await import('../../MenuSystem');
+    MenuSystem.getInstance().enterGame();
+
+    // Hide main menu
+    const mainMenu = (window as any).mainMenu;
+    if (mainMenu && typeof mainMenu.hide === 'function') {
+      mainMenu.hide();
+    } else {
+      const mainMenuEl = document.getElementById('main-menu');
+      if (mainMenuEl) {
+        mainMenuEl.style.display = 'none';
+      }
+    }
+
+    // Add ESC key handler
+    if (emptySceneEscHandler) {
+      window.removeEventListener('keydown', emptySceneEscHandler);
+    }
+    emptySceneEscHandler = async (e: KeyboardEvent) => {
+      const { DebugConsole } = await import('../../debug/DebugConsole');
+      if (DebugConsole.getInstance().getIsOpen()) {
+        return;
+      }
+      if (e.key === 'Escape' && emptyScene) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.disposeEmptyScene();
+      }
+    };
+    window.addEventListener('keydown', emptySceneEscHandler, { capture: true });
+
+    return [
+      'Created empty scene for BSP testing',
+      'Camera: freefly mode (LMB forward, RMB backward, freelook)',
+      'Press ESC to exit empty scene',
+      'Now run: map <mapname>',
+    ].join('\n');
+  }
+
+  private async disposeEmptyScene(): Promise<string> {
+    if (!emptyScene) {
+      return 'No empty scene to dispose';
+    }
+
+    // Remove ESC handler
+    if (emptySceneEscHandler) {
+      window.removeEventListener('keydown', emptySceneEscHandler);
+      emptySceneEscHandler = null;
+    }
+
+    // Stop render loop
+    const engine = emptyScene.getEngine();
+    engine.stopRenderLoop();
+
+    // Dispose scene
+    emptyScene.dispose();
+    emptyScene = null;
+    emptySceneCamera = null;
+
+    // Return to main menu
+    const { MenuSystem } = await import('../../MenuSystem');
+    MenuSystem.getInstance().returnToMainMenu();
+
+    return 'Empty scene disposed - returned to main menu';
+  }
+
+  private async clearScene(): Promise<string> {
+    const { CameraSystem } = await import('../../camera/CameraSystem');
+    const scene = CameraSystem.getInstance().getCamera()?.getScene();
+
+    if (!scene) {
+      return 'No active scene to clear';
+    }
+
+    const stats = { meshes: 0, materials: 0, textures: 0 };
+
+    // Dispose all meshes except camera
+    const meshesToDispose = [...scene.meshes];
+    for (const mesh of meshesToDispose) {
+      if (mesh.name !== 'emptySceneCamera') {
+        mesh.dispose(false, true);
+        stats.meshes++;
+      }
+    }
+
+    // Dispose remaining materials
+    const materialsToDispose = [...scene.materials];
+    for (const material of materialsToDispose) {
+      material.dispose(true, true);
+      stats.materials++;
+    }
+
+    // Dispose remaining textures
+    const texturesToDispose = [...scene.textures];
+    for (const texture of texturesToDispose) {
+      texture.dispose();
+      stats.textures++;
+    }
+
+    // Clear shader animation system
+    try {
+      const { ShaderAnimationSystem } = await import('../../loader/shader/ShaderAnimationSystem');
+      ShaderAnimationSystem.getInstance().clear();
+    } catch { /* ignore */ }
+
+    // Clear MapLoader state
+    try {
+      const { MapLoader } = await import('../../loader/map/MapLoader');
+      MapLoader.getInstance().disposeCurrentMap();
+    } catch { /* ignore */ }
+
+    return [
+      'Scene cleared:',
+      `  Meshes disposed: ${stats.meshes}`,
+      `  Materials disposed: ${stats.materials}`,
+      `  Textures disposed: ${stats.textures}`,
+    ].join('\n');
   }
 }
