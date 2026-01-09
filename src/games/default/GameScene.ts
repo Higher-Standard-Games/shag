@@ -266,7 +266,7 @@ export class GameScene extends EngineScene {
   // ==================== UI Initialization ====================
 
   private async initBottomBar(): Promise<void> {
-    await UIConfig.getInstance().load("/game/data/ui-config.json");
+    await UIConfig.getInstance().load("/games/default/data/ui-config.json");
 
     this.bottomBar = new BottomBar({
       onItemSelect: (item: BuildMenuItem) => {
