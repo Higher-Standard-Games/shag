@@ -27,6 +27,7 @@ export interface EngineConfig {
   defaultGame: string;
   engineAssetsPath: string;
   title?: string;  // Optional game title for browser tab
+  allowGameOverride?: boolean;  // Allow ?game= URL param (default: false, enable for dev)
 }
 
 export class GamePaths {
@@ -82,11 +83,14 @@ export class GamePaths {
       throw new Error('[GamePaths] engine.json missing "defaultGame" field');
     }
 
-    // URL param overrides config (for development/testing)
-    if (urlGame) {
+    // URL param overrides config only if explicitly allowed (security)
+    if (urlGame && config.allowGameOverride) {
       this.gameName = urlGame;
       console.log(`[GamePaths] Game overridden by URL param: ${this.gameName}`);
     } else {
+      if (urlGame && !config.allowGameOverride) {
+        console.warn(`[GamePaths] ?game= ignored - set allowGameOverride: true in engine.json to enable`);
+      }
       this.gameName = config.defaultGame;
     }
 

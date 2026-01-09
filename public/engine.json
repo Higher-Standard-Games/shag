@@ -1,5 +1,6 @@
 {
   "defaultGame": "game",
   "engineAssetsPath": "/engine",
-  "title": "Isometric Game Test"
+  "title": "Isometric Game Test",
+  "allowGameOverride": true
 }
