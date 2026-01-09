@@ -203,6 +203,148 @@ export class ShaderCommand extends Command {
         return lines.join('\n');
       }
 
+      case 'glow': {
+        const intensity = parseFloat(args[1]);
+        if (isNaN(intensity)) {
+          return 'Usage: shader glow <intensity>\nDefault: 1.0, try 0.5-3.0';
+        }
+
+        const { CameraSystem } = await import('../../camera/CameraSystem');
+        const scene = CameraSystem.getInstance().getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { GlowOverlayShaderMaterial } = await import('../../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
+
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('glowIntensity')) {
+            GlowOverlayShaderMaterial.setGlowIntensity(mat, intensity);
+            count++;
+          }
+        }
+        (window as any)._glowIntensity = intensity;
+        return `Glow intensity set to ${intensity} on ${count} materials`;
+      }
+
+      case 'lightmap': {
+        const intensity = parseFloat(args[1]);
+        if (isNaN(intensity)) {
+          return 'Usage: shader lightmap <intensity>\nDefault: 2.0, try 1.0-4.0';
+        }
+
+        const { CameraSystem } = await import('../../camera/CameraSystem');
+        const scene = CameraSystem.getInstance().getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { GlowOverlayShaderMaterial } = await import('../../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
+
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('lightmapIntensity')) {
+            GlowOverlayShaderMaterial.setLightmapIntensity(mat, intensity);
+            count++;
+          }
+        }
+        (window as any)._lightmapIntensity = intensity;
+        return `Lightmap intensity set to ${intensity} on ${count} materials`;
+      }
+
+      case 'blendmode': {
+        const mode = args[1]?.toLowerCase();
+        if (mode !== 'add' && mode !== 'alpha') {
+          return 'Usage: shader blendmode <add|alpha>\n  add = base*lightmap + glow (additive)\n  alpha = mix(base*lightmap, glow, glow.a) (alpha blend)';
+        }
+
+        const { CameraSystem } = await import('../../camera/CameraSystem');
+        const scene = CameraSystem.getInstance().getCamera()?.getScene();
+        if (!scene) return 'No scene available';
+
+        const { GlowOverlayShaderMaterial } = await import('../../loader/shader/GlowOverlayShaderMaterial');
+        const { ShaderMaterial } = await import('@babylonjs/core/Materials/shaderMaterial');
+
+        const useAlpha = mode === 'alpha';
+        let count = 0;
+        for (const mat of scene.materials) {
+          if (mat instanceof ShaderMaterial && mat.name && mat.getEffect()?.getUniform('glowBlendMode')) {
+            GlowOverlayShaderMaterial.setGlowBlendMode(mat, useAlpha);
+            count++;
+          }
+        }
+        return `Glow blend mode set to ${mode} on ${count} materials`;
+      }
+
+      case 'clear':
+        shaderRegistry.clear();
+        return 'Shader registry cleared';
+
+      case 'anim': {
+        const { ShaderAnimationSystem } = await import('../../loader');
+        const animSystem = ShaderAnimationSystem.getInstance();
+        const animSubcommand = args[1]?.toLowerCase();
+
+        switch (animSubcommand) {
+          case 'status':
+          case 'info': {
+            const info = animSystem.getInfo();
+            if (info.length === 0) {
+              return 'No animated materials registered.';
+            }
+            const lines = [
+              `=== Shader Animation System ===`,
+              `Enabled: ${animSystem.isEnabled()}`,
+              `Time scale: ${animSystem.getTimeScale()}`,
+              `Total time: ${animSystem.getTotalTime().toFixed(2)}s`,
+              `Animated materials: ${animSystem.getCount()}`,
+              '',
+            ];
+            for (const entry of info) {
+              lines.push(`  ${entry.id}`);
+              lines.push(`    tcMods: ${entry.tcModCount}, rgbGen: ${entry.hasRgbGen}, alphaGen: ${entry.hasAlphaGen}`);
+            }
+            return lines.join('\n');
+          }
+
+          case 'pause':
+            animSystem.setEnabled(false);
+            return 'Shader animations paused.';
+
+          case 'resume':
+          case 'play':
+            animSystem.setEnabled(true);
+            return 'Shader animations resumed.';
+
+          case 'toggle':
+            animSystem.setEnabled(!animSystem.isEnabled());
+            return `Shader animations: ${animSystem.isEnabled() ? 'ON' : 'OFF'}`;
+
+          case 'speed': {
+            const speed = parseFloat(args[2]);
+            if (isNaN(speed)) {
+              return `Current speed: ${animSystem.getTimeScale()}x\nUsage: shader anim speed <multiplier>`;
+            }
+            animSystem.setTimeScale(speed);
+            return `Animation speed set to ${speed}x`;
+          }
+
+          case 'clear':
+            animSystem.clear();
+            return 'Cleared all animated materials.';
+
+          default:
+            return [
+              'Shader Animation Commands:',
+              '  shader anim status  - Show animation system status',
+              '  shader anim pause   - Pause all animations',
+              '  shader anim resume  - Resume animations',
+              '  shader anim toggle  - Toggle animations on/off',
+              '  shader anim speed <n> - Set time scale (1.0 = normal)',
+              '  shader anim clear   - Clear all registered animations',
+            ].join('\n');
+        }
+      }
+
       default:
         return [
           'Shader Commands:',
@@ -214,6 +356,11 @@ export class ShaderCommand extends Command {
           '  shader resolve <name>    - Resolve material properties',
           '  shader pattern <name>    - Debug shader pattern',
           '  shader deps <name>       - Show shader dependencies',
+          '  shader glow <n>          - Set glow intensity',
+          '  shader lightmap <n>      - Set lightmap intensity',
+          '  shader blendmode <mode>  - Set glow blend mode',
+          '  shader clear             - Clear shader registry',
+          '  shader anim [...]        - Animation system commands',
         ].join('\n');
     }
   }
