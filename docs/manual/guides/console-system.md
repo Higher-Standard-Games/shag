@@ -8,13 +8,38 @@ SHAG Engine includes a Q3-style console for runtime control, debugging, and conf
 
 ## Architecture
 
+The console system uses a modular command class architecture:
+
 ```
-ConsoleCommandRegistry (Singleton)
-    │
-    ├── commands: Map<name, CommandHandler>
-    │
-    └── execute(commandLine) → result string
+src/engine/console/
+├── Command.ts              # Abstract base class
+├── CommandRegistry.ts      # Registration and execution
+└── commands/               # Auto-discovered command classes
+    ├── BspCommand.ts
+    ├── CameraCommand.ts
+    ├── MapCommand.ts
+    ├── ShaderCommand.ts
+    └── ... (56+ commands)
 ```
+
+Each command is a class extending `Command`:
+
+```typescript
+export class MyCommand extends Command {
+  readonly definition: CommandDef = {
+    name: 'mycommand',
+    description: 'Does something',
+    usage: 'mycommand <arg>',
+  };
+
+  async execute(args: string[]): Promise<string> {
+    return 'Result';
+  }
+}
+export default MyCommand;
+```
+
+Commands are **auto-discovered** via Vite glob import - just create a `*Command.ts` file in the commands folder.
 
 ## Using the Console
 
@@ -87,33 +112,47 @@ version              // Engine version
 
 ## Creating Custom Commands
 
-### Simple Command
+### Command Class (Recommended)
+
+Create a new file in `src/engine/console/commands/`:
 
 ```typescript
-import { ConsoleCommandRegistry } from './engine/debug/ConsoleCommandRegistry';
+// src/engine/console/commands/HelloCommand.ts
+import { Command, CommandDef } from '../Command';
 
-const registry = ConsoleCommandRegistry.getInstance();
+export class HelloCommand extends Command {
+  readonly definition: CommandDef = {
+    name: 'hello',
+    description: 'Say hello',
+    usage: 'hello [name]',
+  };
 
-registry.registerCommand({
-  name: 'hello',
-  description: 'Say hello',
-  execute: (args) => {
+  async execute(args: string[]): Promise<string> {
     const name = args[0] || 'World';
     return `Hello, ${name}!`;
   }
-});
+}
 
-// Usage: hello Player → "Hello, Player!"
+export default HelloCommand;
+// Auto-discovered! No registration needed.
 ```
 
 ### Command with Subcommands
 
 ```typescript
-registry.registerCommand({
-  name: 'player',
-  description: 'Player commands',
-  execute: (args) => {
-    const sub = args[0];
+export class PlayerCommand extends Command {
+  readonly definition: CommandDef = {
+    name: 'player',
+    description: 'Player commands',
+    usage: 'player <health|position|teleport>',
+    subcommands: [
+      { name: 'health', description: 'Show health' },
+      { name: 'position', description: 'Show position' },
+    ],
+  };
+
+  async execute(args: string[]): Promise<string> {
+    const sub = args[0]?.toLowerCase();
     
     switch (sub) {
       case 'health':
@@ -124,25 +163,27 @@ registry.registerCommand({
         return 'Subcommands: health, position';
     }
   }
-});
-
-// Usage: player health → "Health: 100"
+}
 ```
 
-### Async Command
+### Using Engine Systems
+
+Commands can dynamically import engine systems:
 
 ```typescript
-registry.registerCommand({
-  name: 'loadmap',
-  description: 'Load map asynchronously',
-  execute: async (args) => {
-    const mapName = args[0];
-    if (!mapName) return 'Usage: loadmap <name>';
-    
-    await mapLoader.load(mapName);
-    return `Loaded: ${mapName}`;
+export class MapInfoCommand extends Command {
+  readonly definition: CommandDef = {
+    name: 'mapinfo',
+    description: 'Show current map info',
+  };
+
+  async execute(): Promise<string> {
+    const { MapLoader } = await import('../../loader/map/MapLoader');
+    const loader = MapLoader.getInstance();
+    const current = loader.getCurrentMap();
+    return current ? `Current map: ${current}` : 'No map loaded';
   }
-});
+}
 ```
 
 ## Programmatic Execution
