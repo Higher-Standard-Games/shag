@@ -6,6 +6,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 
 | Guide | Description |
 |-------|-------------|
+| [Configuration](./configuration.md) | Engine configuration (engine.json) |
 | [BSP Map System](./bsp-system.md) | How BSP maps are loaded and rendered |
 | [Q3 Shader System](./shader-system.md) | Shader parsing and material application |
 | [PK3 Filesystem](./pk3-filesystem.md) | Virtual filesystem and archive loading |
