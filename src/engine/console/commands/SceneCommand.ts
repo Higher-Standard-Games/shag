@@ -20,7 +20,6 @@ export default class SceneCommand extends Command {
     name: 'scene',
     description: 'Scene creation, management and debugging',
     usage: 'scene [subcommand]',
-    developer: true,
     subcommands: [
       { name: 'empty', description: 'Create empty scene for BSP testing' },
       { name: 'clear', description: 'Clear all scene objects' },
