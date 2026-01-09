@@ -9,8 +9,8 @@
  * - Green (accent): #4ADE80
  */
 
-/* Import Nunito font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+/* Import fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Nunito:wght@400;600;700;800&family=Share+Tech+Mono&display=swap');
 
 :root {
   /* SHAG Color Palette */
@@ -121,11 +121,12 @@ header .title {
   color: var(--shag-yellow);
 }
 
-/* Code blocks */
+/* Code blocks - Share Tech Mono */
 pre {
   background: var(--color-code-background) !important;
   border: 1px solid #2a2d34;
   border-radius: 8px;
+  font-family: 'Share Tech Mono', 'Consolas', 'Monaco', 'Courier New', monospace !important;
 }
 
 code {
@@ -133,6 +134,7 @@ code {
   color: var(--shag-teal);
   padding: 2px 6px;
   border-radius: 4px;
+  font-family: 'Share Tech Mono', 'Consolas', 'Monaco', 'Courier New', monospace !important;
 }
 
 /* Headings - Nunito font */
@@ -140,6 +142,11 @@ h1, h2, h3, h4 {
   font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
   font-weight: 700;
   color: var(--color-text);
+}
+
+/* Body text - Inter font */
+body, .tsd-comment {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 h1 {
