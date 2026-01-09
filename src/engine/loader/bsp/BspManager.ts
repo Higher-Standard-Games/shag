@@ -529,6 +529,160 @@ export class BspManager {
   }
 
   // ============================================================================
+  // PVS Culling
+  // ============================================================================
+
+  private pvsCuller: import('./PVSCuller').PVSCuller | null = null;
+  private pvsObserver: any = null;
+
+  /**
+   * Initialize PVS culling system
+   */
+  async initPVS(): Promise<boolean> {
+    if (!this.loadedBsp || !this.meshResult) {
+      return false;
+    }
+
+    if (!this.pvsCuller) {
+      const { createPVSCuller } = await import('./PVSCuller');
+      this.pvsCuller = createPVSCuller(this.loadedBsp);
+      if (this.pvsCuller) {
+        this.pvsCuller.registerFromWorldMesh(this.meshResult.worldMesh);
+      }
+    }
+
+    return this.pvsCuller !== null;
+  }
+
+  /**
+   * Enable PVS culling with automatic updates
+   */
+  async enablePVS(scene: Scene, camera: import('@babylonjs/core/Cameras/camera').Camera): Promise<string> {
+    const initialized = await this.initPVS();
+    if (!initialized || !this.pvsCuller) {
+      if (!this.loadedBsp) {
+        return 'No BSP loaded. Load a map first.';
+      }
+      return 'PVS data not available in this map';
+    }
+
+    this.pvsCuller.setEnabled(true);
+
+    // Start update loop
+    if (!this.pvsObserver) {
+      this.pvsObserver = scene.onBeforeRenderObservable.add(() => {
+        if (this.pvsCuller?.isEnabled() && camera) {
+          this.pvsCuller.update(camera.position);
+        }
+      });
+    }
+
+    return 'PVS culling: ON';
+  }
+
+  /**
+   * Disable PVS culling
+   */
+  disablePVS(scene: Scene): string {
+    if (this.pvsCuller) {
+      this.pvsCuller.setEnabled(false);
+    }
+
+    if (this.pvsObserver) {
+      scene.onBeforeRenderObservable.remove(this.pvsObserver);
+      this.pvsObserver = null;
+    }
+
+    return 'PVS culling: OFF';
+  }
+
+  /**
+   * Get PVS status
+   */
+  getPVSStatus(camera?: import('@babylonjs/core/Cameras/camera').Camera): string {
+    if (!this.pvsCuller) {
+      if (!this.loadedBsp) {
+        return 'No BSP loaded';
+      }
+      return this.loadedBsp.visData
+        ? `PVS available: ${this.loadedBsp.visData.numClusters} clusters (not initialized)`
+        : 'No PVS data in this map';
+    }
+
+    // Force update for fresh stats
+    if (camera) {
+      this.pvsCuller.update(camera.position);
+    }
+
+    const stats = this.pvsCuller.getStats();
+    const culledPct = stats.totalMeshes > 0
+      ? ((stats.culledMeshes / stats.totalMeshes) * 100).toFixed(1)
+      : '0';
+
+    return [
+      '=== PVS Culling Status ===',
+      `Enabled: ${stats.enabled ? 'YES' : 'NO'}`,
+      `Current cluster: ${stats.currentCluster}`,
+      `Total clusters: ${stats.totalClusters}`,
+      `Visible clusters: ${stats.visibleClusters}`,
+      '',
+      `Total meshes: ${stats.totalMeshes}`,
+      `Visible meshes: ${stats.visibleMeshes}`,
+      `Culled meshes: ${stats.culledMeshes} (${culledPct}%)`,
+      `Update time: ${stats.lastUpdateTime.toFixed(2)}ms`,
+    ].join('\n');
+  }
+
+  /**
+   * Get current cluster info for camera position
+   */
+  async getCameraClusterInfo(camera: import('@babylonjs/core/Cameras/camera').Camera): Promise<string> {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const { findLeafForPoint } = await import('./BspLoader');
+    const q3Pos: [number, number, number] = [camera.position.x, camera.position.z, camera.position.y];
+    const leaf = findLeafForPoint(q3Pos, this.loadedBsp.nodes, this.loadedBsp.leafs, this.loadedBsp.planes);
+
+    if (!leaf) {
+      return 'Camera position not in BSP tree (outside world?)';
+    }
+
+    const visData = this.loadedBsp.visData;
+    let visibleCount = 0;
+    if (visData && leaf.cluster >= 0) {
+      for (let i = 0; i < visData.numClusters; i++) {
+        const byteIdx = leaf.cluster * visData.bytesPerCluster + Math.floor(i / 8);
+        const bitIdx = i % 8;
+        if (visData.bitVectors[byteIdx] & (1 << bitIdx)) {
+          visibleCount++;
+        }
+      }
+    }
+
+    return [
+      `=== Current Cluster Info ===`,
+      `Camera: (${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`,
+      `Cluster: ${leaf.cluster}`,
+      `Area: ${leaf.area}`,
+      `Leaf bounds:`,
+      `  min: (${leaf.mins.join(', ')})`,
+      `  max: (${leaf.maxs.join(', ')})`,
+      `Faces in leaf: ${leaf.numLeafFaces}`,
+      `Brushes in leaf: ${leaf.numLeafBrushes}`,
+      visData ? `Visible clusters: ${visibleCount} / ${visData.numClusters}` : 'No PVS data',
+    ].join('\n');
+  }
+
+  /**
+   * Get PVS culler instance (for advanced usage)
+   */
+  getPVSCuller(): import('./PVSCuller').PVSCuller | null {
+    return this.pvsCuller;
+  }
+
+  // ============================================================================
   // Cleanup
   // ============================================================================
 
@@ -539,6 +693,8 @@ export class BspManager {
     this.clearRender();
     this.loadedBsp = null;
     this.currentMapName = null;
+    this.pvsCuller = null;
+    this.pvsObserver = null;
   }
 
   /**
