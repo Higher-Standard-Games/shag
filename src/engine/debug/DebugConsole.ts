@@ -9,7 +9,7 @@
  * - Persists history to localStorage
  */
 
-import { ConsoleCommandRegistry } from './ConsoleCommandRegistry';
+import { CommandRegistry } from '../console/CommandRegistry';
 import { EngineVersion } from '../core/EngineVersion';
 import './debug-console.css';
 
@@ -321,7 +321,7 @@ export class DebugConsole {
     this.log('command', input);
     
     // Execute
-    const registry = ConsoleCommandRegistry.getInstance();
+    const registry = CommandRegistry.getInstance();
     const result = await registry.execute(input);
     
     if (result) {
@@ -538,7 +538,7 @@ export class DebugConsole {
       return;
     }
     
-    const registry = ConsoleCommandRegistry.getInstance();
+    const registry = CommandRegistry.getInstance();
     this.autocompleteItems = registry.getAutocompleteSuggestions(input);
     this.autocompleteIndex = -1;
     
@@ -553,7 +553,7 @@ export class DebugConsole {
   private showAutocomplete(): void {
     if (!this.autocompleteEl) return;
     
-    const registry = ConsoleCommandRegistry.getInstance();
+    const registry = CommandRegistry.getInstance();
     
     this.autocompleteEl.innerHTML = this.autocompleteItems.map((item, i) => {
       const parts = item.split(' ');
@@ -792,7 +792,7 @@ export class DebugConsole {
   // ============================================================================
 
   private registerBuiltinCommands(): void {
-    const registry = ConsoleCommandRegistry.getInstance();
+    const registry = CommandRegistry.getInstance();
     
     // Help command
     registry.register('help', (args) => {

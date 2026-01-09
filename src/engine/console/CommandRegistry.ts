@@ -19,6 +19,24 @@ interface RegisteredCommand {
   definition: CommandDef;
 }
 
+/**
+ * Simple wrapper for legacy handler-based commands
+ */
+class LegacyCommand extends Command {
+  readonly definition: CommandDef;
+  private handler: CommandHandler;
+  
+  constructor(name: string, handler: CommandHandler, description: string = 'No description') {
+    super();
+    this.definition = { name, description };
+    this.handler = handler;
+  }
+  
+  async execute(args: string[]): Promise<string | void> {
+    return this.handler(args);
+  }
+}
+
 export class CommandRegistry {
   private static instance: CommandRegistry;
   
@@ -40,7 +58,22 @@ export class CommandRegistry {
   /**
    * Register a command instance
    */
-  register(command: Command): void {
+  register(command: Command): void;
+  /**
+   * Register a legacy handler-based command (backwards compatibility)
+   */
+  register(name: string, handler: CommandHandler, description?: string): void;
+  register(commandOrName: Command | string, handler?: CommandHandler, description?: string): void {
+    if (typeof commandOrName === 'string') {
+      // Legacy handler-based registration
+      const command = new LegacyCommand(commandOrName, handler!, description);
+      this.registerCommand(command);
+      return;
+    }
+    this.registerCommand(commandOrName);
+  }
+  
+  private registerCommand(command: Command): void {
     const def = command.definition;
     const key = def.name.toLowerCase();
     
@@ -227,6 +260,45 @@ export class CommandRegistry {
       result.set(name, registered.definition);
     }
     return result;
+  }
+  
+  /**
+   * Check if a name is a cvar (not a command)
+   */
+  isCvar(name: string): boolean {
+    const key = name.toLowerCase();
+    return !this.commands.has(key) && Cvar.exists(key);
+  }
+  
+  /**
+   * Get all command definitions (for help listing)
+   */
+  getAllDefinitions(): CommandDef[] {
+    const result: CommandDef[] = [];
+    for (const [_, registered] of this.commands) {
+      // Filter developer commands in non-developer mode
+      if (registered.definition.developer && !Cvar.getBool('developer')) {
+        continue;
+      }
+      result.push(registered.definition);
+    }
+    return result;
+  }
+  
+  /**
+   * Get command definition (for autocomplete display)
+   */
+  getDefinition(name: string): CommandDef | undefined {
+    const key = name.toLowerCase();
+    const primaryKey = this.aliases.get(key) || key;
+    return this.commands.get(primaryKey)?.definition;
+  }
+  
+  /**
+   * Get autocomplete suggestions for input (compatibility with DebugConsole)
+   */
+  getAutocompleteSuggestions(input: string): string[] {
+    return this.getCompletions(input);
   }
   
   /**
