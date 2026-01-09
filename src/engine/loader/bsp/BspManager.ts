@@ -1,0 +1,553 @@
+/**
+ * BspManager - High-level BSP map management
+ * 
+ * Coordinates BSP loading, rendering, and querying across subsystems:
+ * - BspLoader: Parses BSP files
+ * - BspMeshBuilder: Creates renderable meshes
+ * - PVSCuller: Visibility culling
+ * - Collision: Physics collision detection
+ */
+
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { BspLoader, type BspFile } from './BspLoader';
+import { BspMeshBuilder, type BspMeshBuildResult } from './BspMeshBuilder';
+import { PK3Loader } from '../pk3/PK3Loader';
+
+export interface BspLoadOptions {
+  autoLoadPK3?: boolean;
+}
+
+export interface BspRenderOptions {
+  faceTypes?: number[];
+  filterTextures?: boolean;
+}
+
+export interface BspManagerState {
+  bsp: BspFile | null;
+  meshResult: BspMeshBuildResult | null;
+  mapName: string | null;
+}
+
+/**
+ * Singleton manager for BSP map operations
+ */
+export class BspManager {
+  private static instance: BspManager | null = null;
+
+  private loadedBsp: BspFile | null = null;
+  private meshResult: BspMeshBuildResult | null = null;
+  private currentMapName: string | null = null;
+
+  private constructor() {}
+
+  static getInstance(): BspManager {
+    if (!BspManager.instance) {
+      BspManager.instance = new BspManager();
+    }
+    return BspManager.instance;
+  }
+
+  // ============================================================================
+  // State Access
+  // ============================================================================
+
+  getBsp(): BspFile | null {
+    return this.loadedBsp;
+  }
+
+  getMeshResult(): BspMeshBuildResult | null {
+    return this.meshResult;
+  }
+
+  getMapName(): string | null {
+    return this.currentMapName;
+  }
+
+  getState(): BspManagerState {
+    return {
+      bsp: this.loadedBsp,
+      meshResult: this.meshResult,
+      mapName: this.currentMapName,
+    };
+  }
+
+  isLoaded(): boolean {
+    return this.loadedBsp !== null;
+  }
+
+  isRendered(): boolean {
+    return this.meshResult !== null;
+  }
+
+  // ============================================================================
+  // Loading
+  // ============================================================================
+
+  /**
+   * Load a BSP map by name
+   */
+  async load(mapName: string, options: BspLoadOptions = {}): Promise<string> {
+    const pk3 = PK3Loader.getInstance();
+    const { autoLoadPK3 = true } = options;
+
+    // Check if map PK3 is loaded, if not load it
+    if (autoLoadPK3) {
+      const pk3Name = `map_${mapName}.pk3`;
+      const packages = pk3.getPackageInfo();
+      const isLoaded = packages.some(p => p.filename === pk3Name);
+
+      if (!isLoaded) {
+        try {
+          await pk3.loadPK3(pk3Name);
+        } catch (e) {
+          throw new Error(`Failed to load PK3 ${pk3Name}: ${e}`);
+        }
+      }
+    }
+
+    // Load BSP from PK3
+    const bspPath = `maps/${mapName}.bsp`;
+    const bsp = await BspLoader.loadFromPK3(pk3, bspPath);
+
+    if (!bsp) {
+      throw new Error(`Failed to load BSP: ${bspPath}`);
+    }
+
+    this.loadedBsp = bsp;
+    this.currentMapName = mapName;
+
+    return this.getLoadSummary();
+  }
+
+  /**
+   * Get summary of loaded BSP
+   */
+  getLoadSummary(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const bsp = this.loadedBsp;
+    const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+
+    return [
+      `Format: ${format} v${bsp.header.version}`,
+      `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+      `Entities: ${bsp.entities.length}`,
+      `Faces: ${bsp.faces.length}`,
+      `Vertices: ${bsp.vertices.length}`,
+      `Lightmaps: ${bsp.lightmaps.length}`,
+      `Textures: ${bsp.textures.length}`,
+    ].join('\n');
+  }
+
+  // ============================================================================
+  // Info Queries
+  // ============================================================================
+
+  getInfo(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const bsp = this.loadedBsp;
+    const format = bsp.header.isFBSP ? 'FBSP' : 'IBSP';
+
+    return [
+      `=== BSP Info ===`,
+      `Format: ${format} v${bsp.header.version}`,
+      `Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`,
+      '',
+      `Entities: ${bsp.entities.length}`,
+      `Textures: ${bsp.textures.length}`,
+      `Planes: ${bsp.planes.length}`,
+      `Nodes: ${bsp.nodes.length}`,
+      `Leafs: ${bsp.leafs.length}`,
+      `Models: ${bsp.models.length}`,
+      `Brushes: ${bsp.brushes.length}`,
+      `Vertices: ${bsp.vertices.length}`,
+      `Faces: ${bsp.faces.length}`,
+      `MeshVerts: ${bsp.meshVerts.length}`,
+      `Lightmaps: ${bsp.lightmaps.length}`,
+      `LightVols: ${bsp.lightVols.length}`,
+      `VisData: ${bsp.visData ? `${bsp.visData.numClusters} clusters` : 'none'}`,
+    ].join('\n');
+  }
+
+  getFaceStats(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const counts = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
+    for (const face of this.loadedBsp.faces) {
+      switch (face.faceType) {
+        case 1: counts.polygon++; break;
+        case 2: counts.patch++; break;
+        case 3: counts.mesh++; break;
+        case 4: counts.billboard++; break;
+      }
+    }
+
+    return [
+      `=== Face Types ===`,
+      `Polygons (type 1): ${counts.polygon}`,
+      `Patches (type 2): ${counts.patch}`,
+      `Meshes (type 3): ${counts.mesh}`,
+      `Billboards (type 4): ${counts.billboard}`,
+      `Total: ${this.loadedBsp.faces.length}`,
+    ].join('\n');
+  }
+
+  getEntities(filter?: string, showDetails = false): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    // If showing details for a specific classname
+    if (filter && showDetails) {
+      const matching = this.loadedBsp.entities.filter(e => 
+        e.classname.toLowerCase().includes(filter.toLowerCase())
+      );
+      
+      if (matching.length === 0) {
+        return `No entities matching "${filter}"`;
+      }
+
+      const lines = [`=== Entities matching "${filter}" (${matching.length}) ===`];
+      for (const ent of matching.slice(0, 10)) {
+        lines.push(`\n[${ent.classname}]`);
+        for (const [key, value] of Object.entries(ent.properties)) {
+          lines.push(`  ${key}: ${value}`);
+        }
+      }
+      if (matching.length > 10) {
+        lines.push(`\n... and ${matching.length - 10} more`);
+      }
+      return lines.join('\n');
+    }
+
+    // Count entity types
+    const entityTypes: Record<string, number> = {};
+    for (const ent of this.loadedBsp.entities) {
+      if (filter && !ent.classname.toLowerCase().includes(filter.toLowerCase())) continue;
+      entityTypes[ent.classname] = (entityTypes[ent.classname] || 0) + 1;
+    }
+
+    const sorted = Object.entries(entityTypes)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+
+    const lines = [`=== Entity Types${filter ? ` (filter: ${filter})` : ''} ===`];
+    for (const [type, count] of sorted) {
+      lines.push(`  ${type}: ${count}`);
+    }
+
+    const total = Object.values(entityTypes).reduce((a, b) => a + b, 0);
+    if (sorted.length < Object.keys(entityTypes).length) {
+      lines.push(`  ... and ${Object.keys(entityTypes).length - sorted.length} more types`);
+    }
+    lines.push(`Total: ${total}`);
+
+    return lines.join('\n');
+  }
+
+  getTextures(filter?: string): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    let textures = this.loadedBsp.textures.map((tex, i) => ({ index: i, name: tex.name }));
+
+    if (filter) {
+      textures = textures.filter(t => t.name.toLowerCase().includes(filter.toLowerCase()));
+    }
+
+    const lines = filter
+      ? [`=== Textures matching "${filter}" (${textures.length} of ${this.loadedBsp.textures.length}) ===`]
+      : [`=== All Textures (${this.loadedBsp.textures.length}) ===`];
+
+    textures.forEach((tex) => {
+      lines.push(`${tex.index}: ${tex.name}`);
+    });
+
+    if (textures.length === 0) {
+      lines.push(`  No textures found${filter ? ` matching "${filter}"` : ''}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  getWorldspawn(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const worldspawn = this.loadedBsp.entities.find(e => e.classname === 'worldspawn');
+    if (!worldspawn) {
+      return 'No worldspawn entity found';
+    }
+
+    const lines = ['=== Worldspawn Properties ==='];
+    for (const [key, value] of Object.entries(worldspawn.properties)) {
+      if (key !== 'classname') {
+        lines.push(`  ${key}: ${value}`);
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  getClusterInfo(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const vis = this.loadedBsp.visData;
+    if (!vis) {
+      return 'No visibility data in this BSP';
+    }
+
+    // Count leafs per cluster
+    const clusterLeafs: Record<number, number> = {};
+    for (const leaf of this.loadedBsp.leafs) {
+      if (leaf.cluster >= 0) {
+        clusterLeafs[leaf.cluster] = (clusterLeafs[leaf.cluster] || 0) + 1;
+      }
+    }
+
+    return [
+      `=== PVS Cluster Info ===`,
+      `Total clusters: ${vis.numClusters}`,
+      `Bytes per cluster: ${vis.bytesPerCluster}`,
+      `PVS data size: ${vis.bitVectors.length} bytes`,
+      `Leafs with clusters: ${Object.keys(clusterLeafs).length}`,
+      `Leafs outside world: ${this.loadedBsp.leafs.filter(l => l.cluster < 0).length}`,
+    ].join('\n');
+  }
+
+  getLightmapInfo(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const count = this.loadedBsp.lightmaps.length;
+    const size = this.loadedBsp.lightmapSize;
+    const bytesEach = size * size * 3;
+    const totalMB = (count * bytesEach / 1024 / 1024).toFixed(2);
+
+    // Count faces using lightmaps
+    const lmFaces = this.loadedBsp.faces.filter(f => f.lightmapIndex >= 0).length;
+
+    return [
+      `=== Lightmap Info ===`,
+      `Count: ${count}`,
+      `Size: ${size}x${size} (${this.loadedBsp.header.isFBSP ? 'FBSP' : 'IBSP'})`,
+      `Format: RGB (3 bytes/pixel)`,
+      `Total size: ${totalMB} MB`,
+      `Faces using lightmaps: ${lmFaces}`,
+    ].join('\n');
+  }
+
+  // ============================================================================
+  // Rendering
+  // ============================================================================
+
+  /**
+   * Render BSP to scene
+   */
+  render(scene: Scene, options: BspRenderOptions = {}): string {
+    if (!this.loadedBsp) {
+      throw new Error('No BSP loaded');
+    }
+
+    // Clear previous render
+    this.clearRender();
+
+    try {
+      this.meshResult = BspMeshBuilder.build(this.loadedBsp, scene, {
+        faceTypes: options.faceTypes,
+        filterTextures: options.filterTextures ?? true,
+      });
+
+      const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(',')})` : '';
+      
+      return [
+        `=== BSP Rendered${filterInfo} ===`,
+        `Vertices: ${this.meshResult.stats.totalVertices}`,
+        `Triangles: ${this.meshResult.stats.totalTriangles}`,
+        `Lightmaps: ${this.meshResult.lightmapTextures.length}`,
+        `Faces: ${this.meshResult.stats.polygonFaces} poly, ${this.meshResult.stats.patchFaces} patch, ${this.meshResult.stats.meshFaces} mesh`,
+      ].join('\n');
+    } catch (e) {
+      throw new Error(`Render failed: ${e}`);
+    }
+  }
+
+  /**
+   * Clear rendered BSP geometry
+   */
+  clearRender(): void {
+    if (this.meshResult) {
+      this.meshResult.worldMesh.dispose();
+      for (const tex of this.meshResult.lightmapTextures) {
+        tex.dispose();
+      }
+      this.meshResult = null;
+    }
+  }
+
+  /**
+   * Apply textures to rendered BSP
+   */
+  async applyTextures(scene: Scene, onProgress?: (loaded: number, total: number, name: string) => void): Promise<number> {
+    if (!this.loadedBsp || !this.meshResult) {
+      throw new Error('No BSP rendered');
+    }
+
+    return BspMeshBuilder.applyTextures(
+      this.meshResult,
+      this.loadedBsp,
+      scene,
+      onProgress
+    );
+  }
+
+  /**
+   * Apply lightmaps to rendered BSP
+   */
+  applyLightmaps(mode: 'desktop' | 'mobile' = 'desktop', intensity = 1.5): number {
+    if (!this.meshResult) {
+      throw new Error('No BSP rendered');
+    }
+
+    return BspMeshBuilder.applyLightmaps(this.meshResult, {
+      mode,
+      intensity,
+    });
+  }
+
+  /**
+   * Get center position of the map
+   */
+  getMapCenter(): Vector3 | null {
+    if (!this.loadedBsp) return null;
+
+    const world = this.loadedBsp.models[0];
+    if (!world) return null;
+
+    return new Vector3(
+      (world.mins[0] + world.maxs[0]) / 2,
+      (world.mins[2] + world.maxs[2]) / 2, // Z -> Y
+      (world.mins[1] + world.maxs[1]) / 2  // Y -> Z
+    );
+  }
+
+  // ============================================================================
+  // Sky
+  // ============================================================================
+
+  getSkyInfo(): string {
+    if (!this.meshResult) {
+      return 'No BSP rendered';
+    }
+
+    const skyShaders = this.meshResult.skyShaders;
+    if (skyShaders.length === 0) {
+      return 'No sky shaders found in this map.';
+    }
+
+    const lines = [`=== Sky Shaders (${skyShaders.length}) ===`];
+    for (const sky of skyShaders) {
+      lines.push(`  ${sky.textureName}`);
+      if (sky.skyParms) {
+        lines.push(`    farbox: ${sky.skyParms.farbox || '(none)'}`);
+        lines.push(`    cloudHeight: ${sky.skyParms.cloudHeight || 0}`);
+        lines.push(`    nearbox: ${sky.skyParms.nearbox || '(none)'}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  async applySkybox(scene: Scene): Promise<{ success: boolean; error?: string }> {
+    if (!this.meshResult) {
+      return { success: false, error: 'No BSP rendered' };
+    }
+
+    return BspMeshBuilder.applySkybox(this.meshResult, scene);
+  }
+
+  // ============================================================================
+  // Fog
+  // ============================================================================
+
+  getFogInfo(): string {
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+
+    const effects = this.loadedBsp.effects;
+    if (effects.length === 0) {
+      return 'No effects (fog) entries in this BSP.';
+    }
+
+    const lines: string[] = ['Effects lump entries:'];
+    for (let i = 0; i < Math.min(effects.length, 20); i++) {
+      const eff = effects[i];
+      lines.push(`  [${i}] "${eff.name}" brush=${eff.brushIndex}`);
+    }
+    if (effects.length > 20) {
+      lines.push(`  ... and ${effects.length - 20} more`);
+    }
+    return lines.join('\n');
+  }
+
+  async applyFogVolumes(scene: Scene): Promise<{ success: boolean; count: number; error?: string }> {
+    if (!this.meshResult) {
+      return { success: false, count: 0, error: 'No BSP rendered' };
+    }
+
+    const result = await BspMeshBuilder.applyFogVolumes(this.meshResult, scene);
+    return {
+      success: result.success,
+      count: result.fogMeshes?.length || 0,
+      error: result.error,
+    };
+  }
+
+  clearFogVolumes(): void {
+    if (!this.meshResult?.fogVolumes) return;
+
+    for (const mesh of this.meshResult.fogVolumes) {
+      if (mesh.material) {
+        mesh.material.dispose();
+      }
+      mesh.dispose();
+    }
+    this.meshResult.fogVolumes = [];
+  }
+
+  // ============================================================================
+  // Cleanup
+  // ============================================================================
+
+  /**
+   * Unload everything
+   */
+  unload(): void {
+    this.clearRender();
+    this.loadedBsp = null;
+    this.currentMapName = null;
+  }
+
+  /**
+   * Reset singleton (for testing)
+   */
+  static reset(): void {
+    if (BspManager.instance) {
+      BspManager.instance.unload();
+      BspManager.instance = null;
+    }
+  }
+}
