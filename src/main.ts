@@ -14,8 +14,8 @@ import { registerGameEntityHandlers } from "@game/EntityHandlers";
 import { SettingsPanel } from "@game/ui/SettingsPanel";
 import { UITheme } from "./engine/ui/UITheme";
 import { UIScale } from "./engine/ui/UIScale";
-import { DebugConsole, registerEngineCommands } from "./engine/debug";
-import { registerEngineCommands as registerNewEngineCommands } from "./engine/console/commands";
+import { DebugConsole } from "./engine/debug";
+import { registerEngineCommands } from "./engine/console/commands";
 import { registerGameCommands } from "@game/GameCommands";
 import { GamePaths } from "./engine/core/GamePaths";
 import { EngineVersion } from "./engine/core/EngineVersion";
@@ -110,9 +110,8 @@ async function main() {
   const debugConsole = DebugConsole.getInstance();
   debugConsole.enable();
   
-  // Register commands from both old and new systems during migration
-  registerEngineCommands();      // Legacy EngineCommands.ts
-  await registerNewEngineCommands();  // New console/commands/*.ts
+  // Register engine commands
+  await registerEngineCommands();
   registerGameCommands();
   
   // Initialize settings (loads saved settings and applies to audio)

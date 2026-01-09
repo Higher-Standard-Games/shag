@@ -21,9 +21,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
 
-// Static imports for command system (avoids vite-node dynamic import issues)
+// Static imports for command system
 import { ConsoleCommandRegistry } from "../engine/debug/ConsoleCommandRegistry";
-import { registerEngineCommands } from "../engine/debug/EngineCommands";
+import { registerEngineCommands } from "../engine/console/commands";
 
 // ============================================================================
 // Console Output Capture
@@ -135,8 +135,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
   const registry = ConsoleCommandRegistry.getInstance();
 
-  // Register all engine commands (uses lazy imports internally for DOM modules)
-  registerEngineCommands();
+  // Register all engine commands
+  await registerEngineCommands();
   console.log("[Init] Engine commands registered");
 
   // ============================================================================
