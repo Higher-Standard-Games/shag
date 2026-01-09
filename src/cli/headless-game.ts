@@ -74,6 +74,17 @@ async function initializeEngine(): Promise<HeadlessContext> {
 
   console.log("[Init] Engine created: " + engine.description);
 
+  // Initialize CameraSystem so commands can find the scene
+  try {
+    const { CameraSystem } = await import("../engine/camera/CameraSystem");
+    const cameraSystem = CameraSystem.getInstance();
+    cameraSystem.init(scene, null as any); // null canvas ok for headless
+    cameraSystem.setCamera(camera);
+    console.log("[Init] CameraSystem initialized");
+  } catch (e) {
+    console.warn("[Init] CameraSystem init failed:", e);
+  }
+
   return { engine, scene, camera };
 }
 
@@ -387,7 +398,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 // ============================================================================
 
 async function runREPL(): Promise<void> {
-  const registry = ConsoleCommandRegistry.getInstance();
+  const { CommandRegistry } = await import("../engine/console/CommandRegistry");
+  const registry = CommandRegistry.getInstance();
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -422,7 +434,8 @@ async function runREPL(): Promise<void> {
 }
 
 async function runBatch(commands: string): Promise<void> {
-  const registry = ConsoleCommandRegistry.getInstance();
+  const { CommandRegistry } = await import("../engine/console/CommandRegistry");
+  const registry = CommandRegistry.getInstance();
 
   console.log(`\n[Batch] Executing: ${commands}\n`);
 
