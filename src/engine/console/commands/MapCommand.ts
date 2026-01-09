@@ -20,6 +20,9 @@ export default class MapCommand extends Command {
   async execute(args: string[]): Promise<string | void> {
     const subcommand = args[0]?.toLowerCase();
 
+    // Known subcommands
+    const subcommands = ['load', 'reload', 'list', 'info'];
+
     switch (subcommand) {
       case 'load': {
         const mapName = args[1];
@@ -52,9 +55,17 @@ export default class MapCommand extends Command {
         }
       }
 
-      case 'info':
-      default: {
+      case 'info': {
         return 'Map info: Use game-specific map commands for detailed info.';
+      }
+
+      default: {
+        // If first arg is not a subcommand, treat it as a map name (like Quake: "map dm1")
+        if (subcommand && !subcommands.includes(subcommand)) {
+          const mapName = subcommand;
+          return `Map "${mapName}" - loading not implemented in engine. Use game-specific map command.`;
+        }
+        return 'Usage: map <mapname> or map <load|reload|list|info>';
       }
     }
   }
