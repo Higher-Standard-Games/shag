@@ -114,6 +114,7 @@ async function main() {
   // Load custom fonts before showing main menu
   const uiTheme = UITheme.getInstance();
   await uiTheme.loadNunitoFont();
+  await uiTheme.loadShareTechMonoFont();
 
   // Phase 2: Wait for user interaction (unlocks browser audio)
   await loadingScreen.waitForReady();

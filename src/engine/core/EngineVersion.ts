@@ -10,6 +10,20 @@ import { GamePaths } from './GamePaths';
 class EngineVersion {
   private static instance: EngineVersion;
   private version: string;
+  
+  // Funny quotes for debug console
+  private quotes = [
+    "Now with 100% more bugs!",
+    "Powered by coffee and desperation",
+    "It compiles, ship it!",
+    "Works on my machine™",
+    "Debugging is like being a detective",
+    "Trust me, I'm an engineer",
+    "This is fine. Everything is fine.",
+    "Have you tried turning it off and on again?",
+    "It's not a bug, it's a feature",
+    "I swear it worked yesterday",
+  ];
 
   private constructor() {
     this.version = versionText.trim();
@@ -48,6 +62,13 @@ class EngineVersion {
    */
   public getEngineName(): string {
     return 'SHAG Engine';
+  }
+
+  /**
+   * Get a random funny quote for debug console
+   */
+  public getRandomQuote(): string {
+    return this.quotes[Math.floor(Math.random() * this.quotes.length)];
   }
 
   /**

@@ -302,6 +302,16 @@ export class UITheme {
   }
 
   /**
+   * Load Share Tech Mono font for debug console
+   */
+  public async loadShareTechMonoFont(): Promise<void> {
+    const gamePaths = GamePaths.getInstance();
+    const fontPath = await gamePaths.resolve('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
+    await this.loadFont('Share Tech Mono', fontPath, '400', false);
+    console.log("[UITheme] Share Tech Mono font loaded (debug console)");
+  }
+
+  /**
    * Inject CSS variables and base styles
    */
   private injectStyles(): void {

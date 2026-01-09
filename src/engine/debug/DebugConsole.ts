@@ -191,8 +191,8 @@ export class DebugConsole {
     this.container.className = 'debug-console';
     this.container.innerHTML = `
       <div class="debug-console-header">
-        <span class="debug-console-title">Engine Console</span>
-        <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()}</span>
+        <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
+        <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
       </div>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">

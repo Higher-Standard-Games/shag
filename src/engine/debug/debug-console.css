@@ -14,7 +14,7 @@
   max-height: 50vh; /* Controlled by JS via con_size */
   background: rgba(10, 12, 16, 0.95);
   border-bottom: 2px solid #25b678;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'Share Tech Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   z-index: 99999;
   display: flex;
