@@ -48,7 +48,9 @@ shag-engine/
 │   ├── cli/              # Headless CLI tools
 │   └── main.ts           # Entry point
 ├── public/
-│   └── game/             # PK3 assets folder
+│   ├── engine.json       # Engine configuration (required)
+│   ├── engine/           # Shared engine assets (fonts, textures)
+│   └── game/             # Game assets and PK3 files
 ├── docs/                 # Documentation
 └── package.json
 ```
@@ -67,6 +69,7 @@ shag-engine/
 
 ## Next Steps
 
+- [Configuration](../guides/configuration.md) - Set up engine.json
 - [Your First Map Load](../tutorials/beginner/first-map-load.md) - Load and explore a map
 - [Project Structure](./project-structure.md) - Detailed structure explanation
 - [Building for Production](./building.md) - Create production builds

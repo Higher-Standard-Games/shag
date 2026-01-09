@@ -83,7 +83,11 @@ src/cli/
 
 ```
 public/
-└── game/                      # PK3 archives
+├── engine.json                # Engine configuration (required)
+├── engine/                    # Shared engine assets
+│   ├── fonts/                 # Engine fonts (Inter, Nunito, Share Tech Mono)
+│   └── textures/             # Shared textures
+└── game/                      # Game assets
     ├── data0_15pure.pk3       # Core Warsow assets
     ├── map_wdm7.pk3           # Map files
     ├── tex_*.pk3              # Texture packs
