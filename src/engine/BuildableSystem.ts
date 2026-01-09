@@ -86,8 +86,8 @@ export interface TriggerableBehavior {
   onCreated?: string;
   /** Trigger to fire when object completes building */
   onComplete?: string;
-  /** Trigger to fire when object is harvested/collected */
-  onHarvest?: string;
+  /** Trigger to fire when object is collected */
+  onCollect?: string;
   /** Trigger to fire when object is destroyed */
   onDestroy?: string;
   /** Trigger to fire on phase change (decayable) */
@@ -1018,8 +1018,8 @@ export class BuildableSystem {
 
     instance.storedProduction = 0;
 
-    if (template.behaviors.trigger?.onHarvest) {
-      this.fireTrigger(template.behaviors.trigger.onHarvest, instanceId);
+    if (template.behaviors.trigger?.onCollect) {
+      this.fireTrigger(template.behaviors.trigger.onCollect, instanceId);
     }
 
     this.emit({
