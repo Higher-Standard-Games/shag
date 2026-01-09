@@ -290,10 +290,10 @@ export class UITheme {
       { weight: "900", file: "Nunito-Black.ttf" },
     ];
 
-    // Fonts are engine assets - load from engine path directly
+    // Try game fonts first (allows game to override), fallback to engine fonts
     const gamePaths = GamePaths.getInstance();
     const loadPromises = weights.map(async ({ weight, file }) => {
-      const fontPath = gamePaths.engine(`fonts/Nunito/static/${file}`);
+      const fontPath = await this.resolveFontPath(`fonts/Nunito/static/${file}`, gamePaths);
       return this.loadFont("Nunito", fontPath, weight, true);
     });
 
@@ -305,11 +305,30 @@ export class UITheme {
    * Load Share Tech Mono font for debug console
    */
   public async loadShareTechMonoFont(): Promise<void> {
-    // Fonts are engine assets - load from engine path directly
+    // Try game fonts first, fallback to engine fonts
     const gamePaths = GamePaths.getInstance();
-    const fontPath = gamePaths.engine('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
+    const fontPath = await this.resolveFontPath('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf', gamePaths);
     await this.loadFont('Share Tech Mono', fontPath, '400', false);
     console.log("[UITheme] Share Tech Mono font loaded (debug console)");
+  }
+
+  /**
+   * Resolve font path - checks game directory first (silently), falls back to engine
+   */
+  private async resolveFontPath(relativePath: string, gamePaths: GamePaths): Promise<string> {
+    // Check game path first (silently - no error logs)
+    const gamePath = gamePaths.game(relativePath);
+    try {
+      const response = await fetch(gamePath, { method: 'HEAD' });
+      if (response.ok) {
+        return gamePath;
+      }
+    } catch {
+      // Silently fall through to engine path
+    }
+    
+    // Default to engine path
+    return gamePaths.engine(relativePath);
   }
 
   /**
