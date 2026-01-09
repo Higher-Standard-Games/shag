@@ -314,8 +314,12 @@ export class UITheme {
     // Try game fonts first, fallback to engine fonts
     const gamePaths = GamePaths.getInstance();
     const fontPath = await this.resolveFontPath('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf', gamePaths);
-    await this.loadFont('Share Tech Mono', fontPath, '400', false);
-    console.log("[UITheme] Share Tech Mono font loaded (debug console)");
+    const success = await this.loadFont('Share Tech Mono', fontPath, '400', true);
+    if (success) {
+      console.log("[UITheme] Share Tech Mono font loaded (debug console)");
+    } else {
+      console.warn("[UITheme] Share Tech Mono font failed to load from:", fontPath);
+    }
   }
 
   /**
@@ -334,7 +338,19 @@ export class UITheme {
     }
     
     // Default to engine path
-    return gamePaths.engine(relativePath);
+    const enginePath = gamePaths.engine(relativePath);
+    
+    // Verify engine path exists
+    try {
+      const response = await fetch(enginePath, { method: 'HEAD' });
+      if (!response.ok) {
+        console.warn(`[UITheme] Font not found at engine path: ${enginePath}`);
+      }
+    } catch {
+      console.warn(`[UITheme] Failed to check font path: ${enginePath}`);
+    }
+    
+    return enginePath;
   }
 
   /**
