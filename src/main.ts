@@ -18,6 +18,7 @@ import { DebugConsole, registerEngineCommands } from "./engine/debug";
 import { registerGameCommands } from "@game/GameCommands";
 import { GamePaths } from "./engine/core/GamePaths";
 import { EngineVersion } from "./engine/core/EngineVersion";
+import { PK3Index } from "./engine/loader/pk3/PK3Index";
 
 /**
  * Main application entry point.
@@ -69,6 +70,11 @@ async function main() {
   // Phase 1: Loading
   const loadingScreen = new LoadingScreen();
   loadingScreen.show();
+
+  // Ensure PK3 index is up to date (uses cache if valid, rebuilds if changed)
+  const pk3Index = PK3Index.getInstance();
+  pk3Index.setSearchPaths([GamePaths.getInstance().game() + '/']);
+  await pk3Index.ensureIndex((msg) => loadingScreen.setStatus(msg));
 
   try {
     await AssetLoader.getInstance().loadAll((progress) => {

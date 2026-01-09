@@ -532,4 +532,63 @@ export class PK3Index {
   hasIndex(): boolean {
     return this.index !== null && Object.keys(this.index.files).length > 0;
   }
+
+  /**
+   * Compute checksum of current PK3 files (without loading them)
+   * Uses HEAD requests to get file sizes for quick comparison
+   */
+  private async computeCurrentChecksum(): Promise<string> {
+    const checksumParts: string[] = [];
+
+    for (const basePath of this.searchPaths) {
+      const pk3Files = await this.discoverPK3s(basePath);
+      
+      for (const pk3 of pk3Files) {
+        const url = `${basePath}${pk3}`;
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            const size = response.headers.get('content-length') || '0';
+            checksumParts.push(`${pk3}:${size}`);
+          }
+        } catch {
+          // File not accessible, skip
+        }
+      }
+    }
+
+    checksumParts.sort();
+    return simpleHash(checksumParts.join('|'));
+  }
+
+  /**
+   * Ensure index is up to date - validates cache and rebuilds if needed.
+   * Call this during startup to ensure index is ready.
+   * 
+   * @param progressCallback Optional callback for progress updates (e.g., loading screen)
+   * @returns true if index was rebuilt, false if cache was valid
+   */
+  async ensureIndex(progressCallback?: (msg: string) => void): Promise<boolean> {
+    // 1. If no cached index, build fresh
+    if (!this.hasIndex()) {
+      progressCallback?.('Building PK3 index...');
+      await this.buildIndex(progressCallback);
+      return true;
+    }
+
+    // 2. Quick check: discover PK3s and compare checksum
+    progressCallback?.('Validating PK3 index...');
+    const currentChecksum = await this.computeCurrentChecksum();
+
+    if (currentChecksum === this.index?.listChecksum) {
+      const stats = this.getStats();
+      progressCallback?.(`Index valid: ${stats.fileCount} files, ${stats.shaderCount} shaders, ${stats.mapCount} maps`);
+      return false; // Used cache
+    }
+
+    // 3. Checksum mismatch - rebuild
+    progressCallback?.('PK3 files changed, rebuilding index...');
+    await this.buildIndex(progressCallback);
+    return true;
+  }
 }
