@@ -58,21 +58,25 @@ export function registerGameCommands(): void {
   });
 
   // ============================================================================
-  // Spawn Commands
+  // NPC Commands (game-specific entity spawning)
   // ============================================================================
   
-  registry.register('spawn', (args) => {
-    const entity = args[0]?.toLowerCase();
+  registry.register('npc', (args) => {
+    const subcommand = args[0]?.toLowerCase();
     
-    switch (entity) {
-      case 'npc':
-        return 'Spawning NPC (wire to NPCSystem)';
+    switch (subcommand) {
+      case 'spawn': {
+        const type = args[1]?.toLowerCase() || 'generic';
+        return `Spawning NPC: ${type} (wire to NPCSystem)`;
+      }
       case 'dealer':
         return 'Spawning dealer (wire to DealerSystem)';
       case 'customer':
         return 'Spawning customer (wire to CustomerSystem)';
+      case 'list':
+        return 'Listing NPCs (wire to NPCSystem)';
       default:
-        return 'Usage: spawn <npc|dealer|customer>';
+        return 'Subcommands: spawn, dealer, customer, list';
     }
   });
 
@@ -158,21 +162,21 @@ export function registerGameCommands(): void {
   });
 
   // ============================================================================
-  // Teleport Commands
+  // Goto Commands (game-specific named locations)
   // ============================================================================
   
-  registry.register('teleport', (args) => {
+  registry.register('goto', (args) => {
     const location = args[0]?.toLowerCase();
     
     switch (location) {
       case 'home':
-        return 'Teleporting to home (wire to MapSystem)';
+        return 'Going to home (wire to MapSystem)';
       case 'shop':
-        return 'Teleporting to shop (wire to MapSystem)';
+        return 'Going to shop (wire to MapSystem)';
       case 'dealer':
-        return 'Teleporting to dealer (wire to MapSystem)';
+        return 'Going to dealer (wire to MapSystem)';
       default:
-        return 'Usage: teleport <home|shop|dealer>';
+        return 'Usage: goto <home|shop|dealer>';
     }
   });
 }
