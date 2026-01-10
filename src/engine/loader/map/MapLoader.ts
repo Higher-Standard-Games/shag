@@ -230,10 +230,7 @@ export class MapLoader {
 
     // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
     progress('Collision', 'Building clip brush meshes');
-    if (false) {
-      this.buildClipBrushMeshes(bsp as BspFile, scene);
-    }
-    const clipMeshCount = 0;
+    const clipMeshCount = this.buildClipBrushMeshes(bsp as BspFile, scene);
     console.log(`[MapLoader] Generated ${clipMeshCount} invisible clip brush collision meshes`);
 
     // Phase 9b: Initialize collision system
@@ -457,18 +454,31 @@ export class MapLoader {
     let debugChecked = 0;
     let debugClipByFlag = 0;
     let debugClipByName = 0;
+    let debugNoTexture = 0;
+    let debugDetailSkipped = 0;
+    let debugNotClip = 0;
     
     // Find clip brushes - either by content flag OR by texture name
     for (let bi = 0; bi < bsp.brushes.length; bi++) {
       const brush = bsp.brushes[bi];
-      const texture = bsp.textures[brush.shaderIndex];
-      if (!texture) continue;
+      // Robust texture lookup: try brush.shaderIndex first, fallback to first side
+      const texByBrush = bsp.textures[brush.shaderIndex];
+      const firstSide = bsp.brushSides[brush.firstSide];
+      const texBySide = firstSide ? bsp.textures[firstSide.shaderIndex] : undefined;
+      const texture = texByBrush ?? texBySide;
+      if (!texture) {
+        debugNoTexture++;
+        continue;
+      }
       
       const contentFlags = texture.contentFlags;
       const texName = texture.name?.toLowerCase() || '';
       
       // Skip detail brushes
-      if (contentFlags & DETAIL) continue;
+      if (contentFlags & DETAIL) {
+        debugDetailSkipped++;
+        continue;
+      }
       
       // Check if this is a clip brush by content flag
       const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
@@ -494,7 +504,10 @@ export class MapLoader {
       // Note: fullclip and caulk have SOLID flag but are not rendered - they need collision meshes
       const shouldGenerate = isPlayerClipByFlag || isFullclip || isPlayerclip || (isCaulk && isSolid);
       
-      if (!shouldGenerate) continue;
+      if (!shouldGenerate) {
+        debugNotClip++;
+        continue;
+      }
       
       if (isPlayerClipByFlag) debugClipByFlag++;
       if (isClipByName) debugClipByName++;
@@ -543,8 +556,8 @@ export class MapLoader {
       }
     }
     
-    console.log(`[ClipBrush] Summary: byFlag=${debugClipByFlag}, byName=${debugClipByName}, generated=${meshCount}`);
-    
+    console.log(`[ClipBrush] Summary: ${meshCount} meshes created (by flag: ${debugClipByFlag}, by name: ${debugClipByName})`);
+    console.log(`[ClipBrush] Debug: noTexture=${debugNoTexture}, detailSkipped=${debugDetailSkipped}, notClip=${debugNotClip}, checked=${debugChecked}`);
     return meshCount;
     } catch (error) {
       console.error(`[ClipBrush] Error during clip brush generation:`, error);
