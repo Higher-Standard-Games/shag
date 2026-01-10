@@ -250,15 +250,21 @@ export class FreeflyCollisionCommand extends Command {
 
     const brush = bsp.brushes[brushIndex];
     if (!brush) return `Brush ${brushIndex} not found`;
-    const tex = bsp.textures[brush.shaderIndex];
+    const side0 = bsp.brushSides[brush.firstSide];
+    const texByBrush = bsp.textures[brush.shaderIndex];
+    const texBySide = side0 ? bsp.textures[side0.shaderIndex] : undefined;
+    const tex = texByBrush ?? texBySide;
     const texName = tex?.name ?? '<none>';
     const contentFlags = tex?.contentFlags ?? 0;
+    const surfaceFlags = tex?.surfaceFlags ?? 0;
 
     const lines: string[] = [];
     lines.push('=== Clip Brush Dump ===');
     lines.push(`Brush: ${brushIndex}`);
     lines.push(`Texture: ${texName}`);
     lines.push(`contentFlags: 0x${contentFlags.toString(16)}`);
+    lines.push(`surfaceFlags: 0x${surfaceFlags.toString(16)}`);
+    lines.push(`shaderIndex: brush=${brush.shaderIndex} side0=${side0?.shaderIndex ?? -1}`);
     lines.push(`firstSide: ${brush.firstSide} numSides: ${brush.numSides}`);
     lines.push(`Format: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'}`);
 
@@ -328,7 +334,6 @@ export class FreeflyCollisionCommand extends Command {
     }
     clipBrushVizMeshes = [];
 
-    const isFBSP = bsp.header.isFBSP;
     let targetBrushIndex: number | null = null;
     if (mode === 'last') {
       targetBrushIndex = FreeflyController.getLastClipHitBrushIndex();
@@ -353,21 +358,47 @@ export class FreeflyCollisionCommand extends Command {
     const oobMin = worldMin.subtract(new Vector3(oobMargin, oobMargin, oobMargin));
     const oobMax = worldMax.add(new Vector3(oobMargin, oobMargin, oobMargin));
 
+    let debugCount = 0;
+    let clipLikeCount = 0;
     for (let bi = 0; bi < bsp.brushes.length; bi++) {
       if (created >= max) break;
       if (targetBrushIndex !== null && bi !== targetBrushIndex) continue;
 
       const brush = bsp.brushes[bi];
-      const tex = bsp.textures[brush.shaderIndex];
+      // Robust texture lookup: try brush.shaderIndex first, fallback to first side
+      const texByBrush = bsp.textures[brush.shaderIndex];
+      const firstSide = bsp.brushSides[brush.firstSide];
+      const texBySide = firstSide ? bsp.textures[firstSide.shaderIndex] : undefined;
+      const tex = texByBrush ?? texBySide;
       const texName = tex?.name?.toLowerCase() || '';
+      
+      // Debug: log any texture containing 'clip' or 'caulk'
+      if (clipLikeCount < 10 && (texName.includes('clip') || texName.includes('caulk'))) {
+        console.log(`[clipviz] Found clip-like brush ${bi}: "${texName}"`);
+        clipLikeCount++;
+      }
+      
       const isFullclip = texName === 'textures/common/fullclip' || texName === 'common/fullclip';
       const isPlayerclip = texName === 'textures/common/playerclip' || texName === 'common/playerclip';
+      
+      if (debugCount < 3 && (isFullclip || isPlayerclip)) {
+        console.log(`[clipviz] Matched brush ${bi}: tex="${texName}" fullclip=${isFullclip} playerclip=${isPlayerclip}`);
+        debugCount++;
+      }
+      
       if (!isFullclip && !isPlayerclip) continue;
 
-      const meshData = this.buildClipBrushMesh(bsp, brush, isFBSP, oobMin, oobMax);
+      const meshData = this.buildClipBrushMesh(bsp, brush, oobMin, oobMax);
       if (!meshData) {
+        if (debugCount <= 3) {
+          console.log(`[clipviz] Brush ${bi}: mesh build failed (likely degenerate or OOB)`);
+        }
         skipped++;
         continue;
+      }
+      
+      if (debugCount <= 3) {
+        console.log(`[clipviz] Brush ${bi}: creating mesh with ${meshData.positions.length / 3} vertices`);
       }
 
       const mesh = new Mesh(`clipviz_${isFullclip ? 'fullclip' : 'playerclip'}_${bi}`, scene);
@@ -403,7 +434,7 @@ export class FreeflyCollisionCommand extends Command {
     ].filter(Boolean).join('\n');
   }
 
-  private buildClipBrushMesh(bsp: any, brush: any, flipInside: boolean, oobMin: Vector3, oobMax: Vector3): { positions: number[]; indices: number[]; normals: number[] } | null {
+  private buildClipBrushMesh(bsp: any, brush: any, oobMin: Vector3, oobMax: Vector3): { positions: number[]; indices: number[]; normals: number[] } | null {
     type PlaneEq = { n: Vector3; d: number; dist: number };
     const planes: PlaneEq[] = [];
 
@@ -438,8 +469,7 @@ export class FreeflyCollisionCommand extends Command {
     };
 
     const outsideMetric = (pl: PlaneEq, p: Vector3): number => {
-      const q3Dist = Vector3.Dot(pl.n, p) - pl.dist;
-      return flipInside ? -q3Dist : q3Dist;
+      return Vector3.Dot(pl.n, p) - pl.dist;
     };
 
     const isInside = (p: Vector3): boolean => {
@@ -469,8 +499,15 @@ export class FreeflyCollisionCommand extends Command {
       }
     }
 
-    if (uniqueVerts.length < 4) return null;
-    if (!uniqueVerts.every(isWithinWorld)) return null;
+    if (uniqueVerts.length < 4) {
+      console.log(`[clipviz] Brush mesh build failed: only ${uniqueVerts.length} vertices (need 4+)`);
+      return null;
+    }
+    const oobVerts = uniqueVerts.filter(v => !isWithinWorld(v));
+    if (oobVerts.length > 0) {
+      console.log(`[clipviz] Brush mesh build failed: ${oobVerts.length}/${uniqueVerts.length} vertices OOB. World bounds: (${oobMin.x.toFixed(0)},${oobMin.y.toFixed(0)},${oobMin.z.toFixed(0)}) to (${oobMax.x.toFixed(0)},${oobMax.y.toFixed(0)},${oobMax.z.toFixed(0)}). First OOB vert: (${oobVerts[0].x.toFixed(0)},${oobVerts[0].y.toFixed(0)},${oobVerts[0].z.toFixed(0)})`);
+      return null;
+    }
 
     const centroid = uniqueVerts.reduce((a, b) => a.add(b), Vector3.Zero()).scale(1 / uniqueVerts.length);
 

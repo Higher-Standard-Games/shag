@@ -18,6 +18,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
+import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -428,14 +429,28 @@ export class FreeflyController implements ICameraController {
       const traceStart = posBefore.add(ellipsoidOffset);
       const traceEnd = posAfterBabylon.add(ellipsoidOffset);
 
-      const clipTrace = cm.trace(traceStart as never, traceEnd as never, {
+      const clipTraceA = cm.trace(traceStart as never, traceEnd as never, {
         radius: 16,
         height: 56,
-        // We only want clip volumes here; rendered SOLID geometry is handled by Babylon
         clipTexturesOnly: true,
-        // Include PLAYERCLIP and SOLID so fullclip (SOLID) is considered, but filtered by name
         contentMask: 0x1 | 0x10000,
       });
+
+      const clipTraceB = cm.trace(traceStart as never, traceEnd as never, {
+        radius: 16,
+        height: 56,
+        nodrawSolidsOnly: true,
+        contentMask: 0x1,
+      });
+
+      let clipTrace = clipTraceA;
+      if (clipTraceB.startSolid && !clipTrace.startSolid) {
+        clipTrace = clipTraceB;
+      } else if (!clipTrace.startSolid && !clipTraceB.startSolid && clipTraceB.fraction < clipTrace.fraction) {
+        clipTrace = clipTraceB;
+      } else if (clipTraceB.startSolid && clipTrace.startSolid) {
+        clipTrace = clipTraceB;
+      }
 
       if (wasBackend !== 'brush' && wasBackend) {
         cm.setBackend(wasBackend);
@@ -490,13 +505,19 @@ export class FreeflyController implements ICameraController {
           for (const dir of testDirs) {
             const testPos = base.add(dir.scale(nudge));
             const testStart = testPos.add(ellipsoidOffset);
-            const testTrace = cm.trace(testStart as never, testStart as never, {
+            const testTraceA = cm.trace(testStart as never, testStart as never, {
               radius: 16,
               height: 56,
               clipTexturesOnly: true,
               contentMask: 0x1 | 0x10000,
             });
-            if (!testTrace.startSolid) {
+            const testTraceB = cm.trace(testStart as never, testStart as never, {
+              radius: 16,
+              height: 56,
+              nodrawSolidsOnly: true,
+              contentMask: 0x1,
+            });
+            if (!testTraceA.startSolid && !testTraceB.startSolid) {
               this.camera.position.copyFrom(testPos);
               return;
             }
@@ -539,6 +560,19 @@ export class FreeflyController implements ICameraController {
   private shouldSkipCollision(mesh: any): boolean {
     const name = mesh.name?.toLowerCase() || '';
     const textureName = mesh.metadata?.textureName?.toLowerCase() || '';
+
+    const contentFlags = typeof mesh.metadata?.contentFlags === 'number' ? mesh.metadata.contentFlags : 0;
+    const surfaceFlags = typeof mesh.metadata?.surfaceFlags === 'number' ? mesh.metadata.surfaceFlags : 0;
+
+    if ((contentFlags & ContentFlags.DETAIL) !== 0) {
+      return true;
+    }
+    if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) {
+      return true;
+    }
+    if ((surfaceFlags & SurfaceFlags.HINT) !== 0) {
+      return true;
+    }
     
     // Skip by mesh name patterns
     if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||

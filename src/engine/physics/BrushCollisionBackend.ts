@@ -68,6 +68,7 @@ export class BrushCollisionBackend implements CollisionBackend {
     const height = options?.height ?? 0;
     const contentsMask = options?.contentMask ?? (Contents.SOLID | Contents.PLAYERCLIP);
     const clipTexturesOnly = options?.clipTexturesOnly ?? false;
+    const nodrawSolidsOnly = options?.nodrawSolidsOnly ?? false;
 
     // Quake3-style player hull is not centered on origin:
     // mins.z = -24, maxs.z = 32 (total height 56)
@@ -85,9 +86,10 @@ export class BrushCollisionBackend implements CollisionBackend {
           new Vector3(radius, maxY, radius) as never,
           debug,
           contentsMask,
-          clipTexturesOnly
+          clipTexturesOnly,
+          nodrawSolidsOnly
         )
-      : this.bspCollision.tracePoint(start as never, end as never, debug, contentsMask, clipTexturesOnly);
+      : this.bspCollision.tracePoint(start as never, end as never, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     result.fraction = bspResult.fraction;
     result.endPos = bspResult.endPos as unknown as Vector3;

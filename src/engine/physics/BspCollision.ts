@@ -7,7 +7,7 @@
 
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { BspFile, BspBrush, BspPlane, BspLeaf } from '../loader/bsp/BspLoader';
-import { CollisionMasks, ContentFlags } from './ContentFlags';
+import { CollisionMasks, ContentFlags, SurfaceFlags } from './ContentFlags';
 
 /** Small epsilon for plane distance calculations */
 const DIST_EPSILON = 0.03125; // 1/32
@@ -41,6 +41,22 @@ export class BspCollision {
     this.bsp = bsp;
     this.isFBSP = bsp.header.isFBSP;
     console.log(`[BspCollision] Initialized for ${this.isFBSP ? 'FBSP' : 'IBSP'} format`);
+  }
+
+  private getBrushTexture(brush: BspBrush): { name: string; contentFlags: number; surfaceFlags: number } | null {
+    const textures = this.bsp.textures;
+    const byBrush = brush.shaderIndex;
+    if (Number.isFinite(byBrush) && byBrush >= 0 && byBrush < textures.length) {
+      return textures[byBrush] ?? null;
+    }
+
+    const firstSide = this.bsp.brushSides[brush.firstSide];
+    const bySide = firstSide?.shaderIndex;
+    if (Number.isFinite(bySide) && bySide >= 0 && bySide < textures.length) {
+      return textures[bySide] ?? null;
+    }
+
+    return null;
   }
 
   private getPlaneWithFlip(plane: BspPlane, flip: boolean): BspPlane {
@@ -144,7 +160,8 @@ export class BspCollision {
     end: Vector3,
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): TraceResult {
     const result: TraceResult = {
       fraction: 1.0,
@@ -169,7 +186,7 @@ export class BspCollision {
     }
 
     // Trace through BSP tree
-    this.traceNode(q3Start, q3End, 0, 0, 1, result, debug, contentsMask, clipTexturesOnly);
+    this.traceNode(q3Start, q3End, 0, 0, 1, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     // Calculate end position based on fraction
     if (result.fraction < 1.0) {
@@ -190,7 +207,8 @@ export class BspCollision {
     maxs: Vector3,
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): TraceResult {
     const result: TraceResult & { realfraction: number } = {
       fraction: 1.0,
@@ -212,7 +230,7 @@ export class BspCollision {
       Math.max(Math.abs(q3Mins[2]), Math.abs(q3Maxs[2])),
     ];
 
-    this.traceNodeBox(q3Start, q3End, 0, 0, 1, result, q3Mins, q3Maxs, extents, debug, contentsMask, clipTexturesOnly);
+    this.traceNodeBox(q3Start, q3End, 0, 0, 1, result, q3Mins, q3Maxs, extents, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     if (result.fraction < 1.0) {
       result.endPos = Vector3.Lerp(start, end, result.fraction);
@@ -239,7 +257,7 @@ export class BspCollision {
       const brush = this.bsp.brushes[brushIndex];
       
       if (this.pointInBrush(q3Point, brush)) {
-        const texture = this.bsp.textures[brush.shaderIndex];
+        const texture = this.getBrushTexture(brush);
         if (texture) {
           contents |= texture.contentFlags;
         }
@@ -273,7 +291,8 @@ export class BspCollision {
     result: TraceResult,
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): void {
     // If we already hit something closer, skip
     if (result.fraction <= startFrac) return;
@@ -286,7 +305,7 @@ export class BspCollision {
         if (debug) {
           console.log(`[BspCollision] Leaf ${leafIndex}: ${leaf.numLeafBrushes} brushes`);
         }
-        this.traceLeaf(start, end, leaf, result, debug, contentsMask, clipTexturesOnly);
+        this.traceLeaf(start, end, leaf, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       }
       return;
     }
@@ -317,14 +336,14 @@ export class BspCollision {
     if (startDist >= DIST_EPSILON && endDist >= DIST_EPSILON) {
       // Both in front - recurse front only
       if (debug) console.log(`[BspCollision] Node ${nodeIndex}: both in front, going to ${node.children[0]}`);
-      this.traceNode(start, end, node.children[0], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly);
+      this.traceNode(start, end, node.children[0], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       return;
     }
     
     if (startDist < -DIST_EPSILON && endDist < -DIST_EPSILON) {
       // Both behind - recurse back only
       if (debug) console.log(`[BspCollision] Node ${nodeIndex}: both behind, going to ${node.children[1]}`);
-      this.traceNode(start, end, node.children[1], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly);
+      this.traceNode(start, end, node.children[1], startFrac, endFrac, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       return;
     }
 
@@ -363,7 +382,7 @@ export class BspCollision {
 
     // Trace near side
     const nearNode = side === 0 ? node.children[0] : node.children[1];
-    this.traceNode(start, mid, nearNode, startFrac, midFrac, result, debug, contentsMask, clipTexturesOnly);
+    this.traceNode(start, mid, nearNode, startFrac, midFrac, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     // Calculate far middle point
     const midFrac2 = startFrac + (endFrac - startFrac) * frac2;
@@ -375,7 +394,7 @@ export class BspCollision {
 
     // Trace far side
     const farNode = side === 0 ? node.children[1] : node.children[0];
-    this.traceNode(mid2, end, farNode, midFrac2, endFrac, result, debug, contentsMask, clipTexturesOnly);
+    this.traceNode(mid2, end, farNode, midFrac2, endFrac, result, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
   }
 
   private traceNodeBox(
@@ -390,7 +409,8 @@ export class BspCollision {
     extents: [number, number, number],
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): void {
     if (result.realfraction <= startFrac) return;
 
@@ -398,7 +418,7 @@ export class BspCollision {
       const leafIndex = -(nodeIndex + 1);
       const leaf = this.bsp.leafs[leafIndex];
       if (leaf) {
-        this.traceLeafBox(start, end, leaf, result, mins, maxs, debug, contentsMask, clipTexturesOnly);
+        this.traceLeafBox(start, end, leaf, result, mins, maxs, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       }
       return;
     }
@@ -417,11 +437,11 @@ export class BspCollision {
       Math.abs(extents[2] * plane.normal[2]);
 
     if (t1 >= offset && t2 >= offset) {
-      this.traceNodeBox(start, end, node.children[0], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
+      this.traceNodeBox(start, end, node.children[0], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       return;
     }
     if (t1 < -offset && t2 < -offset) {
-      this.traceNodeBox(start, end, node.children[1], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
+      this.traceNodeBox(start, end, node.children[1], startFrac, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
       return;
     }
 
@@ -450,7 +470,7 @@ export class BspCollision {
     ];
 
     const nearNode = node.children[side];
-    this.traceNodeBox(start, mid, nearNode, startFrac, midFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
+    this.traceNodeBox(start, mid, nearNode, startFrac, midFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     frac2 = Math.max(0, Math.min(1, frac2));
     const midFrac2 = startFrac + (endFrac - startFrac) * frac2;
@@ -461,7 +481,7 @@ export class BspCollision {
     ];
 
     const farNode = node.children[side ^ 1];
-    this.traceNodeBox(mid2, end, farNode, midFrac2, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly);
+    this.traceNodeBox(mid2, end, farNode, midFrac2, endFrac, result, mins, maxs, extents, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
   }
 
   /**
@@ -474,7 +494,8 @@ export class BspCollision {
     result: TraceResult,
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): void {
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
@@ -482,13 +503,17 @@ export class BspCollision {
       if (!brush || brush.numSides < 1) continue;
 
       // Check if brush is solid for players
-      const texture = this.bsp.textures[brush.shaderIndex];
+      const texture = this.getBrushTexture(brush);
       if (!texture) {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: no texture`);
         continue;
       }
 
       if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) {
+        continue;
+      }
+
+      if (nodrawSolidsOnly && !this.isNodrawSolidTexture(texture.name, texture.surfaceFlags)) {
         continue;
       }
 
@@ -499,7 +524,7 @@ export class BspCollision {
         continue;
       }
 
-      if (!this.isContentsSolid(texture.contentFlags, contentsMask)) {
+      if (!this.isContentsSolid(texture.contentFlags, texture.surfaceFlags, contentsMask)) {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: not solid (flags=0x${texture.contentFlags.toString(16)}, tex=${texture.name})`);
         continue;
       }
@@ -739,18 +764,20 @@ export class BspCollision {
     maxs: [number, number, number],
     debug: boolean = false,
     contentsMask: number = CollisionMasks.PLAYERSOLID,
-    clipTexturesOnly: boolean = false
+    clipTexturesOnly: boolean = false,
+    nodrawSolidsOnly: boolean = false
   ): void {
     for (let i = 0; i < leaf.numLeafBrushes; i++) {
       const brushIndex = this.bsp.leafBrushes[leaf.firstLeafBrush + i];
       const brush = this.bsp.brushes[brushIndex];
       if (!brush || brush.numSides < 1) continue;
 
-      const texture = this.bsp.textures[brush.shaderIndex];
+      const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
       if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) continue;
-      if (!this.isContentsSolid(texture.contentFlags, contentsMask)) continue;
+      if (nodrawSolidsOnly && !this.isNodrawSolidTexture(texture.name, texture.surfaceFlags)) continue;
+      if (!this.isContentsSolid(texture.contentFlags, texture.surfaceFlags, contentsMask)) continue;
 
       if (clipTexturesOnly && brush.numSides < 4) {
         if (debug) console.log(`[BspCollision] Brush ${brushIndex}: skipped (degenerate clip brush numSides=${brush.numSides})`);
@@ -857,7 +884,9 @@ export class BspCollision {
     return a;
   }
 
-  private isContentsSolid(contentFlags: number, contentsMask: number): boolean {
+  private isContentsSolid(contentFlags: number, surfaceFlags: number, contentsMask: number): boolean {
+    if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) return false;
+    if ((surfaceFlags & SurfaceFlags.HINT) !== 0) return false;
     if (contentFlags & ContentFlags.DETAIL) return false;
     return (contentFlags & contentsMask) !== 0;
   }
@@ -868,6 +897,12 @@ export class BspCollision {
     // Warsow standard clip textures (verified via headless output)
     const name = (textureName || '').toLowerCase();
     return name === 'textures/common/fullclip' || name === 'textures/common/playerclip';
+  }
+
+  private isNodrawSolidTexture(textureName: string, surfaceFlags: number): boolean {
+    if ((surfaceFlags & SurfaceFlags.NODRAW) !== 0) return true;
+    const name = (textureName || '').toLowerCase();
+    return name === 'textures/common/caulk' || name === 'textures/common/nodraw' || name.endsWith('/caulk') || name.endsWith('/nodraw');
   }
 
   /**

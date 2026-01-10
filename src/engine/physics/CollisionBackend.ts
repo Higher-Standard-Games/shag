@@ -46,6 +46,7 @@ export interface TraceOptions {
    * (e.g. textures/common/fullclip, textures/common/playerclip)
    */
   clipTexturesOnly?: boolean;
+  nodrawSolidsOnly?: boolean;
   /** Enable debug logging */
   debug?: boolean;
 }

@@ -475,24 +475,24 @@ export class MapLoader {
       const isSolid = (contentFlags & SOLID) !== 0;
       
       // Also check by texture name (common clip texture names)
-      const isClipByName = texName.includes('clip') || 
-                           texName.includes('fullclip') || 
-                           texName.includes('playerclip') ||
-                           texName.includes('common/clip') ||
-                           texName.includes('system/clip') ||
-                           texName === 'nodraw';
+      const isFullclip = texName === 'textures/common/fullclip' || texName === 'common/fullclip';
+      const isPlayerclip = texName === 'textures/common/playerclip' || texName === 'common/playerclip';
+      const isCaulk = texName === 'textures/common/caulk' || texName === 'common/caulk' || texName.endsWith('/caulk');
+      const isClipByName = isFullclip || isPlayerclip || isCaulk;
       
       // Debug: log first 5 potential clip brushes
       if ((isPlayerClipByFlag || isClipByName) && debugChecked < 5) {
-        console.log(`[ClipBrush] Brush ${bi}: "${texName}" flags=0x${contentFlags.toString(16)} solid=${isSolid} clipFlag=${isPlayerClipByFlag} clipName=${isClipByName}`);
+        console.log(`[ClipBrush] Brush ${bi}: "${texName}" flags=0x${contentFlags.toString(16)} solid=${isSolid} clipFlag=${isPlayerClipByFlag} fullclip=${isFullclip} playerclip=${isPlayerclip} caulk=${isCaulk}`);
         debugChecked++;
       }
       
       // Generate collision mesh if:
-      // 1. Has PLAYERCLIP flag and is NOT solid (pure invisible clip)
-      // 2. OR has clip-related texture name (fullclip has SOLID but is invisible/NODRAW!)
-      // Note: fullclip textures have SOLID flag but are not rendered - they need collision meshes
-      const shouldGenerate = (isPlayerClipByFlag && !isSolid) || isClipByName;
+      // 1. Has PLAYERCLIP flag (whether solid or not)
+      // 2. OR is fullclip texture (SOLID + NODRAW, needs collision mesh)
+      // 3. OR is playerclip texture (PLAYERCLIP flag, needs collision mesh)
+      // 4. OR is caulk texture (SOLID + NODRAW, needs collision mesh to prevent leaks)
+      // Note: fullclip and caulk have SOLID flag but are not rendered - they need collision meshes
+      const shouldGenerate = isPlayerClipByFlag || isFullclip || isPlayerclip || (isCaulk && isSolid);
       
       if (!shouldGenerate) continue;
       
