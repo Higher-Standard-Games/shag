@@ -438,8 +438,35 @@ export class MapLoader {
   }
 
   /**
-   * Build invisible collision meshes for PLAYERCLIP and similar brushes
-   * These brushes block the player but have no visible geometry
+   * Build invisible collision meshes for clip brushes (fullclip, playerclip, caulk)
+   * 
+   * ARCHITECTURE: Native Collision Mode with BSP Data Augmentation
+   * ============================================================
+   * 
+   * Design Philosophy:
+   * - PRIMARY: Babylon.js native collision (camera._collideWithWorld)
+   * - AUGMENTATION: Use BSP brush data to enhance Babylon collision
+   * 
+   * BSP Data Augmentation Strategy:
+   * 1. ADD collision points: Generate Babylon meshes for non-rendered BSP brushes
+   *    - Fullclip: Invisible barriers (SOLID + NODRAW)
+   *    - Playerclip: Player-only barriers (PLAYERCLIP flag)
+   *    - Caulk: Structural sealing brushes (SOLID + NODRAW)
+   * 2. REMOVE collision points: Exclude detail brushes (ContentFlags.DETAIL)
+   *    - Detail brushes are visual-only, non-solid
+   *    - Filtered out in all collision systems
+   * 
+   * Why This Architecture:
+   * - Babylon collision is fast, reliable, and well-tested
+   * - BSP data provides semantic information (clip brushes, detail brushes)
+   * - Hybrid approach: Babylon handles most collision, BSP fills gaps
+   * - Performance: Only generate meshes for non-rendered brushes (~2000 in wdm2)
+   * 
+   * Generated Meshes:
+   * - Invisible box meshes positioned at brush bounds
+   * - checkCollisions=true (for Babylon collision detection)
+   * - Used by camera._collideWithWorld in FreeflyController
+   * - NOT used by BSP clamp pass (uses BSP brush data directly)
    */
   private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
     console.log(`[ClipBrush] Starting clip brush generation for ${bsp.brushes?.length || 0} brushes`);
@@ -496,12 +523,14 @@ export class MapLoader {
         debugChecked++;
       }
       
-      // Generate collision mesh if:
-      // 1. Has PLAYERCLIP flag (whether solid or not)
-      // 2. OR is fullclip texture (SOLID + NODRAW, needs collision mesh)
-      // 3. OR is playerclip texture (PLAYERCLIP flag, needs collision mesh)
-      // 4. OR is caulk texture (SOLID + NODRAW, needs collision mesh to prevent leaks)
-      // Note: fullclip and caulk have SOLID flag but are not rendered - they need collision meshes
+      // Generate collision mesh for brushes that need Babylon collision:
+      // 1. Has PLAYERCLIP flag (non-solid clip brush)
+      // 2. OR is fullclip texture (NODRAW, invisible barrier)
+      // 3. OR is playerclip texture (player-only barrier)
+      // 4. OR is caulk texture (SOLID + NODRAW, structural sealing brush)
+      // 
+      // NOTE: Caulk is also handled by BSP clamp pass, but we generate meshes
+      // to ensure Babylon collision catches them first (more reliable).
       const shouldGenerate = isPlayerClipByFlag || isFullclip || isPlayerclip || (isCaulk && isSolid);
       
       if (!shouldGenerate) {
@@ -545,7 +574,9 @@ export class MapLoader {
         // Position at brush center
         mesh.position = new Vector3(centerX, centerY, centerZ);
         
-        // Make invisible but enable collision
+        // Make invisible but ENABLE Babylon collision
+        // These meshes are used by Babylon's native _collideWithWorld collision system
+        // to block movement through fullclip, playerclip, and caulk brushes
         mesh.isVisible = false;
         mesh.checkCollisions = true;
         mesh.metadata = { isClipBrush: true, brushIndex: bi, textureName: texName };

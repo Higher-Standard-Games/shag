@@ -345,7 +345,26 @@ export class FreeflyController implements ICameraController {
   
   /**
    * Apply movement using Babylon's native mesh collision system
-   * This uses the actual rendered geometry for collision detection
+   * 
+   * ARCHITECTURE: Native Collision Mode with BSP Data Augmentation
+   * ============================================================
+   * 
+   * Primary Collision: Babylon.js camera._collideWithWorld
+   * - Checks against rendered BSP geometry (walls, floors, ceilings)
+   * - Checks against generated clip brush meshes (fullclip, playerclip, caulk)
+   * - Excludes detail brushes (filtered in shouldSkipCollision)
+   * 
+   * Secondary Collision: BSP Clamp Pass (optional safety net)
+   * - Runs after Babylon collision
+   * - Trace A: checks fullclip/playerclip via BSP brush data
+   * - Trace B: checks caulk/structural via BSP brush data
+   * - Adjusts position if BSP collision detected
+   * 
+   * BSP Data Augmentation:
+   * - ADD collision: Clip brush meshes generated in MapLoader.buildClipBrushMeshes
+   * - REMOVE collision: Detail brushes excluded via shouldSkipCollision
+   * 
+   * Result: Solid, reliable collision that respects BSP semantics
    */
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
