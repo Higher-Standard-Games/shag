@@ -46,6 +46,7 @@ export interface TraceOptions {
    * (e.g. textures/common/fullclip, textures/common/playerclip)
    */
   clipTexturesOnly?: boolean;
+  nodrawSolidsOnly?: boolean;
   /** Enable debug logging */
   debug?: boolean;
 }
@@ -53,7 +54,7 @@ export interface TraceOptions {
 /**
  * Backend type identifier
  */
-export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon';
+export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon' | 'q3';
 
 /**
  * Abstract collision backend interface

@@ -124,13 +124,17 @@ export class MapLoader {
       console.log(`[MapLoader] ${phase}${detail ? ': ' + detail : ''}`);
     };
 
+    const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
+
     // Phase 1: Ensure map PK3 is loaded
     progress('Loading', `Map PK3: ${mapPk3}`);
-    const mapPk3Path = this.pk3Index.getPK3Path(mapPk3);
-    if (mapPk3Path) {
-      await this.pk3Loader.loadPK3FromUrl(mapPk3Path);
-    } else {
-      await this.pk3Loader.loadPK3(mapPk3);
+    if (!loadedPk3s.has(mapPk3)) {
+      const mapPk3Path = this.pk3Index.getPK3Path(mapPk3);
+      if (mapPk3Path) {
+        await this.pk3Loader.loadPK3FromUrl(mapPk3Path);
+      } else {
+        await this.pk3Loader.loadPK3(mapPk3);
+      }
     }
 
     // Phase 2: Load BSP
@@ -155,9 +159,11 @@ export class MapLoader {
     for (const pk3 of requiredPk3s) {
       progress('Dependencies', `Loading ${pk3}`, loaded / requiredPk3s.size);
       try {
-        const pk3Path = this.pk3Index.getPK3Path(pk3);
-        if (pk3Path) {
-          await this.pk3Loader.loadPK3FromUrl(pk3Path);
+        if (!loadedPk3s.has(pk3)) {
+          const pk3Path = this.pk3Index.getPK3Path(pk3);
+          if (pk3Path) {
+            await this.pk3Loader.loadPK3FromUrl(pk3Path);
+          }
         }
       } catch (e) {
         console.warn(`[MapLoader] Failed to load dependency ${pk3}:`, e);
@@ -174,9 +180,11 @@ export class MapLoader {
     for (const pk3 of skyPk3s) {
       progress('Dependencies', `Loading sky textures from ${pk3}`);
       try {
-        const pk3Path = this.pk3Index.getPK3Path(pk3);
-        if (pk3Path) {
-          await this.pk3Loader.loadPK3FromUrl(pk3Path);
+        if (!loadedPk3s.has(pk3)) {
+          const pk3Path = this.pk3Index.getPK3Path(pk3);
+          if (pk3Path) {
+            await this.pk3Loader.loadPK3FromUrl(pk3Path);
+          }
         }
       } catch (e) {
         console.warn(`[MapLoader] Failed to load sky dependency ${pk3}:`, e);
@@ -196,7 +204,15 @@ export class MapLoader {
 
     // Phase 7: Apply skybox
     progress('Skybox', 'Creating');
-    await BspMeshBuilder.applySkybox(meshResult, scene);
+    const engineAny = scene.getEngine() as any;
+    const engineClass = engineAny?.getClassName?.();
+    const engineCtorName = engineAny?.constructor?.name;
+    const isHeadlessNullEngine = engineClass === 'NullEngine' || engineCtorName === 'NullEngine';
+    if (!isHeadlessNullEngine) {
+      await BspMeshBuilder.applySkybox(meshResult, scene);
+    } else {
+      progress('Skybox', 'Skipped (NullEngine)');
+    }
 
     // Phase 8: Apply lightmaps
     progress('Lightmaps', 'Applying');
@@ -213,12 +229,10 @@ export class MapLoader {
     }
 
     // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
+    // TEMPORARILY DISABLED TO TEST IF COLLISION MESHES CAUSE STUCK CAMERA
     progress('Collision', 'Building clip brush meshes');
-    if (false) {
-      this.buildClipBrushMeshes(bsp as BspFile, scene);
-    }
-    const clipMeshCount = 0;
-    console.log(`[MapLoader] Generated ${clipMeshCount} invisible clip brush collision meshes`);
+    const clipMeshCount = 0; // DISABLED: this.buildClipBrushMeshes(bsp as BspFile, scene);
+    console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
 
     // Phase 9b: Initialize collision system
     progress('Collision', 'Initializing');
@@ -425,10 +439,10 @@ export class MapLoader {
   }
 
   /**
-   * Build invisible collision meshes for PLAYERCLIP and similar brushes
-   * These brushes block the player but have no visible geometry
+   * TEMPORARILY DISABLED FOR TESTING
+   * Build invisible collision meshes for clip brushes (fullclip, playerclip, caulk)
    */
-  private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
+  private buildClipBrushMeshes_DISABLED(bsp: BspFile, scene: Scene): number {
     console.log(`[ClipBrush] Starting clip brush generation for ${bsp.brushes?.length || 0} brushes`);
     
     try {
@@ -441,44 +455,62 @@ export class MapLoader {
     let debugChecked = 0;
     let debugClipByFlag = 0;
     let debugClipByName = 0;
+    let debugNoTexture = 0;
+    let debugDetailSkipped = 0;
+    let debugNotClip = 0;
     
     // Find clip brushes - either by content flag OR by texture name
     for (let bi = 0; bi < bsp.brushes.length; bi++) {
       const brush = bsp.brushes[bi];
-      const texture = bsp.textures[brush.shaderIndex];
-      if (!texture) continue;
+      // Robust texture lookup: try brush.shaderIndex first, fallback to first side
+      const texByBrush = bsp.textures[brush.shaderIndex];
+      const firstSide = bsp.brushSides[brush.firstSide];
+      const texBySide = firstSide ? bsp.textures[firstSide.shaderIndex] : undefined;
+      const texture = texByBrush ?? texBySide;
+      if (!texture) {
+        debugNoTexture++;
+        continue;
+      }
       
       const contentFlags = texture.contentFlags;
       const texName = texture.name?.toLowerCase() || '';
       
       // Skip detail brushes
-      if (contentFlags & DETAIL) continue;
+      if (contentFlags & DETAIL) {
+        debugDetailSkipped++;
+        continue;
+      }
       
       // Check if this is a clip brush by content flag
       const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
       const isSolid = (contentFlags & SOLID) !== 0;
       
       // Also check by texture name (common clip texture names)
-      const isClipByName = texName.includes('clip') || 
-                           texName.includes('fullclip') || 
-                           texName.includes('playerclip') ||
-                           texName.includes('common/clip') ||
-                           texName.includes('system/clip') ||
-                           texName === 'nodraw';
+      const isFullclip = texName === 'textures/common/fullclip' || texName === 'common/fullclip';
+      const isPlayerclip = texName === 'textures/common/playerclip' || texName === 'common/playerclip';
+      const isCaulk = texName === 'textures/common/caulk' || texName === 'common/caulk' || texName.endsWith('/caulk');
+      const isClipByName = isFullclip || isPlayerclip || isCaulk;
       
       // Debug: log first 5 potential clip brushes
       if ((isPlayerClipByFlag || isClipByName) && debugChecked < 5) {
-        console.log(`[ClipBrush] Brush ${bi}: "${texName}" flags=0x${contentFlags.toString(16)} solid=${isSolid} clipFlag=${isPlayerClipByFlag} clipName=${isClipByName}`);
+        console.log(`[ClipBrush] Brush ${bi}: "${texName}" flags=0x${contentFlags.toString(16)} solid=${isSolid} clipFlag=${isPlayerClipByFlag} fullclip=${isFullclip} playerclip=${isPlayerclip} caulk=${isCaulk}`);
         debugChecked++;
       }
       
-      // Generate collision mesh if:
-      // 1. Has PLAYERCLIP flag and is NOT solid (pure invisible clip)
-      // 2. OR has clip-related texture name (fullclip has SOLID but is invisible/NODRAW!)
-      // Note: fullclip textures have SOLID flag but are not rendered - they need collision meshes
-      const shouldGenerate = (isPlayerClipByFlag && !isSolid) || isClipByName;
+      // Generate collision mesh for brushes that need Babylon collision:
+      // 1. Has PLAYERCLIP flag (non-solid clip brush)
+      // 2. OR is fullclip texture (NODRAW, invisible barrier)
+      // 3. OR is playerclip texture (player-only barrier)
+      // 4. OR is caulk texture (SOLID + NODRAW, structural sealing brush)
+      // 
+      // NOTE: Caulk is also handled by BSP clamp pass, but we generate meshes
+      // to ensure Babylon collision catches them first (more reliable).
+      const shouldGenerate = isPlayerClipByFlag || isFullclip || isPlayerclip || (isCaulk && isSolid);
       
-      if (!shouldGenerate) continue;
+      if (!shouldGenerate) {
+        debugNotClip++;
+        continue;
+      }
       
       if (isPlayerClipByFlag) debugClipByFlag++;
       if (isClipByName) debugClipByName++;
@@ -516,7 +548,9 @@ export class MapLoader {
         // Position at brush center
         mesh.position = new Vector3(centerX, centerY, centerZ);
         
-        // Make invisible but enable collision
+        // Make invisible but ENABLE Babylon collision
+        // These meshes are used by Babylon's native _collideWithWorld collision system
+        // to block movement through fullclip, playerclip, and caulk brushes
         mesh.isVisible = false;
         mesh.checkCollisions = true;
         mesh.metadata = { isClipBrush: true, brushIndex: bi, textureName: texName };
@@ -527,8 +561,8 @@ export class MapLoader {
       }
     }
     
-    console.log(`[ClipBrush] Summary: byFlag=${debugClipByFlag}, byName=${debugClipByName}, generated=${meshCount}`);
-    
+    console.log(`[ClipBrush] Summary: ${meshCount} meshes created (by flag: ${debugClipByFlag}, by name: ${debugClipByName})`);
+    console.log(`[ClipBrush] Debug: noTexture=${debugNoTexture}, detailSkipped=${debugDetailSkipped}, notClip=${debugNotClip}, checked=${debugChecked}`);
     return meshCount;
     } catch (error) {
       console.error(`[ClipBrush] Error during clip brush generation:`, error);

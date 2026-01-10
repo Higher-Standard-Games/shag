@@ -382,13 +382,26 @@ export class BspMeshBuilder {
     let skippedTextures = 0;
     let skippedFaceTypes = 0;
 
+    let detailFaceCount = 0;
+    let detailFaceSkipped = 0;
     for (let i = worldModel.firstFace; i < worldModel.firstFace + worldModel.numFaces; i++) {
       const face = this.bsp.faces[i];
       if (!face) continue;
 
+      // Check if this face belongs to a detail brush (for debugging)
+      const faceTexture = this.bsp.textures[face.textureIndex];
+      const isDetail = faceTexture && (faceTexture.contentFlags & 0x8000000) !== 0;
+      if (isDetail) {
+        detailFaceCount++;
+        if (detailFaceCount <= 3) {
+          console.log(`[BspMeshBuilder] Detail face ${i}: tex="${faceTexture.name}" texIdx=${face.textureIndex} contentFlags=0x${faceTexture.contentFlags.toString(16)} surfaceFlags=0x${faceTexture.surfaceFlags.toString(16)}`);
+        }
+      }
+
       // Skip non-drawable textures
       if (!this.shouldRenderTexture(face.textureIndex)) {
         skippedTextures++;
+        if (isDetail) detailFaceSkipped++;
         continue;
       }
 
@@ -552,6 +565,11 @@ export class BspMeshBuilder {
       }
     }
 
+    // Log detail face statistics
+    if (detailFaceCount > 0) {
+      console.log(`[BspMeshBuilder] Detail faces: ${detailFaceCount} total, ${detailFaceSkipped} skipped (non-drawable), ${detailFaceCount - detailFaceSkipped} rendered`);
+    }
+
     // Separate opaque and transparent groups
     const opaqueGroups: TextureGroup[] = [];
     const transparentGroups: TextureGroup[] = [];
@@ -609,10 +627,13 @@ export class BspMeshBuilder {
 
       // Store texture name, lightmap info, and fog params in metadata
       // Each group now has exactly one lightmap (grouped by texture+lightmap)
+      const texFlags = this.bsp.textures[group.textureIndex];
       mesh.metadata = {
         textureName: group.textureName,
         textureIndex: group.textureIndex,
         lightmapIndex: group.lightmapIndex,
+        contentFlags: texFlags?.contentFlags ?? 0,
+        surfaceFlags: texFlags?.surfaceFlags ?? 0,
         fogParams: group.fogParams,
         autosprite: group.shaderProps.autosprite,
         autosprite2: group.shaderProps.autosprite2,
@@ -1934,9 +1955,13 @@ export async function buildBrushModel(
     vertexData.applyToMesh(childMesh);
 
     // Store lightmap index for later application
+    const texFlags = bsp.textures[texIndex];
     childMesh.metadata = {
       lightmapIndex: group.lightmapIndex,
       textureName: group.textureName,
+      textureIndex: texIndex,
+      contentFlags: texFlags?.contentFlags ?? 0,
+      surfaceFlags: texFlags?.surfaceFlags ?? 0,
     };
 
     // Create material and try to load texture

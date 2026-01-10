@@ -53,6 +53,8 @@ export class GameScene extends EngineScene {
   // Autosave interval
   private autoSaveInterval: number | null = null;
 
+  private performanceSettingChangedHandler: ((e: Event) => void) | null = null;
+
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     super(engine, canvas);
     GameScene.instance = this;
@@ -62,9 +64,10 @@ export class GameScene extends EngineScene {
     this.updatePerformanceMode(settings.highPerformanceRendering);
 
     // Listen for performance setting changes
-    window.addEventListener("performanceSettingChanged", ((e: CustomEvent) => {
-      this.updatePerformanceMode(e.detail.highPerformance);
-    }) as EventListener);
+    this.performanceSettingChangedHandler = (e: Event) => {
+      this.updatePerformanceMode((e as CustomEvent).detail.highPerformance);
+    };
+    window.addEventListener("performanceSettingChanged", this.performanceSettingChangedHandler);
   }
 
   public static getInstance(): GameScene {
@@ -227,6 +230,11 @@ export class GameScene extends EngineScene {
   protected override onDispose(): void {
     // Stop autosave
     this.stopAutoSave();
+
+    if (this.performanceSettingChangedHandler) {
+      window.removeEventListener("performanceSettingChanged", this.performanceSettingChangedHandler);
+      this.performanceSettingChangedHandler = null;
+    }
 
     // Hide all game UI
     GameHUD.getInstance().hide();

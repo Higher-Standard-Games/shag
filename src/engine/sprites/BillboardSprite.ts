@@ -7,6 +7,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { SpriteDirection, SpriteSheet } from "./SpriteSheet";
 
 /**
@@ -60,6 +61,8 @@ export class BillboardSprite {
   private _shadowOpacity: number = 0.4;
   private _shadowScale: number = 1.2;
 
+  private updateObserver: Observer<Scene> | null = null;
+
   constructor(
     name: string,
     spriteSheet: SpriteSheet,
@@ -81,7 +84,7 @@ export class BillboardSprite {
     this.mesh.scaling.y = 1;
 
     // Register for updates
-    this.scene.onBeforeRenderObservable.add(() => this.update());
+    this.updateObserver = this.scene.onBeforeRenderObservable.add(() => this.update());
   }
 
   /**
@@ -476,6 +479,10 @@ export class BillboardSprite {
   // ==================== Cleanup ====================
 
   public dispose(): void {
+    if (this.updateObserver) {
+      this.scene.onBeforeRenderObservable.remove(this.updateObserver);
+      this.updateObserver = null;
+    }
     if (this.shadowMesh) {
       this.shadowMesh.dispose();
     }

@@ -88,6 +88,11 @@ export abstract class EngineScene {
   protected mapCenterPosition: Vector3 = Vector3.Zero();
   protected cameraMode: CameraMode = "perspective";
 
+  private resizeHandler: (() => void) | null = null;
+  private unsubscribeMapLoaded: (() => void) | null = null;
+  private unsubscribeAppStateChange: (() => void) | null = null;
+  private unsubscribeBackButton: (() => void) | null = null;
+
   // Map entry tracking for return transitions
   private mapEntryTriggers: Map<string, { sourceMap: string; triggerPosition: Vector3 }> = new Map();
 
@@ -206,10 +211,15 @@ export abstract class EngineScene {
     this.camera.inputs.clear();
 
     // Resize handler
-    window.addEventListener("resize", () => {
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+    }
+    this.resizeHandler = () => {
       this.engine.resize();
       this.updateCameraOrtho();
-    });
+      CameraSystem.getInstance().onResize();
+    };
+    window.addEventListener("resize", this.resizeHandler);
 
     // Initialize dynamic sky lighting
     const lightingSettings = engineSettings.getLightingSettings();
@@ -235,7 +245,8 @@ export abstract class EngineScene {
     cameraSystem.setActiveController(isometricController);
 
     // Listen for map:loaded to sync camera target
-    EventBus.on("map:loaded", () => {
+    this.unsubscribeMapLoaded?.();
+    this.unsubscribeMapLoaded = EventBus.on("map:loaded", () => {
       isometricController.syncTargetPosition();
     });
 
@@ -398,7 +409,7 @@ export abstract class EngineScene {
     }
 
     // Clear existing map
-    MapRenderer.clearMap(this.scene);
+    MapRenderer.clearMap(this.scene, previousMap ?? undefined);
 
     // Get map data
     let mapData = AssetLoader.getInstance().getMap(mapName);
@@ -416,7 +427,7 @@ export abstract class EngineScene {
 
     // Render the map
     console.log(`[EngineScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
-    const result = await MapRenderer.renderEntities(mapData.entities, this.scene);
+    const result = await MapRenderer.renderEntities(mapData.entities, this.scene, mapName);
     console.log(`[EngineScene] Map rendered, player start: ${result.playerStartPosition}`);
 
     // Determine camera target position
@@ -503,7 +514,8 @@ export abstract class EngineScene {
   }
 
   private setupCapacitorListeners(): void {
-    EventBus.on<{ isActive: boolean }>("app:state_change", ({ isActive }) => {
+    this.unsubscribeAppStateChange?.();
+    this.unsubscribeAppStateChange = EventBus.on<{ isActive: boolean }>("app:state_change", ({ isActive }) => {
       if (isActive) {
         console.log("[EngineScene] App resumed - restarting render loop");
         this.engine.runRenderLoop(() => {
@@ -516,7 +528,8 @@ export abstract class EngineScene {
       }
     });
 
-    EventBus.on<{ canGoBack: boolean }>("app:back_button", () => {
+    this.unsubscribeBackButton?.();
+    this.unsubscribeBackButton = EventBus.on<{ canGoBack: boolean }>("app:back_button", () => {
       this.onBackButton();
     });
 
@@ -701,6 +714,25 @@ export abstract class EngineScene {
   public dispose(): void {
     // Let game clean up
     this.onDispose();
+
+    this.engine.stopRenderLoop();
+
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    this.unsubscribeMapLoaded?.();
+    this.unsubscribeMapLoaded = null;
+    this.unsubscribeAppStateChange?.();
+    this.unsubscribeAppStateChange = null;
+    this.unsubscribeBackButton?.();
+    this.unsubscribeBackButton = null;
+
+    InputSystem.getInstance().dispose();
+    CameraSystem.getInstance().dispose();
+    SpriteManager.getInstance().clear();
+    WorldIndicatorSystem.getInstance().clearAll();
 
     if (this.scene) {
       this.scene.dispose();

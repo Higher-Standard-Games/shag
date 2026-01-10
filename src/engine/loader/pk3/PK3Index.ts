@@ -308,6 +308,106 @@ export class PK3Index {
   }
 
   /**
+   * Index a PK3 from an in-memory ArrayBuffer (Node/headless-friendly).
+   * This bypasses fetch/localStorage and keeps the index in memory.
+   */
+  async indexPK3ArrayBuffer(
+    filename: string,
+    arrayBuffer: ArrayBuffer,
+    sourcePath?: string
+  ): Promise<PK3IndexEntry | null> {
+    try {
+      const zip = await JSZip.loadAsync(arrayBuffer);
+
+      const files: string[] = [];
+      const shaderFiles: string[] = [];
+      const mapFiles: string[] = [];
+
+      zip.forEach((relativePath) => {
+        const normalized = relativePath.toLowerCase().replace(/\\/g, '/');
+        if (!normalized.endsWith('/')) {
+          files.push(normalized);
+
+          if (
+            normalized.endsWith('.shader') &&
+            (normalized.startsWith('scripts/') || normalized.startsWith('shaders/'))
+          ) {
+            shaderFiles.push(relativePath);
+          }
+
+          if (normalized.startsWith('maps/') && normalized.endsWith('.bsp')) {
+            mapFiles.push(normalized);
+          }
+        }
+      });
+
+      if (!this.index) {
+        this.index = {
+          version: INDEX_VERSION,
+          listChecksum: '',
+          files: {},
+          shaders: {},
+          maps: {},
+          packages: [],
+          lastUpdated: Date.now(),
+        };
+      }
+
+      for (const file of files) {
+        this.index.files[file] = filename;
+      }
+
+      let shaderCount = 0;
+      for (const shaderFile of shaderFiles) {
+        try {
+          const content = await zip.file(shaderFile)?.async('string');
+          if (content) {
+            const shaderNames = extractShaderNames(content);
+            for (const name of shaderNames) {
+              this.index.shaders[name] = filename;
+              shaderCount++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[PK3Index] Failed to parse shader ${shaderFile}:`, e);
+        }
+      }
+
+      for (const mapFile of mapFiles) {
+        const mapName = mapFile.replace(/^maps\//, '').replace(/\.bsp$/, '');
+        this.index.maps[mapName] = filename;
+      }
+
+      const entry: PK3IndexEntry = {
+        pk3: filename,
+        path: sourcePath || filename,
+        fileCount: files.length,
+        size: arrayBuffer.byteLength,
+      };
+
+      const existingIdx = this.index.packages.findIndex(
+        (p) => p.pk3 === filename && p.path === entry.path
+      );
+      if (existingIdx >= 0) {
+        this.index.packages[existingIdx] = entry;
+      } else {
+        this.index.packages.push(entry);
+      }
+
+      const extras = [];
+      if (shaderCount > 0) extras.push(`${shaderCount} shaders`);
+      if (mapFiles.length > 0) extras.push(`${mapFiles.length} maps`);
+      const extraStr = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+
+      console.log(`[PK3Index] Indexed ${filename}: ${files.length} files${extraStr}`);
+      return entry;
+    } catch (e) {
+      console.warn(`[PK3Index] Failed to index ArrayBuffer for ${filename}:`, e);
+      return null;
+    }
+  }
+
+  /**
    * Build/rebuild the entire index from all search paths
    */
   async buildIndex(progressCallback?: (msg: string) => void): Promise<number> {

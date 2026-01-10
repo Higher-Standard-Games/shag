@@ -18,6 +18,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
+import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -344,7 +345,26 @@ export class FreeflyController implements ICameraController {
   
   /**
    * Apply movement using Babylon's native mesh collision system
-   * This uses the actual rendered geometry for collision detection
+   * 
+   * ARCHITECTURE: Native Collision Mode with BSP Data Augmentation
+   * ============================================================
+   * 
+   * Primary Collision: Babylon.js camera._collideWithWorld
+   * - Checks against rendered BSP geometry (walls, floors, ceilings)
+   * - Checks against generated clip brush meshes (fullclip, playerclip, caulk)
+   * - Excludes detail brushes (filtered in shouldSkipCollision)
+   * 
+   * Secondary Collision: BSP Clamp Pass (optional safety net)
+   * - Runs after Babylon collision
+   * - Trace A: checks fullclip/playerclip via BSP brush data
+   * - Trace B: checks caulk/structural via BSP brush data
+   * - Adjusts position if BSP collision detected
+   * 
+   * BSP Data Augmentation:
+   * - ADD collision: Clip brush meshes generated in MapLoader.buildClipBrushMeshes
+   * - REMOVE collision: Detail brushes excluded via shouldSkipCollision
+   * 
+   * Result: Solid, reliable collision that respects BSP semantics
    */
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
@@ -414,65 +434,88 @@ export class FreeflyController implements ICameraController {
     // Try using _collideWithWorld if available
     if (cam._collideWithWorld && this.camera.checkCollisions) {
       const posBefore = this.camera.position.clone();
+      
+      // Debug: Check for collision meshes near camera
+      const now = Date.now();
+      if (now - FreeflyController._lastDebugTime > 1000 && this.camera.position) {
+        FreeflyController._lastDebugTime = now;
+        const camPos = this.camera.position;
+        const nearbyMeshes = this.scene.meshes.filter(m => {
+          if (!m.checkCollisions) return false;
+          const dist = Vector3.Distance(m.position, camPos);
+          return dist < 100;
+        });
+        console.log(`[FreeflyController] Camera at (${camPos.x.toFixed(1)}, ${camPos.y.toFixed(1)}, ${camPos.z.toFixed(1)})`);
+        console.log(`[FreeflyController] Nearby collision meshes (< 100 units): ${nearbyMeshes.length}`);
+        if (nearbyMeshes.length > 0 && nearbyMeshes.length < 10) {
+          nearbyMeshes.forEach(m => {
+            const dist = Vector3.Distance(m.position, camPos);
+            console.log(`  - "${m.name}" at dist=${dist.toFixed(1)} metadata=${JSON.stringify(m.metadata)}`);
+          });
+        }
+      }
+      
       cam._collideWithWorld(movement);
       const posAfterBabylon = this.camera.position.clone();
+      const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
 
-      // Clamp against BSP clip brushes (fullclip/playerclip) without generating Babylon meshes
+      // Use the new Q3 collision backend for BSP collision
       const cm = getCollisionManager();
       const wasBackend = cm.getBackendType();
-      if (wasBackend !== 'brush') {
-        cm.setBackend('brush');
+      if (wasBackend !== 'q3') {
+        cm.setBackend('q3');
       }
 
-      const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
-      const traceStart = posBefore.add(ellipsoidOffset);
-      const traceEnd = posAfterBabylon.add(ellipsoidOffset);
+      // Debug logging
+      const debugBsp = now - FreeflyController._lastDebugTime < 100;
+      if (debugBsp) {
+        console.log(`[Q3 Collision] pos: (${posBefore.x.toFixed(1)}, ${posBefore.y.toFixed(1)}, ${posBefore.z.toFixed(1)})`);
+        console.log(`[Q3 Collision] movement: (${movement.x.toFixed(3)}, ${movement.y.toFixed(3)}, ${movement.z.toFixed(3)})`);
+      }
 
-      const clipTrace = cm.trace(traceStart as never, traceEnd as never, {
+      // Use Q3-style slideMove for smooth wall sliding
+      const backend = (cm as any).backends?.get('q3');
+      const traceOpts = {
         radius: 16,
         height: 56,
-        // We only want clip volumes here; rendered SOLID geometry is handled by Babylon
-        clipTexturesOnly: true,
-        // Include PLAYERCLIP and SOLID so fullclip (SOLID) is considered, but filtered by name
-        contentMask: 0x1 | 0x10000,
-      });
+        contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
+      };
+      
+      if (backend && typeof backend.stepSlideMove === 'function') {
+        // Use stepSlideMove for smooth collision + stair stepping
+        const slideResult = backend.stepSlideMove(posBefore, movement, traceOpts);
+        this.camera.position.copyFrom(slideResult.endPos);
+        
+        if (slideResult.hitCount > 0 && debugBsp) {
+          console.log(`[Freefly][StepSlideMove] ${slideResult.hitCount} collision(s), stepped=${slideResult.stepped}`);
+        }
+      } else if (backend && typeof backend.slideMove === 'function') {
+        // Fallback to slideMove without stepping
+        const slideResult = backend.slideMove(posBefore, movement, traceOpts);
+        this.camera.position.copyFrom(slideResult.endPos);
+      } else {
+        // Fallback to simple trace
+        const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, traceOpts);
+        if (clipTrace.fraction < 1.0) {
+          this.camera.position.copyFrom(clipTrace.endPos);
+        }
+      }
 
-      if (wasBackend !== 'brush' && wasBackend) {
+      if (wasBackend && wasBackend !== 'q3') {
         cm.setBackend(wasBackend);
       }
 
-      if (!clipTrace.startSolid && clipTrace.fraction < 1.0) {
-        // Apply BSP-resolved end position, with a tiny push-out to reduce re-colliding next frame
-        const endPos: any = clipTrace.endPos;
-        this.camera.position.x = endPos.x - ellipsoidOffset.x;
-        this.camera.position.y = endPos.y - ellipsoidOffset.y;
-        this.camera.position.z = endPos.z - ellipsoidOffset.z;
-        if (clipTrace.normal) {
-          const n: any = clipTrace.normal;
-          const push = clipTrace.fraction < 0.01 ? 2.0 : 0.5;
-          this.camera.position.x += n.x * push;
-          this.camera.position.y += n.y * push;
-          this.camera.position.z += n.z * push;
-        }
-
-        const now = Date.now();
-        if (now - FreeflyController._lastClipHitLogTime > 250) {
-          FreeflyController._lastClipHitLogTime = now;
-          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
-          const hitTextureName = (clipTrace as any).hitTextureName;
+      // Check if we're stuck in solid (startSolid case)
+      const stuckCheck = cm.trace(this.camera.position as never, this.camera.position as never, traceOpts);
+      if (stuckCheck.startSolid) {
+        const nowStuck = Date.now();
+        if (nowStuck - FreeflyController._lastClipHitLogTime > 250) {
+          FreeflyController._lastClipHitLogTime = nowStuck;
+          const hitBrushIndex = (stuckCheck as any).hitBrushIndex;
+          const hitTextureName = (stuckCheck as any).hitTextureName;
           FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
           FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
-          console.log(`[Freefly][Clip] HIT frac=${clipTrace.fraction.toFixed(3)} brush=${hitBrushIndex} tex=${hitTextureName}`);
-        }
-      } else if (clipTrace.startSolid) {
-        const now = Date.now();
-        if (now - FreeflyController._lastClipHitLogTime > 250) {
-          FreeflyController._lastClipHitLogTime = now;
-          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
-          const hitTextureName = (clipTrace as any).hitTextureName;
-          FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
-          FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
-          console.log(`[Freefly][Clip] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
+          console.log(`[Freefly][Stuck] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
         }
 
         const base = posAfterBabylon.clone();
@@ -490,13 +533,19 @@ export class FreeflyController implements ICameraController {
           for (const dir of testDirs) {
             const testPos = base.add(dir.scale(nudge));
             const testStart = testPos.add(ellipsoidOffset);
-            const testTrace = cm.trace(testStart as never, testStart as never, {
+            const testTraceA = cm.trace(testStart as never, testStart as never, {
               radius: 16,
               height: 56,
               clipTexturesOnly: true,
               contentMask: 0x1 | 0x10000,
             });
-            if (!testTrace.startSolid) {
+            const testTraceB = cm.trace(testStart as never, testStart as never, {
+              radius: 16,
+              height: 56,
+              nodrawSolidsOnly: true,
+              contentMask: 0x1,
+            });
+            if (!testTraceA.startSolid && !testTraceB.startSolid) {
               this.camera.position.copyFrom(testPos);
               return;
             }
@@ -539,6 +588,19 @@ export class FreeflyController implements ICameraController {
   private shouldSkipCollision(mesh: any): boolean {
     const name = mesh.name?.toLowerCase() || '';
     const textureName = mesh.metadata?.textureName?.toLowerCase() || '';
+
+    const contentFlags = typeof mesh.metadata?.contentFlags === 'number' ? mesh.metadata.contentFlags : 0;
+    const surfaceFlags = typeof mesh.metadata?.surfaceFlags === 'number' ? mesh.metadata.surfaceFlags : 0;
+
+    if ((contentFlags & ContentFlags.DETAIL) !== 0) {
+      return true;
+    }
+    if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) {
+      return true;
+    }
+    if ((surfaceFlags & SurfaceFlags.HINT) !== 0) {
+      return true;
+    }
     
     // Skip by mesh name patterns
     if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||

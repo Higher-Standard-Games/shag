@@ -20,6 +20,7 @@ import {
   createDefaultTraceResult,
   Contents,
 } from './CollisionBackend';
+import { ContentFlags, SurfaceFlags } from './ContentFlags';
 
 export class BabylonPhysicsBackend implements CollisionBackend {
   readonly type: CollisionBackendType = 'babylon';
@@ -51,6 +52,11 @@ export class BabylonPhysicsBackend implements CollisionBackend {
           mesh.name.includes('patch') ||
           mesh.name.includes('mesh')) {
         if (mesh instanceof Mesh) {
+          const contentFlags = typeof (mesh as any).metadata?.contentFlags === 'number' ? (mesh as any).metadata.contentFlags : 0;
+          const surfaceFlags = typeof (mesh as any).metadata?.surfaceFlags === 'number' ? (mesh as any).metadata.surfaceFlags : 0;
+          if ((contentFlags & ContentFlags.DETAIL) !== 0) continue;
+          if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) continue;
+          if ((surfaceFlags & SurfaceFlags.HINT) !== 0) continue;
           mesh.isPickable = true;
           this.collisionMeshes.push(mesh);
         }

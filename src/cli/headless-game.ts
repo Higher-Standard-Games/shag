@@ -91,7 +91,10 @@ async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Loading game systems...");
 
   // Initialize PK3 loader with game path
-  const gamePath = process.env.GAME_PATH || "./public/game";
+  let gamePath = process.env.GAME_PATH || "./public/game";
+  if (!fs.existsSync(gamePath) && fs.existsSync("./public/games/default/basewsw")) {
+    gamePath = "./public/games/default/basewsw";
+  }
   console.log(`[Init] Game path: ${gamePath}`);
 
   // Check if game path exists
@@ -105,10 +108,12 @@ async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
     // Initialize PK3 loader
     const { PK3Loader } = await import("../engine/loader/pk3/PK3Loader");
     const pk3Loader = PK3Loader.getInstance();
+    const { PK3Index } = await import("../engine/loader/pk3/PK3Index");
+    const pk3Index = PK3Index.getInstance();
 
     // Scan for PK3 files
     if (fs.existsSync(gamePath)) {
-      const pk3Files = fs.readdirSync(gamePath).filter(f => f.endsWith(".pk3"));
+      const pk3Files = fs.readdirSync(gamePath).filter(f => f.endsWith(".pk3")).sort();
       console.log(`[Init] Found ${pk3Files.length} PK3 files`);
 
       // Load all PK3 files (takes a while but needed for full map support)
@@ -121,6 +126,8 @@ async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
           // Use processPK3ArrayBuffer directly for Node.js (fetch doesn't work)
           await (pk3Loader as unknown as { processPK3ArrayBuffer: (f: string, a: ArrayBuffer) => Promise<void> })
             .processPK3ArrayBuffer(pk3File, arrayBuffer);
+
+          await pk3Index.indexPK3ArrayBuffer(pk3File, arrayBuffer, pk3Path);
           loadedCount++;
         } catch (e) {
           console.warn(`[Init] Failed to load ${pk3File}:`, e instanceof Error ? e.message : e);
@@ -195,6 +202,173 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       "Babylon.js: " + context?.engine.description,
       "Node.js: " + process.version,
     ].join("\n");
+  });
+
+  registry.register("leaktest", async (args: string[]) => {
+    const sub = args[0]?.toLowerCase();
+    if (sub !== "maprenderer" && sub !== "mapcycle") {
+      return [
+        "Leak test commands:",
+        "  leaktest maprenderer <iterations> [mapName]",
+        "  leaktest mapcycle <iterations> <mapA> [mapB]",
+      ].join("\n");
+    }
+
+    if (!context?.scene) {
+      process.exitCode = 1;
+      return "No scene available";
+    }
+
+    if (sub === "mapcycle") {
+      const iterations = Math.max(1, parseInt(args[1] || "5", 10) || 5);
+      const mapA = args[2];
+      const mapB = args[3] || mapA;
+
+      if (!mapA) {
+        process.exitCode = 1;
+        return "Usage: leaktest mapcycle <iterations> <mapA> [mapB]";
+      }
+
+      const scene = context.scene;
+
+      const snapshot = () => ({
+        meshes: scene.meshes.length,
+        nodes: scene.transformNodes.length,
+        lights: scene.lights.length,
+        materials: scene.materials.length,
+        textures: scene.textures.length,
+      });
+
+      const same = (a: ReturnType<typeof snapshot>, b: ReturnType<typeof snapshot>) =>
+        a.meshes === b.meshes &&
+        a.nodes === b.nodes &&
+        a.lights === b.lights &&
+        a.materials === b.materials &&
+        a.textures === b.textures;
+
+      const fmt = (s: ReturnType<typeof snapshot>) =>
+        `m=${s.meshes} n=${s.nodes} l=${s.lights} mat=${s.materials} tex=${s.textures}`;
+
+      // Establish baseline from a cleared scene.
+      // Note: `scene clear` primarily disposes meshes/materials/textures. If a map leaves
+      // lights/nodes behind, we want this strict test to catch it.
+      await registry.execute("scene clear");
+      const baseline = snapshot();
+      console.log(`[LeakTest] Baseline: ${fmt(baseline)}`);
+
+      let failures = 0;
+      for (let i = 0; i < iterations; i++) {
+        const mapName = i % 2 === 0 ? mapA : mapB;
+        const loadResult = await registry.execute(`map ${mapName}`);
+        if (typeof loadResult === "string" && loadResult.toLowerCase().startsWith("failed")) {
+          failures++;
+          console.log(`[LeakTest] Map load failed on iter ${i + 1}/${iterations}: ${loadResult}`);
+          break;
+        }
+
+        // Unload and clear.
+        await registry.execute("map unload");
+        await registry.execute("scene clear");
+
+        if (typeof (globalThis as any).gc === "function") {
+          try {
+            (globalThis as any).gc();
+          } catch {
+            // ignore
+          }
+        }
+
+        const after = snapshot();
+        const ok = same(after, baseline);
+        console.log(
+          `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': after=${fmt(after)} ${ok ? "OK" : "MISMATCH"}`
+        );
+        if (!ok) {
+          failures++;
+        }
+      }
+
+      if (failures > 0) {
+        process.exitCode = 1;
+        return `LeakTest FAILED (mapcycle) iterations=${iterations} failures=${failures}`;
+      }
+
+      return `LeakTest OK (mapcycle) iterations=${iterations} baseline=${fmt(baseline)}`;
+    }
+
+    const iterations = Math.max(1, parseInt(args[1] || "5", 10) || 5);
+    const mapName = args[2] || "leaktest";
+
+    const scene = context.scene;
+    const { MapRenderer } = await import("../engine/MapRenderer");
+    const { MeshBuilder } = await import("@babylonjs/core/Meshes/meshBuilder");
+    const { TransformNode } = await import("@babylonjs/core/Meshes/transformNode");
+
+    const ownedCounts = () => {
+      const isOwned = (m: any) => m?.metadata?.mapOwned && m?.metadata?.mapName === mapName;
+      const ownedMeshes = scene.meshes.filter(isOwned);
+      const ownedNodes = scene.transformNodes.filter(isOwned);
+      const ownedLights = scene.lights.filter(isOwned);
+      return {
+        meshes: ownedMeshes.length,
+        nodes: ownedNodes.length,
+        lights: ownedLights.length,
+        total: ownedMeshes.length + ownedNodes.length + ownedLights.length,
+      };
+    };
+
+    let failures = 0;
+    for (let i = 0; i < iterations; i++) {
+      await MapRenderer.renderEntities(
+        [
+          {
+            classname: "light",
+            properties: {
+              origin: "0 0 0",
+              light: "300",
+            },
+            brushes: [],
+            patches: [],
+          },
+        ] as any,
+        scene,
+        mapName
+      );
+
+      const box = MeshBuilder.CreateBox(`leaktest_box_${i}`, { size: 1 }, scene);
+      box.metadata = { mapOwned: true, mapName };
+
+      const node = new TransformNode(`leaktest_node_${i}`, scene);
+      node.metadata = { mapOwned: true, mapName };
+
+      const before = ownedCounts();
+      MapRenderer.clearMap(scene, mapName);
+      const after = ownedCounts();
+
+      console.log(
+        `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': before=${before.total} (m=${before.meshes},n=${before.nodes},l=${before.lights}) after=${after.total} (m=${after.meshes},n=${after.nodes},l=${after.lights})`
+      );
+
+      if (after.total !== 0) {
+        failures++;
+      }
+
+      const clustered = (scene.metadata as any)?.clusteredLightContainer;
+      if (clustered) {
+        failures++;
+        console.log("[LeakTest] ClusteredLightContainer still present after clearMap");
+      }
+    }
+
+    const final = ownedCounts();
+    const ok = failures === 0 && final.total === 0;
+    if (!ok) {
+      process.exitCode = 1;
+    }
+
+    return ok
+      ? `LeakTest OK (maprenderer) iterations=${iterations} map='${mapName}'`
+      : `LeakTest FAILED (maprenderer) iterations=${iterations} map='${mapName}' remaining=${final.total} failures=${failures}`;
   });
 
   // Collision trace test command
@@ -439,9 +613,16 @@ async function runBatch(commands: string): Promise<void> {
 
   console.log(`\n[Batch] Executing: ${commands}\n`);
 
-  const result = await registry.execute(commands);
-  if (result) {
-    console.log(result);
+  const parts = commands
+    .split(/\r?\n|;/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const cmd of parts) {
+    const result = await registry.execute(cmd);
+    if (result) {
+      console.log(result);
+    }
   }
 }
 
