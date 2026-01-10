@@ -30,7 +30,10 @@ export class AudioManager {
   private playlistName: string | null = null;
   private isPlayingPlaylist = false;
 
-  private constructor() {}
+  private constructor() {
+    // Register cvars immediately so they're available even if init() isn't called
+    this.registerCvars();
+  }
 
   public static getInstance(): AudioManager {
     if (!AudioManager.instance) {
@@ -45,10 +48,7 @@ export class AudioManager {
       this.musicVolume = config.settings.defaultVolume;
       this.musicEnabled = config.settings.musicEnabled;
     }
-    
-    // Register audio cvars for console control
-    console.log('[AudioManager] init() called, registering cvars');
-    this.registerCvars();
+    // Cvars are registered in constructor
   }
 
   /**

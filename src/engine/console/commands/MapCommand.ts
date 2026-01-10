@@ -119,6 +119,10 @@ export default class MapCommand extends Command {
     mapLoader: any,
     registry: CommandRegistry
   ): Promise<string> {
+    // Ensure RenderVars is instantiated (registers r_* cvars for BSP rendering)
+    const { RenderVars } = await import('../../rendering/RenderVars');
+    RenderVars.getInstance();
+
     let scene = cameraSystem.getCamera()?.getScene();
 
     if (!scene) {

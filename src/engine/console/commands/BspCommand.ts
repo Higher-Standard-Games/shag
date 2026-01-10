@@ -36,6 +36,10 @@ export class BspCommand extends Command {
           return 'Usage: bsp load <mapname>\nExample: bsp load wdm11';
         }
 
+        // Ensure RenderVars is instantiated (registers r_* cvars for BSP rendering)
+        const { RenderVars } = await import('../../rendering/RenderVars');
+        RenderVars.getInstance();
+
         try {
           const summary = await manager.load(mapName);
           return `Loaded: maps/${mapName}.bsp\n${summary}\n\nUse "bsp info" for details, "bsp render" to display`;

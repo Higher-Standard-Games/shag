@@ -104,6 +104,20 @@ async function initializeEngine(): Promise<HeadlessContext> {
     console.warn("[Init] Services init failed:", e);
   }
 
+  // Ensure cvar-providing services are instantiated (even if ServiceLocator failed)
+  // This triggers cvar registration in their constructors
+  try {
+    const { RenderVars } = await import("../engine/rendering/RenderVars");
+    RenderVars.getInstance();
+
+    const { AudioManager } = await import("../engine/AudioManager");
+    AudioManager.getInstance();
+
+    console.log("[Init] Cvar providers initialized");
+  } catch (e) {
+    console.warn("[Init] Cvar providers failed:", e);
+  }
+
   return { engine, scene, camera };
 }
 
@@ -656,14 +670,16 @@ async function main(): Promise<void> {
 
   // Parse arguments
   const args = process.argv.slice(2);
-  let execCommands: string | null = null;
+  const commandList: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--exec" && args[i + 1]) {
-      execCommands = args[i + 1];
+    if ((args[i] === "--exec" || args[i] === "--command") && args[i + 1]) {
+      commandList.push(args[i + 1]);
       i++;
     }
   }
+
+  const execCommands = commandList.length > 0 ? commandList.join("; ") : null;
 
   try {
     // Initialize engine

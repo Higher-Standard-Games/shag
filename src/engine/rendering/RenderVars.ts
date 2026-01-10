@@ -177,6 +177,7 @@ export class RenderVars {
   private constructor() {
     this.initializeDefaults();
     this.loadFromStorage();
+    this.registerCvars();
   }
 
   public static getInstance(): RenderVars {
@@ -187,9 +188,8 @@ export class RenderVars {
   }
 
   public init(): void {
+    // Cvars are registered in constructor, init() is for scene-dependent setup
     console.log(`[RenderVars] init() called, vars count: ${this.vars.size}`);
-    // Register render vars as cvars for console integration
-    this.registerCvars();
   }
 
   // ==================== Initialization ====================
