@@ -38,10 +38,10 @@ export class CollisionManager {
 
   private constructor() {
     // Register available backends
-    this.backends.set('brush', new BrushCollisionBackend());  // Original BSP brush collision
-    this.backends.set('clipbrush', new ClipBrushBackend());   // Face-based collision
-    this.backends.set('babylon', new BabylonPhysicsBackend()); // Babylon raycasting
-    this.backends.set('q3', new SweepCollisionBackend());        // NEW: Clean Q3-style collision
+    this.backends.set('brush', new BrushCollisionBackend());
+    this.backends.set('clipbrush', new ClipBrushBackend());
+    this.backends.set('babylon', new BabylonPhysicsBackend());
+    this.backends.set('q3', new SweepCollisionBackend());
     console.log(`[CollisionManager] Created instance ${this.instanceId}`);
   }
 
