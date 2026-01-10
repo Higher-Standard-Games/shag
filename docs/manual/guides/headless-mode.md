@@ -86,6 +86,30 @@ npm run cli:game -- \
   --command "quit"
 ```
 
+### Memory Leak Testing
+
+Test for resource leaks across map load/unload cycles:
+
+```bash
+# Test MapRenderer create/clear (fast, no PK3 needed)
+npm run cli:game -- --command "leaktest maprenderer 10"
+
+# Test full map cycle (requires maps in PK3)
+npm run cli:game -- --command "leaktest mapcycle 10 wdm7 wdm1"
+```
+
+The leak tests compare resource counts (meshes, nodes, lights, materials, textures) before and after each iteration. They exit with code 1 on failure.
+
+### Batch Commands
+
+Execute multiple commands in one invocation:
+
+```bash
+npm run cli:game -- --command "map wdm7; bsp info; quit"
+```
+
+Commands can be separated by `;` or newlines.
+
 ## CI/CD Integration
 
 ### GitHub Actions
@@ -113,6 +137,9 @@ jobs:
             --command "map wdm7" \
             --command "bsp info" \
             --command "quit"
+
+      - name: Memory Leak Test
+        run: npm run cli:game -- --command "leaktest maprenderer 10"
 ```
 
 ### GitLab CI
@@ -172,6 +199,7 @@ Headless mode cannot:
 | Console commands | ✅ |
 | Mesh creation | ✅ |
 | Collision data | ✅ |
+| Leak testing | ✅ |
 | Texture loading | ❌ |
 | Rendering | ❌ |
 | Audio | ❌ |

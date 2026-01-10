@@ -190,6 +190,89 @@ Schemas are in `src/data/schemas/` for validation.
 5. **Cleanup**: Always implement `dispose()` to prevent memory leaks
 6. **EventBus over Callbacks**: Prefer EventBus for loose coupling
 
+## Service Lifetimes
+
+Services/systems have different lifetimes. Classify each to prevent memory leaks:
+
+| Lifetime | Scope | Examples |
+|----------|-------|----------|
+| **App** | Entire session | `EngineSettings`, `AudioManager`, logging |
+| **Scene** | Per Babylon scene | `CameraSystem`, `InputSystem`, `SpriteManager` |
+| **Game** | Per save slot / new game | `GameState`, `PlantSystem`, `OrderSystem` |
+| **Map** | Per loaded map | Map meshes, lights, prefabs |
+
+### Disposal Patterns
+
+**Scene-scoped services** must implement proper cleanup:
+
+```typescript
+class MySceneService {
+  private scene: Scene | null = null;
+  private resizeHandler: (() => void) | null = null;
+  private unsubscribeEvent: (() => void) | null = null;
+
+  init(scene: Scene): void {
+    this.scene = scene;
+
+    // Store handler reference for removal
+    this.resizeHandler = () => this.onResize();
+    window.addEventListener("resize", this.resizeHandler);
+
+    // Store unsubscribe function
+    this.unsubscribeEvent = EventBus.on("some:event", this.handler);
+  }
+
+  dispose(): void {
+    // Remove DOM listeners
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    // Unsubscribe EventBus
+    this.unsubscribeEvent?.();
+    this.unsubscribeEvent = null;
+
+    // Clear scene reference
+    this.scene = null;
+  }
+}
+```
+
+**Map-owned objects** use metadata tagging for reliable cleanup:
+
+```typescript
+// When creating map objects, tag them:
+mesh.metadata = {
+  mapOwned: true,
+  mapName: "wdm7"
+};
+
+// MapRenderer.clearMap() disposes by metadata:
+scene.meshes
+  .filter(m => m.metadata?.mapOwned && m.metadata?.mapName === mapName)
+  .forEach(m => m.dispose());
+```
+
+### Common Leak Sources
+
+1. **Inline event handlers** - Store reference for removal
+2. **EventBus subscriptions** - Store unsubscribe function
+3. **Observable observers** - Remove in dispose()
+4. **Scene references in singletons** - Clear on scene dispose
+5. **Closures capturing disposed objects** - Use weak refs or nullify
+
+### Leak Testing
+
+Use headless mode to detect leaks:
+
+```bash
+npm run cli:game -- --command "leaktest maprenderer 10"
+npm run cli:game -- --command "leaktest mapcycle 10 wdm7"
+```
+
+See [Headless Mode Guide](../manual/guides/headless-mode.md) for details.
+
 ## UI System
 
 ### UIScale
