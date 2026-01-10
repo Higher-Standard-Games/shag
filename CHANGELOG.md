@@ -2,7 +2,20 @@
 
 ## [0.8.17] - 2026-01-10
 
+### Added
+- **Q3-Style Collision System**: New `SweepCollisionBackend` with proper movement physics
+  - `clipVelocity()` - Removes velocity component going into surfaces
+  - `slideMove()` - Up to 4 iterations with multi-plane handling for smooth wall sliding
+  - `stepSlideMove()` - Stair stepping (STEPSIZE=18 units) for walking up stairs
+  - Handles corners by sliding along crease (cross product of planes)
+  - Stops cleanly when stuck in 3+ planes
+- **Playerclip Detection**: Direct brush iteration for clip brushes (bypasses BSP tree)
+  - Ensures fullclip/playerclip always block regardless of BSP leaf traversal
+
 ### Changed
+- **FreeflyController**: Now uses `stepSlideMove` for smooth collision response
+  - Camera slides along walls instead of teleporting/jumping
+  - Stairs work in both directions (up and down)
 - **Console System Refactor**: Migrated all engine commands to modular Command classes
   - 53 command classes in `src/engine/console/commands/`
   - Commands auto-discovered via Vite glob imports
