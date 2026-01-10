@@ -84,6 +84,26 @@ async function initializeEngine(): Promise<HeadlessContext> {
     console.warn("[Init] CameraSystem init failed:", e);
   }
 
+  // Initialize core and scene services
+  try {
+    const { ServiceLocator } = await import("../engine/core/ServiceLocator");
+    const { registerEngineServices } = await import("../engine/core/EngineServices");
+    
+    // Register engine services
+    registerEngineServices();
+    console.log("[Init] Engine services registered");
+    
+    // Initialize core services
+    await ServiceLocator.getInstance().initCore();
+    console.log("[Init] Core services initialized");
+    
+    // Initialize scene services
+    await ServiceLocator.getInstance().initScene(scene);
+    console.log("[Init] Scene services initialized");
+  } catch (e) {
+    console.warn("[Init] Services init failed:", e);
+  }
+
   return { engine, scene, camera };
 }
 

@@ -41,6 +41,7 @@ import { SkyLightSystem } from '../lighting/SkyLightSystem';
 import { StreetLampSystem } from '../lighting/StreetLampSystem';
 import { PostProcessingManager } from '../effects/PostProcessingManager';
 import { AudioManager } from '../AudioManager';
+import { RenderVars } from '../rendering/RenderVars';
 import { WorldIndicatorSystem } from './WorldIndicatorSystem';
 
 /**
@@ -133,6 +134,12 @@ export const SCENE_SERVICES: ServiceRegistration[] = [
     phase: 'scene',
     dependencies: [],
   },
+  {
+    name: 'renderVars',
+    factory: () => RenderVars.getInstance(),
+    phase: 'scene',
+    dependencies: [],
+  },
 ];
 
 /**
@@ -173,6 +180,7 @@ export const Services = {
   POST_PROCESSING: 'postProcessing',
   AUDIO_MANAGER: 'audioManager',
   WORLD_INDICATORS: 'worldIndicators',
+  RENDER_VARS: 'renderVars',
 } as const;
 
 export type ServiceName = typeof Services[keyof typeof Services];

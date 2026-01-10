@@ -1,5 +1,6 @@
 import { AssetLoader } from "./AssetLoader";
 import { Cvar } from "./core/Cvar";
+import { Service } from "./core/ServiceLocator";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -46,6 +47,7 @@ export class AudioManager {
     }
     
     // Register audio cvars for console control
+    console.log('[AudioManager] init() called, registering cvars');
     this.registerCvars();
   }
 
