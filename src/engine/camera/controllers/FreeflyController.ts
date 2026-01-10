@@ -434,41 +434,56 @@ export class FreeflyController implements ICameraController {
     // Try using _collideWithWorld if available
     if (cam._collideWithWorld && this.camera.checkCollisions) {
       const posBefore = this.camera.position.clone();
+      
+      // Debug: Check for collision meshes near camera
+      const now = Date.now();
+      if (now - FreeflyController._lastDebugTime > 1000 && this.camera.position) {
+        FreeflyController._lastDebugTime = now;
+        const camPos = this.camera.position;
+        const nearbyMeshes = this.scene.meshes.filter(m => {
+          if (!m.checkCollisions) return false;
+          const dist = Vector3.Distance(m.position, camPos);
+          return dist < 100;
+        });
+        console.log(`[FreeflyController] Camera at (${camPos.x.toFixed(1)}, ${camPos.y.toFixed(1)}, ${camPos.z.toFixed(1)})`);
+        console.log(`[FreeflyController] Nearby collision meshes (< 100 units): ${nearbyMeshes.length}`);
+        if (nearbyMeshes.length > 0 && nearbyMeshes.length < 10) {
+          nearbyMeshes.forEach(m => {
+            const dist = Vector3.Distance(m.position, camPos);
+            console.log(`  - "${m.name}" at dist=${dist.toFixed(1)} metadata=${JSON.stringify(m.metadata)}`);
+          });
+        }
+      }
+      
       cam._collideWithWorld(movement);
       const posAfterBabylon = this.camera.position.clone();
+      const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
 
-      // Clamp against BSP clip brushes (fullclip/playerclip) without generating Babylon meshes
+      // Use the new Q3 collision backend for BSP collision
       const cm = getCollisionManager();
       const wasBackend = cm.getBackendType();
-      if (wasBackend !== 'brush') {
-        cm.setBackend('brush');
+      if (wasBackend !== 'q3') {
+        cm.setBackend('q3');
       }
 
-      const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
-      const traceStart = posBefore.add(ellipsoidOffset);
-      const traceEnd = posAfterBabylon.add(ellipsoidOffset);
+      // Debug logging
+      const debugBsp = now - FreeflyController._lastDebugTime < 100;
+      if (debugBsp) {
+        console.log(`[Q3 Collision] pos: (${posBefore.x.toFixed(1)}, ${posBefore.y.toFixed(1)}, ${posBefore.z.toFixed(1)})`);
+        console.log(`[Q3 Collision] movement: (${movement.x.toFixed(3)}, ${movement.y.toFixed(3)}, ${movement.z.toFixed(3)})`);
+      }
 
-      const clipTraceA = cm.trace(traceStart as never, traceEnd as never, {
+      // Single trace with correct contentMask (SOLID | PLAYERCLIP)
+      // The Q3CollisionBackend handles content flag filtering correctly
+      const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, {
         radius: 16,
         height: 56,
-        clipTexturesOnly: true,
-        contentMask: 0x1 | 0x10000,
+        contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
+        debug: debugBsp,
       });
 
-      const clipTraceB = cm.trace(traceStart as never, traceEnd as never, {
-        radius: 16,
-        height: 56,
-        nodrawSolidsOnly: true,
-        contentMask: 0x1,
-      });
-
-      let clipTrace = clipTraceA;
-      if (clipTraceB.startSolid && !clipTrace.startSolid) {
-        clipTrace = clipTraceB;
-      } else if (!clipTrace.startSolid && !clipTraceB.startSolid && clipTraceB.fraction < clipTrace.fraction) {
-        clipTrace = clipTraceB;
-      } else if (clipTraceB.startSolid && clipTrace.startSolid) {
-        clipTrace = clipTraceB;
+      if (debugBsp && clipTrace.fraction < 1.0) {
+        console.log(`[Q3 Collision] HIT: fraction=${clipTrace.fraction.toFixed(3)} tex="${clipTrace.hitTextureName}" startSolid=${clipTrace.startSolid}`);
       }
 
       if (wasBackend !== 'brush' && wasBackend) {

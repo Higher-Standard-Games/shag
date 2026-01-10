@@ -229,9 +229,10 @@ export class MapLoader {
     }
 
     // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
+    // TEMPORARILY DISABLED TO TEST IF COLLISION MESHES CAUSE STUCK CAMERA
     progress('Collision', 'Building clip brush meshes');
-    const clipMeshCount = this.buildClipBrushMeshes(bsp as BspFile, scene);
-    console.log(`[MapLoader] Generated ${clipMeshCount} invisible clip brush collision meshes`);
+    const clipMeshCount = 0; // DISABLED: this.buildClipBrushMeshes(bsp as BspFile, scene);
+    console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
 
     // Phase 9b: Initialize collision system
     progress('Collision', 'Initializing');
@@ -438,37 +439,10 @@ export class MapLoader {
   }
 
   /**
+   * TEMPORARILY DISABLED FOR TESTING
    * Build invisible collision meshes for clip brushes (fullclip, playerclip, caulk)
-   * 
-   * ARCHITECTURE: Native Collision Mode with BSP Data Augmentation
-   * ============================================================
-   * 
-   * Design Philosophy:
-   * - PRIMARY: Babylon.js native collision (camera._collideWithWorld)
-   * - AUGMENTATION: Use BSP brush data to enhance Babylon collision
-   * 
-   * BSP Data Augmentation Strategy:
-   * 1. ADD collision points: Generate Babylon meshes for non-rendered BSP brushes
-   *    - Fullclip: Invisible barriers (SOLID + NODRAW)
-   *    - Playerclip: Player-only barriers (PLAYERCLIP flag)
-   *    - Caulk: Structural sealing brushes (SOLID + NODRAW)
-   * 2. REMOVE collision points: Exclude detail brushes (ContentFlags.DETAIL)
-   *    - Detail brushes are visual-only, non-solid
-   *    - Filtered out in all collision systems
-   * 
-   * Why This Architecture:
-   * - Babylon collision is fast, reliable, and well-tested
-   * - BSP data provides semantic information (clip brushes, detail brushes)
-   * - Hybrid approach: Babylon handles most collision, BSP fills gaps
-   * - Performance: Only generate meshes for non-rendered brushes (~2000 in wdm2)
-   * 
-   * Generated Meshes:
-   * - Invisible box meshes positioned at brush bounds
-   * - checkCollisions=true (for Babylon collision detection)
-   * - Used by camera._collideWithWorld in FreeflyController
-   * - NOT used by BSP clamp pass (uses BSP brush data directly)
    */
-  private buildClipBrushMeshes(bsp: BspFile, scene: Scene): number {
+  private buildClipBrushMeshes_DISABLED(bsp: BspFile, scene: Scene): number {
     console.log(`[ClipBrush] Starting clip brush generation for ${bsp.brushes?.length || 0} brushes`);
     
     try {

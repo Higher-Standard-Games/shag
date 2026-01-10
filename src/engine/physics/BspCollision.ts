@@ -777,6 +777,13 @@ export class BspCollision {
 
       if (clipTexturesOnly && !this.isClipTexture(texture.name, texture.contentFlags)) continue;
       if (nodrawSolidsOnly && !this.isNodrawSolidTexture(texture.name, texture.surfaceFlags)) continue;
+      
+      // Debug playerclip detection
+      const isPlayerclip = texture.name?.toLowerCase().includes('playerclip');
+      if (isPlayerclip && debug) {
+        console.log(`[BspCollision] Playerclip brush ${brushIndex}: contentFlags=0x${texture.contentFlags.toString(16)} contentMask=0x${contentsMask.toString(16)} passes=${(texture.contentFlags & contentsMask) !== 0}`);
+      }
+      
       if (!this.isContentsSolid(texture.contentFlags, texture.surfaceFlags, contentsMask)) continue;
 
       if (clipTexturesOnly && brush.numSides < 4) {

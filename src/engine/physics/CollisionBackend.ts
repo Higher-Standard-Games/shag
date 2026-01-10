@@ -54,7 +54,7 @@ export interface TraceOptions {
 /**
  * Backend type identifier
  */
-export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon';
+export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon' | 'q3';
 
 /**
  * Abstract collision backend interface
