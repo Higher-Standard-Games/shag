@@ -251,6 +251,12 @@ export class MapLoader {
     setCurrentBspForHandlers(bsp); // Set BSP reference for handlers
     await this.processBspEntities(bsp, scene);
 
+    // Store BSP and meshResult in BspManager for PVS system
+    const { BspManager } = await import('../bsp/BspManager');
+    const bspManager = BspManager.getInstance();
+    bspManager.setBsp(mapName, bsp); // Set BSP data
+    bspManager.setMeshResult(meshResult); // Store mesh result
+    
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
 

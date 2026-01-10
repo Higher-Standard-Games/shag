@@ -46,7 +46,7 @@ export class PvsCommand extends Command {
         if (!camera) {
           return 'No camera available';
         }
-        return manager.getCameraClusterInfo(camera);
+        return await manager.getCameraClusterInfo(camera);
       }
 
       default:

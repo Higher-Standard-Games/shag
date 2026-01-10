@@ -56,8 +56,26 @@ export class BspManager {
     return this.loadedBsp;
   }
 
-  getMeshResult(): BspMeshBuildResult | null {
+  /**
+   * Get current mesh result
+   */
+  getMeshResult(): any {
     return this.meshResult;
+  }
+
+  /**
+   * Set mesh result (used by MapLoader)
+   */
+  setMeshResult(result: any): void {
+    this.meshResult = result;
+  }
+
+  /**
+   * Set already-loaded BSP data (used by MapLoader)
+   */
+  setBsp(mapName: string, bsp: BspFile): void {
+    this.loadedBsp = bsp;
+    this.currentMapName = mapName;
   }
 
   getMapName(): string | null {
@@ -538,9 +556,15 @@ export class BspManager {
   /**
    * Initialize PVS culling system
    */
-  async initPVS(): Promise<boolean> {
-    if (!this.loadedBsp || !this.meshResult) {
-      return false;
+  async initPVS(): Promise<string | null> {
+    console.log(`[PVS] initPVS called: loadedBsp=${!!this.loadedBsp}, meshResult=${!!this.meshResult}`);
+    
+    if (!this.loadedBsp) {
+      return 'No BSP loaded';
+    }
+    if (!this.meshResult) {
+      console.log(`[PVS] BSP loaded but not rendered. Current map: ${this.currentMapName}`);
+      return 'BSP not rendered yet - try waiting a moment';
     }
 
     if (!this.pvsCuller) {
@@ -551,19 +575,20 @@ export class BspManager {
       }
     }
 
-    return this.pvsCuller !== null;
+    return this.pvsCuller ? null : 'Failed to create PVS culler';
   }
 
   /**
    * Enable PVS culling with automatic updates
    */
   async enablePVS(scene: Scene, camera: import('@babylonjs/core/Cameras/camera').Camera): Promise<string> {
-    const initialized = await this.initPVS();
-    if (!initialized || !this.pvsCuller) {
-      if (!this.loadedBsp) {
-        return 'No BSP loaded. Load a map first.';
-      }
-      return 'PVS data not available in this map';
+    if (!this.loadedBsp) {
+      return 'No BSP loaded. Load a map first.';
+    }
+    
+    const error = await this.initPVS();
+    if (error || !this.pvsCuller) {
+      return error || 'PVS data not available in this map';
     }
 
     this.pvsCuller.setEnabled(true);
