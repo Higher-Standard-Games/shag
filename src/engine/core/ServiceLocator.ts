@@ -290,6 +290,9 @@ export class ServiceLocator {
     if (service.init) {
       console.log(`[ServiceLocator] Initializing '${name}'...`);
       await service.init(...args);
+      console.log(`[ServiceLocator] Initialized '${name}'`);
+    } else {
+      console.log(`[ServiceLocator] Service '${name}' has no init method`);
     }
     
     info.initialized = true;
