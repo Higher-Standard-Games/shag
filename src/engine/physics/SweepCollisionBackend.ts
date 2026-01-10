@@ -565,6 +565,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private static readonly OVERCLIP = 1.001;
   private static readonly MAX_CLIP_PLANES = 5;
   private static readonly MAX_BUMPS = 4;
+  private static readonly STEPSIZE = 18; // Max step height in units (Q3 default)
   
   /**
    * Clip velocity against a plane normal (Q3 PM_ClipVelocity)
@@ -710,6 +711,100 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
     
     return { endPos: currentPos, velocity: currentVel, hitCount };
+  }
+  
+  /**
+   * Q3-style step slide move - handles stairs and small obstacles
+   * Tries to step up if blocked, then slide, then step back down
+   */
+  stepSlideMove(
+    startPos: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number; stepped: boolean } {
+    const startO = startPos.clone();
+    const startV = velocity.clone();
+    
+    // First, try a normal slide move
+    const firstResult = this.slideMove(startPos, velocity, options);
+    
+    // If we moved the full distance without hitting anything, we're done
+    if (firstResult.hitCount === 0) {
+      return { ...firstResult, stepped: false };
+    }
+    
+    // Check if we're on ground (can only step if grounded)
+    const downTrace = this.trace(
+      startO,
+      startO.add(new Vector3(0, -SweepCollisionBackend.STEPSIZE, 0)),
+      options
+    );
+    
+    // If not on ground (trace went full distance down), don't try to step
+    if (downTrace.fraction >= 1.0) {
+      return { ...firstResult, stepped: false };
+    }
+    
+    // Check ground normal - only step on floors (normal pointing up)
+    if (downTrace.normal && downTrace.normal.y < 0.7) {
+      // Too steep to step from
+      return { ...firstResult, stepped: false };
+    }
+    
+    // Save the non-stepped result for comparison
+    const downO = firstResult.endPos.clone();
+    const downV = firstResult.velocity.clone();
+    
+    // Try stepping up
+    const up = startO.add(new Vector3(0, SweepCollisionBackend.STEPSIZE, 0));
+    const upTrace = this.trace(startO, up, options);
+    
+    if (upTrace.allSolid) {
+      // Can't step up - something above us
+      return { ...firstResult, stepped: false };
+    }
+    
+    const stepSize = upTrace.endPos.y - startO.y;
+    
+    // Try slide move from raised position
+    const raisedResult = this.slideMove(upTrace.endPos, startV, options);
+    
+    // Step back down
+    const down = raisedResult.endPos.add(new Vector3(0, -stepSize, 0));
+    const stepDownTrace = this.trace(raisedResult.endPos, down, options);
+    
+    if (!stepDownTrace.allSolid) {
+      // Use the stepped position
+      const steppedPos = stepDownTrace.endPos;
+      
+      // Clip velocity to ground if we landed
+      let finalVel = raisedResult.velocity;
+      if (stepDownTrace.fraction < 1.0 && stepDownTrace.normal) {
+        finalVel = this.clipVelocity(raisedResult.velocity, stepDownTrace.normal);
+      }
+      
+      // Compare: did stepping get us further?
+      const nonStepDist = Vector3.Distance(startO, downO);
+      const stepDist = Vector3.Distance(startO, steppedPos);
+      
+      if (stepDist > nonStepDist + 0.1) {
+        // Stepping was better
+        return {
+          endPos: steppedPos,
+          velocity: finalVel,
+          hitCount: raisedResult.hitCount,
+          stepped: true,
+        };
+      }
+    }
+    
+    // Non-stepped result was better or equal
+    return {
+      endPos: downO,
+      velocity: downV,
+      hitCount: firstResult.hitCount,
+      stepped: false,
+    };
   }
   
   /**

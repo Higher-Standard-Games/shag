@@ -481,14 +481,18 @@ export class FreeflyController implements ICameraController {
         contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
       };
       
-      if (backend && typeof backend.slideMove === 'function') {
-        // Use slideMove for smooth collision response
-        const slideResult = backend.slideMove(posBefore, movement, traceOpts);
+      if (backend && typeof backend.stepSlideMove === 'function') {
+        // Use stepSlideMove for smooth collision + stair stepping
+        const slideResult = backend.stepSlideMove(posBefore, movement, traceOpts);
         this.camera.position.copyFrom(slideResult.endPos);
         
         if (slideResult.hitCount > 0 && debugBsp) {
-          console.log(`[Freefly][SlideMove] ${slideResult.hitCount} collision(s)`);
+          console.log(`[Freefly][StepSlideMove] ${slideResult.hitCount} collision(s), stepped=${slideResult.stepped}`);
         }
+      } else if (backend && typeof backend.slideMove === 'function') {
+        // Fallback to slideMove without stepping
+        const slideResult = backend.slideMove(posBefore, movement, traceOpts);
+        this.camera.position.copyFrom(slideResult.endPos);
       } else {
         // Fallback to simple trace
         const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, traceOpts);
