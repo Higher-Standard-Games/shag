@@ -81,6 +81,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   
   private bsp: BspFile | null = null;
   private isFBSP = false;
+  private loggedPlayerclipOnce = false;
   
   // Stats
   private stats = {
@@ -154,8 +155,12 @@ export class SweepCollisionBackend implements CollisionBackend {
       console.log(`[SweepCollision] ContentMask: 0x${contentMask.toString(16)}`);
     }
     
-    // Traverse BSP tree
+    // Traverse BSP tree for solid brushes
     this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
+    
+    // ALSO check ALL clip brushes directly (they may not be in BSP tree leaves)
+    // This is how Q3/clipviz handles clip brushes - iterate all, not just BSP traversal
+    this.traceAllClipBrushes(state);
     
     // Calculate final position
     if (state.result.fraction < 1.0) {
@@ -319,6 +324,25 @@ export class SweepCollisionBackend implements CollisionBackend {
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
       
+      // Debug: Log playerclip brushes ONCE to understand why they're being skipped
+      const isPlayerclipName = texture.name?.toLowerCase().includes('playerclip');
+      if (isPlayerclipName && !this.loggedPlayerclipOnce) {
+        this.loggedPlayerclipOnce = true;
+        const contentFlags = texture.contentFlags;
+        const surfaceFlags = texture.surfaceFlags;
+        const hasNonsolid = (surfaceFlags & SurfaceFlags.NONSOLID) !== 0;
+        const hasHint = (surfaceFlags & SurfaceFlags.HINT) !== 0;
+        const hasDetail = (contentFlags & ContentFlags.DETAIL) !== 0;
+        const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;
+        const hasPlayerclip = (contentFlags & ContentFlags.PLAYERCLIP) !== 0;
+        console.log(`[SweepCollision] PLAYERCLIP BRUSH DEBUG:`);
+        console.log(`  name="${texture.name}"`);
+        console.log(`  contentFlags=0x${contentFlags.toString(16)} surfaceFlags=0x${surfaceFlags.toString(16)}`);
+        console.log(`  hasNonsolid=${hasNonsolid} hasHint=${hasHint} hasDetail=${hasDetail}`);
+        console.log(`  hasSolid=${hasSolid} hasPlayerclip=${hasPlayerclip}`);
+        console.log(`  contentMask=0x${state.contentMask.toString(16)}`);
+      }
+      
       // Check content flags
       if (!this.shouldCollideWith(texture, state.contentMask)) {
         continue;
@@ -330,11 +354,12 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
   
   /**
-   * Check if we should collide with this brush based on content flags
+   * Check if we should collide with this brush based on content flags AND texture name
    */
   private shouldCollideWith(texture: { name: string; contentFlags: number; surfaceFlags: number }, contentMask: number): boolean {
     const contentFlags = texture.contentFlags;
     const surfaceFlags = texture.surfaceFlags;
+    const name = (texture.name || '').toLowerCase();
     
     // Skip non-solid surfaces
     if (surfaceFlags & SurfaceFlags.NONSOLID) return false;
@@ -345,16 +370,21 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Skip detail brushes (visual only)
     if (contentFlags & ContentFlags.DETAIL) return false;
     
-    // Check if brush matches any of our content mask flags
-    // IMPORTANT: Check SOLID OR PLAYERCLIP, not just SOLID
+    // Check by content flags
     const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;
     const hasPlayerclip = (contentFlags & ContentFlags.PLAYERCLIP) !== 0;
     const wantsSolid = (contentMask & ContentFlags.SOLID) !== 0;
     const wantsPlayerclip = (contentMask & ContentFlags.PLAYERCLIP) !== 0;
     
-    // Match if: (we want solid AND brush is solid) OR (we want playerclip AND brush is playerclip)
+    // Also check by texture name (playerclip/fullclip are often identified by name)
+    const isFullclipByName = name.includes('fullclip') || name.includes('clip') && !name.includes('playerclip');
+    const isPlayerclipByName = name.includes('playerclip');
+    
+    // Fullclip and playerclip should both block players
     if (wantsSolid && hasSolid) return true;
+    if (wantsSolid && isFullclipByName) return true;
     if (wantsPlayerclip && hasPlayerclip) return true;
+    if (wantsPlayerclip && isPlayerclipByName) return true;
     
     return false;
   }
@@ -389,6 +419,41 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
     
     return null;
+  }
+  
+  /**
+   * Check ALL clip brushes directly (fullclip, playerclip)
+   * This bypasses BSP tree traversal because clip brushes may not be in leafBrushes
+   */
+  private traceAllClipBrushes(state: TraceState): void {
+    if (!this.bsp) return;
+    
+    const wantsPlayerclip = (state.contentMask & ContentFlags.PLAYERCLIP) !== 0;
+    if (!wantsPlayerclip) return; // Only do this for player collision
+    
+    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+      const brush = this.bsp.brushes[bi];
+      if (!brush || brush.numSides < 4) continue;
+      
+      const texture = this.getBrushTexture(brush);
+      if (!texture) continue;
+      
+      const name = (texture.name || '').toLowerCase();
+      const isFullclip = name.includes('fullclip');
+      const isPlayerclip = name.includes('playerclip');
+      
+      // Only check clip brushes
+      if (!isFullclip && !isPlayerclip) continue;
+      
+      // Debug: log first playerclip found
+      if (isPlayerclip && !this.loggedPlayerclipOnce) {
+        this.loggedPlayerclipOnce = true;
+        console.log(`[SweepCollision] Found playerclip via direct iteration: brush ${bi} "${texture.name}"`);
+      }
+      
+      // Check collision with this brush
+      this.traceBrush(brush, bi, texture, state);
+    }
   }
   
   /**
@@ -491,6 +556,160 @@ export class SweepCollisionBackend implements CollisionBackend {
    */
   private dot(v1: [number, number, number], v2: [number, number, number]): number {
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+  }
+  
+  // =========================================================================
+  // Q3-STYLE SLIDE MOVE - Smooth collision response
+  // =========================================================================
+  
+  private static readonly OVERCLIP = 1.001;
+  private static readonly MAX_CLIP_PLANES = 5;
+  private static readonly MAX_BUMPS = 4;
+  
+  /**
+   * Clip velocity against a plane normal (Q3 PM_ClipVelocity)
+   * Removes the component of velocity going INTO the surface
+   */
+  clipVelocity(velocity: Vector3, normal: Vector3, overbounce: number = SweepCollisionBackend.OVERCLIP): Vector3 {
+    const backoff = Vector3.Dot(velocity, normal) * overbounce;
+    const out = velocity.subtract(normal.scale(backoff));
+    
+    // Tiny velocities can cause problems, zero them out
+    if (Math.abs(out.x) < 0.001) out.x = 0;
+    if (Math.abs(out.y) < 0.001) out.y = 0;
+    if (Math.abs(out.z) < 0.001) out.z = 0;
+    
+    return out;
+  }
+  
+  /**
+   * Q3-style slide move - smooth movement with wall sliding
+   * Returns the final position after sliding along surfaces
+   */
+  slideMove(
+    startPos: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+    const planes: Vector3[] = [];
+    let numPlanes = 0;
+    let currentPos = startPos.clone();
+    let currentVel = velocity.clone();
+    let timeLeft = 1.0; // Fraction of frame time remaining
+    let hitCount = 0;
+    
+    for (let bump = 0; bump < SweepCollisionBackend.MAX_BUMPS; bump++) {
+      if (currentVel.lengthSquared() < 0.0001) {
+        break; // Velocity too small, stop
+      }
+      
+      // Calculate end position for this iteration
+      const endPos = currentPos.add(currentVel.scale(timeLeft));
+      
+      // Trace from current position to end
+      const trace = this.trace(currentPos, endPos, options);
+      
+      if (trace.allSolid) {
+        // Stuck in solid - zero vertical velocity, try to escape
+        currentVel.y = 0;
+        return { endPos: currentPos, velocity: currentVel, hitCount };
+      }
+      
+      if (trace.fraction > 0) {
+        // Actually moved some distance
+        currentPos = trace.endPos.clone();
+      }
+      
+      if (trace.fraction >= 1.0) {
+        // Moved the full distance without hitting anything
+        break;
+      }
+      
+      // Hit something
+      hitCount++;
+      timeLeft -= timeLeft * trace.fraction;
+      
+      if (!trace.normal) {
+        // No normal - can't slide, just stop
+        currentVel = Vector3.Zero();
+        break;
+      }
+      
+      // Check if we hit this plane before (within tolerance)
+      let hitSamePlane = false;
+      for (let i = 0; i < numPlanes; i++) {
+        if (Vector3.Dot(trace.normal, planes[i]) > 0.99) {
+          // Same plane - nudge velocity along it
+          currentVel = currentVel.add(trace.normal);
+          hitSamePlane = true;
+          break;
+        }
+      }
+      
+      if (hitSamePlane) {
+        continue;
+      }
+      
+      // Add this plane to the list
+      if (numPlanes >= SweepCollisionBackend.MAX_CLIP_PLANES) {
+        // Too many planes - stop
+        currentVel = Vector3.Zero();
+        break;
+      }
+      planes[numPlanes] = trace.normal.clone();
+      numPlanes++;
+      
+      // Clip velocity against all planes
+      let clippedVel = currentVel.clone();
+      
+      for (let i = 0; i < numPlanes; i++) {
+        const into = Vector3.Dot(currentVel, planes[i]);
+        if (into >= 0.1) {
+          continue; // Moving away from this plane
+        }
+        
+        // Clip against this plane
+        clippedVel = this.clipVelocity(currentVel, planes[i]);
+        
+        // Check if clipped velocity enters another plane
+        for (let j = 0; j < numPlanes; j++) {
+          if (j === i) continue;
+          if (Vector3.Dot(clippedVel, planes[j]) >= 0.1) {
+            continue; // Moving away from this plane
+          }
+          
+          // Clip against the second plane too
+          clippedVel = this.clipVelocity(clippedVel, planes[j]);
+          
+          // Check if it goes back into the first plane
+          if (Vector3.Dot(clippedVel, planes[i]) >= 0) {
+            continue; // OK
+          }
+          
+          // Slide along the crease (cross product of two planes)
+          const dir = Vector3.Cross(planes[i], planes[j]).normalize();
+          const d = Vector3.Dot(dir, currentVel);
+          clippedVel = dir.scale(d);
+          
+          // Check for a third plane
+          for (let k = 0; k < numPlanes; k++) {
+            if (k === i || k === j) continue;
+            if (Vector3.Dot(clippedVel, planes[k]) >= 0.1) {
+              continue;
+            }
+            // Stuck in a corner - stop
+            currentVel = Vector3.Zero();
+            return { endPos: currentPos, velocity: currentVel, hitCount };
+          }
+        }
+        
+        // Use clipped velocity
+        currentVel = clippedVel;
+        break;
+      }
+    }
+    
+    return { endPos: currentPos, velocity: currentVel, hitCount };
   }
   
   /**

@@ -473,55 +473,45 @@ export class FreeflyController implements ICameraController {
         console.log(`[Q3 Collision] movement: (${movement.x.toFixed(3)}, ${movement.y.toFixed(3)}, ${movement.z.toFixed(3)})`);
       }
 
-      // Single trace with correct contentMask (SOLID | PLAYERCLIP)
-      // The Q3CollisionBackend handles content flag filtering correctly
-      const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, {
+      // Use Q3-style slideMove for smooth wall sliding
+      const backend = (cm as any).backends?.get('q3');
+      const traceOpts = {
         radius: 16,
         height: 56,
         contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
-        debug: debugBsp,
-      });
-
-      if (debugBsp && clipTrace.fraction < 1.0) {
-        console.log(`[Q3 Collision] HIT: fraction=${clipTrace.fraction.toFixed(3)} tex="${clipTrace.hitTextureName}" startSolid=${clipTrace.startSolid}`);
+      };
+      
+      if (backend && typeof backend.slideMove === 'function') {
+        // Use slideMove for smooth collision response
+        const slideResult = backend.slideMove(posBefore, movement, traceOpts);
+        this.camera.position.copyFrom(slideResult.endPos);
+        
+        if (slideResult.hitCount > 0 && debugBsp) {
+          console.log(`[Freefly][SlideMove] ${slideResult.hitCount} collision(s)`);
+        }
+      } else {
+        // Fallback to simple trace
+        const clipTrace = cm.trace(posBefore as never, posAfterBabylon as never, traceOpts);
+        if (clipTrace.fraction < 1.0) {
+          this.camera.position.copyFrom(clipTrace.endPos);
+        }
       }
 
-      if (wasBackend !== 'brush' && wasBackend) {
+      if (wasBackend && wasBackend !== 'q3') {
         cm.setBackend(wasBackend);
       }
 
-      if (!clipTrace.startSolid && clipTrace.fraction < 1.0) {
-        // Apply BSP-resolved end position, with a tiny push-out to reduce re-colliding next frame
-        const endPos: any = clipTrace.endPos;
-        this.camera.position.x = endPos.x - ellipsoidOffset.x;
-        this.camera.position.y = endPos.y - ellipsoidOffset.y;
-        this.camera.position.z = endPos.z - ellipsoidOffset.z;
-        if (clipTrace.normal) {
-          const n: any = clipTrace.normal;
-          const push = clipTrace.fraction < 0.01 ? 2.0 : 0.5;
-          this.camera.position.x += n.x * push;
-          this.camera.position.y += n.y * push;
-          this.camera.position.z += n.z * push;
-        }
-
-        const now = Date.now();
-        if (now - FreeflyController._lastClipHitLogTime > 250) {
-          FreeflyController._lastClipHitLogTime = now;
-          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
-          const hitTextureName = (clipTrace as any).hitTextureName;
+      // Check if we're stuck in solid (startSolid case)
+      const stuckCheck = cm.trace(this.camera.position as never, this.camera.position as never, traceOpts);
+      if (stuckCheck.startSolid) {
+        const nowStuck = Date.now();
+        if (nowStuck - FreeflyController._lastClipHitLogTime > 250) {
+          FreeflyController._lastClipHitLogTime = nowStuck;
+          const hitBrushIndex = (stuckCheck as any).hitBrushIndex;
+          const hitTextureName = (stuckCheck as any).hitTextureName;
           FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
           FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
-          console.log(`[Freefly][Clip] HIT frac=${clipTrace.fraction.toFixed(3)} brush=${hitBrushIndex} tex=${hitTextureName}`);
-        }
-      } else if (clipTrace.startSolid) {
-        const now = Date.now();
-        if (now - FreeflyController._lastClipHitLogTime > 250) {
-          FreeflyController._lastClipHitLogTime = now;
-          const hitBrushIndex = (clipTrace as any).hitBrushIndex;
-          const hitTextureName = (clipTrace as any).hitTextureName;
-          FreeflyController._lastClipHitBrushIndex = typeof hitBrushIndex === 'number' ? hitBrushIndex : null;
-          FreeflyController._lastClipHitTextureName = typeof hitTextureName === 'string' ? hitTextureName : null;
-          console.log(`[Freefly][Clip] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
+          console.log(`[Freefly][Stuck] startSolid=true brush=${hitBrushIndex} tex=${hitTextureName}`);
         }
 
         const base = posAfterBabylon.clone();
