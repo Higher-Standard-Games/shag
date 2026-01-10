@@ -190,6 +190,10 @@ export abstract class EngineScene {
     // Initialize InstancedMeshManager
     InstancedMeshManager.getInstance().init(this.scene);
 
+    // Initialize all scene-dependent services via ServiceLocator
+    const { ServiceLocator } = await import('./core/ServiceLocator');
+    await ServiceLocator.getInstance().initScene(this.scene);
+
     // Load camera settings
     const engineSettings = EngineSettings.getInstance();
     const cameraSettings = engineSettings.getCameraSettings();

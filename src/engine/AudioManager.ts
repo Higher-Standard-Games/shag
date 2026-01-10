@@ -44,6 +44,9 @@ export class AudioManager {
       this.musicVolume = config.settings.defaultVolume;
       this.musicEnabled = config.settings.musicEnabled;
     }
+    
+    // Register audio cvars for console control
+    this.registerCvars();
   }
 
   /**

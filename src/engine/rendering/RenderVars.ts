@@ -185,6 +185,11 @@ export class RenderVars {
     return RenderVars.instance;
   }
 
+  public init(): void {
+    // Register render vars as cvars for console integration
+    this.registerCvars();
+  }
+
   // ==================== Initialization ====================
 
   private initializeDefaults(): void {
