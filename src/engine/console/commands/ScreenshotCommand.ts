@@ -3,6 +3,8 @@
  */
 
 import { Command, CommandDef } from '../Command';
+// Side-effect: registers CreateScreenshot on Tools
+import "@babylonjs/core/Misc/screenshotTools";
 
 export default class ScreenshotCommand extends Command {
   readonly definition: CommandDef = {

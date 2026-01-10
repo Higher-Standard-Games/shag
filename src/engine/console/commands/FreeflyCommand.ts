@@ -4,6 +4,8 @@
 
 import { Command, CommandDef } from '../Command';
 import { Cvar } from '../../core/Cvar';
+// Side-effect import: registers cam_freefly_speed cvar
+import '../../camera/controllers/FreeflyController';
 
 export default class FreeflyCommand extends Command {
   readonly definition: CommandDef = {
