@@ -72,37 +72,6 @@ export default class NetworkTestCommand extends Command {
     }
   }
 
-  private testSimulation(): string {
-    try {
-      const simulation = new TestSimulation(testConfig);
-      
-      // Send a move command
-      const moveCmd = new MoveCommand(
-        'test-player',
-        0,
-        1,
-        { x: 1, y: 0, z: 0 },
-        0,
-        0,
-        0
-      );
-      
-      simulation.tick([moveCmd]);
-      
-      const state = simulation.state;
-      const entity = state.entities.get('test-entity');
-      const pos = entity?.getComponent('position') as any;
-      const vel = entity?.getComponent('velocity') as any;
-      
-      return `✅ Simulation test passed\n` +
-             `   Tick: ${simulation.currentTick}\n` +
-             `   Position: (${pos?.x.toFixed(2)}, ${pos?.y.toFixed(2)}, ${pos?.z.toFixed(2)})\n` +
-             `   Velocity: (${vel?.x.toFixed(2)}, ${vel?.y.toFixed(2)}, ${vel?.z.toFixed(2)})`;
-    } catch (error) {
-      return `❌ Simulation test failed: ${error}`;
-    }
-  }
-
   private testNetworked(): string {
     try {
       // Mock networked host for testing
@@ -203,12 +172,12 @@ class MockNetworkHost implements IGameHost {
     this.localState = this.simulation.state.clone();
   }
   
-  onStateUpdate(callback: (state: any) => void): () => void {
+  onStateUpdate(_callback: (state: any) => void): () => void {
     // Mock implementation
     return () => {};
   }
-  
-  onEvent(callback: (event: any) => void): () => void {
+
+  onEvent(_callback: (event: any) => void): () => void {
     // Mock implementation
     return () => {};
   }
@@ -222,13 +191,13 @@ class MockNetworkHost implements IGameHost {
   }
   
   isConnected(): boolean {
-    return true;
+    return this.isRunning;
   }
-  
+
   start(): void {
     this.isRunning = true;
   }
-  
+
   stop(): void {
     this.isRunning = false;
   }

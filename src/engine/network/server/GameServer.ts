@@ -252,27 +252,17 @@ export class GameServer {
     return null;
   }
   
-  private setupClientHandlers(clientId: string, transport: Transport, room: Room): void {
-    transport.onMessage((data: Uint8Array) => {
-      try {
-        const message = JSON.parse(new TextDecoder().decode(data));
-        
-        switch (message.type) {
-          case 'command':
-            room.handleCommand(clientId, message.command);
-            break;
-          default:
-            console.warn(`[GameServer] Unknown message type: ${message.type}`);
-        }
-      } catch (error) {
-        console.error(`[GameServer] Failed to handle message from ${clientId}:`, error);
-      }
-    });
-    
+  /**
+   * Set up message handlers for a client
+   * Note: Room now handles its own message routing via setupClientHandlers
+   * This is just for connection-level handling
+   */
+  private setupClientHandlers(clientId: string, transport: Transport, _room: Room): void {
+    // Room handles message parsing, we just handle connection events
     transport.onDisconnect(() => {
       this.removeClient(clientId);
     });
-    
+
     transport.onError((error) => {
       console.error(`[GameServer] Transport error for ${clientId}:`, error);
       this.removeClient(clientId);

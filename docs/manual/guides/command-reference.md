@@ -118,6 +118,20 @@ Complete list of console commands in SHAG Engine.
 | `render export` | Export render config |
 | `r_<varname> [value]` | Get/set render variable |
 
+## Networking
+
+| Command | Description |
+|---------|-------------|
+| `connect <url>` | Connect to game server |
+| `disconnect` | Disconnect from server |
+| `network connect <url>` | Connect to server |
+| `network disconnect` | Disconnect from server |
+| `network status` | Show connection status |
+| `network init [mode]` | Initialize networking (local\|network\|listen) |
+| `network mode` | Show current mode |
+| `network shutdown` | Shutdown networking |
+| `net ...` | Alias for network |
+
 ## Debug
 
 | Command | Description |
@@ -198,3 +212,4 @@ Complete list of console commands in SHAG Engine.
 - [Console System](./console-system.md) - How to use and extend the console
 - [Cvar System](./cvar-system.md) - Console variables
 - [Render Variables](./render-variables.md) - Rendering cvars
+- [Networking System](./networking.md) - Multiplayer networking

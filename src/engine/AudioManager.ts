@@ -1,6 +1,5 @@
 import { AssetLoader } from "./AssetLoader";
 import { Cvar } from "./core/Cvar";
-import { Service } from "./core/ServiceLocator";
 
 // Playlist types
 export interface PlaylistTrack {

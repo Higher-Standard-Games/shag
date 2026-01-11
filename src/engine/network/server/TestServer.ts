@@ -25,25 +25,25 @@ export class TestServer {
   }
   
   private setupTransportHandlers(): void {
-    this.transport.onMessage((data: Uint8Array, clientTransport) => {
-      this.handleMessage(data, clientTransport);
+    this.transport.onMessage((data: Uint8Array) => {
+      this.handleMessage(data);
     });
     
-    this.transport.onConnect((clientTransport) => {
+    this.transport.onConnect(() => {
       console.log('[TestServer] Client connected');
     });
   }
   
-  private handleMessage(data: Uint8Array, clientTransport: Transport): void {
+  private handleMessage(data: Uint8Array): void {
     try {
       const message = JSON.parse(new TextDecoder().decode(data));
       
       switch (message.type) {
         case 'join':
-          this.handleJoin(message.playerId, clientTransport);
+          this.handleJoin(message.playerId);
           break;
         case 'command':
-          this.handleCommand(message.command, clientTransport);
+          this.handleCommand(message.command);
           break;
       }
     } catch (error) {
@@ -51,26 +51,24 @@ export class TestServer {
     }
   }
   
-  private handleJoin(playerId: string, clientTransport: Transport): void {
-    this.clients.set(playerId, clientTransport);
-    
+  private handleJoin(playerId: string): void {
     // Add player to simulation
     const player = {
       entityId: 'test-entity',
       name: playerId,
       team: '',
       score: 0,
-      ping: 0
+      ping: 0,
+      serialize() { return {}; },
+      deserialize() {},
+      clone() { return { ...this }; }
     };
     this.simulation.state.players.set(playerId, player);
-    
-    // Send initial state
-    this.sendSnapshot(clientTransport);
     
     console.log(`[TestServer] Player ${playerId} joined`);
   }
   
-  private handleCommand(command: Command, clientTransport: Transport): void {
+  private handleCommand(command: Command): void {
     // Add command to simulation
     this.simulation.tick([command]);
     
@@ -78,19 +76,7 @@ export class TestServer {
     this.broadcastSnapshot();
   }
   
-  private sendSnapshot(clientTransport: Transport): void {
-    const snapshot = this.simulation.state.clone();
-    snapshot.tick = this.currentTick++;
     
-    const message = {
-      type: 'snapshot',
-      snapshot: this.serializeState(snapshot)
-    };
-    
-    const data = new TextEncoder().encode(JSON.stringify(message));
-    clientTransport.send(data);
-  }
-  
   private broadcastSnapshot(): void {
     const snapshot = this.simulation.state.clone();
     snapshot.tick = this.currentTick++;

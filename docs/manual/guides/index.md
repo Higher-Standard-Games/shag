@@ -22,6 +22,12 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Render Variables](./render-variables.md) | Runtime graphics configuration |
 | [Skybox System](./skybox-system.md) | Cubemap and textured sky loading |
 
+## Multiplayer
+
+| Guide | Description |
+|-------|-------------|
+| [Networking System](./networking.md) | Multiplayer architecture and API |
+
 ## Advanced Topics
 
 | Guide | Description |

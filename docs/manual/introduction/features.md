@@ -65,12 +65,27 @@ Runtime-configurable rendering:
 - `r_bloom` - Bloom intensity (0-3)
 - And 8 more...
 
+## Networking
+
+| Feature | Description |
+|---------|-------------|
+| Authoritative Server | Q3-style server-authoritative architecture |
+| Client Prediction | Local prediction with server reconciliation |
+| Smooth Correction | Gradual position correction (not snap) |
+| Binary Protocol | Efficient binary message encoding |
+| Interpolation | Remote entity smoothing via snapshot buffer |
+| WebSocket Transport | Browser-compatible networking |
+| Dedicated Server | `npm run net:server` headless server |
+| Connect Command | In-game `connect <server>` command |
+
 ## Headless Mode
 
 | Feature | Description |
 |---------|-------------|
 | NullEngine Support | Run without GPU/WebGL |
 | CLI Interface | `npm run cli:game` and `npm run cli:bsp` |
+| Network Server | `npm run net:server` dedicated server |
+| Network Client | `npm run net:client` test client |
 | Full Command Access | All console commands available |
 | CI/CD Ready | Automated testing in pipelines |
 
@@ -89,4 +104,4 @@ SHAG Engine focuses on **asset loading**, not full game logic replication:
 - **No trigger system** - Triggers must be implemented in your game code
 - **No weapon/item logic** - Entity data is parsed but behavior is yours to implement
 - **Partial shader support** - Not all Q3 shader directives are implemented
-- **No networking** - Single-player/local multiplayer only (add your own netcode)
+- **Game logic required** - Networking provides infrastructure, game simulation is yours

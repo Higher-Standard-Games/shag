@@ -47,7 +47,7 @@ export class WebTransportTransport implements Transport {
     }
   }
 
-  send(data: Uint8Array, reliable: boolean = true): void {
+  send(data: Uint8Array, _reliable: boolean = true): void {
     if (this.writer) {
       this.writer.write(data);
     }

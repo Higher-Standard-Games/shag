@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.8.18] - 2026-01-11
+
+### Added
+- **Q3-Style Authoritative Networking**: Complete multiplayer networking system
+  - Server-authoritative architecture with client prediction
+  - Smooth correction instead of snap correction for visual quality
+  - Entity interpolation buffer for smooth remote player rendering
+  - WebSocket transport with binary protocol
+
+- **Binary Protocol**: Efficient network message encoding
+  - MessageType prefixes (Server→Client: 0x01-0x08, Client→Server: 0x81-0x84)
+  - Delta compression for entity components (position, velocity)
+  - UTF-8 string encoding for bandwidth efficiency
+  - Bounds checking in BinaryDecoder for robustness
+
+- **Console Commands**: In-game networking controls
+  - `connect <url>` - Connect to game server (e.g., `connect localhost:7777`)
+  - `disconnect` - Disconnect from current server
+  - `network status` - Show connection status
+  - `network init [mode]` - Initialize networking (local|network|listen)
+  - `net` alias for all network commands
+
+- **CLI Tools**: Headless server and client for testing
+  - `npm run net:server` - Start dedicated server
+  - `npm run net:client` - Start test client
+  - Command-line options: `--port`, `--name`, `--map`, `--max`, `--connect`
+
+- **NetworkManager API**: Programmatic networking control
+  - `connect(url)` / `disconnect()` methods
+  - `onConnectionChange()` callback for connection state
+  - `onStateUpdate()` for game state changes
+  - `getMode()` returns 'local' | 'network' | null
+
+- **Network Module Exports**: Clean public API via `./engine/network`
+  - Core: Entity, GameState, Simulation, Command
+  - Protocol: BinaryProtocol, MessageCodec, MessageType
+  - Hosts: LocalGameHost, NetworkGameHost
+  - Server: GameServer, Room
+
+- **Documentation**: Comprehensive networking guides
+  - `docs/manual/guides/networking.md` - Full networking guide
+  - `docs/manual/tools/network-server.md` - Server CLI reference
+  - `docs/manual/tools/network-client.md` - Client CLI reference
+  - Updated command reference with networking commands
+
+### Architecture
+- **IGameHost Interface**: Abstraction for local vs networked games
+  - `LocalGameHost` - Single-player, runs simulation in-process
+  - `NetworkGameHost` - Multiplayer client with prediction
+- **Room-based Server**: Game instances managed by Room class
+  - 20 Hz tick rate (50ms per tick)
+  - Automatic room cleanup when empty
+- **Transport Layer**: WebSocket with WebTransport fallback ready
+
+### Technical Details
+- Connection handshake: Welcome → Join → JoinAccept → Snapshot stream
+- Prediction reconciliation with configurable thresholds (0.5 smooth, 100 snap)
+- Timestamp encoding uses 32-bit wrap (safe for ~49 days)
+- Full state snapshots with delta-compressed component values
+
 ## [0.8.17] - 2026-01-10
 
 ### Added

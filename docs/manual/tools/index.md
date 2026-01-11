@@ -8,6 +8,8 @@ CLI tools and debugging utilities included with SHAG Engine.
 |------|---------|-------------|
 | [Headless Game](./headless-game.md) | `npm run cli:game` | Full engine without GPU |
 | [Headless BSP](./headless-bsp.md) | `npm run cli:bsp` | BSP loader only |
+| [Network Server](./network-server.md) | `npm run net:server` | Dedicated game server |
+| [Network Client](./network-client.md) | `npm run net:client` | Headless network client |
 
 ## Debug Commands
 

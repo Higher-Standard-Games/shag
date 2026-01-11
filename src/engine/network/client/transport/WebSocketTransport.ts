@@ -13,18 +13,21 @@ export class WebSocketTransport implements Transport {
   async connect(url: string): Promise<void> {
     // Convert http/ws to websocket URL
     const wsUrl = url.replace(/^http/, 'ws');
-    
+
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
-        
+        // IMPORTANT: Set binary type to arraybuffer for proper Uint8Array handling
+        this.ws.binaryType = 'arraybuffer';
+
         this.ws.onopen = () => {
           this.connectCallbacks.forEach(cb => cb());
           resolve();
         };
 
         this.ws.onmessage = (event) => {
-          const data = new Uint8Array(event.data);
+          // event.data is ArrayBuffer when binaryType is 'arraybuffer'
+          const data = new Uint8Array(event.data as ArrayBuffer);
           this.messageCallbacks.forEach(cb => cb(data));
         };
 
@@ -32,7 +35,7 @@ export class WebSocketTransport implements Transport {
           this.disconnectCallbacks.forEach(cb => cb(event.reason));
         };
 
-        this.ws.onerror = (event) => {
+        this.ws.onerror = (_event) => {
           const error = new Error('WebSocket connection error');
           this.errorCallbacks.forEach(cb => cb(error));
           reject(error);
@@ -50,7 +53,7 @@ export class WebSocketTransport implements Transport {
     }
   }
 
-  send(data: Uint8Array, reliable: boolean = true): void {
+  send(data: Uint8Array, _reliable: boolean = true): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(data);
     }

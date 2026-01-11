@@ -11,12 +11,15 @@ export class BinaryProtocol {
    */
   static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
     const encoder = new BinaryEncoder();
-    
+
     // Write header
     encoder.writeUint32(state.tick);
-    encoder.writeUint32(Date.now());
-    
-    // Encode entities with delta
+    // Use relative timestamp (ms since start, wraps every ~49 days which is fine)
+    encoder.writeUint32((Date.now() & 0xFFFFFFFF) >>> 0);
+
+    // Encode ALL entities with delta-compressed components
+    // Note: This is "full state with delta content" model - every entity is included,
+    // but unchanged component values are omitted. Removals are implicit (missing = removed).
     this.encodeEntities(encoder, state, baseline);
     
     // Encode players with delta
@@ -38,7 +41,7 @@ export class BinaryProtocol {
     
     // Read header
     state.tick = decoder.readUint32();
-    const timestamp = decoder.readUint32(); // Not used for now
+    decoder.readUint32(); // Skip timestamp for now
     
     // Decode entities
     this.decodeEntities(decoder, state, baseline);
@@ -78,9 +81,13 @@ export class BinaryProtocol {
     };
   }
   
+  /**
+   * Encode all entities with delta compression on component values.
+   * Uses flags to indicate which components changed vs baseline.
+   */
   private static encodeEntities(encoder: BinaryEncoder, state: GameState, baseline?: GameState): void {
     const baselineEntities = baseline?.entities || new Map();
-    
+
     encoder.writeUint16(state.entities.size);
     
     for (const [entityId, entity] of state.entities) {
@@ -269,56 +276,119 @@ export class BinaryProtocol {
 }
 
 /**
- * Binary encoder for efficient data writing
+ * Message types for network protocol
+ * Server → Client: 0x01-0x0F
+ * Client → Server: 0x81-0x8F
  */
-class BinaryEncoder {
+export enum MessageType {
+  // Server → Client
+  Welcome = 0x01,
+  JoinAccept = 0x02,
+  JoinReject = 0x03,
+  Snapshot = 0x04,
+  PlayerJoined = 0x05,
+  PlayerLeft = 0x06,
+  GameStart = 0x07,
+  Ack = 0x08,
+
+  // Client → Server
+  Join = 0x81,
+  Ready = 0x82,
+  Input = 0x83,
+  Disconnect = 0x84,
+}
+
+// Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+/**
+ * Binary encoder for efficient data writing
+ * Uses UTF-8 for strings (industry standard, efficient for ASCII)
+ */
+export class BinaryEncoder {
   private buffer: ArrayBuffer;
   private view: DataView;
   private offset: number = 0;
-  
+
   constructor(initialSize: number = 4096) {
     this.buffer = new ArrayBuffer(initialSize);
     this.view = new DataView(this.buffer);
   }
-  
+
   writeUint8(value: number): void {
     this.ensureSpace(1);
     this.view.setUint8(this.offset, value);
     this.offset += 1;
   }
-  
+
+  writeInt8(value: number): void {
+    this.ensureSpace(1);
+    this.view.setInt8(this.offset, value);
+    this.offset += 1;
+  }
+
   writeUint16(value: number): void {
     this.ensureSpace(2);
     this.view.setUint16(this.offset, value, true);
     this.offset += 2;
   }
-  
+
+  writeInt16(value: number): void {
+    this.ensureSpace(2);
+    this.view.setInt16(this.offset, value, true);
+    this.offset += 2;
+  }
+
   writeUint32(value: number): void {
     this.ensureSpace(4);
     this.view.setUint32(this.offset, value, true);
     this.offset += 4;
   }
-  
+
   writeFloat32(value: number): void {
     this.ensureSpace(4);
     this.view.setFloat32(this.offset, value, true);
     this.offset += 4;
   }
-  
+
+  /**
+   * Write string using UTF-8 encoding (more efficient than UTF-16)
+   */
   writeString(str: string): void {
-    this.ensureSpace(2 + str.length * 2);
-    this.writeUint16(str.length);
-    
-    for (let i = 0; i < str.length; i++) {
-      this.view.setUint16(this.offset, str.charCodeAt(i), true);
-      this.offset += 2;
-    }
+    const encoded = textEncoder.encode(str);
+    this.ensureSpace(2 + encoded.length);
+    this.writeUint16(encoded.length);
+    new Uint8Array(this.buffer, this.offset, encoded.length).set(encoded);
+    this.offset += encoded.length;
   }
-  
+
+  writeBool(value: boolean): void {
+    this.writeUint8(value ? 1 : 0);
+  }
+
+  /**
+   * Write raw bytes
+   */
+  writeBytes(data: Uint8Array): void {
+    this.ensureSpace(data.length);
+    new Uint8Array(this.buffer, this.offset, data.length).set(data);
+    this.offset += data.length;
+  }
+
   getData(): Uint8Array {
     return new Uint8Array(this.buffer, 0, this.offset);
   }
-  
+
+  /** Alias for getData() for compatibility */
+  toBytes(): Uint8Array {
+    return this.getData();
+  }
+
+  getOffset(): number {
+    return this.offset;
+  }
+
   private ensureSpace(bytes: number): void {
     if (this.offset + bytes > this.buffer.byteLength) {
       const newSize = Math.max(this.buffer.byteLength * 2, this.offset + bytes);
@@ -332,48 +402,100 @@ class BinaryEncoder {
 
 /**
  * Binary decoder for efficient data reading
+ * Uses UTF-8 for strings (matches BinaryEncoder)
  */
-class BinaryDecoder {
+export class BinaryDecoder {
+  private data: Uint8Array;
   private view: DataView;
   private offset: number = 0;
-  
+
   constructor(data: Uint8Array) {
+    this.data = data;
     this.view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   }
-  
+
+  private checkBounds(bytes: number): void {
+    if (this.offset + bytes > this.data.length) {
+      throw new Error(`BinaryDecoder: Buffer underflow at offset ${this.offset}, need ${bytes} bytes, have ${this.data.length - this.offset}`);
+    }
+  }
+
   readUint8(): number {
+    this.checkBounds(1);
     const value = this.view.getUint8(this.offset);
     this.offset += 1;
     return value;
   }
-  
+
+  readInt8(): number {
+    this.checkBounds(1);
+    const value = this.view.getInt8(this.offset);
+    this.offset += 1;
+    return value;
+  }
+
   readUint16(): number {
+    this.checkBounds(2);
     const value = this.view.getUint16(this.offset, true);
     this.offset += 2;
     return value;
   }
-  
+
+  readInt16(): number {
+    this.checkBounds(2);
+    const value = this.view.getInt16(this.offset, true);
+    this.offset += 2;
+    return value;
+  }
+
   readUint32(): number {
+    this.checkBounds(4);
     const value = this.view.getUint32(this.offset, true);
     this.offset += 4;
     return value;
   }
-  
+
   readFloat32(): number {
+    this.checkBounds(4);
     const value = this.view.getFloat32(this.offset, true);
     this.offset += 4;
     return value;
   }
-  
+
+  /**
+   * Read string using UTF-8 encoding
+   */
   readString(): string {
     const length = this.readUint16();
-    let str = '';
-    
-    for (let i = 0; i < length; i++) {
-      str += String.fromCharCode(this.view.getUint16(this.offset, true));
-      this.offset += 2;
-    }
-    
-    return str;
+    this.checkBounds(length);
+    const bytes = this.data.subarray(this.offset, this.offset + length);
+    this.offset += length;
+    return textDecoder.decode(bytes);
+  }
+
+  readBool(): boolean {
+    return this.readUint8() !== 0;
+  }
+
+  /**
+   * Read raw bytes
+   */
+  readBytes(length: number): Uint8Array {
+    this.checkBounds(length);
+    const bytes = this.data.subarray(this.offset, this.offset + length);
+    this.offset += length;
+    return bytes;
+  }
+
+  getOffset(): number {
+    return this.offset;
+  }
+
+  hasMore(): boolean {
+    return this.offset < this.data.length;
+  }
+
+  remaining(): number {
+    return this.data.length - this.offset;
   }
 }

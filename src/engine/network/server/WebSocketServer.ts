@@ -8,7 +8,6 @@ import type { Transport } from '../client/transport/Transport';
  */
 export class WebSocketServer {
   private gameServer: GameServer;
-  private ws: any = null; // WebSocket server instance
   private port: number;
   
   constructor(port: number, config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation) {
@@ -85,7 +84,7 @@ class MockTransport implements Transport {
   private onErrorCallbacks: ((error: Error) => void)[] = [];
   private connected: boolean = false;
   
-  async connect(url?: string): Promise<void> {
+  async connect(_url?: string): Promise<void> {
     this.connected = true;
     this.onConnectCallbacks.forEach(cb => cb());
   }
@@ -95,9 +94,9 @@ class MockTransport implements Transport {
     this.onDisconnectCallbacks.forEach(cb => cb());
   }
   
-  send(data: Uint8Array, reliable?: boolean): void {
+  send(data: Uint8Array, _reliable?: boolean): void {
     // Mock implementation - would send over WebSocket
-    console.log(`[MockTransport] Sending: ${new TextDecoder().decode(data)}`);
+    console.log(`[MockTransport] Sending ${data.length} bytes`);
   }
   
   onMessage(callback: (data: Uint8Array) => void): () => void {

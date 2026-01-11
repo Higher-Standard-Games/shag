@@ -10,7 +10,10 @@ export default class NetworkCommand extends Command {
     name: 'network',
     description: 'Control networking features',
     usage: 'network <subcommand>',
+    aliases: ['net'],
     subcommands: [
+      { name: 'connect', description: 'Connect to server (ws://host:port)' },
+      { name: 'disconnect', description: 'Disconnect from server' },
       { name: 'init', description: 'Initialize networking (local|network|listen)' },
       { name: 'mode', description: 'Show current networking mode' },
       { name: 'status', description: 'Show networking status' },
@@ -24,23 +27,65 @@ export default class NetworkCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
+      case 'connect':
+        return this.connect(args[1]);
+
+      case 'disconnect':
+        return this.disconnectFromServer();
+
       case 'init':
         return this.initialize(args[1]);
-      
+
       case 'mode':
         return this.showMode();
-      
+
       case 'status':
         return this.getStatus();
-      
+
       case 'send':
         return this.sendTestCommand();
-      
+
       case 'shutdown':
         return this.shutdown();
-      
+
       default:
         return this.showHelp();
+    }
+  }
+
+  private async connect(serverUrl?: string): Promise<string> {
+    if (!serverUrl) {
+      return 'Usage: network connect <server_url>\nExample: network connect ws://localhost:7777';
+    }
+
+    // Add ws:// prefix if not present
+    let url = serverUrl;
+    if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+      url = `ws://${url}`;
+    }
+
+    try {
+      const networkManager = NetworkManager.getInstance();
+      await networkManager.connect(url);
+      return `Connected to ${url}`;
+    } catch (error) {
+      return `Failed to connect: ${error}`;
+    }
+  }
+
+  private async disconnectFromServer(): Promise<string> {
+    try {
+      const networkManager = NetworkManager.getInstance();
+      const serverUrl = networkManager.getServerUrl();
+
+      if (!serverUrl) {
+        return 'Not connected to any server';
+      }
+
+      await networkManager.disconnect();
+      return `Disconnected from ${serverUrl}`;
+    } catch (error) {
+      return `Failed to disconnect: ${error}`;
     }
   }
 
@@ -69,17 +114,24 @@ export default class NetworkCommand extends Command {
 
   private getStatus(): string {
     const networkManager = NetworkManager.getInstance();
-    
+
     const status = {
       initialized: networkManager.getMode() !== null,
       mode: networkManager.getMode(),
-      connected: networkManager.isConnected()
+      connected: networkManager.isConnected(),
+      serverUrl: networkManager.getServerUrl()
     };
-    
-    return `Network Status:\n` +
+
+    let result = `Network Status:\n` +
            `  Initialized: ${status.initialized}\n` +
            `  Mode: ${status.mode || 'None'}\n` +
            `  Connected: ${status.connected}`;
+
+    if (status.serverUrl) {
+      result += `\n  Server: ${status.serverUrl}`;
+    }
+
+    return result;
   }
 
   private sendTestCommand(): string {
@@ -127,11 +179,14 @@ export default class NetworkCommand extends Command {
 
   private showHelp(): string {
     return `Network Commands:\n` +
-           `  network init [mode]  - Initialize networking (local|network|listen)\n` +
-           `  network mode         - Show current networking mode\n` +
-           `  network status       - Show networking status\n` +
-           `  network send         - Send test command\n` +
-           `  network shutdown     - Shutdown networking\n` +
-           `  network help         - Show this help`;
+           `  network connect <url>  - Connect to server (e.g., ws://localhost:7777)\n` +
+           `  network disconnect     - Disconnect from server\n` +
+           `  network init [mode]    - Initialize networking (local|network|listen)\n` +
+           `  network mode           - Show current networking mode\n` +
+           `  network status         - Show networking status\n` +
+           `  network send           - Send test command\n` +
+           `  network shutdown       - Shutdown networking\n` +
+           `  network help           - Show this help\n\n` +
+           `Aliases: net, connect, disconnect`;
   }
 }

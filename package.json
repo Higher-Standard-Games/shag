@@ -1,7 +1,7 @@
 {
   "name": "shag-engine",
   "private": true,
-  "version": "0.8.17",
+  "version": "0.8.18",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -29,6 +29,8 @@
     "generate:test": "npx vite-node src/tools/test-generator.ts",
     "cli:game": "npx vite-node src/cli/headless-game.ts",
     "cli:bsp": "npx vite-node src/cli/headless-bsp.ts",
+    "net:server": "npx vite-node src/cli/headless-netserver.ts",
+    "net:client": "npx vite-node src/cli/headless-netclient.ts",
     "docs:api": "node scripts/build-docs.js",
     "docs:dev": "vitepress dev docs/manual",
     "docs:build": "vitepress build docs/manual",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@types/pngjs": "^6.0.5",
+    "@types/ws": "^8.18.1",
     "concurrently": "^8.2.2",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
@@ -47,7 +50,8 @@
     "vite": "^5.0.0",
     "vitepress": "^1.6.4",
     "vitest": "^1.6.0",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "ws": "^8.19.0"
   },
   "dependencies": {
     "@babylonjs/core": "^8.44.1",

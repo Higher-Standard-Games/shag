@@ -3,6 +3,7 @@ import type { GameState } from '../core/GameState';
 import type { Command } from '../core/Command';
 import type { PlayerId } from '../core/Entity';
 import type { Transport } from '../client/transport/Transport';
+import { MessageCodec, MessageType } from '../protocol/MessageCodec';
 
 /**
  * Represents a connected client in a room
@@ -34,45 +35,59 @@ interface Client {
 export class Room {
   readonly id: string;
   readonly maxClients: number;
-  
+
   private simulation: Simulation;
+  private config: SimulationConfig;
   private clients: Map<string, Client> = new Map();
   private currentTick: number = 0;
   private isRunning: boolean = false;
   private tickInterval: any = null;
-  
+
+  // Server info for welcome message
+  private serverId: string;
+  private serverName: string;
+  private mapName: string;
+
   // Event callbacks
   private onClientJoinCallbacks: ((client: Client) => void)[] = [];
   private onClientLeaveCallbacks: ((client: Client) => void)[] = [];
   private onTickCallbacks: ((tick: number, state: GameState) => void)[] = [];
-  
+
   constructor(
     id: string,
     config: SimulationConfig,
     SimulationClass: new (config: SimulationConfig) => Simulation,
-    maxClients: number = 16
+    maxClients: number = 16,
+    serverName: string = 'SHAG Server',
+    mapName: string = 'default'
   ) {
     this.id = id;
     this.maxClients = maxClients;
+    this.config = config;
     this.simulation = new SimulationClass(config);
+    this.serverId = `srv_${id}`;
+    this.serverName = serverName;
+    this.mapName = mapName;
   }
   
   /**
    * Add a client to the room
+   * Follows the handshake protocol: WELCOME → (client JOIN) → JOIN_ACCEPT → SNAPSHOT
    */
   addClient(clientId: string, transport: Transport): boolean {
     if (this.clients.size >= this.maxClients) {
       return false;
     }
-    
+
     if (this.clients.has(clientId)) {
       return false;
     }
-    
-    // Create player in simulation
+
+    // Create unique entity for this player
+    const entityId = `entity_${clientId}`;
     const playerId = `player_${clientId}`;
     const player = {
-      entityId: 'test-entity', // In a real game, create unique entity
+      entityId,
       name: clientId,
       team: '',
       score: 0,
@@ -82,7 +97,7 @@ export class Room {
       clone() { return { ...this }; }
     };
     this.simulation.state.players.set(playerId, player);
-    
+
     const client: Client = {
       id: clientId,
       transport,
@@ -91,17 +106,36 @@ export class Room {
       ping: 0,
       joinTime: Date.now()
     };
-    
+
     this.clients.set(clientId, client);
-    
-    // Send initial state to client
+
+    // Set up message handlers for this client
+    this.setupClientHandlers(client);
+
+    // === HANDSHAKE PROTOCOL ===
+    // Step 1: Send WELCOME with server info
+    const welcomeData = MessageCodec.encodeWelcome(
+      this.serverId,
+      this.serverName,
+      this.mapName,
+      this.config.tickRate,
+      this.maxClients,
+      this.clients.size
+    );
+    transport.send(welcomeData);
+
+    // Step 2: Send JOIN_ACCEPT with client's assigned IDs
+    const joinAcceptData = MessageCodec.encodeJoinAccept(clientId, playerId, entityId);
+    transport.send(joinAcceptData);
+
+    // Step 3: Send initial snapshot
     this.sendSnapshot(client);
-    
+
     // Notify listeners
     this.onClientJoinCallbacks.forEach(cb => cb(client));
-    
+
     console.log(`[Room ${this.id}] Client ${clientId} joined (${this.clients.size}/${this.maxClients})`);
-    
+
     return true;
   }
   
@@ -244,52 +278,89 @@ export class Room {
     this.broadcastSnapshot();
   }
   
-  private sendSnapshot(client: Client): void {
-    const snapshot = this.createSnapshot();
-    
-    const message = {
-      type: 'snapshot',
-      tick: snapshot.tick,
-      state: this.serializeState(snapshot)
-    };
-    
-    const data = new TextEncoder().encode(JSON.stringify(message));
-    client.transport.send(data);
+  /**
+   * Set up message handlers for a client
+   */
+  setupClientHandlers(client: Client): void {
+    client.transport.onMessage((data: Uint8Array) => {
+      this.handleClientMessage(client, data);
+    });
+
+    client.transport.onDisconnect(() => {
+      this.removeClient(client.id);
+    });
+
+    client.transport.onError((error) => {
+      console.error(`[Room ${this.id}] Transport error for ${client.id}:`, error);
+      this.removeClient(client.id);
+    });
   }
-  
-  private broadcastSnapshot(): void {
-    const snapshot = this.createSnapshot();
-    
-    for (const client of this.clients.values()) {
-      this.sendSnapshot(client);
+
+  /**
+   * Handle incoming message from client using binary protocol
+   */
+  private handleClientMessage(client: Client, data: Uint8Array): void {
+    try {
+      const messageType = MessageCodec.peekMessageType(data);
+
+      switch (messageType) {
+        case MessageType.Join: {
+          // Client sent JOIN after receiving WELCOME - we already handled this in addClient
+          // Just log and acknowledge
+          const { playerName } = MessageCodec.decodeJoin(data);
+          console.log(`[Room ${this.id}] Client ${client.id} confirmed join as "${playerName}"`);
+          break;
+        }
+        case MessageType.Input: {
+          const { playerId, command } = MessageCodec.decodeCommand(data);
+          // Verify player owns this command
+          if (playerId === client.playerId) {
+            this.handleCommand(client.id, command);
+          }
+          break;
+        }
+        case MessageType.Ack: {
+          const { tick } = MessageCodec.decodeAck(data);
+          client.lastAckTick = tick;
+          break;
+        }
+        default:
+          console.warn(`[Room ${this.id}] Unknown message type: 0x${messageType.toString(16)}`);
+      }
+    } catch (error) {
+      console.error(`[Room ${this.id}] Failed to handle message from ${client.id}:`, error);
     }
   }
-  
+
+  /**
+   * Send snapshot to a single client using binary protocol
+   */
+  private sendSnapshot(client: Client): void {
+    const snapshot = this.createSnapshot();
+    // TODO: Use client.lastAckTick for delta compression baseline
+    const data = MessageCodec.encodeSnapshot(snapshot);
+    client.transport.send(data);
+  }
+
+  /**
+   * Broadcast snapshot to all connected clients using binary protocol
+   */
+  private broadcastSnapshot(): void {
+    const snapshot = this.createSnapshot();
+    // Encode once, send to all (no delta compression for simplicity)
+    const data = MessageCodec.encodeSnapshot(snapshot);
+
+    for (const client of this.clients.values()) {
+      client.transport.send(data);
+    }
+  }
+
+  /**
+   * Create a snapshot of current game state
+   */
   private createSnapshot(): GameState {
     const snapshot = this.simulation.state.clone();
     snapshot.tick = this.currentTick;
     return snapshot;
-  }
-  
-  private serializeState(state: GameState): any {
-    // Simple JSON serialization for testing
-    // In production, use binary serialization
-    return {
-      tick: state.tick,
-      entities: Array.from(state.entities.entries()).map(([id, entity]) => ({
-        id,
-        position: (entity.getComponent('position') as any),
-        velocity: (entity.getComponent('velocity') as any)
-      })),
-      players: Array.from(state.players.entries()).map(([id, player]) => ({
-        id,
-        entityId: player.entityId,
-        name: player.name,
-        team: player.team,
-        score: player.score,
-        ping: player.ping
-      })),
-      events: state.events
-    };
   }
 }

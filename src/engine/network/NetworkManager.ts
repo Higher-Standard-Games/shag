@@ -2,8 +2,10 @@ import type { IGameHost } from './core/IGameHost';
 import { GameState } from './core/GameState';
 import type { Command } from './core/Command';
 import { LocalGameHost } from './client/hosts/LocalGameHost';
+import { NetworkGameHost } from './client/hosts/NetworkGameHost';
 import { Simulation, SimulationConfig } from './core/Simulation';
 import { Entity } from './core/Entity';
+import { TransportFactory } from './client/transport/Transport';
 
 /**
  * NetworkManager - manages networking for the game
@@ -13,7 +15,9 @@ export class NetworkManager {
   private static instance: NetworkManager;
   private gameHost: IGameHost | null = null;
   private isInitialized: boolean = false;
-  
+  private currentServerUrl: string | null = null;
+  private connectionCallbacks: ((connected: boolean, serverUrl?: string) => void)[] = [];
+
   private constructor() {}
   
   public static getInstance(): NetworkManager {
@@ -46,15 +50,20 @@ export class NetworkManager {
       case 'local':
         this.gameHost = new LocalGameHost(simulationConfig, SimulationClass);
         break;
-        
-      case 'network':
-        // TODO: Implement NetworkGameHost integration
-        throw new Error('Network mode not yet implemented');
-        
+
+      case 'network': {
+        if (!config?.serverUrl) {
+          throw new Error('Network mode requires serverUrl. Use connect(url) instead.');
+        }
+        // Use connect() for network mode
+        await this.connect(config.serverUrl, SimulationClass, simulationConfig);
+        return;
+      }
+
       case 'listen':
         // TODO: Implement listen server (local server + network clients)
         throw new Error('Listen mode not yet implemented');
-        
+
       default:
         throw new Error(`Unknown network mode: ${mode}`);
     }
@@ -68,6 +77,13 @@ export class NetworkManager {
     console.log(`[NetworkManager] Initialized in ${mode} mode`);
   }
   
+  /**
+   * Check if networking is initialized
+   */
+  getIsInitialized(): boolean {
+    return this.isInitialized;
+  }
+
   /**
    * Get the current game host
    */
@@ -164,19 +180,102 @@ export class NetworkManager {
    */
   async shutdown(): Promise<void> {
     if (!this.gameHost) return;
-    
+
     if ('stop' in this.gameHost) {
       (this.gameHost as any).stop();
     }
-    
+
     if ('disconnect' in this.gameHost) {
       await (this.gameHost as any).disconnect();
     }
-    
+
     this.gameHost = null;
     this.isInitialized = false;
-    
+    this.currentServerUrl = null;
+
     console.log('[NetworkManager] Shutdown complete');
+  }
+
+  /**
+   * Connect to a game server
+   * @param serverUrl WebSocket URL (e.g., ws://localhost:7777)
+   */
+  async connect(
+    serverUrl: string,
+    SimulationClass?: new (config: SimulationConfig) => Simulation,
+    simulationConfig?: SimulationConfig
+  ): Promise<void> {
+    // Shutdown existing connection
+    if (this.gameHost) {
+      await this.shutdown();
+    }
+
+    const simClass = SimulationClass || this.getDefaultSimulationClass();
+    const simConfig = simulationConfig || this.getDefaultSimulationConfig();
+
+    console.log(`[NetworkManager] Connecting to ${serverUrl}...`);
+
+    try {
+      // Create transport (auto-selects WebTransport or WebSocket)
+      const transport = await TransportFactory.create(serverUrl);
+
+      // Create network game host
+      const networkHost = new NetworkGameHost(transport, simConfig, simClass);
+
+      // Connect to server
+      await networkHost.connect(serverUrl);
+
+      this.gameHost = networkHost;
+      this.isInitialized = true;
+      this.currentServerUrl = serverUrl;
+
+      // Notify callbacks
+      this.connectionCallbacks.forEach(cb => cb(true, serverUrl));
+
+      console.log(`[NetworkManager] Connected to ${serverUrl}`);
+    } catch (error) {
+      console.error(`[NetworkManager] Connection failed:`, error);
+      this.connectionCallbacks.forEach(cb => cb(false, serverUrl));
+      throw error;
+    }
+  }
+
+  /**
+   * Disconnect from current server
+   */
+  async disconnect(): Promise<void> {
+    if (!this.gameHost) {
+      console.log('[NetworkManager] Not connected');
+      return;
+    }
+
+    const wasUrl = this.currentServerUrl;
+    await this.shutdown();
+
+    // Notify callbacks
+    this.connectionCallbacks.forEach(cb => cb(false, wasUrl || undefined));
+
+    console.log('[NetworkManager] Disconnected');
+  }
+
+  /**
+   * Get current server URL
+   */
+  getServerUrl(): string | null {
+    return this.currentServerUrl;
+  }
+
+  /**
+   * Subscribe to connection state changes
+   */
+  onConnectionChange(callback: (connected: boolean, serverUrl?: string) => void): () => void {
+    this.connectionCallbacks.push(callback);
+    return () => {
+      const index = this.connectionCallbacks.indexOf(callback);
+      if (index >= 0) {
+        this.connectionCallbacks.splice(index, 1);
+      }
+    };
   }
   
   /**
@@ -184,13 +283,17 @@ export class NetworkManager {
    */
   getMode(): 'local' | 'network' | 'listen' | null {
     if (!this.gameHost) return null;
-    
+
     if (this.gameHost instanceof LocalGameHost) {
       return 'local';
     }
-    
-    // TODO: Add checks for NetworkGameHost and ListenGameHost
-    
+
+    if (this.gameHost instanceof NetworkGameHost) {
+      return 'network';
+    }
+
+    // TODO: Add check for ListenGameHost
+
     return null;
   }
   

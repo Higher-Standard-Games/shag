@@ -13,7 +13,6 @@ import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { PostProcessingManager } from '../effects/PostProcessingManager';
-import { Service } from '../core/ServiceLocator';
 import { Cvar } from '../core/Cvar';
 
 // ==================== Types ====================

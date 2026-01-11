@@ -4,29 +4,7 @@ import type { Command } from '../../core/Command';
 import type { Simulation, SimulationConfig } from '../../core/Simulation';
 import type { PlayerId } from '../../core/Entity';
 import type { Transport } from '../transport/Transport';
-
-/**
- * Interpolated entity state for smooth rendering
- */
-interface InterpolatedEntity {
-  /** Entity ID */
-  id: string;
-  
-  /** Current interpolated position */
-  position: { x: number; y: number; z: number };
-  
-  /** Target position from latest snapshot */
-  targetPosition: { x: number; y: number; z: number };
-  
-  /** Previous position for interpolation */
-  previousPosition: { x: number; y: number; z: number };
-  
-  /** Timestamp when snapshot was received */
-  snapshotTime: number;
-  
-  /** Target tick for this snapshot */
-  targetTick: number;
-}
+import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
 
 /**
  * Snapshot buffer for interpolation
@@ -35,6 +13,11 @@ class InterpolationBuffer {
   private snapshots: Map<number, GameState> = new Map();
   private currentTick: number = 0;
   private interpolationDelay: number = 100; // 100ms delay
+
+  /** Get interpolation delay in ms */
+  getInterpolationDelay(): number {
+    return this.interpolationDelay;
+  }
   
   /**
    * Add a new snapshot to the buffer
@@ -56,7 +39,7 @@ class InterpolationBuffer {
   /**
    * Get interpolated state for rendering
    */
-  getInterpolatedState(renderTime: number): GameState {
+  getInterpolatedState(_renderTime: number): GameState {
     // Find the best snapshot pair for interpolation
     const targetTick = this.currentTick - 2; // 2 ticks behind for interpolation
     
@@ -113,26 +96,94 @@ class InterpolationBuffer {
 }
 
 /**
+ * Smooth correction for prediction errors
+ * Instead of snapping, smoothly interpolate to server position over time
+ */
+class SmoothCorrection {
+  private correctionX: number = 0;
+  private correctionY: number = 0;
+  private correctionZ: number = 0;
+  private correctionDecay: number = 0.1; // Decay factor per frame (lower = smoother)
+
+  /**
+   * Add a correction offset (difference between predicted and server position)
+   */
+  addCorrection(dx: number, dy: number, dz: number): void {
+    this.correctionX += dx;
+    this.correctionY += dy;
+    this.correctionZ += dz;
+  }
+
+  /**
+   * Get and decay the current correction (call once per frame)
+   */
+  getCorrection(): { x: number; y: number; z: number } {
+    const correction = {
+      x: this.correctionX * this.correctionDecay,
+      y: this.correctionY * this.correctionDecay,
+      z: this.correctionZ * this.correctionDecay,
+    };
+
+    // Decay the stored correction
+    this.correctionX *= (1 - this.correctionDecay);
+    this.correctionY *= (1 - this.correctionDecay);
+    this.correctionZ *= (1 - this.correctionDecay);
+
+    // Zero out small corrections to avoid perpetual micro-corrections
+    const epsilon = 0.01;
+    if (Math.abs(this.correctionX) < epsilon) this.correctionX = 0;
+    if (Math.abs(this.correctionY) < epsilon) this.correctionY = 0;
+    if (Math.abs(this.correctionZ) < epsilon) this.correctionZ = 0;
+
+    return correction;
+  }
+
+  /**
+   * Check if there's significant correction remaining
+   */
+  hasCorrection(): boolean {
+    const epsilon = 0.01;
+    return Math.abs(this.correctionX) > epsilon ||
+           Math.abs(this.correctionY) > epsilon ||
+           Math.abs(this.correctionZ) > epsilon;
+  }
+
+  /**
+   * Reset all corrections (for large teleports)
+   */
+  reset(): void {
+    this.correctionX = 0;
+    this.correctionY = 0;
+    this.correctionZ = 0;
+  }
+}
+
+/**
  * Network game host - connects to remote server
- * Handles client prediction and snapshot interpolation
+ * Handles client prediction, snapshot interpolation, and smooth correction
  */
 export class NetworkGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   currentTick: number = 0;
-  
+
   private transport: Transport;
   private simulation: Simulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: any) => void)[] = [];
-  
+
   private interpolationBuffer = new InterpolationBuffer();
+  private smoothCorrection = new SmoothCorrection();
   private pendingCommands: Command[] = [];
   private commandSequence = 0;
-  private lastAcknowledgedTick = 0;
-  
+  private lastBaselineTick = 0;
+
   private localState: GameState;
   private _isConnected: boolean = false;
-  
+
+  // Correction threshold - beyond this distance, we snap instead of smooth
+  private readonly SNAP_THRESHOLD = 100;
+  private readonly SMOOTH_THRESHOLD = 0.5;
+
   constructor(
     transport: Transport,
     config: SimulationConfig,
@@ -142,38 +193,37 @@ export class NetworkGameHost implements IGameHost {
     this.simulation = new SimulationClass(config);
     this.localPlayerId = 'network-player';
     this.localState = this.simulation.state.clone();
-    
+
     this.setupTransportHandlers();
   }
   
-  async connect(): Promise<void> {
-    await this.transport.connect();
+  async connect(url?: string): Promise<void> {
+    await this.transport.connect(url || 'ws://localhost:8080');
     this._isConnected = true;
-    
-    // Request initial state
-    this.sendMessage({ type: 'join', playerId: this.localPlayerId });
+
+    // Send join message using binary protocol
+    const joinData = MessageCodec.encodeJoin(this.localPlayerId);
+    this.transport.send(joinData, true); // Reliable for join
   }
-  
+
   async disconnect(): Promise<void> {
     this._isConnected = false;
     await this.transport.disconnect();
   }
-  
+
   sendCommand(cmd: Command): void {
     if (!this._isConnected) return;
-    
+
     // Add sequence number
     const sequencedCmd = {
       ...cmd,
       seq: this.commandSequence++
     };
-    
-    // Send to server
-    this.sendMessage({
-      type: 'command',
-      command: sequencedCmd
-    });
-    
+
+    // Send to server using binary protocol
+    const data = MessageCodec.encodeCommand(this.localPlayerId, sequencedCmd.seq, sequencedCmd);
+    this.transport.send(data, false); // Unreliable for commands (sent frequently)
+
     // Apply locally for prediction
     this.pendingCommands.push(cmd);
     this.predictLocally(cmd);
@@ -241,101 +291,150 @@ export class NetworkGameHost implements IGameHost {
     });
   }
   
+  /**
+   * Handle incoming message using binary protocol
+   */
   private handleMessage(data: Uint8Array): void {
     try {
-      // Simple JSON parsing for now (replace with binary later)
-      const message = JSON.parse(new TextDecoder().decode(data));
-      
-      switch (message.type) {
-        case 'snapshot':
-          this.handleSnapshot(message.snapshot);
+      const messageType = MessageCodec.peekMessageType(data);
+
+      switch (messageType) {
+        case MessageType.Snapshot: {
+          const snapshot = MessageCodec.decodeSnapshot(data, this.lastBaselineTick > 0 ? this.localState : undefined);
+          this.handleSnapshot(snapshot);
           break;
-        case 'ack':
-          this.handleAcknowledgement(message.tick);
+        }
+        case MessageType.JoinAccept: {
+          const { playerId, entityId } = MessageCodec.decodeJoinAccept(data);
+          console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           break;
-        case 'event':
-          this.handleEvent(message.event);
+        }
+        case MessageType.Welcome: {
+          const welcome = MessageCodec.decodeWelcome(data);
+          console.log(`[NetworkGameHost] Welcome from ${welcome.serverName}, map: ${welcome.map}`);
           break;
+        }
+        default:
+          console.warn(`[NetworkGameHost] Unknown message type: 0x${messageType.toString(16)}`);
       }
     } catch (error) {
       console.error('[NetworkGameHost] Failed to handle message:', error);
     }
   }
-  
+
+  /**
+   * Handle snapshot from server
+   */
   private handleSnapshot(snapshot: GameState): void {
     // Add to interpolation buffer
     this.interpolationBuffer.addSnapshot(snapshot);
-    
-    // Reconcile prediction
+
+    // Reconcile prediction with smooth correction
     this.reconcilePrediction(snapshot);
-    
-    // Update current tick
+
+    // Update current tick and send acknowledgment
     this.currentTick = snapshot.tick;
-    
+    this.sendAck(snapshot.tick);
+
+    // Apply any smooth correction to local state
+    this.applySmothCorrection();
+
     // Notify listeners
     const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
     this.stateUpdateCallbacks.forEach(cb => cb(interpolatedState));
   }
-  
-  private handleAcknowledgement(tick: number): void {
-    this.lastAcknowledgedTick = tick;
-    
-    // Remove acknowledged commands from pending
-    this.pendingCommands = this.pendingCommands.filter(cmd => cmd.tick > tick);
+
+  /**
+   * Send acknowledgment for received snapshot
+   */
+  private sendAck(tick: number): void {
+    const data = MessageCodec.encodeAck(tick);
+    this.transport.send(data, false);
+    this.lastBaselineTick = tick;
   }
-  
-  private handleEvent(event: any): void {
-    this.eventCallbacks.forEach(cb => cb(event));
-  }
-  
+
+  /**
+   * Apply command locally for prediction
+   */
   private predictLocally(cmd: Command): void {
     // Apply command to local state for immediate feedback
     this.simulation.tick([cmd]);
     this.localState = this.simulation.state.clone();
   }
-  
+
+  /**
+   * Reconcile local prediction with server state using smooth correction
+   * Instead of snapping, we calculate the error and apply it smoothly over time
+   */
   private reconcilePrediction(serverState: GameState): void {
-    // Check if prediction was correct
     const localPlayer = this.localState.players.get(this.localPlayerId);
     const serverPlayer = serverState.players.get(this.localPlayerId);
-    
-    if (localPlayer && serverPlayer) {
-      const localEntity = this.localState.entities.get(localPlayer.entityId);
-      const serverEntity = serverState.entities.get(serverPlayer.entityId);
-      
-      if (localEntity && serverEntity) {
-        const localPos = localEntity.getComponent('position') as any;
-        const serverPos = serverEntity.getComponent('position') as any;
-        
-        // If position difference is too large, correct it
-        if (localPos && serverPos) {
-          const dx = localPos.x - serverPos.x;
-          const dy = localPos.y - serverPos.y;
-          const dz = localPos.z - serverPos.z;
-          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          
-          if (distance > 10) {
-            // Snap to server position (could smooth this)
-            localPos.x = serverPos.x;
-            localPos.y = serverPos.y;
-            localPos.z = serverPos.z;
-          }
-        }
-      }
+
+    if (!localPlayer || !serverPlayer) return;
+
+    const localEntity = this.localState.entities.get(localPlayer.entityId);
+    const serverEntity = serverState.entities.get(serverPlayer.entityId);
+
+    if (!localEntity || !serverEntity) return;
+
+    const localPos = localEntity.getComponent('position') as any;
+    const serverPos = serverEntity.getComponent('position') as any;
+
+    if (!localPos || !serverPos) return;
+
+    // Calculate prediction error
+    const dx = serverPos.x - localPos.x;
+    const dy = serverPos.y - localPos.y;
+    const dz = serverPos.z - localPos.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (distance > this.SNAP_THRESHOLD) {
+      // Large error (teleport, respawn, etc.) - snap immediately
+      localPos.x = serverPos.x;
+      localPos.y = serverPos.y;
+      localPos.z = serverPos.z;
+      this.smoothCorrection.reset();
+      console.log('[NetworkGameHost] Snapped to server position (large error)');
+    } else if (distance > this.SMOOTH_THRESHOLD) {
+      // Small to medium error - use smooth correction
+      this.smoothCorrection.addCorrection(dx, dy, dz);
     }
+    // Below SMOOTH_THRESHOLD - prediction is good enough, no correction needed
+
+    // Remove acknowledged commands from pending
+    this.pendingCommands = this.pendingCommands.filter(cmd => cmd.tick > serverState.tick);
   }
-  
+
+  /**
+   * Apply smooth correction to local player position
+   */
+  private applySmothCorrection(): void {
+    if (!this.smoothCorrection.hasCorrection()) return;
+
+    const localPlayer = this.localState.players.get(this.localPlayerId);
+    if (!localPlayer) return;
+
+    const localEntity = this.localState.entities.get(localPlayer.entityId);
+    if (!localEntity) return;
+
+    const localPos = localEntity.getComponent('position') as any;
+    if (!localPos) return;
+
+    const correction = this.smoothCorrection.getCorrection();
+    localPos.x += correction.x;
+    localPos.y += correction.y;
+    localPos.z += correction.z;
+  }
+
+  /**
+   * Process events from local state
+   */
   private processEvents(): void {
     const events = this.localState.events;
     this.localState.events = [];
-    
+
     events.forEach(event => {
       this.eventCallbacks.forEach(callback => callback(event));
     });
-  }
-  
-  private sendMessage(message: any): void {
-    const data = new TextEncoder().encode(JSON.stringify(message));
-    this.transport.send(data, false); // Unreliable for most messages
   }
 }

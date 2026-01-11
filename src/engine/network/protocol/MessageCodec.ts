@@ -1,268 +1,180 @@
-import { StateEncoder } from './StateEncoder';
-import { StateDecoder } from './StateDecoder';
+import { BinaryProtocol, BinaryEncoder, BinaryDecoder, MessageType } from './BinaryProtocol';
 import { GameState } from '../core/GameState';
 
+// Re-export MessageType for convenience
+export { MessageType };
+
 /**
- * Message codec for encoding/decoding network messages
- * Handles different message types with appropriate serialization
+ * Message codec for network protocol
+ * All messages are prefixed with a MessageType byte for proper routing
  */
 export class MessageCodec {
   /**
-   * Encode a message to binary format
+   * Encode a snapshot message (Server → Client)
+   * Format: [MessageType.Snapshot][tick][timestamp][entities...][players...][events...]
    */
-  static encode(message: NetworkMessage): Uint8Array {
-    const encoder = new StateEncoder();
-    
-    // Write message type
-    encoder.writeUint8(message.type);
-    
-    // Encode message based on type
-    switch (message.type) {
-      case MessageType.Snapshot:
-        return this.encodeSnapshot(message as SnapshotMessage, encoder);
-      
-      case MessageType.Command:
-        return this.encodeCommand(message as CommandMessage, encoder);
-      
-      case MessageType.Event:
-        return this.encodeEvent(message as EventMessage, encoder);
-      
-      case MessageType.Ack:
-        return this.encodeAck(message as AckMessage, encoder);
-      
-      case MessageType.Join:
-        return this.encodeJoin(message as JoinMessage, encoder);
-      
-      case MessageType.Leave:
-        return this.encodeLeave(message as LeaveMessage, encoder);
-      
-      default:
-        throw new Error(`Unknown message type: ${message.type}`);
-    }
+  static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Snapshot);
+    encoder.writeBytes(BinaryProtocol.encodeSnapshot(state, baseline));
+    return encoder.getData();
   }
-  
+
   /**
-   * Decode a message from binary format
+   * Decode a snapshot message
    */
-  static decode(data: Uint8Array): NetworkMessage {
-    const decoder = new StateDecoder(data);
-    const messageType = decoder.readUint8() as MessageType;
-    
-    // Decode message based on type
-    switch (messageType) {
-      case MessageType.Snapshot:
-        return this.decodeSnapshot(decoder);
-      
-      case MessageType.Command:
-        return this.decodeCommand(decoder);
-      
-      case MessageType.Event:
-        return this.decodeEvent(decoder);
-      
-      case MessageType.Ack:
-        return this.decodeAck(decoder);
-      
-      case MessageType.Join:
-        return this.decodeJoin(decoder);
-      
-      case MessageType.Leave:
-        return this.decodeLeave(decoder);
-      
-      default:
-        throw new Error(`Unknown message type: ${messageType}`);
+  static decodeSnapshot(data: Uint8Array, baseline?: GameState): GameState {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Snapshot) {
+      throw new Error(`Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`);
     }
+    // Read remaining bytes after message type
+    const remaining = data.subarray(decoder.getOffset());
+    return BinaryProtocol.decodeSnapshot(remaining, baseline);
   }
-  
-  private static encodeSnapshot(message: SnapshotMessage, encoder: StateEncoder): Uint8Array {
-    // Write tick
-    encoder.writeUint32(message.tick);
-    
-    // Encode state
-    const stateData = encoder.encode(message.state);
-    
-    // Combine header and state data
-    const result = new Uint8Array(1 + 4 + stateData.length);
-    result[0] = MessageType.Snapshot;
-    new DataView(result.buffer).setUint32(1, message.tick, true);
-    result.set(stateData, 5);
-    
-    return result;
+
+  /**
+   * Encode a command/input message (Client → Server)
+   * Format: [MessageType.Input][playerId][sequence][command...]
+   */
+  static encodeCommand(playerId: string, sequence: number, command: any): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Input);
+    encoder.writeBytes(BinaryProtocol.encodeCommand(playerId, sequence, command));
+    return encoder.getData();
   }
-  
-  private static encodeCommand(message: CommandMessage, encoder: StateEncoder): Uint8Array {
-    // Write player ID
-    encoder.writeString(message.playerId);
-    
-    // Write sequence
-    encoder.writeUint16(message.sequence);
-    
-    // Write command data
-    const commandData = JSON.stringify(message.command);
-    encoder.writeString(commandData);
-    
-    return encoder.getBuffer();
+
+  /**
+   * Decode a command message
+   */
+  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: any } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Input) {
+      throw new Error(`Expected Input message (0x${MessageType.Input.toString(16)}), got 0x${messageType.toString(16)}`);
+    }
+    const remaining = data.subarray(decoder.getOffset());
+    return BinaryProtocol.decodeCommand(remaining);
   }
-  
-  private static encodeEvent(message: EventMessage, encoder: StateEncoder): Uint8Array {
-    // Write event type
-    encoder.writeString(message.event.type);
-    
-    // Write event data
-    const eventData = JSON.stringify(message.event);
-    encoder.writeString(eventData);
-    
-    return encoder.getBuffer();
+
+  /**
+   * Encode a welcome message (Server → Client on connect)
+   */
+  static encodeWelcome(serverId: string, serverName: string, map: string, tickRate: number, maxPlayers: number, currentPlayers: number): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Welcome);
+    encoder.writeString(serverId);
+    encoder.writeString(serverName);
+    encoder.writeString(map);
+    encoder.writeUint8(tickRate);
+    encoder.writeUint8(maxPlayers);
+    encoder.writeUint8(currentPlayers);
+    return encoder.getData();
   }
-  
-  private static encodeAck(message: AckMessage, encoder: StateEncoder): Uint8Array {
-    // Write tick
-    encoder.writeUint32(message.tick);
-    
-    return encoder.getBuffer();
-  }
-  
-  private static encodeJoin(message: JoinMessage, encoder: StateEncoder): Uint8Array {
-    // Write player ID
-    encoder.writeString(message.playerId);
-    
-    // Write display name
-    encoder.writeString(message.displayName);
-    
-    return encoder.getBuffer();
-  }
-  
-  private static encodeLeave(message: LeaveMessage, encoder: StateEncoder): Uint8Array {
-    // Write player ID
-    encoder.writeString(message.playerId);
-    
-    // Write reason
-    encoder.writeString(message.reason || '');
-    
-    return encoder.getBuffer();
-  }
-  
-  private static decodeSnapshot(decoder: StateDecoder): SnapshotMessage {
-    const tick = decoder.readUint32();
-    const state = decoder.decode();
-    
+
+  /**
+   * Decode a welcome message
+   */
+  static decodeWelcome(data: Uint8Array): { serverId: string; serverName: string; map: string; tickRate: number; maxPlayers: number; currentPlayers: number } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Welcome) {
+      throw new Error(`Expected Welcome message, got 0x${messageType.toString(16)}`);
+    }
     return {
-      type: MessageType.Snapshot,
-      tick,
-      state
+      serverId: decoder.readString(),
+      serverName: decoder.readString(),
+      map: decoder.readString(),
+      tickRate: decoder.readUint8(),
+      maxPlayers: decoder.readUint8(),
+      currentPlayers: decoder.readUint8(),
     };
   }
-  
-  private static decodeCommand(decoder: StateDecoder): CommandMessage {
-    const playerId = decoder.readString();
-    const sequence = decoder.readUint16();
-    const command = JSON.parse(decoder.readString());
-    
+
+  /**
+   * Encode a join message (Client → Server)
+   */
+  static encodeJoin(playerName: string): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Join);
+    encoder.writeString(playerName);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a join message
+   */
+  static decodeJoin(data: Uint8Array): { playerName: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Join) {
+      throw new Error(`Expected Join message, got 0x${messageType.toString(16)}`);
+    }
     return {
-      type: MessageType.Command,
-      playerId,
-      sequence,
-      command
+      playerName: decoder.readString(),
     };
   }
-  
-  private static decodeEvent(decoder: StateDecoder): EventMessage {
-    const eventType = decoder.readString();
-    const eventData = JSON.parse(decoder.readString());
-    
+
+  /**
+   * Encode a join accept message (Server → Client)
+   */
+  static encodeJoinAccept(clientId: string, playerId: string, entityId: string): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.JoinAccept);
+    encoder.writeString(clientId);
+    encoder.writeString(playerId);
+    encoder.writeString(entityId);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a join accept message
+   */
+  static decodeJoinAccept(data: Uint8Array): { clientId: string; playerId: string; entityId: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.JoinAccept) {
+      throw new Error(`Expected JoinAccept message, got 0x${messageType.toString(16)}`);
+    }
     return {
-      type: MessageType.Event,
-      event: {
-        type: eventType,
-        ...eventData
-      }
+      clientId: decoder.readString(),
+      playerId: decoder.readString(),
+      entityId: decoder.readString(),
     };
   }
-  
-  private static decodeAck(decoder: StateDecoder): AckMessage {
-    const tick = decoder.readUint32();
-    
+
+  /**
+   * Encode acknowledgment message (Client → Server)
+   */
+  static encodeAck(tick: number): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Ack);
+    encoder.writeUint32(tick);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode acknowledgment message
+   */
+  static decodeAck(data: Uint8Array): { tick: number } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Ack) {
+      throw new Error(`Expected Ack message, got 0x${messageType.toString(16)}`);
+    }
     return {
-      type: MessageType.Ack,
-      tick
+      tick: decoder.readUint32(),
     };
   }
-  
-  private static decodeJoin(decoder: StateDecoder): JoinMessage {
-    const playerId = decoder.readString();
-    const displayName = decoder.readString();
-    
-    return {
-      type: MessageType.Join,
-      playerId,
-      displayName
-    };
+
+  /**
+   * Get message type from raw data without consuming it
+   */
+  static peekMessageType(data: Uint8Array): MessageType {
+    if (data.length === 0) {
+      throw new Error('Empty message data');
+    }
+    return data[0] as MessageType;
   }
-  
-  private static decodeLeave(decoder: StateDecoder): LeaveMessage {
-    const playerId = decoder.readString();
-    const reason = decoder.readString() || undefined;
-    
-    return {
-      type: MessageType.Leave,
-      playerId,
-      reason
-    };
-  }
-}
-
-// Message types
-export enum MessageType {
-  Snapshot = 0x01,
-  Command = 0x02,
-  Event = 0x03,
-  Ack = 0x04,
-  Join = 0x05,
-  Leave = 0x06,
-  Error = 0x07
-}
-
-// Message interfaces
-export interface NetworkMessage {
-  type: MessageType;
-}
-
-export interface SnapshotMessage extends NetworkMessage {
-  type: MessageType.Snapshot;
-  tick: number;
-  state: GameState;
-}
-
-export interface CommandMessage extends NetworkMessage {
-  type: MessageType.Command;
-  playerId: string;
-  sequence: number;
-  command: any;
-}
-
-export interface EventMessage extends NetworkMessage {
-  type: MessageType.Event;
-  event: any;
-}
-
-export interface AckMessage extends NetworkMessage {
-  type: MessageType.Ack;
-  tick: number;
-}
-
-export interface JoinMessage extends NetworkMessage {
-  type: MessageType.Join;
-  playerId: string;
-  displayName: string;
-}
-
-export interface LeaveMessage extends NetworkMessage {
-  type: MessageType.Leave;
-  playerId: string;
-  reason?: string;
-}
-
-export interface ErrorMessage extends NetworkMessage {
-  type: MessageType.Error;
-  code: number;
-  message: string;
 }
