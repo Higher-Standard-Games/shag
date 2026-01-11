@@ -1,4 +1,5 @@
 import { Command } from '../Command';
+import type { IGameHost } from '../../network/core/IGameHost';
 import { LocalGameHost } from '../../network/client/hosts/LocalGameHost';
 import { TestSimulation, testConfig } from '../../network/test/TestSimulation';
 import { MoveCommand } from '../../network/core/Command';
@@ -96,10 +97,133 @@ export default class NetworkTestCommand extends Command {
     }
   }
 
+  private testNetworked(): string {
+    try {
+      // Mock networked host for testing
+      const mockHost = new MockNetworkHost(testConfig, TestSimulation);
+      mockHost.start();
+      
+      // Test prediction
+      const moveCmd = new MoveCommand(
+        'network-player',
+        0,
+        1,
+        { x: 2, y: 0, z: 0 },
+        0,
+        0,
+        0
+      );
+      
+      mockHost.sendCommand(moveCmd);
+      
+      // Simulate receiving server update
+      mockHost.simulateServerUpdate();
+      
+      const localState = mockHost.getLocalState();
+      const entity = localState.entities.get('test-entity');
+      const pos = entity?.getComponent('position') as any;
+      
+      mockHost.stop();
+      
+      return `✅ Networked host test passed\n` +
+             `   Local prediction: (${pos?.x.toFixed(2)}, ${pos?.y.toFixed(2)}, ${pos?.z.toFixed(2)})\n` +
+             `   Commands pending: ${mockHost.getPendingCommands()}\n` +
+             `   Current tick: ${mockHost.getCurrentTick()}`;
+    } catch (error) {
+      return `❌ Networked host test failed: ${error}`;
+    }
+  }
+
   private showHelp(): string {
     return `Network Test Commands:\n` +
            `  nettest local      - Test LocalGameHost\n` +
            `  nettest simulation - Test simulation\n` +
+           `  nettest network    - Test networked host (mock)\n` +
            `  nettest help       - Show this help`;
+  }
+}
+
+/**
+ * Mock networked host for testing client prediction
+ */
+class MockNetworkHost implements IGameHost {
+  readonly localPlayerId = 'network-player';
+  currentTick = 0;
+  
+  private simulation: any;
+  private pendingCommands: any[] = [];
+  private localState: any;
+  private isRunning = false;
+  
+  constructor(config: any, SimulationClass: any) {
+    this.simulation = new SimulationClass(config);
+    this.localState = this.simulation.state.clone();
+  }
+  
+  sendCommand(cmd: any): void {
+    // Add to pending for prediction
+    this.pendingCommands.push(cmd);
+    
+    // Predict locally
+    this.simulation.tick([cmd]);
+    this.localState = this.simulation.state.clone();
+  }
+  
+  onStateUpdate(callback: (state: any) => void): () => void {
+    // Mock implementation
+    return () => {};
+  }
+  
+  onEvent(callback: (event: any) => void): () => void {
+    // Mock implementation
+    return () => {};
+  }
+  
+  getInterpolatedEntity(entityId: string): any {
+    return this.localState.entities.get(entityId);
+  }
+  
+  getLocalState(): any {
+    return this.localState;
+  }
+  
+  isConnected(): boolean {
+    return true;
+  }
+  
+  start(): void {
+    this.isRunning = true;
+  }
+  
+  stop(): void {
+    this.isRunning = false;
+  }
+  
+  simulateServerUpdate(): void {
+    // Simulate server state update (would come from network)
+    this.currentTick++;
+    
+    // Clear some pending commands (server acknowledged)
+    if (this.pendingCommands.length > 0) {
+      this.pendingCommands.shift();
+    }
+    
+    // Reconcile if needed (simplified)
+    const serverPos = { x: 2.5, y: 0, z: 0 }; // Where server thinks we are
+    const localEntity = this.localState.entities.get('test-entity');
+    const localPos = localEntity?.getComponent('position') as any;
+    
+    if (localPos && Math.abs(localPos.x - serverPos.x) > 1) {
+      // Snap to server position
+      localPos.x = serverPos.x;
+    }
+  }
+  
+  getPendingCommands(): number {
+    return this.pendingCommands.length;
+  }
+  
+  getCurrentTick(): number {
+    return this.currentTick;
   }
 }
