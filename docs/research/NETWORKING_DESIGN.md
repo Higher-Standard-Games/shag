@@ -20,7 +20,8 @@
 12. [Directory Structure](#12-directory-structure)
 13. [Build & Deployment](#13-build--deployment)
 14. [API Reference](#14-api-reference)
-15. [Implementation Roadmap](#15-implementation-roadmap)
+15. [MVP: Headless Connection Test](#15-mvp-headless-connection-test)
+16. [Implementation Roadmap](#16-implementation-roadmap)
 
 ---
 
@@ -3944,18 +3945,1012 @@ class GameScene extends EngineScene {
 
 ---
 
-## 15. Implementation Roadmap
+## 15. MVP: Headless Connection Test
 
-### Phase 1: Foundation (Week 1-2)
+The Minimum Viable Product validates the core networking architecture before building the full system.
+
+### 15.1 MVP Goal
+
+> **Two headless clients connect to a headless server, receive game settings, and load the same map.**
+
+This proves:
+- Transport layer works (WebSocket for MVP)
+- Handshake protocol is correct
+- Server can manage multiple clients
+- Clients can receive and act on server configuration
+
+### 15.2 Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         MVP TEST SCENARIO                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Terminal 1 (Server):                                               │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  $ npm run server:dev -- --map wdm7 --port 7777              │   │
+│  │                                                               │   │
+│  │  [Server] Starting on port 7777...                           │   │
+│  │  [Server] Map loaded: wdm7                                    │   │
+│  │  [Server] Waiting for connections...                          │   │
+│  │  [Server] Client connected: client_abc123                     │   │
+│  │  [Server] Client connected: client_def456                     │   │
+│  │  [Server] 2 clients connected, starting game loop             │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Terminal 2 (Client 1):                                             │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  $ npm run cli:game -- --connect ws://localhost:7777         │   │
+│  │                                                               │   │
+│  │  [Client] Connecting to ws://localhost:7777...               │   │
+│  │  [Client] Connected! Waiting for welcome...                   │   │
+│  │  [Client] Received welcome: map=wdm7, tickRate=20            │   │
+│  │  [Client] Loading map: wdm7                                   │   │
+│  │  [Client] Map loaded, sending ready                           │   │
+│  │  [Client] Game started! Receiving snapshots...               │   │
+│  │  [Client] Tick 1: 2 players                                   │   │
+│  │  [Client] Tick 2: 2 players                                   │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Terminal 3 (Client 2):                                             │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  $ npm run cli:game -- --connect ws://localhost:7777         │   │
+│  │                                                               │   │
+│  │  [Client] Connecting to ws://localhost:7777...               │   │
+│  │  [Client] Connected! Waiting for welcome...                   │   │
+│  │  [Client] Received welcome: map=wdm7, tickRate=20            │   │
+│  │  [Client] Loading map: wdm7                                   │   │
+│  │  [Client] Map loaded, sending ready                           │   │
+│  │  [Client] Game started! Receiving snapshots...               │   │
+│  │  [Client] Tick 1: 2 players                                   │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.3 Handshake Protocol
+
+```
+Client                              Server
+   │                                   │
+   │ ──── TCP Connect ───────────────► │
+   │                                   │
+   │ ◄──── WELCOME ─────────────────── │  Server info + game settings
+   │       {                           │
+   │         serverId: "srv_...",      │
+   │         serverName: "My Server",  │
+   │         map: "wdm7",              │
+   │         gameMode: "deathmatch",   │
+   │         tickRate: 20,             │
+   │         maxPlayers: 16,           │
+   │         currentPlayers: 1,        │
+   │         protocol: 1,              │
+   │       }                           │
+   │                                   │
+   │ ──── JOIN ────────────────────► │  Client requests to join
+   │       {                           │
+   │         playerName: "Player1",    │
+   │         protocol: 1,              │
+   │       }                           │
+   │                                   │
+   │ ◄──── JOIN_ACCEPT ──────────────  │  Server accepts
+   │       {                           │
+   │         clientId: "client_...",   │
+   │         playerId: "player_...",   │
+   │         spawnPosition: {x,y,z},   │
+   │       }                           │
+   │                                   │
+   │ ──── READY ───────────────────► │  Client loaded map
+   │       {                           │
+   │         clientId: "client_...",   │
+   │       }                           │
+   │                                   │
+   │ ◄──── GAME_START ───────────────  │  Game begins (all ready)
+   │       {                           │
+   │         tick: 0,                  │
+   │         players: [...],           │
+   │       }                           │
+   │                                   │
+   │ ◄──── SNAPSHOT ─────────────────  │  Continuous state updates
+   │       {                           │
+   │         tick: 1,                  │
+   │         players: [...],           │
+   │         entities: [...],          │
+   │       }                           │
+   │                                   │
+```
+
+### 15.4 Message Types (MVP)
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// MVP Message Types - Minimal set for connection test
+// ═══════════════════════════════════════════════════════════════════
+
+// Server → Client
+interface WelcomeMessage {
+  type: 'welcome';
+  serverId: string;
+  serverName: string;
+  map: string;
+  gameMode: string;
+  tickRate: number;
+  maxPlayers: number;
+  currentPlayers: number;
+  protocol: number;  // Protocol version for compatibility
+}
+
+interface JoinAcceptMessage {
+  type: 'join_accept';
+  clientId: string;
+  playerId: string;
+  spawnPosition: { x: number; y: number; z: number };
+  spawnRotation: { pitch: number; yaw: number };
+}
+
+interface JoinRejectMessage {
+  type: 'join_reject';
+  reason: 'server_full' | 'banned' | 'password_required' | 'protocol_mismatch';
+  message: string;
+}
+
+interface GameStartMessage {
+  type: 'game_start';
+  tick: number;
+  players: PlayerInfo[];
+}
+
+interface SnapshotMessage {
+  type: 'snapshot';
+  tick: number;
+  serverTime: number;
+  players: PlayerState[];
+  entities: EntityState[];
+}
+
+interface PlayerJoinedMessage {
+  type: 'player_joined';
+  player: PlayerInfo;
+}
+
+interface PlayerLeftMessage {
+  type: 'player_left';
+  playerId: string;
+  reason: 'disconnect' | 'kicked' | 'timeout';
+}
+
+// Client → Server
+interface JoinMessage {
+  type: 'join';
+  playerName: string;
+  password?: string;  // If server requires password
+  protocol: number;
+}
+
+interface ReadyMessage {
+  type: 'ready';
+  clientId: string;
+}
+
+interface InputMessage {
+  type: 'input';
+  clientId: string;
+  tick: number;
+  seq: number;
+  keys: number;      // Bitmask: W=1, A=2, S=4, D=8, JUMP=16, etc.
+  pitch: number;
+  yaw: number;
+  buttons: number;   // Bitmask: FIRE=1, ALT_FIRE=2, USE=4, etc.
+}
+
+interface DisconnectMessage {
+  type: 'disconnect';
+  clientId: string;
+  reason: string;
+}
+
+// Shared types
+interface PlayerInfo {
+  playerId: string;
+  name: string;
+  team?: string;
+}
+
+interface PlayerState {
+  playerId: string;
+  position: { x: number; y: number; z: number };
+  rotation: { pitch: number; yaw: number };
+  velocity: { x: number; y: number; z: number };
+  health: number;
+  state: 'alive' | 'dead' | 'spectating';
+}
+
+interface EntityState {
+  entityId: string;
+  type: string;
+  position: { x: number; y: number; z: number };
+  rotation?: { pitch: number; yaw: number; roll: number };
+  // Type-specific data
+  data?: Record<string, unknown>;
+}
+```
+
+### 15.5 MVP Implementation
+
+#### 15.5.1 Server (Headless)
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/server/mvp/MVPServer.ts - Minimal server for connection test
+// ═══════════════════════════════════════════════════════════════════
+
+import { WebSocketServer, WebSocket } from 'ws';
+import { EventEmitter } from 'events';
+
+interface ClientState {
+  id: string;
+  ws: WebSocket;
+  playerId: string;
+  playerName: string;
+  ready: boolean;
+  lastInputSeq: number;
+  position: { x: number; y: number; z: number };
+  rotation: { pitch: number; yaw: number };
+}
+
+interface ServerConfig {
+  port: number;
+  map: string;
+  serverName: string;
+  gameMode: string;
+  tickRate: number;
+  maxPlayers: number;
+  password?: string;
+}
+
+export class MVPServer extends EventEmitter {
+  private wss: WebSocketServer | null = null;
+  private clients: Map<string, ClientState> = new Map();
+  private config: ServerConfig;
+  private currentTick = 0;
+  private tickInterval: NodeJS.Timeout | null = null;
+  private gameStarted = false;
+
+  constructor(config: ServerConfig) {
+    super();
+    this.config = config;
+  }
+
+  async start(): Promise<void> {
+    // Create WebSocket server
+    this.wss = new WebSocketServer({ port: this.config.port });
+
+    this.wss.on('connection', (ws) => this.handleConnection(ws));
+    this.wss.on('error', (error) => this.emit('error', error));
+
+    console.log(`[Server] Started on port ${this.config.port}`);
+    console.log(`[Server] Map: ${this.config.map}`);
+    console.log(`[Server] Waiting for connections...`);
+  }
+
+  private handleConnection(ws: WebSocket): void {
+    const clientId = `client_${Date.now().toString(36)}${Math.random().toString(36).substr(2, 5)}`;
+
+    console.log(`[Server] New connection: ${clientId}`);
+
+    // Send welcome message immediately
+    this.send(ws, {
+      type: 'welcome',
+      serverId: `srv_${this.config.port}`,
+      serverName: this.config.serverName,
+      map: this.config.map,
+      gameMode: this.config.gameMode,
+      tickRate: this.config.tickRate,
+      maxPlayers: this.config.maxPlayers,
+      currentPlayers: this.clients.size,
+      protocol: 1,
+    });
+
+    // Handle messages
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        this.handleMessage(clientId, ws, message);
+      } catch (e) {
+        console.error(`[Server] Invalid message from ${clientId}:`, e);
+      }
+    });
+
+    // Handle disconnect
+    ws.on('close', () => {
+      this.handleDisconnect(clientId);
+    });
+  }
+
+  private handleMessage(clientId: string, ws: WebSocket, message: any): void {
+    switch (message.type) {
+      case 'join':
+        this.handleJoin(clientId, ws, message);
+        break;
+
+      case 'ready':
+        this.handleReady(clientId);
+        break;
+
+      case 'input':
+        this.handleInput(clientId, message);
+        break;
+
+      case 'disconnect':
+        this.handleDisconnect(clientId);
+        break;
+    }
+  }
+
+  private handleJoin(clientId: string, ws: WebSocket, message: any): void {
+    // Check if server is full
+    if (this.clients.size >= this.config.maxPlayers) {
+      this.send(ws, {
+        type: 'join_reject',
+        reason: 'server_full',
+        message: 'Server is full',
+      });
+      ws.close();
+      return;
+    }
+
+    // Check password if required
+    if (this.config.password && message.password !== this.config.password) {
+      this.send(ws, {
+        type: 'join_reject',
+        reason: 'password_required',
+        message: 'Invalid password',
+      });
+      ws.close();
+      return;
+    }
+
+    // Create player
+    const playerId = `player_${Date.now().toString(36)}`;
+    const spawnPosition = this.getSpawnPosition();
+
+    const client: ClientState = {
+      id: clientId,
+      ws,
+      playerId,
+      playerName: message.playerName || 'Player',
+      ready: false,
+      lastInputSeq: 0,
+      position: spawnPosition,
+      rotation: { pitch: 0, yaw: 0 },
+    };
+
+    this.clients.set(clientId, client);
+
+    console.log(`[Server] Player joined: ${client.playerName} (${playerId})`);
+
+    // Send accept
+    this.send(ws, {
+      type: 'join_accept',
+      clientId,
+      playerId,
+      spawnPosition,
+      spawnRotation: { pitch: 0, yaw: 0 },
+    });
+
+    // Notify other clients
+    this.broadcast({
+      type: 'player_joined',
+      player: {
+        playerId,
+        name: client.playerName,
+      },
+    }, clientId);
+
+    this.emit('playerJoin', { playerId, name: client.playerName });
+  }
+
+  private handleReady(clientId: string): void {
+    const client = this.clients.get(clientId);
+    if (!client) return;
+
+    client.ready = true;
+    console.log(`[Server] Player ready: ${client.playerName}`);
+
+    // Check if all players are ready
+    this.checkGameStart();
+  }
+
+  private handleInput(clientId: string, message: any): void {
+    const client = this.clients.get(clientId);
+    if (!client) return;
+
+    // Store input for processing in next tick
+    client.lastInputSeq = message.seq;
+
+    // MVP: Simple movement based on keys
+    const speed = 5;
+    const keys = message.keys;
+
+    if (keys & 1) client.position.z -= speed; // W - forward
+    if (keys & 2) client.position.x -= speed; // A - left
+    if (keys & 4) client.position.z += speed; // S - back
+    if (keys & 8) client.position.x += speed; // D - right
+
+    client.rotation.pitch = message.pitch;
+    client.rotation.yaw = message.yaw;
+  }
+
+  private handleDisconnect(clientId: string): void {
+    const client = this.clients.get(clientId);
+    if (!client) return;
+
+    console.log(`[Server] Player disconnected: ${client.playerName}`);
+
+    this.clients.delete(clientId);
+
+    // Notify other clients
+    this.broadcast({
+      type: 'player_left',
+      playerId: client.playerId,
+      reason: 'disconnect',
+    });
+
+    this.emit('playerLeave', { playerId: client.playerId, name: client.playerName });
+  }
+
+  private checkGameStart(): void {
+    if (this.gameStarted) return;
+    if (this.clients.size === 0) return;
+
+    // Check if all connected clients are ready
+    const allReady = Array.from(this.clients.values()).every(c => c.ready);
+    if (!allReady) return;
+
+    console.log(`[Server] All players ready, starting game!`);
+    this.startGame();
+  }
+
+  private startGame(): void {
+    this.gameStarted = true;
+    this.currentTick = 0;
+
+    // Send game start to all clients
+    const players = Array.from(this.clients.values()).map(c => ({
+      playerId: c.playerId,
+      name: c.playerName,
+    }));
+
+    this.broadcast({
+      type: 'game_start',
+      tick: this.currentTick,
+      players,
+    });
+
+    // Start tick loop
+    const tickDuration = 1000 / this.config.tickRate;
+    this.tickInterval = setInterval(() => this.tick(), tickDuration);
+  }
+
+  private tick(): void {
+    this.currentTick++;
+
+    // Build snapshot
+    const players: PlayerState[] = Array.from(this.clients.values()).map(c => ({
+      playerId: c.playerId,
+      position: { ...c.position },
+      rotation: { ...c.rotation },
+      velocity: { x: 0, y: 0, z: 0 },
+      health: 100,
+      state: 'alive' as const,
+    }));
+
+    // Send snapshot to all clients
+    this.broadcast({
+      type: 'snapshot',
+      tick: this.currentTick,
+      serverTime: Date.now(),
+      players,
+      entities: [],
+    });
+
+    // Log every 20 ticks (once per second at 20 tick rate)
+    if (this.currentTick % 20 === 0) {
+      console.log(`[Server] Tick ${this.currentTick}: ${this.clients.size} players`);
+    }
+  }
+
+  private getSpawnPosition(): { x: number; y: number; z: number } {
+    // MVP: Simple spawn positions
+    const index = this.clients.size;
+    return {
+      x: (index % 4) * 100,
+      y: 0,
+      z: Math.floor(index / 4) * 100,
+    };
+  }
+
+  private send(ws: WebSocket, message: any): void {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  }
+
+  private broadcast(message: any, excludeClientId?: string): void {
+    for (const [clientId, client] of this.clients) {
+      if (clientId !== excludeClientId) {
+        this.send(client.ws, message);
+      }
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.tickInterval) {
+      clearInterval(this.tickInterval);
+      this.tickInterval = null;
+    }
+
+    // Close all client connections
+    for (const client of this.clients.values()) {
+      client.ws.close();
+    }
+    this.clients.clear();
+
+    // Close server
+    if (this.wss) {
+      this.wss.close();
+      this.wss = null;
+    }
+
+    console.log('[Server] Stopped');
+  }
+}
+```
+
+#### 15.5.2 Client (Headless)
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/cli/mvp/MVPClient.ts - Minimal client for connection test
+// ═══════════════════════════════════════════════════════════════════
+
+import WebSocket from 'ws';
+import { EventEmitter } from 'events';
+
+interface ClientConfig {
+  serverUrl: string;
+  playerName: string;
+  password?: string;
+}
+
+interface GameState {
+  connected: boolean;
+  joined: boolean;
+  ready: boolean;
+  gameStarted: boolean;
+  clientId: string | null;
+  playerId: string | null;
+  map: string | null;
+  currentTick: number;
+  players: Map<string, PlayerState>;
+}
+
+interface PlayerState {
+  playerId: string;
+  position: { x: number; y: number; z: number };
+  rotation: { pitch: number; yaw: number };
+  health: number;
+}
+
+export class MVPClient extends EventEmitter {
+  private ws: WebSocket | null = null;
+  private config: ClientConfig;
+  private state: GameState;
+  private inputSeq = 0;
+  private inputInterval: NodeJS.Timeout | null = null;
+
+  constructor(config: ClientConfig) {
+    super();
+    this.config = config;
+    this.state = {
+      connected: false,
+      joined: false,
+      ready: false,
+      gameStarted: false,
+      clientId: null,
+      playerId: null,
+      map: null,
+      currentTick: 0,
+      players: new Map(),
+    };
+  }
+
+  async connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      console.log(`[Client] Connecting to ${this.config.serverUrl}...`);
+
+      this.ws = new WebSocket(this.config.serverUrl);
+
+      this.ws.on('open', () => {
+        this.state.connected = true;
+        console.log('[Client] Connected! Waiting for welcome...');
+        resolve();
+      });
+
+      this.ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleMessage(message);
+        } catch (e) {
+          console.error('[Client] Invalid message:', e);
+        }
+      });
+
+      this.ws.on('close', () => {
+        console.log('[Client] Disconnected');
+        this.state.connected = false;
+        this.emit('disconnect');
+      });
+
+      this.ws.on('error', (error) => {
+        console.error('[Client] Connection error:', error);
+        reject(error);
+      });
+    });
+  }
+
+  private handleMessage(message: any): void {
+    switch (message.type) {
+      case 'welcome':
+        this.handleWelcome(message);
+        break;
+
+      case 'join_accept':
+        this.handleJoinAccept(message);
+        break;
+
+      case 'join_reject':
+        this.handleJoinReject(message);
+        break;
+
+      case 'game_start':
+        this.handleGameStart(message);
+        break;
+
+      case 'snapshot':
+        this.handleSnapshot(message);
+        break;
+
+      case 'player_joined':
+        this.handlePlayerJoined(message);
+        break;
+
+      case 'player_left':
+        this.handlePlayerLeft(message);
+        break;
+    }
+  }
+
+  private handleWelcome(message: any): void {
+    console.log(`[Client] Received welcome: map=${message.map}, tickRate=${message.tickRate}`);
+    console.log(`[Client] Server: ${message.serverName} (${message.currentPlayers}/${message.maxPlayers} players)`);
+
+    this.state.map = message.map;
+
+    // Simulate map loading
+    console.log(`[Client] Loading map: ${message.map}`);
+    setTimeout(() => {
+      console.log('[Client] Map loaded!');
+
+      // Send join request
+      this.send({
+        type: 'join',
+        playerName: this.config.playerName,
+        password: this.config.password,
+        protocol: 1,
+      });
+    }, 500); // Simulate 500ms map load time
+  }
+
+  private handleJoinAccept(message: any): void {
+    this.state.joined = true;
+    this.state.clientId = message.clientId;
+    this.state.playerId = message.playerId;
+
+    console.log(`[Client] Joined as ${this.state.playerId}`);
+    console.log(`[Client] Spawn: (${message.spawnPosition.x}, ${message.spawnPosition.y}, ${message.spawnPosition.z})`);
+
+    // Send ready
+    this.state.ready = true;
+    this.send({
+      type: 'ready',
+      clientId: this.state.clientId,
+    });
+    console.log('[Client] Sent ready signal');
+  }
+
+  private handleJoinReject(message: any): void {
+    console.error(`[Client] Join rejected: ${message.reason} - ${message.message}`);
+    this.disconnect();
+  }
+
+  private handleGameStart(message: any): void {
+    this.state.gameStarted = true;
+    this.state.currentTick = message.tick;
+
+    console.log('[Client] Game started!');
+    console.log(`[Client] Players: ${message.players.map((p: any) => p.name).join(', ')}`);
+
+    // Start sending inputs (simulated)
+    this.startInputLoop();
+
+    this.emit('gameStart', message);
+  }
+
+  private handleSnapshot(message: any): void {
+    this.state.currentTick = message.tick;
+
+    // Update player states
+    for (const player of message.players) {
+      this.state.players.set(player.playerId, player);
+    }
+
+    // Log every 20 ticks
+    if (message.tick % 20 === 0) {
+      console.log(`[Client] Tick ${message.tick}: ${message.players.length} players`);
+    }
+
+    this.emit('snapshot', message);
+  }
+
+  private handlePlayerJoined(message: any): void {
+    console.log(`[Client] Player joined: ${message.player.name}`);
+    this.emit('playerJoined', message.player);
+  }
+
+  private handlePlayerLeft(message: any): void {
+    console.log(`[Client] Player left: ${message.playerId}`);
+    this.state.players.delete(message.playerId);
+    this.emit('playerLeft', message.playerId);
+  }
+
+  private startInputLoop(): void {
+    // Send input every 50ms (20 Hz) - simulated random movement
+    this.inputInterval = setInterval(() => {
+      if (!this.state.gameStarted) return;
+
+      // Simulate random input
+      const keys = Math.random() > 0.5 ? 1 : 0; // Random forward movement
+
+      this.send({
+        type: 'input',
+        clientId: this.state.clientId,
+        tick: this.state.currentTick,
+        seq: this.inputSeq++,
+        keys,
+        pitch: 0,
+        yaw: Math.random() * Math.PI * 2,
+        buttons: 0,
+      });
+    }, 50);
+  }
+
+  private send(message: any): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
+  disconnect(): void {
+    if (this.inputInterval) {
+      clearInterval(this.inputInterval);
+      this.inputInterval = null;
+    }
+
+    if (this.ws) {
+      this.send({
+        type: 'disconnect',
+        clientId: this.state.clientId,
+        reason: 'user_disconnect',
+      });
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  getState(): GameState {
+    return { ...this.state };
+  }
+}
+```
+
+#### 15.5.3 CLI Entry Points
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/server/mvp/main.ts - MVP Server entry point
+// ═══════════════════════════════════════════════════════════════════
+
+import { parseArgs } from 'node:util';
+import { MVPServer } from './MVPServer';
+
+const { values: args } = parseArgs({
+  options: {
+    port: { type: 'string', short: 'p', default: '7777' },
+    map: { type: 'string', short: 'm', default: 'wdm7' },
+    name: { type: 'string', short: 'n', default: 'MVP Test Server' },
+    tickrate: { type: 'string', short: 't', default: '20' },
+    maxplayers: { type: 'string', default: '16' },
+    password: { type: 'string' },
+  },
+});
+
+async function main() {
+  const server = new MVPServer({
+    port: parseInt(args.port!),
+    map: args.map!,
+    serverName: args.name!,
+    gameMode: 'deathmatch',
+    tickRate: parseInt(args.tickrate!),
+    maxPlayers: parseInt(args.maxplayers!),
+    password: args.password,
+  });
+
+  // Handle shutdown
+  process.on('SIGINT', async () => {
+    console.log('\n[Server] Shutting down...');
+    await server.stop();
+    process.exit(0);
+  });
+
+  await server.start();
+}
+
+main().catch(console.error);
+```
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/cli/mvp/main.ts - MVP Client entry point
+// ═══════════════════════════════════════════════════════════════════
+
+import { parseArgs } from 'node:util';
+import { MVPClient } from './MVPClient';
+
+const { values: args } = parseArgs({
+  options: {
+    connect: { type: 'string', short: 'c' },
+    name: { type: 'string', short: 'n', default: 'Player' },
+    password: { type: 'string', short: 'p' },
+  },
+});
+
+async function main() {
+  if (!args.connect) {
+    console.error('Usage: npm run cli:mvp -- --connect ws://localhost:7777 [--name Player]');
+    process.exit(1);
+  }
+
+  const client = new MVPClient({
+    serverUrl: args.connect,
+    playerName: args.name!,
+    password: args.password,
+  });
+
+  // Handle shutdown
+  process.on('SIGINT', () => {
+    console.log('\n[Client] Disconnecting...');
+    client.disconnect();
+    process.exit(0);
+  });
+
+  try {
+    await client.connect();
+  } catch (error) {
+    console.error('[Client] Failed to connect:', error);
+    process.exit(1);
+  }
+}
+
+main().catch(console.error);
+```
+
+### 15.6 Package Scripts (MVP)
+
+```json
+{
+  "scripts": {
+    "mvp:server": "tsx src/server/mvp/main.ts",
+    "mvp:client": "tsx src/cli/mvp/main.ts"
+  }
+}
+```
+
+### 15.7 Testing the MVP
+
+```bash
+# Terminal 1: Start server
+npm run mvp:server -- --map wdm7 --port 7777
+
+# Terminal 2: Connect client 1
+npm run mvp:client -- --connect ws://localhost:7777 --name "Player1"
+
+# Terminal 3: Connect client 2
+npm run mvp:client -- --connect ws://localhost:7777 --name "Player2"
+```
+
+### 15.8 Acceptance Criteria
+
+| # | Criterion | Validation |
+|---|-----------|------------|
+| 1 | Server starts and listens on specified port | Server logs "Waiting for connections" |
+| 2 | Client connects and receives welcome message | Client logs "Received welcome: map=X" |
+| 3 | Client sends join request after "loading map" | Client logs "Map loaded, sending join" |
+| 4 | Server accepts client and assigns player ID | Client logs "Joined as player_X" |
+| 5 | Client sends ready signal | Client logs "Sent ready signal" |
+| 6 | Server starts game when all clients ready | Server logs "All players ready, starting game" |
+| 7 | Server sends snapshots at tick rate | Server logs "Tick X: N players" periodically |
+| 8 | Clients receive and log snapshots | Client logs "Tick X: N players" periodically |
+| 9 | Second client sees first client in snapshot | Snapshot contains 2 players |
+| 10 | Client disconnect is handled gracefully | Other client receives "player_left" message |
+
+### 15.9 MVP Success Metrics
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     MVP SUCCESS DEFINITION                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ✅ PASS if:                                                        │
+│     1. Two clients can connect to server                            │
+│     2. Both clients receive same map name                           │
+│     3. Both clients appear in each other's snapshots                │
+│     4. Tick rate is consistent (~20 Hz)                             │
+│     5. Disconnect is handled without crashing                       │
+│                                                                      │
+│  ❌ FAIL if:                                                        │
+│     - Connection fails or times out                                 │
+│     - Clients receive different game settings                       │
+│     - Snapshots don't include all players                          │
+│     - Server crashes on client disconnect                           │
+│     - Memory leaks over extended runtime                           │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.10 After MVP: Next Steps
+
+Once MVP is validated:
+
+1. **Binary Protocol** - Replace JSON with binary encoding (StateEncoder)
+2. **Real Map Loading** - Actually load BSP/collision data
+3. **Input Processing** - Apply physics-based movement
+4. **Prediction** - Add client-side prediction
+5. **WebTransport** - Add as primary transport with WS fallback
+6. **Visual Client** - Integrate with Babylon.js rendering
+
+---
+
+## 16. Implementation Roadmap
+
+### Phase 0: MVP (Headless Connection Test)
+- [ ] Implement `MVPServer` with WebSocket
+- [ ] Implement `MVPClient` with WebSocket
+- [ ] Implement handshake protocol (welcome → join → ready → game_start)
+- [ ] Implement snapshot broadcast loop
+- [ ] Add CLI entry points (`mvp:server`, `mvp:client`)
+- [ ] **Validation:** Two clients connect, receive same map, see each other in snapshots
+
+### Phase 1: Foundation
 - [ ] Create `src/network/` directory structure
-- [ ] Implement `StateEncoder` / `StateDecoder`
+- [ ] Implement `StateEncoder` / `StateDecoder` (binary protocol)
 - [ ] Implement basic `GameState`, `Entity`, components
 - [ ] Implement `GameSimulation` with tick loop
 - [ ] Implement basic `Command` system
 - [ ] Create `LocalGameHost` for single-player
 - [ ] Integration test: Single-player game loop
 
-### Phase 2: Transport Layer (Week 3-4)
+### Phase 2: Transport Layer
 - [ ] Implement `ITransport` interface
 - [ ] Implement `WebSocketTransport` (simpler, test first)
 - [ ] Implement `WebTransportTransport`
@@ -3963,7 +4958,7 @@ class GameScene extends EngineScene {
 - [ ] Implement `MessageProtocol` binary encoding
 - [ ] Integration test: Client-server connection
 
-### Phase 3: Server (Week 5-6)
+### Phase 3: Server
 - [ ] Implement `GameServer` tick loop
 - [ ] Implement `ClientConnection` management
 - [ ] Implement `SnapshotManager` with delta compression
@@ -3971,21 +4966,21 @@ class GameScene extends EngineScene {
 - [ ] Implement server-side command validation
 - [ ] Integration test: Multiple clients connected
 
-### Phase 4: Client Prediction (Week 7-8)
+### Phase 4: Client Prediction
 - [ ] Implement `NetworkGameHost`
 - [ ] Implement client-side prediction
 - [ ] Implement server reconciliation
 - [ ] Implement `InterpolationBuffer`
 - [ ] Integration test: Smooth movement with latency
 
-### Phase 5: Game Integration (Week 9-10)
+### Phase 5: Game Integration
 - [ ] Integrate with existing `GameScene`
 - [ ] Add network-aware entity rendering
 - [ ] Implement game events (sounds, effects)
 - [ ] Implement chat system
 - [ ] Implement scoreboard / player list
 
-### Phase 6: Polish & Testing (Week 11-12)
+### Phase 6: Polish & Testing
 - [ ] Add reconnection handling
 - [ ] Add bandwidth throttling
 - [ ] Add server browser / lobby UI
