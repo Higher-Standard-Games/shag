@@ -6530,6 +6530,365 @@ interface PlayerMetrics {
 
 ---
 
+## 18. Implementation Notes
+
+Clarifications for implementers on edge cases and conventions.
+
+### 18.1 Binary Protocol Conventions
+
+```typescript
+/**
+ * Binary Encoding Conventions:
+ *
+ * Byte Order:     Little-endian for all multi-byte values
+ * Field Packing:  Sequential, no padding between fields
+ * String Format:  uint16 length prefix + UTF-8 bytes (max 1024 bytes)
+ * Array Format:   uint8/uint16 count prefix + sequential elements
+ *
+ * Message Structure:
+ *   byte 0:       MessageType (0x01-0x0F server→client, 0x81-0x8F client→server)
+ *   bytes 1-N:    Payload (message-specific)
+ *
+ * Maximum Sizes:
+ *   Total message: 64 KB (65536 bytes)
+ *   String field:  1 KB (1024 bytes)
+ *   Player array:  64 entries
+ *   Entity array:  1000 entries
+ */
+```
+
+### 18.2 Server Tick Loop Details
+
+```typescript
+/**
+ * Tick Loop Execution Order:
+ *
+ * 1. GATHER PHASE (at tick boundary)
+ *    - Collect all pending commands from all clients
+ *    - Commands arriving DURING tick are queued for NEXT tick
+ *    - Clear pending command queues
+ *
+ * 2. SORT PHASE
+ *    - Sort commands by (playerId, seq) for determinism
+ *    - Same input order = same output (replay-safe)
+ *
+ * 3. EXECUTE PHASE
+ *    - For each command: validate, then apply to simulation
+ *    - Run game systems (movement, physics, combat, etc.)
+ *    - Increment currentTick
+ *
+ * 4. SNAPSHOT PHASE
+ *    - Create snapshot of current state
+ *    - Store in history for delta compression
+ *
+ * 5. BROADCAST PHASE
+ *    - For each client: create delta from their lastAckedTick
+ *    - Send snapshot message
+ *
+ * TICK SLIP HANDLING:
+ *   If tick() takes longer than tickDuration (e.g., 60ms for a 50ms tick):
+ *   - Log warning: "[Server] Tick slip: 60ms (expected 50ms)"
+ *   - Continue normally (ticks bunch up, don't drop)
+ *   - Consider reducing tick rate if consistent
+ *
+ * WHY NO FRAME SKIPPING:
+ *   Skipping ticks breaks determinism. All commands must be processed
+ *   in order. If server can't keep up, reduce tick rate or optimize.
+ */
+
+// Example implementation:
+private tick(): void {
+  const tickStart = performance.now();
+
+  // 1. Gather
+  const commands = this.gatherPendingCommands();
+
+  // 2. Sort
+  commands.sort((a, b) => {
+    if (a.playerId !== b.playerId) return a.playerId.localeCompare(b.playerId);
+    return a.seq - b.seq;
+  });
+
+  // 3. Execute
+  for (const cmd of commands) {
+    if (this.validateCommand(cmd)) {
+      this.simulation.executeCommand(cmd);
+    }
+  }
+  this.simulation.tick();
+  this.currentTick++;
+
+  // 4. Snapshot
+  this.snapshotManager.store(this.currentTick, this.simulation.getState());
+
+  // 5. Broadcast
+  this.broadcastSnapshots();
+
+  // Monitor performance
+  const tickDuration = performance.now() - tickStart;
+  if (tickDuration > this.config.tickDuration) {
+    console.warn(`[Server] Tick slip: ${tickDuration.toFixed(1)}ms (expected ${this.config.tickDuration}ms)`);
+  }
+}
+```
+
+### 18.3 Component Change Detection (Phase 1)
+
+For delta compression to work, we need to detect when components have changed.
+
+```typescript
+/**
+ * Change Detection Strategy:
+ *
+ * Option 1: Version Numbers (RECOMMENDED)
+ *   Each component has a `version: number` that increments on mutation.
+ *   - Fast comparison: just compare version numbers
+ *   - Requires discipline: must increment on every change
+ *
+ * Option 2: Binary Comparison
+ *   Serialize both versions and compare bytes.
+ *   - Always correct (no missed changes)
+ *   - Slower (serialization cost)
+ *   - Use for validation, not production
+ *
+ * Option 3: Dirty Flags
+ *   Set `dirty = true` when component changes, clear after snapshot.
+ *   - Very fast
+ *   - Must remember to set flag on every mutation
+ *   - Easy to forget and miss changes
+ */
+
+// Recommended: Version-based change detection
+interface VersionedComponent {
+  readonly version: number;  // Increment on any mutation
+}
+
+class PositionComponent implements VersionedComponent {
+  private _x = 0;
+  private _y = 0;
+  private _z = 0;
+  private _version = 0;
+
+  get version() { return this._version; }
+
+  set x(value: number) {
+    if (this._x !== value) {
+      this._x = value;
+      this._version++;
+    }
+  }
+  // ... same for y, z
+}
+
+// In SnapshotManager:
+private getChangedComponents(
+  baseline: Entity | undefined,
+  current: Entity
+): ComponentData[] {
+  const changed: ComponentData[] = [];
+
+  for (const [type, component] of current.components) {
+    const baselineComponent = baseline?.components.get(type);
+
+    // New component or version changed
+    if (!baselineComponent ||
+        (component as VersionedComponent).version !== (baselineComponent as VersionedComponent).version) {
+      changed.push({
+        type,
+        data: component.serialize(),
+      });
+    }
+  }
+
+  return changed;
+}
+```
+
+### 18.4 Client Heartbeat (Keep-Alive)
+
+How does the server know a client is still connected if they're not moving?
+
+```typescript
+/**
+ * Client Keep-Alive Strategy:
+ *
+ * OPTION 1: Empty Input Commands (RECOMMENDED for MVP)
+ *   Client sends input every frame, even if all zeros.
+ *   - Simple: reuses existing Input message
+ *   - Server processes minimal-cost no-op
+ *   - 20 Hz input = ~60 bytes/sec overhead
+ *
+ * OPTION 2: Dedicated Ping/Pong
+ *   Separate Ping message type, server responds with Pong.
+ *   - Cleaner separation of concerns
+ *   - More protocol complexity
+ *   - Useful for latency measurement
+ *
+ * OPTION 3: Transport-Level Heartbeat
+ *   WebSocket has built-in ping/pong frames.
+ *   - Zero application overhead
+ *   - ws library: ws.ping() / ws.pong()
+ *   - Doesn't help with application-level timeouts
+ *
+ * SERVER TIMEOUT:
+ *   If no messages from client for 30 seconds:
+ *   - Log: "[Server] Client timeout: {clientId}"
+ *   - Disconnect client
+ *   - Broadcast PlayerLeft
+ */
+
+// Server-side timeout implementation:
+class ClientConnection {
+  lastMessageTime = Date.now();
+
+  static readonly TIMEOUT_MS = 30000;  // 30 seconds
+}
+
+// In server tick:
+private checkTimeouts(): void {
+  const now = Date.now();
+
+  for (const [clientId, client] of this.clients) {
+    if (now - client.lastMessageTime > ClientConnection.TIMEOUT_MS) {
+      console.log(`[Server] Client timeout: ${clientId}`);
+      this.disconnectClient(client, 'timeout');
+    }
+  }
+}
+
+// Update on any message:
+private handleMessage(client: ClientConnection, data: Uint8Array): void {
+  client.lastMessageTime = Date.now();
+  // ... process message
+}
+```
+
+### 18.5 Prediction Determinism
+
+Client prediction must produce identical results when replayed.
+
+```typescript
+/**
+ * Ensuring Deterministic Simulation:
+ *
+ * REQUIREMENTS:
+ * 1. Same inputs → Same outputs (always)
+ * 2. Order-independent (sorted by playerId, seq)
+ * 3. Fixed delta time per tick (not frame-based)
+ *
+ * COMMON PITFALLS:
+ *
+ * ❌ Using Date.now() or performance.now() in simulation
+ *    Use: this.currentTick * this.tickDuration
+ *
+ * ❌ Random numbers without seeded RNG
+ *    Use: Seeded PRNG with tick as seed component
+ *
+ * ❌ Iterating over Map/Set (insertion order varies)
+ *    Use: Sort keys before iteration, or use arrays
+ *
+ * ❌ Floating-point accumulation errors
+ *    Use: Integer or fixed-point for position if needed
+ *    Or: Accept small divergence, smooth correction handles it
+ *
+ * FLOATING-POINT TOLERANCE:
+ *   Small prediction errors are acceptable and expected.
+ *   Smooth correction (Section 17.5) handles errors up to ~1 unit.
+ *   If errors exceed 1 unit, investigate simulation divergence.
+ */
+
+// Example: Deterministic movement
+class MovementSystem {
+  update(state: GameState, tickDuration: number): void {
+    // Use fixed tickDuration, not real elapsed time
+    const dt = tickDuration / 1000;  // Convert ms to seconds
+
+    for (const entity of state.entities.values()) {
+      const pos = entity.getComponent<PositionComponent>('position');
+      const vel = entity.getComponent<VelocityComponent>('velocity');
+
+      if (pos && vel) {
+        // Deterministic: same dt every tick
+        pos.x += vel.x * dt;
+        pos.y += vel.y * dt;
+        pos.z += vel.z * dt;
+      }
+    }
+  }
+}
+```
+
+### 18.6 WebTransport URL Format (Phase 4)
+
+```typescript
+/**
+ * WebTransport Connection URLs:
+ *
+ * Format: https://{host}:{port}/{path}
+ *
+ * Examples:
+ *   - Development: https://localhost:4433/game
+ *   - Production:  https://game.example.com:443/game
+ *
+ * REQUIREMENTS:
+ *   - HTTPS only (TLS required)
+ *   - Valid TLS certificate (self-signed won't work in browsers)
+ *   - HTTP/3 support on server
+ *   - Port 443 for production (others may be blocked)
+ *
+ * SERVER SETUP (Node.js):
+ *   - Use @aspect/quic or @aspect/webtransport libraries
+ *   - Requires TLS cert + key
+ *   - See: https://web.dev/webtransport/
+ *
+ * FALLBACK:
+ *   If WebTransport fails (cert issues, blocked, unsupported browser):
+ *   - TransportFactory falls back to WebSocket
+ *   - Same gameplay, higher latency
+ *   - Log: "[Transport] WebTransport failed, using WebSocket fallback"
+ */
+```
+
+### 18.7 Testing with Simulated Latency
+
+```typescript
+/**
+ * Testing Network Code Locally:
+ *
+ * OPTION 1: Artificial Delay in Transport
+ *   Add delay before delivering messages.
+ *
+ *   class DebugTransport implements ITransport {
+ *     constructor(private inner: ITransport, private latencyMs: number) {}
+ *
+ *     send(data: Uint8Array): void {
+ *       setTimeout(() => this.inner.send(data), this.latencyMs);
+ *     }
+ *   }
+ *
+ * OPTION 2: Browser DevTools
+ *   Chrome: DevTools → Network → Throttling → Add custom profile
+ *   - Set latency to 100ms, 200ms, etc.
+ *   - Affects all network traffic
+ *
+ * OPTION 3: System-Level (tc / NetEm on Linux)
+ *   sudo tc qdisc add dev lo root netem delay 100ms
+ *   - Affects localhost traffic
+ *   - Most realistic
+ *   - Remember to remove: sudo tc qdisc del dev lo root
+ *
+ * WHAT TO TEST:
+ *   - 50ms latency: Normal broadband, should feel smooth
+ *   - 100ms latency: Acceptable, some visible interpolation
+ *   - 200ms latency: Noticeable delay, test prediction quality
+ *   - 500ms latency: Degraded experience, but should not break
+ *   - Packet loss 5%: Random drops, should recover gracefully
+ *   - Packet loss 20%: Severe, test reconnection
+ */
+```
+
+---
+
 ## Appendix A: Configuration Examples
 
 ### Server Configuration
