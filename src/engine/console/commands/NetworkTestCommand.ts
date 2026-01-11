@@ -3,6 +3,7 @@ import type { IGameHost } from '../../network/core/IGameHost';
 import { LocalGameHost } from '../../network/client/hosts/LocalGameHost';
 import { TestSimulation, testConfig } from '../../network/test/TestSimulation';
 import { MoveCommand } from '../../network/core/Command';
+import { WebSocketServer } from '../../network/server/WebSocketServer';
 
 /**
  * Test command for networking infrastructure
@@ -15,6 +16,8 @@ export default class NetworkTestCommand extends Command {
     subcommands: [
       { name: 'local', description: 'Test LocalGameHost' },
       { name: 'simulation', description: 'Test simulation' },
+      { name: 'network', description: 'Test networked host (mock)' },
+      { name: 'server', description: 'Test server infrastructure' },
       { name: 'help', description: 'Show this help' }
     ]
   };
@@ -26,8 +29,11 @@ export default class NetworkTestCommand extends Command {
       case 'local':
         return this.testLocalHost();
       
-      case 'simulation':
-        return this.testSimulation();
+      case 'network':
+        return this.testNetworked();
+      
+      case 'server':
+        return this.testServer();
       
       default:
         return this.showHelp();
@@ -134,11 +140,39 @@ export default class NetworkTestCommand extends Command {
     }
   }
 
+  private testServer(): string {
+    try {
+      // Create mock WebSocket server
+      const server = new WebSocketServer(8080, testConfig, TestSimulation);
+      server.start();
+      
+      // Add mock clients
+      server.addMockClient('client1');
+      server.addMockClient('client2');
+      
+      // Create a room
+      server.createRoom('test-room', 4);
+      
+      // Get stats
+      const stats = server.getStats();
+      
+      server.stop();
+      
+      return `✅ Server test passed\n` +
+             `   Total clients: ${stats.totalClients}\n` +
+             `   Total rooms: ${stats.totalRooms}\n` +
+             `   Room 'test-room': ${stats.rooms[0]?.clientCount || 0}/${stats.rooms[0]?.maxClients || 0} clients`;
+    } catch (error) {
+      return `❌ Server test failed: ${error}`;
+    }
+  }
+
   private showHelp(): string {
     return `Network Test Commands:\n` +
            `  nettest local      - Test LocalGameHost\n` +
            `  nettest simulation - Test simulation\n` +
            `  nettest network    - Test networked host (mock)\n` +
+           `  nettest server     - Test server infrastructure\n` +
            `  nettest help       - Show this help`;
   }
 }
