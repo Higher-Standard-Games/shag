@@ -5416,7 +5416,415 @@ echo "Test complete!"
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 15.10 After MVP: Next Steps
+### 15.10 Automated Test Runner (AI-Agent Compatible)
+
+A programmatic test runner that validates all acceptance criteria with structured output.
+
+#### 15.10.1 Test Runner Implementation
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/cli/test-network-mvp.ts - AI-Agent Compatible Test Runner
+// ═══════════════════════════════════════════════════════════════════
+
+import { spawn, ChildProcess } from 'child_process';
+import { EventEmitter } from 'events';
+
+interface TestResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  duration: number;
+}
+
+interface TestReport {
+  success: boolean;
+  timestamp: string;
+  duration: number;
+  tests: TestResult[];
+  summary: {
+    passed: number;
+    failed: number;
+    total: number;
+  };
+}
+
+class NetworkMVPTest extends EventEmitter {
+  private serverProcess: ChildProcess | null = null;
+  private clientProcesses: ChildProcess[] = [];
+  private serverLogs: string[] = [];
+  private clientLogs: Map<string, string[]> = new Map();
+  private results: TestResult[] = [];
+  private startTime = 0;
+
+  private readonly config = {
+    serverPort: 7777,
+    map: 'wdm7',
+    clientCount: 2,
+    testDuration: 15000,    // 15 seconds total test
+    connectionTimeout: 5000, // 5 seconds to connect
+    snapshotWait: 3000,      // 3 seconds to receive snapshots
+  };
+
+  async run(): Promise<TestReport> {
+    this.startTime = Date.now();
+    console.log('╔═══════════════════════════════════════════════════════════════╗');
+    console.log('║          SHAG Engine - Network MVP Test Runner                 ║');
+    console.log('╚═══════════════════════════════════════════════════════════════╝');
+    console.log('');
+
+    try {
+      // Phase 1: Start server
+      await this.test('Server starts successfully', async () => {
+        await this.startServer();
+        await this.waitForLog(this.serverLogs, 'Waiting for connections', this.config.connectionTimeout);
+      });
+
+      // Phase 2: Connect clients
+      await this.test('Client 1 connects and receives welcome', async () => {
+        await this.startClient('Player1');
+        await this.waitForLog(this.clientLogs.get('Player1')!, 'Received welcome', this.config.connectionTimeout);
+      });
+
+      await this.test('Client 2 connects and receives welcome', async () => {
+        await this.startClient('Player2');
+        await this.waitForLog(this.clientLogs.get('Player2')!, 'Received welcome', this.config.connectionTimeout);
+      });
+
+      // Phase 3: Verify join
+      await this.test('Both clients join successfully', async () => {
+        await this.waitForLog(this.clientLogs.get('Player1')!, 'Joined as', this.config.connectionTimeout);
+        await this.waitForLog(this.clientLogs.get('Player2')!, 'Joined as', this.config.connectionTimeout);
+      });
+
+      // Phase 4: Verify game start
+      await this.test('Game starts with both players ready', async () => {
+        await this.waitForLog(this.serverLogs, 'All players ready', this.config.connectionTimeout);
+        await this.waitForLog(this.serverLogs, 'Game started', this.config.connectionTimeout);
+      });
+
+      // Phase 5: Verify snapshots
+      await this.test('Clients receive snapshots with 2 players', async () => {
+        // Wait for a few ticks
+        await this.sleep(this.config.snapshotWait);
+
+        // Check both clients see 2 players in snapshots
+        const client1Logs = this.clientLogs.get('Player1')!.join('\n');
+        const client2Logs = this.clientLogs.get('Player2')!.join('\n');
+
+        if (!client1Logs.includes('2 players') || !client2Logs.includes('2 players')) {
+          throw new Error('Snapshots do not contain 2 players');
+        }
+      });
+
+      // Phase 6: Verify same map
+      await this.test('Both clients receive same map name', async () => {
+        const client1Map = this.extractMapName(this.clientLogs.get('Player1')!);
+        const client2Map = this.extractMapName(this.clientLogs.get('Player2')!);
+
+        if (client1Map !== client2Map) {
+          throw new Error(`Map mismatch: ${client1Map} vs ${client2Map}`);
+        }
+        if (client1Map !== this.config.map) {
+          throw new Error(`Unexpected map: ${client1Map} (expected ${this.config.map})`);
+        }
+      });
+
+      // Phase 7: Test disconnect
+      await this.test('Client disconnect handled gracefully', async () => {
+        // Kill client 1
+        this.clientProcesses[0]?.kill();
+
+        // Wait for server and client 2 to notice
+        await this.waitForLog(this.serverLogs, 'disconnected', 2000);
+        await this.waitForLog(this.clientLogs.get('Player2')!, 'Player left', 2000);
+      });
+
+      // Phase 8: Server still running
+      await this.test('Server remains stable after disconnect', async () => {
+        await this.sleep(1000);
+        if (this.serverProcess?.killed || this.serverProcess?.exitCode !== null) {
+          throw new Error('Server crashed after client disconnect');
+        }
+      });
+
+    } finally {
+      await this.cleanup();
+    }
+
+    return this.generateReport();
+  }
+
+  private async test(name: string, fn: () => Promise<void>): Promise<void> {
+    const testStart = Date.now();
+    console.log(`  ⏳ ${name}...`);
+
+    try {
+      await fn();
+      const duration = Date.now() - testStart;
+      console.log(`  ✅ ${name} (${duration}ms)`);
+      this.results.push({ name, passed: true, message: 'OK', duration });
+    } catch (error) {
+      const duration = Date.now() - testStart;
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`  ❌ ${name}: ${message}`);
+      this.results.push({ name, passed: false, message, duration });
+    }
+  }
+
+  private async startServer(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.serverProcess = spawn('npx', [
+        'tsx', 'src/server/main.ts',
+        '--port', String(this.config.serverPort),
+        '--map', this.config.map,
+      ], { shell: true });
+
+      this.serverProcess.stdout?.on('data', (data) => {
+        const line = data.toString().trim();
+        this.serverLogs.push(line);
+        if (process.env.VERBOSE) console.log(`[Server] ${line}`);
+      });
+
+      this.serverProcess.stderr?.on('data', (data) => {
+        const line = data.toString().trim();
+        this.serverLogs.push(line);
+        if (process.env.VERBOSE) console.log(`[Server ERR] ${line}`);
+      });
+
+      this.serverProcess.on('error', reject);
+
+      // Give server time to start
+      setTimeout(resolve, 1000);
+    });
+  }
+
+  private async startClient(name: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const logs: string[] = [];
+      this.clientLogs.set(name, logs);
+
+      const client = spawn('npx', [
+        'tsx', 'src/cli/headless-netclient.ts',
+        '--connect', `ws://localhost:${this.config.serverPort}`,
+        '--name', name,
+      ], { shell: true });
+
+      this.clientProcesses.push(client);
+
+      client.stdout?.on('data', (data) => {
+        const line = data.toString().trim();
+        logs.push(line);
+        if (process.env.VERBOSE) console.log(`[${name}] ${line}`);
+      });
+
+      client.stderr?.on('data', (data) => {
+        const line = data.toString().trim();
+        logs.push(line);
+        if (process.env.VERBOSE) console.log(`[${name} ERR] ${line}`);
+      });
+
+      client.on('error', reject);
+
+      // Give client time to start
+      setTimeout(resolve, 500);
+    });
+  }
+
+  private waitForLog(logs: string[], pattern: string, timeout: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const startLen = logs.length;
+      const deadline = Date.now() + timeout;
+
+      const check = () => {
+        // Check all logs (including new ones)
+        for (const log of logs) {
+          if (log.includes(pattern)) {
+            resolve();
+            return;
+          }
+        }
+
+        if (Date.now() > deadline) {
+          reject(new Error(`Timeout waiting for: "${pattern}"`));
+          return;
+        }
+
+        setTimeout(check, 100);
+      };
+
+      check();
+    });
+  }
+
+  private extractMapName(logs: string[]): string {
+    for (const log of logs) {
+      const match = log.match(/map=(\w+)/);
+      if (match) return match[1];
+    }
+    return '';
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async cleanup(): Promise<void> {
+    console.log('');
+    console.log('  Cleaning up...');
+
+    for (const client of this.clientProcesses) {
+      if (!client.killed) client.kill();
+    }
+
+    if (this.serverProcess && !this.serverProcess.killed) {
+      this.serverProcess.kill();
+    }
+
+    // Wait for processes to terminate
+    await this.sleep(500);
+  }
+
+  private generateReport(): TestReport {
+    const passed = this.results.filter(r => r.passed).length;
+    const failed = this.results.filter(r => !r.passed).length;
+    const total = this.results.length;
+    const duration = Date.now() - this.startTime;
+
+    const report: TestReport = {
+      success: failed === 0,
+      timestamp: new Date().toISOString(),
+      duration,
+      tests: this.results,
+      summary: { passed, failed, total },
+    };
+
+    // Print summary
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`  RESULT: ${report.success ? '✅ PASSED' : '❌ FAILED'}`);
+    console.log(`  Tests:  ${passed}/${total} passed`);
+    console.log(`  Duration: ${(duration / 1000).toFixed(1)}s`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('');
+
+    // Output JSON for AI agent parsing
+    console.log('TEST_REPORT_JSON:');
+    console.log(JSON.stringify(report, null, 2));
+
+    return report;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Entry Point
+// ─────────────────────────────────────────────────────────────────
+
+async function main() {
+  const test = new NetworkMVPTest();
+  const report = await test.run();
+
+  // Exit with proper code for CI/AI agent
+  process.exit(report.success ? 0 : 1);
+}
+
+main().catch((error) => {
+  console.error('Test runner failed:', error);
+  process.exit(1);
+});
+```
+
+#### 15.10.2 Package Script
+
+```json
+{
+  "scripts": {
+    "net:server": "tsx src/server/main.ts",
+    "net:client": "tsx src/cli/headless-netclient.ts",
+    "net:test": "tsx src/cli/test-network-mvp.ts",
+    "net:test:verbose": "VERBOSE=1 tsx src/cli/test-network-mvp.ts"
+  }
+}
+```
+
+#### 15.10.3 AI Agent Usage
+
+```bash
+# Run the test (single command, cross-platform)
+npm run net:test
+
+# Run with verbose logging (see all server/client output)
+npm run net:test:verbose
+```
+
+**Exit Codes:**
+- `0` - All tests passed
+- `1` - One or more tests failed
+
+**Structured Output:**
+The test runner outputs a JSON report that can be parsed:
+
+```
+TEST_REPORT_JSON:
+{
+  "success": true,
+  "timestamp": "2026-01-11T12:34:56.789Z",
+  "duration": 12345,
+  "tests": [
+    { "name": "Server starts successfully", "passed": true, "message": "OK", "duration": 1023 },
+    { "name": "Client 1 connects and receives welcome", "passed": true, "message": "OK", "duration": 512 },
+    ...
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8
+  }
+}
+```
+
+#### 15.10.4 AI Agent Instructions
+
+When implementing the MVP, use this command to validate:
+
+```markdown
+## How to Test Network MVP
+
+1. **Ensure implementation complete:**
+   - src/network/shared/protocol/*.ts (StateEncoder, StateDecoder, Messages, MessageCodec)
+   - src/network/shared/transport/*.ts (ITransport, WebSocketTransport, NodeWebSocketTransport)
+   - src/network/server/GameServer.ts
+   - src/network/client/NetworkClient.ts
+   - src/server/main.ts
+   - src/cli/headless-netclient.ts
+   - src/cli/test-network-mvp.ts
+
+2. **Run the test:**
+   ```bash
+   npm run net:test
+   ```
+
+3. **Check result:**
+   - Exit code 0 = PASS (all acceptance criteria met)
+   - Exit code 1 = FAIL (check TEST_REPORT_JSON for details)
+
+4. **If test fails:**
+   - Look at the specific test that failed
+   - Check the log pattern it was waiting for
+   - Verify the corresponding code produces that log
+
+5. **Acceptance criteria validation:**
+   - Test 1: Server logs "Waiting for connections"
+   - Test 2-3: Clients log "Received welcome"
+   - Test 4: Clients log "Joined as"
+   - Test 5: Server logs "All players ready" and "Game started"
+   - Test 6: Snapshots contain "2 players"
+   - Test 7: Both clients receive same map name
+   - Test 8: Server logs disconnect, client 2 sees "Player left"
+   - Test 9: Server process still running after disconnect
+```
+
+### 15.11 After MVP: Next Steps
 
 The MVP validates the core networking stack with production code. Next phases add game functionality:
 
