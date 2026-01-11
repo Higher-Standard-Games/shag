@@ -71,3 +71,6 @@ release/
 *.pk3
 public/game/basewsw/
 temp/
+
+# Claude AI assistant settings
+.claude/settings.local.json
