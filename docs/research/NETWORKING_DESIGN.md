@@ -7,18 +7,19 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Goals & Requirements](#2-goals--requirements)
-3. [Architecture Overview](#3-architecture-overview)
-4. [Transport Layer](#4-transport-layer)
-5. [Shared Simulation](#5-shared-simulation)
-6. [State Management](#6-state-management)
-7. [Command System](#7-command-system)
-8. [Client Architecture](#8-client-architecture)
-9. [Server Architecture](#9-server-architecture)
-10. [Network Protocol](#10-network-protocol)
-11. [Directory Structure](#11-directory-structure)
-12. [API Reference](#12-api-reference)
-13. [Implementation Roadmap](#13-implementation-roadmap)
+2. [Engine vs Game Separation](#2-engine-vs-game-separation)
+3. [Goals & Requirements](#3-goals--requirements)
+4. [Architecture Overview](#4-architecture-overview)
+5. [Transport Layer](#5-transport-layer)
+6. [Shared Simulation](#6-shared-simulation)
+7. [State Management](#7-state-management)
+8. [Command System](#8-command-system)
+9. [Client Architecture](#9-client-architecture)
+10. [Server Architecture](#10-server-architecture)
+11. [Network Protocol](#11-network-protocol)
+12. [Directory Structure](#12-directory-structure)
+13. [API Reference](#13-api-reference)
+14. [Implementation Roadmap](#14-implementation-roadmap)
 
 ---
 
@@ -49,9 +50,703 @@ This design is heavily inspired by:
 
 ---
 
-## 2. Goals & Requirements
+## 2. Engine vs Game Separation
 
-### 2.1 Functional Requirements
+A critical architectural decision: **what belongs in the engine vs what belongs in the game?**
+
+The networking system is designed so that **~80% lives in the engine** (reusable across all games) and **~20% is game-specific**.
+
+### 2.1 Separation Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        ENGINE (Reusable)                             │
+│  "How networking works"                                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  • Transport layer (WebTransport, WebSocket, Local)                 │
+│  • IGameHost interface + base implementations                       │
+│  • Binary serialization primitives                                  │
+│  • Entity/Component base classes                                    │
+│  • Snapshot manager + delta compression                             │
+│  • Interpolation buffer                                             │
+│  • Client prediction framework                                      │
+│  • Server tick loop infrastructure                                  │
+│  • Network protocol (message types, encoding)                       │
+│  • Common components (Position, Velocity, Health)                   │
+│  • Common systems (Movement, Physics)                               │
+│  • Common commands (MoveCommand)                                    │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 │ extends / implements
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         GAME (Specific)                              │
+│  "What the game does"                                                │
+├─────────────────────────────────────────────────────────────────────┤
+│  • Game-specific components (Weapon, Inventory, Vehicle...)         │
+│  • Game-specific commands (Attack, UseItem, Mount...)               │
+│  • Game-specific systems (Combat, Crafting, Trading...)             │
+│  • GameState subclass with game data                                │
+│  • GameRules configuration                                          │
+│  • Game events (sounds, effects)                                    │
+│  • UI (scoreboard, chat, lobby)                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Responsibility Matrix
+
+| Layer | Engine | Game |
+|-------|--------|------|
+| **Transport** | ✅ WebTransport, WebSocket, Local | - |
+| **Host Interface** | ✅ IGameHost, LocalGameHost, NetworkGameHost | - |
+| **Serialization** | ✅ StateEncoder, StateDecoder | - |
+| **Entity/Component Base** | ✅ Entity, IComponent interface | - |
+| **Common Components** | ✅ Position, Velocity, Rotation, Health | ✅ Weapon, Inventory, Vehicle |
+| **Simulation Base** | ✅ Simulation class, tick loop | ✅ MySimulation (extends) |
+| **Common Systems** | ✅ Movement, Physics | ✅ Combat, Crafting, Trading |
+| **Command Base** | ✅ Command interface, MoveCommand | ✅ AttackCommand, UseItemCommand |
+| **Server Infrastructure** | ✅ GameServer, SnapshotManager | ✅ GameRoom (extends) |
+| **Protocol** | ✅ Message types, encoding | ✅ Game-specific events |
+| **GameState** | ✅ Base GameState class | ✅ MyGameState (extends) |
+| **GameRules** | ✅ Interface definition | ✅ Configuration values |
+| **Interpolation** | ✅ InterpolationBuffer | - |
+| **Prediction** | ✅ Prediction framework | - |
+| **Delta Compression** | ✅ SnapshotManager | - |
+
+### 2.3 Engine Base Classes
+
+The engine provides abstract base classes that games extend:
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// ENGINE: src/engine/network/core/Component.ts
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Base interface for all networked components.
+ * Games implement this for their custom components.
+ */
+interface IComponent {
+  /** Serialize component state to binary */
+  serialize(encoder: StateEncoder): void;
+
+  /** Deserialize component state from binary */
+  deserialize(decoder: StateDecoder): void;
+
+  /** Clone component for snapshots */
+  clone(): IComponent;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENGINE: src/engine/network/core/Entity.ts
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Base entity class - container for components.
+ * Games use this directly, adding their custom components.
+ */
+class Entity {
+  readonly id: EntityId;
+  protected components: Map<string, IComponent> = new Map();
+
+  addComponent<T extends IComponent>(type: string, component: T): void {
+    this.components.set(type, component);
+  }
+
+  getComponent<T extends IComponent>(type: string): T | undefined {
+    return this.components.get(type) as T | undefined;
+  }
+
+  hasComponent(type: string): boolean {
+    return this.components.has(type);
+  }
+
+  serialize(encoder: StateEncoder): void {
+    encoder.writeUint8(this.components.size);
+    for (const [type, component] of this.components) {
+      encoder.writeString(type);
+      component.serialize(encoder);
+    }
+  }
+
+  clone(): Entity {
+    const cloned = new Entity(this.id);
+    for (const [type, component] of this.components) {
+      cloned.addComponent(type, component.clone());
+    }
+    return cloned;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENGINE: src/engine/network/core/Simulation.ts
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Abstract simulation base class.
+ * Games extend this to create their game-specific simulation.
+ */
+abstract class Simulation<
+  TState extends GameState = GameState,
+  TCommand extends Command = Command
+> {
+  state: TState;
+  currentTick: number = 0;
+
+  protected systems: GameSystem[] = [];
+  protected commandHandlers: Map<string, CommandHandler<TCommand>> = new Map();
+
+  constructor(config: SimulationConfig) {
+    this.config = config;
+    this.state = this.createInitialState();
+    this.registerSystems();
+    this.registerCommandHandlers();
+  }
+
+  /** Override to create game-specific initial state */
+  protected abstract createInitialState(): TState;
+
+  /** Override to register game-specific systems */
+  protected abstract registerSystems(): void;
+
+  /** Override to register game-specific command handlers */
+  protected abstract registerCommandHandlers(): void;
+
+  /**
+   * Advance simulation by one tick.
+   * This method is final - don't override.
+   */
+  tick(commands: TCommand[]): void {
+    // Sort commands for determinism
+    commands.sort((a, b) => {
+      if (a.playerId !== b.playerId) return a.playerId.localeCompare(b.playerId);
+      return a.seq - b.seq;
+    });
+
+    // Execute all commands
+    for (const cmd of commands) {
+      const handler = this.commandHandlers.get(cmd.type);
+      if (handler) {
+        handler(this.state, cmd);
+      }
+    }
+
+    // Update all systems
+    const dt = this.config.tickDuration / 1000;
+    for (const system of this.systems) {
+      system.update(this.state, dt);
+    }
+
+    this.currentTick++;
+  }
+
+  /** Add a system (engine or game-specific) */
+  protected addSystem(system: GameSystem): void {
+    this.systems.push(system);
+  }
+
+  /** Register a command handler */
+  protected onCommand(type: string, handler: CommandHandler<TCommand>): void {
+    this.commandHandlers.set(type, handler);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENGINE: src/engine/network/core/GameSystem.ts
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Base class for game systems.
+ * Both engine and game can provide systems.
+ */
+abstract class GameSystem {
+  abstract update(state: GameState, deltaTime: number): void;
+}
+```
+
+### 2.4 Game Extensions
+
+Games extend the engine base classes:
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/shared/state/MyGameState.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { GameState } from '@engine/network/core/GameState';
+
+/**
+ * Game-specific state extending engine base.
+ */
+class MyGameState extends GameState {
+  // Game-specific additions
+  teamScores: Map<TeamId, number> = new Map();
+  roundNumber: number = 1;
+  roundTimeRemaining: number = 0;
+  weather: WeatherType = 'clear';
+
+  serialize(encoder: StateEncoder): void {
+    super.serialize(encoder);  // Serialize base state
+
+    // Serialize game-specific state
+    encoder.writeUint8(this.teamScores.size);
+    for (const [team, score] of this.teamScores) {
+      encoder.writeString(team);
+      encoder.writeUint32(score);
+    }
+    encoder.writeUint16(this.roundNumber);
+    encoder.writeFloat32(this.roundTimeRemaining);
+    encoder.writeString(this.weather);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/shared/components/WeaponComponent.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { IComponent, StateEncoder, StateDecoder } from '@engine/network';
+
+/**
+ * Game-specific component for weapons.
+ */
+class WeaponComponent implements IComponent {
+  weaponId: string = '';
+  ammo: number = 0;
+  maxAmmo: number = 30;
+  reloadTimeRemaining: number = 0;
+  isReloading: boolean = false;
+
+  serialize(encoder: StateEncoder): void {
+    encoder.writeString(this.weaponId);
+    encoder.writeUint16(this.ammo);
+    encoder.writeUint16(this.maxAmmo);
+    encoder.writeFloat32(this.reloadTimeRemaining);
+    encoder.writeBool(this.isReloading);
+  }
+
+  deserialize(decoder: StateDecoder): void {
+    this.weaponId = decoder.readString();
+    this.ammo = decoder.readUint16();
+    this.maxAmmo = decoder.readUint16();
+    this.reloadTimeRemaining = decoder.readFloat32();
+    this.isReloading = decoder.readBool();
+  }
+
+  clone(): WeaponComponent {
+    const c = new WeaponComponent();
+    c.weaponId = this.weaponId;
+    c.ammo = this.ammo;
+    c.maxAmmo = this.maxAmmo;
+    c.reloadTimeRemaining = this.reloadTimeRemaining;
+    c.isReloading = this.isReloading;
+    return c;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/shared/commands/AttackCommand.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { Command, StateEncoder, StateDecoder } from '@engine/network';
+
+/**
+ * Game-specific command for attacking.
+ */
+class AttackCommand implements Command {
+  readonly type = 'attack';
+  readonly playerId: PlayerId;
+  readonly tick: number;
+  readonly seq: number;
+
+  // Attack-specific data
+  readonly weaponId: string;
+  readonly targetPosition: { x: number; y: number; z: number };
+
+  constructor(
+    playerId: PlayerId,
+    tick: number,
+    seq: number,
+    weaponId: string,
+    targetPosition: { x: number; y: number; z: number }
+  ) {
+    this.playerId = playerId;
+    this.tick = tick;
+    this.seq = seq;
+    this.weaponId = weaponId;
+    this.targetPosition = targetPosition;
+  }
+
+  serialize(): Uint8Array {
+    const encoder = new StateEncoder();
+    encoder.writeString(this.type);
+    encoder.writeString(this.playerId);
+    encoder.writeUint32(this.tick);
+    encoder.writeUint32(this.seq);
+    encoder.writeString(this.weaponId);
+    encoder.writeFloat32(this.targetPosition.x);
+    encoder.writeFloat32(this.targetPosition.y);
+    encoder.writeFloat32(this.targetPosition.z);
+    return encoder.toBytes();
+  }
+
+  static deserialize(data: Uint8Array): AttackCommand {
+    const decoder = new StateDecoder(data);
+    decoder.readString(); // Skip type
+    return new AttackCommand(
+      decoder.readString(),
+      decoder.readUint32(),
+      decoder.readUint32(),
+      decoder.readString(),
+      {
+        x: decoder.readFloat32(),
+        y: decoder.readFloat32(),
+        z: decoder.readFloat32(),
+      }
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/shared/systems/CombatSystem.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { GameSystem } from '@engine/network/core/GameSystem';
+import { MyGameState } from '../state/MyGameState';
+
+/**
+ * Game-specific system for combat logic.
+ */
+class CombatSystem extends GameSystem {
+  update(state: MyGameState, dt: number): void {
+    // Process pending attacks
+    for (const attack of state.pendingAttacks) {
+      this.processAttack(state, attack);
+    }
+    state.pendingAttacks = [];
+
+    // Update reload timers
+    for (const entity of state.entities.values()) {
+      const weapon = entity.getComponent<WeaponComponent>('weapon');
+      if (weapon?.isReloading) {
+        weapon.reloadTimeRemaining -= dt;
+        if (weapon.reloadTimeRemaining <= 0) {
+          weapon.ammo = weapon.maxAmmo;
+          weapon.isReloading = false;
+        }
+      }
+    }
+  }
+
+  private processAttack(state: MyGameState, attack: PendingAttack): void {
+    const attacker = state.entities.get(attack.attackerEntityId);
+    if (!attacker) return;
+
+    const weapon = attacker.getComponent<WeaponComponent>('weapon');
+    if (!weapon || weapon.ammo <= 0 || weapon.isReloading) return;
+
+    // Consume ammo
+    weapon.ammo--;
+
+    // Raycast / hit detection
+    const hits = this.performHitScan(state, attacker, attack.targetPosition);
+
+    for (const hit of hits) {
+      const health = hit.entity.getComponent<HealthComponent>('health');
+      if (health) {
+        const damage = this.calculateDamage(weapon.weaponId, hit.distance);
+        health.current -= damage;
+
+        // Emit damage event for effects/sounds
+        state.events.push({
+          type: 'damage',
+          entityId: hit.entity.id,
+          damage,
+          attackerId: attack.attackerEntityId,
+        });
+
+        if (health.current <= 0) {
+          state.events.push({
+            type: 'death',
+            entityId: hit.entity.id,
+            killerId: attack.attackerEntityId,
+          });
+        }
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/shared/MySimulation.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { Simulation } from '@engine/network/core/Simulation';
+import { MovementSystem, PhysicsSystem } from '@engine/network/systems';
+import { MoveCommand } from '@engine/network/commands/MoveCommand';
+import { MyGameState } from './state/MyGameState';
+import { CombatSystem } from './systems/CombatSystem';
+import { InventorySystem } from './systems/InventorySystem';
+import { AttackCommand } from './commands/AttackCommand';
+
+type MyCommand = MoveCommand | AttackCommand | UseItemCommand;
+
+/**
+ * Game-specific simulation extending engine base.
+ */
+class MySimulation extends Simulation<MyGameState, MyCommand> {
+
+  protected createInitialState(): MyGameState {
+    const state = new MyGameState();
+    state.teamScores.set('red', 0);
+    state.teamScores.set('blue', 0);
+    return state;
+  }
+
+  protected registerSystems(): void {
+    // Engine-provided systems (reusable)
+    this.addSystem(new MovementSystem());
+    this.addSystem(new PhysicsSystem());
+
+    // Game-specific systems
+    this.addSystem(new CombatSystem());
+    this.addSystem(new InventorySystem());
+  }
+
+  protected registerCommandHandlers(): void {
+    // Engine command (movement) - uses default handler
+    this.onCommand('move', (state, cmd) => {
+      const moveCmd = cmd as MoveCommand;
+      const player = state.players.get(moveCmd.playerId);
+      if (!player) return;
+
+      const entity = state.entities.get(player.entityId);
+      if (!entity) return;
+
+      const vel = entity.getComponent<VelocityComponent>('velocity');
+      if (vel) {
+        const speed = 300;
+        vel.x = moveCmd.direction.x * speed;
+        vel.y = moveCmd.direction.y * speed;
+        vel.z = moveCmd.direction.z * speed;
+      }
+    });
+
+    // Game-specific command (attack)
+    this.onCommand('attack', (state, cmd) => {
+      const attackCmd = cmd as AttackCommand;
+      const player = state.players.get(attackCmd.playerId);
+      if (!player) return;
+
+      // Queue attack for CombatSystem to process
+      state.pendingAttacks.push({
+        attackerEntityId: player.entityId,
+        weaponId: attackCmd.weaponId,
+        targetPosition: attackCmd.targetPosition,
+      });
+    });
+  }
+}
+```
+
+### 2.5 Game Scene Integration
+
+The game scene uses the engine's `IGameHost` interface - it doesn't know about networking details:
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/client/GameScene.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { EngineScene } from '@engine/EngineScene';
+import { IGameHost } from '@engine/network/client/IGameHost';  // Engine interface!
+import { MoveCommand } from '@engine/network/commands/MoveCommand';
+import { AttackCommand } from '../shared/commands/AttackCommand';
+import { MyGameState } from '../shared/state/MyGameState';
+
+/**
+ * Game scene - uses IGameHost for all networking.
+ * Doesn't know if it's single-player or multiplayer!
+ */
+class GameScene extends EngineScene {
+  private host: IGameHost;
+  private commandSeq = 0;
+
+  constructor(host: IGameHost) {
+    super();
+    this.host = host;
+
+    // Subscribe to state updates (works for local AND networked)
+    this.host.onStateUpdate((state: MyGameState) => {
+      this.updateWorld(state);
+    });
+
+    // Subscribe to events
+    this.host.onEvent((event) => {
+      this.handleEvent(event);
+    });
+  }
+
+  protected update(deltaTime: number): void {
+    // Sample input
+    const input = this.inputSystem.getInput();
+
+    // Send movement command (engine command)
+    if (input.isMoving) {
+      const moveCmd = new MoveCommand(
+        this.host.localPlayerId,
+        this.host.currentTick,
+        this.commandSeq++,
+        { x: input.moveX, y: 0, z: input.moveY },
+        input.lookPitch,
+        input.lookYaw,
+        input.buttons
+      );
+      this.host.sendCommand(moveCmd);
+    }
+
+    // Handle shooting (game-specific command)
+    if (input.buttons & Buttons.FIRE) {
+      this.shoot();
+    }
+  }
+
+  private shoot(): void {
+    const attackCmd = new AttackCommand(
+      this.host.localPlayerId,
+      this.host.currentTick,
+      this.commandSeq++,
+      this.currentWeaponId,
+      this.getAimPosition()
+    );
+
+    // Send through host - works for SP and MP!
+    this.host.sendCommand(attackCmd);
+  }
+
+  private updateWorld(state: MyGameState): void {
+    // Update local player (predicted in MP, direct in SP)
+    const localPlayer = state.players.get(this.host.localPlayerId);
+    if (localPlayer) {
+      const entity = state.entities.get(localPlayer.entityId);
+      if (entity) {
+        this.updateLocalPlayer(entity);
+      }
+    }
+
+    // Update remote players (interpolated in MP)
+    for (const [playerId, player] of state.players) {
+      if (playerId === this.host.localPlayerId) continue;
+
+      const entity = this.host.getInterpolatedEntity(player.entityId);
+      if (entity) {
+        this.updateRemotePlayer(playerId, entity);
+      }
+    }
+
+    // Update UI with game-specific state
+    this.updateScoreboard(state.teamScores);
+    this.updateRoundTimer(state.roundTimeRemaining);
+  }
+
+  private handleEvent(event: GameEvent): void {
+    switch (event.type) {
+      case 'damage':
+        this.showDamageIndicator(event.entityId, event.damage);
+        this.audioManager.playSound('hit');
+        break;
+      case 'death':
+        this.playDeathEffect(event.entityId);
+        this.showKillFeed(event.killerId, event.entityId);
+        break;
+      case 'chat':
+        this.chatUI.addMessage(event.playerId, event.message);
+        break;
+    }
+  }
+}
+```
+
+### 2.6 Starting the Game
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// GAME: src/games/default/client/main.ts
+// ═══════════════════════════════════════════════════════════════════
+
+import { LocalGameHost, NetworkGameHost, ListenServerHost } from '@engine/network/client/hosts';
+import { TransportFactory } from '@engine/network/client/transport/TransportFactory';
+import { MySimulation } from '../shared/MySimulation';
+import { GameScene } from './GameScene';
+import { gameRules } from '../shared/config/GameRules';
+
+const simulationConfig = {
+  tickRate: 20,
+  tickDuration: 50,
+  maxPlayers: 16,
+  gameRules,
+};
+
+async function startSinglePlayer(): Promise<void> {
+  // Create local host with game simulation
+  const host = new LocalGameHost(simulationConfig, MySimulation);
+
+  // Game scene doesn't know it's single-player!
+  const scene = new GameScene(host);
+  engine.runScene(scene);
+}
+
+async function joinMultiplayer(serverUrl: string): Promise<void> {
+  // Connect using best available transport
+  const transport = await TransportFactory.create(serverUrl);
+
+  // Create network host
+  const host = new NetworkGameHost(transport, simulationConfig, MySimulation);
+  await host.connect();
+
+  // Game scene doesn't know it's multiplayer!
+  const scene = new GameScene(host);
+  engine.runScene(scene);
+}
+
+async function hostMultiplayer(port: number): Promise<void> {
+  // Create listen server (host + play)
+  const host = new ListenServerHost(port, simulationConfig, MySimulation);
+  await host.start();
+
+  console.log(`Hosting on port ${port}`);
+
+  // Game scene doesn't know it's hosting!
+  const scene = new GameScene(host);
+  engine.runScene(scene);
+}
+```
+
+### 2.7 Summary
+
+| What | Where | Why |
+|------|-------|-----|
+| Transport (WebTransport/WS) | Engine | Reusable, complex, game-agnostic |
+| IGameHost interface | Engine | Abstraction for all game code |
+| Serialization primitives | Engine | Reusable, performance-critical |
+| Entity/Component base | Engine | Standard ECS foundation |
+| Prediction/Interpolation | Engine | Complex algorithms, reusable |
+| Snapshot/Delta compression | Engine | Complex algorithms, reusable |
+| Position, Velocity, Health | Engine | Common to most games |
+| Movement, Physics systems | Engine | Common to most games |
+| MoveCommand | Engine | Universal input |
+| **Game-specific components** | Game | Unique to each game |
+| **Game-specific commands** | Game | Unique game actions |
+| **Game-specific systems** | Game | Unique game rules |
+| **GameState subclass** | Game | Unique game data |
+| **GameRules config** | Game | Tuning values |
+
+**The engine handles the "how", the game handles the "what".**
+
+---
+
+## 3. Goals & Requirements
+
+### 3.1 Functional Requirements
 
 | ID | Requirement |
 |----|-------------|
@@ -65,7 +760,7 @@ This design is heavily inspired by:
 | FR-08 | Automatic reconnection handling |
 | FR-09 | Host migration when host disconnects (stretch goal) |
 
-### 2.2 Non-Functional Requirements
+### 3.2 Non-Functional Requirements
 
 | ID | Requirement |
 |----|-------------|
@@ -76,7 +771,7 @@ This design is heavily inspired by:
 | NFR-05 | Works on Browser, Electron, Capacitor (Android) |
 | NFR-06 | WebSocket fallback for iOS/Safari |
 
-### 2.3 Target Platforms
+### 3.3 Target Platforms
 
 | Platform | Primary Transport | Fallback |
 |----------|------------------|----------|
@@ -90,9 +785,9 @@ This design is heavily inspired by:
 
 ---
 
-## 3. Architecture Overview
+## 4. Architecture Overview
 
-### 3.1 High-Level Architecture
+### 4.1 High-Level Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -134,7 +829,7 @@ This design is heavily inspired by:
                     └─────────────────────┘
 ```
 
-### 3.2 Mode Comparison
+### 4.2 Mode Comparison
 
 | Mode | GameHost | Simulation Location | Network |
 |------|----------|---------------------|---------|
@@ -143,7 +838,7 @@ This design is heavily inspired by:
 | MP Host | ListenServerHost | Client (in-process) + serves | WebTransport/WS |
 | Dedicated | N/A (headless) | Server only | WebTransport/WS |
 
-### 3.3 Data Flow
+### 4.3 Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -193,9 +888,9 @@ This design is heavily inspired by:
 
 ---
 
-## 4. Transport Layer
+## 5. Transport Layer
 
-### 4.1 Transport Interface
+### 5.1 Transport Interface
 
 ```typescript
 /**
@@ -236,9 +931,9 @@ interface SendOptions {
 type TransportState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 ```
 
-### 4.2 Transport Implementations
+### 5.2 Transport Implementations
 
-#### 4.2.1 WebTransportTransport (Primary)
+#### 5.2.1 WebTransportTransport (Primary)
 
 ```typescript
 class WebTransportTransport implements ITransport {
@@ -285,7 +980,7 @@ class WebTransportTransport implements ITransport {
 }
 ```
 
-#### 4.2.2 WebSocketTransport (Fallback)
+#### 5.2.2 WebSocketTransport (Fallback)
 
 ```typescript
 class WebSocketTransport implements ITransport {
@@ -311,7 +1006,7 @@ class WebSocketTransport implements ITransport {
 }
 ```
 
-#### 4.2.3 LocalTransport (Single-player)
+#### 5.2.3 LocalTransport (Single-player)
 
 ```typescript
 class LocalTransport implements ITransport {
@@ -338,7 +1033,7 @@ class LocalTransport implements ITransport {
 }
 ```
 
-### 4.3 Transport Factory
+### 5.3 Transport Factory
 
 ```typescript
 class TransportFactory {
@@ -376,11 +1071,11 @@ class TransportFactory {
 
 ---
 
-## 5. Shared Simulation
+## 6. Shared Simulation
 
 The simulation is the core game logic that runs **identically** on both client and server.
 
-### 5.1 Simulation Interface
+### 6.1 Simulation Interface
 
 ```typescript
 /**
@@ -477,7 +1172,7 @@ interface SimulationConfig {
 }
 ```
 
-### 5.2 Determinism Requirements
+### 6.2 Determinism Requirements
 
 For client prediction to work, the simulation MUST be deterministic:
 
@@ -518,7 +1213,7 @@ function getTickRNG(baseSeed: number, tick: number): DeterministicRNG {
 }
 ```
 
-### 5.3 Game Systems
+### 6.3 Game Systems
 
 ```typescript
 /**
@@ -602,9 +1297,9 @@ class CombatSystem extends GameSystem {
 
 ---
 
-## 6. State Management
+## 7. State Management
 
-### 6.1 Game State Structure
+### 7.1 Game State Structure
 
 ```typescript
 /**
@@ -714,7 +1409,7 @@ class WorldState {
 }
 ```
 
-### 6.2 Entity Component System (ECS)
+### 7.2 Entity Component System (ECS)
 
 ```typescript
 type EntityId = string;
@@ -814,7 +1509,7 @@ class RotationComponent implements Component {
 }
 ```
 
-### 6.3 Snapshots and Delta Compression
+### 7.3 Snapshots and Delta Compression
 
 ```typescript
 /**
@@ -941,9 +1636,9 @@ class SnapshotManager {
 
 ---
 
-## 7. Command System
+## 8. Command System
 
-### 7.1 Command Interface
+### 8.1 Command Interface
 
 ```typescript
 type CommandType = string;
@@ -993,7 +1688,7 @@ class CommandFactory {
 }
 ```
 
-### 7.2 Common Commands
+### 8.2 Common Commands
 
 ```typescript
 /**
@@ -1105,7 +1800,7 @@ class ChatCommand implements Command {
 }
 ```
 
-### 7.3 Command Handlers
+### 8.3 Command Handlers
 
 ```typescript
 /**
@@ -1165,9 +1860,9 @@ const commandHandlers: Map<CommandType, CommandHandler> = new Map([
 
 ---
 
-## 8. Client Architecture
+## 9. Client Architecture
 
-### 8.1 Game Host Interface
+### 9.1 Game Host Interface
 
 ```typescript
 /**
@@ -1204,7 +1899,7 @@ interface IGameHost {
 }
 ```
 
-### 8.2 LocalGameHost (Single-player)
+### 9.2 LocalGameHost (Single-player)
 
 ```typescript
 /**
@@ -1302,7 +1997,7 @@ class LocalGameHost implements IGameHost {
 }
 ```
 
-### 8.3 NetworkGameHost (Multiplayer Client)
+### 9.3 NetworkGameHost (Multiplayer Client)
 
 ```typescript
 /**
@@ -1445,7 +2140,7 @@ class NetworkGameHost implements IGameHost {
 }
 ```
 
-### 8.4 Interpolation Buffer
+### 9.4 Interpolation Buffer
 
 ```typescript
 /**
@@ -1555,9 +2250,9 @@ interface EntitySnapshot {
 
 ---
 
-## 9. Server Architecture
+## 10. Server Architecture
 
-### 9.1 Game Server
+### 10.1 Game Server
 
 ```typescript
 /**
@@ -1812,7 +2507,7 @@ class ClientConnection {
 }
 ```
 
-### 9.2 Server Transport
+### 10.2 Server Transport
 
 ```typescript
 /**
@@ -1892,9 +2587,9 @@ class ServerTransport {
 
 ---
 
-## 10. Network Protocol
+## 11. Network Protocol
 
-### 10.1 Message Types
+### 11.1 Message Types
 
 ```typescript
 type MessageType =
@@ -1946,7 +2641,7 @@ interface PingMessage extends NetworkMessage {
 }
 ```
 
-### 10.2 Binary Protocol
+### 11.2 Binary Protocol
 
 ```typescript
 /**
@@ -2091,7 +2786,7 @@ class StateEncoder {
 
 ---
 
-## 11. Directory Structure
+## 12. Directory Structure
 
 ```
 src/
@@ -2197,9 +2892,9 @@ src/
 
 ---
 
-## 12. API Reference
+## 13. API Reference
 
-### 12.1 Starting a Game
+### 13.1 Starting a Game
 
 ```typescript
 // === SINGLE-PLAYER ===
@@ -2257,7 +2952,7 @@ const scene = new GameScene(host);
 engine.runScene(scene);
 ```
 
-### 12.2 GameScene Integration
+### 13.2 GameScene Integration
 
 ```typescript
 import { EngineScene } from '@/engine/EngineScene';
@@ -2364,7 +3059,7 @@ class GameScene extends EngineScene {
 
 ---
 
-## 13. Implementation Roadmap
+## 14. Implementation Roadmap
 
 ### Phase 1: Foundation (Week 1-2)
 - [ ] Create `src/network/` directory structure
