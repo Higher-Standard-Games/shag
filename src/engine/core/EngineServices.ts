@@ -181,6 +181,7 @@ export const Services = {
   AUDIO_MANAGER: 'audioManager',
   WORLD_INDICATORS: 'worldIndicators',
   RENDER_VARS: 'renderVars',
+  NETWORK_MANAGER: 'networkManager',
 } as const;
 
 export type ServiceName = typeof Services[keyof typeof Services];

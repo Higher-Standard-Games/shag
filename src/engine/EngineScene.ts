@@ -195,6 +195,14 @@ export abstract class EngineScene {
     const { ServiceLocator } = await import('./core/ServiceLocator');
     await ServiceLocator.getInstance().initScene(this.scene);
     console.log('[EngineScene] Scene services initialized');
+    
+    // Initialize networking (always enabled for now)
+    console.log('[EngineScene] Initializing networking...');
+    const { NetworkManager } = await import('./network/NetworkManager');
+    await NetworkManager.getInstance().initialize({
+      mode: 'local' // Default to local mode
+    });
+    console.log('[EngineScene] Networking initialized');
 
     // Load camera settings
     const engineSettings = EngineSettings.getInstance();
