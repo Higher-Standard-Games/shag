@@ -5540,6 +5540,996 @@ Ready for deployment:
 
 ---
 
+## 17. Security & Robustness
+
+This section addresses security, stability, and gameplay feel. Items are prioritized by when they're needed.
+
+### 17.1 Priority Levels
+
+| Priority | When | Focus |
+|----------|------|-------|
+| **P0 - MVP** | Before first playtest | Game-breaking issues |
+| **P1 - Demo** | Before public demo | Security basics, good feel |
+| **P2 - Production** | Before release | Full security, anti-cheat |
+
+---
+
+### 17.2 Input Validation (P0 - MVP) ⚠️ CRITICAL
+
+All client input must be validated server-side. Never trust client data.
+
+#### 17.2.1 Numeric Bounds
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/server/InputValidator.ts
+// ═══════════════════════════════════════════════════════════════════
+
+export class InputValidator {
+  // Movement input bounds
+  static readonly MAX_MOVEMENT = 1.0;
+  static readonly MIN_MOVEMENT = -1.0;
+
+  // Rotation bounds (radians)
+  static readonly MAX_PITCH = Math.PI / 2;   // 90 degrees
+  static readonly MIN_PITCH = -Math.PI / 2;
+  static readonly MAX_YAW = Math.PI * 2;     // Full rotation
+
+  // Sequence bounds
+  static readonly MAX_SEQ_JUMP = 100;  // Max commands ahead of last acked
+
+  /**
+   * Validate and sanitize input command
+   * Returns null if input is invalid (should be dropped)
+   */
+  static validate(input: InputMessage, client: ClientConnection): InputMessage | null {
+    // 1. Check sequence number is reasonable
+    const seqDelta = input.seq - client.lastInputSeq;
+    if (seqDelta < 0 || seqDelta > this.MAX_SEQ_JUMP) {
+      console.warn(`[Validator] Invalid seq: ${input.seq} (last: ${client.lastInputSeq})`);
+      return null;
+    }
+
+    // 2. Clamp movement to valid range
+    const keys = input.keys;
+    // Movement keys are bitmask, validate individual values when extracted
+
+    // 3. Clamp rotation to valid range
+    const pitch = Math.max(this.MIN_PITCH, Math.min(this.MAX_PITCH, input.pitch));
+    const yaw = ((input.yaw % this.MAX_YAW) + this.MAX_YAW) % this.MAX_YAW;  // Wrap to [0, 2π]
+
+    // 4. Validate buttons (bitmask, check for impossible combinations)
+    const buttons = input.buttons & 0xFF;  // Only allow first 8 bits
+
+    // 5. Return sanitized input
+    return {
+      ...input,
+      pitch,
+      yaw,
+      buttons,
+    };
+  }
+
+  /**
+   * Validate position from client (for debugging/spectator)
+   * Server NEVER trusts client position for gameplay
+   */
+  static validatePosition(pos: { x: number; y: number; z: number }): boolean {
+    // Check for NaN/Infinity
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
+      return false;
+    }
+
+    // Check reasonable bounds (map-dependent, use conservative default)
+    const MAX_COORD = 10000;
+    if (Math.abs(pos.x) > MAX_COORD || Math.abs(pos.y) > MAX_COORD || Math.abs(pos.z) > MAX_COORD) {
+      return false;
+    }
+
+    return true;
+  }
+}
+```
+
+#### 17.2.2 Server Integration
+
+```typescript
+// In GameServer.handleInput():
+private handleInput(client: ClientConnection, message: InputMessage): void {
+  // CRITICAL: Validate before processing
+  const validated = InputValidator.validate(message, client);
+  if (!validated) {
+    console.warn(`[Server] Dropped invalid input from ${client.clientId}`);
+    client.invalidInputCount++;
+
+    // Kick after too many invalid inputs
+    if (client.invalidInputCount > 100) {
+      this.kickClient(client, 'Too many invalid inputs');
+    }
+    return;
+  }
+
+  // Update last seen sequence
+  client.lastInputSeq = validated.seq;
+
+  // Process validated input
+  this.processInput(client, validated);
+}
+```
+
+---
+
+### 17.3 Rate Limiting (P0 - MVP) ⚠️ CRITICAL
+
+Prevent clients from flooding the server with messages.
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/server/RateLimiter.ts
+// ═══════════════════════════════════════════════════════════════════
+
+export class RateLimiter {
+  // Limits per client
+  static readonly MAX_MESSAGES_PER_SECOND = 60;    // ~3x tick rate
+  static readonly MAX_BYTES_PER_SECOND = 16384;    // 16 KB/s
+  static readonly MAX_COMMANDS_PER_TICK = 2;       // Allow some buffering
+
+  private messageCount = 0;
+  private byteCount = 0;
+  private commandsThisTick = 0;
+  private lastReset = Date.now();
+
+  /**
+   * Check if message should be allowed
+   * Returns false if rate limit exceeded
+   */
+  checkMessage(sizeBytes: number): boolean {
+    const now = Date.now();
+
+    // Reset counters every second
+    if (now - this.lastReset >= 1000) {
+      this.messageCount = 0;
+      this.byteCount = 0;
+      this.lastReset = now;
+    }
+
+    // Check limits
+    if (this.messageCount >= RateLimiter.MAX_MESSAGES_PER_SECOND) {
+      return false;
+    }
+    if (this.byteCount + sizeBytes > RateLimiter.MAX_BYTES_PER_SECOND) {
+      return false;
+    }
+
+    // Update counters
+    this.messageCount++;
+    this.byteCount += sizeBytes;
+    return true;
+  }
+
+  /**
+   * Check command rate (called per tick)
+   */
+  checkCommand(): boolean {
+    if (this.commandsThisTick >= RateLimiter.MAX_COMMANDS_PER_TICK) {
+      return false;
+    }
+    this.commandsThisTick++;
+    return true;
+  }
+
+  /**
+   * Reset per-tick counters (called at start of each server tick)
+   */
+  resetTick(): void {
+    this.commandsThisTick = 0;
+  }
+}
+
+// Add to ClientConnection:
+export interface ClientConnection {
+  // ... existing fields ...
+  rateLimiter: RateLimiter;
+  invalidInputCount: number;
+}
+```
+
+---
+
+### 17.4 Message Size Limits (P0 - MVP) ⚠️ CRITICAL
+
+Prevent memory exhaustion attacks via oversized messages.
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/shared/protocol/StateDecoder.ts - Add size limits
+// ═══════════════════════════════════════════════════════════════════
+
+export class StateDecoder {
+  private static readonly MAX_MESSAGE_SIZE = 65536;     // 64 KB max message
+  private static readonly MAX_STRING_LENGTH = 1024;      // 1 KB max string
+  private static readonly MAX_ARRAY_LENGTH = 1000;       // Max array elements
+  private static readonly MAX_PLAYERS = 64;              // Max players in snapshot
+
+  private buffer: Uint8Array;
+  private offset = 0;
+
+  constructor(data: Uint8Array) {
+    // CRITICAL: Check total message size first
+    if (data.length > StateDecoder.MAX_MESSAGE_SIZE) {
+      throw new Error(`Message too large: ${data.length} > ${StateDecoder.MAX_MESSAGE_SIZE}`);
+    }
+    this.buffer = data;
+  }
+
+  readString(): string {
+    const length = this.readUint16();  // Use uint16, not uint32
+
+    // Validate length
+    if (length > StateDecoder.MAX_STRING_LENGTH) {
+      throw new Error(`String too long: ${length} > ${StateDecoder.MAX_STRING_LENGTH}`);
+    }
+    if (this.offset + length > this.buffer.length) {
+      throw new Error('String extends beyond buffer');
+    }
+
+    const bytes = this.buffer.slice(this.offset, this.offset + length);
+    this.offset += length;
+    return new TextDecoder().decode(bytes);
+  }
+
+  readBytes(): Uint8Array {
+    const length = this.readUint32();
+
+    // Validate length
+    if (length > StateDecoder.MAX_MESSAGE_SIZE) {
+      throw new Error(`Bytes too long: ${length}`);
+    }
+    if (this.offset + length > this.buffer.length) {
+      throw new Error('Bytes extend beyond buffer');
+    }
+
+    const bytes = this.buffer.slice(this.offset, this.offset + length);
+    this.offset += length;
+    return bytes;
+  }
+
+  readPlayerArray(): PlayerSnapshot[] {
+    const count = this.readUint8();
+
+    // Validate count
+    if (count > StateDecoder.MAX_PLAYERS) {
+      throw new Error(`Too many players: ${count}`);
+    }
+
+    const players: PlayerSnapshot[] = [];
+    for (let i = 0; i < count; i++) {
+      players.push(this.readPlayer());
+    }
+    return players;
+  }
+}
+```
+
+---
+
+### 17.5 Smooth Correction (P0 - MVP) ⚠️ CRITICAL
+
+When client prediction doesn't match server state, corrections must be smooth to avoid jarring "teleportation" effects. This is critical for FPS gameplay feel.
+
+#### 17.5.1 The Problem with Snap Correction
+
+```
+Without smoothing:
+
+Client predicts: ████████████████████▶ (position 100)
+Server says:     ████████████████▶      (position 80)
+                                  ↑
+                            SNAP! Player teleports back 20 units
+
+This feels terrible in FPS games.
+```
+
+#### 17.5.2 Smooth Correction Implementation
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/client/SmoothCorrection.ts
+// ═══════════════════════════════════════════════════════════════════
+
+export interface CorrectionState {
+  active: boolean;
+  startTime: number;
+  duration: number;           // How long to smooth over (ms)
+  sourcePosition: Vector3;    // Where we were (wrong)
+  targetPosition: Vector3;    // Where we should be (server)
+  sourceRotation: Vector2;    // pitch, yaw
+  targetRotation: Vector2;
+}
+
+export class SmoothCorrection {
+  // Correction duration scales with error magnitude
+  private static readonly MIN_DURATION = 50;   // 50ms minimum
+  private static readonly MAX_DURATION = 200;  // 200ms maximum
+  private static readonly UNITS_PER_MS = 0.5;  // 1 unit error = 2ms correction time
+
+  // Threshold below which we don't bother correcting
+  private static readonly POSITION_THRESHOLD = 0.01;  // 1 cm
+  private static readonly ROTATION_THRESHOLD = 0.01;  // ~0.5 degrees
+
+  private correction: CorrectionState = {
+    active: false,
+    startTime: 0,
+    duration: 0,
+    sourcePosition: { x: 0, y: 0, z: 0 },
+    targetPosition: { x: 0, y: 0, z: 0 },
+    sourceRotation: { x: 0, y: 0 },
+    targetRotation: { x: 0, y: 0 },
+  };
+
+  /**
+   * Start a smooth correction from predicted to server state
+   */
+  startCorrection(
+    predicted: { position: Vector3; rotation: Vector2 },
+    server: { position: Vector3; rotation: Vector2 }
+  ): void {
+    // Calculate position error
+    const dx = server.position.x - predicted.position.x;
+    const dy = server.position.y - predicted.position.y;
+    const dz = server.position.z - predicted.position.z;
+    const positionError = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Skip tiny corrections
+    if (positionError < SmoothCorrection.POSITION_THRESHOLD) {
+      return;
+    }
+
+    // Calculate duration based on error magnitude
+    // Larger errors = longer smoothing to avoid jarring motion
+    const duration = Math.min(
+      SmoothCorrection.MAX_DURATION,
+      Math.max(
+        SmoothCorrection.MIN_DURATION,
+        positionError / SmoothCorrection.UNITS_PER_MS
+      )
+    );
+
+    this.correction = {
+      active: true,
+      startTime: performance.now(),
+      duration,
+      sourcePosition: { ...predicted.position },
+      targetPosition: { ...server.position },
+      sourceRotation: { ...predicted.rotation },
+      targetRotation: { ...server.rotation },
+    };
+
+    console.log(`[Correction] Error: ${positionError.toFixed(2)} units, duration: ${duration.toFixed(0)}ms`);
+  }
+
+  /**
+   * Apply correction offset to rendered position
+   * Call this every frame during rendering
+   */
+  apply(currentPosition: Vector3, currentRotation: Vector2): { position: Vector3; rotation: Vector2 } {
+    if (!this.correction.active) {
+      return { position: currentPosition, rotation: currentRotation };
+    }
+
+    const elapsed = performance.now() - this.correction.startTime;
+    const t = Math.min(1, elapsed / this.correction.duration);
+
+    // Use smoothstep for natural feel (slow at start and end)
+    const smoothT = t * t * (3 - 2 * t);
+
+    // Calculate remaining offset (decreases over time)
+    const remainingFactor = 1 - smoothT;
+
+    // The offset is the difference between where we were and where we should be
+    // We subtract this offset (scaled by remaining factor) from current position
+    const offsetX = (this.correction.sourcePosition.x - this.correction.targetPosition.x) * remainingFactor;
+    const offsetY = (this.correction.sourcePosition.y - this.correction.targetPosition.y) * remainingFactor;
+    const offsetZ = (this.correction.sourcePosition.z - this.correction.targetPosition.z) * remainingFactor;
+
+    // Apply offset to current position
+    const correctedPosition = {
+      x: currentPosition.x - offsetX,
+      y: currentPosition.y - offsetY,
+      z: currentPosition.z - offsetZ,
+    };
+
+    // Smoothly correct rotation using shortest path
+    const correctedRotation = {
+      x: this.lerpAngle(
+        this.correction.sourceRotation.x,
+        currentRotation.x,
+        smoothT
+      ),
+      y: this.lerpAngle(
+        this.correction.sourceRotation.y,
+        currentRotation.y,
+        smoothT
+      ),
+    };
+
+    // End correction when complete
+    if (t >= 1) {
+      this.correction.active = false;
+    }
+
+    return { position: correctedPosition, rotation: correctedRotation };
+  }
+
+  private lerpAngle(a: number, b: number, t: number): number {
+    let diff = b - a;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    return a + diff * t;
+  }
+
+  isActive(): boolean {
+    return this.correction.active;
+  }
+}
+```
+
+#### 17.5.3 Integration with NetworkClient
+
+```typescript
+// In NetworkClient, update reconciliation to use smooth correction:
+
+class NetworkClient {
+  private smoothCorrection = new SmoothCorrection();
+
+  private reconcile(serverSnapshot: Snapshot): void {
+    const localPlayerId = this.playerId;
+    if (!localPlayerId) return;
+
+    const serverPlayer = serverSnapshot.players.find(p => p.playerId === localPlayerId);
+    if (!serverPlayer) return;
+
+    // Get our predicted position BEFORE reconciliation
+    const predictedPosition = { ...this.localPlayerPosition };
+    const predictedRotation = { ...this.localPlayerRotation };
+
+    // Remove acknowledged commands
+    const ack = serverSnapshot.lastAckedSeq;
+    this.commandHistory = this.commandHistory.filter(cmd => cmd.seq > ack);
+
+    // Reset to server state
+    this.localPlayerPosition = { ...serverPlayer.position };
+    this.localPlayerRotation = { ...serverPlayer.rotation };
+
+    // Re-apply unacknowledged commands
+    for (const cmd of this.commandHistory) {
+      this.applyInputLocally(cmd);
+    }
+
+    // Start smooth correction if there's a misprediction
+    this.smoothCorrection.startCorrection(
+      { position: predictedPosition, rotation: predictedRotation },
+      { position: this.localPlayerPosition, rotation: this.localPlayerRotation }
+    );
+  }
+
+  /**
+   * Get position for rendering (includes correction smoothing)
+   */
+  getRenderedPosition(): { position: Vector3; rotation: Vector2 } {
+    return this.smoothCorrection.apply(
+      this.localPlayerPosition,
+      this.localPlayerRotation
+    );
+  }
+}
+```
+
+#### 17.5.4 Visual Result
+
+```
+With smooth correction:
+
+Client predicts:  ████████████████████▶ (position 100)
+Server says:      ████████████████▶      (position 80)
+
+Frame 1: Render at 98    (smoothing...)
+Frame 2: Render at 94    (smoothing...)
+Frame 3: Render at 88    (smoothing...)
+Frame 4: Render at 82    (smoothing...)
+Frame 5: Render at 80    ✓ Correction complete, no visible pop
+
+Player experiences smooth motion instead of teleportation.
+```
+
+---
+
+### 17.6 Reliable vs Unreliable Channels (P1 - Demo)
+
+Specify which messages need guaranteed delivery vs can be dropped.
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// Message Reliability Specification
+// ═══════════════════════════════════════════════════════════════════
+
+export enum Reliability {
+  /** Must arrive, in order. Use for state-changing messages. */
+  Reliable = 'reliable',
+
+  /** Can be dropped if newer data available. Use for frequent updates. */
+  Unreliable = 'unreliable',
+}
+
+export const MESSAGE_RELIABILITY: Record<MessageType, Reliability> = {
+  // ─────────────────────────────────────────────────────────────────
+  // Server → Client
+  // ─────────────────────────────────────────────────────────────────
+
+  [MessageType.Welcome]: Reliability.Reliable,      // Must know game settings
+  [MessageType.JoinAccept]: Reliability.Reliable,   // Must know we're in
+  [MessageType.JoinReject]: Reliability.Reliable,   // Must know we're rejected
+  [MessageType.GameStart]: Reliability.Reliable,    // Must know game started
+  [MessageType.PlayerJoined]: Reliability.Reliable, // UI needs this
+  [MessageType.PlayerLeft]: Reliability.Reliable,   // UI needs this
+  [MessageType.Snapshot]: Reliability.Unreliable,   // Newer snapshots replace old
+  [MessageType.Chat]: Reliability.Reliable,         // Players expect chat to arrive
+  [MessageType.Error]: Reliability.Reliable,        // Must know about errors
+
+  // ─────────────────────────────────────────────────────────────────
+  // Client → Server
+  // ─────────────────────────────────────────────────────────────────
+
+  [MessageType.Join]: Reliability.Reliable,         // Must join successfully
+  [MessageType.Ready]: Reliability.Reliable,        // Server needs to know
+  [MessageType.Input]: Reliability.Unreliable,      // Newer inputs replace old
+  [MessageType.Disconnect]: Reliability.Reliable,   // Clean disconnect
+  [MessageType.Chat]: Reliability.Reliable,         // Player expects message sent
+};
+
+// Transport usage:
+class NetworkClient {
+  private send(type: MessageType, payload: any): void {
+    const data = MessageCodec.encode(type, payload);
+    const reliable = MESSAGE_RELIABILITY[type] === Reliability.Reliable;
+
+    if (this.transport.supportsReliability) {
+      // WebTransport: use streams (reliable) or datagrams (unreliable)
+      this.transport.send(data, { reliable });
+    } else {
+      // WebSocket: always reliable (TCP)
+      this.transport.send(data);
+    }
+  }
+}
+```
+
+---
+
+### 17.7 Error Message Types (P1 - Demo)
+
+Define server error responses for client handling.
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/shared/protocol/Messages.ts - Add error types
+// ═══════════════════════════════════════════════════════════════════
+
+export enum MessageType {
+  // ... existing types ...
+
+  // Server → Client: Errors
+  Error = 0x0F,
+}
+
+export enum ErrorCode {
+  // Connection errors
+  VersionMismatch = 'version_mismatch',
+  ServerFull = 'server_full',
+  Banned = 'banned',
+  InvalidPassword = 'invalid_password',
+
+  // Runtime errors
+  InvalidMessage = 'invalid_message',
+  RateLimited = 'rate_limited',
+  InvalidInput = 'invalid_input',
+  Timeout = 'timeout',
+
+  // Game errors
+  NotInGame = 'not_in_game',
+  InvalidAction = 'invalid_action',
+
+  // Server errors
+  InternalError = 'internal_error',
+  ServerShuttingDown = 'server_shutting_down',
+}
+
+export interface ErrorMessage {
+  type: MessageType.Error;
+  code: ErrorCode;
+  message: string;
+  fatal: boolean;  // If true, client should disconnect
+  details?: Record<string, unknown>;  // Additional context
+}
+
+// Server sends errors:
+class GameServer {
+  private sendError(
+    client: ClientConnection,
+    code: ErrorCode,
+    message: string,
+    fatal: boolean = false
+  ): void {
+    this.sendToClient(client, MessageType.Error, {
+      code,
+      message,
+      fatal,
+    });
+
+    if (fatal) {
+      // Give client time to receive error before disconnecting
+      setTimeout(() => {
+        this.disconnectClient(client, code);
+      }, 100);
+    }
+  }
+}
+
+// Client handles errors:
+class NetworkClient {
+  private handleError(payload: ErrorMessage): void {
+    console.error(`[NetworkClient] Error: ${payload.code} - ${payload.message}`);
+
+    this.emit('error', {
+      code: payload.code,
+      message: payload.message,
+      fatal: payload.fatal,
+    });
+
+    if (payload.fatal) {
+      this.state = ClientState.Disconnected;
+      // Don't try to reconnect for fatal errors
+      this.cleanup();
+    }
+  }
+}
+```
+
+---
+
+### 17.8 Reconnection Protocol (P1 - Demo)
+
+Handle disconnects gracefully with automatic reconnection.
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/client/ReconnectionManager.ts
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ReconnectionConfig {
+  maxAttempts: number;        // Max reconnection attempts
+  initialDelay: number;       // First retry delay (ms)
+  maxDelay: number;           // Maximum retry delay (ms)
+  backoffMultiplier: number;  // Delay multiplier per attempt
+}
+
+const DEFAULT_CONFIG: ReconnectionConfig = {
+  maxAttempts: 5,
+  initialDelay: 1000,      // 1 second
+  maxDelay: 30000,         // 30 seconds
+  backoffMultiplier: 2,
+};
+
+export class ReconnectionManager {
+  private config: ReconnectionConfig;
+  private attempts = 0;
+  private currentDelay: number;
+  private reconnecting = false;
+  private sessionToken: string | null = null;  // For session resumption
+
+  constructor(config: Partial<ReconnectionConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.currentDelay = this.config.initialDelay;
+  }
+
+  /**
+   * Store session info for reconnection
+   */
+  setSession(clientId: string, playerId: string): void {
+    this.sessionToken = `${clientId}:${playerId}`;
+  }
+
+  /**
+   * Attempt reconnection with exponential backoff
+   */
+  async attemptReconnect(
+    connect: () => Promise<void>,
+    onSuccess: () => void,
+    onFailure: (reason: string) => void
+  ): Promise<void> {
+    if (this.reconnecting) return;
+    this.reconnecting = true;
+
+    while (this.attempts < this.config.maxAttempts) {
+      this.attempts++;
+
+      console.log(`[Reconnect] Attempt ${this.attempts}/${this.config.maxAttempts} in ${this.currentDelay}ms...`);
+
+      await this.sleep(this.currentDelay);
+
+      try {
+        await connect();
+
+        // Success!
+        console.log('[Reconnect] Connected!');
+        this.reset();
+        onSuccess();
+        return;
+
+      } catch (error) {
+        console.warn(`[Reconnect] Attempt ${this.attempts} failed:`, error);
+
+        // Increase delay with exponential backoff
+        this.currentDelay = Math.min(
+          this.currentDelay * this.config.backoffMultiplier,
+          this.config.maxDelay
+        );
+      }
+    }
+
+    // All attempts exhausted
+    this.reconnecting = false;
+    onFailure(`Failed after ${this.config.maxAttempts} attempts`);
+  }
+
+  /**
+   * Reset for new connection
+   */
+  reset(): void {
+    this.attempts = 0;
+    this.currentDelay = this.config.initialDelay;
+    this.reconnecting = false;
+  }
+
+  /**
+   * Cancel ongoing reconnection
+   */
+  cancel(): void {
+    this.reconnecting = false;
+  }
+
+  /**
+   * Get session token for resumption
+   */
+  getSessionToken(): string | null {
+    return this.sessionToken;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Integration with NetworkClient:
+class NetworkClient {
+  private reconnectionManager = new ReconnectionManager();
+
+  private onDisconnect(reason: string): void {
+    console.log(`[NetworkClient] Disconnected: ${reason}`);
+
+    // Don't reconnect for intentional disconnects or fatal errors
+    if (reason === 'user_disconnect' || reason.startsWith('fatal:')) {
+      this.cleanup();
+      this.emit('disconnected', reason);
+      return;
+    }
+
+    // Attempt reconnection
+    this.emit('reconnecting');
+
+    this.reconnectionManager.attemptReconnect(
+      () => this.transport.connect(this.config.serverUrl),
+      () => {
+        // Reconnected - try to resume session
+        this.resumeSession();
+      },
+      (failReason) => {
+        this.cleanup();
+        this.emit('disconnected', `Reconnection failed: ${failReason}`);
+      }
+    );
+  }
+
+  private resumeSession(): void {
+    const token = this.reconnectionManager.getSessionToken();
+    if (token) {
+      // Send resume request instead of new join
+      this.send(MessageType.ResumeSession, { token });
+    } else {
+      // No session to resume, full rejoin
+      // Will get new Welcome and need to rejoin
+    }
+  }
+}
+```
+
+---
+
+### 17.9 Authentication (P2 - Production)
+
+> **Note:** Authentication is not required for demos or playtests, but should be implemented before public release.
+
+#### 17.9.1 Token-Based Authentication
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/shared/protocol/Messages.ts - Add auth messages
+// ═══════════════════════════════════════════════════════════════════
+
+export enum MessageType {
+  // ... existing types ...
+
+  // Authentication (P2 - Production)
+  Authenticate = 0x90,       // Client → Server
+  AuthSuccess = 0x91,        // Server → Client
+  AuthFailure = 0x92,        // Server → Client
+}
+
+// Flow:
+// 1. Client connects
+// 2. Server sends Welcome (with requiresAuth flag)
+// 3. Client sends Authenticate with token
+// 4. Server validates token, sends AuthSuccess or AuthFailure
+// 5. Only after AuthSuccess can client send Join
+
+export interface AuthenticateMessage {
+  type: MessageType.Authenticate;
+  token: string;              // JWT or session token
+  clientVersion: string;      // For compatibility check
+}
+
+export interface AuthSuccessMessage {
+  type: MessageType.AuthSuccess;
+  accountId: string;          // Persistent account ID
+  displayName: string;        // Player's chosen name
+  permissions: string[];      // ['play', 'chat', 'admin']
+}
+```
+
+#### 17.9.2 Future: OAuth Integration
+
+```typescript
+// Production implementation would integrate with:
+// - Steam authentication
+// - Discord OAuth
+// - Custom account system
+// - Guest tokens (time-limited, for demos)
+
+// This is out of scope for MVP/demo phases.
+```
+
+---
+
+### 17.10 Anti-Cheat Foundation (P2 - Production)
+
+> **Note:** Full anti-cheat is complex. This section outlines the foundation for production.
+
+#### 17.10.1 Server-Side Validation (Always)
+
+The server is authoritative. It should validate:
+
+```typescript
+// Movement validation
+class MovementValidator {
+  // Maximum units per tick based on speed
+  private readonly MAX_SPEED = 10;  // units per tick
+
+  validateMovement(
+    oldPos: Vector3,
+    newPos: Vector3,
+    deltaTime: number
+  ): Vector3 {
+    const distance = this.distance(oldPos, newPos);
+    const maxDistance = this.MAX_SPEED * deltaTime;
+
+    if (distance > maxDistance * 1.1) {  // 10% tolerance for float errors
+      console.warn(`[AntiCheat] Speed violation: ${distance} > ${maxDistance}`);
+      // Clamp to max distance
+      const direction = this.normalize(this.subtract(newPos, oldPos));
+      return this.add(oldPos, this.scale(direction, maxDistance));
+    }
+
+    return newPos;
+  }
+}
+
+// Damage validation
+class DamageValidator {
+  validateDamage(
+    attacker: Player,
+    target: Player,
+    damage: number,
+    weapon: Weapon
+  ): number {
+    // Check weapon is equipped
+    if (!attacker.hasWeapon(weapon.id)) {
+      console.warn('[AntiCheat] Weapon not equipped');
+      return 0;
+    }
+
+    // Check weapon damage range
+    if (damage > weapon.maxDamage) {
+      console.warn('[AntiCheat] Damage exceeds weapon max');
+      return weapon.maxDamage;
+    }
+
+    // Check distance
+    const distance = this.distance(attacker.position, target.position);
+    if (distance > weapon.range) {
+      console.warn('[AntiCheat] Target out of range');
+      return 0;
+    }
+
+    // Check line of sight (requires collision system)
+    if (!this.hasLineOfSight(attacker.position, target.position)) {
+      console.warn('[AntiCheat] No line of sight');
+      return 0;
+    }
+
+    return damage;
+  }
+}
+```
+
+#### 17.10.2 Anomaly Detection (Future)
+
+```typescript
+// Track suspicious patterns over time
+interface PlayerMetrics {
+  headshots: number;
+  totalShots: number;
+  averageReactionTime: number;
+  impossibleAngles: number;      // Aim changes > physically possible
+  positionAnomalies: number;     // Speed violations
+}
+
+// Flag for review when metrics are suspicious
+// Actual implementation is complex and game-specific
+```
+
+---
+
+### 17.11 Security Checklist
+
+#### MVP (Before First Playtest)
+
+- [ ] Input validation with numeric bounds
+- [ ] Rate limiting (messages per second, commands per tick)
+- [ ] Message size limits (64KB max)
+- [ ] Smooth correction (no snap teleportation)
+- [ ] Server authoritative movement
+
+#### Demo (Before Public Demo)
+
+- [ ] Reliable vs unreliable channel specification
+- [ ] Error message types and handling
+- [ ] Reconnection with exponential backoff
+- [ ] Client version checking
+- [ ] Basic kick/ban functionality
+
+#### Production (Before Release)
+
+- [ ] Token-based authentication
+- [ ] Account system integration
+- [ ] Movement speed validation
+- [ ] Damage validation
+- [ ] Line of sight checks
+- [ ] Admin/RCON commands
+- [ ] Logging and telemetry
+- [ ] Anomaly detection foundation
+
+---
+
 ## Appendix A: Configuration Examples
 
 ### Server Configuration
