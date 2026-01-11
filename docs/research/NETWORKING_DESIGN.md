@@ -18,8 +18,9 @@
 10. [Server Architecture](#10-server-architecture)
 11. [Network Protocol](#11-network-protocol)
 12. [Directory Structure](#12-directory-structure)
-13. [API Reference](#13-api-reference)
-14. [Implementation Roadmap](#14-implementation-roadmap)
+13. [Build & Deployment](#13-build--deployment)
+14. [API Reference](#14-api-reference)
+15. [Implementation Roadmap](#15-implementation-roadmap)
 
 ---
 
@@ -2892,9 +2893,893 @@ src/
 
 ---
 
-## 13. API Reference
+## 13. Build & Deployment
 
-### 13.1 Starting a Game
+The networking system uses a **hybrid build approach** that optimizes for both development convenience and production efficiency.
+
+### 13.1 Build Approach Comparison
+
+| Approach | Dev Experience | Prod Bundle | Complexity |
+|----------|---------------|-------------|------------|
+| **Separate builds** | ⚠️ Two builds to manage | ✅ Optimal (~200KB server) | Medium |
+| **Headless mode** | ✅ Single build | ❌ Large (~3MB includes Babylon.js) | Low |
+| **Hybrid (recommended)** | ✅ Single build + flags | ✅ Tree-shaken per target | Medium |
+
+The hybrid approach uses:
+1. **Single codebase** with shared simulation code
+2. **Conditional dynamic imports** to load only what's needed
+3. **Build-time environment flags** for tree-shaking
+4. **Runtime mode detection** for flexibility
+
+### 13.2 Entry Points
+
+```
+src/
+├── main.ts                    # Client entry point (browser)
+├── server/
+│   └── main.ts                # Dedicated server entry point (Node.js)
+└── cli/
+    └── headless-game.ts       # Existing headless CLI (dev/testing)
+```
+
+#### 13.2.1 Client Entry Point
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/main.ts - Browser client entry point
+// ═══════════════════════════════════════════════════════════════════
+
+import { Engine } from '@/engine/Engine';
+import { MainMenu } from '@/game/MainMenu';
+
+async function startClient(): Promise<void> {
+  const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
+
+  const engine = new Engine({
+    canvas,
+    headless: false,
+  });
+
+  await engine.initialize();
+
+  // Show main menu - user chooses SP/MP from there
+  const mainMenu = new MainMenu(engine);
+  mainMenu.show();
+}
+
+startClient().catch(console.error);
+```
+
+#### 13.2.2 Server Entry Point
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/server/main.ts - Dedicated server entry point
+// ═══════════════════════════════════════════════════════════════════
+
+import { parseArgs } from 'node:util';
+import { GameServer } from '@/network/server/GameServer';
+import { ServerTransport } from '@/network/server/transport/ServerTransport';
+
+// Server-specific imports - NO Babylon.js here!
+// These are dynamically imported to enable tree-shaking
+
+const { values: args } = parseArgs({
+  options: {
+    port: { type: 'string', short: 'p', default: '7777' },
+    map: { type: 'string', short: 'm', default: 'wdm7' },
+    tickrate: { type: 'string', short: 't', default: '20' },
+    maxplayers: { type: 'string', short: 'n', default: '16' },
+    gamemode: { type: 'string', short: 'g', default: 'deathmatch' },
+    public: { type: 'boolean', default: false },
+    password: { type: 'string' },
+    servername: { type: 'string', default: 'SHAG Server' },
+    rcon: { type: 'string' },  // Remote console password
+    config: { type: 'string', short: 'c' },  // Config file path
+  },
+});
+
+interface ServerConfig {
+  port: number;
+  map: string;
+  tickRate: number;
+  maxPlayers: number;
+  gameMode: string;
+  isPublic: boolean;
+  password?: string;
+  serverName: string;
+  rconPassword?: string;
+}
+
+async function loadConfig(configPath?: string): Promise<Partial<ServerConfig>> {
+  if (!configPath) return {};
+
+  const fs = await import('node:fs/promises');
+  const content = await fs.readFile(configPath, 'utf-8');
+  return JSON.parse(content);
+}
+
+async function startServer(): Promise<void> {
+  // Load config file if specified, then override with CLI args
+  const fileConfig = await loadConfig(args.config);
+
+  const config: ServerConfig = {
+    port: parseInt(args.port!) || fileConfig.port || 7777,
+    map: args.map! || fileConfig.map || 'wdm7',
+    tickRate: parseInt(args.tickrate!) || fileConfig.tickRate || 20,
+    maxPlayers: parseInt(args.maxplayers!) || fileConfig.maxPlayers || 16,
+    gameMode: args.gamemode! || fileConfig.gameMode || 'deathmatch',
+    isPublic: args.public ?? fileConfig.isPublic ?? false,
+    password: args.password || fileConfig.password,
+    serverName: args.servername! || fileConfig.serverName || 'SHAG Server',
+    rconPassword: args.rcon || fileConfig.rconPassword,
+  };
+
+  // Dynamically import the game simulation (shared code)
+  const { MySimulation } = await import('@/games/default/shared/MySimulation');
+  const { gameRules } = await import('@/games/default/shared/config/GameRules');
+
+  // Create transport layer (WebTransport + WebSocket fallback)
+  const transport = new ServerTransport({
+    port: config.port,
+
+    // WebTransport for modern clients (Chrome, Edge, Firefox, Electron)
+    webTransport: {
+      enabled: true,
+      // Requires TLS certificate for WebTransport
+      certPath: process.env.TLS_CERT_PATH,
+      keyPath: process.env.TLS_KEY_PATH,
+    },
+
+    // WebSocket fallback for iOS/Safari
+    webSocket: {
+      enabled: true,
+      path: '/ws',
+    },
+  });
+
+  // Create the game server
+  const server = new GameServer({
+    transport,
+    simulationClass: MySimulation,
+    config: {
+      tickRate: config.tickRate,
+      tickDuration: 1000 / config.tickRate,
+      maxPlayers: config.maxPlayers,
+      gameRules,
+    },
+  });
+
+  // Load map data (BSP geometry for collision, entity spawns, etc.)
+  // This uses shared map loading code - no rendering
+  console.log(`Loading map: ${config.map}...`);
+  await server.loadMap(config.map);
+
+  // Register server event handlers
+  server.on('playerJoin', (player) => {
+    console.log(`Player joined: ${player.name} [${player.id}]`);
+  });
+
+  server.on('playerLeave', (player, reason) => {
+    console.log(`Player left: ${player.name} (${reason})`);
+  });
+
+  server.on('error', (error) => {
+    console.error('Server error:', error);
+  });
+
+  // Start the server
+  await server.start();
+
+  // Print server info
+  console.log(`
+╔════════════════════════════════════════════════════════════════╗
+║                    SHAG Engine Dedicated Server                 ║
+╠════════════════════════════════════════════════════════════════╣
+║  Server Name:  ${config.serverName.padEnd(46)} ║
+║  Map:          ${config.map.padEnd(46)} ║
+║  Game Mode:    ${config.gameMode.padEnd(46)} ║
+║  Port:         ${String(config.port).padEnd(46)} ║
+║  Tick Rate:    ${(config.tickRate + ' Hz').padEnd(46)} ║
+║  Max Players:  ${String(config.maxPlayers).padEnd(46)} ║
+║  Public:       ${(config.isPublic ? 'Yes' : 'No').padEnd(46)} ║
+║  Password:     ${(config.password ? 'Yes' : 'No').padEnd(46)} ║
+╠════════════════════════════════════════════════════════════════╣
+║  WebTransport: ${(transport.webTransportEnabled ? 'Enabled' : 'Disabled').padEnd(46)} ║
+║  WebSocket:    ${(transport.webSocketEnabled ? 'Enabled (fallback)' : 'Disabled').padEnd(46)} ║
+╚════════════════════════════════════════════════════════════════╝
+  `);
+
+  // Handle graceful shutdown
+  const shutdown = async (signal: string) => {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+    await server.stop();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // Keep process alive
+  await new Promise(() => {});  // Never resolves
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
+```
+
+### 13.3 Vite Configuration
+
+#### 13.3.1 Shared Base Configuration
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// vite.config.base.ts - Shared configuration
+// ═══════════════════════════════════════════════════════════════════
+
+import { defineConfig } from 'vite';
+import path from 'path';
+
+export const baseConfig = defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      '@engine': path.resolve(__dirname, 'src/engine'),
+      '@network': path.resolve(__dirname, 'src/network'),
+      '@game': path.resolve(__dirname, 'src/games/default'),
+    },
+  },
+});
+```
+
+#### 13.3.2 Client Build Configuration
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// vite.config.ts - Client build (default)
+// ═══════════════════════════════════════════════════════════════════
+
+import { defineConfig, mergeConfig } from 'vite';
+import { baseConfig } from './vite.config.base';
+
+export default mergeConfig(baseConfig, defineConfig({
+  define: {
+    'import.meta.env.SHAG_TARGET': JSON.stringify('client'),
+    'import.meta.env.SHAG_VERSION': JSON.stringify(process.env.npm_package_version),
+  },
+
+  build: {
+    outDir: 'dist/client',
+    target: 'esnext',
+
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+      },
+      output: {
+        manualChunks: {
+          // Split Babylon.js into separate chunk
+          'babylon': ['@babylonjs/core'],
+          // Split networking into separate chunk (lazy loaded for SP)
+          'network': [
+            './src/network/client/transport/WebTransportTransport.ts',
+            './src/network/client/transport/WebSocketTransport.ts',
+            './src/network/client/hosts/NetworkGameHost.ts',
+          ],
+        },
+      },
+    },
+  },
+
+  // Client-specific optimizations
+  optimizeDeps: {
+    include: ['@babylonjs/core'],
+  },
+}));
+```
+
+#### 13.3.3 Server Build Configuration
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// vite.config.server.ts - Server build
+// ═══════════════════════════════════════════════════════════════════
+
+import { defineConfig, mergeConfig } from 'vite';
+import { baseConfig } from './vite.config.base';
+
+export default mergeConfig(baseConfig, defineConfig({
+  define: {
+    'import.meta.env.SHAG_TARGET': JSON.stringify('server'),
+    'import.meta.env.SHAG_VERSION': JSON.stringify(process.env.npm_package_version),
+  },
+
+  build: {
+    outDir: 'dist/server',
+    target: 'node20',  // Node.js 20 LTS
+    ssr: true,         // Server-side rendering mode (no browser APIs)
+
+    rollupOptions: {
+      input: 'src/server/main.ts',
+
+      output: {
+        format: 'esm',
+        entryFileNames: '[name].js',
+      },
+
+      // Don't bundle Node.js built-ins
+      external: [
+        'node:util',
+        'node:fs',
+        'node:fs/promises',
+        'node:path',
+        'node:http',
+        'node:https',
+        'node:crypto',
+        'node:stream',
+        'node:events',
+        // External dependencies that should be installed on server
+        '@aspect-dev/webtransport',
+        'ws',
+      ],
+    },
+
+    // Minify for production
+    minify: process.env.NODE_ENV === 'production',
+  },
+
+  // Exclude client-only code from server bundle
+  ssr: {
+    noExternal: [
+      // Include these in the bundle
+      /^@\/network\/shared/,
+      /^@\/network\/server/,
+      /^@\/games\/.*\/shared/,
+    ],
+    external: [
+      // Exclude these - they're client-only
+      '@babylonjs/core',
+      '@babylonjs/materials',
+      '@babylonjs/loaders',
+      '@babylonjs/gui',
+      /^@\/engine\//,
+      /^@\/network\/client\//,
+      /^@\/games\/.*\/client/,
+    ],
+  },
+}));
+```
+
+### 13.4 Dynamic Import Pattern
+
+The hybrid approach uses dynamic imports to load code on-demand, enabling tree-shaking.
+
+#### 13.4.1 Main Menu Game Mode Selection
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/game/MainMenu.ts - Dynamic import based on game mode
+// ═══════════════════════════════════════════════════════════════════
+
+import { Engine } from '@/engine/Engine';
+
+export class MainMenu {
+  private engine: Engine;
+
+  constructor(engine: Engine) {
+    this.engine = engine;
+  }
+
+  /**
+   * Start single-player game.
+   * Only loads LocalGameHost - no network code.
+   */
+  async startSinglePlayer(mapName: string): Promise<void> {
+    // Dynamic import - only loads local host code
+    const { LocalGameHost } = await import('@/network/client/hosts/LocalGameHost');
+    const { MySimulation } = await import('@/games/default/shared/MySimulation');
+    const { GameScene } = await import('@/games/default/client/GameScene');
+    const { gameRules } = await import('@/games/default/shared/config/GameRules');
+
+    const host = new LocalGameHost({
+      tickRate: 20,
+      tickDuration: 50,
+      maxPlayers: 1,
+      gameRules,
+      simulationClass: MySimulation,
+    });
+
+    // Load map
+    await host.loadMap(mapName);
+
+    // Start game
+    const scene = new GameScene(this.engine, host);
+    this.engine.runScene(scene);
+  }
+
+  /**
+   * Join multiplayer server.
+   * Loads network transport + NetworkGameHost.
+   */
+  async joinMultiplayer(serverUrl: string): Promise<void> {
+    // Dynamic import - loads network code
+    const { TransportFactory } = await import('@/network/client/transport/TransportFactory');
+    const { NetworkGameHost } = await import('@/network/client/hosts/NetworkGameHost');
+    const { MySimulation } = await import('@/games/default/shared/MySimulation');
+    const { GameScene } = await import('@/games/default/client/GameScene');
+    const { gameRules } = await import('@/games/default/shared/config/GameRules');
+
+    // Show connecting UI
+    this.showConnectingScreen(serverUrl);
+
+    try {
+      // Create transport (auto-detects best option)
+      const transport = await TransportFactory.create(serverUrl);
+
+      const host = new NetworkGameHost(transport, {
+        tickRate: 20,
+        tickDuration: 50,
+        maxPlayers: 16,
+        gameRules,
+        simulationClass: MySimulation,
+      });
+
+      // Connect to server
+      await host.connect();
+
+      // Start game
+      const scene = new GameScene(this.engine, host);
+      this.engine.runScene(scene);
+    } catch (error) {
+      this.showError(`Failed to connect: ${error.message}`);
+    }
+  }
+
+  /**
+   * Host multiplayer game (listen server).
+   * Loads server code + plays locally.
+   */
+  async hostMultiplayer(options: HostOptions): Promise<void> {
+    // Dynamic import - loads both server and client network code
+    const { ListenServerHost } = await import('@/network/client/hosts/ListenServerHost');
+    const { MySimulation } = await import('@/games/default/shared/MySimulation');
+    const { GameScene } = await import('@/games/default/client/GameScene');
+    const { gameRules } = await import('@/games/default/shared/config/GameRules');
+
+    const host = new ListenServerHost({
+      port: options.port,
+      tickRate: 20,
+      tickDuration: 50,
+      maxPlayers: options.maxPlayers,
+      gameRules,
+      simulationClass: MySimulation,
+      password: options.password,
+      serverName: options.serverName,
+    });
+
+    // Load map
+    await host.loadMap(options.map);
+
+    // Start hosting
+    await host.start();
+
+    this.showHostingInfo(host.port, host.serverName);
+
+    // Start game
+    const scene = new GameScene(this.engine, host);
+    this.engine.runScene(scene);
+  }
+}
+
+interface HostOptions {
+  map: string;
+  port: number;
+  maxPlayers: number;
+  password?: string;
+  serverName: string;
+}
+```
+
+#### 13.4.2 Environment Detection
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════
+// src/network/shared/Environment.ts - Runtime environment detection
+// ═══════════════════════════════════════════════════════════════════
+
+export type ShagTarget = 'client' | 'server' | 'headless';
+
+/**
+ * Detect current runtime environment.
+ */
+export function getTarget(): ShagTarget {
+  // Build-time constant (set by Vite)
+  if (import.meta.env.SHAG_TARGET) {
+    return import.meta.env.SHAG_TARGET as ShagTarget;
+  }
+
+  // Runtime detection fallback
+  if (typeof window === 'undefined') {
+    return 'server';
+  }
+
+  if (typeof document === 'undefined' || !document.createElement) {
+    return 'headless';
+  }
+
+  return 'client';
+}
+
+/**
+ * Check if running on server (Node.js).
+ */
+export function isServer(): boolean {
+  return getTarget() === 'server';
+}
+
+/**
+ * Check if running in browser.
+ */
+export function isClient(): boolean {
+  return getTarget() === 'client';
+}
+
+/**
+ * Check if running in headless mode.
+ */
+export function isHeadless(): boolean {
+  return getTarget() === 'headless';
+}
+
+/**
+ * Check if WebTransport is available.
+ */
+export function hasWebTransport(): boolean {
+  return typeof WebTransport !== 'undefined';
+}
+
+/**
+ * Check if WebSocket is available.
+ */
+export function hasWebSocket(): boolean {
+  return typeof WebSocket !== 'undefined';
+}
+
+/**
+ * Get version string.
+ */
+export function getVersion(): string {
+  return import.meta.env.SHAG_VERSION || 'dev';
+}
+```
+
+### 13.5 Package Scripts
+
+```json
+// ═══════════════════════════════════════════════════════════════════
+// package.json - Build and run scripts
+// ═══════════════════════════════════════════════════════════════════
+
+{
+  "name": "shag-engine",
+  "version": "0.8.17",
+  "type": "module",
+  "scripts": {
+    // ─────────────────────────────────────────────────────────────
+    // Development
+    // ─────────────────────────────────────────────────────────────
+    "dev": "vite",
+    "dev:server": "tsx watch src/server/main.ts",
+
+    // ─────────────────────────────────────────────────────────────
+    // Building
+    // ─────────────────────────────────────────────────────────────
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "vite build --config vite.config.server.ts",
+
+    // ─────────────────────────────────────────────────────────────
+    // Running (Production)
+    // ─────────────────────────────────────────────────────────────
+    "start": "npm run start:client",
+    "start:client": "vite preview",
+    "start:server": "node dist/server/main.js",
+
+    // ─────────────────────────────────────────────────────────────
+    // Server with options
+    // ─────────────────────────────────────────────────────────────
+    "server": "node dist/server/main.js",
+    "server:dev": "tsx src/server/main.ts",
+
+    // ─────────────────────────────────────────────────────────────
+    // Headless CLI (existing)
+    // ─────────────────────────────────────────────────────────────
+    "cli:game": "tsx src/cli/headless-game.ts",
+    "cli:bsp": "tsx src/cli/headless-bsp.ts",
+
+    // ─────────────────────────────────────────────────────────────
+    // Testing
+    // ─────────────────────────────────────────────────────────────
+    "test": "vitest",
+    "test:network": "vitest --filter network"
+  }
+}
+```
+
+### 13.6 Server CLI Usage
+
+```bash
+# ═══════════════════════════════════════════════════════════════════
+# Server CLI Examples
+# ═══════════════════════════════════════════════════════════════════
+
+# Basic server start
+npm run server -- --map wdm7 --port 7777
+
+# Full options
+npm run server -- \
+  --map wdm7 \
+  --port 7777 \
+  --tickrate 30 \
+  --maxplayers 16 \
+  --gamemode deathmatch \
+  --servername "My SHAG Server" \
+  --public \
+  --password "secret123" \
+  --rcon "adminpass"
+
+# Using config file
+npm run server -- --config server-config.json
+
+# Development mode (with hot reload)
+npm run server:dev -- --map wdm7
+
+# Short form options
+npm run server -- -m wdm7 -p 7777 -n 8 -t 20
+```
+
+#### 13.6.1 Server Configuration File
+
+```json
+// ═══════════════════════════════════════════════════════════════════
+// server-config.json - Example server configuration
+// ═══════════════════════════════════════════════════════════════════
+
+{
+  "serverName": "SHAG Deathmatch Server",
+  "port": 7777,
+  "map": "wdm7",
+  "gameMode": "deathmatch",
+  "tickRate": 20,
+  "maxPlayers": 16,
+  "isPublic": true,
+  "password": null,
+  "rconPassword": "admin123",
+
+  "mapRotation": [
+    "wdm7",
+    "wdm1",
+    "wdm5"
+  ],
+
+  "gameRules": {
+    "fragLimit": 30,
+    "timeLimit": 600,
+    "respawnTime": 3,
+    "friendlyFire": false
+  },
+
+  "network": {
+    "webTransport": {
+      "enabled": true,
+      "certPath": "/etc/ssl/certs/server.crt",
+      "keyPath": "/etc/ssl/private/server.key"
+    },
+    "webSocket": {
+      "enabled": true,
+      "path": "/ws"
+    }
+  },
+
+  "rcon": {
+    "enabled": true,
+    "maxAttempts": 3,
+    "banTime": 300
+  }
+}
+```
+
+### 13.7 Docker Deployment
+
+#### 13.7.1 Dockerfile
+
+```dockerfile
+# ═══════════════════════════════════════════════════════════════════
+# Dockerfile - Multi-stage build for server
+# ═══════════════════════════════════════════════════════════════════
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Build server only
+RUN npm run build:server
+
+# Stage 2: Production
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Copy built server
+COPY --from=builder /app/dist/server ./dist/server
+COPY --from=builder /app/package*.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+# Copy game assets (maps, configs)
+COPY --from=builder /app/assets ./assets
+
+# Create non-root user
+RUN addgroup -g 1001 -S shag && \
+    adduser -S shag -u 1001 -G shag
+
+USER shag
+
+# Expose ports
+EXPOSE 7777/udp
+EXPOSE 7777/tcp
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "fetch('http://localhost:7777/health').then(r => process.exit(r.ok ? 0 : 1))"
+
+# Default command
+ENTRYPOINT ["node", "dist/server/main.js"]
+CMD ["--map", "wdm7", "--port", "7777"]
+```
+
+#### 13.7.2 Docker Compose
+
+```yaml
+# ═══════════════════════════════════════════════════════════════════
+# docker-compose.yml - Full server stack
+# ═══════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  game-server:
+    build: .
+    ports:
+      - "7777:7777/udp"   # WebTransport datagrams
+      - "7777:7777/tcp"   # WebSocket fallback
+    environment:
+      - NODE_ENV=production
+      - TLS_CERT_PATH=/certs/server.crt
+      - TLS_KEY_PATH=/certs/server.key
+    volumes:
+      - ./certs:/certs:ro
+      - ./server-config.json:/app/server-config.json:ro
+      - ./maps:/app/assets/maps:ro
+    command: ["--config", "/app/server-config.json"]
+    restart: unless-stopped
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Optional: Reverse proxy for TLS termination
+  caddy:
+    image: caddy:2
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - game-server
+
+volumes:
+  caddy_data:
+  caddy_config:
+```
+
+### 13.8 Development Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Development Workflow                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Local Development:                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Terminal 1: npm run dev              (Client with HMR)      │   │
+│  │  Terminal 2: npm run server:dev       (Server with watch)    │   │
+│  │  Browser:    http://localhost:5173    (Client UI)            │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Testing Single-Player (no server needed):                          │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Terminal: npm run dev                                        │   │
+│  │  Browser:  Click "Single Player" in menu                     │   │
+│  │  → LocalGameHost runs simulation in-browser                  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Testing Multiplayer:                                               │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Terminal 1: npm run server:dev -- --map wdm7                │   │
+│  │  Terminal 2: npm run dev                                      │   │
+│  │  Browser 1:  Connect to localhost:7777                       │   │
+│  │  Browser 2:  Connect to localhost:7777                       │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Testing Headless (existing):                                       │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  npm run cli:game -- --command "map wdm7; bsp info"          │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Production Build:                                                   │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  npm run build                        (Builds both)          │   │
+│  │  → dist/client/   (~3.4MB)           Client bundle           │   │
+│  │  → dist/server/   (~200KB)           Server bundle           │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Production Deployment:                                             │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Client: Deploy dist/client/ to CDN (Cloudflare, Vercel)     │   │
+│  │  Server: docker-compose up -d                                 │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 13.9 Bundle Analysis
+
+Expected bundle sizes with the hybrid approach:
+
+| Bundle | Contents | Size (gzipped) |
+|--------|----------|----------------|
+| **Client Main** | Engine, UI, game client | ~800KB |
+| **Client Babylon** | @babylonjs/core (tree-shaken) | ~600KB |
+| **Client Network** | Transports, hosts (lazy) | ~50KB |
+| **Client Shared** | Simulation, state, commands | ~30KB |
+| **Server Total** | Simulation + server code | ~80KB |
+
+```typescript
+// Lazy loading network code on first multiplayer action
+// → Single-player users never download network chunk
+
+async function onMultiplayerClick() {
+  // This triggers the network chunk download
+  const { NetworkGameHost } = await import('@/network/client/hosts/NetworkGameHost');
+  // ...
+}
+```
+
+---
+
+## 14. API Reference
+
+### 14.1 Starting a Game
 
 ```typescript
 // === SINGLE-PLAYER ===
@@ -2952,7 +3837,7 @@ const scene = new GameScene(host);
 engine.runScene(scene);
 ```
 
-### 13.2 GameScene Integration
+### 14.2 GameScene Integration
 
 ```typescript
 import { EngineScene } from '@/engine/EngineScene';
@@ -3059,7 +3944,7 @@ class GameScene extends EngineScene {
 
 ---
 
-## 14. Implementation Roadmap
+## 15. Implementation Roadmap
 
 ### Phase 1: Foundation (Week 1-2)
 - [ ] Create `src/network/` directory structure
