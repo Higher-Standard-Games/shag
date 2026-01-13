@@ -6,6 +6,8 @@ import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGener
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import "@babylonjs/loaders/glTF";
 import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
 
@@ -36,11 +38,32 @@ export interface ModelLoadOptions {
 /**
  * Result of loading a model
  */
+/**
+ * Options for animation playback
+ */
+export interface AnimationPlayOptions {
+  /** Loop the animation (default: true) */
+  loop?: boolean;
+  /** Playback speed multiplier (default: 1.0) */
+  speed?: number;
+  /** Start frame (default: animation start) */
+  from?: number;
+  /** End frame (default: animation end) */
+  to?: number;
+}
+
+/**
+ * Result of loading a model
+ */
 export interface ModelLoadResult {
   /** Root transform node containing all model meshes */
   root: TransformNode;
   /** All meshes in this model */
   meshes: Mesh[];
+  /** Animation groups from the model (for animated models) */
+  animationGroups: AnimationGroup[];
+  /** Skeletons from the model (for skinned/rigged meshes) */
+  skeletons: Skeleton[];
 }
 
 /**
@@ -72,10 +95,10 @@ export class ModelLoader {
   }
 
   /**
-   * Check if initialized
+   * Check if initialized with a valid (non-disposed) scene
    */
   public isInitialized(): boolean {
-    return this.scene !== null;
+    return this.scene !== null && !this.scene.isDisposed;
   }
 
   /**
@@ -88,8 +111,8 @@ export class ModelLoader {
     modelPath: string,
     options: ModelLoadOptions
   ): Promise<ModelLoadResult | null> {
-    if (!this.scene) {
-      console.error("ModelLoader not initialized");
+    if (!this.scene || this.scene.isDisposed) {
+      console.error("ModelLoader not initialized or scene disposed");
       return null;
     }
 
@@ -133,16 +156,26 @@ export class ModelLoader {
       const root = new TransformNode(`model_${fileName}_${Date.now()}`, this.scene);
 
       // Set transform on root
-      root.position = position;
+      root.position.copyFrom(position);
       root.rotation.y = (angle * Math.PI) / 180;
       root.scaling = new Vector3(scale, scale, scale);
 
-      // Parent all loaded meshes to root and configure
+      // Parent the glTF root nodes to our root
+      // glTF imports create __root__ TransformNode that contains the whole scene graph
+      if (result.transformNodes) {
+        for (const node of result.transformNodes) {
+          if (node.parent === null || node.name === "__root__") {
+            node.parent = root;
+          }
+        }
+      }
+
+      // Also parent any orphan meshes to root
       const meshes: Mesh[] = [];
       for (const mesh of result.meshes) {
         if (mesh instanceof Mesh) {
-          // The __root__ node from glTF should be parented to our root
-          if (mesh.parent === null || mesh.name === "__root__") {
+          // Parent orphan meshes (shouldn't happen if __root__ is handled above)
+          if (mesh.parent === null) {
             mesh.parent = root;
           }
 
@@ -173,18 +206,161 @@ export class ModelLoader {
         }
       }
 
+      // Capture animation groups and skeletons from the import result
+      const animationGroups: AnimationGroup[] = result.animationGroups || [];
+      const skeletons: Skeleton[] = result.skeletons || [];
+
       // Debug: Log mesh bounds
       for (const mesh of meshes) {
         const bounds = mesh.getBoundingInfo();
         console.log(`  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`);
       }
-      console.log(`Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes)`);
 
-      return { root, meshes };
+      // Log animation info if present
+      if (animationGroups.length > 0) {
+        console.log(`  Animations: ${animationGroups.map(a => a.name).join(', ')}`);
+      }
+      if (skeletons.length > 0) {
+        console.log(`  Skeletons: ${skeletons.length}`);
+      }
+
+      console.log(`Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`);
+
+      return { root, meshes, animationGroups, skeletons };
     } catch (error) {
       console.error(`Failed to load model: ${modelPath}`, error);
       return null;
     }
+  }
+
+  // ============================================================================
+  // Animation Helpers
+  // ============================================================================
+
+  /**
+   * Play an animation on a loaded model
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   * @param name - Animation name or index
+   * @param options - Playback options (loop, speed, from, to)
+   * @returns The AnimationGroup that was started, or null if not found
+   */
+  public playAnimation(
+    result: ModelLoadResult,
+    name: string | number,
+    options?: AnimationPlayOptions
+  ): AnimationGroup | null {
+    const anim = this.findAnimation(result, name);
+    if (!anim) {
+      console.warn(`Animation not found: ${name}`);
+      return null;
+    }
+
+    const { loop = true, speed = 1.0, from, to } = options || {};
+
+    // Stop if already playing
+    anim.stop();
+
+    // Set playback speed
+    anim.speedRatio = speed;
+
+    // Start the animation
+    anim.start(loop, speed, from, to);
+
+    return anim;
+  }
+
+  /**
+   * Stop an animation on a loaded model
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   * @param name - Animation name or index. If omitted, stops all animations.
+   */
+  public stopAnimation(result: ModelLoadResult, name?: string | number): void {
+    if (name === undefined) {
+      // Stop all animations
+      for (const anim of result.animationGroups) {
+        anim.stop();
+      }
+    } else {
+      const anim = this.findAnimation(result, name);
+      if (anim) {
+        anim.stop();
+      }
+    }
+  }
+
+  /**
+   * Pause an animation on a loaded model
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   * @param name - Animation name or index. If omitted, pauses all animations.
+   */
+  public pauseAnimation(result: ModelLoadResult, name?: string | number): void {
+    if (name === undefined) {
+      for (const anim of result.animationGroups) {
+        anim.pause();
+      }
+    } else {
+      const anim = this.findAnimation(result, name);
+      if (anim) {
+        anim.pause();
+      }
+    }
+  }
+
+  /**
+   * Get list of animation names for a loaded model
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   * @returns Array of animation names
+   */
+  public getAnimationNames(result: ModelLoadResult): string[] {
+    return result.animationGroups.map(a => a.name);
+  }
+
+  /**
+   * Check if a model has animations
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   */
+  public hasAnimations(result: ModelLoadResult): boolean {
+    return result.animationGroups.length > 0;
+  }
+
+  /**
+   * Get animation info (duration, frame count, etc.)
+   *
+   * @param result - The ModelLoadResult from loadModel()
+   * @param name - Animation name or index
+   */
+  public getAnimationInfo(result: ModelLoadResult, name: string | number): {
+    name: string;
+    from: number;
+    to: number;
+    isPlaying: boolean;
+    speedRatio: number;
+  } | null {
+    const anim = this.findAnimation(result, name);
+    if (!anim) return null;
+
+    return {
+      name: anim.name,
+      from: anim.from,
+      to: anim.to,
+      isPlaying: anim.isPlaying,
+      speedRatio: anim.speedRatio,
+    };
+  }
+
+  /**
+   * Find an animation by name or index
+   */
+  private findAnimation(result: ModelLoadResult, name: string | number): AnimationGroup | null {
+    if (typeof name === 'number') {
+      return result.animationGroups[name] || null;
+    }
+    return result.animationGroups.find(a => a.name === name) || null;
   }
 
   /**

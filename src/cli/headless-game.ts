@@ -121,7 +121,7 @@ async function initializeEngine(): Promise<HeadlessContext> {
   return { engine, scene, camera };
 }
 
-async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
+async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Loading game systems...");
 
   // Initialize PK3 loader with game path
@@ -175,6 +175,11 @@ async function initializeGameSystems(_ctx: HeadlessContext): Promise<void> {
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     const shaderCount = await shaderRegistry.loadShaders();
     console.log(`[Init] Loaded ${shaderCount} shaders`);
+
+    // Initialize ModelLoader for spawnmodel command
+    const { ModelLoader } = await import("../engine/loader/model/ModelLoader");
+    ModelLoader.getInstance().init(ctx.scene);
+    console.log("[Init] ModelLoader initialized");
 
   } catch (error) {
     console.warn("[Init] Some systems failed to initialize:", error);

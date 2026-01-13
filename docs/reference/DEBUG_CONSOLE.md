@@ -209,6 +209,66 @@ hud stop             # Stop update loop
 hud reset            # Reset to default layout/prefs
 ```
 
+### Developer Commands
+
+Enable developer mode first:
+```
+developer 1          # Enable developer mode
+developer 0          # Disable developer mode
+```
+
+#### Spawn Model (requires developer mode)
+
+Spawn and manipulate glTF/GLB 3D models for testing:
+
+```
+spawnmodel <model> [scale=100] [x y z] [angle]
+```
+
+**Basic Usage:**
+```
+spawnmodel <model>                      # Spawn at camera position (scale 100)
+spawnmodel <model> <scale>              # Spawn with custom scale
+spawnmodel <model> <scale> <x> <y> <z>  # Spawn at specific position
+spawnmodel <model> <scale> <x> <y> <z> <angle>  # Spawn with rotation
+```
+
+**Subcommands:**
+```
+spawnmodel list                   # List all spawned models
+spawnmodel info <index>           # Show model details
+spawnmodel clear                  # Remove all spawned models
+spawnmodel remove <index>         # Remove specific model
+```
+
+**Transform Manipulation:**
+```
+spawnmodel rotate <index> <angle>   # Set rotation (degrees)
+spawnmodel rotate <index> +45       # Rotate relative
+spawnmodel move <index> <x> <y> <z> # Set position
+spawnmodel move <index> +10 0 0     # Move relative
+spawnmodel scale <index> <scale>    # Change scale
+```
+
+**Animation Control:**
+```
+spawnmodel anim <index> <name>      # Play animation (loops)
+spawnmodel anim <index> <name> once # Play once
+spawnmodel anim <index> stop        # Stop all animations
+```
+
+**Notes:**
+- Default scale is 100 to match glTF meters to BSP/Quake units
+- Models are loaded from the game directory (e.g., `public/games/default/`)
+- Supports `.glb` and `.gltf` formats
+- Use `spawnmodel info` to see available animations
+
+#### Spawn Point (requires developer mode)
+
+```
+spawn [index]        # Teleport to map spawn point
+```
+
 ### System Commands
 
 ```
@@ -299,6 +359,17 @@ freefly_collision clipviz last
 Or as a single command:
 ```
 pk3 path game/basewsw/; pk3 index build; scene empty; bsp load wdm11; bsp loadrequired; shader load; bsp render; bsp applytextures
+```
+
+### Testing 3D Models
+
+```
+developer 1
+map <mapname>
+spawnmodel <model>
+spawnmodel rotate 0 45
+spawnmodel info 0
+spawnmodel clear
 ```
 
 ## Notes

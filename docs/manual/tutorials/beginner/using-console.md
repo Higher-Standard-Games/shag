@@ -97,6 +97,33 @@ shader info        # Inspect surface under crosshair
 shader aim 1       # Highlight aimed surface
 ```
 
+## Developer Mode
+
+Some commands require developer mode:
+
+```
+developer 1        # Enable developer mode
+developer 0        # Disable developer mode
+```
+
+### Spawn Models (Developer)
+
+```
+spawnmodel <model>          # Spawn model at camera position
+spawnmodel <model> 50       # Spawn with custom scale
+spawnmodel list             # List spawned models
+spawnmodel rotate 0 45      # Rotate model #0
+spawnmodel anim 0 <anim>    # Play animation on model #0
+spawnmodel clear            # Remove all models
+```
+
+### Spawn Points (Developer)
+
+```
+spawn              # Teleport to first spawn point
+spawn 2            # Teleport to spawn point #2
+```
+
 ## Command Syntax
 
 Commands follow Q3/Warsow syntax:
