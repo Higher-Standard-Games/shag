@@ -495,6 +495,13 @@ export class BspManager {
   private _lastLightmapLog: number = 0;
 
   /**
+   * Get the scene the BSP is rendered in
+   */
+  getScene(): Scene | null {
+    return this.meshResult?.worldMesh?.getScene() ?? null;
+  }
+
+  /**
    * Get center position of the map
    */
   getMapCenter(): Vector3 | null {

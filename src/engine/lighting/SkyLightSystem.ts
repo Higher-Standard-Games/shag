@@ -512,7 +512,7 @@ export class SkyLightSystem {
   }
 
   /**
-   * Apply lightmap intensity based on current time
+   * Apply lightmap intensity and skybox tint based on current time
    */
   private applyBspLightmaps(): void {
     const sunFactor = Math.sin(this._bspTimeOfDay * Math.PI);
@@ -521,14 +521,62 @@ export class SkyLightSystem {
     // min=0.1 at midnight, max=1.5 at noon
     const lmIntensity = 0.1 + 1.4 * clampedSun;
     
+    // Apply to BSP world
     try {
       const bsp = BspManager.getInstance();
       if (bsp.isLoaded()) {
         bsp.setLightmapIntensity(lmIntensity);
-        console.log(`[SkyLightSystem] BSP lightmap: time=${this._bspTimeOfDay.toFixed(2)}, intensity=${lmIntensity.toFixed(2)}`);
+        
+        // Also tint the skybox
+        this.applySkyboxTint(clampedSun);
       }
     } catch {
       // BspManager not available
+    }
+  }
+
+  /**
+   * Apply tint to skybox based on sun factor (0=night, 1=noon)
+   */
+  private applySkyboxTint(sunFactor: number): void {
+    try {
+      const bsp = BspManager.getInstance();
+      const scene = bsp.getScene();
+      if (!scene) return;
+
+      // Find skybox mesh (could be named various things)
+      const skybox = scene.getMeshByName('skyBox') || 
+                     scene.getMeshByName('skybox') ||
+                     scene.getMeshByName('skySphere') ||
+                     scene.getMeshByName('q3_skybox');
+      
+      if (!skybox || !skybox.material) return;
+
+      const mat = skybox.material as any;
+      
+      // Calculate tint: bright white at noon, dark blue at midnight
+      const nightR = 0.15, nightG = 0.15, nightB = 0.25;
+      const dayR = 1.0, dayG = 1.0, dayB = 1.0;
+      
+      const r = nightR + (dayR - nightR) * sunFactor;
+      const g = nightG + (dayG - nightG) * sunFactor;
+      const b = nightB + (dayB - nightB) * sunFactor;
+
+      // Apply to emissive color (used by sky sphere)
+      if (mat.emissiveColor) {
+        mat.emissiveColor.r = r;
+        mat.emissiveColor.g = g;
+        mat.emissiveColor.b = b;
+      }
+      
+      // For reflection-based skybox, adjust diffuse as tint
+      if (mat.reflectionTexture && mat.diffuseColor) {
+        mat.diffuseColor.r = r;
+        mat.diffuseColor.g = g;
+        mat.diffuseColor.b = b;
+      }
+    } catch {
+      // Scene not available
     }
   }
 
