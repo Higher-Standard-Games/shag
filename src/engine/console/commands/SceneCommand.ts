@@ -154,10 +154,13 @@ export default class SceneCommand extends Command {
     const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
     light.intensity = 1.0;
 
-    // Set as active scene
+    // Set as active scene with SkyLightSystem update for day/night cycle
+    const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
     engine.stopRenderLoop();
     engine.runRenderLoop(() => {
       if (emptyScene) {
+        const deltaTime = engine.getDeltaTime();
+        SkyLightSystem.getInstance().update(deltaTime);
         emptyScene.render();
       }
     });
