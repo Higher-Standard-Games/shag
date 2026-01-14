@@ -313,7 +313,8 @@ export class FreeflyController implements ICameraController {
     
     if (isSpectator) {
       // === SPECTATOR MODE: Noclip fly-through ===
-      const speed = (this.config.speed || 200) * deltaTime;
+      const flySpeed = mv.get('cl_flyspeed'); // Use cvar (default 400)
+      const speed = flySpeed * deltaTime;
       const movement = Vector3.Zero();
       
       if (this.keys.forward) movement.addInPlace(forward.scale(speed));

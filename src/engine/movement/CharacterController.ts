@@ -153,6 +153,9 @@ export class CharacterController {
 
   // ==================== Physics Update ====================
 
+  // Debug logging throttle
+  private static lastDebugLog: number = 0;
+
   /**
    * Update physics for one frame
    * @param deltaTime Time since last frame in seconds
@@ -160,31 +163,23 @@ export class CharacterController {
   update(deltaTime: number): void {
     const mv = MovementVars.getInstance();
     const gravity = mv.get('sv_gravity');
-    const friction = mv.get('sv_friction');
     
     // Apply gravity if not grounded
     if (!this.state.isGrounded) {
       this.state.velocity.y -= gravity * deltaTime;
     }
     
-    // Apply ground friction when grounded
-    if (this.state.isGrounded) {
-      const speed = Math.sqrt(
-        this.state.velocity.x ** 2 + 
-        this.state.velocity.z ** 2
-      );
-      
-      if (speed > 0) {
-        const drop = speed * friction * deltaTime;
-        const newSpeed = Math.max(0, speed - drop);
-        const scale = newSpeed / speed;
-        this.state.velocity.x *= scale;
-        this.state.velocity.z *= scale;
-      }
-    }
-    
     // Calculate movement this frame
     const movement = this.state.velocity.scale(deltaTime);
+    
+    // Debug logging (once per second)
+    const now = Date.now();
+    if (now - CharacterController.lastDebugLog > 1000) {
+      CharacterController.lastDebugLog = now;
+      const vel = this.state.velocity;
+      const pos = this.state.position;
+      console.log(`[CharController] pos=(${pos.x.toFixed(0)},${pos.y.toFixed(0)},${pos.z.toFixed(0)}) vel=(${vel.x.toFixed(1)},${vel.y.toFixed(1)},${vel.z.toFixed(1)}) grounded=${this.state.isGrounded} move=(${movement.x.toFixed(2)},${movement.y.toFixed(2)},${movement.z.toFixed(2)})`);
+    }
     
     // Apply BSP collision and move
     this.moveWithCollision(movement);
@@ -224,38 +219,49 @@ export class CharacterController {
       contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
     };
 
-    // Try to get Q3 backend for slideMove
-    const backend = (cm as any).backends?.get('q3');
+    // Simple trace-based movement (more reliable than stepSlideMove for now)
+    const endPos = this.state.position.add(movement);
+    const trace = cm.trace(
+      this.state.position as any,
+      endPos as any,
+      traceOpts
+    );
     
-    if (backend && typeof backend.stepSlideMove === 'function') {
-      // Use Q3-style step slide move for smooth stair climbing
-      const result = backend.stepSlideMove(this.state.position, movement, traceOpts);
-      this.state.position.copyFrom(result.endPos);
+    // Check for startSolid (stuck inside geometry)
+    if (trace.startSolid) {
+      console.warn('[CharacterController] startSolid detected - attempting recovery');
+      // Try to nudge out by moving up
+      const nudgeUp = this.state.position.add(new Vector3(0, 2, 0));
+      const nudgeTrace = cm.trace(this.state.position as any, nudgeUp as any, traceOpts);
+      if (!nudgeTrace.startSolid) {
+        this.state.position.copyFrom(nudgeTrace.endPos);
+      }
+      return;
+    }
+    
+    // Apply movement result
+    this.state.position.copyFrom(trace.endPos);
+    
+    // Zero velocity on collision (compare against ORIGINAL position)
+    if (trace.fraction < 1.0 && trace.normal) {
+      // Hit something - zero velocity in the collision direction
+      const normal = trace.normal;
       
-      // If we hit something while moving up/down, zero that velocity
-      if (result.hitCount > 0) {
-        // Check if we hit a ceiling (moving up)
-        if (movement.y > 0 && result.endPos.y < this.state.position.y + movement.y) {
-          this.state.velocity.y = 0;
-        }
-        // Check if we hit the ground (moving down)
-        if (movement.y < 0 && result.endPos.y > this.state.position.y + movement.y) {
-          this.state.velocity.y = 0;
+      // If hit a mostly-vertical surface (wall), zero horizontal velocity in that direction
+      if (Math.abs(normal.y) < 0.5) {
+        const dot = this.state.velocity.x * normal.x + this.state.velocity.z * normal.z;
+        if (dot < 0) {
+          this.state.velocity.x -= normal.x * dot;
+          this.state.velocity.z -= normal.z * dot;
         }
       }
-    } else if (backend && typeof backend.slideMove === 'function') {
-      // Fallback to basic slide move
-      const result = backend.slideMove(this.state.position, movement, traceOpts);
-      this.state.position.copyFrom(result.endPos);
-    } else {
-      // Fallback to simple trace
-      const endPos = this.state.position.add(movement);
-      const trace = cm.trace(
-        this.state.position as any,
-        endPos as any,
-        traceOpts
-      );
-      this.state.position.copyFrom(trace.endPos);
+      
+      // If hit ground (normal pointing up) or ceiling (normal pointing down)
+      if (normal.y > 0.7 && this.state.velocity.y < 0) {
+        this.state.velocity.y = 0; // Hit ground
+      } else if (normal.y < -0.7 && this.state.velocity.y > 0) {
+        this.state.velocity.y = 0; // Hit ceiling
+      }
     }
   }
 
