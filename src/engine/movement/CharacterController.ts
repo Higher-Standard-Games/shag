@@ -106,21 +106,22 @@ export class CharacterController {
     const airControl = mv.get('sv_aircontrol');
     
     // Project directions to horizontal plane
-    const flatForward = new Vector3(forwardDir.x, 0, forwardDir.z).normalize();
-    const flatRight = new Vector3(rightDir.x, 0, rightDir.z).normalize();
+    const flatForward = new Vector3(forwardDir.x, 0, forwardDir.z);
+    const flatRight = new Vector3(rightDir.x, 0, rightDir.z);
     
-    // Calculate wish direction
-    const wishDir = flatForward.scale(forward).add(flatRight.scale(strafe));
-    if (wishDir.length() > 0) {
-      wishDir.normalize();
-    }
+    // Normalize only if length > 0
+    if (flatForward.length() > 0.001) flatForward.normalize();
+    if (flatRight.length() > 0.001) flatRight.normalize();
     
-    // Apply different acceleration based on grounded state
-    const accel = this.state.isGrounded ? speed : speed * airControl;
+    // Calculate wish velocity directly (not accumulating)
+    const wishVel = flatForward.scale(forward * speed).add(flatRight.scale(strafe * speed));
     
-    // Add to horizontal velocity
-    this.state.velocity.x += wishDir.x * accel * 0.016; // Assuming ~60fps
-    this.state.velocity.z += wishDir.z * accel * 0.016;
+    // Apply air control reduction when airborne
+    const controlFactor = this.state.isGrounded ? 1.0 : airControl;
+    
+    // Set horizontal velocity directly (no accumulation)
+    this.state.velocity.x = wishVel.x * controlFactor;
+    this.state.velocity.z = wishVel.z * controlFactor;
   }
 
   /**

@@ -141,8 +141,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
 
   // ==================== Spectator ====================
   sv_spectator: {
-    value: 0,
-    defaultValue: 0,
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
     description: 'Spectator/noclip mode (0=physics, 1=fly)',

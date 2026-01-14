@@ -49,6 +49,7 @@ export class FreeflyController implements ICameraController {
   
   // Character controller for non-spectator (physics) mode
   private characterController: CharacterController | null = null;
+  private wasSpectator: boolean = true; // Track mode changes
 
   // Movement keys state
   private keys = {
@@ -327,9 +328,20 @@ export class FreeflyController implements ICameraController {
     } else {
       // === PHYSICS MODE: CharacterController with BSP collision ===
       
-      // Initialize character controller if needed
-      if (!this.characterController) {
-        this.characterController = new CharacterController(this.camera.position.clone());
+      // Initialize or sync character controller position
+      if (!this.characterController || this.wasSpectator) {
+        // Switching from spectator to physics - sync position
+        const feetPos = this.camera.position.clone();
+        feetPos.y -= 48; // Subtract eye offset to get feet position
+        
+        if (this.characterController) {
+          // Re-sync existing controller
+          this.characterController.setPosition(feetPos);
+        } else {
+          // First time - create controller
+          this.characterController = new CharacterController(feetPos);
+        }
+        console.log(`[FreeflyController] Physics mode at feet: (${feetPos.x.toFixed(0)}, ${feetPos.y.toFixed(0)}, ${feetPos.z.toFixed(0)})`);
       }
       
       // Calculate movement input (-1 to 1)
@@ -337,9 +349,7 @@ export class FreeflyController implements ICameraController {
       const strafeInput = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
       
       // Apply movement input to character controller
-      if (forwardInput !== 0 || strafeInput !== 0) {
-        this.characterController.applyMovementInput(forwardInput, strafeInput, forward, right);
-      }
+      this.characterController.applyMovementInput(forwardInput, strafeInput, forward, right);
       
       // Jump with space
       if (this.keys.up) {
@@ -356,6 +366,9 @@ export class FreeflyController implements ICameraController {
       const eyePos = this.characterController.getEyePosition();
       this.camera.position.copyFrom(eyePos);
     }
+    
+    // Track mode for next frame
+    this.wasSpectator = isSpectator;
     
     // Apply viewport smoothing for stairs (Y-axis only)
     this.applyViewportSmoothing();
