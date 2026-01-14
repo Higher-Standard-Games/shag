@@ -42,12 +42,12 @@ export class FPSController implements ICameraController {
   private verticalVelocity: number = 0;
   private isGrounded: boolean = false;
   
-  // Feet position (physics position) - camera is at eye level above this
-  private feetY: number = 0;
+  // Physics position (feet) - completely separate from camera render position
+  private physicsPos: Vector3 = Vector3.Zero();
   
-  // Viewport smoothing for stairs
-  private smoothedY: number = 0;
-  private smoothingInitialized: boolean = false;
+  // Smoothed Y for viewport only (never feeds back to physics)
+  private smoothedViewY: number = 0;
+  private initialized: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -310,14 +310,15 @@ export class FPSController implements ICameraController {
     const smoothFactor = mv.get('cl_smoothfactor');
     const smoothEnabled = mv.get('cl_smoothstairs') >= 0.5;
     
-    // Initialize feet position from camera on first frame
-    if (!this.smoothingInitialized) {
-      this.feetY = this.camera.position.y - eyeOffset;
-      this.smoothedY = this.camera.position.y;
-      this.smoothingInitialized = true;
+    // Initialize physics position from camera on first frame
+    if (!this.initialized) {
+      this.physicsPos.copyFrom(this.camera.position);
+      this.physicsPos.y -= eyeOffset; // Convert eye pos to feet pos
+      this.smoothedViewY = this.camera.position.y;
+      this.initialized = true;
     }
     
-    // Get camera directions
+    // Get camera directions (use camera for look direction only)
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
@@ -325,7 +326,7 @@ export class FPSController implements ICameraController {
     const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
     const flatRight = new Vector3(right.x, 0, right.z).normalize();
     
-    // Calculate horizontal movement only (no fly up/down)
+    // Calculate movement delta
     const movement = Vector3.Zero();
     
     if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
@@ -333,20 +334,17 @@ export class FPSController implements ICameraController {
     if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
     if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
     
-    // ========== GROUND CHECK ==========
-    // Use feet position for ground check
+    // ========== GROUND CHECK (uses physics position) ==========
     const cm = getCollisionManager();
-    const feetPos = new Vector3(this.camera.position.x, this.feetY, this.camera.position.z);
     
     if (cm.isInitialized()) {
       const groundTrace = cm.trace(
-        feetPos as never,
-        feetPos.subtract(new Vector3(0, 2, 0)) as never,
+        this.physicsPos as never,
+        this.physicsPos.subtract(new Vector3(0, 2, 0)) as never,
         { radius: 16, height: playerHeight }
       );
       this.isGrounded = groundTrace.fraction < 1.0 && !groundTrace.startSolid;
       
-      // Zero vertical velocity when landing
       if (this.isGrounded && this.verticalVelocity < 0) {
         this.verticalVelocity = 0;
       }
@@ -366,62 +364,67 @@ export class FPSController implements ICameraController {
     // Add vertical movement from gravity/jump
     movement.y = this.verticalVelocity * deltaTime;
     
-    // ========== APPLY COLLISION ==========
-    if (movement.length() > 0) {
-      if (FPSController.collisionEnabled) {
-        if (FPSController.collisionMode === 'native') {
-          this.nativeCollisionMove(movement);
-        } else {
-          const isInit = cm.isInitialized();
+    // ========== APPLY COLLISION TO PHYSICS POSITION ==========
+    if (movement.length() > 0 && cm.isInitialized()) {
+      const start = this.physicsPos.clone();
+      const end = start.add(movement);
+      
+      // Use slideMove logic on physics position
+      const trace = cm.trace(start as never, end as never, { radius: 16, height: playerHeight });
+      
+      if (trace.fraction >= 1.0 && !trace.startSolid) {
+        // No collision - move full distance
+        this.physicsPos.copyFrom(end);
+      } else if (!trace.startSolid) {
+        // Partial move - slide along surface
+        const moveDistance = movement.scale(trace.fraction);
+        this.physicsPos.addInPlace(moveDistance);
+        
+        // Slide along wall (remaining movement projected onto wall plane)
+        if (trace.normal && trace.fraction < 1.0) {
+          const remaining = movement.scale(1.0 - trace.fraction);
+          const dot = Vector3.Dot(remaining, trace.normal);
+          const slide = remaining.subtract(trace.normal.scale(dot));
           
-          if (!FPSController._loggedState) {
-            FPSController._loggedState = true;
-            console.log(`[FPS] Collision: enabled=${FPSController.collisionEnabled}, mode=${FPSController.collisionMode}, init=${isInit}`);
-          }
-          
-          if (isInit) {
-            this.slideMove(movement, cm);
-          } else {
-            if (!FPSController._warnedNotInit) {
-              console.warn('[FPS] Collision enabled but not initialized!');
-              FPSController._warnedNotInit = true;
-            }
-            this.camera.position.addInPlace(movement);
+          // Try slide move
+          const slideEnd = this.physicsPos.add(slide);
+          const slideTrace = cm.trace(this.physicsPos as never, slideEnd as never, { radius: 16, height: playerHeight });
+          if (!slideTrace.startSolid) {
+            this.physicsPos.addInPlace(slide.scale(slideTrace.fraction));
           }
         }
-      } else {
-        this.camera.position.addInPlace(movement);
       }
+    } else if (movement.length() > 0) {
+      // No collision manager - just move
+      this.physicsPos.addInPlace(movement);
     }
     
-    // ========== UPDATE FEET POSITION ==========
-    // After collision, update feet Y from camera position
-    this.feetY = this.camera.position.y - eyeOffset;
-    
-    // ========== VIEWPORT SMOOTHING (for stairs) ==========
-    const targetY = this.feetY + eyeOffset;
-    const heightDiff = Math.abs(targetY - this.smoothedY);
+    // ========== VIEWPORT SMOOTHING (only affects render, not physics) ==========
+    const targetViewY = this.physicsPos.y + eyeOffset;
+    const heightDiff = Math.abs(targetViewY - this.smoothedViewY);
     
     if (!smoothEnabled || heightDiff > stepHeight * 2) {
-      // Large change or smoothing disabled - snap immediately
-      this.smoothedY = targetY;
+      // Large change (fall/jump) or disabled - snap immediately
+      this.smoothedViewY = targetViewY;
     } else {
-      // Smooth interpolation for stairs
-      this.smoothedY = this.smoothedY + (targetY - this.smoothedY) * smoothFactor;
+      // Smooth interpolation for stairs (up to ~18 units)
+      this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
     }
     
-    // Apply smoothed Y to camera (X and Z stay from collision)
-    this.camera.position.y = this.smoothedY;
+    // ========== SET CAMERA RENDER POSITION ==========
+    // X and Z from physics, Y smoothed for viewport
+    this.camera.position.x = this.physicsPos.x;
+    this.camera.position.y = this.smoothedViewY;
+    this.camera.position.z = this.physicsPos.z;
   }
   
+  // @ts-ignore - kept for future debug use
   private static _loggedState = false;
-  
+  // @ts-ignore - kept for future debug use
   private static _warnedNotInit = false;
-  
-  // Debug: log once per second
+  // @ts-ignore - kept for future debug use
   private static _lastDebugTime = 0;
-  
-  // Track if we've set up native collision
+  // @ts-ignore - kept for future debug use
   private static _nativeCollisionSetup = false;
   
   /**
@@ -447,6 +450,7 @@ export class FPSController implements ICameraController {
    * 
    * Result: Solid, reliable collision that respects BSP semantics
    */
+  // @ts-ignore - kept for alternative collision mode
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
     
@@ -721,6 +725,7 @@ export class FPSController implements ICameraController {
   /**
    * Apply collision using BSP trace with Q3-style sliding
    */
+  // @ts-ignore - kept for alternative collision mode
   private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     if (!this.camera || !this.scene) return;
 
