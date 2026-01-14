@@ -213,47 +213,47 @@ export class CharacterController {
       ? this.config.crouchHeight 
       : this.config.height;
 
+    // Match working freefly trace options (no contentMask!)
     const traceOpts = {
       radius: this.config.radius,
       height: height,
-      contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
     };
 
-    // Simple trace-based movement
-    const startPos = this.state.position.clone();
-    const endPos = this.state.position.add(movement);
-    const trace = cm.trace(
-      startPos as any,
-      endPos as any,
-      traceOpts
-    );
+    // Simple trace-based movement (match freefly pattern exactly)
+    const start = this.state.position.clone();
+    const end = this.state.position.add(movement);
+    const trace = cm.trace(start as never, end as never, traceOpts);
     
     // Debug trace result
     const now = Date.now();
     if (now - CharacterController.lastDebugLog > 500) {
-      console.log(`[CharController] TRACE: frac=${trace.fraction.toFixed(3)} startSolid=${trace.startSolid} allSolid=${trace.allSolid} endPos=(${trace.endPos.x.toFixed(0)},${trace.endPos.y.toFixed(0)},${trace.endPos.z.toFixed(0)})`);
+      console.log(`[CharController] TRACE: frac=${trace.fraction.toFixed(3)} startSolid=${trace.startSolid} hit=${trace.fraction < 1.0}`);
     }
     
     // Check for startSolid (stuck inside geometry)
     if (trace.startSolid) {
-      console.warn('[CharacterController] startSolid detected - attempting recovery');
-      // Try to nudge out by moving up
-      const nudgeUp = this.state.position.add(new Vector3(0, 8, 0));
-      const nudgeTrace = cm.trace(this.state.position as any, nudgeUp as any, traceOpts);
-      if (!nudgeTrace.startSolid) {
-        this.state.position.copyFrom(nudgeTrace.endPos);
-      }
+      console.warn('[CharacterController] startSolid detected');
       return;
     }
     
-    // Apply movement result - use trace.endPos which should be clamped by collision
-    if (trace.fraction < 1.0) {
-      // Hit something - use the collision point
-      this.state.position.copyFrom(trace.endPos);
-    } else {
+    // Apply movement result (match freefly pattern - use Lerp, not trace.endPos)
+    if (trace.fraction >= 1.0) {
       // No collision - apply full movement
-      this.state.position.copyFrom(endPos);
+      this.state.position.copyFrom(end);
+    } else if (trace.fraction > 0) {
+      // Partial collision - move to contact point
+      const contactPoint = Vector3.Lerp(start, end, trace.fraction);
+      
+      // Push back slightly from surface
+      if (trace.normal) {
+        contactPoint.x += trace.normal.x * 0.5;
+        contactPoint.y += trace.normal.y * 0.5;
+        contactPoint.z += trace.normal.z * 0.5;
+      }
+      
+      this.state.position.copyFrom(contactPoint);
     }
+    // fraction == 0 means started at collision, don't move
     
     // Zero velocity on collision (compare against ORIGINAL position)
     if (trace.fraction < 1.0 && trace.normal) {
