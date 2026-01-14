@@ -381,16 +381,22 @@ export class FPSController implements ICameraController {
         }
       }
     } else {
-      // === AIR MOVEMENT (PM_AirMove + Warsow Air Control) ===
+      // === AIR MOVEMENT (Warsow-style) ===
+      // Two distinct modes:
+      // 1. Air control (+forward ONLY, no strafe): Subtle direction change toward look
+      // 2. Strafe jumping (+forward + A/D): NO direction change, only speed gain
+      
       const aircontrol = mv.get('sv_aircontrol');
       const aircontrolPower = mv.get('sv_aircontrol_power');
-      
-      // Get current horizontal speed
       const currentHorizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
       
-      // === WARSOW AIR CONTROL (when holding +forward) ===
-      // Rotate velocity direction toward look direction without losing speed
-      if (this.keys.forward && aircontrol > 0 && currentHorizSpeed > 1) {
+      const holdingStrafe = this.keys.left || this.keys.right;
+      const holdingForwardOnly = this.keys.forward && !holdingStrafe && !this.keys.backward;
+      
+      // === WARSOW AIR CONTROL (ONLY when +forward without strafe) ===
+      // This is for subtle mid-air direction correction, NOT for strafe jumping
+      // When strafing, we want to keep velocity direction and only gain speed
+      if (holdingForwardOnly && aircontrol > 0 && currentHorizSpeed > 1) {
         // Current velocity direction (normalized)
         const velDirX = this.velocity.x / currentHorizSpeed;
         const velDirZ = this.velocity.z / currentHorizSpeed;
@@ -398,14 +404,12 @@ export class FPSController implements ICameraController {
         // Dot product: how aligned are we with look direction?
         const dot = velDirX * flatForward.x + velDirZ * flatForward.z;
         
-        // Only apply air control if not already aligned (dot < 1)
-        // and we're trying to turn (dot > -1, not going backwards)
+        // Only apply air control if not already aligned
         if (dot > -0.999 && dot < 0.999) {
-          // Calculate rotation amount based on air control power
-          // The further from aligned, the more we can turn
+          // Very subtle rotation - this should feel like minor course correction
           const turnSpeed = aircontrol * aircontrolPower * deltaTime * (1 - dot);
           
-          // Cross product to determine turn direction (clockwise or counter-clockwise)
+          // Cross product to determine turn direction
           const cross = velDirX * flatForward.z - velDirZ * flatForward.x;
           const turnDir = cross > 0 ? 1 : -1;
           
@@ -422,9 +426,11 @@ export class FPSController implements ICameraController {
         }
       }
       
-      // === Q3 STRAFE ACCELERATION ===
+      // === Q3/WARSOW STRAFE ACCELERATION ===
       // This is what enables strafe jumping speed gain
-      // Key: acceleration is capped by maxairspeed, but total speed is NOT capped
+      // Key insight: We accelerate in wishdir but DON'T rotate velocity
+      // The wishdir is based on look direction + strafe input
+      // This means strafing at ~45° to velocity adds speed without changing direction much
       if (hasInput) {
         const airWishspeed = Math.min(wishspeed, maxairspeed);
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
