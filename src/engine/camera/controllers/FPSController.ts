@@ -308,7 +308,6 @@ export class FPSController implements ICameraController {
     const playerHeight = mv.get('sv_playerheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
-    const smoothEnabled = mv.get('cl_smoothstairs') >= 0.5;
     
     // Initialize physics position from camera on first frame
     if (!this.initialized) {
@@ -403,11 +402,11 @@ export class FPSController implements ICameraController {
     const targetViewY = this.physicsPos.y + eyeOffset;
     const heightDiff = Math.abs(targetViewY - this.smoothedViewY);
     
-    if (!smoothEnabled || heightDiff > stepHeight * 2) {
-      // Large change (fall/jump) or disabled - snap immediately
+    if (heightDiff > stepHeight * 2) {
+      // Large change (fall/jump) - snap immediately
       this.smoothedViewY = targetViewY;
     } else {
-      // Smooth interpolation for stairs (up to ~18 units)
+      // Smooth interpolation for stairs (up to ~36 units)
       this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
     }
     
