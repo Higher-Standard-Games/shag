@@ -145,6 +145,15 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'physics',
     developerOnly: false,
   },
+  sv_aircontrol_power: {
+    value: 150,
+    defaultValue: 150,
+    min: 0,
+    max: 500,
+    description: 'Air control turning speed when holding +forward (Warsow-style)',
+    category: 'physics',
+    developerOnly: true,
+  },
   sv_stepheight: {
     value: 18,
     defaultValue: 18,

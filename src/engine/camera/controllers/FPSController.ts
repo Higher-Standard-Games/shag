@@ -381,8 +381,50 @@ export class FPSController implements ICameraController {
         }
       }
     } else {
-      // === AIR MOVEMENT (PM_AirMove) ===
-      // Very limited air control - can only accelerate up to maxairspeed in wishdir
+      // === AIR MOVEMENT (PM_AirMove + Warsow Air Control) ===
+      const aircontrol = mv.get('sv_aircontrol');
+      const aircontrolPower = mv.get('sv_aircontrol_power');
+      
+      // Get current horizontal speed
+      const currentHorizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      
+      // === WARSOW AIR CONTROL (when holding +forward) ===
+      // Rotate velocity direction toward look direction without losing speed
+      if (this.keys.forward && aircontrol > 0 && currentHorizSpeed > 1) {
+        // Current velocity direction (normalized)
+        const velDirX = this.velocity.x / currentHorizSpeed;
+        const velDirZ = this.velocity.z / currentHorizSpeed;
+        
+        // Dot product: how aligned are we with look direction?
+        const dot = velDirX * flatForward.x + velDirZ * flatForward.z;
+        
+        // Only apply air control if not already aligned (dot < 1)
+        // and we're trying to turn (dot > -1, not going backwards)
+        if (dot > -0.999 && dot < 0.999) {
+          // Calculate rotation amount based on air control power
+          // The further from aligned, the more we can turn
+          const turnSpeed = aircontrol * aircontrolPower * deltaTime * (1 - dot);
+          
+          // Cross product to determine turn direction (clockwise or counter-clockwise)
+          const cross = velDirX * flatForward.z - velDirZ * flatForward.x;
+          const turnDir = cross > 0 ? 1 : -1;
+          
+          // Rotate velocity direction
+          const angle = turnSpeed * turnDir;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const newVelX = velDirX * cos - velDirZ * sin;
+          const newVelZ = velDirX * sin + velDirZ * cos;
+          
+          // Apply rotated direction while preserving speed
+          this.velocity.x = newVelX * currentHorizSpeed;
+          this.velocity.z = newVelZ * currentHorizSpeed;
+        }
+      }
+      
+      // === Q3 STRAFE ACCELERATION ===
+      // This is what enables strafe jumping speed gain
+      // Key: acceleration is capped by maxairspeed, but total speed is NOT capped
       if (hasInput) {
         const airWishspeed = Math.min(wishspeed, maxairspeed);
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
