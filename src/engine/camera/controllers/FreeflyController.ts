@@ -138,8 +138,8 @@ export class FreeflyController implements ICameraController {
       this.camera.fov = this.config.fov;
     }
     
-    // Disable collisions for free flight
-    this.camera.checkCollisions = false;
+    // Note: We handle collision ourselves via slideMove/nativeCollisionMove
+    // Don't set checkCollisions here - it's managed by nativeCollisionMove when needed
     
     // Clear default inputs - we handle everything
     this.camera.inputs.clear();

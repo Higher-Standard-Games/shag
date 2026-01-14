@@ -100,6 +100,24 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'physics',
     developerOnly: true,
   },
+  sv_playerheight: {
+    value: 56,
+    defaultValue: 56,
+    min: 32,
+    max: 96,
+    description: 'Player collision height',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_eyeoffset: {
+    value: 48,
+    defaultValue: 48,
+    min: 24,
+    max: 72,
+    description: 'Eye position above feet (camera height)',
+    category: 'physics',
+    developerOnly: true,
+  },
 
   // ==================== Camera ====================
   cl_sensitivity: {

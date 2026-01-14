@@ -41,6 +41,13 @@ export class FPSController implements ICameraController {
   // Physics state
   private verticalVelocity: number = 0;
   private isGrounded: boolean = false;
+  
+  // Feet position (physics position) - camera is at eye level above this
+  private feetY: number = 0;
+  
+  // Viewport smoothing for stairs
+  private smoothedY: number = 0;
+  private smoothingInitialized: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -297,6 +304,18 @@ export class FPSController implements ICameraController {
     const speed = (this.config.speed || 200) * deltaTime;
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
+    const eyeOffset = mv.get('sv_eyeoffset');
+    const playerHeight = mv.get('sv_playerheight');
+    const stepHeight = mv.get('sv_stepheight');
+    const smoothFactor = mv.get('cl_smoothfactor');
+    const smoothEnabled = mv.get('cl_smoothstairs') >= 0.5;
+    
+    // Initialize feet position from camera on first frame
+    if (!this.smoothingInitialized) {
+      this.feetY = this.camera.position.y - eyeOffset;
+      this.smoothedY = this.camera.position.y;
+      this.smoothingInitialized = true;
+    }
     
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
@@ -315,12 +334,15 @@ export class FPSController implements ICameraController {
     if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
     
     // ========== GROUND CHECK ==========
+    // Use feet position for ground check
     const cm = getCollisionManager();
+    const feetPos = new Vector3(this.camera.position.x, this.feetY, this.camera.position.z);
+    
     if (cm.isInitialized()) {
       const groundTrace = cm.trace(
-        this.camera.position as never,
-        this.camera.position.subtract(new Vector3(0, 2, 0)) as never,
-        { radius: 16, height: 56 }
+        feetPos as never,
+        feetPos.subtract(new Vector3(0, 2, 0)) as never,
+        { radius: 16, height: playerHeight }
       );
       this.isGrounded = groundTrace.fraction < 1.0 && !groundTrace.startSolid;
       
@@ -371,6 +393,25 @@ export class FPSController implements ICameraController {
         this.camera.position.addInPlace(movement);
       }
     }
+    
+    // ========== UPDATE FEET POSITION ==========
+    // After collision, update feet Y from camera position
+    this.feetY = this.camera.position.y - eyeOffset;
+    
+    // ========== VIEWPORT SMOOTHING (for stairs) ==========
+    const targetY = this.feetY + eyeOffset;
+    const heightDiff = Math.abs(targetY - this.smoothedY);
+    
+    if (!smoothEnabled || heightDiff > stepHeight * 2) {
+      // Large change or smoothing disabled - snap immediately
+      this.smoothedY = targetY;
+    } else {
+      // Smooth interpolation for stairs
+      this.smoothedY = this.smoothedY + (targetY - this.smoothedY) * smoothFactor;
+    }
+    
+    // Apply smoothed Y to camera (X and Z stay from collision)
+    this.camera.position.y = this.smoothedY;
   }
   
   private static _loggedState = false;
