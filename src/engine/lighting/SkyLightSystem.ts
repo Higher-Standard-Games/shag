@@ -477,6 +477,7 @@ export class SkyLightSystem {
   // ==================== CVar-Driven Day/Night for BSP ====================
 
   private lastCvarTime: number = -1;
+  private _lastDebugLog: number = 0;
 
   /**
    * Update day/night cycle from cvars (call every frame)
@@ -485,6 +486,13 @@ export class SkyLightSystem {
   public update(deltaTime: number): void {
     // Check if day/night system is enabled via cvar
     const enabled = Number(Cvar.get('r_daynight') ?? 0);
+    
+    // Debug: log every few seconds to confirm update is called
+    if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 3000) {
+      console.log(`[SkyLightSystem] update called, r_daynight=${enabled}`);
+      this._lastDebugLog = Date.now();
+    }
+    
     if (enabled < 0.5) {
       return;
     }
