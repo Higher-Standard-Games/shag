@@ -150,7 +150,6 @@ export class PK3TextureLoader {
     const data = await pk3.getFile(path);
 
     if (!data) {
-      console.warn(`[PK3TextureLoader] File not found: ${path}`);
       return null;
     }
 
