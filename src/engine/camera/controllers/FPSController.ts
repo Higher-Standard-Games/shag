@@ -304,19 +304,24 @@ export class FPSController implements ICameraController {
     const speed = (this.config.speed || 200) * deltaTime;
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
+    const eyeOffset = mv.get('sv_eyeoffset');
+    const playerHeight = mv.get('sv_playerheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
     
-    // Initialize on first frame
+    // Initialize on first frame - physicsPos is FEET position
     if (!this.initialized) {
+      // Camera starts at eye level, so feet = camera.y - eyeOffset
       this.physicsPos.copyFrom(this.camera.position);
+      this.physicsPos.y -= eyeOffset;
       this.smoothedViewY = this.camera.position.y;
       this.initialized = true;
     }
     
-    // ========== RESTORE PHYSICS POSITION TO CAMERA ==========
-    // Before collision, set camera to physics position (not smoothed)
-    this.camera.position.copyFrom(this.physicsPos);
+    // ========== SET CAMERA TO PHYSICS + EYE OFFSET FOR COLLISION ==========
+    this.camera.position.x = this.physicsPos.x;
+    this.camera.position.y = this.physicsPos.y + eyeOffset;
+    this.camera.position.z = this.physicsPos.z;
     
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
@@ -334,14 +339,16 @@ export class FPSController implements ICameraController {
     if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
     if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
     
-    // ========== GROUND CHECK ==========
+    // ========== GROUND CHECK (trace from feet) ==========
     const cm = getCollisionManager();
+    const feetPos = this.physicsPos.clone();
+    const wasGrounded = this.isGrounded;
     
     if (cm.isInitialized()) {
       const groundTrace = cm.trace(
-        this.camera.position as never,
-        this.camera.position.subtract(new Vector3(0, 2, 0)) as never,
-        { radius: 16, height: 56 }
+        feetPos as never,
+        feetPos.subtract(new Vector3(0, 2, 0)) as never,
+        { radius: 16, height: playerHeight }
       );
       this.isGrounded = groundTrace.fraction < 1.0 && !groundTrace.startSolid;
       
@@ -364,28 +371,36 @@ export class FPSController implements ICameraController {
     // Add vertical movement from gravity/jump
     movement.y = this.verticalVelocity * deltaTime;
     
-    // ========== APPLY COLLISION (use same method as freefly) ==========
+    // ========== APPLY COLLISION ==========
     if (movement.length() > 0) {
       this.nativeCollisionMove(movement);
     }
     
-    // ========== SAVE PHYSICS POSITION ==========
-    // After collision, save the physics position
-    this.physicsPos.copyFrom(this.camera.position);
+    // ========== EXTRACT FEET POSITION FROM CAMERA ==========
+    const prevFeetY = this.physicsPos.y;
+    this.physicsPos.x = this.camera.position.x;
+    this.physicsPos.y = this.camera.position.y - eyeOffset;
+    this.physicsPos.z = this.camera.position.z;
     
-    // ========== VIEWPORT SMOOTHING (only affects render Y) ==========
-    const targetViewY = this.physicsPos.y;
-    const heightDiff = Math.abs(targetViewY - this.smoothedViewY);
+    // ========== VIEWPORT SMOOTHING (only for stairs when grounded) ==========
+    const targetViewY = this.physicsPos.y + eyeOffset;
+    const heightDiff = Math.abs(this.physicsPos.y - prevFeetY);
     
-    if (heightDiff > stepHeight * 2) {
-      // Large change (fall/jump) - snap immediately
-      this.smoothedViewY = targetViewY;
-    } else {
+    // Only smooth if:
+    // 1. Currently grounded (not falling/jumping)
+    // 2. Was grounded last frame (not just landed)
+    // 3. Height change is small (stair-sized)
+    const shouldSmooth = this.isGrounded && wasGrounded && heightDiff <= stepHeight;
+    
+    if (shouldSmooth) {
       // Smooth interpolation for stairs
       this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
+    } else {
+      // No smoothing - snap to physics position (gravity, jumps, landing)
+      this.smoothedViewY = targetViewY;
     }
     
-    // Apply smoothed Y to camera for rendering only
+    // Apply smoothed Y to camera for rendering
     this.camera.position.y = this.smoothedViewY;
   }
   
