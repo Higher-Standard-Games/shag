@@ -294,45 +294,39 @@ export class FreeflyController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
-    // Initialize smoothing on first update
-    if (!this.smoothingInitialized) {
-      this.physicsPosition = this.camera.position.clone();
-      this.renderPosition = this.camera.position.clone();
-      this.smoothingInitialized = true;
-      MovementVars.getInstance();
-    }
-    
-    const mv = MovementVars.getInstance();
-    const isPhysicsMode = mv.get('sv_spectator') < 0.5; // spectator 0 = physics
+    // ========== ORIGINAL WORKING FREEFLY CODE ==========
     const speed = (this.config.speed || 200) * deltaTime;
-    
-    // Get camera directions (same as original working code)
+
+    // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
-    const up = Vector3.Up(); // World up - same as original
-    
-    // Calculate movement (same as original working code)
+    const up = Vector3.Up();
+
+    // Calculate movement
     const movement = Vector3.Zero();
-    
+
     if (this.keys.forward) movement.addInPlace(forward.scale(speed));
     if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
     if (this.keys.left) movement.addInPlace(right.scale(-speed));
     if (this.keys.right) movement.addInPlace(right.scale(speed));
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
+
+    // ========== PHYSICS MODE: Add gravity (sv_spectator=0) ==========
+    const mv = MovementVars.getInstance();
+    const isPhysicsMode = mv.get('sv_spectator') < 0.5;
     
-    // Physics mode: add gravity
     if (isPhysicsMode) {
       const gravity = mv.get('sv_gravity');
       const jumpHeight = mv.get('sv_jumpheight');
       
-      // Reset vertical velocity when switching to physics mode  
+      // Reset when switching to physics mode
       if (this.wasSpectator) {
         this.verticalVelocity = 0;
         this.isGrounded = false;
       }
       
-      // Check if grounded
+      // Check if grounded (trace down)
       const cm = getCollisionManager();
       if (cm.isInitialized()) {
         const groundCheck = cm.trace(
@@ -346,33 +340,47 @@ export class FreeflyController implements ICameraController {
         }
       }
       
-      // Apply gravity when not grounded
+      // Apply gravity
       if (!this.isGrounded) {
         this.verticalVelocity -= gravity * deltaTime;
       }
       
-      // Jump replaces up key in physics mode
+      // Jump (Space in physics mode = jump, not fly up)
       if (this.keys.up && this.isGrounded) {
         this.verticalVelocity = jumpHeight;
         this.isGrounded = false;
-        // Remove the up movement we added above, replace with jump
-        movement.y = 0;
       }
       
-      // Add gravity/jump velocity to movement
-      movement.y += this.verticalVelocity * deltaTime;
+      // Replace vertical movement with gravity/jump
+      // Remove the up/down from keys, use physics velocity instead
+      movement.y = this.verticalVelocity * deltaTime;
+      
+      this.wasSpectator = false;
+    } else {
+      this.wasSpectator = true;
     }
-    
-    // ALWAYS use collision (both spectator and physics modes)
+
+    // ========== APPLY COLLISION (original working code) ==========
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
         if (FreeflyController.collisionMode === 'native') {
           this.nativeCollisionMove(movement);
         } else {
           const cm = getCollisionManager();
-          if (cm.isInitialized()) {
+          const isInit = cm.isInitialized();
+
+          if (!FreeflyController._loggedState) {
+            FreeflyController._loggedState = true;
+            console.log(`[Freefly] Collision: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, init=${isInit}`);
+          }
+
+          if (isInit) {
             this.slideMove(movement, cm);
           } else {
+            if (!FreeflyController._warnedNotInit) {
+              console.warn('[Freefly] Collision enabled but not initialized!');
+              FreeflyController._warnedNotInit = true;
+            }
             this.camera.position.addInPlace(movement);
           }
         }
@@ -380,18 +388,14 @@ export class FreeflyController implements ICameraController {
         this.camera.position.addInPlace(movement);
       }
     }
-    
-    // Track mode for next frame
-    this.wasSpectator = !isPhysicsMode;
-    
-    // Apply viewport smoothing for stairs (Y-axis only)
-    this.applyViewportSmoothing();
   }
   
   /**
    * Smooth viewport Y position to fix stair jitter
    * Physics position stays instant/accurate, only render is smoothed
+   * @deprecated Temporarily disabled - needs integration with original freefly
    */
+  // @ts-ignore - Kept for future use
   private applyViewportSmoothing(): void {
     if (!this.camera || !this.smoothingInitialized) return;
     
@@ -431,6 +435,9 @@ export class FreeflyController implements ICameraController {
     // Apply smoothed render position to camera
     this.camera.position.copyFrom(this.renderPosition);
   }
+  
+  private static _loggedState = false;
+  private static _warnedNotInit = false;
   
   // Debug: log once per second
   private static _lastDebugTime = 0;
