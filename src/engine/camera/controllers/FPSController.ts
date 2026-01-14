@@ -553,6 +553,11 @@ export class FPSController implements ICameraController {
       console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}`);
     }
 
+    // === SPEED DISPLAY (cl_showspeed) ===
+    const showSpeed = mv.get('cl_showspeed') > 0;
+    const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+    this.updateSpeedDisplay(showSpeed, horizSpeed);
+
     // === SAVE PHYSICS Y AFTER COLLISION ===
     this.physicsY = this.camera.position.y;
 
@@ -572,6 +577,41 @@ export class FPSController implements ICameraController {
 
     // Apply smoothed Y + eye offset for rendering
     this.camera.position.y = this.smoothedY + eyeOffset;
+  }
+
+  // Speed display element
+  private static speedDisplayEl: HTMLDivElement | null = null;
+
+  /**
+   * Update on-screen speed display
+   */
+  private updateSpeedDisplay(show: boolean, speed: number): void {
+    if (show) {
+      if (!FPSController.speedDisplayEl) {
+        // Create speed display element
+        const el = document.createElement('div');
+        el.id = 'fps-speed-display';
+        el.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-family: monospace;
+          font-size: 24px;
+          font-weight: bold;
+          color: #0f0;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+          z-index: 9999;
+          pointer-events: none;
+        `;
+        document.body.appendChild(el);
+        FPSController.speedDisplayEl = el;
+      }
+      FPSController.speedDisplayEl.textContent = `${Math.round(speed)} u/s`;
+      FPSController.speedDisplayEl.style.display = 'block';
+    } else if (FPSController.speedDisplayEl) {
+      FPSController.speedDisplayEl.style.display = 'none';
+    }
   }
 
   /**
