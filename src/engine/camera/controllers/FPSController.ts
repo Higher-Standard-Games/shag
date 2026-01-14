@@ -52,6 +52,9 @@ export class FPSController implements ICameraController {
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
   private smoothingInitialized: boolean = false;
+  // Jump state for auto-bunny hop
+  private jumpConsumed: boolean = false;
+  private wasGroundedLastFrame: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -309,10 +312,12 @@ export class FPSController implements ICameraController {
     const jumpHeight = mv.get('sv_jumpheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
-
-    // Use sv_movementSpeed or sv_runSpeed based on sprint state
-    const baseSpeed = this.keys.sprint ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
-    const speed = baseSpeed * deltaTime;
+    const friction = mv.get('sv_friction');
+    const accelerate = mv.get('sv_accelerate');
+    const stopspeed = mv.get('sv_stopspeed');
+    const airaccelerate = mv.get('sv_airaccelerate');
+    const maxairspeed = mv.get('sv_maxairspeed');
+    const wishspeed = this.keys.sprint ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
 
     const cm = getCollisionManager();
 
@@ -325,22 +330,71 @@ export class FPSController implements ICameraController {
     }
 
     // CRITICAL: Restore physics Y before collision (not smoothed)
-    // This prevents feedback loop from smoothing affecting collision traces
     this.camera.position.y = this.physicsY;
 
-    // === HORIZONTAL MOVEMENT ===
+    // === CALCULATE WISHDIR (desired movement direction) ===
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
+    const flatForward = new Vector3(forward.x, 0, forward.z);
+    const flatRight = new Vector3(right.x, 0, right.z);
+    if (flatForward.length() > 0.001) flatForward.normalize();
+    if (flatRight.length() > 0.001) flatRight.normalize();
 
-    // Project to horizontal plane for ground movement
-    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
-    const flatRight = new Vector3(right.x, 0, right.z).normalize();
+    // Build wishdir from input
+    let wishdir = Vector3.Zero();
+    if (this.keys.forward) wishdir.addInPlace(flatForward);
+    if (this.keys.backward) wishdir.subtractInPlace(flatForward);
+    if (this.keys.left) wishdir.subtractInPlace(flatRight);
+    if (this.keys.right) wishdir.addInPlace(flatRight);
 
-    const movement = Vector3.Zero();
-    if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
-    if (this.keys.backward) movement.addInPlace(flatForward.scale(-speed));
-    if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
-    if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
+    const hasInput = wishdir.length() > 0.001;
+    if (hasInput) wishdir.normalize();
+
+    // === Q3-STYLE PHYSICS ===
+    if (this.isGrounded) {
+      // === GROUND MOVEMENT ===
+
+      // Apply friction first (PM_Friction)
+      const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      if (speed > 1) {
+        const control = speed < stopspeed ? stopspeed : speed;
+        const drop = control * friction * deltaTime;
+        let newSpeed = speed - drop;
+        if (newSpeed < 0) newSpeed = 0;
+        const scale = newSpeed / speed;
+        this.velocity.x *= scale;
+        this.velocity.z *= scale;
+      } else {
+        this.velocity.x = 0;
+        this.velocity.z = 0;
+      }
+
+      // Apply acceleration toward wishdir (PM_Accelerate)
+      if (hasInput) {
+        const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+        const addspeed = wishspeed - currentspeed;
+        if (addspeed > 0) {
+          let accelspeed = accelerate * deltaTime * wishspeed;
+          if (accelspeed > addspeed) accelspeed = addspeed;
+          this.velocity.x += accelspeed * wishdir.x;
+          this.velocity.z += accelspeed * wishdir.z;
+        }
+      }
+    } else {
+      // === AIR MOVEMENT (PM_AirMove) ===
+      // Very limited air control - can only accelerate up to maxairspeed in wishdir
+      if (hasInput) {
+        const airWishspeed = Math.min(wishspeed, maxairspeed);
+        const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+        const addspeed = airWishspeed - currentspeed;
+        if (addspeed > 0) {
+          let accelspeed = airaccelerate * deltaTime * wishspeed;
+          if (accelspeed > addspeed) accelspeed = addspeed;
+          this.velocity.x += accelspeed * wishdir.x;
+          this.velocity.z += accelspeed * wishdir.z;
+        }
+      }
+    }
 
     // === GRAVITY ===
     if (!this.isGrounded) {
@@ -348,13 +402,29 @@ export class FPSController implements ICameraController {
     }
 
     // === JUMP ===
+    const autohop = mv.get('sv_autohop') > 0;
+    
+    // Reset jumpConsumed when key is released
+    if (!this.keys.up) {
+      this.jumpConsumed = false;
+    }
+    
     if (this.keys.up && this.isGrounded) {
-      this.velocity.y = jumpHeight;
-      this.isGrounded = false;
+      // Two modes:
+      // 1. Normal jump: Require key release between jumps (jumpConsumed check)
+      // 2. Auto-bunny hop: Jump automatically on landing frame when holding space
+      const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
+      const canJump = !this.jumpConsumed || (autohop && justLanded);
+      
+      if (canJump) {
+        this.velocity.y = jumpHeight;
+        this.isGrounded = false;
+        this.jumpConsumed = true;
+      }
     }
 
-    // Add vertical velocity to movement
-    movement.y = this.velocity.y * deltaTime;
+    // === BUILD MOVEMENT VECTOR FROM VELOCITY ===
+    const movement = this.velocity.scale(deltaTime);
 
     // Store Y before movement for ground detection
     const prevY = this.camera.position.y;
@@ -386,6 +456,9 @@ export class FPSController implements ICameraController {
 
     // === GROUND DETECTION ===
     // Q3-style: Actively check for ground beneath player each frame
+    // CRITICAL: Only "land" if we're moving downward (fixes jetpack bug)
+    this.wasGroundedLastFrame = this.isGrounded;
+    
     if (cm.isInitialized()) {
       const backend = (cm as any).backends?.get('q3');
       if (backend && typeof backend.trace === 'function') {
@@ -395,20 +468,27 @@ export class FPSController implements ICameraController {
         const groundTrace = backend.trace(groundCheckStart, groundCheckEnd, traceOpts);
 
         if (groundTrace.fraction < 1.0) {
-          // Hit ground
-          if (!this.isGrounded) {
-            // Just landed
-            this.isGrounded = true;
+          // Hit ground - but ONLY land if we're moving down or stationary
+          // This prevents "landing" immediately after jumping (jetpack fix)
+          if (this.velocity.y <= 0) {
+            if (!this.isGrounded) {
+              // Just landed this frame
+              this.isGrounded = true;
+            }
+            // Zero vertical velocity when on ground
             if (this.velocity.y < 0) {
               this.velocity.y = 0;
             }
           }
+          // If velocity.y > 0, we're going UP - don't land yet
         } else {
           // No ground beneath - start falling
-          if (this.isGrounded && this.velocity.y <= 0) {
+          if (this.isGrounded) {
             this.isGrounded = false;
             // Small initial downward velocity to start falling
-            this.velocity.y = -1;
+            if (this.velocity.y <= 0) {
+              this.velocity.y = -1;
+            }
           }
         }
       }
@@ -416,7 +496,8 @@ export class FPSController implements ICameraController {
       // Fallback: movement-based detection
       const actualYMove = this.camera.position.y - prevY;
       const expectedYMove = movement.y;
-      if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
+      // Only land if moving downward
+      if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5 && this.velocity.y <= 0) {
         this.isGrounded = true;
         if (this.velocity.y < 0) {
           this.velocity.y = 0;
