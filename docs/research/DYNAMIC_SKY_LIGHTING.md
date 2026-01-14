@@ -1,9 +1,10 @@
 # Dynamic Sky Lighting for BSP Maps
 
-**Status:** Design Phase  
+**Status:** ✅ Implemented  
 **Branch:** `feature/dynamic-sky-lighting`  
 **Author:** Cascade  
-**Date:** 2026-01-14
+**Date:** 2026-01-14  
+**Completed:** 2026-01-14
 
 ## Overview
 
@@ -699,6 +700,56 @@ Night:  lightmap=0.1, sun=0.0  → dark, moon provides subtle blue
 - [ ] Hook update into game loop
 - [ ] Test with actual BSP map
 - [ ] Test performance impact
+
+---
+
+## Implementation Summary
+
+### What Was Built
+
+The BSP day/night cycle system was implemented with the following features:
+
+1. **Direct API in SkyLightSystem** - Bypasses cvars for reliable BSP control
+   - `setBspDayNightEnabled(enabled)` - Enable/disable cycle
+   - `setBspTimeOfDay(time)` - Set time (0=midnight, 0.5=noon)
+   - `setBspAnimating(animating)` - Start/stop animation
+   - `setBspCycleLength(minutes)` - Configure cycle duration
+   - `loadFromWorldspawn()` - Load settings from BSP entity
+
+2. **Visual Effects**
+   - BSP world geometry: Diffuse color modulation (0.1x to 1.5x)
+   - Skybox: Emissive color tinting (dark blue at night)
+   - Spawned models: Same diffuse modulation as world
+   - Street lamps: Auto on/off based on time period
+
+3. **Worldspawn Keys**
+   - `daynight_enabled` - "1" to enable
+   - `daynight_time` - Starting time (0.0 to 1.0)
+   - `daynight_cycle` - Cycle length in minutes
+   - `daynight_animate` - "1" to auto-start animation
+
+4. **Console Command** (`daynight`)
+   - `daynight on/off` - Enable/disable
+   - `daynight noon/midnight/sunrise/sunset` - Quick presets
+   - `daynight start/stop` - Animation control
+   - `daynight cycle <minutes>` - Set cycle length
+   - `daynight time <0-1>` - Manual time setting
+   - `daynight info` - Show current state
+
+### Files Modified
+
+- `src/engine/lighting/SkyLightSystem.ts` - Core BSP day/night API
+- `src/engine/loader/bsp/BspManager.ts` - `setLightmapIntensity()`, `getScene()`, `getWorldspawnProperty()`
+- `src/engine/console/commands/DayNightCommand.ts` - Console command
+- `src/engine/console/commands/MapCommand.ts` - Auto-load worldspawn settings
+- `src/engine/console/commands/SceneCommand.ts` - Hook update loop
+
+### Technical Notes
+
+- Lightmap `.level` property didn't work with `useLightmapAsShadowmap` mode
+- Solution: Modulate `diffuseColor` directly on materials instead
+- Original colors stored as `_origDiffuse` to allow restoration
+- Street lamp integration via dynamic require to avoid circular deps
 
 ---
 
