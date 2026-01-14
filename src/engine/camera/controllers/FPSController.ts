@@ -41,9 +41,10 @@ export class FPSController implements ICameraController {
   // Q3-style physics state
   private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
   private isGrounded: boolean = false;
-  private groundNormal: Vector3 | null = null;  // For slope movement
+  // @ts-ignore - kept for future slope movement
+  private groundNormal: Vector3 | null = null;
   
-  // Player origin (client position, center of bbox)
+  // @ts-ignore - kept for future use
   private origin: Vector3 = Vector3.Zero();
   
   // Smoothed Y for viewport only (never feeds back to physics)
@@ -301,144 +302,56 @@ export class FPSController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
+    // === SIMPLIFIED: Work exactly like FreeflyController but with gravity ===
+    
     const mv = MovementVars.getInstance();
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
-    const eyeOffset = mv.get('sv_eyeoffset');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
-    
-    // Q3-style movement parameters
-    const maxSpeed = this.config.speed || 320;
-    const accelerate = 10.0;
-    const airAccelerate = 1.0;
-    const friction = 6.0;
-    const stopSpeed = 100.0;
+    const speed = (this.config.speed || 320) * deltaTime;
     
     const cm = getCollisionManager();
     
-    // Initialize on first frame
+    // Initialize smoothing
     if (!this.initialized) {
-      this.origin.copyFrom(this.camera.position);
       this.smoothedViewY = this.camera.position.y;
       this.initialized = true;
-      console.log(`[FPS] Initialized at origin: (${this.origin.x.toFixed(1)}, ${this.origin.y.toFixed(1)}, ${this.origin.z.toFixed(1)})`);
-      console.log(`[FPS] CollisionManager initialized: ${cm.isInitialized()}, backend: ${cm.getBackendType()}`);
+      console.log(`[FPS] Initialized at: (${this.camera.position.x.toFixed(1)}, ${this.camera.position.y.toFixed(1)}, ${this.camera.position.z.toFixed(1)})`);
     }
     
-    // ========== GROUND CHECK ==========
-    // Use camera position (which slideMove updates) for ground check
-    // Trace from feet position (camera.y - eyeOffset) downward
-    const wasGrounded = this.isGrounded;
-    this.groundNormal = null;
+    // Store Y before movement for smoothing comparison
+    const prevY = this.camera.position.y;
     
-    if (cm.isInitialized()) {
-      // Feet position = camera position minus eye offset
-      const feetPos = this.camera.position.clone();
-      feetPos.y -= eyeOffset;
-      
-      // Trace downward from feet to detect ground (small distance)
-      const groundTrace = cm.trace(
-        feetPos as never,
-        feetPos.subtract(new Vector3(0, 2, 0)) as never,
-        { radius: 16, height: 4 }  // Small height for ground check
-      );
-      
-      // Debug: log ground trace periodically
-      if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
-        FPSController._lastGroundLog = Date.now();
-        console.log(`[FPS] Ground trace: frac=${groundTrace.fraction.toFixed(3)}, startSolid=${groundTrace.startSolid}, feetY=${feetPos.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}`);
-      }
-      
-      if (groundTrace.fraction < 1.0 && !groundTrace.startSolid) {
-        this.isGrounded = true;
-        this.groundNormal = groundTrace.normal || new Vector3(0, 1, 0);
-        
-        // Snap to ground if we hit something
-        if (this.velocity.y < 0) {
-          this.velocity.y = 0;
-          // Adjust camera to sit on ground
-          this.camera.position.y = groundTrace.endPos.y + eyeOffset;
-        }
-      } else {
-        this.isGrounded = false;
-      }
-    } else {
-      console.warn('[FPS] CollisionManager not initialized!');
-    }
-    
-    // ========== GET WISH DIRECTION ==========
+    // === HORIZONTAL MOVEMENT (same as FreeflyController) ===
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
-    // Project to horizontal plane
-    let flatForward = new Vector3(forward.x, 0, forward.z);
-    let flatRight = new Vector3(right.x, 0, right.z);
+    // Project to horizontal plane for ground movement
+    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+    const flatRight = new Vector3(right.x, 0, right.z).normalize();
     
-    // If grounded and on slope, project onto ground plane (Q3-style)
-    if (this.isGrounded && this.groundNormal) {
-      flatForward = this.clipVelocity(flatForward, this.groundNormal, 1.001);
-      flatRight = this.clipVelocity(flatRight, this.groundNormal, 1.001);
-    }
+    const movement = Vector3.Zero();
+    if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
+    if (this.keys.backward) movement.addInPlace(flatForward.scale(-speed));
+    if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
+    if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
     
-    flatForward.normalize();
-    flatRight.normalize();
-    
-    // Calculate wish velocity
-    const wishDir = Vector3.Zero();
-    if (this.keys.forward) wishDir.addInPlace(flatForward);
-    if (this.keys.backward) wishDir.subtractInPlace(flatForward);
-    if (this.keys.left) wishDir.subtractInPlace(flatRight);
-    if (this.keys.right) wishDir.addInPlace(flatRight);
-    
-    let wishSpeed = 0;
-    if (wishDir.length() > 0) {
-      wishDir.normalize();
-      wishSpeed = maxSpeed;
-    }
-    
-    // ========== FRICTION (when grounded) ==========
-    if (this.isGrounded) {
-      const speed = this.velocity.length();
-      if (speed > 0) {
-        const drop = speed < stopSpeed ? stopSpeed * friction * deltaTime : speed * friction * deltaTime;
-        const newSpeed = Math.max(0, speed - drop) / speed;
-        this.velocity.scaleInPlace(newSpeed);
-      }
-    }
-    
-    // ========== ACCELERATION ==========
-    const accel = this.isGrounded ? accelerate : airAccelerate;
-    const currentSpeed = Vector3.Dot(this.velocity, wishDir);
-    const addSpeed = wishSpeed - currentSpeed;
-    
-    if (addSpeed > 0) {
-      let accelSpeed = accel * deltaTime * wishSpeed;
-      if (accelSpeed > addSpeed) {
-        accelSpeed = addSpeed;
-      }
-      this.velocity.addInPlace(wishDir.scale(accelSpeed));
-    }
-    
-    // ========== GRAVITY ==========
+    // === GRAVITY ===
     if (!this.isGrounded) {
       this.velocity.y -= gravity * deltaTime;
     }
     
-    // ========== JUMP ==========
+    // === JUMP ===
     if (this.keys.up && this.isGrounded) {
       this.velocity.y = jumpHeight;
       this.isGrounded = false;
     }
     
-    // ========== MOVE WITH COLLISION ==========
-    const movement = this.velocity.scale(deltaTime);
+    // Add vertical velocity to movement
+    movement.y = this.velocity.y * deltaTime;
     
-    // Set camera to origin before collision
-    this.camera.position.copyFrom(this.origin);
-    const prevOriginY = this.origin.y;
-    
-    // Apply movement with BSP collision (same as FreeflyController)
+    // === APPLY MOVEMENT WITH COLLISION (same as FreeflyController) ===
     if (movement.length() > 0) {
       if (cm.isInitialized()) {
         this.slideMove(movement, cm as ReturnType<typeof getCollisionManager>);
@@ -447,28 +360,43 @@ export class FPSController implements ICameraController {
       }
     }
     
-    // Update origin from camera after collision
-    this.origin.copyFrom(this.camera.position);
+    // === GROUND DETECTION (check if downward movement was blocked) ===
+    const actualYMove = this.camera.position.y - prevY;
+    const expectedYMove = movement.y;
     
-    // ========== VIEWPORT SMOOTHING (only for stairs when grounded) ==========
-    const targetViewY = this.origin.y + eyeOffset;
-    const heightDiff = Math.abs(this.origin.y - prevOriginY);
-    
-    const shouldSmooth = this.isGrounded && wasGrounded && heightDiff <= stepHeight;
-    
-    if (shouldSmooth) {
-      this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
-    } else {
-      this.smoothedViewY = targetViewY;
+    // If we tried to move down but didn't move as much, we hit ground
+    if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
+      this.isGrounded = true;
+      if (this.velocity.y < 0) {
+        this.velocity.y = 0;
+      }
+    } else if (expectedYMove >= 0 || actualYMove < expectedYMove * 0.9) {
+      // Moving up or fell freely
+      this.isGrounded = movement.y >= 0 ? this.isGrounded : false;
     }
     
-    // ========== SET CAMERA POSITION (apply eye offset + smoothing) ==========
-    this.camera.position.y = this.smoothedViewY;
+    // Debug log
+    if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
+      FPSController._lastGroundLog = Date.now();
+      console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}, expectedY=${expectedYMove.toFixed(2)}, actualY=${actualYMove.toFixed(2)}`);
+    }
+    
+    // === VIEWPORT SMOOTHING (stairs only) ===
+    const heightDiff = Math.abs(this.camera.position.y - prevY);
+    if (this.isGrounded && heightDiff <= stepHeight && heightDiff > 0.1) {
+      // Smooth stair movement
+      const targetY = this.camera.position.y;
+      this.smoothedViewY = this.smoothedViewY + (targetY - this.smoothedViewY) * smoothFactor;
+      this.camera.position.y = this.smoothedViewY;
+    } else {
+      this.smoothedViewY = this.camera.position.y;
+    }
   }
   
   /**
    * Q3-style clip velocity - project velocity onto plane
    */
+  // @ts-ignore - kept for future slope movement
   private clipVelocity(vel: Vector3, normal: Vector3, overbounce: number): Vector3 {
     let backoff = Vector3.Dot(vel, normal);
     
