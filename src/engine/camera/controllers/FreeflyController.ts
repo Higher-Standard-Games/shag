@@ -315,9 +315,12 @@ export class FreeflyController implements ICameraController {
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
     
-    // Apply movement with optional collision
+    // Check spectator mode from cvars
+    const isSpectator = MovementVars.getInstance().get('sv_spectator') >= 0.5;
+    
+    // Apply movement with optional collision (disabled in spectator mode)
     if (movement.length() > 0) {
-      if (FreeflyController.collisionEnabled) {
+      if (FreeflyController.collisionEnabled && !isSpectator) {
         if (FreeflyController.collisionMode === 'native') {
           // Use Babylon's native mesh collision
           this.nativeCollisionMove(movement);
