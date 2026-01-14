@@ -39,6 +39,7 @@ export default class SpawnModelCommand extends Command {
       case 'move': return this.moveModel(args.slice(1));
       case 'scale': return this.scaleModel(args.slice(1));
       case 'remove': return this.removeModel(args.slice(1));
+      case 'lighting': return this.refreshLighting(args.slice(1));
       default: return this.spawnModel(args);
     }
   }
@@ -407,12 +408,42 @@ export default class SpawnModelCommand extends Command {
     return `Removed spawned model #${index}`;
   }
 
+  private async refreshLighting(args: string[]): Promise<string> {
+    if (args.length === 0) {
+      return 'Usage: spawnmodel lighting <index>';
+    }
+
+    const index = parseInt(args[0]);
+    const spawned = this.spawnedModels.find(s => s.spawnIndex === index);
+
+    if (!spawned) {
+      return `No spawned model at index ${index}`;
+    }
+
+    const { ModelLoader } = await import('../../loader/model/ModelLoader');
+    const loader = ModelLoader.getInstance();
+
+    // Accessing private method for testing purpose
+    // In real app we might want to expose this publicly if it's a common need
+    const newLights = (loader as any).applyBspLighting(spawned.result.root.position, spawned.result.meshes);
+
+    if (newLights && newLights.length > 0) {
+      // If we previously had lights, we should technically dispose them here, but
+      // since we don't track them easily in this hacky command, we'll just let them accumulate
+      // or rely on the fact that ModelLoader tracks 'createdLights' for global cleanup.
+      // For a proper implementation, we'd update spawned.result.lights
+      return `Refreshed BSP lighting for spawned model #${index} (Created ${newLights.length} lights)`;
+    }
+
+    return `Refreshed BSP lighting for spawned model #${index} (Ambient only or no data)`;
+  }
+
   // ============================================================================
   // Autocomplete
   // ============================================================================
 
   getCompletions(_input: string, args: string[]): string[] {
-    const subcommands = ['list', 'clear', 'info', 'anim', 'rotate', 'move', 'scale', 'remove'];
+    const subcommands = ['list', 'clear', 'info', 'anim', 'rotate', 'move', 'scale', 'remove', 'lighting'];
 
     if (args.length === 0) {
       return subcommands;
