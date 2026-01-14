@@ -62,11 +62,20 @@ export default class DayNightCommand extends Command {
       case 'start':
         sky.setBspDayNightEnabled(true);
         sky.setBspAnimating(true);
-        return 'Day/night animation started (60s cycle)';
+        return `Day/night animation started (${sky.getBspCycleLength()} min cycle)`;
 
       case 'stop':
         sky.setBspAnimating(false);
         return 'Day/night animation stopped';
+
+      case 'cycle': {
+        const minutes = parseFloat(args[1]);
+        if (isNaN(minutes)) {
+          return `Current cycle length: ${sky.getBspCycleLength()} minutes`;
+        }
+        sky.setBspCycleLength(minutes);
+        return `Cycle length set to ${minutes} minutes`;
+      }
 
       case 'time': {
         const value = parseFloat(args[1]);
@@ -84,24 +93,27 @@ export default class DayNightCommand extends Command {
         const time = sky.getBspTimeOfDay();
         const sunFactor = Math.max(0, Math.sin(time * Math.PI));
         const intensity = 0.1 + 1.4 * sunFactor;
+        const isNight = time < 0.2 || time > 0.8;
 
         return `BSP Day/Night:
   Time: ${time.toFixed(2)} (0=midnight, 0.5=noon)
-  Lightmap intensity: ${intensity.toFixed(2)}
+  Intensity: ${intensity.toFixed(2)}
+  Cycle: ${sky.getBspCycleLength()} min
+  Period: ${isNight ? 'NIGHT (lamps on)' : 'DAY'}
 
 Commands:
-  daynight on/off   - Enable/disable
-  daynight noon     - Set to noon (bright)
-  daynight midnight - Set to midnight (dark)  
-  daynight start    - Animate (60s cycle)
-  daynight stop     - Stop animation`;
+  daynight on/off       - Enable/disable
+  daynight noon         - Set to noon
+  daynight midnight     - Set to midnight
+  daynight start/stop   - Animate cycle
+  daynight cycle <min>  - Set cycle length`;
       }
     }
   }
 
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['on', 'off', 'noon', 'midnight', 'sunrise', 'sunset', 'start', 'stop', 'time', 'info'];
+      return ['on', 'off', 'noon', 'midnight', 'sunrise', 'sunset', 'start', 'stop', 'cycle', 'time', 'info'];
     }
     return [];
   }

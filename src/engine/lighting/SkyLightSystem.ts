@@ -476,6 +476,8 @@ export class SkyLightSystem {
   private _bspTimeOfDay: number = 0.5; // 0=midnight, 0.5=noon, 1=midnight
   private _bspDayNightEnabled: boolean = false;
   private _bspAnimating: boolean = false;
+  private _bspCycleLength: number = 10; // Full cycle in minutes (default 10 min)
+  private _lastStreetLampState: boolean = false;
 
   /**
    * Enable/disable BSP day/night cycle
@@ -512,6 +514,20 @@ export class SkyLightSystem {
   }
 
   /**
+   * Set cycle length in minutes
+   */
+  public setBspCycleLength(minutes: number): void {
+    this._bspCycleLength = Math.max(1, minutes);
+  }
+
+  /**
+   * Get cycle length in minutes
+   */
+  public getBspCycleLength(): number {
+    return this._bspCycleLength;
+  }
+
+  /**
    * Apply lightmap intensity and skybox tint based on current time
    */
   private applyBspLightmaps(): void {
@@ -532,9 +548,37 @@ export class SkyLightSystem {
         
         // Apply to all other meshes in scene (spawned models, etc.)
         this.applyToSceneMeshes(bsp.getScene(), lmIntensity);
+        
+        // Control street lamps based on time (on at night: 0-0.2 and 0.8-1)
+        const isNight = this._bspTimeOfDay < 0.2 || this._bspTimeOfDay > 0.8;
+        if (isNight !== this._lastStreetLampState) {
+          this._lastStreetLampState = isNight;
+          this.setStreetLampsEnabled(isNight);
+        }
       }
     } catch {
       // BspManager not available
+    }
+  }
+
+  /**
+   * Turn all street lamps on or off
+   */
+  private setStreetLampsEnabled(enabled: boolean): void {
+    try {
+      const { StreetLampSystem } = require('./StreetLampSystem');
+      const lampSystem = StreetLampSystem.getInstance();
+      if (lampSystem.isInitialized()) {
+        for (const [id] of lampSystem.getLamps()) {
+          if (enabled) {
+            lampSystem.turnOn(id);
+          } else {
+            lampSystem.turnOff(id);
+          }
+        }
+      }
+    } catch {
+      // StreetLampSystem not available
     }
   }
 
@@ -634,8 +678,9 @@ export class SkyLightSystem {
   public update(deltaTime: number): void {
     // Handle BSP animation
     if (this._bspDayNightEnabled && this._bspAnimating) {
-      // Animate: full cycle in 60 seconds
-      this._bspTimeOfDay += deltaTime / 60000;
+      // Animate: full cycle based on _bspCycleLength (in minutes)
+      const cycleMs = this._bspCycleLength * 60 * 1000;
+      this._bspTimeOfDay += deltaTime / cycleMs;
       if (this._bspTimeOfDay > 1) this._bspTimeOfDay -= 1;
       this.applyBspLightmaps();
     }

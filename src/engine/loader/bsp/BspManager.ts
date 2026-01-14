@@ -485,14 +485,7 @@ export class BspManager {
       }
     }
 
-    // Only log occasionally to reduce spam
-    if (count > 0 && (!this._lastLightmapLog || Date.now() - this._lastLightmapLog > 1000)) {
-      console.log(`[BspManager] Lightmap intensity: ${intensity.toFixed(2)} (${count} materials)`);
-      this._lastLightmapLog = Date.now();
-    }
   }
-
-  private _lastLightmapLog: number = 0;
 
   /**
    * Get the scene the BSP is rendered in
