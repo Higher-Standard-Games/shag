@@ -35,15 +35,16 @@ export class FPSController implements ICameraController {
   // Collision always enabled for FPS (can't walk through walls)
   private static collisionEnabled: boolean = true;
   
-  // Collision mode: 'bsp' uses BSP brush tracing, 'native' uses Babylon's mesh collision
-  private static collisionMode: 'bsp' | 'native' = 'native';
+  // Collision mode: 'bsp' uses BSP brush tracing (Q3-style), 'native' uses Babylon's mesh collision
+  private static collisionMode: 'bsp' | 'native' = 'bsp';
   
-  // Physics state
-  private verticalVelocity: number = 0;
+  // Q3-style physics state
+  private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
   private isGrounded: boolean = false;
+  private groundNormal: Vector3 | null = null;  // For slope movement
   
-  // Physics position (feet) - completely separate from camera render position
-  private physicsPos: Vector3 = Vector3.Zero();
+  // Player origin (client position, center of bbox)
+  private origin: Vector3 = Vector3.Zero();
   
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedViewY: number = 0;
@@ -301,7 +302,6 @@ export class FPSController implements ICameraController {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
     const mv = MovementVars.getInstance();
-    const speed = (this.config.speed || 200) * deltaTime;
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
     const eyeOffset = mv.get('sv_eyeoffset');
@@ -309,99 +309,204 @@ export class FPSController implements ICameraController {
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
     
-    // Initialize on first frame - physicsPos is FEET position
+    // Q3-style movement parameters
+    const maxSpeed = this.config.speed || 320;
+    const accelerate = 10.0;
+    const airAccelerate = 1.0;
+    const friction = 6.0;
+    const stopSpeed = 100.0;
+    
+    const cm = getCollisionManager();
+    
+    // Initialize on first frame
     if (!this.initialized) {
-      // Camera starts at eye level, so feet = camera.y - eyeOffset
-      this.physicsPos.copyFrom(this.camera.position);
-      this.physicsPos.y -= eyeOffset;
+      this.origin.copyFrom(this.camera.position);
       this.smoothedViewY = this.camera.position.y;
       this.initialized = true;
     }
     
-    // ========== SET CAMERA TO PHYSICS + EYE OFFSET FOR COLLISION ==========
-    this.camera.position.x = this.physicsPos.x;
-    this.camera.position.y = this.physicsPos.y + eyeOffset;
-    this.camera.position.z = this.physicsPos.z;
-    
-    // Get camera directions
-    const forward = this.camera.getDirection(Vector3.Forward());
-    const right = this.camera.getDirection(Vector3.Right());
-    
-    // Project to horizontal plane for ground movement
-    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
-    const flatRight = new Vector3(right.x, 0, right.z).normalize();
-    
-    // Calculate movement delta
-    const movement = Vector3.Zero();
-    
-    if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
-    if (this.keys.backward) movement.addInPlace(flatForward.scale(-speed));
-    if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
-    if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
-    
-    // ========== GROUND CHECK (trace from feet) ==========
-    const cm = getCollisionManager();
-    const feetPos = this.physicsPos.clone();
+    // ========== GROUND CHECK ==========
     const wasGrounded = this.isGrounded;
+    this.groundNormal = null;
     
     if (cm.isInitialized()) {
       const groundTrace = cm.trace(
-        feetPos as never,
-        feetPos.subtract(new Vector3(0, 2, 0)) as never,
+        this.origin as never,
+        this.origin.subtract(new Vector3(0, 2, 0)) as never,
         { radius: 16, height: playerHeight }
       );
-      this.isGrounded = groundTrace.fraction < 1.0 && !groundTrace.startSolid;
       
-      if (this.isGrounded && this.verticalVelocity < 0) {
-        this.verticalVelocity = 0;
+      if (groundTrace.fraction < 1.0 && !groundTrace.startSolid) {
+        this.isGrounded = true;
+        this.groundNormal = groundTrace.normal || new Vector3(0, 1, 0);
+        
+        // Zero out downward velocity when on ground
+        if (this.velocity.y < 0) {
+          this.velocity.y = 0;
+        }
+      } else {
+        this.isGrounded = false;
       }
+    }
+    
+    // ========== GET WISH DIRECTION ==========
+    const forward = this.camera.getDirection(Vector3.Forward());
+    const right = this.camera.getDirection(Vector3.Right());
+    
+    // Project to horizontal plane
+    let flatForward = new Vector3(forward.x, 0, forward.z);
+    let flatRight = new Vector3(right.x, 0, right.z);
+    
+    // If grounded and on slope, project onto ground plane (Q3-style)
+    if (this.isGrounded && this.groundNormal) {
+      flatForward = this.clipVelocity(flatForward, this.groundNormal, 1.001);
+      flatRight = this.clipVelocity(flatRight, this.groundNormal, 1.001);
+    }
+    
+    flatForward.normalize();
+    flatRight.normalize();
+    
+    // Calculate wish velocity
+    const wishDir = Vector3.Zero();
+    if (this.keys.forward) wishDir.addInPlace(flatForward);
+    if (this.keys.backward) wishDir.subtractInPlace(flatForward);
+    if (this.keys.left) wishDir.subtractInPlace(flatRight);
+    if (this.keys.right) wishDir.addInPlace(flatRight);
+    
+    let wishSpeed = 0;
+    if (wishDir.length() > 0) {
+      wishDir.normalize();
+      wishSpeed = maxSpeed;
+    }
+    
+    // ========== FRICTION (when grounded) ==========
+    if (this.isGrounded) {
+      const speed = this.velocity.length();
+      if (speed > 0) {
+        const drop = speed < stopSpeed ? stopSpeed * friction * deltaTime : speed * friction * deltaTime;
+        const newSpeed = Math.max(0, speed - drop) / speed;
+        this.velocity.scaleInPlace(newSpeed);
+      }
+    }
+    
+    // ========== ACCELERATION ==========
+    const accel = this.isGrounded ? accelerate : airAccelerate;
+    const currentSpeed = Vector3.Dot(this.velocity, wishDir);
+    const addSpeed = wishSpeed - currentSpeed;
+    
+    if (addSpeed > 0) {
+      let accelSpeed = accel * deltaTime * wishSpeed;
+      if (accelSpeed > addSpeed) {
+        accelSpeed = addSpeed;
+      }
+      this.velocity.addInPlace(wishDir.scale(accelSpeed));
     }
     
     // ========== GRAVITY ==========
     if (!this.isGrounded) {
-      this.verticalVelocity -= gravity * deltaTime;
+      this.velocity.y -= gravity * deltaTime;
     }
     
     // ========== JUMP ==========
     if (this.keys.up && this.isGrounded) {
-      this.verticalVelocity = jumpHeight;
+      this.velocity.y = jumpHeight;
       this.isGrounded = false;
     }
     
-    // Add vertical movement from gravity/jump
-    movement.y = this.verticalVelocity * deltaTime;
+    // ========== MOVE WITH COLLISION (BSP trace) ==========
+    const movement = this.velocity.scale(deltaTime);
     
-    // ========== APPLY COLLISION ==========
-    if (movement.length() > 0) {
-      this.nativeCollisionMove(movement);
+    if (movement.length() > 0 && cm.isInitialized()) {
+      this.slideMove(movement, cm);
+    } else if (movement.length() > 0) {
+      this.origin.addInPlace(movement);
     }
     
-    // ========== EXTRACT FEET POSITION FROM CAMERA ==========
-    const prevFeetY = this.physicsPos.y;
-    this.physicsPos.x = this.camera.position.x;
-    this.physicsPos.y = this.camera.position.y - eyeOffset;
-    this.physicsPos.z = this.camera.position.z;
-    
     // ========== VIEWPORT SMOOTHING (only for stairs when grounded) ==========
-    const targetViewY = this.physicsPos.y + eyeOffset;
-    const heightDiff = Math.abs(this.physicsPos.y - prevFeetY);
+    const prevY = this.smoothedViewY;
+    const targetViewY = this.origin.y + eyeOffset;
+    const heightDiff = Math.abs(targetViewY - prevY);
     
-    // Only smooth if:
-    // 1. Currently grounded (not falling/jumping)
-    // 2. Was grounded last frame (not just landed)
-    // 3. Height change is small (stair-sized)
     const shouldSmooth = this.isGrounded && wasGrounded && heightDiff <= stepHeight;
     
     if (shouldSmooth) {
-      // Smooth interpolation for stairs
       this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
     } else {
-      // No smoothing - snap to physics position (gravity, jumps, landing)
       this.smoothedViewY = targetViewY;
     }
     
-    // Apply smoothed Y to camera for rendering
+    // ========== SET CAMERA POSITION ==========
+    this.camera.position.x = this.origin.x;
     this.camera.position.y = this.smoothedViewY;
+    this.camera.position.z = this.origin.z;
+  }
+  
+  /**
+   * Q3-style clip velocity - project velocity onto plane
+   */
+  private clipVelocity(vel: Vector3, normal: Vector3, overbounce: number): Vector3 {
+    let backoff = Vector3.Dot(vel, normal);
+    
+    if (backoff < 0) {
+      backoff *= overbounce;
+    } else {
+      backoff /= overbounce;
+    }
+    
+    return vel.subtract(normal.scale(backoff));
+  }
+  
+  /**
+   * Q3-style slide move with BSP collision
+   */
+  private slideMove(movement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
+    const mv = MovementVars.getInstance();
+    const playerHeight = mv.get('sv_playerheight');
+    const traceOpts = { radius: 16, height: playerHeight };
+    
+    let timeLeft = 1.0;
+    const numBumps = 4;
+    const planes: Vector3[] = [];
+    
+    // Add ground plane if grounded
+    if (this.isGrounded && this.groundNormal) {
+      planes.push(this.groundNormal.clone());
+    }
+    
+    // Add velocity direction as plane
+    const velNormal = this.velocity.clone();
+    velNormal.normalize();
+    planes.push(velNormal);
+    
+    for (let bump = 0; bump < numBumps && timeLeft > 0; bump++) {
+      const end = this.origin.add(movement.scale(timeLeft));
+      const trace = cm.trace(this.origin as never, end as never, traceOpts);
+      
+      if (trace.startSolid) {
+        // Stuck - try to nudge out
+        this.velocity.y = 0;
+        return;
+      }
+      
+      if (trace.fraction > 0) {
+        // Move to the collision point
+        this.origin = trace.endPos.clone();
+      }
+      
+      if (trace.fraction >= 1.0) {
+        // Made it the full distance
+        break;
+      }
+      
+      // Hit something - clip velocity
+      timeLeft -= timeLeft * trace.fraction;
+      
+      if (trace.normal) {
+        planes.push(trace.normal.clone());
+        this.velocity = this.clipVelocity(this.velocity, trace.normal, 1.001);
+        movement = this.clipVelocity(movement, trace.normal, 1.001);
+      }
+    }
   }
   
   // @ts-ignore - kept for future debug use
@@ -436,6 +541,7 @@ export class FPSController implements ICameraController {
    * 
    * Result: Solid, reliable collision that respects BSP semantics
    */
+  // @ts-ignore - kept for alternative collision mode (native)
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
     
@@ -705,129 +811,6 @@ export class FPSController implements ICameraController {
     }
     
     return false;
-  }
-  
-  /**
-   * Apply collision using BSP trace with Q3-style sliding
-   */
-  // @ts-ignore - kept for alternative collision mode
-  private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
-    if (!this.camera || !this.scene) return;
-
-    const start = this.camera.position.clone();
-    const end = start.add(originalMovement);
-    const traceOpts = { radius: 16, height: 56 };
-
-    // Trace through BSP (cast to handle babylonjs vs @babylonjs/core type mismatch)
-    const trace = cm.trace(start as never, end as never, traceOpts);
-
-    // Debug logging once per second
-    const now = Date.now();
-    if (now - FPSController._lastDebugTime > 1000) {
-      FPSController._lastDebugTime = now;
-      const camPos = this.camera.position;
-      console.log(`[Freefly] pos=(${camPos.x.toFixed(0)}, ${camPos.y.toFixed(0)}, ${camPos.z.toFixed(0)}) → trace: frac=${trace.fraction.toFixed(3)}, startSolid=${trace.startSolid}, hit=${trace.fraction < 1.0}`);
-    }
-
-    // Log every hit for debugging
-    if (trace.fraction < 1.0) {
-      console.log(`[Freefly] HIT at fraction=${trace.fraction.toFixed(3)}, normal=(${trace.normal?.x.toFixed(2)}, ${trace.normal?.y.toFixed(2)}, ${trace.normal?.z.toFixed(2)})`);
-    }
-
-    // If we started in solid, don't move (stuck detection)
-    if (trace.startSolid) {
-      console.log(`[Freefly] BLOCKED: startSolid=true, attempting nudge out`);
-      // Try to nudge out of solid with more aggressive steps
-      const nudgeSteps = [1.0, 2.0, 4.0];
-      const testDirs = [
-        new Vector3(1, 0, 0), new Vector3(-1, 0, 0),
-        new Vector3(0, 1, 0), new Vector3(0, -1, 0),
-        new Vector3(0, 0, 1), new Vector3(0, 0, -1),
-        new Vector3(1, 1, 0), new Vector3(-1, -1, 0),
-        new Vector3(1, 0, 1), new Vector3(-1, 0, -1),
-        new Vector3(0, 1, 1), new Vector3(0, -1, -1)
-      ];
-      for (const nudge of nudgeSteps) {
-        for (const dir of testDirs) {
-          const testPos = start.add(dir.scale(nudge));
-          const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
-          if (!testTrace.startSolid) {
-            console.log(`[Freefly] Nudge successful at (${testPos.x.toFixed(1)}, ${testPos.y.toFixed(1)}, ${testPos.z.toFixed(1)})`);
-            this.camera.position = testPos;
-            return;
-          }
-        }
-      }
-      console.log(`[Freefly] Nudge failed, stuck in solid`);
-      // Couldn't nudge out - don't move
-      return;
-    }
-
-    if (trace.fraction >= 1.0) {
-      // No collision - apply full movement
-      this.camera.position = end;
-    } else if (trace.fraction > 0) {
-      // Partial collision - move to contact point with small offset
-      const contactPoint = Vector3.Lerp(start, end, trace.fraction);
-
-      // Push back slightly from the wall (use plain numbers to avoid type issues)
-      if (trace.normal) {
-        const n = trace.normal;
-        contactPoint.x += n.x * 0.5;
-        contactPoint.y += n.y * 0.5;
-        contactPoint.z += n.z * 0.5;
-      }
-
-      this.camera.position = contactPoint;
-
-      // Slide along the wall (Q3-style, multiple iterations)
-      if (trace.normal) {
-        let velocity = originalMovement.clone();
-        let timeLeft = 1.0 - trace.fraction;
-        const maxTries = 4; // Quake 3 uses up to 4-5 slide attempts
-        for (let i = 0; i < maxTries && timeLeft > 0.01 && velocity.length() > 0.01; i++) {
-          const n = trace.normal;
-          const remaining = velocity.scale(timeLeft);
-          // Calculate dot product manually
-          const dot = remaining.x * n.x + remaining.y * n.y + remaining.z * n.z;
-          // Slide = remaining - normal * dot
-          const slideMove = new Vector3(
-            remaining.x - n.x * dot,
-            remaining.y - n.y * dot,
-            remaining.z - n.z * dot
-          );
-
-          if (slideMove.length() < 0.01) {
-            console.log(`[Freefly] Slide ${i+1}/${maxTries}: negligible movement, stopping`);
-            break;
-          }
-
-          console.log(`[Freefly] Slide ${i+1}/${maxTries}: attempting (${slideMove.x.toFixed(1)}, ${slideMove.y.toFixed(1)}, ${slideMove.z.toFixed(1)})`);
-          const slideStart = this.camera.position.clone();
-          const slideEnd = slideStart.add(slideMove);
-          const slideTrace = cm.trace(slideStart as never, slideEnd as never, traceOpts);
-
-          if (slideTrace.fraction > 0) {
-            const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction * 0.9, 1.0));
-            if (slideTrace.fraction < 1.0 && slideTrace.normal) {
-              const sn = slideTrace.normal;
-              slidePos.x += sn.x * 0.5;
-              slidePos.y += sn.y * 0.5;
-              slidePos.z += sn.z * 0.5;
-              console.log(`[Freefly] Slide ${i+1}/${maxTries}: hit again at frac=${slideTrace.fraction.toFixed(3)}`);
-            } else {
-              console.log(`[Freefly] Slide ${i+1}/${maxTries}: moved successfully`);
-            }
-            this.camera.position = slidePos;
-            timeLeft *= (1.0 - slideTrace.fraction);
-            velocity = slideMove.normalize().scale(velocity.length());
-          } else {
-            console.log(`[Freefly] Slide ${i+1}/${maxTries}: blocked completely`);
-            break;
-          }
-        }
-      }
-    }
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
