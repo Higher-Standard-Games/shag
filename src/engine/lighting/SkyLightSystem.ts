@@ -586,10 +586,8 @@ export class SkyLightSystem {
       this.updateLighting(timeOfDay);
     }
 
-    // Apply BSP-specific effects (works without sun lights)
-    this.updateBspLightmaps(normalizedTime);
-    // TODO: Skybox tinting disabled - needs different approach for Q3 skyboxes
-    // this.updateSkyboxTint(normalizedTime);
+    // BSP lightmaps are now controlled via direct API (setBspTimeOfDay)
+    // The cvar-based updateBspLightmaps is disabled to avoid conflicts
   }
 
   /**
@@ -632,33 +630,6 @@ export class SkyLightSystem {
       period,
       periodProgress,
     };
-  }
-
-  /**
-   * Update BSP lightmap intensities based on time of day
-   */
-  private updateBspLightmaps(normalizedTime: number): void {
-    // Calculate sun intensity (0 at night, 1 at noon)
-    // Using sine wave: peak at 0.5 (noon), low at 0 and 1 (midnight)
-    const sunFactor = Math.sin(normalizedTime * Math.PI);
-    const clampedSun = Math.max(0, sunFactor);
-
-    // Hardcoded min/max for now (cvars not working in empty scene context)
-    const lmMin = 0.1;  // Never fully dark
-    const lmMax = 1.5;  // Allow slight overbright at noon
-    
-    // Interpolate lightmap intensity
-    const lmIntensity = lmMin + (lmMax - lmMin) * clampedSun;
-
-    // Apply to BspManager if available
-    try {
-      const bsp = BspManager.getInstance();
-      if (bsp.isLoaded()) {
-        bsp.setLightmapIntensity(lmIntensity);
-      }
-    } catch {
-      // BspManager not available
-    }
   }
 
   /**

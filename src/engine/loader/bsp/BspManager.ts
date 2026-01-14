@@ -460,18 +460,33 @@ export class BspManager {
     let count = 0;
 
     for (const mesh of childMeshes) {
-      const mat = mesh.material;
+      const mat = mesh.material as any;
       if (!mat) continue;
 
-      // Check for lightmapTexture on StandardMaterial or ShaderMaterial
-      if ((mat as any).lightmapTexture) {
-        (mat as any).lightmapTexture.level = intensity;
+      // Store original colors on first call
+      if (mat._origDiffuse === undefined && mat.diffuseColor) {
+        mat._origDiffuse = mat.diffuseColor.clone();
+      }
+      if (mat._origEmissive === undefined && mat.emissiveColor) {
+        mat._origEmissive = mat.emissiveColor.clone();
+      }
+
+      // Modulate diffuse color by intensity
+      if (mat._origDiffuse) {
+        mat.diffuseColor.r = mat._origDiffuse.r * intensity;
+        mat.diffuseColor.g = mat._origDiffuse.g * intensity;
+        mat.diffuseColor.b = mat._origDiffuse.b * intensity;
         count++;
+      }
+
+      // Also try lightmap level as backup
+      if (mat.lightmapTexture) {
+        mat.lightmapTexture.level = intensity;
       }
     }
 
     // Only log occasionally to reduce spam
-    if (count > 0 && !this._lastLightmapLog || Date.now() - this._lastLightmapLog > 1000) {
+    if (count > 0 && (!this._lastLightmapLog || Date.now() - this._lastLightmapLog > 1000)) {
       console.log(`[BspManager] Lightmap intensity: ${intensity.toFixed(2)} (${count} materials)`);
       this._lastLightmapLog = Date.now();
     }
