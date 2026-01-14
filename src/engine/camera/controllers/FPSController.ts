@@ -31,25 +31,27 @@ export class FPSController implements ICameraController {
 
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
-  
+
   // Collision always enabled for FPS (can't walk through walls)
   private static collisionEnabled: boolean = true;
-  
+
   // Collision mode: 'bsp' uses BSP brush tracing (same as FreeflyController), 'native' uses Babylon's mesh collision
   private static collisionMode: 'bsp' | 'native' = 'bsp';
-  
+
   // Q3-style physics state
   private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
   private isGrounded: boolean = false;
   // @ts-ignore - kept for future slope movement
   private groundNormal: Vector3 | null = null;
-  
+
   // @ts-ignore - kept for future use
   private origin: Vector3 = Vector3.Zero();
-  
+
+  // Physics Y position (before smoothing) - MUST be kept separate from camera.position.y
+  private physicsY: number = 0;
   // Smoothed Y for viewport only (never feeds back to physics)
-  private smoothedViewY: number = 0;
-  private initialized: boolean = false;
+  private smoothedY: number = 0;
+  private smoothingInitialized: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -90,14 +92,14 @@ export class FPSController implements ICameraController {
   static setDefaultSpeed(speed: number): void {
     FPSController.defaultSpeed = speed;
   }
-  
+
   /**
    * Get collision enabled state
    */
   static isCollisionEnabled(): boolean {
     return FPSController.collisionEnabled;
   }
-  
+
   /**
    * Set collision enabled state
    */
@@ -105,14 +107,14 @@ export class FPSController implements ICameraController {
     FPSController.collisionEnabled = enabled;
     console.log(`[FPSController] Collision ${enabled ? 'enabled' : 'disabled'} (mode: ${FPSController.collisionMode})`);
   }
-  
+
   /**
    * Get collision mode
    */
   static getCollisionMode(): 'bsp' | 'native' {
     return FPSController.collisionMode;
   }
-  
+
   /**
    * Set collision mode
    */
@@ -120,10 +122,10 @@ export class FPSController implements ICameraController {
     FPSController.collisionMode = mode;
     console.log(`[FPSController] Collision mode set to: ${mode}`);
   }
-  
+
   // Observers
   private renderObserver: Observer<Scene> | null = null;
-  
+
   // Event handlers (bound for removal)
   private onCanvasClick: ((e: MouseEvent) => void) | null = null;
   private onMouseMove: ((e: MouseEvent) => void) | null = null;
@@ -134,15 +136,15 @@ export class FPSController implements ICameraController {
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
     this.canvas = canvas;
-    
+
     // Get starting position from existing camera
     let startPos = camera.position.clone();
-    
+
     // If it's an ArcRotateCamera, start at its position looking at target
     if ("target" in camera && (camera as any).target instanceof Vector3) {
       startPos = camera.position.clone();
     }
-    
+
     if (!(camera instanceof FreeCamera)) {
       this.camera = new FreeCamera("freeflyCamera", startPos, scene);
       this.camera.rotation.x = 0;
@@ -151,44 +153,44 @@ export class FPSController implements ICameraController {
     } else {
       this.camera = camera;
     }
-    
+
     // Apply FOV
     if (this.config.fov && this.camera) {
       this.camera.fov = this.config.fov;
     }
-    
+
     // Disable collisions for free flight
     this.camera.checkCollisions = false;
-    
+
     // Clear default inputs - we handle everything
     this.camera.inputs.clear();
-    
+
     // Set up input handlers
     this.setupInputHandlers();
-    
+
     // Set up render observer for movement
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaTime = scene.getEngine().getDeltaTime() / 1000;
       this.update(deltaTime);
     });
-    
+
     console.log("[FPSController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
   private setupInputHandlers(): void {
     if (!this.canvas) return;
-    
+
     // Click to capture mouse - use document click and check target
     this.onCanvasClick = (e: MouseEvent) => {
       // Only respond to clicks on the canvas itself
       if (e.target !== this.canvas) return;
-      
+
       console.log('[FPSController] Canvas clicked, requesting pointer lock');
       if (!this.isPointerLocked && this.canvas) {
         this.canvas.requestPointerLock();
       }
     };
-    
+
     // Handle pointer lock change
     this.onPointerLockChange = () => {
       this.isPointerLocked = document.pointerLockElement === this.canvas;
@@ -205,32 +207,32 @@ export class FPSController implements ICameraController {
         this.keys.down = false;
       }
     };
-    
+
     // Mouse look (only when pointer is locked)
     this.onMouseMove = (e: MouseEvent) => {
       if (!this.enabled || !this.camera || !this.isPointerLocked) return;
-      
+
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
       const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') || 1.0;
       const sensitivity = baseSensitivity * sensitivityMultiplier;
       const invertYCvar = Cvar.getBool('m_invertY');
       const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
-      
+
       // Apply freelook
       this.camera.rotation.y += e.movementX * sensitivity;
       this.camera.rotation.x += e.movementY * sensitivity * invertY;
-      
+
       // Clamp vertical rotation
       this.camera.rotation.x = Math.max(
         -Math.PI / 2 + 0.1,
         Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x)
       );
     };
-    
+
     // Keyboard input
     this.onKeyDown = (e: KeyboardEvent) => {
       if (!this.isPointerLocked) return;
-      
+
       switch (e.code) {
         case 'KeyW': this.keys.forward = true; break;
         case 'KeyS': this.keys.backward = true; break;
@@ -240,7 +242,7 @@ export class FPSController implements ICameraController {
         case 'ShiftLeft': case 'ShiftRight': this.keys.down = true; break;
       }
     };
-    
+
     this.onKeyUp = (e: KeyboardEvent) => {
       switch (e.code) {
         case 'KeyW': this.keys.forward = false; break;
@@ -251,7 +253,7 @@ export class FPSController implements ICameraController {
         case 'ShiftLeft': case 'ShiftRight': this.keys.down = false; break;
       }
     };
-    
+
     // Add event listeners - use document for click to ensure we catch it
     document.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
@@ -265,7 +267,7 @@ export class FPSController implements ICameraController {
     if (this.isPointerLocked) {
       document.exitPointerLock();
     }
-    
+
     if (this.onCanvasClick) {
       document.removeEventListener('click', this.onCanvasClick);
     }
@@ -288,127 +290,176 @@ export class FPSController implements ICameraController {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
-    
+
     this.removeInputHandlers();
-    
+
     this.camera = null;
     this.scene = null;
     this.canvas = null;
     this.isPointerLocked = false;
-    
+
     console.log("[FPSController] Detached");
   }
 
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
-    
-    // === SIMPLIFIED: Work exactly like FreeflyController but with gravity ===
-    
+
     const mv = MovementVars.getInstance();
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
     const speed = (this.config.speed || 320) * deltaTime;
-    
+
     const cm = getCollisionManager();
-    
-    // Initialize smoothing
-    if (!this.initialized) {
-      this.smoothedViewY = this.camera.position.y;
-      this.initialized = true;
+
+    // Initialize smoothing on first frame (same pattern as FreeflyController)
+    if (!this.smoothingInitialized) {
+      this.physicsY = this.camera.position.y;
+      this.smoothedY = this.camera.position.y;
+      this.smoothingInitialized = true;
       console.log(`[FPS] Initialized at: (${this.camera.position.x.toFixed(1)}, ${this.camera.position.y.toFixed(1)}, ${this.camera.position.z.toFixed(1)})`);
     }
-    
-    // Store Y before movement for smoothing comparison
-    const prevY = this.camera.position.y;
-    
-    // === HORIZONTAL MOVEMENT (same as FreeflyController) ===
+
+    // CRITICAL: Restore physics Y before collision (not smoothed)
+    // This prevents feedback loop from smoothing affecting collision traces
+    this.camera.position.y = this.physicsY;
+
+    // === HORIZONTAL MOVEMENT ===
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
-    
+
     // Project to horizontal plane for ground movement
     const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
     const flatRight = new Vector3(right.x, 0, right.z).normalize();
-    
+
     const movement = Vector3.Zero();
     if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
     if (this.keys.backward) movement.addInPlace(flatForward.scale(-speed));
     if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
     if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
-    
+
     // === GRAVITY ===
     if (!this.isGrounded) {
       this.velocity.y -= gravity * deltaTime;
     }
-    
+
     // === JUMP ===
     if (this.keys.up && this.isGrounded) {
       this.velocity.y = jumpHeight;
       this.isGrounded = false;
     }
-    
+
     // Add vertical velocity to movement
     movement.y = this.velocity.y * deltaTime;
-    
-    // === APPLY MOVEMENT WITH COLLISION (same as FreeflyController) ===
+
+    // Store Y before movement for ground detection
+    const prevY = this.camera.position.y;
+
+    // === APPLY MOVEMENT WITH COLLISION ===
     if (movement.length() > 0) {
-      if (cm.isInitialized()) {
-        this.slideMove(movement, cm as ReturnType<typeof getCollisionManager>);
+      if (FPSController.collisionEnabled) {
+        if (FPSController.collisionMode === 'native') {
+          this.nativeCollisionMove(movement);
+        } else if (cm.isInitialized()) {
+          // Use BSP collision with stepSlideMove for stair stepping
+          const backend = (cm as any).backends?.get('q3');
+          if (backend && typeof backend.stepSlideMove === 'function') {
+            const start = this.camera.position.clone();
+            const traceOpts = { radius: 16, height: 56 };
+            const result = backend.stepSlideMove(start, movement, traceOpts);
+            this.camera.position.copyFrom(result.endPos);
+          } else {
+            // Fallback to local slideMove
+            this.slideMove(movement, cm as ReturnType<typeof getCollisionManager>);
+          }
+        } else {
+          this.camera.position.addInPlace(movement);
+        }
       } else {
         this.camera.position.addInPlace(movement);
       }
     }
-    
-    // === GROUND DETECTION (check if downward movement was blocked) ===
-    const actualYMove = this.camera.position.y - prevY;
-    const expectedYMove = movement.y;
-    
-    // If we tried to move down but didn't move as much, we hit ground
-    if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
-      this.isGrounded = true;
-      if (this.velocity.y < 0) {
-        this.velocity.y = 0;
+
+    // === GROUND DETECTION ===
+    // Q3-style: Actively check for ground beneath player each frame
+    if (cm.isInitialized()) {
+      const backend = (cm as any).backends?.get('q3');
+      if (backend && typeof backend.trace === 'function') {
+        const groundCheckStart = this.camera.position.clone();
+        const groundCheckEnd = groundCheckStart.add(new Vector3(0, -2, 0)); // Check 2 units down
+        const traceOpts = { radius: 16, height: 56 };
+        const groundTrace = backend.trace(groundCheckStart, groundCheckEnd, traceOpts);
+
+        if (groundTrace.fraction < 1.0) {
+          // Hit ground
+          if (!this.isGrounded) {
+            // Just landed
+            this.isGrounded = true;
+            if (this.velocity.y < 0) {
+              this.velocity.y = 0;
+            }
+          }
+        } else {
+          // No ground beneath - start falling
+          if (this.isGrounded && this.velocity.y <= 0) {
+            this.isGrounded = false;
+            // Small initial downward velocity to start falling
+            this.velocity.y = -1;
+          }
+        }
       }
-    } else if (expectedYMove >= 0 || actualYMove < expectedYMove * 0.9) {
-      // Moving up or fell freely
-      this.isGrounded = movement.y >= 0 ? this.isGrounded : false;
+    } else {
+      // Fallback: movement-based detection
+      const actualYMove = this.camera.position.y - prevY;
+      const expectedYMove = movement.y;
+      if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
+        this.isGrounded = true;
+        if (this.velocity.y < 0) {
+          this.velocity.y = 0;
+        }
+      }
     }
-    
+
     // Debug log
     if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
       FPSController._lastGroundLog = Date.now();
-      console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}, expectedY=${expectedYMove.toFixed(2)}, actualY=${actualYMove.toFixed(2)}`);
+      console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}`);
     }
-    
-    // === VIEWPORT SMOOTHING (stairs only) ===
-    const heightDiff = Math.abs(this.camera.position.y - prevY);
-    if (this.isGrounded && heightDiff <= stepHeight && heightDiff > 0.1) {
-      // Smooth stair movement
-      const targetY = this.camera.position.y;
-      this.smoothedViewY = this.smoothedViewY + (targetY - this.smoothedViewY) * smoothFactor;
-      this.camera.position.y = this.smoothedViewY;
+
+    // === SAVE PHYSICS Y AFTER COLLISION ===
+    this.physicsY = this.camera.position.y;
+
+    // === VIEWPORT SMOOTHING (same pattern as FreeflyController) ===
+    const heightDiff = Math.abs(this.physicsY - this.smoothedY);
+    if (heightDiff > stepHeight * 2) {
+      // Large change (teleport, big fall) - snap immediately
+      this.smoothedY = this.physicsY;
     } else {
-      this.smoothedViewY = this.camera.position.y;
+      // Smooth interpolation for stairs
+      this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
     }
+
+    // Apply smoothed Y for rendering only
+    this.camera.position.y = this.smoothedY;
   }
-  
+
   /**
    * Q3-style clip velocity - project velocity onto plane
    */
   // @ts-ignore - kept for future slope movement
   private clipVelocity(vel: Vector3, normal: Vector3, overbounce: number): Vector3 {
     let backoff = Vector3.Dot(vel, normal);
-    
+
     if (backoff < 0) {
       backoff *= overbounce;
     } else {
       backoff /= overbounce;
     }
-    
+
     return vel.subtract(normal.scale(backoff));
   }
-  
+
   /**
    * Q3-style slide move with BSP collision (same as FreeflyController)
    */
@@ -500,7 +551,7 @@ export class FPSController implements ICameraController {
       }
     }
   }
-  
+
   // @ts-ignore - kept for future debug use
   private static _loggedState = false;
   // @ts-ignore - kept for future debug use
@@ -510,7 +561,7 @@ export class FPSController implements ICameraController {
   // @ts-ignore - kept for future debug use
   private static _nativeCollisionSetup = false;
   private static _lastGroundLog = 0;
-  
+
   /**
    * Apply movement using Babylon's native mesh collision system
    * 
@@ -534,33 +585,32 @@ export class FPSController implements ICameraController {
    * 
    * Result: Solid, reliable collision that respects BSP semantics
    */
-  // @ts-ignore - kept for alternative collision mode (native)
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
-    
+
     // Set up native collision on first use
     if (!FPSController._nativeCollisionSetup) {
       FPSController._nativeCollisionSetup = true;
-      
+
       // Enable scene collision
       this.scene.collisionsEnabled = true;
-      
+
       // Set up camera ellipsoid for player-sized collision
       // Babylon ellipsoid is half-extents: (width/2, height/2, depth/2)
       // For Q3-style player: radius=16, height=56 → ellipsoid (16, 28, 16)
       this.camera.ellipsoid = new Vector3(16, 28, 16);
       this.camera.ellipsoidOffset = new Vector3(0, 28, 0); // Offset so camera is at eye level
       this.camera.checkCollisions = true;
-      
+
       // Enable collision on world geometry meshes, excluding non-solid elements
       const meshes = this.scene.meshes;
       let collisionMeshCount = 0;
       let skippedCount = 0;
       for (const mesh of meshes) {
         // Enable collision on BSP world mesh and children
-        if (mesh.name.includes('bsp_') || mesh.name.includes('world') || 
-            mesh.parent?.name.includes('bsp_') || mesh.parent?.name.includes('world')) {
-          
+        if (mesh.name.includes('bsp_') || mesh.name.includes('world') ||
+          mesh.parent?.name.includes('bsp_') || mesh.parent?.name.includes('world')) {
+
           // Skip non-solid meshes (light halos, flares, billboards, effects)
           const shouldSkip = this.shouldSkipCollision(mesh);
           if (shouldSkip) {
@@ -568,20 +618,20 @@ export class FPSController implements ICameraController {
             skippedCount++;
             continue;
           }
-          
+
           mesh.checkCollisions = true;
           collisionMeshCount++;
         }
       }
       console.log(`[FPSController] Skipped ${skippedCount} non-solid meshes (halos, flares, etc.)`)
-      
+
       console.log(`[FPSController] Native collision setup: ${collisionMeshCount} meshes with collision enabled`);
       console.log(`[FPSController] Camera ellipsoid: (${this.camera.ellipsoid.x}, ${this.camera.ellipsoid.y}, ${this.camera.ellipsoid.z})`);
     }
-    
+
     // IMPORTANT: camera.position.addInPlace() bypasses collision!
     // We must use Babylon's internal collision system
-    
+
     // Debug: check what methods are available
     const cam = this.camera as any;
     if (!FPSController._debuggedMethods) {
@@ -591,7 +641,7 @@ export class FPSController implements ICameraController {
       console.log(`[FPSController] Has _checkInputs: ${typeof cam._checkInputs}`);
       console.log(`[FPSController] checkCollisions: ${this.camera.checkCollisions}`);
       console.log(`[FPSController] scene.collisionsEnabled: ${this.scene.collisionsEnabled}`);
-      
+
       // List meshes with collision enabled
       const collisionMeshes = this.scene.meshes.filter(m => m.checkCollisions);
       console.log(`[FPSController] Meshes with checkCollisions=true: ${collisionMeshes.length}`);
@@ -599,11 +649,11 @@ export class FPSController implements ICameraController {
         console.log(`[FPSController] Sample collision mesh: "${collisionMeshes[0].name}"`);
       }
     }
-    
+
     // Try using _collideWithWorld if available
     if (cam._collideWithWorld && this.camera.checkCollisions) {
       const posBefore = this.camera.position.clone();
-      
+
       // Debug: Check for collision meshes near camera
       const now = Date.now();
       if (now - FPSController._lastDebugTime > 1000 && this.camera.position) {
@@ -623,7 +673,7 @@ export class FPSController implements ICameraController {
           });
         }
       }
-      
+
       cam._collideWithWorld(movement);
       const posAfterBabylon = this.camera.position.clone();
       const ellipsoidOffset = (this.camera as any).ellipsoidOffset ? (this.camera as any).ellipsoidOffset : Vector3.Zero();
@@ -649,12 +699,12 @@ export class FPSController implements ICameraController {
         height: 56,
         contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
       };
-      
+
       if (backend && typeof backend.stepSlideMove === 'function') {
         // Use stepSlideMove for smooth collision + stair stepping
         const slideResult = backend.stepSlideMove(posBefore, movement, traceOpts);
         this.camera.position.copyFrom(slideResult.endPos);
-        
+
         if (slideResult.hitCount > 0 && debugBsp) {
           console.log(`[Freefly][StepSlideMove] ${slideResult.hitCount} collision(s), stepped=${slideResult.stepped}`);
         }
@@ -736,7 +786,7 @@ export class FPSController implements ICameraController {
       this.camera.position.addInPlace(movement);
     }
   }
-  
+
   private static _debuggedMethods = false;
   private static _lastClipHitLogTime = 0;
   private static _lastClipHitBrushIndex: number | null = null;
@@ -749,7 +799,7 @@ export class FPSController implements ICameraController {
   static getLastClipHitTextureName(): string | null {
     return FPSController._lastClipHitTextureName;
   }
-  
+
   /**
    * Check if a mesh should be excluded from collision detection
    * Excludes: billboards, light halos, flares, transparent/additive effects
@@ -770,21 +820,21 @@ export class FPSController implements ICameraController {
     if ((surfaceFlags & SurfaceFlags.HINT) !== 0) {
       return true;
     }
-    
+
     // Skip by mesh name patterns
     if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||
-        name.includes('billboard') || name.includes('sprite') || name.includes('particle') ||
-        name.includes('effect') || name.includes('light_')) {
+      name.includes('billboard') || name.includes('sprite') || name.includes('particle') ||
+      name.includes('effect') || name.includes('light_')) {
       return true;
     }
-    
+
     // Skip by texture name patterns (common Q3/Warsow light textures)
-    if (textureName.includes('flare') || textureName.includes('halo') || 
-        textureName.includes('glow') || textureName.includes('flareshader') ||
-        textureName.includes('lights/') || textureName.includes('sfx/')) {
+    if (textureName.includes('flare') || textureName.includes('halo') ||
+      textureName.includes('glow') || textureName.includes('flareshader') ||
+      textureName.includes('lights/') || textureName.includes('sfx/')) {
       return true;
     }
-    
+
     // Skip meshes with additive blending (light effects)
     const material = mesh.material;
     if (material) {
@@ -797,18 +847,18 @@ export class FPSController implements ICameraController {
         return true;
       }
     }
-    
+
     // Skip billboard faces (faceType 4 in BSP)
     if (mesh.metadata?.faceType === 4) {
       return true;
     }
-    
+
     return false;
   }
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     if (config.fov && this.camera) {
       this.camera.fov = config.fov;
     }
