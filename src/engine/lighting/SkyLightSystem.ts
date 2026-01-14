@@ -474,6 +474,7 @@ export class SkyLightSystem {
   // ==================== CVar-Driven Day/Night for BSP ====================
 
   private lastCvarTime: number = -1;
+  private _lastLmDebug: number = 0;
 
   /**
    * Update day/night cycle from cvars (call every frame)
@@ -574,12 +575,20 @@ export class SkyLightSystem {
     const sunFactor = Math.sin(normalizedTime * Math.PI);
     const clampedSun = Math.max(0, sunFactor);
 
-    // Get min/max from cvars
-    const lmMin = Number(Cvar.get('r_daynight_lm_min') ?? 0.05);
-    const lmMax = Number(Cvar.get('r_daynight_lm_max') ?? 1.0);
+    // Get min/max from cvars (use hardcoded defaults if cvars not available)
+    const lmMinRaw = Cvar.get('r_daynight_lm_min');
+    const lmMaxRaw = Cvar.get('r_daynight_lm_max');
+    const lmMin = typeof lmMinRaw === 'number' ? lmMinRaw : 0.05;
+    const lmMax = typeof lmMaxRaw === 'number' ? lmMaxRaw : 1.0;
     
     // Interpolate lightmap intensity
     const lmIntensity = lmMin + (lmMax - lmMin) * clampedSun;
+    
+    // Debug: log values once when they change significantly
+    if (!this._lastLmDebug || Math.abs(lmIntensity - this._lastLmDebug) > 0.01) {
+      console.log(`[SkyLightSystem] time=${normalizedTime.toFixed(2)}, sun=${clampedSun.toFixed(2)}, min=${lmMin}, max=${lmMax}, intensity=${lmIntensity.toFixed(2)}`);
+      this._lastLmDebug = lmIntensity;
+    }
 
     // Apply to BspManager if available
     try {
