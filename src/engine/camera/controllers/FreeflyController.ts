@@ -19,7 +19,6 @@ import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
 import { MovementVars } from "../../movement/MovementVars";
-import { CharacterController } from "../../movement/CharacterController";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
@@ -47,8 +46,9 @@ export class FreeflyController implements ICameraController {
   private renderPosition: Vector3 = Vector3.Zero();
   private smoothingInitialized: boolean = false;
   
-  // Character controller for non-spectator (physics) mode
-  private characterController: CharacterController | null = null;
+  // Physics mode state (gravity, jumping) - uses camera position directly
+  private verticalVelocity: number = 0;
+  private isGrounded: boolean = false;
   private wasSpectator: boolean = true; // Track mode changes
 
   // Movement keys state
@@ -331,45 +331,64 @@ export class FreeflyController implements ICameraController {
       // No collision in spectator mode
       this.camera.position.addInPlace(movement);
     } else {
-      // === PHYSICS MODE: CharacterController with BSP collision ===
+      // === PHYSICS MODE: Use existing slideMove with gravity ===
+      const cm = getCollisionManager();
+      const gravity = mv.get('sv_gravity');
+      const moveSpeed = mv.get('cl_speed');
+      const jumpHeight = mv.get('sv_jumpheight');
       
-      // Initialize or sync character controller position
-      if (!this.characterController || this.wasSpectator) {
-        // Switching from spectator to physics - sync position
-        const feetPos = this.camera.position.clone();
-        feetPos.y -= 48; // Subtract eye offset to get feet position
+      // Reset vertical velocity when switching to physics mode
+      if (this.wasSpectator) {
+        this.verticalVelocity = 0;
+        this.isGrounded = false;
+        console.log(`[FreeflyController] Switched to physics mode`);
+      }
+      
+      // Check if grounded (trace down slightly)
+      if (cm.isInitialized()) {
+        const groundCheck = cm.trace(
+          this.camera.position as never,
+          this.camera.position.subtract(new Vector3(0, 2, 0)) as never,
+          { radius: 16, height: 56 }
+        );
+        this.isGrounded = groundCheck.fraction < 1.0 && !groundCheck.startSolid;
         
-        if (this.characterController) {
-          // Re-sync existing controller
-          this.characterController.setPosition(feetPos);
-        } else {
-          // First time - create controller
-          this.characterController = new CharacterController(feetPos);
+        if (this.isGrounded && this.verticalVelocity < 0) {
+          this.verticalVelocity = 0;
         }
-        console.log(`[FreeflyController] Physics mode at feet: (${feetPos.x.toFixed(0)}, ${feetPos.y.toFixed(0)}, ${feetPos.z.toFixed(0)})`);
       }
       
-      // Calculate movement input (-1 to 1)
-      const forwardInput = (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0);
-      const strafeInput = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
-      
-      // Apply movement input to character controller
-      this.characterController.applyMovementInput(forwardInput, strafeInput, forward, right);
-      
-      // Jump with space
-      if (this.keys.up) {
-        this.characterController.jump();
+      // Apply gravity when not grounded
+      if (!this.isGrounded) {
+        this.verticalVelocity -= gravity * deltaTime;
       }
       
-      // Crouch with shift
-      this.characterController.setCrouching(this.keys.down);
+      // Jump with space (only when grounded)
+      if (this.keys.up && this.isGrounded) {
+        this.verticalVelocity = jumpHeight;
+        this.isGrounded = false;
+      }
       
-      // Update character controller physics
-      this.characterController.update(deltaTime);
+      // Calculate horizontal movement (ground-plane projected)
+      const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+      const flatRight = new Vector3(right.x, 0, right.z).normalize();
+      const speed = moveSpeed * deltaTime;
       
-      // Update camera position from character controller
-      const eyePos = this.characterController.getEyePosition();
-      this.camera.position.copyFrom(eyePos);
+      const movement = Vector3.Zero();
+      if (this.keys.forward) movement.addInPlace(flatForward.scale(speed));
+      if (this.keys.backward) movement.addInPlace(flatForward.scale(-speed));
+      if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
+      if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
+      
+      // Add vertical movement from gravity/jump
+      movement.y = this.verticalVelocity * deltaTime;
+      
+      // Use the EXISTING slideMove collision (which works!)
+      if (cm.isInitialized() && FreeflyController.collisionEnabled) {
+        this.slideMove(movement, cm);
+      } else {
+        this.camera.position.addInPlace(movement);
+      }
     }
     
     // Track mode for next frame
