@@ -113,10 +113,17 @@ async function initializeEngine(): Promise<HeadlessContext> {
     const { AudioManager } = await import("../engine/AudioManager");
     AudioManager.getInstance();
 
+    const { MovementVars } = await import("../engine/movement/MovementVars");
+    MovementVars.getInstance();
+
     console.log("[Init] Cvar providers initialized");
   } catch (e) {
     console.warn("[Init] Cvar providers failed:", e);
   }
+
+  // Note: Havok physics requires browser environment (uses fetch for WASM)
+  // In headless mode, we skip physics initialization
+  console.log("[Init] Skipping Havok physics (requires browser environment)");
 
   return { engine, scene, camera };
 }

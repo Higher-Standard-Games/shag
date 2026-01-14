@@ -4,6 +4,7 @@
 
 export { BspCollision } from './BspCollision';
 export { ContentFlags, SurfaceFlags } from './ContentFlags';
+export { PhysicsSystem } from './PhysicsSystem';
 
 // Collision Backend System
 export type {
