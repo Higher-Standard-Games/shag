@@ -42,11 +42,11 @@ export class PhysicsSystem {
   private initialized: boolean = false;
   private initializing: boolean = false;
   
-  // Track physics bodies
+  // Track physics bodies (for projectiles, debris, etc.)
   private bodies: Map<string, PhysicsBodyHandle> = new Map();
   
-  // World collision mesh (BSP geometry)
-  private worldCollisionAggregate: PhysicsAggregate | null = null;
+  // Note: World collision is handled by BSP collision system, not Havok
+  // Havok is used for gravity, velocity, and impulse simulation only
 
   private constructor() {}
 
@@ -141,42 +141,9 @@ export class PhysicsSystem {
     return this.havokInstance !== null;
   }
 
-  // ==================== World Collision ====================
-
-  /**
-   * Create collision mesh from BSP world geometry
-   */
-  createWorldCollision(worldMesh: Mesh): PhysicsAggregate | null {
-    if (!this.isInitialized() || !this.scene) {
-      console.warn('[PhysicsSystem] Cannot create world collision - not initialized');
-      return null;
-    }
-
-    // Dispose existing world collision
-    if (this.worldCollisionAggregate) {
-      this.worldCollisionAggregate.dispose();
-      this.worldCollisionAggregate = null;
-    }
-
-    try {
-      // Create static physics aggregate for world geometry
-      // Use MESH shape type for complex BSP geometry
-      this.worldCollisionAggregate = new PhysicsAggregate(
-        worldMesh,
-        PhysicsShapeType.MESH,
-        { mass: 0 }, // Static body (mass = 0)
-        this.scene
-      );
-
-      console.log('[PhysicsSystem] World collision mesh created');
-      return this.worldCollisionAggregate;
-    } catch (error) {
-      console.error('[PhysicsSystem] Failed to create world collision:', error);
-      return null;
-    }
-  }
-
   // ==================== Body Management ====================
+  // Note: World collision is handled by BSP collision system (CollisionManager)
+  // PhysicsSystem handles gravity, velocity, and impulse for dynamic entities
 
   /**
    * Create a dynamic physics body
@@ -306,11 +273,6 @@ export class PhysicsSystem {
       handle.aggregate.dispose();
     }
     this.bodies.clear();
-
-    if (this.worldCollisionAggregate) {
-      this.worldCollisionAggregate.dispose();
-      this.worldCollisionAggregate = null;
-    }
   }
 
   /**
@@ -338,8 +300,8 @@ export class PhysicsSystem {
     if (this.isInitialized()) {
       const gravity = this.getGravity();
       lines.push(`Gravity: (${gravity.x}, ${gravity.y}, ${gravity.z})`);
-      lines.push(`Bodies: ${this.bodies.size}`);
-      lines.push(`World collision: ${this.worldCollisionAggregate ? 'yes' : 'no'}`);
+      lines.push(`Dynamic bodies: ${this.bodies.size}`);
+      lines.push(`World collision: BSP (CollisionManager)`);
     }
     
     return lines.join('\n');
