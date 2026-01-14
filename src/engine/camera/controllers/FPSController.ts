@@ -35,8 +35,8 @@ export class FPSController implements ICameraController {
   // Collision always enabled for FPS (can't walk through walls)
   private static collisionEnabled: boolean = true;
   
-  // Collision mode: 'bsp' uses BSP brush tracing, 'native' uses Babylon's mesh collision
-  private static collisionMode: 'bsp' | 'native' = 'native';
+  // Collision mode: 'bsp' uses BSP brush tracing (same as FreeflyController), 'native' uses Babylon's mesh collision
+  private static collisionMode: 'bsp' | 'native' = 'bsp';
   
   // Q3-style physics state
   private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
@@ -428,14 +428,18 @@ export class FPSController implements ICameraController {
     
     // Set camera to origin before collision
     this.camera.position.copyFrom(this.origin);
+    const prevOriginY = this.origin.y;
     
+    // Apply movement with BSP collision (same as FreeflyController)
     if (movement.length() > 0) {
-      // Use native Babylon collision (same as FreeflyController)
-      this.nativeCollisionMove(movement);
+      if (cm.isInitialized()) {
+        this.slideMove(movement, cm as ReturnType<typeof getCollisionManager>);
+      } else {
+        this.camera.position.addInPlace(movement);
+      }
     }
     
     // Update origin from camera after collision
-    const prevOriginY = this.origin.y;
     this.origin.copyFrom(this.camera.position);
     
     // ========== VIEWPORT SMOOTHING (only for stairs when grounded) ==========
@@ -470,55 +474,93 @@ export class FPSController implements ICameraController {
   }
   
   /**
-   * Q3-style slide move with BSP collision
+   * Q3-style slide move with BSP collision (same as FreeflyController)
    */
-  // @ts-ignore - kept for BSP collision mode
-  private slideMove(movement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
-    const mv = MovementVars.getInstance();
-    const playerHeight = mv.get('sv_playerheight');
-    const traceOpts = { radius: 16, height: playerHeight };
-    
-    let timeLeft = 1.0;
-    const numBumps = 4;
-    const planes: Vector3[] = [];
-    
-    // Add ground plane if grounded
-    if (this.isGrounded && this.groundNormal) {
-      planes.push(this.groundNormal.clone());
+  private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
+    if (!this.camera || !this.scene) return;
+
+    const start = this.camera.position.clone();
+    const end = start.add(originalMovement);
+    const traceOpts = { radius: 16, height: 56 };
+
+    // Trace through BSP
+    const trace = cm.trace(start as never, end as never, traceOpts);
+
+    // If we started in solid, don't move (stuck detection)
+    if (trace.startSolid) {
+      // Try to nudge out of solid
+      const nudgeSteps = [1.0, 2.0, 4.0];
+      const testDirs = [
+        new Vector3(1, 0, 0), new Vector3(-1, 0, 0),
+        new Vector3(0, 1, 0), new Vector3(0, -1, 0),
+        new Vector3(0, 0, 1), new Vector3(0, 0, -1),
+      ];
+      for (const nudge of nudgeSteps) {
+        for (const dir of testDirs) {
+          const testPos = start.add(dir.scale(nudge));
+          const testTrace = cm.trace(testPos as never, testPos.add(new Vector3(0, -0.1, 0)) as never, traceOpts);
+          if (!testTrace.startSolid) {
+            this.camera.position = testPos;
+            return;
+          }
+        }
+      }
+      return;
     }
-    
-    // Add velocity direction as plane
-    const velNormal = this.velocity.clone();
-    velNormal.normalize();
-    planes.push(velNormal);
-    
-    for (let bump = 0; bump < numBumps && timeLeft > 0; bump++) {
-      const end = this.origin.add(movement.scale(timeLeft));
-      const trace = cm.trace(this.origin as never, end as never, traceOpts);
-      
-      if (trace.startSolid) {
-        // Stuck - try to nudge out
-        this.velocity.y = 0;
-        return;
-      }
-      
-      if (trace.fraction > 0) {
-        // Move to the collision point
-        this.origin = trace.endPos.clone();
-      }
-      
-      if (trace.fraction >= 1.0) {
-        // Made it the full distance
-        break;
-      }
-      
-      // Hit something - clip velocity
-      timeLeft -= timeLeft * trace.fraction;
-      
+
+    if (trace.fraction >= 1.0) {
+      // No collision - apply full movement
+      this.camera.position = end;
+    } else if (trace.fraction > 0) {
+      // Partial collision - move to contact point with small offset
+      const contactPoint = Vector3.Lerp(start, end, trace.fraction);
+
+      // Push back slightly from the wall
       if (trace.normal) {
-        planes.push(trace.normal.clone());
-        this.velocity = this.clipVelocity(this.velocity, trace.normal, 1.001);
-        movement = this.clipVelocity(movement, trace.normal, 1.001);
+        const n = trace.normal;
+        contactPoint.x += n.x * 0.5;
+        contactPoint.y += n.y * 0.5;
+        contactPoint.z += n.z * 0.5;
+      }
+
+      this.camera.position = contactPoint;
+
+      // Slide along the wall (Q3-style)
+      if (trace.normal) {
+        let velocity = originalMovement.clone();
+        let timeLeft = 1.0 - trace.fraction;
+        const maxTries = 4;
+        for (let i = 0; i < maxTries && timeLeft > 0.01 && velocity.length() > 0.01; i++) {
+          const n = trace.normal;
+          const remaining = velocity.scale(timeLeft);
+          const dot = remaining.x * n.x + remaining.y * n.y + remaining.z * n.z;
+          const slideMove = new Vector3(
+            remaining.x - n.x * dot,
+            remaining.y - n.y * dot,
+            remaining.z - n.z * dot
+          );
+
+          if (slideMove.length() < 0.01) break;
+
+          const slideStart = this.camera.position.clone();
+          const slideEnd = slideStart.add(slideMove);
+          const slideTrace = cm.trace(slideStart as never, slideEnd as never, traceOpts);
+
+          if (slideTrace.fraction > 0) {
+            const slidePos = Vector3.Lerp(slideStart, slideEnd, Math.min(slideTrace.fraction * 0.9, 1.0));
+            if (slideTrace.fraction < 1.0 && slideTrace.normal) {
+              const sn = slideTrace.normal;
+              slidePos.x += sn.x * 0.5;
+              slidePos.y += sn.y * 0.5;
+              slidePos.z += sn.z * 0.5;
+            }
+            this.camera.position = slidePos;
+            timeLeft *= (1.0 - slideTrace.fraction);
+            velocity = slideMove.normalize().scale(velocity.length());
+          } else {
+            break;
+          }
+        }
       }
     }
   }
