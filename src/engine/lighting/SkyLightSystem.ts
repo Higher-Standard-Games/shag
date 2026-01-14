@@ -529,9 +529,52 @@ export class SkyLightSystem {
         
         // Also tint the skybox
         this.applySkyboxTint(clampedSun);
+        
+        // Apply to all other meshes in scene (spawned models, etc.)
+        this.applyToSceneMeshes(bsp.getScene(), lmIntensity);
       }
     } catch {
       // BspManager not available
+    }
+  }
+
+  /**
+   * Apply day/night tint to all non-BSP meshes in the scene
+   */
+  private applyToSceneMeshes(scene: import("@babylonjs/core/scene").Scene | null, intensity: number): void {
+    if (!scene) return;
+
+    for (const mesh of scene.meshes) {
+      // Skip BSP world meshes (already handled)
+      if (mesh.name.startsWith('bsp_') || mesh.name === 'bsp_world') continue;
+      // Skip skybox
+      if (mesh.name.includes('sky') || mesh.name.includes('Sky')) continue;
+      // Skip meshes without materials
+      if (!mesh.material) continue;
+
+      const mat = mesh.material as any;
+
+      // Store original colors on first call
+      if (mat._origDiffuse === undefined && mat.diffuseColor) {
+        mat._origDiffuse = mat.diffuseColor.clone();
+      }
+      if (mat._origAlbedo === undefined && mat.albedoColor) {
+        mat._origAlbedo = mat.albedoColor.clone();
+      }
+
+      // Modulate diffuse color (StandardMaterial)
+      if (mat._origDiffuse) {
+        mat.diffuseColor.r = mat._origDiffuse.r * intensity;
+        mat.diffuseColor.g = mat._origDiffuse.g * intensity;
+        mat.diffuseColor.b = mat._origDiffuse.b * intensity;
+      }
+
+      // Modulate albedo color (PBRMaterial)
+      if (mat._origAlbedo) {
+        mat.albedoColor.r = mat._origAlbedo.r * intensity;
+        mat.albedoColor.g = mat._origAlbedo.g * intensity;
+        mat.albedoColor.b = mat._origAlbedo.b * intensity;
+      }
     }
   }
 
