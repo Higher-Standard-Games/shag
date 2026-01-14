@@ -53,6 +53,24 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'movement',
     developerOnly: false,
   },
+  sv_movementSpeed: {
+    value: 320,
+    defaultValue: 320,
+    min: 50,
+    max: 2000,
+    description: 'Base player movement speed (units/sec)',
+    category: 'movement',
+    developerOnly: true,
+  },
+  sv_runSpeed: {
+    value: 480,
+    defaultValue: 480,
+    min: 100,
+    max: 3000,
+    description: 'Sprint/run movement speed (units/sec)',
+    category: 'movement',
+    developerOnly: true,
+  },
 
   // ==================== Physics ====================
   sv_gravity: {
@@ -305,12 +323,12 @@ export class MovementVars {
 
   getInfo(): string {
     const lines = ['=== Movement Variables ==='];
-    
+
     const categories = ['movement', 'physics', 'camera', 'debug'] as const;
     for (const cat of categories) {
       const catVars = this.getByCategory(cat);
       if (catVars.length === 0) continue;
-      
+
       lines.push(`\n[${cat.toUpperCase()}]`);
       for (const v of catVars) {
         const devFlag = v.developerOnly ? ' [DEV]' : '';
@@ -318,7 +336,7 @@ export class MovementVars {
         lines.push(`${modified} ${v.name}: ${v.value} (${v.min}-${v.max})${devFlag}`);
       }
     }
-    
+
     return lines.join('\n');
   }
 }

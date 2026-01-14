@@ -67,8 +67,8 @@ export class FPSController implements ICameraController {
     backward: false, // S
     left: false,     // A
     right: false,    // D
-    up: false,       // Space
-    down: false,     // Shift
+    up: false,       // Space (jump)
+    sprint: false,   // Shift (run)
   };
 
   // Configuration
@@ -204,7 +204,7 @@ export class FPSController implements ICameraController {
         this.keys.left = false;
         this.keys.right = false;
         this.keys.up = false;
-        this.keys.down = false;
+        this.keys.sprint = false;
       }
     };
 
@@ -239,7 +239,7 @@ export class FPSController implements ICameraController {
         case 'KeyA': this.keys.left = true; break;
         case 'KeyD': this.keys.right = true; break;
         case 'Space': this.keys.up = true; e.preventDefault(); break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.down = true; break;
+        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
       }
     };
 
@@ -250,7 +250,7 @@ export class FPSController implements ICameraController {
         case 'KeyA': this.keys.left = false; break;
         case 'KeyD': this.keys.right = false; break;
         case 'Space': this.keys.up = false; break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.down = false; break;
+        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
       }
     };
 
@@ -309,7 +309,10 @@ export class FPSController implements ICameraController {
     const jumpHeight = mv.get('sv_jumpheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
-    const speed = (this.config.speed || 320) * deltaTime;
+
+    // Use sv_movementSpeed or sv_runSpeed based on sprint state
+    const baseSpeed = this.keys.sprint ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    const speed = baseSpeed * deltaTime;
 
     const cm = getCollisionManager();
 
@@ -440,8 +443,12 @@ export class FPSController implements ICameraController {
       this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
     }
 
-    // Apply smoothed Y for rendering only
-    this.camera.position.y = this.smoothedY;
+    // === APPLY EYE OFFSET ===
+    // Physics runs at feet level, but camera view is at eye level
+    const eyeOffset = mv.get('sv_eyeoffset'); // Default 48 units
+
+    // Apply smoothed Y + eye offset for rendering
+    this.camera.position.y = this.smoothedY + eyeOffset;
   }
 
   /**
@@ -876,7 +883,7 @@ export class FPSController implements ICameraController {
       this.keys.left = false;
       this.keys.right = false;
       this.keys.up = false;
-      this.keys.down = false;
+      this.keys.sprint = false;
       if (this.isPointerLocked) {
         document.exitPointerLock();
       }
