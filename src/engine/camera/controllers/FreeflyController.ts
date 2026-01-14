@@ -309,20 +309,24 @@ export class FreeflyController implements ICameraController {
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
-    const up = Vector3.Up();
     
     if (isSpectator) {
       // === SPECTATOR MODE: Noclip fly-through ===
       const flySpeed = mv.get('cl_flyspeed'); // Use cvar (default 400)
       const speed = flySpeed * deltaTime;
+      
+      // Use camera-relative directions for all axes (true 6DOF flight)
+      const camUp = this.camera.getDirection(Vector3.Up());
+      
       const movement = Vector3.Zero();
       
       if (this.keys.forward) movement.addInPlace(forward.scale(speed));
       if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
       if (this.keys.left) movement.addInPlace(right.scale(-speed));
       if (this.keys.right) movement.addInPlace(right.scale(speed));
-      if (this.keys.up) movement.addInPlace(up.scale(speed));
-      if (this.keys.down) movement.addInPlace(up.scale(-speed));
+      // Use camera up for consistent speed in all directions
+      if (this.keys.up) movement.addInPlace(camUp.scale(speed));
+      if (this.keys.down) movement.addInPlace(camUp.scale(-speed));
       
       // No collision in spectator mode
       this.camera.position.addInPlace(movement);

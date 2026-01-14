@@ -219,19 +219,26 @@ export class CharacterController {
       contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
     };
 
-    // Simple trace-based movement (more reliable than stepSlideMove for now)
+    // Simple trace-based movement
+    const startPos = this.state.position.clone();
     const endPos = this.state.position.add(movement);
     const trace = cm.trace(
-      this.state.position as any,
+      startPos as any,
       endPos as any,
       traceOpts
     );
+    
+    // Debug trace result
+    const now = Date.now();
+    if (now - CharacterController.lastDebugLog > 500) {
+      console.log(`[CharController] TRACE: frac=${trace.fraction.toFixed(3)} startSolid=${trace.startSolid} allSolid=${trace.allSolid} endPos=(${trace.endPos.x.toFixed(0)},${trace.endPos.y.toFixed(0)},${trace.endPos.z.toFixed(0)})`);
+    }
     
     // Check for startSolid (stuck inside geometry)
     if (trace.startSolid) {
       console.warn('[CharacterController] startSolid detected - attempting recovery');
       // Try to nudge out by moving up
-      const nudgeUp = this.state.position.add(new Vector3(0, 2, 0));
+      const nudgeUp = this.state.position.add(new Vector3(0, 8, 0));
       const nudgeTrace = cm.trace(this.state.position as any, nudgeUp as any, traceOpts);
       if (!nudgeTrace.startSolid) {
         this.state.position.copyFrom(nudgeTrace.endPos);
@@ -239,8 +246,14 @@ export class CharacterController {
       return;
     }
     
-    // Apply movement result
-    this.state.position.copyFrom(trace.endPos);
+    // Apply movement result - use trace.endPos which should be clamped by collision
+    if (trace.fraction < 1.0) {
+      // Hit something - use the collision point
+      this.state.position.copyFrom(trace.endPos);
+    } else {
+      // No collision - apply full movement
+      this.state.position.copyFrom(endPos);
+    }
     
     // Zero velocity on collision (compare against ORIGINAL position)
     if (trace.fraction < 1.0 && trace.normal) {
