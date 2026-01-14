@@ -519,12 +519,13 @@ export class SkyLightSystem {
     const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
     
     // Only update if time changed significantly (avoid unnecessary updates)
-    if (Math.abs(normalizedTime - this.lastCvarTime) < 0.0001) {
+    const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
+    if (timeDiff < 0.001) {  // Relaxed threshold
       return;
     }
     this.lastCvarTime = normalizedTime;
 
-    console.log(`[SkyLightSystem] update: time=${normalizedTime.toFixed(3)}, scene=${!!this.scene}, sunLight=${!!this.sunLight}`);
+    console.log(`[SkyLightSystem] time=${normalizedTime.toFixed(3)}, diff=${timeDiff.toFixed(4)}`);
 
     // Convert normalized time to TimeOfDay and update lighting (only if initialized)
     if (this.isInitialized()) {
@@ -598,11 +599,13 @@ export class SkyLightSystem {
     // Apply to BspManager if available
     try {
       const bsp = BspManager.getInstance();
-      if (bsp.isLoaded()) {
+      const loaded = bsp.isLoaded();
+      console.log(`[SkyLightSystem] BSP loaded=${loaded}, lmIntensity=${lmIntensity.toFixed(3)}`);
+      if (loaded) {
         bsp.setLightmapIntensity(lmIntensity);
       }
     } catch (e) {
-      // BspManager not available - this is fine for .map mode
+      console.log(`[SkyLightSystem] BSP error: ${e}`);
     }
   }
 
