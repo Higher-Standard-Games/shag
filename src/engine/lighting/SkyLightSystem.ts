@@ -15,17 +15,11 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Scene } from "@babylonjs/core/scene";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 import { Cvar } from "../core/Cvar";
 import { BspManager } from "../loader/bsp/BspManager";
-import { CameraSystem } from "../camera/CameraSystem";
-
-// Debug: Log when this module loads
-console.log('[SkyLightSystem] Module loaded');
 
 // ==================== Types ====================
 
@@ -480,7 +474,6 @@ export class SkyLightSystem {
   // ==================== CVar-Driven Day/Night for BSP ====================
 
   private lastCvarTime: number = -1;
-  private _lastDebugLog: number = 0;
 
   /**
    * Update day/night cycle from cvars (call every frame)
@@ -489,12 +482,6 @@ export class SkyLightSystem {
   public update(deltaTime: number): void {
     // Check if day/night system is enabled via cvar
     const enabled = Number(Cvar.get('r_daynight') ?? 0);
-    
-    // Debug: log every few seconds to confirm update is called
-    if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 3000) {
-      console.log(`[SkyLightSystem] update called, r_daynight=${enabled}`);
-      this._lastDebugLog = Date.now();
-    }
     
     if (enabled < 0.5) {
       return;
@@ -518,11 +505,9 @@ export class SkyLightSystem {
     // Get current time from cvar
     const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
     
-    // Only update if time changed significantly (avoid unnecessary updates)
+    // Only update lighting if time changed significantly
     const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
-    const shouldUpdate = timeDiff >= 0.001;
-    if (shouldUpdate) {
-      console.log(`[SkyLightSystem] TIME CHANGED: ${normalizedTime.toFixed(3)} (was ${this.lastCvarTime.toFixed(3)})`);
+    if (timeDiff >= 0.001) {
       this.lastCvarTime = normalizedTime;
     }
 
@@ -534,7 +519,8 @@ export class SkyLightSystem {
 
     // Apply BSP-specific effects (works without sun lights)
     this.updateBspLightmaps(normalizedTime);
-    this.updateSkyboxTint(normalizedTime);
+    // TODO: Skybox tinting disabled - needs different approach for Q3 skyboxes
+    // this.updateSkyboxTint(normalizedTime);
   }
 
   /**
@@ -598,71 +584,11 @@ export class SkyLightSystem {
     // Apply to BspManager if available
     try {
       const bsp = BspManager.getInstance();
-      const loaded = bsp.isLoaded();
-      console.log(`[SkyLightSystem] BSP loaded=${loaded}, lmIntensity=${lmIntensity.toFixed(3)}`);
-      if (loaded) {
+      if (bsp.isLoaded()) {
         bsp.setLightmapIntensity(lmIntensity);
       }
-    } catch (e) {
-      console.log(`[SkyLightSystem] BSP error: ${e}`);
-    }
-  }
-
-  /**
-   * Update skybox tint based on time of day
-   */
-  private updateSkyboxTint(normalizedTime: number): void {
-    const skyTintEnabled = Number(Cvar.get('r_daynight_sky_tint') ?? 1);
-    if (skyTintEnabled < 0.5) return;
-
-    // Get scene - try this.scene first, then fallback to getting from camera
-    let scene = this.scene;
-    if (!scene) {
-      try {
-        scene = CameraSystem.getInstance().getCamera()?.getScene() ?? null;
-      } catch {
-        return;
-      }
-    }
-    if (!scene) return;
-
-    // Calculate tint intensity (darker at night)
-    const sunFactor = Math.sin(normalizedTime * Math.PI);
-    const tintIntensity = 0.1 + Math.max(0, sunFactor) * 0.9; // Never fully black
-
-    // Find skybox mesh
-    const skybox = scene.getMeshByName('skyBox') || scene.getMeshByName('skybox');
-    if (!skybox || !skybox.material) return;
-
-    const mat = skybox.material;
-
-    // Calculate tint color (white at day, dark blue at night)
-    const nightTint = new Color3(0.1, 0.1, 0.2);
-    const dayTint = new Color3(1, 1, 1);
-    const tint = this.lerpColor3(nightTint, dayTint, Math.max(0, sunFactor));
-
-    if (mat instanceof StandardMaterial) {
-      // Store original emissive if not stored
-      if (!(mat as any)._originalEmissiveColor && mat.emissiveColor) {
-        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
-      }
-      const base = (mat as any)._originalEmissiveColor || new Color3(1, 1, 1);
-      mat.emissiveColor = new Color3(
-        base.r * tint.r * tintIntensity,
-        base.g * tint.g * tintIntensity,
-        base.b * tint.b * tintIntensity
-      );
-    } else if (mat instanceof PBRMaterial) {
-      // Store original emissive if not stored
-      if (!(mat as any)._originalEmissiveColor && mat.emissiveColor) {
-        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
-      }
-      const base = (mat as any)._originalEmissiveColor || new Color3(1, 1, 1);
-      mat.emissiveColor = new Color3(
-        base.r * tint.r * tintIntensity,
-        base.g * tint.g * tintIntensity,
-        base.b * tint.b * tintIntensity
-      );
+    } catch {
+      // BspManager not available
     }
   }
 

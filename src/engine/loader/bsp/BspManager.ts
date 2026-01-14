@@ -452,37 +452,32 @@ export class BspManager {
    */
   setLightmapIntensity(intensity: number): void {
     if (!this.meshResult?.worldMesh) {
-      console.log('[BspManager] setLightmapIntensity: No worldMesh');
       return;
     }
 
-    const mesh = this.meshResult.worldMesh;
-    const mat = mesh.material;
-    if (!mat) {
-      console.log('[BspManager] setLightmapIntensity: No material');
-      return;
-    }
-
+    // BSP materials are on child meshes, not the parent worldMesh
+    const childMeshes = this.meshResult.worldMesh.getChildMeshes();
     let count = 0;
 
-    // Handle multi-material case
-    if ('subMaterials' in mat && Array.isArray((mat as any).subMaterials)) {
-      for (const subMat of (mat as any).subMaterials) {
-        if (subMat?.lightmapTexture) {
-          subMat.lightmapTexture.level = intensity;
-          count++;
-        }
+    for (const mesh of childMeshes) {
+      const mat = mesh.material;
+      if (!mat) continue;
+
+      // Check for lightmapTexture on StandardMaterial or ShaderMaterial
+      if ((mat as any).lightmapTexture) {
+        (mat as any).lightmapTexture.level = intensity;
+        count++;
       }
-    } else if ((mat as any).lightmapTexture) {
-      // Single material with lightmap
-      (mat as any).lightmapTexture.level = intensity;
-      count++;
     }
 
-    if (count > 0) {
-      console.log(`[BspManager] setLightmapIntensity: ${intensity.toFixed(3)} applied to ${count} materials`);
+    // Only log occasionally to reduce spam
+    if (count > 0 && !this._lastLightmapLog || Date.now() - this._lastLightmapLog > 1000) {
+      console.log(`[BspManager] Lightmap intensity: ${intensity.toFixed(2)} (${count} materials)`);
+      this._lastLightmapLog = Date.now();
     }
   }
+
+  private _lastLightmapLog: number = 0;
 
   /**
    * Get center position of the map
