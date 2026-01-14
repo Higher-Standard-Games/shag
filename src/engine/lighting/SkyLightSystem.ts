@@ -24,6 +24,9 @@ import { Cvar } from "../core/Cvar";
 import { BspManager } from "../loader/bsp/BspManager";
 import { CameraSystem } from "../camera/CameraSystem";
 
+// Debug: Log when this module loads
+console.log('[SkyLightSystem] Module loaded');
+
 // ==================== Types ====================
 
 export interface SkyLightConfig {
