@@ -317,7 +317,10 @@ export class FPSController implements ICameraController {
     const stopspeed = mv.get('sv_stopspeed');
     const airaccelerate = mv.get('sv_airaccelerate');
     const maxairspeed = mv.get('sv_maxairspeed');
-    const wishspeed = this.keys.sprint ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    const autorun = mv.get('cl_autorun') > 0;
+    // cl_autorun inverts run/walk: run by default, walk when holding shift
+    const isRunning = autorun ? !this.keys.sprint : this.keys.sprint;
+    const wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
 
     const cm = getCollisionManager();
 

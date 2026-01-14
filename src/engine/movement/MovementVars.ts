@@ -127,6 +127,15 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'physics',
     developerOnly: true,
   },
+  sv_airaccelerate: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 20,
+    description: 'Air acceleration rate (Q3 default: 1)',
+    category: 'physics',
+    developerOnly: true,
+  },
   sv_aircontrol: {
     value: 0.01,
     defaultValue: 0.01,
@@ -226,6 +235,15 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     max: 1,
     description: 'Show player speed on screen',
     category: 'camera',
+    developerOnly: false,
+  },
+  cl_autorun: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Invert run/walk - run by default, walk when holding shift',
+    category: 'movement',
     developerOnly: false,
   },
 
