@@ -18,7 +18,6 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
-import { MovementVars } from "../../movement/MovementVars";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
@@ -40,16 +39,6 @@ export class FreeflyController implements ICameraController {
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
-  
-  // Viewport smoothing (separate from physics position)
-  private physicsPosition: Vector3 = Vector3.Zero();
-  private renderPosition: Vector3 = Vector3.Zero();
-  private smoothingInitialized: boolean = false;
-  
-  // Physics mode state (gravity, jumping) - uses camera position directly
-  private verticalVelocity: number = 0;
-  private isGrounded: boolean = false;
-  private wasSpectator: boolean = true; // Track mode changes
 
   // Movement keys state
   private keys = {
@@ -294,86 +283,40 @@ export class FreeflyController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
-    // ========== ORIGINAL WORKING FREEFLY CODE ==========
     const speed = (this.config.speed || 200) * deltaTime;
-
+    
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     const up = Vector3.Up();
-
+    
     // Calculate movement
     const movement = Vector3.Zero();
-
+    
     if (this.keys.forward) movement.addInPlace(forward.scale(speed));
     if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
     if (this.keys.left) movement.addInPlace(right.scale(-speed));
     if (this.keys.right) movement.addInPlace(right.scale(speed));
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
-
-    // ========== PHYSICS MODE: Add gravity (sv_spectator=0) ==========
-    const mv = MovementVars.getInstance();
-    const isPhysicsMode = mv.get('sv_spectator') < 0.5;
     
-    if (isPhysicsMode) {
-      const gravity = mv.get('sv_gravity');
-      const jumpHeight = mv.get('sv_jumpheight');
-      
-      // Reset when switching to physics mode
-      if (this.wasSpectator) {
-        this.verticalVelocity = 0;
-        this.isGrounded = false;
-      }
-      
-      // Check if grounded (trace down)
-      const cm = getCollisionManager();
-      if (cm.isInitialized()) {
-        const groundCheck = cm.trace(
-          this.camera.position as never,
-          this.camera.position.subtract(new Vector3(0, 2, 0)) as never,
-          { radius: 16, height: 56 }
-        );
-        this.isGrounded = groundCheck.fraction < 1.0 && !groundCheck.startSolid;
-        if (this.isGrounded && this.verticalVelocity < 0) {
-          this.verticalVelocity = 0;
-        }
-      }
-      
-      // Apply gravity
-      if (!this.isGrounded) {
-        this.verticalVelocity -= gravity * deltaTime;
-      }
-      
-      // Jump (Space in physics mode = jump, not fly up)
-      if (this.keys.up && this.isGrounded) {
-        this.verticalVelocity = jumpHeight;
-        this.isGrounded = false;
-      }
-      
-      // Replace vertical movement with gravity/jump
-      // Remove the up/down from keys, use physics velocity instead
-      movement.y = this.verticalVelocity * deltaTime;
-      
-      this.wasSpectator = false;
-    } else {
-      this.wasSpectator = true;
-    }
-
-    // ========== APPLY COLLISION (original working code) ==========
+    // Apply movement with optional collision
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
         if (FreeflyController.collisionMode === 'native') {
+          // Use Babylon's native mesh collision
           this.nativeCollisionMove(movement);
         } else {
+          // Use BSP brush tracing
           const cm = getCollisionManager();
           const isInit = cm.isInitialized();
-
+          
+          // Debug: log state once
           if (!FreeflyController._loggedState) {
             FreeflyController._loggedState = true;
-            console.log(`[Freefly] Collision: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, init=${isInit}`);
+            console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
           }
-
+          
           if (isInit) {
             this.slideMove(movement, cm);
           } else {
@@ -390,53 +333,8 @@ export class FreeflyController implements ICameraController {
     }
   }
   
-  /**
-   * Smooth viewport Y position to fix stair jitter
-   * Physics position stays instant/accurate, only render is smoothed
-   * @deprecated Temporarily disabled - needs integration with original freefly
-   */
-  // @ts-ignore - Kept for future use
-  private applyViewportSmoothing(): void {
-    if (!this.camera || !this.smoothingInitialized) return;
-    
-    const mv = MovementVars.getInstance();
-    const smoothEnabled = mv.get('cl_smoothstairs') >= 0.5;
-    
-    if (!smoothEnabled) {
-      // No smoothing - use physics position directly
-      this.physicsPosition.copyFrom(this.camera.position);
-      this.renderPosition.copyFrom(this.camera.position);
-      return;
-    }
-    
-    // Store where physics says we are
-    this.physicsPosition.copyFrom(this.camera.position);
-    
-    // Get smoothing factor from cvars
-    const smoothFactor = mv.get('cl_smoothfactor');
-    const stepHeight = mv.get('sv_stepheight');
-    
-    // Horizontal always matches physics (no smoothing needed)
-    this.renderPosition.x = this.physicsPosition.x;
-    this.renderPosition.z = this.physicsPosition.z;
-    
-    // Vertical: smooth small changes (stairs), snap large changes (falls/teleports)
-    const heightDiff = Math.abs(this.physicsPosition.y - this.renderPosition.y);
-    
-    if (heightDiff > stepHeight * 2) {
-      // Large height change - snap immediately (falling, teleporting)
-      this.renderPosition.y = this.physicsPosition.y;
-    } else {
-      // Small height change - smooth interpolation (stairs)
-      this.renderPosition.y = this.renderPosition.y + 
-        (this.physicsPosition.y - this.renderPosition.y) * smoothFactor;
-    }
-    
-    // Apply smoothed render position to camera
-    this.camera.position.copyFrom(this.renderPosition);
-  }
-  
   private static _loggedState = false;
+  
   private static _warnedNotInit = false;
   
   // Debug: log once per second
@@ -467,10 +365,7 @@ export class FreeflyController implements ICameraController {
    * - REMOVE collision: Detail brushes excluded via shouldSkipCollision
    * 
    * Result: Solid, reliable collision that respects BSP semantics
-   * 
-   * @deprecated Kept for fallback/debug - CharacterController now handles collision
    */
-  // @ts-ignore - Kept for fallback/debug use
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
     
@@ -744,9 +639,7 @@ export class FreeflyController implements ICameraController {
   
   /**
    * Apply collision using BSP trace with Q3-style sliding
-   * @deprecated Kept for fallback/debug - CharacterController now handles collision
    */
-  // @ts-ignore - Kept for fallback/debug use
   private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     if (!this.camera || !this.scene) return;
 
