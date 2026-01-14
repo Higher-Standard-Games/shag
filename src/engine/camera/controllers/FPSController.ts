@@ -305,7 +305,6 @@ export class FPSController implements ICameraController {
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
     const eyeOffset = mv.get('sv_eyeoffset');
-    const playerHeight = mv.get('sv_playerheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
     
@@ -328,29 +327,38 @@ export class FPSController implements ICameraController {
     }
     
     // ========== GROUND CHECK ==========
+    // Use camera position (which slideMove updates) for ground check
+    // Trace from feet position (camera.y - eyeOffset) downward
     const wasGrounded = this.isGrounded;
     this.groundNormal = null;
     
     if (cm.isInitialized()) {
+      // Feet position = camera position minus eye offset
+      const feetPos = this.camera.position.clone();
+      feetPos.y -= eyeOffset;
+      
+      // Trace downward from feet to detect ground (small distance)
       const groundTrace = cm.trace(
-        this.origin as never,
-        this.origin.subtract(new Vector3(0, 2, 0)) as never,
-        { radius: 16, height: playerHeight }
+        feetPos as never,
+        feetPos.subtract(new Vector3(0, 2, 0)) as never,
+        { radius: 16, height: 4 }  // Small height for ground check
       );
       
       // Debug: log ground trace periodically
       if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
         FPSController._lastGroundLog = Date.now();
-        console.log(`[FPS] Ground trace: frac=${groundTrace.fraction.toFixed(3)}, startSolid=${groundTrace.startSolid}, origin.y=${this.origin.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}`);
+        console.log(`[FPS] Ground trace: frac=${groundTrace.fraction.toFixed(3)}, startSolid=${groundTrace.startSolid}, feetY=${feetPos.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}`);
       }
       
       if (groundTrace.fraction < 1.0 && !groundTrace.startSolid) {
         this.isGrounded = true;
         this.groundNormal = groundTrace.normal || new Vector3(0, 1, 0);
         
-        // Zero out downward velocity when on ground
+        // Snap to ground if we hit something
         if (this.velocity.y < 0) {
           this.velocity.y = 0;
+          // Adjust camera to sit on ground
+          this.camera.position.y = groundTrace.endPos.y + eyeOffset;
         }
       } else {
         this.isGrounded = false;
