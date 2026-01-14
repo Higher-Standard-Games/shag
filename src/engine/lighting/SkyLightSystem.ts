@@ -520,11 +520,11 @@ export class SkyLightSystem {
     
     // Only update if time changed significantly (avoid unnecessary updates)
     const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
-    console.log(`[SkyLightSystem] time=${normalizedTime.toFixed(3)}, lastTime=${this.lastCvarTime.toFixed(3)}, diff=${timeDiff.toFixed(4)}`);
-    if (timeDiff < 0.001) {  // Relaxed threshold
-      return;
+    const shouldUpdate = timeDiff >= 0.001;
+    if (shouldUpdate) {
+      console.log(`[SkyLightSystem] TIME CHANGED: ${normalizedTime.toFixed(3)} (was ${this.lastCvarTime.toFixed(3)})`);
+      this.lastCvarTime = normalizedTime;
     }
-    this.lastCvarTime = normalizedTime;
 
     // Convert normalized time to TimeOfDay and update lighting (only if initialized)
     if (this.isInitialized()) {
