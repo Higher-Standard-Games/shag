@@ -18,6 +18,8 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
+import { Cvar } from "../core/Cvar";
+import { BspManager } from "../loader/bsp/BspManager";
 
 // ==================== Types ====================
 
@@ -467,6 +469,388 @@ export class SkyLightSystem {
     const g = Math.round(c.g * 255);
     const b = Math.round(c.b * 255);
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  }
+
+  // ==================== BSP Day/Night (Direct API) ====================
+
+  private _bspTimeOfDay: number = 0.5; // 0=midnight, 0.5=noon, 1=midnight
+  private _bspDayNightEnabled: boolean = false;
+  private _bspAnimating: boolean = false;
+  private _bspCycleLength: number = 10; // Full cycle in minutes (default 10 min)
+  private _lastStreetLampState: boolean = false;
+  private _worldspawnLoaded: boolean = false; // Track if settings loaded from worldspawn
+
+  /**
+   * Enable/disable BSP day/night cycle
+   */
+  public setBspDayNightEnabled(enabled: boolean): void {
+    this._bspDayNightEnabled = enabled;
+    if (enabled) {
+      this.applyBspLightmaps();
+    }
+  }
+
+  /**
+   * Set BSP time of day directly (0=midnight, 0.5=noon, 1=midnight)
+   */
+  public setBspTimeOfDay(time: number): void {
+    this._bspTimeOfDay = Math.max(0, Math.min(1, time));
+    if (this._bspDayNightEnabled) {
+      this.applyBspLightmaps();
+    }
+  }
+
+  /**
+   * Get current BSP time of day
+   */
+  public getBspTimeOfDay(): number {
+    return this._bspTimeOfDay;
+  }
+
+  /**
+   * Start/stop BSP day/night animation
+   */
+  public setBspAnimating(animating: boolean): void {
+    this._bspAnimating = animating;
+  }
+
+  /**
+   * Set cycle length in minutes
+   */
+  public setBspCycleLength(minutes: number): void {
+    this._bspCycleLength = Math.max(1, minutes);
+  }
+
+  /**
+   * Get cycle length in minutes
+   */
+  public getBspCycleLength(): number {
+    return this._bspCycleLength;
+  }
+
+  /**
+   * Load day/night settings from BSP worldspawn entity
+   * Only loads once per map - subsequent calls are ignored unless reset
+   * 
+   * Supported worldspawn keys:
+   *   daynight_enabled: "1" or "0"
+   *   daynight_time: "0.0" to "1.0" (0=midnight, 0.5=noon)
+   *   daynight_cycle: minutes for full cycle
+   *   daynight_animate: "1" to auto-start animation
+   */
+  public loadFromWorldspawn(): boolean {
+    // Skip if already loaded from worldspawn
+    if (this._worldspawnLoaded) {
+      return false;
+    }
+
+    try {
+      const bsp = BspManager.getInstance();
+      if (!bsp.isLoaded()) return false;
+
+      let loaded = false;
+
+      // Check for daynight_enabled
+      const enabled = bsp.getWorldspawnProperty('daynight_enabled');
+      if (enabled === '1') {
+        this._bspDayNightEnabled = true;
+        loaded = true;
+      }
+
+      // Check for daynight_time (starting time)
+      const time = bsp.getWorldspawnProperty('daynight_time');
+      if (time) {
+        const t = parseFloat(time);
+        if (!isNaN(t)) {
+          this._bspTimeOfDay = Math.max(0, Math.min(1, t));
+          loaded = true;
+        }
+      }
+
+      // Check for daynight_cycle (cycle length in minutes)
+      const cycle = bsp.getWorldspawnProperty('daynight_cycle');
+      if (cycle) {
+        const c = parseFloat(cycle);
+        if (!isNaN(c) && c > 0) {
+          this._bspCycleLength = c;
+          loaded = true;
+        }
+      }
+
+      // Check for daynight_animate (auto-start animation)
+      const animate = bsp.getWorldspawnProperty('daynight_animate');
+      if (animate === '1') {
+        this._bspAnimating = true;
+        loaded = true;
+      }
+
+      if (loaded) {
+        this._worldspawnLoaded = true;
+        console.log(`[SkyLightSystem] Loaded day/night from worldspawn: enabled=${this._bspDayNightEnabled}, time=${this._bspTimeOfDay}, cycle=${this._bspCycleLength}min, animate=${this._bspAnimating}`);
+        if (this._bspDayNightEnabled) {
+          this.applyBspLightmaps();
+        }
+      }
+
+      return loaded;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Reset worldspawn loaded flag (call when loading new map)
+   */
+  public resetWorldspawn(): void {
+    this._worldspawnLoaded = false;
+  }
+
+  /**
+   * Check if settings were loaded from worldspawn
+   */
+  public isWorldspawnLoaded(): boolean {
+    return this._worldspawnLoaded;
+  }
+
+  /**
+   * Apply lightmap intensity and skybox tint based on current time
+   */
+  private applyBspLightmaps(): void {
+    const sunFactor = Math.sin(this._bspTimeOfDay * Math.PI);
+    const clampedSun = Math.max(0, sunFactor);
+    
+    // min=0.1 at midnight, max=1.5 at noon
+    const lmIntensity = 0.1 + 1.4 * clampedSun;
+    
+    // Apply to BSP world
+    try {
+      const bsp = BspManager.getInstance();
+      if (bsp.isLoaded()) {
+        bsp.setLightmapIntensity(lmIntensity);
+        
+        // Also tint the skybox
+        this.applySkyboxTint(clampedSun);
+        
+        // Apply to all other meshes in scene (spawned models, etc.)
+        this.applyToSceneMeshes(bsp.getScene(), lmIntensity);
+        
+        // Control street lamps based on time (on at night: 0-0.2 and 0.8-1)
+        const isNight = this._bspTimeOfDay < 0.2 || this._bspTimeOfDay > 0.8;
+        if (isNight !== this._lastStreetLampState) {
+          this._lastStreetLampState = isNight;
+          this.setStreetLampsEnabled(isNight);
+        }
+      }
+    } catch {
+      // BspManager not available
+    }
+  }
+
+  /**
+   * Turn all street lamps on or off
+   */
+  private setStreetLampsEnabled(enabled: boolean): void {
+    try {
+      const { StreetLampSystem } = require('./StreetLampSystem');
+      const lampSystem = StreetLampSystem.getInstance();
+      if (lampSystem.isInitialized()) {
+        for (const [id] of lampSystem.getLamps()) {
+          if (enabled) {
+            lampSystem.turnOn(id);
+          } else {
+            lampSystem.turnOff(id);
+          }
+        }
+      }
+    } catch {
+      // StreetLampSystem not available
+    }
+  }
+
+  /**
+   * Apply day/night tint to all non-BSP meshes in the scene
+   */
+  private applyToSceneMeshes(scene: import("@babylonjs/core/scene").Scene | null, intensity: number): void {
+    if (!scene) return;
+
+    for (const mesh of scene.meshes) {
+      // Skip BSP world meshes (already handled)
+      if (mesh.name.startsWith('bsp_') || mesh.name === 'bsp_world') continue;
+      // Skip skybox
+      if (mesh.name.includes('sky') || mesh.name.includes('Sky')) continue;
+      // Skip meshes without materials
+      if (!mesh.material) continue;
+
+      const mat = mesh.material as any;
+
+      // Store original colors on first call
+      if (mat._origDiffuse === undefined && mat.diffuseColor) {
+        mat._origDiffuse = mat.diffuseColor.clone();
+      }
+      if (mat._origAlbedo === undefined && mat.albedoColor) {
+        mat._origAlbedo = mat.albedoColor.clone();
+      }
+
+      // Modulate diffuse color (StandardMaterial)
+      if (mat._origDiffuse) {
+        mat.diffuseColor.r = mat._origDiffuse.r * intensity;
+        mat.diffuseColor.g = mat._origDiffuse.g * intensity;
+        mat.diffuseColor.b = mat._origDiffuse.b * intensity;
+      }
+
+      // Modulate albedo color (PBRMaterial)
+      if (mat._origAlbedo) {
+        mat.albedoColor.r = mat._origAlbedo.r * intensity;
+        mat.albedoColor.g = mat._origAlbedo.g * intensity;
+        mat.albedoColor.b = mat._origAlbedo.b * intensity;
+      }
+    }
+  }
+
+  /**
+   * Apply tint to skybox based on sun factor (0=night, 1=noon)
+   */
+  private applySkyboxTint(sunFactor: number): void {
+    try {
+      const bsp = BspManager.getInstance();
+      const scene = bsp.getScene();
+      if (!scene) return;
+
+      // Find skybox mesh (could be named various things)
+      const skybox = scene.getMeshByName('skyBox') || 
+                     scene.getMeshByName('skybox') ||
+                     scene.getMeshByName('skySphere') ||
+                     scene.getMeshByName('q3_skybox');
+      
+      if (!skybox || !skybox.material) return;
+
+      const mat = skybox.material as any;
+      
+      // Calculate tint: bright white at noon, dark blue at midnight
+      const nightR = 0.15, nightG = 0.15, nightB = 0.25;
+      const dayR = 1.0, dayG = 1.0, dayB = 1.0;
+      
+      const r = nightR + (dayR - nightR) * sunFactor;
+      const g = nightG + (dayG - nightG) * sunFactor;
+      const b = nightB + (dayB - nightB) * sunFactor;
+
+      // Apply to emissive color (used by sky sphere)
+      if (mat.emissiveColor) {
+        mat.emissiveColor.r = r;
+        mat.emissiveColor.g = g;
+        mat.emissiveColor.b = b;
+      }
+      
+      // For reflection-based skybox, adjust diffuse as tint
+      if (mat.reflectionTexture && mat.diffuseColor) {
+        mat.diffuseColor.r = r;
+        mat.diffuseColor.g = g;
+        mat.diffuseColor.b = b;
+      }
+    } catch {
+      // Scene not available
+    }
+  }
+
+  // ==================== CVar-Driven Day/Night ====================
+
+  private lastCvarTime: number = -1;
+
+  /**
+   * Update day/night cycle (call every frame)
+   * @param deltaTime Time since last frame in milliseconds
+   */
+  public update(deltaTime: number): void {
+    // Handle BSP animation
+    if (this._bspDayNightEnabled && this._bspAnimating) {
+      // Animate: full cycle based on _bspCycleLength (in minutes)
+      const cycleMs = this._bspCycleLength * 60 * 1000;
+      this._bspTimeOfDay += deltaTime / cycleMs;
+      if (this._bspTimeOfDay > 1) this._bspTimeOfDay -= 1;
+      this.applyBspLightmaps();
+    }
+
+    // Check if cvar-driven day/night system is enabled
+    const enabled = Number(Cvar.get('r_daynight') ?? 0);
+    
+    if (enabled < 0.5) {
+      return;
+    }
+
+    // Animate time if enabled
+    const animate = Number(Cvar.get('r_daynight_animate') ?? 0);
+    if (animate >= 0.5) {
+      const cycleLength = Number(Cvar.get('r_daynight_length') ?? 1440);
+      const speed = Number(Cvar.get('r_daynight_speed') ?? 1.0);
+      
+      let time = Number(Cvar.get('r_daynight_time') ?? 0.5);
+      // deltaTime is in ms, convert to seconds
+      time += (deltaTime / 1000 / cycleLength) * speed;
+      time = time % 1.0;
+      if (time < 0) time += 1.0;
+      
+      Cvar.set('r_daynight_time', time);
+    }
+
+    // Get current time from cvar
+    const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
+    
+    // Only update lighting if time changed significantly
+    const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
+    if (timeDiff >= 0.001) {
+      this.lastCvarTime = normalizedTime;
+    }
+
+    // Convert normalized time to TimeOfDay and update lighting (only if initialized)
+    if (this.isInitialized()) {
+      const timeOfDay = this.normalizedToTimeOfDay(normalizedTime);
+      this.updateLighting(timeOfDay);
+    }
+
+    // BSP lightmaps are now controlled via direct API (setBspTimeOfDay)
+    // The cvar-based updateBspLightmaps is disabled to avoid conflicts
+  }
+
+  /**
+   * Convert normalized time (0-1) to TimeOfDay object
+   */
+  private normalizedToTimeOfDay(normalized: number): TimeOfDay {
+    const totalMinutes = Math.floor(normalized * 1440);
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    
+    // Determine period
+    let period: 'night' | 'dawn' | 'morning' | 'afternoon' | 'dusk' | 'evening' = 'night';
+    let periodProgress = 0;
+    
+    if (hour >= 0 && hour < 5) {
+      period = 'night';
+      periodProgress = hour / 5;
+    } else if (hour >= 5 && hour < 7) {
+      period = 'dawn';
+      periodProgress = (hour - 5) / 2;
+    } else if (hour >= 7 && hour < 12) {
+      period = 'morning';
+      periodProgress = (hour - 7) / 5;
+    } else if (hour >= 12 && hour < 17) {
+      period = 'afternoon';
+      periodProgress = (hour - 12) / 5;
+    } else if (hour >= 17 && hour < 19) {
+      period = 'dusk';
+      periodProgress = (hour - 17) / 2;
+    } else {
+      period = 'evening';
+      periodProgress = (hour - 19) / 5;
+    }
+
+    return {
+      hour,
+      minute,
+      totalMinutes,
+      normalized,
+      period,
+      periodProgress,
+    };
   }
 
   /**

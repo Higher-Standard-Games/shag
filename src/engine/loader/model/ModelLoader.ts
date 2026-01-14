@@ -5,7 +5,7 @@ import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { Vector3, Matrix } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import "@babylonjs/loaders/glTF";

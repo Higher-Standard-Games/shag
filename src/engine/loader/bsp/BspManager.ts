@@ -317,6 +317,15 @@ export class BspManager {
     return lines.join('\n');
   }
 
+  /**
+   * Get a specific worldspawn property value
+   */
+  getWorldspawnProperty(key: string): string | undefined {
+    if (!this.loadedBsp) return undefined;
+    const worldspawn = this.loadedBsp.entities.find(e => e.classname === 'worldspawn');
+    return worldspawn?.properties[key];
+  }
+
   getClusterInfo(): string {
     if (!this.loadedBsp) {
       return 'No BSP loaded';
@@ -444,6 +453,54 @@ export class BspManager {
       mode,
       intensity,
     });
+  }
+
+  /**
+   * Set lightmap intensity for day/night cycle
+   * @param intensity 0.0-1.0 (or higher for overbright)
+   */
+  setLightmapIntensity(intensity: number): void {
+    if (!this.meshResult?.worldMesh) {
+      return;
+    }
+
+    // BSP materials are on child meshes, not the parent worldMesh
+    const childMeshes = this.meshResult.worldMesh.getChildMeshes();
+    let count = 0;
+
+    for (const mesh of childMeshes) {
+      const mat = mesh.material as any;
+      if (!mat) continue;
+
+      // Store original colors on first call
+      if (mat._origDiffuse === undefined && mat.diffuseColor) {
+        mat._origDiffuse = mat.diffuseColor.clone();
+      }
+      if (mat._origEmissive === undefined && mat.emissiveColor) {
+        mat._origEmissive = mat.emissiveColor.clone();
+      }
+
+      // Modulate diffuse color by intensity
+      if (mat._origDiffuse) {
+        mat.diffuseColor.r = mat._origDiffuse.r * intensity;
+        mat.diffuseColor.g = mat._origDiffuse.g * intensity;
+        mat.diffuseColor.b = mat._origDiffuse.b * intensity;
+        count++;
+      }
+
+      // Also try lightmap level as backup
+      if (mat.lightmapTexture) {
+        mat.lightmapTexture.level = intensity;
+      }
+    }
+
+  }
+
+  /**
+   * Get the scene the BSP is rendered in
+   */
+  getScene(): Scene | null {
+    return this.meshResult?.worldMesh?.getScene() ?? null;
   }
 
   /**

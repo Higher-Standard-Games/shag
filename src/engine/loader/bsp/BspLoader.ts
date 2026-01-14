@@ -349,41 +349,7 @@ export class BspLoader {
       (maxs[2] - origin[2]) / gridsize[2],
     ];
 
-    // Try to find integer dimensions that match the actual volume count
-    // Compilers might use floor, ceil, or adds +1 differently.
-    // We search small variations around the base size.
-    let bestSize: [number, number, number] | null = null;
-    const candidates = [-1, 0, 1]; // variance from floor(base)+1
-
-    // Naive guess (standard Q3)
-    const naive: [number, number, number] = [
-      Math.floor(baseSize[0]) + 1,
-      Math.floor(baseSize[1]) + 1,
-      Math.floor(baseSize[2]) + 1
-    ];
-
-    if (naive[0] * naive[1] * naive[2] === lightVolCount) {
-      bestSize = naive;
-    } else {
-      // Extensive search
-      searchLoop:
-      for (const dz of candidates) {
-        for (const dy of candidates) {
-          for (const dx of candidates) {
-            const sx = Math.max(1, naive[0] + dx);
-            const sy = Math.max(1, naive[1] + dy);
-            const sz = Math.max(1, naive[2] + dz);
-
-            if (sx * sy * sz === lightVolCount) {
-              bestSize = [sx, sy, sz];
-              console.log(`[BspLoader] Auto-corrected LightGrid size to: ${sx}x${sy}x${sz} (Diff: ${dx},${dy},${dz})`);
-              break searchLoop;
-            }
-          }
-        }
-      }
-    }
-
+    // Calculate size using naive approach
     const size: [number, number, number] = [
       Math.floor(baseSize[0]) + 1,
       Math.floor(baseSize[1]) + 1,
