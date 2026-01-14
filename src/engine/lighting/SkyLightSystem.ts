@@ -15,9 +15,12 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Scene } from "@babylonjs/core/scene";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
+import { Cvar } from "../core/Cvar";
 
 // ==================== Types ====================
 
@@ -467,6 +470,175 @@ export class SkyLightSystem {
     const g = Math.round(c.g * 255);
     const b = Math.round(c.b * 255);
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  }
+
+  // ==================== CVar-Driven Day/Night for BSP ====================
+
+  private lastCvarTime: number = -1;
+
+  /**
+   * Update day/night cycle from cvars (call every frame)
+   * @param deltaTime Time since last frame in milliseconds
+   */
+  public update(deltaTime: number): void {
+    // Check if day/night system is enabled via cvar
+    const enabled = Number(Cvar.get('r_daynight') ?? 0);
+    if (enabled < 0.5) {
+      return;
+    }
+
+    // Animate time if enabled
+    const animate = Number(Cvar.get('r_daynight_animate') ?? 0);
+    if (animate >= 0.5) {
+      const cycleLength = Number(Cvar.get('r_daynight_length') ?? 1440);
+      const speed = Number(Cvar.get('r_daynight_speed') ?? 1.0);
+      
+      let time = Number(Cvar.get('r_daynight_time') ?? 0.5);
+      // deltaTime is in ms, convert to seconds
+      time += (deltaTime / 1000 / cycleLength) * speed;
+      time = time % 1.0;
+      if (time < 0) time += 1.0;
+      
+      Cvar.set('r_daynight_time', time);
+    }
+
+    // Get current time from cvar
+    const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
+    
+    // Only update if time changed significantly (avoid unnecessary updates)
+    if (Math.abs(normalizedTime - this.lastCvarTime) < 0.0001) {
+      return;
+    }
+    this.lastCvarTime = normalizedTime;
+
+    // Convert normalized time to TimeOfDay and update lighting
+    const timeOfDay = this.normalizedToTimeOfDay(normalizedTime);
+    this.updateLighting(timeOfDay);
+
+    // Apply BSP-specific effects
+    this.updateBspLightmaps(normalizedTime);
+    this.updateSkyboxTint(normalizedTime);
+  }
+
+  /**
+   * Convert normalized time (0-1) to TimeOfDay object
+   */
+  private normalizedToTimeOfDay(normalized: number): TimeOfDay {
+    const totalMinutes = Math.floor(normalized * 1440);
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    
+    // Determine period
+    let period: 'night' | 'dawn' | 'morning' | 'afternoon' | 'dusk' | 'evening' = 'night';
+    let periodProgress = 0;
+    
+    if (hour >= 0 && hour < 5) {
+      period = 'night';
+      periodProgress = hour / 5;
+    } else if (hour >= 5 && hour < 7) {
+      period = 'dawn';
+      periodProgress = (hour - 5) / 2;
+    } else if (hour >= 7 && hour < 12) {
+      period = 'morning';
+      periodProgress = (hour - 7) / 5;
+    } else if (hour >= 12 && hour < 17) {
+      period = 'afternoon';
+      periodProgress = (hour - 12) / 5;
+    } else if (hour >= 17 && hour < 19) {
+      period = 'dusk';
+      periodProgress = (hour - 17) / 2;
+    } else {
+      period = 'evening';
+      periodProgress = (hour - 19) / 5;
+    }
+
+    return {
+      hour,
+      minute,
+      totalMinutes,
+      normalized,
+      period,
+      periodProgress,
+    };
+  }
+
+  /**
+   * Update BSP lightmap intensities based on time of day
+   */
+  private updateBspLightmaps(normalizedTime: number): void {
+    // Calculate sun intensity (0 at night, 1 at noon)
+    // Using sine wave: peak at 0.5 (noon), low at 0 and 1 (midnight)
+    const sunFactor = Math.sin(normalizedTime * Math.PI);
+    const clampedSun = Math.max(0, sunFactor);
+
+    // Get min/max from cvars
+    const lmMin = Number(Cvar.get('r_daynight_lm_min') ?? 0.05);
+    const lmMax = Number(Cvar.get('r_daynight_lm_max') ?? 1.0);
+    
+    // Interpolate lightmap intensity
+    const lmIntensity = lmMin + (lmMax - lmMin) * clampedSun;
+
+    // Apply to BspManager if available
+    try {
+      // Dynamic import to avoid circular dependency
+      import('../loader/bsp/BspManager').then(({ BspManager }) => {
+        const bsp = BspManager.getInstance();
+        if (bsp.isLoaded() && typeof (bsp as any).setLightmapIntensity === 'function') {
+          (bsp as any).setLightmapIntensity(lmIntensity);
+        }
+      });
+    } catch {
+      // BspManager not available
+    }
+  }
+
+  /**
+   * Update skybox tint based on time of day
+   */
+  private updateSkyboxTint(normalizedTime: number): void {
+    if (!this.scene) return;
+
+    const skyTintEnabled = Number(Cvar.get('r_daynight_sky_tint') ?? 1);
+    if (skyTintEnabled < 0.5) return;
+
+    // Calculate tint intensity (darker at night)
+    const sunFactor = Math.sin(normalizedTime * Math.PI);
+    const tintIntensity = 0.1 + Math.max(0, sunFactor) * 0.9; // Never fully black
+
+    // Find skybox mesh
+    const skybox = this.scene.getMeshByName('skyBox') || this.scene.getMeshByName('skybox');
+    if (!skybox || !skybox.material) return;
+
+    const mat = skybox.material;
+
+    // Calculate tint color (white at day, dark blue at night)
+    const nightTint = new Color3(0.1, 0.1, 0.2);
+    const dayTint = new Color3(1, 1, 1);
+    const tint = this.lerpColor3(nightTint, dayTint, Math.max(0, sunFactor));
+
+    if (mat instanceof StandardMaterial) {
+      // Store original emissive if not stored
+      if (!(mat as any)._originalEmissiveColor && mat.emissiveColor) {
+        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+      }
+      const base = (mat as any)._originalEmissiveColor || new Color3(1, 1, 1);
+      mat.emissiveColor = new Color3(
+        base.r * tint.r * tintIntensity,
+        base.g * tint.g * tintIntensity,
+        base.b * tint.b * tintIntensity
+      );
+    } else if (mat instanceof PBRMaterial) {
+      // Store original emissive if not stored
+      if (!(mat as any)._originalEmissiveColor && mat.emissiveColor) {
+        (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+      }
+      const base = (mat as any)._originalEmissiveColor || new Color3(1, 1, 1);
+      mat.emissiveColor = new Color3(
+        base.r * tint.r * tintIntensity,
+        base.g * tint.g * tintIntensity,
+        base.b * tint.b * tintIntensity
+      );
+    }
   }
 
   /**

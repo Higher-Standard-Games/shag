@@ -572,6 +572,11 @@ export abstract class EngineScene {
         StreetLampSystem.getInstance().update(deltaTime);
       }
 
+      // Update day/night cycle (cvar-driven for BSP maps)
+      if (SkyLightSystem.getInstance().isInitialized()) {
+        SkyLightSystem.getInstance().update(deltaTime);
+      }
+
       // Update BuildableSystem
       BuildableSystem.getInstance().update();
 

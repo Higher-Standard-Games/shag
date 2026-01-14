@@ -46,7 +46,18 @@ export type RenderVarName =
   | 'r_picmip'
   | 'r_showtris'
   | 'r_shownormals'
-  | 'r_showlightmaps';
+  | 'r_showlightmaps'
+  // Day/night cycle
+  | 'r_daynight'
+  | 'r_daynight_time'
+  | 'r_daynight_animate'
+  | 'r_daynight_speed'
+  | 'r_daynight_length'
+  | 'r_daynight_lm_min'
+  | 'r_daynight_lm_max'
+  | 'r_daynight_sun_intensity'
+  | 'r_daynight_moon_intensity'
+  | 'r_daynight_sky_tint';
 
 // ==================== Constants ====================
 
@@ -152,6 +163,87 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     max: 1,
     description: 'Force wireframe on entire scene (0/1)',
     category: 'debug',
+  },
+  // Day/night cycle
+  r_daynight: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Enable day/night cycle for BSP maps (0/1)',
+    category: 'lighting',
+  },
+  r_daynight_time: {
+    value: 0.5,
+    defaultValue: 0.5,
+    min: 0,
+    max: 1,
+    description: 'Time of day (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)',
+    category: 'lighting',
+  },
+  r_daynight_animate: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Animate time progression (0/1)',
+    category: 'lighting',
+  },
+  r_daynight_speed: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0.1,
+    max: 10.0,
+    description: 'Animation speed multiplier',
+    category: 'lighting',
+  },
+  r_daynight_length: {
+    value: 1440,
+    defaultValue: 1440,
+    min: 60,
+    max: 86400,
+    description: 'Full day cycle length in seconds (default 24 min)',
+    category: 'lighting',
+  },
+  r_daynight_lm_min: {
+    value: 0.05,
+    defaultValue: 0.05,
+    min: 0,
+    max: 1,
+    description: 'Minimum lightmap intensity at night',
+    category: 'lighting',
+  },
+  r_daynight_lm_max: {
+    value: 1.0,
+    defaultValue: 1.0,
+    min: 0,
+    max: 2,
+    description: 'Maximum lightmap intensity at noon',
+    category: 'lighting',
+  },
+  r_daynight_sun_intensity: {
+    value: 0.3,
+    defaultValue: 0.3,
+    min: 0,
+    max: 2,
+    description: 'Sun light intensity on BSP geometry',
+    category: 'lighting',
+  },
+  r_daynight_moon_intensity: {
+    value: 0.15,
+    defaultValue: 0.15,
+    min: 0,
+    max: 1,
+    description: 'Moon light intensity at night',
+    category: 'lighting',
+  },
+  r_daynight_sky_tint: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: 'Enable skybox tinting for day/night (0/1)',
+    category: 'lighting',
   },
 };
 

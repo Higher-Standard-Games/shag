@@ -447,6 +447,30 @@ export class BspManager {
   }
 
   /**
+   * Set lightmap intensity for day/night cycle
+   * @param intensity 0.0-1.0 (or higher for overbright)
+   */
+  setLightmapIntensity(intensity: number): void {
+    if (!this.meshResult?.worldMesh) return;
+
+    const mesh = this.meshResult.worldMesh;
+    const mat = mesh.material;
+    if (!mat) return;
+
+    // Handle multi-material case
+    if ('subMaterials' in mat && Array.isArray((mat as any).subMaterials)) {
+      for (const subMat of (mat as any).subMaterials) {
+        if (subMat?.lightmapTexture) {
+          subMat.lightmapTexture.level = intensity;
+        }
+      }
+    } else if ((mat as any).lightmapTexture) {
+      // Single material with lightmap
+      (mat as any).lightmapTexture.level = intensity;
+    }
+  }
+
+  /**
    * Get center position of the map
    */
   getMapCenter(): Vector3 | null {
