@@ -304,20 +304,21 @@ export class FPSController implements ICameraController {
     const speed = (this.config.speed || 200) * deltaTime;
     const gravity = mv.get('sv_gravity');
     const jumpHeight = mv.get('sv_jumpheight');
-    const eyeOffset = mv.get('sv_eyeoffset');
-    const playerHeight = mv.get('sv_playerheight');
     const stepHeight = mv.get('sv_stepheight');
     const smoothFactor = mv.get('cl_smoothfactor');
     
-    // Initialize physics position from camera on first frame
+    // Initialize on first frame
     if (!this.initialized) {
       this.physicsPos.copyFrom(this.camera.position);
-      this.physicsPos.y -= eyeOffset; // Convert eye pos to feet pos
       this.smoothedViewY = this.camera.position.y;
       this.initialized = true;
     }
     
-    // Get camera directions (use camera for look direction only)
+    // ========== RESTORE PHYSICS POSITION TO CAMERA ==========
+    // Before collision, set camera to physics position (not smoothed)
+    this.camera.position.copyFrom(this.physicsPos);
+    
+    // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     
@@ -333,14 +334,14 @@ export class FPSController implements ICameraController {
     if (this.keys.left) movement.addInPlace(flatRight.scale(-speed));
     if (this.keys.right) movement.addInPlace(flatRight.scale(speed));
     
-    // ========== GROUND CHECK (uses physics position) ==========
+    // ========== GROUND CHECK ==========
     const cm = getCollisionManager();
     
     if (cm.isInitialized()) {
       const groundTrace = cm.trace(
-        this.physicsPos as never,
-        this.physicsPos.subtract(new Vector3(0, 2, 0)) as never,
-        { radius: 16, height: playerHeight }
+        this.camera.position as never,
+        this.camera.position.subtract(new Vector3(0, 2, 0)) as never,
+        { radius: 16, height: 56 }
       );
       this.isGrounded = groundTrace.fraction < 1.0 && !groundTrace.startSolid;
       
@@ -363,58 +364,29 @@ export class FPSController implements ICameraController {
     // Add vertical movement from gravity/jump
     movement.y = this.verticalVelocity * deltaTime;
     
-    // ========== APPLY COLLISION TO PHYSICS POSITION ==========
-    if (movement.length() > 0 && cm.isInitialized()) {
-      const start = this.physicsPos.clone();
-      const end = start.add(movement);
-      
-      // Use slideMove logic on physics position
-      const trace = cm.trace(start as never, end as never, { radius: 16, height: playerHeight });
-      
-      if (trace.fraction >= 1.0 && !trace.startSolid) {
-        // No collision - move full distance
-        this.physicsPos.copyFrom(end);
-      } else if (!trace.startSolid) {
-        // Partial move - slide along surface
-        const moveDistance = movement.scale(trace.fraction);
-        this.physicsPos.addInPlace(moveDistance);
-        
-        // Slide along wall (remaining movement projected onto wall plane)
-        if (trace.normal && trace.fraction < 1.0) {
-          const remaining = movement.scale(1.0 - trace.fraction);
-          const dot = Vector3.Dot(remaining, trace.normal);
-          const slide = remaining.subtract(trace.normal.scale(dot));
-          
-          // Try slide move
-          const slideEnd = this.physicsPos.add(slide);
-          const slideTrace = cm.trace(this.physicsPos as never, slideEnd as never, { radius: 16, height: playerHeight });
-          if (!slideTrace.startSolid) {
-            this.physicsPos.addInPlace(slide.scale(slideTrace.fraction));
-          }
-        }
-      }
-    } else if (movement.length() > 0) {
-      // No collision manager - just move
-      this.physicsPos.addInPlace(movement);
+    // ========== APPLY COLLISION (use same method as freefly) ==========
+    if (movement.length() > 0) {
+      this.nativeCollisionMove(movement);
     }
     
-    // ========== VIEWPORT SMOOTHING (only affects render, not physics) ==========
-    const targetViewY = this.physicsPos.y + eyeOffset;
+    // ========== SAVE PHYSICS POSITION ==========
+    // After collision, save the physics position
+    this.physicsPos.copyFrom(this.camera.position);
+    
+    // ========== VIEWPORT SMOOTHING (only affects render Y) ==========
+    const targetViewY = this.physicsPos.y;
     const heightDiff = Math.abs(targetViewY - this.smoothedViewY);
     
     if (heightDiff > stepHeight * 2) {
       // Large change (fall/jump) - snap immediately
       this.smoothedViewY = targetViewY;
     } else {
-      // Smooth interpolation for stairs (up to ~36 units)
+      // Smooth interpolation for stairs
       this.smoothedViewY = this.smoothedViewY + (targetViewY - this.smoothedViewY) * smoothFactor;
     }
     
-    // ========== SET CAMERA RENDER POSITION ==========
-    // X and Z from physics, Y smoothed for viewport
-    this.camera.position.x = this.physicsPos.x;
+    // Apply smoothed Y to camera for rendering only
     this.camera.position.y = this.smoothedViewY;
-    this.camera.position.z = this.physicsPos.z;
   }
   
   // @ts-ignore - kept for future debug use
@@ -449,7 +421,6 @@ export class FPSController implements ICameraController {
    * 
    * Result: Solid, reliable collision that respects BSP semantics
    */
-  // @ts-ignore - kept for alternative collision mode
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
     

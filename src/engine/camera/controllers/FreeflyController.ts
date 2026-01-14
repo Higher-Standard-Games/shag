@@ -39,6 +39,11 @@ export class FreeflyController implements ICameraController {
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
+  
+  // Viewport smoothing for stairs
+  private physicsY: number = 0;
+  private smoothedY: number = 0;
+  private smoothingInitialized: boolean = false;
 
   // Movement keys state
   private keys = {
@@ -284,6 +289,18 @@ export class FreeflyController implements ICameraController {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
     const speed = (this.config.speed || 200) * deltaTime;
+    const stepHeight = 18; // Max stair step height
+    const smoothFactor = 0.15;
+    
+    // Initialize smoothing on first frame
+    if (!this.smoothingInitialized) {
+      this.physicsY = this.camera.position.y;
+      this.smoothedY = this.camera.position.y;
+      this.smoothingInitialized = true;
+    }
+    
+    // Restore physics Y before collision (not smoothed)
+    this.camera.position.y = this.physicsY;
     
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
@@ -300,18 +317,15 @@ export class FreeflyController implements ICameraController {
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
     
-    // Apply movement with optional collision
+    // Apply movement with collision
     if (movement.length() > 0) {
       if (FreeflyController.collisionEnabled) {
         if (FreeflyController.collisionMode === 'native') {
-          // Use Babylon's native mesh collision
           this.nativeCollisionMove(movement);
         } else {
-          // Use BSP brush tracing
           const cm = getCollisionManager();
           const isInit = cm.isInitialized();
           
-          // Debug: log state once
           if (!FreeflyController._loggedState) {
             FreeflyController._loggedState = true;
             console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
@@ -331,6 +345,22 @@ export class FreeflyController implements ICameraController {
         this.camera.position.addInPlace(movement);
       }
     }
+    
+    // Save physics Y after collision
+    this.physicsY = this.camera.position.y;
+    
+    // Viewport smoothing for stairs
+    const heightDiff = Math.abs(this.physicsY - this.smoothedY);
+    if (heightDiff > stepHeight * 2) {
+      // Large change - snap immediately
+      this.smoothedY = this.physicsY;
+    } else {
+      // Smooth interpolation for stairs
+      this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
+    }
+    
+    // Apply smoothed Y for rendering
+    this.camera.position.y = this.smoothedY;
   }
   
   private static _loggedState = false;
