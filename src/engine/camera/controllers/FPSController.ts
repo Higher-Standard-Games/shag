@@ -35,8 +35,8 @@ export class FPSController implements ICameraController {
   // Collision always enabled for FPS (can't walk through walls)
   private static collisionEnabled: boolean = true;
   
-  // Collision mode: 'bsp' uses BSP brush tracing (Q3-style), 'native' uses Babylon's mesh collision
-  private static collisionMode: 'bsp' | 'native' = 'bsp';
+  // Collision mode: 'bsp' uses BSP brush tracing, 'native' uses Babylon's mesh collision
+  private static collisionMode: 'bsp' | 'native' = 'native';
   
   // Q3-style physics state
   private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
@@ -323,6 +323,8 @@ export class FPSController implements ICameraController {
       this.origin.copyFrom(this.camera.position);
       this.smoothedViewY = this.camera.position.y;
       this.initialized = true;
+      console.log(`[FPS] Initialized at origin: (${this.origin.x.toFixed(1)}, ${this.origin.y.toFixed(1)}, ${this.origin.z.toFixed(1)})`);
+      console.log(`[FPS] CollisionManager initialized: ${cm.isInitialized()}, backend: ${cm.getBackendType()}`);
     }
     
     // ========== GROUND CHECK ==========
@@ -336,6 +338,12 @@ export class FPSController implements ICameraController {
         { radius: 16, height: playerHeight }
       );
       
+      // Debug: log ground trace periodically
+      if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
+        FPSController._lastGroundLog = Date.now();
+        console.log(`[FPS] Ground trace: frac=${groundTrace.fraction.toFixed(3)}, startSolid=${groundTrace.startSolid}, origin.y=${this.origin.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}`);
+      }
+      
       if (groundTrace.fraction < 1.0 && !groundTrace.startSolid) {
         this.isGrounded = true;
         this.groundNormal = groundTrace.normal || new Vector3(0, 1, 0);
@@ -347,6 +355,8 @@ export class FPSController implements ICameraController {
       } else {
         this.isGrounded = false;
       }
+    } else {
+      console.warn('[FPS] CollisionManager not initialized!');
     }
     
     // ========== GET WISH DIRECTION ==========
@@ -413,19 +423,24 @@ export class FPSController implements ICameraController {
       this.isGrounded = false;
     }
     
-    // ========== MOVE WITH COLLISION (BSP trace) ==========
+    // ========== MOVE WITH COLLISION ==========
     const movement = this.velocity.scale(deltaTime);
     
-    if (movement.length() > 0 && cm.isInitialized()) {
-      this.slideMove(movement, cm);
-    } else if (movement.length() > 0) {
-      this.origin.addInPlace(movement);
+    // Set camera to origin before collision
+    this.camera.position.copyFrom(this.origin);
+    
+    if (movement.length() > 0) {
+      // Use native Babylon collision (same as FreeflyController)
+      this.nativeCollisionMove(movement);
     }
     
+    // Update origin from camera after collision
+    const prevOriginY = this.origin.y;
+    this.origin.copyFrom(this.camera.position);
+    
     // ========== VIEWPORT SMOOTHING (only for stairs when grounded) ==========
-    const prevY = this.smoothedViewY;
     const targetViewY = this.origin.y + eyeOffset;
-    const heightDiff = Math.abs(targetViewY - prevY);
+    const heightDiff = Math.abs(this.origin.y - prevOriginY);
     
     const shouldSmooth = this.isGrounded && wasGrounded && heightDiff <= stepHeight;
     
@@ -435,10 +450,8 @@ export class FPSController implements ICameraController {
       this.smoothedViewY = targetViewY;
     }
     
-    // ========== SET CAMERA POSITION ==========
-    this.camera.position.x = this.origin.x;
+    // ========== SET CAMERA POSITION (apply eye offset + smoothing) ==========
     this.camera.position.y = this.smoothedViewY;
-    this.camera.position.z = this.origin.z;
   }
   
   /**
@@ -459,6 +472,7 @@ export class FPSController implements ICameraController {
   /**
    * Q3-style slide move with BSP collision
    */
+  // @ts-ignore - kept for BSP collision mode
   private slideMove(movement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     const mv = MovementVars.getInstance();
     const playerHeight = mv.get('sv_playerheight');
@@ -517,6 +531,7 @@ export class FPSController implements ICameraController {
   private static _lastDebugTime = 0;
   // @ts-ignore - kept for future debug use
   private static _nativeCollisionSetup = false;
+  private static _lastGroundLog = 0;
   
   /**
    * Apply movement using Babylon's native mesh collision system
