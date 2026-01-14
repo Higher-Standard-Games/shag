@@ -197,12 +197,9 @@ export class ModelLoader {
           if (mesh.material) {
             if (mesh.material instanceof PBRMaterial) {
               mesh.material.usePhysicalLightFalloff = false;
-              // Freeze material for better performance (BabylonJS 8 optimization)
-              mesh.material.freeze();
-            } else if (mesh.material instanceof StandardMaterial) {
-              // Standard materials work with clustered lights by default
-              mesh.material.freeze();
+              // NOTE: Don't freeze here - will be frozen after applyBspLighting to avoid flicker
             }
+            // StandardMaterial works with clustered lights by default
           }
 
           // Add to shadow generator if requested
@@ -497,15 +494,13 @@ export class ModelLoader {
         for (const mesh of meshes) {
           if (mesh.material) {
             const mat = mesh.material;
-            const wasFrozen = mat.isFrozen;
-            if (wasFrozen) mat.unfreeze();
             if (mat instanceof PBRMaterial) {
               mat.ambientColor = ambient;
               mat.ambientTextureStrength = 1.0;
             } else if (mat instanceof StandardMaterial) {
               mat.ambientColor = ambient;
             }
-            if (wasFrozen) mat.freeze();
+            mat.freeze();
           }
         }
 
@@ -527,8 +522,8 @@ export class ModelLoader {
       // 1. Ambient Component
       // Convert 0-255 ambient to 0-1 Color3
       // We use a decent intensity for ambient to ensure visibility
-      // Updated: Reduce ambient to allow more contrast with directional
-      const ambientIntensity = 0.3;
+      // Updated: Reduced to prevent overbright models
+      const ambientIntensity = 0.15;
 
       // Gamma correction function (approximate sRGB/Monitor gamma)
       const toLinear = (v: number) => Math.pow(v / 255, 2.2);
@@ -539,23 +534,20 @@ export class ModelLoader {
         toLinear(lighting.ambient[2]) * ambientIntensity
       );
 
-      // Apply ambient to materials
+      // Apply ambient to materials and freeze them (deferred from loadModel to avoid flicker)
       for (const mesh of meshes) {
         if (mesh.material) {
           const mat = mesh.material;
-          const wasFrozen = mat.isFrozen;
-          if (wasFrozen) mat.unfreeze();
 
           if (mat instanceof PBRMaterial) {
-            // PBR uses reflectionColor for environment lighting, or we can use ambientColor if unlit
             mat.ambientColor = ambient;
-            // Ensure ambient texture isn't overpowering
             mat.ambientTextureStrength = 1.0;
           } else if (mat instanceof StandardMaterial) {
             mat.ambientColor = ambient;
           }
 
-          if (wasFrozen) mat.freeze();
+          // Freeze material now that all modifications are complete
+          mat.freeze();
         }
       }
 
@@ -587,8 +579,8 @@ export class ModelLoader {
       const light = new DirectionalLight(lightName, lightDir, this.scene!);
 
       // Calculate directional color
-      // Updated: Boost directional intensity to make lit side pop
-      const dirIntensity = 2.0;
+      // Updated: Reduced to prevent overbright models
+      const dirIntensity = 1.0;
       const dirColor = new Color3(
         toLinear(lighting.directional[0]) * dirIntensity,
         toLinear(lighting.directional[1]) * dirIntensity,

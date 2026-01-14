@@ -126,6 +126,55 @@ r_lightmap 1    # Normal intensity
 r_lightmap 2    # Brighter
 ```
 
+## LightGrid (Light Volumes)
+
+BSP files also contain a 3D grid of lighting samples called the "lightgrid" or "light volumes". This is used for lighting dynamic objects (players, models) that don't have lightmaps.
+
+Each grid point stores:
+- **Ambient RGB** - Base illumination (0-255 per channel)
+- **Directional RGB** - Dominant light color (0-255 per channel)
+- **Direction** - Spherical coords (theta, phi) pointing toward light source
+
+### Query Lightgrid
+
+```bash
+bsp lightgrid    # Show values at camera position
+```
+
+Output:
+```
+Position: (128, 64, 256)
+Ambient: [45.2, 42.1, 38.5]
+Directional: [180.3, 175.2, 165.8]
+Direction: [128, 64]
+```
+
+### Debug Visualization
+
+```bash
+bsp debug_grid        # Spawn colored spheres at grid points
+bsp debug_grid clear  # Remove debug spheres
+```
+
+Debug spheres are colored by their ambient light value - brighter spheres indicate more light at that grid point.
+
+### Programmatic Access
+
+```typescript
+import { BspManager } from './engine/loader/bsp/BspManager';
+
+const manager = BspManager.getInstance();
+const lighting = manager.getLightingAt(position);
+
+if (lighting) {
+  console.log('Ambient:', lighting.ambient);      // [r, g, b] 0-255
+  console.log('Directional:', lighting.directional); // [r, g, b] 0-255
+  console.log('Direction:', lighting.direction);  // [theta, phi] bytes
+}
+```
+
+The `getLightingAt()` method performs trilinear interpolation for smooth lighting transitions between grid points.
+
 ## Collision
 
 BSP geometry provides collision data through:

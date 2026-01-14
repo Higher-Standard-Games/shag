@@ -228,6 +228,46 @@ The GLB file may be corrupted or the path is returning a 404 HTML page.
 ### Model moves with camera
 This was a bug in earlier versions. Update to latest and ensure `ModelLoader` is properly initialized with the scene.
 
+## BSP LightGrid Integration
+
+When a model is spawned, it automatically receives lighting from the BSP lightgrid:
+
+- **Ambient light** - Base illumination sampled from the lightgrid
+- **Directional light** - A per-model DirectionalLight created from lightgrid data
+- **Trilinear interpolation** - Smooth lighting transitions between grid points
+
+### How It Works
+
+1. Model position is converted to Q3 coordinate space
+2. Lightgrid is sampled with trilinear interpolation
+3. Ambient color is applied to material `ambientColor`
+4. A DirectionalLight is created with `includedOnlyMeshes` set to only this model
+5. Light direction is decoded from Q3's spherical (lat/long) format
+
+### Refresh Lighting
+
+If you move a model significantly, refresh its lighting:
+
+```bash
+spawnmodel lighting <index>
+```
+
+### Debug Lightgrid
+
+Visualize lightgrid data around your position:
+
+```bash
+bsp debug_grid        # Spawn debug spheres
+bsp debug_grid clear  # Remove debug spheres
+bsp lightgrid         # Show values at camera position
+```
+
+### Fallback Lighting
+
+If no BSP is loaded or the map lacks lightgrid data, models receive fallback lighting:
+- Neutral gray ambient (0.3, 0.3, 0.3)
+- Warm directional light angled downward
+
 ## See Also
 
 - [DEBUG_CONSOLE.md](../../reference/DEBUG_CONSOLE.md) - Full console command reference
