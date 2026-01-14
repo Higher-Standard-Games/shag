@@ -19,6 +19,7 @@ import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
 import { MovementVars } from "../../movement/MovementVars";
+import { CharacterController } from "../../movement/CharacterController";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
@@ -45,6 +46,9 @@ export class FreeflyController implements ICameraController {
   private physicsPosition: Vector3 = Vector3.Zero();
   private renderPosition: Vector3 = Vector3.Zero();
   private smoothingInitialized: boolean = false;
+  
+  // Character controller for non-spectator (physics) mode
+  private characterController: CharacterController | null = null;
 
   // Movement keys state
   private keys = {
@@ -289,65 +293,68 @@ export class FreeflyController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
+    const mv = MovementVars.getInstance();
+    
     // Initialize smoothing on first update
     if (!this.smoothingInitialized) {
       this.physicsPosition = this.camera.position.clone();
       this.renderPosition = this.camera.position.clone();
       this.smoothingInitialized = true;
-      // Initialize MovementVars
-      MovementVars.getInstance();
     }
     
-    const speed = (this.config.speed || 200) * deltaTime;
+    // Check spectator mode from cvars
+    const isSpectator = mv.get('sv_spectator') >= 0.5;
     
     // Get camera directions
     const forward = this.camera.getDirection(Vector3.Forward());
     const right = this.camera.getDirection(Vector3.Right());
     const up = Vector3.Up();
     
-    // Calculate movement
-    const movement = Vector3.Zero();
-    
-    if (this.keys.forward) movement.addInPlace(forward.scale(speed));
-    if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
-    if (this.keys.left) movement.addInPlace(right.scale(-speed));
-    if (this.keys.right) movement.addInPlace(right.scale(speed));
-    if (this.keys.up) movement.addInPlace(up.scale(speed));
-    if (this.keys.down) movement.addInPlace(up.scale(-speed));
-    
-    // Check spectator mode from cvars
-    const isSpectator = MovementVars.getInstance().get('sv_spectator') >= 0.5;
-    
-    // Apply movement with optional collision (disabled in spectator mode)
-    if (movement.length() > 0) {
-      if (FreeflyController.collisionEnabled && !isSpectator) {
-        if (FreeflyController.collisionMode === 'native') {
-          // Use Babylon's native mesh collision
-          this.nativeCollisionMove(movement);
-        } else {
-          // Use BSP brush tracing
-          const cm = getCollisionManager();
-          const isInit = cm.isInitialized();
-          
-          // Debug: log state once
-          if (!FreeflyController._loggedState) {
-            FreeflyController._loggedState = true;
-            console.log(`[Freefly] Collision check: enabled=${FreeflyController.collisionEnabled}, mode=${FreeflyController.collisionMode}, initialized=${isInit}, instance=${cm.getInstanceId()}, backend=${cm.getBackendType()}`);
-          }
-          
-          if (isInit) {
-            this.slideMove(movement, cm);
-          } else {
-            if (!FreeflyController._warnedNotInit) {
-              console.warn('[Freefly] Collision enabled but not initialized!');
-              FreeflyController._warnedNotInit = true;
-            }
-            this.camera.position.addInPlace(movement);
-          }
-        }
-      } else {
-        this.camera.position.addInPlace(movement);
+    if (isSpectator) {
+      // === SPECTATOR MODE: Noclip fly-through ===
+      const speed = (this.config.speed || 200) * deltaTime;
+      const movement = Vector3.Zero();
+      
+      if (this.keys.forward) movement.addInPlace(forward.scale(speed));
+      if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
+      if (this.keys.left) movement.addInPlace(right.scale(-speed));
+      if (this.keys.right) movement.addInPlace(right.scale(speed));
+      if (this.keys.up) movement.addInPlace(up.scale(speed));
+      if (this.keys.down) movement.addInPlace(up.scale(-speed));
+      
+      // No collision in spectator mode
+      this.camera.position.addInPlace(movement);
+    } else {
+      // === PHYSICS MODE: CharacterController with BSP collision ===
+      
+      // Initialize character controller if needed
+      if (!this.characterController) {
+        this.characterController = new CharacterController(this.camera.position.clone());
       }
+      
+      // Calculate movement input (-1 to 1)
+      const forwardInput = (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0);
+      const strafeInput = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+      
+      // Apply movement input to character controller
+      if (forwardInput !== 0 || strafeInput !== 0) {
+        this.characterController.applyMovementInput(forwardInput, strafeInput, forward, right);
+      }
+      
+      // Jump with space
+      if (this.keys.up) {
+        this.characterController.jump();
+      }
+      
+      // Crouch with shift
+      this.characterController.setCrouching(this.keys.down);
+      
+      // Update character controller physics
+      this.characterController.update(deltaTime);
+      
+      // Update camera position from character controller
+      const eyePos = this.characterController.getEyePosition();
+      this.camera.position.copyFrom(eyePos);
     }
     
     // Apply viewport smoothing for stairs (Y-axis only)
@@ -398,10 +405,6 @@ export class FreeflyController implements ICameraController {
     this.camera.position.copyFrom(this.renderPosition);
   }
   
-  private static _loggedState = false;
-  
-  private static _warnedNotInit = false;
-  
   // Debug: log once per second
   private static _lastDebugTime = 0;
   
@@ -430,7 +433,10 @@ export class FreeflyController implements ICameraController {
    * - REMOVE collision: Detail brushes excluded via shouldSkipCollision
    * 
    * Result: Solid, reliable collision that respects BSP semantics
+   * 
+   * @deprecated Kept for fallback/debug - CharacterController now handles collision
    */
+  // @ts-ignore - Kept for fallback/debug use
   private nativeCollisionMove(movement: Vector3): void {
     if (!this.camera || !this.scene) return;
     
@@ -704,7 +710,9 @@ export class FreeflyController implements ICameraController {
   
   /**
    * Apply collision using BSP trace with Q3-style sliding
+   * @deprecated Kept for fallback/debug - CharacterController now handles collision
    */
+  // @ts-ignore - Kept for fallback/debug use
   private slideMove(originalMovement: Vector3, cm: ReturnType<typeof getCollisionManager>): void {
     if (!this.camera || !this.scene) return;
 
