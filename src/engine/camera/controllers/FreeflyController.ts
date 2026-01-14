@@ -18,6 +18,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
+import { MovementVars } from "../../movement/MovementVars";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
@@ -39,6 +40,11 @@ export class FreeflyController implements ICameraController {
   // State
   private enabled: boolean = true;
   private isPointerLocked: boolean = false;
+  
+  // Viewport smoothing (separate from physics position)
+  private physicsPosition: Vector3 = Vector3.Zero();
+  private renderPosition: Vector3 = Vector3.Zero();
+  private smoothingInitialized: boolean = false;
 
   // Movement keys state
   private keys = {
@@ -283,6 +289,15 @@ export class FreeflyController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
     
+    // Initialize smoothing on first update
+    if (!this.smoothingInitialized) {
+      this.physicsPosition = this.camera.position.clone();
+      this.renderPosition = this.camera.position.clone();
+      this.smoothingInitialized = true;
+      // Initialize MovementVars
+      MovementVars.getInstance();
+    }
+    
     const speed = (this.config.speed || 200) * deltaTime;
     
     // Get camera directions
@@ -331,6 +346,53 @@ export class FreeflyController implements ICameraController {
         this.camera.position.addInPlace(movement);
       }
     }
+    
+    // Apply viewport smoothing for stairs (Y-axis only)
+    this.applyViewportSmoothing();
+  }
+  
+  /**
+   * Smooth viewport Y position to fix stair jitter
+   * Physics position stays instant/accurate, only render is smoothed
+   */
+  private applyViewportSmoothing(): void {
+    if (!this.camera || !this.smoothingInitialized) return;
+    
+    const mv = MovementVars.getInstance();
+    const smoothEnabled = mv.get('cl_smoothstairs') >= 0.5;
+    
+    if (!smoothEnabled) {
+      // No smoothing - use physics position directly
+      this.physicsPosition.copyFrom(this.camera.position);
+      this.renderPosition.copyFrom(this.camera.position);
+      return;
+    }
+    
+    // Store where physics says we are
+    this.physicsPosition.copyFrom(this.camera.position);
+    
+    // Get smoothing factor from cvars
+    const smoothFactor = mv.get('cl_smoothfactor');
+    const stepHeight = mv.get('sv_stepheight');
+    
+    // Horizontal always matches physics (no smoothing needed)
+    this.renderPosition.x = this.physicsPosition.x;
+    this.renderPosition.z = this.physicsPosition.z;
+    
+    // Vertical: smooth small changes (stairs), snap large changes (falls/teleports)
+    const heightDiff = Math.abs(this.physicsPosition.y - this.renderPosition.y);
+    
+    if (heightDiff > stepHeight * 2) {
+      // Large height change - snap immediately (falling, teleporting)
+      this.renderPosition.y = this.physicsPosition.y;
+    } else {
+      // Small height change - smooth interpolation (stairs)
+      this.renderPosition.y = this.renderPosition.y + 
+        (this.physicsPosition.y - this.renderPosition.y) * smoothFactor;
+    }
+    
+    // Apply smoothed render position to camera
+    this.camera.position.copyFrom(this.renderPosition);
   }
   
   private static _loggedState = false;
