@@ -10,6 +10,13 @@ Complete list of console commands in SHAG Engine.
 | `map list` | List available maps |
 | `map reload` | Reload current map |
 | `map unload` | Unload current map |
+
+## Entities & Models
+
+| Command | Description |
+|---------|-------------|
+| `spawnmodel <path> [x y z]` | Spawn a GLB model |
+| `spawnmodel lighting <id>` | Refresh model lighting |
 | `scene empty` | Create empty scene for testing |
 | `scene clear` | Clear all scene objects |
 | `scene dispose` | Dispose empty scene |
@@ -42,6 +49,8 @@ Complete list of console commands in SHAG Engine.
 | `bsp clear` | Clear rendered BSP |
 | `bsp fog info` | Show fog settings |
 | `bsp sky` | Toggle skybox |
+| `bsp lightgrid` | Show LightGrid info at pos |
+| `bsp debug_grid [clear]` | Visualize LightGrid points |
 | `bsp collision` | Show collision info |
 | `pvs on` | Enable PVS culling |
 | `pvs off` | Disable PVS culling |

@@ -10,7 +10,7 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { BspLoader, type BspFile } from './BspLoader';
+import { BspLoader, type BspFile, type BspLightVol } from './BspLoader';
 import { BspMeshBuilder, type BspMeshBuildResult } from './BspMeshBuilder';
 import { PK3Loader } from '../pk3/PK3Loader';
 
@@ -39,7 +39,7 @@ export class BspManager {
   private meshResult: BspMeshBuildResult | null = null;
   private currentMapName: string | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): BspManager {
     if (!BspManager.instance) {
@@ -225,10 +225,10 @@ export class BspManager {
 
     // If showing details for a specific classname
     if (filter && showDetails) {
-      const matching = this.loadedBsp.entities.filter(e => 
+      const matching = this.loadedBsp.entities.filter(e =>
         e.classname.toLowerCase().includes(filter.toLowerCase())
       );
-      
+
       if (matching.length === 0) {
         return `No entities matching "${filter}"`;
       }
@@ -390,7 +390,7 @@ export class BspManager {
       });
 
       const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(',')})` : '';
-      
+
       return [
         `=== BSP Rendered${filterInfo} ===`,
         `Vertices: ${this.meshResult.stats.totalVertices}`,
@@ -460,6 +460,129 @@ export class BspManager {
       (world.mins[2] + world.maxs[2]) / 2, // Z -> Y
       (world.mins[1] + world.maxs[1]) / 2  // Y -> Z
     );
+  }
+
+  /**
+   * Get lighting information (LightGrid) at a specific Babylon.js position
+   */
+  getLightingAt(position: Vector3): BspLightVol | null {
+    if (!this.loadedBsp || !this.loadedBsp.lightGridOrigin) {
+      return null;
+    }
+
+    const bsp = this.loadedBsp;
+    const origin = bsp.lightGridOrigin!;
+    const size = bsp.lightGridSize!;
+    const step = bsp.lightGridStep!;
+
+    // Convert Babylon (Y-up) to Q3 (Z-up)
+    // Babylon: X, Y, Z -> Q3: X, Z, Y
+    const qx = position.x;
+    const qy = position.z;
+    const qz = position.y;
+
+    // Calculate grid coordinates (floating point)
+    const gx = (qx - origin[0]) / step[0];
+    const gy = (qy - origin[1]) / step[1];
+    const gz = (qz - origin[2]) / step[2];
+
+    // Integer base
+    const x0 = Math.floor(gx);
+    const y0 = Math.floor(gy);
+    const z0 = Math.floor(gz);
+
+    // Fractions
+    const fx = gx - x0;
+    const fy = gy - y0;
+    const fz = gz - z0;
+
+    // Bounds check
+    const nx = size[0];
+    const ny = size[1];
+    const nz = size[2];
+
+    if (x0 < 0 || x0 >= nx - 1 || y0 < 0 || y0 >= ny - 1 || z0 < 0 || z0 >= nz - 1) {
+      // Return nearest if out of interpolation bounds but inside grid
+      // Or just return null if completely outside
+      if (x0 < -1 || x0 >= nx || y0 < -1 || y0 >= ny || z0 < -1 || z0 >= nz) {
+        return null;
+      }
+      // Fallback to nearest for edge cases
+      const ix = Math.max(0, Math.min(nx - 1, Math.round(gx)));
+      const iy = Math.max(0, Math.min(ny - 1, Math.round(gy)));
+      const iz = Math.max(0, Math.min(nz - 1, Math.round(gz)));
+      const idx = ix + (iy * nx) + (iz * nx * ny);
+      return bsp.lightVols[idx];
+    }
+
+    // Helper to get index
+    const getIdx = (x: number, y: number, z: number) => x + (y * nx) + (z * nx * ny);
+
+    // Sample 8 neighbors
+    const c000 = bsp.lightVols[getIdx(x0, y0, z0)];
+    const c100 = bsp.lightVols[getIdx(x0 + 1, y0, z0)];
+    const c010 = bsp.lightVols[getIdx(x0, y0 + 1, z0)];
+    const c110 = bsp.lightVols[getIdx(x0 + 1, y0 + 1, z0)];
+    const c001 = bsp.lightVols[getIdx(x0, y0, z0 + 1)];
+    const c101 = bsp.lightVols[getIdx(x0 + 1, y0, z0 + 1)];
+    const c011 = bsp.lightVols[getIdx(x0, y0 + 1, z0 + 1)];
+    const c111 = bsp.lightVols[getIdx(x0 + 1, y0 + 1, z0 + 1)];
+
+    // Linear interpolation helper
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+    // Interpolate Ambient and Directional Color
+    const interpColor = (c0: number[], c1: number[], t: number) => [
+      lerp(c0[0], c1[0], t),
+      lerp(c0[1], c1[1], t),
+      lerp(c0[2], c1[2], t)
+    ];
+
+    // Trilinear interpolation for Ambient
+    // Lerp X
+    const amb00 = interpColor(c000.ambient, c100.ambient, fx);
+    const amb01 = interpColor(c001.ambient, c101.ambient, fx);
+    const amb10 = interpColor(c010.ambient, c110.ambient, fx);
+    const amb11 = interpColor(c011.ambient, c111.ambient, fx);
+    // Lerp Y
+    const amb0 = interpColor(amb00, amb10, fy);
+    const amb1 = interpColor(amb01, amb11, fy);
+    // Lerp Z
+    const finalAmb = interpColor(amb0, amb1, fz);
+
+    // Trilinear interpolation for Directional Color
+    // Lerp X
+    const dir00 = interpColor(c000.directional, c100.directional, fx);
+    const dir01 = interpColor(c001.directional, c101.directional, fx);
+    const dir10 = interpColor(c010.directional, c110.directional, fx);
+    const dir11 = interpColor(c011.directional, c111.directional, fx);
+    // Lerp Y
+    const dir0 = interpColor(dir00, dir10, fy);
+    const dir1 = interpColor(dir01, dir11, fy);
+    // Lerp Z
+    const finalDirColor = interpColor(dir0, dir1, fz);
+
+    // Direction Vector Interpolation
+    // This is more complex because they are spherical coords (theta, phi)
+    // For simplicity, we'll just pick the nearest neighbor direction or average them roughly
+    // Averaging angles is tricky due to wrap-around, but for small grid steps it might be okay.
+    // Better: Convert to vector, average vectors, convert back.
+
+    // For now, let's use nearest neighbor for DIRECTION VECTOR only, but interpolated INTENSITY (color)
+    // This avoids weird spinning lights between grid points
+    const nearestDir = fx < 0.5 ?
+      (fy < 0.5 ? (fz < 0.5 ? c000.direction : c001.direction) : (fz < 0.5 ? c010.direction : c011.direction)) :
+      (fy < 0.5 ? (fz < 0.5 ? c100.direction : c101.direction) : (fz < 0.5 ? c110.direction : c111.direction));
+
+    // However, if we are in a spot where one neighbor has direction and others don't (0,0),
+    // we should prefer the one that has light.
+    // Let's stick to nearest for now.
+
+    return {
+      ambient: [finalAmb[0], finalAmb[1], finalAmb[2]],
+      directional: [finalDirColor[0], finalDirColor[1], finalDirColor[2]],
+      direction: nearestDir // Keep original byte array format
+    };
   }
 
   // ============================================================================
@@ -558,7 +681,7 @@ export class BspManager {
    */
   async initPVS(): Promise<string | null> {
     console.log(`[PVS] initPVS called: loadedBsp=${!!this.loadedBsp}, meshResult=${!!this.meshResult}`);
-    
+
     if (!this.loadedBsp) {
       return 'No BSP loaded';
     }
@@ -585,7 +708,7 @@ export class BspManager {
     if (!this.loadedBsp) {
       return 'No BSP loaded. Load a map first.';
     }
-    
+
     const error = await this.initPVS();
     if (error || !this.pvsCuller) {
       return error || 'PVS data not available in this map';

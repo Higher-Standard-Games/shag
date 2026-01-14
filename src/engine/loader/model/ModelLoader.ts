@@ -5,11 +5,14 @@ import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3, Matrix } from "@babylonjs/core/Maths/math.vector";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import "@babylonjs/loaders/glTF";
 import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { BspManager } from "../bsp/BspManager";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 
 /**
  * Options for loading a 3D model
@@ -64,6 +67,8 @@ export interface ModelLoadResult {
   animationGroups: AnimationGroup[];
   /** Skeletons from the model (for skinned/rigged meshes) */
   skeletons: Skeleton[];
+  /** Lights created for this model (for cleanup) */
+  lights?: DirectionalLight[];
 }
 
 /**
@@ -76,6 +81,9 @@ export class ModelLoader {
 
   // Cache for loaded model data (for cloning)
   private modelCache: Map<string, { meshes: Mesh[] }> = new Map();
+
+  // Track all created lights for cleanup
+  private createdLights: DirectionalLight[] = [];
 
   private constructor() { }
 
@@ -206,9 +214,11 @@ export class ModelLoader {
         }
       }
 
-      // Capture animation groups and skeletons from the import result
       const animationGroups: AnimationGroup[] = result.animationGroups || [];
       const skeletons: Skeleton[] = result.skeletons || [];
+
+      // Apply BSP LightGrid lighting (Advanced: Ambient + Directional)
+      const lights = this.applyBspLighting(root.position, meshes);
 
       // Debug: Log mesh bounds
       for (const mesh of meshes) {
@@ -226,7 +236,7 @@ export class ModelLoader {
 
       console.log(`Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`);
 
-      return { root, meshes, animationGroups, skeletons };
+      return { root, meshes, animationGroups, skeletons, lights };
     } catch (error) {
       console.error(`Failed to load model: ${modelPath}`, error);
       return null;
@@ -468,9 +478,151 @@ export class ModelLoader {
   }
 
   /**
+   * Apply lighting from BSP LightGrid to meshes
+   * Creates a DirectionalLight that only affects these meshes
+   */
+  private applyBspLighting(position: Vector3, meshes: Mesh[]): DirectionalLight[] {
+    try {
+      const bsp = BspManager.getInstance();
+      if (!bsp || !bsp.isLoaded()) return [];
+
+      const lighting = bsp.getLightingAt(position);
+      if (!lighting) {
+        // Fallback lighting for maps without LightGrid or unsupported formats (FBSP)
+        console.log('[ModelLoader] No BSP lighting data. Using fallback.');
+
+        // 1. Ambient Fallback
+        const ambient = new Color3(0.3, 0.3, 0.3);
+
+        for (const mesh of meshes) {
+          if (mesh.material) {
+            const mat = mesh.material;
+            const wasFrozen = mat.isFrozen;
+            if (wasFrozen) mat.unfreeze();
+            if (mat instanceof PBRMaterial) {
+              mat.ambientColor = ambient;
+              mat.ambientTextureStrength = 1.0;
+            } else if (mat instanceof StandardMaterial) {
+              mat.ambientColor = ambient;
+            }
+            if (wasFrozen) mat.freeze();
+          }
+        }
+
+        // 2. Directional Fallback (Generic Sun)
+        // Downwards and slightly angled
+        const lightDir = new Vector3(0.5, -1, 0.5).normalize();
+        const lightName = `model_light_fallback_${Date.now()}_${Math.random()}`;
+        const light = new DirectionalLight(lightName, lightDir, this.scene!);
+
+        const dirColor = new Color3(0.8, 0.8, 0.75); // Warm sunlight
+        light.diffuse = dirColor;
+        light.specular = dirColor.scale(0.3);
+        light.includedOnlyMeshes = meshes;
+
+        this.createdLights.push(light);
+        return [light];
+      }
+
+      // 1. Ambient Component
+      // Convert 0-255 ambient to 0-1 Color3
+      // We use a decent intensity for ambient to ensure visibility
+      // Updated: Reduce ambient to allow more contrast with directional
+      const ambientIntensity = 0.3;
+
+      // Gamma correction function (approximate sRGB/Monitor gamma)
+      const toLinear = (v: number) => Math.pow(v / 255, 2.2);
+
+      const ambient = new Color3(
+        toLinear(lighting.ambient[0]) * ambientIntensity,
+        toLinear(lighting.ambient[1]) * ambientIntensity,
+        toLinear(lighting.ambient[2]) * ambientIntensity
+      );
+
+      // Apply ambient to materials
+      for (const mesh of meshes) {
+        if (mesh.material) {
+          const mat = mesh.material;
+          const wasFrozen = mat.isFrozen;
+          if (wasFrozen) mat.unfreeze();
+
+          if (mat instanceof PBRMaterial) {
+            // PBR uses reflectionColor for environment lighting, or we can use ambientColor if unlit
+            mat.ambientColor = ambient;
+            // Ensure ambient texture isn't overpowering
+            mat.ambientTextureStrength = 1.0;
+          } else if (mat instanceof StandardMaterial) {
+            mat.ambientColor = ambient;
+          }
+
+          if (wasFrozen) mat.freeze();
+        }
+      }
+
+      // 2. Directional Component
+      // Decode direction from Q3 format (byte, byte) -> (phi, theta) mapped to sphere
+      // Lat/Long mapping:
+      // theta (byte[0]) maps 0..255 to 0..360 degrees
+      // phi (byte[1]) maps 0..255 to 0..180 degrees
+      const theta = (lighting.direction[0] / 255) * 360 * (Math.PI / 180);
+      const phi = (lighting.direction[1] / 255) * 180 * (Math.PI / 180);
+
+      // Convert spherical to cartesian
+      // Q3 Z-up to Babylon Y-up conversion happens here
+      // Q3: x = cos(theta)sin(phi), y = sin(theta)sin(phi), z = cos(phi)
+      // Babylon (Swap Y/Z): x=x, y=z, z=y
+      const sinPhi = Math.sin(phi);
+      const qx = Math.cos(theta) * sinPhi;
+      const qy = Math.sin(theta) * sinPhi;
+      const qz = Math.cos(phi);
+
+      // Direction vector (Babylon coords: X, Z, Y)
+      // Q3 Grid direction points TOWARDS the light source.
+      // Babylon DirectionalLight expects direction the rays TRAVEL.
+      // So we must negate the vector.
+      const lightDir = new Vector3(qx, qz, qy).scale(-1);
+
+      // Create DirectionalLight
+      const lightName = `model_light_${Date.now()}_${Math.random()}`;
+      const light = new DirectionalLight(lightName, lightDir, this.scene!);
+
+      // Calculate directional color
+      // Updated: Boost directional intensity to make lit side pop
+      const dirIntensity = 2.0;
+      const dirColor = new Color3(
+        toLinear(lighting.directional[0]) * dirIntensity,
+        toLinear(lighting.directional[1]) * dirIntensity,
+        toLinear(lighting.directional[2]) * dirIntensity
+      );
+
+      light.diffuse = dirColor;
+      light.specular = dirColor.scale(0.2); // Reduce specular to avoid blazingly bright spots
+
+      // IMPORTANT: Scope this light to ONLY these model meshes
+      light.includedOnlyMeshes = meshes;
+
+      // Keep track for cleanup
+      this.createdLights.push(light);
+
+      console.log(`[ModelLoader] Applied BSP lighting: Amb=${ambient.toString()} Dir=${lightDir.toString()} Color=${dirColor.toString()}`);
+
+      return [light];
+    } catch (e) {
+      console.warn('[ModelLoader] Failed to apply BSP lighting:', e);
+      return [];
+    }
+  }
+
+  /**
    * Dispose and cleanup
    */
   public dispose(): void {
+    // Clean up all created lights from loaded models
+    for (const light of this.createdLights) {
+      light.dispose();
+    }
+    this.createdLights = [];
+
     this.clearCache();
     this.scene = null;
   }

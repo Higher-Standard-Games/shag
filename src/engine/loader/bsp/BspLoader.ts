@@ -140,7 +140,7 @@ export interface BspVertexFBSP {
   lightmapCoords: [[number, number], [number, number], [number, number], [number, number]];
   normal: [number, number, number];
   colors: [[number, number, number, number], [number, number, number, number],
-           [number, number, number, number], [number, number, number, number]];
+    [number, number, number, number], [number, number, number, number]];
 }
 
 export type BspVertex = BspVertexIBSP | BspVertexFBSP;
@@ -216,6 +216,11 @@ export interface BspFile {
 
   // Metadata
   lightmapSize: number;     // 128 for IBSP, 512 for FBSP
+
+  // LightGrid Metadata (for model lighting)
+  lightGridOrigin?: [number, number, number];
+  lightGridSize?: [number, number, number];
+  lightGridStep?: [number, number, number];
 }
 
 // ============================================================================
@@ -259,27 +264,146 @@ export class BspLoader {
 
     const lightmapSize = header.isFBSP ? FBSP_LIGHTMAP_SIZE : IBSP_LIGHTMAP_SIZE;
 
+    // Parse all lumps into local variables
+    const entities = this.parseEntities();
+    const textures = this.parseTextures();
+    const planes = this.parsePlanes();
+    const nodes = this.parseNodes();
+    const leafs = this.parseLeafs();
+    const leafFaces = this.parseLeafFaces();
+    const leafBrushes = this.parseLeafBrushes();
+    const models = this.parseModels();
+    const brushes = this.parseBrushes();
+    const brushSides = this.parseBrushSides();
+    const vertices = this.parseVertices();
+    const meshVerts = this.parseMeshVerts();
+    const effects = this.parseEffects();
+    const faces = this.parseFaces();
+    const lightmaps = this.parseLightmaps(lightmapSize);
+    const lightVols = this.parseLightVols();
+    const visData = this.parseVisData();
+
+    // Calculate Grid parameters
+    const { lightGridOrigin, lightGridSize, lightGridStep } = this.calculateLightGrid(entities, models, lightVols.length);
+
     return {
       header,
       lumps: this.lumps,
-      entities: this.parseEntities(),
-      textures: this.parseTextures(),
-      planes: this.parsePlanes(),
-      nodes: this.parseNodes(),
-      leafs: this.parseLeafs(),
-      leafFaces: this.parseLeafFaces(),
-      leafBrushes: this.parseLeafBrushes(),
-      models: this.parseModels(),
-      brushes: this.parseBrushes(),
-      brushSides: this.parseBrushSides(),
-      vertices: this.parseVertices(),
-      meshVerts: this.parseMeshVerts(),
-      effects: this.parseEffects(),
-      faces: this.parseFaces(),
-      lightmaps: this.parseLightmaps(lightmapSize),
-      lightVols: this.parseLightVols(),
-      visData: this.parseVisData(),
+      entities,
+      textures,
+      planes,
+      nodes,
+      leafs,
+      leafFaces,
+      leafBrushes,
+      models,
+      brushes,
+      brushSides,
+      vertices,
+      meshVerts,
+      effects,
+      faces,
+      lightmaps,
+      lightVols,
+      visData,
       lightmapSize,
+      lightGridOrigin,
+      lightGridSize,
+      lightGridStep
+    };
+  }
+
+  private calculateLightGrid(entities: BspEntity[], models: BspModel[], lightVolCount: number): Partial<BspFile> {
+    const worldModel = models[0];
+    if (!worldModel) return {};
+
+    const worldspawn = entities.find(e => e.classname === 'worldspawn');
+
+    // Default gridsize for Quake 3 is 64 64 128
+    let gridsize: [number, number, number] = [64, 64, 128];
+    if (worldspawn?.properties.gridsize) {
+      const parts = worldspawn.properties.gridsize.split(/\s+/).map(parseFloat);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        gridsize = [parts[0], parts[1], parts[2]];
+      }
+    }
+
+    // Calculate grid dimensions
+    // Lightgrid origin is the mins of the world model rounded down to gridsize
+    const origin: [number, number, number] = [
+      Math.floor(worldModel.mins[0] / gridsize[0]) * gridsize[0],
+      Math.floor(worldModel.mins[1] / gridsize[1]) * gridsize[1],
+      Math.floor(worldModel.mins[2] / gridsize[2]) * gridsize[2],
+    ];
+
+    const maxs: [number, number, number] = [
+      Math.ceil(worldModel.maxs[0] / gridsize[0]) * gridsize[0],
+      Math.ceil(worldModel.maxs[1] / gridsize[1]) * gridsize[1],
+      Math.ceil(worldModel.maxs[2] / gridsize[2]) * gridsize[2],
+    ];
+
+    // Base float dimensions
+    const baseSize: [number, number, number] = [
+      (maxs[0] - origin[0]) / gridsize[0],
+      (maxs[1] - origin[1]) / gridsize[1],
+      (maxs[2] - origin[2]) / gridsize[2],
+    ];
+
+    // Try to find integer dimensions that match the actual volume count
+    // Compilers might use floor, ceil, or adds +1 differently.
+    // We search small variations around the base size.
+    let bestSize: [number, number, number] | null = null;
+    const candidates = [-1, 0, 1]; // variance from floor(base)+1
+
+    // Naive guess (standard Q3)
+    const naive: [number, number, number] = [
+      Math.floor(baseSize[0]) + 1,
+      Math.floor(baseSize[1]) + 1,
+      Math.floor(baseSize[2]) + 1
+    ];
+
+    if (naive[0] * naive[1] * naive[2] === lightVolCount) {
+      bestSize = naive;
+    } else {
+      // Extensive search
+      searchLoop:
+      for (const dz of candidates) {
+        for (const dy of candidates) {
+          for (const dx of candidates) {
+            const sx = Math.max(1, naive[0] + dx);
+            const sy = Math.max(1, naive[1] + dy);
+            const sz = Math.max(1, naive[2] + dz);
+
+            if (sx * sy * sz === lightVolCount) {
+              bestSize = [sx, sy, sz];
+              console.log(`[BspLoader] Auto-corrected LightGrid size to: ${sx}x${sy}x${sz} (Diff: ${dx},${dy},${dz})`);
+              break searchLoop;
+            }
+          }
+        }
+      }
+    }
+
+    const size: [number, number, number] = [
+      Math.floor(baseSize[0]) + 1,
+      Math.floor(baseSize[1]) + 1,
+      Math.ceil(lightVolCount / ((Math.floor(baseSize[0]) + 1) * (Math.floor(baseSize[1]) + 1)))
+    ];
+
+    const predictedCount = size[0] * size[1] * size[2];
+    const actualCount = lightVolCount;
+
+    console.log(`[BspLoader] LightGrid: origin=(${origin.join(',')}) size=(${size.join(',')}) step=(${gridsize.join(',')})`);
+    console.log(`[BspLoader] LightGrid Counts: Predicted=${predictedCount}, Actual=${actualCount}`);
+
+    if (predictedCount !== actualCount) {
+      console.warn(`[BspLoader] LightGrid dimension mismatch! The map bounds imply ${predictedCount} vols, but lump has ${actualCount}. Lighting will be aligned incorrectly.`);
+    }
+
+    return {
+      lightGridOrigin: origin,
+      lightGridSize: size,
+      lightGridStep: gridsize,
     };
   }
 
@@ -670,16 +794,16 @@ export class BspLoader {
 
       // 4 colors (16 bytes)
       const colors: [[number, number, number, number], [number, number, number, number],
-                     [number, number, number, number], [number, number, number, number]] = [
-        [lump.data.getUint8(offset + 64), lump.data.getUint8(offset + 65),
-         lump.data.getUint8(offset + 66), lump.data.getUint8(offset + 67)],
-        [lump.data.getUint8(offset + 68), lump.data.getUint8(offset + 69),
-         lump.data.getUint8(offset + 70), lump.data.getUint8(offset + 71)],
-        [lump.data.getUint8(offset + 72), lump.data.getUint8(offset + 73),
-         lump.data.getUint8(offset + 74), lump.data.getUint8(offset + 75)],
-        [lump.data.getUint8(offset + 76), lump.data.getUint8(offset + 77),
-         lump.data.getUint8(offset + 78), lump.data.getUint8(offset + 79)],
-      ];
+        [number, number, number, number], [number, number, number, number]] = [
+          [lump.data.getUint8(offset + 64), lump.data.getUint8(offset + 65),
+          lump.data.getUint8(offset + 66), lump.data.getUint8(offset + 67)],
+          [lump.data.getUint8(offset + 68), lump.data.getUint8(offset + 69),
+          lump.data.getUint8(offset + 70), lump.data.getUint8(offset + 71)],
+          [lump.data.getUint8(offset + 72), lump.data.getUint8(offset + 73),
+          lump.data.getUint8(offset + 74), lump.data.getUint8(offset + 75)],
+          [lump.data.getUint8(offset + 76), lump.data.getUint8(offset + 77),
+          lump.data.getUint8(offset + 78), lump.data.getUint8(offset + 79)],
+        ];
 
       vertices.push({ position, texCoord, lightmapCoords, normal, colors });
     }
@@ -881,6 +1005,7 @@ export class BspLoader {
 
   private parseLightVols(): BspLightVol[] {
     const lump = this.getLump(LumpIndex.LIGHTVOLS);
+
     const LIGHTVOL_SIZE = 8;
     const count = Math.floor(lump.length / LIGHTVOL_SIZE);
     const lightVols: BspLightVol[] = [];
@@ -962,8 +1087,8 @@ export function findLeafForPoint(
 
     // Calculate distance from point to plane
     const dist = plane.normal[0] * point[0] +
-                 plane.normal[1] * point[1] +
-                 plane.normal[2] * point[2] - plane.dist;
+      plane.normal[1] * point[1] +
+      plane.normal[2] * point[2] - plane.dist;
 
     // Choose child based on which side of plane
     nodeIndex = dist >= 0 ? node.children[0] : node.children[1];
@@ -987,13 +1112,13 @@ export function getBspTextureNames(bsp: BspFile): string[] {
  */
 export function getBspUsedTextures(bsp: BspFile): string[] {
   const usedIndices = new Set<number>();
-  
+
   for (const face of bsp.faces) {
     if (face.textureIndex >= 0 && face.textureIndex < bsp.textures.length) {
       usedIndices.add(face.textureIndex);
     }
   }
-  
+
   return Array.from(usedIndices)
     .map(idx => bsp.textures[idx].name)
     .filter(name => !name.toLowerCase().includes('common/'));

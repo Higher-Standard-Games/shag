@@ -10,6 +10,10 @@
  */
 
 import { Command, CommandDef } from '../Command';
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 export class BspCommand extends Command {
   readonly definition: CommandDef = {
@@ -474,6 +478,82 @@ export class BspCommand extends Command {
         }
 
         return 'Collision subcommands: point';
+      }
+
+      case 'lightgrid': {
+        if (!manager.isLoaded()) return 'No BSP loaded';
+        if (!scene?.activeCamera) return 'No active camera';
+
+        const pos = scene.activeCamera.globalPosition;
+        const lighting = manager.getLightingAt(pos);
+
+        if (!lighting) {
+          return `No lighting data at ${pos.toString()}`;
+        }
+
+        const amb = lighting.ambient;
+        const dir = lighting.directional;
+
+        return [
+          `Position: ${pos.toString()}`,
+          `Grid Index: [Calculated internally]`,
+          `Ambient: [${amb[0].toFixed(1)}, ${amb[1].toFixed(1)}, ${amb[2].toFixed(1)}]`,
+          `Directional: [${dir[0].toFixed(1)}, ${dir[1].toFixed(1)}, ${dir[2].toFixed(1)}]`,
+          `Direction: [${lighting.direction[0]}, ${lighting.direction[1]}]`
+        ].join('\n');
+      }
+
+      case 'debug_grid': {
+        if (!manager.isLoaded()) return 'No BSP loaded';
+        if (!scene?.activeCamera) return 'No active camera';
+
+        const range = 2; // +/- grid points to show
+        const spacing = 64; // Approximate step size (visual only)
+
+        const center = scene.activeCamera.globalPosition;
+        const spheres = [];
+        let count = 0;
+
+        // Clear existing debug spheres
+        const existing = scene.getMeshesByTags("debug_lightgrid");
+        for (const m of existing) m.dispose();
+
+        if (args[1] === 'clear') return 'Cleared debug grid';
+
+        for (let x = -range; x <= range; x++) {
+          for (let y = -range; y <= range; y++) {
+            for (let z = -range; z <= range; z++) {
+              const pos = center.add(new Vector3(x * spacing, y * spacing, z * spacing));
+              const lighting = manager.getLightingAt(pos);
+
+              if (lighting) {
+                const sphere = MeshBuilder.CreateSphere(`lg_debug_${x}_${y}_${z}`, { diameter: 10 }, scene);
+                sphere.position = pos;
+
+                const mat = new StandardMaterial(`lg_mat_${x}_${y}_${z}`, scene);
+                // Simple visualization: Emissive = Ambient
+                mat.emissiveColor = new Color3(
+                  Math.pow(lighting.ambient[0] / 255, 2.2),
+                  Math.pow(lighting.ambient[1] / 255, 2.2),
+                  Math.pow(lighting.ambient[2] / 255, 2.2)
+                );
+                mat.disableLighting = true;
+                sphere.material = mat;
+                MeshBuilder.CreateLines(`lg_line_${x}_${y}_${z}`, {
+                  points: [pos, pos.add(new Vector3(0, 10, 0))]
+                }, scene);
+
+                sphere.metadata = { mapOwned: true }; // Cleanup with map
+                (sphere as any).tags = "debug_lightgrid"; // For clearing
+
+                count++;
+                spheres.push(sphere);
+              }
+            }
+          }
+        }
+
+        return `Spawned ${count} debug spheres around player. Use 'bsp debug_grid clear' to remove.`;
       }
 
       case 'unload':
