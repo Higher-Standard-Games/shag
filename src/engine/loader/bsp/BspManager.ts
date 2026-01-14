@@ -451,22 +451,36 @@ export class BspManager {
    * @param intensity 0.0-1.0 (or higher for overbright)
    */
   setLightmapIntensity(intensity: number): void {
-    if (!this.meshResult?.worldMesh) return;
+    if (!this.meshResult?.worldMesh) {
+      console.log('[BspManager] setLightmapIntensity: No worldMesh');
+      return;
+    }
 
     const mesh = this.meshResult.worldMesh;
     const mat = mesh.material;
-    if (!mat) return;
+    if (!mat) {
+      console.log('[BspManager] setLightmapIntensity: No material');
+      return;
+    }
+
+    let count = 0;
 
     // Handle multi-material case
     if ('subMaterials' in mat && Array.isArray((mat as any).subMaterials)) {
       for (const subMat of (mat as any).subMaterials) {
         if (subMat?.lightmapTexture) {
           subMat.lightmapTexture.level = intensity;
+          count++;
         }
       }
     } else if ((mat as any).lightmapTexture) {
       // Single material with lightmap
       (mat as any).lightmapTexture.level = intensity;
+      count++;
+    }
+
+    if (count > 0) {
+      console.log(`[BspManager] setLightmapIntensity: ${intensity.toFixed(3)} applied to ${count} materials`);
     }
   }
 

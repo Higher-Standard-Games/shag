@@ -21,6 +21,8 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 import { Cvar } from "../core/Cvar";
+import { BspManager } from "../loader/bsp/BspManager";
+import { CameraSystem } from "../camera/CameraSystem";
 
 // ==================== Types ====================
 
@@ -511,11 +513,15 @@ export class SkyLightSystem {
     }
     this.lastCvarTime = normalizedTime;
 
-    // Convert normalized time to TimeOfDay and update lighting
-    const timeOfDay = this.normalizedToTimeOfDay(normalizedTime);
-    this.updateLighting(timeOfDay);
+    console.log(`[SkyLightSystem] update: time=${normalizedTime.toFixed(3)}, scene=${!!this.scene}, sunLight=${!!this.sunLight}`);
 
-    // Apply BSP-specific effects
+    // Convert normalized time to TimeOfDay and update lighting (only if initialized)
+    if (this.isInitialized()) {
+      const timeOfDay = this.normalizedToTimeOfDay(normalizedTime);
+      this.updateLighting(timeOfDay);
+    }
+
+    // Apply BSP-specific effects (works without sun lights)
     this.updateBspLightmaps(normalizedTime);
     this.updateSkyboxTint(normalizedTime);
   }
@@ -580,15 +586,12 @@ export class SkyLightSystem {
 
     // Apply to BspManager if available
     try {
-      // Dynamic import to avoid circular dependency
-      import('../loader/bsp/BspManager').then(({ BspManager }) => {
-        const bsp = BspManager.getInstance();
-        if (bsp.isLoaded() && typeof (bsp as any).setLightmapIntensity === 'function') {
-          (bsp as any).setLightmapIntensity(lmIntensity);
-        }
-      });
-    } catch {
-      // BspManager not available
+      const bsp = BspManager.getInstance();
+      if (bsp.isLoaded()) {
+        bsp.setLightmapIntensity(lmIntensity);
+      }
+    } catch (e) {
+      // BspManager not available - this is fine for .map mode
     }
   }
 
@@ -596,17 +599,26 @@ export class SkyLightSystem {
    * Update skybox tint based on time of day
    */
   private updateSkyboxTint(normalizedTime: number): void {
-    if (!this.scene) return;
-
     const skyTintEnabled = Number(Cvar.get('r_daynight_sky_tint') ?? 1);
     if (skyTintEnabled < 0.5) return;
+
+    // Get scene - try this.scene first, then fallback to getting from camera
+    let scene = this.scene;
+    if (!scene) {
+      try {
+        scene = CameraSystem.getInstance().getCamera()?.getScene() ?? null;
+      } catch {
+        return;
+      }
+    }
+    if (!scene) return;
 
     // Calculate tint intensity (darker at night)
     const sunFactor = Math.sin(normalizedTime * Math.PI);
     const tintIntensity = 0.1 + Math.max(0, sunFactor) * 0.9; // Never fully black
 
     // Find skybox mesh
-    const skybox = this.scene.getMeshByName('skyBox') || this.scene.getMeshByName('skybox');
+    const skybox = scene.getMeshByName('skyBox') || scene.getMeshByName('skybox');
     if (!skybox || !skybox.material) return;
 
     const mat = skybox.material;
