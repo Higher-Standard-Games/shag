@@ -147,6 +147,14 @@ export default class MapCommand extends Command {
     });
 
     if (result.success) {
+      // Load day/night settings from worldspawn for BSP maps
+      if (result.mapType === 'bsp') {
+        const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+        const sky = SkyLightSystem.getInstance();
+        sky.resetWorldspawn(); // Reset for new map
+        sky.loadFromWorldspawn(); // Load settings from worldspawn
+      }
+
       // Auto-spawn camera at first spawn point for BSP maps
       let spawnStatus = '';
       if (result.mapType === 'bsp' && result.bsp) {

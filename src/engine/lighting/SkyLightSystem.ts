@@ -478,6 +478,7 @@ export class SkyLightSystem {
   private _bspAnimating: boolean = false;
   private _bspCycleLength: number = 10; // Full cycle in minutes (default 10 min)
   private _lastStreetLampState: boolean = false;
+  private _worldspawnLoaded: boolean = false; // Track if settings loaded from worldspawn
 
   /**
    * Enable/disable BSP day/night cycle
@@ -525,6 +526,90 @@ export class SkyLightSystem {
    */
   public getBspCycleLength(): number {
     return this._bspCycleLength;
+  }
+
+  /**
+   * Load day/night settings from BSP worldspawn entity
+   * Only loads once per map - subsequent calls are ignored unless reset
+   * 
+   * Supported worldspawn keys:
+   *   daynight_enabled: "1" or "0"
+   *   daynight_time: "0.0" to "1.0" (0=midnight, 0.5=noon)
+   *   daynight_cycle: minutes for full cycle
+   *   daynight_animate: "1" to auto-start animation
+   */
+  public loadFromWorldspawn(): boolean {
+    // Skip if already loaded from worldspawn
+    if (this._worldspawnLoaded) {
+      return false;
+    }
+
+    try {
+      const bsp = BspManager.getInstance();
+      if (!bsp.isLoaded()) return false;
+
+      let loaded = false;
+
+      // Check for daynight_enabled
+      const enabled = bsp.getWorldspawnProperty('daynight_enabled');
+      if (enabled === '1') {
+        this._bspDayNightEnabled = true;
+        loaded = true;
+      }
+
+      // Check for daynight_time (starting time)
+      const time = bsp.getWorldspawnProperty('daynight_time');
+      if (time) {
+        const t = parseFloat(time);
+        if (!isNaN(t)) {
+          this._bspTimeOfDay = Math.max(0, Math.min(1, t));
+          loaded = true;
+        }
+      }
+
+      // Check for daynight_cycle (cycle length in minutes)
+      const cycle = bsp.getWorldspawnProperty('daynight_cycle');
+      if (cycle) {
+        const c = parseFloat(cycle);
+        if (!isNaN(c) && c > 0) {
+          this._bspCycleLength = c;
+          loaded = true;
+        }
+      }
+
+      // Check for daynight_animate (auto-start animation)
+      const animate = bsp.getWorldspawnProperty('daynight_animate');
+      if (animate === '1') {
+        this._bspAnimating = true;
+        loaded = true;
+      }
+
+      if (loaded) {
+        this._worldspawnLoaded = true;
+        console.log(`[SkyLightSystem] Loaded day/night from worldspawn: enabled=${this._bspDayNightEnabled}, time=${this._bspTimeOfDay}, cycle=${this._bspCycleLength}min, animate=${this._bspAnimating}`);
+        if (this._bspDayNightEnabled) {
+          this.applyBspLightmaps();
+        }
+      }
+
+      return loaded;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Reset worldspawn loaded flag (call when loading new map)
+   */
+  public resetWorldspawn(): void {
+    this._worldspawnLoaded = false;
+  }
+
+  /**
+   * Check if settings were loaded from worldspawn
+   */
+  public isWorldspawnLoaded(): boolean {
+    return this._worldspawnLoaded;
   }
 
   /**

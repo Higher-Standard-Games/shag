@@ -317,6 +317,15 @@ export class BspManager {
     return lines.join('\n');
   }
 
+  /**
+   * Get a specific worldspawn property value
+   */
+  getWorldspawnProperty(key: string): string | undefined {
+    if (!this.loadedBsp) return undefined;
+    const worldspawn = this.loadedBsp.entities.find(e => e.classname === 'worldspawn');
+    return worldspawn?.properties[key];
+  }
+
   getClusterInfo(): string {
     if (!this.loadedBsp) {
       return 'No BSP loaded';
