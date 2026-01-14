@@ -471,17 +471,85 @@ export class SkyLightSystem {
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
   }
 
-  // ==================== CVar-Driven Day/Night for BSP ====================
+  // ==================== BSP Day/Night (Direct API) ====================
 
-  private lastCvarTime: number = -1;
-  private _lastLmDebug: number = 0;
+  private _bspTimeOfDay: number = 0.5; // 0=midnight, 0.5=noon, 1=midnight
+  private _bspDayNightEnabled: boolean = false;
+  private _bspAnimating: boolean = false;
 
   /**
-   * Update day/night cycle from cvars (call every frame)
+   * Enable/disable BSP day/night cycle
+   */
+  public setBspDayNightEnabled(enabled: boolean): void {
+    this._bspDayNightEnabled = enabled;
+    if (enabled) {
+      this.applyBspLightmaps();
+    }
+  }
+
+  /**
+   * Set BSP time of day directly (0=midnight, 0.5=noon, 1=midnight)
+   */
+  public setBspTimeOfDay(time: number): void {
+    this._bspTimeOfDay = Math.max(0, Math.min(1, time));
+    if (this._bspDayNightEnabled) {
+      this.applyBspLightmaps();
+    }
+  }
+
+  /**
+   * Get current BSP time of day
+   */
+  public getBspTimeOfDay(): number {
+    return this._bspTimeOfDay;
+  }
+
+  /**
+   * Start/stop BSP day/night animation
+   */
+  public setBspAnimating(animating: boolean): void {
+    this._bspAnimating = animating;
+  }
+
+  /**
+   * Apply lightmap intensity based on current time
+   */
+  private applyBspLightmaps(): void {
+    const sunFactor = Math.sin(this._bspTimeOfDay * Math.PI);
+    const clampedSun = Math.max(0, sunFactor);
+    
+    // min=0.1 at midnight, max=1.5 at noon
+    const lmIntensity = 0.1 + 1.4 * clampedSun;
+    
+    try {
+      const bsp = BspManager.getInstance();
+      if (bsp.isLoaded()) {
+        bsp.setLightmapIntensity(lmIntensity);
+        console.log(`[SkyLightSystem] BSP lightmap: time=${this._bspTimeOfDay.toFixed(2)}, intensity=${lmIntensity.toFixed(2)}`);
+      }
+    } catch {
+      // BspManager not available
+    }
+  }
+
+  // ==================== CVar-Driven Day/Night ====================
+
+  private lastCvarTime: number = -1;
+
+  /**
+   * Update day/night cycle (call every frame)
    * @param deltaTime Time since last frame in milliseconds
    */
   public update(deltaTime: number): void {
-    // Check if day/night system is enabled via cvar
+    // Handle BSP animation
+    if (this._bspDayNightEnabled && this._bspAnimating) {
+      // Animate: full cycle in 60 seconds
+      this._bspTimeOfDay += deltaTime / 60000;
+      if (this._bspTimeOfDay > 1) this._bspTimeOfDay -= 1;
+      this.applyBspLightmaps();
+    }
+
+    // Check if cvar-driven day/night system is enabled
     const enabled = Number(Cvar.get('r_daynight') ?? 0);
     
     if (enabled < 0.5) {
@@ -575,20 +643,12 @@ export class SkyLightSystem {
     const sunFactor = Math.sin(normalizedTime * Math.PI);
     const clampedSun = Math.max(0, sunFactor);
 
-    // Get min/max from cvars (use hardcoded defaults if cvars not available)
-    const lmMinRaw = Cvar.get('r_daynight_lm_min');
-    const lmMaxRaw = Cvar.get('r_daynight_lm_max');
-    const lmMin = typeof lmMinRaw === 'number' ? lmMinRaw : 0.05;
-    const lmMax = typeof lmMaxRaw === 'number' ? lmMaxRaw : 1.0;
+    // Hardcoded min/max for now (cvars not working in empty scene context)
+    const lmMin = 0.1;  // Never fully dark
+    const lmMax = 1.5;  // Allow slight overbright at noon
     
     // Interpolate lightmap intensity
     const lmIntensity = lmMin + (lmMax - lmMin) * clampedSun;
-    
-    // Debug: log values once when they change significantly
-    if (!this._lastLmDebug || Math.abs(lmIntensity - this._lastLmDebug) > 0.01) {
-      console.log(`[SkyLightSystem] time=${normalizedTime.toFixed(2)}, sun=${clampedSun.toFixed(2)}, min=${lmMin}, max=${lmMax}, intensity=${lmIntensity.toFixed(2)}`);
-      this._lastLmDebug = lmIntensity;
-    }
 
     // Apply to BspManager if available
     try {
