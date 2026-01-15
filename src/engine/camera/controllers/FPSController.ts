@@ -26,6 +26,18 @@ import { Cvar } from "../../core/Cvar";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { MovementVars } from "../../movement/MovementVars";
 
+// Viewport effects system imports
+import {
+  ViewportEffectsManager,
+  FPSApplicator,
+  WalkBobEffect,
+  LandingImpactEffect,
+  StrafeLeanEffect,
+  SpeedFOVEffect,
+  IdleBreathingEffect,
+  type PlayerState,
+} from "../../viewport";
+
 export class FPSController implements ICameraController {
   readonly type = "fps";
 
@@ -47,14 +59,27 @@ export class FPSController implements ICameraController {
   // @ts-ignore - kept for future use
   private origin: Vector3 = Vector3.Zero();
 
-  // Physics Y position (before smoothing) - MUST be kept separate from camera.position.y
+  // Physics position (before viewport effects) - MUST be kept separate from camera.position
+  // Viewport effects modify camera.position for visuals, but physics uses these values
+  private physicsX: number = 0;
   private physicsY: number = 0;
+  private physicsZ: number = 0;
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
   private smoothingInitialized: boolean = false;
   // Jump state for auto-bunny hop
   private jumpConsumed: boolean = false;
   private wasGroundedLastFrame: boolean = false;
+
+  // Viewport effects system
+  private viewportEffectsManager: ViewportEffectsManager | null = null;
+  private viewportApplicator: FPSApplicator | null = null;
+  private baseFOV: number = 1.0;
+  private landingVelocityCapture: number = 0;
+
+  // Mouse-controlled rotation (stored separately to avoid effect accumulation)
+  private mouseRotationX: number = 0;  // Pitch
+  private mouseRotationY: number = 0;  // Yaw
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -177,6 +202,21 @@ export class FPSController implements ICameraController {
       this.update(deltaTime);
     });
 
+    // === INITIALIZE VIEWPORT EFFECTS ===
+    this.baseFOV = this.config.fov || 1.0;
+    this.viewportEffectsManager = ViewportEffectsManager.getInstance();
+    this.viewportEffectsManager.init();
+
+    // Register all movement-based effects
+    this.viewportEffectsManager.registerEffect(new WalkBobEffect());
+    this.viewportEffectsManager.registerEffect(new LandingImpactEffect());
+    this.viewportEffectsManager.registerEffect(new StrafeLeanEffect());
+    this.viewportEffectsManager.registerEffect(new SpeedFOVEffect());
+    this.viewportEffectsManager.registerEffect(new IdleBreathingEffect());
+
+    this.viewportApplicator = new FPSApplicator();
+    console.log('[FPSController] Viewport effects initialized');
+
     console.log("[FPSController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
@@ -221,15 +261,19 @@ export class FPSController implements ICameraController {
       const invertYCvar = Cvar.getBool('m_invertY');
       const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
 
-      // Apply freelook
-      this.camera.rotation.y += e.movementX * sensitivity;
-      this.camera.rotation.x += e.movementY * sensitivity * invertY;
+      // Update mouse-controlled rotation (stored separately from camera)
+      this.mouseRotationY += e.movementX * sensitivity;
+      this.mouseRotationX += e.movementY * sensitivity * invertY;
 
       // Clamp vertical rotation
-      this.camera.rotation.x = Math.max(
+      this.mouseRotationX = Math.max(
         -Math.PI / 2 + 0.1,
-        Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x)
+        Math.min(Math.PI / 2 - 0.1, this.mouseRotationX)
       );
+
+      // Apply to camera (will be reset before effects each frame)
+      this.camera.rotation.y = this.mouseRotationY;
+      this.camera.rotation.x = this.mouseRotationX;
     };
 
     // Keyboard input
@@ -324,16 +368,21 @@ export class FPSController implements ICameraController {
 
     const cm = getCollisionManager();
 
-    // Initialize smoothing on first frame (same pattern as FreeflyController)
+    // Initialize physics position on first frame
     if (!this.smoothingInitialized) {
+      this.physicsX = this.camera.position.x;
       this.physicsY = this.camera.position.y;
+      this.physicsZ = this.camera.position.z;
       this.smoothedY = this.camera.position.y;
       this.smoothingInitialized = true;
       console.log(`[FPS] Initialized at: (${this.camera.position.x.toFixed(1)}, ${this.camera.position.y.toFixed(1)}, ${this.camera.position.z.toFixed(1)})`);
     }
 
-    // CRITICAL: Restore physics Y before collision (not smoothed)
+    // CRITICAL: Restore physics position before calculations.
+    // This removes any viewport effect offsets that were applied for visuals.
+    this.camera.position.x = this.physicsX;
     this.camera.position.y = this.physicsY;
+    this.camera.position.z = this.physicsZ;
 
     // === CALCULATE WISHDIR (desired movement direction) ===
     const forward = this.camera.getDirection(Vector3.Forward());
@@ -354,12 +403,12 @@ export class FPSController implements ICameraController {
     if (hasInput) wishdir.normalize();
 
     // === Q3-STYLE PHYSICS ===
-    
+
     // Detect autohop frame: just landed + holding jump + autohop enabled
     const autohop = mv.get('sv_autohop') > 0;
     const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
     const willAutohop = autohop && justLanded && this.keys.up;
-    
+
     if (this.isGrounded) {
       // === GROUND MOVEMENT ===
 
@@ -418,13 +467,36 @@ export class FPSController implements ICameraController {
         } else if (holdingStrafe && !holdingForward) {
           // MODE 2: STRAFE BUNNY - Strafe only (A/D, no W/S)
           // High acceleration (70) but capped wishspeed (30)
-          const strafeBunnyAccel = 70;  // pm_strafebunnyaccel
+          const baseStrafeBunnyAccel = 50;  // pm_strafebunnyaccel (reduced from 70)
           const strafeWishspeed = Math.min(wishspeed, maxairspeed); // maxairspeed = 30
+
+          // Two-stage falloff:
+          // Stage 1 (400-600): Normal bunny hop zone with gradual falloff
+          // Stage 2 (600+): Radical slowdown, nearly impossible to accelerate
+          const curSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+          const runSpeed = mv.get('sv_runSpeed');   // 400 - falloff starts
+          const radicalSpeed = 600;                  // Radical slowdown threshold
+          const topspeed = mv.get('sv_topspeed');   // 1000 - hard cap
+
+          let accelFalloff = 1.0;
+          if (curSpeed > runSpeed) {
+            if (curSpeed < radicalSpeed) {
+              // Stage 1: Gradual falloff from 100% to ~50%
+              const ratio = (curSpeed - runSpeed) / (radicalSpeed - runSpeed);
+              accelFalloff = 1 - ratio * 0.5;  // Goes from 1.0 to 0.5
+            } else {
+              // Stage 2: Radical falloff from ~50% to 0%
+              const ratio = (curSpeed - radicalSpeed) / (topspeed - radicalSpeed);
+              accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));  // Cubic, very aggressive
+            }
+          }
+
+          const strafeBunnyAccel = baseStrafeBunnyAccel * accelFalloff;
 
           const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
           const addspeed = strafeWishspeed - currentspeed;
 
-          if (addspeed > 0) {
+          if (addspeed > 0 && accelFalloff > 0.01) {
             let accelspeed = strafeBunnyAccel * deltaTime * strafeWishspeed;
             if (accelspeed > addspeed) accelspeed = addspeed;
             this.velocity.x += accelspeed * wishdir.x;
@@ -435,18 +507,36 @@ export class FPSController implements ICameraController {
           if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
             FPSController._lastStrafeLog = Date.now();
             const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-            console.log(`[Air:StrafeBunny] addspeed=${addspeed.toFixed(1)} speed=${newSpeed.toFixed(0)}`);
+            console.log(`[Air:StrafeBunny] falloff=${(accelFalloff * 100).toFixed(0)}% speed=${newSpeed.toFixed(0)}`);
           }
 
         } else {
           // MODE 3: Standard air movement (W+A/D, or W while decelerating)
           // Uses full wishspeed (NOT capped to 30) with low accel (1)
           // This provides meaningful acceleration toward camera direction
+
+          // Two-stage falloff (same as strafe bunny)
+          const curSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+          const runSpeed = mv.get('sv_runSpeed');   // 400 - falloff starts
+          const radicalSpeed = 600;                  // Radical slowdown threshold
+          const topspeed = mv.get('sv_topspeed');   // 1000 - hard cap
+
+          let accelFalloff = 1.0;
+          if (curSpeed > runSpeed) {
+            if (curSpeed < radicalSpeed) {
+              const ratio = (curSpeed - runSpeed) / (radicalSpeed - runSpeed);
+              accelFalloff = 1 - ratio * 0.5;
+            } else {
+              const ratio = (curSpeed - radicalSpeed) / (topspeed - radicalSpeed);
+              accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));
+            }
+          }
+
           const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
           const addspeed = wishspeed - currentspeed;  // Full wishspeed, not capped!
 
-          if (addspeed > 0) {
-            let accelspeed = airaccelerate * deltaTime * wishspeed;  // Full wishspeed
+          if (addspeed > 0 && accelFalloff > 0.01) {
+            let accelspeed = airaccelerate * deltaTime * wishspeed * accelFalloff;
             if (accelspeed > addspeed) accelspeed = addspeed;
             this.velocity.x += accelspeed * wishdir.x;
             this.velocity.z += accelspeed * wishdir.z;
@@ -456,7 +546,7 @@ export class FPSController implements ICameraController {
           if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
             FPSController._lastStrafeLog = Date.now();
             const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-            console.log(`[Air:Normal] addspeed=${addspeed.toFixed(1)} accel=${(airaccelerate * deltaTime * wishspeed).toFixed(1)} speed=${newSpeed.toFixed(0)}`);
+            console.log(`[Air:Normal] falloff=${(accelFalloff * 100).toFixed(0)}% speed=${newSpeed.toFixed(0)}`);
           }
         }
       }
@@ -472,14 +562,14 @@ export class FPSController implements ICameraController {
     if (!this.keys.up) {
       this.jumpConsumed = false;
     }
-    
+
     if (this.keys.up && this.isGrounded) {
       // Two modes:
       // 1. Normal jump: Require key release between jumps (jumpConsumed check)
       // 2. Auto-bunny hop: Jump automatically on landing frame when holding space
       // (autohop and justLanded already calculated above for friction skip)
       const canJump = !this.jumpConsumed || (autohop && justLanded);
-      
+
       if (canJump) {
         this.velocity.y = jumpHeight;
         this.isGrounded = false;
@@ -522,7 +612,7 @@ export class FPSController implements ICameraController {
     // Q3-style: Actively check for ground beneath player each frame
     // CRITICAL: Only "land" if we're moving downward (fixes jetpack bug)
     this.wasGroundedLastFrame = this.isGrounded;
-    
+
     if (cm.isInitialized()) {
       const backend = (cm as any).backends?.get('q3');
       if (backend && typeof backend.trace === 'function') {
@@ -580,8 +670,10 @@ export class FPSController implements ICameraController {
     const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
     this.updateSpeedDisplay(showSpeed, horizSpeed);
 
-    // === SAVE PHYSICS Y AFTER COLLISION ===
+    // === SAVE PHYSICS POSITION AFTER COLLISION ===
+    this.physicsX = this.camera.position.x;
     this.physicsY = this.camera.position.y;
+    this.physicsZ = this.camera.position.z;
 
     // === VIEWPORT SMOOTHING (same pattern as FreeflyController) ===
     const heightDiff = Math.abs(this.physicsY - this.smoothedY);
@@ -599,6 +691,35 @@ export class FPSController implements ICameraController {
 
     // Apply smoothed Y + eye offset for rendering
     this.camera.position.y = this.smoothedY + eyeOffset;
+
+    // === VIEWPORT EFFECTS ===
+    if (this.viewportEffectsManager && this.viewportApplicator) {
+      // Reset camera rotation to mouse-controlled values before applying effects
+      this.camera.rotation.x = this.mouseRotationX;
+      this.camera.rotation.y = this.mouseRotationY;
+      this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
+
+      // Capture landing velocity
+      const justLandedNow = this.isGrounded && !this.wasGroundedLastFrame;
+      if (justLandedNow) {
+        this.landingVelocityCapture = this.velocity.y;
+      }
+
+      const playerState: PlayerState = {
+        position: this.camera.position.clone(),
+        velocity: this.velocity.clone(),
+        horizontalSpeed: horizSpeed,
+        isGrounded: this.isGrounded,
+        wasGroundedLastFrame: this.wasGroundedLastFrame,
+        isJumping: this.keys.up && this.isGrounded,
+        strafeInput: (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0),
+        forwardInput: (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0),
+        landingVelocity: this.landingVelocityCapture,
+      };
+
+      const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
+      this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
+    }
   }
 
   // Speed display element
@@ -661,11 +782,13 @@ export class FPSController implements ICameraController {
   private airAccelerate(wishdir: Vector3, wishspeed: number, deltaTime: number): void {
     const mv = MovementVars.getInstance();
     const maxPlayerSpeed = mv.get('sv_movementSpeed'); // ~320
+    const topspeed = mv.get('sv_topspeed');  // Hard cap (default 1000)
+    const runSpeed = mv.get('sv_runSpeed');  // 400 - falloff starts
+    const radicalSpeed = 600;                 // Radical slowdown threshold
 
-    // Warsow constants
+    // Warsow-style constants
     const airforwardaccel = 1.00001;
     const bunnyaccel = 0.1593;
-    const bunnytopspeed = 925;
     const turnaccel = 4.0;
     const backtosideratio = 0.8;
 
@@ -674,16 +797,29 @@ export class FPSController implements ICameraController {
     const curvelZ = this.velocity.z;
     const curspeed = Math.sqrt(curvelX * curvelX + curvelZ * curvelZ);
 
+    // Two-stage falloff (same as strafe modes)
+    let accelFalloff = 1.0;
+    if (curspeed > runSpeed) {
+      if (curspeed < radicalSpeed) {
+        const ratio = (curspeed - runSpeed) / (radicalSpeed - runSpeed);
+        accelFalloff = 1 - ratio * 0.5;  // 100% -> 50%
+      } else {
+        const ratio = (curspeed - radicalSpeed) / (topspeed - radicalSpeed);
+        accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));  // 50% -> 0% cubic
+      }
+    }
+
     // Calculate target wishspeed based on current speed
     let targetWishspeed: number;
     if (wishspeed > curspeed * 1.01) {
       // Below max speed: accelerate toward wishspeed
-      const accelspeed = curspeed + airforwardaccel * maxPlayerSpeed * deltaTime;
+      const accelspeed = curspeed + airforwardaccel * maxPlayerSpeed * deltaTime * accelFalloff;
       targetWishspeed = Math.min(wishspeed, accelspeed);
     } else {
-      // At or above max speed: bunny acceleration with falloff
-      const f = Math.max(0, (bunnytopspeed - curspeed) / (bunnytopspeed - maxPlayerSpeed));
-      targetWishspeed = Math.max(curspeed, maxPlayerSpeed) + bunnyaccel * f * maxPlayerSpeed * deltaTime;
+      // At or above max speed: bunny acceleration
+      // Use topspeed as internal target so bunny mechanics work, but apply our falloff
+      const f = Math.max(0, (topspeed - curspeed) / (topspeed - maxPlayerSpeed));
+      targetWishspeed = Math.max(curspeed, maxPlayerSpeed) + bunnyaccel * f * accelFalloff * maxPlayerSpeed * deltaTime;
     }
 
     // Calculate wish velocity and acceleration direction
