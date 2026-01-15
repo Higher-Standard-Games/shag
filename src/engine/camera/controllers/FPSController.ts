@@ -393,85 +393,123 @@ export class FPSController implements ICameraController {
         }
       }
     } else {
-      // === AIR MOVEMENT (Warsow-style) ===
-      // Two distinct modes:
-      // 1. Air control (+forward ONLY, no strafe): Subtle direction change toward look
-      // 2. Strafe jumping (+forward + A/D): NO direction change, only speed gain
+      // === AIR MOVEMENT (Warsow-style from gs_pmove.c) ===
+      // Three distinct modes based on input:
+      // 1. +forward ONLY: PM_AirAccelerate (bunny speed gain) + PM_Aircontrol (direction)
+      // 2. +strafe ONLY: PM_Accelerate with strafebunnyaccel + PM_Aircontrol
+      // 3. +forward + strafe: Standard PM_Accelerate only (no special gain, no aircontrol)
       
       const aircontrol = mv.get('sv_aircontrol');
-      const aircontrolPower = mv.get('sv_aircontrol_power');
       const currentHorizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
       
       const holdingStrafe = this.keys.left || this.keys.right;
-      const holdingForwardOnly = this.keys.forward && !holdingStrafe && !this.keys.backward;
+      const holdingForward = this.keys.forward && !this.keys.backward;
+      const holdingBackward = this.keys.backward && !this.keys.forward;
+      const fmove = holdingForward || holdingBackward;
+      const smove = holdingStrafe;
       
-      // === WARSOW AIR CONTROL (ONLY when +forward without strafe) ===
-      // This is for subtle mid-air direction correction, NOT for strafe jumping
-      // When strafing, we want to keep velocity direction and only gain speed
-      if (holdingForwardOnly && aircontrol > 0 && currentHorizSpeed > 1) {
-        // Current velocity direction (normalized)
+      // === MODE 1: +forward ONLY (no strafe) - BUNNY SPEED GAIN ===
+      // This is PM_AirAccelerate from Warsow - the main speed gain mechanic
+      if (fmove && !smove && currentHorizSpeed > 1) {
+        // Warsow bunny acceleration parameters
+        const airforwardaccel = 1.00001;  // accel until maxspeed
+        const bunnyaccel = 0.1593;        // accel AFTER maxspeed (the magic!)
+        const bunnytopspeed = 925;        // soft speed cap
+        const turnaccel = 4.0;            // turn sharpness
+        
+        // Current velocity direction
         const velDirX = this.velocity.x / currentHorizSpeed;
         const velDirZ = this.velocity.z / currentHorizSpeed;
         
-        // Dot product: how aligned are we with look direction?
-        const dot = velDirX * flatForward.x + velDirZ * flatForward.z;
+        let newWishspeed = wishspeed;
         
-        // Only apply air control if not already aligned
-        if (dot > -0.999 && dot < 0.999) {
-          // Very subtle rotation - this should feel like minor course correction
-          const turnSpeed = aircontrol * aircontrolPower * deltaTime * (1 - dot);
-          
-          // Cross product to determine turn direction
-          const cross = velDirX * flatForward.z - velDirZ * flatForward.x;
-          const turnDir = cross > 0 ? 1 : -1;
-          
-          // Rotate velocity direction
-          const angle = turnSpeed * turnDir;
-          const cos = Math.cos(angle);
-          const sin = Math.sin(angle);
-          const newVelX = velDirX * cos - velDirZ * sin;
-          const newVelZ = velDirX * sin + velDirZ * cos;
-          
-          // Apply rotated direction while preserving speed
-          this.velocity.x = newVelX * currentHorizSpeed;
-          this.velocity.z = newVelZ * currentHorizSpeed;
+        if (newWishspeed > currentHorizSpeed * 1.01) {
+          // Below max speed - accelerate normally
+          const accelspeed = currentHorizSpeed + airforwardaccel * wishspeed * deltaTime;
+          if (accelspeed < newWishspeed) newWishspeed = accelspeed;
+        } else {
+          // ABOVE max speed - this is where bunny hopping magic happens!
+          const f = Math.max(0, (bunnytopspeed - currentHorizSpeed) / (bunnytopspeed - wishspeed));
+          newWishspeed = Math.max(currentHorizSpeed, wishspeed) + bunnyaccel * f * wishspeed * deltaTime;
         }
-      }
-      
-      // === WARSOW STRAFE ACCELERATION ===
-      // When holding +forward AND strafe (A/D), apply acceleration that increases total speed
-      // This is the "strafe-bunnyhopping" mechanic from Warsow
-      
-      const holdingForwardAndStrafe = this.keys.forward && holdingStrafe;
-      
-      if (holdingForwardAndStrafe && currentHorizSpeed > 1) {
-        // WARSOW SPECIAL: When forward+strafe, accelerate perpendicular to velocity
-        // This always increases speed regardless of current velocity
         
-        // Get perpendicular direction (90° from velocity)
-        const velDirX = this.velocity.x / currentHorizSpeed;
-        const velDirZ = this.velocity.z / currentHorizSpeed;
+        // Calculate acceleration toward wishdir
+        const wishvelX = wishdir.x * newWishspeed;
+        const wishvelZ = wishdir.z * newWishspeed;
+        const accelDirX = wishvelX - this.velocity.x;
+        const accelDirZ = wishvelZ - this.velocity.z;
+        let addspeed = Math.sqrt(accelDirX * accelDirX + accelDirZ * accelDirZ);
         
-        // Perpendicular: rotate 90° based on strafe direction
-        const strafeDir = this.keys.left ? 1 : -1; // left = turn left, right = turn right
-        const perpX = -velDirZ * strafeDir;
-        const perpZ = velDirX * strafeDir;
+        if (addspeed > 0.001) {
+          const accelDirNormX = accelDirX / addspeed;
+          const accelDirNormZ = accelDirZ / addspeed;
+          
+          let accelspeed = turnaccel * wishspeed * deltaTime;
+          if (accelspeed > addspeed) accelspeed = addspeed;
+          
+          this.velocity.x += accelspeed * accelDirNormX;
+          this.velocity.z += accelspeed * accelDirNormZ;
+        }
         
-        // Apply acceleration in perpendicular direction
-        // This adds to total speed without Q3's dot product limitation
-        const strafeAccel = airaccelerate * deltaTime * maxairspeed * 2; // Boosted for strafe
-        
-        this.velocity.x += strafeAccel * perpX;
-        this.velocity.z += strafeAccel * perpZ;
+        // PM_Aircontrol - rotate velocity toward look direction (preserving speed)
+        if (aircontrol > 0) {
+          const dot = velDirX * wishdir.x + velDirZ * wishdir.z;
+          if (dot > 0) {
+            const k = 32.0 * aircontrol * dot * dot * deltaTime;
+            const newVelX = velDirX * currentHorizSpeed + wishdir.x * k;
+            const newVelZ = velDirZ * currentHorizSpeed + wishdir.z * k;
+            const newLen = Math.sqrt(newVelX * newVelX + newVelZ * newVelZ);
+            if (newLen > 0.001) {
+              this.velocity.x = (newVelX / newLen) * currentHorizSpeed;
+              this.velocity.z = (newVelZ / newLen) * currentHorizSpeed;
+            }
+          }
+        }
         
         // Debug log
         if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 500) {
           FPSController._lastStrafeLog = Date.now();
           const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-          console.log(`[WarsowStrafe] accel=${strafeAccel.toFixed(2)}, newSpeed=${newSpeed.toFixed(0)}`);
+          console.log(`[FwdBunny] speed=${newSpeed.toFixed(0)}, wishspeed=${newWishspeed.toFixed(0)}`);
         }
-      } else if (hasInput) {
-        // Standard Q3 air acceleration (for non-strafe movement)
+      }
+      // === MODE 2: +strafe ONLY (no forward) - STRAFE BUNNY ===
+      else if (smove && !fmove && currentHorizSpeed > 1) {
+        const strafebunnyaccel = 70;  // Warsow pm_strafebunnyaccel
+        const pm_wishspeed = 30;      // Cap for strafe bunny
+        
+        let strafeWishspeed = Math.min(wishspeed, pm_wishspeed);
+        
+        // Standard acceleration
+        const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+        const addspeed = strafeWishspeed - currentspeed;
+        if (addspeed > 0) {
+          let accelspeed = strafebunnyaccel * deltaTime * strafeWishspeed;
+          if (accelspeed > addspeed) accelspeed = addspeed;
+          this.velocity.x += accelspeed * wishdir.x;
+          this.velocity.z += accelspeed * wishdir.z;
+        }
+        
+        // PM_Aircontrol for strafe bunny
+        if (aircontrol > 0) {
+          const velDirX = this.velocity.x / currentHorizSpeed;
+          const velDirZ = this.velocity.z / currentHorizSpeed;
+          const dot = velDirX * wishdir.x + velDirZ * wishdir.z;
+          if (dot > 0) {
+            const k = 32.0 * aircontrol * dot * dot * deltaTime;
+            const newVelX = velDirX * currentHorizSpeed + wishdir.x * k;
+            const newVelZ = velDirZ * currentHorizSpeed + wishdir.z * k;
+            const newLen = Math.sqrt(newVelX * newVelX + newVelZ * newVelZ);
+            if (newLen > 0.001) {
+              this.velocity.x = (newVelX / newLen) * currentHorizSpeed;
+              this.velocity.z = (newVelZ / newLen) * currentHorizSpeed;
+            }
+          }
+        }
+      }
+      // === MODE 3: +forward + strafe - STANDARD ACCELERATION ===
+      // No special speed gain, no air control - just basic Q3 air accel
+      else if (hasInput) {
         const airWishspeed = Math.min(wishspeed, maxairspeed);
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
         const addspeed = airWishspeed - currentspeed;
