@@ -2,6 +2,10 @@
 
 This document tracks the implementation status and roadmap for Quake 3 and Warsow-style movement physics in the SHAG Engine.
 
+> **STATUS: ✅ IMPLEMENTED** (v0.8.19)
+> 
+> Warsow-style movement physics fully implemented based on `gs_pmove.c` source code analysis.
+
 ## Current FPS Implementation Status
 - [x] Basic WASD movement
 - [x] Gravity + falling
@@ -11,9 +15,12 @@ This document tracks the implementation status and roadmap for Quake 3 and Warso
 - [x] Viewport smoothing
 - [x] Eye offset (sv_eyeoffset)
 - [x] Sprint (Shift key, sv_runSpeed)
-- [ ] **Ground Friction** - Gradual deceleration when stopping
-- [ ] **Ground Acceleration** - Gradual acceleration when starting/changing direction
-- [ ] **Air Control** - Limited steering in air
+- [x] **Ground Friction** - Q3-style PM_Friction with sv_stopspeed
+- [x] **Ground Acceleration** - PM_Accelerate toward wishdir
+- [x] **Air Control** - Warsow 3-mode system (forward bunny, strafe bunny, standard)
+- [x] **Auto-bunny hop** - sv_autohop cvar, Warsow-style
+- [x] **Strafe jumping** - Speed gain via perpendicular acceleration
+- [x] **Jetpack bug fix** - Ground only when velocity.y ≤ 0
 
 ---
 
@@ -163,15 +170,15 @@ Currently we don't persist horizontal velocity between frames. Need to:
 
 ---
 
-## Movement Techniques to Implement (Updated Priority)
+## Movement Techniques Implementation Status
 
 | Technique | Priority | Complexity | Status |
 |-----------|----------|------------|--------|
-| **Ground Friction** | 🔴 High | Low | Not started |
-| **Ground Acceleration** | 🔴 High | Low | Not started |
-| **Air Control** | 🔴 High | Low | Not started |
-| **Strafe Jumping** | 🟡 Medium | Medium | Not started |
-| **Bunny Hopping** | 🟡 Medium | Low | Not started |
+| **Ground Friction** | 🔴 High | Low | ✅ Implemented |
+| **Ground Acceleration** | 🔴 High | Low | ✅ Implemented |
+| **Air Control** | 🔴 High | Low | ✅ Implemented (3-mode Warsow) |
+| **Strafe Jumping** | 🟡 Medium | Medium | ✅ Implemented |
+| **Bunny Hopping** | 🟡 Medium | Low | ✅ Implemented (sv_autohop) |
 | **Circle Jumping** | 🟠 Low | Medium | Not started |
 | **Crouching** | 🟠 Low | Medium | Not started |
 
@@ -183,18 +190,21 @@ Currently we don't persist horizontal velocity between frames. Need to:
 |----------|---------|-------------|--------|
 | `sv_gravity` | 800 | Gravity strength | ✅ Used |
 | `sv_jumpheight` | 270 | Jump velocity | ✅ Used |
-| `sv_friction` | 6.0 | Ground friction | ❌ Not used yet |
-| `sv_aircontrol` | 0.1 | Legacy - use airaccelerate | ❌ Deprecated |
-| `sv_accelerate` | 10.0 | Ground acceleration | ❌ NEW |
-| `sv_airaccelerate` | 1.0 | Air acceleration | ❌ Not used yet |
-| `sv_stopspeed` | 100 | Friction threshold | ❌ NEW |
-| `sv_maxairspeed` | 30 | Max air input speed | ❌ NEW |
+| `sv_friction` | 8.0 | Ground friction (Warsow: 8) | ✅ Used |
+| `sv_accelerate` | 12.0 | Ground acceleration (Warsow: 12) | ✅ Used |
+| `sv_airaccelerate` | 1.0 | Air acceleration | ✅ Used |
+| `sv_stopspeed` | 100 | Friction threshold | ✅ Used |
+| `sv_maxairspeed` | 30 | Max air input speed (strafe cap) | ✅ Used |
 | `sv_movementSpeed` | 320 | Base walk speed | ✅ Used |
 | `sv_runSpeed` | 480 | Sprint speed | ✅ Used |
+| `sv_autohop` | 1 | Auto-bunny hop on hold jump | ✅ Used |
+| `sv_aircontrol` | 150 | Air control multiplier (Warsow) | ✅ Used |
+| `m_sensitivity` | 2.0 | Mouse sensitivity (float) | ✅ Used |
 
 ---
 
 ## References
+- [Warsow Source: gs_pmove.c](https://github.com/Qfusion/qfusion/blob/warsow_2.1/source/gameshared/gs_pmove.c) - **Primary reference for this implementation**
 - [Quake 3 Source: bg_pmove.c](https://github.com/id-Software/Quake-III-Arena/blob/master/code/game/bg_pmove.c)
 - [Q3 Movement Paper by myria666](https://github.com/myria666/qern/blob/main/docs/quake3_player_movement.pdf)
 - [Air Strafing Explained](https://www.niklewski.com/post/quake-3-air-strafing)
