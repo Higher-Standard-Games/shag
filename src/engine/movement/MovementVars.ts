@@ -18,6 +18,7 @@ export interface MovementVar {
   description: string;
   category: 'movement' | 'physics' | 'camera' | 'debug';
   developerOnly: boolean;
+  type?: 'int' | 'float';  // Force cvar type (default: auto-detect)
 }
 
 // ==================== Constants ====================
@@ -192,7 +193,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
   },
 
   // ==================== Camera ====================
-  cl_sensitivity: {
+  m_sensitivity: {
     value: 2.0,
     defaultValue: 2.0,
     min: 0.1,
@@ -314,7 +315,9 @@ export class MovementVars {
       };
 
       // Register cvar with developer flag if needed
+      // Always use 'float' type since all movement vars are numeric with potential decimal values
       Cvar.register(name, varConfig.value, {
+        type: 'float',
         min: varConfig.min,
         max: varConfig.max,
         description: varConfig.description,

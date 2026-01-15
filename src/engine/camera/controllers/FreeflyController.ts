@@ -197,7 +197,7 @@ export class FreeflyController implements ICameraController {
       if (!this.enabled || !this.camera || !this.isPointerLocked) return;
       
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
-      const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') || 1.0;
+      const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') ?? 2.0;
       const sensitivity = baseSensitivity * sensitivityMultiplier;
       const invertYCvar = Cvar.getBool('m_invertY');
       const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
