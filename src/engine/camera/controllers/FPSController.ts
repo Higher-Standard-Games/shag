@@ -354,33 +354,42 @@ export class FPSController implements ICameraController {
     if (hasInput) wishdir.normalize();
 
     // === Q3-STYLE PHYSICS ===
+    
+    // Detect autohop frame: just landed + holding jump + autohop enabled
+    const autohop = mv.get('sv_autohop') > 0;
+    const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
+    const willAutohop = autohop && justLanded && this.keys.up;
+    
     if (this.isGrounded) {
       // === GROUND MOVEMENT ===
 
-      // Apply friction first (PM_Friction)
-      const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-      if (speed > 1) {
-        const control = speed < stopspeed ? stopspeed : speed;
-        const drop = control * friction * deltaTime;
-        let newSpeed = speed - drop;
-        if (newSpeed < 0) newSpeed = 0;
-        const scale = newSpeed / speed;
-        this.velocity.x *= scale;
-        this.velocity.z *= scale;
-      } else {
-        this.velocity.x = 0;
-        this.velocity.z = 0;
-      }
+      // WARSOW: Skip friction on autohop frame to preserve bunny hop speed!
+      if (!willAutohop) {
+        // Apply friction (PM_Friction) - only when NOT auto-hopping
+        const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+        if (speed > 1) {
+          const control = speed < stopspeed ? stopspeed : speed;
+          const drop = control * friction * deltaTime;
+          let newSpeed = speed - drop;
+          if (newSpeed < 0) newSpeed = 0;
+          const scale = newSpeed / speed;
+          this.velocity.x *= scale;
+          this.velocity.z *= scale;
+        } else {
+          this.velocity.x = 0;
+          this.velocity.z = 0;
+        }
 
-      // Apply acceleration toward wishdir (PM_Accelerate)
-      if (hasInput) {
-        const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
-        const addspeed = wishspeed - currentspeed;
-        if (addspeed > 0) {
-          let accelspeed = accelerate * deltaTime * wishspeed;
-          if (accelspeed > addspeed) accelspeed = addspeed;
-          this.velocity.x += accelspeed * wishdir.x;
-          this.velocity.z += accelspeed * wishdir.z;
+        // Apply acceleration toward wishdir (PM_Accelerate)
+        if (hasInput) {
+          const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+          const addspeed = wishspeed - currentspeed;
+          if (addspeed > 0) {
+            let accelspeed = accelerate * deltaTime * wishspeed;
+            if (accelspeed > addspeed) accelspeed = addspeed;
+            this.velocity.x += accelspeed * wishdir.x;
+            this.velocity.z += accelspeed * wishdir.z;
+          }
         }
       }
     } else {
@@ -482,8 +491,6 @@ export class FPSController implements ICameraController {
     }
 
     // === JUMP ===
-    const autohop = mv.get('sv_autohop') > 0;
-    
     // Reset jumpConsumed when key is released
     if (!this.keys.up) {
       this.jumpConsumed = false;
@@ -493,7 +500,7 @@ export class FPSController implements ICameraController {
       // Two modes:
       // 1. Normal jump: Require key release between jumps (jumpConsumed check)
       // 2. Auto-bunny hop: Jump automatically on landing frame when holding space
-      const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
+      // (autohop and justLanded already calculated above for friction skip)
       const canJump = !this.jumpConsumed || (autohop && justLanded);
       
       if (canJump) {
