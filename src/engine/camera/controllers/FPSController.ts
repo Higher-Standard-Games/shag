@@ -393,27 +393,45 @@ export class FPSController implements ICameraController {
         }
       }
     } else {
-      // === AIR MOVEMENT ===
-      // Simple Q3-style air acceleration for now
-      // TODO: Implement proper Warsow strafe jumping after more analysis
+      // === AIR MOVEMENT (Q3/Warsow style) ===
+      // Speed gain happens when wishdir is PERPENDICULAR to velocity
+      // dot(velocity, wishdir) ≈ 0 means addspeed ≈ wishspeed
       
-      if (hasInput) {
+      const currentHorizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      
+      if (hasInput && currentHorizSpeed > 1) {
+        // Warsow uses higher accel when strafing only (no forward)
+        const holdingStrafe = this.keys.left || this.keys.right;
+        const holdingForward = this.keys.forward || this.keys.backward;
+        
+        // Warsow: pm_strafebunnyaccel = 70 when strafe only, pm_airaccelerate = 1 otherwise
+        const effectiveAccel = (holdingStrafe && !holdingForward) ? 70 : airaccelerate;
         const airWishspeed = Math.min(wishspeed, maxairspeed);
+        
+        // The magic: dot product tells us angle between velocity and wishdir
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
         const addspeed = airWishspeed - currentspeed;
         
         if (addspeed > 0) {
-          let accelspeed = airaccelerate * deltaTime * airWishspeed;
+          let accelspeed = effectiveAccel * deltaTime * airWishspeed;
           if (accelspeed > addspeed) accelspeed = addspeed;
+          
+          // This is where speed gain happens!
           this.velocity.x += accelspeed * wishdir.x;
           this.velocity.z += accelspeed * wishdir.z;
         }
         
+        // Calculate angle between velocity and wishdir for debug
+        const velDirX = this.velocity.x / currentHorizSpeed;
+        const velDirZ = this.velocity.z / currentHorizSpeed;
+        const dot = velDirX * wishdir.x + velDirZ * wishdir.z;
+        const angleDeg = Math.acos(Math.min(1, Math.abs(dot))) * 180 / Math.PI;
+        
         // Debug log
-        if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 500) {
+        if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
           FPSController._lastStrafeLog = Date.now();
           const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-          console.log(`[Air] currentspeed=${currentspeed.toFixed(1)}, addspeed=${addspeed.toFixed(1)}, speed=${newSpeed.toFixed(0)}`);
+          console.log(`[Air] angle=${angleDeg.toFixed(0)}° addspeed=${addspeed.toFixed(1)} accel=${effectiveAccel} speed=${newSpeed.toFixed(0)}`);
         }
       }
     }
