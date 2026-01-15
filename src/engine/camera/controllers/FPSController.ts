@@ -382,10 +382,15 @@ export class FPSController implements ICameraController {
 
         // Apply acceleration toward wishdir (PM_Accelerate)
         if (hasInput) {
+          // Ground strafe-only (A/D without W/S) uses 50% speed like Warsow
+          const holdingStrafe = this.keys.left || this.keys.right;
+          const holdingForward = this.keys.forward || this.keys.backward;
+          const groundWishspeed = (holdingStrafe && !holdingForward) ? wishspeed * 0.5 : wishspeed;
+
           const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
-          const addspeed = wishspeed - currentspeed;
+          const addspeed = groundWishspeed - currentspeed;
           if (addspeed > 0) {
-            let accelspeed = accelerate * deltaTime * wishspeed;
+            let accelspeed = accelerate * deltaTime * groundWishspeed;
             if (accelspeed > addspeed) accelspeed = addspeed;
             this.velocity.x += accelspeed * wishdir.x;
             this.velocity.z += accelspeed * wishdir.z;
@@ -393,45 +398,66 @@ export class FPSController implements ICameraController {
         }
       }
     } else {
-      // === AIR MOVEMENT (Q3/Warsow style) ===
-      // Speed gain happens when wishdir is PERPENDICULAR to velocity
-      // dot(velocity, wishdir) ≈ 0 means addspeed ≈ wishspeed
-      
-      const currentHorizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-      
-      if (hasInput && currentHorizSpeed > 1) {
-        // Warsow uses higher accel when strafing only (no forward)
-        const holdingStrafe = this.keys.left || this.keys.right;
-        const holdingForward = this.keys.forward || this.keys.backward;
-        
-        // Warsow: pm_strafebunnyaccel = 70 when strafe only, pm_airaccelerate = 1 otherwise
-        const effectiveAccel = (holdingStrafe && !holdingForward) ? 70 : airaccelerate;
-        const airWishspeed = Math.min(wishspeed, maxairspeed);
-        
-        // The magic: dot product tells us angle between velocity and wishdir
-        const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
-        const addspeed = airWishspeed - currentspeed;
-        
-        if (addspeed > 0) {
-          let accelspeed = effectiveAccel * deltaTime * airWishspeed;
-          if (accelspeed > addspeed) accelspeed = addspeed;
-          
-          // This is where speed gain happens!
-          this.velocity.x += accelspeed * wishdir.x;
-          this.velocity.z += accelspeed * wishdir.z;
-        }
-        
-        // Calculate angle between velocity and wishdir for debug
-        const velDirX = this.velocity.x / currentHorizSpeed;
-        const velDirZ = this.velocity.z / currentHorizSpeed;
-        const dot = velDirX * wishdir.x + velDirZ * wishdir.z;
-        const angleDeg = Math.acos(Math.min(1, Math.abs(dot))) * 180 / Math.PI;
-        
-        // Debug log
-        if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
-          FPSController._lastStrafeLog = Date.now();
-          const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-          console.log(`[Air] angle=${angleDeg.toFixed(0)}° addspeed=${addspeed.toFixed(1)} accel=${effectiveAccel} speed=${newSpeed.toFixed(0)}`);
+      // === AIR MOVEMENT (Warsow-style from gs_pmove.c) ===
+      // Reference: PM_AirMove, PM_AirAccelerate, PM_Aircontrol
+
+      const holdingStrafe = this.keys.left || this.keys.right;
+      const holdingForward = this.keys.forward || this.keys.backward;
+
+      // Check if we're accelerating (moving roughly in wishdir direction)
+      const velocityDotWish = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+      const isAccelerating = velocityDotWish > 0;
+
+      if (hasInput) {
+        if (holdingForward && !holdingStrafe && isAccelerating) {
+          // MODE 1: PM_AirAccelerate - Forward only, moving forward
+          // This is the MAIN speed gain mechanic in Warsow!
+          // Note: turnaccel (4.0) inside airAccelerate handles turning, no separate airControl needed
+          this.airAccelerate(wishdir, wishspeed, deltaTime);
+
+        } else if (holdingStrafe && !holdingForward) {
+          // MODE 2: STRAFE BUNNY - Strafe only (A/D, no W/S)
+          // High acceleration (70) but capped wishspeed (30)
+          const strafeBunnyAccel = 70;  // pm_strafebunnyaccel
+          const strafeWishspeed = Math.min(wishspeed, maxairspeed); // maxairspeed = 30
+
+          const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+          const addspeed = strafeWishspeed - currentspeed;
+
+          if (addspeed > 0) {
+            let accelspeed = strafeBunnyAccel * deltaTime * strafeWishspeed;
+            if (accelspeed > addspeed) accelspeed = addspeed;
+            this.velocity.x += accelspeed * wishdir.x;
+            this.velocity.z += accelspeed * wishdir.z;
+          }
+
+          // Debug log
+          if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
+            FPSController._lastStrafeLog = Date.now();
+            const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+            console.log(`[Air:StrafeBunny] addspeed=${addspeed.toFixed(1)} speed=${newSpeed.toFixed(0)}`);
+          }
+
+        } else {
+          // MODE 3: Standard air movement (W+A/D, or W while decelerating)
+          // Uses full wishspeed (NOT capped to 30) with low accel (1)
+          // This provides meaningful acceleration toward camera direction
+          const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
+          const addspeed = wishspeed - currentspeed;  // Full wishspeed, not capped!
+
+          if (addspeed > 0) {
+            let accelspeed = airaccelerate * deltaTime * wishspeed;  // Full wishspeed
+            if (accelspeed > addspeed) accelspeed = addspeed;
+            this.velocity.x += accelspeed * wishdir.x;
+            this.velocity.z += accelspeed * wishdir.z;
+          }
+
+          // Debug log
+          if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
+            FPSController._lastStrafeLog = Date.now();
+            const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+            console.log(`[Air:Normal] addspeed=${addspeed.toFixed(1)} accel=${(airaccelerate * deltaTime * wishspeed).toFixed(1)} speed=${newSpeed.toFixed(0)}`);
+          }
         }
       }
     }
@@ -624,6 +650,128 @@ export class FPSController implements ICameraController {
     }
 
     return vel.subtract(normal.scale(backoff));
+  }
+
+  /**
+   * Warsow PM_AirAccelerate - Main bunny hop speed gain mechanic
+   * Called when holding forward only (no strafe) and moving forward
+   *
+   * This allows gaining speed beyond normal limits up to bunnytopspeed (925)
+   */
+  private airAccelerate(wishdir: Vector3, wishspeed: number, deltaTime: number): void {
+    const mv = MovementVars.getInstance();
+    const maxPlayerSpeed = mv.get('sv_movementSpeed'); // ~320
+
+    // Warsow constants
+    const airforwardaccel = 1.00001;
+    const bunnyaccel = 0.1593;
+    const bunnytopspeed = 925;
+    const turnaccel = 4.0;
+    const backtosideratio = 0.8;
+
+    // Get current horizontal velocity and speed
+    const curvelX = this.velocity.x;
+    const curvelZ = this.velocity.z;
+    const curspeed = Math.sqrt(curvelX * curvelX + curvelZ * curvelZ);
+
+    // Calculate target wishspeed based on current speed
+    let targetWishspeed: number;
+    if (wishspeed > curspeed * 1.01) {
+      // Below max speed: accelerate toward wishspeed
+      const accelspeed = curspeed + airforwardaccel * maxPlayerSpeed * deltaTime;
+      targetWishspeed = Math.min(wishspeed, accelspeed);
+    } else {
+      // At or above max speed: bunny acceleration with falloff
+      const f = Math.max(0, (bunnytopspeed - curspeed) / (bunnytopspeed - maxPlayerSpeed));
+      targetWishspeed = Math.max(curspeed, maxPlayerSpeed) + bunnyaccel * f * maxPlayerSpeed * deltaTime;
+    }
+
+    // Calculate wish velocity and acceleration direction
+    const wishvelX = wishdir.x * targetWishspeed;
+    const wishvelZ = wishdir.z * targetWishspeed;
+    let accelDirX = wishvelX - curvelX;
+    let accelDirZ = wishvelZ - curvelZ;
+
+    // Normalize acceldir and get addspeed
+    const accelDirLen = Math.sqrt(accelDirX * accelDirX + accelDirZ * accelDirZ);
+    if (accelDirLen < 0.001) return;
+
+    accelDirX /= accelDirLen;
+    accelDirZ /= accelDirLen;
+    const addspeed = accelDirLen;
+
+    // Calculate acceleration with turn rate limit
+    let accelspeed = turnaccel * maxPlayerSpeed * deltaTime;
+    if (accelspeed > addspeed) accelspeed = addspeed;
+
+    // Back-to-side ratio: reduce backwards acceleration
+    if (backtosideratio < 1.0 && curspeed > 0.001) {
+      const curDirX = curvelX / curspeed;
+      const curDirZ = curvelZ / curspeed;
+      const dot = accelDirX * curDirX + accelDirZ * curDirZ;
+      if (dot < 0) {
+        // Reduce acceleration in the backwards direction
+        accelDirX -= (1.0 - backtosideratio) * dot * curDirX;
+        accelDirZ -= (1.0 - backtosideratio) * dot * curDirZ;
+      }
+    }
+
+    // Apply acceleration
+    this.velocity.x += accelspeed * accelDirX;
+    this.velocity.z += accelspeed * accelDirZ;
+
+    // Debug log
+    if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 300) {
+      FPSController._lastStrafeLog = Date.now();
+      const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      console.log(`[Air:Accelerate] curspeed=${curspeed.toFixed(0)} -> ${newSpeed.toFixed(0)} (target=${targetWishspeed.toFixed(0)})`);
+    }
+  }
+
+  /**
+   * Warsow PM_Aircontrol - Curves velocity toward wishdir
+   * EXACT formula from gs_pmove.c: k = 32 * aircontrol * dot * dot * frametime
+   *
+   * This pushes velocity toward where you're looking while preserving speed.
+   * Currently unused in newmovement (FWDBUNNY) mode - kept for oldmovement support.
+   */
+  // @ts-ignore - kept for oldmovement style support
+  private airControl(wishdir: Vector3, deltaTime: number): void {
+    const mv = MovementVars.getInstance();
+    const aircontrol = mv.get('sv_aircontrol'); // Default 150
+
+    if (aircontrol === 0) return;
+
+    // Get horizontal speed
+    const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+    if (speed < 1) return;
+
+    // Normalize horizontal velocity
+    let velDirX = this.velocity.x / speed;
+    let velDirZ = this.velocity.z / speed;
+
+    // Dot product: how aligned is velocity with wishdir?
+    const dot = velDirX * wishdir.x + velDirZ * wishdir.z;
+
+    // Warsow formula: k = 32 * aircontrol * dot^2 * frametime
+    const k = 32.0 * aircontrol * dot * dot * deltaTime;
+
+    if (dot > 0) {
+      // Push velocity toward wishdir: velocity = velocity * speed + wishdir * k
+      velDirX = velDirX * speed + wishdir.x * k;
+      velDirZ = velDirZ * speed + wishdir.z * k;
+
+      // Renormalize
+      const newLen = Math.sqrt(velDirX * velDirX + velDirZ * velDirZ);
+      if (newLen > 0.001) {
+        velDirX /= newLen;
+        velDirZ /= newLen;
+      }
+    }
+
+    // Restore original speed (air control doesn't change speed)
+    this.velocity.x = velDirX * speed;
+    this.velocity.z = velDirZ * speed;
   }
 
   /**
