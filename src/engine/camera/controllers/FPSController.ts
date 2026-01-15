@@ -430,19 +430,29 @@ export class FPSController implements ICameraController {
       }
       
       // === Q3/WARSOW STRAFE ACCELERATION ===
-      // This is what enables strafe jumping speed gain
-      // Key insight: We accelerate in wishdir but DON'T rotate velocity
-      // The wishdir is based on look direction + strafe input
-      // This means strafing at ~45° to velocity adds speed without changing direction much
+      // Key: When strafing at angle to velocity, dot product (currentspeed) is low
+      // This allows acceleration in wishdir, which increases total speed
       if (hasInput) {
         const airWishspeed = Math.min(wishspeed, maxairspeed);
+        // Dot product: how much of our velocity is in the wishdir direction
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
         const addspeed = airWishspeed - currentspeed;
+        
         if (addspeed > 0) {
-          let accelspeed = airaccelerate * deltaTime * wishspeed;
+          // Q3 formula: accel * frametime * wishspeed (using capped airWishspeed)
+          let accelspeed = airaccelerate * deltaTime * airWishspeed;
           if (accelspeed > addspeed) accelspeed = addspeed;
+          
+          // Add velocity in wishdir direction
           this.velocity.x += accelspeed * wishdir.x;
           this.velocity.z += accelspeed * wishdir.z;
+          
+          // Debug: log when acceleration happens
+          if (accelspeed > 0.1 && !FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 500) {
+            FPSController._lastStrafeLog = Date.now();
+            const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+            console.log(`[Strafe] accel=${accelspeed.toFixed(2)}, addspeed=${addspeed.toFixed(2)}, newSpeed=${newSpeed.toFixed(0)}`);
+          }
         }
       }
     }
@@ -740,6 +750,7 @@ export class FPSController implements ICameraController {
   // @ts-ignore - kept for future debug use
   private static _nativeCollisionSetup = false;
   private static _lastGroundLog = 0;
+  private static _lastStrafeLog = 0;
 
   /**
    * Apply movement using Babylon's native mesh collision system
