@@ -429,30 +429,49 @@ export class FPSController implements ICameraController {
         }
       }
       
-      // === Q3/WARSOW STRAFE ACCELERATION ===
-      // Key: When strafing at angle to velocity, dot product (currentspeed) is low
-      // This allows acceleration in wishdir, which increases total speed
-      if (hasInput) {
+      // === WARSOW STRAFE ACCELERATION ===
+      // When holding +forward AND strafe (A/D), apply acceleration that increases total speed
+      // This is the "strafe-bunnyhopping" mechanic from Warsow
+      
+      const holdingForwardAndStrafe = this.keys.forward && holdingStrafe;
+      
+      if (holdingForwardAndStrafe && currentHorizSpeed > 1) {
+        // WARSOW SPECIAL: When forward+strafe, accelerate perpendicular to velocity
+        // This always increases speed regardless of current velocity
+        
+        // Get perpendicular direction (90° from velocity)
+        const velDirX = this.velocity.x / currentHorizSpeed;
+        const velDirZ = this.velocity.z / currentHorizSpeed;
+        
+        // Perpendicular: rotate 90° based on strafe direction
+        const strafeDir = this.keys.left ? 1 : -1; // left = turn left, right = turn right
+        const perpX = -velDirZ * strafeDir;
+        const perpZ = velDirX * strafeDir;
+        
+        // Apply acceleration in perpendicular direction
+        // This adds to total speed without Q3's dot product limitation
+        const strafeAccel = airaccelerate * deltaTime * maxairspeed * 2; // Boosted for strafe
+        
+        this.velocity.x += strafeAccel * perpX;
+        this.velocity.z += strafeAccel * perpZ;
+        
+        // Debug log
+        if (!FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 500) {
+          FPSController._lastStrafeLog = Date.now();
+          const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+          console.log(`[WarsowStrafe] accel=${strafeAccel.toFixed(2)}, newSpeed=${newSpeed.toFixed(0)}`);
+        }
+      } else if (hasInput) {
+        // Standard Q3 air acceleration (for non-strafe movement)
         const airWishspeed = Math.min(wishspeed, maxairspeed);
-        // Dot product: how much of our velocity is in the wishdir direction
         const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
         const addspeed = airWishspeed - currentspeed;
         
         if (addspeed > 0) {
-          // Q3 formula: accel * frametime * wishspeed (using capped airWishspeed)
           let accelspeed = airaccelerate * deltaTime * airWishspeed;
           if (accelspeed > addspeed) accelspeed = addspeed;
-          
-          // Add velocity in wishdir direction
           this.velocity.x += accelspeed * wishdir.x;
           this.velocity.z += accelspeed * wishdir.z;
-          
-          // Debug: log when acceleration happens
-          if (accelspeed > 0.1 && !FPSController._lastStrafeLog || Date.now() - FPSController._lastStrafeLog > 500) {
-            FPSController._lastStrafeLog = Date.now();
-            const newSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-            console.log(`[Strafe] accel=${accelspeed.toFixed(2)}, addspeed=${addspeed.toFixed(2)}, newSpeed=${newSpeed.toFixed(0)}`);
-          }
         }
       }
     }
