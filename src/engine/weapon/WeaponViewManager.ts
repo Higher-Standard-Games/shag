@@ -396,35 +396,52 @@ export class WeaponViewManager {
         let targetRoll = 0;
         let targetInward = 0;
 
+        const amplitude = mv.get('cg_gunbob_amplitude');
+        const speedMult = mv.get('cg_gunbob_speed');
+        const sprintTilt = mv.get('cg_gunbob_sprint_tilt');
+        const sprintInward = mv.get('cg_gunbob_sprint_inward');
+
+        // Use shared bobCycle from view bob (synced!)
+        const bobCycle = (state.bobCycle ?? 0) * speedMult;
+
+        // Speed factor for intensity
+        const speedFactor = Math.min(state.horizontalSpeed / 320, 2.0);
+
+        // === WALK BOB (grounded only) ===
+        // Vertical and horizontal sway - only when feet on ground
         if (bobEnabled && state.isGrounded && state.horizontalSpeed > 10) {
-            const amplitude = mv.get('cg_gunbob_amplitude');
-            const speedMult = mv.get('cg_gunbob_speed');
-            const sprintTilt = mv.get('cg_gunbob_sprint_tilt');
-            const sprintInward = mv.get('cg_gunbob_sprint_inward');
-
-            // Use shared bobCycle from view bob (synced!)
-            const bobCycle = (state.bobCycle ?? 0) * speedMult;
-
-            // Speed factor for intensity
-            const speedFactor = Math.min(state.horizontalSpeed / 320, 2.0);
-
             // Vertical bob (up/down)
             targetBobY = Math.sin(bobCycle * 2) * amplitude * speedFactor;
 
             // Horizontal sway (left/right) - 90° offset
             targetBobX = Math.sin(bobCycle) * amplitude * 0.5 * speedFactor;
+        }
 
-            // Sprint tilt, roll & inward (weapon tilts up, rolls, moves to chest)
-            // Use speedRatio instead of isSprinting key (respects cl_autorun)
-            const sprintRatio = state.speedRatio ?? 0;
-            if (sprintRatio > 0.3) {  // Above 30% of max speed = running
-                targetTilt = -sprintTilt * sprintRatio;    // Negative = tilt up (correct)
-                targetRoll = sprintTilt * 1.5 * sprintRatio;  // Roll to the side
-                // Yaw: rotate barrel toward chest (counter-clockwise when viewed from above)
-                // If weapon is on right (positive X), rotate negative Y to swing barrel left
-                const handSign = this.effectiveBasePosition.x > 0 ? -1 : 1;
-                targetInward = handSign * sprintInward * sprintRatio;  // Yaw degrees
-            }
+        // === SPRINT TILT (speed-based, NOT grounded check) ===
+        // Maintains sprint pose even while jumping/bunnyhopping
+        // Two-phase scaling:
+        //   Phase 1: 320-420 (sprint speed) = 0% to 100% of CVar value
+        //   Phase 2: 420+ (strafe bunny) = 100% to 120% max (slower growth)
+        const baseSpeed = 320;
+        const sprintSpeed = 420;  // 100% point
+        const maxExtraSpeed = 800;  // 120% point (beyond this, capped)
+
+        let sprintRatio: number;
+        if (state.horizontalSpeed <= sprintSpeed) {
+            // Phase 1: linear scale to 100%
+            sprintRatio = Math.max(0, (state.horizontalSpeed - baseSpeed) / (sprintSpeed - baseSpeed));
+        } else {
+            // Phase 2: slower growth from 100% to 120%
+            const extraRatio = (state.horizontalSpeed - sprintSpeed) / (maxExtraSpeed - sprintSpeed);
+            sprintRatio = 1.0 + Math.min(0.2, extraRatio * 0.2);  // Max 120%
+        }
+
+        if (bobEnabled && state.horizontalSpeed > baseSpeed * 0.8) {  // Above 80% of base speed
+            targetTilt = -sprintTilt * sprintRatio;    // Negative = tilt up
+            targetRoll = sprintTilt * 1.5 * sprintRatio;  // Roll to the side
+            // Yaw: rotate barrel toward chest
+            const handSign = this.effectiveBasePosition.x > 0 ? -1 : 1;
+            targetInward = handSign * sprintInward * sprintRatio;  // Yaw degrees
         }
 
         // Smooth lerp to targets
