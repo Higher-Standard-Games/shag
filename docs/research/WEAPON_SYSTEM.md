@@ -2,6 +2,8 @@
 
 A comprehensive system for handling first-person weapons, including view models, aiming, spread, ammunition, and integration with movement mechanics.
 
+> **See Also:** [Entity Definition System](./ENTITY_DEFS.md) - The weapon system is part of the broader entity definition architecture that handles shared server/client definitions.
+
 ## Overview
 
 The weapon system handles:
