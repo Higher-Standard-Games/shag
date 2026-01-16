@@ -395,7 +395,7 @@ export class WeaponViewManager {
         if (!this.currentWeapon || !this.weaponRoot) return;
 
         const mv = MovementVars.getInstance();
-        const bobEnabled = mv.get('cg_gunbob') > 0;
+        const bobEnabled = mv.get('cl_gunbob') > 0;
 
         // Get player state from viewport manager
         const viewportManager = ViewportEffectsManager.getInstance();
@@ -408,10 +408,10 @@ export class WeaponViewManager {
         let targetRoll = 0;
         let targetInward = 0;
 
-        const amplitude = mv.get('cg_gunbob_amplitude');
-        const speedMult = mv.get('cg_gunbob_speed');
-        const sprintTilt = mv.get('cg_gunbob_sprint_tilt');
-        const sprintInward = mv.get('cg_gunbob_sprint_inward');
+        const amplitude = mv.get('cl_gunbob_amplitude');
+        const speedMult = mv.get('cl_gunbob_speed');
+        const sprintTilt = mv.get('cl_gunbob_sprint_tilt');
+        const sprintInward = mv.get('cl_gunbob_sprint_inward');
 
         // Use shared bobCycle from view bob (synced!)
         const bobCycle = (state.bobCycle ?? 0) * speedMult;
@@ -465,8 +465,8 @@ export class WeaponViewManager {
         this.currentSprintYaw += (targetInward - this.currentSprintYaw) * lerpFactor;
 
         // === JUMP/LAND BOB (time-based triggered animation) ===
-        const jumpBobIntensity = mv.get('cg_gunbob_jump');
-        const landBobIntensity = mv.get('cg_gunbob_land');
+        const jumpBobIntensity = mv.get('cl_gunbob_jump');
+        const landBobIntensity = mv.get('cl_gunbob_land');
 
         // Decrease cooldown
         if (this.jumpLandCooldown > 0) {
@@ -504,8 +504,8 @@ export class WeaponViewManager {
         const basePos = this.effectiveBasePosition;
 
         // === ADS (Aiming Down Sights) ===
-        const adsTime = mv.get('cg_ads_time');
-        const adsOffsetY = mv.get('cg_ads_offset_y');
+        const adsTime = mv.get('cl_ads_time');
+        const adsOffsetY = mv.get('cl_ads_offset_y');
 
         // Lerp ADS progress based on aim state
         const adsSpeed = 1.0 / Math.max(0.05, adsTime);  // Inverse of time = speed

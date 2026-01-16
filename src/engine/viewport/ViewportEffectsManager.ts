@@ -50,8 +50,8 @@ export class ViewportEffectsManager {
         if (this.initialized) return;
 
         // Register master toggle cvar
-        if (!Cvar.exists('cg_vieweffects')) {
-            Cvar.register('cg_vieweffects', 1, {
+        if (!Cvar.exists('cl_vieweffects')) {
+            Cvar.register('cl_vieweffects', 1, {
                 type: 'int',
                 min: 0,
                 max: 1,
@@ -129,7 +129,7 @@ export class ViewportEffectsManager {
         const combined = createNeutralDelta();
 
         // Check master toggle
-        const masterEnabled = Cvar.getNumber('cg_vieweffects') !== 0;
+        const masterEnabled = Cvar.getNumber('cl_vieweffects') !== 0;
         if (!masterEnabled) {
             return combined;
         }
@@ -148,9 +148,9 @@ export class ViewportEffectsManager {
 
         // === ADS FOV ZOOM ===
         const mv = MovementVars.getInstance();
-        const adsTime = mv.get('cg_ads_time');
+        const adsTime = mv.get('cl_ads_time');
         // FOV reduction as a percentage (15 = 15% reduction, so 0.85x multiplier)
-        const adsFovReductionPercent = mv.get('cg_ads_fov_reduction') / 100;
+        const adsFovReductionPercent = mv.get('cl_ads_fov_reduction') / 100;
 
         // Lerp ADS progress
         const adsSpeed = 1.0 / Math.max(0.05, adsTime);
@@ -207,7 +207,7 @@ export class ViewportEffectsManager {
      */
     getInfo(): string {
         const lines = ['=== Viewport Effects ==='];
-        const masterEnabled = Cvar.getNumber('cg_vieweffects') !== 0;
+        const masterEnabled = Cvar.getNumber('cl_vieweffects') !== 0;
         lines.push(`Master: ${masterEnabled ? 'ON' : 'OFF'}`);
         lines.push('');
 

@@ -286,7 +286,7 @@ export class FPSController implements ICameraController {
 
       // ADS sensitivity reduction (lerped with ADS progress)
       const mv = MovementVars.getInstance();
-      const adsSensitivity = mv.get('cg_ads_sensitivity');
+      const adsSensitivity = mv.get('cl_ads_sensitivity');
       // Lerp: 1.0 when hip, adsSensitivity when fully ADS
       const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
 
@@ -426,7 +426,7 @@ export class FPSController implements ICameraController {
     const autorun = mv.get('cl_autorun') > 0;
 
     // ADS sensitivity lerp (matches ADS animation timing)
-    const adsTime = mv.get('cg_ads_time');
+    const adsTime = mv.get('cl_ads_time');
     const adsSpeed = 1.0 / Math.max(0.05, adsTime);
     const targetAdsSens = this.keys.aim ? 1.0 : 0.0;
     const adsSensLerp = Math.min(1.0, deltaTime * adsSpeed);

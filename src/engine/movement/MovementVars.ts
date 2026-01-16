@@ -427,7 +427,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob: {
+  cl_gunbob: {
     value: 1,
     defaultValue: 1,
     min: 0,
@@ -437,7 +437,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: false,
     type: 'int',
   },
-  cg_gunbob_amplitude: {
+  cl_gunbob_amplitude: {
     value: 1.5,
     defaultValue: 1.5,
     min: 0,
@@ -446,7 +446,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob_speed: {
+  cl_gunbob_speed: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0.5,
@@ -455,7 +455,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob_sprint_tilt: {
+  cl_gunbob_sprint_tilt: {
     value: 10,
     defaultValue: 10,
     min: 0,
@@ -464,7 +464,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob_sprint_inward: {
+  cl_gunbob_sprint_inward: {
     value: 30,
     defaultValue: 30,
     min: 0,
@@ -473,7 +473,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob_jump: {
+  cl_gunbob_jump: {
     value: 2.0,
     defaultValue: 2.0,
     min: 0,
@@ -482,7 +482,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_gunbob_land: {
+  cl_gunbob_land: {
     value: 3.0,
     defaultValue: 3.0,
     min: 0,
@@ -493,7 +493,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
   },
 
   // ==================== ADS (Aiming Down Sights) ====================
-  cg_ads_time: {
+  cl_ads_time: {
     value: 0.08,
     defaultValue: 0.08,
     min: 0.05,
@@ -502,7 +502,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_ads_offset_y: {
+  cl_ads_offset_y: {
     value: 2.0,
     defaultValue: 2.0,
     min: -5.0,
@@ -511,7 +511,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_ads_fov_reduction: {
+  cl_ads_fov_reduction: {
     value: 15,
     defaultValue: 15,
     min: 0,
@@ -520,7 +520,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
-  cg_ads_sensitivity: {
+  cl_ads_sensitivity: {
     value: 0.5,
     defaultValue: 0.5,
     min: 0.1,

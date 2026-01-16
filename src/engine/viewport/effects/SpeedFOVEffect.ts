@@ -5,8 +5,8 @@
  * above a base speed threshold. Common in racing and fast-paced games.
  *
  * Cvars:
- * - cg_speedfov: Max FOV increase (multiplier, e.g., 0.15 = +15%)
- * - cg_speedfovspeed: FOV interpolation speed
+ * - cl_speedfov: Max FOV increase (multiplier, e.g., 0.15 = +15%)
+ * - cl_speedfovspeed: FOV interpolation speed
  */
 
 import { Cvar } from '../../core/Cvar';
@@ -30,8 +30,8 @@ export class SpeedFOVEffect extends BaseViewportEffect {
     }
 
     private registerCvars(): void {
-        if (!Cvar.exists('cg_speedfov')) {
-            Cvar.register('cg_speedfov', 0.25, {
+        if (!Cvar.exists('cl_speedfov')) {
+            Cvar.register('cl_speedfov', 0.25, {
                 type: 'float',
                 min: 0,
                 max: 0.5,
@@ -40,8 +40,8 @@ export class SpeedFOVEffect extends BaseViewportEffect {
             });
         }
 
-        if (!Cvar.exists('cg_speedfovspeed')) {
-            Cvar.register('cg_speedfovspeed', 5, {
+        if (!Cvar.exists('cl_speedfovspeed')) {
+            Cvar.register('cl_speedfovspeed', 5, {
                 type: 'float',
                 min: 1,
                 max: 15,
@@ -54,8 +54,8 @@ export class SpeedFOVEffect extends BaseViewportEffect {
     update(deltaTime: number, state: PlayerState): ViewportDelta {
         const delta = createNeutralDelta();
 
-        const maxFOVIncrease = Cvar.getNumber('cg_speedfov') ?? 0.15;
-        const fovSpeed = Cvar.getNumber('cg_speedfovspeed') ?? 5;
+        const maxFOVIncrease = Cvar.getNumber('cl_speedfov') ?? 0.15;
+        const fovSpeed = Cvar.getNumber('cl_speedfovspeed') ?? 5;
 
         // Skip if no FOV effect configured
         if (maxFOVIncrease === 0) {
