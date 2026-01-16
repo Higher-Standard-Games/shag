@@ -19,6 +19,7 @@ import { EventBus } from '../core/EventBus';
 import { Cvar } from '../core/Cvar';
 import type { ViewportEffect } from './ViewportEffect';
 import type { PlayerState } from './PlayerState';
+import { createNeutralPlayerState } from './PlayerState';
 import { ViewportDelta, createNeutralDelta, combineDelta } from './ViewportDelta';
 
 export class ViewportEffectsManager {
@@ -27,6 +28,7 @@ export class ViewportEffectsManager {
     private effects: Map<string, ViewportEffect> = new Map();
     private initialized: boolean = false;
     private unsubscribes: Array<() => void> = [];
+    private _currentState: PlayerState = createNeutralPlayerState();
 
     private constructor() { }
 
@@ -117,6 +119,9 @@ export class ViewportEffectsManager {
      * @returns Combined ViewportDelta from all active effects
      */
     update(deltaTime: number, state: PlayerState): ViewportDelta {
+        // Store current state for external access (e.g., weapon bob)
+        this._currentState = state;
+
         const combined = createNeutralDelta();
 
         // Check master toggle
@@ -138,6 +143,14 @@ export class ViewportEffectsManager {
         }
 
         return combined;
+    }
+
+    /**
+     * Get current player state (updated each frame)
+     * Used by weapon bob to sync with view bob
+     */
+    getCurrentState(): PlayerState {
+        return this._currentState;
     }
 
     /**

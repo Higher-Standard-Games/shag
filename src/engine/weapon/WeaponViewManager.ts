@@ -15,6 +15,7 @@ import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loade
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { MovementVars } from '../movement/MovementVars';
 import { BspManager } from '../loader/bsp/BspManager';
+import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -78,6 +79,15 @@ export class WeaponViewManager {
     private currentLightB: number = 1.0;
     private static readonly LIGHT_LERP_SPEED = 5.0;  // How fast to interpolate (higher = faster)
     private static readonly LIGHT_INFLUENCE = 0.6;   // 0-1, how much lightgrid affects weapon (0.6 = 60%)
+
+    // Weapon bob state
+    private currentBobOffsetX: number = 0;
+    private currentBobOffsetY: number = 0;
+    private currentSprintTilt: number = 0;    // X-axis pitch up
+    private currentSprintRoll: number = 0;    // Z-axis roll sideways
+    private currentSprintYaw: number = 0;     // Y-axis yaw (barrel points inward)
+    private effectiveBasePosition: Vector3 = Vector3.Zero();  // Base position with handedness
+    private static readonly BOB_LERP_SPEED = 8.0;  // Smooth bob transitions
 
     // Debug
     private debugEnabled: boolean = false;
@@ -334,6 +344,9 @@ export class WeaponViewManager {
         root.rotation.copyFrom(pos.rotation);
         root.scaling.setAll(pos.scale);
 
+        // Store effective base position for bob to use
+        this.effectiveBasePosition.set(handOffset, pos.offset.y, pos.offset.z);
+
         if (this.debugEnabled) {
             console.log(`[WeaponViewManager] Position: (${root.position.x.toFixed(3)}, ${root.position.y.toFixed(3)}, ${root.position.z.toFixed(3)}) scale=${pos.scale}`);
         }
@@ -359,7 +372,87 @@ export class WeaponViewManager {
         // Update lighting every frame for smooth transitions
         this.updateLightingFromBsp(deltaTime);
 
-        // Future: weapon sway, bob, animations
+        // Update weapon bob (synced with view bob)
+        this.updateWeaponBob(deltaTime);
+    }
+
+    /**
+     * Update weapon bob animation synced with view bob
+     */
+    private updateWeaponBob(deltaTime: number): void {
+        if (!this.currentWeapon || !this.weaponRoot) return;
+
+        const mv = MovementVars.getInstance();
+        const bobEnabled = mv.get('cg_gunbob') > 0;
+
+        // Get player state from viewport manager
+        const viewportManager = ViewportEffectsManager.getInstance();
+        const state = viewportManager.getCurrentState();
+
+        // Calculate target bob offsets
+        let targetBobX = 0;
+        let targetBobY = 0;
+        let targetTilt = 0;
+        let targetRoll = 0;
+        let targetInward = 0;
+
+        if (bobEnabled && state.isGrounded && state.horizontalSpeed > 10) {
+            const amplitude = mv.get('cg_gunbob_amplitude');
+            const speedMult = mv.get('cg_gunbob_speed');
+            const sprintTilt = mv.get('cg_gunbob_sprint_tilt');
+            const sprintInward = mv.get('cg_gunbob_sprint_inward');
+
+            // Use shared bobCycle from view bob (synced!)
+            const bobCycle = (state.bobCycle ?? 0) * speedMult;
+
+            // Speed factor for intensity
+            const speedFactor = Math.min(state.horizontalSpeed / 320, 2.0);
+
+            // Vertical bob (up/down)
+            targetBobY = Math.sin(bobCycle * 2) * amplitude * speedFactor;
+
+            // Horizontal sway (left/right) - 90° offset
+            targetBobX = Math.sin(bobCycle) * amplitude * 0.5 * speedFactor;
+
+            // Sprint tilt, roll & inward (weapon tilts up, rolls, moves to chest)
+            // Use speedRatio instead of isSprinting key (respects cl_autorun)
+            const sprintRatio = state.speedRatio ?? 0;
+            if (sprintRatio > 0.3) {  // Above 30% of max speed = running
+                targetTilt = -sprintTilt * sprintRatio;    // Negative = tilt up (correct)
+                targetRoll = sprintTilt * 1.5 * sprintRatio;  // Roll to the side
+                // Yaw: rotate barrel toward chest (counter-clockwise when viewed from above)
+                // If weapon is on right (positive X), rotate negative Y to swing barrel left
+                const handSign = this.effectiveBasePosition.x > 0 ? -1 : 1;
+                targetInward = handSign * sprintInward * sprintRatio;  // Yaw degrees
+            }
+        }
+
+        // Smooth lerp to targets
+        const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.BOB_LERP_SPEED);
+        this.currentBobOffsetX += (targetBobX - this.currentBobOffsetX) * lerpFactor;
+        this.currentBobOffsetY += (targetBobY - this.currentBobOffsetY) * lerpFactor;
+        this.currentSprintTilt += (targetTilt - this.currentSprintTilt) * lerpFactor;
+        this.currentSprintRoll += (targetRoll - this.currentSprintRoll) * lerpFactor;
+        this.currentSprintYaw += (targetInward - this.currentSprintYaw) * lerpFactor;
+
+        // Apply to weapon root (on top of base position with handedness)
+        const root = this.currentWeapon.root;
+        const basePos = this.effectiveBasePosition;
+
+        // Apply position offset (bob only, no X translation)
+        root.position.set(
+            basePos.x + this.currentBobOffsetX,
+            basePos.y + this.currentBobOffsetY,
+            basePos.z
+        );
+
+        // Apply rotation (base + sprint: pitch X, yaw Y, roll Z)
+        const baseRot = this.currentPosition.rotation;
+        root.rotation.set(
+            baseRot.x + (this.currentSprintTilt * Math.PI / 180),  // Pitch up
+            baseRot.y + (this.currentSprintYaw * Math.PI / 180),   // Yaw barrel toward chest
+            baseRot.z + (this.currentSprintRoll * Math.PI / 180)   // Roll sideways
+        );
     }
 
     /**

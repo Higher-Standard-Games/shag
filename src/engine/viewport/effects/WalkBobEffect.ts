@@ -143,6 +143,10 @@ export class WalkBobEffect extends BaseViewportEffect {
         const leanSpeed = 5;  // How fast we lean forward/back
         this.currentLean += (targetLean - this.currentLean) * Math.min(1, deltaTime * leanSpeed);
 
+        // Write shared bob values to state (for weapon bob to sync with)
+        state.bobCycle = this.bobCycle;
+        state.speedRatio = speedRatio;
+
         // Build delta
         delta.positionOffset = new Vector3(offsetX, offsetY, 0);
         delta.rotationOffset = new Vector3(this.currentLean, 0, roll);

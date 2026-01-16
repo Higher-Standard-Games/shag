@@ -37,6 +37,15 @@ export interface PlayerState {
 
     /** Wall jump state for FOV effects */
     wallJumpState?: 'none' | 'charging' | 'pushing';
+
+    /** Is the player sprinting? */
+    isSprinting?: boolean;
+
+    /** Shared bob cycle timer (used by view bob and weapon bob) */
+    bobCycle?: number;
+
+    /** Speed ratio 0-1 (0 = base speed, 1 = max speed) */
+    speedRatio?: number;
 }
 
 /**
@@ -53,5 +62,8 @@ export function createNeutralPlayerState(): PlayerState {
         strafeInput: 0,
         forwardInput: 0,
         landingVelocity: 0,
+        isSprinting: false,
+        bobCycle: 0,
+        speedRatio: 0,
     };
 }
