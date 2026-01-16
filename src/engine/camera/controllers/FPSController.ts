@@ -626,7 +626,8 @@ export class FPSController implements ICameraController {
           // This prevents "landing" immediately after jumping (jetpack fix)
           if (this.velocity.y <= 0) {
             if (!this.isGrounded) {
-              // Just landed this frame
+              // Just landed this frame - capture velocity BEFORE zeroing!
+              this.landingVelocityCapture = this.velocity.y;
               this.isGrounded = true;
             }
             // Zero vertical velocity when on ground
@@ -699,11 +700,7 @@ export class FPSController implements ICameraController {
       this.camera.rotation.y = this.mouseRotationY;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
 
-      // Capture landing velocity
-      const justLandedNow = this.isGrounded && !this.wasGroundedLastFrame;
-      if (justLandedNow) {
-        this.landingVelocityCapture = this.velocity.y;
-      }
+      // Note: landingVelocityCapture is set in ground detection (before velocity is zeroed)
 
       const playerState: PlayerState = {
         position: this.camera.position.clone(),

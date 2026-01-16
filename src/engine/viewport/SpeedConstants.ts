@@ -15,7 +15,7 @@
  */
 
 // Base walking speed - effects start above this
-export const BASE_SPEED = 320;
+export const BASE_SPEED = 280;
 
 // Maximum effect speed - effects max out at 2x base
 export const MAX_SPEED = BASE_SPEED * 2;  // 640

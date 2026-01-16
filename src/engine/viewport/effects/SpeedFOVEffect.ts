@@ -13,7 +13,6 @@ import { Cvar } from '../../core/Cvar';
 import { BaseViewportEffect } from '../ViewportEffect';
 import type { PlayerState } from '../PlayerState';
 import { ViewportDelta, createNeutralDelta } from '../ViewportDelta';
-import { getSpeedRatio } from '../SpeedConstants';
 
 export class SpeedFOVEffect extends BaseViewportEffect {
     readonly name = 'speedfov';
@@ -28,7 +27,7 @@ export class SpeedFOVEffect extends BaseViewportEffect {
 
     private registerCvars(): void {
         if (!Cvar.exists('cg_speedfov')) {
-            Cvar.register('cg_speedfov', 0.15, {
+            Cvar.register('cg_speedfov', 0.25, {
                 type: 'float',
                 min: 0,
                 max: 0.5,
@@ -60,8 +59,15 @@ export class SpeedFOVEffect extends BaseViewportEffect {
             return delta;
         }
 
-        // Calculate speed ratio using shared gradient (0 at base, 1 at 2x base)
-        const speedRatio = getSpeedRatio(state.horizontalSpeed);
+        // SpeedFOV uses extended range: starts at 280, maxes at 800
+        // This gives more FOV increase at high bunny hop speeds
+        const BASE = 280;
+        const MAX = 800;  // Extended beyond other effects for dramatic high-speed feel
+        const speed = state.horizontalSpeed;
+        let speedRatio = 0;
+        if (speed > BASE) {
+            speedRatio = Math.min(1, (speed - BASE) / (MAX - BASE));
+        }
 
         // Target FOV multiplier
         const targetFOV = 1.0 + speedRatio * maxFOVIncrease;

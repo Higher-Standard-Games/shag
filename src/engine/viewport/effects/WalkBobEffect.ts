@@ -60,7 +60,7 @@ export class WalkBobEffect extends BaseViewportEffect {
         }
 
         if (!Cvar.exists('cg_bobfrequency')) {
-            Cvar.register('cg_bobfrequency', 0.028, {
+            Cvar.register('cg_bobfrequency', 0.026, {
                 type: 'float',
                 min: 0.01,
                 max: 0.06,

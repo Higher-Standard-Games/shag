@@ -55,8 +55,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: false,
   },
   sv_movementSpeed: {
-    value: 320,
-    defaultValue: 320,
+    value: 280,
+    defaultValue: 280,
     min: 50,
     max: 2000,
     description: 'Base player movement speed (units/sec)',
@@ -75,8 +75,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
 
   // ==================== Physics ====================
   sv_gravity: {
-    value: 800,
-    defaultValue: 800,
+    value: 1000,
+    defaultValue: 1000,
     min: 0,
     max: 2000,
     description: 'Gravity strength (units/sec²)',
@@ -84,8 +84,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
   sv_jumpheight: {
-    value: 270,
-    defaultValue: 270,
+    value: 280,
+    defaultValue: 280,
     min: 0,
     max: 1000,
     description: 'Jump velocity (Quake-style units)',
