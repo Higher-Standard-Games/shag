@@ -21,13 +21,13 @@ export default class JoinCommand extends Command {
     let mapLoader;
     let FPSController;
     let FreeflyController;
-    
+
     try {
       const cameraModule = await import('../../camera/CameraSystem');
       const mapModule = await import('../../loader/map/MapLoader');
       const fpsModule = await import('../../camera/controllers/FPSController');
       const freeflyModule = await import('../../camera/controllers/FreeflyController');
-      
+
       cameraSystem = cameraModule.CameraSystem.getInstance();
       mapLoader = mapModule.MapLoader.getInstance();
       FPSController = fpsModule.FPSController;
@@ -48,7 +48,7 @@ export default class JoinCommand extends Command {
 
     // Find spawn points
     const spawns = bsp.entities.filter((e: { classname: string }) =>
-      e.classname === 'info_player_deathmatch' || 
+      e.classname === 'info_player_deathmatch' ||
       e.classname === 'info_player_start' ||
       e.classname === 'info_player_team1' ||
       e.classname === 'info_player_team2'
@@ -73,7 +73,7 @@ export default class JoinCommand extends Command {
     const spawnX = parts[0];
     const spawnY = parts[2] + 48;  // Eye level
     const spawnZ = parts[1];
-    
+
     camera.position.set(spawnX, spawnY, spawnZ);
 
     // Register controllers if needed
@@ -86,6 +86,18 @@ export default class JoinCommand extends Command {
 
     // Switch to FPS mode (spectator 0)
     cameraSystem.setController('fps');
+
+    // Initialize weapon view manager
+    try {
+      const weaponModule = await import('../../weapon/WeaponViewManager');
+      const { FreeCamera } = await import('@babylonjs/core/Cameras/freeCamera');
+      const scene = camera.getScene();
+      if (scene && camera instanceof FreeCamera) {
+        weaponModule.getWeaponViewManager().init(scene, camera);
+      }
+    } catch (e) {
+      console.warn('[Join] Failed to init weapon view:', e);
+    }
 
     return `Joined at ${spawn.classname} - click to capture mouse, WASD to move`;
   }
