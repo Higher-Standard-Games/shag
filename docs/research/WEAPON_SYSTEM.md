@@ -12,31 +12,171 @@ The weapon system handles:
 5. **Weapon States** - Idle, firing, reloading, switching, etc.
 6. **Movement Integration** - Weapon sway from movement, ledge grab, wall jump, etc.
 
-## Architecture Decision: Engine vs Game
+## Architecture: Q3-Style Client/Server Separation
 
-### Option A: Engine-Side Implementation
-**Pros:**
-- Integrated with existing viewport effects, FPSController
-- Direct access to player state (movement, ledge grab, wall jump)
-- Consistent with existing engine patterns
+Following Quake 3's architecture, we separate weapon logic:
 
-**Cons:**
-- Mixes engine with game-specific logic
-- Less flexible for different game types
+```
+┌────────────────────────────────────────────────────────────────┐
+│                         SERVER (Authoritative)                  │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ WeaponServerSystem                                       │   │
+│  │ - Which weapons each player owns                         │   │
+│  │ - Current weapon equipped                                │   │
+│  │ - Ammo counts (clip + reserve)                          │   │
+│  │ - Fire requests → hit detection → damage                │   │
+│  │ - Reload timing validation                               │   │
+│  │ - Weapon pickup/drop                                     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                  │
+│                              │ GameState + Events               │
+│                              ▼                                  │
+├────────────────────────────────────────────────────────────────┤
+│                         CLIENT (Cosmetic)                       │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ WeaponViewManager                                        │   │
+│  │ - Load/display weapon view model (MD3)                   │   │
+│  │ - Position on screen (hip/ADS/lowered)                   │   │
+│  │ - Animation playback (fire, reload, switch)              │   │
+│  │ - Weapon sway/bob integration                            │   │
+│  │ - Muzzle flash, shell casings (effects)                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ WeaponClientPredictor                                    │   │
+│  │ - Predict fire immediately (before server confirms)      │   │
+│  │ - Play fire animation/sound instantly                    │   │
+│  │ - Reconcile with server state                            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────┘
+```
 
-### Option B: Game-Side Implementation
-**Pros:**
-- Clean separation of concerns
-- Engine remains generic
-- Game can customize weapon behavior
+### Server Responsibilities (Authoritative)
+| Component | Purpose |
+|-----------|---------|
+| `WeaponInventory` | Which weapons player owns |
+| `AmmoState` | Clip counts, reserve ammo |
+| `FireHandler` | Validate fire, spawn projectile/hitscan |
+| `HitDetection` | Ray/projectile collision, damage calc |
+| `ReloadHandler` | Validate reload timing, update ammo |
+| `PickupSystem` | Weapon spawns, pickups, drops |
 
-**Cons:**
-- Needs API hooks from engine
-- More complex integration
+### Client Responsibilities (Cosmetic)
+| Component | Purpose |
+|-----------|---------|
+| `WeaponViewManager` | Load MD3, position on screen |
+| `WeaponAnimator` | Fire/reload/switch animations |
+| `WeaponSway` | Sway/bob following movement |
+| `EffectsPlayer` | Muzzle flash, tracers, sounds |
+| `ClientPredictor` | Immediate feedback before server |
 
-### Recommendation: Hybrid Approach
-- **Engine provides:** Model loading, attachment system, viewport integration hooks
-- **Game implements:** Weapon definitions, ammo logic, firing mechanics
+### Shared Definitions (Both)
+| Component | Purpose |
+|-----------|---------|
+| `WeaponDef` | Weapon stats (damage, fire rate, etc.) |
+| `WeaponType` | Enum of weapon types |
+| `AmmoType` | Enum of ammo types |
+
+### Network Messages
+```typescript
+// Client → Server
+interface FireRequest {
+  weaponType: WeaponType;
+  aimDirection: Vector3;
+  timestamp: number;
+}
+
+interface ReloadRequest {
+  weaponType: WeaponType;
+}
+
+interface SwitchRequest {
+  toWeapon: WeaponType;
+}
+
+// Server → Client (in GameState)
+interface PlayerWeaponState {
+  currentWeapon: WeaponType;
+  clipAmmo: number;
+  reserveAmmo: number;
+  weaponState: 'idle' | 'firing' | 'reloading' | 'switching';
+}
+
+// Server → Client (Events)
+interface WeaponFiredEvent {
+  playerId: string;
+  weaponType: WeaponType;
+  origin: Vector3;
+  direction: Vector3;
+}
+
+interface HitConfirmEvent {
+  targetId: string;
+  damage: number;
+  hitLocation: 'head' | 'body' | 'limb';
+}
+```
+
+### Console Commands (Client-Side)
+```
+weapon_equip <name>     - Request server to switch weapon
+weapon_fire             - Bound to Mouse1, sends FireRequest
+weapon_reload           - Bound to R, sends ReloadRequest
+weapon_next             - Scroll through weapons
+weapon_prev             - Scroll through weapons
+
+# Debug/Dev commands
+weapon_give <name>      - (Cheats) Give weapon
+weapon_viewmodel 0|1    - Show/hide view model
+weapon_debug            - Show weapon state info
+```
+
+### Implementation Order
+
+**Phase 1: Client View Model Only (MVP)**
+Focus: Get a weapon rendering on screen, no gameplay.
+```
+1. Load data0_15pure.pk3
+2. Parse plasmagun.md3 with MD3Loader
+3. Create WeaponViewManager (engine side)
+4. Attach to camera, position in hip-fire
+5. Console commands: weapon_load, weapon_pos
+
+No server, no firing, just visual.
+```
+
+**Phase 2: Weapon Definitions**
+```
+1. Define WeaponDef interface (shared)
+2. Create weapon definitions (game side)
+3. Support loading from weapon.cfg files
+```
+
+**Phase 3: Server Weapon State**
+```
+1. Add weapon state to Entity/GameState
+2. Server tracks weapon ownership/ammo
+3. Network weapon state to clients
+```
+
+**Phase 4: Firing System**
+```
+1. Client sends FireRequest
+2. Server validates, does damage/projectile
+3. Server broadcasts WeaponFiredEvent
+4. Client plays effects on event
+```
+
+**Phase 5: Full Integration**
+```
+1. Reload system
+2. Weapon switching
+3. Pickups
+4. Client-side prediction
+```
+
 
 ## View Model System
 
