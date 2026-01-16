@@ -81,6 +81,14 @@ export class FPSController implements ICameraController {
   private mouseRotationX: number = 0;  // Pitch
   private mouseRotationY: number = 0;  // Yaw
 
+  // Ledge grab state
+  private ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
+  private ledgeGrabTime: number = 0;           // Time spent in current state
+  private ledgeGrabPosition: Vector3 = Vector3.Zero();  // Position when grabbed
+  private ledgeTargetPosition: Vector3 = Vector3.Zero(); // Target position after pull-up
+  private ledgeWallNormal: Vector3 = Vector3.Zero();    // Normal of wall we grabbed
+  private ledgePreGrabVelocity: Vector3 = Vector3.Zero(); // Velocity before grab (for drop)
+
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
@@ -663,7 +671,13 @@ export class FPSController implements ICameraController {
     // Debug log
     if (!FPSController._lastGroundLog || Date.now() - FPSController._lastGroundLog > 1000) {
       FPSController._lastGroundLog = Date.now();
-      console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}`);
+      console.log(`[FPS] pos.y=${this.camera.position.y.toFixed(1)}, vel.y=${this.velocity.y.toFixed(1)}, grounded=${this.isGrounded}, ledge=${this.ledgeGrabState}`);
+    }
+
+    // === LEDGE GRAB SYSTEM ===
+    const ledgeEnabled = mv.get('sv_ledgegrab') > 0;
+    if (ledgeEnabled) {
+      this.updateLedgeGrab(deltaTime, mv, cm);
     }
 
     // === SPEED DISPLAY (cl_showspeed) ===
@@ -905,6 +919,251 @@ export class FPSController implements ICameraController {
     // Restore original speed (air control doesn't change speed)
     this.velocity.x = velDirX * speed;
     this.velocity.z = velDirZ * speed;
+  }
+
+  /**
+   * Ledge grab state machine
+   * Handles detection, grabbing, pull-up animation, and release
+   */
+  private updateLedgeGrab(
+    deltaTime: number,
+    mv: MovementVars,
+    cm: ReturnType<typeof getCollisionManager>
+  ): void {
+    if (!this.camera) return;
+
+    const ledgeReach = mv.get('sv_ledge_reach');
+    const ledgeHeight = mv.get('sv_ledge_height');
+    const ledgeMinFall = mv.get('sv_ledge_minfall');
+    const ledgeTimeout = mv.get('sv_ledge_timeout');
+    const ledgePullTime = mv.get('sv_ledge_pulltime');
+    const eyeOffset = mv.get('sv_eyeoffset');
+
+    // State machine
+    switch (this.ledgeGrabState) {
+      case 'none':
+        // Check for ledge grab conditions
+        if (this.shouldGrabLedge(cm, ledgeReach, ledgeHeight, ledgeMinFall)) {
+          this.enterGrabbingState(eyeOffset, ledgeReach);
+        }
+        break;
+
+      case 'grabbing':
+        this.ledgeGrabTime += deltaTime;
+
+        // Check for release conditions
+        if (this.shouldReleaseLedge(ledgeTimeout)) {
+          this.exitGrabbingState(false); // Drop
+        } else if (this.keys.forward || this.keys.up) {
+          // Start pull-up
+          this.enterPullingState(ledgeHeight, ledgeReach);
+        } else {
+          // Stay hanging - lock position
+          this.camera.position.copyFrom(this.ledgeGrabPosition);
+          this.velocity.set(0, 0, 0);
+        }
+        break;
+
+      case 'pulling':
+        this.ledgeGrabTime += deltaTime;
+        const pullProgress = Math.min(1, this.ledgeGrabTime / ledgePullTime);
+
+        // Eased pull-up animation
+        const t = this.easeInOutQuad(pullProgress);
+        const newPos = Vector3.Lerp(this.ledgeGrabPosition, this.ledgeTargetPosition, t);
+        this.camera.position.copyFrom(newPos);
+
+        // Update physics position too
+        this.physicsX = newPos.x;
+        this.physicsY = newPos.y - eyeOffset;  // Convert back to feet position
+        this.physicsZ = newPos.z;
+
+        if (pullProgress >= 1) {
+          // Finished pull-up
+          this.exitGrabbingState(true); // Land on ledge
+        }
+        break;
+    }
+  }
+
+  /**
+   * Check if conditions are met for ledge grab
+   */
+  private shouldGrabLedge(
+    cm: ReturnType<typeof getCollisionManager>,
+    ledgeReach: number,
+    ledgeHeight: number,
+    ledgeMinFall: number
+  ): boolean {
+    if (!this.camera || !cm.isInitialized()) return false;
+
+    // Must be falling and moving forward
+    if (this.velocity.y >= ledgeMinFall) return false;
+    if (this.isGrounded) return false;
+    if (!this.keys.forward) return false;
+
+    const backend = (cm as any).backends?.get('q3');
+    if (!backend?.trace) return false;
+
+    // STAIR CHECK: Don't grab if ground is close below (we can just walk)
+    // Minimum height above ground required for ledge grab
+    const minHeightAboveGround = 40;  // Must be falling a decent amount
+    const groundCheckStart = this.camera.position.clone();
+    const groundCheckEnd = groundCheckStart.add(new Vector3(0, -minHeightAboveGround, 0));
+    const groundCheck = backend.trace(groundCheckStart, groundCheckEnd, { radius: 8, height: 16 });
+
+    if (groundCheck.fraction < 1.0) {
+      // Ground is too close - this is probably stairs
+      return false;
+    }
+
+    // Get forward direction (flattened)
+    const forward = this.camera.getDirection(Vector3.Forward());
+    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+
+    const chestHeight = 32;
+    const headHeight = 48;
+    const armReach = 16;
+    const traceOpts = { radius: 8, height: 16 };
+
+    // Trace 1: Chest height - should HIT wall
+    const chestStart = this.camera.position.add(new Vector3(0, chestHeight - 48, 0)); // Offset from eye to chest
+    const chestEnd = chestStart.add(flatForward.scale(ledgeReach));
+    const chestTrace = backend.trace(chestStart, chestEnd, traceOpts);
+
+    if (chestTrace.fraction >= 1.0) return false; // No wall at chest
+
+    // Trace 2: Head + arm reach - should be CLEAR (ledge exists)
+    const headStart = this.camera.position.add(new Vector3(0, headHeight + armReach - 48, 0));
+    const headEnd = headStart.add(flatForward.scale(ledgeReach));
+    const headTrace = backend.trace(headStart, headEnd, traceOpts);
+
+    if (headTrace.fraction < 1.0) return false; // Blocked above - no ledge
+
+    // Trace 3: Check there's room ABOVE us to pull up (not in a corner)
+    const upStart = this.camera.position.clone();
+    const upEnd = upStart.add(new Vector3(0, ledgeHeight * 0.8, 0));
+    const upTrace = backend.trace(upStart, upEnd, { radius: 12, height: 48 });
+
+    if (upTrace.fraction < 0.9) {
+      console.log('[LedgeGrab] Rejected: no room above');
+      return false; // Would hit ceiling
+    }
+
+    // Trace 4: Check target position is valid (not in solid)
+    const targetPos = this.camera.position.add(new Vector3(0, ledgeHeight * 0.8, 0))
+      .add(flatForward.scale(ledgeReach * 0.5));
+    const targetTrace = backend.trace(this.camera.position, targetPos, { radius: 12, height: 48 });
+
+    if (targetTrace.fraction < 0.8) {
+      console.log('[LedgeGrab] Rejected: target in solid');
+      return false; // Target position is blocked
+    }
+
+    // Store wall normal for later
+    if (chestTrace.normal) {
+      this.ledgeWallNormal.copyFrom(chestTrace.normal);
+    } else {
+      this.ledgeWallNormal = flatForward.scale(-1); // Fallback: opposite of forward
+    }
+
+    console.log('[LedgeGrab] Detected valid ledge!');
+    return true;
+  }
+
+  /**
+   * Enter the grabbing state
+   */
+  private enterGrabbingState(_eyeOffset: number, _ledgeReach: number): void {
+    if (!this.camera) return;
+
+    this.ledgeGrabState = 'grabbing';
+    this.ledgeGrabTime = 0;
+    this.ledgePreGrabVelocity.copyFrom(this.velocity);
+    this.ledgeGrabPosition.copyFrom(this.camera.position);
+
+    // Lower camera slightly (hanging from hands)
+    this.ledgeGrabPosition.y -= 12;
+
+    // Zero velocity
+    this.velocity.set(0, 0, 0);
+    this.isGrounded = false;
+
+    console.log('[LedgeGrab] Grabbing ledge!');
+  }
+
+  /**
+   * Check if player should release the ledge
+   */
+  private shouldReleaseLedge(ledgeTimeout: number): boolean {
+    // Timeout
+    if (this.ledgeGrabTime >= ledgeTimeout) return true;
+
+    // Moving backward
+    if (this.keys.backward) return true;
+
+    // Looking away from wall (dot product with wall normal > 0.5 means facing away)
+    if (this.camera) {
+      const forward = this.camera.getDirection(Vector3.Forward());
+      const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+      const dot = flatForward.x * this.ledgeWallNormal.x + flatForward.z * this.ledgeWallNormal.z;
+      if (dot > 0.5) return true; // Facing away from wall
+    }
+
+    return false;
+  }
+
+  /**
+   * Enter the pulling state (climbing up)
+   */
+  private enterPullingState(ledgeHeight: number, ledgeReach: number): void {
+    if (!this.camera) return;
+
+    this.ledgeGrabState = 'pulling';
+    this.ledgeGrabTime = 0;
+
+    // Calculate target position: above ledge and forward onto it
+    const forward = this.camera.getDirection(Vector3.Forward());
+    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+
+    this.ledgeTargetPosition.copyFrom(this.ledgeGrabPosition);
+    this.ledgeTargetPosition.y += ledgeHeight * 0.8; // Pull up
+    this.ledgeTargetPosition.addInPlace(flatForward.scale(ledgeReach * 0.5)); // Forward onto ledge
+
+    console.log('[LedgeGrab] Pulling up!');
+  }
+
+  /**
+   * Exit grabbing state
+   */
+  private exitGrabbingState(landed: boolean): void {
+    if (landed) {
+      // Landed on ledge
+      this.isGrounded = true;
+      this.velocity.set(0, 0, 0);
+      // Give small forward velocity
+      const forward = this.camera?.getDirection(Vector3.Forward()) ?? Vector3.Forward();
+      const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+      this.velocity.x = flatForward.x * 100;
+      this.velocity.z = flatForward.z * 100;
+      console.log('[LedgeGrab] Landed on ledge!');
+    } else {
+      // Dropped
+      this.velocity.x = this.ledgePreGrabVelocity.x * 0.5;
+      this.velocity.z = this.ledgePreGrabVelocity.z * 0.5;
+      this.velocity.y = -50; // Small downward kick
+      console.log('[LedgeGrab] Dropped from ledge!');
+    }
+
+    this.ledgeGrabState = 'none';
+    this.ledgeGrabTime = 0;
+  }
+
+  /**
+   * Easing function for smooth animation
+   */
+  private easeInOutQuad(t: number): number {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
   /**

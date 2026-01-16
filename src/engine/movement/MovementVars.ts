@@ -201,6 +201,62 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
 
+  // ==================== Ledge Grabbing ====================
+  sv_ledgegrab: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: 'Enable ledge grabbing (0/1)',
+    category: 'physics',
+    developerOnly: false,
+  },
+  sv_ledge_reach: {
+    value: 32,
+    defaultValue: 32,
+    min: 8,
+    max: 48,
+    description: 'Forward trace distance for ledge detection',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_ledge_height: {
+    value: 64,
+    defaultValue: 64,
+    min: 32,
+    max: 96,
+    description: 'Max height above feet to detect ledges',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_ledge_minfall: {
+    value: -50,
+    defaultValue: -50,
+    min: -200,
+    max: 0,
+    description: 'Min downward velocity to trigger ledge grab',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_ledge_timeout: {
+    value: 2.0,
+    defaultValue: 2.0,
+    min: 0.5,
+    max: 5.0,
+    description: 'Max hang time before auto-drop (seconds)',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_ledge_pulltime: {
+    value: 0.35,
+    defaultValue: 0.35,
+    min: 0.1,
+    max: 1.0,
+    description: 'Pull-up animation duration (seconds)',
+    category: 'physics',
+    developerOnly: true,
+  },
+
   // ==================== Camera ====================
   m_sensitivity: {
     value: 2.0,
