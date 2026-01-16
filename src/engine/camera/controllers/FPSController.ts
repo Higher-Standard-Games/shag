@@ -91,6 +91,11 @@ export class FPSController implements ICameraController {
 
   // Wall jump state
   private lastWallJumpTime: number = 0;  // For cooldown tracking
+  private wallJumpState: 'none' | 'charging' | 'pushing' = 'none';
+  private wallJumpChargeTime: number = 0;
+  private wallJumpPosition: Vector3 = Vector3.Zero();  // Position when started charging
+  private wallJumpNormal: Vector3 = Vector3.Zero();    // Wall normal to push off from
+  private wallJumpPreVelocity: Vector3 = Vector3.Zero(); // Velocity before charge
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -589,11 +594,28 @@ export class FPSController implements ICameraController {
     }
 
     // === WALL JUMP ===
-    // Only if enabled, in air, pressing jump (fresh), and not consumed
     const wallJumpEnabled = mv.get('sv_walljump') > 0;
-    if (wallJumpEnabled && this.keys.up && !this.isGrounded && !this.jumpConsumed) {
-      if (this.tryWallJump(mv, cm)) {
-        this.jumpConsumed = true;  // Prevent repeat until key release
+    const wallJumpChargeTime = mv.get('sv_walljump_chargetime');
+
+    // Handle wall jump state machine
+    if (wallJumpEnabled) {
+      if (this.wallJumpState === 'charging') {
+        // Currently charging - stay locked, update timer
+        this.wallJumpChargeTime += deltaTime;
+        this.camera.position.copyFrom(this.wallJumpPosition);
+        this.velocity.set(0, 0, 0);
+
+        if (this.wallJumpChargeTime >= wallJumpChargeTime) {
+          // Charge complete - execute push!
+          this.executeWallJumpPush(mv);
+        }
+      } else if (this.wallJumpState === 'none') {
+        // Check for new wall jump
+        if (this.keys.up && !this.isGrounded && !this.jumpConsumed) {
+          if (this.tryWallJump(mv, cm)) {
+            this.jumpConsumed = true;  // Prevent repeat until key release
+          }
+        }
       }
     }
 
@@ -738,6 +760,7 @@ export class FPSController implements ICameraController {
         strafeInput: (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0),
         forwardInput: (this.keys.forward ? 1 : 0) - (this.keys.backward ? 1 : 0),
         landingVelocity: this.landingVelocityCapture,
+        wallJumpState: this.wallJumpState,
       };
 
       const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
@@ -1234,14 +1257,23 @@ export class FPSController implements ICameraController {
       const traceEnd = traceStart.add(dir.scale(wallJumpReach));
       const trace = backend.trace(traceStart, traceEnd, { radius: 12, height: 40 });
 
-      if (trace.fraction < 1.0) {
-        // Found a wall
-        if (trace.normal) {
-          wallNormal = new Vector3(trace.normal.x, 0, trace.normal.z).normalize();
-        } else {
-          // Fallback: opposite of trace direction
-          wallNormal = dir.scale(-1);
+      if (trace.fraction < 1.0 && trace.normal) {
+        // Check if this is a VERTICAL wall, not a ledge/floor
+        // A proper wall has normal.y close to 0 (pointing sideways)
+        // A floor/ledge has normal.y close to 1 (pointing up)
+        const normalY = Math.abs(trace.normal.y);
+        if (normalY > 0.5) {
+          // This is more like a floor/ledge than a wall - skip
+          continue;
         }
+
+        // Found a valid vertical wall
+        wallNormal = new Vector3(trace.normal.x, 0, trace.normal.z).normalize();
+        wallHit = true;
+        break;
+      } else if (trace.fraction < 1.0) {
+        // Fallback: opposite of trace direction (assume vertical wall)
+        wallNormal = dir.scale(-1);
         wallHit = true;
         break;
       }
@@ -1257,22 +1289,64 @@ export class FPSController implements ICameraController {
       return false;  // Not moving toward wall
     }
 
-    // Execute wall jump!
-    // Reflect horizontal velocity off wall
-    const dot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
-    const reflectedX = this.velocity.x - 2 * dot * wallNormal.x;
-    const reflectedZ = this.velocity.z - 2 * dot * wallNormal.z;
+    // Check if we should use instant bounce or charged push
+    const chargeTime = mv.get('sv_walljump_chargetime');
 
-    // Apply bounce multiplier and upward boost
-    this.velocity.x = reflectedX * wallJumpBounce;
-    this.velocity.z = reflectedZ * wallJumpBounce;
-    this.velocity.y = wallJumpHeight;
+    if (chargeTime <= 0) {
+      // Instant bounce (old behavior)
+      const dot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
+      const reflectedX = this.velocity.x - 2 * dot * wallNormal.x;
+      const reflectedZ = this.velocity.z - 2 * dot * wallNormal.z;
 
-    // Update cooldown
-    this.lastWallJumpTime = currentTime;
+      this.velocity.x = reflectedX * wallJumpBounce;
+      this.velocity.z = reflectedZ * wallJumpBounce;
+      this.velocity.y = wallJumpHeight;
 
-    console.log(`[WallJump] Bounced! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)})`);
+      this.lastWallJumpTime = currentTime;
+      console.log(`[WallJump] Instant bounce! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)})`);
+    } else {
+      // Start charging for push
+      this.wallJumpState = 'charging';
+      this.wallJumpChargeTime = 0;
+      this.wallJumpPosition.copyFrom(this.camera.position);
+      this.wallJumpNormal.copyFrom(wallNormal);
+      this.wallJumpPreVelocity.copyFrom(this.velocity);
+
+      // Zero velocity during charge
+      this.velocity.set(0, 0, 0);
+
+      console.log('[WallJump] Charging...');
+    }
+
     return true;
+  }
+
+  /**
+   * Execute the wall jump push after charging
+   */
+  private executeWallJumpPush(mv: MovementVars): void {
+    if (!this.camera) return;
+
+    const wallJumpHeight = mv.get('sv_walljump_height');
+    const wallJumpBounce = mv.get('sv_walljump_bounce');
+    const wallJumpBoost = mv.get('sv_walljump_boost');
+
+    // Calculate reflected velocity from pre-charge velocity
+    const dot = this.wallJumpPreVelocity.x * this.wallJumpNormal.x +
+      this.wallJumpPreVelocity.z * this.wallJumpNormal.z;
+    const reflectedX = this.wallJumpPreVelocity.x - 2 * dot * this.wallJumpNormal.x;
+    const reflectedZ = this.wallJumpPreVelocity.z - 2 * dot * this.wallJumpNormal.z;
+
+    // Apply bounce multiplier, boost, and upward velocity
+    this.velocity.x = reflectedX * wallJumpBounce * wallJumpBoost;
+    this.velocity.z = reflectedZ * wallJumpBounce * wallJumpBoost;
+    this.velocity.y = wallJumpHeight * wallJumpBoost;
+
+    // Update cooldown and reset state
+    this.lastWallJumpTime = performance.now() / 1000;
+    this.wallJumpState = 'none';
+
+    console.log(`[WallJump] PUSH! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)}, ${this.velocity.y.toFixed(0)}) boost=${wallJumpBoost}`);
   }
 
   /**

@@ -34,6 +34,9 @@ export interface PlayerState {
 
     /** Vertical velocity at moment of landing (for impact strength) */
     landingVelocity?: number;
+
+    /** Wall jump state for FOV effects */
+    wallJumpState?: 'none' | 'charging' | 'pushing';
 }
 
 /**
