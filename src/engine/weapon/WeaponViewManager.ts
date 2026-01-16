@@ -89,6 +89,15 @@ export class WeaponViewManager {
     private effectiveBasePosition: Vector3 = Vector3.Zero();  // Base position with handedness
     private static readonly BOB_LERP_SPEED = 8.0;  // Smooth bob transitions
 
+    // Jump/land bob state (time-based animation)
+    private jumpLandBobTarget: number = 0;     // Target bob value
+    private jumpLandBobCurrent: number = 0;    // Smoothed current value
+    private jumpLandCooldown: number = 0;      // Cooldown to prevent rapid triggers
+    private wasGroundedLastFrame: boolean = true;
+    private static readonly JUMP_LAND_LERP = 12.0;   // How fast to reach target
+    private static readonly JUMP_LAND_RECOVER = 4.0; // How fast to recover to 0
+    private static readonly JUMP_LAND_COOLDOWN = 0.15; // Minimum seconds between triggers
+
     // Debug
     private debugEnabled: boolean = false;
 
@@ -452,14 +461,49 @@ export class WeaponViewManager {
         this.currentSprintRoll += (targetRoll - this.currentSprintRoll) * lerpFactor;
         this.currentSprintYaw += (targetInward - this.currentSprintYaw) * lerpFactor;
 
+        // === JUMP/LAND BOB (time-based triggered animation) ===
+        const jumpBobIntensity = mv.get('cg_gunbob_jump');
+        const landBobIntensity = mv.get('cg_gunbob_land');
+
+        // Decrease cooldown
+        if (this.jumpLandCooldown > 0) {
+            this.jumpLandCooldown -= deltaTime;
+        }
+
+        // Detect jump (leaving ground) - only if not on cooldown
+        if (this.jumpLandCooldown <= 0 && this.wasGroundedLastFrame && !state.isGrounded && state.velocity.y > 50) {
+            // Trigger jump animation - bob down then recover
+            this.jumpLandBobTarget = -jumpBobIntensity;
+            this.jumpLandCooldown = WeaponViewManager.JUMP_LAND_COOLDOWN;
+        }
+
+        // Detect landing (hitting ground) - only if not on cooldown
+        if (this.jumpLandCooldown <= 0 && !this.wasGroundedLastFrame && state.isGrounded) {
+            // Trigger land animation - bob down based on impact
+            const impactStrength = Math.min(1.0, Math.abs(state.landingVelocity ?? 0) / 500);
+            this.jumpLandBobTarget = -landBobIntensity * (0.5 + impactStrength * 0.5);
+            this.jumpLandCooldown = WeaponViewManager.JUMP_LAND_COOLDOWN;
+        }
+
+        // Smoothly move current toward target
+        const jumpLerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.JUMP_LAND_LERP);
+        this.jumpLandBobCurrent += (this.jumpLandBobTarget - this.jumpLandBobCurrent) * jumpLerpFactor;
+
+        // Recover target back to 0 (slower than the initial movement)
+        const recoverFactor = Math.min(1.0, deltaTime * WeaponViewManager.JUMP_LAND_RECOVER);
+        this.jumpLandBobTarget *= (1.0 - recoverFactor);
+
+        // Track grounded state for next frame
+        this.wasGroundedLastFrame = state.isGrounded;
+
         // Apply to weapon root (on top of base position with handedness)
         const root = this.currentWeapon.root;
         const basePos = this.effectiveBasePosition;
 
-        // Apply position offset (bob only, no X translation)
+        // Apply position offset (bob + jump/land)
         root.position.set(
             basePos.x + this.currentBobOffsetX,
-            basePos.y + this.currentBobOffsetY,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent,
             basePos.z
         );
 

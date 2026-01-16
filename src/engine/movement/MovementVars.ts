@@ -473,6 +473,24 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
+  cg_gunbob_jump: {
+    value: 2.0,
+    defaultValue: 2.0,
+    min: 0,
+    max: 10,
+    description: 'Weapon bob intensity when jumping (units)',
+    category: 'camera',
+    developerOnly: false,
+  },
+  cg_gunbob_land: {
+    value: 3.0,
+    defaultValue: 3.0,
+    min: 0,
+    max: 10,
+    description: 'Weapon bob intensity when landing (units)',
+    category: 'camera',
+    developerOnly: false,
+  },
 };
 
 // ==================== MovementVars Class ====================
