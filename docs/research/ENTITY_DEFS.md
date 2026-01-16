@@ -402,27 +402,26 @@ src/
    - For custom game modes, balance tweaks
    - Client must accept or disconnect
 
-## Open Questions
+## Design Decisions (Resolved)
 
-1. **Version compatibility?**
-   - What if server has newer definition?
-   - Graceful degradation for unknown fields?
+1. **No Inheritance** ✓
+   - One entity = one definition
+   - Keep it simple and solid
+   - No `extends` or `overrides` patterns
 
-2. **Validation schema?**
-   - How to validate JSON definitions?
-   - What errors are fatal vs warnings?
+2. **JSON Loading** - Out of scope for now ✓
+   - TypeScript definitions only for initial implementation
+   - JSON/PK3 loading can be added later if needed
 
-3. **Hot reloading?**
-   - Can definitions reload during gameplay?
-   - How to handle instances with old definitions?
+3. **No Hot Reloading** ✓
+   - Definitions are static at runtime
+   - Change requires restart/reload
+   - Simpler implementation
 
-4. **Inheritance?**
-   - Can definitions extend others?
-   - `plasmagun_rapid` extends `plasmagun` with different `fireRate`?
-
-5. **Localization?**
-   - Where do display names come from?
-   - Separate localization files?
+4. **No Version Compatibility** ✓
+   - Server and client must have same definitions
+   - No graceful degradation
+   - Mismatch = connection refused
 
 ## Implementation Phases
 
