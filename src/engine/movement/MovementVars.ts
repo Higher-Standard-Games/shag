@@ -257,6 +257,62 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
 
+  // ==================== Wall Jump ====================
+  sv_walljump: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: 'Enable wall jumping (0/1)',
+    category: 'physics',
+    developerOnly: false,
+  },
+  sv_walljump_height: {
+    value: 280,
+    defaultValue: 280,
+    min: 100,
+    max: 500,
+    description: 'Upward velocity on wall jump',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_walljump_bounce: {
+    value: 0.8,
+    defaultValue: 0.8,
+    min: 0.3,
+    max: 1.5,
+    description: 'Horizontal velocity preservation on wall jump',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_walljump_reach: {
+    value: 20,
+    defaultValue: 20,
+    min: 8,
+    max: 48,
+    description: 'Wall detection distance for wall jump',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_walljump_cooldown: {
+    value: 0.3,
+    defaultValue: 0.3,
+    min: 0.1,
+    max: 1.0,
+    description: 'Cooldown between wall jumps (seconds)',
+    category: 'physics',
+    developerOnly: true,
+  },
+  sv_walljump_minheight: {
+    value: 24,
+    defaultValue: 24,
+    min: 8,
+    max: 64,
+    description: 'Minimum height above ground for wall jump',
+    category: 'physics',
+    developerOnly: true,
+  },
+
   // ==================== Camera ====================
   m_sensitivity: {
     value: 2.0,

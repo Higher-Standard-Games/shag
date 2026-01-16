@@ -89,6 +89,9 @@ export class FPSController implements ICameraController {
   private ledgeWallNormal: Vector3 = Vector3.Zero();    // Normal of wall we grabbed
   private ledgePreGrabVelocity: Vector3 = Vector3.Zero(); // Velocity before grab (for drop)
 
+  // Wall jump state
+  private lastWallJumpTime: number = 0;  // For cooldown tracking
+
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
@@ -582,6 +585,15 @@ export class FPSController implements ICameraController {
         this.velocity.y = jumpHeight;
         this.isGrounded = false;
         this.jumpConsumed = true;
+      }
+    }
+
+    // === WALL JUMP ===
+    // Only if enabled, in air, pressing jump (fresh), and not consumed
+    const wallJumpEnabled = mv.get('sv_walljump') > 0;
+    if (wallJumpEnabled && this.keys.up && !this.isGrounded && !this.jumpConsumed) {
+      if (this.tryWallJump(mv, cm)) {
+        this.jumpConsumed = true;  // Prevent repeat until key release
       }
     }
 
@@ -1164,6 +1176,103 @@ export class FPSController implements ICameraController {
    */
   private easeInOutQuad(t: number): number {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+
+  /**
+   * Try to perform a wall jump
+   * Returns true if successful
+   */
+  private tryWallJump(
+    mv: MovementVars,
+    cm: ReturnType<typeof getCollisionManager>
+  ): boolean {
+    if (!this.camera || !cm.isInitialized()) return false;
+
+    const wallJumpHeight = mv.get('sv_walljump_height');
+    const wallJumpBounce = mv.get('sv_walljump_bounce');
+    const wallJumpReach = mv.get('sv_walljump_reach');
+    const wallJumpCooldown = mv.get('sv_walljump_cooldown');
+    const wallJumpMinHeight = mv.get('sv_walljump_minheight');
+
+    const currentTime = performance.now() / 1000;
+
+    // Check cooldown
+    if (currentTime - this.lastWallJumpTime < wallJumpCooldown) {
+      return false;
+    }
+
+    const backend = (cm as any).backends?.get('q3');
+    if (!backend?.trace) return false;
+
+    // Check height above ground (prevent stair triggers)
+    const groundCheckStart = this.camera.position.clone();
+    const groundCheckEnd = groundCheckStart.add(new Vector3(0, -wallJumpMinHeight, 0));
+    const groundCheck = backend.trace(groundCheckStart, groundCheckEnd, { radius: 8, height: 16 });
+
+    if (groundCheck.fraction < 1.0) {
+      return false;  // Too close to ground
+    }
+
+    // Get forward direction (flattened)
+    const forward = this.camera.getDirection(Vector3.Forward());
+    const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
+
+    // Try multiple directions to find a wall
+    const directions = [
+      flatForward,  // Forward
+      new Vector3(flatForward.x * 0.707 - flatForward.z * 0.707, 0, flatForward.x * 0.707 + flatForward.z * 0.707),  // Forward-right 45°
+      new Vector3(flatForward.x * 0.707 + flatForward.z * 0.707, 0, -flatForward.x * 0.707 + flatForward.z * 0.707), // Forward-left 45°
+      new Vector3(-flatForward.z, 0, flatForward.x),   // Right 90°
+      new Vector3(flatForward.z, 0, -flatForward.x),   // Left 90°
+    ];
+
+    let wallNormal: Vector3 | null = null;
+    let wallHit = false;
+
+    for (const dir of directions) {
+      const traceStart = this.camera.position.clone();
+      const traceEnd = traceStart.add(dir.scale(wallJumpReach));
+      const trace = backend.trace(traceStart, traceEnd, { radius: 12, height: 40 });
+
+      if (trace.fraction < 1.0) {
+        // Found a wall
+        if (trace.normal) {
+          wallNormal = new Vector3(trace.normal.x, 0, trace.normal.z).normalize();
+        } else {
+          // Fallback: opposite of trace direction
+          wallNormal = dir.scale(-1);
+        }
+        wallHit = true;
+        break;
+      }
+    }
+
+    if (!wallHit || !wallNormal) {
+      return false;  // No wall found
+    }
+
+    // Check we're moving toward the wall (dot product < 0)
+    const velDot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
+    if (velDot > -10) {
+      return false;  // Not moving toward wall
+    }
+
+    // Execute wall jump!
+    // Reflect horizontal velocity off wall
+    const dot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
+    const reflectedX = this.velocity.x - 2 * dot * wallNormal.x;
+    const reflectedZ = this.velocity.z - 2 * dot * wallNormal.z;
+
+    // Apply bounce multiplier and upward boost
+    this.velocity.x = reflectedX * wallJumpBounce;
+    this.velocity.z = reflectedZ * wallJumpBounce;
+    this.velocity.y = wallJumpHeight;
+
+    // Update cooldown
+    this.lastWallJumpTime = currentTime;
+
+    console.log(`[WallJump] Bounced! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)})`);
+    return true;
   }
 
   /**
