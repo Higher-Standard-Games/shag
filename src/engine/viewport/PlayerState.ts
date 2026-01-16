@@ -46,6 +46,9 @@ export interface PlayerState {
 
     /** Speed ratio 0-1 (0 = base speed, 1 = max speed) */
     speedRatio?: number;
+
+    /** Is the player aiming down sights? */
+    isAiming?: boolean;
 }
 
 /**

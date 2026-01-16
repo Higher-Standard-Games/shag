@@ -113,7 +113,12 @@ export class FPSController implements ICameraController {
     right: false,    // D
     up: false,       // Space (jump)
     sprint: false,   // Shift (run)
+    fire: false,     // Mouse1 (fire)
+    aim: false,      // Mouse2 (ADS)
   };
+
+  // ADS sensitivity lerp (matches ADS animation timing)
+  private adsSensitivityProgress: number = 0;
 
   // Configuration
   private config: CameraControllerConfig = {
@@ -176,6 +181,9 @@ export class FPSController implements ICameraController {
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
   private onPointerLockChange: (() => void) | null = null;
+  private onMouseDown: ((e: MouseEvent) => void) | null = null;
+  private onMouseUp: ((e: MouseEvent) => void) | null = null;
+  private onContextMenu: ((e: Event) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
@@ -264,6 +272,8 @@ export class FPSController implements ICameraController {
         this.keys.right = false;
         this.keys.up = false;
         this.keys.sprint = false;
+        this.keys.fire = false;
+        this.keys.aim = false;
       }
     };
 
@@ -273,7 +283,14 @@ export class FPSController implements ICameraController {
 
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
       const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') ?? 2.0;
-      const sensitivity = baseSensitivity * sensitivityMultiplier;
+
+      // ADS sensitivity reduction (lerped with ADS progress)
+      const mv = MovementVars.getInstance();
+      const adsSensitivity = mv.get('cg_ads_sensitivity');
+      // Lerp: 1.0 when hip, adsSensitivity when fully ADS
+      const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
+
+      const sensitivity = baseSensitivity * sensitivityMultiplier * adsMultiplier;
       const invertYCvar = Cvar.getBool('m_invertY');
       const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
 
@@ -317,12 +334,32 @@ export class FPSController implements ICameraController {
       }
     };
 
+    // Mouse button handlers for fire and ADS
+    this.onMouseDown = (e: MouseEvent) => {
+      if (!this.isPointerLocked) return;
+      if (e.button === 0) this.keys.fire = true;   // Left click = fire
+      if (e.button === 2) this.keys.aim = true;    // Right click = ADS
+    };
+
+    this.onMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) this.keys.fire = false;
+      if (e.button === 2) this.keys.aim = false;
+    };
+
+    // Prevent context menu on right click
+    this.onContextMenu = (e: Event) => {
+      if (this.isPointerLocked) e.preventDefault();
+    };
+
     // Add event listeners - use document for click to ensure we catch it
     document.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('keydown', this.onKeyDown);
     document.addEventListener('keyup', this.onKeyUp);
+    document.addEventListener('mousedown', this.onMouseDown);
+    document.addEventListener('mouseup', this.onMouseUp);
+    document.addEventListener('contextmenu', this.onContextMenu);
   }
 
   private removeInputHandlers(): void {
@@ -345,6 +382,15 @@ export class FPSController implements ICameraController {
     }
     if (this.onKeyUp) {
       document.removeEventListener('keyup', this.onKeyUp);
+    }
+    if (this.onMouseDown) {
+      document.removeEventListener('mousedown', this.onMouseDown);
+    }
+    if (this.onMouseUp) {
+      document.removeEventListener('mouseup', this.onMouseUp);
+    }
+    if (this.onContextMenu) {
+      document.removeEventListener('contextmenu', this.onContextMenu);
     }
   }
 
@@ -378,8 +424,18 @@ export class FPSController implements ICameraController {
     const airaccelerate = mv.get('sv_airaccelerate');
     const maxairspeed = mv.get('sv_maxairspeed');
     const autorun = mv.get('cl_autorun') > 0;
+
+    // ADS sensitivity lerp (matches ADS animation timing)
+    const adsTime = mv.get('cg_ads_time');
+    const adsSpeed = 1.0 / Math.max(0.05, adsTime);
+    const targetAdsSens = this.keys.aim ? 1.0 : 0.0;
+    const adsSensLerp = Math.min(1.0, deltaTime * adsSpeed);
+    this.adsSensitivityProgress += (targetAdsSens - this.adsSensitivityProgress) * adsSensLerp;
+
     // cl_autorun inverts run/walk: run by default, walk when holding shift
-    const isRunning = autorun ? !this.keys.sprint : this.keys.sprint;
+    // ADS forces walk mode (cannot sprint while aiming)
+    const canRun = !this.keys.aim;  // No sprinting while ADS
+    const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
     const wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
 
     const cm = getCollisionManager();
@@ -762,6 +818,7 @@ export class FPSController implements ICameraController {
         landingVelocity: this.landingVelocityCapture,
         wallJumpState: this.wallJumpState,
         isSprinting: this.keys.sprint,
+        isAiming: this.keys.aim,
       };
 
       const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);

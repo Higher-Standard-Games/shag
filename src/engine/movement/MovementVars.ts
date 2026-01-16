@@ -491,6 +491,44 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
+
+  // ==================== ADS (Aiming Down Sights) ====================
+  cg_ads_time: {
+    value: 0.08,
+    defaultValue: 0.08,
+    min: 0.05,
+    max: 1.0,
+    description: 'Time to transition to ADS (seconds, visual only)',
+    category: 'camera',
+    developerOnly: false,
+  },
+  cg_ads_offset_y: {
+    value: 2.0,
+    defaultValue: 2.0,
+    min: -5.0,
+    max: 10.0,
+    description: 'Weapon Y offset when ADS (upward)',
+    category: 'camera',
+    developerOnly: false,
+  },
+  cg_ads_fov_reduction: {
+    value: 15,
+    defaultValue: 15,
+    min: 0,
+    max: 60,
+    description: 'FOV reduction when ADS (percentage, 15 = 15% zoom)',
+    category: 'camera',
+    developerOnly: false,
+  },
+  cg_ads_sensitivity: {
+    value: 0.5,
+    defaultValue: 0.5,
+    min: 0.1,
+    max: 1.0,
+    description: 'Mouse sensitivity when ADS (0.5 = half normal sensitivity)',
+    category: 'camera',
+    developerOnly: false,
+  },
 };
 
 // ==================== MovementVars Class ====================

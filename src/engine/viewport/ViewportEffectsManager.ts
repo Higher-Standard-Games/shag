@@ -17,6 +17,7 @@
 
 import { EventBus } from '../core/EventBus';
 import { Cvar } from '../core/Cvar';
+import { MovementVars } from '../movement/MovementVars';
 import type { ViewportEffect } from './ViewportEffect';
 import type { PlayerState } from './PlayerState';
 import { createNeutralPlayerState } from './PlayerState';
@@ -29,6 +30,9 @@ export class ViewportEffectsManager {
     private initialized: boolean = false;
     private unsubscribes: Array<() => void> = [];
     private _currentState: PlayerState = createNeutralPlayerState();
+
+    // ADS FOV state
+    private adsProgress: number = 0;  // 0 = hip, 1 = fully ADS
 
     private constructor() { }
 
@@ -140,6 +144,25 @@ export class ViewportEffectsManager {
             } catch (err) {
                 console.error(`[ViewportEffects] Error in effect '${effect.name}':`, err);
             }
+        }
+
+        // === ADS FOV ZOOM ===
+        const mv = MovementVars.getInstance();
+        const adsTime = mv.get('cg_ads_time');
+        // FOV reduction as a percentage (15 = 15% reduction, so 0.85x multiplier)
+        const adsFovReductionPercent = mv.get('cg_ads_fov_reduction') / 100;
+
+        // Lerp ADS progress
+        const adsSpeed = 1.0 / Math.max(0.05, adsTime);
+        const targetAds = state.isAiming ? 1.0 : 0.0;
+        const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
+        this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
+
+        // Apply FOV reduction as multiplier (1.0 = no change, 0.85 = 15% zoom)
+        // Clamp to prevent extreme zoom (min 0.4 = 40% of base FOV)
+        if (this.adsProgress > 0.001) {
+            const fovMultiplier = 1.0 - adsFovReductionPercent * this.adsProgress;
+            combined.fovMultiplier *= Math.max(0.4, fovMultiplier);
         }
 
         return combined;

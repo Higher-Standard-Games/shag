@@ -98,6 +98,9 @@ export class WeaponViewManager {
     private static readonly JUMP_LAND_RECOVER = 4.0; // How fast to recover to 0
     private static readonly JUMP_LAND_COOLDOWN = 0.15; // Minimum seconds between triggers
 
+    // ADS (Aiming Down Sights) state
+    private adsProgress: number = 0;  // 0 = hip, 1 = fully ADS
+
     // Debug
     private debugEnabled: boolean = false;
 
@@ -500,19 +503,37 @@ export class WeaponViewManager {
         const root = this.currentWeapon.root;
         const basePos = this.effectiveBasePosition;
 
-        // Apply position offset (bob + jump/land)
+        // === ADS (Aiming Down Sights) ===
+        const adsTime = mv.get('cg_ads_time');
+        const adsOffsetY = mv.get('cg_ads_offset_y');
+
+        // Lerp ADS progress based on aim state
+        const adsSpeed = 1.0 / Math.max(0.05, adsTime);  // Inverse of time = speed
+        const targetAds = state.isAiming ? 1.0 : 0.0;
+        const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
+        this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
+
+        // Calculate ADS position (lerp toward center)
+        // X: lerp from hip position toward center (0)
+        // Y: add upward offset
+        const adsX = basePos.x * (1.0 - this.adsProgress);  // Lerp toward 0 (center)
+        const adsY = adsOffsetY * this.adsProgress;          // Move up
+
+        // Apply position offset (bob + jump/land + ADS)
         root.position.set(
-            basePos.x + this.currentBobOffsetX,
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent,
+            adsX + this.currentBobOffsetX,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY,
             basePos.z
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z)
+        // Reduce sprint effects when ADS (weapon should be more stable)
+        const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * Math.PI / 180),  // Pitch up
-            baseRot.y + (this.currentSprintYaw * Math.PI / 180),   // Yaw barrel toward chest
-            baseRot.z + (this.currentSprintRoll * Math.PI / 180)   // Roll sideways
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180),  // Pitch up
+            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),   // Yaw barrel toward chest
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180)   // Roll sideways
         );
     }
 
