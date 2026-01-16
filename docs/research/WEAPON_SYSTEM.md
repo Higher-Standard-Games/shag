@@ -68,16 +68,52 @@ interface WeaponViewPosition {
 }
 ```
 
+### Warsow Weapon File Structure
+Located in `data0_15pure.pk3` under `models/weapons/`:
+
+```
+models/weapons/plasmagun/
+├── plasmagun.md3          # Main weapon model
+├── plasmagun_hand.md3     # Hand/arm model
+├── plasmagun_flash.md3    # Muzzle flash effect model
+├── plasmagun.cfg          # Weapon configuration
+├── plasmagun.jpg          # Diffuse texture
+├── plasmagun.tga          # Diffuse texture (alt)
+├── plasmagun_gloss.tga    # Specular/gloss map
+├── plasmagun_norm.tga     # Normal map
+├── plasmagun_fx.tga       # Effects texture
+├── f_plasma.jpg           # First-person texture
+└── f_plasma_2.jpg         # First-person texture variant
+```
+
+Same structure for other weapons (rlauncher, etc.)
+
+Hit effects are in `models/weapon_hits/`
+
 ### Model Loading
-Using existing MD3 loader from the engine:
+Using MD3Loader from the engine:
 ```typescript
-// Load Warsow weapon model
-const plasmaGun = await ModelLoader.loadMD3('models/weapons/plasmagun/plasmagun.md3');
+import { getMD3Loader, MD3LoadResult } from '@engine/loader/model';
+
+// Initialize with scene
+const md3 = getMD3Loader();
+md3.init(scene);
+
+// Load from PK3
+const buffer = await pk3.getFile('models/weapons/plasmagun/plasmagun.md3');
+const model = md3.parseMD3(buffer);
+const result = md3.createMeshes(model, 'plasmagun', {
+  textureUrl: 'models/weapons/plasmagun/plasmagun.jpg'
+});
 
 // Attach to camera
-weaponRoot.parent = camera;
-weaponRoot.position = hipPosition;
+result.root.parent = camera;
+result.root.position = hipPosition;
+
+// Get tag for hand attachment
+const handTag = result.getTag('tag_hand');
 ```
+
 
 ## Weapon States
 
