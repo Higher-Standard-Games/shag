@@ -419,8 +419,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     type: 'int',
   },
   cg_weaponfov: {
-    value: 90,
-    defaultValue: 90,
+    value: 60,
+    defaultValue: 60,
     min: 50,
     max: 120,
     description: 'Weapon view model FOV',

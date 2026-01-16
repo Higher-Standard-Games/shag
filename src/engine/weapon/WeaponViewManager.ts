@@ -14,6 +14,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { MovementVars } from '../movement/MovementVars';
+import { BspManager } from '../loader/bsp/BspManager';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -34,8 +35,8 @@ export const HAND_OFFSETS = {
 
 export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
     hip: {
-        // Right hand, lower on screen (right=12, down=25, forward=21)
-        offset: MD3Coords.viewModelOffset(HAND_OFFSETS.right, 25, 21),
+        // Right hand, lower on screen (right=12, down=25, forward=19)
+        offset: MD3Coords.viewModelOffset(HAND_OFFSETS.right, 25, 19),
         rotation: MD3Coords.viewModelRotation(),
         scale: 2.0,
     },
@@ -53,18 +54,30 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
     },
 };
 
+// Layer mask for weapon-only rendering
+const WEAPON_LAYER_MASK = 0x10000000;
+
 export class WeaponViewManager {
     private static instance: WeaponViewManager;
 
     private scene: Scene | null = null;
+    private weaponCamera: FreeCamera | null = null;
     private weaponRoot: TransformNode | null = null;
     private currentWeapon: MD3LoadResult | null = null;
     private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
 
     // CVar tracking for live updates
     private lastHandedness: number = 1;
+    private lastWeaponFov: number = 60;
     private cvarCheckTimer: number = 0;
     private static readonly CVAR_CHECK_INTERVAL = 0.1; // Check 10x/sec, not every frame
+
+    // Lighting smoothing
+    private currentLightR: number = 1.0;
+    private currentLightG: number = 1.0;
+    private currentLightB: number = 1.0;
+    private static readonly LIGHT_LERP_SPEED = 5.0;  // How fast to interpolate (higher = faster)
+    private static readonly LIGHT_INFLUENCE = 0.6;   // 0-1, how much lightgrid affects weapon (0.6 = 60%)
 
     // Debug
     private debugEnabled: boolean = false;
@@ -87,9 +100,32 @@ export class WeaponViewManager {
         // Initialize MD3 loader
         getMD3Loader().init(scene);
 
-        // Create weapon root node attached to camera
+        // Get initial weapon FOV from CVar
+        try {
+            const mv = MovementVars.getInstance();
+            this.lastWeaponFov = mv.get('cg_weaponfov');
+        } catch {
+            this.lastWeaponFov = 90;
+        }
+
+        // Create weapon camera with separate FOV
+        // This camera only sees weapon layer and renders after main camera
+        this.weaponCamera = new FreeCamera('weaponCamera', camera.position.clone(), scene);
+        this.weaponCamera.fov = this.lastWeaponFov * Math.PI / 180;
+        this.weaponCamera.minZ = 0.1;
+        this.weaponCamera.maxZ = 1000;
+        this.weaponCamera.layerMask = WEAPON_LAYER_MASK;  // Only sees weapon layer
+        this.weaponCamera.parent = camera;  // Follows main camera
+
+        // Main camera should not see weapon layer
+        camera.layerMask = camera.layerMask & ~WEAPON_LAYER_MASK;
+
+        // Set up multi-camera rendering
+        scene.activeCameras = [camera, this.weaponCamera];
+
+        // Create weapon root node attached to weapon camera
         this.weaponRoot = new TransformNode('weaponView', scene);
-        this.weaponRoot.parent = camera;
+        this.weaponRoot.parent = this.weaponCamera;
 
         // Configure rendering group 1 for weapons:
         // - Clear depth buffer before rendering (prevents wall clipping)
@@ -103,7 +139,7 @@ export class WeaponViewManager {
             this.update(deltaTime);
         });
 
-        console.log('[WeaponViewManager] Initialized with depth-cleared weapon layer');
+        console.log(`[WeaponViewManager] Initialized with weapon FOV ${this.lastWeaponFov}°`);
     }
 
     /**
@@ -169,10 +205,12 @@ export class WeaponViewManager {
         // Parent to weapon root
         this.currentWeapon.root.parent = this.weaponRoot;
 
-        // Set rendering group to 1 (renders after world, with depth cleared)
-        // This prevents weapon from clipping through walls
+        // Set rendering group and layer mask for each mesh
+        // - renderingGroupId 1: renders after world with depth cleared
+        // - layerMask: only visible to weapon camera (separate FOV)
         for (const mesh of this.currentWeapon.meshes) {
             mesh.renderingGroupId = 1;
+            mesh.layerMask = WEAPON_LAYER_MASK;
         }
 
         // Load texture
@@ -318,18 +356,95 @@ export class WeaponViewManager {
             this.checkCVarChanges();
         }
 
+        // Update lighting every frame for smooth transitions
+        this.updateLightingFromBsp(deltaTime);
+
         // Future: weapon sway, bob, animations
+    }
+
+    /**
+     * Sample BSP lightgrid at camera position and apply to weapon materials (smoothed)
+     */
+    private updateLightingFromBsp(deltaTime: number): void {
+        if (!this.currentWeapon || !this.scene) return;
+
+        try {
+            // Get main camera position (first in activeCameras array)
+            const cameras = this.scene.activeCameras;
+            if (!cameras || cameras.length === 0) return;
+
+            const mainCamera = cameras[0];
+            const worldPos = mainCamera.globalPosition;
+
+            // Sample lighting from BSP lightgrid
+            const bspManager = BspManager.getInstance();
+            const lighting = bspManager.getLightingAt(worldPos);
+
+            // Calculate target brightness from lightgrid
+            let targetR = 1.0, targetG = 1.0, targetB = 1.0;
+
+            if (lighting) {
+                // Combine ambient + directional for total light level
+                const rawR = (lighting.ambient[0] + lighting.directional[0]) / 255;
+                const rawG = (lighting.ambient[1] + lighting.directional[1]) / 255;
+                const rawB = (lighting.ambient[2] + lighting.directional[2]) / 255;
+
+                // Calculate overall brightness (0-1)
+                const brightness = (rawR + rawG + rawB) / 3;
+
+                // Clamp brightness to range (0.15 - 1.0) - lower allows blacker weapon
+                const minLight = 0.15;
+                const clampedBrightness = Math.min(1.0, Math.max(minLight, brightness));
+
+                // Apply brightness scaling to colors while preserving color tint
+                const colorScale = clampedBrightness / Math.max(0.01, brightness);
+                const scaledR = Math.min(1.0, Math.max(minLight, rawR * colorScale));
+                const scaledG = Math.min(1.0, Math.max(minLight, rawG * colorScale));
+                const scaledB = Math.min(1.0, Math.max(minLight, rawB * colorScale));
+
+                // Blend with white based on influence (0.7 = 70% lightgrid, 30% base)
+                const influence = WeaponViewManager.LIGHT_INFLUENCE;
+                targetR = 1.0 * (1 - influence) + scaledR * influence;
+                targetG = 1.0 * (1 - influence) + scaledG * influence;
+                targetB = 1.0 * (1 - influence) + scaledB * influence;
+            }
+
+            // Smooth lerp toward target
+            const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.LIGHT_LERP_SPEED);
+            this.currentLightR += (targetR - this.currentLightR) * lerpFactor;
+            this.currentLightG += (targetG - this.currentLightG) * lerpFactor;
+            this.currentLightB += (targetB - this.currentLightB) * lerpFactor;
+
+            // Apply smoothed lighting to weapon materials
+            for (const mesh of this.currentWeapon.meshes) {
+                const mat = mesh.material as StandardMaterial;
+                if (mat && mat.diffuseColor) {
+                    mat.diffuseColor.set(this.currentLightR, this.currentLightG, this.currentLightB);
+                }
+            }
+        } catch {
+            // BspManager not available - use default lighting
+        }
     }
 
     private checkCVarChanges(): void {
         try {
             const mv = MovementVars.getInstance();
-            const currentHand = mv.get('cg_handedness');
 
+            // Check handedness
+            const currentHand = mv.get('cg_handedness');
             if (currentHand !== this.lastHandedness) {
                 this.lastHandedness = currentHand;
                 this.applyPosition(this.currentPosition);
                 console.log(`[WeaponViewManager] Handedness changed to ${currentHand}`);
+            }
+
+            // Check weapon FOV
+            const currentFov = mv.get('cg_weaponfov');
+            if (currentFov !== this.lastWeaponFov && this.weaponCamera) {
+                this.lastWeaponFov = currentFov;
+                this.weaponCamera.fov = currentFov * Math.PI / 180;
+                console.log(`[WeaponViewManager] Weapon FOV changed to ${currentFov}°`);
             }
         } catch (e) {
             // MovementVars not available
