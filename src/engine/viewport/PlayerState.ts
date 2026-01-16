@@ -49,6 +49,9 @@ export interface PlayerState {
 
     /** Is the player aiming down sights? */
     isAiming?: boolean;
+
+    /** Is the player firing (Mouse1 pressed)? */
+    isFiring?: boolean;
 }
 
 /**

@@ -819,6 +819,7 @@ export class FPSController implements ICameraController {
         wallJumpState: this.wallJumpState,
         isSprinting: this.keys.sprint,
         isAiming: this.keys.aim,
+        isFiring: this.keys.fire,
       };
 
       const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);

@@ -65,7 +65,7 @@ class EngineVersion {
     if (typeof document !== 'undefined') {
       const gamePaths = GamePaths.getInstance();
       const gameTitle = gamePaths.isInitialized() ? gamePaths.getGameTitle() : null;
-      
+
       if (gameTitle) {
         document.title = gameTitle;
       } else {
@@ -101,7 +101,8 @@ class EngineVersion {
       "Stoned Human Arranging Glyphs",
       "Sublime Hallucinations Are Guaranteed",
       "Simply High And Gaming",
-      "Someone Hide All Gins"
+      "Someone Hide All Gins",
+      "Sadly Highly AI Generated"
     ];
     return taglines[Math.floor(Math.random() * taglines.length)];
   }

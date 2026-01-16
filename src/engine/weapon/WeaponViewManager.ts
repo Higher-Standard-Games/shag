@@ -11,6 +11,8 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { PointLight } from '@babylonjs/core/Lights/pointLight';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { MovementVars } from '../movement/MovementVars';
@@ -100,6 +102,14 @@ export class WeaponViewManager {
 
     // ADS (Aiming Down Sights) state
     private adsProgress: number = 0;  // 0 = hip, 1 = fully ADS
+
+    // Muzzle flash state
+    private muzzleFlashLight: PointLight | null = null;
+    private muzzleFlashIntensity: number = 0;  // Current flash intensity (fades out)
+    private static readonly MUZZLE_FLASH_MAX_INTENSITY = 15.0;  // Peak brightness
+    private static readonly MUZZLE_FLASH_DECAY = 30.0;  // How fast it fades (higher = faster)
+    private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
+    private firePressed: boolean = false;  // Track mouse1 state to detect fire
 
     // Debug
     private debugEnabled: boolean = false;
@@ -386,6 +396,9 @@ export class WeaponViewManager {
 
         // Update weapon bob (synced with view bob)
         this.updateWeaponBob(deltaTime);
+
+        // Update muzzle flash
+        this.updateMuzzleFlash(deltaTime);
     }
 
     /**
@@ -625,6 +638,63 @@ export class WeaponViewManager {
             // MovementVars not available
             if (this.debugEnabled) {
                 console.warn('[WeaponViewManager] CVar check failed:', e);
+            }
+        }
+    }
+
+    /**
+     * Update muzzle flash effect
+     * Creates dynamic point light on fire, fades out quickly
+     */
+    private updateMuzzleFlash(deltaTime: number): void {
+        if (!this.scene || !this.currentWeapon) return;
+
+        // Get player state for fire input
+        const viewportManager = ViewportEffectsManager.getInstance();
+        const state = viewportManager.getCurrentState();
+
+        // Detect fire press (rising edge)
+        const isFiring = state.isFiring ?? false;
+        if (isFiring && !this.firePressed) {
+            // FIRE! Trigger muzzle flash
+            this.muzzleFlashIntensity = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
+
+            // Create light if needed
+            if (!this.muzzleFlashLight) {
+                this.muzzleFlashLight = new PointLight(
+                    'muzzleFlash',
+                    Vector3.Zero(),
+                    this.scene
+                );
+                this.muzzleFlashLight.diffuse = new Color3(0.2, 0.8, 1.0);  // Plasma cyan
+                this.muzzleFlashLight.specular = new Color3(0.1, 0.4, 0.5);
+                this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
+                console.log('[WeaponViewManager] Created muzzle flash light');
+            }
+        }
+        this.firePressed = isFiring;
+
+        // Decay flash intensity
+        if (this.muzzleFlashIntensity > 0) {
+            this.muzzleFlashIntensity -= deltaTime * WeaponViewManager.MUZZLE_FLASH_DECAY;
+            if (this.muzzleFlashIntensity < 0) this.muzzleFlashIntensity = 0;
+
+            // Update light
+            if (this.muzzleFlashLight) {
+                this.muzzleFlashLight.intensity = this.muzzleFlashIntensity;
+
+                // Position at weapon muzzle (try tag_flash, fallback to forward from weapon)
+                const tag = this.currentWeapon.getTag('tag_flash');
+                if (tag && this.weaponRoot) {
+                    // Transform tag position to world space
+                    const localPos = tag.origin;
+                    const worldPos = Vector3.TransformCoordinates(localPos, this.weaponRoot.getWorldMatrix());
+                    this.muzzleFlashLight.position = worldPos;
+                } else if (this.weaponRoot) {
+                    // Fallback: offset forward from weapon root
+                    const forward = this.weaponRoot.forward.scale(5);
+                    this.muzzleFlashLight.position = this.weaponRoot.position.add(forward);
+                }
             }
         }
     }

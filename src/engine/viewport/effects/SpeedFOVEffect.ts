@@ -31,7 +31,7 @@ export class SpeedFOVEffect extends BaseViewportEffect {
 
     private registerCvars(): void {
         if (!Cvar.exists('cl_speedfov')) {
-            Cvar.register('cl_speedfov', 0.25, {
+            Cvar.register('cl_speedfov', 0.33, {
                 type: 'float',
                 min: 0,
                 max: 0.5,
