@@ -191,6 +191,79 @@ Camera
         └── Hands (optional hand models)
 ```
 
+### View Model Rendering - Critical Issues & Solutions
+
+**Problem 1: Weapon clips through walls**
+The view model is rendered in the same pass as the world, so it intersects with
+nearby geometry when the player is close to walls.
+
+**Problem 2: Weapon FOV should be different**
+High game FOV (100-120) makes weapons look stretched/thin. Quake uses separate
+weapon FOV (60-75) so weapons look natural regardless of game FOV.
+
+**Solution: Separate Rendering Pass with Depth Clear**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    RENDER PIPELINE                          │
+├─────────────────────────────────────────────────────────────┤
+│ Pass 1: World Rendering (cg_fov = 100)                      │
+│   - Skybox                                                  │
+│   - BSP geometry                                            │
+│   - World models (pickups, other players)                   │
+│   - Effects                                                 │
+├─────────────────────────────────────────────────────────────┤
+│ CLEAR DEPTH BUFFER (keep color buffer)                      │
+├─────────────────────────────────────────────────────────────┤
+│ Pass 2: View Model Rendering (cg_weaponfov = 65)            │
+│   - Weapon model                                            │
+│   - Hand model                                              │
+│   - Muzzle flash                                            │
+│   - Shell casings (near camera)                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Babylon.js Implementation Options:**
+
+**Option A: Render Layers (Recommended)**
+```typescript
+// Create separate render layer for view model
+const weaponLayer = new Layer("weaponLayer", null, scene);
+weaponMesh.renderingGroupId = 1;  // Separate group
+
+// Clear depth before rendering group 1
+scene.setRenderingAutoClearDepthStencil(1, true, false, false);
+```
+
+**Option B: Separate Camera**
+```typescript
+// Create overlay camera for weapon only
+const weaponCamera = new FreeCamera("weaponCam", camera.position, scene);
+weaponCamera.fov = 65 * Math.PI / 180;  // Weapon FOV
+weaponCamera.layerMask = 0x10000000;     // Only weapon layer
+weaponMesh.layerMask = 0x10000000;
+
+// Main camera doesn't see weapon
+mainCamera.layerMask = 0x0FFFFFFF;
+```
+
+**Option C: MaterialDepthFunction (Simple but limited)**
+```typescript
+// Make weapon always render on top
+weaponMaterial.depthFunction = Engine.ALWAYS;
+// But this breaks weapon self-occlusion
+```
+
+### CVars for View Model
+```
+cg_handedness 0|1|2  - Weapon hand (0=left, 1=right, 2=center)
+cg_weaponfov 65      - Weapon model FOV (separate from game FOV)
+cg_gunx 0            - Weapon X offset adjustment
+cg_guny 0            - Weapon Y offset adjustment  
+cg_gunz 0            - Weapon Z offset adjustment
+cg_drawgun 1         - Show/hide weapon model
+```
+
 ### Positioning
 ```typescript
 interface WeaponViewPosition {

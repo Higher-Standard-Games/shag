@@ -55,6 +55,8 @@ export default class WeaponCommand extends Command {
         switch (subcommand) {
             case 'load':
                 return this.loadWeapon(args.slice(1));
+            case 'spawn':
+                return this.spawnInWorld(args.slice(1));
             case 'pos':
             case 'offset':
                 return this.setOffset(args.slice(1));
@@ -81,6 +83,71 @@ export default class WeaponCommand extends Command {
         }
     }
 
+    /**
+     * Spawn weapon in world space for debugging (not attached to camera)
+     */
+    private async spawnInWorld(args: string[]): Promise<string> {
+        const weaponName = args[0] || 'plasmagun';
+        const pk3Path = 'games/default/basewsw/data0_15pure.pk3';
+        const scale = parseFloat(args[1]) || 1.0;
+
+        try {
+            const { PK3Loader } = await import('../../loader/pk3/PK3Loader');
+            const { getMD3Loader } = await import('../../loader/model/MD3Loader');
+            const { CameraSystem } = await import('../../camera/CameraSystem');
+            const { StandardMaterial } = await import('@babylonjs/core/Materials/standardMaterial');
+            const { Texture } = await import('@babylonjs/core/Materials/Textures/texture');
+            const { Vector3 } = await import('@babylonjs/core/Maths/math.vector');
+
+            const pk3 = PK3Loader.getInstance();
+            await pk3.loadPK3FromUrl(pk3Path);
+
+            const modelPath = `models/weapons/${weaponName}/${weaponName}.md3`;
+            const texturePath = `models/weapons/${weaponName}/${weaponName}.jpg`;
+
+            const modelBuffer = await pk3.getFile(modelPath);
+            if (!modelBuffer) {
+                return `Model not found: ${modelPath}`;
+            }
+
+            const camera = CameraSystem.getInstance().getCamera();
+            const scene = camera?.getScene();
+            if (!scene) {
+                return 'No active scene';
+            }
+
+            const md3 = getMD3Loader();
+            md3.init(scene);
+
+            const model = md3.parseMD3(modelBuffer);
+            const result = md3.createMeshes(model, `world_${weaponName}`);
+            if (!result) {
+                return 'Failed to create meshes';
+            }
+
+            // Position in front of camera
+            const forward = camera!.getDirection(Vector3.Forward());
+            const spawnPos = camera!.position.add(forward.scale(100));
+            result.root.position.copyFrom(spawnPos);
+            result.root.scaling.setAll(scale);
+
+            // Load texture
+            const textureUrl = await pk3.getFileAsURL(texturePath, 'image/jpeg');
+            if (textureUrl) {
+                for (const mesh of result.meshes) {
+                    const mat = new StandardMaterial(`${weaponName}_world_mat`, scene);
+                    mat.diffuseTexture = new Texture(textureUrl, scene);
+                    mat.specularColor.set(0.2, 0.2, 0.2);
+                    mesh.material = mat;
+                }
+            }
+
+            return `Spawned ${weaponName} at (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)}, ${spawnPos.z.toFixed(0)}) scale=${scale}`;
+        } catch (e) {
+            return `Error: ${e}`;
+        }
+    }
+
     private async loadWeapon(args: string[]): Promise<string> {
         const weaponName = args[0];
         if (!weaponName) {
@@ -101,8 +168,12 @@ export default class WeaponCommand extends Command {
     }
 
     private setOffset(args: string[]): string {
+        const wvm = getWeaponViewManager();
+        const current = wvm.getCurrentPosition();
+
         if (args.length < 3) {
-            return 'Usage: weapon pos <x> <y> <z>';
+            return `Current offset: (${current.offset.x.toFixed(3)}, ${current.offset.y.toFixed(3)}, ${current.offset.z.toFixed(3)})
+Usage: weapon pos <x> <y> <z>`;
         }
 
         const x = parseFloat(args[0]);
@@ -113,13 +184,16 @@ export default class WeaponCommand extends Command {
             return 'Invalid coordinates';
         }
 
-        getWeaponViewManager().setOffset(x, y, z);
+        wvm.setOffset(x, y, z);
         return `Weapon offset: (${x}, ${y}, ${z})`;
     }
 
     private setScale(args: string[]): string {
+        const wvm = getWeaponViewManager();
+        const current = wvm.getCurrentPosition();
+
         if (args.length < 1) {
-            return 'Usage: weapon scale <n>';
+            return `Current scale: ${current.scale}\nUsage: weapon scale <n>`;
         }
 
         const scale = parseFloat(args[0]);
@@ -127,7 +201,7 @@ export default class WeaponCommand extends Command {
             return 'Invalid scale value';
         }
 
-        getWeaponViewManager().setScale(scale);
+        wvm.setScale(scale);
         return `Weapon scale: ${scale}`;
     }
 
@@ -142,11 +216,17 @@ export default class WeaponCommand extends Command {
     }
 
     private showInfo(): string {
-        const info = getWeaponViewManager().getWeaponInfo();
+        const wvm = getWeaponViewManager();
+        const info = wvm.getWeaponInfo();
         if (!info) {
             return 'No weapon loaded';
         }
 
-        return `Weapon: ${info.name}\nSurfaces: ${info.surfaces}\nFrames: ${info.frames}`;
+        const pos = wvm.getCurrentPosition();
+        return `Weapon: ${info.name}
+Surfaces: ${info.surfaces}, Frames: ${info.frames}
+Offset: (${pos.offset.x.toFixed(3)}, ${pos.offset.y.toFixed(3)}, ${pos.offset.z.toFixed(3)})
+Rotation: (${pos.rotation.x.toFixed(3)}, ${pos.rotation.y.toFixed(3)}, ${pos.rotation.z.toFixed(3)})
+Scale: ${pos.scale}`;
     }
 }

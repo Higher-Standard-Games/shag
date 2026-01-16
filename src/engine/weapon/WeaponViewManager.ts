@@ -11,8 +11,9 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
+import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
+import { MovementVars } from '../movement/MovementVars';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -21,21 +22,34 @@ export interface WeaponPosition {
     scale: number;        // Uniform scale
 }
 
+// Note: MD3 models are in Quake units (~1 unit = 1 inch)
+// Using MD3Coords helpers for proper orientation
+
+// Handedness presets (cg_handedness style)
+export const HAND_OFFSETS = {
+    right: 12,   // Right side of screen
+    center: 0,   // Centered
+    left: -12,   // Left side of screen
+};
+
 export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
     hip: {
-        offset: new Vector3(0.15, -0.12, 0.3),
-        rotation: new Vector3(0, Math.PI, 0),
-        scale: 0.02,
+        // Right hand, lower on screen (right=12, down=25, forward=21)
+        offset: MD3Coords.viewModelOffset(HAND_OFFSETS.right, 25, 21),
+        rotation: MD3Coords.viewModelRotation(),
+        scale: 2.0,
     },
     ads: {
-        offset: new Vector3(0, -0.08, 0.2),
-        rotation: new Vector3(0, Math.PI, 0),
-        scale: 0.02,
+        // Centered, less low, closer (right=0, down=15, forward=25)
+        offset: MD3Coords.viewModelOffset(0, 15, 25),
+        rotation: MD3Coords.viewModelRotation(),
+        scale: 2.0,
     },
     lowered: {
-        offset: new Vector3(0.2, -0.25, 0.25),
-        rotation: new Vector3(0.2, Math.PI, 0),
-        scale: 0.02,
+        // More to right, much lower (right=15, down=35, forward=30)
+        offset: MD3Coords.viewModelOffset(15, 35, 30),
+        rotation: new Vector3(0.4, -Math.PI / 2, 0),
+        scale: 2.0,
     },
 };
 
@@ -46,6 +60,11 @@ export class WeaponViewManager {
     private weaponRoot: TransformNode | null = null;
     private currentWeapon: MD3LoadResult | null = null;
     private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
+
+    // CVar tracking for live updates
+    private lastHandedness: number = 1;
+    private cvarCheckTimer: number = 0;
+    private static readonly CVAR_CHECK_INTERVAL = 0.1; // Check 10x/sec, not every frame
 
     // Debug
     private debugEnabled: boolean = false;
@@ -72,7 +91,19 @@ export class WeaponViewManager {
         this.weaponRoot = new TransformNode('weaponView', scene);
         this.weaponRoot.parent = camera;
 
-        console.log('[WeaponViewManager] Initialized');
+        // Configure rendering group 1 for weapons:
+        // - Clear depth buffer before rendering (prevents wall clipping)
+        // - Keep color buffer (world is already rendered)
+        // Args: (groupId, autoClear, depth, stencil)
+        scene.setRenderingAutoClearDepthStencil(1, true, true, false);
+
+        // Register update loop
+        scene.onBeforeRenderObservable.add(() => {
+            const deltaTime = scene.getEngine().getDeltaTime() / 1000;
+            this.update(deltaTime);
+        });
+
+        console.log('[WeaponViewManager] Initialized with depth-cleared weapon layer');
     }
 
     /**
@@ -137,6 +168,12 @@ export class WeaponViewManager {
 
         // Parent to weapon root
         this.currentWeapon.root.parent = this.weaponRoot;
+
+        // Set rendering group to 1 (renders after world, with depth cleared)
+        // This prevents weapon from clipping through walls
+        for (const mesh of this.currentWeapon.meshes) {
+            mesh.renderingGroupId = 1;
+        }
 
         // Load texture
         if (pk3.hasFile(texturePath)) {
@@ -208,6 +245,13 @@ export class WeaponViewManager {
     }
 
     /**
+     * Get current position settings
+     */
+    public getCurrentPosition(): WeaponPosition {
+        return this.currentPosition;
+    }
+
+    /**
      * Toggle weapon visibility
      */
     public setVisible(visible: boolean): void {
@@ -230,12 +274,30 @@ export class WeaponViewManager {
         if (!this.currentWeapon) return;
 
         const root = this.currentWeapon.root;
-        root.position.copyFrom(pos.offset);
+
+        // Get handedness from CVar: 0=left, 1=right, 2=center
+        let handOffset = HAND_OFFSETS.right;  // Default
+        try {
+            const mv = MovementVars.getInstance();
+            const hand = mv.get('cg_handedness');
+            handOffset = hand === 0 ? HAND_OFFSETS.left
+                : hand === 2 ? HAND_OFFSETS.center
+                    : HAND_OFFSETS.right;
+        } catch {
+            // Use default if MovementVars not available
+        }
+
+        // Apply position with dynamic handedness
+        root.position.set(
+            handOffset,           // X from handedness
+            pos.offset.y,         // Y from preset
+            pos.offset.z          // Z from preset
+        );
         root.rotation.copyFrom(pos.rotation);
         root.scaling.setAll(pos.scale);
 
         if (this.debugEnabled) {
-            console.log(`[WeaponViewManager] Position: (${pos.offset.x.toFixed(3)}, ${pos.offset.y.toFixed(3)}, ${pos.offset.z.toFixed(3)}) scale=${pos.scale}`);
+            console.log(`[WeaponViewManager] Position: (${root.position.x.toFixed(3)}, ${root.position.y.toFixed(3)}, ${root.position.z.toFixed(3)}) scale=${pos.scale}`);
         }
     }
 
@@ -244,10 +306,37 @@ export class WeaponViewManager {
     }
 
     /**
-     * Update per frame (for animations, sway, etc.)
+     * Update per frame (for animations, sway, CVar changes)
      */
-    public update(_deltaTime: number): void {
+    public update(deltaTime: number): void {
+        if (!this.currentWeapon) return;
+
+        // Throttle CVar checking - 10 times per second max
+        this.cvarCheckTimer += deltaTime;
+        if (this.cvarCheckTimer >= WeaponViewManager.CVAR_CHECK_INTERVAL) {
+            this.cvarCheckTimer = 0;
+            this.checkCVarChanges();
+        }
+
         // Future: weapon sway, bob, animations
+    }
+
+    private checkCVarChanges(): void {
+        try {
+            const mv = MovementVars.getInstance();
+            const currentHand = mv.get('cg_handedness');
+
+            if (currentHand !== this.lastHandedness) {
+                this.lastHandedness = currentHand;
+                this.applyPosition(this.currentPosition);
+                console.log(`[WeaponViewManager] Handedness changed to ${currentHand}`);
+            }
+        } catch (e) {
+            // MovementVars not available
+            if (this.debugEnabled) {
+                console.warn('[WeaponViewManager] CVar check failed:', e);
+            }
+        }
     }
 }
 

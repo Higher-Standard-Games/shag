@@ -93,7 +93,14 @@ export default class JoinCommand extends Command {
       const { FreeCamera } = await import('@babylonjs/core/Cameras/freeCamera');
       const scene = camera.getScene();
       if (scene && camera instanceof FreeCamera) {
-        weaponModule.getWeaponViewManager().init(scene, camera);
+        const wvm = weaponModule.getWeaponViewManager();
+        wvm.init(scene, camera);
+
+        // TESTING: Auto-load weapon for development - remove later
+        wvm.loadWeapon('plasmagun', 'games/default/basewsw/data0_15pure.pk3')
+          .then(success => {
+            if (success) console.log('[Join] Test weapon loaded');
+          });
       }
     } catch (e) {
       console.warn('[Join] Failed to init weapon view:', e);

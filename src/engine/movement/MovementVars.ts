@@ -406,6 +406,27 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'movement',
     developerOnly: true,
   },
+
+  // ==================== Weapon ====================
+  cg_handedness: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 2,
+    description: 'Weapon hand position (0=left, 1=right, 2=center)',
+    category: 'camera',
+    developerOnly: false,
+    type: 'int',
+  },
+  cg_weaponfov: {
+    value: 90,
+    defaultValue: 90,
+    min: 50,
+    max: 120,
+    description: 'Weapon view model FOV',
+    category: 'camera',
+    developerOnly: false,
+  },
 };
 
 // ==================== MovementVars Class ====================

@@ -25,6 +25,43 @@ const MD3_VERSION = 15;
 const MD3_XYZ_SCALE = 1.0 / 64.0;
 const MAX_QPATH = 64;
 
+/**
+ * Quake/MD3 Coordinate System Helpers
+ * 
+ * Quake: X = right, Y = forward, Z = up (left-handed)
+ * Babylon: X = right, Y = up, Z = forward (right-handed)
+ * 
+ * Conversion: swap Y and Z
+ */
+export const MD3Coords = {
+    /**
+     * Convert Quake position to Babylon position
+     */
+    positionToBabylon(quakeX: number, quakeY: number, quakeZ: number): Vector3 {
+        return new Vector3(quakeX, quakeZ, quakeY);
+    },
+
+    /**
+     * Rotation to make MD3 model face forward in Babylon
+     * MD3 weapons typically point along +Y in Quake space
+     * We need them to point along +Z in Babylon space
+     */
+    viewModelRotation(): Vector3 {
+        // Rotate -90 degrees around Y to face forward
+        return new Vector3(0, -Math.PI / 2, 0);
+    },
+
+    /**
+     * Get standard view model transform for FPS weapons
+     * @param rightOffset - How far to the right (positive = right)
+     * @param downOffset - How far down (positive = down)
+     * @param forwardOffset - How far forward (positive = forward)
+     */
+    viewModelOffset(rightOffset: number, downOffset: number, forwardOffset: number): Vector3 {
+        return new Vector3(rightOffset, -downOffset, forwardOffset);
+    },
+};
+
 // MD3 Header structure
 interface MD3Header {
     ident: number;
@@ -284,11 +321,14 @@ export class MD3Loader {
         }
 
         // Read texture coordinates (same for all frames)
+        // Quake uses bottom-left UV origin, Babylon uses top-left, so flip V
         const texCoords: number[] = [];
         offset = surfaceStart + header.ofsST;
         for (let i = 0; i < header.numVerts; i++) {
-            texCoords.push(view.getFloat32(offset, true));     // U
-            texCoords.push(view.getFloat32(offset + 4, true)); // V
+            const u = view.getFloat32(offset, true);
+            const v = view.getFloat32(offset + 4, true);
+            texCoords.push(u);
+            texCoords.push(1.0 - v);  // Flip V coordinate
             offset += 8;
         }
 
@@ -439,13 +479,27 @@ export class MD3Loader {
         const positions = surface.vertices[frame];
         const normals = surface.normals[frame];
 
-        // Babylon uses right-handed, MD3 uses... let's figure it out
-        // For now, just use positions directly
-        vertexData.positions = Array.from(positions);
-        vertexData.normals = Array.from(normals);
+        // MD3 uses Quake coordinate system: X right, Y forward, Z up
+        // Babylon uses: X right, Y up, Z forward
+        // So we swap Y and Z
+        const convertedPositions = new Float32Array(positions.length);
+        const convertedNormals = new Float32Array(normals.length);
+
+        for (let i = 0; i < positions.length; i += 3) {
+            convertedPositions[i] = positions[i];       // X stays
+            convertedPositions[i + 1] = positions[i + 2]; // Babylon Y = Quake Z  
+            convertedPositions[i + 2] = positions[i + 1]; // Babylon Z = Quake Y
+
+            convertedNormals[i] = normals[i];
+            convertedNormals[i + 1] = normals[i + 2];
+            convertedNormals[i + 2] = normals[i + 1];
+        }
+
+        vertexData.positions = Array.from(convertedPositions);
+        vertexData.normals = Array.from(convertedNormals);
         vertexData.uvs = surface.texCoords;
 
-        // Flatten triangles to indices (reverse winding for Babylon)
+        // Reverse winding order to fix inside-out after Y/Z swap
         vertexData.indices = surface.triangles.flatMap(t => [t[2], t[1], t[0]]);
 
         vertexData.applyToMesh(mesh, true);
