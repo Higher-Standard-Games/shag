@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.8.19] - 2026-01-16
+
+### Added
+- **Viewport Effects System**: Modular camera effects framework
+  - `ViewportEffectsManager`: Manages multiple effects, updates each frame
+  - `ViewportApplicator`: Applies combined delta to camera/FOV
+  - Effect types: FOV, Position, Rotation (pitch/yaw/roll)
+  - CVars for all effects (`cg_walkbob`, `cg_landbob`, etc.)
+
+- **Camera Effects**:
+  - `WalkBobEffect`: Vertical/horizontal bob while walking
+  - `StrafeLeanEffect`: Roll camera into strafe direction
+  - `LandBobEffect`: Impact dip on landing
+  - `SpeedFOVEffect`: FOV widens at high speeds, wall jump burst
+
+- **Ledge Grabbing System**: Grab and pull up to ledges
+  - State machine: none → grabbing → pulling
+  - Safety checks: corner rejection, ceiling clearance, stair prevention
+  - CVars: `sv_ledgegrab`, `sv_ledge_reach`, `sv_ledge_pulltime`
+
+- **Wall Jump System**: Bounce off walls while airborne
+  - Charged push mode with FOV effect (squeeze → burst)
+  - Wall verticality check rejects ledges/floors
+  - CVars: `sv_walljump`, `sv_walljump_chargetime`, `sv_walljump_boost`
+
+- **MD3 Model Loader**: Quake 3 model format support
+  - Binary parser for header, frames, tags, surfaces
+  - Vertex animation (per-frame positions)
+  - Tag system for attachments (`tag_hand`, `tag_weapon`)
+  - Normal decoding from lat/lng spherical format
+
+- **Research Documents**:
+  - `VIEWPORT_EFFECTS_SYSTEM.md`: Effect architecture and CVars
+  - `LEDGE_GRABBING_SYSTEM.md`: Ledge mechanics design
+  - `WALLJUMP_SYSTEM.md`: Wall jump mechanics design
+  - `WEAPON_SYSTEM.md`: Weapon system design with stats/classes
+
+### Changed
+- **FPSController**: Integrated viewport effects, ledge grab, wall jump
+- **Movement Values**:
+  - `sv_jumpheight`: 280 → 300
+  - `sv_ledge_reach`: 24 → 32 (more forgiving)
+  - `sv_walljump_cooldown`: 0.3s → 1.0s (prevents wall climbing)
+
 ## [0.8.18] - 2026-01-11
 
 ### Added
