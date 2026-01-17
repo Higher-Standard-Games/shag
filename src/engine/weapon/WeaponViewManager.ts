@@ -337,10 +337,9 @@ export class WeaponViewManager {
                         if (flashTag) {
                             flashResult.root.position = flashTag.origin.clone();
                         }
-                        // Rotate flash to face forward (along barrel direction)
-                        // The flash model is flat and needs to be rotated 90° on X
-                        // to point forward instead of up
-                        flashResult.root.rotation.x = Math.PI / 2;
+                        // Rotate flash: -90° X to face forward
+                        // TODO: barrel roll alignment still off, needs shader to debug visually
+                        flashResult.root.rotation.x = -Math.PI / 2;
 
                         // Start hidden
                         flashResult.root.setEnabled(false);

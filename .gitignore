@@ -70,6 +70,7 @@ release/
 # Game packages (test assets)
 *.pk3
 public/game/basewsw/
+public/games/default/
 temp/
 
 # Claude AI assistant settings
