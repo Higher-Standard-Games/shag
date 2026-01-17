@@ -1,0 +1,136 @@
+/**
+ * WeaponDef - Weapon entity definition
+ * 
+ * Extends EntityDef with weapon-specific properties for firing,
+ * aiming, muzzle flash, and other weapon behaviors.
+ */
+
+import { EntityDef } from './EntityDef';
+import { EntityType } from './EntityType';
+
+// ==================== SUB-INTERFACES ====================
+
+/**
+ * View model (first-person) positioning
+ */
+export interface ViewModelDef {
+    /** Main weapon model path */
+    modelPath: string;
+    /** Optional hand model path */
+    handModelPath?: string;
+    /** Flash model path */
+    flashModelPath?: string;
+
+    /** Hip-fire position offset (x, y, z) */
+    hipOffset: { x: number; y: number; z: number };
+    /** Hip-fire rotation (pitch, yaw, roll in radians) */
+    hipRotation: { x: number; y: number; z: number };
+
+    /** ADS position offset */
+    adsOffset: { x: number; y: number; z: number };
+    /** ADS rotation */
+    adsRotation: { x: number; y: number; z: number };
+
+    /** Model scale */
+    scale: number;
+}
+
+/**
+ * Aim Down Sights configuration
+ */
+export interface ADSDef {
+    /** Time to reach full ADS (seconds) */
+    time: number;
+    /** FOV reduction when ADS (percentage, e.g., 15 = 15% reduction) */
+    fovReduction: number;
+    /** Sensitivity multiplier when ADS (0.5 = half normal) */
+    sensitivity: number;
+    /** Movement speed penalty (0.5 = half speed) */
+    movementPenalty: number;
+}
+
+/**
+ * Muzzle flash effect configuration
+ */
+export interface MuzzleFlashDef {
+    /** Light color (RGB 0-1) */
+    color: { r: number; g: number; b: number };
+    /** Light intensity */
+    intensity: number;
+    /** Light range in game units */
+    range: number;
+    /** Flash duration in seconds */
+    duration: number;
+}
+
+// ==================== WEAPON DEF ====================
+
+/**
+ * Full weapon definition
+ */
+export interface WeaponDef extends EntityDef {
+    type: EntityType.WEAPON;
+
+    // === SERVER-AUTHORITATIVE (gameplay) ===
+    /** Damage per shot */
+    damage: number;
+    /** Fire rate (rounds per second) */
+    fireRate: number;
+    /** Ammo per clip */
+    clipSize: number;
+    /** Max reserve ammo */
+    maxAmmo: number;
+    /** Time to reload (seconds) */
+    reloadTime: number;
+    /** Max effective range */
+    range: number;
+    /** Projectile ID (if projectile weapon) */
+    projectileId?: string;
+    /** Is hitscan (instant hit)? */
+    hitscan?: boolean;
+
+    // === CLIENT-SIDE (visuals) ===
+    /** First-person view model */
+    viewModel: ViewModelDef;
+    /** Third-person/world model path */
+    worldModelPath?: string;
+
+    /** Muzzle flash configuration */
+    muzzleFlash: MuzzleFlashDef;
+
+    /** ADS configuration */
+    ads: ADSDef;
+
+    // === SOUNDS ===
+    sounds: {
+        fire: string;
+        reload?: string;
+        empty?: string;
+        switchTo?: string;
+        switchAway?: string;
+    };
+}
+
+// ==================== DEFAULTS ====================
+
+export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
+    damage: 10,
+    fireRate: 5,
+    clipSize: 30,
+    maxAmmo: 120,
+    reloadTime: 2.0,
+    range: 1000,
+    hitscan: false,
+    ads: {
+        time: 0.08,
+        fovReduction: 15,
+        sensitivity: 0.5,
+        movementPenalty: 0.5,
+    },
+    muzzleFlash: {
+        color: { r: 1.0, g: 0.8, b: 0.3 },  // Orange-yellow
+        intensity: 15,
+        range: 30,
+        duration: 0.05,
+    },
+};
