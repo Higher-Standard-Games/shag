@@ -8,7 +8,7 @@
 import { Scene } from '@babylonjs/core/scene';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
@@ -320,16 +320,17 @@ export class WeaponViewManager {
                             }
                         }
 
-                        // Position at tag_flash and rotate to face forward
+                        // Position at tag_flash and align rotation
                         const flashTag = this.currentWeapon.getTag('tag_flash');
                         if (flashTag) {
                             flashResult.root.position = flashTag.origin.clone();
-                        }
-                        // Rotate flash: -90° X to face forward
-                        // TODO: barrel roll alignment still off, needs shader to debug visually
-                        flashResult.root.rotation.x = -Math.PI / 2;
 
-                        // Start hidden
+                            // Apply rotation from tag properties
+                            if (!flashResult.root.rotationQuaternion) {
+                                flashResult.root.rotationQuaternion = new Quaternion();
+                            }
+                            Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
+                        }
                         flashResult.root.setEnabled(false);
                         console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
                     }

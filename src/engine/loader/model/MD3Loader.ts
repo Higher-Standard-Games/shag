@@ -262,22 +262,61 @@ export class MD3Loader {
 
     private readTag(view: DataView, offset: number): MD3Tag {
         const name = this.readString(view, offset, MAX_QPATH);
-        const origin = new Vector3(
+
+        // Read Quake origin (X, Y=Forward, Z=Up)
+        const qOrigin = new Vector3(
             view.getFloat32(offset + 64, true),
             view.getFloat32(offset + 68, true),
             view.getFloat32(offset + 72, true)
         );
 
-        // Read 3x3 rotation matrix (column-major in MD3), expand to 4x4
-        const matrixValues = new Float32Array(16);
-        // Identity matrix base
-        matrixValues[15] = 1;
+        // Convert to Babylon origin (X, Y=Up, Z=Forward)
+        // Swap Y and Z
+        const origin = new Vector3(qOrigin.x, qOrigin.z, qOrigin.y);
 
+        // Read 3x3 rotation matrix (column-major in MD3)
+        // Quake Axes:
+        // Col 0: X axis
+        // Col 1: Y axis (Forward)
+        // Col 2: Z axis (Up)
+        const qAxes: Vector3[] = [];
         for (let col = 0; col < 3; col++) {
-            for (let row = 0; row < 3; row++) {
-                matrixValues[row * 4 + col] = view.getFloat32(offset + 76 + (col * 3 + row) * 4, true);
-            }
+            qAxes[col] = new Vector3(
+                view.getFloat32(offset + 76 + (col * 3 + 0) * 4, true),
+                view.getFloat32(offset + 76 + (col * 3 + 1) * 4, true),
+                view.getFloat32(offset + 76 + (col * 3 + 2) * 4, true)
+            );
         }
+
+        // Convert Axes to Babylon (Swap Y/Z components)
+        // bAxis = (qAxis.x, qAxis.z, qAxis.y)
+        const bAxes: Vector3[] = qAxes.map(v => new Vector3(v.x, v.z, v.y));
+
+        // Reassign columns to Babylon Axes
+        // Babylon Col 0 (X) = Quake Col 0 (X)
+        // Babylon Col 1 (Y=Up) = Quake Col 2 (Z=Up)
+        // Babylon Col 2 (Z=Fwd) = Quake Col 1 (Y=Fwd)
+
+        const matrixValues = new Float32Array(16);
+        matrixValues[15] = 1; // Identity w
+
+        // Col 0 (X)
+        matrixValues[0] = bAxes[0].x;
+        matrixValues[1] = bAxes[0].y;
+        matrixValues[2] = bAxes[0].z;
+        matrixValues[3] = 0;
+
+        // Col 1 (Y) <- from qAxes[2] (Up)
+        matrixValues[4] = bAxes[2].x;
+        matrixValues[5] = bAxes[2].y;
+        matrixValues[6] = bAxes[2].z;
+        matrixValues[7] = 0;
+
+        // Col 2 (Z) <- from qAxes[1] (Forward)
+        matrixValues[8] = bAxes[1].x;
+        matrixValues[9] = bAxes[1].y;
+        matrixValues[10] = bAxes[1].z;
+        matrixValues[11] = 0;
 
         const axis = Matrix.FromArray(matrixValues);
 
