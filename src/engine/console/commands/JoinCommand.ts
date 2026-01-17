@@ -90,6 +90,7 @@ export default class JoinCommand extends Command {
     // Initialize weapon view manager
     try {
       const weaponModule = await import('../../weapon/WeaponViewManager');
+      const projectileModule = await import('../../weapon/ProjectileManager');
       const entityModule = await import('../../../shared/entities');
       const { FreeCamera } = await import('@babylonjs/core/Cameras/freeCamera');
       const scene = camera.getScene();
@@ -102,8 +103,13 @@ export default class JoinCommand extends Command {
 
         // Load weapon by ID (looks up in entity registry)
         wvm.loadWeapon('plasmagun', 'games/default/basewsw/data0_15pure.pk3')
-          .then(success => {
-            if (success) console.log('[Join] Weapon loaded from entity registry');
+          .then(async success => {
+            if (success) {
+              console.log('[Join] Weapon loaded from entity registry');
+              // Preload projectile model for instant spawning
+              const projMgr = projectileModule.getProjectileManager();
+              await projMgr.preloadModel('plasma_bolt');
+            }
           });
       }
     } catch (e) {

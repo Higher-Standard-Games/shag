@@ -15,6 +15,8 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
+import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
+import { PK3Loader } from '../loader/pk3/PK3Loader';
 
 interface ActiveProjectile {
     id: string;
@@ -43,6 +45,9 @@ export class ProjectileManager {
     private impacts: ActiveImpact[] = [];
     private nextId: number = 0;
 
+    // Cache loaded projectile models for cloning
+    private modelCache: Map<string, MD3LoadResult> = new Map();
+
     private constructor() { }
 
     public static getInstance(): ProjectileManager {
@@ -55,6 +60,46 @@ export class ProjectileManager {
     public init(scene: Scene): void {
         this.scene = scene;
         console.log('[ProjectileManager] Initialized');
+    }
+
+    /**
+     * Preload a projectile model (call during init for instant spawning)
+     */
+    public async preloadModel(defId: string): Promise<boolean> {
+        if (!this.scene) return false;
+
+        const registry = getEntityRegistry();
+        const def = registry.get<ProjectileDef>(defId);
+        if (!def?.modelPath) return false;
+
+        // Check if already cached
+        if (this.modelCache.has(defId)) return true;
+
+        const pk3 = PK3Loader.getInstance();
+        const md3Loader = getMD3Loader();
+
+        try {
+            const modelData = await pk3.getFile(def.modelPath);
+            if (!modelData) {
+                console.warn(`[ProjectileManager] Model not found: ${def.modelPath}`);
+                return false;
+            }
+
+            // Parse then create meshes
+            const parsed = md3Loader.parseMD3(modelData);
+            const model = md3Loader.createMeshes(parsed, def.id);
+            if (model) {
+                // Hide the template
+                model.root.setEnabled(false);
+                this.modelCache.set(defId, model);
+                console.log(`[ProjectileManager] Cached model: ${defId}`);
+                return true;
+            }
+        } catch (e) {
+            console.error(`[ProjectileManager] Failed to load model: ${def.modelPath}`, e);
+        }
+
+        return false;
     }
 
     /**
@@ -77,22 +122,48 @@ export class ProjectileManager {
         }
 
         const id = `proj_${this.nextId++}`;
+        const color = def.lightColor ?? { r: 1, g: 1, b: 1 };
 
         // Create projectile node
         const node = new TransformNode(id, this.scene);
         node.position = origin.clone();
 
-        // Create simple visual (sphere for now, can load model later)
-        const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);
-        mesh.parent = node;
+        // Try to use cached model, fallback to sphere
+        const cachedModel = this.modelCache.get(defId);
+        if (cachedModel) {
+            // Clone the cached model meshes
+            for (const mesh of cachedModel.meshes) {
+                const clone = mesh.clone(`${id}_${mesh.name}`, node);
+                if (clone) {
+                    clone.isPickable = false;
+                    // Apply glowing material
+                    const mat = new StandardMaterial(`${id}_mat`, this.scene);
+                    mat.emissiveColor = new Color3(color.r, color.g, color.b);
+                    mat.diffuseColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
+                    mat.disableLighting = true;
+                    clone.material = mat;
+                }
+            }
+            // Apply scale from def
+            const scale = def.scale ?? 1.0;
+            node.scaling.setAll(scale);
+        } else {
+            // Fallback: simple glowing sphere
+            const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);
+            mesh.parent = node;
+            mesh.isPickable = false;
 
-        // Glowing material
-        const mat = new StandardMaterial(`${id}_mat`, this.scene);
-        const color = def.lightColor ?? { r: 1, g: 1, b: 1 };
-        mat.emissiveColor = new Color3(color.r, color.g, color.b);
-        mat.diffuseColor = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
-        mat.disableLighting = true;
-        mesh.material = mat;
+            const mat = new StandardMaterial(`${id}_mat`, this.scene);
+            mat.emissiveColor = new Color3(color.r, color.g, color.b);
+            mat.diffuseColor = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+            mat.disableLighting = true;
+            mesh.material = mat;
+        }
+
+        // Make projectile face direction of travel
+        // Calculate rotation to face direction
+        const forward = direction.normalize();
+        node.lookAt(node.position.add(forward));
 
         // Create dynamic light
         let light: PointLight | null = null;
