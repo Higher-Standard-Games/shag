@@ -88,15 +88,15 @@ async function initializeEngine(): Promise<HeadlessContext> {
   try {
     const { ServiceLocator } = await import("../engine/core/ServiceLocator");
     const { registerEngineServices } = await import("../engine/core/EngineServices");
-    
+
     // Register engine services
     registerEngineServices();
     console.log("[Init] Engine services registered");
-    
+
     // Initialize core services
     await ServiceLocator.getInstance().initCore();
     console.log("[Init] Core services initialized");
-    
+
     // Initialize scene services
     await ServiceLocator.getInstance().initScene(scene);
     console.log("[Init] Scene services initialized");
@@ -420,15 +420,15 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   // Collision trace test command
   registry.register("trace_test", async (args: string[]) => {
     const sub = args[0]?.toLowerCase();
-    
+
     // Import collision manager
     const { getCollisionManager } = await import("../engine/physics/CollisionManager");
     const cm = getCollisionManager();
-    
+
     if (!cm.isInitialized()) {
       return "Collision not initialized. Load a map first with 'map <mapname>'";
     }
-    
+
     if (sub === "point") {
       // trace_test point x y z dx dy dz [dist]
       const x = parseFloat(args[1]) || 0;
@@ -438,15 +438,15 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const dy = parseFloat(args[5]) || -1; // Default: trace down
       const dz = parseFloat(args[6]) || 0;
       const dist = parseFloat(args[7]) || 1000;
-      
+
       const start = new Vector3(x, y, z);
       const dir = new Vector3(dx, dy, dz).normalize();
       const end = start.add(dir.scale(dist));
 
       console.log(`[TraceTest] Point trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist}`);
-      
+
       const result = cm.trace(start as never, end as never, { debug: true });
-      
+
       return [
         `Start: (${start.x.toFixed(2)}, ${start.y.toFixed(2)}, ${start.z.toFixed(2)})`,
         `End: (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})`,
@@ -457,7 +457,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         result.normal ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})` : 'Normal: none',
       ].join('\n');
     }
-    
+
     if (sub === "box") {
       // trace_test box x y z dx dy dz [dist] [radius] [height]
       const x = parseFloat(args[1]) || 0;
@@ -469,15 +469,15 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const dist = parseFloat(args[7]) || 1000;
       const radius = parseFloat(args[8]) || 16;
       const height = parseFloat(args[9]) || 56;
-      
+
       const start = new Vector3(x, y, z);
       const dir = new Vector3(dx, dy, dz).normalize();
       const end = start.add(dir.scale(dist));
 
       console.log(`[TraceTest] Box trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist} radius=${radius} height=${height}`);
-      
+
       const result = cm.trace(start as never, end as never, { debug: true, radius, height });
-      
+
       return [
         `Start: (${start.x.toFixed(2)}, ${start.y.toFixed(2)}, ${start.z.toFixed(2)})`,
         `End: (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})`,
@@ -489,60 +489,60 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         result.normal ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})` : 'Normal: none',
       ].join('\n');
     }
-    
+
     if (sub === "spawn") {
       // trace_test spawn - test collision at all spawn points
       const { MapLoader } = await import("../engine/loader/map/MapLoader");
       const bsp = MapLoader.getInstance().getCurrentBsp();
       if (!bsp) return "No BSP loaded";
-      
-      const spawns = bsp.entities.filter(e => 
-        e.classname === 'info_player_deathmatch' || 
+
+      const spawns = bsp.entities.filter(e =>
+        e.classname === 'info_player_deathmatch' ||
         e.classname === 'info_player_start'
       );
-      
+
       if (spawns.length === 0) return "No spawn points found";
-      
+
       const lines: string[] = [`Found ${spawns.length} spawn points:`, ''];
-      
+
       for (let i = 0; i < Math.min(spawns.length, 5); i++) {
         const spawn = spawns[i];
         const origin = spawn.properties.origin?.split(' ').map(Number) || [0, 0, 0];
         // BSP entities are in Q3 coords, convert to Babylon
         const pos = new Vector3(origin[0], origin[2], origin[1]);
-        
+
         // Trace down from spawn
         const downEnd = pos.add(new Vector3(0, -100, 0));
         const downResult = cm.trace(pos as never, downEnd as never, { debug: false, radius: 16, height: 56 });
-        
+
         // Trace forward (Z in Babylon)
         const fwdEnd = pos.add(new Vector3(0, 0, 100));
         const fwdResult = cm.trace(pos as never, fwdEnd as never, { debug: false, radius: 16, height: 56 });
-        
+
         lines.push(`Spawn ${i + 1}: Q3(${origin[0]}, ${origin[1]}, ${origin[2]}) → Babylon(${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`);
         lines.push(`  Down: frac=${downResult.fraction.toFixed(3)}, startSolid=${downResult.startSolid}`);
         lines.push(`  Forward: frac=${fwdResult.fraction.toFixed(3)}, startSolid=${fwdResult.startSolid}`);
         lines.push('');
       }
-      
+
       return lines.join('\n');
     }
-    
+
     if (sub === "compare") {
       // trace_test compare - compare Q3 coords vs Babylon coords for brushes
       const { MapLoader } = await import("../engine/loader/map/MapLoader");
       const bsp = MapLoader.getInstance().getCurrentBsp();
       if (!bsp) return "No BSP loaded";
-      
+
       const lines: string[] = ['BSP Coordinate Analysis:', ''];
-      
+
       // Sample a few brushes and their planes
       const sampleBrushes = bsp.brushes.slice(0, 3);
       for (let bi = 0; bi < sampleBrushes.length; bi++) {
         const brush = sampleBrushes[bi];
         const texture = bsp.textures[brush.shaderIndex];
         lines.push(`Brush ${bi}: shader="${texture?.name}", sides=${brush.numSides}`);
-        
+
         for (let si = 0; si < Math.min(brush.numSides, 3); si++) {
           const side = bsp.brushSides[brush.firstSide + si];
           const plane = bsp.planes[side.planeIndex];
@@ -550,7 +550,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         }
         lines.push('');
       }
-      
+
       // Check first few vertices for coordinate reference
       if (bsp.vertices.length > 0) {
         lines.push('Sample vertices (Q3 format in BSP):');
@@ -559,10 +559,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
           lines.push(`  V${vi}: (${v.position[0].toFixed(1)}, ${v.position[1].toFixed(1)}, ${v.position[2].toFixed(1)})`);
         }
       }
-      
+
       return lines.join('\n');
     }
-    
+
     return [
       'Collision trace testing commands:',
       '  trace_test point x y z dx dy dz [dist] - Point trace',
@@ -708,6 +708,8 @@ async function main(): Promise<void> {
     if (execCommands) {
       // Batch mode - execute commands and exit
       await runBatch(execCommands);
+      console.log("\n[Headless] Batch complete, exiting.");
+      process.exit(0);
     } else {
       // Interactive mode - REPL
       await runREPL();
