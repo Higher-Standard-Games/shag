@@ -425,19 +425,20 @@ src/
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
-- [ ] Create `src/shared/entities/` structure
-- [ ] Implement `EntityDef` base interface
-- [ ] Implement `EntityRegistry` singleton
-- [ ] Migrate existing `WeaponDef` to new system
+### Phase 1: Core Infrastructure ✅ DONE
+- [x] Create `src/shared/entities/` structure
+- [x] Implement `EntityDef` base interface (with classname for BSP matching)
+- [x] Implement `EntityRegistry` singleton (with getByClassname() lookup)
+- [x] Migrate existing `WeaponDef` to new system
 
-### Phase 2: Weapon Definitions
-- [ ] Define full `WeaponDef` interface
-- [ ] Create plasmagun definition
-- [ ] Update `WeaponViewManager` to use registry
-- [ ] Muzzle flash from definition
+### Phase 2: Weapon Definitions ✅ DONE
+- [x] Define full `WeaponDef` interface
+- [x] Create plasmagun definition (with muzzle flash, ADS, etc.)
+- [x] Update `WeaponViewManager` to use registry
+- [x] Muzzle flash from definition (dynamic PointLight!)
+- [x] `initializeEntityDefs()` called on startup
 
-### Phase 3: Projectiles
+### Phase 3: Projectiles ⬜ NEXT
 - [ ] Implement `ProjectileDef`
 - [ ] Create plasma bolt definition
 - [ ] Basic projectile spawning (visual only)
@@ -446,6 +447,7 @@ src/
 - [ ] Implement `PickupDef`
 - [ ] Create health/armor definitions
 - [ ] Pickup rendering with effects
+- [ ] BSP entity spawning using `getByClassname()`
 
 ### Phase 5: Server Integration
 - [ ] Server entity validation

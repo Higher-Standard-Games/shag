@@ -137,45 +137,47 @@ weapon_debug            - Show weapon state info
 
 ### Implementation Order
 
-**Phase 1: Client View Model Only (MVP)**
-Focus: Get a weapon rendering on screen, no gameplay.
+**Phase 1: Client View Model Only (MVP)** ✅ DONE
 ```
-1. Load data0_15pure.pk3
-2. Parse plasmagun.md3 with MD3Loader
-3. Create WeaponViewManager (engine side)
-4. Attach to camera, position in hip-fire
-5. Console commands: weapon_load, weapon_pos
-
-No server, no firing, just visual.
-```
-
-**Phase 2: Weapon Definitions**
-```
-1. Define WeaponDef interface (shared)
-2. Create weapon definitions (game side)
-3. Support loading from weapon.cfg files
+✓ Load data0_15pure.pk3
+✓ Parse plasmagun.md3 with MD3Loader
+✓ Create WeaponViewManager (engine side)
+✓ Attach to camera, position in hip-fire
+✓ Console commands: weapon_load, weapon_pos
+✓ Weapon bob (walking, sprinting, jump/land)
+✓ ADS (aim down sights) with FOV zoom + sensitivity
+✓ Muzzle flash with dynamic BSP lighting!
 ```
 
-**Phase 3: Server Weapon State**
+**Phase 2: Weapon Definitions** ✅ DONE
+```
+✓ Define WeaponDef interface (in src/shared/entities/)
+✓ EntityRegistry for lookups by ID or classname
+✓ Create plasmagun definition with all properties
+✓ WeaponViewManager reads muzzle flash from def
+```
+
+**Phase 3: Server Weapon State** ⬜ TODO
 ```
 1. Add weapon state to Entity/GameState
 2. Server tracks weapon ownership/ammo
 3. Network weapon state to clients
 ```
 
-**Phase 4: Firing System**
+**Phase 4: Firing System** ⬜ NEXT?
 ```
 1. Client sends FireRequest
 2. Server validates, does damage/projectile
 3. Server broadcasts WeaponFiredEvent
 4. Client plays effects on event
+5. ProjectileDef for plasma bolt
 ```
 
 **Phase 5: Full Integration**
 ```
 1. Reload system
 2. Weapon switching
-3. Pickups
+3. Pickups (using getByClassname for BSP entities)
 4. Client-side prediction
 ```
 
