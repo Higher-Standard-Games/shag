@@ -251,17 +251,25 @@ export class ProjectileManager {
                 const clone = mesh.clone(`${id}_${mesh.name}`, node);
                 if (clone) {
                     clone.isPickable = false;
-                    // Apply textured material if we have a texture, fallback to emissive
-                    const mat = new StandardMaterial(`${id}_mat`, this.scene);
-                    if (cachedTexture) {
-                        mat.diffuseTexture = new Texture(cachedTexture, this.scene);
-                        mat.diffuseTexture.hasAlpha = true;
-                        mat.useAlphaFromDiffuseTexture = true;
+
+                    // If the source mesh has a material, reuse it (it might be a complex shader material from MD3Loader)
+                    if (mesh.material) {
+                        clone.material = mesh.material;
+                    } else {
+                        // Only create fallback material if none exists
+                        const mat = new StandardMaterial(`${id}_mat`, this.scene);
+                        if (cachedTexture) {
+                            mat.diffuseTexture = new Texture(cachedTexture, this.scene);
+                            mat.diffuseTexture.hasAlpha = true;
+                            mat.useAlphaFromDiffuseTexture = true;
+                            // For additive/projectile usage, ensure it glows
+                            mat.emissiveTexture = mat.diffuseTexture;
+                        }
+                        mat.emissiveColor = new Color3(color.r, color.g, color.b);
+                        mat.disableLighting = true;
+                        mat.backFaceCulling = false;
+                        clone.material = mat;
                     }
-                    mat.emissiveColor = new Color3(color.r, color.g, color.b);
-                    mat.disableLighting = true;
-                    mat.backFaceCulling = false;
-                    clone.material = mat;
                 }
             }
             // Apply scale from def
