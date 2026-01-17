@@ -74,6 +74,19 @@ export class EntityRegistry {
     public clear(): void {
         this.definitions.clear();
     }
+
+    /**
+     * Get definition by BSP/MAP classname (e.g., "weapon_plasmagun")
+     * Used for spawning entities from map data
+     */
+    public getByClassname<T extends EntityDef>(classname: string): T | undefined {
+        for (const def of this.definitions.values()) {
+            if (def.classname === classname) {
+                return def as T;
+            }
+        }
+        return undefined;
+    }
 }
 
 // Convenience function

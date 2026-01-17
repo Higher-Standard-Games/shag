@@ -21,6 +21,9 @@ export interface EntityDef {
     /** Entity type for categorization */
     type: EntityType;
 
+    /** BSP/MAP classname for spawning (e.g., "weapon_plasmagun", "item_health") */
+    classname?: string;
+
     // === VISUALS ===
     /** Primary 3D model path (MD3/GLB in PK3) */
     modelPath?: string;

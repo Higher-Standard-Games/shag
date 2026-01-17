@@ -12,6 +12,7 @@ export const PLASMAGUN: WeaponDef = {
     id: 'plasmagun',
     name: 'Plasma Gun',
     type: EntityType.WEAPON,
+    classname: 'weapon_plasmagun',  // BSP entity classname
 
     // Model
     modelPath: 'models/weapons/plasmagun/plasmagun.md3',
