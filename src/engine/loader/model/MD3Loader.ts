@@ -405,10 +405,12 @@ export class MD3Loader {
         }
 
         const registry = Q3ShaderRegistry.getInstance();
-        const props = registry.resolveMaterialProps(shaderName);
+        // Normalize shader name: MD3 files may use backslashes on Windows
+        const normalizedName = shaderName.replace(/\\/g, '/');
+        const props = registry.resolveMaterialProps(normalizedName);
         const mat = new StandardMaterial(materialName, this.scene);
 
-        console.log(`[MD3] Creating material for shader: "${shaderName}"`, props);
+        console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
 
         // Try to load texture
         if (props.diffuseTexture) {
