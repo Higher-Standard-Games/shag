@@ -623,6 +623,10 @@ export class MD3Loader {
                         // autosprite2 = Face camera fully
                         mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
                     }
+
+                    if (props.tcMod) {
+                        this.applyTcMod(mesh, props.tcMod);
+                    }
                 }
             }
         }
@@ -704,6 +708,52 @@ export class MD3Loader {
         vertexData.applyToMesh(mesh, true);
 
         return mesh;
+    }
+
+    /**
+     * Apply Quake 3 tcMod (texture coordinate modifications)
+     */
+    private applyTcMod(mesh: Mesh, tcMods: any[]) {
+        if (!tcMods || tcMods.length === 0) return;
+
+        const mat = mesh.material as StandardMaterial;
+        if (!mat || !mat.diffuseTexture) return;
+
+        const texture = mat.diffuseTexture as Texture;
+
+        // Quake rotations are around center (0.5, 0.5)
+        texture.uRotationCenter = 0.5;
+        texture.vRotationCenter = 0.5;
+
+        // Static mods
+        for (const mod of tcMods) {
+            if (mod.type === 'scale') {
+                texture.uScale = mod.uScale;
+                texture.vScale = mod.vScale;
+            }
+        }
+
+        // Animated mods
+        const animatedMods = tcMods.filter(m => ['rotate', 'scroll', 'stretch', 'turb'].includes(m.type));
+
+        if (animatedMods.length > 0) {
+            mesh.onBeforeRenderObservable.add(() => {
+                const time = performance.now() / 1000;
+
+                for (const mod of animatedMods) {
+                    if (mod.type === 'rotate') {
+                        // Quake rotate is deg/sec
+                        // Negative because Quake is CCW? Or maybe Babylon texture rotation logic differs.
+                        // StandardMaterial wAng is radians.
+                        const rad = mod.degreesPerSecond * (Math.PI / 180) * time;
+                        texture.wAng = rad;
+                    } else if (mod.type === 'scroll') {
+                        texture.uOffset = (time * mod.uSpeed) % 1;
+                        texture.vOffset = (time * mod.vSpeed) % 1;
+                    }
+                }
+            });
+        }
     }
 }
 
