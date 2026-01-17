@@ -289,7 +289,9 @@ export class WeaponViewManager {
             }
         }
 
-        // Load muzzle flash model (e.g., plasmagun_flash.md3)
+        // TODO: Muzzle flash model needs proper scale/positioning work
+        // Disabled for now - using light-only flash
+        /*
         const flashModelPath = weaponDef?.viewModel?.flashModelPath
             ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
         if (pk3.hasFile(flashModelPath)) {
@@ -299,25 +301,18 @@ export class WeaponViewManager {
                     const flashMd3 = md3.parseMD3(flashData);
                     const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
                     if (flashResult) {
-                        // Parent flash to weapon
                         flashResult.root.parent = this.currentWeapon.root;
                         this.muzzleFlashModel = flashResult.root;
-
-                        // Set up flash meshes - hidden by default, glowing material
                         const color = weaponDef?.muzzleFlash?.color ?? { r: 1, g: 0.8, b: 0.3 };
                         for (const mesh of flashResult.meshes) {
                             mesh.renderingGroupId = 1;
                             mesh.layerMask = WEAPON_LAYER_MASK;
                             mesh.isPickable = false;
-
-                            // Emissive glowing material
                             const mat = new StandardMaterial(`${weaponName}_flash_mat`, this.scene);
                             mat.emissiveColor.set(color.r, color.g, color.b);
                             mat.disableLighting = true;
                             mesh.material = mat;
                         }
-
-                        // Start hidden
                         flashResult.root.setEnabled(false);
                         console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
                     }
@@ -326,6 +321,7 @@ export class WeaponViewManager {
                 }
             }
         }
+        */
 
         // Apply default position
         this.applyPosition(this.currentPosition);
