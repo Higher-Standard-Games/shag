@@ -663,7 +663,9 @@ export class MD3Loader {
                         // Only bake if we haven't already (check a flag or assume fresh load)
                         // Note: createMeshes is called once per load, so this is safe.
 
-                        mesh.rotation.y = Math.PI / 2;
+                        // User reported 180 degree flip with +PI/2.
+                        // Switching to -PI/2 to flip it back.
+                        mesh.rotation.y = -Math.PI / 2;
                         mesh.bakeCurrentTransformIntoVertices();
 
                         if (props.autosprite) {
