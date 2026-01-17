@@ -653,12 +653,27 @@ export class MD3Loader {
                     const normalizedName = shaderName.replace(/\\/g, '/');
                     const props = registry.resolveMaterialProps(normalizedName);
 
-                    if (props.autosprite) {
-                        // autosprite = Rotate around vertical axis (Quake Z, Babylon Y)
-                        mesh.billboardMode = Mesh.BILLBOARDMODE_Y;
-                    } else if (props.autosprite2) {
-                        // autosprite2 = Face camera fully
-                        mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
+                    const isFlash = name.endsWith('_flash');
+
+                    if (props.autosprite || props.autosprite2 || isFlash) {
+                        // Autosprite meshes (and muzzle flashes in general) are usually built along X axis.
+                        // Babylon billboards/Forward alignment expect Z.
+                        // We must rotate the geometry so X aligns with Z (Forward).
+
+                        // Only bake if we haven't already (check a flag or assume fresh load)
+                        // Note: createMeshes is called once per load, so this is safe.
+
+                        mesh.rotation.y = Math.PI / 2;
+                        mesh.bakeCurrentTransformIntoVertices();
+
+                        if (props.autosprite) {
+                            // autosprite = Rotate around vertical axis (Quake Z, Babylon Y)
+                            mesh.billboardMode = Mesh.BILLBOARDMODE_Y;
+                        } else if (props.autosprite2) {
+                            // autosprite2 = Face camera fully
+                            mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
+                        }
+                        // If just isFlash (no autosprite), we still aligned it Forward, which is good.
                     }
 
                     if (props.tcMod) {

@@ -329,12 +329,7 @@ export class WeaponViewManager {
                             if (!flashResult.root.rotationQuaternion) {
                                 flashResult.root.rotationQuaternion = new Quaternion();
                             }
-
-                            // Align geometry: Rotate -90 degrees around Y (Right -> Forward)
-                            // because MD3 meshes face X (Right), but we want them to face Z (Tag Forward)
-                            const correction = Quaternion.FromEulerAngles(0, -Math.PI / 2, 0);
-                            const tagRotation = Quaternion.FromRotationMatrix(flashTag.axis);
-                            tagRotation.multiplyToRef(correction, flashResult.root.rotationQuaternion);
+                            Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
                         }
                         flashResult.root.setEnabled(false);
                         console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
