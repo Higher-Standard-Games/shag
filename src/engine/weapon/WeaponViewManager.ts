@@ -113,6 +113,7 @@ export class WeaponViewManager {
     private muzzleFlashIntensity: number = 0;  // Current flash intensity (fades out)
     private static readonly MUZZLE_FLASH_MAX_INTENSITY = 15.0;  // Peak brightness
     private static readonly MUZZLE_FLASH_DECAY = 45.0;  // How fast it fades (higher = faster)
+    private static readonly MUZZLE_FLASH_OPACITY = 0.5; // Max opacity (0.5 = 50% transparent)
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
     private firePressed: boolean = false;  // Track mouse1 state to detect fire
 
@@ -761,7 +762,7 @@ export class WeaponViewManager {
                 this.muzzleFlashModel.setEnabled(true);
                 // Reset visibility
                 if (this.muzzleFlashModel instanceof TransformNode) {
-                    this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = 1.0);
+                    this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY);
                 }
             }
 
@@ -811,7 +812,7 @@ export class WeaponViewManager {
             // Update model visibility (fade out)
             const max = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
             if (this.muzzleFlashModel && this.muzzleFlashModel instanceof TransformNode) {
-                const alpha = Math.max(0, this.muzzleFlashIntensity / max);
+                const alpha = Math.max(0, (this.muzzleFlashIntensity / max) * WeaponViewManager.MUZZLE_FLASH_OPACITY);
                 this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = alpha);
 
                 // Only disable when fully gone
