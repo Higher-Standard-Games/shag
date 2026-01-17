@@ -298,10 +298,10 @@ export class MD3Loader {
         const matrixValues = new Float32Array(16);
         matrixValues[15] = 1; // Identity w
 
-        // Babylon Col 0 (X / Right) <- From Q-Col 1 (Left) [Positive = CCW, Negative = CW]
-        matrixValues[0] = bAxes[1].x;
-        matrixValues[1] = bAxes[1].y;
-        matrixValues[2] = bAxes[1].z;
+        // Babylon Col 0 (X / Right) <- From Q-Col 1 (Left) [Negated]
+        matrixValues[0] = -bAxes[1].x;
+        matrixValues[1] = -bAxes[1].y;
+        matrixValues[2] = -bAxes[1].z;
         matrixValues[3] = 0;
 
         // Babylon Col 1 (Y / Up) <- From Q-Col 2 (Up)
@@ -310,10 +310,10 @@ export class MD3Loader {
         matrixValues[6] = bAxes[2].z;
         matrixValues[7] = 0;
 
-        // Babylon Col 2 (Z / Fwd) <- From Q-Col 0 (Fwd) [Negated]
-        matrixValues[8] = -bAxes[0].x;
-        matrixValues[9] = -bAxes[0].y;
-        matrixValues[10] = -bAxes[0].z;
+        // Babylon Col 2 (Z / Fwd) <- From Q-Col 0 (Fwd)
+        matrixValues[8] = bAxes[0].x;
+        matrixValues[9] = bAxes[0].y;
+        matrixValues[10] = bAxes[0].z;
         matrixValues[11] = 0;
 
         const axis = Matrix.FromArray(matrixValues);
