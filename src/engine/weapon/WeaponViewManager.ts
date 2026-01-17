@@ -759,6 +759,10 @@ export class WeaponViewManager {
             // Show muzzle flash model (already positioned at tag_flash during load)
             if (this.muzzleFlashModel) {
                 this.muzzleFlashModel.setEnabled(true);
+                // Reset visibility
+                if (this.muzzleFlashModel instanceof TransformNode) {
+                    this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = 1.0);
+                }
             }
 
             // Trigger recoil
@@ -804,10 +808,19 @@ export class WeaponViewManager {
             this.muzzleFlashIntensity -= deltaTime * WeaponViewManager.MUZZLE_FLASH_DECAY;
             if (this.muzzleFlashIntensity < 0) this.muzzleFlashIntensity = 0;
 
-            // Hide flash model when intensity is low
-            if (this.muzzleFlashIntensity < WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY * 0.3) {
-                this.muzzleFlashModel?.setEnabled(false);
+            // Update model visibility (fade out)
+            const max = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
+            if (this.muzzleFlashModel && this.muzzleFlashModel instanceof TransformNode) {
+                const alpha = Math.max(0, this.muzzleFlashIntensity / max);
+                this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = alpha);
+
+                // Only disable when fully gone
+                if (this.muzzleFlashIntensity <= 0) {
+                    this.muzzleFlashModel.setEnabled(false);
+                }
             }
+
+            // Update light
 
             // Update light
             if (this.muzzleFlashLight) {
