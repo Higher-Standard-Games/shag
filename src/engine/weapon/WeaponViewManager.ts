@@ -306,30 +306,18 @@ export class WeaponViewManager {
                         // Scale the flash model appropriately
                         flashResult.root.scaling.setAll(1.5);
 
-                        // Load flash texture (same folder as flash model)
-                        const flashTexturePath = flashModelPath.replace('_flash.md3', '_fx.tga');
-                        let flashTextureUrl: string | null = null;
-                        if (pk3.hasFile(flashTexturePath)) {
-                            flashTextureUrl = await pk3.getFileAsURL(flashTexturePath, 'image/png');
-                        }
-
-                        // Set up flash meshes with texture or fallback to emissive color
-                        const color = weaponDef?.muzzleFlash?.color ?? { r: 1, g: 0.8, b: 0.3 };
+                        // Set up flash meshes
                         for (const mesh of flashResult.meshes) {
                             mesh.renderingGroupId = 1;
                             mesh.layerMask = WEAPON_LAYER_MASK;
                             mesh.isPickable = false;
 
-                            const mat = new StandardMaterial(`${weaponName}_flash_mat`, this.scene);
-                            if (flashTextureUrl) {
-                                mat.diffuseTexture = new Texture(flashTextureUrl, this.scene);
-                                mat.diffuseTexture.hasAlpha = true;
-                                mat.useAlphaFromDiffuseTexture = true;
+                            // Ensure lighting is disabled for flash
+                            const mat = mesh.material as StandardMaterial;
+                            if (mat) {
+                                mat.disableLighting = true;
+                                mat.backFaceCulling = false;
                             }
-                            mat.emissiveColor.set(color.r, color.g, color.b);
-                            mat.disableLighting = true;
-                            mat.backFaceCulling = false;
-                            mesh.material = mat;
                         }
 
                         // Position at tag_flash and rotate to face forward
