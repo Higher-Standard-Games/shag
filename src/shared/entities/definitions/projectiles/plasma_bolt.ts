@@ -14,9 +14,9 @@ export const PLASMA_BOLT: ProjectileDef = {
     type: EntityType.PROJECTILE,
     classname: 'projectile_plasma',
 
-    // Model
-    modelPath: 'models/weapons/plasmagun/plasmagun_flash.md3',  // Reuse flash model for now
-    scale: 1.0,
+    // Model - none, uses glowing sphere
+    // modelPath: undefined,
+    scale: 0.8,
 
     // Gameplay (server-authoritative)
     speed: 2500,       // Units per second - fast!

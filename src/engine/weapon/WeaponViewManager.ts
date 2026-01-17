@@ -109,6 +109,7 @@ export class WeaponViewManager {
 
     // Muzzle flash state
     private muzzleFlashLight: PointLight | null = null;
+    private muzzleFlashModel: TransformNode | null = null;  // Flash MD3 model at tag_flash
     private muzzleFlashIntensity: number = 0;  // Current flash intensity (fades out)
     private static readonly MUZZLE_FLASH_MAX_INTENSITY = 15.0;  // Peak brightness
     private static readonly MUZZLE_FLASH_DECAY = 30.0;  // How fast it fades (higher = faster)
@@ -284,6 +285,44 @@ export class WeaponViewManager {
                     mat.specularColor.set(0.2, 0.2, 0.2);
                     mat.backFaceCulling = true;
                     mesh.material = mat;
+                }
+            }
+        }
+
+        // Load muzzle flash model (e.g., plasmagun_flash.md3)
+        const flashModelPath = weaponDef?.viewModel?.flashModelPath
+            ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
+        if (pk3.hasFile(flashModelPath)) {
+            const flashData = await pk3.getFile(flashModelPath);
+            if (flashData) {
+                try {
+                    const flashMd3 = md3.parseMD3(flashData);
+                    const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
+                    if (flashResult) {
+                        // Parent flash to weapon
+                        flashResult.root.parent = this.currentWeapon.root;
+                        this.muzzleFlashModel = flashResult.root;
+
+                        // Set up flash meshes - hidden by default, glowing material
+                        const color = weaponDef?.muzzleFlash?.color ?? { r: 1, g: 0.8, b: 0.3 };
+                        for (const mesh of flashResult.meshes) {
+                            mesh.renderingGroupId = 1;
+                            mesh.layerMask = WEAPON_LAYER_MASK;
+                            mesh.isPickable = false;
+
+                            // Emissive glowing material
+                            const mat = new StandardMaterial(`${weaponName}_flash_mat`, this.scene);
+                            mat.emissiveColor.set(color.r, color.g, color.b);
+                            mat.disableLighting = true;
+                            mesh.material = mat;
+                        }
+
+                        // Start hidden
+                        flashResult.root.setEnabled(false);
+                        console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
+                    }
+                } catch (e) {
+                    console.warn(`[WeaponViewManager] Failed to load flash model: ${flashModelPath}`, e);
                 }
             }
         }
@@ -704,6 +743,13 @@ export class WeaponViewManager {
             const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
             this.muzzleFlashIntensity = maxIntensity;
 
+            // Show muzzle flash model
+            if (this.muzzleFlashModel) {
+                this.muzzleFlashModel.setEnabled(true);
+                // Random rotation for variety
+                this.muzzleFlashModel.rotation.z = Math.random() * Math.PI * 2;
+            }
+
             // Trigger recoil
             this.recoilOffset = WeaponViewManager.RECOIL_KICK;
 
@@ -746,6 +792,11 @@ export class WeaponViewManager {
         if (this.muzzleFlashIntensity > 0) {
             this.muzzleFlashIntensity -= deltaTime * WeaponViewManager.MUZZLE_FLASH_DECAY;
             if (this.muzzleFlashIntensity < 0) this.muzzleFlashIntensity = 0;
+
+            // Hide flash model when intensity is low
+            if (this.muzzleFlashIntensity < WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY * 0.3) {
+                this.muzzleFlashModel?.setEnabled(false);
+            }
 
             // Update light
             if (this.muzzleFlashLight) {
