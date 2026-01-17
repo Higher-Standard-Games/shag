@@ -128,14 +128,32 @@ export class ProjectileManager {
                     this.modelCache.set(defId, model);
                     console.log(`[ProjectileManager] Cached model: ${defId}`);
 
-                    // Try to load texture from same folder as model
-                    const texturePath = path.replace('.md3', '.tga');
-                    if (pk3.hasFile(texturePath)) {
-                        const textureUrl = await pk3.getFileAsURL(texturePath, 'image/png');
-                        if (textureUrl) {
-                            this.modelTextureCache.set(defId, textureUrl);
-                            console.log(`[ProjectileManager] Cached model texture: ${defId}`);
+                    // Try to load texture - first check explicit texturePaths from def
+                    let textureUrl: string | null = null;
+
+                    if (def.texturePaths && def.texturePaths.length > 0) {
+                        // Use explicit texture path from definition
+                        const explicitPath = def.texturePaths[0];
+                        console.log(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
+                        if (pk3.hasFile(explicitPath)) {
+                            textureUrl = await pk3.getFileAsURL(explicitPath, 'image/png');
+                        } else {
+                            console.warn(`[ProjectileManager] Explicit texture not found: ${explicitPath}`);
                         }
+                    } else {
+                        // Auto-detect: try same name with .tga extension
+                        const autoTexturePath = path.replace('.md3', '.tga');
+                        console.log(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
+                        if (pk3.hasFile(autoTexturePath)) {
+                            textureUrl = await pk3.getFileAsURL(autoTexturePath, 'image/png');
+                        }
+                    }
+
+                    if (textureUrl) {
+                        this.modelTextureCache.set(defId, textureUrl);
+                        console.log(`[ProjectileManager] Cached model texture: ${defId}`);
+                    } else {
+                        console.warn(`[ProjectileManager] No texture found for: ${defId}`);
                     }
                 }
             } catch (e) {

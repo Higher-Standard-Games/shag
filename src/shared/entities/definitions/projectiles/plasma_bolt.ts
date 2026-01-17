@@ -16,6 +16,8 @@ export const PLASMA_BOLT: ProjectileDef = {
 
     // Projectile model - actual MD3 from objects folder!
     modelPath: 'models/objects/projectile/plasmagun/proj_plasmagun.md3',
+    // Explicit texture (plnew1.tga in same folder)
+    texturePaths: ['models/objects/projectile/plasmagun/plnew1.tga'],
     scale: 1.0,
 
     // Gameplay (server-authoritative)

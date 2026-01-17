@@ -301,10 +301,12 @@ export class MD3Loader {
         const shaders: MD3Shader[] = [];
         let offset = surfaceStart + header.ofsShaders;
         for (let i = 0; i < header.numShaders; i++) {
+            const shaderName = this.readString(view, offset, MAX_QPATH);
             shaders.push({
-                name: this.readString(view, offset, MAX_QPATH),
+                name: shaderName,
                 shaderIndex: view.getInt32(offset + 64, true),
             });
+            console.log(`[MD3]     Shader ${i}: "${shaderName}"`);
             offset += 68;
         }
 
