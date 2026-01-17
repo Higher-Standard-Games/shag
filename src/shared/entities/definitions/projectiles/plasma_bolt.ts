@@ -14,9 +14,8 @@ export const PLASMA_BOLT: ProjectileDef = {
     type: EntityType.PROJECTILE,
     classname: 'projectile_plasma',
 
-    // Visuals - sprite-based (no 3D model, uses textured billboard)
-    // Actual sprite implementation TBD
-    modelPath: 'models/weapons/plasmagun/f_plasma.tga',  // Sprite texture
+    // Projectile visual - sprite billboard
+    modelPath: 'models/weapons/plasmagun/f_plasma.tga',
     scale: 1.5,
 
     // Gameplay (server-authoritative)
@@ -28,10 +27,16 @@ export const PLASMA_BOLT: ProjectileDef = {
     gravity: 0,        // No drop
     bounces: 0,        // Explode on first hit
 
-    // Visuals
+    // Light
     lightColor: { r: 0.2, g: 0.8, b: 1.0 },  // Plasma cyan
     lightIntensity: 8,
     lightRange: 25,
+
+    // Impact model - the cool hit effect!
+    impactModelPath: 'models/weapon_hits/plasmagun/hit_plasmagun.md3',
+    impactTexturePath: 'models/weapon_hits/plasmagun/plasmagun_hit.tga',
+    impactScale: 2.0,
+    impactDuration: 0.3,  // 300ms fade out
 
     trailEffect: 'plasma_trail',
     impactEffect: 'plasma_impact',

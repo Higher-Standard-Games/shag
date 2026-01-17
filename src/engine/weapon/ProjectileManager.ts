@@ -50,6 +50,9 @@ export class ProjectileManager {
     private modelCache: Map<string, MD3LoadResult> = new Map();
     // Cache sprite textures
     private spriteCache: Map<string, string> = new Map();  // defId -> url
+    // Cache impact models
+    private impactModelCache: Map<string, MD3LoadResult> = new Map();
+    private impactTextureCache: Map<string, string> = new Map();
 
     private constructor() { }
 
@@ -113,14 +116,47 @@ export class ProjectileManager {
                     model.root.setEnabled(false);
                     this.modelCache.set(defId, model);
                     console.log(`[ProjectileManager] Cached model: ${defId}`);
-                    return true;
                 }
             } catch (e) {
                 console.error(`[ProjectileManager] Failed to load model: ${path}`, e);
             }
         }
 
-        return false;
+        // Also load impact model if defined
+        if (def.impactModelPath) {
+            if (!this.impactModelCache.has(defId)) {
+                try {
+                    const md3Loader = getMD3Loader();
+                    const impactData = await pk3.getFile(def.impactModelPath);
+                    if (impactData) {
+                        const parsed = md3Loader.parseMD3(impactData);
+                        const model = md3Loader.createMeshes(parsed, `${def.id}_impact`);
+                        if (model) {
+                            model.root.setEnabled(false);
+                            this.impactModelCache.set(defId, model);
+                            console.log(`[ProjectileManager] Cached impact model: ${defId}`);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[ProjectileManager] Failed to load impact model: ${def.impactModelPath}`, e);
+                }
+            }
+        }
+
+        // Load impact texture
+        if (def.impactTexturePath && !this.impactTextureCache.has(defId)) {
+            try {
+                const textureUrl = await pk3.getFileAsURL(def.impactTexturePath, 'image/png');
+                if (textureUrl) {
+                    this.impactTextureCache.set(defId, textureUrl);
+                    console.log(`[ProjectileManager] Cached impact texture: ${defId}`);
+                }
+            } catch (e) {
+                console.warn(`[ProjectileManager] Failed to load impact texture: ${def.impactTexturePath}`, e);
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -291,19 +327,69 @@ export class ProjectileManager {
         const registry = getEntityRegistry();
         const def = registry.get<ProjectileDef>(projDefId);
         const color = def?.lightColor ?? { r: 1, g: 0.8, b: 0.3 };
+        const duration = def?.impactDuration ?? 0.2;
+        const scale = def?.impactScale ?? 1.5;
 
         const id = `impact_${this.nextId++}`;
+        let mesh: Mesh;
+        let mat: StandardMaterial;
 
-        // Create impact flash (sphere that fades)
-        const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 1.5 }, this.scene);
-        mesh.position = position.add(normal.scale(0.1));  // Slightly off wall
+        // Try to use cached impact model
+        const cachedModel = this.impactModelCache.get(projDefId);
+        const cachedTexture = this.impactTextureCache.get(projDefId);
 
-        const mat = new StandardMaterial(`${id}_mat`, this.scene);
-        mat.emissiveColor = new Color3(color.r, color.g, color.b);
-        mat.diffuseColor = Color3.Black();
-        mat.alpha = 1.0;
-        mat.disableLighting = true;
-        mesh.material = mat;
+        if (cachedModel && cachedModel.meshes.length > 0) {
+            // Clone the impact model
+            const sourceMesh = cachedModel.meshes[0];
+            const clone = sourceMesh.clone(`${id}_mesh`, null);
+            if (clone) {
+                mesh = clone;
+                mesh.position = position.add(normal.scale(0.1));
+                mesh.isPickable = false;
+
+                // Apply texture if available, with emissive glow
+                mat = new StandardMaterial(`${id}_mat`, this.scene);
+                if (cachedTexture) {
+                    mat.diffuseTexture = new Texture(cachedTexture, this.scene);
+                    mat.diffuseTexture.hasAlpha = true;
+                    mat.useAlphaFromDiffuseTexture = true;
+                }
+                mat.emissiveColor = new Color3(color.r, color.g, color.b);
+                mat.disableLighting = true;
+                mat.backFaceCulling = false;
+                mesh.material = mat;
+
+                // Scale
+                mesh.scaling.setAll(scale);
+
+                // Orient to face away from wall (along normal)
+                const up = Vector3.Up();
+                if (Math.abs(Vector3.Dot(normal, up)) > 0.9) {
+                    mesh.lookAt(position.add(normal), 0, 0, Math.PI);
+                } else {
+                    mesh.lookAt(position.add(normal));
+                }
+            } else {
+                // Fallback
+                mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 1.5 }, this.scene);
+                mesh.position = position.add(normal.scale(0.1));
+                mat = new StandardMaterial(`${id}_mat`, this.scene);
+                mat.emissiveColor = new Color3(color.r, color.g, color.b);
+                mat.disableLighting = true;
+                mesh.material = mat;
+            }
+        } else {
+            // Fallback: simple glowing sphere
+            mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 1.5 }, this.scene);
+            mesh.position = position.add(normal.scale(0.1));
+
+            mat = new StandardMaterial(`${id}_mat`, this.scene);
+            mat.emissiveColor = new Color3(color.r, color.g, color.b);
+            mat.diffuseColor = Color3.Black();
+            mat.alpha = 1.0;
+            mat.disableLighting = true;
+            mesh.material = mat;
+        }
 
         // Create bright flash light
         const light = new PointLight(`${id}_light`, position, this.scene);
@@ -315,10 +401,10 @@ export class ProjectileManager {
         this.impacts.push({
             id,
             mesh,
-            material: mat,
+            material: mat!,
             light,
             spawnTime: performance.now() / 1000,
-            duration: 0.15,  // 150ms flash
+            duration,
         });
     }
 

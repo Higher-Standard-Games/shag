@@ -43,6 +43,16 @@ export interface ProjectileDef extends EntityDef {
     /** Impact effect ID */
     impactEffect?: string;
 
+    // === IMPACT MODEL ===
+    /** Path to impact MD3 model */
+    impactModelPath?: string;
+    /** Path to impact texture */
+    impactTexturePath?: string;
+    /** Impact model scale */
+    impactScale?: number;
+    /** Impact duration in seconds */
+    impactDuration?: number;
+
     // === SOUNDS ===
     sounds?: {
         /** Looping fly sound */
