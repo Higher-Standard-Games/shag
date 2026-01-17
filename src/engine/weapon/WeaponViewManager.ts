@@ -306,15 +306,26 @@ export class WeaponViewManager {
                         // Scale the flash model appropriately
                         flashResult.root.scaling.setAll(1.5);
 
-                        // Set up flash meshes - hidden by default, glowing material
+                        // Load flash texture (same folder as flash model)
+                        const flashTexturePath = flashModelPath.replace('_flash.md3', '_fx.tga');
+                        let flashTextureUrl: string | null = null;
+                        if (pk3.hasFile(flashTexturePath)) {
+                            flashTextureUrl = await pk3.getFileAsURL(flashTexturePath, 'image/png');
+                        }
+
+                        // Set up flash meshes with texture or fallback to emissive color
                         const color = weaponDef?.muzzleFlash?.color ?? { r: 1, g: 0.8, b: 0.3 };
                         for (const mesh of flashResult.meshes) {
                             mesh.renderingGroupId = 1;
                             mesh.layerMask = WEAPON_LAYER_MASK;
                             mesh.isPickable = false;
 
-                            // Emissive glowing material
                             const mat = new StandardMaterial(`${weaponName}_flash_mat`, this.scene);
+                            if (flashTextureUrl) {
+                                mat.diffuseTexture = new Texture(flashTextureUrl, this.scene);
+                                mat.diffuseTexture.hasAlpha = true;
+                                mat.useAlphaFromDiffuseTexture = true;
+                            }
                             mat.emissiveColor.set(color.r, color.g, color.b);
                             mat.disableLighting = true;
                             mat.backFaceCulling = false;

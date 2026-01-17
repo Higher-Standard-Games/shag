@@ -48,6 +48,8 @@ export class ProjectileManager {
 
     // Cache loaded projectile models for cloning
     private modelCache: Map<string, MD3LoadResult> = new Map();
+    // Cache projectile model textures
+    private modelTextureCache: Map<string, string> = new Map();  // defId -> url
     // Cache sprite textures
     private spriteCache: Map<string, string> = new Map();  // defId -> url
     // Cache impact models
@@ -125,6 +127,16 @@ export class ProjectileManager {
                     model.root.setEnabled(false);
                     this.modelCache.set(defId, model);
                     console.log(`[ProjectileManager] Cached model: ${defId}`);
+
+                    // Try to load texture from same folder as model
+                    const texturePath = path.replace('.md3', '.tga');
+                    if (pk3.hasFile(texturePath)) {
+                        const textureUrl = await pk3.getFileAsURL(texturePath, 'image/png');
+                        if (textureUrl) {
+                            this.modelTextureCache.set(defId, textureUrl);
+                            console.log(`[ProjectileManager] Cached model texture: ${defId}`);
+                        }
+                    }
                 }
             } catch (e) {
                 console.error(`[ProjectileManager] Failed to load model: ${path}`, e);
@@ -216,15 +228,21 @@ export class ProjectileManager {
             mesh.material = mat;
         } else if (cachedModel) {
             // Clone the cached model meshes
+            const cachedTexture = this.modelTextureCache.get(defId);
             for (const mesh of cachedModel.meshes) {
                 const clone = mesh.clone(`${id}_${mesh.name}`, node);
                 if (clone) {
                     clone.isPickable = false;
-                    // Apply glowing material
+                    // Apply textured material if we have a texture, fallback to emissive
                     const mat = new StandardMaterial(`${id}_mat`, this.scene);
+                    if (cachedTexture) {
+                        mat.diffuseTexture = new Texture(cachedTexture, this.scene);
+                        mat.diffuseTexture.hasAlpha = true;
+                        mat.useAlphaFromDiffuseTexture = true;
+                    }
                     mat.emissiveColor = new Color3(color.r, color.g, color.b);
-                    mat.diffuseColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
                     mat.disableLighting = true;
+                    mat.backFaceCulling = false;
                     clone.material = mat;
                 }
             }
