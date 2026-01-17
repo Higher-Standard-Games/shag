@@ -18,6 +18,7 @@ import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { MovementVars } from '../movement/MovementVars';
 import { BspManager } from '../loader/bsp/BspManager';
 import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
+import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -67,6 +68,7 @@ export class WeaponViewManager {
     private weaponCamera: FreeCamera | null = null;
     private weaponRoot: TransformNode | null = null;
     private currentWeapon: MD3LoadResult | null = null;
+    private currentWeaponDef: WeaponDef | null = null;  // Entity definition for current weapon
     private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
 
     // CVar tracking for live updates
@@ -176,6 +178,7 @@ export class WeaponViewManager {
 
     /**
      * Load a weapon from pk3
+     * @param weaponName - Either a weapon ID (looks up in registry) or folder name
      */
     public async loadWeapon(
         weaponName: string,
@@ -184,6 +187,17 @@ export class WeaponViewManager {
         if (!this.scene || !this.weaponRoot) {
             console.error('[WeaponViewManager] Not initialized');
             return false;
+        }
+
+        // Try to look up weapon definition from entity registry
+        const registry = getEntityRegistry();
+        const weaponDef = registry.get<WeaponDef>(weaponName);
+        if (weaponDef) {
+            this.currentWeaponDef = weaponDef;
+            console.log(`[WeaponViewManager] Found weapon definition: ${weaponDef.name}`);
+        } else {
+            this.currentWeaponDef = null;
+            console.log(`[WeaponViewManager] No definition found for '${weaponName}', using defaults`);
         }
 
         const pk3 = PK3Loader.getInstance();
@@ -199,8 +213,9 @@ export class WeaponViewManager {
             }
         }
 
-        // Construct paths
-        const modelPath = `models/weapons/${weaponName}/${weaponName}.md3`;
+        // Construct paths - use definition if available
+        const modelPath = weaponDef?.viewModel?.modelPath
+            ?? `models/weapons/${weaponName}/${weaponName}.md3`;
         const texturePath = `models/weapons/${weaponName}/${weaponName}.jpg`;
 
         // Check if model exists
@@ -657,7 +672,10 @@ export class WeaponViewManager {
         const isFiring = state.isFiring ?? false;
         if (isFiring && !this.firePressed) {
             // FIRE! Trigger muzzle flash
-            this.muzzleFlashIntensity = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
+            // Use weapon definition or fallback to defaults
+            const flashDef = this.currentWeaponDef?.muzzleFlash;
+            const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
+            this.muzzleFlashIntensity = maxIntensity;
 
             // Create light if needed
             if (!this.muzzleFlashLight) {
@@ -666,11 +684,15 @@ export class WeaponViewManager {
                     Vector3.Zero(),
                     this.scene
                 );
-                this.muzzleFlashLight.diffuse = new Color3(0.2, 0.8, 1.0);  // Plasma cyan
-                this.muzzleFlashLight.specular = new Color3(0.1, 0.4, 0.5);
-                this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
                 console.log('[WeaponViewManager] Created muzzle flash light');
             }
+
+            // Update light properties from definition
+            const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
+            const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
+            this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
+            this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+            this.muzzleFlashLight.range = range;
         }
         this.firePressed = isFiring;
 

@@ -90,16 +90,20 @@ export default class JoinCommand extends Command {
     // Initialize weapon view manager
     try {
       const weaponModule = await import('../../weapon/WeaponViewManager');
+      const entityModule = await import('../../../shared/entities');
       const { FreeCamera } = await import('@babylonjs/core/Cameras/freeCamera');
       const scene = camera.getScene();
       if (scene && camera instanceof FreeCamera) {
+        // Initialize entity definitions (registers all weapon defs etc)
+        entityModule.initializeEntityDefs();
+
         const wvm = weaponModule.getWeaponViewManager();
         wvm.init(scene, camera);
 
-        // TESTING: Auto-load weapon for development - remove later
+        // Load weapon by ID (looks up in entity registry)
         wvm.loadWeapon('plasmagun', 'games/default/basewsw/data0_15pure.pk3')
           .then(success => {
-            if (success) console.log('[Join] Test weapon loaded');
+            if (success) console.log('[Join] Weapon loaded from entity registry');
           });
       }
     } catch (e) {
