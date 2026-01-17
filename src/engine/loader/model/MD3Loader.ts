@@ -21,6 +21,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
 import { PK3Loader } from '../pk3/PK3Loader';
+import { decodeTGA } from '../texture/TgaDecoder';
 
 // MD3 Constants
 const MD3_IDENT = 0x33504449; // "IDP3" in little-endian
@@ -454,13 +455,31 @@ export class MD3Loader {
                 });
             } else {
                 // Fallback: try loading directly from public/games/default/
-                const directPath = `/games/default/${cleanPath}`;
-                console.log(`[MD3] Trying direct texture path: ${directPath}`);
-                mat.diffuseTexture = new Texture(directPath, this.scene!);
-                mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
-                if (props.isTransparent) {
-                    mat.useAlphaFromDiffuseTexture = true;
-                }
+                // Try PNG first, then decode TGA on-the-fly
+                const basePath = cleanPath.replace(/\.(tga|jpg|jpeg)$/i, '');
+                const pngPath = `/games/default/${basePath}.png`;
+                const tgaPath = `/games/default/${cleanPath}`;
+
+                console.log(`[MD3] Trying direct texture path: ${pngPath}`);
+
+                // Try PNG first (browsers can load this natively)
+                fetch(pngPath, { method: 'HEAD' })
+                    .then(resp => {
+                        if (resp.ok) {
+                            // PNG exists, load it
+                            console.log(`[MD3] Found PNG texture: ${pngPath}`);
+                            mat.diffuseTexture = new Texture(pngPath, this.scene!);
+                            mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
+                        } else {
+                            // Try TGA with on-the-fly decoding
+                            console.log(`[MD3] PNG not found, trying TGA decode: ${tgaPath}`);
+                            this.loadTgaTexture(tgaPath, mat, props.isTransparent ?? false);
+                        }
+                    })
+                    .catch(() => {
+                        // Network error, try TGA
+                        this.loadTgaTexture(tgaPath, mat, props.isTransparent ?? false);
+                    });
             }
         } else {
             console.warn(`[MD3] No diffuseTexture in shader props for: ${normalizedName}`);
@@ -485,6 +504,31 @@ export class MD3Loader {
         mat.specularColor.set(0.1, 0.1, 0.1);
 
         return mat;
+    }
+
+    /**
+     * Load a TGA texture by decoding it on-the-fly to a data URL
+     */
+    private loadTgaTexture(tgaPath: string, mat: StandardMaterial, hasAlpha: boolean): void {
+        fetch(tgaPath)
+            .then(resp => {
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                return resp.arrayBuffer();
+            })
+            .then(buffer => decodeTGA(buffer))
+            .then(dataUrl => {
+                console.log(`[MD3] TGA decoded successfully: ${tgaPath}`);
+                mat.diffuseTexture = new Texture(dataUrl, this.scene!);
+                mat.diffuseTexture.hasAlpha = hasAlpha;
+                if (hasAlpha) {
+                    mat.useAlphaFromDiffuseTexture = true;
+                }
+            })
+            .catch(err => {
+                console.error(`[MD3] Failed to load TGA texture: ${tgaPath}`, err);
+            });
     }
 
     /**
