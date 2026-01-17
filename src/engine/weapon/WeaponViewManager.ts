@@ -19,6 +19,7 @@ import { MovementVars } from '../movement/MovementVars';
 import { BspManager } from '../loader/bsp/BspManager';
 import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
+import { getProjectileManager } from './ProjectileManager';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -66,6 +67,7 @@ export class WeaponViewManager {
 
     private scene: Scene | null = null;
     private weaponCamera: FreeCamera | null = null;
+    private mainCamera: FreeCamera | null = null;  // Main player camera for aim direction
     private weaponRoot: TransformNode | null = null;
     private currentWeapon: MD3LoadResult | null = null;
     private currentWeaponDef: WeaponDef | null = null;  // Entity definition for current weapon
@@ -138,9 +140,13 @@ export class WeaponViewManager {
      */
     public init(scene: Scene, camera: FreeCamera): void {
         this.scene = scene;
+        this.mainCamera = camera;  // Store for aim direction
 
         // Initialize MD3 loader
         getMD3Loader().init(scene);
+
+        // Initialize projectile manager
+        getProjectileManager().init(scene);
 
         // Get initial weapon FOV from CVar
         try {
@@ -422,6 +428,9 @@ export class WeaponViewManager {
 
         // Update muzzle flash
         this.updateMuzzleFlash(deltaTime);
+
+        // Update projectiles
+        getProjectileManager().update(deltaTime);
     }
 
     /**
@@ -697,6 +706,16 @@ export class WeaponViewManager {
 
             // Trigger recoil
             this.recoilOffset = WeaponViewManager.RECOIL_KICK;
+
+            // Spawn projectile
+            if (this.mainCamera && this.currentWeaponDef?.projectileId) {
+                const projMgr = getProjectileManager();
+                // Spawn slightly in front of camera
+                const origin = this.mainCamera.position.clone();
+                const forward = this.mainCamera.getDirection(Vector3.Forward());
+                origin.addInPlace(forward.scale(2));  // 2 units in front
+                projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
+            }
 
             // Create light if needed
             if (!this.muzzleFlashLight) {
