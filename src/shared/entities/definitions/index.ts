@@ -5,3 +5,4 @@
  */
 
 export * from './weapons';
+export * from './projectiles';

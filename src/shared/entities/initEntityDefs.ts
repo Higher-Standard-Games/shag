@@ -6,6 +6,7 @@
 
 import { getEntityRegistry } from './EntityRegistry';
 import { PLASMAGUN } from './definitions/weapons';
+import { PLASMA_BOLT } from './definitions/projectiles';
 
 /**
  * Register all entity definitions with the registry.
@@ -18,15 +19,14 @@ export function initializeEntityDefs(): void {
 
     // Weapons
     registry.register(PLASMAGUN);
+    // TODO: registry.register(ROCKET_LAUNCHER);
+    // TODO: registry.register(RAILGUN);
 
-    // TODO: Add more weapons here as they're created
-    // registry.register(ROCKET_LAUNCHER);
-    // registry.register(RAILGUN);
+    // Projectiles
+    registry.register(PLASMA_BOLT);
+    // TODO: registry.register(ROCKET);
 
-    // TODO: Add projectiles
-    // registry.register(PLASMA_BOLT);
-
-    // TODO: Add pickups
+    // TODO: Pickups
     // registry.register(HEALTH_SMALL);
 
     console.log(`[EntityDefs] Registered ${registry.getCount()} definitions`);

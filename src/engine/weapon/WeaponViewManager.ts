@@ -113,6 +113,14 @@ export class WeaponViewManager {
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
     private firePressed: boolean = false;  // Track mouse1 state to detect fire
 
+    // Fire rate limiting
+    private lastFireTime: number = 0;  // Timestamp of last fire
+
+    // Weapon recoil
+    private recoilOffset: number = 0;  // Current recoil (kicks back then returns)
+    private static readonly RECOIL_KICK = 0.5;  // Max recoil distance
+    private static readonly RECOIL_RECOVER = 15.0;  // How fast recoil recovers
+
     // Debug
     private debugEnabled: boolean = false;
 
@@ -547,11 +555,11 @@ export class WeaponViewManager {
         const adsX = basePos.x * (1.0 - this.adsProgress);  // Lerp toward 0 (center)
         const adsY = adsOffsetY * this.adsProgress;          // Move up
 
-        // Apply position offset (bob + jump/land + ADS)
+        // Apply position offset (bob + jump/land + ADS + recoil)
         root.position.set(
             adsX + this.currentBobOffsetX,
             basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY,
-            basePos.z
+            basePos.z - this.recoilOffset  // Recoil kicks weapon BACK toward player
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z)
@@ -559,9 +567,9 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180),  // Pitch up
-            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),   // Yaw barrel toward chest
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180)   // Roll sideways
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + this.recoilOffset * 0.1,  // Pitch up on recoil
+            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180)
         );
     }
 
@@ -668,14 +676,27 @@ export class WeaponViewManager {
         const viewportManager = ViewportEffectsManager.getInstance();
         const state = viewportManager.getCurrentState();
 
-        // Detect fire press (rising edge)
+        // Check fire rate
+        const now = performance.now() / 1000;  // Current time in seconds
+        const fireRate = this.currentWeaponDef?.fireRate ?? 10;  // shots per second
+        const fireDelay = 1.0 / fireRate;  // seconds between shots
+        const canFire = (now - this.lastFireTime) >= fireDelay;
+
+        // Detect fire (rising edge OR held with fire rate)
         const isFiring = state.isFiring ?? false;
-        if (isFiring && !this.firePressed) {
+        const shouldFire = isFiring && canFire && (!this.firePressed || (now - this.lastFireTime) >= fireDelay);
+
+        if (shouldFire) {
+            this.lastFireTime = now;
+
             // FIRE! Trigger muzzle flash
             // Use weapon definition or fallback to defaults
             const flashDef = this.currentWeaponDef?.muzzleFlash;
             const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
             this.muzzleFlashIntensity = maxIntensity;
+
+            // Trigger recoil
+            this.recoilOffset = WeaponViewManager.RECOIL_KICK;
 
             // Create light if needed
             if (!this.muzzleFlashLight) {
@@ -695,6 +716,12 @@ export class WeaponViewManager {
             this.muzzleFlashLight.range = range;
         }
         this.firePressed = isFiring;
+
+        // Recover recoil
+        if (this.recoilOffset > 0) {
+            this.recoilOffset -= deltaTime * WeaponViewManager.RECOIL_RECOVER;
+            if (this.recoilOffset < 0) this.recoilOffset = 0;
+        }
 
         // Decay flash intensity
         if (this.muzzleFlashIntensity > 0) {
