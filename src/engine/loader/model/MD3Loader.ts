@@ -442,10 +442,15 @@ export class MD3Loader {
                 pk3.getFileAsURL(foundPath, 'image/png').then(url => {
                     if (url) {
                         console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
-                        mat.diffuseTexture = new Texture(url, this.scene!);
-                        mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
+                        const tex = new Texture(url, this.scene!);
+                        tex.hasAlpha = props.isTransparent ?? false;
+                        mat.diffuseTexture = tex;
                         if (props.isTransparent) {
                             mat.useAlphaFromDiffuseTexture = true;
+                        }
+                        // For additive blending, also use as emissive
+                        if (props.alphaMode === 'add') {
+                            mat.emissiveTexture = tex;
                         }
                     } else {
                         console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
@@ -520,8 +525,13 @@ export class MD3Loader {
             .then(buffer => decodeTGA(buffer))
             .then(dataUrl => {
                 console.log(`[MD3] TGA decoded successfully: ${tgaPath}`);
-                mat.diffuseTexture = new Texture(dataUrl, this.scene!);
-                mat.diffuseTexture.hasAlpha = hasAlpha;
+                const tex = new Texture(dataUrl, this.scene!);
+                tex.hasAlpha = hasAlpha;
+                mat.diffuseTexture = tex;
+                // For additive, also set emissive
+                if (mat.disableLighting) {
+                    mat.emissiveTexture = tex;
+                }
                 if (hasAlpha) {
                     mat.useAlphaFromDiffuseTexture = true;
                 }
