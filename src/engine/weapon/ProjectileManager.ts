@@ -76,24 +76,33 @@ export class ProjectileManager {
 
         const registry = getEntityRegistry();
         const def = registry.get<ProjectileDef>(defId);
-        if (!def?.modelPath) return false;
+        if (!def?.modelPath) {
+            console.warn(`[ProjectileManager] No modelPath for: ${defId}`);
+            return false;
+        }
 
         const pk3 = PK3Loader.getInstance();
         const path = def.modelPath;
+        console.log(`[ProjectileManager] Preloading ${defId} - path: ${path}`);
 
         // Check if sprite texture (.tga/.jpg/.png) or model (.md3)
         const isSprite = path.endsWith('.tga') || path.endsWith('.jpg') || path.endsWith('.png');
+        console.log(`[ProjectileManager] isSprite: ${isSprite}`);
 
         if (isSprite) {
             // Check if already cached
             if (this.spriteCache.has(defId)) return true;
 
             try {
+                console.log(`[ProjectileManager] Loading sprite from: ${path}`);
                 const textureUrl = await pk3.getFileAsURL(path, 'image/png');
+                console.log(`[ProjectileManager] Got URL: ${textureUrl ? 'yes' : 'no'}`);
                 if (textureUrl) {
                     this.spriteCache.set(defId, textureUrl);
                     console.log(`[ProjectileManager] Cached sprite: ${defId}`);
                     return true;
+                } else {
+                    console.warn(`[ProjectileManager] No texture URL returned for: ${path}`);
                 }
             } catch (e) {
                 console.warn(`[ProjectileManager] Failed to load sprite: ${path}`, e);

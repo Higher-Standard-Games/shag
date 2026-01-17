@@ -14,9 +14,9 @@ export const PLASMA_BOLT: ProjectileDef = {
     type: EntityType.PROJECTILE,
     classname: 'projectile_plasma',
 
-    // Projectile visual - sprite billboard
-    modelPath: 'models/weapons/plasmagun/f_plasma.tga',
-    scale: 1.5,
+    // Projectile model - actual MD3 from objects folder!
+    modelPath: 'models/objects/projectile/plasmagun/proj_plasmagun.md3',
+    scale: 1.0,
 
     // Gameplay (server-authoritative)
     speed: 2500,       // Units per second - fast!
