@@ -743,8 +743,12 @@ export class WeaponViewManager {
             const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
             this.muzzleFlashIntensity = maxIntensity;
 
-            // Show muzzle flash model
-            if (this.muzzleFlashModel) {
+            // Show muzzle flash model at tag_flash position
+            if (this.muzzleFlashModel && this.currentWeapon) {
+                const tag = this.currentWeapon.getTag('tag_flash');
+                if (tag) {
+                    this.muzzleFlashModel.position = tag.origin.clone();
+                }
                 this.muzzleFlashModel.setEnabled(true);
                 // Random rotation for variety
                 this.muzzleFlashModel.rotation.z = Math.random() * Math.PI * 2;
