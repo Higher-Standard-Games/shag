@@ -439,25 +439,54 @@ export class MD3Loader {
 
             if (foundPath) {
                 console.log(`[MD3] Loading texture from PK3: ${foundPath}`);
-                pk3.getFileAsURL(foundPath, 'image/png').then(url => {
-                    if (url) {
-                        console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
-                        const tex = new Texture(url, this.scene!);
-                        tex.hasAlpha = props.isTransparent ?? false;
-                        mat.diffuseTexture = tex;
-                        if (props.isTransparent) {
-                            mat.useAlphaFromDiffuseTexture = true;
+
+                // If TGA, we must decode it. If PNG/JPG, we can use Blob URL directly.
+                const isTga = foundPath.toLowerCase().endsWith('.tga');
+
+                if (isTga) {
+                    pk3.getFile(foundPath).then(buffer => {
+                        if (buffer) {
+                            return decodeTGA(buffer);
                         }
-                        // For additive blending, also use as emissive
-                        if (props.alphaMode === 'add') {
-                            mat.emissiveTexture = tex;
+                        return null;
+                    }).then(dataUrl => {
+                        if (dataUrl) {
+                            console.log(`[MD3] TGA decoded from PK3: ${foundPath}`);
+                            const tex = new Texture(dataUrl, this.scene!);
+                            tex.hasAlpha = props.isTransparent ?? false;
+                            mat.diffuseTexture = tex;
+                            if (props.isTransparent) {
+                                mat.useAlphaFromDiffuseTexture = true;
+                            }
+                            if (props.alphaMode === 'add') {
+                                mat.emissiveTexture = tex;
+                            }
                         }
-                    } else {
-                        console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
-                    }
-                }).catch(err => {
-                    console.error(`[MD3] Error loading texture ${foundPath}:`, err);
-                });
+                    }).catch(err => {
+                        console.error(`[MD3] Error decoding TGA ${foundPath}:`, err);
+                    });
+                } else {
+                    // PNG/JPG
+                    pk3.getFileAsURL(foundPath, 'image/png').then(url => {
+                        if (url) {
+                            console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
+                            const tex = new Texture(url, this.scene!);
+                            tex.hasAlpha = props.isTransparent ?? false;
+                            mat.diffuseTexture = tex;
+                            if (props.isTransparent) {
+                                mat.useAlphaFromDiffuseTexture = true;
+                            }
+                            // For additive blending, also use as emissive
+                            if (props.alphaMode === 'add') {
+                                mat.emissiveTexture = tex;
+                            }
+                        } else {
+                            console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
+                        }
+                    }).catch(err => {
+                        console.error(`[MD3] Error loading texture ${foundPath}:`, err);
+                    });
+                }
             } else {
                 // Fallback: try loading directly from public/games/default/
                 // Try PNG first, then decode TGA on-the-fly
