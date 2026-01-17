@@ -18,6 +18,9 @@ import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
+import { PK3Loader } from '../pk3/PK3Loader';
 
 // MD3 Constants
 const MD3_IDENT = 0x33504449; // "IDP3" in little-endian
@@ -394,6 +397,64 @@ export class MD3Loader {
     }
 
     /**
+     * Create a Babylon material from Q3 shader registry lookup
+     */
+    private createMaterialFromShader(shaderName: string, materialName: string): StandardMaterial {
+        if (!this.scene) {
+            throw new Error('Scene not initialized');
+        }
+
+        const registry = Q3ShaderRegistry.getInstance();
+        const props = registry.resolveMaterialProps(shaderName);
+        const mat = new StandardMaterial(materialName, this.scene);
+
+        console.log(`[MD3] Creating material for shader: "${shaderName}"`, props);
+
+        // Try to load texture
+        if (props.diffuseTexture) {
+            // Resolve texture path
+            let texturePath = props.diffuseTexture;
+            if (!texturePath.startsWith('/')) {
+                texturePath = '/' + texturePath;
+            }
+            // Try loading from PK3 or direct path
+            const pk3 = PK3Loader.getInstance();
+            const cleanPath = texturePath.replace(/^\//, '');
+            if (pk3.hasFile(cleanPath)) {
+                pk3.getFileAsURL(cleanPath, 'image/png').then(url => {
+                    if (url) {
+                        mat.diffuseTexture = new Texture(url, this.scene!);
+                        mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
+                        if (props.isTransparent) {
+                            mat.useAlphaFromDiffuseTexture = true;
+                        }
+                    }
+                });
+            }
+        }
+
+        // Apply material properties from shader
+        if (props.isTransparent) {
+            mat.alpha = 1.0;
+            if (props.alphaMode === 'add') {
+                // Additive blending - set emissive and disable lighting
+                mat.emissiveColor = new Color3(1, 1, 1);
+                mat.disableLighting = true;
+            }
+        }
+
+        if (props.isFullbright) {
+            mat.emissiveColor = new Color3(1, 1, 1);
+            mat.disableLighting = true;
+        }
+
+        mat.backFaceCulling = props.backFaceCulling ?? true;
+        mat.specularColor.set(0.1, 0.1, 0.1);
+
+        return mat;
+    }
+
+    /**
      * Create Babylon.js meshes from parsed MD3 model
      */
     public createMeshes(
@@ -420,12 +481,17 @@ export class MD3Loader {
                 mesh.parent = root;
                 meshes.push(mesh);
 
-                // Apply texture if provided
+                // Try to create material from embedded shader name
                 if (options?.textureUrl) {
+                    // Use explicit texture URL if provided
                     const mat = new StandardMaterial(`${name}_mat`, this.scene);
                     mat.diffuseTexture = new Texture(options.textureUrl, this.scene);
                     mat.specularColor.set(0.1, 0.1, 0.1);
                     mesh.material = mat;
+                } else if (surface.shaders.length > 0) {
+                    // Use embedded shader name to look up material properties
+                    const shaderName = surface.shaders[0].name;
+                    mesh.material = this.createMaterialFromShader(shaderName, `${name}_${surface.header.name}`);
                 }
             }
         }
