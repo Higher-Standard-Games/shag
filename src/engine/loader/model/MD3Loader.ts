@@ -422,17 +422,48 @@ export class MD3Loader {
             // Try loading from PK3 or direct path
             const pk3 = PK3Loader.getInstance();
             const cleanPath = texturePath.replace(/^\//, '');
-            if (pk3.hasFile(cleanPath)) {
-                pk3.getFileAsURL(cleanPath, 'image/png').then(url => {
+
+            // Try with original extension, then fallback to other formats
+            const extensions = ['', '.tga', '.png', '.jpg'];
+            const basePath = cleanPath.replace(/\.(tga|png|jpg|jpeg)$/i, '');
+
+            let foundPath: string | null = null;
+            for (const ext of extensions) {
+                const tryPath = basePath + ext;
+                if (pk3.hasFile(tryPath)) {
+                    foundPath = tryPath;
+                    break;
+                }
+            }
+
+            if (foundPath) {
+                console.log(`[MD3] Loading texture from PK3: ${foundPath}`);
+                pk3.getFileAsURL(foundPath, 'image/png').then(url => {
                     if (url) {
+                        console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
                         mat.diffuseTexture = new Texture(url, this.scene!);
                         mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
                         if (props.isTransparent) {
                             mat.useAlphaFromDiffuseTexture = true;
                         }
+                    } else {
+                        console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
                     }
+                }).catch(err => {
+                    console.error(`[MD3] Error loading texture ${foundPath}:`, err);
                 });
+            } else {
+                // Fallback: try loading directly from public/games/default/
+                const directPath = `/games/default/${cleanPath}`;
+                console.log(`[MD3] Trying direct texture path: ${directPath}`);
+                mat.diffuseTexture = new Texture(directPath, this.scene!);
+                mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
+                if (props.isTransparent) {
+                    mat.useAlphaFromDiffuseTexture = true;
+                }
             }
+        } else {
+            console.warn(`[MD3] No diffuseTexture in shader props for: ${normalizedName}`);
         }
 
         // Apply material properties from shader
