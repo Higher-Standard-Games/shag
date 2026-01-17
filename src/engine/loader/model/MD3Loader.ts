@@ -293,29 +293,27 @@ export class MD3Loader {
         const bAxes: Vector3[] = qAxes.map(v => new Vector3(v.x, v.z, v.y));
 
         // Reassign columns to Babylon Axes
-        // Babylon Col 0 (X) = Quake Col 0 (X)
-        // Babylon Col 1 (Y=Up) = Quake Col 2 (Z=Up)
-        // Babylon Col 2 (Z=Fwd) = Quake Col 1 (Y=Fwd)
+        // Quake Axes (Row 0, 1, 2 = Fwd, Left, Up)
 
         const matrixValues = new Float32Array(16);
         matrixValues[15] = 1; // Identity w
 
-        // Col 0 (X)
-        matrixValues[0] = bAxes[0].x;
-        matrixValues[1] = bAxes[0].y;
-        matrixValues[2] = bAxes[0].z;
+        // Babylon Col 0 (X / Right) <- From Q-Col 1 (Left) [Negated]
+        matrixValues[0] = -bAxes[1].x;
+        matrixValues[1] = -bAxes[1].y;
+        matrixValues[2] = -bAxes[1].z;
         matrixValues[3] = 0;
 
-        // Col 1 (Y) <- from qAxes[2] (Up)
+        // Babylon Col 1 (Y / Up) <- From Q-Col 2 (Up)
         matrixValues[4] = bAxes[2].x;
         matrixValues[5] = bAxes[2].y;
         matrixValues[6] = bAxes[2].z;
         matrixValues[7] = 0;
 
-        // Col 2 (Z) <- from qAxes[1] (Forward)
-        matrixValues[8] = bAxes[1].x;
-        matrixValues[9] = bAxes[1].y;
-        matrixValues[10] = bAxes[1].z;
+        // Babylon Col 2 (Z / Fwd) <- From Q-Col 0 (Fwd)
+        matrixValues[8] = bAxes[0].x;
+        matrixValues[9] = bAxes[0].y;
+        matrixValues[10] = bAxes[0].z;
         matrixValues[11] = 0;
 
         const axis = Matrix.FromArray(matrixValues);
