@@ -608,6 +608,19 @@ export class MD3Loader {
                     // Use embedded shader name to look up material properties
                     const shaderName = surface.shaders[0].name;
                     mesh.material = this.createMaterialFromShader(shaderName, `${name}_${surface.header.name}`);
+
+                    // Check for mesh-level properties (autosprite/billboard)
+                    const registry = Q3ShaderRegistry.getInstance();
+                    const normalizedName = shaderName.replace(/\\/g, '/');
+                    const props = registry.resolveMaterialProps(normalizedName);
+
+                    if (props.autosprite) {
+                        // autosprite = Rotate around vertical axis (Quake Z, Babylon Y)
+                        mesh.billboardMode = Mesh.BILLBOARDMODE_Y;
+                    } else if (props.autosprite2) {
+                        // autosprite2 = Face camera fully
+                        mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
+                    }
                 }
             }
         }
