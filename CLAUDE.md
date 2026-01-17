@@ -64,6 +64,11 @@ npm run cli:game -- --command "map wdm7; bsp info; quit"
 npm run cli:game -- --command "map wdm7" --command "bsp entities" --command "quit"
 ```
 
+> **Windows Note**: npm has issues passing quoted arguments on Windows. For complex commands, use npx directly:
+> ```bash
+> npx vite-node src/cli/headless-game.ts --exec "shader info models/weapons/plasmagun/plasmagun"
+> ```
+
 ### Key Test Commands
 
 ```bash

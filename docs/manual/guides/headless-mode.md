@@ -110,6 +110,13 @@ npm run cli:game -- --command "map wdm7; bsp info; quit"
 
 Commands can be separated by `;` or newlines.
 
+::: warning Windows Users
+npm has issues passing quoted arguments on Windows. For complex commands with quotes, use npx directly:
+```bash
+npx vite-node src/cli/headless-game.ts --exec "shader info models/weapons/plasmagun/plasmagun"
+```
+:::
+
 ## CI/CD Integration
 
 ### GitHub Actions
