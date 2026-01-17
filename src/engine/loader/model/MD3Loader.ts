@@ -11,6 +11,7 @@
  * - Surfaces: mesh data with vertices, triangles, UVs
  */
 
+import { Engine } from '@babylonjs/core/Engines/engine';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Scene } from '@babylonjs/core/scene';
@@ -524,6 +525,7 @@ export class MD3Loader {
             mat.alpha = 1.0;
             if (props.alphaMode === 'add') {
                 // Additive blending - set emissive and disable lighting
+                mat.alphaMode = Engine.ALPHA_ADD;
                 mat.emissiveColor = new Color3(1, 1, 1);
                 mat.disableLighting = true;
             }
