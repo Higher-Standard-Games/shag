@@ -14,6 +14,7 @@ import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
 import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
@@ -47,6 +48,8 @@ export class ProjectileManager {
 
     // Cache loaded projectile models for cloning
     private modelCache: Map<string, MD3LoadResult> = new Map();
+    // Cache sprite textures
+    private spriteCache: Map<string, string> = new Map();  // defId -> url
 
     private constructor() { }
 
@@ -72,31 +75,49 @@ export class ProjectileManager {
         const def = registry.get<ProjectileDef>(defId);
         if (!def?.modelPath) return false;
 
-        // Check if already cached
-        if (this.modelCache.has(defId)) return true;
-
         const pk3 = PK3Loader.getInstance();
-        const md3Loader = getMD3Loader();
+        const path = def.modelPath;
 
-        try {
-            const modelData = await pk3.getFile(def.modelPath);
-            if (!modelData) {
-                console.warn(`[ProjectileManager] Model not found: ${def.modelPath}`);
-                return false;
-            }
+        // Check if sprite texture (.tga/.jpg/.png) or model (.md3)
+        const isSprite = path.endsWith('.tga') || path.endsWith('.jpg') || path.endsWith('.png');
 
-            // Parse then create meshes
-            const parsed = md3Loader.parseMD3(modelData);
-            const model = md3Loader.createMeshes(parsed, def.id);
-            if (model) {
-                // Hide the template
-                model.root.setEnabled(false);
-                this.modelCache.set(defId, model);
-                console.log(`[ProjectileManager] Cached model: ${defId}`);
-                return true;
+        if (isSprite) {
+            // Check if already cached
+            if (this.spriteCache.has(defId)) return true;
+
+            try {
+                const textureUrl = await pk3.getFileAsURL(path, 'image/png');
+                if (textureUrl) {
+                    this.spriteCache.set(defId, textureUrl);
+                    console.log(`[ProjectileManager] Cached sprite: ${defId}`);
+                    return true;
+                }
+            } catch (e) {
+                console.warn(`[ProjectileManager] Failed to load sprite: ${path}`, e);
             }
-        } catch (e) {
-            console.error(`[ProjectileManager] Failed to load model: ${def.modelPath}`, e);
+        } else {
+            // MD3 model
+            if (this.modelCache.has(defId)) return true;
+
+            const md3Loader = getMD3Loader();
+            try {
+                const modelData = await pk3.getFile(path);
+                if (!modelData) {
+                    console.warn(`[ProjectileManager] Model not found: ${path}`);
+                    return false;
+                }
+
+                const parsed = md3Loader.parseMD3(modelData);
+                const model = md3Loader.createMeshes(parsed, def.id);
+                if (model) {
+                    model.root.setEnabled(false);
+                    this.modelCache.set(defId, model);
+                    console.log(`[ProjectileManager] Cached model: ${defId}`);
+                    return true;
+                }
+            } catch (e) {
+                console.error(`[ProjectileManager] Failed to load model: ${path}`, e);
+            }
         }
 
         return false;
@@ -128,9 +149,27 @@ export class ProjectileManager {
         const node = new TransformNode(id, this.scene);
         node.position = origin.clone();
 
-        // Try to use cached model, fallback to sphere
+        // Try cached sprite, then cached model, then fallback to sphere
+        const cachedSprite = this.spriteCache.get(defId);
         const cachedModel = this.modelCache.get(defId);
-        if (cachedModel) {
+
+        if (cachedSprite) {
+            // Create billboard plane with sprite texture
+            const size = def.scale ?? 1.5;
+            const mesh = MeshBuilder.CreatePlane(`${id}_mesh`, { size }, this.scene);
+            mesh.parent = node;
+            mesh.isPickable = false;
+            mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;  // Always face camera
+
+            const mat = new StandardMaterial(`${id}_mat`, this.scene);
+            mat.diffuseTexture = new Texture(cachedSprite, this.scene);
+            mat.diffuseTexture.hasAlpha = true;
+            mat.useAlphaFromDiffuseTexture = true;
+            mat.emissiveColor = new Color3(color.r, color.g, color.b);
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            mesh.material = mat;
+        } else if (cachedModel) {
             // Clone the cached model meshes
             for (const mesh of cachedModel.meshes) {
                 const clone = mesh.clone(`${id}_${mesh.name}`, node);
