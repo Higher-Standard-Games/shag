@@ -7,7 +7,9 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Ray } from '@babylonjs/core/Culling/ray';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -25,10 +27,20 @@ interface ActiveProjectile {
     lifetime: number;
 }
 
+interface ActiveImpact {
+    id: string;
+    mesh: Mesh;
+    material: StandardMaterial;
+    light: PointLight;
+    spawnTime: number;
+    duration: number;
+}
+
 export class ProjectileManager {
     private static instance: ProjectileManager;
     private scene: Scene | null = null;
     private projectiles: ActiveProjectile[] = [];
+    private impacts: ActiveImpact[] = [];
     private nextId: number = 0;
 
     private constructor() { }
@@ -114,6 +126,8 @@ export class ProjectileManager {
      * Update all projectiles
      */
     public update(deltaTime: number): void {
+        if (!this.scene) return;
+
         const now = performance.now() / 1000;
         const toRemove: string[] = [];
 
@@ -125,14 +139,115 @@ export class ProjectileManager {
                 continue;
             }
 
-            // Move projectile
+            // Calculate move amount
             const moveAmount = proj.direction.scale(proj.speed * deltaTime);
-            proj.node.position.addInPlace(moveAmount);
+            const nextPos = proj.node.position.add(moveAmount);
+
+            // Raycast to check for collision
+            const ray = new Ray(proj.node.position, proj.direction, moveAmount.length() + 1);
+            const hit = this.scene.pickWithRay(ray, (mesh) => {
+                // Ignore projectile meshes and non-pickable
+                if (!mesh.isPickable) return false;
+                if (mesh.name.startsWith('proj_')) return false;
+                return true;
+            });
+
+            if (hit && hit.hit && hit.pickedPoint) {
+                // HIT! Spawn impact effect
+                this.spawnImpact(proj.defId, hit.pickedPoint, hit.getNormal(true) ?? proj.direction.scale(-1));
+                toRemove.push(proj.id);
+                continue;
+            }
+
+            // No hit, move projectile
+            proj.node.position = nextPos;
         }
 
-        // Remove expired projectiles
+        // Remove projectiles that hit or expired
         for (const id of toRemove) {
             this.despawn(id);
+        }
+
+        // Update impacts (fade out)
+        this.updateImpacts(deltaTime);
+    }
+
+    /**
+     * Spawn impact effect at hit point
+     */
+    private spawnImpact(projDefId: string, position: Vector3, normal: Vector3): void {
+        if (!this.scene) return;
+
+        const registry = getEntityRegistry();
+        const def = registry.get<ProjectileDef>(projDefId);
+        const color = def?.lightColor ?? { r: 1, g: 0.8, b: 0.3 };
+
+        const id = `impact_${this.nextId++}`;
+
+        // Create impact flash (sphere that fades)
+        const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 1.5 }, this.scene);
+        mesh.position = position.add(normal.scale(0.1));  // Slightly off wall
+
+        const mat = new StandardMaterial(`${id}_mat`, this.scene);
+        mat.emissiveColor = new Color3(color.r, color.g, color.b);
+        mat.diffuseColor = Color3.Black();
+        mat.alpha = 1.0;
+        mat.disableLighting = true;
+        mesh.material = mat;
+
+        // Create bright flash light
+        const light = new PointLight(`${id}_light`, position, this.scene);
+        light.diffuse = new Color3(color.r, color.g, color.b);
+        light.intensity = 10;
+        light.range = 30;
+
+        // Store for fade out
+        this.impacts.push({
+            id,
+            mesh,
+            material: mat,
+            light,
+            spawnTime: performance.now() / 1000,
+            duration: 0.15,  // 150ms flash
+        });
+    }
+
+    /**
+     * Update impact effects (fade out and despawn)
+     */
+    private updateImpacts(_deltaTime: number): void {
+        const now = performance.now() / 1000;
+        const toRemove: string[] = [];
+
+        for (const impact of this.impacts) {
+            const age = now - impact.spawnTime;
+            const progress = Math.min(1, age / impact.duration);
+
+            if (progress >= 1) {
+                toRemove.push(impact.id);
+                continue;
+            }
+
+            // Fade out
+            const fade = 1 - progress;
+            impact.material.alpha = fade;
+            impact.light.intensity = 10 * fade;
+
+            // Scale up slightly for explosion feel
+            const scale = 1 + progress * 0.5;
+            impact.mesh.scaling.setAll(scale);
+        }
+
+        // Remove finished impacts
+        for (const id of toRemove) {
+            const index = this.impacts.findIndex(i => i.id === id);
+            if (index !== -1) {
+                const impact = this.impacts[index];
+                impact.mesh.dispose();
+                impact.material.dispose();
+                impact.light.dispose();
+                this.impacts.splice(index, 1);
+            }
         }
     }
 
