@@ -135,6 +135,68 @@ weapon_viewmodel 0|1    - Show/hide view model
 weapon_debug            - Show weapon state info
 ```
 
+## Client-Side Prediction
+
+### The Flow
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ CLIENT: Mouse1 pressed (T=0)                                    │
+│                                                                 │
+│ IMMEDIATE (no waiting for server):                              │
+│   • Muzzle flash + dynamic light                                │
+│   • Weapon recoil animation                                     │
+│   • Fire sound                                                  │
+│   • Predicted projectile spawned (or hitscan tracer)            │
+│   • Ammo decremented locally                                    │
+│   • Send FireRequest { timestamp, aimDirection }                │
+│                                                                 │
+│ LATER (T=100-200ms): Server response                            │
+│   • If confirmed: replace predicted with real projectile        │
+│   • If denied: undo effects (rare, usually ammo/cooldown issue) │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ SERVER: Receives FireRequest                                     │
+│                                                                 │
+│ VALIDATE:                                                       │
+│   • Has weapon? Has ammo?                                       │
+│   • Fire rate cooldown passed? (using client timestamp)         │
+│   • Player alive and not stunned?                               │
+│                                                                 │
+│ IF VALID:                                                       │
+│   • Spawn authoritative projectile (or do hitscan)              │
+│   • Deduct ammo                                                 │
+│   • Broadcast WeaponFiredEvent to all clients                   │
+│                                                                 │
+│ IF DENIED:                                                      │
+│   • Send denial to client (rare)                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Weapon Damage Types
+
+| Type | Server Logic | Client Visual |
+|------|--------------|---------------|
+| **Hitscan** (railgun, MG) | Instant raycast, damage now | "Fake" tracer beam (cosmetic, travels fast) |
+| **Projectile** (plasma, rocket) | Real entity with physics | Predicted projectile, replaced on confirm |
+
+Both use same `WeaponDef`, just `hitscan: boolean` differs.
+
+### Predicted Projectile Lifecycle
+```
+1. Client fires → spawn predicted projectile (temp ID: "pred_123")
+2. Projectile flies using same physics as server would use
+3. If server confirms (within ~500ms) → replace with real ID
+4. If timeout/denied → projectile fizzles out (no explosion)
+5. For OTHER players → spawn on WeaponFiredEvent from server
+```
+
+### Ammo Prediction
+- Client decrements ammo immediately on fire
+- Server confirms or corrects in next GameState sync
+- Mismatch = client resync to server value
+
+
 ### Implementation Order
 
 **Phase 1: Client View Model Only (MVP)** ✅ DONE
