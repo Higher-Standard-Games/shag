@@ -280,10 +280,19 @@ export class ProjectileManager {
             mesh.material = mat;
         }
 
-        // Make projectile face direction of travel
-        // Calculate rotation to face direction
+        // Orient projectile to face direction of travel
+        // MD3 models point along +Y in Quake coords (which is +Z in Babylon)
+        // We need to rotate to align with movement direction
         const forward = direction.normalize();
-        node.lookAt(node.position.add(forward));
+
+        // Use lookAt to orient the projectile
+        // Add a small offset to avoid lookAt issues when exactly aligned
+        const lookTarget = node.position.add(forward);
+        node.lookAt(lookTarget);
+
+        // Apply additional -90° Y rotation because MD3 projectile faces +Y in Quake (right in Babylon)
+        // This rotates the tip to face the direction we're looking at
+        node.rotation.y -= Math.PI / 2;
 
         // Create dynamic light
         let light: PointLight | null = null;
