@@ -201,7 +201,8 @@ export class FPSController implements ICameraController {
     this.reloadTimer = weapon.reloadTime || 1.0;
     console.log("Reloading...");
 
-    // TODO: Trigger animation via ViewManager
+    // Trigger animation via ViewManager
+    WeaponViewManager.getInstance().startReload(weapon.reloadTime || 1.0);
   }
 
   private finishReload(): void {
@@ -226,6 +227,7 @@ export class FPSController implements ICameraController {
     // Cancel reload if switching
     this.isReloading = false;
     this.reloadTimer = 0;
+    WeaponViewManager.getInstance().cancelReload();
 
     if (this.inventory.equipWeapon(weaponId)) {
       const weaponMgr = WeaponViewManager.getInstance();
