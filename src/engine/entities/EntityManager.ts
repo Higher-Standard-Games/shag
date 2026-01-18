@@ -76,7 +76,8 @@ export class EntityManager {
                 type: def.type === EntityType.WEAPON ? 'weapon' : 'ammo',
                 value: (def as any).weaponId || (def as any).amount || def.id,
                 scale: def.scale,
-                gravity: options.gravity
+                gravity: options.gravity,
+                glowColor: def.glowColor  // Pass glow color for pulsing light
             });
 
             return true;

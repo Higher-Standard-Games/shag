@@ -14,6 +14,6 @@ export const PLASMA_AMMO: AmmoDef = {
     modelPath: 'models/items/ammo/ammobox/ammobox.md3',
     scale: 1.0,
 
-    // Pickup glow (same cyan as plasmagun)
-    glowColor: { r: 0.2, g: 0.8, b: 1.0 },
+    // Pickup glow (green like plasmagun)
+    glowColor: { r: 0.3, g: 1.0, b: 0.3 },
 };

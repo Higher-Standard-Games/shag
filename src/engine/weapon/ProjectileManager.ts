@@ -28,6 +28,7 @@ interface ActiveProjectile {
     speed: number;
     spawnTime: number;
     lifetime: number;
+    materials: StandardMaterial[]; // For fade-in effect
 }
 
 interface ActiveImpact {
@@ -313,6 +314,17 @@ export class ProjectileManager {
             light.parent = node;
         }
 
+        // Collect all materials from child meshes for fade-in effect
+        const materials: StandardMaterial[] = [];
+        const meshes = node.getChildMeshes();
+        for (const mesh of meshes) {
+            if (mesh.material && mesh.material instanceof StandardMaterial) {
+                materials.push(mesh.material);
+                // Start fully transparent for fade-in
+                mesh.material.alpha = 0;
+            }
+        }
+
         const projectile: ActiveProjectile = {
             id,
             defId,
@@ -322,10 +334,11 @@ export class ProjectileManager {
             speed: def.speed,
             spawnTime: performance.now() / 1000,
             lifetime: def.lifetime,
+            materials,
         };
 
         this.projectiles.push(projectile);
-        console.log(`[ProjectileManager] Spawned ${defId} (${id})`);
+        console.log(`[ProjectileManager] Spawned ${defId} (${id}) with ${materials.length} materials for fade-in`);
 
         return id;
     }
@@ -345,6 +358,20 @@ export class ProjectileManager {
             if (age > proj.lifetime) {
                 toRemove.push(proj.id);
                 continue;
+            }
+
+            // Fade-in effect: 0 -> 1 over 200ms
+            const fadeInDuration = 0.2; // 200ms
+            if (age < fadeInDuration && proj.materials.length > 0) {
+                const alpha = Math.min(1.0, age / fadeInDuration);
+                for (const mat of proj.materials) {
+                    mat.alpha = alpha;
+                }
+            } else if (proj.materials.length > 0 && proj.materials[0].alpha < 1.0) {
+                // Ensure fully opaque after fade-in completes
+                for (const mat of proj.materials) {
+                    mat.alpha = 1.0;
+                }
             }
 
             // Calculate move amount

@@ -104,8 +104,11 @@ export class Pickup extends TransformNode {
                 console.log(`[Pickup] Meshes parented directly to ${this.name}`);
 
                 // Create glow light if glowColor is defined
+                console.log(`[Pickup] ${this.name} glowColor:`, this.options.glowColor);
                 if (this.options.glowColor) {
                     this.createGlowLight();
+                } else {
+                    console.log(`[Pickup] No glowColor defined for ${this.name}`);
                 }
 
                 // PHYSICS IMPLEMENTATION (Havok)
@@ -180,23 +183,27 @@ export class Pickup extends TransformNode {
         // Create point light attached to this pickup
         this.glowLight = new PointLight(
             `${this.name}_glow`,
-            new Vector3(0, 20, 0), // Slight offset above pickup center
+            new Vector3(0, 10, 0), // Small offset above pickup center
             this.getScene()
         );
 
-        // Set light properties
+        // Set light properties - high intensity for visibility
         this.glowLight.diffuse = new Color3(color.r, color.g, color.b);
-        this.glowLight.specular = new Color3(0, 0, 0); // No specular highlights
-        this.glowLight.intensity = 0.8; // Base intensity (will pulse)
-        this.glowLight.range = 100; // Light range in units
+        this.glowLight.specular = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
+        this.glowLight.intensity = 500.0; // Very high intensity
+        this.glowLight.range = 500; // Large radius
 
         // Disable shadow casting for performance
         this.glowLight.shadowEnabled = false;
 
-        // Parent to this pickup so it follows position
-        this.glowLight.parent = this;
+        // Parent to mesh if available (follows physics), otherwise to this TransformNode
+        if (this.mesh) {
+            this.glowLight.parent = this.mesh;
+        } else {
+            this.glowLight.parent = this;
+        }
 
-        console.log(`[Pickup] Created glow light for ${this.name} (${color.r}, ${color.g}, ${color.b})`);
+        console.log(`[Pickup] Created glow light for ${this.name}, parent: ${this.glowLight.parent?.name}`);
     }
 
     /**
