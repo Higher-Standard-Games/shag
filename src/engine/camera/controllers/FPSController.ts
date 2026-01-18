@@ -48,6 +48,14 @@ export class FPSController implements ICameraController {
 
   public inventory: InventoryManager = new InventoryManager();
 
+  /**
+   * Get the player's physics position (feet level)
+   * This is separate from camera position which includes eye offset
+   */
+  public getPlayerPosition(): Vector3 {
+    return new Vector3(this.physicsX, this.physicsY, this.physicsZ);
+  }
+
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
 

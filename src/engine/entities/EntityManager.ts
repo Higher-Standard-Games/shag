@@ -4,18 +4,11 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 
 import { EntityDef } from '../../shared/entities/EntityDef';
 import { EntityRegistry } from '../../shared/entities/EntityRegistry';
 import { EntityType } from '../../shared/entities/EntityType';
-import { WeaponDef } from '../../shared/entities/WeaponDef';
 import { EntityHandlerRegistry, EntityData, EntityHandlerResult } from '../core/EntityHandlerRegistry';
-import { getMD3Loader } from '../loader/model/MD3Loader';
-import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { InventoryManager } from '../game/InventoryManager';
 
 export class EntityManager {
@@ -75,40 +68,7 @@ export class EntityManager {
 
         console.log(`[EntityManager] Manually spawning ${id} at ${position}`);
 
-        // Create minimal entity data for spawning
-        const data: EntityData = {
-            classname: def.classname || id,
-            properties: {
-                origin: `${position.x} ${position.z} ${position.y}`, // Mock origin prop
-                targetname: `${id}_manual_${Date.now()}`
-            }
-        };
-
         try {
-            // We reuse the internal logic, but we need to pass the position directly
-            // effectively bypassing the "origin parsing" if we want, or just let it parse the mock string.
-            // Actually, let's just create the pickup directly to avoid string parsing overhead if possible,
-            // but for consistency with spawnEntity logic (which handles types/values), lets reuse it 
-            // OR factor out the core creation.
-
-            // Refactoring to expose core creation is cleaner. Use private createPickup logic.
-            // We need to pass the options down.
-            // Hack: modify data.properties to include gravity?
-            // Or update spawnEntity signature.
-            // Let's update spawnEntity logic to check for options from caller if possible, 
-            // OR just add it to the Pickup creation directly inside spawnEntity.
-
-            // To avoid changing private spawnEntity too much, we will cast/hack the data for now
-            // or better, just create the Pickup directly here since we have the def.
-            // ... Actually, spawnEntity does coordinate conversion which we might not want for "position" passed in.
-            // But "position" passed in is already Babylon coords? 
-            // Yes, from SpawnPickupCommand it's Babylon vector.
-            // spawnEntity expects EntityData (quake coords usually).
-
-            // Re-using spawnEntity is tricky if it expects Quake strings.
-            // Let's duplicate the relevant small part or modify spawnEntity.
-            // spawnEntity does: parse origin -> create Pickup.
-
             // DIRECT PICKUP CREATION for manual spawn is safer/cleaner:
             new (await import("../game/Pickup")).Pickup(id + "_" + Date.now(), scene, position, {
                 id: def.id,
@@ -124,21 +84,6 @@ export class EntityManager {
             console.error(`[EntityManager] Failed to manual spawn ${id}:`, e);
             return false;
         }
-    }
-
-    private getSceneOrThrow(): Scene {
-        // Helper to get scene from one of the active entities or global engine if possible.
-        // For now, look at existing entities or import EngineScene? 
-        // Best is to assume if there are entities, we have a scene.
-        // If not, we might be in trouble. 
-        // Let's try to get it from the first entity or use a stored reference.
-        // EntityManager doesn't currently store 'scene' globally.
-        // It receives it in 'spawnEntity'.
-        // We should probably store the scene reference in registerHandlers or getInstance?
-        // Or cleaner: pass scene into spawnEntityById.
-
-        // Correction: pass scene in.
-        throw new Error("Scene access not implemented in spawnEntityById - Update signature");
     }
 
     /**

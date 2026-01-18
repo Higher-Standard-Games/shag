@@ -47,7 +47,7 @@ export class HarvestIndicator {
   private harvestPanel: HTMLDivElement | null = null;
   private selectedPlantId: string | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): HarvestIndicator {
     if (!HarvestIndicator.instance) {
@@ -211,7 +211,7 @@ export class HarvestIndicator {
     EventBus.on<{ plantId: string }>("plant:spoiled", (data) => {
       this.updateHarvestablePhase(data.plantId);
     });
-    
+
     // Clear and rescan on map change
     EventBus.on("map:loaded", () => {
       this.clearAllIndicators();
@@ -238,7 +238,7 @@ export class HarvestIndicator {
   private scanForHarvestablePlants(): void {
     const currentMap = GameScene.getInstance()?.getCurrentMap();
     if (!currentMap) return;
-    
+
     // Only scan plants in the CURRENT map
     const plants = GameState.getInstance().getPlantsInMap(currentMap);
     const plantSystem = PlantSystem.getInstance();
@@ -259,7 +259,7 @@ export class HarvestIndicator {
 
     const plant = GameState.getInstance().getPlant(plantId);
     if (!plant) return;
-    
+
     // Only add indicators for plants in the CURRENT map
     const currentMap = GameScene.getInstance()?.getCurrentMap();
     if (!currentMap || plant.mapId !== currentMap) return;
@@ -329,6 +329,8 @@ export class HarvestIndicator {
 
   private createIndicator(info: HarvestableInfo): void {
     if (!this.scene) return;
+
+    console.log(`[HarvestIndicator] Creating indicator for ${info.strainName} (${info.plantId}) at ${info.position}`);
 
     // Create a floating icon above the plant
     const root = new TransformNode(`harvest_indicator_${info.plantId}`, this.scene);
@@ -568,9 +570,9 @@ export class HarvestIndicator {
       animation: harvestFeedback 2s ease-out forwards;
     `;
 
-    const phaseText = result.phase === "ready" ? "Perfect! ✨" : 
-                      result.phase === "overripe" ? "Overripe" : "Spoiled";
-    
+    const phaseText = result.phase === "ready" ? "Perfect! ✨" :
+      result.phase === "overripe" ? "Overripe" : "Spoiled";
+
     feedback.innerHTML = `
       <div>🌾 Harvested!</div>
       <div style="font-size: 18px; margin-top: 8px;">+${result.yield} yield • +${result.xp} XP</div>
@@ -610,7 +612,7 @@ export class HarvestIndicator {
         info.quality = phaseInfo.quality;
       }
     }
-    
+
     const result = Array.from(this.harvestables.values());
     return result;
   }

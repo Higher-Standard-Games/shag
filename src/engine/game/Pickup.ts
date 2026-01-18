@@ -86,17 +86,22 @@ export class Pickup extends TransformNode {
 
                 // PHYSICS IMPLEMENTATION (Havok)
                 const physics = PhysicsSystem.getInstance();
-                console.log(`[Pickup] Checking PhysicsSystem state...`);
-                console.log(`[Pickup] isInitialized: ${physics.isInitialized()}`);
-                console.log(`[Pickup] System Info: ${physics.getInfo()}`);
 
                 if (physics.isInitialized()) {
-                    console.log(`[Pickup] Creating Havok physics body for ${this.name}`);
                     if (this.mesh instanceof Mesh) {
                         physics.createDynamicBody(this.mesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
-                    } else {
                         // Fallback or Force Cast if satisfied
                         physics.createDynamicBody(this.mesh as Mesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
+                    }
+
+                    // Add random rotation tumble
+                    if (this.mesh && this.mesh.physicsBody) {
+                        const randomRot = new Vector3(
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 10
+                        );
+                        this.mesh.physicsBody.setAngularVelocity(randomRot);
                     }
 
                 } else {
@@ -143,20 +148,35 @@ export class Pickup extends TransformNode {
         const camera = CameraSystem.getInstance().getCamera();
         if (!camera) return;
 
-        // Simple distance check
-        // Player is usually around camera position (or camera target for FPS). 
-        // For FPS, camera.position is head.
-        // Let's assume player radius of 32 units.
+        // Try to get player's feet position from FPSController
+        // This avoids the issue where camera eye height > pickup radius
+        let playerPos = camera.position;
+        const controller = CameraSystem.getInstance().getActiveController();
 
-        // For FPS, camera.position is head.
-        // Let's assume player radius of 32 units.
+        // Check if controller has getPlayerPosition (FPSController)
+        if (controller && 'getPlayerPosition' in controller && typeof (controller as any).getPlayerPosition === 'function') {
+            playerPos = (controller as any).getPlayerPosition();
+        }
 
-        // If physics is active, the MESH moves, but the Pickup Node (this) stays at spawn.
-        // We must check distance to the MESH.
+        // Target position (pickup logic uses mesh position if physics is active)
         const targetPos = this.mesh ? this.mesh.getAbsolutePosition() : this.position;
 
-        const dist = Vector3.Distance(targetPos, camera.position);
-        if (dist < 48) { // Pickup radius
+        // Use Cylindrical Check (Vertical + Horizontal separate)
+        const dx = playerPos.x - targetPos.x;
+        const dz = playerPos.z - targetPos.z;
+        const dy = playerPos.y - targetPos.y; // player.y is feet, target.y is pickup bottom/center
+
+        const horizDistSquared = dx * dx + dz * dz;
+        const pickupRadius = 48; // Horizontal radius (32 unit player + 16 unit item approx)
+        const pickupRadiusSq = pickupRadius * pickupRadius;
+
+        // Vertical check: 
+        // Allow pickup if player's feet are slightly above (standing on it) or below (crouching/slopes)
+        // Range: -24 (feet just below pickup base) to 88 (head height + reach, allowing for jumping over)
+        const verticalRangeMin = -24;
+        const verticalRangeMax = 88;
+
+        if (horizDistSquared < pickupRadiusSq && dy > verticalRangeMin && dy < verticalRangeMax) {
             this.tryPickup();
         }
     }
@@ -242,7 +262,7 @@ export class Pickup extends TransformNode {
                 const ground = cm.findGround(this.position, 2000, {
                     radius: 0.1,
                     contentMask: 1,
-                    debug: true
+                    debug: false
                 });
                 console.log(`[Pickup:dropToGround] findGround result: ${ground ? `Y=${ground.position.y}` : 'NULL'}`);
 

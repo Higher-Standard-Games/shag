@@ -28,6 +28,8 @@ import {
   type CharacterConfig,
   type CharacterStyle,
 } from "./CharacterGenerator";
+import { registerAllEntities } from "./EntityRegistration";
+import { EntityManager } from "../../engine/entities/EntityManager";
 
 /**
  * Handler for build_zone entities
@@ -250,10 +252,11 @@ export function registerGameEntityHandlers(): void {
   // We need to manually register known weapon classnames OR 
   // Update EntityHandlerRegistry to support regex/prefix matching.
 
-  // For now, let's register the specific ones we know:
-  // EntityHandlerRegistry.register('weapon_plasmagun', handlePickup);
-  // EntityHandlerRegistry.register('ammo_plasmagun', handlePickup);
-  // NOTE: EntityManager now handles this via EntityRegistry iteration.
+  // Initialize Entity Registry (load definitions)
+  registerAllEntities();
+
+  // Register handlers via EntityManager (scans Registry)
+  EntityManager.getInstance().registerHandlers();
 
   // Register pre-render hook to clear game state
   EntityHandlerRegistry.addPreRenderHook(clearGameState);

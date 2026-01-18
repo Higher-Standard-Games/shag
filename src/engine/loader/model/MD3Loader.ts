@@ -638,6 +638,13 @@ export class MD3Loader {
 
         // Create mesh for each surface
         for (const surface of model.surfaces) {
+            // Skip effect surfaces (_fx) that don't render correctly without proper shader support
+            // These are typically additive glow effects that need special handling
+            const surfaceName = surface.header.name.toLowerCase();
+            if (surfaceName.endsWith('_fx') || surfaceName.includes('_fx_')) {
+                continue;
+            }
+
             const mesh = this.createSurfaceMesh(surface, name, frame);
             if (mesh) {
                 mesh.parent = root;
