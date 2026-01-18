@@ -52,15 +52,30 @@ export class Pickup extends TransformNode {
         try {
             console.log(`[Pickup] loadModel started for ${this.name}`);
 
-            // Use ModelLoader to load the model
-            const loader = ModelLoader.getInstance();
-            if (!loader.isInitialized()) loader.init(this.getScene());
+            // Check AssetPreloader cache first for instant spawn
+            let result = null;
+            try {
+                const { AssetPreloader } = await import('../loader/AssetPreloader');
+                const preloader = AssetPreloader.getInstance();
+                if (preloader.hasModel(this.options.modelPath)) {
+                    console.log(`[Pickup] Using cached model: ${this.options.modelPath}`);
+                    result = preloader.cloneCachedModel(this.options.modelPath, this.getScene());
+                }
+            } catch {
+                // Preloader not available, continue with fresh load
+            }
 
-            const result = await loader.loadModel(this.options.modelPath, {
-                position: Vector3.Zero(), // Relative to this node
-                scale: this.options.scale || 1.0,
-                hasCollision: false
-            });
+            // Fall back to fresh loading if not cached
+            if (!result) {
+                const loader = ModelLoader.getInstance();
+                if (!loader.isInitialized()) loader.init(this.getScene());
+
+                result = await loader.loadModel(this.options.modelPath, {
+                    position: Vector3.Zero(), // Relative to this node
+                    scale: this.options.scale || 1.0,
+                    hasCollision: false
+                });
+            }
 
             if (result && result.root) {
                 console.log(`[Pickup] Model loaded for ${this.name}. Meshes: ${result.meshes.length}`);

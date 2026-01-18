@@ -146,13 +146,43 @@ export class AssetPreloader {
     /**
      * Clone a cached model for use in gameplay
      */
-    cloneCachedModel(modelPath: string, _scene: Scene): ModelLoadResult | null {
+    cloneCachedModel(modelPath: string, scene: Scene): ModelLoadResult | null {
         const cached = this.modelCache.get(modelPath);
         if (!cached) return null;
 
-        // TODO: Implement proper cloning of mesh hierarchy
-        // For now, return null to fall back to fresh loading
-        // This is a placeholder for future optimization
-        return null;
+        try {
+            // Import TransformNode for creating new root
+            const { TransformNode } = require('@babylonjs/core/Meshes/transformNode');
+            const { Mesh } = require('@babylonjs/core/Meshes/mesh');
+
+            // Create a new root for the cloned model
+            const clonedRoot = new TransformNode(`${cached.root.name}_clone_${Date.now()}`, scene);
+            const clonedMeshes: typeof Mesh[] = [];
+
+            // Clone each mesh from the cached model
+            for (const mesh of cached.meshes) {
+                if (mesh.clone) {
+                    const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
+                    if (clonedMesh) {
+                        clonedMesh.setEnabled(true);
+                        clonedMesh.isVisible = true;
+                        clonedMeshes.push(clonedMesh);
+                    }
+                }
+            }
+
+            console.log(`[AssetPreloader] Cloned ${clonedMeshes.length} meshes from cache`);
+
+            return {
+                root: clonedRoot,
+                meshes: clonedMeshes,
+                animationGroups: [],
+                skeletons: [],
+                lights: []
+            };
+        } catch (e) {
+            console.warn(`[AssetPreloader] Failed to clone cached model:`, e);
+            return null;
+        }
     }
 }
