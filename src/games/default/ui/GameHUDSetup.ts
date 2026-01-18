@@ -11,6 +11,8 @@ import { GameState } from '../GameState';
 import { GameClock } from '../../../engine/core/GameClock';
 import { QuestSystem } from '../QuestSystem';
 import { OrderSystem } from '../OrderSystem';
+import { CameraSystem } from '../../../engine/camera';
+import { FPSController } from '../../../engine/camera/controllers/FPSController';
 
 /**
  * Get period icon based on time of day
@@ -95,6 +97,30 @@ export async function setupGameHUD(): Promise<void> {
     return OrderSystem.getInstance().getPendingOrders().length;
   });
 
+  // Weapon & Ammo
+  HUD.bind('weapon', () => {
+    const controller = CameraSystem.getInstance().getActiveController();
+    if (controller instanceof FPSController) {
+      const weapon = controller.inventory.getCurrentWeapon();
+      return weapon ? weapon.name : 'Unarmed';
+    }
+    return '';
+  });
+
+  HUD.bind('ammo', () => {
+    const controller = CameraSystem.getInstance().getActiveController();
+    if (controller instanceof FPSController) {
+      const inv = controller.inventory;
+      const weaponId = inv.getCurrentWeaponId();
+      if (weaponId) {
+        const loaded = inv.getLoadedAmmo(weaponId);
+        // Optionally show reserve too? For now just loaded
+        return loaded;
+      }
+    }
+    return 0;
+  });
+
   // ============================================================================
   // List Bindings
   // ============================================================================
@@ -110,12 +136,12 @@ export async function setupGameHUD(): Promise<void> {
           const completed = quest.objectives.filter(o => o.current >= o.target).length;
           progress = completed / quest.objectives.length;
         }
-        
+
         return {
           icon: '📜',
           title: quest.questId,
-          description: quest.objectives?.[0] 
-            ? `${quest.objectives[0].current}/${quest.objectives[0].target}` 
+          description: quest.objectives?.[0]
+            ? `${quest.objectives[0].current}/${quest.objectives[0].target}`
             : '',
           progress,
         };

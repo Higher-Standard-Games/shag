@@ -38,8 +38,15 @@ import {
   type PlayerState,
 } from "../../viewport";
 
+import { InventoryManager } from "../../game/InventoryManager";
+import { EntityManager } from "../../entities/EntityManager";
+import { WeaponViewManager } from "../../weapon/WeaponViewManager";
+import { WeaponDef } from "../../../shared/entities";
+
 export class FPSController implements ICameraController {
   readonly type = "fps";
+
+  public inventory: InventoryManager = new InventoryManager();
 
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
@@ -115,6 +122,7 @@ export class FPSController implements ICameraController {
     sprint: false,   // Shift (run)
     fire: false,     // Mouse1 (fire)
     aim: false,      // Mouse2 (ADS)
+    reload: false,   // R (reload)
   };
 
   // ADS sensitivity lerp (matches ADS animation timing)
@@ -127,6 +135,173 @@ export class FPSController implements ICameraController {
     invertY: false,
     fov: 1.0, // Wider FOV for debugging
   };
+
+  // Reload state
+  private isReloading: boolean = false;
+  private reloadTimer: number = 0;
+
+  // Fire state
+  private lastFireTime: number = 0;
+  private fireReleased: boolean = true;
+  private burstShotsRemaining: number = 0;
+  // Note: burstCooldown is unused based on lint, removing it
+  //   private burstCooldown: number = 0;
+
+  private checkReload(deltaTime: number): void {
+    if (this.isReloading) {
+      this.reloadTimer -= deltaTime;
+      if (this.reloadTimer <= 0) {
+        this.finishReload();
+      }
+      return;
+    }
+
+    const currentWeapon = this.inventory.getCurrentWeapon();
+    const currentId = this.inventory.getCurrentWeaponId();
+    if (!currentWeapon || !currentId) return;
+
+    // Manual reload
+    if (this.keys.reload) {
+      if (this.inventory.needsReload(currentId)) {
+        this.startReload(currentWeapon, currentId);
+      }
+    }
+  }
+
+  private startReload(weapon: WeaponDef, weaponId: string): void {
+    if (this.isReloading) return;
+
+    // Can we reload? (Not full, have reserve)
+    // We can use inventory logic to check, but we need to know if it's possible FIRST to avoid useless animations
+    // For now, let's just trust the InventoryManager to fail gracefully, 
+    // BUT we need to know reloadTime.
+
+    // Peek if reload is needed/possible
+    const clipSize = weapon.clipSize || 0;
+    if (clipSize <= 0) return; // No clip
+
+    const loaded = this.inventory.getLoadedAmmo(weaponId);
+    if (loaded >= clipSize) return; // Full
+
+    if (weapon.ammoType && this.inventory.getAmmoCount(weapon.ammoType) <= 0) {
+      // No reserve ammo
+      // console.log("No ammo to reload!");
+      return;
+    }
+
+    this.isReloading = true;
+    this.reloadTimer = weapon.reloadTime || 1.0;
+    console.log("Reloading...");
+
+    // TODO: Trigger animation via ViewManager
+  }
+
+  private finishReload(): void {
+    this.isReloading = false;
+    const currentId = this.inventory.getCurrentWeaponId();
+    if (currentId) {
+      if (this.inventory.reloadWeapon(currentId)) {
+        console.log("Reload complete.");
+      } else {
+        console.log("Reload failed (maybe no ammo?)");
+      }
+    }
+  }
+
+  // @ts-ignore
+  private async switchWeapon(slotIndex: number): Promise<void> {
+    const weaponId = this.inventory.getWeaponByIndex(slotIndex);
+    if (!weaponId) return;
+
+    if (this.inventory.getCurrentWeaponId() === weaponId) return;
+
+    // Cancel reload if switching
+    this.isReloading = false;
+    this.reloadTimer = 0;
+
+    if (this.inventory.equipWeapon(weaponId)) {
+      const weaponMgr = WeaponViewManager.getInstance();
+      // Load visual model
+      await weaponMgr.loadWeapon(weaponId);
+      console.log(`Switched to weapon: ${weaponId}`);
+    }
+  }
+
+  private updateFiring(deltaTime: number): void {
+    // Handle reloading
+    this.checkReload(deltaTime);
+    if (this.isReloading) return;
+
+    const weaponMgr = WeaponViewManager.getInstance();
+    const currentWeapon = this.inventory.getCurrentWeapon();
+
+    if (!currentWeapon) return;
+
+    const fireRate = currentWeapon.fireRate ?? 10;
+    const fireDelay = 1.0 / fireRate;
+    const now = performance.now() / 1000;
+
+    // Update Burst Logic
+    if (this.burstShotsRemaining > 0 && (now - this.lastFireTime) >= fireDelay) {
+      this.executeFire(weaponMgr);
+      this.burstShotsRemaining--;
+      return;
+    }
+
+    // Check input
+    if (!this.keys.fire) {
+      this.fireReleased = true;
+      return;
+    }
+
+    // Check Cooldown
+    if ((now - this.lastFireTime) < fireDelay) return;
+
+    // Handle Fire Modes
+    const mode = currentWeapon.fireMode ?? 'auto';
+    let readyToFire = false;
+
+    if (mode === 'auto') {
+      readyToFire = true;
+    } else if (mode === 'semi') {
+      if (this.fireReleased) {
+        readyToFire = true;
+        this.fireReleased = false;
+      }
+    } else if (mode === 'burst') {
+      if (this.fireReleased && this.burstShotsRemaining === 0) {
+        readyToFire = true;
+        this.fireReleased = false;
+        const burstCount = currentWeapon.burstCount ?? 3;
+        this.burstShotsRemaining = burstCount - 1;
+      }
+    }
+
+    if (readyToFire) {
+      // Auto-reload check
+      const weaponId = this.inventory.getCurrentWeaponId();
+      if (weaponId && this.inventory.getLoadedAmmo(weaponId) <= 0 && currentWeapon.clipSize > 0) {
+        this.startReload(currentWeapon, weaponId);
+      } else {
+        this.executeFire(weaponMgr);
+      }
+    }
+  }
+
+  private executeFire(mgr: WeaponViewManager): void {
+    const weaponId = this.inventory.getCurrentWeaponId();
+    if (!weaponId) return;
+
+    // consumeLoadedAmmo handles infinite ammo logic if clipSize=0
+    if (this.inventory.consumeLoadedAmmo(weaponId, 1)) {
+      mgr.fire();
+      this.lastFireTime = performance.now() / 1000;
+    } else {
+      // console.log("Click!");
+    }
+  }
+
+
 
   /**
    * Get the current default speed
@@ -206,6 +381,9 @@ export class FPSController implements ICameraController {
       this.camera = camera;
     }
 
+    // Initialize weapon view manager with camera
+    WeaponViewManager.getInstance().init(scene, this.camera);
+
     // Apply FOV
     if (this.config.fov && this.camera) {
       this.camera.fov = this.config.fov;
@@ -252,8 +430,8 @@ export class FPSController implements ICameraController {
       // Only respond to clicks on the canvas itself
       if (e.target !== this.canvas) return;
 
-      console.log('[FPSController] Canvas clicked, requesting pointer lock');
       if (!this.isPointerLocked && this.canvas) {
+        console.log('[FPSController] Canvas clicked, requesting pointer lock');
         this.canvas.requestPointerLock();
       }
     };
@@ -320,6 +498,15 @@ export class FPSController implements ICameraController {
         case 'KeyD': this.keys.right = true; break;
         case 'Space': this.keys.up = true; e.preventDefault(); break;
         case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
+        case 'KeyR': this.keys.reload = true; break;
+      }
+
+      // Weapon switching (1-9)
+      if (e.code.startsWith('Digit')) {
+        const digit = parseInt(e.code.replace('Digit', ''));
+        if (digit > 0 && digit <= 9) {
+          this.switchWeapon(digit - 1);
+        }
       }
     };
 
@@ -331,12 +518,18 @@ export class FPSController implements ICameraController {
         case 'KeyD': this.keys.right = false; break;
         case 'Space': this.keys.up = false; break;
         case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
+        case 'KeyR': this.keys.reload = false; break;
       }
     };
 
     // Mouse button handlers for fire and ADS
     this.onMouseDown = (e: MouseEvent) => {
-      if (!this.isPointerLocked) return;
+      if (!this.isPointerLocked) {
+        // console.log("MouseDown ignored - not locked");
+        return;
+      }
+
+      console.log(`[FPS] MouseDown: btn=${e.button}, locked=${this.isPointerLocked}`);
       if (e.button === 0) this.keys.fire = true;   // Left click = fire
       if (e.button === 2) this.keys.aim = true;    // Right click = ADS
     };
@@ -352,14 +545,14 @@ export class FPSController implements ICameraController {
     };
 
     // Add event listeners - use document for click to ensure we catch it
-    document.addEventListener('click', this.onCanvasClick);
-    document.addEventListener('pointerlockchange', this.onPointerLockChange);
-    document.addEventListener('mousemove', this.onMouseMove);
-    document.addEventListener('keydown', this.onKeyDown);
-    document.addEventListener('keyup', this.onKeyUp);
-    document.addEventListener('mousedown', this.onMouseDown);
-    document.addEventListener('mouseup', this.onMouseUp);
-    document.addEventListener('contextmenu', this.onContextMenu);
+    if (this.onCanvasClick) document.addEventListener('click', this.onCanvasClick);
+    if (this.onPointerLockChange) document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    if (this.onMouseMove) document.addEventListener('mousemove', this.onMouseMove);
+    if (this.onKeyDown) document.addEventListener('keydown', this.onKeyDown);
+    if (this.onKeyUp) document.addEventListener('keyup', this.onKeyUp);
+    if (this.onMouseDown) document.addEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp) document.addEventListener('mouseup', this.onMouseUp);
+    if (this.onContextMenu) document.addEventListener('contextmenu', this.onContextMenu);
   }
 
   private removeInputHandlers(): void {
@@ -368,30 +561,14 @@ export class FPSController implements ICameraController {
       document.exitPointerLock();
     }
 
-    if (this.onCanvasClick) {
-      document.removeEventListener('click', this.onCanvasClick);
-    }
-    if (this.onPointerLockChange) {
-      document.removeEventListener('pointerlockchange', this.onPointerLockChange);
-    }
-    if (this.onMouseMove) {
-      document.removeEventListener('mousemove', this.onMouseMove);
-    }
-    if (this.onKeyDown) {
-      document.removeEventListener('keydown', this.onKeyDown);
-    }
-    if (this.onKeyUp) {
-      document.removeEventListener('keyup', this.onKeyUp);
-    }
-    if (this.onMouseDown) {
-      document.removeEventListener('mousedown', this.onMouseDown);
-    }
-    if (this.onMouseUp) {
-      document.removeEventListener('mouseup', this.onMouseUp);
-    }
-    if (this.onContextMenu) {
-      document.removeEventListener('contextmenu', this.onContextMenu);
-    }
+    if (this.onCanvasClick) document.removeEventListener('click', this.onCanvasClick);
+    if (this.onPointerLockChange) document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    if (this.onMouseMove) document.removeEventListener('mousemove', this.onMouseMove);
+    if (this.onKeyDown) document.removeEventListener('keydown', this.onKeyDown);
+    if (this.onKeyUp) document.removeEventListener('keyup', this.onKeyUp);
+    if (this.onMouseDown) document.removeEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp) document.removeEventListener('mouseup', this.onMouseUp);
+    if (this.onContextMenu) document.removeEventListener('contextmenu', this.onContextMenu);
   }
 
   detach(): void {
@@ -796,6 +973,12 @@ export class FPSController implements ICameraController {
 
     // Apply smoothed Y + eye offset for rendering
     this.camera.position.y = this.smoothedY + eyeOffset;
+
+    // === PICKUP CHECK ===
+    EntityManager.getInstance().checkPickups(this.camera.position, this.inventory);
+
+    // === WEAPON FIRING ===
+    this.updateFiring(deltaTime);
 
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {

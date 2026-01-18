@@ -12,4 +12,5 @@ export enum EntityType {
     PROP = 'prop',
     TRIGGER = 'trigger',
     EFFECT = 'effect',
+    AMMO = 'ammo',
 }

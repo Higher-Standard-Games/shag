@@ -44,8 +44,8 @@ export interface BspMeshBuildResult {
   /** Texture groups info for later texture loading */
   textureGroups?: { textureIndex: number; textureName: string }[];
   /** Sky shader names found in the map (for skybox creation) */
-  skyShaders: { 
-    textureName: string; 
+  skyShaders: {
+    textureName: string;
     skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
     /** Stage textures for sky shaders without skyparms (for textured skybox) */
     stageTextures?: string[];
@@ -349,7 +349,7 @@ export class BspMeshBuilder {
     // Key: "textureIndex_lightmapIndex" for unique (texture, lightmap) pairs
     const textureGroups = new Map<string, TextureGroup>();
     const shaderRegistry = Q3ShaderRegistry.getInstance();
-    
+
     // Track individual autosprite faces (not merged, each becomes its own mesh)
     interface AutospriteFace {
       faceIndex: number;
@@ -365,7 +365,7 @@ export class BspMeshBuilder {
       center: [number, number, number];
     }
     const autospriteFaces: AutospriteFace[] = [];
-    
+
     // Track fog effects found
     let fogFacesCount = 0;
 
@@ -443,13 +443,13 @@ export class BspMeshBuilder {
       // Each sprite must rotate around its own center
       if (shaderProps.autosprite || shaderProps.autosprite2) {
         let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
-        
+
         switch (face.faceType) {
           case 1: faceData = this.buildPolygonFace(face); break;
           case 2: faceData = this.buildPatchFace(face); break;
           case 3: faceData = this.buildMeshFace(face); break;
         }
-        
+
         if (faceData && faceData.positions.length > 0) {
           // Calculate center of this sprite face
           let cx = 0, cy = 0, cz = 0;
@@ -462,7 +462,7 @@ export class BspMeshBuilder {
           cx /= numVerts;
           cy /= numVerts;
           cz /= numVerts;
-          
+
           autospriteFaces.push({
             faceIndex: i,
             textureIndex: face.textureIndex,
@@ -476,7 +476,7 @@ export class BspMeshBuilder {
             indices: faceData.indices,
             center: [cx, cy, cz],
           });
-          
+
           stats.totalVertices += numVerts;
           stats.totalTriangles += faceData.indices.length / 3;
         }
@@ -589,6 +589,7 @@ export class BspMeshBuilder {
     // Create a parent mesh to hold all texture group meshes
     const worldMesh = new Mesh("bsp_world", this.scene);
     worldMesh.checkCollisions = true;
+    worldMesh.isPickable = true; // Enable raycasting for gravity/picking
 
     // Combine all groups (opaque first, then transparent for proper sorting)
     const allGroups = [...opaqueGroups, ...transparentGroups];
@@ -603,6 +604,7 @@ export class BspMeshBuilder {
 
       const meshName = `bsp_tex_${group.textureIndex}`;
       const mesh = new Mesh(meshName, this.scene);
+      mesh.isPickable = true; // Ensure pickable
 
       const meshVertexData = new VertexData();
       meshVertexData.positions = group.positions;
@@ -664,13 +666,24 @@ export class BspMeshBuilder {
       // Parent to world mesh for easy disposal
       mesh.parent = worldMesh;
       childMeshes.push(mesh);
+
+      // Add Physics Body (Havok)
+      // Only for opaque meshes that aren't specifically non-solid (we assume visible = solid for now)
+      // TODO: Check surface flags for non-solid surfaces (noimpact, nomarks etc might still be solid)
+      if (!group.shaderProps.isTransparent) {
+        import('../../physics/PhysicsSystem').then(({ PhysicsSystem }) => {
+          import('@babylonjs/core/Physics/v2/IPhysicsEnginePlugin').then(({ PhysicsShapeType }) => {
+            PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
+          });
+        });
+      }
     }
 
     console.log(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
     // Create individual meshes for autosprite faces with per-frame billboard updates
     const autospriteMeshData: BspMeshBuildResult['autospriteMeshes'] = [];
-    
+
     for (let si = 0; si < autospriteFaces.length; si++) {
       const sprite = autospriteFaces[si];
       const spriteMeshName = `bsp_sprite_${sprite.textureIndex}_${si}`;
@@ -690,7 +703,7 @@ export class BspMeshBuilder {
         minY = Math.min(minY, y); maxY = Math.max(maxY, y);
         minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
       }
-      
+
       // Calculate half-dimensions (sprite is a quad, find largest extent)
       const extentX = (maxX - minX) / 2;
       const extentY = (maxY - minY) / 2;
@@ -742,11 +755,11 @@ export class BspMeshBuilder {
 
       spriteMesh.parent = worldMesh;
       childMeshes.push(spriteMesh);
-      
+
       // Calculate normalized vertex offsets from original positions relative to center
       // This allows proper interpolation for triangulated sprites (not just 4 corners)
       const [cx, cy, cz] = sprite.center;
-      
+
       // Collect all vertex offsets from center
       const offsets: [number, number, number][] = [];
       for (let v = 0; v < numVerts; v++) {
@@ -756,7 +769,7 @@ export class BspMeshBuilder {
           sprite.positions[v * 3 + 2] - cz,
         ]);
       }
-      
+
       // Find max extent on each axis to determine sprite orientation
       let maxExtentX = 0, maxExtentY = 0, maxExtentZ = 0;
       for (const [ox, oy, oz] of offsets) {
@@ -764,13 +777,13 @@ export class BspMeshBuilder {
         maxExtentY = Math.max(maxExtentY, Math.abs(oy));
         maxExtentZ = Math.max(maxExtentZ, Math.abs(oz));
       }
-      
+
       // Calculate normalized offsets for each vertex
       // Maps each vertex position to a fraction of the quad (-1 to 1 range)
       const vertexOffsets: [number, number][] = [];
       for (const [ox, oy, oz] of offsets) {
         let rightFrac: number, upFrac: number;
-        
+
         if (maxExtentY < maxExtentX && maxExtentY < maxExtentZ) {
           // Horizontal sprite (XZ plane) - Y is normal
           rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
@@ -784,10 +797,10 @@ export class BspMeshBuilder {
           rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
           upFrac = maxExtentY > 0.001 ? oy / maxExtentY : 0;
         }
-        
+
         vertexOffsets.push([rightFrac, upFrac]);
       }
-      
+
       // Track for per-frame billboard updates
       autospriteMeshData.push({
         mesh: spriteMesh,
@@ -806,7 +819,7 @@ export class BspMeshBuilder {
         const spriteData = autospriteMeshData[sdi];
         const sprite = autospriteFaces[sdi];
         const numVerts = spriteData.vertexOffsets.length;
-        
+
         // Recalculate extents for logging
         const [cx, cy, cz] = spriteData.center;
         let maxX = 0, maxY = 0, maxZ = 0;
@@ -815,9 +828,9 @@ export class BspMeshBuilder {
           maxY = Math.max(maxY, Math.abs(sprite.positions[v * 3 + 1] - cy));
           maxZ = Math.max(maxZ, Math.abs(sprite.positions[v * 3 + 2] - cz));
         }
-        const orient = maxY < maxX && maxY < maxZ ? 'XZ(horiz)' : 
-                       maxX < maxY && maxX < maxZ ? 'YZ' : 'XY(vert)';
-        
+        const orient = maxY < maxX && maxY < maxZ ? 'XZ(horiz)' :
+          maxX < maxY && maxX < maxZ ? 'YZ' : 'XY(vert)';
+
         console.log(`[BspMeshBuilder] Sprite "${spriteData.mesh.name}": ${numVerts}v, extents=[${maxX.toFixed(1)},${maxY.toFixed(1)},${maxZ.toFixed(1)}], orient=${orient}, hw=${spriteData.halfWidth.toFixed(1)}, hh=${spriteData.halfHeight.toFixed(1)}, as2=${spriteData.isAutosprite2}`);
       }
     }
@@ -838,7 +851,7 @@ export class BspMeshBuilder {
     const allTextureGroups = [...opaqueGroups, ...transparentGroups]
       .filter(g => g.indices.length > 0)
       .map(g => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
-    
+
     // Add autosprite textures (deduplicated)
     const seenTextureIndices = new Set(allTextureGroups.map(g => g.textureIndex));
     for (const sprite of autospriteFaces) {
@@ -888,13 +901,13 @@ export class BspMeshBuilder {
 
     for (const sprite of result.autospriteMeshes) {
       const { mesh, center, halfWidth, halfHeight, isAutosprite2 } = sprite;
-      
+
       // Calculate direction from sprite center to camera
       const cx = center[0], cy = center[1], cz = center[2];
       let dx = cameraPosition.x - cx;
       let dy = cameraPosition.y - cy;
       let dz = cameraPosition.z - cz;
-      
+
       // Normalize direction
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist < 0.001) continue; // Camera at sprite center, skip
@@ -924,12 +937,12 @@ export class BspMeshBuilder {
         // Up vector: world up projected onto plane perpendicular to view direction
         // Right = cross(worldUp, viewDir), then Up = cross(viewDir, right)
         const worldUpX = 0, worldUpY = 1, worldUpZ = 0;
-        
+
         // Right = cross(worldUp, forward)
         rightX = worldUpY * dz - worldUpZ * dy;
         rightY = worldUpZ * dx - worldUpX * dz;
         rightZ = worldUpX * dy - worldUpY * dx;
-        
+
         // Normalize right
         const rightLen = Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
         if (rightLen < 0.001) {
@@ -938,7 +951,7 @@ export class BspMeshBuilder {
           upX = 0; upY = 0; upZ = -1;
         } else {
           rightX /= rightLen; rightY /= rightLen; rightZ /= rightLen;
-          
+
           // Up = cross(forward, right)
           upX = dy * rightZ - dz * rightY;
           upY = dz * rightX - dx * rightZ;
@@ -950,7 +963,7 @@ export class BspMeshBuilder {
       // This handles both simple quads and triangulated sprites correctly
       const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
       if (!positions || positions.length < 12) continue;
-      
+
       const numVerts = positions.length / 3;
       const hw = halfWidth, hh = halfHeight;
 
@@ -1092,7 +1105,7 @@ export class BspMeshBuilder {
         // Also include sprite meshes which have names like bsp_sprite_${textureIndex}_*
         const meshName = `bsp_tex_${group.textureIndex}`;
         const spritePrefix = `bsp_sprite_${group.textureIndex}_`;
-        const matchingMeshes = meshes.filter(m => 
+        const matchingMeshes = meshes.filter(m =>
           m.name === meshName || m.name.startsWith(spritePrefix)
         );
 
@@ -1101,156 +1114,156 @@ export class BspMeshBuilder {
         // Apply texture to all matching meshes
         for (const mesh of matchingMeshes) {
 
-        // Check if this shader needs special material (glow overlay, etc.)
-        if (shader) {
-          const { analyzeShaderPattern, createQ3Material } = await import('../shader/Q3ShaderMaterialFactory');
-          const analysis = analyzeShaderPattern(shader);
+          // Check if this shader needs special material (glow overlay, etc.)
+          if (shader) {
+            const { analyzeShaderPattern, createQ3Material } = await import('../shader/Q3ShaderMaterialFactory');
+            const analysis = analyzeShaderPattern(shader);
 
-          if (analysis.pattern === 'glow_overlay') {
-            // Load all required textures for glow overlay
-            const stages = shader.stages;
-            const baseStage = stages[analysis.baseStageIndex];
-            const glowStage = stages[analysis.glowStageIndex];
+            if (analysis.pattern === 'glow_overlay') {
+              // Load all required textures for glow overlay
+              const stages = shader.stages;
+              const baseStage = stages[analysis.baseStageIndex];
+              const glowStage = stages[analysis.glowStageIndex];
 
-            // Load glow texture
-            let glowTexture: Texture | null = null;
-            if (glowStage && glowStage.map) {
-              const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
-              for (const ext of extensions) {
-                glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);
-                if (glowTexture) break;
-                // Try with textures/ prefix
-                if (!glowPath.startsWith('textures/')) {
-                  glowTexture = await texLoader.loadTexture(`textures/${glowPath}${ext}`);
+              // Load glow texture
+              let glowTexture: Texture | null = null;
+              if (glowStage && glowStage.map) {
+                const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+                for (const ext of extensions) {
+                  glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);
                   if (glowTexture) break;
+                  // Try with textures/ prefix
+                  if (!glowPath.startsWith('textures/')) {
+                    glowTexture = await texLoader.loadTexture(`textures/${glowPath}${ext}`);
+                    if (glowTexture) break;
+                  }
                 }
               }
-            }
 
-            if (texture && glowTexture) {
-              // Create glow overlay material
-              const textureMap = new Map<string, Texture>();
-              textureMap.set(baseStage.map, texture);
-              textureMap.set(glowStage.map, glowTexture);
+              if (texture && glowTexture) {
+                // Create glow overlay material
+                const textureMap = new Map<string, Texture>();
+                textureMap.set(baseStage.map, texture);
+                textureMap.set(glowStage.map, glowTexture);
 
-              const materialResult = createQ3Material(shader, scene, {
-                textures: textureMap,
-                lightmapTexture: undefined, // Will be set in applyLightmaps
-                lightmapIntensity: 2.0,
-                debug: false,
-              });
+                const materialResult = createQ3Material(shader, scene, {
+                  textures: textureMap,
+                  lightmapTexture: undefined, // Will be set in applyLightmaps
+                  lightmapIntensity: 2.0,
+                  debug: false,
+                });
 
-              if (materialResult) {
-                mesh.material = materialResult.material;
-                // Store info for lightmap application later
-                if (!mesh.metadata) mesh.metadata = {};
-                mesh.metadata.isGlowOverlay = true;
-                mesh.metadata.needsAnimation = materialResult.needsAnimation;
-                console.log(`[BspMeshBuilder] Created glow overlay material: ${texName}`);
-                loadedCount++;
-                continue; // Skip StandardMaterial path
-              }
-            } else if (!glowTexture) {
-              console.warn(`[BspMeshBuilder] Glow texture not found for: ${texName}`);
-            }
-          }
-        }
-
-        // Standard material path (fallback and non-glow shaders)
-        if (mesh.material instanceof StandardMaterial) {
-          const mat = mesh.material;
-          mat.diffuseTexture = texture;
-
-          // Try to load normal map companion texture (_norm, _normal, _bump)
-          const normalSuffixes = ['_norm', '_normal', '_bump'];
-          for (const suffix of normalSuffixes) {
-            let normalTexFound = false;
-            for (const ext of extensions) {
-              const normalTex = await texLoader.loadTexture(`${foundCleanPath}${suffix}${ext}`);
-              if (normalTex) {
-                mat.bumpTexture = normalTex;
-                mat.bumpTexture.level = 1.0;
-                console.log(`[BspMeshBuilder] Loaded normal map: ${foundCleanPath}${suffix}${ext}`);
-                normalTexFound = true;
-                break;
+                if (materialResult) {
+                  mesh.material = materialResult.material;
+                  // Store info for lightmap application later
+                  if (!mesh.metadata) mesh.metadata = {};
+                  mesh.metadata.isGlowOverlay = true;
+                  mesh.metadata.needsAnimation = materialResult.needsAnimation;
+                  console.log(`[BspMeshBuilder] Created glow overlay material: ${texName}`);
+                  loadedCount++;
+                  continue; // Skip StandardMaterial path
+                }
+              } else if (!glowTexture) {
+                console.warn(`[BspMeshBuilder] Glow texture not found for: ${texName}`);
               }
             }
-            if (normalTexFound) break;
           }
 
-          if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
-            // Alpha testing mode - needs texture to be loaded
-            mat.transparencyMode = 1; // MATERIAL_ALPHATEST
-            mat.alphaCutOff = shaderProps.alphaCutoff;
-            mat.useAlphaFromDiffuseTexture = true;
-            // Force material to recognize the new texture's alpha
-            texture.hasAlpha = true;
-          } else if (shaderProps.alphaMode === 'blend') {
-            mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
-            mat.alphaMode = Constants.ALPHA_COMBINE;
-            mat.useAlphaFromDiffuseTexture = true;
-            texture.hasAlpha = true;
-          } else if (shaderProps.alphaMode === 'add') {
-            // Additive blending for glow effects (halos, flares)
-            mat.alphaMode = Constants.ALPHA_ADD;
-            mat.useAlphaFromDiffuseTexture = true;
-            texture.hasAlpha = true;
-            // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
-            mat.emissiveColor = new Color3(1, 1, 1);
-            mat.diffuseColor = new Color3(0, 0, 0);
-          } else if (shaderProps.alphaMode === 'multiply') {
-            // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
-            // Use custom shader that computes alpha from luminance (white = transparent)
-            const { createFilterBlendMaterial } = await import('../shader/FilterBlendShaderMaterial');
-            const filterMat = createFilterBlendMaterial(
-              `filterBlend_${texName}`,
-              scene,
-              texture,
-              { alphaThreshold: 0.85, alphaPower: 1.2, colorDarken: 0.5, alphaMultiplier: 0.6 }
-            );
-            mesh.material = filterMat;
-            // Skip the rest of the texture application for this mesh
-            loadedCount++;
-            continue;
-          }
+          // Standard material path (fallback and non-glow shaders)
+          if (mesh.material instanceof StandardMaterial) {
+            const mat = mesh.material;
+            mat.diffuseTexture = texture;
 
-          // Fullbright surfaces (lamps, light panels) - appear self-lit
-          if (shaderProps.isFullbright) {
-            mat.emissiveTexture = texture;
-            mat.emissiveColor = new Color3(1, 1, 1);
-            // Keep diffuse for base color but reduce to avoid over-brightness
-            mat.diffuseColor = new Color3(0.3, 0.3, 0.3);
-            // Mark mesh to skip lightmap application
-            if (mesh.metadata) {
-              mesh.metadata.isFullbright = true;
-            } else {
-              mesh.metadata = { isFullbright: true };
+            // Try to load normal map companion texture (_norm, _normal, _bump)
+            const normalSuffixes = ['_norm', '_normal', '_bump'];
+            for (const suffix of normalSuffixes) {
+              let normalTexFound = false;
+              for (const ext of extensions) {
+                const normalTex = await texLoader.loadTexture(`${foundCleanPath}${suffix}${ext}`);
+                if (normalTex) {
+                  mat.bumpTexture = normalTex;
+                  mat.bumpTexture.level = 1.0;
+                  console.log(`[BspMeshBuilder] Loaded normal map: ${foundCleanPath}${suffix}${ext}`);
+                  normalTexFound = true;
+                  break;
+                }
+              }
+              if (normalTexFound) break;
             }
-            console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
-          }
 
-          // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
-          if (shaderProps.needsAnimation && shader) {
-            const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');
-            const animSystem = ShaderAnimationSystem.getInstance();
-            animSystem.init(scene);
-
-            // Get animation data from first stage
-            const firstStage = shader.stages[0];
-            if (firstStage) {
-              animSystem.registerMaterial(
-                texName,
-                mat,
+            if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
+              // Alpha testing mode - needs texture to be loaded
+              mat.transparencyMode = 1; // MATERIAL_ALPHATEST
+              mat.alphaCutOff = shaderProps.alphaCutoff;
+              mat.useAlphaFromDiffuseTexture = true;
+              // Force material to recognize the new texture's alpha
+              texture.hasAlpha = true;
+            } else if (shaderProps.alphaMode === 'blend') {
+              mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
+              mat.alphaMode = Constants.ALPHA_COMBINE;
+              mat.useAlphaFromDiffuseTexture = true;
+              texture.hasAlpha = true;
+            } else if (shaderProps.alphaMode === 'add') {
+              // Additive blending for glow effects (halos, flares)
+              mat.alphaMode = Constants.ALPHA_ADD;
+              mat.useAlphaFromDiffuseTexture = true;
+              texture.hasAlpha = true;
+              // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
+              mat.emissiveColor = new Color3(1, 1, 1);
+              mat.diffuseColor = new Color3(0, 0, 0);
+            } else if (shaderProps.alphaMode === 'multiply') {
+              // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
+              // Use custom shader that computes alpha from luminance (white = transparent)
+              const { createFilterBlendMaterial } = await import('../shader/FilterBlendShaderMaterial');
+              const filterMat = createFilterBlendMaterial(
+                `filterBlend_${texName}`,
+                scene,
                 texture,
-                firstStage.tcMod || [],
-                firstStage.rgbGen,
-                firstStage.alphaGen
+                { alphaThreshold: 0.85, alphaPower: 1.2, colorDarken: 0.5, alphaMultiplier: 0.6 }
               );
+              mesh.material = filterMat;
+              // Skip the rest of the texture application for this mesh
+              loadedCount++;
+              continue;
             }
-          }
 
-          loadedCount++;
-        }
+            // Fullbright surfaces (lamps, light panels) - appear self-lit
+            if (shaderProps.isFullbright) {
+              mat.emissiveTexture = texture;
+              mat.emissiveColor = new Color3(1, 1, 1);
+              // Keep diffuse for base color but reduce to avoid over-brightness
+              mat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+              // Mark mesh to skip lightmap application
+              if (mesh.metadata) {
+                mesh.metadata.isFullbright = true;
+              } else {
+                mesh.metadata = { isFullbright: true };
+              }
+              console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
+            }
+
+            // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
+            if (shaderProps.needsAnimation && shader) {
+              const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');
+              const animSystem = ShaderAnimationSystem.getInstance();
+              animSystem.init(scene);
+
+              // Get animation data from first stage
+              const firstStage = shader.stages[0];
+              if (firstStage) {
+                animSystem.registerMaterial(
+                  texName,
+                  mat,
+                  texture,
+                  firstStage.tcMod || [],
+                  firstStage.rgbGen,
+                  firstStage.alphaGen
+                );
+              }
+            }
+
+            loadedCount++;
+          }
         } // end for (const mesh of matchingMeshes)
       }
     }

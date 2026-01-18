@@ -1,20 +1,32 @@
 {
   "version": 1,
-  
   "settings": {
     "updateInterval": 100,
     "animateValueChanges": true,
     "persistPreferences": true
   },
-  
   "layout": {
     "areas": {
-      "top-left": ["money", "level", "stock", "inventory"],
-      "top-right": ["time"],
-      "left": ["quests", "orders", "events"]
+      "top-left": [
+        "money",
+        "level",
+        "stock",
+        "inventory"
+      ],
+      "top-right": [
+        "time"
+      ],
+      "bottom-right": [
+        "weapon",
+        "ammo"
+      ],
+      "left": [
+        "quests",
+        "orders",
+        "events"
+      ]
     }
   },
-  
   "elements": {
     "money": {
       "type": "pill",
@@ -22,39 +34,65 @@
       "format": "$%d",
       "clickable": true
     },
-    
     "level": {
       "type": "pill-progress",
       "icon": "⭐",
       "format": "Lv.%d",
       "progressBinding": "xpProgress"
     },
-    
     "stock": {
       "type": "pill",
       "icon": "🌿",
       "format": "%dg",
       "clickable": true
     },
-    
     "inventory": {
       "type": "pill",
       "icon": "🎒",
       "format": "%d",
       "clickable": true
     },
-    
+    "weapon": {
+      "type": "pill",
+      "icon": "🔫",
+      "format": "%s"
+    },
+    "ammo": {
+      "type": "pill",
+      "icon": "🔋",
+      "format": "%d"
+    },
     "time": {
       "type": "pill-group",
       "children": [
-        { "id": "day", "format": "Day %d", "style": "bold" },
-        { "id": "clock", "format": "%s" },
-        { "id": "period", "type": "icon" },
-        { "id": "speed-btn", "type": "button", "icon": "▶️" },
-        { "id": "fullscreen-btn", "type": "button", "icon": "⛶", "platforms": ["desktop"] }
+        {
+          "id": "day",
+          "format": "Day %d",
+          "style": "bold"
+        },
+        {
+          "id": "clock",
+          "format": "%s"
+        },
+        {
+          "id": "period",
+          "type": "icon"
+        },
+        {
+          "id": "speed-btn",
+          "type": "button",
+          "icon": "▶️"
+        },
+        {
+          "id": "fullscreen-btn",
+          "type": "button",
+          "icon": "⛶",
+          "platforms": [
+            "desktop"
+          ]
+        }
       ]
     },
-    
     "quests": {
       "type": "accordion",
       "icon": "📜",
@@ -67,7 +105,6 @@
         "emptyText": "No active quests"
       }
     },
-    
     "orders": {
       "type": "accordion",
       "icon": "📦",
@@ -80,7 +117,6 @@
         "emptyText": "No pending orders"
       }
     },
-    
     "events": {
       "type": "accordion",
       "icon": "🔔",
@@ -93,22 +129,34 @@
       }
     }
   },
-  
   "itemTemplates": {
     "quest-item": {
       "layout": "row",
-      "fields": ["icon", "title", "progress", "reward"]
+      "fields": [
+        "icon",
+        "title",
+        "progress",
+        "reward"
+      ]
     },
     "order-item": {
       "layout": "row",
-      "fields": ["customer", "items", "timer", "status"]
+      "fields": [
+        "customer",
+        "items",
+        "timer",
+        "status"
+      ]
     },
     "event-item": {
       "layout": "row",
-      "fields": ["icon", "title", "description"]
+      "fields": [
+        "icon",
+        "title",
+        "description"
+      ]
     }
   },
-  
   "themes": {
     "default": {
       "pill-bg": "#FAFAFA",
@@ -125,10 +173,11 @@
       "accordion-header": "rgba(40, 40, 40, 0.9)"
     }
   },
-  
   "responsive": {
     "mobile": {
-      "hideElements": ["fullscreen-btn"],
+      "hideElements": [
+        "fullscreen-btn"
+      ],
       "settings": {
         "updateInterval": 150
       }

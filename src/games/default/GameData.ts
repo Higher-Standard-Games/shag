@@ -50,6 +50,8 @@ import {
   newGameConfig,
 } from "./data";
 import { registerEngineBuildableTemplates } from "./data/buildableTemplates";
+import { registerAllEntities } from "./EntityRegistration";
+import { registerGameEntityHandlers } from "./EntityHandlers";
 
 // Re-export data for backwards compatibility
 export {
@@ -102,6 +104,14 @@ export function registerGameData(): void {
   // Register templates with engine BuildableSystem
   registerEngineBuildableTemplates();
 
+  // Register game entities (Weapons, Ammo, etc.)
+  registerAllEntities();
+  const { EntityManager } = require("../../engine/entities/EntityManager"); // Lazy load or import top-level
+  EntityManager.getInstance().registerHandlers();
+
+  // Register entity handlers (MapRenderer hooks)
+  registerGameEntityHandlers();
+
   // Register plant strains, pots, and lighting (strains loaded from strains.json)
   const plantSystem = PlantSystem.getInstance();
   plantSystem.registerStrains(getAllStrainDefinitions());
@@ -146,30 +156,30 @@ export function registerGameData(): void {
   // Set up starting resources for new games only (not when loading)
   const state = GameState.getInstance();
   const saveManager = SaveManager.getInstance();
-  
+
   // Only add starting resources if this is NOT a loaded game
   const isLoadingGame = saveManager.isLoading();
   console.log(`[GameData] registerGameData called. isLoading: ${isLoadingGame}, current money: ${state.getPlayer().money}`);
-  
+
   if (!isLoadingGame) {
     // Starting money
     state.addMoney(STARTING_MONEY);
     console.log(`[GameData] Added starting money: $${STARTING_MONEY}`);
-    
+
     // Starting inventory
     for (const item of STARTING_INVENTORY) {
       state.addItem(item.id, item.type, item.quantity);
     }
-    
+
     // Starting unlocks
     for (const unlock of STARTING_UNLOCKS) {
       state.unlock(unlock);
     }
-    
+
     // Starting location and lot
     state.setCustomData("currentArea", STARTING_AREA);
     state.setCustomData("ownedLots", [{ id: STARTING_LOT, purchasedAt: Date.now() }]);
-    
+
     // Give player a free starter curing barrel (from newgame.json)
     if (STARTING_BARREL) {
       const curingSystem = CuringSystem.getInstance();

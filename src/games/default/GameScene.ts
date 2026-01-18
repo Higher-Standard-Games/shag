@@ -33,7 +33,9 @@ import { WaterPromptUI } from "./ui/WaterPromptUI";
 import { LampInfoPanel } from "./ui/LampInfoPanel";
 
 import { EngineScene, type MapLoadResult } from "../../engine/EngineScene";
+import { WeaponViewManager } from "../../engine/weapon/WeaponViewManager";
 import { BottomBar, UIConfig, SidePanel, ModalPanel, UITheme, type BuildMenuItem, type InventorySlot, type SidePanelItem, type ModalAction } from "../../engine/ui";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CameraSystem } from "../../engine/camera";
 import { BuildableSystem } from "../../engine/BuildableSystem";
 import { WorldIndicatorSystem } from "../../engine/core/WorldIndicatorSystem";
@@ -120,6 +122,9 @@ export class GameScene extends EngineScene {
         gameInputHandler.handleClick(screenX, screenY, wasDrag);
       });
     }
+
+    // Register game-specific data (must be before map load to handle entities)
+    registerGameData();
   }
 
   protected override async onStart(): Promise<void> {
@@ -141,8 +146,80 @@ export class GameScene extends EngineScene {
     QuestSystem.getInstance().init();
     AchievementSystem.getInstance();
 
+    // TEMP: Give weapons to FPS controller
+    // TEST SPAWN
+    const { Pickup } = await import("../../engine/game/Pickup");
+    console.log("[GameScene] Spawning TEST PICKUP at 0,100,0");
+    new Pickup("test_pickup_manual", this.getScene()!, new Vector3(0, 100, 0), {
+      id: "plasmagun",
+      type: "weapon",
+      value: "plasmagun",
+      modelPath: "models/items/ammo/ammobox/ammobox.md3", // Use known path
+      scale: 2.0
+    });
+    const cameraSystem = CameraSystem.getInstance();
+    const controller = cameraSystem.getActiveController();
+    if (controller && controller.type === 'fps') {
+      const fpsController = controller as any; // Cast to FPSController
+      if (fpsController.inventory) {
+        fpsController.inventory.giveWeapon('plasmagun');
+        fpsController.inventory.giveAmmo('cells', 100);
+        fpsController.inventory.equipWeapon('plasmagun');
+
+        // Ensure visual model is loaded
+        await WeaponViewManager.getInstance().loadWeapon('plasmagun');
+        console.log('[GameScene] Gave starter weapons');
+      }
+    }
+
     // Register game-specific data
-    registerGameData();
+    // Moved to onSceneCreated to ensure handlers are ready before map load
+    // registerGameData();
+
+    // TEST SPAWN SPHERE (Camera Attached)
+    setTimeout(() => {
+      import("@babylonjs/core/Meshes/meshBuilder").then(({ MeshBuilder }) => {
+        const camera = this.getCamera();
+        if (camera) {
+          console.log(`[GameScene] Camera found: ${camera.name} at ${camera.position}`);
+          console.log(`[GameScene] Camera LayerMask: ${camera.layerMask.toString(16)} (Hex)`);
+          console.log(`[GameScene] Camera MinZ: ${camera.minZ}, MaxZ: ${camera.maxZ}`);
+
+          const sphere = MeshBuilder.CreateSphere("test_sphere_cam", { diameter: 0.5 }, this.getScene()!);
+          sphere.parent = camera;
+          sphere.position.set(0, 0, 2); // 2 units in front of face
+          sphere.layerMask = 0xFFFFFFFF; // FORCE ALL LAYERS
+          sphere.renderingGroupId = 3; // FORCE TOP GROUP
+
+          import("@babylonjs/core/Materials/standardMaterial").then(({ StandardMaterial }) => {
+            import("@babylonjs/core/Maths/math.color").then(({ Color3 }) => {
+              const mat = new StandardMaterial("test_sphere_cam_mat", this.getScene()!);
+              mat.diffuseColor = Color3.Magenta();
+              mat.emissiveColor = Color3.Magenta();
+              mat.disableLighting = true; // Ensure it's seen
+              mat.zOffset = -500; // Force draw on top
+              sphere.material = mat;
+            });
+          });
+        } else {
+          console.error("[GameScene] No active camera found for test sphere!");
+        }
+      });
+    }, 5000); // Wait 5s for everything to settle
+
+    // TEST SPAWN SPHERE (Fallback)
+    import("@babylonjs/core/Meshes/meshBuilder").then(({ MeshBuilder }) => {
+      console.log("[GameScene] Creating TEST SPHERE fallback at 0,150,0");
+      const sphere = MeshBuilder.CreateSphere("test_sphere", { diameter: 32 }, this.getScene()!);
+      sphere.position.set(0, 150, 0);
+      import("@babylonjs/core/Materials/standardMaterial").then(({ StandardMaterial }) => {
+        import("@babylonjs/core/Maths/math.color").then(({ Color3 }) => {
+          const mat = new StandardMaterial("test_sphere_mat", this.getScene()!);
+          mat.diffuseColor = Color3.Blue();
+          sphere.material = mat;
+        });
+      });
+    });
 
     // Check for auto-start quests
     QuestSystem.getInstance().checkAutoStart();

@@ -27,6 +27,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 
 import { TextureManager } from "./loader";
+import { MapLoader } from "./loader/map/MapLoader";
 import { CameraSystem, IsometricController } from "./camera";
 import { InputSystem } from "./input";
 import { SpriteManager } from "./sprites/SpriteManager";
@@ -172,8 +173,17 @@ export abstract class EngineScene {
     this.scene.autoClear = true;
     this.scene.skipPointerMovePicking = true;
     this.scene.blockMaterialDirtyMechanism = false;
+    this.scene.blockMaterialDirtyMechanism = false;
 
-    // Initialize TextureManager
+    // Initialize Physics System
+    try {
+      const { PhysicsSystem } = await import('./physics/PhysicsSystem');
+      const success = await PhysicsSystem.getInstance().enablePhysics(this.scene);
+      console.log(`[EngineScene] PhysicsSystem init result: ${success}`);
+    } catch (e) {
+      console.error('[EngineScene] CRITICAL: PhysicsSystem failed to load/init', e);
+    }
+
     TextureManager.getInstance().init(this.scene);
 
     // Initialize TextureMemoryManager with auto-detected quality
@@ -195,7 +205,7 @@ export abstract class EngineScene {
     const { ServiceLocator } = await import('./core/ServiceLocator');
     await ServiceLocator.getInstance().initScene(this.scene);
     console.log('[EngineScene] Scene services initialized');
-    
+
     // Initialize networking (always enabled for now)
     console.log('[EngineScene] Initializing networking...');
     const { NetworkManager } = await import('./network/NetworkManager');
@@ -425,24 +435,52 @@ export abstract class EngineScene {
     // Clear existing map
     MapRenderer.clearMap(this.scene, previousMap ?? undefined);
 
-    // Get map data
-    let mapData = AssetLoader.getInstance().getMap(mapName);
-    if (!mapData) {
-      console.log(`[EngineScene] Map not in cache, trying dynamic load: ${mapName}`);
-      const loaded = await AssetLoader.getInstance().loadMapDynamic(mapName);
-      if (loaded) {
-        mapData = AssetLoader.getInstance().getMap(mapName);
-      }
-    }
-    if (!mapData) {
-      console.error(`Map not found: ${mapName}`);
-      return;
-    }
+    // Try loading via MapLoader (BSP support)
+    const mapLoader = MapLoader.getInstance();
+    const bspResult = await mapLoader.loadMap(mapName, this.scene);
 
-    // Render the map
-    console.log(`[EngineScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
-    const result = await MapRenderer.renderEntities(mapData.entities, this.scene, mapName);
-    console.log(`[EngineScene] Map rendered, player start: ${result.playerStartPosition}`);
+    let resultPlayerStart = Vector3.Zero();
+    let resultCameraHeight: number | null = null;
+    let resultCameraMode: CameraMode | null = null;
+    let resultCameraController: string | null = null;
+    let resultIndoor = false;
+    let resultPlaylist: string | null = null;
+
+    if (bspResult.success && bspResult.mapType === 'bsp') {
+      // BSP Loaded successfully
+      console.log(`[EngineScene] Loaded BSP map: ${mapName}`);
+      resultPlayerStart = bspResult.playerStartPosition || new Vector3(0, 50, 0);
+      resultIndoor = true; // Assume BSPs are indoor by default for lighting? Or derived?
+      // TODO: Extract other properties if available in BSP entities
+    } else {
+      // Fallback: AssetLoader (Text .map files)
+
+      // Get map data
+      let mapData = AssetLoader.getInstance().getMap(mapName);
+      if (!mapData) {
+        console.log(`[EngineScene] Map not in cache, trying dynamic load: ${mapName}`);
+        const loaded = await AssetLoader.getInstance().loadMapDynamic(mapName);
+        if (loaded) {
+          mapData = AssetLoader.getInstance().getMap(mapName);
+        }
+      }
+      if (!mapData) {
+        console.error(`Map not found: ${mapName}`);
+        return;
+      }
+
+      // Render the map
+      console.log(`[EngineScene] Rendering ${mapData.entities.length} entities for ${mapName}`);
+      const result = await MapRenderer.renderEntities(mapData.entities, this.scene, mapName);
+      console.log(`[EngineScene] Map rendered, player start: ${result.playerStartPosition}`);
+
+      resultPlayerStart = result.playerStartPosition;
+      resultCameraHeight = result.cameraHeight;
+      resultCameraMode = result.cameraMode;
+      resultCameraController = result.cameraController;
+      resultIndoor = result.indoor;
+      resultPlaylist = result.playlist;
+    }
 
     // Determine camera target position
     const entryInfo = this.mapEntryTriggers.get(previousMap || "");
@@ -455,28 +493,28 @@ export abstract class EngineScene {
       console.log(`[EngineScene] Returning from ${previousMap}: centering on entry trigger`);
     } else {
       this.mapCenterPosition = new Vector3(
-        result.playerStartPosition.x,
+        resultPlayerStart.x,
         0,
-        result.playerStartPosition.z
+        resultPlayerStart.z
       );
     }
 
     // Apply camera height from map
-    if (result.cameraHeight !== null) {
-      this.cameraHeight = result.cameraHeight;
+    if (resultCameraHeight !== null) {
+      this.cameraHeight = resultCameraHeight;
     } else {
       this.cameraHeight = null;
     }
 
     // Apply camera mode
-    const modeToApply = result.cameraMode || "perspective";
+    const modeToApply = resultCameraMode || "perspective";
     this.setCameraMode(modeToApply);
 
     // Apply camera controller if specified
-    if (result.cameraController) {
+    if (resultCameraController) {
       const cameraSystem = CameraSystem.getInstance();
-      if (!cameraSystem.setController(result.cameraController)) {
-        console.warn(`[EngineScene] Failed to switch to controller: ${result.cameraController}`);
+      if (!cameraSystem.setController(resultCameraController)) {
+        console.warn(`[EngineScene] Failed to switch to controller: ${resultCameraController}`);
       }
     }
 
@@ -499,7 +537,7 @@ export abstract class EngineScene {
     EventBus.emit("map:loaded", { mapName });
 
     // Handle indoor flag
-    this.isIndoorMap = result.indoor;
+    this.isIndoorMap = resultIndoor;
     if (this.isIndoorMap) {
       if (this.precipitationEffect?.isActive_()) {
         this.precipitationEffect.stop(true);
@@ -515,12 +553,12 @@ export abstract class EngineScene {
     // Create result for game hook
     const loadResult: MapLoadResult = {
       mapName,
-      playerStartPosition: result.playerStartPosition,
-      cameraMode: result.cameraMode,
-      cameraHeight: result.cameraHeight,
-      cameraController: result.cameraController,
-      playlist: result.playlist,
-      indoor: result.indoor,
+      playerStartPosition: resultPlayerStart,
+      cameraMode: resultCameraMode,
+      cameraHeight: resultCameraHeight,
+      cameraController: resultCameraController,
+      playlist: resultPlaylist,
+      indoor: resultIndoor,
     };
 
     // Let game handle map load

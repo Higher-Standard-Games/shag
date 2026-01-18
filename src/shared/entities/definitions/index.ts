@@ -6,3 +6,4 @@
 
 export * from './weapons';
 export * from './projectiles';
+export * from './ammo';

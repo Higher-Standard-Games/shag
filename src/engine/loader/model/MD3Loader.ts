@@ -336,8 +336,7 @@ export class MD3Loader {
             ofsXYZNormal: view.getInt32(surfaceStart + 100, true),
             ofsEnd: view.getInt32(surfaceStart + 104, true),
         };
-
-        console.log(`[MD3]   Surface: ${header.name}, verts: ${header.numVerts}, tris: ${header.numTriangles}`);
+        // console.log(`[MD3]   Surface: ${header.name}, verts: ${header.numVerts}, tris: ${header.numTriangles}`);
 
         // Read shaders
         const shaders: MD3Shader[] = [];
@@ -348,7 +347,7 @@ export class MD3Loader {
                 name: shaderName,
                 shaderIndex: view.getInt32(offset + 64, true),
             });
-            console.log(`[MD3]     Shader ${i}: "${shaderName}"`);
+            // console.log(`[MD3]     Shader ${i}: "${shaderName}"`);
             offset += 68;
         }
 
@@ -447,6 +446,13 @@ export class MD3Loader {
         // Normalize shader name: MD3 files may use backslashes on Windows
         const normalizedName = shaderName.replace(/\\/g, '/');
         const props = registry.resolveMaterialProps(normalizedName);
+        // Check for existing material to support caching and prevent texture loss
+        const existing = this.scene.getMaterialByName(materialName);
+        if (existing) {
+            // console.log(`[MD3] Reusing existing material: ${materialName}`);
+            return existing as StandardMaterial;
+        }
+
         const mat = new StandardMaterial(materialName, this.scene);
 
         console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
@@ -518,6 +524,7 @@ export class MD3Loader {
                             if (props.alphaMode === 'add') {
                                 mat.emissiveTexture = tex;
                             }
+                            console.log(`[MD3] Assigned texture URL to material '${materialName}'`);
                         } else {
                             console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
                         }

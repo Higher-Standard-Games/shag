@@ -12,6 +12,7 @@
  */
 
 import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { PK3Index } from '../pk3/PK3Index';
 import { PK3Loader } from '../pk3/PK3Loader';
 import { BspLoader, type BspFile } from '../bsp/BspLoader';
@@ -19,6 +20,7 @@ import { BspMeshBuilder, type BspMeshBuildResult } from '../bsp/BspMeshBuilder';
 import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
 import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandlerRegistry';
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
+import { EntityManager } from '../../entities/EntityManager';
 
 export interface MapLoadResult {
   success: boolean;
@@ -28,6 +30,7 @@ export interface MapLoadResult {
   /** BSP-specific results */
   bsp?: BspFile;
   meshResult?: BspMeshBuildResult;
+  playerStartPosition?: Vector3;
 }
 
 export interface MapLoadProgress {
@@ -237,7 +240,7 @@ export class MapLoader {
     try {
       const { getCollisionManager } = await import('../../physics');
       const cm = getCollisionManager();
-      await cm.init(bsp, scene as never);
+      await cm.init(bsp, scene as never, 'q3'); // Use 'q3' sweep collision for reliable floor detection
       console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
     } catch (e) {
       console.warn('[MapLoader] Failed to initialize collision:', e);
@@ -246,6 +249,7 @@ export class MapLoader {
     // Phase 10: Process BSP entities through EntityHandlerRegistry
     progress('Entities', 'Processing');
     registerBspEntityHandlers(); // Register func_door, etc.
+    EntityManager.getInstance().registerHandlers(); // Register weapons, pickups via EntityManager
     setCurrentBspForHandlers(bsp); // Set BSP reference for handlers
     await this.processBspEntities(bsp, scene);
 
@@ -254,9 +258,26 @@ export class MapLoader {
     const bspManager = BspManager.getInstance();
     bspManager.setBsp(mapName, bsp); // Set BSP data
     bspManager.setMeshResult(meshResult); // Store mesh result
-    
+
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
+
+    // Find player start position
+    let playerStartPosition = new Vector3(0, 50, 0); // Default
+    let playerStart = bsp.entities.find(e => e.classname === 'info_player_start');
+
+    // Fallback to deathmatch start
+    if (!playerStart) {
+      playerStart = bsp.entities.find(e => e.classname === 'info_player_deathmatch');
+    }
+
+    if (playerStart && playerStart.properties.origin) {
+      const parts = playerStart.properties.origin.split(' ').map(parseFloat);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        // Convert Q3 (X, Y, Z) to Babylon (X, Z, Y) because Q3 Z-up -> Babylon Y-up
+        playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
+      }
+    }
 
     return {
       success: true,
@@ -264,6 +285,7 @@ export class MapLoader {
       mapType: 'bsp',
       bsp,
       meshResult,
+      playerStartPosition,
     };
   }
 
@@ -336,10 +358,10 @@ export class MapLoader {
         if (!skyPath.startsWith('env/')) {
           skyPath = `env/${skyPath}`;
         }
-        
+
         const suffixes = ['_ft', '_bk', '_lf', '_rt', '_up', '_dn'];
         const extensions = ['.tga', '.jpg', '.png'];
-        
+
         for (const suffix of suffixes) {
           for (const ext of extensions) {
             const envPath = `${skyPath}${suffix}${ext}`;
@@ -427,6 +449,11 @@ export class MapLoader {
           }
         } catch (e) {
           console.warn(`[MapLoader] Entity handler failed for '${entity.classname}':`, e);
+        }
+      } else {
+        // DEBUG: Log unhandled non-worldspawn entities
+        if (entity.classname !== 'worldspawn' && !entity.classname.startsWith('info_')) {
+          console.warn(`[MapLoader] No handler for entity: ${entity.classname}`);
         }
       }
     }

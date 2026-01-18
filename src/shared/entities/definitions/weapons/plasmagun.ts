@@ -22,10 +22,13 @@ export const PLASMAGUN: WeaponDef = {
     damage: 15,
     fireRate: 10,      // 10 shots per second
     clipSize: 50,
+    ammoType: 'cells',
     maxAmmo: 200,
     reloadTime: 2.5,
     range: 1500,
     hitscan: false,
+    fireMode: 'auto',
+    pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'plasma_bolt',
 
     // View Model

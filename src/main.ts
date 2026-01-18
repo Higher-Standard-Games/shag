@@ -34,28 +34,28 @@ import { PK3Index } from "./engine/loader/pk3/PK3Index";
 async function main() {
   // Initialize Capacitor bridge early (handles native platform setup)
   await CapacitorBridge.getInstance().init();
-  
+
   // Initialize GamePaths (reads engine.json and URL params)
   await GamePaths.getInstance().init();
-  
+
   // Set browser title (uses game title from config if set, else "SHAG Engine v<version>")
   EngineVersion.getInstance().setDocumentTitle();
-  
+
   // Register engine services with ServiceLocator for explicit init order
   registerEngineServices();
-  
+
   // Register game-specific entity handlers for MapRenderer
   registerGameEntityHandlers();
-  
+
   // Initialize core services (no scene required)
   await ServiceLocator.getInstance().initCore();
-  
+
   // Auto-detect quality and apply to texture memory manager
   const qualityRecommendation = QualityDetector.getInstance().detectQuality();
   console.log(`[Main] Device: ${qualityRecommendation.deviceInfo.type}, Quality: ${qualityRecommendation.quality}`);
-  
+
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
-  
+
   // Create engine
   // Note: FPS throttling is handled in GameScene based on user's "High Performance" setting
   const engine = new Engine(canvas, true, {
@@ -105,21 +105,21 @@ async function main() {
 
   // Initialize audio manager with loaded config
   AudioManager.getInstance().init();
-  
+
   // Initialize debug console (PC only, tilde key to toggle)
   const debugConsole = DebugConsole.getInstance();
   debugConsole.enable();
-  
+
   // Register engine commands
   await registerEngineCommands();
   registerGameCommands();
-  
+
   // Initialize settings (loads saved settings and applies to audio)
   SettingsPanel.getInstance();
-  
+
   // Initialize UI scaling system
   UIScale.getInstance().init();
-  
+
   // Load custom fonts before showing main menu
   const uiTheme = UITheme.getInstance();
   await uiTheme.loadNunitoFont();
@@ -128,7 +128,7 @@ async function main() {
   // Phase 2: Wait for user interaction (unlocks browser audio)
   await loadingScreen.waitForReady();
   loadingScreen.hide();
-  
+
   // Hide native splash screen (Capacitor)
   await CapacitorBridge.getInstance().hideSplashScreen();
 
@@ -148,12 +148,12 @@ async function main() {
   // Function to load a saved game
   const loadGame = async (slot: number) => {
     console.log(`Loading game from slot ${slot}`);
-    
+
     // Slot -1 is autosave - use loadAutoSave instead
-    const success = slot === -1 
+    const success = slot === -1
       ? await saveManager.loadAutoSave()
       : await saveManager.loadGame(slot);
-      
+
     if (!success) {
       console.error(`Failed to load game from slot ${slot}`);
       return;

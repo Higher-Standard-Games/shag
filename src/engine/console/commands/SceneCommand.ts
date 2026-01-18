@@ -101,7 +101,7 @@ export default class SceneCommand extends Command {
         const texCount = scene.textures.length;
         const lightCount = scene.lights.length;
         const activeMeshes = scene.getActiveMeshes().length;
-        
+
         return `Scene Statistics:\n` +
           `  Meshes: ${meshCount} (${activeMeshes} active)\n` +
           `  Materials: ${matCount}\n` +
@@ -111,7 +111,7 @@ export default class SceneCommand extends Command {
       }
     }
   }
-  
+
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ['empty', 'clear', 'dispose', 'info', 'meshes', 'materials', 'lights'];
@@ -141,6 +141,16 @@ export default class SceneCommand extends Command {
     // Create new empty scene
     emptyScene = new Scene(engine);
     emptyScene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
+    emptyScene.collisionsEnabled = true;
+
+    // Initialize Physics (Havok)
+    try {
+      const { PhysicsSystem } = await import('../../physics/PhysicsSystem');
+      console.warn('[SceneCommand] initializing PhysicsSystem for empty scene...');
+      await PhysicsSystem.getInstance().enablePhysics(emptyScene);
+    } catch (e) {
+      console.error('[SceneCommand] Failed to init physics:', e);
+    }
 
     // Create camera at origin
     emptySceneCamera = new FreeCamera("emptySceneCamera", new Vector3(0, 100, -500), emptyScene);

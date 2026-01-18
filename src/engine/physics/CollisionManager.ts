@@ -26,10 +26,10 @@ import { SweepCollisionBackend } from './SweepCollisionBackend';
  */
 export class CollisionManager {
   private static instance: CollisionManager | null = null;
-  
+
   // Debug: unique ID to track singleton
   private readonly instanceId = Math.random().toString(36).slice(2, 8);
-  
+
   private backends: Map<CollisionBackendType, CollisionBackend> = new Map();
   private activeBackend: CollisionBackend | null = null;
   private bsp: BspFile | null = null;
@@ -73,7 +73,7 @@ export class CollisionManager {
     // Set active backend - default to brush collision (Q3-style)
     const backendType = preferredBackend ?? 'brush';
     this.setBackend(backendType);
-    
+
     this.initialized = true;
     console.log(`[CollisionManager:${this.instanceId}] Ready with ${this.activeBackend?.name ?? 'no backend'}`);
   }
@@ -137,8 +137,8 @@ export class CollisionManager {
   /**
    * Find ground position below a point
    */
-  findGround(point: Vector3, maxDistance?: number): { position: Vector3; normal: Vector3 } | null {
-    return this.activeBackend?.findGround(point, maxDistance) ?? null;
+  findGround(point: Vector3, maxDistance?: number, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
+    return this.activeBackend?.findGround(point, maxDistance, options) ?? null;
   }
 
   /**
@@ -155,7 +155,7 @@ export class CollisionManager {
     const result = this.initialized && this.activeBackend !== null;
     return result;
   }
-  
+
   /**
    * Get instance ID for debugging
    */

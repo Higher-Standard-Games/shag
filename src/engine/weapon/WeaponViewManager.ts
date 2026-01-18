@@ -115,11 +115,6 @@ export class WeaponViewManager {
     private static readonly MUZZLE_FLASH_DECAY = 45.0;  // How fast it fades (higher = faster)
     private static readonly MUZZLE_FLASH_OPACITY = 0.75; // Max opacity (0.75 = 75% visible)
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
-    private firePressed: boolean = false;  // Track mouse1 state to detect fire
-
-    // Fire rate limiting
-    private lastFireTime: number = 0;  // Timestamp of last fire
-
     // Weapon recoil
     private recoilOffset: number = 0;  // Current recoil (kicks back then returns)
     private static readonly RECOIL_KICK = 0.5;  // Max recoil distance
@@ -728,118 +723,101 @@ export class WeaponViewManager {
     }
 
     /**
-     * Update muzzle flash effect
-     * Creates dynamic point light on fire, fades out quickly
+     * Trigger weapon fire effect and projectile
+     * Called by controller when logic permits (ammo, fire rate, etc.)
+     */
+    public fire(): void {
+        // this.lastFireTime = performance.now() / 1000;
+
+        // FIRE! Trigger muzzle flash
+        const flashDef = this.currentWeaponDef?.muzzleFlash;
+        const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
+        this.muzzleFlashIntensity = maxIntensity;
+
+        // Show muzzle flash model
+        if (this.muzzleFlashModel) {
+            this.muzzleFlashModel.setEnabled(true);
+            if (this.muzzleFlashModel instanceof TransformNode) {
+                this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY);
+            }
+        }
+
+        // Trigger recoil
+        this.recoilOffset = WeaponViewManager.RECOIL_KICK;
+
+        // Spawn projectile
+        if (this.mainCamera && this.currentWeaponDef?.projectileId) {
+            const projMgr = getProjectileManager();
+            const origin = this.mainCamera.position.clone();
+            const forward = this.mainCamera.getDirection(Vector3.Forward());
+            origin.addInPlace(forward.scale(2));  // 2 units in front
+            projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
+        }
+
+        // Create/Update light
+        if (!this.muzzleFlashLight) {
+            this.muzzleFlashLight = new PointLight('muzzleFlash', Vector3.Zero(), this.scene!);
+        }
+
+        const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
+        const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
+        this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
+        this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+        this.muzzleFlashLight.range = range;
+
+        // Ensure light is on
+        this.muzzleFlashLight.intensity = 1.0;
+        this.muzzleFlashLight.setEnabled(true);
+    }
+
+    /**
+     * Update muzzle flash effect decay and recoil recovery
      */
     private updateMuzzleFlash(deltaTime: number): void {
-        if (!this.scene || !this.currentWeapon) return;
-
-        // Get player state for fire input
-        const viewportManager = ViewportEffectsManager.getInstance();
-        const state = viewportManager.getCurrentState();
-
-        // Check fire rate
-        const now = performance.now() / 1000;  // Current time in seconds
-        const fireRate = this.currentWeaponDef?.fireRate ?? 10;  // shots per second
-        const fireDelay = 1.0 / fireRate;  // seconds between shots
-        const canFire = (now - this.lastFireTime) >= fireDelay;
-
-        // Detect fire (rising edge OR held with fire rate)
-        const isFiring = state.isFiring ?? false;
-        const shouldFire = isFiring && canFire && (!this.firePressed || (now - this.lastFireTime) >= fireDelay);
-
-        if (shouldFire) {
-            this.lastFireTime = now;
-
-            // FIRE! Trigger muzzle flash
-            // Use weapon definition or fallback to defaults
-            const flashDef = this.currentWeaponDef?.muzzleFlash;
-            const maxIntensity = flashDef?.intensity ?? WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
-            this.muzzleFlashIntensity = maxIntensity;
-
-            // Show muzzle flash model (already positioned at tag_flash during load)
-            if (this.muzzleFlashModel) {
-                this.muzzleFlashModel.setEnabled(true);
-                // Reset visibility
-                if (this.muzzleFlashModel instanceof TransformNode) {
-                    this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY);
-                }
-            }
-
-            // Trigger recoil
-            this.recoilOffset = WeaponViewManager.RECOIL_KICK;
-
-            // Spawn projectile
-            if (this.mainCamera && this.currentWeaponDef?.projectileId) {
-                const projMgr = getProjectileManager();
-                // Spawn slightly in front of camera
-                const origin = this.mainCamera.position.clone();
-                const forward = this.mainCamera.getDirection(Vector3.Forward());
-                origin.addInPlace(forward.scale(2));  // 2 units in front
-                projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
-            }
-
-            // Create light if needed
-            if (!this.muzzleFlashLight) {
-                this.muzzleFlashLight = new PointLight(
-                    'muzzleFlash',
-                    Vector3.Zero(),
-                    this.scene
-                );
-                console.log('[WeaponViewManager] Created muzzle flash light');
-            }
-
-            // Update light properties from definition
-            const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
-            const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;
-            this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
-            this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
-            this.muzzleFlashLight.range = range;
-        }
-        this.firePressed = isFiring;
-
-        // Recover recoil
-        if (this.recoilOffset > 0) {
-            this.recoilOffset -= deltaTime * WeaponViewManager.RECOIL_RECOVER;
-            if (this.recoilOffset < 0) this.recoilOffset = 0;
-        }
+        if (!this.scene) return;
 
         // Decay flash intensity
         if (this.muzzleFlashIntensity > 0) {
-            this.muzzleFlashIntensity -= deltaTime * WeaponViewManager.MUZZLE_FLASH_DECAY;
+            this.muzzleFlashIntensity -= WeaponViewManager.MUZZLE_FLASH_DECAY * deltaTime;
             if (this.muzzleFlashIntensity < 0) this.muzzleFlashIntensity = 0;
 
-            // Update model visibility (fade out)
             const max = WeaponViewManager.MUZZLE_FLASH_MAX_INTENSITY;
-            if (this.muzzleFlashModel && this.muzzleFlashModel instanceof TransformNode) {
-                const alpha = Math.max(0, (this.muzzleFlashIntensity / max) * WeaponViewManager.MUZZLE_FLASH_OPACITY);
-                this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = alpha);
+            const normalizedIntensity = this.muzzleFlashIntensity / max;
 
-                // Only disable when fully gone
+            // Update model visibility (fade out)
+            if (this.muzzleFlashModel && this.muzzleFlashModel.isEnabled()) {
+                const opacity = normalizedIntensity * WeaponViewManager.MUZZLE_FLASH_OPACITY;
+                if (this.muzzleFlashModel instanceof TransformNode) {
+                    this.muzzleFlashModel.getChildMeshes().forEach(m => m.visibility = opacity);
+                }
+
                 if (this.muzzleFlashIntensity <= 0) {
                     this.muzzleFlashModel.setEnabled(false);
                 }
             }
 
-            // Update light
-
-            // Update light
+            // Update light intensity and position
             if (this.muzzleFlashLight) {
-                this.muzzleFlashLight.intensity = this.muzzleFlashIntensity;
+                this.muzzleFlashLight.intensity = normalizedIntensity;
 
-                // Position at weapon muzzle (try tag_flash, fallback to forward from weapon)
-                const tag = this.currentWeapon.getTag('tag_flash');
-                if (tag && this.weaponRoot) {
-                    // Transform tag position to world space
-                    const localPos = tag.origin;
-                    const worldPos = Vector3.TransformCoordinates(localPos, this.weaponRoot.getWorldMatrix());
-                    this.muzzleFlashLight.position = worldPos;
-                } else if (this.weaponRoot) {
-                    // Fallback: offset forward from weapon root
-                    const forward = this.weaponRoot.forward.scale(5);
-                    this.muzzleFlashLight.position = this.weaponRoot.position.add(forward);
+                if (this.muzzleFlashIntensity <= 0) {
+                    this.muzzleFlashLight.setEnabled(false);
+                } else {
+                    // Update position if attached to tag
+                    const tag = this.currentWeapon?.getTag('tag_flash');
+                    if (tag && this.weaponRoot) {
+                        const localPos = tag.origin;
+                        const worldPos = Vector3.TransformCoordinates(localPos, this.weaponRoot.getWorldMatrix());
+                        this.muzzleFlashLight.position = worldPos;
+                    }
                 }
             }
+        }
+
+        // Recover recoil
+        if (this.recoilOffset > 0) {
+            this.recoilOffset -= WeaponViewManager.RECOIL_RECOVER * deltaTime;
+            if (this.recoilOffset < 0) this.recoilOffset = 0;
         }
     }
 }

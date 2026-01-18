@@ -47,10 +47,10 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     // Find all BSP meshes in the scene
     for (const mesh of scene.meshes) {
       // Look for meshes that are part of BSP geometry
-      if (mesh.name.startsWith('bsp_') || 
-          mesh.name.includes('polygon') || 
-          mesh.name.includes('patch') ||
-          mesh.name.includes('mesh')) {
+      if (mesh.name.startsWith('bsp_') ||
+        mesh.name.includes('polygon') ||
+        mesh.name.includes('patch') ||
+        mesh.name.includes('mesh')) {
         if (mesh instanceof Mesh) {
           const contentFlags = typeof (mesh as any).metadata?.contentFlags === 'number' ? (mesh as any).metadata.contentFlags : 0;
           const surfaceFlags = typeof (mesh as any).metadata?.surfaceFlags === 'number' ? (mesh as any).metadata.surfaceFlags : 0;
@@ -87,7 +87,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     // Create ray from start to end
     const direction = end.subtract(start);
     const length = direction.length();
-    
+
     if (length < 0.001) {
       return result;
     }
@@ -108,7 +108,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
       result.fraction = pickResult.distance / length;
       result.endPos = pickResult.pickedPoint.clone();
       result.contents = Contents.SOLID;
-      
+
       if (pickResult.getNormal) {
         const normal = pickResult.getNormal(true);
         if (normal) {
@@ -163,10 +163,11 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     return groundCheck.fraction < 1.0;
   }
 
-  findGround(point: Vector3, maxDistance = 500): { position: Vector3; normal: Vector3 } | null {
+  findGround(point: Vector3, maxDistance = 500, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
     const result = this.trace(
       point,
-      point.add(new Vector3(0, -maxDistance, 0))
+      point.add(new Vector3(0, -maxDistance, 0)),
+      options
     );
 
     if (result.fraction < 1.0 && result.normal) {

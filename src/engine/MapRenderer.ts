@@ -20,6 +20,8 @@ import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
 import { EntityHandlerRegistry, type EntityData } from "./core/EntityHandlerRegistry";
+import { PhysicsSystem } from "./physics/PhysicsSystem";
+import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -451,6 +453,14 @@ export class MapRenderer {
 
           if (!mesh.metadata) mesh.metadata = {};
           mesh.metadata.properties = entity.properties;
+
+          // Physics setup
+          if (mesh.checkCollisions) {
+            // Check if it's a trigger or skip texture. Usually BrushGenerator filters these for rendering,
+            // but if a mesh exists, it's likely visible.
+            // Triggers/clips usually don't result in a mesh from BrushGenerator unless debug is on.
+            PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
+          }
         }
       }
 
@@ -485,6 +495,11 @@ export class MapRenderer {
           mesh.checkCollisions = true;
           if (!mesh.metadata) mesh.metadata = {};
           mesh.metadata.properties = entity.properties;
+
+          // Physics setup for patches
+          if (mesh.checkCollisions) {
+            PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
+          }
         }
       }
 

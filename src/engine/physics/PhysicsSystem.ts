@@ -35,20 +35,20 @@ export interface PhysicsBodyHandle {
 
 export class PhysicsSystem {
   private static instance: PhysicsSystem;
-  
+
   private scene: Scene | null = null;
   private havokPlugin: HavokPlugin | null = null;
   private havokInstance: any = null;
   private initialized: boolean = false;
   private initializing: boolean = false;
-  
+
   // Track physics bodies (for projectiles, debris, etc.)
   private bodies: Map<string, PhysicsBodyHandle> = new Map();
-  
+
   // Note: World collision is handled by BSP collision system, not Havok
   // Havok is used for gravity, velocity, and impulse simulation only
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): PhysicsSystem {
     if (!PhysicsSystem.instance) {
@@ -67,7 +67,7 @@ export class PhysicsSystem {
     if (this.havokInstance) {
       return true; // Already initialized
     }
-    
+
     if (this.initializing) {
       // Wait for existing initialization
       while (this.initializing) {
@@ -75,18 +75,36 @@ export class PhysicsSystem {
       }
       return this.havokInstance !== null;
     }
-    
+
     this.initializing = true;
-    
+    this.initializing = true;
+    console.log('[PhysicsSystem] Starting Havok initialization...');
+
     try {
       // Dynamic import to allow tree-shaking if not used
       const HavokPhysics = (await import('@babylonjs/havok')).default;
-      this.havokInstance = await HavokPhysics();
-      console.log('[PhysicsSystem] Havok engine initialized');
+      console.log('[PhysicsSystem] Havok script loaded. Initializing WASM...');
+
+      // Explicitly locate the WASM file properly served from public/wasm
+      // Note: We use manual path instead of Vite specific imports to ensure compatibility
+      // with both browser (Vite dev server) and headless (vite-node) environments.
+      this.havokInstance = await HavokPhysics({
+        locateFile: (path) => {
+          console.log(`[PhysicsSystem] locating file: ${path} -> /wasm/HavokPhysics.wasm`);
+          return '/wasm/HavokPhysics.wasm';
+        }
+      });
+      console.log('[PhysicsSystem] Havok WASM loaded!');
+
+      this.havokPlugin = new HavokPlugin(true, this.havokInstance);
+
+      console.log('[PhysicsSystem] Havok Physics initialized successfully');
       this.initializing = false;
       return true;
     } catch (error) {
       console.error('[PhysicsSystem] Failed to initialize Havok:', error);
+      console.error('[PhysicsSystem] STACK:', (error as Error).stack);
+      console.error('[PhysicsSystem] Ensure /wasm/HavokPhysics.wasm exists and is accessible.');
       this.initializing = false;
       return false;
     }
@@ -112,13 +130,13 @@ export class PhysicsSystem {
     try {
       // Create Havok plugin
       this.havokPlugin = new HavokPlugin(true, this.havokInstance);
-      
+
       // Enable physics on scene
       scene.enablePhysics(gravity, this.havokPlugin);
-      
+
       this.scene = scene;
       this.initialized = true;
-      
+
       console.log(`[PhysicsSystem] Physics enabled on scene (gravity: ${gravity.y})`);
       return true;
     } catch (error) {
@@ -236,7 +254,7 @@ export class PhysicsSystem {
    */
   setGravity(gravity: Vector3): void {
     if (!this.scene?.physicsEnabled) return;
-    
+
     const plugin = this.scene.getPhysicsEngine()?.getPhysicsPlugin();
     if (plugin) {
       plugin.setGravity(gravity);
@@ -250,14 +268,14 @@ export class PhysicsSystem {
     if (!this.scene?.physicsEnabled) {
       return new Vector3(0, -800, 0);
     }
-    
+
     // Havok plugin stores gravity internally
     if (this.havokPlugin) {
       const g = new Vector3();
       (this.havokPlugin as any).getGravity?.(g);
       if (g.length() > 0) return g;
     }
-    
+
     // Fallback to MovementVars
     const mv = MovementVars.getInstance();
     return new Vector3(0, -mv.get('sv_gravity'), 0);
@@ -280,11 +298,11 @@ export class PhysicsSystem {
    */
   dispose(): void {
     this.clear();
-    
+
     if (this.scene?.physicsEnabled) {
       this.scene.disablePhysicsEngine();
     }
-    
+
     this.scene = null;
     this.havokPlugin = null;
     this.initialized = false;
@@ -296,14 +314,14 @@ export class PhysicsSystem {
     const lines = ['=== Physics System ==='];
     lines.push(`Havok loaded: ${this.isHavokLoaded()}`);
     lines.push(`Initialized: ${this.isInitialized()}`);
-    
+
     if (this.isInitialized()) {
       const gravity = this.getGravity();
       lines.push(`Gravity: (${gravity.x}, ${gravity.y}, ${gravity.z})`);
       lines.push(`Dynamic bodies: ${this.bodies.size}`);
       lines.push(`World collision: BSP (CollisionManager)`);
     }
-    
+
     return lines.join('\n');
   }
 }

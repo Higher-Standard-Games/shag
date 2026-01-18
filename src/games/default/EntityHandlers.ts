@@ -10,18 +10,20 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { 
-  EntityHandlerRegistry, 
-  type EntityData, 
-  type EntityHandlerResult 
+import {
+  EntityHandlerRegistry,
+  type EntityData,
+  type EntityHandlerResult
 } from "../../engine/core/EntityHandlerRegistry";
+import { EntityRegistry } from "../../shared/entities/EntityRegistry";
+import { EntityType } from "../../shared/entities/EntityType";
 import { SkyLightSystem } from "../../engine/lighting/SkyLightSystem";
 import { BuildingSystem } from "./BuildingSystem";
-import { 
-  CharacterGenerator, 
-  PRESET_CHARACTERS, 
-  SKIN_TONES, 
-  HAIR_COLORS, 
+import {
+  CharacterGenerator,
+  PRESET_CHARACTERS,
+  SKIN_TONES,
+  HAIR_COLORS,
   SHIRT_COLORS,
   type CharacterConfig,
   type CharacterStyle,
@@ -66,7 +68,7 @@ async function handleInfoNpc(entity: EntityData, scene: any): Promise<EntityHand
   }
 
   const charGen = CharacterGenerator.getInstance();
-  
+
   // Initialize if needed
   if (!charGen.isInitialized()) {
     charGen.init(scene);
@@ -92,19 +94,19 @@ async function handleInfoNpc(entity: EntityData, scene: any): Promise<EntityHand
     const preset = PRESET_CHARACTERS.find(p => p.id === presetId);
     if (preset) {
       const finalScale = baseScale * (preset.scale ?? 1);
-      character = charGen.createCharacter({ 
-        ...preset, 
+      character = charGen.createCharacter({
+        ...preset,
         id: npcId,
         scale: finalScale,
       });
     }
   }
-  
+
   if (!character && entity.properties.random === "1") {
     // Generate random character with world-scale
     character = charGen.createRandomCharacter(npcId, npcName, baseScale);
   }
-  
+
   if (!character) {
     // Build custom character from entity properties
     const npcScale = entity.properties.scale ? parseFloat(entity.properties.scale) * 32 : 32;
@@ -133,7 +135,7 @@ async function handleInfoNpc(entity: EntityData, scene: any): Promise<EntityHand
 
   if (character) {
     character.position = position;
-    
+
     // Apply rotation
     if (entity.properties.angle) {
       const angle = parseFloat(entity.properties.angle);
@@ -173,6 +175,68 @@ function clearGameState(): void {
 }
 
 /**
+ * Handler for generic pickups (weapons/ammo)
+ */
+async function handlePickup(entity: EntityData, scene: any): Promise<EntityHandlerResult> {
+  if (!entity.properties.origin) return { handled: false };
+
+  // Determine what we are picking up
+  const pickupId = entity.classname;
+
+  // We need to look up the definition
+  const registry = EntityRegistry.getInstance();
+
+  const def = registry.getByClassname(pickupId);
+  if (!def) {
+    // Not a registered pickup
+    return { handled: false };
+  }
+
+  // Parse position
+  const parts = entity.properties.origin.split(" ").map(parseFloat);
+  const position = new Vector3(parts[0], parts[2], parts[1]);
+
+  // Dynamically import Pickup to avoid circular deps if any
+  const { Pickup } = await import('../../engine/game/Pickup');
+
+  // Determine type and value
+  let type: 'weapon' | 'ammo' = 'weapon';
+  let value: string | number = def.id;
+  let modelPath = (def as any).modelPath; // WeaponDef has modelPath
+
+  if (def.type === EntityType.AMMO) {
+    type = 'ammo';
+    // value should be AMOUNT? OR ID?
+    // InventoryManager.giveAmmo takes (type, amount)
+    // We pass the ammo type defined in AmmoDef
+    value = (def as any).ammoType; // e.g. 'cells'
+    // Amount is also needed.
+  } else {
+    type = 'weapon';
+    value = def.id;
+  }
+
+  // Create pickup
+  const pickup = new Pickup(entity.properties.targetname || `${entity.classname}_${Date.now()}`, scene, position, {
+    id: def.id,
+    modelPath: modelPath || 'models/items/ammo/ammobox/ammobox.md3', // Fallback
+    type: type,
+    value: value,
+    // Pass amount if ammo? We need to update Pickup interface or abuse value.
+    // Let's rely on Pickup class logic update.
+    scale: (def as any).scale || 1.0,
+  });
+
+  // If ammo, we need to pass amount. 
+  // We'll update Pickup.ts to accept 'amount' in options next.
+  if (type === 'ammo') {
+    (pickup as any).amount = (def as any).amount || 50;
+  }
+
+  return { handled: true, node: pickup };
+}
+
+/**
  * Register all game-specific entity handlers
  * Call this once during game startup
  */
@@ -180,10 +244,20 @@ export function registerGameEntityHandlers(): void {
   // Register entity handlers
   EntityHandlerRegistry.register('build_zone', handleBuildZone);
   EntityHandlerRegistry.register('info_npc', handleInfoNpc);
-  
+
+  // Register generic regex-like handlers? 
+  // Registry currently matches exact string.
+  // We need to manually register known weapon classnames OR 
+  // Update EntityHandlerRegistry to support regex/prefix matching.
+
+  // For now, let's register the specific ones we know:
+  // EntityHandlerRegistry.register('weapon_plasmagun', handlePickup);
+  // EntityHandlerRegistry.register('ammo_plasmagun', handlePickup);
+  // NOTE: EntityManager now handles this via EntityRegistry iteration.
+
   // Register pre-render hook to clear game state
   EntityHandlerRegistry.addPreRenderHook(clearGameState);
-  
+
   console.log('[EntityHandlers] Registered game entity handlers');
 }
 

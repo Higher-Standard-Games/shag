@@ -32,7 +32,7 @@ export class BrushCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspFile): Promise<void> {
     this.bspCollision = new BspCollision(bsp);
-    
+
     // Count solid brushes for stats
     let solidCount = 0;
     for (const brush of bsp.brushes) {
@@ -47,7 +47,7 @@ export class BrushCollisionBackend implements CollisionBackend {
         }
       }
     }
-    
+
     this.stats.backendStats.brushCount = bsp.brushes.length;
     this.stats.backendStats.solidBrushCount = solidCount;
     console.log(`[BrushCollisionBackend] Initialized with ${solidCount} solid brushes (${bsp.brushes.length} total)`);
@@ -58,7 +58,7 @@ export class BrushCollisionBackend implements CollisionBackend {
     this.stats.traceCount++;
 
     const result = createDefaultTraceResult(start, end);
-    
+
     if (!this.bspCollision) {
       return result;
     }
@@ -80,15 +80,15 @@ export class BrushCollisionBackend implements CollisionBackend {
     // Cast to any to handle babylonjs vs @babylonjs/core type mismatch
     const bspResult = (radius > 0 || height > 0)
       ? this.bspCollision.traceBox(
-          start as never,
-          end as never,
-          new Vector3(-radius, minsY, -radius) as never,
-          new Vector3(radius, maxY, radius) as never,
-          debug,
-          contentsMask,
-          clipTexturesOnly,
-          nodrawSolidsOnly
-        )
+        start as never,
+        end as never,
+        new Vector3(-radius, minsY, -radius) as never,
+        new Vector3(radius, maxY, radius) as never,
+        debug,
+        contentsMask,
+        clipTexturesOnly,
+        nodrawSolidsOnly
+      )
       : this.bspCollision.tracePoint(start as never, end as never, debug, contentsMask, clipTexturesOnly, nodrawSolidsOnly);
 
     result.fraction = bspResult.fraction;
@@ -128,8 +128,8 @@ export class BrushCollisionBackend implements CollisionBackend {
     return groundTrace.fraction < 1.0 && !!groundTrace.normal && groundTrace.normal.y > 0.7;
   }
 
-  findGround(point: Vector3, maxDistance = 1000): { position: Vector3; normal: Vector3 } | null {
-    const groundTrace = this.trace(point, point.add(new Vector3(0, -maxDistance, 0)));
+  findGround(point: Vector3, maxDistance = 1000, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
+    const groundTrace = this.trace(point, point.add(new Vector3(0, -maxDistance, 0)), options);
     if (groundTrace.fraction < 1.0 && groundTrace.normal) {
       return { position: groundTrace.endPos, normal: groundTrace.normal };
     }

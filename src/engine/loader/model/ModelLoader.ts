@@ -13,6 +13,8 @@ import { InstancedMeshManager, type InstanceTransform } from "../../rendering/In
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { BspManager } from "../bsp/BspManager";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { PK3Loader } from "../pk3/PK3Loader";
+import { MD3Loader } from "./MD3Loader";
 
 /**
  * Options for loading a 3D model
@@ -147,7 +149,62 @@ export class ModelLoader {
 
       console.log(`ModelLoader: Loading ${fileName} from ${rootUrl}`);
 
-      // Load the model
+      // Special handling for MD3 files (Quake 3 models)
+      if (fileName.toLowerCase().endsWith('.md3')) {
+        const pk3 = PK3Loader.getInstance();
+        const md3 = MD3Loader.getInstance();
+
+        // Ensure loaders are initialized
+        if (!md3['scene']) md3.init(this.scene); // Access private scene or just call init safe
+
+        // Try to get file from PK3
+        const buffer = await pk3.getFile(modelPath);
+        if (buffer) {
+          const model = md3.parseMD3(buffer);
+          // Create meshes
+          const md3Result = md3.createMeshes(model, fileName.replace('.md3', ''));
+
+          if (md3Result && md3Result.root) {
+            const root = md3Result.root;
+
+            // Apply transforms
+            root.position.copyFrom(position);
+            root.rotation.y += (angle * Math.PI) / 180; // MD3s might have their own rotation, add to it
+            root.scaling = new Vector3(scale, scale, scale);
+
+            // Apply visibility/collision options to meshes
+            const meshes = md3Result.meshes;
+            for (const mesh of meshes) {
+              mesh.checkCollisions = hasCollision;
+              mesh.receiveShadows = receiveShadows;
+              mesh.isVisible = visible;
+              mesh.renderingGroupId = renderingGroupId;
+
+              if (castShadows && shadowGenerator) {
+                shadowGenerator.addShadowCaster(mesh, false);
+              }
+            }
+
+            // Apply lighting
+            const lights = this.applyBspLighting(root.position, meshes);
+
+            console.log(`Loaded MD3 model: ${modelPath} (${meshes.length} meshes)`);
+
+            return {
+              root,
+              meshes,
+              animationGroups: [], // MD3 anims are vertex-based, handled differently? or via setFrame
+              skeletons: [],
+              lights
+            };
+          }
+        } else {
+          console.warn(`MD3 file not found in PK3: ${modelPath}`);
+          // Could fall back to SceneLoader if it was a real file... but mostly it's PK3.
+        }
+      }
+
+      // Load the model (GLB/GLTF/OBJ)
       const result = await SceneLoader.ImportMeshAsync(
         "", // Import all meshes
         rootUrl,

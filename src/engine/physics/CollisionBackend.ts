@@ -62,40 +62,40 @@ export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon' | 'q3';
 export interface CollisionBackend {
   /** Backend type identifier */
   readonly type: CollisionBackendType;
-  
+
   /** Human-readable name */
   readonly name: string;
-  
+
   /**
    * Initialize the backend with BSP data
    */
   init(bsp: BspFile, scene?: Scene): Promise<void>;
-  
+
   /**
    * Perform a collision trace from start to end
    */
   trace(start: Vector3, end: Vector3, options?: TraceOptions): TraceResult;
-  
+
   /**
    * Get content flags at a point
    */
   pointContents(point: Vector3): number;
-  
+
   /**
    * Check if a point is on the ground
    */
   isOnGround(point: Vector3, options?: TraceOptions): boolean;
-  
+
   /**
    * Find ground position below a point
    */
-  findGround(point: Vector3, maxDistance?: number): { position: Vector3; normal: Vector3 } | null;
-  
+  findGround(point: Vector3, maxDistance?: number, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null;
+
   /**
    * Get debug statistics
    */
   getStats(): CollisionStats;
-  
+
   /**
    * Clean up resources
    */

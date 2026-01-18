@@ -78,6 +78,8 @@ export interface WeaponDef extends EntityDef {
     fireRate: number;
     /** Ammo per clip */
     clipSize: number;
+    /** Ammo Type (string identifier) */
+    ammoType?: string;
     /** Max reserve ammo */
     maxAmmo: number;
     /** Time to reload (seconds) */
@@ -88,6 +90,14 @@ export interface WeaponDef extends EntityDef {
     projectileId?: string;
     /** Is hitscan (instant hit)? */
     hitscan?: boolean;
+
+    /** Firing mode */
+    fireMode: 'auto' | 'semi' | 'burst';
+    /** Shots per burst (if fireMode is 'burst') */
+    burstCount?: number;
+
+    /** Pickup collision box dimensions (default 32x32x32) */
+    pickupBounds?: { x: number; y: number; z: number };
 
     // === CLIENT-SIDE (visuals) ===
     /** First-person view model */
@@ -121,6 +131,8 @@ export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
     reloadTime: 2.0,
     range: 1000,
     hitscan: false,
+    fireMode: 'auto',
+    pickupBounds: { x: 32, y: 32, z: 32 },
     ads: {
         time: 0.08,
         fovReduction: 15,
