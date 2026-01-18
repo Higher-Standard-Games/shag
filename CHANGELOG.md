@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.8.20] - 2026-01-18
+
+### Added
+- **Asset Preloading System**: Preload weapon/ammo models during map load
+  - `AssetPreloader` scans BSP entities and caches MD3 models
+  - Integrated into `MapLoader` Phase 10 before entity processing
+  - `Pickup` uses cached models for instant spawning via mesh cloning
+  - Proper async texture loading with Promise tracking
+
+- **Entity Management System**: Unified entity spawning and registration
+  - `EntityManager` singleton for entity definitions and handlers
+  - `EntityRegistry` with classname-to-definition lookup
+  - `EntityRegistration` for game-specific entity setup
+
+- **Pickup System**: Weapon and ammo pickup mechanics
+  - `Pickup` class with model loading and physics
+  - Proximity detection for player pickup
+  - Integration with `InventoryManager`
+
+- **Console Commands**:
+  - `spawn_pickable_entity <id>` - Spawn pickups at player position
+  - `give_weapon <id>` - Add weapon to inventory
+  - `dump_scene [filter]` - Debug scene meshes
+  - `debug_plants` - Plant system diagnostics
+
+- **Havok Physics Integration**: Physics system for pickups
+  - `PhysicsSystem` with dynamic body creation
+  - Gravity-enabled pickups that drop to ground
+
+### Fixed
+- **Green Debug Arcs**: Skip `_fx` effect surfaces in MD3Loader that rendered incorrectly
+- **Texture Race Condition**: MD3Loader now tracks texture loading promises
+  - `createMaterialFromShader` returns `{ material, textureLoadPromise }`
+  - `AssetPreloader` awaits `Promise.all()` before caching
+- **MD3 Texture Fallback**: Use shader name as texture path when not in registry
+- **Debug Logging**: Removed excessive pickup checking logs
+
+### Changed
+- **MD3LoadResult**: Added `textureLoadPromises` field for async tracking
+- **ModelLoadResult**: Propagates texture promises from MD3Loader
+- **DumpSceneCommand**: Uses `CameraSystem` instead of `GameScene` for scene access
+
 ## [0.8.19] - 2026-01-16
 
 ### Added
