@@ -147,6 +147,8 @@ export interface MD3LoadResult {
     currentFrame: number;
     setFrame: (frame: number) => void;
     getTag: (name: string, frame?: number) => { origin: Vector3; axis: Matrix } | null;
+    /** Promises that resolve when all textures are loaded */
+    textureLoadPromises?: Promise<void>[];
 }
 
 /**
@@ -433,11 +435,11 @@ export class MD3Loader {
         }
         return str;
     }
-
     /**
      * Create a Babylon material from Q3 shader registry lookup
+     * Returns the material and a promise that resolves when texture loading completes
      */
-    private createMaterialFromShader(shaderName: string, materialName: string): StandardMaterial {
+    private createMaterialFromShader(shaderName: string, materialName: string): { material: StandardMaterial; textureLoadPromise: Promise<void> } {
         if (!this.scene) {
             throw new Error('Scene not initialized');
         }
@@ -450,7 +452,7 @@ export class MD3Loader {
         const existing = this.scene.getMaterialByName(materialName);
         if (existing) {
             // console.log(`[MD3] Reusing existing material: ${materialName}`);
-            return existing as StandardMaterial;
+            return { material: existing as StandardMaterial, textureLoadPromise: Promise.resolve() };
         }
 
         const mat = new StandardMaterial(materialName, this.scene);
@@ -460,6 +462,9 @@ export class MD3Loader {
         // Determine texture path - prefer shader-defined texture, fallback to shader name itself
         // MD3 shader names often ARE the texture paths (e.g. "models/items/ammo/ammobox/ammobox")
         const texturePath = props.diffuseTexture || normalizedName;
+
+        // Create a promise that resolves when texture loading completes
+        let textureLoadPromise: Promise<void> = Promise.resolve();
 
         // Try to load texture
         if (texturePath) {
@@ -492,7 +497,7 @@ export class MD3Loader {
                 const isTga = foundPath.toLowerCase().endsWith('.tga');
 
                 if (isTga) {
-                    pk3.getFile(foundPath).then(buffer => {
+                    textureLoadPromise = pk3.getFile(foundPath).then(buffer => {
                         if (buffer) {
                             return decodeTGA(buffer);
                         }
@@ -515,7 +520,7 @@ export class MD3Loader {
                     });
                 } else {
                     // PNG/JPG
-                    pk3.getFileAsURL(foundPath, 'image/png').then(url => {
+                    textureLoadPromise = pk3.getFileAsURL(foundPath, 'image/png').then(url => {
                         if (url) {
                             console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
                             const tex = new Texture(url, this.scene!);
@@ -546,7 +551,7 @@ export class MD3Loader {
                 console.log(`[MD3] Trying direct texture path: ${pngPath}`);
 
                 // Try PNG first (browsers can load this natively)
-                fetch(pngPath, { method: 'HEAD' })
+                textureLoadPromise = fetch(pngPath, { method: 'HEAD' })
                     .then(resp => {
                         if (resp.ok) {
                             // PNG exists, load it
@@ -556,12 +561,12 @@ export class MD3Loader {
                         } else {
                             // Try TGA with on-the-fly decoding
                             console.log(`[MD3] PNG not found, trying TGA decode: ${tgaPath}`);
-                            this.loadTgaTexture(tgaPath, mat, props.isTransparent ?? false);
+                            return this.loadTgaTextureAsync(tgaPath, mat, props.isTransparent ?? false);
                         }
                     })
                     .catch(() => {
                         // Network error, try TGA
-                        this.loadTgaTexture(tgaPath, mat, props.isTransparent ?? false);
+                        return this.loadTgaTextureAsync(tgaPath, mat, props.isTransparent ?? false);
                     });
             }
         }
@@ -585,14 +590,14 @@ export class MD3Loader {
         mat.backFaceCulling = props.backFaceCulling ?? true;
         mat.specularColor.set(0.1, 0.1, 0.1);
 
-        return mat;
+        return { material: mat, textureLoadPromise };
     }
 
     /**
-     * Load a TGA texture by decoding it on-the-fly to a data URL
+     * Load a TGA texture by decoding it on-the-fly to a data URL (async version)
      */
-    private loadTgaTexture(tgaPath: string, mat: StandardMaterial, hasAlpha: boolean): void {
-        fetch(tgaPath)
+    private loadTgaTextureAsync(tgaPath: string, mat: StandardMaterial, hasAlpha: boolean): Promise<void> {
+        return fetch(tgaPath)
             .then(resp => {
                 if (!resp.ok) {
                     throw new Error(`HTTP ${resp.status}`);
@@ -637,6 +642,7 @@ export class MD3Loader {
         const frame = options?.frame ?? 0;
         const root = new TransformNode(`md3_${name}`, this.scene);
         const meshes: Mesh[] = [];
+        const textureLoadPromises: Promise<void>[] = [];
 
         // Create mesh for each surface
         for (const surface of model.surfaces) {
@@ -662,7 +668,9 @@ export class MD3Loader {
                 } else if (surface.shaders.length > 0) {
                     // Use embedded shader name to look up material properties
                     const shaderName = surface.shaders[0].name;
-                    mesh.material = this.createMaterialFromShader(shaderName, `${name}_${surface.header.name}`);
+                    const { material, textureLoadPromise } = this.createMaterialFromShader(shaderName, `${name}_${surface.header.name}`);
+                    mesh.material = material;
+                    textureLoadPromises.push(textureLoadPromise);
 
                     // Check for mesh-level properties (autosprite/billboard)
                     const registry = Q3ShaderRegistry.getInstance();
@@ -738,6 +746,7 @@ export class MD3Loader {
             currentFrame,
             setFrame,
             getTag,
+            textureLoadPromises,
         };
     }
 

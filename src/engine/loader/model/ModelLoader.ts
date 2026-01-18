@@ -71,6 +71,8 @@ export interface ModelLoadResult {
   skeletons: Skeleton[];
   /** Lights created for this model (for cleanup) */
   lights?: DirectionalLight[];
+  /** Promises that resolve when textures finish loading (for async texture loading) */
+  textureLoadPromises?: Promise<void>[];
 }
 
 /**
@@ -195,7 +197,8 @@ export class ModelLoader {
               meshes,
               animationGroups: [], // MD3 anims are vertex-based, handled differently? or via setFrame
               skeletons: [],
-              lights
+              lights,
+              textureLoadPromises: md3Result.textureLoadPromises
             };
           }
         } else {
