@@ -41,6 +41,10 @@ export interface EntityDef {
     // === EFFECTS ===
     /** Named effects (e.g., { "trail": "effects/plasma_trail" }) */
     effects?: Record<string, string>;
+
+    // === PICKUP GLOW ===
+    /** Glow light color for pickups (RGB 0-1). If omitted, no glow light is added. */
+    glowColor?: { r: number; g: number; b: number };
 }
 
 /**

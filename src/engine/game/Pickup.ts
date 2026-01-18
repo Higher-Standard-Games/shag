@@ -1,4 +1,3 @@
-
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -10,6 +9,8 @@ import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 
 // ... (interface) ...
 
@@ -27,6 +28,7 @@ export interface PickupOptions {
     amount?: number; // For ammo
     gravity?: boolean; // Attempt to drop to floor
     bobbing?: boolean; // Enable/disable bobbing/rotation (default true)
+    glowColor?: { r: number; g: number; b: number }; // Optional glow light color (RGB 0-1)
 }
 
 export class Pickup extends TransformNode {
@@ -38,6 +40,8 @@ export class Pickup extends TransformNode {
     private bobHeight: number = 5.0; // Units
     private respawnTimer: number | null = null;
     private startPos: Vector3 | null = null;
+    private glowLight: PointLight | null = null;
+    private glowPulseTime: number = 0;
 
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
@@ -99,6 +103,11 @@ export class Pickup extends TransformNode {
                 this.mesh = result.meshes[0]; // Keep reference to one mesh for bobbing
                 console.log(`[Pickup] Meshes parented directly to ${this.name}`);
 
+                // Create glow light if glowColor is defined
+                if (this.options.glowColor) {
+                    this.createGlowLight();
+                }
+
                 // PHYSICS IMPLEMENTATION (Havok)
                 const physics = PhysicsSystem.getInstance();
 
@@ -142,8 +151,11 @@ export class Pickup extends TransformNode {
                     });
                 }
 
-                // Setup collision check
-                this.getScene().onBeforeRenderObservable.add(this.checkPickup.bind(this));
+                // Setup collision check and glow light pulse
+                this.getScene().onBeforeRenderObservable.add(() => {
+                    this.checkPickup();
+                    this.updateGlowLight();
+                });
             } else {
                 if (this.options.gravity) {
                     this.dropToGround();
@@ -155,6 +167,51 @@ export class Pickup extends TransformNode {
                 this.dropToGround();
             }
         }
+    }
+
+    /**
+     * Create a pulsing glow light for the pickup
+     */
+    private createGlowLight(): void {
+        if (!this.options.glowColor) return;
+
+        const color = this.options.glowColor;
+
+        // Create point light attached to this pickup
+        this.glowLight = new PointLight(
+            `${this.name}_glow`,
+            new Vector3(0, 20, 0), // Slight offset above pickup center
+            this.getScene()
+        );
+
+        // Set light properties
+        this.glowLight.diffuse = new Color3(color.r, color.g, color.b);
+        this.glowLight.specular = new Color3(0, 0, 0); // No specular highlights
+        this.glowLight.intensity = 0.8; // Base intensity (will pulse)
+        this.glowLight.range = 100; // Light range in units
+
+        // Disable shadow casting for performance
+        this.glowLight.shadowEnabled = false;
+
+        // Parent to this pickup so it follows position
+        this.glowLight.parent = this;
+
+        console.log(`[Pickup] Created glow light for ${this.name} (${color.r}, ${color.g}, ${color.b})`);
+    }
+
+    /**
+     * Update the glow light pulse effect
+     */
+    private updateGlowLight(): void {
+        if (!this.glowLight || !this.isActive) return;
+
+        // Increment pulse time
+        const dt = this.getScene().getEngine().getDeltaTime() / 1000;
+        this.glowPulseTime += dt * 3.0; // Pulse speed (3 = ~3 Hz)
+
+        // Sinusoidal intensity pulse between 0.4 and 1.2
+        const pulseValue = Math.sin(this.glowPulseTime) * 0.4 + 0.8;
+        this.glowLight.intensity = pulseValue;
     }
 
     private checkPickup() {

@@ -227,6 +227,7 @@ async function handlePickup(entity: EntityData, scene: any): Promise<EntityHandl
     // Pass amount if ammo? We need to update Pickup interface or abuse value.
     // Let's rely on Pickup class logic update.
     scale: (def as any).scale || 1.0,
+    glowColor: def.glowColor, // Pass glow color for pulsing light
   });
 
   // If ammo, we need to pass amount. 

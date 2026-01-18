@@ -134,7 +134,8 @@ export class EntityManager {
             type: type,
             value: value,
             respawnTime: 30, // Default 30s
-            scale: def.scale || 1.0
+            scale: def.scale || 1.0,
+            glowColor: def.glowColor // Pass glow color from definition
         });
 
         // Register this pickup in local tracking (optional, Pickup handles its own logic now)

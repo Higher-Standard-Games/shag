@@ -18,6 +18,9 @@ export const PLASMAGUN: WeaponDef = {
     modelPath: 'models/weapons/plasmagun/plasmagun.md3',
     scale: 2.0,
 
+    // Pickup glow light (cyan plasma color)
+    glowColor: { r: 0.2, g: 0.8, b: 1.0 },
+
     // Gameplay (server-authoritative)
     damage: 15,
     fireRate: 10,      // 10 shots per second
