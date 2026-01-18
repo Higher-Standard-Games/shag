@@ -6,7 +6,7 @@
  */
 
 import { Scene } from '@babylonjs/core/scene';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -290,18 +290,36 @@ export class ProjectileManager {
         }
 
         // Orient projectile to face direction of travel
-        // MD3 models point along +Y in Quake coords (which is +Z in Babylon)
-        // We need to rotate to align with movement direction
+        // MD3 models point along +Z in Babylon (after coord conversion)
+        // We need to rotate to align the model's forward (+Z) with the direction vector
         const forward = direction.normalize();
 
-        // Use lookAt to orient the projectile
-        // Add a small offset to avoid lookAt issues when exactly aligned
-        const lookTarget = node.position.add(forward);
-        node.lookAt(lookTarget);
+        // Create a rotation that aligns +Z axis with forward direction
+        // We need to compute a rotation from default forward (0,0,1) to our direction
+        const defaultForward = new Vector3(0, 0, 1);
 
-        // Apply additional -90° Y rotation because MD3 projectile faces +Y in Quake (right in Babylon)
-        // This rotates the tip to face the direction we're looking at
-        node.rotation.y -= Math.PI / 2;
+        // Use cross product to get axis, and dot product for angle
+        const dot = Vector3.Dot(defaultForward, forward);
+
+        if (dot > 0.9999) {
+            // Nearly aligned, no rotation needed
+            node.rotationQuaternion = Quaternion.Identity();
+        } else if (dot < -0.9999) {
+            // Opposite direction, rotate 180 around Y
+            node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
+        } else {
+            // General case: compute rotation axis and angle
+            const axis = Vector3.Cross(defaultForward, forward).normalize();
+            const angle = Math.acos(dot);
+            node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
+        }
+
+        // Apply additional -90° Y rotation for MD3 model alignment
+        // MD3 projectile models typically face +Y in Quake coords
+        const yRotation = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
+        if (node.rotationQuaternion) {
+            node.rotationQuaternion = node.rotationQuaternion.multiply(yRotation);
+        }
 
         // Create dynamic light
         let light: PointLight | null = null;
@@ -360,8 +378,8 @@ export class ProjectileManager {
                 continue;
             }
 
-            // Fade-in effect: 0 -> 1 over 200ms
-            const fadeInDuration = 0.2; // 200ms
+            // Fade-in effect: 0 -> 1 over 100ms
+            const fadeInDuration = 0.1; // 100ms
             if (age < fadeInDuration && proj.materials.length > 0) {
                 const alpha = Math.min(1.0, age / fadeInDuration);
                 for (const mat of proj.materials) {
