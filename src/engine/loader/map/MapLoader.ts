@@ -246,7 +246,20 @@ export class MapLoader {
       console.warn('[MapLoader] Failed to initialize collision:', e);
     }
 
-    // Phase 10: Process BSP entities through EntityHandlerRegistry
+    // Phase 10: Preload pickup assets (weapons/ammo models)
+    progress('Assets', 'Preloading pickup models');
+    try {
+      const { AssetPreloader } = await import('../AssetPreloader');
+      const preloader = AssetPreloader.getInstance();
+      const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
+        progress('Assets', `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
+      });
+      console.log(`[MapLoader] Preloaded ${preloadCount} pickup models`);
+    } catch (e) {
+      console.warn('[MapLoader] Failed to preload assets:', e);
+    }
+
+    // Phase 11: Process BSP entities through EntityHandlerRegistry
     progress('Entities', 'Processing');
     registerBspEntityHandlers(); // Register func_door, etc.
     EntityManager.getInstance().registerHandlers(); // Register weapons, pickups via EntityManager

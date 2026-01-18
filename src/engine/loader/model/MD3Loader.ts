@@ -457,16 +457,20 @@ export class MD3Loader {
 
         console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
 
+        // Determine texture path - prefer shader-defined texture, fallback to shader name itself
+        // MD3 shader names often ARE the texture paths (e.g. "models/items/ammo/ammobox/ammobox")
+        const texturePath = props.diffuseTexture || normalizedName;
+
         // Try to load texture
-        if (props.diffuseTexture) {
+        if (texturePath) {
             // Resolve texture path
-            let texturePath = props.diffuseTexture;
-            if (!texturePath.startsWith('/')) {
-                texturePath = '/' + texturePath;
+            let resolvedPath = texturePath;
+            if (!resolvedPath.startsWith('/')) {
+                resolvedPath = '/' + resolvedPath;
             }
             // Try loading from PK3 or direct path
             const pk3 = PK3Loader.getInstance();
-            const cleanPath = texturePath.replace(/^\//, '');
+            const cleanPath = resolvedPath.replace(/^\//, '');
 
             // Try with original extension, then fallback to other formats
             const extensions = ['', '.tga', '.png', '.jpg'];
@@ -560,8 +564,6 @@ export class MD3Loader {
                         this.loadTgaTexture(tgaPath, mat, props.isTransparent ?? false);
                     });
             }
-        } else {
-            console.warn(`[MD3] No diffuseTexture in shader props for: ${normalizedName}`);
         }
 
         // Apply material properties from shader
