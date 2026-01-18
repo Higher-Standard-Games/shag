@@ -127,6 +127,10 @@ export class AssetPreloader {
                 });
 
                 if (result) {
+                    // Wait for textures to load asynchronously
+                    // MD3Loader loads textures via .then() callbacks, so we need a delay
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
                     // Hide the preloaded model (it's just for caching)
                     result.root.setEnabled(false);
                     this.modelCache.set(modelPath, result);
