@@ -449,15 +449,17 @@ export class MD3Loader {
         const normalizedName = shaderName.replace(/\\/g, '/');
         const props = registry.resolveMaterialProps(normalizedName);
         // Check for existing material to support caching and prevent texture loss
-        const existing = this.scene.getMaterialByName(materialName);
-        if (existing) {
-            // console.log(`[MD3] Reusing existing material: ${materialName}`);
-            return { material: existing as StandardMaterial, textureLoadPromise: Promise.resolve() };
+        // Check for existing material to support caching, BUT we must ensure texture is valid/reloaded
+        let mat = this.scene.getMaterialByName(materialName) as StandardMaterial;
+
+        if (mat) {
+            // console.log(`[MD3] Reusing material structure: ${materialName}`);
+            // We don't return early anymore - we proceed to refresh the texture
+            // This ensures that if the texture was disposed (but material wasn't), it gets reloaded.
+        } else {
+            mat = new StandardMaterial(materialName, this.scene);
+            console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
         }
-
-        const mat = new StandardMaterial(materialName, this.scene);
-
-        console.log(`[MD3] Creating material for shader: "${normalizedName}"`, props);
 
         // Determine texture path - prefer shader-defined texture, fallback to shader name itself
         // MD3 shader names often ARE the texture paths (e.g. "models/items/ammo/ammobox/ammobox")

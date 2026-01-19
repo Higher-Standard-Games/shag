@@ -142,6 +142,12 @@ export abstract class EngineScene {
 
     // Setup Capacitor app lifecycle handlers
     this.setupCapacitorListeners();
+
+    // Listen for map loaded events (e.g. from MapCommand)
+    EventBus.on<{ result: MapLoadResult }>("map:loaded", (data) => {
+      console.log(`[EngineScene] Received map:loaded event`);
+      this.onMapLoaded(data.result).catch(e => console.error("Error in onMapLoaded:", e));
+    });
   }
 
   /**

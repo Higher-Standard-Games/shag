@@ -17,14 +17,13 @@ export default class SpectatorCommand extends Command {
     name: 'spectator',
     description: 'Toggle between FPS and spectator (freefly) camera',
     usage: 'spectator [0|1]',
-    developer: true,
   };
 
   async execute(args: string[]): Promise<string | void> {
     const cameraSystem = CameraSystem.getInstance();
     const activeController = cameraSystem.getActiveController();
     const isSpectator = activeController?.type === 'freefly';
-    
+
     // Register FPS controller if not already registered
     if (!cameraSystem.getController('fps')) {
       cameraSystem.registerController('fps', new FPSController());
@@ -33,7 +32,7 @@ export default class SpectatorCommand extends Command {
     if (!cameraSystem.getController('freefly')) {
       cameraSystem.registerController('freefly', new FreeflyController());
     }
-    
+
     if (args.length === 0) {
       // Toggle
       if (isSpectator) {
@@ -44,7 +43,7 @@ export default class SpectatorCommand extends Command {
         return 'Spectator mode (freefly)';
       }
     }
-    
+
     const val = parseInt(args[0]);
     if (val === 0) {
       cameraSystem.setController('fps');

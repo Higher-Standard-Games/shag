@@ -277,16 +277,17 @@ export class ProjectileManager {
             const scale = def.scale ?? 1.0;
             node.scaling.setAll(scale);
         } else {
-            // Fallback: simple glowing sphere
-            const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);
-            mesh.parent = node;
-            mesh.isPickable = false;
+            console.warn(`[ProjectileManager] Failed to spawn projectile ${defId}: No cached model or sprite`);
+            // Fallback: simple glowing sphere - REMOVED per user request (was causing "blue dot" artifact)
+            // const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.5 }, this.scene);
+            // mesh.parent = node;
+            // mesh.isPickable = false;
 
-            const mat = new StandardMaterial(`${id}_mat`, this.scene);
-            mat.emissiveColor = new Color3(color.r, color.g, color.b);
-            mat.diffuseColor = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
-            mat.disableLighting = true;
-            mesh.material = mat;
+            // const mat = new StandardMaterial(`${id}_mat`, this.scene);
+            // mat.emissiveColor = new Color3(color.r, color.g, color.b);
+            // mat.diffuseColor = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
+            // mat.disableLighting = true;
+            // mesh.material = mat;
         }
 
         // Orient projectile to face direction of travel

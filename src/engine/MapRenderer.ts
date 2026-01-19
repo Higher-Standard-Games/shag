@@ -13,6 +13,8 @@ import { type PatchDefinition, PatchGenerator } from "./loader";
 import { PrefabInstance } from "./loader";
 import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
 import { TextureManager } from "./loader";
+import { PK3TextureLoader } from "./loader/pk3/PK3TextureLoader";
+import { AssetPreloader } from "./loader/AssetPreloader";
 import { type BillboardSprite } from "./sprites/BillboardSprite";
 import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
 import { SpriteManager } from "./sprites/SpriteManager";
@@ -867,6 +869,7 @@ export class MapRenderer {
       matchesMap(mesh.metadata) ||
       mesh.name === "brush" ||
       mesh.name === "patch" ||
+      mesh.name.startsWith("bsp_") ||  // BSP meshes (bsp_tex_*, bsp_sprite_*, etc.)
       mesh.name.startsWith("light_") ||
       mesh.name.startsWith("prefab_") ||
       mesh.name.startsWith("sprite_") ||
@@ -932,5 +935,26 @@ export class MapRenderer {
     }
 
     TextureManager.getInstance().clearCache();
+
+    // Clear PK3 texture cache (important: textures were disposed but cache references remained)
+    PK3TextureLoader.getInstance().clearCache();
+
+    // Dispose pickup entities BEFORE clearing model cache
+    // Pickup clones share materials with cached source - disposing cache first leaves clones with dead materials
+    const pickupsToDispose = scene.transformNodes.filter(n =>
+      n.name.startsWith('pickup_') ||
+      n.name.startsWith('ammo_') ||
+      n.name.startsWith('weapon_') ||
+      (n.metadata as any)?.isPickup
+    );
+    for (const pickup of pickupsToDispose) {
+      pickup.dispose();
+    }
+    if (pickupsToDispose.length > 0) {
+      console.log(`[MapRenderer] Disposed ${pickupsToDispose.length} pickup entities`);
+    }
+
+    // Clear preloaded model cache (now safe since pickups are disposed)
+    AssetPreloader.getInstance().clearCache();
   }
 }

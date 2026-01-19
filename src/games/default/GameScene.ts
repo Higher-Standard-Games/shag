@@ -264,11 +264,50 @@ export class GameScene extends EngineScene {
   }
 
   protected override async onMapLoaded(result: MapLoadResult): Promise<void> {
+    console.log(`[GameScene] onMapLoaded triggered for ${result.mapName}`);
+
+    // === CRITICAL: HANDLE PLAYER SPAWN FIRST ===
+    // Move player to spawn point and switch to Spectator (default for map change)
+    if (result.playerStartPosition) {
+      console.log(`[GameScene] Map loaded with spawn point: ${result.playerStartPosition}`);
+      const cameraSystem = CameraSystem.getInstance();
+
+      // Ensure FreeflyController is registered AND switch to it
+      if (!cameraSystem.getController('freefly')) {
+        const { FreeflyController } = await import('../../engine/camera/controllers/FreeflyController');
+        cameraSystem.registerController('freefly', new FreeflyController());
+      }
+
+      console.log(`[GameScene] Switching to Spectator Mode (Freefly)`);
+      cameraSystem.setController('freefly');
+
+      const spectator = cameraSystem.getActiveController() as any;
+      if (spectator && spectator.type === 'freefly') {
+        // Add height offset (eye level approx)
+        const spawnPos = result.playerStartPosition.clone();
+        spawnPos.y += 30;
+
+        console.log(`[GameScene] Teleporting spectator to ${spawnPos}`);
+        spectator.setPosition(spawnPos);
+
+        // Force sync again to handle init race conditions
+        setTimeout(() => {
+          spectator.setPosition(spawnPos);
+        }, 100);
+      }
+    } else {
+      console.warn(`[GameScene] No playerStartPosition in MapLoadResult!`);
+    }
+
     // Update BuildingSystem with current map
     BuildingSystem.getInstance().setCurrentMap(result.mapName);
 
-    // Load saved state for this map
-    await SaveManager.getInstance().loadMapState(result.mapName);
+    // Load saved state for this map (Wrap in try/catch to prevent blocking)
+    try {
+      await SaveManager.getInstance().loadMapState(result.mapName);
+    } catch (e) {
+      console.error(`[GameScene] Failed to load map state:`, e);
+    }
 
     // Handle playlist
     const gameAudio = GameAudio.getInstance();
@@ -279,6 +318,8 @@ export class GameScene extends EngineScene {
       console.log("[GameScene] No playlist specified, starting game playlist");
       await gameAudio.startGamePlaylist();
     }
+
+
   }
 
   protected override onUpdate(_deltaTime: number): void {

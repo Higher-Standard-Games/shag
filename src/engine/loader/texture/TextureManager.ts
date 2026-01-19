@@ -465,8 +465,13 @@ export class TextureManager {
     this.materialCache.forEach((material) => {
       material.dispose();
     });
+    this.noisyTextureCache.forEach((texture) => {
+      texture.dispose();
+    });
     this.textureCache.clear();
     this.materialCache.clear();
+    this.noisyTextureCache.clear();
+    console.log('[TextureManager] Cache cleared');
   }
 
   /**

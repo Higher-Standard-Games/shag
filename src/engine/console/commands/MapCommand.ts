@@ -21,7 +21,7 @@ export default class MapCommand extends Command {
 
   async execute(args: string[]): Promise<string | void> {
     const subcommand = args[0]?.toLowerCase();
-    
+
     // Get camera system and scene
     let cameraSystem;
     try {
@@ -30,7 +30,7 @@ export default class MapCommand extends Command {
     } catch {
       return 'CameraSystem not available';
     }
-    
+
     // Import MapLoader dynamically
     const { MapLoader } = await import('../../loader/map/MapLoader');
     const mapLoader = MapLoader.getInstance();
@@ -155,20 +155,57 @@ export default class MapCommand extends Command {
         sky.loadFromWorldspawn(); // Load settings from worldspawn
       }
 
-      // Auto-spawn camera at first spawn point for BSP maps
+      // Force Spectator Mode (User Request)
+      await registry.execute('spectator 1');
+
+      // Spawn Logic using result.playerStartPosition
       let spawnStatus = '';
-      if (result.mapType === 'bsp' && result.bsp) {
-        const spawns = result.bsp.entities.filter((e: { classname: string }) =>
-          e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
-        );
-        if (spawns.length > 0 && spawns[0].properties?.origin) {
-          const parts = spawns[0].properties.origin.split(' ').map(Number);
-          const cam = cameraSystem.getCamera();
-          if (cam) {
-            cam.position.set(parts[0], parts[2] + 56, parts[1]);
-            spawnStatus = `  Spawned at: (${parts[0]}, ${parts[2] + 56}, ${parts[1]})`;
+      if (result.playerStartPosition) {
+        const spawnPos = result.playerStartPosition.clone();
+        spawnPos.y += 30; // Eye height offset
+
+        // Calculate rotation from spawn entity if available
+        let initialYaw = 0;
+        if (result.bsp && result.bsp.entities) {
+          const spawnExp = result.bsp.entities.find((e: any) =>
+            e.classname === 'info_player_deathmatch' || e.classname === 'info_player_start'
+          );
+          if (spawnExp?.properties?.angle) {
+            // Convert Quake angle (0=East, 90=North) to Babylon (0=North)
+            const angleDeg = parseFloat(spawnExp.properties.angle);
+            initialYaw = -(angleDeg - 90) * (Math.PI / 180);
           }
         }
+
+        const controller = cameraSystem.getActiveController();
+
+        // 1. Set Position
+        if (controller && (controller as any).setPosition) {
+          console.log(`[MapCommand] Teleporting ${controller.type} to ${spawnPos}`);
+          (controller as any).setPosition(spawnPos);
+
+          // Delayed sync to ensure it sticks
+          setTimeout(() => {
+            if (cameraSystem.getActiveController() === controller) {
+              (controller as any).setPosition(spawnPos);
+            }
+          }, 100);
+        } else {
+          // Fallback
+          const cam = cameraSystem.getCamera();
+          if (cam) cam.position.copyFrom(spawnPos);
+        }
+
+        // 2. Set Rotation (Reset pitch, apply yaw)
+        const cam = cameraSystem.getCamera();
+        if (cam) {
+          cam.rotation.x = 0; // Level view (reset pitch)
+          cam.rotation.z = 0; // No roll
+          cam.rotation.y = initialYaw;
+          console.log(`[MapCommand] Set rotation: yaw=${initialYaw.toFixed(2)}`);
+        }
+
+        spawnStatus = `  Spawned at: ${spawnPos}`;
       }
 
       // Auto-enable PVS culling for BSP maps
@@ -189,7 +226,7 @@ export default class MapCommand extends Command {
       return `Failed to load map: ${result.error}`;
     }
   }
-  
+
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
       return ['load', 'reload', 'list', 'current', 'unload'];

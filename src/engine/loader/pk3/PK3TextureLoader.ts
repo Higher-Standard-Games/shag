@@ -143,7 +143,16 @@ export class PK3TextureLoader {
     // Check cache
     const cacheKey = path.toLowerCase();
     if (this.textureCache.has(cacheKey)) {
-      return this.textureCache.get(cacheKey)!;
+      const cached = this.textureCache.get(cacheKey)!;
+      // Check if cached texture is still valid (not disposed)
+      // Disposed textures have null internal texture reference
+      if (cached.isReady() || (cached as any)._texture !== null) {
+        return cached;
+      } else {
+        // Cached texture was disposed, remove from cache
+        console.warn(`[PK3TextureLoader] Cached texture was disposed, reloading: ${path}`);
+        this.textureCache.delete(cacheKey);
+      }
     }
 
     const pk3 = PK3Loader.getInstance();

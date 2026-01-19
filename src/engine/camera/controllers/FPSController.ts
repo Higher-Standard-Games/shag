@@ -56,6 +56,27 @@ export class FPSController implements ICameraController {
     return new Vector3(this.physicsX, this.physicsY, this.physicsZ);
   }
 
+  /**
+   * Force set player position, updating both physics state and camera
+   * @param position Target position (feet level)
+   */
+  public setPosition(position: Vector3): void {
+    // Update physics state (feet level)
+    this.physicsX = position.x;
+    this.physicsY = position.y;
+    this.physicsZ = position.z;
+
+    // Also update velocity to zero to stop momentum
+    this.velocity.set(0, 0, 0);
+    this.isGrounded = false; // Reset grounded state to allow physics to re-settle
+
+    // Update camera immediately to match
+    if (this.camera) {
+      // Camera eye height offset (approx 0.8 units for now, or derive from camera height)
+      this.camera.position.set(this.physicsX, this.physicsY + 0.8, this.physicsZ);
+    }
+  }
+
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
 
