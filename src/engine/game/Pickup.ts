@@ -11,6 +11,7 @@ import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugi
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { AudioManager } from "../AudioManager";
 
 // ... (interface) ...
 
@@ -106,7 +107,7 @@ export class Pickup extends TransformNode {
                 // Create glow light if glowColor is defined
                 console.log(`[Pickup] ${this.name} glowColor:`, this.options.glowColor);
                 if (this.options.glowColor) {
-                    this.createGlowLight();
+                    // this.createGlowLight(); // Disabled for testing
                 } else {
                     console.log(`[Pickup] No glowColor defined for ${this.name}`);
                 }
@@ -419,18 +420,26 @@ export class Pickup extends TransformNode {
 
     private onPickedUp() {
         console.log(`Picked up ${this.options.id}`);
-        // Play sound
-        // Generic pickup sound
+        // Play sound (use static import to avoid async hiccups)
         const soundKey = this.options.type === 'weapon' ? 'weapon_pickup' : 'ammo_pickup';
-        // Need to ensure these sounds are registered or use generic 'item_respawn' or similar?
-        // Let's assume generic sound for now or use AudioManager methods
-        import('../AudioManager').then(({ AudioManager }) => {
-            AudioManager.getInstance().playSfx(soundKey, 0.5);
-        });
+        AudioManager.getInstance().playSfx(soundKey, 0.5);
 
-        // Hide
+        // Mark as inactive immediately (stops pickup checks)
         this.isActive = false;
-        if (this.mesh) this.mesh.setEnabled(false);
+
+        // Defer visual changes to next frame to avoid render state conflicts
+        requestAnimationFrame(() => {
+            if (this.mesh) {
+                this.mesh.setEnabled(false);
+                // Disable physics body to prevent simulation artifacts
+                if (this.mesh.physicsBody) {
+                    this.mesh.physicsBody.setMotionType(2); // STATIC - stops simulation
+                }
+            }
+
+            // Disable glow light to prevent visual artifacts
+            if (this.glowLight) this.glowLight.setEnabled(false);
+        });
 
         // Respawn
         const respawnTime = (this.options.respawnTime || 30) * 1000;
@@ -441,12 +450,24 @@ export class Pickup extends TransformNode {
 
     private respawn() {
         this.isActive = true;
-        if (this.mesh) this.mesh.setEnabled(true);
+        if (this.mesh) {
+            this.mesh.setEnabled(true);
+            // Re-enable physics body
+            if (this.mesh.physicsBody) {
+                this.mesh.physicsBody.setMotionType(1); // DYNAMIC - resumes simulation
+            }
+        }
+        // Re-enable glow light
+        if (this.glowLight) this.glowLight.setEnabled(true);
         // Play respawn sound?
     }
 
     public dispose() {
         if (this.respawnTimer) clearTimeout(this.respawnTimer);
+        if (this.glowLight) {
+            this.glowLight.dispose();
+            this.glowLight = null;
+        }
         super.dispose();
     }
 }
