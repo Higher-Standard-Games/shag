@@ -21,6 +21,8 @@ import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
 import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandlerRegistry';
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
 import { EntityManager } from '../../entities/EntityManager';
+import { EventBus } from '../../core/EventBus';
+import { LOADING_EVENTS, type LoadingProgressEvent } from '../../core/LoadingEvents';
 
 export interface MapLoadResult {
   success: boolean;
@@ -73,35 +75,82 @@ export class MapLoader {
     scene: Scene,
     onProgress?: ProgressCallback
   ): Promise<MapLoadResult> {
-    const progress = (phase: string, detail?: string) => {
-      onProgress?.({ phase, detail });
+    const startTime = Date.now();
+
+    // Emit loading:start event
+    EventBus.emit(LOADING_EVENTS.START, {
+      type: 'map',
+      id: mapName,
+      meta: { displayName: mapName },
+    });
+
+    const progress = (phase: string, detail?: string, percent?: number) => {
+      onProgress?.({ phase, detail, progress: percent });
       console.log(`[MapLoader] ${phase}${detail ? ': ' + detail : ''}`);
+
+      // Emit loading:progress event
+      const progressEvent: LoadingProgressEvent = {
+        type: 'map',
+        phase,
+        detail,
+        percent,
+      };
+      EventBus.emit(LOADING_EVENTS.PROGRESS, progressEvent);
     };
 
     try {
       // Clean up previous map
       if (this.currentMeshResult) {
-        progress('Cleanup', 'Disposing previous map');
+        progress('cleanup', 'disposing previous map');
         this.disposeCurrentMap();
       }
 
       // Check if it's a BSP map in the index
       const bspPk3 = this.pk3Index.findMap(mapName);
       if (bspPk3) {
-        return await this.loadBspMap(mapName, bspPk3, scene, onProgress);
+        const result = await this.loadBspMap(mapName, bspPk3, scene, progress);
+
+        // Emit loading:complete event
+        EventBus.emit(LOADING_EVENTS.COMPLETE, {
+          type: 'map',
+          success: result.success,
+          error: result.error,
+          duration: Date.now() - startTime,
+        });
+
+        return result;
       }
 
       // TODO: Check for local .map file
       // For now, just report not found
+      const error = `Map not found: ${mapName}. Run 'pk3 index build' if you haven't indexed PK3s yet.`;
+
+      // Emit loading:complete event (failure)
+      EventBus.emit(LOADING_EVENTS.COMPLETE, {
+        type: 'map',
+        success: false,
+        error,
+        duration: Date.now() - startTime,
+      });
+
       return {
         success: false,
         mapName,
         mapType: 'local',
-        error: `Map not found: ${mapName}. Run 'pk3 index build' if you haven't indexed PK3s yet.`,
+        error,
       };
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       console.error(`[MapLoader] Failed to load map ${mapName}:`, e);
+
+      // Emit loading:complete event (failure)
+      EventBus.emit(LOADING_EVENTS.COMPLETE, {
+        type: 'map',
+        success: false,
+        error,
+        duration: Date.now() - startTime,
+      });
+
       return {
         success: false,
         mapName,
@@ -118,13 +167,8 @@ export class MapLoader {
     mapName: string,
     mapPk3: string,
     scene: Scene,
-    onProgress?: ProgressCallback
+    progress: (phase: string, detail?: string, pct?: number) => void
   ): Promise<MapLoadResult> {
-    const progress = (phase: string, detail?: string, pct?: number) => {
-      onProgress?.({ phase, detail, progress: pct });
-      console.log(`[MapLoader] ${phase}${detail ? ': ' + detail : ''}`);
-    };
-
     const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
     // Phase 1: Ensure map PK3 is loaded

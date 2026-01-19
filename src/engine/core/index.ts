@@ -89,3 +89,11 @@ export type { TimeOfDay, TimePeriod, GameClockConfig, ScheduledEvent } from "./G
 
 export { GameTimer, SPEED_MULTIPLIERS, DEBUG_SPEED_ENABLED } from "./GameTimer";
 export type { GameSpeedMode, TimerEvent, ScheduledTask } from "./GameTimer";
+
+export { LOADING_EVENTS } from "./LoadingEvents";
+export type {
+  LoadingType,
+  LoadingStartEvent,
+  LoadingProgressEvent,
+  LoadingCompleteEvent,
+} from "./LoadingEvents";

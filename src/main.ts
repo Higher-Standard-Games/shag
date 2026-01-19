@@ -8,6 +8,7 @@ import { registerEngineServices, ServiceLocator, QualityDetector } from "./engin
 import { GameScene } from "@game/GameScene";
 import { MenuSystem } from "./engine/MenuSystem";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
+import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { MainMenu } from "@game/MainMenu";
 import { SaveManager } from "@game/SaveManager";
 import { registerGameEntityHandlers } from "@game/EntityHandlers";
@@ -128,6 +129,9 @@ async function main() {
   // Phase 2: Wait for user interaction (unlocks browser audio)
   await loadingScreen.waitForReady();
   loadingScreen.hide();
+
+  // Enable map loading overlay for in-game map transitions
+  MapLoadingOverlay.enable();
 
   // Hide native splash screen (Capacitor)
   await CapacitorBridge.getInstance().hideSplashScreen();

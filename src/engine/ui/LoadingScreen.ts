@@ -12,18 +12,8 @@ import type { LoadProgress } from '../AssetLoader';
 import { AudioManager } from '../AudioManager';
 import { EngineVersion } from '../core/EngineVersion';
 import { UIStyles } from './UIStyles';
-
-/**
- * Color palette extracted from the SHAG logo
- * Used for pulsing dot and background glow animations
- */
-const LOGO_PALETTE = [
-  { bg: '#E85D04', glow: 'rgba(232, 93, 4, 0.6)' },   // Orange (S)
-  { bg: '#FAC748', glow: 'rgba(250, 199, 72, 0.6)' }, // Yellow (H)
-  { bg: '#2EC4B6', glow: 'rgba(46, 196, 182, 0.6)' }, // Teal (A)
-  { bg: '#E040FB', glow: 'rgba(224, 64, 251, 0.6)' }, // Pink/Magenta (G)
-  { bg: '#4ADE80', glow: 'rgba(74, 222, 128, 0.6)' }, // Green (glow)
-];
+import { LoadingAnimation } from './LoadingAnimation';
+import { SHAG_PALETTE } from './LoadingPalettes';
 
 export class LoadingScreen {
   private static instance: LoadingScreen | null = null;
@@ -37,6 +27,9 @@ export class LoadingScreen {
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
   private colorInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Smoke animation (shared component)
+  private smokeAnimation: LoadingAnimation | null = null;
 
   constructor() {
     // Ensure styles are injected
@@ -125,6 +118,10 @@ export class LoadingScreen {
       clearInterval(instance.colorInterval);
       instance.colorInterval = null;
     }
+    if (instance.smokeAnimation) {
+      instance.smokeAnimation.destroy();
+      instance.smokeAnimation = null;
+    }
 
     // Unlock browser audio context
     AudioManager.getInstance().unlockAudio();
@@ -180,46 +177,12 @@ export class LoadingScreen {
         this.statusText.classList.add('ui-loading-status--fade');
       }, 2000);
 
-      // Smoke effect - colored puffs rising and fading
-      const smokeContainer = document.createElement("div");
-      smokeContainer.className = "ui-loading-smoke-container";
-      
-      const SMOKE_COUNT = 30;
-      
-      for (let i = 0; i < SMOKE_COUNT; i++) {
-        const puff = document.createElement("div");
-        puff.className = "ui-loading-smoke-puff";
-        
-        // Each puff gets its own fixed color from palette
-        const color = LOGO_PALETTE[i % LOGO_PALETTE.length];
-        
-        // More variety in sizes - tiny (40px) to large (250px)
-        const size = 40 + Math.random() * 210;
-        puff.style.width = `${size}px`;
-        puff.style.height = `${size}px`;
-        
-        // Random horizontal position
-        puff.style.left = `${Math.random() * 100}%`;
-        
-        // Random drift direction and rotation
-        const driftX = (Math.random() - 0.5) * 200;
-        const rotation = (Math.random() - 0.5) * 360;
-        puff.style.setProperty('--drift-x', `${driftX}px`);
-        puff.style.setProperty('--rotation', `${rotation}deg`);
-        
-        // More variety in speeds - fast (8s) to very slow (25s)
-        const duration = 8 + Math.random() * 17;
-        const delay = Math.random() * 12;
-        puff.style.animationDuration = `${duration}s`;
-        puff.style.animationDelay = `${delay}s`;
-        
-        // Set color with radial gradient for soft edges
-        puff.style.background = `radial-gradient(circle, ${color.bg} 0%, transparent 70%)`;
-        
-        smokeContainer.appendChild(puff);
-      }
-      
-      this.container.appendChild(smokeContainer);
+      // Smoke effect - colored puffs rising and fading (using shared component)
+      this.smokeAnimation = new LoadingAnimation();
+      this.smokeAnimation.create(this.container, {
+        colors: SHAG_PALETTE,
+        puffCount: 30,
+      });
 
       // Ripple container - universal "tap here" indicator
       const rippleContainer = document.createElement("div");
@@ -229,23 +192,23 @@ export class LoadingScreen {
       const centerDot = document.createElement("div");
       centerDot.className = "ui-loading-center-dot";
       // Dynamic colors must be inline
-      centerDot.style.background = LOGO_PALETTE[0].bg;
-      centerDot.style.boxShadow = `0 0 20px ${LOGO_PALETTE[0].glow}`;
+      centerDot.style.background = SHAG_PALETTE[0].bg;
+      centerDot.style.boxShadow = `0 0 20px ${SHAG_PALETTE[0].glow}`;
       rippleContainer.appendChild(centerDot);
 
       // Random color rotation interval using logo palette
       this.colorInterval = setInterval(() => {
-        const colorIndex = Math.floor(Math.random() * LOGO_PALETTE.length);
-        const color = LOGO_PALETTE[colorIndex];
+        const colorIndex = Math.floor(Math.random() * SHAG_PALETTE.length);
+        const color = SHAG_PALETTE[colorIndex];
         centerDot.style.background = color.bg;
         centerDot.style.boxShadow = `0 0 25px ${color.glow}`;
       }, 800 + Math.random() * 400);
 
       // Create 3 ripple rings with staggered animations (using logo palette)
       const rippleColors = [
-        LOGO_PALETTE[0].glow,  // Orange
-        LOGO_PALETTE[1].glow,  // Yellow
-        LOGO_PALETTE[2].glow,  // Teal
+        SHAG_PALETTE[0].glow,  // Orange
+        SHAG_PALETTE[1].glow,  // Yellow
+        SHAG_PALETTE[2].glow,  // Teal
       ];
 
       for (let i = 0; i < 3; i++) {
@@ -279,6 +242,12 @@ export class LoadingScreen {
   }
 
   public hide(): void {
+    // Clean up animation
+    if (this.smokeAnimation) {
+      this.smokeAnimation.destroy();
+      this.smokeAnimation = null;
+    }
+
     this.container.classList.add('ui-loading-screen--hiding');
     setTimeout(() => {
       this.container.remove();
