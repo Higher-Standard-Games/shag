@@ -198,11 +198,11 @@ export class FPSController implements ICameraController {
     }
 
     this.isReloading = true;
-    this.reloadTimer = weapon.reloadTime || 1.0;
-    console.log("Reloading...");
+    this.reloadTimer = weapon.reloadTime || 0.6;  // Use weapon def
+    console.log(`Reloading... (${this.reloadTimer}s)`);
 
     // Trigger animation via ViewManager
-    WeaponViewManager.getInstance().startReload(weapon.reloadTime || 1.0);
+    WeaponViewManager.getInstance().startReload(weapon.reloadTime || 0.6);
   }
 
   private finishReload(): void {
@@ -690,10 +690,10 @@ export class FPSController implements ICameraController {
 
         // Apply acceleration toward wishdir (PM_Accelerate)
         if (hasInput) {
-          // Ground strafe-only (A/D without W/S) uses 50% speed like Warsow
+          // Strafe-only (A/D without W/S) always uses walking speed
           const holdingStrafe = this.keys.left || this.keys.right;
           const holdingForward = this.keys.forward || this.keys.backward;
-          const groundWishspeed = (holdingStrafe && !holdingForward) ? wishspeed * 0.5 : wishspeed;
+          const groundWishspeed = (holdingStrafe && !holdingForward) ? mv.get('sv_movementSpeed') : wishspeed;
 
           const currentspeed = this.velocity.x * wishdir.x + this.velocity.z * wishdir.z;
           const addspeed = groundWishspeed - currentspeed;

@@ -117,8 +117,8 @@ export class WeaponViewManager {
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
     // Weapon recoil
     private recoilOffset: number = 0;  // Current recoil (kicks back then returns)
-    private static readonly RECOIL_KICK = 0.5;  // Max recoil distance
-    private static readonly RECOIL_RECOVER = 15.0;  // How fast recoil recovers
+    private static readonly RECOIL_KICK = 1.5;  // Max recoil distance
+    private static readonly RECOIL_RECOVER = 20.0;  // How fast recoil recovers
 
     // Reload animation state
     private reloadState = {
@@ -130,6 +130,7 @@ export class WeaponViewManager {
     private static readonly RELOAD_Y_OFFSET = -10;  // Down offset
     private static readonly RELOAD_Z_BACK = -8;   // Pull back
     private static readonly RELOAD_Z_FORWARD = 3;  // Push forward
+    private static readonly RELOAD_X_CHEST = -8;  // Pull toward chest (left/center)
 
     // Debug
     private debugEnabled: boolean = false;
@@ -612,8 +613,9 @@ export class WeaponViewManager {
         const adsOffsetY = mv.get('cl_ads_offset_y');
 
         // Lerp ADS progress based on aim state
+        // Force ADS off during reload
         const adsSpeed = 1.0 / Math.max(0.05, adsTime);  // Inverse of time = speed
-        const targetAds = state.isAiming ? 1.0 : 0.0;
+        const targetAds = (state.isAiming && !this.reloadState.active) ? 1.0 : 0.0;
         const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
         this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
 
@@ -628,9 +630,9 @@ export class WeaponViewManager {
 
         // Apply position offset (bob + jump/land + ADS + recoil + reload)
         root.position.set(
-            adsX + this.currentBobOffsetX,
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset - this.recoilOffset,  // Recoil kicks back on X
             basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset,
-            basePos.z - this.recoilOffset + reloadOffsets.zOffset  // Recoil kicks back, reload also affects Z
+            basePos.z + reloadOffsets.zOffset
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -638,7 +640,7 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + this.recoilOffset * 0.1,  // Pitch up on recoil
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + this.recoilOffset * 0.3 + reloadOffsets.pitch,  // Pitch up on recoil (increased)
             baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
             baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll  // Add reload roll
         );
@@ -839,15 +841,16 @@ export class WeaponViewManager {
 
     /**
      * Start reload animation
-     * @param duration - Reload time in seconds (from weapon def)
+     * @param _duration - Reload time from weapon def (ignored, using fixed 600ms animation)
      */
-    public startReload(duration: number): void {
+    public startReload(_duration: number): void {
+        // Fixed animation (600ms) regardless of actual reload time
         this.reloadState = {
             active: true,
             startTime: performance.now() / 1000,
-            duration: Math.max(0.1, duration),
+            duration: 0.6,  // Fixed 600ms animation
         };
-        console.log(`[WeaponViewManager] Starting reload animation (${duration}s)`);
+        console.log(`[WeaponViewManager] Starting reload animation (600ms)`);
     }
 
     /**
@@ -880,10 +883,16 @@ export class WeaponViewManager {
     /**
      * Calculate reload animation offsets based on progress
      * Returns { roll, yOffset, zOffset }
+     * 
+     * Animation sequence (1s):
+     * Phase 1 (0-30%): Slow move UP + roll
+     * Phase 2 (30-40%): Fast pump DOWN
+     * Phase 3 (40-50%): Fast pump UP  
+     * Phase 4 (50-100%): Slow roll back + return to normal
      */
-    private getReloadAnimationOffsets(): { roll: number; yOffset: number; zOffset: number } {
+    private getReloadAnimationOffsets(): { roll: number; pitch: number; xOffset: number; yOffset: number; zOffset: number } {
         if (!this.reloadState.active) {
-            return { roll: 0, yOffset: 0, zOffset: 0 };
+            return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
         }
 
         const progress = this.getReloadProgress();
@@ -891,41 +900,43 @@ export class WeaponViewManager {
         // Check if reload is complete
         if (progress >= 1.0) {
             this.reloadState.active = false;
-            return { roll: 0, yOffset: 0, zOffset: 0 };
+            return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
         }
 
-        // 4-phase animation
+        // Animation: slow up, fast pump, slow return
         let roll = 0;
+        const pitch = 0;  // No pitch rotation
+        let xOffset = 0;
         let yOffset = 0;
-        let zOffset = 0;
+        const zOffset = 0;
 
-        if (progress < 0.25) {
-            // Phase 1: Tilt Out (0-25%)
-            const t = progress / 0.25;  // 0 to 1
-            roll = t * WeaponViewManager.RELOAD_ROLL_MAX;
-            yOffset = t * WeaponViewManager.RELOAD_Y_OFFSET;
-            zOffset = 0;
-        } else if (progress < 0.5) {
-            // Phase 2: Pull Back (25-50%)
-            const t = (progress - 0.25) / 0.25;  // 0 to 1
-            roll = WeaponViewManager.RELOAD_ROLL_MAX;
-            yOffset = WeaponViewManager.RELOAD_Y_OFFSET;
-            zOffset = t * WeaponViewManager.RELOAD_Z_BACK;
-        } else if (progress < 0.75) {
-            // Phase 3: Push Forward (50-75%)
-            const t = (progress - 0.5) / 0.25;  // 0 to 1
-            roll = WeaponViewManager.RELOAD_ROLL_MAX;
-            yOffset = WeaponViewManager.RELOAD_Y_OFFSET;
-            zOffset = WeaponViewManager.RELOAD_Z_BACK + t * (WeaponViewManager.RELOAD_Z_FORWARD - WeaponViewManager.RELOAD_Z_BACK);
+        const BARREL_ROLL = Math.PI / 3;  // 60 degrees
+        const UP_OFFSET = 16;   // Move up amount
+        const PUMP_DOWN = -20;  // Pump down amount
+
+        if (progress < 0.35) {
+            // Phase 1: Slow move UP + roll (0-35%)
+            const t = progress / 0.35;  // 0 to 1
+            roll = t * BARREL_ROLL;
+            yOffset = t * UP_OFFSET;
+        } else if (progress < 0.50) {
+            // Phase 2: Pump DOWN (35-50%)
+            const t = (progress - 0.35) / 0.15;  // 0 to 1
+            roll = BARREL_ROLL;
+            yOffset = UP_OFFSET + t * PUMP_DOWN;
+        } else if (progress < 0.65) {
+            // Phase 3: Pump UP (50-65%)
+            const t = (progress - 0.50) / 0.15;  // 0 to 1
+            roll = BARREL_ROLL;
+            yOffset = (UP_OFFSET + PUMP_DOWN) + t * (-PUMP_DOWN);
         } else {
-            // Phase 4: Return (75-100%)
-            const t = (progress - 0.75) / 0.25;  // 0 to 1
-            roll = (1 - t) * WeaponViewManager.RELOAD_ROLL_MAX;
-            yOffset = (1 - t) * WeaponViewManager.RELOAD_Y_OFFSET;
-            zOffset = (1 - t) * WeaponViewManager.RELOAD_Z_FORWARD;
+            // Phase 4: Slow snap back (65-100%)
+            const t = (progress - 0.65) / 0.35;  // 0 to 1
+            roll = (1 - t) * BARREL_ROLL;
+            yOffset = (1 - t) * UP_OFFSET;
         }
 
-        return { roll, yOffset, zOffset };
+        return { roll, pitch, xOffset, yOffset, zOffset };
     }
 }
 
