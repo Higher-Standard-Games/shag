@@ -35,7 +35,7 @@
   - Fixed transform hierarchy issues preventing models from floating
 
 
-## [0.8.20] - 2026-01-18
+
 
 ### Added
 - **Asset Preloading System**: Preload weapon/ammo models during map load
