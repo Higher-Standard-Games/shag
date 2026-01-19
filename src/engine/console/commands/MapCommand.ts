@@ -4,6 +4,7 @@
 
 import { Command, CommandDef } from '../Command';
 import { CommandRegistry } from '../CommandRegistry';
+import { PLAYER_ORIGIN_HEIGHT } from '../../physics/PlayerPhysicsConstants';
 
 export default class MapCommand extends Command {
   readonly definition: CommandDef = {
@@ -162,7 +163,9 @@ export default class MapCommand extends Command {
       let spawnStatus = '';
       if (result.playerStartPosition) {
         const spawnPos = result.playerStartPosition.clone();
-        spawnPos.y += 30; // Eye height offset
+        // Spawn position from BSP is at floor/feet level
+        // Convert to ORIGIN level for Q3-style physics (origin is 24 above feet)
+        spawnPos.y += PLAYER_ORIGIN_HEIGHT;
 
         // Calculate rotation from spawn entity if available
         let initialYaw = 0;

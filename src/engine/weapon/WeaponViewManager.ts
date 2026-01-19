@@ -646,12 +646,16 @@ export class WeaponViewManager {
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
         // Reduce sprint effects when ADS (weapon should be more stable)
+        // FIX: Plasmagun is rotated -90 Y. 
+        // - Local X aligns with World Z (Roll).
+        // - Local Z aligns with World X (Pitch).
+        // So recoil pitch must be applied to Z!
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + this.recoilOffset * 0.3 + reloadOffsets.pitch,  // Pitch up on recoil (increased)
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch,
             baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll  // Add reload roll
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + this.recoilOffset * 0.06  // Recoil on Z (Pitch due to Y-90)
         );
     }
 

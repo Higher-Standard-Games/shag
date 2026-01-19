@@ -2,45 +2,7 @@
 ## [0.8.20] - 2026-01-19
 
 ### Added
-- **Weapon Animation System**:
-  - **Plasmagun Revamp**: New "Tilt & Pump" reload animation with side inspection and mechanical slide action.
-  - **Dynamic Reloads**: Animation duration now respects `weapon.reloadTime` (set to 1.0s for Plasmagun).
-  - **Screen-Space Pump**: Pump action uses screen Y-axis (Up/Down) instead of Z-axis for less intrusive visual.
-  - **Bobbing Stabilization**: Dampens all procedural movement bobbing (walk/sprint/sway) during reload to prevent jitter.
-  - **Recoil Alignment**: Fixed recoil direction to kick backward (Z-axis) correctly.
 
-### Added
-- **Spectator Spawn Mode**: Map loading now strictly defaults to Spectator mode
-  - Engine command `map` executes `spectator 1` on load
-  - Prevents player from spawning inside geometry or inheriting bad physics state
-  - Forces camera teleport to valid `info_player_start` position
-  - Resets camera rotation to match map spawn angle (Quake → Babylon conversion)
-  - Resolves "invisible gun" and "stuck in corner" bugs by ensuring clean state
-
-- **Havok Physics Integration**: Full WASM-based physics implementation
-  - `PhysicsSystem` with Havok plugin (replaces Cannon.js)
-  - `BspMeshBuilder` generates static mesh bodies for map geometry
-  - `Pickup` entities use dynamic physics bodies (cylinders) with mass
-  - Dropped reliance on simple "bobbing" animations for physics-driven item drops
-  - Proper collision groups/filters (Stationary vs Moving)
-
-### Fixed
-- **Map Reload Texture Bug**: Fixed assets disappearing on map change
-  - Implemented aggressive cache clearing in `MapRenderer.clearMap()`
-  - Calls `TextureManager.clearCache()` and `AssetPreloader.clearCache()`
-  - Fixed `PK3TextureLoader` logic to detect and reload disposed textures
-  - Updated `MD3Loader` to refresh materials even if cached, ensuring valid textures
-
-- **Spectator Command**: Removed developer-only restriction (`developer: true` → false)
-
-- **MapCommand Improvements**:
-  - Now emits `map:loaded` event via `EventBus`
-  - Properly linked to `EngineScene` to trigger high-level scene logic
-  - Removed legacy/conflicting spawn logic that caused "player mode revert"
-
-- **Pickup System**:
-  - `Pickup` items now properly `dispose()` physics bodies on cleanup
-  - Fixed transform hierarchy issues preventing models from floating
 
 
 

@@ -25,6 +25,15 @@ import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { MovementVars } from "../../movement/MovementVars";
+import {
+  PLAYER_RADIUS,
+  PLAYER_HEIGHT,
+  PLAYER_ORIGIN_HEIGHT,
+  DEFAULT_VIEWHEIGHT,
+  STEPSIZE,
+  originToFeet,
+  feetToOrigin,
+} from "../../physics/PlayerPhysicsConstants";
 
 // Viewport effects system imports
 import {
@@ -49,19 +58,27 @@ export class FPSController implements ICameraController {
   public inventory: InventoryManager = new InventoryManager();
 
   /**
-   * Get the player's physics position (feet level)
-   * This is separate from camera position which includes eye offset
+   * Get the player's physics position at ORIGIN level (Q3 style).
+   * Origin is 24 units above feet, as per Q3 coordinate system.
+   * Use originToFeet() to convert to feet level if needed.
    */
   public getPlayerPosition(): Vector3 {
     return new Vector3(this.physicsX, this.physicsY, this.physicsZ);
   }
 
   /**
+   * Get player's feet position (for external systems that need it)
+   */
+  public getPlayerFeetPosition(): Vector3 {
+    return new Vector3(this.physicsX, originToFeet(this.physicsY), this.physicsZ);
+  }
+
+  /**
    * Force set player position, updating both physics state and camera
-   * @param position Target position (feet level)
+   * @param position Target position at ORIGIN level (24 above feet)
    */
   public setPosition(position: Vector3): void {
-    // Update physics state (feet level)
+    // Update physics state (origin level)
     this.physicsX = position.x;
     this.physicsY = position.y;
     this.physicsZ = position.z;
@@ -70,11 +87,25 @@ export class FPSController implements ICameraController {
     this.velocity.set(0, 0, 0);
     this.isGrounded = false; // Reset grounded state to allow physics to re-settle
 
-    // Update camera immediately to match
+    // Update smoothed Y to match
+    this.smoothedY = this.physicsY;
+
+    // Update camera immediately (origin + viewheight)
     if (this.camera) {
-      // Camera eye height offset (approx 0.8 units for now, or derive from camera height)
-      this.camera.position.set(this.physicsX, this.physicsY + 0.8, this.physicsZ);
+      this.camera.position.set(this.physicsX, this.physicsY + DEFAULT_VIEWHEIGHT, this.physicsZ);
     }
+  }
+
+  /**
+   * Set player position from FEET level (convenience for spawn points)
+   * @param feetPosition Position at feet level
+   */
+  public setPositionFromFeet(feetPosition: Vector3): void {
+    this.setPosition(new Vector3(
+      feetPosition.x,
+      feetToOrigin(feetPosition.y),
+      feetPosition.z
+    ));
   }
 
   // Static default speed that persists between controller changes
@@ -86,19 +117,19 @@ export class FPSController implements ICameraController {
   // Collision mode: 'bsp' uses BSP brush tracing (same as FreeflyController), 'native' uses Babylon's mesh collision
   private static collisionMode: 'bsp' | 'native' = 'bsp';
 
+  // Q3 physics constants are now imported from PlayerPhysicsConstants
+
   // Q3-style physics state
   private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
   private isGrounded: boolean = false;
   // @ts-ignore - kept for future slope movement
   private groundNormal: Vector3 | null = null;
 
-  // @ts-ignore - kept for future use
-  private origin: Vector3 = Vector3.Zero();
-
-  // Physics position (before viewport effects) - MUST be kept separate from camera.position
+  // Physics position at ORIGIN level (Q3 style: 24 units above feet)
+  // MUST be kept separate from camera.position which includes viewheight offset
   // Viewport effects modify camera.position for visuals, but physics uses these values
   private physicsX: number = 0;
-  private physicsY: number = 0;
+  private physicsY: number = 0;  // This is ORIGIN height, not feet!
   private physicsZ: number = 0;
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
@@ -648,18 +679,35 @@ export class FPSController implements ICameraController {
 
     const cm = getCollisionManager();
 
+    // SOLID DEPENETRATION: Disabled due to roof instability (looping)
+    /*
+    if (cm.isInitialized() && FPSController.collisionEnabled) {
+      if (this.resolveDepenetration(cm)) {
+        // If we teleported, update physics vars immediately
+        this.physicsX = this.camera.position.x;
+        this.physicsY = this.camera.position.y;
+        this.physicsZ = this.camera.position.z;
+        this.smoothedY = this.physicsY; // Snap view to prevent jitter
+      }
+    }
+    */
+
     // Initialize physics position on first frame
+    // NOTE: Spawn system should call setPositionFromFeet() or setPosition() before first frame
+    // If not, we assume camera.position is at spawn location (may need adjustment)
     if (!this.smoothingInitialized) {
+      // Assume camera was placed at eye level by spawn system
+      // Convert to origin level by subtracting viewheight
       this.physicsX = this.camera.position.x;
-      this.physicsY = this.camera.position.y;
+      this.physicsY = this.camera.position.y - DEFAULT_VIEWHEIGHT; // Convert from eyes to origin
       this.physicsZ = this.camera.position.z;
-      this.smoothedY = this.camera.position.y;
+      this.smoothedY = this.physicsY;
       this.smoothingInitialized = true;
-      console.log(`[FPS] Initialized at: (${this.camera.position.x.toFixed(1)}, ${this.camera.position.y.toFixed(1)}, ${this.camera.position.z.toFixed(1)})`);
+      console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
     }
 
-    // CRITICAL: Restore physics position before calculations.
-    // This removes any viewport effect offsets that were applied for visuals.
+    // Restore physics position (ORIGIN level) at start of frame
+    // This removes any viewport effect offsets that were applied for visuals
     this.camera.position.x = this.physicsX;
     this.camera.position.y = this.physicsY;
     this.camera.position.z = this.physicsZ;
@@ -898,9 +946,12 @@ export class FPSController implements ICameraController {
           // Use BSP collision with stepSlideMove for stair stepping
           const backend = (cm as any).backends?.get('q3');
           if (backend && typeof backend.stepSlideMove === 'function') {
-            const start = this.camera.position.clone();
-            const traceOpts = { radius: 16, height: 56 };
-            const result = backend.stepSlideMove(start, movement, traceOpts);
+            // Q3 style: camera.position is at ORIGIN level
+            // stepSlideMove expects origin position, box extends -24 to +32 from there
+            const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
+            const result = backend.stepSlideMove(this.camera.position.clone(), movement, traceOpts);
+
+            // Result is already at origin level - use directly
             this.camera.position.copyFrom(result.endPos);
           } else {
             // Fallback to local slideMove
@@ -916,15 +967,20 @@ export class FPSController implements ICameraController {
 
     // === GROUND DETECTION ===
     // Q3-style: Actively check for ground beneath player each frame
-    // CRITICAL: Only "land" if we're moving downward (fixes jetpack bug)
+    // With asymmetric box, origin is 24 above feet, box extends 24 down from origin
+    // Tracing down 2-4 units from origin checks if feet are near ground
     this.wasGroundedLastFrame = this.isGrounded;
 
     if (cm.isInitialized()) {
       const backend = (cm as any).backends?.get('q3');
       if (backend && typeof backend.trace === 'function') {
+        // Q3 style: trace from origin down by a small amount
+        // Box bottom (feet) is at origin - 24, so tracing origin down by 2
+        // checks if feet are within 2 units of ground
         const groundCheckStart = this.camera.position.clone();
-        const groundCheckEnd = groundCheckStart.add(new Vector3(0, -2, 0)); // Check 2 units down
-        const traceOpts = { radius: 16, height: 56 };
+        const groundCheckEnd = groundCheckStart.add(new Vector3(0, -2, 0));
+
+        const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
         const groundTrace = backend.trace(groundCheckStart, groundCheckEnd, traceOpts);
 
         if (groundTrace.fraction < 1.0) {
@@ -984,6 +1040,7 @@ export class FPSController implements ICameraController {
     this.updateSpeedDisplay(showSpeed, horizSpeed);
 
     // === SAVE PHYSICS POSITION AFTER COLLISION ===
+    // Physics position is at ORIGIN level (24 above feet)
     this.physicsX = this.camera.position.x;
     this.physicsY = this.camera.position.y;
     this.physicsZ = this.camera.position.z;
@@ -998,12 +1055,14 @@ export class FPSController implements ICameraController {
       this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
     }
 
-    // === APPLY EYE OFFSET ===
-    // Physics runs at feet level, but camera view is at eye level
-    const eyeOffset = mv.get('sv_eyeoffset'); // Default 48 units
+    // === APPLY VIEWHEIGHT ===
+    // Physics runs at ORIGIN level, camera view is at origin + viewheight
+    // Q3 viewheight = 26 (eyes are 26 units above origin, which is 50 above feet)
+    // For now, use DEFAULT_VIEWHEIGHT constant; later we can make this a cvar
+    const viewheight = DEFAULT_VIEWHEIGHT;
 
-    // Apply smoothed Y + eye offset for rendering
-    this.camera.position.y = this.smoothedY + eyeOffset;
+    // Apply smoothed origin Y + viewheight for rendering
+    this.camera.position.y = this.smoothedY + viewheight;
 
     // === PICKUP CHECK ===
     EntityManager.getInstance().checkPickups(this.camera.position, this.inventory);
@@ -1281,9 +1340,9 @@ export class FPSController implements ICameraController {
         const newPos = Vector3.Lerp(this.ledgeGrabPosition, this.ledgeTargetPosition, t);
         this.camera.position.copyFrom(newPos);
 
-        // Update physics position too
+        // Update physics position too (physicsY is at origin level)
         this.physicsX = newPos.x;
-        this.physicsY = newPos.y - eyeOffset;  // Convert back to feet position
+        this.physicsY = newPos.y;  // Already at origin level
         this.physicsZ = newPos.z;
 
         if (pullProgress >= 1) {
@@ -1314,8 +1373,9 @@ export class FPSController implements ICameraController {
     if (!backend?.trace) return false;
 
     // STAIR CHECK: Don't grab if ground is close below (we can just walk)
-    // Minimum height above ground required for ledge grab
-    const minHeightAboveGround = 40;  // Must be falling a decent amount
+    // Minimum height above ground required for ledge grab (measured from feet)
+    // Camera is at origin (24 above feet), so we check origin - (40 + 24) = origin - 64
+    const minHeightAboveGround = 40 + PLAYER_ORIGIN_HEIGHT;  // Must be falling a decent amount
     const groundCheckStart = this.camera.position.clone();
     const groundCheckEnd = groundCheckStart.add(new Vector3(0, -minHeightAboveGround, 0));
     const groundCheck = backend.trace(groundCheckStart, groundCheckEnd, { radius: 8, height: 16 });
@@ -1329,20 +1389,32 @@ export class FPSController implements ICameraController {
     const forward = this.camera.getDirection(Vector3.Forward());
     const flatForward = new Vector3(forward.x, 0, forward.z).normalize();
 
-    const chestHeight = 32;
-    const headHeight = 48;
+    // Heights relative to ORIGIN (camera.position is at origin level)
+    // In Q3 system: origin is 24 above feet
+    // Chest at feet+32 = origin+8, Head at feet+48 = origin+24
+    const chestHeightFromOrigin = 32 - PLAYER_ORIGIN_HEIGHT; // 8
+    const headHeightFromOrigin = 48 - PLAYER_ORIGIN_HEIGHT;  // 24
     const armReach = 16;
     const traceOpts = { radius: 8, height: 16 };
 
     // Trace 1: Chest height - should HIT wall
-    const chestStart = this.camera.position.add(new Vector3(0, chestHeight - 48, 0)); // Offset from eye to chest
+    // Chest at origin + 8
+    const chestStart = this.camera.position.add(new Vector3(0, chestHeightFromOrigin, 0));
     const chestEnd = chestStart.add(flatForward.scale(ledgeReach));
     const chestTrace = backend.trace(chestStart, chestEnd, traceOpts);
 
     if (chestTrace.fraction >= 1.0) return false; // No wall at chest
 
+    // SLOPE CHECK: Reject if wall is too sloped (e.g. 45-degree ramp)
+    // A vertical wall has normal.y ~ 0
+    // A 45-degree slope has normal.y ~ 0.707
+    if (chestTrace.normal && Math.abs(chestTrace.normal.y) > 0.5) {
+      return false;
+    }
+
     // Trace 2: Head + arm reach - should be CLEAR (ledge exists)
-    const headStart = this.camera.position.add(new Vector3(0, headHeight + armReach - 48, 0));
+    // Head + arm at origin + 24 + 16 = origin + 40
+    const headStart = this.camera.position.add(new Vector3(0, headHeightFromOrigin + armReach, 0));
     const headEnd = headStart.add(flatForward.scale(ledgeReach));
     const headTrace = backend.trace(headStart, headEnd, traceOpts);
 
@@ -1595,6 +1667,58 @@ export class FPSController implements ICameraController {
   }
 
   /**
+   * Check if player is stuck in solid geometry and attempt to free them
+   * Based on Q3 PM_CorrectAllSolid
+   * NOTE: Currently disabled due to roof instability. Kept for future use.
+   */
+  // @ts-ignore - Kept for future use
+  private resolveDepenetration(cm: ReturnType<typeof getCollisionManager>): boolean {
+    const backend = (cm as any).backends?.get('q3');
+    if (!backend?.trace) return false;
+
+    const start = this.camera!.position;
+    const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
+
+    // Check if we are currently in solid
+    // Trace from same point to same point checks point content
+    const trace = backend.trace(start, start, traceOpts);
+
+    if (!trace.allSolid && !trace.startSolid) {
+      return false; // All good, not stuck
+    }
+
+    // Search pattern: Up first (most common escape), then sides
+    const offsets = [
+      new Vector3(0, STEPSIZE, 0),     // Try popping up a step
+      new Vector3(0, STEPSIZE * 2, 0), // Try higher
+      new Vector3(0, -4, 0),           // Try down slightly
+      new Vector3(PLAYER_RADIUS, 0, 0),        // Cardinal directions
+      new Vector3(-PLAYER_RADIUS, 0, 0),
+      new Vector3(0, 0, PLAYER_RADIUS),
+      new Vector3(0, 0, -PLAYER_RADIUS),
+      new Vector3(12, STEPSIZE, 0),    // Diagonals + up
+      new Vector3(-12, STEPSIZE, 0),
+      new Vector3(0, STEPSIZE, 12),
+      new Vector3(0, STEPSIZE, -12),
+    ];
+
+    for (const offset of offsets) {
+      const testPos = start.add(offset);
+      const output = backend.trace(testPos, testPos, traceOpts);
+
+      if (!output.allSolid && !output.startSolid) {
+        // Found a free spot!
+        console.log(`[Depenetration] Escaped solid! Moved from ${start} to ${testPos}`);
+        this.camera!.position.copyFrom(testPos);
+        this.velocity.set(0, 0, 0); // Kill velocity to prevent re-entry
+        return true;
+      }
+    }
+
+    return false; // Still stuck
+  }
+
+  /**
    * Execute the wall jump push after charging
    */
   private executeWallJumpPush(mv: MovementVars): void {
@@ -1630,7 +1754,7 @@ export class FPSController implements ICameraController {
 
     const start = this.camera.position.clone();
     const end = start.add(originalMovement);
-    const traceOpts = { radius: 16, height: 56 };
+    const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
 
     // Trace through BSP
     const trace = cm.trace(start as never, end as never, traceOpts);
@@ -1858,8 +1982,8 @@ export class FPSController implements ICameraController {
       // Use Q3-style slideMove for smooth wall sliding
       const backend = (cm as any).backends?.get('q3');
       const traceOpts = {
-        radius: 16,
-        height: 56,
+        radius: PLAYER_RADIUS,
+        height: PLAYER_HEIGHT,
         contentMask: 0x1 | 0x10000, // SOLID | PLAYERCLIP
       };
 
@@ -1916,14 +2040,14 @@ export class FPSController implements ICameraController {
             const testPos = base.add(dir.scale(nudge));
             const testStart = testPos.add(ellipsoidOffset);
             const testTraceA = cm.trace(testStart as never, testStart as never, {
-              radius: 16,
-              height: 56,
+              radius: PLAYER_RADIUS,
+              height: PLAYER_HEIGHT,
               clipTexturesOnly: true,
               contentMask: 0x1 | 0x10000,
             });
             const testTraceB = cm.trace(testStart as never, testStart as never, {
-              radius: 16,
-              height: 56,
+              radius: PLAYER_RADIUS,
+              height: PLAYER_HEIGHT,
               nodrawSolidsOnly: true,
               contentMask: 0x1,
             });

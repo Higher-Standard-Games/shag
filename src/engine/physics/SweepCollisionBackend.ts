@@ -14,6 +14,12 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import type { BspFile, BspBrush, BspLeaf } from '../loader/bsp/BspLoader';
 import { CollisionBackend, TraceResult, TraceOptions, CollisionStats, createDefaultTraceResult } from './CollisionBackend';
+import {
+  PLAYER_RADIUS,
+  PLAYER_HEIGHT,
+  PLAYER_MINS_Z,
+  STEPSIZE,
+} from './PlayerPhysicsConstants';
 
 // Content flags (Q3-compatible)
 const ContentFlags = {
@@ -112,13 +118,17 @@ export class SweepCollisionBackend implements CollisionBackend {
     const q3End: [number, number, number] = [end.x, end.z, end.y];
 
     // Get trace extents from options
-    const radius = options?.radius ?? 16;
-    const height = options?.height ?? 56;
-    const halfHeight = height / 2;
+    const radius = options?.radius ?? PLAYER_RADIUS;
+    const height = options?.height ?? PLAYER_HEIGHT;
 
-    // AABB in Q3 coords (Z is up)
-    const mins: [number, number, number] = [-radius, -radius, -halfHeight];
-    const maxs: [number, number, number] = [radius, radius, halfHeight];
+    // Q3-style ASYMMETRIC bounding box (Z is up in Q3 coords)
+    // Box extends 24/56 of height BELOW origin, 32/56 ABOVE origin
+    // This matches Q3's player hull: mins.z = -24, maxs.z = 32 for height 56
+    const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT));  // -24 for height 56
+    const maxsZ = height + minsZ;                                 // +32 for height 56
+
+    const mins: [number, number, number] = [-radius, -radius, minsZ];
+    const maxs: [number, number, number] = [radius, radius, maxsZ];
 
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;
@@ -565,7 +575,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private static readonly OVERCLIP = 1.001;
   private static readonly MAX_CLIP_PLANES = 5;
   private static readonly MAX_BUMPS = 4;
-  private static readonly STEPSIZE = 18; // Max step height in units (Q3 default)
+  // STEPSIZE now imported from PlayerPhysicsConstants
 
   /**
    * Clip velocity against a plane normal (Q3 PM_ClipVelocity)
@@ -716,6 +726,11 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Q3-style step slide move - handles stairs and small obstacles
    * Tries to step up if blocked, then slide, then step back down
+   *
+   * IMPORTANT: This function expects startPos to be at ORIGIN level (Q3 style),
+   * NOT at feet level. The asymmetric bounding box extends:
+   * - 24 units DOWN from origin (to feet)
+   * - 32 units UP from origin (to head)
    */
   stepSlideMove(
     startPos: Vector3,
@@ -734,9 +749,11 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
 
     // Check if we're on ground (can only step if grounded)
+    // With asymmetric box, origin is 24 units above feet.
+    // Tracing down by STEPSIZE checks if there's ground within step distance.
     const downTrace = this.trace(
       startO,
-      startO.add(new Vector3(0, -SweepCollisionBackend.STEPSIZE, 0)),
+      startO.add(new Vector3(0, -STEPSIZE, 0)),
       options
     );
 
@@ -747,7 +764,6 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Check ground normal - only step on floors (normal pointing up)
     if (downTrace.normal && downTrace.normal.y < 0.7) {
-      // Too steep to step from
       return { ...firstResult, stepped: false };
     }
 
@@ -755,23 +771,24 @@ export class SweepCollisionBackend implements CollisionBackend {
     const downO = firstResult.endPos.clone();
     const downV = firstResult.velocity.clone();
 
-    // Try stepping up
-    const up = startO.add(new Vector3(0, SweepCollisionBackend.STEPSIZE, 0));
-    const upTrace = this.trace(startO, up, options);
+    // Try stepping up by STEPSIZE
+    const upDest = startO.add(new Vector3(0, STEPSIZE, 0));
+    const upTrace = this.trace(startO, upDest, options);
 
+    // Only abort if completely stuck (allSolid), not just touching a wall (startSolid)
     if (upTrace.allSolid) {
-      // Can't step up - something above us
       return { ...firstResult, stepped: false };
     }
 
+    // Calculate how much we actually stepped up
     const stepSize = upTrace.endPos.y - startO.y;
 
     // Try slide move from raised position
     const raisedResult = this.slideMove(upTrace.endPos, startV, options);
 
-    // Step back down
-    const down = raisedResult.endPos.add(new Vector3(0, -stepSize, 0));
-    const stepDownTrace = this.trace(raisedResult.endPos, down, options);
+    // Step back down by the same amount we stepped up
+    const downDest = raisedResult.endPos.add(new Vector3(0, -stepSize, 0));
+    const stepDownTrace = this.trace(raisedResult.endPos, downDest, options);
 
     if (!stepDownTrace.allSolid) {
       // Use the stepped position
