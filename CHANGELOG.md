@@ -14,20 +14,29 @@
   - `EntityRegistry` with classname-to-definition lookup
   - `EntityRegistration` for game-specific entity setup
 
-- **Pickup System**: Weapon and ammo pickup mechanics
-  - `Pickup` class with model loading and physics
-  - Proximity detection for player pickup
-  - Integration with `InventoryManager`
+- **Pickup Glow Lights**: Pickups emit colored point lights
+  - Pulsing intensity based on sinusoidal animation
+  - Color defined per entity (e.g., green for plasma weapons)
+  - Light parented to physics mesh for realistic movement
 
-- **Console Commands**:
-  - `spawn_pickable_entity <id>` - Spawn pickups at player position
-  - `give_weapon <id>` - Add weapon to inventory
-  - `dump_scene [filter]` - Debug scene meshes
-  - `debug_plants` - Plant system diagnostics
+- **Projectile Visual Improvements**:
+  - Fade-in effect (100ms) prevents screen flicker on spawn
+  - Quaternion-based rotation for correct trajectory alignment
+  - Projectiles now properly orient when shooting up/down
 
-- **Havok Physics Integration**: Physics system for pickups
-  - `PhysicsSystem` with dynamic body creation
-  - Gravity-enabled pickups that drop to ground
+- **Weapon Reload Animation**: 4-phase shotgun-style reload
+  - Slow move up + roll (35%)
+  - Fast pump down (15%)
+  - Fast pump up (15%)  
+  - Slow return to normal (35%)
+  - Duration from `weapon.reloadTime` (plasmagun: 1.5s)
+  - ADS automatically disabled during reload
+  - Cancellable by weapon switch
+
+- **Weapon Recoil**: Visual kickback on fire
+  - Backward motion on X axis
+  - Pitch rotation for upward kick
+  - Fast recovery (20 units/sec)
 
 ### Fixed
 - **Green Debug Arcs**: Skip `_fx` effect surfaces in MD3Loader that rendered incorrectly
@@ -36,6 +45,7 @@
   - `AssetPreloader` awaits `Promise.all()` before caching
 - **MD3 Texture Fallback**: Use shader name as texture path when not in registry
 - **Debug Logging**: Removed excessive pickup checking logs
+- **Ground Strafe Speed**: A/D only movement now uses walking speed (was 50%)
 
 ### Changed
 - **MD3LoadResult**: Added `textureLoadPromises` field for async tracking
