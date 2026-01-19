@@ -561,6 +561,15 @@ export class WeaponViewManager {
             targetInward = handSign * sprintInward * sprintRatio;  // Yaw degrees
         }
 
+        // Dampen entirely if reloading
+        if (this.reloadState.active) {
+            targetBobX = 0;
+            targetBobY = 0;
+            targetTilt = 0;
+            targetRoll = 0;
+            targetInward = 0;
+        }
+
         // Smooth lerp to targets
         const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.BOB_LERP_SPEED);
         this.currentBobOffsetX += (targetBobX - this.currentBobOffsetX) * lerpFactor;
@@ -630,9 +639,9 @@ export class WeaponViewManager {
 
         // Apply position offset (bob + jump/land + ADS + recoil + reload)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset - this.recoilOffset,  // Recoil kicks back on X
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset,  // REMOVED RECOIL FROM X
             basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset,
-            basePos.z + reloadOffsets.zOffset
+            basePos.z + reloadOffsets.zOffset - this.recoilOffset   // Recoil kicks back on Z (backward)
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -844,13 +853,13 @@ export class WeaponViewManager {
      * @param _duration - Reload time from weapon def (ignored, using fixed 600ms animation)
      */
     public startReload(_duration: number): void {
-        // Fixed animation (600ms) regardless of actual reload time
+        // Use provided duration (from weapon def)
         this.reloadState = {
             active: true,
             startTime: performance.now() / 1000,
-            duration: 0.6,  // Fixed 600ms animation
+            duration: _duration,
         };
-        console.log(`[WeaponViewManager] Starting reload animation (600ms)`);
+        console.log(`[WeaponViewManager] Starting reload animation (${_duration.toFixed(2)}s)`);
     }
 
     /**
@@ -903,38 +912,74 @@ export class WeaponViewManager {
             return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
         }
 
-        // Animation: slow up, fast pump, slow return
+        // Animation: fast_tilt -> pump_aligned
+        const MAX_ROLL = Math.PI / 4;   // 45 degrees
+        const MAX_PITCH = Math.PI / 8;  // 22.5 degrees up (increased)
+        const DIP_Y = -4;
+        const SLIDE_DIST = -9;          // Slide back amount
+
         let roll = 0;
-        const pitch = 0;  // No pitch rotation
+        let pitch = 0;
         let xOffset = 0;
         let yOffset = 0;
-        const zOffset = 0;
+        let zOffset = 0;
 
-        const BARREL_ROLL = Math.PI / 3;  // 60 degrees
-        const UP_OFFSET = 16;   // Move up amount
-        const PUMP_DOWN = -20;  // Pump down amount
+        let tilt = 0;
 
-        if (progress < 0.35) {
-            // Phase 1: Slow move UP + roll (0-35%)
-            const t = progress / 0.35;  // 0 to 1
-            roll = t * BARREL_ROLL;
-            yOffset = t * UP_OFFSET;
-        } else if (progress < 0.50) {
-            // Phase 2: Pump DOWN (35-50%)
-            const t = (progress - 0.35) / 0.15;  // 0 to 1
-            roll = BARREL_ROLL;
-            yOffset = UP_OFFSET + t * PUMP_DOWN;
-        } else if (progress < 0.65) {
-            // Phase 3: Pump UP (50-65%)
-            const t = (progress - 0.50) / 0.15;  // 0 to 1
-            roll = BARREL_ROLL;
-            yOffset = (UP_OFFSET + PUMP_DOWN) + t * (-PUMP_DOWN);
+        // 1. Snappy Tilt (0.0 to 0.25)
+        // User wants: "FAST and slow to the right tilt"
+        if (progress < 0.25) {
+            const t = progress / 0.25;
+            // Cubic Ease Out (Fast start, smooth settle)
+            tilt = 1 - Math.pow(1 - t, 3);
+        } else if (progress > 0.75) {
+            // Untilt (Smooth step)
+            const t = (1.0 - progress) / 0.25;
+            tilt = t * t * (3 - 2 * t);
         } else {
-            // Phase 4: Slow snap back (65-100%)
-            const t = (progress - 0.65) / 0.35;  // 0 to 1
-            roll = (1 - t) * BARREL_ROLL;
-            yOffset = (1 - t) * UP_OFFSET;
+            tilt = 1.0;
         }
+
+        roll = tilt * MAX_ROLL;
+        pitch = tilt * MAX_PITCH;
+        yOffset = tilt * DIP_Y;
+
+        // 2. Pump Action (0.3 to 0.7) - Aligned with Barrel
+        let pump = 0;
+        if (progress > 0.3 && progress < 0.7) {
+            if (progress < 0.45) {
+                // Slide Back (Ease Out)
+                const t = (progress - 0.3) / 0.15;
+                pump = Math.sin(t * Math.PI / 2) * SLIDE_DIST;
+            } else if (progress < 0.55) {
+                // Hold
+                pump = SLIDE_DIST;
+            } else {
+                // Slam Forward (Linear + Bounce)
+                const t = (progress - 0.55) / 0.15;
+                pump = (1 - t) * SLIDE_DIST;
+
+                // Add Impact Jitter
+                if (t < 0.3) {
+                    const shake = (1 - t / 0.3) * 0.5;
+                    xOffset += (Math.random() - 0.5) * shake;
+                    yOffset += (Math.random() - 0.5) * shake;
+                }
+            }
+        }
+
+        // Apply Pump Vector - Screen Space Y (Down/Up)
+        // User request: "lower on the screen and up", not "back and forth"
+
+        // Pump (0 -> -9 -> 0)
+        // Map directly to Y offset (Down then Up)
+        yOffset += pump;
+
+        // Add slight X movement to follow the tilt (Diagonal dip)
+        xOffset += pump * -0.5;
+
+        // Slight Z kick just for impact (much smaller)
+        zOffset += pump * 0.2;
 
         return { roll, pitch, xOffset, yOffset, zOffset };
     }

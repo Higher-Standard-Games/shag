@@ -27,7 +27,7 @@ export const PLASMAGUN: WeaponDef = {
     clipSize: 50,
     ammoType: 'cells',
     maxAmmo: 200,
-    reloadTime: 1.5,  // Reload animation duration (1.5 seconds)
+    reloadTime: 1.0,  // Reload animation duration (1.0 seconds)
     range: 1500,
     hitscan: false,
     fireMode: 'auto',

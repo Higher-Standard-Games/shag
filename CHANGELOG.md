@@ -2,6 +2,14 @@
 ## [0.8.20] - 2026-01-19
 
 ### Added
+- **Weapon Animation System**:
+  - **Plasmagun Revamp**: New "Tilt & Pump" reload animation with side inspection and mechanical slide action.
+  - **Dynamic Reloads**: Animation duration now respects `weapon.reloadTime` (set to 1.0s for Plasmagun).
+  - **Screen-Space Pump**: Pump action uses screen Y-axis (Up/Down) instead of Z-axis for less intrusive visual.
+  - **Bobbing Stabilization**: Dampens all procedural movement bobbing (walk/sprint/sway) during reload to prevent jitter.
+  - **Recoil Alignment**: Fixed recoil direction to kick backward (Z-axis) correctly.
+
+### Added
 - **Spectator Spawn Mode**: Map loading now strictly defaults to Spectator mode
   - Engine command `map` executes `spectator 1` on load
   - Prevents player from spawning inside geometry or inheriting bad physics state
