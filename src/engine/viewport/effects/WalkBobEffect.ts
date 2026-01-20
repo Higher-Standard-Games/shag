@@ -97,6 +97,14 @@ export class WalkBobEffect extends BaseViewportEffect {
         const bobEnabled = Cvar.getNumber('cg_bob') !== 0;
         if (!bobEnabled) return delta;
 
+        // Disable bob when sliding (crouchslide should have no walk bob)
+        if (state.isSliding) {
+            // Smoothly decay bob cycle and lean to avoid jarring transition
+            this.bobCycle *= 0.85;
+            this.currentLean *= 0.85;
+            return delta;
+        }
+
         // Only bob when grounded and moving
         if (!state.isGrounded || state.horizontalSpeed < 10) {
             // Smoothly decay bob cycle and lean when stopping

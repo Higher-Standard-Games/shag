@@ -52,6 +52,9 @@ export interface PlayerState {
 
     /** Is the player firing (Mouse1 pressed)? */
     isFiring?: boolean;
+
+    /** Is the player crouchsliding? (disable walk bob) */
+    isSliding?: boolean;
 }
 
 /**
