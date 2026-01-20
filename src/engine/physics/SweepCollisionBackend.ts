@@ -127,8 +127,11 @@ export class SweepCollisionBackend implements CollisionBackend {
     const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT));  // -24 for height 56
     const maxsZ = height + minsZ;                                 // +32 for height 56
 
-    const mins: [number, number, number] = [-radius, -radius, minsZ];
-    const maxs: [number, number, number] = [radius, radius, maxsZ];
+    // EPSILON shrink: slightly smaller bbox for traces to leave collision margin
+    // This helps prevent "exact surface" stuck states
+    const TRACE_EPSILON = 0.125;
+    const mins: [number, number, number] = [-radius + TRACE_EPSILON, -radius + TRACE_EPSILON, minsZ + TRACE_EPSILON];
+    const maxs: [number, number, number] = [radius - TRACE_EPSILON, radius - TRACE_EPSILON, maxsZ - TRACE_EPSILON];
 
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;
@@ -708,8 +711,9 @@ export class SweepCollisionBackend implements CollisionBackend {
             if (Vector3.Dot(clippedVel, planes[k]) >= 0.1) {
               continue;
             }
-            // Stuck in a corner - stop
-            currentVel = Vector3.Zero();
+            // Stuck in a corner - apply gravity escape instead of stopping
+            // This lets the player naturally fall out of impossible positions
+            currentVel = new Vector3(0, -50, 0);  // Small downward velocity to escape
             return { endPos: currentPos, velocity: currentVel, hitCount };
           }
         }
