@@ -117,6 +117,9 @@ export class FPSController implements ICameraController {
   // Collision mode: 'bsp' uses BSP brush tracing (same as FreeflyController), 'native' uses Babylon's mesh collision
   private static collisionMode: 'bsp' | 'native' = 'bsp';
 
+  // Debug logging throttle for slide system
+  private static _lastSlideLog: number = 0;
+
   // Q3 physics constants are now imported from PlayerPhysicsConstants
 
   // Q3-style physics state
@@ -164,6 +167,26 @@ export class FPSController implements ICameraController {
   private wallJumpNormal: Vector3 = Vector3.Zero();    // Wall normal to push off from
   private wallJumpPreVelocity: Vector3 = Vector3.Zero(); // Velocity before charge
 
+  // Crouchslide state
+  private isSliding: boolean = false;
+  private slideStartTime: number = 0;
+  private slideVelocity: Vector3 = Vector3.Zero();  // Direction locked at slide start
+  private lastSlideEndTime: number = 0;  // For cooldown
+  private slideJumpHoldTime: number = 0; // For hold vs tap detection
+  private slideCameraRoll: number = 0;   // Current camera roll (unused currently)
+  private slideCameraPitch: number = 0;  // Current camera pitch offset during slide
+  private slideEntryPitch: number = 0;   // Player's pitch when entering slide (for axis lock)
+  private slideEntrySpeed: number = 0;   // Speed when entering slide (for momentum preservation)
+  private static readonly SLIDE_PITCH_TILT: number = -0.22; // Tilt camera up (radians, ~12 degrees)
+  private static readonly SLIDE_JUMP_GRACE_MS: number = 400; // Can't jump cancel before this (also fade-in time)
+  private static readonly SLIDE_FADE_MS: number = 400; // Fade in/out time for camera effect
+
+  // Crouch state (separate from slide)
+  private isCrouching: boolean = false;
+  private crouchViewOffset: number = 0;  // Current crouch offset (0 = standing, -20 = crouched)
+  private static readonly CROUCH_HEIGHT_OFFSET: number = -20; // How much to lower view when crouched
+  private static readonly CROUCH_TRANSITION_SPEED: number = 0.2; // Lerp speed for crouch transition
+
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
@@ -180,6 +203,7 @@ export class FPSController implements ICameraController {
     right: false,    // D
     up: false,       // Space (jump)
     sprint: false,   // Shift (run)
+    crouch: false,   // Ctrl/C (crouch/slide)
     fire: false,     // Mouse1 (fire)
     aim: false,      // Mouse2 (ADS)
     reload: false,   // R (reload)
@@ -553,6 +577,11 @@ export class FPSController implements ICameraController {
     this.onKeyDown = (e: KeyboardEvent) => {
       if (!this.isPointerLocked) return;
 
+      // Block ALL Ctrl+key browser shortcuts when pointer locked (like Ctrl+W, Ctrl+T)
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+
       switch (e.code) {
         case 'KeyW': this.keys.forward = true; break;
         case 'KeyS': this.keys.backward = true; break;
@@ -560,6 +589,9 @@ export class FPSController implements ICameraController {
         case 'KeyD': this.keys.right = true; break;
         case 'Space': this.keys.up = true; e.preventDefault(); break;
         case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
+        case 'ControlLeft': case 'ControlRight': case 'KeyC':
+          this.keys.crouch = true;
+          break;
         case 'KeyR': this.keys.reload = true; break;
       }
 
@@ -580,6 +612,7 @@ export class FPSController implements ICameraController {
         case 'KeyD': this.keys.right = false; break;
         case 'Space': this.keys.up = false; break;
         case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
+        case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = false; break;
         case 'KeyR': this.keys.reload = false; break;
       }
     };
@@ -672,10 +705,23 @@ export class FPSController implements ICameraController {
     this.adsSensitivityProgress += (targetAdsSens - this.adsSensitivityProgress) * adsSensLerp;
 
     // cl_autorun inverts run/walk: run by default, walk when holding shift
-    // ADS forces walk mode (cannot sprint while aiming)
-    const canRun = !this.keys.aim;  // No sprinting while ADS
+    // ADS and CROUCH both force walk mode (cannot sprint while aiming or crouching)
+    const canRun = !this.keys.aim && !this.keys.crouch;  // No sprinting while ADS or crouching
     const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
-    const wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    let wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+
+    // Apply crouch walk speed (reduced when crouching but not sliding)
+    // BUT: Don't reduce speed if player is fast enough to slide - preserve momentum for slide entry
+    if (this.keys.crouch && !this.isSliding) {
+      const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      const slideMinSpeed = mv.get('sv_slideMinSpeed');
+      const cooldownPassed = (Date.now() - this.lastSlideEndTime) >= mv.get('sv_slideCooldown');
+
+      // Only reduce speed if NOT about to slide
+      if (horizSpeed < slideMinSpeed || !cooldownPassed) {
+        wishspeed *= mv.get('cl_crouchmult'); // 0.5x by default
+      }
+    }
 
     const cm = getCollisionManager();
 
@@ -1034,6 +1080,9 @@ export class FPSController implements ICameraController {
       this.updateLedgeGrab(deltaTime, mv, cm);
     }
 
+    // === CROUCHSLIDE SYSTEM ===
+    this.updateCrouchslide(deltaTime, mv);
+
     // === SPEED DISPLAY (cl_showspeed) ===
     const showSpeed = mv.get('cl_showspeed') > 0;
     const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
@@ -1058,11 +1107,19 @@ export class FPSController implements ICameraController {
     // === APPLY VIEWHEIGHT ===
     // Physics runs at ORIGIN level, camera view is at origin + viewheight
     // Q3 viewheight = 26 (eyes are 26 units above origin, which is 50 above feet)
-    // For now, use DEFAULT_VIEWHEIGHT constant; later we can make this a cvar
     const viewheight = DEFAULT_VIEWHEIGHT;
 
-    // Apply smoothed origin Y + viewheight for rendering
-    this.camera.position.y = this.smoothedY + viewheight;
+    // === CROUCH STATE ===
+    // Camera lowers IMMEDIATELY when crouch key pressed OR when sliding
+    // No grounded check - crouch should be instant and override other movement
+    this.isCrouching = this.keys.crouch || this.isSliding;
+
+    // Smoothly interpolate crouch offset
+    const targetCrouchOffset = this.isCrouching ? FPSController.CROUCH_HEIGHT_OFFSET : 0;
+    this.crouchViewOffset += (targetCrouchOffset - this.crouchViewOffset) * FPSController.CROUCH_TRANSITION_SPEED;
+
+    // Apply smoothed origin Y + viewheight + crouch offset for rendering
+    this.camera.position.y = this.smoothedY + viewheight + this.crouchViewOffset;
 
     // === PICKUP CHECK ===
     EntityManager.getInstance().checkPickups(this.camera.position, this.inventory);
@@ -1093,6 +1150,7 @@ export class FPSController implements ICameraController {
         isSprinting: this.keys.sprint,
         isAiming: this.keys.aim,
         isFiring: this.keys.fire,
+        isSliding: this.isSliding,
       };
 
       const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
@@ -1351,6 +1409,193 @@ export class FPSController implements ICameraController {
         }
         break;
     }
+  }
+
+  /**
+   * Crouchslide state machine
+   * Handles entry, physics, exit, and camera effects
+   */
+  private updateCrouchslide(deltaTime: number, mv: MovementVars): void {
+    const slideEnabled = mv.get('sv_slide') > 0;
+    if (!slideEnabled) {
+      if (this.isSliding) this.exitSlide();
+      return;
+    }
+
+    const now = Date.now();
+    const slideDuration = mv.get('sv_slideDuration');
+    const slideMinSpeed = mv.get('sv_slideMinSpeed');
+    const slideCooldown = mv.get('sv_slideCooldown');
+    const slideSpeedMult = mv.get('sv_slideSpeedMultiplier');
+    const slideDecay = mv.get('sv_slideDecay');
+    const slideFriction = mv.get('sv_slideFriction');
+    const slideJumpBoost = mv.get('sv_slideJumpBoost');
+    const slideCameraTilt = mv.get('sv_slideCameraTilt');
+
+    // Calculate current horizontal speed
+    const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+
+    // === SLIDE ENTRY ===
+    if (!this.isSliding && this.keys.crouch && this.isGrounded) {
+      const cooldownPassed = (now - this.lastSlideEndTime) >= slideCooldown;
+
+      if (horizSpeed >= slideMinSpeed && cooldownPassed) {
+        // Enter slide!
+        this.isSliding = true;
+        this.slideStartTime = now;
+
+        // Lock velocity direction at entry
+        this.slideVelocity = this.velocity.clone();
+        this.slideVelocity.y = 0;
+        this.slideVelocity.normalize();
+
+        // Store entry speed for momentum preservation
+        this.slideEntrySpeed = horizSpeed * slideSpeedMult;
+
+        // Store entry pitch for axis lock
+        this.slideEntryPitch = this.mouseRotationX;
+
+        // Apply speed multiplier immediately
+        this.velocity.x = this.slideVelocity.x * this.slideEntrySpeed;
+        this.velocity.z = this.slideVelocity.z * this.slideEntrySpeed;
+
+        console.log(`[Slide] Entered at speed ${this.slideEntrySpeed.toFixed(0)}`);
+      }
+    }
+
+    // === SLIDING PHYSICS ===
+    if (this.isSliding) {
+      const slideElapsed = now - this.slideStartTime;
+
+      // Force ADS off while sliding
+      this.keys.aim = false;
+
+      // === CAMERA PITCH TILT (look up effect) with smooth 400ms in/out ===
+      // Calculate tilt intensity based on slide time (400ms fade in, 400ms fade out)
+      let tiltIntensity: number;
+      const fadeIn = FPSController.SLIDE_FADE_MS;
+      const fadeOut = FPSController.SLIDE_FADE_MS;
+      const timeRemaining = slideDuration - slideElapsed;
+
+      if (slideElapsed < fadeIn) {
+        // Fade in: 0 → 1 over first 400ms (smoothstep for smooth ease)
+        const t = slideElapsed / fadeIn;
+        tiltIntensity = t * t * (3 - 2 * t); // smoothstep
+      } else if (timeRemaining < fadeOut) {
+        // Fade out: 1 → 0 over last 400ms (smoothstep)
+        const t = timeRemaining / fadeOut;
+        tiltIntensity = t * t * (3 - 2 * t); // smoothstep
+      } else {
+        // Full tilt in the middle
+        tiltIntensity = 1;
+      }
+
+      const targetPitch = this.slideEntryPitch + (FPSController.SLIDE_PITCH_TILT * tiltIntensity);
+      this.slideCameraPitch = targetPitch; // Direct set, smoothing handled by intensity
+
+      // Lock vertical look axis during slide - override mouse rotation X
+      this.mouseRotationX = this.slideCameraPitch;
+
+      // === SPEED DECAY ===
+      // Preserve full speed for first 500ms, then start decaying
+      let currentSlideSpeed: number;
+      if (slideElapsed < FPSController.SLIDE_JUMP_GRACE_MS) {
+        // Grace period - maintain entry speed
+        currentSlideSpeed = this.slideEntrySpeed;
+      } else {
+        // After grace, apply friction and decay
+        const decayElapsed = slideElapsed - FPSController.SLIDE_JUMP_GRACE_MS;
+        const decayDuration = slideDuration - FPSController.SLIDE_JUMP_GRACE_MS;
+        const decayProgress = Math.min(1, decayElapsed / decayDuration);
+
+        // Decay from entry speed down to crouch walk speed
+        const crouchSpeed = mv.get('sv_movementSpeed') * mv.get('cl_crouchmult');
+        currentSlideSpeed = this.slideEntrySpeed + (crouchSpeed - this.slideEntrySpeed) * decayProgress;
+      }
+
+      // Update velocity in slide direction
+      this.velocity.x = this.slideVelocity.x * currentSlideSpeed;
+      this.velocity.z = this.slideVelocity.z * currentSlideSpeed;
+
+      // Camera roll tilt (optional - currently disabled, using pitch instead)
+      // this.slideCameraRoll += (slideCameraTilt - this.slideCameraRoll) * 0.2;
+      // if (this.camera) this.camera.rotation.z = this.slideCameraRoll * Math.PI / 180;
+
+      // === SLIDE EXIT CONDITIONS ===
+
+      // Timeout - slide ends and player crouches at crouch speed
+      if (slideElapsed >= slideDuration) {
+        console.log('[Slide] Exit: Timeout');
+        this.exitSlide();
+        return;
+      }
+
+      // Release crouch
+      if (!this.keys.crouch) {
+        console.log('[Slide] Exit: Released crouch');
+        this.exitSlide();
+        return;
+      }
+
+      // Jump cancel - only available AFTER grace period (500ms)
+      if (this.keys.up && slideElapsed >= FPSController.SLIDE_JUMP_GRACE_MS) {
+        // Track hold time for boost detection
+        this.slideJumpHoldTime += deltaTime;
+
+        // Hold threshold for boost (200ms)
+        if (this.slideJumpHoldTime >= 0.2) {
+          // BOOST JUMP!
+          console.log(`[Slide] Boost Jump! Speed ${(currentSlideSpeed * slideJumpBoost).toFixed(0)}`);
+          this.velocity.x = this.slideVelocity.x * currentSlideSpeed * slideJumpBoost;
+          this.velocity.z = this.slideVelocity.z * currentSlideSpeed * slideJumpBoost;
+          this.velocity.y = mv.get('sv_jumpheight');
+          this.isGrounded = false;
+          this.exitSlide();
+          return;
+        }
+      } else if (!this.keys.up) {
+        // Reset hold time if not holding jump
+        if (this.slideJumpHoldTime > 0 && this.slideJumpHoldTime < 0.2 && slideElapsed >= FPSController.SLIDE_JUMP_GRACE_MS) {
+          // TAP JUMP - quick stand without boost
+          console.log('[Slide] Exit: Tap jump (stand)');
+          this.exitSlide();
+          return;
+        }
+        this.slideJumpHoldTime = 0;
+      }
+
+      // Left ground (fell off edge)
+      // NOTE: Disabled strict ground check - ground detection flickers during slide physics.
+      // Instead, let the slide naturally end via timeout, speed, or user input.
+      // If player slides off a ledge, they'll just become airborne with slide velocity.
+      // if (!this.isGrounded) {
+      //   console.log('[Slide] Exit: Left ground');
+      //   this.exitSlide();
+      //   return;
+      // }
+    } else {
+      // Not sliding - reset camera tilt
+      if (Math.abs(this.slideCameraRoll) > 0.01) {
+        this.slideCameraRoll *= 0.8; // Smooth return to 0
+        if (this.camera) {
+          this.camera.rotation.z = this.slideCameraRoll * Math.PI / 180;
+        }
+      }
+    }
+  }
+
+  /**
+   * Exit slide state and record cooldown
+   */
+  private exitSlide(): void {
+    this.isSliding = false;
+    this.lastSlideEndTime = Date.now();
+    this.slideJumpHoldTime = 0;
+
+    // Reset camera pitch to entry value (unlock Y-axis look)
+    // The smooth return will happen as slideCameraPitch lerps back
+    this.slideCameraPitch = this.slideEntryPitch;
+    this.slideEntrySpeed = 0;
   }
 
   /**
