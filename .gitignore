@@ -75,3 +75,6 @@ temp/
 
 # Claude AI assistant settings
 .claude/settings.local.json
+
+# Archived game code (not in version control)
+_archive/
