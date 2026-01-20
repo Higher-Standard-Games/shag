@@ -60,16 +60,18 @@ class EngineVersion {
   /**
    * Set the browser document title.
    * Uses game title from config if set, otherwise "SHAG Engine v<version>"
+   * Includes a random tagline for fun!
    */
   public setDocumentTitle(): void {
     if (typeof document !== 'undefined') {
       const gamePaths = GamePaths.getInstance();
       const gameTitle = gamePaths.isInitialized() ? gamePaths.getGameTitle() : null;
+      const tagline = this.getEngineTagline();
 
       if (gameTitle) {
-        document.title = gameTitle;
+        document.title = `${gameTitle} - ${tagline}`;
       } else {
-        document.title = this.getFullVersionString();
+        document.title = `SHAG Engine - ${tagline}`;
       }
     }
   }

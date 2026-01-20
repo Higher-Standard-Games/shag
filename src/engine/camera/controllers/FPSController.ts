@@ -28,6 +28,7 @@ import { MovementVars } from "../../movement/MovementVars";
 import {
   PLAYER_RADIUS,
   PLAYER_HEIGHT,
+  CROUCH_HEIGHT,
   PLAYER_ORIGIN_HEIGHT,
   DEFAULT_VIEWHEIGHT,
   STEPSIZE,
@@ -106,6 +107,26 @@ export class FPSController implements ICameraController {
       feetToOrigin(feetPosition.y),
       feetPosition.z
     ));
+  }
+
+  /**
+   * Get current player collision height based on crouch/slide state
+   * @returns CROUCH_HEIGHT (36) when crouching/sliding, PLAYER_HEIGHT (56) otherwise
+   */
+  public getCurrentHeight(): number {
+    return (this.isCrouching || this.isSliding) ? CROUCH_HEIGHT : PLAYER_HEIGHT;
+  }
+
+  /**
+   * Get crouch state for server-side hitbox sync
+   * @returns Object with crouch state, slide state, and current collision height
+   */
+  public getCrouchState(): { isCrouching: boolean; isSliding: boolean; height: number } {
+    return {
+      isCrouching: this.isCrouching,
+      isSliding: this.isSliding,
+      height: this.getCurrentHeight(),
+    };
   }
 
   // Static default speed that persists between controller changes
@@ -1026,6 +1047,9 @@ export class FPSController implements ICameraController {
         const groundCheckStart = this.camera.position.clone();
         const groundCheckEnd = groundCheckStart.add(new Vector3(0, -2, 0));
 
+        // NOTE: Ground check uses PLAYER_HEIGHT always, not dynamic crouch height
+        // Because Q3 crouch keeps origin at same waist level, feet move UP to -4 from -24
+        // The ground trace needs to check from consistent origin height
         const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
         const groundTrace = backend.trace(groundCheckStart, groundCheckEnd, traceOpts);
 
@@ -1112,7 +1136,36 @@ export class FPSController implements ICameraController {
     // === CROUCH STATE ===
     // Camera lowers IMMEDIATELY when crouch key pressed OR when sliding
     // No grounded check - crouch should be instant and override other movement
-    this.isCrouching = this.keys.crouch || this.isSliding;
+
+    // Ceiling check: prevent standing up if blocked above
+    let wantsToCrouch = this.keys.crouch || this.isSliding;
+    const wasCrouching = this.isCrouching;
+
+    // If trying to stand up from crouch, check for ceiling clearance
+    if (wasCrouching && !wantsToCrouch && this.isGrounded) {
+      const cm = getCollisionManager();
+      if (cm.isInitialized()) {
+        const backend = (cm as any).backends?.get('q3');
+        if (backend && typeof backend.trace === 'function') {
+          // Check for 20 units of headroom (PLAYER_HEIGHT 56 - CROUCH_HEIGHT 36 = 20)
+          const headroom = PLAYER_HEIGHT - CROUCH_HEIGHT;
+          const ceilingCheckStart = this.camera.position.clone();
+          const ceilingCheckEnd = ceilingCheckStart.add(new Vector3(0, headroom, 0));
+
+          // Use small height for the trace (point trace essentially)
+          const ceilingTrace = backend.trace(ceilingCheckStart, ceilingCheckEnd, { radius: PLAYER_RADIUS, height: 4 });
+
+          if (ceilingTrace.fraction < 1.0) {
+            // Blocked! Force player to stay crouched
+            wantsToCrouch = true;
+            // Optional: debug log
+            // console.log('[Crouch] Blocked by ceiling, cannot stand');
+          }
+        }
+      }
+    }
+
+    this.isCrouching = wantsToCrouch;
 
     // Smoothly interpolate crouch offset
     const targetCrouchOffset = this.isCrouching ? FPSController.CROUCH_HEIGHT_OFFSET : 0;
