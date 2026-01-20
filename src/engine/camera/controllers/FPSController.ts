@@ -20,6 +20,8 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
@@ -32,6 +34,9 @@ import {
   PLAYER_ORIGIN_HEIGHT,
   DEFAULT_VIEWHEIGHT,
   STEPSIZE,
+  CROUCH_MINS_Z,
+  PLAYER_MINS_Z,
+  PLAYER_MAXS_Z,
   originToFeet,
   feetToOrigin,
 } from "../../physics/PlayerPhysicsConstants";
@@ -207,6 +212,9 @@ export class FPSController implements ICameraController {
   private crouchViewOffset: number = 0;  // Current crouch offset (0 = standing, -20 = crouched)
   private static readonly CROUCH_HEIGHT_OFFSET: number = -20; // How much to lower view when crouched
   private static readonly CROUCH_TRANSITION_SPEED: number = 0.2; // Lerp speed for crouch transition
+
+  // Debug visualization (cl_debugbbox cvar)
+  private debugBboxMesh: LinesMesh | null = null;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -1209,6 +1217,9 @@ export class FPSController implements ICameraController {
       const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
       this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
     }
+
+    // === DEBUG BBOX VISUALIZATION ===
+    this.updateDebugBbox();
   }
 
   // Speed display element
@@ -1261,6 +1272,95 @@ export class FPSController implements ICameraController {
 
     return vel.subtract(normal.scale(backoff));
   }
+
+  /**
+   * Update debug bbox visualization
+   * Shows a red wireframe box 100 units ahead of player that mirrors current player bbox
+   * Enabled via cl_debugbbox cvar (0 = off, 1 = on)
+   */
+  private updateDebugBbox(): void {
+    if (!this.camera || !this.scene) return;
+
+    const debugCvar = Cvar.get('cl_debugbbox');
+    const debugEnabled = debugCvar !== undefined && Number(debugCvar) > 0;
+
+    if (!debugEnabled) {
+      // Hide mesh if exists
+      if (this.debugBboxMesh) {
+        this.debugBboxMesh.isVisible = false;
+      }
+      return;
+    }
+
+    // Get current bbox dimensions using Q3 constants
+    // Standing: minsZ = -24, maxsZ = +32 (origin at waist)
+    // Crouched: minsZ = -4, maxsZ = +32 (feet move UP, head stays same)
+    const isCrouched = this.isCrouching || this.isSliding;
+    const minsZ = isCrouched ? CROUCH_MINS_Z : PLAYER_MINS_Z;  // -4 or -24
+    const maxsZ = PLAYER_MAXS_Z;  // Always +32
+    const radius = PLAYER_RADIUS;
+    const height = maxsZ - minsZ;  // 36 or 56
+
+    // Check if we need to recreate the mesh (height changed)
+    const needsRecreate = !this.debugBboxMesh || (this.debugBboxMesh as any).lastHeight !== height;
+
+    if (needsRecreate) {
+      // Dispose old mesh
+      if (this.debugBboxMesh) {
+        this.debugBboxMesh.dispose();
+      }
+
+      // Create wireframe box points (8 corners of rectangular prism)
+      // Create at origin, we'll position it via mesh.position
+      const minX = -radius, maxX = radius;
+      const minY = minsZ, maxY = maxsZ;
+      const minZ = -radius, maxZ = radius;
+
+      const corners = [
+        new Vector3(minX, minY, minZ), // 0 bottom-back-left
+        new Vector3(maxX, minY, minZ), // 1 bottom-back-right
+        new Vector3(maxX, minY, maxZ), // 2 bottom-front-right
+        new Vector3(minX, minY, maxZ), // 3 bottom-front-left
+        new Vector3(minX, maxY, minZ), // 4 top-back-left
+        new Vector3(maxX, maxY, minZ), // 5 top-back-right
+        new Vector3(maxX, maxY, maxZ), // 6 top-front-right
+        new Vector3(minX, maxY, maxZ), // 7 top-front-left
+      ];
+
+      // Create line strip for wireframe box (12 edges)
+      const lines: Vector3[][] = [
+        // Bottom face
+        [corners[0], corners[1]], [corners[1], corners[2]], [corners[2], corners[3]], [corners[3], corners[0]],
+        // Top face
+        [corners[4], corners[5]], [corners[5], corners[6]], [corners[6], corners[7]], [corners[7], corners[4]],
+        // Vertical edges
+        [corners[0], corners[4]], [corners[1], corners[5]], [corners[2], corners[6]], [corners[3], corners[7]],
+      ];
+
+      this.debugBboxMesh = MeshBuilder.CreateLineSystem('debug_bbox', { lines }, this.scene);
+      (this.debugBboxMesh as any).lastHeight = height; // Store for comparison
+      (this.debugBboxMesh as any).isCrouchedMesh = isCrouched; // Also track crouch state
+    }
+
+    // Position mesh ahead of player based on cl_debugbbox_offset cvar
+    const offsetCvar = Cvar.get('cl_debugbbox_offset');
+    const offset = offsetCvar !== undefined ? Number(offsetCvar) : 100;
+
+    const forward = this.camera.getForwardRay().direction;
+    forward.y = 0;
+    forward.normalize();
+    const aheadPos = this.camera.position.add(forward.scale(offset));
+
+    // Correct crouch behavior: feet stay on ground, head lowers
+    // When crouched, origin drops by (PLAYER_MINS_Z - CROUCH_MINS_Z) = 20 units
+    // to keep feet at the same level as standing
+    const crouchOriginDrop = isCrouched ? (PLAYER_MINS_Z - CROUCH_MINS_Z) : 0;  // -24 - (-4) = -20
+    aheadPos.y = this.physicsY + crouchOriginDrop;
+
+    this.debugBboxMesh!.position.copyFrom(aheadPos);
+    this.debugBboxMesh!.isVisible = true;
+  }
+
 
   /**
    * Warsow PM_AirAccelerate - Main bunny hop speed gain mechanic
@@ -2486,4 +2586,19 @@ Cvar.register('cam_freefly_speed', FPSController.getDefaultSpeed(), {
   onChange: (value) => {
     FPSController.setDefaultSpeed(value as number);
   },
+});
+
+// Debug bbox visualization cvar
+Cvar.register('cl_debugbbox', 0, {
+  type: 'int',
+  min: 0,
+  max: 1,
+  description: 'Show player bounding box ahead (developer)',
+});
+
+Cvar.register('cl_debugbbox_offset', 100, {
+  type: 'float',
+  min: 0,
+  max: 500,
+  description: 'Distance to show debug bbox ahead of player (units)',
 });
