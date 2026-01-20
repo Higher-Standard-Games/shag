@@ -2055,6 +2055,20 @@ export class FPSController implements ICameraController {
       return false;  // No wall found
     }
 
+    // === EYE-LEVEL WALL CHECK ===
+    // Verify wall extends up to eye level (not just a low fence/railing)
+    // If there's no wall at eye level, player should jump OVER it, not wall jump
+    const eyeHeight = PLAYER_MAXS_Z;  // +32 from origin (eye level)
+    const eyeCheckStart = this.camera.position.add(new Vector3(0, eyeHeight - 10, 0));  // Near eye level
+    const eyeCheckEnd = eyeCheckStart.add(wallNormal.scale(-wallJumpReach));  // Trace toward wall
+    const eyeTrace = backend.trace(eyeCheckStart, eyeCheckEnd, { radius: 8, height: 16 });
+
+    if (eyeTrace.fraction >= 1.0) {
+      // No wall at eye level - this is a low obstacle (fence, railing)
+      // Player should jump over it, not wall jump
+      return false;
+    }
+
     // Check we're moving toward the wall (dot product < 0)
     const velDot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
     if (velDot > -10) {
