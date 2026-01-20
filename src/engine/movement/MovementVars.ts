@@ -304,8 +304,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
   sv_walljump_minheight: {
-    value: 24,
-    defaultValue: 24,
+    value: 32,
+    defaultValue: 32,
     min: 8,
     max: 64,
     description: 'Minimum height above ground for wall jump',

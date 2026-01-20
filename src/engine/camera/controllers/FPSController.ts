@@ -160,6 +160,10 @@ export class FPSController implements ICameraController {
   private physicsX: number = 0;
   private physicsY: number = 0;  // This is ORIGIN height, not feet!
   private physicsZ: number = 0;
+  // Last frame position for actual speed calculation
+  private lastPhysicsX: number = 0;
+  private lastPhysicsZ: number = 0;
+  private actualHorizSpeed: number = 0;  // Real speed based on position delta
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
   private smoothingInitialized: boolean = false;
@@ -1040,6 +1044,19 @@ export class FPSController implements ICameraController {
       }
     }
 
+    // === CEILING DETECTION ===
+    // If we were moving UP but didn't move as much as expected, we hit a ceiling
+    // Zero vertical velocity immediately to prevent "floating" at ceiling
+    const actualYMove = this.camera.position.y - prevY;
+    const expectedYMove = movement.y;
+    if (this.velocity.y > 0 && expectedYMove > 0.1) {
+      // We wanted to move up significantly
+      if (actualYMove < expectedYMove * 0.5) {
+        // But we barely moved - hit ceiling!
+        this.velocity.y = 0;
+      }
+    }
+
     // === GROUND DETECTION ===
     // Q3-style: Actively check for ground beneath player each frame
     // With asymmetric box, origin is 24 above feet, box extends 24 down from origin
@@ -1115,16 +1132,28 @@ export class FPSController implements ICameraController {
     // === CROUCHSLIDE SYSTEM ===
     this.updateCrouchslide(deltaTime, mv);
 
-    // === SPEED DISPLAY (cl_showspeed) ===
-    const showSpeed = mv.get('cl_showspeed') > 0;
-    const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-    this.updateSpeedDisplay(showSpeed, horizSpeed);
-
-    // === SAVE PHYSICS POSITION AFTER COLLISION ===
+    // === SAVE PHYSICS POSITION AFTER COLLISION AND CALCULATE ACTUAL SPEED ===
     // Physics position is at ORIGIN level (24 above feet)
-    this.physicsX = this.camera.position.x;
+    const newPhysicsX = this.camera.position.x;
+    const newPhysicsZ = this.camera.position.z;
+
+    // Calculate actual horizontal speed from position delta (real movement, not input velocity)
+    if (deltaTime > 0) {
+      const dx = newPhysicsX - this.lastPhysicsX;
+      const dz = newPhysicsZ - this.lastPhysicsZ;
+      this.actualHorizSpeed = Math.sqrt(dx * dx + dz * dz) / deltaTime;
+    }
+
+    // Update last position for next frame
+    this.lastPhysicsX = newPhysicsX;
+    this.lastPhysicsZ = newPhysicsZ;
+    this.physicsX = newPhysicsX;
     this.physicsY = this.camera.position.y;
-    this.physicsZ = this.camera.position.z;
+    this.physicsZ = newPhysicsZ;
+
+    // === SPEED DISPLAY (cl_showspeed) - Use actual speed, not velocity ===
+    const showSpeed = mv.get('cl_showspeed') > 0;
+    this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
     // === VIEWPORT SMOOTHING (same pattern as FreeflyController) ===
     const heightDiff = Math.abs(this.physicsY - this.smoothedY);
@@ -1200,7 +1229,7 @@ export class FPSController implements ICameraController {
       const playerState: PlayerState = {
         position: this.camera.position.clone(),
         velocity: this.velocity.clone(),
-        horizontalSpeed: horizSpeed,
+        horizontalSpeed: this.actualHorizSpeed,
         isGrounded: this.isGrounded,
         wasGroundedLastFrame: this.wasGroundedLastFrame,
         isJumping: this.keys.up && this.isGrounded,
@@ -2036,17 +2065,26 @@ export class FPSController implements ICameraController {
     const chargeTime = mv.get('sv_walljump_chargetime');
 
     if (chargeTime <= 0) {
-      // Instant bounce (old behavior)
+      // Instant bounce (old behavior) with speed-based scaling
+      // At low speed: push mostly UP for ledge climbing
+      // At high speed: push normally with horizontal momentum
+      // Use ACTUAL speed (position-based), not velocity (input intention)
+      const runSpeed = mv.get('sv_runSpeed');
+      const curSpeed = this.actualHorizSpeed;  // Real movement speed
+      const speedFactor = Math.max(0.8, Math.min(1.0, curSpeed / runSpeed));  // Min 0.8 = always 80% horizontal push
+      const horizontalScale = speedFactor;
+      const verticalScale = 1.0 + (1.0 - speedFactor) * 1.0; // 1.20 at min speed (20% vertical boost)
+
       const dot = this.velocity.x * wallNormal.x + this.velocity.z * wallNormal.z;
       const reflectedX = this.velocity.x - 2 * dot * wallNormal.x;
       const reflectedZ = this.velocity.z - 2 * dot * wallNormal.z;
 
-      this.velocity.x = reflectedX * wallJumpBounce;
-      this.velocity.z = reflectedZ * wallJumpBounce;
-      this.velocity.y = wallJumpHeight;
+      this.velocity.x = reflectedX * wallJumpBounce * horizontalScale;
+      this.velocity.z = reflectedZ * wallJumpBounce * horizontalScale;
+      this.velocity.y = wallJumpHeight * verticalScale;
 
       this.lastWallJumpTime = currentTime;
-      console.log(`[WallJump] Instant bounce! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)})`);
+      console.log(`[WallJump] Instant bounce! speed=${curSpeed.toFixed(0)} factor=${speedFactor.toFixed(2)} vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)})`);
     } else {
       // Start charging for push
       this.wallJumpState = 'charging';
@@ -2125,6 +2163,20 @@ export class FPSController implements ICameraController {
     const wallJumpHeight = mv.get('sv_walljump_height');
     const wallJumpBounce = mv.get('sv_walljump_bounce');
     const wallJumpBoost = mv.get('sv_walljump_boost');
+    const runSpeed = mv.get('sv_runSpeed'); // ~400
+
+    // Calculate speed-based scaling factor
+    // At low speed (standstill): push mostly UP for ledge climbing
+    // At high speed (sprinting): push normally with horizontal momentum
+    // NOTE: We use actualHorizSpeed (real movement speed at charge start), not velocity
+    // This prevents false "high speed" when pushing against wall
+    const preSpeed = this.actualHorizSpeed;  // Real movement speed
+    const speedFactor = Math.max(0.8, Math.min(1.0, preSpeed / runSpeed));  // Min 0.8 = always 80% horizontal push
+
+    // Scale horizontal push by speed factor (0.8 at standstill, 1.0 at sprint)
+    // Scale vertical push inversely (1.15 at standstill, 1.0 at sprint)
+    const horizontalScale = speedFactor;
+    const verticalScale = 1.0 + (1.0 - speedFactor) * 1.0; // 20% vertical boost at min speed
 
     // Calculate reflected velocity from pre-charge velocity
     const dot = this.wallJumpPreVelocity.x * this.wallJumpNormal.x +
@@ -2132,16 +2184,16 @@ export class FPSController implements ICameraController {
     const reflectedX = this.wallJumpPreVelocity.x - 2 * dot * this.wallJumpNormal.x;
     const reflectedZ = this.wallJumpPreVelocity.z - 2 * dot * this.wallJumpNormal.z;
 
-    // Apply bounce multiplier, boost, and upward velocity
-    this.velocity.x = reflectedX * wallJumpBounce * wallJumpBoost;
-    this.velocity.z = reflectedZ * wallJumpBounce * wallJumpBoost;
-    this.velocity.y = wallJumpHeight * wallJumpBoost;
+    // Apply bounce multiplier, boost, speed scaling, and upward velocity
+    this.velocity.x = reflectedX * wallJumpBounce * wallJumpBoost * horizontalScale;
+    this.velocity.z = reflectedZ * wallJumpBounce * wallJumpBoost * horizontalScale;
+    this.velocity.y = wallJumpHeight * wallJumpBoost * verticalScale;
 
     // Update cooldown and reset state
     this.lastWallJumpTime = performance.now() / 1000;
     this.wallJumpState = 'none';
 
-    console.log(`[WallJump] PUSH! vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)}, ${this.velocity.y.toFixed(0)}) boost=${wallJumpBoost}`);
+    console.log(`[WallJump] PUSH! speed=${preSpeed.toFixed(0)} factor=${speedFactor.toFixed(2)} vel=(${this.velocity.x.toFixed(0)}, ${this.velocity.z.toFixed(0)}, ${this.velocity.y.toFixed(0)})`);
   }
 
   /**
