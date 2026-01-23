@@ -459,6 +459,7 @@ export class TextureManager {
    * Clear all cached textures and materials
    */
   clearCache(): void {
+    console.log(`[TextureManager] clearCache called at ${Date.now()}`);
     this.textureCache.forEach((texture) => {
       texture.dispose();
     });

@@ -8,7 +8,7 @@ import { Engine } from '@babylonjs/core/Engines/engine';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color4 } from '@babylonjs/core/Maths/math.color';
+import { Color4, Color3 } from '@babylonjs/core/Maths/math.color';
 
 // Module-level state for empty scene management
 let emptyScene: Scene | null = null;
@@ -142,6 +142,7 @@ export default class SceneCommand extends Command {
     emptyScene = new Scene(engine);
     emptyScene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
     emptyScene.collisionsEnabled = true;
+    emptyScene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render
 
     // Initialize Physics (Havok)
     try {
@@ -160,9 +161,15 @@ export default class SceneCommand extends Command {
     emptySceneCamera.maxZ = 50000;
     emptySceneCamera.inputs.clear();
 
-    // Add basic lighting
-    const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
-    light.intensity = 1.0;
+    // Initialize scene services (TextureManager, SkyLightSystem, etc.)
+    const { ServiceLocator } = await import('../../core/ServiceLocator');
+    await ServiceLocator.getInstance().initScene(emptyScene);
+
+    // Add basic lighting (unless already created by SkyLightSystem)
+    if (emptyScene.lights.length === 0) {
+      const light = new HemisphericLight("light", new Vector3(0, 1, 0), emptyScene);
+      light.intensity = 1.0;
+    }
 
     // Set as active scene with SkyLightSystem update for day/night cycle
     const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
@@ -272,24 +279,15 @@ export default class SceneCommand extends Command {
     const meshesToDispose = [...scene.meshes];
     for (const mesh of meshesToDispose) {
       if (mesh.name !== 'emptySceneCamera') {
-        mesh.dispose(false, true);
+        mesh.dispose(false, true); // Dispose mesh + children
         stats.meshes++;
       }
     }
 
-    // Dispose remaining materials
-    const materialsToDispose = [...scene.materials];
-    for (const material of materialsToDispose) {
-      material.dispose(true, true);
-      stats.materials++;
-    }
-
-    // Dispose remaining textures
-    const texturesToDispose = [...scene.textures];
-    for (const texture of texturesToDispose) {
-      texture.dispose();
-      stats.textures++;
-    }
+    // Rely on MapLoader to dispose map-specific materials and textures
+    // Manual disposal of scene.materials/textures can cause race conditions
+    // with TextureLoader caches or double-disposal issues.
+    // Unused materials/textures will be GC'd or handled by the loader's cleanup.
 
     // Clear shader animation system
     try {
@@ -297,17 +295,22 @@ export default class SceneCommand extends Command {
       ShaderAnimationSystem.getInstance().clear();
     } catch { /* ignore */ }
 
-    // Clear MapLoader state
+    // Clear MapLoader state (this clears texture caches and lightmaps)
     try {
       const { MapLoader } = await import('../../loader/map/MapLoader');
-      MapLoader.getInstance().disposeCurrentMap();
+      await MapLoader.getInstance().disposeCurrentMap();
+    } catch { /* ignore */ }
+
+    // Reinitialize SkyLightSystem lights
+    try {
+      const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+      SkyLightSystem.getInstance().reinitLights();
     } catch { /* ignore */ }
 
     return [
       'Scene cleared:',
       `  Meshes disposed: ${stats.meshes}`,
-      `  Materials disposed: ${stats.materials}`,
-      `  Textures disposed: ${stats.textures}`,
+      '  Materials/Textures: delegated to loaders',
     ].join('\n');
   }
 }

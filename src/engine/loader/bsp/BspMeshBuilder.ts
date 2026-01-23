@@ -1113,6 +1113,10 @@ export class BspMeshBuilder {
 
         // Apply texture to all matching meshes
         for (const mesh of matchingMeshes) {
+          if (loadedCount < 5) {
+            console.log(`[BspMeshBuilder] Processing texture ${texName} for mesh ${mesh.name} (Material: ${mesh.material?.getClassName()})`);
+            if (shader) console.log(`[BspMeshBuilder] Shader props: ${JSON.stringify(shaderProps)}`);
+          }
 
           // Check if this shader needs special material (glow overlay, etc.)
           if (shader) {
@@ -1225,6 +1229,16 @@ export class BspMeshBuilder {
               // Skip the rest of the texture application for this mesh
               loadedCount++;
               continue;
+            } else {
+              // CRITICAL FIX: Explicitly force OPAQUE mode for everything else
+              // This prevents Babylon from guessing transparency based on texture memory
+              mat.transparencyMode = 0; // MATERIAL_OPAQUE
+              mat.alpha = 1.0;
+              texture.hasAlpha = false;
+
+              if (loadedCount < 3) {
+                console.log(`[BspMeshBuilder] Enforced OPAQUE for ${texName} (Mode: ${mat.transparencyMode})`);
+              }
             }
 
             // Fullbright surfaces (lamps, light panels) - appear self-lit
@@ -1313,17 +1327,30 @@ export class BspMeshBuilder {
           mat.ambientTexture = lightmapTex;
           mat.ambientTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
         } else {
-          // Desktop mode: Use lightmap texture for better quality
-          mat.lightmapTexture = lightmapTex;
-          mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
-          mat.useLightmapAsShadowmap = true;
+          // Desktop mode: "Safe Mode" - Use only emissive texture to guarantee visibility
+          // We suspect ambient settings or lighting system is interfering with ambient/diffuse
 
-          // Boost the overall brightness
-          mat.emissiveColor = new Color3(
-            intensity * 0.3,
-            intensity * 0.3,
-            intensity * 0.3
-          );
+          // Disable ambient to avoid interference
+          mat.ambientTexture = null;
+          mat.ambientColor = new Color3(0, 0, 0); // Restore to default black
+
+          // Apply lightmap via emissive channel only (additive, independent of lighting)
+          mat.emissiveTexture = lightmapTex;
+          mat.emissiveTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+
+          // Use high intensity for visibility check
+          mat.emissiveTexture.level = intensity;
+
+          // Set base emissive color to black so only texture contributes
+          mat.emissiveColor = new Color3(0, 0, 0);
+
+          // Prevent shadowmap usage
+          mat.useLightmapAsShadowmap = false;
+
+          if (appliedCount === 0) {
+            console.log(`[BspMeshBuilder:SAFE] Applied first lightmap to ${mesh.name} (Material: ${mat.name})`);
+            console.log(`[BspMeshBuilder:SAFE] Diffuse: ${mat.diffuseColor}, EmissiveLevel: ${mat.emissiveTexture.level}`);
+          }
         }
 
         appliedCount++;

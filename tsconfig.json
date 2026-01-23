@@ -18,7 +18,9 @@
         /* Path aliases */
         "baseUrl": ".",
         "paths": {
-            "@game/*": ["src/games/default/*"]
+            "@game/*": [
+                "src/games/fps/*"
+            ]
         },
         /* Linting */
         "strict": true,

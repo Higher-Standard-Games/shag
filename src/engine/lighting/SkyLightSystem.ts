@@ -178,7 +178,7 @@ export class SkyLightSystem {
     enableShadows: true,
   };
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): SkyLightSystem {
     if (!SkyLightSystem.instance) {
@@ -197,67 +197,172 @@ export class SkyLightSystem {
   /**
    * Initialize the sky light system
    */
+  /**
+   * Initialize the sky light system
+   */
   public init(scene: Scene, config?: SkyLightConfig): void {
+    // If we are re-initializing on the same scene or a new scene, clean up old lights first
+    if (this.scene || this.sunLight) {
+      console.log('[SkyLightSystem] Re-initializing lights for scene...');
+      this.reinitLights();
+    }
+
     this.scene = scene;
-    
+
     if (config) {
       this.config = { ...this.config, ...config };
     }
 
+    // Ensure we start fresh if reinitLights didn't catch everything or if this is the first run
     // Create sun light (directional) - softer specular for less harsh highlights
-    // Position light very high and far to cover entire map uniformly
-    this.sunLight = new DirectionalLight(
-      "sunLight",
-      new Vector3(-0.5, -1, -0.5).normalize(),
-      scene
-    );
-    this.sunLight.intensity = 0;
-    this.sunLight.diffuse = new Color3(1, 1, 1);
-    this.sunLight.specular = new Color3(0.2, 0.2, 0.2); // Reduced specular
-    
-    // Position the light source far away so it covers the whole map uniformly
-    this.sunLight.position = new Vector3(500, 500, 500);
+    if (!this.sunLight || this.sunLight.isDisposed()) {
+      this.sunLight = new DirectionalLight(
+        "sunLight",
+        new Vector3(-0.5, -1, -0.5).normalize(),
+        scene
+      );
+      this.sunLight.position = new Vector3(500, 500, 500);
+      this.sunLight.intensity = 0;
+      this.sunLight.diffuse = new Color3(1, 1, 1);
+      this.sunLight.specular = new Color3(0.2, 0.2, 0.2); // Reduced specular
+    }
 
     // Disable shadows - they cause the "half dark" issue on large maps
-    // The day/night effect is achieved through ambient lighting instead
-    // If shadows are needed later, use a much larger shadow map (4096+) 
-    // and configure autoCalcShadowZBounds for the camera frustum
     this.config.enableShadows = false;
 
     // Create moon light (directional, opposite direction)
-    this.moonLight = new DirectionalLight(
-      "moonLight",
-      new Vector3(0.5, -1, 0.5).normalize(),
-      scene
-    );
-    this.moonLight.intensity = 0;
-    this.moonLight.diffuse = MOON_COLOR;
-    this.moonLight.specular = new Color3(0.05, 0.05, 0.08); // Very soft specular
+    if (!this.moonLight || this.moonLight.isDisposed()) {
+      this.moonLight = new DirectionalLight(
+        "moonLight",
+        new Vector3(0.5, -1, 0.5).normalize(),
+        scene
+      );
+      this.moonLight.intensity = 0;
+      this.moonLight.diffuse = MOON_COLOR;
+      this.moonLight.specular = new Color3(0.05, 0.05, 0.08); // Very soft specular
+    }
 
     // Create ambient/hemisphere light - provides base illumination
-    this.ambientLight = new HemisphericLight(
-      "ambientLight",
-      new Vector3(0, 1, 0),
-      scene
-    );
-    this.ambientLight.intensity = this.config.ambientIntensity;
-    this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55);  // Slightly blue-ish
-    this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25); // Darker ground bounce
-    this.ambientLight.specular = Color3.Black(); // No specular from ambient
+    if (!this.ambientLight || this.ambientLight.isDisposed()) {
+      this.ambientLight = new HemisphericLight(
+        "ambientLight",
+        new Vector3(0, 1, 0),
+        scene
+      );
+      this.ambientLight.intensity = this.config.ambientIntensity;
+      this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55);  // Slightly blue-ish
+      this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25); // Darker ground bounce
+      this.ambientLight.specular = Color3.Black(); // No specular from ambient
+    }
 
     // Subscribe to clock updates
     const clock = GameClock.getInstance();
-    clock.on((event, data) => {
-      if (event === "time_update") {
-        this.updateLighting(data as TimeOfDay);
-      }
-    });
+    // Remove existing listener to avoid duplicates if re-init
+    // (Note: GameClock.on doesn't easily support removal without function ref, 
+    // but assuming single listener per system instance is fine if instance is singleton)
 
     // Initial update
     this.updateLighting(clock.getTimeOfDay());
-
   }
 
+  // ==================== BSP Mode ====================
+
+  private bspMode: boolean = false;
+
+  /**
+   * Enable/disable BSP mode
+   * In BSP mode, the day/night cycle is paused, and lighting is optimized for BSP maps:
+   * - Sun light is fixed (for normal maps)
+   * - Ambient light is neutral (for lightmaps)
+   */
+  public setBspMode(enabled: boolean): void {
+    this.bspMode = enabled;
+
+    if (this.scene && enabled) {
+      // Force an immediate update to set the fixed BSP lighting state
+      // We use noon (time=12) as a reference for bright, neutral lighting
+      // But we manually override the specific light properties below
+      const noon: TimeOfDay = {
+        hour: 12,
+        minute: 0,
+        totalMinutes: 720,
+        normalized: 0.5,
+        period: 'PM' as any,
+        periodProgress: 0
+      };
+      this.updateLighting(noon);
+
+      console.log('[SkyLightSystem] BSP Mode enabled: Lighting locked for BSP map');
+    } else {
+      console.log('[SkyLightSystem] BSP Mode disabled: Resuming day/night cycle');
+    }
+  }
+
+  /**
+   * Reinitialize lights after scene clear
+   * Call this when lights have been disposed but scene still exists
+   */
+  public reinitLights(): void {
+    if (!this.scene) {
+      console.warn('[SkyLightSystem] Cannot reinit lights: no scene');
+      return;
+    }
+
+    // Dispose existing lights if they still exist
+    if (this.sunLight && !this.sunLight.isDisposed()) {
+      this.sunLight.dispose();
+    }
+    if (this.moonLight && !this.moonLight.isDisposed()) {
+      this.moonLight.dispose();
+    }
+    if (this.ambientLight && !this.ambientLight.isDisposed()) {
+      this.ambientLight.dispose();
+    }
+    if (this.shadowGenerator) {
+      this.shadowGenerator.dispose();
+      this.shadowGenerator = null;
+    }
+
+    // Recreate sun light
+    this.sunLight = new DirectionalLight(
+      "sunLight",
+      new Vector3(-0.5, -1, -0.5).normalize(),
+      this.scene
+    );
+    this.sunLight.intensity = 0;
+    this.sunLight.diffuse = new Color3(1, 1, 1);
+    this.sunLight.specular = new Color3(0.2, 0.2, 0.2);
+    this.sunLight.position = new Vector3(500, 500, 500);
+
+    // Recreate moon light
+    this.moonLight = new DirectionalLight(
+      "moonLight",
+      new Vector3(0.5, -1, 0.5).normalize(),
+      this.scene
+    );
+    this.moonLight.intensity = 0;
+    this.moonLight.diffuse = MOON_COLOR;
+    this.moonLight.specular = new Color3(0.05, 0.05, 0.08);
+
+    // Recreate ambient light
+    this.ambientLight = new HemisphericLight(
+      "ambientLight",
+      new Vector3(0, 1, 0),
+      this.scene
+    );
+    this.ambientLight.intensity = this.config.ambientIntensity;
+    this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55);
+    this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25);
+    this.ambientLight.specular = Color3.Black();
+
+    // Update lighting for current time
+    const clock = GameClock.getInstance();
+    this.updateLighting(clock.getTimeOfDay());
+
+    console.log('[SkyLightSystem] Lights reinitialized');
+  }
+
+  /**
   /**
    * Update lighting based on time of day
    */
@@ -266,12 +371,38 @@ export class SkyLightSystem {
       return;
     }
 
+    // BSP Mode: Lock lighting state
+    if (this.bspMode) {
+      // 1. Sun Light: Needs to be active and directional for Normal Maps to work
+      // But not too strong to wash out lightmaps
+      this.sunLight.intensity = 1.0;
+      this.sunLight.diffuse = new Color3(1, 1, 1);
+      this.sunLight.specular = new Color3(0.1, 0.1, 0.1);
+      // Fixed direction (noon-ish but angled) for good normal map relief
+      this.sunLight.direction = new Vector3(-0.5, -1, -0.2).normalize();
+
+      // 2. Moon Light: Off or very subtle fill
+      this.moonLight.intensity = 0;
+
+      // 3. Ambient Light: Neutral base for lightmapped geometry
+      // Lightmaps multiply with this, so (0.5, 0.5, 0.5) might darken everything by half?
+      // StandardMaterial logic: lightmap * ambient? Or lightmap * diffuse?
+      // If we want "pure" lightmap look, we want neutral ambient.
+      // Let's stick to a clean white light so colours aren't tinted.
+      this.ambientLight.intensity = 0.8;
+      this.ambientLight.diffuse = new Color3(1, 1, 1);
+      this.ambientLight.groundColor = new Color3(0.5, 0.5, 0.5);
+      this.ambientLight.specular = Color3.Black();
+
+      return;
+    }
+
     const hour = time.hour + time.minute / 60;
-    
+
     // Find the two color stops to interpolate between
     let prevStop = COLOR_STOPS[COLOR_STOPS.length - 2];
     let nextStop = COLOR_STOPS[0];
-    
+
     for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
       if (hour >= COLOR_STOPS[i].time && hour < COLOR_STOPS[i + 1].time) {
         prevStop = COLOR_STOPS[i];
@@ -304,7 +435,7 @@ export class SkyLightSystem {
     // Apply moon light (inverse of sun)
     const moonIntensity = Math.max(0, 1 - sunIntensity * 2) * this.config.moonIntensity;
     this.moonLight.intensity = moonIntensity;
-    
+
     // Moon position (opposite of sun)
     const moonPosition = this.calculateMoonPosition(hour);
     this.moonLight.direction = moonPosition.scale(-1);
@@ -312,7 +443,7 @@ export class SkyLightSystem {
     // Apply ambient light
     this.ambientLight.diffuse = ambientColor;
     this.ambientLight.groundColor = ambientColor.scale(0.6);
-    
+
     // Adjust ambient intensity based on time
     // Higher base (0.6) ensures good visibility at night with blue tint
     const ambientMultiplier = 0.6 + sunIntensity * 0.8;
@@ -618,22 +749,22 @@ export class SkyLightSystem {
   private applyBspLightmaps(): void {
     const sunFactor = Math.sin(this._bspTimeOfDay * Math.PI);
     const clampedSun = Math.max(0, sunFactor);
-    
+
     // min=0.1 at midnight, max=1.5 at noon
     const lmIntensity = 0.1 + 1.4 * clampedSun;
-    
+
     // Apply to BSP world
     try {
       const bsp = BspManager.getInstance();
       if (bsp.isLoaded()) {
         bsp.setLightmapIntensity(lmIntensity);
-        
+
         // Also tint the skybox
         this.applySkyboxTint(clampedSun);
-        
+
         // Apply to all other meshes in scene (spawned models, etc.)
         this.applyToSceneMeshes(bsp.getScene(), lmIntensity);
-        
+
         // Control street lamps based on time (on at night: 0-0.2 and 0.8-1)
         const isNight = this._bspTimeOfDay < 0.2 || this._bspTimeOfDay > 0.8;
         if (isNight !== this._lastStreetLampState) {
@@ -717,19 +848,19 @@ export class SkyLightSystem {
       if (!scene) return;
 
       // Find skybox mesh (could be named various things)
-      const skybox = scene.getMeshByName('skyBox') || 
-                     scene.getMeshByName('skybox') ||
-                     scene.getMeshByName('skySphere') ||
-                     scene.getMeshByName('q3_skybox');
-      
+      const skybox = scene.getMeshByName('skyBox') ||
+        scene.getMeshByName('skybox') ||
+        scene.getMeshByName('skySphere') ||
+        scene.getMeshByName('q3_skybox');
+
       if (!skybox || !skybox.material) return;
 
       const mat = skybox.material as any;
-      
+
       // Calculate tint: bright white at noon, dark blue at midnight
       const nightR = 0.15, nightG = 0.15, nightB = 0.25;
       const dayR = 1.0, dayG = 1.0, dayB = 1.0;
-      
+
       const r = nightR + (dayR - nightR) * sunFactor;
       const g = nightG + (dayG - nightG) * sunFactor;
       const b = nightB + (dayB - nightB) * sunFactor;
@@ -740,7 +871,7 @@ export class SkyLightSystem {
         mat.emissiveColor.g = g;
         mat.emissiveColor.b = b;
       }
-      
+
       // For reflection-based skybox, adjust diffuse as tint
       if (mat.reflectionTexture && mat.diffuseColor) {
         mat.diffuseColor.r = r;
@@ -772,7 +903,7 @@ export class SkyLightSystem {
 
     // Check if cvar-driven day/night system is enabled
     const enabled = Number(Cvar.get('r_daynight') ?? 0);
-    
+
     if (enabled < 0.5) {
       return;
     }
@@ -782,19 +913,19 @@ export class SkyLightSystem {
     if (animate >= 0.5) {
       const cycleLength = Number(Cvar.get('r_daynight_length') ?? 1440);
       const speed = Number(Cvar.get('r_daynight_speed') ?? 1.0);
-      
+
       let time = Number(Cvar.get('r_daynight_time') ?? 0.5);
       // deltaTime is in ms, convert to seconds
       time += (deltaTime / 1000 / cycleLength) * speed;
       time = time % 1.0;
       if (time < 0) time += 1.0;
-      
+
       Cvar.set('r_daynight_time', time);
     }
 
     // Get current time from cvar
     const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
-    
+
     // Only update lighting if time changed significantly
     const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
     if (timeDiff >= 0.001) {
@@ -818,11 +949,11 @@ export class SkyLightSystem {
     const totalMinutes = Math.floor(normalized * 1440);
     const hour = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
-    
+
     // Determine period
     let period: 'night' | 'dawn' | 'morning' | 'afternoon' | 'dusk' | 'evening' = 'night';
     let periodProgress = 0;
-    
+
     if (hour >= 0 && hour < 5) {
       period = 'night';
       periodProgress = hour / 5;

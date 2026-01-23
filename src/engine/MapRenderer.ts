@@ -858,6 +858,23 @@ export class MapRenderer {
     // and do not linger in manager-owned references.
     SpriteBuildingManager.getInstance().dispose();
 
+    // CRITICAL: Dispose BSP materials BEFORE mesh disposal to prevent stale shader uniforms
+    // When textures are disposed but materials persist, their shader uniform locations become
+    // invalid, causing WebGL INVALID_OPERATION errors on subsequent map loads
+    const bspMaterials = scene.materials.filter(mat =>
+      mat.name.startsWith('bsp_') ||
+      mat.name.startsWith('lightmap_') ||
+      mat.name.startsWith('filterBlend_') ||
+      mat.name.startsWith('glow_overlay_') ||
+      mat.name.startsWith('q3mat_')
+    );
+    for (const mat of bspMaterials) {
+      mat.dispose(true, true); // forceDisposeEffect=true, forceDisposeTextures=true
+    }
+    if (bspMaterials.length > 0) {
+      console.log(`[MapRenderer] Disposed ${bspMaterials.length} BSP materials`);
+    }
+
     const matchesMap = (metadata: any): boolean => {
       if (!metadata?.mapOwned) return false;
       if (!mapName) return true;

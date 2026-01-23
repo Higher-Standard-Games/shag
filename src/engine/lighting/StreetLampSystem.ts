@@ -64,7 +64,7 @@ export class StreetLampSystem {
   private lamps: Map<string, StreetLamp> = new Map();
   private clusteredLights: ClusteredLightContainer | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): StreetLampSystem {
     if (!StreetLampSystem.instance) {
@@ -86,13 +86,8 @@ export class StreetLampSystem {
   public init(scene: Scene): void {
     this.scene = scene;
 
-    // Create clustered light container for street lamp point lights
-    // Configure for orthographic camera compatibility
-    this.clusteredLights = new ClusteredLightContainer("streetLampCluster", [], scene);
-    this.clusteredLights.depthSlices = 4;
-    this.clusteredLights.horizontalTiles = 8;
-    this.clusteredLights.verticalTiles = 8;
-    this.clusteredLights.maxRange = 1000;
+    // Note: ClusteredLightContainer is now created lazily when the first light is added.
+    // Creating an empty container can cause issues with Babylon.js material ready checks.
 
     // Subscribe to clock period changes for instant response
     const clock = GameClock.getInstance();
@@ -106,7 +101,23 @@ export class StreetLampSystem {
     // Initial state check
     this.checkLampStates();
 
-    console.log("StreetLampSystem initialized with clustered lighting");
+    console.log("StreetLampSystem initialized (clustered lights will be created on demand)");
+  }
+
+  /**
+   * Ensure clustered light container exists (lazy initialization)
+   */
+  private ensureClusteredLights(): void {
+    if (!this.scene || this.clusteredLights) return;
+
+    // Create clustered light container for street lamp point lights
+    // Configure for orthographic camera compatibility
+    this.clusteredLights = new ClusteredLightContainer("streetLampCluster", [], this.scene);
+    this.clusteredLights.depthSlices = 4;
+    this.clusteredLights.horizontalTiles = 8;
+    this.clusteredLights.verticalTiles = 8;
+    this.clusteredLights.maxRange = 1000;
+    console.log("StreetLampSystem: Created clustered light container");
   }
 
   /**
@@ -144,7 +155,8 @@ export class StreetLampSystem {
     light.range = fullConfig.range;
     light.intensity = 0; // Start off
 
-    // Add to clustered light container
+    // Lazily create clustered light container, then add this light
+    this.ensureClusteredLights();
     if (this.clusteredLights) {
       this.clusteredLights.addLight(light);
     }
@@ -251,7 +263,7 @@ export class StreetLampSystem {
 
     for (const lamp of this.lamps.values()) {
       const shouldBeOn = this.shouldLampBeOn(hour, lamp.config);
-      
+
       if (shouldBeOn !== lamp.isOn) {
         lamp.isOn = shouldBeOn;
         lamp.targetIntensity = shouldBeOn ? lamp.config.intensity : 0;
@@ -269,8 +281,8 @@ export class StreetLampSystem {
 
     for (const lamp of this.lamps.values()) {
       // Only auto-switch if using default hours
-      if (lamp.config.turnOnHour === DEFAULT_TURN_ON_HOUR && 
-          lamp.config.turnOffHour === DEFAULT_TURN_OFF_HOUR) {
+      if (lamp.config.turnOnHour === DEFAULT_TURN_ON_HOUR &&
+        lamp.config.turnOffHour === DEFAULT_TURN_OFF_HOUR) {
         if (isNightTime && !lamp.isOn) {
           this.turnOn(lamp.config.id);
         } else if (!isNightTime && lamp.isOn) {

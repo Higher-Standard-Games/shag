@@ -148,10 +148,12 @@ export class FreeflyController implements ICameraController {
       this.camera = new FreeCamera("freeflyCamera", startPos, scene);
       this.camera.rotation.x = 0;
       this.camera.rotation.y = 0;
-      scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
     }
+
+    // Always set as active camera (fixes blue screen when switching controllers)
+    scene.activeCamera = this.camera;
 
     // Apply FOV
     if (this.config.fov && this.camera) {

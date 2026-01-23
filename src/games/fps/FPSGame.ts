@@ -19,7 +19,7 @@ export interface FPSGameConfig {
 }
 
 export class FPSGame {
-    private scene: Scene | null = null;
+    private _scene: Scene | null = null;
     private config: FPSGameConfig;
     private isInitialized = false;
 
@@ -35,7 +35,7 @@ export class FPSGame {
      * Initialize the FPS game
      */
     async init(scene: Scene): Promise<void> {
-        this.scene = scene;
+        this._scene = scene;
 
         console.log('[FPSGame] Initializing...');
 
@@ -53,7 +53,7 @@ export class FPSGame {
     /**
      * Update game logic (called each frame)
      */
-    update(deltaTime: number): void {
+    update(_deltaTime: number): void {
         if (!this.isInitialized) return;
 
         // TODO: Update game systems
@@ -70,7 +70,7 @@ export class FPSGame {
 
         // TODO: Clean up game systems
 
-        this.scene = null;
+        this._scene = null;
         this.isInitialized = false;
     }
 
@@ -84,5 +84,9 @@ export class FPSGame {
 
     get currentConfig(): FPSGameConfig {
         return { ...this.config };
+    }
+
+    get scene(): Scene | null {
+        return this._scene;
     }
 }

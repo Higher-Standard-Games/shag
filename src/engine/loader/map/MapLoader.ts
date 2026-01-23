@@ -22,7 +22,7 @@ import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandler
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
 import { EntityManager } from '../../entities/EntityManager';
 import { EventBus } from '../../core/EventBus';
-import { LOADING_EVENTS, type LoadingProgressEvent } from '../../core/LoadingEvents';
+import { LOADING_EVENTS, type LoadingProgressEvent, type LoadingCompleteEvent } from '../../core/LoadingEvents';
 
 export interface MapLoadResult {
   success: boolean;
@@ -102,7 +102,7 @@ export class MapLoader {
       // Clean up previous map
       if (this.currentMeshResult) {
         progress('cleanup', 'disposing previous map');
-        this.disposeCurrentMap();
+        await this.disposeCurrentMap();
       }
 
       // Check if it's a BSP map in the index
@@ -259,9 +259,68 @@ export class MapLoader {
       progress('Skybox', 'Skipped (NullEngine)');
     }
 
-    // Phase 8: Apply lightmaps
-    progress('Lightmaps', 'Applying');
-    BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
+    // Phase 7: Apply lightmaps (DISABLED - Lightmaps are corrupted/black and break visibility)
+    // progress('Lighting', 'Applying lightmaps');
+    // try {
+    //   BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
+    // } catch (e) {
+    //   console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
+    // }
+
+    // (Post-Lightmap pause removed to reduce noise)
+
+    // Disable dynamic day/night cycle for BSP maps - they use baked lightmaps
+    // Import and configure SkyLightSystem to not interfere with lightmaps
+    try {
+      const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+      const skyLight = SkyLightSystem.getInstance();
+
+      // CRITICAL: Ensure SkyLightSystem lights exist before configuring them
+      // When loading via console, scene clear may have disposed the lights
+      // CRITICAL: Force SkyLightSystem to sync with the current scene
+      // This ensures we don't use a stale scene reference from a previous map
+      // The init() method now handles cleanup of old lights automatically
+      console.log('[MapLoader] Initializing SkyLightSystem for current scene...');
+      skyLight.init(scene, {
+        sunIntensity: 1.0,
+        moonIntensity: 0,
+        ambientIntensity: 0.5,
+        enableShadows: false,
+      });
+
+      // Enable BSP Mode: Locks lighting to optimal state for BSPs
+      // - Directional sun for normal maps
+      // - Neutral ambient for lightmaps
+      // - Disables day/night cycle updates
+      skyLight.setBspMode(true);
+
+      // Ensure blockMaterialDirtyMechanism is off so textures apply properly
+      scene.blockMaterialDirtyMechanism = false;
+
+      console.log('[MapLoader] Configured lighting for BSP map (BSP Mode enabled)');
+
+    } catch (e) {
+      console.warn('[MapLoader] Could not configure lighting:', e);
+
+      // Fallback: Create basic ambient light if SkyLightSystem fails
+      try {
+        const { HemisphericLight } = await import('@babylonjs/core/Lights/hemisphericLight');
+        const { Vector3 } = await import('@babylonjs/core/Maths/math.vector');
+        const { Color3 } = await import('@babylonjs/core/Maths/math.color');
+
+        if (scene.lights.length === 0) {
+          console.log('[MapLoader] Creating fallback ambient light');
+          const light = new HemisphericLight("bsp_ambient", new Vector3(0, 1, 0), scene);
+          light.intensity = 1.0;
+          light.diffuse = new Color3(1, 1, 1);
+          light.groundColor = new Color3(0.5, 0.5, 0.5);
+        }
+
+        scene.ambientColor = new Color3(1, 1, 1);
+      } catch (fallbackError) {
+        console.error('[MapLoader] Failed to create fallback lighting:', fallbackError);
+      }
+    }
 
     // Phase 8b: Register autosprite billboard updates (per-frame)
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
@@ -335,6 +394,14 @@ export class MapLoader {
         playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
       }
     }
+
+    // Emit loading:complete event
+    const completeEvent: LoadingCompleteEvent = {
+      type: 'map',
+      success: true,
+      duration: 0,
+    };
+    EventBus.emit(LOADING_EVENTS.COMPLETE, completeEvent);
 
     return {
       success: true,
@@ -439,7 +506,8 @@ export class MapLoader {
   /**
    * Dispose current map resources
    */
-  disposeCurrentMap(): void {
+  async disposeCurrentMap(): Promise<void> {
+    console.log(`[MapLoader] disposeCurrentMap called at ${Date.now()}`);
     if (this.currentMeshResult) {
       // Dispose child meshes first
       for (const child of this.currentMeshResult.worldMesh.getChildMeshes()) {
@@ -454,6 +522,22 @@ export class MapLoader {
     }
     this.currentBsp = null;
     this.currentMap = null;
+
+    // CRITICAL: Clear texture caches to prevent stale references
+    // When textures are disposed, cached references become invalid
+    // Without clearing caches, reload would return disposed textures (black walls)
+    // MUST AWAIT to prevent race condition where new map's textures get disposed
+    try {
+      const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
+      PK3TextureLoader.getInstance().clearCache();
+      console.log('[MapLoader] Cleared PK3TextureLoader cache');
+
+      const { TextureManager } = await import('../texture/TextureManager');
+      TextureManager.getInstance().clearCache();
+      console.log('[MapLoader] Cleared TextureManager cache');
+    } catch (e) {
+      console.warn('[MapLoader] Error clearing caches:', e);
+    }
   }
 
   /**

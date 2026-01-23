@@ -143,8 +143,8 @@ export class FPSController implements ICameraController {
   // Collision mode: 'bsp' uses BSP brush tracing (same as FreeflyController), 'native' uses Babylon's mesh collision
   private static collisionMode: 'bsp' | 'native' = 'bsp';
 
-  // Debug logging throttle for slide system
-  private static _lastSlideLog: number = 0;
+  // Debug logging throttle for slide system (TODO: implement debug logging)
+  // private static _lastSlideLog: number = 0;
 
   // Q3 physics constants are now imported from PlayerPhysicsConstants
 
@@ -495,10 +495,12 @@ export class FPSController implements ICameraController {
       this.camera = new FreeCamera("freeflyCamera", startPos, scene);
       this.camera.rotation.x = 0;
       this.camera.rotation.y = 0;
-      scene.activeCamera = this.camera;
     } else {
       this.camera = camera;
     }
+
+    // Always set as active camera (fixes blue screen when switching controllers)
+    scene.activeCamera = this.camera;
 
     // Initialize weapon view manager with camera
     WeaponViewManager.getInstance().init(scene, this.camera);

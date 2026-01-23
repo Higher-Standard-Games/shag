@@ -143,6 +143,13 @@ export default class MapCommand extends Command {
       return 'No scene available';
     }
 
+    // CRITICAL: Re-apply scene settings required for BSP rendering after clear
+    // These may have been lost during scene clear or may not be set if using main.ts scene
+    const { Color3 } = await import('@babylonjs/core/Maths/math.color');
+    scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render correctly
+    scene.blockMaterialDirtyMechanism = false; // Allow material updates after texture assignment
+    console.log('[MapCommand] Applied scene settings for BSP rendering');
+
     const result = await mapLoader.loadMap(mapName, scene, (progress: any) => {
       console.log(`[Map] ${progress.phase}${progress.detail ? ': ' + progress.detail : ''}`);
     });
@@ -156,8 +163,8 @@ export default class MapCommand extends Command {
         sky.loadFromWorldspawn(); // Load settings from worldspawn
       }
 
-      // Force Spectator Mode (User Request)
-      await registry.execute('spectator 1');
+      // Force Spectator Mode removed to maintain FPS consistency
+      // await registry.execute('spectator 1');
 
       // Spawn Logic using result.playerStartPosition
       let spawnStatus = '';
@@ -213,10 +220,15 @@ export default class MapCommand extends Command {
 
       // Auto-enable PVS culling for BSP maps
       let pvsStatus = '';
+      /* DISABLED: PVS culling causes invisible geometry on console load (camera cluster sync issue?)
       if (result.mapType === 'bsp' && result.meshResult?.clusterInfo?.hasPVS) {
         const pvsResult = await registry.execute('pvs on');
         pvsStatus = pvsResult ? `  PVS: enabled` : '';
       }
+      */
+      // Emit map:loaded event for UI systems
+      const { EventBus } = await import('../../core/EventBus');
+      EventBus.emit('map:loaded', { mapName });
 
       return [
         `Loaded map: ${mapName} (${result.mapType})`,

@@ -40,7 +40,7 @@ export class Pickup extends TransformNode {
     private bobSpeed: number = 2.0;
     private bobHeight: number = 5.0; // Units
     private respawnTimer: number | null = null;
-    private startPos: Vector3 | null = null;
+    private _startPos: Vector3 | null = null;
     private glowLight: PointLight | null = null;
     private glowPulseTime: number = 0;
 
@@ -176,7 +176,7 @@ export class Pickup extends TransformNode {
     /**
      * Create a pulsing glow light for the pickup
      */
-    private createGlowLight(): void {
+    private _createGlowLight(): void {
         if (!this.options.glowColor) return;
 
         const color = this.options.glowColor;
@@ -366,7 +366,7 @@ export class Pickup extends TransformNode {
 
 
 
-                    this.startPos = this.position.clone();
+                    this._startPos = this.position.clone();
                     console.log(`[Pickup:dropToGround] === END (BSP Success) ===\n`);
                     return;
                 } else {
@@ -410,7 +410,7 @@ export class Pickup extends TransformNode {
                 if (node.getChildren) node.getChildren().forEach(updateChildren);
             };
             this.getChildren().forEach(updateChildren);
-            this.startPos = this.position.clone();
+            this._startPos = this.position.clone();
         } else {
             console.error(`[Pickup:dropToGround] BOTH METHODS FAILED - item will float!`);
         }

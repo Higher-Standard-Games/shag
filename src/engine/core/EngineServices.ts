@@ -38,11 +38,12 @@ import { PrefabLoader } from "../loader/model/PrefabLoader";
 import { SpriteManager } from '../sprites/SpriteManager';
 import { SpriteBuildingManager } from '../sprites/SpriteBuilding';
 import { SkyLightSystem } from '../lighting/SkyLightSystem';
-import { StreetLampSystem } from '../lighting/StreetLampSystem';
+// NOTE: StreetLampSystem import removed - games that need it should import and init it themselves
 import { PostProcessingManager } from '../effects/PostProcessingManager';
 import { AudioManager } from '../AudioManager';
 import { RenderVars } from '../rendering/RenderVars';
 import { WorldIndicatorSystem } from './WorldIndicatorSystem';
+import { PK3Loader } from '../loader/pk3/PK3Loader';
 
 /**
  * Core engine service registrations
@@ -58,6 +59,12 @@ export const CORE_SERVICES: ServiceRegistration[] = [
   {
     name: 'engineSettings',
     factory: () => EngineSettings.getInstance(),
+    phase: 'core',
+    dependencies: ['gamePaths'],
+  },
+  {
+    name: 'pk3Loader',
+    factory: () => PK3Loader.getInstance(),
     phase: 'core',
     dependencies: ['gamePaths'],
   },
@@ -110,12 +117,8 @@ export const SCENE_SERVICES: ServiceRegistration[] = [
     phase: 'scene',
     dependencies: [],
   },
-  {
-    name: 'streetLampSystem',
-    factory: () => StreetLampSystem.getInstance(),
-    phase: 'scene',
-    dependencies: ['skyLightSystem'],
-  },
+  // NOTE: StreetLampSystem is NOT auto-initialized by engine.
+  // Games that need it (isometric, RTS) should call StreetLampSystem.getInstance().init(scene) explicitly.
   {
     name: 'postProcessing',
     factory: () => PostProcessingManager.getInstance(),

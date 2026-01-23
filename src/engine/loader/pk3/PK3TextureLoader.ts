@@ -156,20 +156,58 @@ export class PK3TextureLoader {
     }
 
     const pk3 = PK3Loader.getInstance();
-    const data = await pk3.getFile(path);
+    let data = await pk3.getFile(path);
+    let source = 'pk3';
+
+    // Fallback: Check for loose file (development mode)
+    if (!data) {
+      try {
+        const { GamePaths } = await import("../../core/GamePaths");
+        const fullPath = GamePaths.getInstance().game(path);
+        const response = await fetch(fullPath);
+        if (response.ok) {
+          // Vite dev server returns 200 OK with HTML for non-existent files (SPA fallback)
+          // So we MUST check Content-Type to avoid treating HTML as texture data
+          const contentType = response.headers.get('Content-Type') || '';
+          const isHtml = contentType.includes('text/html');
+          const isImage = contentType.includes('image/') ||
+            contentType.includes('application/octet-stream') ||
+            contentType === ''; // Some servers don't set content-type for .tga
+
+          if (!isHtml && (isImage || !contentType)) {
+            data = await response.arrayBuffer();
+            source = 'loose';
+          }
+        }
+      } catch (e) {
+        // Ignore fetch errors, file just doesn't exist
+      }
+    }
 
     if (!data) {
       return null;
     }
 
+    // Debug: Log first 4 bytes to identify format
+    const preview = new Uint8Array(data, 0, Math.min(4, data.byteLength));
+    console.log(`[PK3TextureLoader] Source: ${source}, Path: ${path}, First bytes: ${Array.from(preview).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+
     const ext = this.getExtension(path).toLowerCase();
     let texture: Texture | null = null;
+
+    // Detect actual format by magic bytes (handles misnamed files like .tga that are actually JPG/PNG)
+    const actualFormat = this.detectFormatByMagic(data);
+    const effectiveFormat = actualFormat || ext;
 
     try {
       if (ext === '.ktx') {
         texture = await this.loadKTXTexture(path, data);
-      } else if (ext === '.tga') {
+      } else if (effectiveFormat === '.tga') {
         texture = await this.loadTGATexture(path, data);
+      } else if (effectiveFormat === '.jpg' || effectiveFormat === '.jpeg' ||
+        effectiveFormat === '.png' || effectiveFormat === '.webp') {
+        // Handle files that are actually JPG/PNG regardless of extension
+        texture = await this.loadStandardTexture(path, data, effectiveFormat);
       } else {
         // PNG, JPG, etc. - use blob URL
         texture = await this.loadStandardTexture(path, data, ext);
@@ -230,7 +268,7 @@ export class PK3TextureLoader {
     if (!this.scene) return null;
 
     try {
-      const tgaData = this.parseTGA(data);
+      const tgaData = this.parseTGA(data, path);
       if (!tgaData) {
         return this.createPlaceholderTexture(path);
       }
@@ -287,6 +325,35 @@ export class PK3TextureLoader {
   }
 
   /**
+   * Detect actual file format by examining magic bytes
+   * Returns the detected extension (.png, .jpg, etc.) or null if unknown
+   */
+  private detectFormatByMagic(data: ArrayBuffer): string | null {
+    if (data.byteLength < 4) return null;
+    const view = new Uint8Array(data, 0, 12);
+
+    // PNG: 89 50 4E 47 (‰PNG)
+    if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4E && view[3] === 0x47) {
+      return '.png';
+    }
+
+    // JPEG/JFIF: FF D8 FF
+    if (view[0] === 0xFF && view[1] === 0xD8 && view[2] === 0xFF) {
+      return '.jpg';
+    }
+
+    // WebP: RIFF....WEBP
+    if (view[0] === 0x52 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x46 &&
+      view[8] === 0x57 && view[9] === 0x45 && view[10] === 0x42 && view[11] === 0x50) {
+      return '.webp';
+    }
+
+    // TGA has no magic bytes, but we can identify it's NOT TGA if it starts with known magic
+    // If none of the above, assume it might be TGA and let the parser handle it
+    return null;
+  }
+
+  /**
    * Create a placeholder texture for unsupported formats
    */
   private createPlaceholderTexture(name: string): Texture | null {
@@ -324,7 +391,7 @@ export class PK3TextureLoader {
   /**
    * Parse TGA file format
    */
-  private parseTGA(data: ArrayBuffer): { pixels: Uint8Array; width: number; height: number } | null {
+  private parseTGA(data: ArrayBuffer, path: string = ''): { pixels: Uint8Array; width: number; height: number } | null {
     const view = new DataView(data);
     const uint8 = new Uint8Array(data);
 
@@ -339,18 +406,28 @@ export class PK3TextureLoader {
 
     // Only support uncompressed true-color (type 2) and RLE (type 10)
     if (imageType !== 2 && imageType !== 10) {
-      console.warn(`[TGA] Unsupported image type: ${imageType}`);
+      // Check if this might be a JPEG or PNG with wrong extension
+      const magic0 = uint8[0], magic1 = uint8[1], magic2 = uint8[2];
+      const isPNG = magic0 === 0x89 && magic1 === 0x50 && magic2 === 0x4E;
+      const isJPG = magic0 === 0xFF && magic1 === 0xD8 && magic2 === 0xFF;
+      if (isPNG) {
+        console.warn(`[TGA] File is actually a PNG (wrong extension): ${path}`);
+      } else if (isJPG) {
+        console.warn(`[TGA] File is actually a JPEG (wrong extension): ${path}`);
+      } else {
+        console.warn(`[TGA] Unsupported image type: ${imageType} for ${path} (header: idLen=${idLength}, colorMap=${colorMapType})`);
+      }
       return null;
     }
 
     if (colorMapType !== 0) {
-      console.warn(`[TGA] Color-mapped TGA not supported`);
+      console.warn(`[TGA] Color-mapped TGA not supported: ${path}`);
       return null;
     }
 
     const bytesPerPixel = bpp / 8;
     if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
-      console.warn(`[TGA] Unsupported BPP: ${bpp}`);
+      console.warn(`[TGA] Unsupported BPP: ${bpp} for ${path}`);
       return null;
     }
 

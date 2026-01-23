@@ -126,11 +126,12 @@ export class WeaponViewManager {
         startTime: 0,
         duration: 1.0,  // Will be set from weapon def
     };
-    private static readonly RELOAD_ROLL_MAX = Math.PI / 3;  // 60 degrees
-    private static readonly RELOAD_Y_OFFSET = -10;  // Down offset
-    private static readonly RELOAD_Z_BACK = -8;   // Pull back
-    private static readonly RELOAD_Z_FORWARD = 3;  // Push forward
-    private static readonly RELOAD_X_CHEST = -8;  // Pull toward chest (left/center)
+    // Reload animation constants (TODO: implement reload animation)
+    // private static readonly RELOAD_ROLL_MAX = Math.PI / 3;  // 60 degrees
+    // private static readonly RELOAD_Y_OFFSET = -10;  // Down offset
+    // private static readonly RELOAD_Z_BACK = -8;   // Pull back
+    // private static readonly RELOAD_Z_FORWARD = 3;  // Push forward
+    // private static readonly RELOAD_X_CHEST = -8;  // Pull toward chest (left/center)
 
     // Debug
     private debugEnabled: boolean = false;
