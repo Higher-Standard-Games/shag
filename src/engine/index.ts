@@ -92,3 +92,6 @@ export { SpawnValidator } from "./SpawnValidator";
 
 // UI System
 export * from "./ui";
+
+// Animation System
+export * from "./animation";
