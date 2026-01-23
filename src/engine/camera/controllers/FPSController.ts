@@ -466,6 +466,97 @@ export class FPSController implements ICameraController {
     console.log(`[FPSController] Collision mode set to: ${mode}`);
   }
 
+  // ==================== Animation State Methods ====================
+
+  /**
+   * Get the player's current velocity vector
+   */
+  getVelocity(): Vector3 {
+    return this.velocity.clone();
+  }
+
+  /**
+   * Check if player is currently on ground
+   */
+  isPlayerGrounded(): boolean {
+    return this.isGrounded;
+  }
+
+  /**
+   * Get slide state for animation
+   */
+  getSlideSpeed(): number {
+    if (!this.isSliding) return 0;
+    return Math.sqrt(this.slideVelocity.x ** 2 + this.slideVelocity.z ** 2);
+  }
+
+  /**
+   * Get slide direction for animation
+   */
+  getSlideDirection(): Vector3 {
+    if (!this.isSliding) return Vector3.Forward();
+    return this.slideVelocity.normalize();
+  }
+
+  /**
+   * Get wall jump state for animation
+   */
+  getWallJumpState(): { state: string; normal: Vector3; phase: number } {
+    let phase = 0;
+    if (this.wallJumpState === 'charging') {
+      // Phase 0-0.5 during charge
+      phase = Math.min(this.wallJumpChargeTime / 0.3, 0.5);
+    } else if (this.wallJumpState === 'pushing') {
+      // Phase 0.5-1.0 during push
+      phase = 0.5 + Math.min((Date.now() - this.lastWallJumpTime) / 300, 0.5);
+    }
+    return {
+      state: this.wallJumpState,
+      normal: this.wallJumpNormal.clone(),
+      phase
+    };
+  }
+
+  /**
+   * Get ledge grab state for animation
+   */
+  getLedgeGrabState(): string {
+    return this.ledgeGrabState;
+  }
+
+  /**
+   * Get camera rotation for aim IK
+   */
+  getRotation(): { x: number; y: number } {
+    return {
+      x: this.mouseRotationX,
+      y: this.mouseRotationY
+    };
+  }
+
+  /**
+   * Check if currently firing
+   */
+  isFiring(): boolean {
+    return this.keys.fire;
+  }
+
+  /**
+   * Check if currently reloading (for animation state)
+   */
+  getIsReloading(): boolean {
+    return this.isReloading;
+  }
+
+  /**
+   * Get reload progress (0-1)
+   */
+  getReloadProgress(): number {
+    if (!this.isReloading) return 0;
+    // Would need to track reload start time vs duration
+    return 0;
+  }
+
   // Observers
   private renderObserver: Observer<Scene> | null = null;
 

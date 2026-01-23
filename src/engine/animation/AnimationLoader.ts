@@ -25,19 +25,26 @@ export interface AnimationClipInfo {
 
 /**
  * Standard animation set for humanoid characters
- * Note: Mixamo exports as FBX, which Babylon.js supports via @babylonjs/loaders
+ * Mapped to actual Mixamo filenames in public/games/default/animations/
  */
 export const STANDARD_ANIMATIONS: AnimationClipInfo[] = [
-    { name: "idle", path: "idle.fbx", loop: true, speed: 1.0 },
-    { name: "run_forward", path: "run_forward.fbx", loop: true, speed: 1.0 },
-    { name: "run_backward", path: "run_backward.fbx", loop: true, speed: 1.0 },
-    { name: "strafe_left", path: "strafe_left.fbx", loop: true, speed: 1.0 },
-    { name: "strafe_right", path: "strafe_right.fbx", loop: true, speed: 1.0 },
-    { name: "jump_start", path: "jump_start.fbx", loop: false, speed: 1.0 },
-    { name: "jump_air", path: "fall.fbx", loop: true, speed: 1.0 },
-    { name: "jump_land", path: "land.fbx", loop: false, speed: 1.0 },
-    { name: "crouch_idle", path: "crouch_idle.fbx", loop: true, speed: 1.0 },
-    { name: "crouch_walk", path: "crouch_walk.fbx", loop: true, speed: 1.0 },
+    { name: "idle", path: "rifle aiming idle.fbx", loop: true, speed: 1.0 },
+    { name: "run_forward", path: "rifle run.fbx", loop: true, speed: 1.0 },
+    { name: "run_backward", path: "run backwards.fbx", loop: true, speed: 1.0 },
+    { name: "strafe_left", path: "strafe left.fbx", loop: true, speed: 1.0 },
+    { name: "strafe_right", path: "strafe right.fbx", loop: true, speed: 1.0 },
+    { name: "jump_start", path: "rifle jump.fbx", loop: false, speed: 1.0 },
+    { name: "jump_air", path: "rifle jump.fbx", loop: true, speed: 1.0 },
+    { name: "jump_land", path: "rifle jump.fbx", loop: false, speed: 1.0 },
+    { name: "crouch_idle", path: "rifle aiming idle.fbx", loop: true, speed: 1.0 },
+    { name: "crouch_walk", path: "walking.fbx", loop: true, speed: 1.0 },
+    { name: "walk", path: "walking.fbx", loop: true, speed: 1.0 },
+    { name: "walk_backward", path: "walking backwards.fbx", loop: true, speed: 1.0 },
+    { name: "fire", path: "firing rifle.fbx", loop: false, speed: 1.0 },
+    { name: "reload", path: "reloading.fbx", loop: false, speed: 1.0 },
+    { name: "hit", path: "hit reaction.fbx", loop: false, speed: 1.0 },
+    { name: "wallrun", path: "wallrun.fbx", loop: true, speed: 1.0 },
+    { name: "grenade", path: "toss grenade.fbx", loop: false, speed: 1.0 },
 ];
 
 /**
@@ -47,7 +54,7 @@ export class AnimationLoader {
     private static instance: AnimationLoader;
 
     private scene: Scene | null = null;
-    private animationsPath: string = "assets/animations/humanoid/";
+    private animationsPath: string = "games/default/animations/";
     private loadedAnimations: Map<string, AnimationGroup[]> = new Map();
     private loading: Map<string, Promise<AnimationGroup[]>> = new Map();
 

@@ -37,3 +37,10 @@ export {
     selectAnimationState,
 } from "./PlayerAnimationState";
 export type { PlayerAnimationState } from "./PlayerAnimationState";
+
+// State bridge for FPSController integration
+export {
+    extractAnimationState,
+    FPSControllerAnimationAdapter,
+} from "./AnimationStateBridge";
+export type { AnimationStateProvider } from "./AnimationStateBridge";
