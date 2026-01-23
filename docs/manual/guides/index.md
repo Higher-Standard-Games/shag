@@ -14,6 +14,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Physics System](./physics-system.md) | Collision detection and backends |
 | [Movement System](./movement-system.md) | Player movement and physics cvars |
 | [Viewport Effects](./viewport-effects.md) | View bob, screen shake, FOV effects |
+| [Weapon System](./weapon-system.md) | First-person weapons and projectiles |
 
 ## Runtime Systems
 

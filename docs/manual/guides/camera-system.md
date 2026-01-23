@@ -43,6 +43,46 @@ cameraSystem.setHeight(500);
 
 ## Controllers
 
+### FPSController
+
+Full first-person shooter controller with physics, weapons, and advanced movement. The primary controller for gameplay.
+
+**Features:**
+- Full Q3/Warsow physics (gravity, jumping, sliding)
+- Weapon system integration (viewmodels, firing, reload, ADS)
+- Advanced movement: crouchslide, wall jump, ledge grab
+- Viewport effects integration (walk bob, landing impact)
+- Collision via CollisionManager
+
+**Controls:**
+- WASD - Movement
+- Mouse - Look
+- Space - Jump (wall jump when airborne)
+- Ctrl - Crouch (slide when sprinting)
+- Shift - Sprint
+- Mouse1 - Fire
+- Mouse2 - ADS (Aim Down Sights)
+- R - Reload
+- 1-9 - Weapon slots
+- Q - Quick switch
+
+**Key Methods:**
+```typescript
+controller.getPlayerPosition()       // Origin position (Q3-style)
+controller.getPlayerFeetPosition()   // Feet position
+controller.setPosition(pos)          // Teleport to origin
+controller.getCurrentHeight()        // 56 or 36 (crouched)
+controller.getCrouchState()          // {isCrouching, isSliding, height}
+```
+
+**Console:**
+```
+spectator 0           # Enable physics mode
+spectator 1           # Noclip/fly mode
+sv_gravity 1000       # Gravity strength
+sv_jumpheight 320     # Jump velocity
+```
+
 ### FreeflyController
 
 FPS-style first-person camera with optional collision.
