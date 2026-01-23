@@ -34,7 +34,8 @@
     "docs:api": "node scripts/build-docs.js",
     "docs:dev": "vitepress dev docs/manual",
     "docs:build": "vitepress build docs/manual",
-    "docs:preview": "vitepress preview docs/manual"
+    "docs:preview": "vitepress preview docs/manual",
+    "tools:fbx2gltf": "npx vite-node scripts/download-fbx2gltf.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
