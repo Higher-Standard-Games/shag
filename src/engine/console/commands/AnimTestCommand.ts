@@ -3,20 +3,16 @@
  * 
  * Usage:
  *   animtest load              - Load the test model with animations
- *   animtest play <animation>  - Play a specific animation (idle, run_forward, etc.)
+ *   animtest play <animation>  - Play a specific animation by index or name
  *   animtest list              - List available animations
  *   animtest state             - Show current animation state
  *   animtest dispose           - Remove the test model
  */
 
-import { Scene, SceneLoader, Mesh, Skeleton, Vector3 } from "@babylonjs/core";
-import "@babylonjs/loaders/FBX";
+import { Scene, SceneLoader, Mesh, Skeleton, Vector3, AnimationGroup } from "@babylonjs/core";
+import "@babylonjs/loaders";
 import { Command, CommandDef } from "../Command";
-import {
-    PlayerAnimationController,
-    AnimationLoader,
-    AnimationStateName,
-} from "../../animation";
+import { AnimationLoader } from "../../animation";
 
 export default class AnimTestCommand extends Command {
     readonly definition: CommandDef = {
@@ -29,8 +25,9 @@ export default class AnimTestCommand extends Command {
 
     private testMesh: Mesh | null = null;
     private testSkeleton: Skeleton | null = null;
-    private animController: PlayerAnimationController | null = null;
     private scene: Scene | null = null;
+    private loadedAnimGroups: AnimationGroup[] = [];
+    private currentAnim: AnimationGroup | null = null;
 
     async execute(args: string[]): Promise<string | void> {
         const subcommand = args[0]?.toLowerCase() || "help";
@@ -42,24 +39,23 @@ export default class AnimTestCommand extends Command {
                 return this.playAnimation(args[1]);
             case "list":
                 return this.listAnimations();
-            case "state":
-                return this.showState();
+            case "stop":
+                return this.stopAnimation();
             case "dispose":
                 return this.disposeModel();
             default:
                 return [
                     "Animation Test Commands:",
-                    "  animtest load              - Load vanguard.fbx with animations",
-                    "  animtest play <animation>  - Play animation (idle, run_forward, strafe_left, etc.)",
-                    "  animtest list              - List available animations",
-                    "  animtest state             - Show current animation state",
+                    "  animtest load              - Load vanguard.glb with animations",
+                    "  animtest play <name|index> - Play animation",
+                    "  animtest list              - List loaded animations",
+                    "  animtest stop              - Stop current animation",
                     "  animtest dispose           - Remove test model",
                 ].join("\n");
         }
     }
 
     private async loadModel(): Promise<string> {
-        // Get scene from camera system
         const { CameraSystem } = await import("../../camera/CameraSystem");
         const camera = CameraSystem.getInstance().getCamera();
 
@@ -72,19 +68,17 @@ export default class AnimTestCommand extends Command {
             return "No scene available";
         }
 
-        // Dispose existing if any
         if (this.testMesh) {
             this.disposeModel();
         }
 
         try {
-            console.log("[AnimTest] Loading vanguard.fbx...");
+            console.log("[AnimTest] Loading vanguard.glb...");
 
-            // Load the model
             const result = await SceneLoader.ImportMeshAsync(
                 "",
                 "games/default/animations/",
-                "vanguard.fbx",
+                "vanguard.glb",
                 this.scene
             );
 
@@ -92,7 +86,6 @@ export default class AnimTestCommand extends Command {
                 return "No meshes found in model";
             }
 
-            // Find the root mesh and skeleton
             this.testMesh = result.meshes[0] as Mesh;
             this.testSkeleton = result.skeletons[0] || null;
 
@@ -100,56 +93,77 @@ export default class AnimTestCommand extends Command {
                 return "No skeleton found in model - is it rigged?";
             }
 
-            // Position the model in front of the camera
+            // Position in front of camera
             const forward = camera.getDirection(Vector3.Forward());
-            const spawnPos = camera.position.add(forward.scale(200));
-            spawnPos.y = 0; // Ground level
-
+            const spawnPos = camera.position.add(forward.scale(150));
             this.testMesh.position = spawnPos;
-            this.testMesh.scaling = new Vector3(1, 1, 1);
+            this.testMesh.scaling = new Vector3(50, 50, 50);
 
-            console.log(`[AnimTest] Loaded model with ${result.meshes.length} meshes, ${this.testSkeleton.bones.length} bones`);
+            // Store embedded animations
+            this.loadedAnimGroups = result.animationGroups;
 
-            // Log bone names for debugging
-            console.log("[AnimTest] Bone names:", this.testSkeleton.bones.map(b => b.name).slice(0, 10).join(", "), "...");
+            console.log(`[AnimTest] Model has ${this.loadedAnimGroups.length} embedded animations`);
 
-            // Initialize animation loader
+            // Load additional animation GLB files and apply to this skeleton
             const animLoader = AnimationLoader.getInstance();
             animLoader.initialize(this.scene, "games/default/animations/");
 
-            // Try to load standard animations
-            console.log("[AnimTest] Loading animations...");
-            await animLoader.loadStandardAnimations();
+            // Load all standard animations
+            const animFiles = [
+                { name: "idle", file: "rifle aiming idle.glb" },
+                { name: "run", file: "rifle run.glb" },
+                { name: "run_back", file: "run backwards.glb" },
+                { name: "strafe_l", file: "strafe left.glb" },
+                { name: "strafe_r", file: "strafe right.glb" },
+                { name: "jump", file: "rifle jump.glb" },
+                { name: "walk", file: "walking.glb" },
+                { name: "walk_back", file: "walking backwards.glb" },
+                { name: "fire", file: "firing rifle.glb" },
+                { name: "reload", file: "reloading.glb" },
+                { name: "hit", file: "hit reaction.glb" },
+                { name: "wallrun", file: "wallrun.glb" },
+                { name: "grenade", file: "toss grenade.glb" },
+            ];
 
-            // Create animation controller
-            this.animController = new PlayerAnimationController(
-                this.testMesh,
-                this.testSkeleton,
-                this.scene,
-                { debug: true }
-            );
+            // Load each animation file
+            for (const anim of animFiles) {
+                try {
+                    const animResult = await SceneLoader.ImportAnimationsAsync(
+                        "",
+                        `games/default/animations/${anim.file}`,
+                        this.scene,
+                        false
+                    );
 
-            await this.animController.initialize();
+                    if (animResult.animationGroups.length > 0) {
+                        // Retarget to our skeleton
+                        const group = animResult.animationGroups[0];
+                        group.name = anim.name;
 
-            // Also play any animations that came with the model
-            if (result.animationGroups.length > 0) {
-                console.log("[AnimTest] Model has embedded animations:");
-                result.animationGroups.forEach((ag, i) => {
-                    console.log(`  [${i}] ${ag.name}`);
-                });
-                // Play first animation
-                result.animationGroups[0].play(true);
+                        // Stop and add to our list
+                        group.stop();
+                        this.loadedAnimGroups.push(group);
+                        console.log(`[AnimTest] Loaded animation: ${anim.name}`);
+                    }
+                } catch (err) {
+                    console.warn(`[AnimTest] Could not load ${anim.file}:`, err);
+                }
+            }
+
+            // Play first animation by default
+            if (this.loadedAnimGroups.length > 0) {
+                this.loadedAnimGroups[0].play(true);
+                this.currentAnim = this.loadedAnimGroups[0];
             }
 
             return [
                 "Model loaded successfully!",
                 `  Position: (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)}, ${spawnPos.z.toFixed(0)})`,
-                `  Meshes: ${result.meshes.length}`,
                 `  Bones: ${this.testSkeleton.bones.length}`,
-                `  Embedded Anims: ${result.animationGroups.length}`,
+                `  Animations: ${this.loadedAnimGroups.length}`,
                 "",
-                "Use 'animtest play idle' to play an animation",
-                "Use 'animtest list' to see available animations",
+                "Use 'animtest list' to see animations",
+                "Use 'animtest play <name>' to play",
             ].join("\n");
         } catch (error) {
             console.error("[AnimTest] Load error:", error);
@@ -157,74 +171,75 @@ export default class AnimTestCommand extends Command {
         }
     }
 
-    private playAnimation(animName: string | undefined): string {
-        if (!this.animController) {
+    private playAnimation(nameOrIndex: string | undefined): string {
+        if (!this.testMesh || this.loadedAnimGroups.length === 0) {
             return "No model loaded. Use 'animtest load' first.";
         }
 
-        if (!animName) {
-            return "Specify animation name. Use 'animtest list' to see options.";
+        if (!nameOrIndex) {
+            return "Specify animation name or index. Use 'animtest list' to see options.";
         }
 
-        // Map common names to enum values
-        const animMap: Record<string, AnimationStateName> = {
-            idle: AnimationStateName.Idle,
-            run: AnimationStateName.RunForward,
-            run_forward: AnimationStateName.RunForward,
-            run_backward: AnimationStateName.RunBackward,
-            strafe_left: AnimationStateName.StrafeLeft,
-            strafe_right: AnimationStateName.StrafeRight,
-            jump: AnimationStateName.JumpAir,
-            crouch: AnimationStateName.CrouchIdle,
-            slide: AnimationStateName.Slide,
-            walljump: AnimationStateName.WallJump,
-        };
-
-        const targetAnim = animMap[animName.toLowerCase()] || (animName as AnimationStateName);
-
-        try {
-            this.animController.forcePlay(targetAnim);
-            return `Playing animation: ${targetAnim}`;
-        } catch (error) {
-            return `Failed to play animation: ${error}`;
+        // Stop current animation
+        if (this.currentAnim) {
+            this.currentAnim.stop();
         }
+
+        // Find animation by index or name
+        let targetGroup: AnimationGroup | undefined;
+
+        const index = parseInt(nameOrIndex);
+        if (!isNaN(index) && index >= 0 && index < this.loadedAnimGroups.length) {
+            targetGroup = this.loadedAnimGroups[index];
+        } else {
+            // Search by name (partial match)
+            const searchName = nameOrIndex.toLowerCase();
+            targetGroup = this.loadedAnimGroups.find(g =>
+                g.name.toLowerCase().includes(searchName)
+            );
+        }
+
+        if (!targetGroup) {
+            return `Animation not found: ${nameOrIndex}. Use 'animtest list' to see options.`;
+        }
+
+        // Play the animation
+        targetGroup.reset();
+        targetGroup.play(true);
+        this.currentAnim = targetGroup;
+
+        return `Playing: ${targetGroup.name}`;
     }
 
     private listAnimations(): string {
-        const animations = Object.values(AnimationStateName);
-        return [
-            "Available animations:",
-            ...animations.map(a => `  - ${a}`),
-            "",
-            "Use 'animtest play <name>' to play",
-        ].join("\n");
-    }
-
-    private showState(): string {
-        if (!this.animController) {
-            return "No model loaded.";
+        if (this.loadedAnimGroups.length === 0) {
+            return "No animations loaded. Use 'animtest load' first.";
         }
 
-        const state = this.animController.getCurrentState();
-        const currentAnim = this.animController.getCurrentAnimation();
+        const lines = ["Loaded animations:"];
+        this.loadedAnimGroups.forEach((group, i) => {
+            const playing = group.isPlaying ? " (playing)" : "";
+            lines.push(`  [${i}] ${group.name}${playing}`);
+        });
+        lines.push("", "Use 'animtest play <index|name>' to play");
 
-        return [
-            "Current Animation State:",
-            `  Current Animation: ${currentAnim}`,
-            `  Grounded: ${state.grounded}`,
-            `  Speed: ${state.speed.toFixed(2)}`,
-            `  Crouching: ${state.isCrouching}`,
-            `  Sliding: ${state.isSliding}`,
-            `  Wall Jumping: ${state.isWallJumping}`,
-            `  Aim Pitch: ${state.aimPitch.toFixed(1)}°`,
-        ].join("\n");
+        return lines.join("\n");
+    }
+
+    private stopAnimation(): string {
+        if (this.currentAnim) {
+            this.currentAnim.stop();
+            this.currentAnim = null;
+            return "Animation stopped.";
+        }
+        return "No animation playing.";
     }
 
     private disposeModel(): string {
-        if (this.animController) {
-            this.animController.dispose();
-            this.animController = null;
-        }
+        // Stop all animations
+        this.loadedAnimGroups.forEach(g => g.stop());
+        this.loadedAnimGroups = [];
+        this.currentAnim = null;
 
         if (this.testMesh) {
             this.testMesh.dispose();
@@ -238,11 +253,11 @@ export default class AnimTestCommand extends Command {
 
     getCompletions(_input: string, args: string[]): string[] {
         if (args.length === 0) {
-            return ["load", "play", "list", "state", "dispose"];
+            return ["load", "play", "list", "stop", "dispose"];
         }
 
-        if (args[0] === "play") {
-            return Object.values(AnimationStateName);
+        if (args[0] === "play" && this.loadedAnimGroups.length > 0) {
+            return this.loadedAnimGroups.map(g => g.name);
         }
 
         return [];
