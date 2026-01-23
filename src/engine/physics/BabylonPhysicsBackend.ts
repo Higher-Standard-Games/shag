@@ -184,6 +184,34 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     return { ...this.stats };
   }
 
+  /**
+   * Generic slide move implementation
+   */
+  slideMove(
+    startPos: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+    // Babylon physics handles its own resolution, but we can implement a basic slide
+    // using the trace method for consistency.
+
+    // For now, simple single-pass move (this backend is not main physics)
+    const endPos = startPos.add(velocity);
+    const trace = this.trace(startPos, endPos, options);
+
+    if (trace.fraction < 1.0) {
+      // Simple slide
+      // This is a stub - Babylon backend is rarely used for player physics in this engine
+      return {
+        endPos: trace.endPos,
+        velocity: Vector3.Zero(), // Stop on hit
+        hitCount: 1
+      };
+    }
+
+    return { endPos, velocity, hitCount: 0 };
+  }
+
   dispose(): void {
     this.collisionMeshes = [];
     this.scene = null;

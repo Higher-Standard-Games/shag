@@ -62,10 +62,10 @@ export class ClipBrushBackend implements CollisionBackend {
     // Include all face types: 1=polygon, 2=patch, 3=mesh
     for (let fi = 0; fi < bsp.faces.length; fi++) {
       const face = bsp.faces[fi];
-      
+
       // Skip billboards (type 4)
       if (face.faceType === 4) continue;
-      
+
       // Get face vertices to compute normal and bounds
       const plane = this.extractCollisionPlane(face, fi);
       if (plane) {
@@ -100,7 +100,7 @@ export class ClipBrushBackend implements CollisionBackend {
     const v0 = vertices[0];
     const v1 = vertices[1];
     const v2 = vertices[2];
-    
+
     const edge1 = v1.subtract(v0);
     const edge2 = v2.subtract(v0);
     let normal = Vector3.Cross(edge1, edge2).normalize();
@@ -130,7 +130,7 @@ export class ClipBrushBackend implements CollisionBackend {
     // Compute 3D bounding box for quick rejection
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    
+
     for (const v of vertices) {
       minX = Math.min(minX, v.x);
       minY = Math.min(minY, v.y);
@@ -182,7 +182,7 @@ export class ClipBrushBackend implements CollisionBackend {
       const traceMaxY = Math.max(q3Start.y, q3End.y);
       const traceMinZ = Math.min(q3Start.z, q3End.z);
       const traceMaxZ = Math.max(q3Start.z, q3End.z);
-      
+
       // Skip if trace bounds don't overlap plane bounds
       if (traceMaxX < plane.minBounds.x || traceMinX > plane.maxBounds.x) { debugBoundsSkip++; continue; }
       if (traceMaxY < plane.minBounds.y || traceMinY > plane.maxBounds.y) { debugBoundsSkip++; continue; }
@@ -208,7 +208,7 @@ export class ClipBrushBackend implements CollisionBackend {
         hitPlane = plane;
       }
     }
-    
+
     if (debug) {
       console.log(`[ClipBrush] Checked ${debugPlanesChecked} planes (${debugBoundsSkip} bounds skip, ${debugDistSkip} dist skip)`);
     }
@@ -218,11 +218,11 @@ export class ClipBrushBackend implements CollisionBackend {
       // Convert hit normal back to Babylon coords: Q3 (x, y, z) -> Babylon (x, z, y)
       result.normal = new Vector3(hitPlane.normal.x, hitPlane.normal.z, hitPlane.normal.y);
       result.contents = Contents.SOLID;
-      
+
       // Calculate end position in Babylon coords
       const dir = end.subtract(start);
       result.endPos = start.add(dir.scale(result.fraction));
-      
+
       this.stats.hitCount++;
 
       if (debug) {
@@ -234,6 +234,89 @@ export class ClipBrushBackend implements CollisionBackend {
     this.stats.avgTraceTimeMs = (this.stats.avgTraceTimeMs * (this.stats.traceCount - 1) + elapsed) / this.stats.traceCount;
 
     return result;
+  }
+
+  /**
+   * Generic slide move implementation
+   */
+  slideMove(
+    startPos: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+    const planes: Vector3[] = [];
+    let numPlanes = 0;
+    let currentPos = startPos.clone();
+    let currentVel = velocity.clone();
+    let timeLeft = 1.0;
+    let hitCount = 0;
+
+    for (let bump = 0; bump < 4; bump++) {
+      if (currentVel.lengthSquared() < 0.0001) break;
+
+      const endPos = currentPos.add(currentVel.scale(timeLeft));
+      const trace = this.trace(currentPos, endPos, options);
+
+      if (trace.allSolid) {
+        currentVel.y = 0; // Stuck, try to slide horizontally
+        return { endPos: currentPos, velocity: currentVel, hitCount };
+      }
+
+      if (trace.fraction > 0) {
+        currentPos = trace.endPos.clone();
+      }
+
+      if (trace.fraction >= 1.0) break;
+
+      hitCount++;
+      timeLeft -= timeLeft * trace.fraction;
+
+      if (!trace.normal) {
+        currentVel = Vector3.Zero();
+        break;
+      }
+
+      // Add this plane
+      if (numPlanes >= 5) {
+        currentVel = Vector3.Zero();
+        break;
+      }
+      planes[numPlanes] = trace.normal.clone();
+      numPlanes++;
+
+      // Clip velocity
+      let clippedVel = currentVel.clone();
+      for (let i = 0; i < numPlanes; i++) {
+        const into = Vector3.Dot(currentVel, planes[i]);
+        if (into >= 0.1) continue; // Moving away
+
+        // Clip
+        let backoff = Vector3.Dot(currentVel, planes[i]);
+        clippedVel = currentVel.subtract(planes[i].scale(backoff * 1.001));
+
+        // Check if it enters another plane
+        for (let j = 0; j < numPlanes; j++) {
+          if (j === i) continue;
+          if (Vector3.Dot(clippedVel, planes[j]) >= 0.1) continue;
+
+          // Clip against second plane
+          backoff = Vector3.Dot(clippedVel, planes[j]);
+          clippedVel = clippedVel.subtract(planes[j].scale(backoff * 1.001));
+
+          // Check if it goes back into first plane
+          if (Vector3.Dot(clippedVel, planes[i]) >= 0) continue;
+
+          // Slide along crease
+          const dir = Vector3.Cross(planes[i], planes[j]).normalize();
+          const d = Vector3.Dot(dir, currentVel);
+          clippedVel = dir.scale(d);
+        }
+        currentVel = clippedVel;
+        break;
+      }
+    }
+
+    return { endPos: currentPos, velocity: currentVel, hitCount };
   }
 
   pointContents(point: Vector3): number {

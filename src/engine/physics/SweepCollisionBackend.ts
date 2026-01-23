@@ -12,8 +12,9 @@
 
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
-import type { BspFile, BspBrush, BspLeaf } from '../loader/bsp/BspLoader';
+import type { BspFile, BspBrush, BspLeaf, BspFace } from '../loader/bsp/BspLoader';
 import { CollisionBackend, TraceResult, TraceOptions, CollisionStats, createDefaultTraceResult } from './CollisionBackend';
+import { PatchTessellator } from './PatchTessellator';
 import {
   PLAYER_RADIUS,
   PLAYER_HEIGHT,
@@ -50,6 +51,14 @@ const SurfaceFlags = {
 
 // Default content mask for player collision
 const PLAYER_CONTENTS = ContentFlags.SOLID | ContentFlags.PLAYERCLIP;
+
+// Face collision geometry
+interface FaceCollisionGeometry {
+  vertices: Vector3[];
+  indices: number[];
+  mins: Vector3;
+  maxs: Vector3;
+}
 
 // Trace type
 type TraceType = 'ray' | 'box';
@@ -88,6 +97,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private bsp: BspFile | null = null;
   private isFBSP = false;
   private loggedPlayerclipOnce = false;
+  private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
 
   // Stats
   private stats = {
@@ -100,6 +110,95 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.bsp = bsp;
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
     console.log(`[SweepCollision] Initialized with ${bsp.brushes?.length || 0} brushes (FBSP=${this.isFBSP})`);
+    this.processFaces();
+  }
+
+  private processFaces(): void {
+    if (!this.bsp) return;
+
+    const startTime = performance.now();
+    let meshCount = 0;
+    let patchCount = 0;
+    let skippedByFlags = 0;
+
+    this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
+
+    for (let i = 0; i < this.bsp.faces.length; i++) {
+      const face = this.bsp.faces[i];
+
+      // Filter by flags: Must be SOLID or PLAYERCLIP
+      const texture = this.bsp.textures[face.textureIndex];
+      if (!texture) {
+        skippedByFlags++;
+        continue;
+      }
+
+      const isSolid = (texture.contentFlags & ContentFlags.SOLID) !== 0;
+      const isPlayerClip = (texture.contentFlags & ContentFlags.PLAYERCLIP) !== 0;
+
+      if (!isSolid && !isPlayerClip) {
+        skippedByFlags++;
+        continue;
+      }
+
+      // Type 2: Patch
+      if (face.faceType === 2) {
+        // Use higher tessellation (5) to match visual mesh and prevent holes
+        const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
+        if (mesh) {
+          this.faceCollisionMeshes[i] = mesh;
+          patchCount++;
+        }
+      }
+      // Type 3: Mesh (Triangle Soup)
+      else if (face.faceType === 3) {
+        const mesh = this.buildMeshFace(face);
+        if (mesh) {
+          this.faceCollisionMeshes[i] = mesh;
+          meshCount++;
+        }
+      }
+    }
+
+    console.log(`[SweepCollision] Generated collision geometry: ${patchCount} patches, ${meshCount} meshes (${(performance.now() - startTime).toFixed(2)}ms)`);
+  }
+
+  private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
+    if (!this.bsp) return null;
+
+    const vertices: Vector3[] = [];
+    const indices: number[] = [];
+    const min = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+    const max = new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+
+    // Get vertices (Q3 to Babylon coords)
+    for (let i = 0; i < face.numVertices; i++) {
+      const v = this.bsp.vertices[face.firstVertex + i];
+      const pos = new Vector3(v.position[0], v.position[2], v.position[1]); // Q3 to Babylon
+      vertices.push(pos);
+
+      min.x = Math.min(min.x, pos.x);
+      min.y = Math.min(min.y, pos.y);
+      min.z = Math.min(min.z, pos.z);
+      max.x = Math.max(max.x, pos.x);
+      max.y = Math.max(max.y, pos.y);
+      max.z = Math.max(max.z, pos.z);
+    }
+
+    // Get indices and reverse winding
+    for (let i = 0; i < face.numMeshVerts; i += 3) {
+      const i0 = this.bsp.meshVerts[face.firstMeshVert + i];
+      const i1 = this.bsp.meshVerts[face.firstMeshVert + i + 1];
+      const i2 = this.bsp.meshVerts[face.firstMeshVert + i + 2];
+      indices.push(i0, i2, i1); // Reverse winding
+    }
+
+    return {
+      vertices,
+      indices,
+      mins: min,
+      maxs: max
+    };
   }
 
   /**
@@ -364,6 +463,319 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Check collision with brush
       this.traceBrush(brush, brushIndex, texture, state);
     }
+
+    // Check patch/mesh faces
+    this.traceLeafFaces(leaf, state);
+  }
+
+  /**
+   * Check collision with patch/mesh faces in a leaf
+   */
+  private traceLeafFaces(leaf: BspLeaf, state: TraceState): void {
+    if (!this.bsp || !this.faceCollisionMeshes || leaf.numLeafFaces === 0) return;
+
+    // Calculate trace AABB for broadphase (Q3 coords)
+    const traceMin: [number, number, number] = [
+      Math.min(state.start[0], state.end[0]) + state.mins[0],
+      Math.min(state.start[1], state.end[1]) + state.mins[1],
+      Math.min(state.start[2], state.end[2]) + state.mins[2],
+    ];
+    const traceMax: [number, number, number] = [
+      Math.max(state.start[0], state.end[0]) + state.maxs[0],
+      Math.max(state.start[1], state.end[1]) + state.maxs[1],
+      Math.max(state.start[2], state.end[2]) + state.maxs[2],
+    ];
+
+    for (let i = 0; i < leaf.numLeafFaces; i++) {
+      const faceIndex = this.bsp.leafFaces[leaf.firstLeafFace + i];
+      const mesh = this.faceCollisionMeshes[faceIndex];
+      if (!mesh) continue;
+
+      // Broadphase: AABB check (Babylon coords in mesh, Q3 coords in trace)
+      // Convert mesh AABB to Q3 for comparison
+      const meshMinQ3: [number, number, number] = [mesh.mins.x, mesh.mins.z, mesh.mins.y];
+      const meshMaxQ3: [number, number, number] = [mesh.maxs.x, mesh.maxs.z, mesh.maxs.y];
+
+      if (traceMax[0] < meshMinQ3[0] || traceMin[0] > meshMaxQ3[0] ||
+        traceMax[1] < meshMinQ3[1] || traceMin[1] > meshMaxQ3[1] ||
+        traceMax[2] < meshMinQ3[2] || traceMin[2] > meshMaxQ3[2]) {
+        continue;
+      }
+
+      // Check each triangle
+      for (let ti = 0; ti < mesh.indices.length; ti += 3) {
+        const p1 = mesh.vertices[mesh.indices[ti]];
+        const p2 = mesh.vertices[mesh.indices[ti + 1]];
+        const p3 = mesh.vertices[mesh.indices[ti + 2]];
+
+        this.traceTriangleSwept(p1, p2, p3, state);
+      }
+    }
+  }
+
+  /**
+   * Swept box vs triangle collision (simplified - uses box center ray for now)
+   */
+  private traceTriangleSwept(p1: Vector3, p2: Vector3, p3: Vector3, state: TraceState): void {
+    // Convert triangle from Babylon to Q3 coords
+    const v1: [number, number, number] = [p1.x, p1.z, p1.y];
+    const v2: [number, number, number] = [p2.x, p2.z, p2.y];
+    const v3: [number, number, number] = [p3.x, p3.z, p3.y];
+
+    // Calculate triangle edges and normal
+    const edge1: [number, number, number] = [v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]];
+    const edge2: [number, number, number] = [v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]];
+
+    // Cross product for normal
+    const normal: [number, number, number] = [
+      edge1[1] * edge2[2] - edge1[2] * edge2[1],
+      edge1[2] * edge2[0] - edge1[0] * edge2[2],
+      edge1[0] * edge2[1] - edge1[1] * edge2[0]
+    ];
+
+    // Normalize
+    const len = Math.sqrt(normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
+    if (len < 0.0001) return; // Degenerate triangle
+
+    normal[0] /= len;
+    normal[1] /= len;
+    normal[2] /= len;
+
+    // Project box onto normal to find offset
+    const offset = Math.abs(state.extents[0] * normal[0]) +
+      Math.abs(state.extents[1] * normal[1]) +
+      Math.abs(state.extents[2] * normal[2]);
+
+    // Calculate plane distance
+    const planeDist = this.dot(v1, normal);
+
+    // Distance from start/end to plane (with box offset)
+    const startDist = this.dot(state.start, normal) - planeDist;
+    const endDist = this.dot(state.end, normal) - planeDist;
+
+    // Check if crossing plane (accounting for box thickness)
+    if (startDist > offset && endDist > offset) return; // entirely in front
+    if (startDist < -offset && endDist < -offset) return; // entirely behind
+
+    // Check for start penetration (startSolid)
+    // If we are within the "slab" (between offset and -offset)
+    let isStartSolid = false;
+    if (startDist < offset && startDist > -offset) {
+      // Check 2D overlap at START position
+      // We need to project start position and test overlap
+
+      // Calculate intersection point for START (just the start point projected onto plane)
+      // Actually we test 2D overlap of the box at start pos
+
+      // Determine 2D box size based on projection
+      const absNx = Math.abs(normal[0]);
+      const absNy = Math.abs(normal[1]);
+      const absNz = Math.abs(normal[2]);
+
+      let u1: number, u2: number, u3: number;
+      let v1Value: number, v2Value: number, v3Value: number;
+      let startU: number, startV: number;
+
+      if (absNx >= absNy && absNx >= absNz) {
+        // Project onto YZ plane
+        u1 = v1[1]; v1Value = v1[2];
+        u2 = v2[1]; v2Value = v2[2];
+        u3 = v3[1]; v3Value = v3[2];
+        startU = state.start[1]; startV = state.start[2];
+      } else if (absNy >= absNz) {
+        // Project onto XZ plane
+        u1 = v1[0]; v1Value = v1[2];
+        u2 = v2[0]; v2Value = v2[2];
+        u3 = v3[0]; v3Value = v3[2];
+        startU = state.start[0]; startV = state.start[2];
+      } else {
+        // Project onto XY plane
+        u1 = v1[0]; v1Value = v1[1];
+        u2 = v2[0]; v2Value = v2[1];
+        u3 = v3[0]; v3Value = v3[1];
+        startU = state.start[0]; startV = state.start[1];
+      }
+
+      // Determine 2D box size based on projection
+      let boxHalfW: number, boxHalfH: number;
+      if (absNx >= absNy && absNx >= absNz) {
+        boxHalfW = state.extents[1]; boxHalfH = state.extents[2];
+      } else if (absNy >= absNz) {
+        boxHalfW = state.extents[0]; boxHalfH = state.extents[2];
+      } else {
+        boxHalfW = state.extents[0]; boxHalfH = state.extents[1];
+      }
+
+      if (this.triangleAabbOverlap2D(
+        startU, startV, boxHalfW, boxHalfH,
+        u1, v1Value, u2, v2Value, u3, v3Value
+      )) {
+        isStartSolid = true;
+      }
+    }
+
+    // Calculate intersection fraction
+    let fraction: number;
+    let hitBack = false;
+    const PARALLEL_EPSILON = 0.001;
+
+    if (isStartSolid) {
+      // Only block if moving significantly into the surface
+      if (startDist > endDist + PARALLEL_EPSILON) {
+        // Moving further in - BLOCK IT (fraction 0)
+        fraction = 0;
+      } else {
+        // Moving out or parallel - allow it (ignore this collision)
+        return;
+      }
+    } else {
+      if (startDist > endDist) {
+        // Entering from front
+        fraction = (startDist - offset) / (startDist - endDist);
+      } else if (startDist < endDist) {
+        // Entering from back
+        fraction = (startDist + offset) / (startDist - endDist);
+        hitBack = true;
+      } else {
+        return; // Parallel
+      }
+    }
+
+    // Handle tunneling: If we started inside (fraction < 0) but moving towards plane
+    if (fraction < 0) {
+      if (fraction > -0.001) fraction = 0; // Snap to 0 if very close
+      else return; // Truly behind
+    }
+
+    if (fraction >= state.result.fraction) return;
+
+    // If startSolid, update state and return (priority)
+    if (isStartSolid) {
+      state.result.startSolid = true;
+      // Also treat as a hit at fraction 0
+      state.result.fraction = 0;
+      state.result.normal = [...normal] as [number, number, number];
+      state.result.contents = ContentFlags.SOLID;
+      return;
+    }
+
+    // Calculate intersection point
+    const hitPoint: [number, number, number] = [
+      state.start[0] + fraction * (state.end[0] - state.start[0]),
+      state.start[1] + fraction * (state.end[1] - state.start[1]),
+      state.start[2] + fraction * (state.end[2] - state.start[2]),
+    ];
+
+    // Check if hit point is inside triangle (2D test in dominant plane)
+    // Find dominant axis
+    const absNx = Math.abs(normal[0]);
+    const absNy = Math.abs(normal[1]);
+    const absNz = Math.abs(normal[2]);
+
+    let u1: number, u2: number, u3: number;
+    let v1Value: number, v2Value: number, v3Value: number;
+    let hitU: number, hitV: number;
+
+    if (absNx >= absNy && absNx >= absNz) {
+      // Project onto YZ plane
+      u1 = v1[1]; v1Value = v1[2];
+      u2 = v2[1]; v2Value = v2[2];
+      u3 = v3[1]; v3Value = v3[2];
+      hitU = hitPoint[1]; hitV = hitPoint[2];
+    } else if (absNy >= absNz) {
+      // Project onto XZ plane
+      u1 = v1[0]; v1Value = v1[2];
+      u2 = v2[0]; v2Value = v2[2];
+      u3 = v3[0]; v3Value = v3[2];
+      hitU = hitPoint[0]; hitV = hitPoint[2];
+    } else {
+      // Project onto XY plane
+      u1 = v1[0]; v1Value = v1[1];
+      u2 = v2[0]; v2Value = v2[1];
+      u3 = v3[0]; v3Value = v3[1];
+      hitU = hitPoint[0]; hitV = hitPoint[1];
+    }
+
+    // Determine 2D box size based on projection
+    let boxHalfW: number, boxHalfH: number;
+    if (absNx >= absNy && absNx >= absNz) {
+      boxHalfW = state.extents[1]; boxHalfH = state.extents[2];
+    } else if (absNy >= absNz) {
+      boxHalfW = state.extents[0]; boxHalfH = state.extents[2];
+    } else {
+      boxHalfW = state.extents[0]; boxHalfH = state.extents[1];
+    }
+
+    // Perform AABB-Triangle intersection test in 2D centered at hitU, hitV
+    if (!this.triangleAabbOverlap2D(
+      hitU, hitV, boxHalfW, boxHalfH,
+      u1, v1Value, u2, v2Value, u3, v3Value
+    )) {
+      return;
+    }
+
+    // Valid hit!
+    // Valid hit!
+    state.result.fraction = fraction;
+    state.result.normal = hitBack
+      ? [-normal[0], -normal[1], -normal[2]] as [number, number, number]
+      : [...normal] as [number, number, number];
+    state.result.contents = ContentFlags.SOLID;
+  }
+
+  /**
+   * 2D AABB vs Triangle overlap test
+   * Tests if an AABB centered at (cx, cy) overlaps with a triangle
+   */
+  private triangleAabbOverlap2D(
+    cx: number, cy: number, hw: number, hh: number,
+    u0: number, v0: number, u1: number, v1: number, u2: number, v2: number
+  ): boolean {
+    // 1. Test AABB against Triangle AABB
+    const triMinU = Math.min(u0, u1, u2);
+    const triMaxU = Math.max(u0, u1, u2);
+    const triMinV = Math.min(v0, v1, v2);
+    const triMaxV = Math.max(v0, v1, v2);
+
+    if (triMinU > cx + hw || triMaxU < cx - hw ||
+      triMinV > cy + hh || triMaxV < cy - hh) {
+      return false;
+    }
+
+    // 2. Test Box vertices against Triangle edges (Edge normals)
+    // Offset triangle to be relative to box center (0,0)
+    const p0u = u0 - cx, p0v = v0 - cy;
+    const p1u = u1 - cx, p1v = v1 - cy;
+    const p2u = u2 - cx, p2v = v2 - cy;
+
+    const f0u = p1u - p0u, f0v = p1v - p0v;
+    const f1u = p2u - p1u, f1v = p2v - p1v;
+    const f2u = p0u - p2u, f2v = p0v - p2v;
+
+    // Normal to edge 0: (-f0v, f0u)
+    // Project box extents: hw * |nx| + hh * |ny|
+    // Project triangle vertex (p0 or p2 - both are same distance from edge 0)
+    let axisU = -f0v, axisV = f0u;
+    let dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
+    let pDist = axisU * p0u + axisV * p0v; // All points on edge 0 project to same value
+    let p2Dist = axisU * p2u + axisV * p2v; // Third point
+    if (Math.min(pDist, p2Dist) > dist || Math.max(pDist, p2Dist) < -dist) return false;
+
+    // Normal to edge 1
+    axisU = -f1v; axisV = f1u;
+    dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
+    pDist = axisU * p1u + axisV * p1v;
+    let p0Dist = axisU * p0u + axisV * p0v;
+    if (Math.min(pDist, p0Dist) > dist || Math.max(pDist, p0Dist) < -dist) return false;
+
+    // Normal to edge 2
+    axisU = -f2v; axisV = f2u;
+    dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
+    pDist = axisU * p2u + axisV * p2v;
+    let p1Dist = axisU * p1u + axisV * p1v;
+    if (Math.min(pDist, p1Dist) > dist || Math.max(pDist, p1Dist) < -dist) return false;
+
+    return true;
   }
 
   /**
@@ -629,6 +1041,12 @@ export class SweepCollisionBackend implements CollisionBackend {
         return { endPos: currentPos, velocity: currentVel, hitCount };
       }
 
+      // DEPENETRATION: If we started inside geometry, nudge us out slightly
+      // This prevents getting stuck in corners where velocity clipping alone isn't enough
+      if (trace.startSolid && trace.normal) {
+        currentPos.addInPlace(trace.normal.scale(0.05));
+      }
+
       if (trace.fraction > 0) {
         // Actually moved some distance
         currentPos = trace.endPos.clone();
@@ -685,6 +1103,25 @@ export class SweepCollisionBackend implements CollisionBackend {
         // Clip against this plane
         clippedVel = this.clipVelocity(currentVel, planes[i]);
 
+        // WALL CLIMB PREVENTION: If this is a steep wall (not a floor/ramp),
+        // ensure we never gain upward velocity. Instead of just zeroing Y (which causes penetration),
+        // we project velocity onto the horizontal contour of the wall.
+        const isWall = planes[i].y < 0.7; // Standard Q3 walkable slope threshold
+        if (isWall && clippedVel.y > 0) {
+          const up = new Vector3(0, 1, 0);
+          // Tangent to wall, perpendicular to up (horizontal slide direction)
+          const wallDir = Vector3.Cross(planes[i], up);
+
+          if (wallDir.lengthSquared() > 0.001) {
+            wallDir.normalize();
+            // Project current velocity onto this horizontal direction
+            const speed = Vector3.Dot(clippedVel, wallDir);
+            clippedVel = wallDir.scale(speed);
+          } else {
+            clippedVel.setAll(0); // Should unlikely happen for steep walls
+          }
+        }
+
         // Check if clipped velocity enters another plane
         for (let j = 0; j < numPlanes; j++) {
           if (j === i) continue;
@@ -694,6 +1131,21 @@ export class SweepCollisionBackend implements CollisionBackend {
 
           // Clip against the second plane too
           clippedVel = this.clipVelocity(clippedVel, planes[j]);
+
+          // Wall climb prevention on second plane too
+          const isWallJ = planes[j].y < 0.7;
+          if (isWallJ && clippedVel.y > 0) {
+            const up = new Vector3(0, 1, 0);
+            const wallDir = Vector3.Cross(planes[j], up);
+
+            if (wallDir.lengthSquared() > 0.001) {
+              wallDir.normalize();
+              const speed = Vector3.Dot(clippedVel, wallDir);
+              clippedVel = wallDir.scale(speed);
+            } else {
+              clippedVel.setAll(0);
+            }
+          }
 
           // Check if it goes back into the first plane
           if (Vector3.Dot(clippedVel, planes[i]) >= 0) {

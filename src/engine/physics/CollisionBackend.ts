@@ -77,6 +77,12 @@ export interface CollisionBackend {
   trace(start: Vector3, end: Vector3, options?: TraceOptions): TraceResult;
 
   /**
+   * Perform a slide move (collision resolution)
+   * Handles multi-plane sliding, corners, and wall clipping
+   */
+  slideMove(start: Vector3, velocity: Vector3, options?: TraceOptions): { endPos: Vector3; velocity: Vector3; hitCount: number };
+
+  /**
    * Get content flags at a point
    */
   pointContents(point: Vector3): number;

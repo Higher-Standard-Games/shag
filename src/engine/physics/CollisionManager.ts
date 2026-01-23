@@ -121,6 +121,16 @@ export class CollisionManager {
   }
 
   /**
+   * Perform a slide move
+   */
+  slideMove(start: Vector3, velocity: Vector3, options?: TraceOptions): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+    if (!this.activeBackend) {
+      return { endPos: start.add(velocity), velocity, hitCount: 0 };
+    }
+    return this.activeBackend.slideMove(start, velocity, options);
+  }
+
+  /**
    * Get content flags at a point
    */
   pointContents(point: Vector3): number {

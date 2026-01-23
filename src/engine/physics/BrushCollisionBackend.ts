@@ -118,6 +118,91 @@ export class BrushCollisionBackend implements CollisionBackend {
     return result;
   }
 
+  /**
+   * Generic slide move implementation
+   */
+  slideMove(
+    startPos: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+    const planes: Vector3[] = [];
+    let numPlanes = 0;
+    let currentPos = startPos.clone();
+    let currentVel = velocity.clone();
+    let timeLeft = 1.0;
+    let hitCount = 0;
+
+    for (let bump = 0; bump < 4; bump++) {
+      if (currentVel.lengthSquared() < 0.0001) break;
+
+      const endPos = currentPos.add(currentVel.scale(timeLeft));
+      const trace = this.trace(currentPos, endPos, options);
+
+      if (trace.allSolid) {
+        currentVel.y = 0; // Stuck, try to slide horizontally
+        return { endPos: currentPos, velocity: currentVel, hitCount };
+      }
+
+      if (trace.fraction > 0) {
+        currentPos = trace.endPos.clone();
+      }
+
+      if (trace.fraction >= 1.0) break;
+
+      hitCount++;
+      timeLeft -= timeLeft * trace.fraction;
+
+      if (!trace.normal) {
+        currentVel = Vector3.Zero();
+        break;
+      }
+
+      // Add this plane
+      if (numPlanes >= 5) {
+        currentVel = Vector3.Zero();
+        break;
+      }
+      planes[numPlanes] = trace.normal.clone();
+      numPlanes++;
+
+      // Clip velocity
+      let clippedVel = currentVel.clone();
+      for (let i = 0; i < numPlanes; i++) {
+        const into = Vector3.Dot(currentVel, planes[i]);
+        if (into >= 0.1) continue; // Moving away
+
+        // Clip
+        let backoff = Vector3.Dot(currentVel, planes[i]);
+        clippedVel = currentVel.subtract(planes[i].scale(backoff * 1.001));
+
+        // Check if it enters another plane
+        for (let j = 0; j < numPlanes; j++) {
+          if (j === i) continue;
+          if (Vector3.Dot(clippedVel, planes[j]) >= 0.1) continue;
+
+          // Clip against second plane
+          backoff = Vector3.Dot(clippedVel, planes[j]);
+          clippedVel = clippedVel.subtract(planes[j].scale(backoff * 1.001));
+
+          // Check if it goes back into first plane
+          if (Vector3.Dot(clippedVel, planes[i]) >= 0) continue;
+
+          // Slide along crease
+          const dir = Vector3.Cross(planes[i], planes[j]).normalize();
+          const d = Vector3.Dot(dir, currentVel);
+          clippedVel = dir.scale(d);
+
+          // Check third plane... (simplified here)
+        }
+        currentVel = clippedVel;
+        break;
+      }
+    }
+
+    return { endPos: currentPos, velocity: currentVel, hitCount };
+  }
+
   pointContents(point: Vector3): number {
     if (!this.bspCollision) return 0;
     return this.bspCollision.pointContents(point as never);
