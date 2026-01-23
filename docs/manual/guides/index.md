@@ -11,6 +11,9 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Q3 Shader System](./shader-system.md) | Shader parsing and material application |
 | [PK3 Filesystem](./pk3-filesystem.md) | Virtual filesystem and archive loading |
 | [Camera System](./camera-system.md) | Camera controllers and modes |
+| [Physics System](./physics-system.md) | Collision detection and backends |
+| [Movement System](./movement-system.md) | Player movement and physics cvars |
+| [Viewport Effects](./viewport-effects.md) | View bob, screen shake, FOV effects |
 
 ## Runtime Systems
 
