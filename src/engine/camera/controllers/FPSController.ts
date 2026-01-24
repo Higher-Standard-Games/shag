@@ -22,6 +22,13 @@ import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import { Animation } from "@babylonjs/core/Animations/animation";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import "@babylonjs/loaders";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
@@ -219,6 +226,14 @@ export class FPSController implements ICameraController {
 
   // Debug visualization (cl_debugbbox cvar)
   private debugBboxMesh: LinesMesh | null = null;
+
+  // Debug player model visualization (cl_debugplayer cvar)
+  private debugPlayerMesh: Mesh | null = null;
+  private debugPlayerSkeleton: Skeleton | null = null;
+  private debugPlayerAnims: { name: string; animations: { target: TransformNode; animation: Animation }[] }[] = [];
+  private debugPlayerMasterGroup: AnimationGroup | null = null;
+  private debugPlayerCurrentAnim: string = "";
+  private debugPlayerLoading: boolean = false;
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
@@ -1342,6 +1357,9 @@ export class FPSController implements ICameraController {
 
     // === DEBUG BBOX VISUALIZATION ===
     this.updateDebugBbox();
+
+    // === DEBUG PLAYER MODEL ===
+    this.updateDebugPlayer();
   }
 
   // Speed display element
@@ -1483,6 +1501,261 @@ export class FPSController implements ICameraController {
     this.debugBboxMesh!.isVisible = true;
   }
 
+  /**
+   * Initialize debug player model and load animations
+   */
+  private async initDebugPlayer(): Promise<void> {
+    if (!this.scene || this.debugPlayerLoading || this.debugPlayerMesh) return;
+
+    this.debugPlayerLoading = true;
+    console.log("[DebugPlayer] Loading vanguard.glb...");
+
+    try {
+      const result = await SceneLoader.ImportMeshAsync(
+        "",
+        "games/default/animations/",
+        "vanguard.glb",
+        this.scene
+      );
+
+      if (result.meshes.length === 0) {
+        console.error("[DebugPlayer] No meshes in model");
+        return;
+      }
+
+      this.debugPlayerMesh = result.meshes[0] as Mesh;
+      this.debugPlayerSkeleton = result.skeletons[0] || null;
+
+      // Stop embedded animation
+      result.animationGroups.forEach(g => g.stop());
+
+      // Build bone map
+      const targetBoneMap = new Map<string, TransformNode>();
+      if (this.debugPlayerSkeleton) {
+        for (const bone of this.debugPlayerSkeleton.bones) {
+          const node = bone.getTransformNode();
+          if (node) targetBoneMap.set(bone.name, node);
+        }
+      }
+
+      // Store embedded animation
+      if (result.animationGroups.length > 0) {
+        const embeddedAnims: { target: TransformNode; animation: Animation }[] = [];
+        for (const ta of result.animationGroups[0].targetedAnimations) {
+          embeddedAnims.push({
+            target: ta.target as TransformNode,
+            animation: ta.animation.clone()
+          });
+        }
+        this.debugPlayerAnims.push({ name: "embedded", animations: embeddedAnims });
+        result.animationGroups[0].dispose();
+      }
+
+      // Create master group
+      this.debugPlayerMasterGroup = new AnimationGroup("debugPlayerMaster", this.scene);
+
+      // Load external animations
+      const animFiles = [
+        { name: "idle", file: "rifle aiming idle.glb" },
+        { name: "run", file: "rifle run.glb" },
+        { name: "strafe_l", file: "strafe left.glb" },
+        { name: "strafe_r", file: "strafe right.glb" },
+        { name: "jump", file: "rifle jump.glb" },
+        { name: "walk", file: "walking.glb" },
+        { name: "reload", file: "reloading.glb" },
+        { name: "wallrun", file: "wallrun.glb" },
+      ];
+
+      for (const anim of animFiles) {
+        try {
+          const animResult = await SceneLoader.ImportAnimationsAsync(
+            "",
+            "games/default/animations/" + anim.file,
+            this.scene,
+            false
+          );
+
+          if (animResult.animationGroups.length > 0) {
+            const sourceGroup = animResult.animationGroups[0];
+            const storedAnims: { target: TransformNode; animation: Animation }[] = [];
+
+            for (const ta of sourceGroup.targetedAnimations) {
+              const targetName = (ta.target as TransformNode).name;
+              const ourBone = targetBoneMap.get(targetName);
+              if (ourBone) {
+                const clonedAnim = ta.animation.clone();
+                clonedAnim.name = `${anim.name}_${ta.animation.name}`;
+                storedAnims.push({ target: ourBone, animation: clonedAnim });
+              }
+            }
+
+            if (storedAnims.length > 0) {
+              this.debugPlayerAnims.push({ name: anim.name, animations: storedAnims });
+            }
+            sourceGroup.dispose();
+          }
+        } catch (err) {
+          console.error(`[DebugPlayer] Error loading ${anim.file}:`, err);
+        }
+      }
+
+      console.log(`[DebugPlayer] Loaded ${this.debugPlayerAnims.length} animations`);
+      this.playDebugPlayerAnimation("idle");
+    } catch (error) {
+      console.error("[DebugPlayer] Load error:", error);
+    } finally {
+      this.debugPlayerLoading = false;
+    }
+  }
+
+  /**
+   * Update debug player model position and animation
+   */
+  private updateDebugPlayer(): void {
+    if (!this.camera || !this.scene) return;
+
+    const debugCvar = Cvar.get('cl_debugplayer');
+    const debugEnabled = debugCvar !== undefined && Number(debugCvar) > 0;
+
+    if (!debugEnabled) {
+      // Hide mesh if exists
+      if (this.debugPlayerMesh) {
+        this.debugPlayerMesh.isVisible = false;
+        // Also hide all child meshes
+        this.debugPlayerMesh.getChildMeshes().forEach(m => m.isVisible = false);
+      }
+      return;
+    }
+
+    // Initialize if needed
+    if (!this.debugPlayerMesh && !this.debugPlayerLoading) {
+      this.initDebugPlayer();
+      return;
+    }
+
+    if (!this.debugPlayerMesh) return;
+
+    // Get cvars
+    const offsetCvar = Cvar.get('cl_debugplayer_offset');
+    const offset = offsetCvar !== undefined ? Number(offsetCvar) : 100;
+    const scaleCvar = Cvar.get('cl_debugplayer_scale');
+    const scale = scaleCvar !== undefined ? Number(scaleCvar) : 50;
+
+    // Position ahead of player
+    const forward = this.camera.getForwardRay().direction;
+    forward.y = 0;
+    forward.normalize();
+    const aheadPos = this.camera.position.add(forward.scale(offset));
+
+    // Feet on ground (physicsY is origin, feet are 24 units below)
+    aheadPos.y = this.physicsY - PLAYER_ORIGIN_HEIGHT;
+
+    this.debugPlayerMesh.position.copyFrom(aheadPos);
+    this.debugPlayerMesh.scaling.set(scale, scale, scale);
+
+    // Face away from camera (same direction player is looking)
+    const yaw = Math.atan2(forward.x, forward.z);
+    this.debugPlayerMesh.rotation.y = yaw;
+
+    // Make visible
+    this.debugPlayerMesh.isVisible = true;
+    this.debugPlayerMesh.getChildMeshes().forEach(m => m.isVisible = true);
+
+    // Determine animation from movement state
+    const animName = this.getDebugPlayerAnimationFromState();
+    if (animName !== this.debugPlayerCurrentAnim) {
+      this.playDebugPlayerAnimation(animName);
+    }
+  }
+
+  /**
+   * Determine which animation to play based on current movement state
+   */
+  private getDebugPlayerAnimationFromState(): string {
+    // Priority order: slide > walljump > jump > reload > run/walk/strafe > idle
+
+    if (this.isSliding) {
+      return "walk"; // No crouchslide anim yet, use walk as fallback
+    }
+
+    if (this.wallJumpState !== 'none') {
+      return "wallrun";
+    }
+
+    if (!this.isGrounded && this.velocity.y > 50) {
+      return "jump";
+    }
+
+    // Check for reload (would need isReloading flag)
+    // if (this.isReloading) return "reload";
+
+    // Check movement
+    const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+
+    if (speed > 50) {
+      // Determine if strafing
+      const forward = this.camera!.getForwardRay().direction;
+      forward.y = 0;
+      forward.normalize();
+      const right = new Vector3(forward.z, 0, -forward.x);
+
+      const forwardDot = forward.x * this.velocity.x + forward.z * this.velocity.z;
+      const rightDot = right.x * this.velocity.x + right.z * this.velocity.z;
+
+      // If strafe is dominant
+      if (Math.abs(rightDot) > Math.abs(forwardDot) * 1.5) {
+        return rightDot > 0 ? "strafe_r" : "strafe_l";
+      }
+
+      return speed > 300 ? "run" : "walk";
+    }
+
+    return "idle";
+  }
+
+  /**
+   * Play a specific animation on the debug player
+   */
+  private playDebugPlayerAnimation(name: string): void {
+    if (!this.debugPlayerMasterGroup || !this.scene) return;
+
+    const anim = this.debugPlayerAnims.find(a => a.name === name);
+    if (!anim) return;
+
+    // Stop and recreate master group
+    this.debugPlayerMasterGroup.stop();
+    this.debugPlayerMasterGroup.dispose();
+    this.debugPlayerMasterGroup = new AnimationGroup("debugPlayerMaster", this.scene);
+
+    // Add animation channels
+    for (const channel of anim.animations) {
+      this.debugPlayerMasterGroup.addTargetedAnimation(channel.animation, channel.target);
+    }
+
+    this.debugPlayerMasterGroup.play(true);
+    this.debugPlayerCurrentAnim = name;
+  }
+
+  /**
+   * Dispose debug player model
+   */
+  private disposeDebugPlayer(): void {
+    if (this.debugPlayerMasterGroup) {
+      this.debugPlayerMasterGroup.stop();
+      this.debugPlayerMasterGroup.dispose();
+      this.debugPlayerMasterGroup = null;
+    }
+
+    this.debugPlayerAnims = [];
+    this.debugPlayerCurrentAnim = "";
+
+    if (this.debugPlayerMesh) {
+      this.debugPlayerMesh.dispose();
+      this.debugPlayerMesh = null;
+    }
+
+    this.debugPlayerSkeleton = null;
+  }
 
   /**
    * Warsow PM_AirAccelerate - Main bunny hop speed gain mechanic
@@ -2732,6 +3005,7 @@ export class FPSController implements ICameraController {
   }
 
   dispose(): void {
+    this.disposeDebugPlayer();
     this.detach();
   }
 }
@@ -2760,4 +3034,26 @@ Cvar.register('cl_debugbbox_offset', 100, {
   min: 0,
   max: 500,
   description: 'Distance to show debug bbox ahead of player (units)',
+});
+
+// Debug player model visualization cvars
+Cvar.register('cl_debugplayer', 0, {
+  type: 'int',
+  min: 0,
+  max: 1,
+  description: 'Show player model ahead with animations (developer)',
+});
+
+Cvar.register('cl_debugplayer_offset', 100, {
+  type: 'float',
+  min: 0,
+  max: 500,
+  description: 'Distance to show debug player model ahead (units)',
+});
+
+Cvar.register('cl_debugplayer_scale', 50, {
+  type: 'float',
+  min: 1,
+  max: 200,
+  description: 'Scale of debug player model (Mixamo to BSP units)',
 });
