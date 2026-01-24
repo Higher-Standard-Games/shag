@@ -1572,9 +1572,11 @@ export class FPSController implements ICameraController {
           const targetName = (ta.target as TransformNode).name;
           const prop = ta.animation.targetProperty;
 
-          // Skip ALL position animations
-          if (prop === 'position') {
-            console.log(`[DebugPlayer] Skipping embedded position anim: ${targetName}`);
+          // Skip position animations ONLY on Hips (root motion)
+          // Allow position on other bones (legs, arms, etc.) for proper animation
+          const isHipsBone = targetName.toLowerCase().includes('hips');
+          if (prop === 'position' && isHipsBone) {
+            console.log(`[DebugPlayer] Filtering root motion: ${targetName}`);
             continue;
           }
 
@@ -1632,8 +1634,15 @@ export class FPSController implements ICameraController {
 
               const ourBone = targetBoneMap.get(targetName);
               if (ourBone) {
-                // Load ALL animation channels (position, rotation, scaling)
-                // Anchor node + forced child positions handle preventing unwanted root motion
+                const prop = ta.animation.targetProperty;
+
+                // Skip position animations ONLY on Hips (root motion)
+                // Allow position on other bones (legs, arms, etc.) for proper animation
+                const isHipsBone = targetName.toLowerCase().includes('hips');
+                if (prop === 'position' && isHipsBone) {
+                  continue; // Filter out root motion
+                }
+
                 const clonedAnim = ta.animation.clone();
                 clonedAnim.name = `${anim.name}_${ta.animation.name}`;
                 storedAnims.push({ target: ourBone, animation: clonedAnim });
@@ -1771,6 +1780,55 @@ export class FPSController implements ICameraController {
       const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
       console.log(`[DebugPlayer] Switching to: ${animName} (speed: ${speed.toFixed(1)})`);
       this.playDebugPlayerAnimation(animName);
+    }
+
+    // === ANIMATION SPEED SCALING FOR STRIDE MATCHING ===
+    // Dynamically adjust animation playback speed to match actual movement speed
+    // This makes feet appear to move correctly relative to the ground
+    if (this.debugPlayerMasterGroup) {
+      const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+
+      // Natural speeds these animations were designed for (units/second)
+      // Tune these cvars to match when feet slide vs skip:
+      // - If feet slide on ground, increase the natural speed
+      // - If feet skip/stutter, decrease the natural speed
+      const walkNaturalCvar = Cvar.get('cl_debugplayer_walk_speed');
+      const runNaturalCvar = Cvar.get('cl_debugplayer_run_speed');
+      const WALK_NATURAL_SPEED = walkNaturalCvar !== undefined ? Number(walkNaturalCvar) : 50;
+      const RUN_NATURAL_SPEED = runNaturalCvar !== undefined ? Number(runNaturalCvar) : 400;
+
+      let naturalSpeed = WALK_NATURAL_SPEED;
+      if (this.debugPlayerCurrentAnim === 'run') {
+        naturalSpeed = RUN_NATURAL_SPEED;
+      } else if (this.debugPlayerCurrentAnim === 'walk') {
+        naturalSpeed = WALK_NATURAL_SPEED;
+      }
+
+      // Detect if moving backwards (dot product of velocity with look direction)
+      const yaw = this.mouseRotationY;
+      const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      const velocityDir = new Vector3(this.velocity.x, 0, this.velocity.z);
+      const forwardDot = Vector3.Dot(forward, velocityDir);
+      const isMovingBackwards = forwardDot < 0;
+
+      // Calculate speed ratio: actual speed / natural speed
+      // > 1.0 = speed up animation, < 1.0 = slow down animation
+      let speedRatio = speed / naturalSpeed;
+
+      // Reverse animation if moving backwards
+      if (isMovingBackwards) {
+        speedRatio = -speedRatio;
+      }
+
+      // Clamp to reasonable range to prevent extreme values
+      const clampedRatio = Math.max(-3.0, Math.min(3.0, speedRatio));
+
+      // Apply to animation playback (only for locomotion animations)
+      if (this.debugPlayerCurrentAnim === 'walk' || this.debugPlayerCurrentAnim === 'run') {
+        this.debugPlayerMasterGroup.speedRatio = clampedRatio;
+      } else {
+        this.debugPlayerMasterGroup.speedRatio = 1.0; // Normal speed for idle, jump, etc.
+      }
     }
   }
 
@@ -3176,4 +3234,18 @@ Cvar.register('cl_debugplayer_scale', 50, {
   min: 1,
   max: 200,
   description: 'Scale of debug player model (Mixamo to BSP units)',
+});
+
+Cvar.register('cl_debugplayer_walk_speed', 50, {
+  type: 'float',
+  min: 10,
+  max: 1000,
+  description: 'Natural speed for walk animation (units/sec). Increase if feet slide, decrease if they skip.',
+});
+
+Cvar.register('cl_debugplayer_run_speed', 400, {
+  type: 'float',
+  min: 10,
+  max: 1000,
+  description: 'Natural speed for run animation (units/sec). Increase if feet slide, decrease if they skip.',
 });
