@@ -1710,7 +1710,7 @@ export class FPSController implements ICameraController {
     const offsetCvar = Cvar.get('cl_debugplayer_offset');
     const offset = offsetCvar !== undefined ? Number(offsetCvar) : 100;
     const scaleCvar = Cvar.get('cl_debugplayer_scale');
-    const scale = scaleCvar !== undefined ? Number(scaleCvar) : 50;
+    const scale = scaleCvar !== undefined ? Number(scaleCvar) : 36;
 
     // Position the ANCHOR using stable physics coordinates  
     // Use smoothing to prevent mouse jitter from causing idle shake
@@ -3229,7 +3229,7 @@ Cvar.register('cl_debugplayer_offset', 100, {
   description: 'Distance to show debug player model ahead (units)',
 });
 
-Cvar.register('cl_debugplayer_scale', 50, {
+Cvar.register('cl_debugplayer_scale', 36, {
   type: 'float',
   min: 1,
   max: 200,
