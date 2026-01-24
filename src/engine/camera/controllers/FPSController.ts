@@ -1501,6 +1501,9 @@ export class FPSController implements ICameraController {
     this.debugBboxMesh!.isVisible = true;
   }
 
+  // Parent anchor node for the debug player - we control this, animations can't touch it
+  private debugPlayerAnchor: TransformNode | null = null;
+
   /**
    * Initialize debug player model and load animations
    */
@@ -1526,6 +1529,18 @@ export class FPSController implements ICameraController {
       this.debugPlayerMesh = result.meshes[0] as Mesh;
       this.debugPlayerSkeleton = result.skeletons[0] || null;
 
+      // === CREATE PARENT ANCHOR NODE ===
+      // This is the key fix: we create a parent node that WE control
+      // The mesh is parented to this, so animations can move the mesh locally
+      // but the anchor stays where we put it
+      this.debugPlayerAnchor = new TransformNode("debugPlayerAnchor", this.scene);
+
+      // Unparent mesh from any existing parent and reparent to our anchor
+      this.debugPlayerMesh.setParent(this.debugPlayerAnchor);
+
+      // Reset mesh local position to zero - it will be relative to anchor
+      this.debugPlayerMesh.position.set(0, 0, 0);
+
       // Stop embedded animation
       result.animationGroups.forEach(g => g.stop());
 
@@ -1538,10 +1553,19 @@ export class FPSController implements ICameraController {
         }
       }
 
-      // Store embedded animation
+      // Store embedded animation (with position filtering)
       if (result.animationGroups.length > 0) {
         const embeddedAnims: { target: TransformNode; animation: Animation }[] = [];
         for (const ta of result.animationGroups[0].targetedAnimations) {
+          const targetName = (ta.target as TransformNode).name;
+          const prop = ta.animation.targetProperty;
+
+          // Skip ALL position animations
+          if (prop === 'position') {
+            console.log(`[DebugPlayer] Skipping embedded position anim: ${targetName}`);
+            continue;
+          }
+
           embeddedAnims.push({
             target: ta.target as TransformNode,
             animation: ta.animation.clone()
@@ -1563,11 +1587,17 @@ export class FPSController implements ICameraController {
         { name: "jump", file: "rifle jump.glb" },
         { name: "walk", file: "walking.glb" },
         { name: "reload", file: "reloading.glb" },
-        { name: "wallrun", file: "wallrun.glb" },
+        // NOTE: wallrun.glb removed - it auto-plays on import and causes unwanted motion
       ];
 
       for (const anim of animFiles) {
         try {
+          // CRITICAL: Stop ALL animation groups BEFORE importing
+          // This prevents any existing auto-play from interfering
+          for (const g of this.scene!.animationGroups) {
+            g.stop();
+          }
+
           const animResult = await SceneLoader.ImportAnimationsAsync(
             "",
             "games/default/animations/" + anim.file,
@@ -1575,14 +1605,27 @@ export class FPSController implements ICameraController {
             false
           );
 
+          // CRITICAL: Stop ALL animation groups IMMEDIATELY after import
+          // ImportAnimationsAsync may auto-play on same-named bones
+          for (const g of this.scene!.animationGroups) {
+            g.stop();
+          }
+
           if (animResult.animationGroups.length > 0) {
             const sourceGroup = animResult.animationGroups[0];
             const storedAnims: { target: TransformNode; animation: Animation }[] = [];
 
             for (const ta of sourceGroup.targetedAnimations) {
               const targetName = (ta.target as TransformNode).name;
+              const prop = ta.animation.targetProperty;
+
               const ourBone = targetBoneMap.get(targetName);
               if (ourBone) {
+                // Skip ALL position animations
+                if (prop === 'position') {
+                  continue;
+                }
+
                 const clonedAnim = ta.animation.clone();
                 clonedAnim.name = `${anim.name}_${ta.animation.name}`;
                 storedAnims.push({ target: ourBone, animation: clonedAnim });
@@ -1593,6 +1636,12 @@ export class FPSController implements ICameraController {
               this.debugPlayerAnims.push({ name: anim.name, animations: storedAnims });
             }
             sourceGroup.dispose();
+
+            // CRITICAL: Stop ALL animation groups in scene after each import
+            // ImportAnimationsAsync auto-plays on same-named bones!
+            for (const g of this.scene!.animationGroups) {
+              g.stop();
+            }
           }
         } catch (err) {
           console.error(`[DebugPlayer] Error loading ${anim.file}:`, err);
@@ -1618,10 +1667,12 @@ export class FPSController implements ICameraController {
     const debugEnabled = debugCvar !== undefined && Number(debugCvar) > 0;
 
     if (!debugEnabled) {
-      // Hide mesh if exists
+      // Hide anchor and mesh if exists
+      if (this.debugPlayerAnchor) {
+        this.debugPlayerAnchor.setEnabled(false);
+      }
       if (this.debugPlayerMesh) {
         this.debugPlayerMesh.isVisible = false;
-        // Also hide all child meshes
         this.debugPlayerMesh.getChildMeshes().forEach(m => m.isVisible = false);
       }
       return;
@@ -1633,7 +1684,7 @@ export class FPSController implements ICameraController {
       return;
     }
 
-    if (!this.debugPlayerMesh) return;
+    if (!this.debugPlayerMesh || !this.debugPlayerAnchor) return;
 
     // Get cvars
     const offsetCvar = Cvar.get('cl_debugplayer_offset');
@@ -1641,21 +1692,48 @@ export class FPSController implements ICameraController {
     const scaleCvar = Cvar.get('cl_debugplayer_scale');
     const scale = scaleCvar !== undefined ? Number(scaleCvar) : 50;
 
-    // Position ahead of player
-    const forward = this.camera.getForwardRay().direction;
-    forward.y = 0;
-    forward.normalize();
-    const aheadPos = this.camera.position.add(forward.scale(offset));
+    // Position the ANCHOR using stable physics coordinates
+    const yaw = this.mouseRotationY;
+    const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
 
-    // Feet on ground (physicsY is origin, feet are 24 units below)
-    aheadPos.y = this.physicsY - PLAYER_ORIGIN_HEIGHT;
+    // Calculate target position
+    const anchorPos = new Vector3(this.physicsX, this.physicsY, this.physicsZ);
+    anchorPos.addInPlace(forward.scale(offset));
+    anchorPos.y = this.physicsY + PLAYER_MINS_Z;
 
-    this.debugPlayerMesh.position.copyFrom(aheadPos);
+    // Set anchor position and rotation - THIS is what we control
+    this.debugPlayerAnchor.position.copyFrom(anchorPos);
+    if (this.debugPlayerAnchor.rotationQuaternion) {
+      this.debugPlayerAnchor.rotationQuaternion = null;
+    }
+    this.debugPlayerAnchor.rotation.set(0, yaw, 0);
+    this.debugPlayerAnchor.setEnabled(true);
+
+    // === FORCE MESH AND ALL TOP-LEVEL CHILDREN POSITIONS TO ZERO ===
+    // This overrides any animation that might try to move the mesh
+    // Mixamo uses mixamorig:Hips as the root bone with position animation
+    this.debugPlayerMesh.position.set(0, 0, 0);
+
+    // Force ALL direct child transform nodes to their original position
+    // This catches Armature, Root, mixamorig:Hips, etc.
+    for (const child of this.debugPlayerMesh.getChildTransformNodes(true)) {
+      // Only reset position for transform nodes that might have root motion
+      // Check common root motion nodes: Armature, Root, Hips
+      const name = child.name.toLowerCase();
+      if (name.includes("armature") || name.includes("root") || name.includes("hips")) {
+        child.position.set(0, 0, 0);
+      }
+    }
+
+    // Apply scale to mesh
     this.debugPlayerMesh.scaling.set(scale, scale, scale);
 
-    // Face away from camera (same direction player is looking)
-    const yaw = Math.atan2(forward.x, forward.z);
-    this.debugPlayerMesh.rotation.y = yaw;
+    // Clear rotation quaternion on mesh to use euler
+    if (this.debugPlayerMesh.rotationQuaternion) {
+      this.debugPlayerMesh.rotationQuaternion = null;
+    }
+    // Mesh rotation is 0 relative to anchor (anchor handles world rotation)
+    this.debugPlayerMesh.rotation.set(0, 0, 0);
 
     // Make visible
     this.debugPlayerMesh.isVisible = true;
@@ -1668,10 +1746,18 @@ export class FPSController implements ICameraController {
     }
   }
 
+
+
   /**
    * Determine which animation to play based on current movement state
    */
   private getDebugPlayerAnimationFromState(): string {
+    // 0. Manual override
+    const lockAnim = Cvar.get("cl_debugplayer_lockanim");
+    if (lockAnim && String(lockAnim).length > 0 && String(lockAnim) !== "0") {
+      return String(lockAnim);
+    }
+
     // Priority order: slide > walljump > jump > reload > run/walk/strafe > idle
 
     if (this.isSliding) {
@@ -1679,7 +1765,7 @@ export class FPSController implements ICameraController {
     }
 
     if (this.wallJumpState !== 'none') {
-      return "wallrun";
+      return "jump"; // No wallrun anim loaded (causes auto-play issues), use jump
     }
 
     if (!this.isGrounded && this.velocity.y > 50) {
@@ -1694,9 +1780,7 @@ export class FPSController implements ICameraController {
 
     if (speed > 50) {
       // Determine if strafing
-      const forward = this.camera!.getForwardRay().direction;
-      forward.y = 0;
-      forward.normalize();
+      const forward = new Vector3(Math.sin(this.mouseRotationY), 0, Math.cos(this.mouseRotationY));
       const right = new Vector3(forward.z, 0, -forward.x);
 
       const forwardDot = forward.x * this.velocity.x + forward.z * this.velocity.z;
@@ -1721,6 +1805,14 @@ export class FPSController implements ICameraController {
 
     const anim = this.debugPlayerAnims.find(a => a.name === name);
     if (!anim) return;
+
+    // CRITICAL: Stop ALL animation groups in scene first
+    // Prevents any stray auto-played animations from contaminating
+    for (const g of this.scene.animationGroups) {
+      if (g !== this.debugPlayerMasterGroup) {
+        g.stop();
+      }
+    }
 
     // Stop and recreate master group
     this.debugPlayerMasterGroup.stop();
