@@ -36,7 +36,7 @@ export interface PlayerState {
     landingVelocity?: number;
 
     /** Wall jump state for FOV effects */
-    wallJumpState?: 'none' | 'charging' | 'pushing';
+    wallJumpState?: 'none' | 'available' | 'charging' | 'pushing';
 
     /** Is the player sprinting? */
     isSprinting?: boolean;

@@ -31,6 +31,7 @@ import { CameraSystem } from "./engine/camera";
 import { FPSController } from "./engine/camera/controllers/FPSController";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
+import { FPSPlayer } from "./games/fps/FPSPlayer";
 
 /**
  * Main application entry point.
@@ -157,8 +158,13 @@ async function main() {
   cameraSystem.setCamera(camera); // CRITICAL: Register the camera we created
   cameraSystem.registerController('fps', new FPSController());
   cameraSystem.setController('fps');
+  const controller = cameraSystem.getController('fps') as FPSController;
 
   console.log('[Main] FPS controller initialized');
+
+  // Initialize FPSPlayer (Game Logic)
+  const player = new FPSPlayer(controller);
+  console.log('[Main] FPSPlayer initialized');
 
   // Check if a map was specified via URL param
   const requestedMap = new URLSearchParams(window.location.search).get('map');
@@ -200,11 +206,19 @@ async function main() {
   });
 
   // Start render loop
-  engine.runRenderLoop(() => scene.render());
+  engine.runRenderLoop(() => {
+    const deltaTime = engine.getDeltaTime() / 1000.0;
+
+    // Update game logic
+    player.update(deltaTime);
+
+    scene.render();
+  });
 
   // Expose for debug
   (window as any).scene = scene;
   (window as any).engine = engine;
+  (window as any).player = player;
 
   console.log('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
 }
