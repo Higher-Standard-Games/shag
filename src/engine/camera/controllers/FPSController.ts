@@ -233,6 +233,12 @@ export class FPSController implements ICameraController {
   private debugPlayerAnims: { name: string; animations: { target: TransformNode; animation: Animation }[] }[] = [];
   private debugPlayerMasterGroup: AnimationGroup | null = null;
   private debugPlayerCurrentAnim: string = "";
+  private debugPlayerAnchor: TransformNode | null = null;
+
+  // Smoothed tracking to prevent idle jitter
+  private debugPlayerSmoothedYaw: number = 0;
+  private debugPlayerSmoothedPos: Vector3 = new Vector3(0, 0, 0);
+
   private debugPlayerLoading: boolean = false;
 
   private camera: FreeCamera | null = null;
@@ -1501,9 +1507,6 @@ export class FPSController implements ICameraController {
     this.debugBboxMesh!.isVisible = true;
   }
 
-  // Parent anchor node for the debug player - we control this, animations can't touch it
-  private debugPlayerAnchor: TransformNode | null = null;
-
   /**
    * Initialize debug player model and load animations
    */
@@ -1540,6 +1543,15 @@ export class FPSController implements ICameraController {
 
       // Reset mesh local position to zero - it will be relative to anchor
       this.debugPlayerMesh.position.set(0, 0, 0);
+
+      // Initialize smoothed values to prevent fly-in from origin
+      const yaw = this.mouseRotationY;
+      const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      const initialPos = new Vector3(this.physicsX, this.physicsY, this.physicsZ);
+      initialPos.addInPlace(forward.scale(100)); // default offset
+      initialPos.y = this.physicsY + PLAYER_MINS_Z;
+      this.debugPlayerSmoothedPos.copyFrom(initialPos);
+      this.debugPlayerSmoothedYaw = yaw;
 
       // Stop embedded animation
       result.animationGroups.forEach(g => g.stop());
@@ -1617,15 +1629,11 @@ export class FPSController implements ICameraController {
 
             for (const ta of sourceGroup.targetedAnimations) {
               const targetName = (ta.target as TransformNode).name;
-              const prop = ta.animation.targetProperty;
 
               const ourBone = targetBoneMap.get(targetName);
               if (ourBone) {
-                // Skip ALL position animations
-                if (prop === 'position') {
-                  continue;
-                }
-
+                // Load ALL animation channels (position, rotation, scaling)
+                // Anchor node + forced child positions handle preventing unwanted root motion
                 const clonedAnim = ta.animation.clone();
                 clonedAnim.name = `${anim.name}_${ta.animation.name}`;
                 storedAnims.push({ target: ourBone, animation: clonedAnim });
@@ -1634,6 +1642,9 @@ export class FPSController implements ICameraController {
 
             if (storedAnims.length > 0) {
               this.debugPlayerAnims.push({ name: anim.name, animations: storedAnims });
+              console.log(`[DebugPlayer] Loaded ${anim.name}: ${storedAnims.length} channels`);
+            } else {
+              console.warn(`[DebugPlayer] ${anim.name} has 0 channels - animation may not work!`);
             }
             sourceGroup.dispose();
 
@@ -1692,21 +1703,36 @@ export class FPSController implements ICameraController {
     const scaleCvar = Cvar.get('cl_debugplayer_scale');
     const scale = scaleCvar !== undefined ? Number(scaleCvar) : 50;
 
-    // Position the ANCHOR using stable physics coordinates
+    // Position the ANCHOR using stable physics coordinates  
+    // Use smoothing to prevent mouse jitter from causing idle shake
     const yaw = this.mouseRotationY;
     const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
 
     // Calculate target position
-    const anchorPos = new Vector3(this.physicsX, this.physicsY, this.physicsZ);
-    anchorPos.addInPlace(forward.scale(offset));
-    anchorPos.y = this.physicsY + PLAYER_MINS_Z;
+    const targetPos = new Vector3(this.physicsX, this.physicsY, this.physicsZ);
+    targetPos.addInPlace(forward.scale(offset));
+    targetPos.y = this.physicsY + PLAYER_MINS_Z;
 
-    // Set anchor position and rotation - THIS is what we control
-    this.debugPlayerAnchor.position.copyFrom(anchorPos);
+    // Smooth position (faster when moving, slower when idle to prevent jitter)
+    const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+    const positionSmoothFactor = speed > 10 ? 0.3 : 0.1; // More smoothing when idle
+    this.debugPlayerSmoothedPos.x += (targetPos.x - this.debugPlayerSmoothedPos.x) * positionSmoothFactor;
+    this.debugPlayerSmoothedPos.y += (targetPos.y - this.debugPlayerSmoothedPos.y) * positionSmoothFactor;
+    this.debugPlayerSmoothedPos.z += (targetPos.z - this.debugPlayerSmoothedPos.z) * positionSmoothFactor;
+
+    // Smooth rotation (prevent micro jitter from mouse input)
+    let yawDelta = yaw - this.debugPlayerSmoothedYaw;
+    // Handle wrap-around
+    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+    this.debugPlayerSmoothedYaw += yawDelta * 0.15; // Heavy smoothing on rotation
+
+    // Set anchor position and rotation using smoothed values
+    this.debugPlayerAnchor.position.copyFrom(this.debugPlayerSmoothedPos);
     if (this.debugPlayerAnchor.rotationQuaternion) {
       this.debugPlayerAnchor.rotationQuaternion = null;
     }
-    this.debugPlayerAnchor.rotation.set(0, yaw, 0);
+    this.debugPlayerAnchor.rotation.set(0, this.debugPlayerSmoothedYaw, 0);
     this.debugPlayerAnchor.setEnabled(true);
 
     // === FORCE MESH AND ALL TOP-LEVEL CHILDREN POSITIONS TO ZERO ===
@@ -1742,6 +1768,8 @@ export class FPSController implements ICameraController {
     // Determine animation from movement state
     const animName = this.getDebugPlayerAnimationFromState();
     if (animName !== this.debugPlayerCurrentAnim) {
+      const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+      console.log(`[DebugPlayer] Switching to: ${animName} (speed: ${speed.toFixed(1)})`);
       this.playDebugPlayerAnimation(animName);
     }
   }
