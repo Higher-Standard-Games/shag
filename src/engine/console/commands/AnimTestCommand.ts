@@ -1,33 +1,38 @@
 /**
  * AnimTestCommand - Test animation system with a player model
  * 
- * Usage:
- *   animtest load              - Load the test model with animations
- *   animtest play <animation>  - Play a specific animation by index or name
- *   animtest list              - List available animations
- *   animtest state             - Show current animation state
- *   animtest dispose           - Remove the test model
+ * Fix: Use a SINGLE AnimationGroup and swap animations into it when switching.
+ * Multiple AnimationGroups targeting the same bones overwrite each other.
  */
 
-import { Scene, SceneLoader, Mesh, Skeleton, Vector3, AnimationGroup } from "@babylonjs/core";
+import { Scene, SceneLoader, Mesh, Skeleton, Vector3, AnimationGroup, TransformNode, Animation } from "@babylonjs/core";
 import "@babylonjs/loaders";
 import { Command, CommandDef } from "../Command";
-import { AnimationLoader } from "../../animation";
+
+interface StoredAnimation {
+    name: string;
+    animations: { target: TransformNode; animation: Animation }[];
+}
 
 export default class AnimTestCommand extends Command {
     readonly definition: CommandDef = {
         name: "animtest",
         aliases: ["at"],
         description: "Test animation system with player model",
-        usage: "animtest <load|play|list|state|dispose> [animation]",
+        usage: "animtest <load|play|list|stop|dispose> [animation]",
         developer: true,
     };
 
     private testMesh: Mesh | null = null;
     private testSkeleton: Skeleton | null = null;
     private scene: Scene | null = null;
-    private loadedAnimGroups: AnimationGroup[] = [];
-    private currentAnim: AnimationGroup | null = null;
+
+    // Store animations as raw data, not as AnimationGroups
+    private storedAnims: StoredAnimation[] = [];
+
+    // Single master AnimationGroup used for playback
+    private masterGroup: AnimationGroup | null = null;
+    private currentAnimName: string = "";
 
     async execute(args: string[]): Promise<string | void> {
         const subcommand = args[0]?.toLowerCase() || "help";
@@ -44,14 +49,7 @@ export default class AnimTestCommand extends Command {
             case "dispose":
                 return this.disposeModel();
             default:
-                return [
-                    "Animation Test Commands:",
-                    "  animtest load              - Load vanguard.glb with animations",
-                    "  animtest play <name|index> - Play animation",
-                    "  animtest list              - List loaded animations",
-                    "  animtest stop              - Stop current animation",
-                    "  animtest dispose           - Remove test model",
-                ].join("\n");
+                return "animtest load | play <n> | list | stop | dispose";
         }
     }
 
@@ -59,18 +57,12 @@ export default class AnimTestCommand extends Command {
         const { CameraSystem } = await import("../../camera/CameraSystem");
         const camera = CameraSystem.getInstance().getCamera();
 
-        if (!camera) {
-            return "No active camera";
-        }
+        if (!camera) return "No active camera";
 
         this.scene = camera.getScene();
-        if (!this.scene) {
-            return "No scene available";
-        }
+        if (!this.scene) return "No scene available";
 
-        if (this.testMesh) {
-            this.disposeModel();
-        }
+        if (this.testMesh) this.disposeModel();
 
         try {
             console.log("[AnimTest] Loading vanguard.glb...");
@@ -82,16 +74,11 @@ export default class AnimTestCommand extends Command {
                 this.scene
             );
 
-            if (result.meshes.length === 0) {
-                return "No meshes found in model";
-            }
+            if (result.meshes.length === 0) return "No meshes found";
 
             this.testMesh = result.meshes[0] as Mesh;
             this.testSkeleton = result.skeletons[0] || null;
-
-            if (!this.testSkeleton) {
-                return "No skeleton found in model - is it rigged?";
-            }
+            if (!this.testSkeleton) return "No skeleton found";
 
             // Position in front of camera
             const forward = camera.getDirection(Vector3.Forward());
@@ -99,71 +86,108 @@ export default class AnimTestCommand extends Command {
             this.testMesh.position = spawnPos;
             this.testMesh.scaling = new Vector3(50, 50, 50);
 
-            // Store embedded animations
-            this.loadedAnimGroups = result.animationGroups;
+            // Stop and store embedded animation
+            if (result.animationGroups.length > 0) {
+                const embeddedGroup = result.animationGroups[0];
+                embeddedGroup.stop();
 
-            console.log(`[AnimTest] Model has ${this.loadedAnimGroups.length} embedded animations`);
+                // Extract animations from embedded group
+                const embeddedAnims: StoredAnimation = {
+                    name: "embedded",
+                    animations: []
+                };
+                for (const ta of embeddedGroup.targetedAnimations) {
+                    embeddedAnims.animations.push({
+                        target: ta.target as TransformNode,
+                        animation: ta.animation.clone()
+                    });
+                }
+                this.storedAnims.push(embeddedAnims);
+                embeddedGroup.dispose();
+            }
 
-            // Load additional animation GLB files and apply to this skeleton
-            const animLoader = AnimationLoader.getInstance();
-            animLoader.initialize(this.scene, "games/default/animations/");
+            // Build map: bone name -> TransformNode
+            const targetBoneMap = new Map<string, TransformNode>();
+            for (const bone of this.testSkeleton.bones) {
+                const node = bone.getTransformNode();
+                if (node) {
+                    targetBoneMap.set(bone.name, node);
+                }
+            }
+            console.log(`[AnimTest] Target skeleton: ${targetBoneMap.size} bones`);
 
-            // Load all standard animations
+            // Create master group for playback
+            this.masterGroup = new AnimationGroup("master", this.scene);
+
+            // Load animations and store them
             const animFiles = [
                 { name: "idle", file: "rifle aiming idle.glb" },
                 { name: "run", file: "rifle run.glb" },
-                { name: "run_back", file: "run backwards.glb" },
                 { name: "strafe_l", file: "strafe left.glb" },
                 { name: "strafe_r", file: "strafe right.glb" },
                 { name: "jump", file: "rifle jump.glb" },
                 { name: "walk", file: "walking.glb" },
-                { name: "walk_back", file: "walking backwards.glb" },
-                { name: "fire", file: "firing rifle.glb" },
                 { name: "reload", file: "reloading.glb" },
-                { name: "hit", file: "hit reaction.glb" },
                 { name: "wallrun", file: "wallrun.glb" },
-                { name: "grenade", file: "toss grenade.glb" },
             ];
 
-            // Load each animation file
             for (const anim of animFiles) {
                 try {
+                    console.log(`[AnimTest] Loading ${anim.file}...`);
+
                     const animResult = await SceneLoader.ImportAnimationsAsync(
                         "",
-                        `games/default/animations/${anim.file}`,
+                        "games/default/animations/" + anim.file,
                         this.scene,
                         false
                     );
 
                     if (animResult.animationGroups.length > 0) {
-                        // Retarget to our skeleton
-                        const group = animResult.animationGroups[0];
-                        group.name = anim.name;
+                        const sourceGroup = animResult.animationGroups[0];
 
-                        // Stop and add to our list
-                        group.stop();
-                        this.loadedAnimGroups.push(group);
-                        console.log(`[AnimTest] Loaded animation: ${anim.name}`);
+                        // Store animations with retargeted bones
+                        const storedAnim: StoredAnimation = {
+                            name: anim.name,
+                            animations: []
+                        };
+
+                        for (const ta of sourceGroup.targetedAnimations) {
+                            const targetName = (ta.target as TransformNode).name;
+                            const ourBone = targetBoneMap.get(targetName);
+
+                            if (ourBone) {
+                                // Clone animation with unique name
+                                const clonedAnim = ta.animation.clone();
+                                clonedAnim.name = `${anim.name}_${ta.animation.name}`;
+
+                                storedAnim.animations.push({
+                                    target: ourBone,
+                                    animation: clonedAnim
+                                });
+                            }
+                        }
+
+                        if (storedAnim.animations.length > 0) {
+                            this.storedAnims.push(storedAnim);
+                            console.log(`[AnimTest] Stored ${anim.name}: ${storedAnim.animations.length} channels`);
+                        }
+
+                        sourceGroup.dispose();
                     }
                 } catch (err) {
-                    console.warn(`[AnimTest] Could not load ${anim.file}:`, err);
+                    console.error(`[AnimTest] Error loading ${anim.file}:`, err);
                 }
             }
 
-            // Play first animation by default
-            if (this.loadedAnimGroups.length > 0) {
-                this.loadedAnimGroups[0].play(true);
-                this.currentAnim = this.loadedAnimGroups[0];
-            }
+            // Play idle by default
+            this.playAnimation("idle");
 
             return [
-                "Model loaded successfully!",
-                `  Position: (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)}, ${spawnPos.z.toFixed(0)})`,
+                "Model loaded!",
                 `  Bones: ${this.testSkeleton.bones.length}`,
-                `  Animations: ${this.loadedAnimGroups.length}`,
+                `  Animations: ${this.storedAnims.length}`,
                 "",
-                "Use 'animtest list' to see animations",
-                "Use 'animtest play <name>' to play",
+                "animtest list | animtest play <name>",
             ].join("\n");
         } catch (error) {
             console.error("[AnimTest] Load error:", error);
@@ -172,74 +196,68 @@ export default class AnimTestCommand extends Command {
     }
 
     private playAnimation(nameOrIndex: string | undefined): string {
-        if (!this.testMesh || this.loadedAnimGroups.length === 0) {
-            return "No model loaded. Use 'animtest load' first.";
-        }
+        if (!this.masterGroup || this.storedAnims.length === 0) return "No model.";
+        if (!nameOrIndex) return "Specify animation.";
 
-        if (!nameOrIndex) {
-            return "Specify animation name or index. Use 'animtest list' to see options.";
-        }
-
-        // Stop current animation
-        if (this.currentAnim) {
-            this.currentAnim.stop();
-        }
-
-        // Find animation by index or name
-        let targetGroup: AnimationGroup | undefined;
-
-        const index = parseInt(nameOrIndex);
-        if (!isNaN(index) && index >= 0 && index < this.loadedAnimGroups.length) {
-            targetGroup = this.loadedAnimGroups[index];
+        // Find the animation
+        let target: StoredAnimation | undefined;
+        const idx = parseInt(nameOrIndex);
+        if (!isNaN(idx) && idx >= 0 && idx < this.storedAnims.length) {
+            target = this.storedAnims[idx];
         } else {
-            // Search by name (partial match)
-            const searchName = nameOrIndex.toLowerCase();
-            targetGroup = this.loadedAnimGroups.find(g =>
-                g.name.toLowerCase().includes(searchName)
-            );
+            target = this.storedAnims.find(a => a.name.toLowerCase().includes(nameOrIndex.toLowerCase()));
         }
 
-        if (!targetGroup) {
-            return `Animation not found: ${nameOrIndex}. Use 'animtest list' to see options.`;
+        if (!target) return `Not found: ${nameOrIndex}`;
+
+        // Stop and clear the master group
+        this.masterGroup.stop();
+
+        // Remove all current animations from master group
+        // We need to recreate it because there's no clear() method
+        this.masterGroup.dispose();
+        this.masterGroup = new AnimationGroup("master", this.scene!);
+
+        // Add the new animation's channels
+        for (const anim of target.animations) {
+            this.masterGroup.addTargetedAnimation(anim.animation, anim.target);
         }
 
-        // Play the animation
-        targetGroup.reset();
-        targetGroup.play(true);
-        this.currentAnim = targetGroup;
+        // Play the master group
+        this.masterGroup.play(true);
+        this.currentAnimName = target.name;
 
-        return `Playing: ${targetGroup.name}`;
+        return `Playing: ${target.name} (${target.animations.length} ch)`;
     }
 
     private listAnimations(): string {
-        if (this.loadedAnimGroups.length === 0) {
-            return "No animations loaded. Use 'animtest load' first.";
-        }
+        if (this.storedAnims.length === 0) return "No animations.";
 
         const lines = ["Loaded animations:"];
-        this.loadedAnimGroups.forEach((group, i) => {
-            const playing = group.isPlaying ? " (playing)" : "";
-            lines.push(`  [${i}] ${group.name}${playing}`);
+        this.storedAnims.forEach((a, i) => {
+            const active = a.name === this.currentAnimName ? " *" : "";
+            lines.push(`  [${i}] ${a.name} (${a.animations.length} ch)${active}`);
         });
-        lines.push("", "Use 'animtest play <index|name>' to play");
-
         return lines.join("\n");
     }
 
     private stopAnimation(): string {
-        if (this.currentAnim) {
-            this.currentAnim.stop();
-            this.currentAnim = null;
-            return "Animation stopped.";
+        if (this.masterGroup) {
+            this.masterGroup.stop();
         }
-        return "No animation playing.";
+        this.currentAnimName = "";
+        return "Stopped.";
     }
 
     private disposeModel(): string {
-        // Stop all animations
-        this.loadedAnimGroups.forEach(g => g.stop());
-        this.loadedAnimGroups = [];
-        this.currentAnim = null;
+        if (this.masterGroup) {
+            this.masterGroup.stop();
+            this.masterGroup.dispose();
+            this.masterGroup = null;
+        }
+
+        this.storedAnims = [];
+        this.currentAnimName = "";
 
         if (this.testMesh) {
             this.testMesh.dispose();
@@ -247,19 +265,12 @@ export default class AnimTestCommand extends Command {
         }
 
         this.testSkeleton = null;
-
-        return "Test model disposed.";
+        return "Disposed.";
     }
 
     getCompletions(_input: string, args: string[]): string[] {
-        if (args.length === 0) {
-            return ["load", "play", "list", "stop", "dispose"];
-        }
-
-        if (args[0] === "play" && this.loadedAnimGroups.length > 0) {
-            return this.loadedAnimGroups.map(g => g.name);
-        }
-
+        if (args.length === 0) return ["load", "play", "list", "stop", "dispose"];
+        if (args[0] === "play") return this.storedAnims.map(a => a.name);
         return [];
     }
 }
