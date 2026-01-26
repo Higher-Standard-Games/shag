@@ -246,8 +246,8 @@ export class FPSMovementProfile implements MovementProfile {
     // Store previous grounded state
     this.wasGroundedLastFrame = this.isGrounded;
 
-    // === GROUND CHECK ===
-    this.isGrounded = this.checkGrounded(newPos, collision);
+    // === GROUND CHECK (also snaps position to ground if close) ===
+    this.isGrounded = this.checkGrounded(newPos, newVel, collision);
 
     // Just landed check
     const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
@@ -386,17 +386,62 @@ export class FPSMovementProfile implements MovementProfile {
 
   // ================== Ground Check ==================
 
-  private checkGrounded(pos: Vec3, collision: CollisionWorld | null): boolean {
+  /**
+   * Check if standing on ground and snap to ground surface if close.
+   * This prevents falling through floors by detecting and correcting position.
+   */
+  private checkGrounded(pos: Vec3, vel: Vec3, collision: CollisionWorld | null): boolean {
     if (!collision) {
-      return pos.y <= 0.1;
+      if (pos.y <= 0.1) {
+        pos.y = 0;
+        return true;
+      }
+      return false;
     }
 
+    // Trace down to find ground (use stepHeight distance to catch it early)
+    const traceDistance = this.config.stepHeight; // 18 units
     const groundTrace = collision.trace(
       pos,
-      { x: pos.x, y: pos.y - 2, z: pos.z }
+      { x: pos.x, y: pos.y - traceDistance, z: pos.z }
     );
 
-    return groundTrace.hit && groundTrace.fraction < 1;
+    if (!groundTrace.hit) {
+      return false;
+    }
+
+    // Calculate actual distance to ground
+    const distanceToGround = traceDistance * groundTrace.fraction;
+
+    // If very close (within 2 units) and moving down or stationary, snap to ground
+    if (distanceToGround < 2 && vel.y <= 0) {
+      // Snap position to be exactly on the ground
+      pos.y -= distanceToGround;
+      vel.y = 0;
+      return true;
+    }
+
+    // If fraction is 0, we're INSIDE the ground - push up!
+    if (groundTrace.fraction === 0) {
+      // We're stuck in the ground, trace UP to find the surface
+      const upTrace = collision.trace(
+        pos,
+        { x: pos.x, y: pos.y + traceDistance, z: pos.z }
+      );
+
+      if (upTrace.hit && upTrace.fraction > 0) {
+        // Move up to where we hit the ceiling/surface
+        pos.y += traceDistance * upTrace.fraction;
+      } else {
+        // No obstacle above, just push up
+        pos.y += 5;
+      }
+      vel.y = Math.max(0, vel.y);
+      return true;
+    }
+
+    // Close enough to consider grounded (within step height) but not snapping
+    return distanceToGround < 2;
   }
 
   // ================== Friction ==================
