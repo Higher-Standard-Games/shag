@@ -697,24 +697,52 @@ export class FPSMovementProfile implements MovementProfile {
     const trace = collision.trace(pos, endPos);
 
     if (!trace.hit) {
-      // No collision
+      // No collision - apply full movement
       pos.x = endPos.x;
       pos.y = endPos.y;
       pos.z = endPos.z;
-      return;
+    } else if (trace.fraction > 0) {
+      // Partial collision - move up to hit point
+      pos.x += move.x * trace.fraction;
+      pos.y += move.y * trace.fraction;
+      pos.z += move.z * trace.fraction;
+
+      // Clip velocity against surface
+      if (trace.normal) {
+        const dot = vec3Dot(vel, trace.normal);
+        vel.x -= trace.normal.x * dot;
+        vel.y -= trace.normal.y * dot;
+        vel.z -= trace.normal.z * dot;
+      }
+    } else {
+      // fraction=0 means we started inside solid!
+      // Push player UP to escape (anti-stuck)
+      if (trace.normal && trace.normal.y > 0.7) {
+        // It's a floor - push up
+        pos.y += 1; // Nudge up by 1 unit
+        vel.y = Math.max(0, vel.y); // Don't go through floor
+      } else if (trace.normal) {
+        // Wall - push away from normal
+        pos.x += trace.normal.x * 1;
+        pos.z += trace.normal.z * 1;
+        vel.x = 0;
+        vel.z = 0;
+      } else {
+        // Unknown - just nudge up
+        pos.y += 5;
+        vel.y = 0;
+      }
     }
 
-    // Move up to hit point
-    pos.x += move.x * trace.fraction;
-    pos.y += move.y * trace.fraction;
-    pos.z += move.z * trace.fraction;
-
-    // Clip velocity against surface
-    if (trace.normal) {
-      const dot = vec3Dot(vel, trace.normal);
-      vel.x -= trace.normal.x * dot;
-      vel.y -= trace.normal.y * dot;
-      vel.z -= trace.normal.z * dot;
+    // Re-check grounded after collision
+    const groundTrace = collision.trace(pos, { x: pos.x, y: pos.y - 2, z: pos.z });
+    if (groundTrace.hit && groundTrace.fraction < 1) {
+      this.isGrounded = true;
+      // Snap to ground if close
+      if (groundTrace.fraction < 0.1 && vel.y <= 0) {
+        pos.y -= groundTrace.fraction * 2;
+        vel.y = 0;
+      }
     }
   }
 }
