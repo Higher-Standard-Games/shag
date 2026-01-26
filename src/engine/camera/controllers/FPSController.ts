@@ -641,10 +641,18 @@ export class FPSController implements ICameraController {
       this.smoothedY = this.physicsY;
       this.smoothingInitialized = true;
 
+      // Check network movement toggle
+      const useNetworkMovement = mv.get('sv_network_movement') > 0;
+      if (useNetworkMovement) {
+        console.log(`[FPS] Network movement enabled - future: FPSGameManager will handle physics`);
+        // TODO: Initialize FPSGameManager here when ready for full integration
+        // For now, fall back to local physics
+      }
+
       // Initialize Physics Engine
       if (!this.physics) {
         this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
-        console.log(`[FPS] Physics Engine Initialized`);
+        console.log(`[FPS] Physics Engine Initialized (local mode)`);
       }
 
       console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
