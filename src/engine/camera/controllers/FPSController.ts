@@ -60,11 +60,16 @@ import { InventoryManager } from "../../game/InventoryManager";
 
 import { PlayerVisuals } from "./components/PlayerVisuals";
 import { AdvancedCharacterController, PlayerInput } from "../../movement/AdvancedCharacterController";
+import { FPSGameManager } from "../../../games/fps/FPSGameManager";
+import { BSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
+import { getCollisionManager } from "../../physics/CollisionManager";
 
 export class FPSController implements ICameraController {
   public readonly type = "fps";
 
   private physics: AdvancedCharacterController | null = null;
+  private gameManager: FPSGameManager | null = null;
+  private useNetworkMovement: boolean = false;
 
   // Inventory reference (delegated from FPSPlayer)
   private _inventory: InventoryManager | null = null;
@@ -642,17 +647,40 @@ export class FPSController implements ICameraController {
       this.smoothingInitialized = true;
 
       // Check network movement toggle
-      const useNetworkMovement = mv.get('sv_network_movement') > 0;
-      if (useNetworkMovement) {
-        console.log(`[FPS] Network movement enabled - future: FPSGameManager will handle physics`);
-        // TODO: Initialize FPSGameManager here when ready for full integration
-        // For now, fall back to local physics
-      }
+      this.useNetworkMovement = mv.get('sv_network_movement') > 0;
 
-      // Initialize Physics Engine
-      if (!this.physics) {
-        this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
-        console.log(`[FPS] Physics Engine Initialized (local mode)`);
+      if (this.useNetworkMovement) {
+        // === NETWORK MOVEMENT MODE ===
+        console.log(`[FPS] Initializing network movement via FPSGameManager`);
+
+        this.gameManager = FPSGameManager.getInstance();
+        this.gameManager.initializeLocal({ tickRate: 60 }).then(() => {
+          // Set up BSP collision if available
+          const cm = getCollisionManager();
+          if (cm.isInitialized()) {
+            const collisionWorld = new BSPCollisionWorld();
+            this.gameManager!.setCollisionWorld(collisionWorld);
+            console.log(`[FPS] BSP collision injected into simulation`);
+          }
+
+          // Spawn player at current position
+          this.gameManager!.spawnLocalPlayer({
+            x: this.physicsX,
+            y: this.physicsY,
+            z: this.physicsZ
+          });
+
+          console.log(`[FPS] Network movement initialized - player spawned`);
+        }).catch((err: Error) => {
+          console.error(`[FPS] Failed to initialize network movement:`, err);
+          this.useNetworkMovement = false;
+        });
+      } else {
+        // === LOCAL MOVEMENT MODE ===
+        if (!this.physics) {
+          this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
+          console.log(`[FPS] Physics Engine Initialized (local mode)`);
+        }
       }
 
       console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
@@ -683,7 +711,43 @@ export class FPSController implements ICameraController {
     if (hasInput) wishdir.normalize();
 
     // === ADVANCED PHYSICS ===
-    if (this.physics) {
+    if (this.useNetworkMovement && this.gameManager) {
+      // === NETWORK MOVEMENT MODE ===
+      // Send input to FPSGameManager -> FPSSimulation
+      this.gameManager.sendInput({
+        forward: this.keys.forward,
+        backward: this.keys.backward,
+        left: this.keys.left,
+        right: this.keys.right,
+        jump: this.keys.up,
+        crouch: this.keys.crouch,
+        sprint: this.keys.sprint,
+        fire: this.keys.fire,
+        altFire: this.keys.aim,
+        pitch: this.mouseRotationX,
+        yaw: this.mouseRotationY,
+      });
+
+      // Get state update from simulation
+      const pos = this.gameManager.getLocalPlayerPosition();
+      if (pos) {
+        this.physicsX = pos.x;
+        this.physicsY = pos.y;
+        this.physicsZ = pos.z;
+        this.smoothedY = pos.y;
+
+        // Apply to camera
+        this.camera.position.x = pos.x;
+        this.camera.position.y = pos.y + DEFAULT_VIEWHEIGHT;
+        this.camera.position.z = pos.z;
+      }
+
+      // Update UI
+      const showSpeed = mv.get('cl_showspeed') > 0;
+      this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
+
+    } else if (this.physics) {
+      // === LOCAL MOVEMENT MODE ===
       // 1. Construct Input
       const input: PlayerInput = {
         wishdir: wishdir,
