@@ -59,6 +59,11 @@ export class BSPCollisionWorld implements CollisionWorld {
 
         const result = cm.trace(startV, endV, options);
 
+        // Debug: Log trace results occasionally
+        if (Math.random() < 0.01) {
+            console.log(`[BSPCollisionWorld] trace: fraction=${result.fraction.toFixed(3)}, hit=${result.fraction < 1}`);
+        }
+
         // Convert to network TraceResult
         return {
             hit: result.fraction < 1,

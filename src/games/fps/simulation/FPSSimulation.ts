@@ -56,12 +56,17 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
   }
 
   protected registerSystems(): void {
-    // Initialize movement system with FPS profile
-    const movementProfile = new FPSMovementProfile();
-    const collisionWorld = new NullCollisionWorld(); // TODO: Replace with BSP collision
+    try {
+      // Initialize movement system with FPS profile
+      const movementProfile = new FPSMovementProfile();
+      const collisionWorld = new NullCollisionWorld(); // TODO: Replace with BSP collision
 
-    this.movementSystem = new MovementSystem(movementProfile, collisionWorld);
-    this.addSystem(this.movementSystem);
+      this.movementSystem = new MovementSystem(movementProfile, collisionWorld);
+      this.addSystem(this.movementSystem);
+      console.log('[FPSSimulation] registerSystems completed, movementSystem:', !!this.movementSystem);
+    } catch (err) {
+      console.error('[FPSSimulation] ERROR in registerSystems:', err);
+    }
   }
 
   protected registerCommandHandlers(): void {

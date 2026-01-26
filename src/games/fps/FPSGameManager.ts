@@ -71,6 +71,12 @@ export class FPSGameManager {
    * Initialize local game (single-player mode)
    */
   async initializeLocal(config: FPSGameConfig = {}): Promise<void> {
+    // Guard against multiple initializations
+    if (this.isRunning) {
+      console.warn('[FPSGameManager] Already initialized, skipping');
+      return;
+    }
+
     const tickRate = config.tickRate ?? 20;
     const maxPlayers = config.maxPlayers ?? 16;
 
