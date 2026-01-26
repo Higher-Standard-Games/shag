@@ -71,6 +71,7 @@ export class FPSController implements ICameraController {
   private physics: AdvancedCharacterController | null = null;
   private gameManager: FPSGameManager | null = null;
   private useNetworkMovement: boolean = false;
+  private networkReady: boolean = false;  // True only after async init completes
 
   // Inventory reference (delegated from FPSPlayer)
   private _inventory: InventoryManager | null = null;
@@ -686,10 +687,12 @@ export class FPSController implements ICameraController {
             z: this.physicsZ
           });
 
+          this.networkReady = true;
           console.log(`[FPS] Network movement initialized - player spawned`);
         }).catch((err: Error) => {
           console.error(`[FPS] Failed to initialize network movement:`, err);
           this.useNetworkMovement = false;
+          this.networkReady = false;
         });
       } else {
         // === LOCAL MOVEMENT MODE ===
@@ -727,7 +730,7 @@ export class FPSController implements ICameraController {
     if (hasInput) wishdir.normalize();
 
     // === ADVANCED PHYSICS ===
-    if (this.useNetworkMovement && this.gameManager) {
+    if (this.useNetworkMovement && this.networkReady && this.gameManager) {
       // === NETWORK MOVEMENT MODE ===
       // Send input to FPSGameManager -> FPSSimulation
       this.gameManager.sendInput({

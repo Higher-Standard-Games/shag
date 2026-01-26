@@ -11,7 +11,7 @@ import type { PlayerId } from '../../core/Entity';
 export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   readonly currentTick: number = 0;
-  
+
   private simulation: Simulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: any) => void)[] = [];
@@ -23,15 +23,22 @@ export class LocalGameHost implements IGameHost {
   }
 
   /**
+   * Get the simulation instance (for setting collision world, spawn points, etc.)
+   */
+  getSimulation<T extends Simulation>(): T {
+    return this.simulation as T;
+  }
+
+  /**
    * Send command - executes immediately in local simulation
    */
   sendCommand(cmd: Command): void {
     // Execute command immediately
     this.simulation.tick([cmd]);
-    
+
     // Notify state update
     this.notifyStateUpdate();
-    
+
     // Process events
     this.processEvents();
   }
@@ -82,7 +89,7 @@ export class LocalGameHost implements IGameHost {
   start(): void {
     if (this.isRunning) return;
     this.isRunning = true;
-    
+
     // Initial state update
     this.notifyStateUpdate();
   }
@@ -99,7 +106,7 @@ export class LocalGameHost implements IGameHost {
    */
   update(): void {
     if (!this.isRunning) return;
-    
+
     // Local host doesn't need to tick continuously
     // Commands are processed immediately when sent
   }
@@ -112,7 +119,7 @@ export class LocalGameHost implements IGameHost {
   private processEvents(): void {
     const events = this.simulation.state.events;
     this.simulation.state.events = []; // Clear events
-    
+
     events.forEach((event: any) => {
       this.eventCallbacks.forEach(callback => callback(event));
     });

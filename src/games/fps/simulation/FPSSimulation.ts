@@ -172,6 +172,10 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
    * Set the collision world (called when map loads)
    */
   setCollisionWorld(collision: CollisionWorld | null): void {
+    if (!this.movementSystem) {
+      console.warn('[FPSSimulation] Cannot set collision - movementSystem not initialized');
+      return;
+    }
     this.movementSystem.setCollisionWorld(collision);
     console.log(`[FPSSimulation] Collision world ${collision ? 'set' : 'cleared'}`);
   }

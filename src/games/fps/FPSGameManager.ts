@@ -88,8 +88,7 @@ export class FPSGameManager {
     this.gameHost = new LocalGameHost(simConfig, FPSSimulation);
 
     // Get reference to simulation (for spawn points, collision world, etc.)
-    // LocalGameHost creates the simulation internally
-    this.simulation = (this.gameHost as any).simulation as FPSSimulation;
+    this.simulation = (this.gameHost as LocalGameHost).getSimulation<FPSSimulation>();
 
     this.localPlayerId = this.gameHost.localPlayerId;
 
