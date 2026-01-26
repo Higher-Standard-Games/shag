@@ -597,6 +597,99 @@ export class FPSMovementProfile implements MovementProfile {
     this.crouchViewOffset += (targetOffset - this.crouchViewOffset) * FPSMovementProfile.CROUCH_TRANSITION_SPEED;
   }
 
+  // ================== Ledge Grab ==================
+
+  /**
+   * Update ledge grab state machine
+   * Returns true if ledge grab is active (consuming movement)
+   */
+  private updateLedgeGrab(
+    pos: Vec3,
+    vel: Vec3,
+    input: MovementInput,
+    collision: CollisionWorld | null,
+    deltaTime: number
+  ): boolean {
+    if (!this.config.ledgeGrabEnabled) return false;
+
+    // === STATE: GRABBING (pause at ledge) ===
+    if (this.ledgeGrabState === 'grabbing') {
+      this.ledgeGrabTime += deltaTime;
+
+      // Freeze position
+      pos.x = this.ledgeStartPos.x;
+      pos.y = this.ledgeStartPos.y;
+      pos.z = this.ledgeStartPos.z;
+      vel.x = 0;
+      vel.y = 0;
+      vel.z = 0;
+
+      // Cancel on crouch/sprint
+      if (input.isPressed(InputButtons.CROUCH) || input.isPressed(InputButtons.SPRINT)) {
+        this.ledgeGrabState = 'none';
+        vel.y = -100; // Drop
+        return false;
+      }
+
+      // Auto-climb after brief pause
+      const grabPauseTime = 0.12;
+      if (this.ledgeGrabTime >= grabPauseTime) {
+        this.ledgeGrabState = 'pulling';
+        this.ledgeGrabTime = 0;
+      }
+
+      return true;
+    }
+
+    // === STATE: PULLING (climbing animation) ===
+    if (this.ledgeGrabState === 'pulling') {
+      this.ledgeGrabTime += deltaTime;
+      const pullTime = this.config.ledgePullTime;
+      const progress = Math.min(1.0, this.ledgeGrabTime / pullTime);
+
+      // Ease in-out
+      const t = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      // Interpolate position
+      pos.x = this.ledgeStartPos.x + (this.ledgeTargetPos.x - this.ledgeStartPos.x) * t;
+      pos.y = this.ledgeStartPos.y + (this.ledgeTargetPos.y - this.ledgeStartPos.y) * t;
+      pos.z = this.ledgeStartPos.z + (this.ledgeTargetPos.z - this.ledgeStartPos.z) * t;
+      vel.x = 0;
+      vel.y = 0;
+      vel.z = 0;
+
+      if (progress >= 1.0) {
+        // Done climbing
+        this.ledgeGrabState = 'none';
+        // Small forward momentum
+        const forward = vec3Normalize(input.direction);
+        vel.x = forward.x * 100;
+        vel.z = forward.z * 100;
+      }
+
+      return true;
+    }
+
+    // === STATE: DETECTION ===
+    // TODO: Implement ledge detection using collision traces
+    // This requires:
+    // 1. Trace at waist level (should hit wall)
+    // 2. Trace at head level (should NOT hit wall)
+    // 3. Trace down from above to find ledge surface
+    // 4. Verify room to stand
+    //
+    // For now, ledge grab is disabled until BSP traces are properly integrated
+
+    return false;
+  }
+
+  private startLedgeGrab(targetPos: Vec3, currentPos: Vec3): void {
+    this.ledgeGrabState = 'grabbing';
+    this.ledgeGrabTime = 0;
+    this.ledgeStartPos = vec3Clone(currentPos);
+    this.ledgeTargetPos = vec3Clone(targetPos);
+  }
+
   // ================== Collision Movement ==================
 
   private moveWithCollision(pos: Vec3, vel: Vec3, move: Vec3, collision: CollisionWorld): void {
