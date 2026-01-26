@@ -34,13 +34,22 @@ export interface FPSInputCommand extends Command {
  * - Weapon system
  */
 export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
-  private movementSystem!: MovementSystem;
-  private pendingCollisionWorld: CollisionWorld | null = null;  // Store until movementSystem ready
+  // NOTE: movementSystem is declared but NOT initialized here!
+  // ES2022 class field initializers run AFTER super() returns, which would overwrite
+  // the value set during registerSystems(). By using 'declare', we tell TypeScript
+  // the field exists but don't emit any initialization code.
+  declare private movementSystem: MovementSystem;
+  private pendingCollisionWorld: CollisionWorld | null = null;
   private spawnPoints: Array<{ x: number; y: number; z: number }> = [];
   private nextEntityId: number = 1;
 
   constructor(config: SimulationConfig) {
     super(config);
+
+    // Verify movementSystem was set during registerSystems (called by super)
+    if (!this.movementSystem) {
+      throw new Error('[FPSSimulation] movementSystem was not initialized by registerSystems!');
+    }
 
     // Default spawn points (will be loaded from map later)
     this.spawnPoints = [
@@ -62,14 +71,15 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
       const movementProfile = new FPSMovementProfile();
       const collisionWorld = new NullCollisionWorld(); // Will be replaced with BSP collision
 
-      this.movementSystem = new MovementSystem(movementProfile, collisionWorld);
-      this.addSystem(this.movementSystem);
+      const ms = new MovementSystem(movementProfile, collisionWorld);
+      this.movementSystem = ms;
+      this.addSystem(ms);
       console.log('[FPSSimulation] registerSystems completed, movementSystem:', !!this.movementSystem);
 
       // Apply any pending collision world
       if (this.pendingCollisionWorld) {
         console.log('[FPSSimulation] Applying pending collision world');
-        this.movementSystem.setCollisionWorld(this.pendingCollisionWorld);
+        ms.setCollisionWorld(this.pendingCollisionWorld);
         this.pendingCollisionWorld = null;
       }
     } catch (err) {
@@ -187,7 +197,7 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
   setCollisionWorld(collision: CollisionWorld | null): void {
     if (!this.movementSystem) {
       // Store for later - will be applied when movementSystem is ready
-      console.log('[FPSSimulation] movementSystem not ready, storing pending collision world');
+      console.warn('[FPSSimulation] movementSystem not ready, storing pending collision world');
       this.pendingCollisionWorld = collision;
       return;
     }
