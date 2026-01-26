@@ -129,6 +129,15 @@ export interface AdvancedMovementResult extends MovementResult {
 export class FPSMovementProfile implements MovementProfile {
   private config: FPSMovementConfig;
 
+  // Player bounds for collision traces (matches local AdvancedCharacterController)
+  // Uses Q3-style asymmetric box: origin at waist, -24 to feet, +32 to head
+  private static readonly PLAYER_RADIUS = 16;
+  private static readonly PLAYER_HEIGHT = 56;
+  private static readonly PLAYER_BOUNDS = {
+    min: { x: -16, y: -24, z: -16 },  // Bottom/back/left from origin
+    max: { x: 16, y: 32, z: 16 }       // Top/front/right from origin
+  };
+
   // Persistent state (carried between frames)
   private isGrounded: boolean = false;
   private wasGroundedLastFrame: boolean = false;
@@ -336,17 +345,34 @@ export class FPSMovementProfile implements MovementProfile {
       this.updateCrouch(input, deltaTime);
     }
 
-    // === APPLY VELOCITY ===
-    const move = vec3Scale(newVel, deltaTime);
-
+    // === APPLY VELOCITY USING STEP-SLIDE MOVE ===
+    // Uses same collision as local AdvancedCharacterController
     if (collision) {
-      this.moveWithCollision(newPos, newVel, move, collision);
-    } else {
-      newPos.x += move.x;
-      newPos.y += move.y;
-      newPos.z += move.z;
+      // Use Q3-style stepSlideMove for proper collision handling
+      const result = collision.stepSlideMove(
+        newPos,
+        newVel,
+        deltaTime,
+        FPSMovementProfile.PLAYER_BOUNDS
+      );
 
-      // Simple ground clamp
+      // Apply results
+      newPos.x = result.endPos.x;
+      newPos.y = result.endPos.y;
+      newPos.z = result.endPos.z;
+      this.isGrounded = result.grounded;
+
+      // Zero vertical velocity if grounded
+      if (this.isGrounded && newVel.y < 0) {
+        newVel.y = 0;
+      }
+    } else {
+      // No collision world - simple move
+      newPos.x += newVel.x * deltaTime;
+      newPos.y += newVel.y * deltaTime;
+      newPos.z += newVel.z * deltaTime;
+
+      // Simple ground clamp at y=0
       if (newPos.y < 0) {
         newPos.y = 0;
         newVel.y = 0;

@@ -32,6 +32,18 @@ export interface AABB {
 }
 
 /**
+ * Result of a step-slide move operation
+ */
+export interface StepSlideMoveResult {
+  /** Final position after collision resolution */
+  endPos: Vec3;
+  /** Final velocity after wall sliding */
+  velocity: Vec3;
+  /** Whether player is on ground after move */
+  grounded: boolean;
+}
+
+/**
  * CollisionWorld Interface
  *
  * Abstraction for collision detection in the game world.
@@ -55,6 +67,18 @@ export interface CollisionWorld {
    * @returns Trace result with hit info
    */
   trace(start: Vec3, end: Vec3, bounds?: AABB): TraceResult;
+
+  /**
+   * Q3-style step-slide move with full collision resolution.
+   * This is the proper way to move a player in BSP worlds.
+   *
+   * @param start - Starting position
+   * @param velocity - Current velocity
+   * @param deltaTime - Time step for this frame
+   * @param bounds - Player bounding box
+   * @returns Final position and velocity after collision
+   */
+  stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult;
 
   /**
    * Check if a point is inside solid geometry
@@ -102,6 +126,19 @@ export const Contents = {
 export class NullCollisionWorld implements CollisionWorld {
   trace(_start: Vec3, _end: Vec3, _bounds?: AABB): TraceResult {
     return { hit: false, fraction: 1 };
+  }
+
+  stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
+    // No collision - just apply velocity directly
+    return {
+      endPos: {
+        x: start.x + velocity.x * deltaTime,
+        y: start.y + velocity.y * deltaTime,
+        z: start.z + velocity.z * deltaTime
+      },
+      velocity: { ...velocity },
+      grounded: start.y <= 0.1
+    };
   }
 
   pointContents(_point: Vec3): number {

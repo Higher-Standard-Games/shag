@@ -9,7 +9,7 @@
  */
 
 import type { Vec3 } from '../../../../engine/network/components/TransformComponent';
-import type { CollisionWorld, TraceResult, AABB } from '../../../../engine/network/systems/collision/CollisionWorld';
+import type { CollisionWorld, TraceResult, AABB, StepSlideMoveResult } from '../../../../engine/network/systems/collision/CollisionWorld';
 import { Contents } from '../../../../engine/network/systems/collision/CollisionWorld';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { getCollisionManager } from '../../../../engine/physics/CollisionManager';
@@ -35,6 +35,10 @@ function fromBabylon(v: Vector3): Vec3 {
  * for the network simulation layer.
  */
 export class BSPCollisionWorld implements CollisionWorld {
+    // Player dimensions matching local physics constants
+    private static readonly PLAYER_RADIUS = 16;
+    private static readonly PLAYER_HEIGHT = 56;
+
     /**
      * Trace a ray from start to end
      */
@@ -71,6 +75,65 @@ export class BSPCollisionWorld implements CollisionWorld {
             hitPoint: result.endPos ? fromBabylon(result.endPos) : undefined,
             normal: result.normal ? fromBabylon(result.normal) : undefined,
             contents: result.contents ?? 0,
+        };
+    }
+
+    /**
+     * Q3-style step-slide move with full collision resolution.
+     * Uses the same backend as local AdvancedCharacterController for consistent behavior.
+     */
+    stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
+        const cm = getCollisionManager();
+
+        if (!cm.isInitialized()) {
+            // No collision - just apply velocity directly
+            return {
+                endPos: {
+                    x: start.x + velocity.x * deltaTime,
+                    y: start.y + velocity.y * deltaTime,
+                    z: start.z + velocity.z * deltaTime
+                },
+                velocity: { ...velocity },
+                grounded: false
+            };
+        }
+
+        // Calculate movement vector (same as local: velocity.scale(deltaTime))
+        const movement = toBabylon(velocity).scale(deltaTime);
+        const startPos = toBabylon(start);
+
+        // Get the Q3 backend (same as local AdvancedCharacterController)
+        const backend = (cm as any).backends?.get('q3');
+
+        if (backend && typeof backend.stepSlideMove === 'function') {
+            // Use exact same call as local: backend.stepSlideMove(position, movement, traceOpts)
+            const traceOpts = {
+                radius: BSPCollisionWorld.PLAYER_RADIUS,
+                height: BSPCollisionWorld.PLAYER_HEIGHT
+            };
+            const result = backend.stepSlideMove(startPos.clone(), movement, traceOpts);
+
+            // Check if grounded after move (same as local checkGrounded)
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            const grounded = groundTrace.fraction < 1.0;
+
+            return {
+                endPos: fromBabylon(result.endPos),
+                velocity: { ...velocity }, // Velocity clipping would be done by movement profile
+                grounded
+            };
+        }
+
+        // Fallback: simple move without collision
+        return {
+            endPos: {
+                x: start.x + velocity.x * deltaTime,
+                y: start.y + velocity.y * deltaTime,
+                z: start.z + velocity.z * deltaTime
+            },
+            velocity: { ...velocity },
+            grounded: false
         };
     }
 
