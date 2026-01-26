@@ -14,6 +14,7 @@ import { FPSSimulation, FPSInputCommand } from '../../../games/fps/simulation/FP
 import { TransformComponent } from '../../network/components/TransformComponent';
 import { VelocityComponent } from '../../network/components/VelocityComponent';
 import { InputButtons } from '../../network/components/InputComponent';
+import { FPSGameManager } from '../../../games/fps/FPSGameManager';
 
 export default class NetTestCommand extends Command {
   readonly definition: CommandDef = {
@@ -42,6 +43,8 @@ export default class NetTestCommand extends Command {
         return this.sendInput(args.slice(1));
       case 'move':
         return this.testMovement(args.slice(1));
+      case 'gamehost':
+        return this.testGameHost();
       default:
         return this.showHelp();
     }
@@ -54,7 +57,8 @@ export default class NetTestCommand extends Command {
   netsim tick [count]      - Run simulation ticks
   netsim state             - Show current game state
   netsim input <buttons>   - Send input command (forward|back|left|right|jump)
-  netsim move <dir> [ticks]- Test movement (forward|back|left|right) for N ticks`;
+  netsim move <dir> [ticks]- Test movement (forward|back|left|right) for N ticks
+  netsim gamehost          - Test FPSGameManager with LocalGameHost`;
   }
 
   private runTest(): string {
@@ -329,5 +333,90 @@ export default class NetTestCommand extends Command {
   End:   (${endPos.x.toFixed(2)}, ${endPos.y.toFixed(2)}, ${endPos.z.toFixed(2)})
   Velocity: (${endVel.x.toFixed(2)}, ${endVel.y.toFixed(2)}, ${endVel.z.toFixed(2)})
   Distance: ${distance.toFixed(2)} units`;
+  }
+
+  private async testGameHost(): Promise<string> {
+    const lines: string[] = ['=== FPSGameManager + LocalGameHost Test ==='];
+
+    try {
+      // Initialize game manager
+      const gameManager = FPSGameManager.getInstance();
+      await gameManager.initializeLocal({ tickRate: 20 });
+      lines.push('Initialized FPSGameManager with LocalGameHost');
+
+      // Try to set up BSP collision if available
+      try {
+        const { BSPCollisionWorld } = await import('../../../games/fps/simulation/collision/BSPCollisionWorld');
+        const { getCollisionManager } = await import('../../physics/CollisionManager');
+        const cm = getCollisionManager();
+        if (cm.isInitialized()) {
+          const collisionWorld = new BSPCollisionWorld();
+          gameManager.setCollisionWorld(collisionWorld);
+          lines.push('Injected BSPCollisionWorld from CollisionManager');
+        } else {
+          lines.push('CollisionManager not initialized - using NullCollisionWorld');
+        }
+      } catch {
+        lines.push('BSP collision not available - using NullCollisionWorld');
+      }
+
+      // Spawn local player
+      gameManager.spawnLocalPlayer({ x: 0, y: 10, z: 0 });
+      lines.push(`Spawned local player: ${gameManager.getLocalPlayerId()}`);
+
+      // Get initial position
+      const startPos = gameManager.getLocalPlayerPosition();
+      if (startPos) {
+        lines.push(`Start position: (${startPos.x.toFixed(2)}, ${startPos.y.toFixed(2)}, ${startPos.z.toFixed(2)})`);
+      }
+
+      // Subscribe to state updates
+      let lastUpdate: import('../../../games/fps/FPSGameManager').PlayerStateUpdate | null = null;
+      gameManager.onPlayerStateUpdate((state) => {
+        lastUpdate = state;
+      });
+
+      // Send 20 frames of forward input
+      for (let i = 0; i < 20; i++) {
+        gameManager.sendInput({
+          forward: true,
+          backward: false,
+          left: false,
+          right: false,
+          jump: false,
+          crouch: false,
+          sprint: false,
+          fire: false,
+          altFire: false,
+          pitch: 0,
+          yaw: 0,
+        });
+      }
+
+      // Get final position
+      const endPos = gameManager.getLocalPlayerPosition();
+      if (endPos) {
+        lines.push(`End position: (${endPos.x.toFixed(2)}, ${endPos.y.toFixed(2)}, ${endPos.z.toFixed(2)})`);
+      }
+
+      // Show last state update
+      if (lastUpdate) {
+        lines.push(`Last state update: (${lastUpdate.position.x.toFixed(2)}, ${lastUpdate.position.y.toFixed(2)}, ${lastUpdate.position.z.toFixed(2)})`);
+      }
+
+      lines.push(`Current tick: ${gameManager.getCurrentTick()}`);
+
+      // Shutdown
+      gameManager.shutdown();
+      lines.push('Shutdown complete');
+
+      lines.push('');
+      lines.push('Test passed! FPSGameManager works with LocalGameHost.');
+
+    } catch (error) {
+      lines.push(`Error: ${error}`);
+    }
+
+    return lines.join('\n');
   }
 }

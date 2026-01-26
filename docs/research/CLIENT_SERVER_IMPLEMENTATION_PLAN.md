@@ -2,7 +2,13 @@
 
 **Branch:** `feature/client-server-architecture`
 **Date:** 2026-01-26
-**Status:** Planning / Discussion
+**Status:** Milestone 1 Complete, Milestone 2 In Progress
+
+> **Latest Update (2026-01-26):**
+> - ✅ Milestone 1: Network simulation foundation (`FPSSimulation`, `FPSGameManager`, `LocalGameHost`)
+> - ✅ Milestone 2 partial: `BSPCollisionWorld` adapter wraps existing `CollisionManager`
+> - ⏸️ Full FPSController migration paused: `AdvancedCharacterController` (1166 lines) has all physics
+> - 📋 Next: Add `sv_network_movement` toggle for incremental migration
 
 ## Executive Summary
 

@@ -6,7 +6,7 @@ import { MovementSystem } from '../../../engine/network/systems/MovementSystem';
 import { TransformComponent } from '../../../engine/network/components/TransformComponent';
 import { VelocityComponent } from '../../../engine/network/components/VelocityComponent';
 import { InputComponent } from '../../../engine/network/components/InputComponent';
-import { NullCollisionWorld } from '../../../engine/network/systems/collision/CollisionWorld';
+import { NullCollisionWorld, type CollisionWorld } from '../../../engine/network/systems/collision/CollisionWorld';
 import { FPSMovementProfile } from './FPSMovementProfile';
 
 /**
@@ -166,5 +166,13 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
    */
   getMovementSystem(): MovementSystem {
     return this.movementSystem;
+  }
+
+  /**
+   * Set the collision world (called when map loads)
+   */
+  setCollisionWorld(collision: CollisionWorld | null): void {
+    this.movementSystem.setCollisionWorld(collision);
+    console.log(`[FPSSimulation] Collision world ${collision ? 'set' : 'cleared'}`);
   }
 }
