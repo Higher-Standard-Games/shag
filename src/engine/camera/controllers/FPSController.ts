@@ -170,6 +170,9 @@ export class FPSController implements ICameraController {
   // Wall jump state
   private wallJumpState: 'none' | 'available' | 'charging' = 'none';
 
+  // Ledge grab state
+  private ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
+
 
   // Physics position at ORIGIN level (Q3 style: 24 units above feet)
   // MUST be kept separate from camera.position which includes viewheight offset
@@ -307,8 +310,11 @@ export class FPSController implements ICameraController {
   /**
    * Get ledge grab state for animation
    */
+  /**
+   * Get ledge grab state for animation
+   */
   getLedgeGrabState(): string {
-    return "none"; // Ledge grab not fully synced yet
+    return this.ledgeGrabState !== 'none' ? "active" : "none";
   }
 
   /**
@@ -693,13 +699,23 @@ export class FPSController implements ICameraController {
       this.isSliding = result.isSliding;
       this.isCrouching = result.isCrouching;
       this.wallJumpState = result.wallJumpState;
+      this.ledgeGrabState = result.ledgeGrabState;
       this.crouchViewOffset = result.crouchViewOffset;
       this.smoothedY = result.smoothedY;
       this.actualHorizSpeed = result.actualHorizSpeed;
 
-      // Apply sliding tilt override
-      if (this.isSliding) {
+      // Apply sliding camera lock - OVERRIDE mouseRotationX during slide
+      if (result.isSlideActive) {
+        // Lock vertical look to the calculated slide pitch
         this.mouseRotationX = result.slideCameraPitch;
+        this.camera.rotation.x = result.slideCameraPitch;
+      }
+
+      // Apply ledge grab camera pitch - OVERRIDE mouseRotationX during ledge grab
+      if (result.isLedgeGrabActive) {
+        // Smooth camera tilt during ledge grab animation
+        this.mouseRotationX = result.ledgeCameraPitch;
+        this.camera.rotation.x = result.ledgeCameraPitch;
       }
 
       // Update Sync Vars (legacy/compatibility)
@@ -727,6 +743,7 @@ export class FPSController implements ICameraController {
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
       // Reset camera rotation to mouse-controlled values before applying effects
+      // NOTE: If sliding, mouseRotationX is already locked to slide pitch
       this.camera.rotation.x = this.mouseRotationX;
       this.camera.rotation.y = this.mouseRotationY;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS

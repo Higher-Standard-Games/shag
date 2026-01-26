@@ -35,7 +35,12 @@ export interface PhysicsState {
     crouchViewOffset: number; // For smooth view transition
     smoothedY: number;      // For stair smoothing
     actualHorizSpeed: number; // Real speed (dist/time) for UI
-    slideCameraPitch: number; // Camera tilt from sliding
+    slideCameraPitch: number; // Camera pitch during slide (absolute, not offset)
+    slideEntryPitch: number;  // Player's pitch when slide started (for axis lock)
+    isSlideActive: boolean;   // True if slide is actively controlling camera
+    ledgeGrabState: 'none' | 'grabbing' | 'pulling'; // Ledge grab state
+    ledgeCameraPitch: number; // Camera pitch during ledge grab (absolute)
+    isLedgeGrabActive: boolean; // True if ledge grab is actively controlling camera
 }
 
 /**
@@ -60,7 +65,7 @@ export class AdvancedCharacterController {
     public isCrouching: boolean = false;
     public crouchViewOffset: number = 0;
     private static readonly CROUCH_TRANSITION_SPEED = 0.2;
-    private static readonly CROUCH_HEIGHT_OFFSET = -24; // (DEFAULT_VIEWHEIGHT 50 - CROUCH_VIEWHEIGHT 26) * -1? No, 26-50 = -24.
+    private static readonly CROUCH_HEIGHT_OFFSET = -24;
 
     // Slide State
     public isSliding: boolean = false;
@@ -79,11 +84,21 @@ export class AdvancedCharacterController {
     private wallJumpPosition: Vector3 = Vector3.Zero();
     private wallJumpPreVelocity: Vector3 = Vector3.Zero();
     private lastWallJumpTime: number = 0;
+    private wallJumpKeyReleased: boolean = true; // Require fresh press for wall jump
+
+    // Ledge Grab State
+    public ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
+    private ledgeGrabTime: number = 0;
+    private ledgeTargetPos: Vector3 = Vector3.Zero();
+    private ledgeStartPos: Vector3 = Vector3.Zero();
+    private ledgeWallNormal: Vector3 = Vector3.Zero();
+    private ledgeCameraPitch: number = 0; // Current camera pitch for ledge grab animation
+    private ledgeEntryPitch: number = 0; // Camera pitch when grab started
 
     // Constants (copied from FPSController to keep logic self-contained)
     private static readonly SLIDE_FADE_MS = 400;
-    private static readonly SLIDE_PITCH_TILT = -0.05; // Negative for looking UP
-    private static readonly SLIDE_JUMP_GRACE_MS = 500;
+    private static readonly SLIDE_PITCH_TILT = -0.22; // ~12 degrees (matches v0.8.21)
+    private static readonly SLIDE_JUMP_GRACE_MS = 400; // Grace period before jump cancel allowed
 
 
 
@@ -117,7 +132,9 @@ export class AdvancedCharacterController {
         const jumpHeight = mv.get('sv_jumpheight');
         const stepHeight = mv.get('sv_stepheight');
         const smoothFactor = mv.get('cl_smoothfactor');
-        const friction = mv.get('sv_friction');
+        // RECONSTRUCTED LOGIC: Zero friction when sliding to allow momentum preservation
+        const friction = this.isSliding ? 0 : mv.get('sv_friction');
+
         const accelerate = mv.get('sv_accelerate');
         const stopspeed = mv.get('sv_stopspeed');
         const airaccelerate = mv.get('sv_airaccelerate');
@@ -139,6 +156,31 @@ export class AdvancedCharacterController {
             // Only reduce speed if NOT about to enter slide
             if (horizSpeed < slideMinSpeed || !cooldownPassed) {
                 wishspeed *= mv.get('cl_crouchmult');
+            }
+        }
+
+        // === LEDGE GRAB ===
+        // Must check this FIRST to prevent Wall Jump / Gravity from overriding it
+        const ledgeGrabEnabled = mv.get('sv_ledgegrab') > 0;
+        if (ledgeGrabEnabled) {
+            if (this.updateLedgeGrab(deltaTime, mv, cm, input, mouseRotationX)) {
+                return {
+                    position: this.position,
+                    velocity: this.velocity,
+                    isGrounded: false,
+                    isSliding: false,
+                    isCrouching: false,
+                    wallJumpState: 'none',
+                    crouchViewOffset: this.crouchViewOffset,
+                    smoothedY: this.smoothedY,
+                    actualHorizSpeed: 0,
+                    slideCameraPitch: mouseRotationX,
+                    slideEntryPitch: mouseRotationX,
+                    isSlideActive: false,
+                    ledgeGrabState: this.ledgeGrabState,
+                    ledgeCameraPitch: this.ledgeCameraPitch,
+                    isLedgeGrabActive: this.ledgeGrabState !== 'none'
+                };
             }
         }
 
@@ -184,7 +226,12 @@ export class AdvancedCharacterController {
                     crouchViewOffset: this.crouchViewOffset,
                     smoothedY: this.smoothedY,
                     actualHorizSpeed: 0,
-                    slideCameraPitch: mouseRotationX
+                    slideCameraPitch: mouseRotationX,
+                    slideEntryPitch: mouseRotationX,
+                    isSlideActive: false,
+                    ledgeGrabState: 'none',
+                    ledgeCameraPitch: mouseRotationX,
+                    isLedgeGrabActive: false
                 };
             }
         }
@@ -195,6 +242,8 @@ export class AdvancedCharacterController {
                 this.velocity.y = jumpHeight;
                 this.isGrounded = false;
                 this.jumpConsumed = true;
+                // Also consume wall jump key to prevent wall jump when holding space from ground
+                this.wallJumpKeyReleased = false;
             }
         }
 
@@ -224,7 +273,7 @@ export class AdvancedCharacterController {
                 }
 
                 // Acceleration
-                if (hasInput) {
+                if (hasInput && !this.isSliding) {
                     const holdingStrafe = input.strafe;
                     const holdingForward = input.forward;
                     const groundWishspeed = (holdingStrafe && !holdingForward) ? mv.get('sv_movementSpeed') : wishspeed;
@@ -260,11 +309,7 @@ export class AdvancedCharacterController {
             }
         }
 
-        // === LEDGE GRAB ===
-        const ledgeEnabled = mv.get('sv_ledgegrab') > 0;
-        if (ledgeEnabled) {
-            this.updateLedgeGrab(deltaTime, mv, cm, input);
-        }
+        /* MOVED TO TOP */
 
         // === CROUCH SLIDE ===
         this.updateCrouchslide(deltaTime, mv, input, mouseRotationX);
@@ -343,7 +388,12 @@ export class AdvancedCharacterController {
             crouchViewOffset: this.crouchViewOffset,
             smoothedY: this.smoothedY,
             actualHorizSpeed: this.actualHorizSpeed,
-            slideCameraPitch: this.isSliding ? this.slideCameraPitch : mouseRotationX
+            slideCameraPitch: this.isSliding ? this.slideCameraPitch : mouseRotationX,
+            slideEntryPitch: this.slideEntryPitch,
+            isSlideActive: this.isSliding,
+            ledgeGrabState: this.ledgeGrabState,
+            ledgeCameraPitch: this.ledgeCameraPitch,
+            isLedgeGrabActive: false
         };
     }
 
@@ -520,7 +570,13 @@ export class AdvancedCharacterController {
         // Must be in air to wall jump
         if (this.isGrounded) {
             this.wallJumpState = 'none';
+            // DON'T reset wallJumpKeyReleased here! Only reset when key is actually released.
             return;
+        }
+
+        // Track key release for fresh press requirement
+        if (!input.up) {
+            this.wallJumpKeyReleased = true;
         }
 
         // Handle Charging State
@@ -549,12 +605,14 @@ export class AdvancedCharacterController {
 
         // Ground check (sv_walljump_minheight)
         // Ensure strictly NO ground within minHeight distance below player
+        // Use eye level (position + 24) to match old FPSController behavior
         const groundCheckStart = this.position.clone();
-        const groundCheckEnd = groundCheckStart.add(new Vector3(0, -(wallJumpMinHeight + 1), 0)); // +1 margin
+        groundCheckStart.y += 24; // Eye level - matches old camera.position check
+        const groundCheckEnd = groundCheckStart.add(new Vector3(0, -wallJumpMinHeight, 0));
         const groundCheck = backend.trace(groundCheckStart, groundCheckEnd, { radius: 8, height: 16 });
 
         if (groundCheck.fraction < 1.0) {
-            // Hit ground within min height
+            // Hit ground within min height - too close to ground
             this.wallJumpState = 'none';
             return;
         }
@@ -602,12 +660,39 @@ export class AdvancedCharacterController {
             return;
         }
 
+        // === EYE-LEVEL WALL CHECK ===
+        // Verify wall extends up to eye level (not just a low fence/railing/stairs)
+        // If there's no wall at eye level, player should step/jump OVER it, not wall jump
+        const eyeHeight = 32;  // +32 from origin (eye level in Q3)
+        const eyeCheckStart = this.position.add(new Vector3(0, eyeHeight - 10, 0));  // Near eye level
+        const eyeCheckEnd = eyeCheckStart.add(wallNormal.scale(-wallJumpReach));  // Trace toward wall
+        const eyeTrace = backend.trace(eyeCheckStart, eyeCheckEnd, { radius: 8, height: 16 });
+
+        if (eyeTrace.fraction >= 1.0) {
+            // No wall at eye level - this is a low obstacle (stairs, fence, railing)
+            // Player should step over it, not wall jump
+            this.wallJumpState = 'none';
+            return;
+        }
+
+        // Prevent spamming / double jumping in same frame or auto-hop cycle
+        // IMPORTANT: Require FRESH press - key must be released AFTER last wall jump
+        // This prevents holding space to continuously wall jump
+        if (!this.wallJumpKeyReleased) {
+            // Key still held from last jump - wait for release
+            this.wallJumpState = 'available'; // Show we're near a wall but can't jump yet
+            return;
+        }
+
         if (input.up && chargeTimeCvar <= 0) {
             // INSTANT BOUNCE
+            this.wallJumpKeyReleased = false; // Consume the press
+            this.jumpConsumed = true; // Also consume normal jump
             this.executeWallJumpPush(wallNormal, mv, true);
             return;
         } else if (input.up && chargeTimeCvar > 0) {
             // START CHARGING
+            this.wallJumpKeyReleased = false; // Consume the press
             this.wallJumpState = 'charging';
             this.wallJumpChargeTime = 0;
             this.wallJumpNormal.copyFrom(wallNormal);
@@ -655,11 +740,233 @@ export class AdvancedCharacterController {
 
         this.lastWallJumpTime = performance.now() / 1000;
         this.wallJumpState = 'none';
+
+        // Mark jump as consumed so we don't double-jump immediately
+        this.jumpConsumed = true;
     }
 
 
-    private updateLedgeGrab(_deltaTime: number, _mv: MovementVars, _cm: CollisionManager, _input: PlayerInput) {
-        // Placeholder
+    private updateLedgeGrab(deltaTime: number, mv: MovementVars, cm: CollisionManager, input: PlayerInput, mouseRotationX: number): boolean {
+        // Constants
+        const reach = mv.get('sv_ledge_reach') || 40;
+        const climbHeight = mv.get('sv_ledge_height') || 56; // How high above eye level we can grab
+        const grabPauseTime = 0.12; // Brief pause at grab point before climbing
+        const pullTime = mv.get('sv_ledge_pulltime') || 0.8; // Time to climb up (slower = smoother)
+        const timeout = mv.get('sv_ledge_timeout') || 1.5;
+
+        // === STATE MACHINE ===
+
+        // 1. GRABBING (Brief pause at ledge edge)
+        if (this.ledgeGrabState === 'grabbing') {
+            this.ledgeGrabTime += deltaTime;
+
+            // FREEZE position - don't let physics move us
+            this.position.copyFrom(this.ledgeStartPos);
+            this.velocity.set(0, 0, 0);
+            this.isGrounded = false;
+
+            // Camera pitch effect - tilt down to look at ledge
+            // Smooth transition to looking down during grab
+            const grabPitchTarget = this.ledgeEntryPitch + 0.35; // Look down ~20 degrees
+            const grabPitchProgress = Math.min(1.0, this.ledgeGrabTime / grabPauseTime);
+            this.ledgeCameraPitch = this.ledgeEntryPitch + (grabPitchTarget - this.ledgeEntryPitch) * grabPitchProgress;
+
+            // Check for cancel (crouch or backwards)
+            const dotWishWall = Vector3.Dot(input.wishdir, this.ledgeWallNormal);
+            if (input.crouch || input.sprint || (dotWishWall > 0.5 && input.wishdir.length() > 0.1)) {
+                // Release/Drop
+                this.ledgeGrabState = 'none';
+                this.velocity.y = -100; // Fall away
+                console.log('[LedgeGrab] Dropped');
+                return false;
+            }
+
+            // After brief pause, auto-climb (or on forward press)
+            if (this.ledgeGrabTime >= grabPauseTime) {
+                this.enterPullingState();
+                console.log('[LedgeGrab] Starting climb after pause');
+                return true;
+            }
+
+            return true; // Still pausing at grab point
+        }
+
+        // 2. PULLING (Climbing animation)
+        if (this.ledgeGrabState === 'pulling') {
+            this.ledgeGrabTime += deltaTime;
+            const progress = Math.min(1.0, this.ledgeGrabTime / pullTime);
+
+            // EaseInOutQuad for smooth animation (same as old implementation)
+            const t = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+            // Camera pitch animation - smoothly return from looking down to original pitch
+            const grabPitch = this.ledgeEntryPitch + 0.35; // Where we were looking during grab
+            this.ledgeCameraPitch = grabPitch + (this.ledgeEntryPitch - grabPitch) * t;
+
+            // Smooth position interpolation from grab position to target
+            this.position.x = this.ledgeStartPos.x + (this.ledgeTargetPos.x - this.ledgeStartPos.x) * t;
+            this.position.y = this.ledgeStartPos.y + (this.ledgeTargetPos.y - this.ledgeStartPos.y) * t;
+            this.position.z = this.ledgeStartPos.z + (this.ledgeTargetPos.z - this.ledgeStartPos.z) * t;
+
+            this.velocity.set(0, 0, 0);
+            this.isGrounded = false;
+
+            if (progress >= 1.0) {
+                // Done climbing
+                this.ledgeGrabState = 'none';
+                this.isGrounded = true;
+                this.position.copyFrom(this.ledgeTargetPos);
+                this.velocity.set(0, 0, 0);
+
+                // Small forward momentum to continue running
+                const forward = new Vector3(input.viewForward.x, 0, input.viewForward.z).normalize();
+                this.velocity.x = forward.x * 100;
+                this.velocity.z = forward.z * 100;
+
+                console.log('[LedgeGrab] Climb complete!');
+                return false;
+            }
+            return true; // Still climbing
+        }
+
+        // 3. DETECTION - Eye-level based
+        // Don't detect while grounded (use stair stepping)
+        if (this.isGrounded) return false;
+
+        // Allow detection when rising slowly or falling
+        // Block only during fast upward motion (initial jump burst)
+        if (this.velocity.y > 200) return false;
+
+        // Must be pressing forward OR moving forward with velocity
+        const hasForwardIntent = input.forward ||
+            (this.velocity.x * input.viewForward.x + this.velocity.z * input.viewForward.z) > 50;
+        if (!hasForwardIntent) return false;
+
+        if (!cm.isInitialized()) return false;
+        const backend = (cm as any).backends?.get('q3');
+        if (!backend?.trace) return false;
+
+        // Eye position (camera/physics origin + 24 above feet)
+        const eyePos = this.position.clone();
+        eyePos.y += 24;
+
+        // Forward direction (flattened)
+        const forwardDir = new Vector3(input.viewForward.x, 0, input.viewForward.z).normalize();
+
+        console.log(`[LedgeGrab] Detecting... eyeY=${eyePos.y.toFixed(1)}, velY=${this.velocity.y.toFixed(0)}`);
+
+        // === TRACE 1: Check for wall at waist/chest level ===
+        // If there's a wall at waist level, we might be at a ledge
+        const waistPos = eyePos.clone();
+        waistPos.y -= 16; // Waist is ~16 below eye
+        const waistEnd = waistPos.add(forwardDir.scale(reach));
+        const waistTrace = backend.trace(waistPos, waistEnd, { radius: 12, height: 16 });
+
+        if (waistTrace.fraction >= 1.0) {
+            console.log('[LedgeGrab] No wall at waist level');
+            return false;
+        }
+
+        // === TRACE 2: Check if space is clear ABOVE eye level ===
+        // If there's no wall above eye level, there's a ledge
+        const headPos = eyePos.clone();
+        headPos.y += 8; // Slightly above eye
+        const headEnd = headPos.add(forwardDir.scale(reach));
+        const headTrace = backend.trace(headPos, headEnd, { radius: 12, height: 16 });
+
+        if (headTrace.fraction < 0.9) {
+            console.log('[LedgeGrab] Wall above eye level - no ledge');
+            return false;
+        }
+
+        // === TRACE 3: Find the ledge surface ===
+        // Trace down from above to find where the ledge top is
+        const aboveLedge = eyePos.add(forwardDir.scale(reach * 0.7));
+        aboveLedge.y += climbHeight;
+
+        const belowLedge = aboveLedge.clone();
+        belowLedge.y -= (climbHeight + 48);
+
+        const ledgeTrace = backend.trace(aboveLedge, belowLedge, { radius: 8, height: 8 });
+
+        if (ledgeTrace.fraction >= 1.0) {
+            console.log('[LedgeGrab] No ledge surface found');
+            return false;
+        }
+
+        // Check if surface is flat enough (floor)
+        if (!ledgeTrace.normal || ledgeTrace.normal.y < 0.7) {
+            console.log(`[LedgeGrab] Ledge too sloped: normal.y=${ledgeTrace.normal?.y.toFixed(2)}`);
+            return false;
+        }
+
+        const ledgeSurfaceY = ledgeTrace.endPos.y;
+        console.log(`[LedgeGrab] Ledge found at Y=${ledgeSurfaceY.toFixed(1)}, eyeY=${eyePos.y.toFixed(1)}`);
+
+        // === CHECK: Is eye level approximately at ledge height? ===
+        // Eye should be below ledge surface but not too far below
+        // "Half model" = roughly eyes at ledge level ± some tolerance
+        const eyeToLedge = ledgeSurfaceY - eyePos.y;
+
+        // If eye is already above ledge, skip (we're past it)
+        if (eyeToLedge < -16) {
+            console.log(`[LedgeGrab] Eye already above ledge (diff=${eyeToLedge.toFixed(1)})`);
+            return false;
+        }
+
+        // If eye is too far below ledge, skip (can't reach)
+        if (eyeToLedge > climbHeight) {
+            console.log(`[LedgeGrab] Ledge too high (diff=${eyeToLedge.toFixed(1)}, max=${climbHeight})`);
+            return false;
+        }
+
+        // === TRACE 4: Check there's room to stand on the ledge ===
+        const targetPos = ledgeTrace.endPos.clone();
+        targetPos.y += 24 + 4; // Stand on ledge (origin height + small buffer)
+
+        const standTrace = backend.trace(targetPos, targetPos.add(new Vector3(0, 32, 0)), { radius: 12, height: 56 });
+        if (standTrace.fraction < 0.8) {
+            console.log('[LedgeGrab] No room to stand on ledge');
+            return false;
+        }
+
+        // === SUCCESS: Start grabbing ===
+        console.log(`[LedgeGrab] *** GRABBING LEDGE! *** eyeToLedge=${eyeToLedge.toFixed(1)}`);
+
+        // Store wall normal for later
+        if (waistTrace.normal) {
+            this.ledgeWallNormal.copyFrom(waistTrace.normal);
+        } else {
+            this.ledgeWallNormal = forwardDir.scale(-1);
+        }
+
+        this.startGrabbing(targetPos, mouseRotationX);
+        return true;
+    }
+
+    private startGrabbing(targetPos: Vector3, mouseRotationX: number) {
+        this.ledgeGrabState = 'grabbing';
+        this.ledgeGrabTime = 0;
+
+        // Store current position as grab point (freeze here)
+        this.ledgeStartPos.copyFrom(this.position);
+        this.ledgeTargetPos.copyFrom(targetPos);
+
+        // Capture current camera pitch for animation
+        this.ledgeEntryPitch = mouseRotationX;
+        this.ledgeCameraPitch = mouseRotationX;
+
+        // Immediately zero velocity to stop all movement
+        this.velocity.set(0, 0, 0);
+
+        console.log(`[LedgeGrab] Grabbed at Y=${this.position.y.toFixed(1)}, target Y=${targetPos.y.toFixed(1)}, pitch=${mouseRotationX.toFixed(2)}`);
+    }
+
+    private enterPullingState() {
+        this.ledgeGrabState = 'pulling';
+        this.ledgeGrabTime = 0;
+        // Keep current position as start of pull (we're already frozen at grab point)
+        this.ledgeStartPos.copyFrom(this.position);
     }
 
     private updateCrouchslide(deltaTime: number, mv: MovementVars, input: PlayerInput, mouseRotationX: number) {
@@ -669,99 +976,145 @@ export class AdvancedCharacterController {
             return;
         }
 
-        const now = Date.now();
+        const now = performance.now();
+        const slideMinSpeed = mv.get('sv_slideMinSpeed') || 425;
+        const slideDuration = mv.get('sv_slideDuration') || 800;
+        const slideCooldown = mv.get('sv_slideCooldown') || 1500;
+        const slideSpeedMult = mv.get('sv_slideSpeedMultiplier') || 1.2;
+
+        // Calculate current horizontal speed
         const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
 
-        // Slide Entry
+        // === SLIDE ENTRY ===
         if (!this.isSliding && input.crouch && this.isGrounded) {
-            const slideMinSpeed = mv.get('sv_slideMinSpeed');
-            const slideCooldown = mv.get('sv_slideCooldown');
-            const slideSpeedMult = mv.get('sv_slideSpeedMultiplier');
-
             const cooldownPassed = (now - this.lastSlideEndTime) >= slideCooldown;
+
             if (horizSpeed >= slideMinSpeed && cooldownPassed) {
+                // Enter slide!
                 this.isSliding = true;
                 this.slideStartTime = now;
 
+                // Lock velocity direction at entry
                 this.slideVelocity = this.velocity.clone();
                 this.slideVelocity.y = 0;
                 this.slideVelocity.normalize();
 
+                // Store entry speed for momentum preservation
                 this.slideEntrySpeed = horizSpeed * slideSpeedMult;
+
+                // Store entry pitch for axis lock
                 this.slideEntryPitch = mouseRotationX;
 
+                // Apply speed multiplier immediately
                 this.velocity.x = this.slideVelocity.x * this.slideEntrySpeed;
                 this.velocity.z = this.slideVelocity.z * this.slideEntrySpeed;
+
+                console.log(`[Slide] Entered at speed ${this.slideEntrySpeed.toFixed(0)}`);
             }
         }
 
-        // Slide Physics
+        // === SLIDING PHYSICS ===
         if (this.isSliding) {
-            const slideDuration = mv.get('sv_slideDuration');
             const slideElapsed = now - this.slideStartTime;
 
-            // Tilt Logic
+            // === CAMERA PITCH TILT (look up effect) with smooth 400ms in/out ===
             let tiltIntensity: number;
             const fadeIn = AdvancedCharacterController.SLIDE_FADE_MS;
             const fadeOut = AdvancedCharacterController.SLIDE_FADE_MS;
             const timeRemaining = slideDuration - slideElapsed;
 
             if (slideElapsed < fadeIn) {
+                // Fade in: 0 → 1 over first 400ms (smoothstep for smooth ease)
                 const t = slideElapsed / fadeIn;
-                tiltIntensity = t * t * (3 - 2 * t);
+                tiltIntensity = t * t * (3 - 2 * t); // smoothstep
             } else if (timeRemaining < fadeOut) {
-                const t = timeRemaining / fadeOut;
-                tiltIntensity = t * t * (3 - 2 * t);
+                // Fade out: 1 → 0 over last 400ms (smoothstep)
+                const t = Math.max(0, timeRemaining) / fadeOut;
+                tiltIntensity = t * t * (3 - 2 * t); // smoothstep
             } else {
+                // Full tilt in the middle
                 tiltIntensity = 1;
             }
 
+            // Calculate absolute camera pitch (entry pitch + tilt offset)
             const targetPitch = this.slideEntryPitch + (AdvancedCharacterController.SLIDE_PITCH_TILT * tiltIntensity);
             this.slideCameraPitch = targetPitch;
 
-            // Friction / Decay
+            // === SPEED DECAY ===
+            // Preserve full speed for first 400ms, then start decaying
             let currentSlideSpeed: number;
             if (slideElapsed < AdvancedCharacterController.SLIDE_JUMP_GRACE_MS) {
+                // Grace period - maintain entry speed
                 currentSlideSpeed = this.slideEntrySpeed;
             } else {
+                // After grace, apply decay
                 const decayElapsed = slideElapsed - AdvancedCharacterController.SLIDE_JUMP_GRACE_MS;
                 const decayDuration = slideDuration - AdvancedCharacterController.SLIDE_JUMP_GRACE_MS;
                 const decayProgress = Math.min(1, decayElapsed / decayDuration);
 
+                // Decay from entry speed down to crouch walk speed
                 const crouchSpeed = mv.get('sv_movementSpeed') * mv.get('cl_crouchmult');
                 currentSlideSpeed = this.slideEntrySpeed + (crouchSpeed - this.slideEntrySpeed) * decayProgress;
             }
 
+            // Update velocity in slide direction (locked)
             this.velocity.x = this.slideVelocity.x * currentSlideSpeed;
             this.velocity.z = this.slideVelocity.z * currentSlideSpeed;
 
-            // Exit Conditions
-            if (slideElapsed >= slideDuration || !input.crouch) {
+            // === SLIDE EXIT CONDITIONS ===
+
+            // Timeout - slide ends and player crouches at crouch speed
+            if (slideElapsed >= slideDuration) {
+                console.log('[Slide] Exit: Timeout');
                 this.exitSlide();
                 return;
             }
 
-            // Jump Boost
+            // Release crouch
+            if (!input.crouch) {
+                console.log('[Slide] Exit: Released crouch');
+                this.exitSlide();
+                return;
+            }
+
+            // Jump cancel - only available AFTER grace period
             if (input.up && slideElapsed >= AdvancedCharacterController.SLIDE_JUMP_GRACE_MS) {
                 this.slideJumpHoldTime += deltaTime;
+
+                // Hold threshold for boost (200ms)
                 if (this.slideJumpHoldTime >= 0.2) {
-                    const slideJumpBoost = mv.get('sv_slideJumpBoost');
-                    this.velocity.x *= slideJumpBoost;
-                    this.velocity.z *= slideJumpBoost;
+                    const slideJumpBoost = mv.get('sv_slideJumpBoost') || 1.3;
+                    console.log(`[Slide] Boost Jump! Speed ${(currentSlideSpeed * slideJumpBoost).toFixed(0)}`);
+                    this.velocity.x = this.slideVelocity.x * currentSlideSpeed * slideJumpBoost;
+                    this.velocity.z = this.slideVelocity.z * currentSlideSpeed * slideJumpBoost;
                     this.velocity.y = mv.get('sv_jumpheight');
                     this.isGrounded = false;
                     this.exitSlide();
                     return;
                 }
             } else if (!input.up) {
+                // Reset hold time if not holding jump
+                if (this.slideJumpHoldTime > 0 && this.slideJumpHoldTime < 0.2 && slideElapsed >= AdvancedCharacterController.SLIDE_JUMP_GRACE_MS) {
+                    // TAP JUMP - quick stand without boost
+                    console.log('[Slide] Exit: Tap jump (stand)');
+                    this.exitSlide();
+                    return;
+                }
                 this.slideJumpHoldTime = 0;
             }
+
+            // Left ground (fell off edge) - let slide naturally end
+            // (Ground detection can flicker during slide physics)
+        } else {
+            // Not sliding - reset camera pitch
+            this.slideCameraPitch = mouseRotationX;
         }
     }
 
     private exitSlide() {
         this.isSliding = false;
-        this.lastSlideEndTime = Date.now();
-        // Restore view? Controller handles setting rotation back to mouseRotationX implicitly when isSliding is false
+        this.lastSlideEndTime = performance.now();
+        this.slideJumpHoldTime = 0;
+        this.slideEntrySpeed = 0;
     }
 }
