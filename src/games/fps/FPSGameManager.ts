@@ -98,7 +98,7 @@ export class FPSGameManager {
     });
 
     // Start the host
-    this.gameHost.start();
+    this.gameHost.start?.();
     this.isRunning = true;
 
     console.log(`[FPSGameManager] Local game initialized, player: ${this.localPlayerId}`);
@@ -147,20 +147,27 @@ export class FPSGameManager {
     if (input.fire) buttons |= InputButtons.FIRE;
     if (input.altFire) buttons |= InputButtons.ALT_FIRE;
 
-    // Calculate movement direction from buttons
-    let dirX = 0;
-    let dirZ = 0;
-    if (input.forward) dirZ += 1;
-    if (input.backward) dirZ -= 1;
-    if (input.left) dirX -= 1;
-    if (input.right) dirX += 1;
+    // Calculate movement direction from buttons (in local space)
+    let localX = 0;
+    let localZ = 0;
+    if (input.forward) localZ += 1;
+    if (input.backward) localZ -= 1;
+    if (input.left) localX -= 1;
+    if (input.right) localX += 1;
 
-    // Normalize direction
-    const len = Math.sqrt(dirX * dirX + dirZ * dirZ);
-    if (len > 0) {
-      dirX /= len;
-      dirZ /= len;
+    // Normalize local direction
+    const localLen = Math.sqrt(localX * localX + localZ * localZ);
+    if (localLen > 0) {
+      localX /= localLen;
+      localZ /= localLen;
     }
+
+    // Rotate by yaw to get world-space direction
+    // yaw is in radians, rotates around Y axis
+    const cosYaw = Math.cos(input.yaw);
+    const sinYaw = Math.sin(input.yaw);
+    const dirX = localX * cosYaw - localZ * sinYaw;
+    const dirZ = localX * sinYaw + localZ * cosYaw;
 
     // Create input command
     const cmd: FPSInputCommand = {
@@ -238,7 +245,7 @@ export class FPSGameManager {
    */
   shutdown(): void {
     if (this.gameHost) {
-      this.gameHost.stop();
+      this.gameHost.stop?.();
       this.gameHost = null;
     }
     this.simulation = null;

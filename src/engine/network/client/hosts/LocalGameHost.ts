@@ -12,12 +12,13 @@ export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   readonly currentTick: number = 0;
 
-  private simulation: Simulation;
+  private simulation: Simulation<any, any>;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: any) => void)[] = [];
   private isRunning: boolean = false;
 
-  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
     this.simulation = new SimulationClass(config);
     this.localPlayerId = 'local-player';
   }
@@ -25,7 +26,7 @@ export class LocalGameHost implements IGameHost {
   /**
    * Get the simulation instance (for setting collision world, spawn points, etc.)
    */
-  getSimulation<T extends Simulation>(): T {
+  getSimulation<T extends Simulation<any, any>>(): T {
     return this.simulation as T;
   }
 
