@@ -63,6 +63,7 @@ import { AdvancedCharacterController, PlayerInput } from "../../movement/Advance
 import { FPSGameManager } from "../../../games/fps/FPSGameManager";
 import { BSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
+import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 
 export class FPSController implements ICameraController {
   public readonly type = "fps";
@@ -654,13 +655,28 @@ export class FPSController implements ICameraController {
         console.log(`[FPS] Initializing network movement via FPSGameManager`);
 
         this.gameManager = FPSGameManager.getInstance();
-        this.gameManager.initializeLocal({ tickRate: 60 }).then(() => {
+        this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
           // Set up BSP collision if available
           const cm = getCollisionManager();
           if (cm.isInitialized()) {
             const collisionWorld = new BSPCollisionWorld();
             this.gameManager!.setCollisionWorld(collisionWorld);
             console.log(`[FPS] BSP collision injected into simulation`);
+          }
+
+          // Extract spawn points from loaded BSP
+          try {
+            const { MapLoader } = await import("../../loader/map/MapLoader");
+            const bsp = MapLoader.getInstance().getCurrentBsp();
+            if (bsp && bsp.entities) {
+              const spawns = extractSpawnPoints(bsp.entities);
+              if (spawns.length > 0) {
+                this.gameManager!.setSpawnPoints(spawns.map(s => s.position));
+                console.log(`[FPS] Extracted ${spawns.length} spawn points from BSP`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[FPS] Could not extract spawn points:`, e);
           }
 
           // Spawn player at current position
