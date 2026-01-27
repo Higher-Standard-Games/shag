@@ -163,6 +163,63 @@ export class FPSController implements ICameraController {
     };
   }
 
+  /**
+   * Enable network movement mode after connection is established.
+   * Call this from FPSGameManager when connecting to a server.
+   * This allows switching from local mode to network mode dynamically.
+   */
+  public enableNetworkMode(): void {
+    if (this.useNetworkMovement) {
+      console.log(`[FPS] Network mode already enabled`);
+      return;
+    }
+
+    this.gameManager = FPSGameManager.getInstance();
+
+    if (!this.gameManager.isConnectedToServer()) {
+      console.warn(`[FPS] Cannot enable network mode - not connected to server`);
+      return;
+    }
+
+    console.log(`[FPS] Switching to network movement mode (server: ${this.gameManager.getServerUrl()})`);
+    this.useNetworkMovement = true;
+
+    // Dispose local physics if it exists
+    if (this.physics) {
+      console.log(`[FPS] Disposing local physics controller`);
+      this.physics = null;
+    }
+
+    // Subscribe to state updates from server
+    this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
+      // Track previous grounded state for landing detection
+      this.wasGroundedLastFrame = this.isGrounded;
+
+      // Update position and velocity from server
+      this.physicsX = state.position.x;
+      this.physicsY = state.position.y;
+      this.physicsZ = state.position.z;
+      this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+
+      // Update movement state for visual effects
+      this.isGrounded = state.grounded;
+      this.isSliding = state.isSliding;
+      this.isCrouching = state.isCrouching;
+      this.crouchViewOffset = state.crouchViewOffset;
+      this.wallJumpState = state.wallJumpState;
+      this.ledgeGrabState = state.ledgeGrabState;
+      this.actualHorizSpeed = state.actualHorizSpeed;
+
+      // Capture landing velocity for impact effect
+      if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
+        this.landingVelocityCapture = Math.abs(state.velocity.y);
+      }
+    });
+
+    this.networkReady = true;
+    console.log(`[FPS] Network mode enabled - inputs will be sent to server`);
+  }
+
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
 
@@ -649,14 +706,58 @@ export class FPSController implements ICameraController {
       this.smoothedY = this.physicsY;
       this.smoothingInitialized = true;
 
-      // Check network movement toggle
-      this.useNetworkMovement = mv.get('sv_network_movement') > 0;
+      // Get the game manager instance
+      this.gameManager = FPSGameManager.getInstance();
 
-      if (this.useNetworkMovement) {
-        // === NETWORK MOVEMENT MODE ===
-        console.log(`[FPS] Initializing network movement via FPSGameManager`);
+      // DEBUG: Log what mode we're detecting
+      const isConnected = this.gameManager.isConnectedToServer();
+      const svNetworkMovement = mv.get('sv_network_movement');
+      console.log(`[FPS DEBUG] Mode detection: isConnectedToServer=${isConnected}, sv_network_movement=${svNetworkMovement}`);
+      console.log(`[FPS DEBUG] FPSGameManager state: isRunning=${this.gameManager.isGameRunning()}, serverUrl=${this.gameManager.getServerUrl()}`);
 
-        this.gameManager = FPSGameManager.getInstance();
+      // Check if already connected to a server (via 'connect' command)
+      if (isConnected) {
+        // === SERVER CONNECTION MODE ===
+        // FPSGameManager was already initialized by 'connect' command
+        // Just subscribe to state updates - don't spawn or init locally
+        console.log(`[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`);
+        this.useNetworkMovement = true;
+
+        // Subscribe to state updates from server
+        this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
+          // Track previous grounded state for landing detection
+          this.wasGroundedLastFrame = this.isGrounded;
+
+          // Update position and velocity from server
+          this.physicsX = state.position.x;
+          this.physicsY = state.position.y;
+          this.physicsZ = state.position.z;
+          this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+
+          // Update movement state for visual effects
+          this.isGrounded = state.grounded;
+          this.isSliding = state.isSliding;
+          this.isCrouching = state.isCrouching;
+          this.crouchViewOffset = state.crouchViewOffset;
+          this.wallJumpState = state.wallJumpState;
+          this.ledgeGrabState = state.ledgeGrabState;
+          this.actualHorizSpeed = state.actualHorizSpeed;
+
+          // Capture landing velocity for impact effect
+          if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
+            this.landingVelocityCapture = Math.abs(state.velocity.y);
+          }
+        });
+
+        this.networkReady = true;
+        console.log(`[FPS] Server movement ready - inputs will be sent to server`);
+
+      } else if (mv.get('sv_network_movement') > 0) {
+        // === LOCAL NETWORK SIMULATION MODE ===
+        // Using local simulation with network-style movement (for testing)
+        console.log(`[FPS] Initializing local network simulation via FPSGameManager`);
+        this.useNetworkMovement = true;
+
         this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
           // Set up BSP collision if available
           const cm = getCollisionManager();
@@ -715,7 +816,7 @@ export class FPSController implements ICameraController {
           });
 
           this.networkReady = true;
-          console.log(`[FPS] Network movement initialized - player spawned`);
+          console.log(`[FPS] Local network simulation initialized - player spawned`);
         }).catch((err: Error) => {
           console.error(`[FPS] Failed to initialize network movement:`, err);
           this.useNetworkMovement = false;
@@ -723,6 +824,7 @@ export class FPSController implements ICameraController {
         });
       } else {
         // === LOCAL MOVEMENT MODE ===
+        this.useNetworkMovement = false;
         if (!this.physics) {
           this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
           console.log(`[FPS] Physics Engine Initialized (local mode)`);
@@ -777,6 +879,10 @@ export class FPSController implements ICameraController {
       // Get state update from simulation
       const pos = this.gameManager.getLocalPlayerPosition();
       if (pos) {
+        // Log position updates periodically for debugging
+        if (Math.random() < 0.01) {
+          console.log(`[FPS] Network pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`);
+        }
         this.physicsX = pos.x;
         this.physicsY = pos.y;
         this.physicsZ = pos.z;
@@ -798,6 +904,8 @@ export class FPSController implements ICameraController {
         this.camera.position.x = pos.x;
         this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
         this.camera.position.z = pos.z;
+      } else if (Math.random() < 0.01) {
+        console.log(`[FPS] Network mode: getLocalPlayerPosition returned null`);
       }
 
       // Update UI

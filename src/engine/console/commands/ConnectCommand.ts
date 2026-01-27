@@ -1,9 +1,13 @@
 import { Command } from '../Command';
-import { NetworkManager } from '../../network/NetworkManager';
+import { FPSGameManager } from '../../../games/fps/FPSGameManager';
 
 /**
- * Connect command - shortcut for 'network connect <server>'
+ * Connect command - connects to a multiplayer game server
  * Usage: connect <server_url>
+ * 
+ * Examples:
+ *   connect localhost:7777
+ *   connect ws://192.168.1.100:7777
  */
 export default class ConnectCommand extends Command {
   readonly definition = {
@@ -26,8 +30,33 @@ export default class ConnectCommand extends Command {
     }
 
     try {
-      const networkManager = NetworkManager.getInstance();
-      await networkManager.connect(url);
+      const gameManager = FPSGameManager.getInstance();
+
+      // Check if already connected
+      if (gameManager.isConnectedToServer()) {
+        const currentUrl = gameManager.getServerUrl();
+        return `Already connected to ${currentUrl}. Use 'disconnect' first.`;
+      }
+
+      await gameManager.initializeNetwork(url);
+
+      // Switch to FPS camera mode for proper movement
+      try {
+        const { CameraSystem } = await import('../../camera/CameraSystem');
+        const cameraSystem = CameraSystem.getInstance();
+        cameraSystem.setController('fps');
+        console.log('[ConnectCommand] Switched to FPS camera mode');
+
+        // Enable network mode on the FPSController
+        const controller = cameraSystem.getActiveController();
+        if (controller && controller.type === 'fps' && typeof (controller as any).enableNetworkMode === 'function') {
+          (controller as any).enableNetworkMode();
+          console.log('[ConnectCommand] Enabled network mode on FPSController');
+        }
+      } catch (e) {
+        console.warn('[ConnectCommand] Could not switch to FPS camera:', e);
+      }
+
       return `Connected to ${url}`;
     } catch (error) {
       return `Failed to connect: ${error}`;

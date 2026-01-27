@@ -11,19 +11,19 @@ import { MessageCodec, MessageType } from '../protocol/MessageCodec';
 interface Client {
   /** Unique client identifier */
   id: string;
-  
+
   /** Transport for sending messages */
   transport: Transport;
-  
+
   /** Player ID in the simulation */
   playerId: PlayerId;
-  
+
   /** Last acknowledged tick */
   lastAckTick: number;
-  
+
   /** Client ping in milliseconds */
   ping: number;
-  
+
   /** When client joined */
   joinTime: number;
 }
@@ -69,7 +69,7 @@ export class Room {
     this.serverName = serverName;
     this.mapName = mapName;
   }
-  
+
   /**
    * Add a client to the room
    * Follows the handshake protocol: WELCOME → (client JOIN) → JOIN_ACCEPT → SNAPSHOT
@@ -84,19 +84,33 @@ export class Room {
     }
 
     // Create unique entity for this player
-    const entityId = `entity_${clientId}`;
     const playerId = `player_${clientId}`;
-    const player = {
-      entityId,
-      name: clientId,
-      team: '',
-      score: 0,
-      ping: 0,
-      serialize() { return {}; },
-      deserialize() {},
-      clone() { return { ...this }; }
-    };
-    this.simulation.state.players.set(playerId, player);
+    let entityId: string;
+
+    // Check if simulation has a spawnPlayer method (game-specific spawning)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sim = this.simulation as any;
+    if (typeof sim.spawnPlayer === 'function') {
+      // Use game-specific spawning (e.g., FPSSimulation creates entity with components)
+      const entity = sim.spawnPlayer(playerId);
+      entityId = entity.id;
+      console.log(`[Room ${this.id}] Spawned player ${playerId} via simulation.spawnPlayer, entity: ${entityId}`);
+    } else {
+      // Fallback: create basic player record
+      entityId = `entity_${clientId}`;
+      const player = {
+        entityId,
+        name: clientId,
+        team: '',
+        score: 0,
+        ping: 0,
+        serialize() { return {}; },
+        deserialize() { },
+        clone() { return { ...this }; }
+      };
+      this.simulation.state.players.set(playerId, player);
+    }
+
 
     const client: Client = {
       id: clientId,
@@ -138,74 +152,78 @@ export class Room {
 
     return true;
   }
-  
+
   /**
    * Remove a client from the room
    */
   removeClient(clientId: string): void {
     const client = this.clients.get(clientId);
     if (!client) return;
-    
+
     // Remove player from simulation
-    this.simulation.state.players.delete(client.playerId);
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sim = this.simulation as any;
+    if (typeof sim.despawnPlayer === 'function') {
+      sim.despawnPlayer(client.playerId);
+    } else {
+      this.simulation.state.players.delete(client.playerId);
+    }
+
     this.clients.delete(clientId);
-    
+
     // Notify listeners
     this.onClientLeaveCallbacks.forEach(cb => cb(client));
-    
+
     console.log(`[Room ${this.id}] Client ${clientId} left (${this.clients.size}/${this.maxClients})`);
-    
+
     // Stop room if empty
     if (this.clients.size === 0) {
       this.stop();
     }
   }
-  
+
   /**
    * Handle command from client
    */
   handleCommand(clientId: string, command: Command): void {
     const client = this.clients.get(clientId);
     if (!client) return;
-    
+
     // Add command to simulation
     this.simulation.tick([command]);
-    
-    console.log(`[Room ${this.id}] Command from ${clientId}: ${command.type}`);
   }
-  
+
   /**
    * Start the room simulation
    */
   start(tickRate: number = 20): void {
     if (this.isRunning) return;
-    
+
     this.isRunning = true;
     const tickDuration = 1000 / tickRate;
-    
+
     this.tickInterval = setInterval(() => {
       this.tick();
     }, tickDuration);
-    
+
     console.log(`[Room ${this.id}] Started at ${tickRate} Hz`);
   }
-  
+
   /**
    * Stop the room simulation
    */
   stop(): void {
     if (!this.isRunning) return;
-    
+
     this.isRunning = false;
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
     }
-    
+
     console.log(`[Room ${this.id}] Stopped`);
   }
-  
+
   /**
    * Get current room state
    */
@@ -224,14 +242,22 @@ export class Room {
       isRunning: this.isRunning
     };
   }
-  
+
   /**
    * Get all clients
    */
   getClients(): Client[] {
     return Array.from(this.clients.values());
   }
-  
+
+  /**
+   * Get the simulation instance
+   * Useful for configuring the simulation after room creation (e.g., setting collision world)
+   */
+  getSimulation(): Simulation {
+    return this.simulation;
+  }
+
   /**
    * Event subscription methods
    */
@@ -244,7 +270,7 @@ export class Room {
       }
     };
   }
-  
+
   onClientLeave(callback: (client: Client) => void): () => void {
     this.onClientLeaveCallbacks.push(callback);
     return () => {
@@ -254,7 +280,7 @@ export class Room {
       }
     };
   }
-  
+
   onTick(callback: (tick: number, state: GameState) => void): () => void {
     this.onTickCallbacks.push(callback);
     return () => {
@@ -264,20 +290,22 @@ export class Room {
       }
     };
   }
-  
   /**
    * Private methods
    */
   private tick(): void {
     this.currentTick++;
-    
+
+    // Run simulation tick (processes movement, physics, etc.)
+    this.simulation.tick([]);
+
     // Notify tick listeners
     this.onTickCallbacks.forEach(cb => cb(this.currentTick, this.simulation.state));
-    
+
     // Send snapshot to all clients
     this.broadcastSnapshot();
   }
-  
+
   /**
    * Set up message handlers for a client
    */

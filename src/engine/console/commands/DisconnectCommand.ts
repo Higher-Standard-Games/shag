@@ -1,8 +1,8 @@
 import { Command } from '../Command';
-import { NetworkManager } from '../../network/NetworkManager';
+import { FPSGameManager } from '../../../games/fps/FPSGameManager';
 
 /**
- * Disconnect command - shortcut for 'network disconnect'
+ * Disconnect command - disconnects from current game server
  * Usage: disconnect
  */
 export default class DisconnectCommand extends Command {
@@ -14,14 +14,14 @@ export default class DisconnectCommand extends Command {
 
   async execute(_args: string[]): Promise<string> {
     try {
-      const networkManager = NetworkManager.getInstance();
-      const serverUrl = networkManager.getServerUrl();
+      const gameManager = FPSGameManager.getInstance();
+      const serverUrl = gameManager.getServerUrl();
 
-      if (!serverUrl) {
+      if (!gameManager.isConnectedToServer()) {
         return 'Not connected to any server';
       }
 
-      await networkManager.disconnect();
+      gameManager.shutdown();
       return `Disconnected from ${serverUrl}`;
     } catch (error) {
       return `Failed to disconnect: ${error}`;

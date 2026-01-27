@@ -37,6 +37,7 @@ export class MovementSystem extends GameSystem {
    */
   setCollisionWorld(collision: CollisionWorld | null): void {
     this.collision = collision;
+    console.log(`[MovementSystem] setCollisionWorld: ${collision ? collision.constructor.name : 'null'}`);
   }
 
   /**

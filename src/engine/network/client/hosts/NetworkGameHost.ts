@@ -18,13 +18,13 @@ class InterpolationBuffer {
   getInterpolationDelay(): number {
     return this.interpolationDelay;
   }
-  
+
   /**
    * Add a new snapshot to the buffer
    */
   addSnapshot(snapshot: GameState): void {
     this.snapshots.set(snapshot.tick, snapshot);
-    
+
     // Clean up old snapshots
     const cutoffTick = snapshot.tick - 10;
     for (const tick of this.snapshots.keys()) {
@@ -32,42 +32,42 @@ class InterpolationBuffer {
         this.snapshots.delete(tick);
       }
     }
-    
+
     this.currentTick = snapshot.tick;
   }
-  
+
   /**
    * Get interpolated state for rendering
    */
   getInterpolatedState(_renderTime: number): GameState {
     // Find the best snapshot pair for interpolation
     const targetTick = this.currentTick - 2; // 2 ticks behind for interpolation
-    
+
     let snapshot1 = this.snapshots.get(targetTick);
     let snapshot2 = this.snapshots.get(targetTick + 1);
-    
+
     if (!snapshot1) {
       // Fallback to newest available
       snapshot1 = this.snapshots.get(this.currentTick) || new GameState();
       return snapshot1;
     }
-    
+
     if (!snapshot2) {
       return snapshot1;
     }
-    
+
     // Simple linear interpolation between snapshots
     const t = 0.5; // Mid-point between ticks
     const interpolated = this.interpolateStates(snapshot1, snapshot2, t);
-    
+
     return interpolated;
   }
-  
+
   private interpolateStates(state1: GameState, state2: GameState, t: number): GameState {
     const result = new GameState();
     result.tick = state1.tick;
     result.events = []; // Events aren't interpolated
-    
+
     // Interpolate entities
     for (const [id, entity2] of state2.entities) {
       const entity1 = state1.entities.get(id);
@@ -76,21 +76,21 @@ class InterpolationBuffer {
         result.entities.set(id, entity2.clone());
         continue;
       }
-      
+
       const interpolatedEntity = entity2.clone();
       const pos1 = entity1.getComponent('position') as any;
       const pos2 = entity2.getComponent('position') as any;
-      
+
       if (pos1 && pos2) {
         const interpolatedPos = interpolatedEntity.getComponent('position') as any;
         interpolatedPos.x = pos1.x + (pos2.x - pos1.x) * t;
         interpolatedPos.y = pos1.y + (pos2.y - pos1.y) * t;
         interpolatedPos.z = pos1.z + (pos2.z - pos1.z) * t;
       }
-      
+
       result.entities.set(id, interpolatedEntity);
     }
-    
+
     return result;
   }
 }
@@ -144,8 +144,8 @@ class SmoothCorrection {
   hasCorrection(): boolean {
     const epsilon = 0.01;
     return Math.abs(this.correctionX) > epsilon ||
-           Math.abs(this.correctionY) > epsilon ||
-           Math.abs(this.correctionZ) > epsilon;
+      Math.abs(this.correctionY) > epsilon ||
+      Math.abs(this.correctionZ) > epsilon;
   }
 
   /**
@@ -159,17 +159,31 @@ class SmoothCorrection {
 }
 
 /**
+ * Server info received on connection
+ */
+export interface ServerInfo {
+  serverId: string;
+  serverName: string;
+  map: string;
+  tickRate: number;
+  maxPlayers: number;
+  currentPlayers: number;
+}
+
+/**
  * Network game host - connects to remote server
  * Handles client prediction, snapshot interpolation, and smooth correction
  */
 export class NetworkGameHost implements IGameHost {
-  readonly localPlayerId: PlayerId;
+  localPlayerId: PlayerId;  // Updated from server JoinAccept
+  localEntityId: string = '';  // Entity ID for local player
   currentTick: number = 0;
 
   private transport: Transport;
   private simulation: Simulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: any) => void)[] = [];
+  private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
 
   private interpolationBuffer = new InterpolationBuffer();
   private smoothCorrection = new SmoothCorrection();
@@ -179,6 +193,8 @@ export class NetworkGameHost implements IGameHost {
 
   private localState: GameState;
   private _isConnected: boolean = false;
+  private _serverInfo: ServerInfo | null = null;
+  private _onJoinAccept: (() => void) | null = null;  // Called when JoinAccept received
 
   // Correction threshold - beyond this distance, we snap instead of smooth
   private readonly SNAP_THRESHOLD = 100;
@@ -196,14 +212,47 @@ export class NetworkGameHost implements IGameHost {
 
     this.setupTransportHandlers();
   }
-  
+
+  /**
+   * Get server info received on connection
+   */
+  getServerInfo(): ServerInfo | null {
+    return this._serverInfo;
+  }
+
+  /**
+   * Subscribe to server info updates (called when WELCOME received)
+   */
+  onServerInfo(callback: (info: ServerInfo) => void): () => void {
+    this.serverInfoCallbacks.push(callback);
+    return () => {
+      const index = this.serverInfoCallbacks.indexOf(callback);
+      if (index >= 0) this.serverInfoCallbacks.splice(index, 1);
+    };
+  }
+
   async connect(url?: string): Promise<void> {
+    // Create promise that resolves when JoinAccept is received
+    const joinAcceptPromise = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout waiting for JoinAccept'));
+      }, 10000);  // 10 second timeout
+
+      // Store the resolve function to be called when JoinAccept arrives
+      this._onJoinAccept = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+    });
+
     await this.transport.connect(url || 'ws://localhost:8080');
-    this._isConnected = true;
 
     // Send join message using binary protocol
     const joinData = MessageCodec.encodeJoin(this.localPlayerId);
     this.transport.send(joinData, true); // Reliable for join
+
+    // Wait for JoinAccept before returning
+    await joinAcceptPromise;
   }
 
   async disconnect(): Promise<void> {
@@ -212,7 +261,13 @@ export class NetworkGameHost implements IGameHost {
   }
 
   sendCommand(cmd: Command): void {
-    if (!this._isConnected) return;
+    if (!this._isConnected) {
+      // Log once every 100 calls to avoid spam
+      if (Math.random() < 0.01) {
+        console.log(`[NetworkGameHost] sendCommand skipped - not connected`);
+      }
+      return;
+    }
 
     // Add sequence number
     const sequencedCmd = {
@@ -224,11 +279,16 @@ export class NetworkGameHost implements IGameHost {
     const data = MessageCodec.encodeCommand(this.localPlayerId, sequencedCmd.seq, sequencedCmd);
     this.transport.send(data, false); // Unreliable for commands (sent frequently)
 
+    // Log periodically
+    if (this.commandSequence % 60 === 0) {
+      console.log(`[NetworkGameHost] Sent ${this.commandSequence} commands to server`);
+    }
+
     // Apply locally for prediction
     this.pendingCommands.push(cmd);
     this.predictLocally(cmd);
   }
-  
+
   onStateUpdate(callback: (state: GameState) => void): () => void {
     this.stateUpdateCallbacks.push(callback);
     return () => {
@@ -238,7 +298,7 @@ export class NetworkGameHost implements IGameHost {
       }
     };
   }
-  
+
   onEvent(callback: (event: any) => void): () => void {
     this.eventCallbacks.push(callback);
     return () => {
@@ -248,49 +308,49 @@ export class NetworkGameHost implements IGameHost {
       }
     };
   }
-  
+
   getInterpolatedEntity(entityId: string): any {
     const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
     return interpolatedState.entities.get(entityId);
   }
-  
+
   getLocalState(): GameState {
     return this.localState;
   }
-  
+
   isConnected(): boolean {
     return this._isConnected;
   }
-  
+
   /**
    * Update the network host (called from game loop)
    */
   update(): void {
     if (!this._isConnected) return;
-    
+
     // Process events from local state
     this.processEvents();
   }
-  
+
   private setupTransportHandlers(): void {
     this.transport.onMessage((data: Uint8Array) => {
       this.handleMessage(data);
     });
-    
+
     this.transport.onConnect(() => {
       console.log('[NetworkGameHost] Connected to server');
     });
-    
+
     this.transport.onDisconnect((reason) => {
       console.log('[NetworkGameHost] Disconnected:', reason);
       this._isConnected = false;
     });
-    
+
     this.transport.onError((error) => {
       console.error('[NetworkGameHost] Transport error:', error);
     });
   }
-  
+
   /**
    * Handle incoming message using binary protocol
    */
@@ -306,12 +366,43 @@ export class NetworkGameHost implements IGameHost {
         }
         case MessageType.JoinAccept: {
           const { playerId, entityId } = MessageCodec.decodeJoinAccept(data);
+
+          // Guard against duplicate JoinAccept messages
+          if (this._isConnected) {
+            console.log(`[NetworkGameHost] Ignoring duplicate JoinAccept: ${playerId} (already connected as ${this.localPlayerId})`);
+            break;
+          }
+
+          // Update local player ID from server assignment
+          this.localPlayerId = playerId;
+          this.localEntityId = entityId;
           console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
+          this._isConnected = true;
+
+          // Spawn local player in client-side prediction simulation
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const sim = this.simulation as any;
+          if (typeof sim.spawnPlayer === 'function') {
+            sim.spawnPlayer(playerId);
+            console.log(`[NetworkGameHost] Spawned local player in prediction simulation: ${playerId}`);
+          }
+
+          // Resolve connect() promise
+          if (this._onJoinAccept) {
+            this._onJoinAccept();
+            this._onJoinAccept = null;
+          }
           break;
         }
         case MessageType.Welcome: {
           const welcome = MessageCodec.decodeWelcome(data);
           console.log(`[NetworkGameHost] Welcome from ${welcome.serverName}, map: ${welcome.map}`);
+
+          // Store server info
+          this._serverInfo = welcome;
+
+          // Notify callbacks (for map loading, etc.)
+          this.serverInfoCallbacks.forEach(cb => cb(welcome));
           break;
         }
         default:

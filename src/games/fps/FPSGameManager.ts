@@ -3,11 +3,13 @@
  *
  * Bridges FPSPlayer/FPSController with the authoritative simulation.
  * In single-player, runs LocalGameHost with FPSSimulation.
- * In multiplayer, would use NetworkGameHost instead.
+ * In multiplayer, uses NetworkGameHost to connect to a dedicated server.
  */
 
 import type { IGameHost } from '../../engine/network/core/IGameHost';
 import { LocalGameHost } from '../../engine/network/client/hosts/LocalGameHost';
+import { NetworkGameHost } from '../../engine/network/client/hosts/NetworkGameHost';
+import { TransportFactory } from '../../engine/network/client/transport/Transport';
 import { FPSSimulation, FPSInputCommand } from './simulation/FPSSimulation';
 import { InputButtons } from '../../engine/network/components/InputComponent';
 import type { GameState } from '../../engine/network/core/GameState';
@@ -63,6 +65,8 @@ export class FPSGameManager {
   private localPlayerId: string = '';
   private commandSeq: number = 0;
   private isRunning: boolean = false;
+  private isNetworkMode: boolean = false;
+  private serverUrl: string | null = null;
 
   // Callbacks
   private onStateUpdateCallbacks: ((state: PlayerStateUpdate) => void)[] = [];
@@ -106,6 +110,8 @@ export class FPSGameManager {
     this.simulation = (this.gameHost as LocalGameHost).getSimulation<FPSSimulation>();
 
     this.localPlayerId = this.gameHost.localPlayerId;
+    this.isNetworkMode = false;
+    this.serverUrl = null;
 
     // Subscribe to state updates
     this.gameHost.onStateUpdate((state: GameState) => {
@@ -117,6 +123,127 @@ export class FPSGameManager {
     this.isRunning = true;
 
     console.log(`[FPSGameManager] Local game initialized, player: ${this.localPlayerId}`);
+  }
+
+  /**
+   * Initialize network game (multiplayer mode)
+   * Connects to a dedicated server
+   */
+  async initializeNetwork(url: string, config: FPSGameConfig = {}): Promise<void> {
+    // Guard against multiple initializations - shutdown first if already running
+    if (this.isRunning) {
+      console.log('[FPSGameManager] Shutting down existing game before connecting...');
+      this.shutdown();
+    }
+
+    const tickRate = config.tickRate ?? 60;
+    const maxPlayers = config.maxPlayers ?? 16;
+
+    console.log(`[FPSGameManager] Connecting to server: ${url}`);
+
+    // Create simulation config for client-side prediction
+    const simConfig = {
+      tickRate,
+      tickDuration: 1000 / tickRate,
+      maxPlayers,
+      gameRules: {},
+    };
+
+    try {
+      // Create transport (auto-selects WebTransport or WebSocket)
+      const transport = await TransportFactory.create(url);
+
+      // Create network game host with FPSSimulation for client-side prediction
+      // Cast needed due to FPSInputCommand vs Command generic variance
+      const networkHost = new NetworkGameHost(transport, simConfig, FPSSimulation as any);
+
+      // Guard against duplicate Welcome messages
+      let mapLoadStarted = false;
+
+      // Subscribe to server info to load the correct map
+      networkHost.onServerInfo(async (serverInfo) => {
+        // Prevent duplicate map loading (Welcome can be received multiple times)
+        if (mapLoadStarted) {
+          console.log(`[FPSGameManager] Ignoring duplicate Welcome message for map: ${serverInfo.map}`);
+          return;
+        }
+        mapLoadStarted = true;
+
+        console.log(`[FPSGameManager] Server map: ${serverInfo.map}`);
+
+        // Load the server's map via console command
+        try {
+          const { CommandRegistry } = await import('../../engine/console/CommandRegistry');
+          const registry = CommandRegistry.getInstance();
+          const result = await registry.execute(`map ${serverInfo.map}`);
+          console.log(`[FPSGameManager] Map load result: ${result}`);
+
+          // Check if map load failed
+          if (typeof result === 'string' && result.includes('Failed')) {
+            console.error(`[FPSGameManager] Map load failed, disconnecting...`);
+            this.shutdown();
+          }
+        } catch (error) {
+          console.error(`[FPSGameManager] Failed to load map ${serverInfo.map}:`, error);
+          console.log(`[FPSGameManager] Disconnecting due to map load error...`);
+          this.shutdown();
+        }
+      });
+
+      // Set up state BEFORE connect so the onServerInfo callback can use them
+      this.gameHost = networkHost;
+      this.isNetworkMode = true;
+      this.serverUrl = url;
+      this.isRunning = true;
+
+      // Connect to server (this triggers onServerInfo callback which loads map)
+      await networkHost.connect(url);
+
+      // Update player ID after connect (server assigns it during handshake)
+      this.localPlayerId = networkHost.localPlayerId;
+      this.simulation = null; // No direct simulation access in network mode
+
+      // Subscribe to state updates
+      this.gameHost.onStateUpdate((state: GameState) => {
+        this.onServerStateUpdate(state);
+      });
+
+      console.log(`[FPSGameManager] Connected to ${url}, player: ${this.localPlayerId}`);
+
+      // Enable network mode on FPSController (if it exists)
+      // This switches the controller from local to network movement
+      try {
+        const { CameraSystem } = await import('../../engine/camera/CameraSystem');
+        const cameraSystem = CameraSystem.getInstance();
+        const controller = cameraSystem.getActiveController();
+        console.log(`[FPSGameManager] Active controller:`, controller?.type, controller);
+        if (controller && controller.type === 'fps' && typeof (controller as any).enableNetworkMode === 'function') {
+          console.log(`[FPSGameManager] Calling enableNetworkMode on FPSController`);
+          (controller as any).enableNetworkMode();
+        } else {
+          console.warn(`[FPSGameManager] No FPSController found or missing enableNetworkMode method`);
+        }
+      } catch (e) {
+        console.warn(`[FPSGameManager] Could not enable network mode on controller:`, e);
+      }
+    } catch (error) {
+      console.error(`[FPSGameManager] Failed to connect to ${url}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if running in network mode
+   */
+  isConnectedToServer(): boolean {
+    return this.isNetworkMode && this.isRunning;
+  }
+
+  /**
+   * Get current server URL (if connected)
+   */
+  getServerUrl(): string | null {
+    return this.serverUrl;
   }
 
   /**
@@ -229,11 +356,20 @@ export class FPSGameManager {
    * Uses interpolation for smooth rendering between ticks
    */
   getLocalPlayerPosition(): { x: number; y: number; z: number } | null {
-    if (!this.gameHost) return null;
+    if (!this.gameHost) {
+      // console.log(`[FPSGameManager] getLocalPlayerPosition: no gameHost`);
+      return null;
+    }
 
     const state = this.gameHost.getLocalState();
     const player = state.players.get(this.localPlayerId);
-    if (!player) return null;
+    if (!player) {
+      // Only log periodically to avoid spam
+      if (Math.random() < 0.01) {
+        console.log(`[FPSGameManager] getLocalPlayerPosition: no player for ${this.localPlayerId}, players:`, Array.from(state.players.keys()));
+      }
+      return null;
+    }
 
     // Use interpolated position for smooth rendering
     const localHost = this.gameHost as LocalGameHost;
@@ -244,10 +380,20 @@ export class FPSGameManager {
 
     // Fallback to discrete position
     const entity = state.entities.get(player.entityId);
-    if (!entity) return null;
+    if (!entity) {
+      if (Math.random() < 0.01) {
+        console.log(`[FPSGameManager] getLocalPlayerPosition: no entity for ${player.entityId}`);
+      }
+      return null;
+    }
 
     const transform = entity.getComponent<TransformComponent>('transform');
-    if (!transform) return null;
+    if (!transform) {
+      if (Math.random() < 0.01) {
+        console.log(`[FPSGameManager] getLocalPlayerPosition: no transform component`);
+      }
+      return null;
+    }
 
     return { ...transform.position };
   }
@@ -278,11 +424,17 @@ export class FPSGameManager {
    */
   shutdown(): void {
     if (this.gameHost) {
+      // Disconnect if in network mode
+      if (this.isNetworkMode && 'disconnect' in this.gameHost) {
+        (this.gameHost as any).disconnect();
+      }
       this.gameHost.stop?.();
       this.gameHost = null;
     }
     this.simulation = null;
     this.isRunning = false;
+    this.isNetworkMode = false;
+    this.serverUrl = null;
     this.commandSeq = 0;
     this.onStateUpdateCallbacks = [];
 

@@ -128,16 +128,35 @@ export class NullCollisionWorld implements CollisionWorld {
     return { hit: false, fraction: 1 };
   }
 
-  stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
-    // No collision - just apply velocity directly
+  stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult {
+    // Simple floor collision at Y=0 for testing
+    // Calculate new position
+    let newX = start.x + velocity.x * deltaTime;
+    let newY = start.y + velocity.y * deltaTime;
+    let newZ = start.z + velocity.z * deltaTime;
+
+    // Apply velocity
+    let newVelX = velocity.x;
+    let newVelY = velocity.y;
+    let newVelZ = velocity.z;
+
+    // Floor height (adjust for player bounds - AABB min.y is negative)
+    const floorHeight = -bounds.min.y;
+
+    // Check floor collision
+    let grounded = false;
+    if (newY <= floorHeight) {
+      newY = floorHeight;
+      if (newVelY < 0) {
+        newVelY = 0; // Stop downward velocity
+      }
+      grounded = true;
+    }
+
     return {
-      endPos: {
-        x: start.x + velocity.x * deltaTime,
-        y: start.y + velocity.y * deltaTime,
-        z: start.z + velocity.z * deltaTime
-      },
-      velocity: { ...velocity },
-      grounded: start.y <= 0.1
+      endPos: { x: newX, y: newY, z: newZ },
+      velocity: { x: newVelX, y: newVelY, z: newVelZ },
+      grounded
     };
   }
 

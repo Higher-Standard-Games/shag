@@ -11,6 +11,21 @@ export class WebSocketTransport implements Transport {
   private errorCallbacks: ((error: Error) => void)[] = [];
 
   async connect(url: string): Promise<void> {
+    // Already connected - return immediately (idempotent)
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('[WebSocketTransport] Already connected, skipping reconnect');
+      return;
+    }
+
+    // Connection in progress
+    if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+      console.log('[WebSocketTransport] Connection in progress, waiting...');
+      return new Promise((resolve, reject) => {
+        this.ws!.onopen = () => resolve();
+        this.ws!.onerror = () => reject(new Error('Connection failed'));
+      });
+    }
+
     // Convert http/ws to websocket URL
     const wsUrl = url.replace(/^http/, 'ws');
 
@@ -56,6 +71,11 @@ export class WebSocketTransport implements Transport {
   send(data: Uint8Array, _reliable: boolean = true): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(data);
+    } else {
+      // Log once in a while to avoid spam
+      if (Math.random() < 0.01) {
+        console.warn(`[WebSocketTransport] send failed - ws: ${this.ws ? 'exists' : 'null'}, readyState: ${this.ws?.readyState}`);
+      }
     }
   }
 

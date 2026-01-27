@@ -1,0 +1,137 @@
+/**
+ * HeadlessBSPCollisionWorld - Server-side BSP collision for headless mode
+ * 
+ * Uses SweepCollisionBackend (same as local client) for consistent collision.
+ */
+
+import type { Vec3 } from '../engine/network/components/TransformComponent';
+import type { CollisionWorld, TraceResult, AABB, StepSlideMoveResult } from '../engine/network/systems/collision/CollisionWorld';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { SweepCollisionBackend } from '../engine/physics/SweepCollisionBackend';
+import type { BspFile } from '../engine/loader/bsp/BspLoader';
+
+
+/**
+ * Convert network Vec3 to Babylon Vector3
+ */
+function toBabylon(v: Vec3): Vector3 {
+    return new Vector3(v.x, v.y, v.z);
+}
+
+/**
+ * Convert Babylon Vector3 to network Vec3
+ */
+function fromBabylon(v: Vector3): Vec3 {
+    return { x: v.x, y: v.y, z: v.z };
+}
+
+/**
+ * Headless BSP-based collision world for server-side physics
+ * 
+ * Uses SweepCollisionBackend for collision - same backend as local client.
+ */
+export class HeadlessBSPCollisionWorld implements CollisionWorld {
+    private backend: SweepCollisionBackend;
+
+    private static readonly PLAYER_RADIUS = 16;
+    private static readonly PLAYER_HEIGHT = 56;
+
+    constructor(bsp: BspFile) {
+        this.backend = new SweepCollisionBackend();
+        // Initialize backend with BSP
+        this.backend.init(bsp).then(() => {
+            console.log('[HeadlessBSPCollisionWorld] Initialized with SweepCollisionBackend');
+
+            // Debug: Test a trace
+            const testStart = new Vector3(880, 200, 1508);
+            const testEnd = new Vector3(880, 0, 1508);
+            const testResult = this.backend.trace(testStart, testEnd, {
+                radius: HeadlessBSPCollisionWorld.PLAYER_RADIUS,
+                height: HeadlessBSPCollisionWorld.PLAYER_HEIGHT
+            });
+            console.log(`[HeadlessBSPCollisionWorld] Test trace: fraction=${testResult.fraction.toFixed(4)}, hit=${testResult.fraction < 1}`);
+        });
+    }
+
+    /**
+     * Trace a ray from start to end
+     */
+    trace(start: Vec3, end: Vec3, bounds?: AABB): TraceResult {
+        const startV = toBabylon(start);
+        const endV = toBabylon(end);
+
+        const options = bounds
+            ? {
+                radius: (bounds.max.x - bounds.min.x) / 2,
+                height: bounds.max.y - bounds.min.y,
+            }
+            : { radius: 0, height: 0 };
+
+        const result = this.backend.trace(startV, endV, options);
+
+        return {
+            hit: result.fraction < 1,
+            fraction: result.fraction,
+            hitPoint: result.endPos ? fromBabylon(result.endPos) : undefined,
+            normal: result.normal ? fromBabylon(result.normal) : undefined,
+            contents: result.contents ?? 0,
+        };
+    }
+
+    /**
+     * Q3-style step-slide move with full collision resolution.
+     */
+    stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
+        const startPos = toBabylon(start);
+        const movement = toBabylon(velocity).scale(deltaTime);
+
+        const traceOpts = {
+            radius: HeadlessBSPCollisionWorld.PLAYER_RADIUS,
+            height: HeadlessBSPCollisionWorld.PLAYER_HEIGHT
+        };
+
+        // Use backend's stepSlideMove (same as local)
+        const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
+
+        // Check if grounded after move
+        const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+        const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+        const grounded = groundTrace.fraction < 1.0;
+
+        // Debug: Log a sample of stepSlideMove calls
+        if (Math.random() < 0.02) {
+            console.log(`[HeadlessBSPCollisionWorld] stepSlideMove: start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) vel=(${velocity.x.toFixed(1)},${velocity.y.toFixed(1)},${velocity.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded}`);
+        }
+
+        return {
+            endPos: fromBabylon(result.endPos),
+            velocity: { ...velocity },
+            grounded
+        };
+    }
+
+    /**
+     * Check contents at a point
+     */
+    pointContents(point: Vec3): number {
+        const pointV = toBabylon(point);
+        return this.backend.pointContents(pointV);
+    }
+
+    /**
+     * Find entities in radius (not implemented yet)
+     */
+    findEntitiesInRadius(_center: Vec3, _radius: number): string[] {
+        return [];
+    }
+
+    /**
+     * Get world bounds
+     */
+    getWorldBounds(): AABB {
+        return {
+            min: { x: -8192, y: -8192, z: -8192 },
+            max: { x: 8192, y: 8192, z: 8192 },
+        };
+    }
+}
