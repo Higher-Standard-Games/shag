@@ -367,41 +367,15 @@ src/
 
 ---
 
-## Questions to Resolve
+## Resolved Decisions
 
-### 1. Transport Protocol
-- **WebSocket**: Easy, works everywhere, higher latency
-- **UDP (WebRTC DataChannel)**: Low latency, more complex
-- **Hybrid**: WebSocket for reliable, UDP for state
-
-**Recommendation:** Start with WebSocket, add UDP later
-
-### 2. Prediction vs Authority
-- Client prediction for responsive feel
-- Server is authoritative for anti-cheat
-- Reconciliation when prediction mismatches
-
-**Already have:** LocalGameHost does this - need RemoteGameHost
-
-### 3. Map Distribution
-- Server has map, client needs it
-- Options:
-  - Require client to have map (Quake-style)
-  - Download from server (slow)  
-  - CDN for map downloads
-
-**Recommendation:** Require client to have map, error if missing
-
-### 4. Headless BSP Loading
-- Server needs collision but not rendering
-- Need to load BSP without Babylon.js
-- Already have: `BSPCollisionWorld` uses `CollisionManager`
-
-### 5. Process Model
-- Single process with multiple servers? (complex)
-- Separate process per server? (simpler, Quake-style)
-
-**Recommendation:** One process per server, simple and reliable
+| Question | Decision |
+|----------|----------|
+| **Transport** | WebTransport already implemented for network movement |
+| **Scripted Gametypes** | YES - unified Gamelib API for shared weapons/entities, gametype-specific extensions |
+| **Server Browser** | Later - see "Future: Matchmaking" below |
+| **Authentication** | Anonymous initially, prepare architecture for future accounts |
+| **Process Model** | One process per server (Quake-style) |
 
 ---
 
@@ -411,26 +385,26 @@ src/
 - [ ] `GameServer` class with tick loop
 - [ ] `ServerConfig` JSON loading
 - [ ] CLI entry point (`npx shag-server`)
-- [ ] WebSocket transport
+- [ ] WebTransport server (already have client)
 - [ ] Single client can connect and move
 
 ### Phase 2: Gametype API
-- [ ] `Gametype` interface
+- [ ] `Gametype` interface + `BaseGametype`
+- [ ] `Gamelib` shared API (weapons, items, entities)
 - [ ] `DeathmatchGametype` with scoring
-- [ ] Warmup state
-- [ ] Kill messages
-- [ ] Scoreboard data
+- [ ] Warmup → Countdown → Playing → Intermission
+- [ ] Kill messages, scoreboard
 
 ### Phase 3: Client Integration
 - [ ] `connect` console command
 - [ ] `RemoteGameHost` (connects to real server)
-- [ ] Server list/browser UI (optional)
+- [ ] Map validation (require client has map)
 
-### Phase 4: Polish
-- [ ] Multiple gametypes (TDM, CTF)
-- [ ] RCON for remote admin
-- [ ] Map change voting
-- [ ] Player teams
+### Phase 4: More Gametypes
+- [ ] Team Deathmatch
+- [ ] CTF with flag entities
+- [ ] Instagib (modified loadout)
+- [ ] Bomb/Defuse (custom entities)
 
 ---
 
@@ -464,14 +438,77 @@ npx shag-server --map wdm2 --gametype dm --fraglimit 10
 
 ---
 
-## Open Questions for User
+## Future: Matchmaking Service
 
-1. **Scripted gametypes?** Should gametypes be TypeScript classes (compiled) or scripts (runtime loadable like Warsow's AngelScript)?
+> **Note:** This is for later implementation, documenting ideas now.
 
-2. **Server browser?** Do we want a master server that lists all running servers?
+Instead of persistent servers, modern approach is "launch on demand":
 
-3. **Authentication?** Anonymous play or require accounts?
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    MATCHMAKING SERVICE                           │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Player queues for match                                      │
+│  2. Matchmaker finds opponent(s) based on:                       │
+│     - Skill rating (ELO/Glicko)                                 │
+│     - Region (latency)                                           │
+│     - Gametype preference                                        │
+│  3. Match found → spawn dedicated server                         │
+│  4. Send connect info to both clients                           │
+│  5. Match plays out                                              │
+│  6. Report results to matchmaking service                        │
+│  7. Server terminates                                            │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-4. **Anti-cheat?** Server-authoritative is first step, but any additional measures?
+### Components (Future)
+- **Queue Service**: Tracks players looking for match
+- **Matchmaker**: Algorithm to pair players fairly
+- **Server Spawner**: Launches server process on demand
+- **Stats Service**: Tracks player skill/history
+- **Region Discovery**: Ping servers to find best region
 
-5. **Voice chat?** WebRTC voice between players?
+### Server Pool Options
+- Cloud VMs (AWS/GCP) - scale up/down
+- Pre-warmed container pool (faster start)
+- Player-hosted (community servers)
+
+This is the model used by modern games (Fortnite, Valorant, etc.)
+
+---
+
+## Future: Authentication
+
+> **Note:** Anonymous for now, preparing architecture for future.
+
+### Phase 1 (Current): Anonymous
+- Client sends player name on connect
+- Server assigns session ID
+- No persistence between sessions
+
+### Phase 2 (Future): Accounts
+```typescript
+interface AuthProvider {
+  // Validate token, return player identity
+  authenticate(token: string): Promise<PlayerIdentity | null>;
+}
+
+// Implementations
+class AnonymousAuth implements AuthProvider { ... }
+class JWTAuth implements AuthProvider { ... }
+class SteamAuth implements AuthProvider { ... }  // If on Steam
+```
+
+### Prepare Now
+- Server accepts `auth` field in connect message
+- Can be empty (anonymous) or token (authenticated)
+- `AuthProvider` interface ready for future implementations
+
+---
+
+## Related Documents
+
+- [GAMETYPE_API_DESIGN.md](GAMETYPE_API_DESIGN.md) - Detailed gametype interface
+- [SCRIPTED_GAMETYPE_SYSTEM.md](SCRIPTED_GAMETYPE_SYSTEM.md) - Gamelib API, shared weapons/items
+- [CLIENT_SERVER_IMPLEMENTATION_PLAN.md](CLIENT_SERVER_IMPLEMENTATION_PLAN.md) - Network movement work
+
