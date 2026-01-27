@@ -159,6 +159,7 @@ export class FPSMovementProfile implements MovementProfile {
   private wallJumpPreVelocity: Vec3 = vec3Zero();  // Velocity before charging
   private lastWallJumpTime: number = 0;
   private wallJumpKeyReleased: boolean = true;
+  private wallJumpGraceTime: number = 0;  // Grace timer to prevent flicker
 
   // Ledge grab state
   private ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
@@ -166,6 +167,10 @@ export class FPSMovementProfile implements MovementProfile {
   private ledgeTargetPos: Vec3 = vec3Zero();
   private ledgeStartPos: Vec3 = vec3Zero();
   private ledgeWallNormal: Vec3 = vec3Zero();  // Wall direction for cancel detection
+  private ledgeGrabGraceTime: number = 0;  // Grace timer to prevent flicker
+
+  // Detection hysteresis constants
+  private static readonly DETECTION_GRACE = 0.1;  // 100ms grace period
 
   // Speed tracking
   private lastPosX: number = 0;
@@ -798,6 +803,7 @@ export class FPSMovementProfile implements MovementProfile {
     if (foundWall) {
       this.wallJumpNormal = wallNormal;
       this.wallJumpState = 'available';
+      this.wallJumpGraceTime = FPSMovementProfile.DETECTION_GRACE; // Reset grace timer
 
       // Execute wall jump on fresh press
       if (isJumping && this.wallJumpKeyReleased) {
@@ -813,7 +819,12 @@ export class FPSMovementProfile implements MovementProfile {
         }
       }
     } else {
-      this.wallJumpState = 'none';
+      // No wall found - use grace timer to prevent flicker
+      this.wallJumpGraceTime -= deltaTime;
+      if (this.wallJumpGraceTime <= 0) {
+        this.wallJumpState = 'none';
+      }
+      // Keep 'available' state during grace period to prevent shaking
     }
   }
 
