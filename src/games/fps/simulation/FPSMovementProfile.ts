@@ -735,40 +735,68 @@ export class FPSMovementProfile implements MovementProfile {
       return;
     }
 
-    // Check for wall in front
+    // Check for wall in multiple directions (like local implementation)
     const reach = this.config.wallJumpReach;
-    const forward = vec3Normalize(input.direction);
 
-    // Trace in look direction
-    const wallCheck = collision.trace(
-      pos,
-      vec3Add(pos, vec3Scale(forward, reach))
-    );
-
-    if (wallCheck.hit && wallCheck.normal) {
-      // Found a wall - check if wall extends to eye level
-      // This prevents wall jumping off low obstacles like stairs/railings
-      const eyeHeight = 32; // Eye level in Q3 coordinates
-      const eyeCheckStart = { x: pos.x, y: pos.y + eyeHeight - 10, z: pos.z };
-      const eyeCheckEnd = vec3Add(eyeCheckStart, vec3Scale(forward, reach));
-      const eyeTrace = collision.trace(eyeCheckStart, eyeCheckEnd);
-
-      if (!eyeTrace.hit) {
-        // No wall at eye level - low obstacle, don't wall jump
-        this.wallJumpState = 'none';
-        return;
+    // Get forward direction from input (should be camera-aligned)
+    // If no input, use velocity direction
+    let forward: Vec3;
+    const inputLen = vec3LengthXZ(input.direction);
+    if (inputLen > 0.1) {
+      forward = { x: input.direction.x / inputLen, y: 0, z: input.direction.z / inputLen };
+    } else {
+      const velLen = vec3LengthXZ(vel);
+      if (velLen > 1) {
+        forward = { x: vel.x / velLen, y: 0, z: vel.z / velLen };
+      } else {
+        // Use yaw to compute forward
+        const yaw = input.viewAngles.yaw;
+        forward = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
       }
+    }
 
-      // Verify we're moving toward the wall (not away)
-      const velDot = vel.x * wallCheck.normal.x + vel.z * wallCheck.normal.z;
-      if (velDot > -10) {
-        // Moving away or parallel - don't allow wall jump
-        this.wallJumpState = 'available'; // Show available but don't trigger
-        return;
+    // Check multiple directions for walls (forward, forward-right, forward-left, right, left)
+    const directions = [
+      forward,
+      { x: forward.x * 0.707 - forward.z * 0.707, y: 0, z: forward.x * 0.707 + forward.z * 0.707 }, // Forward-Right
+      { x: forward.x * 0.707 + forward.z * 0.707, y: 0, z: -forward.x * 0.707 + forward.z * 0.707 }, // Forward-Left
+      { x: -forward.z, y: 0, z: forward.x }, // Right
+      { x: forward.z, y: 0, z: -forward.x }, // Left
+    ];
+
+    let foundWall = false;
+    let wallNormal: Vec3 = vec3Zero();
+
+    for (const dir of directions) {
+      const wallCheck = collision.trace(pos, vec3Add(pos, vec3Scale(dir, reach)));
+
+      if (wallCheck.hit && wallCheck.normal) {
+        // Found a wall - check if wall extends to eye level
+        const eyeHeight = 32;
+        const eyeCheckStart = { x: pos.x, y: pos.y + eyeHeight - 10, z: pos.z };
+        const eyeCheckEnd = vec3Add(eyeCheckStart, vec3Scale(dir, reach));
+        const eyeTrace = collision.trace(eyeCheckStart, eyeCheckEnd);
+
+        if (!eyeTrace.hit) {
+          // No wall at eye level - low obstacle, skip
+          continue;
+        }
+
+        // Verify we're moving toward the wall (not away)
+        const velDot = vel.x * wallCheck.normal.x + vel.z * wallCheck.normal.z;
+        if (velDot > -10) {
+          // Moving away or parallel - skip this direction
+          continue;
+        }
+
+        foundWall = true;
+        wallNormal = wallCheck.normal;
+        break;
       }
+    }
 
-      // Wall is valid
-      this.wallJumpNormal = wallCheck.normal;
+    if (foundWall) {
+      this.wallJumpNormal = wallNormal;
       this.wallJumpState = 'available';
 
       // Execute wall jump on fresh press
@@ -778,10 +806,10 @@ export class FPSMovementProfile implements MovementProfile {
         // Check if we use charging or instant bounce
         if (this.config.wallJumpChargeTime > 0) {
           // Start charging (grab the wall)
-          this.startWallJumpCharge(pos, vel, wallCheck.normal);
+          this.startWallJumpCharge(pos, vel, wallNormal);
         } else {
           // Instant bounce (no grab)
-          this.executeWallJump(vel, wallCheck.normal, now);
+          this.executeWallJump(vel, wallNormal, now);
         }
       }
     } else {
@@ -849,17 +877,32 @@ export class FPSMovementProfile implements MovementProfile {
 
   /**
    * Execute wall jump boost after charging
+   * Uses reflection formula to preserve momentum direction: R = V - 2(V.N)N
    */
   private executeWallJumpBoost(now: number): void {
-    // Use pre-charge velocity as base for bounce calculation
     const baseVel = this.wallJumpPreVelocity;
-    const horizSpeed = vec3LengthXZ(baseVel);
-    const pushSpeed = Math.max(horizSpeed, 200) * this.config.wallJumpBounce * this.config.wallJumpBoost;
+    const normal = this.wallJumpNormal;
+    const bounce = this.config.wallJumpBounce;
+    const boost = this.config.wallJumpBoost;
 
-    // Push away from wall
-    baseVel.x = this.wallJumpNormal.x * pushSpeed;
-    baseVel.z = this.wallJumpNormal.z * pushSpeed;
-    baseVel.y = this.config.wallJumpHeight;
+    // Calculate reflection: R = V - 2(V.N)N
+    const dot = baseVel.x * normal.x + baseVel.z * normal.z;
+    const reflectedX = baseVel.x - 2 * dot * normal.x;
+    const reflectedZ = baseVel.z - 2 * dot * normal.z;
+
+    // Apply bounce factor to reflected velocity
+    baseVel.x = reflectedX * bounce;
+    baseVel.z = reflectedZ * bounce;
+
+    // If we're moving too slowly after reflection, add outward push
+    const speed = vec3LengthXZ(baseVel);
+    if (speed < 100) {
+      baseVel.x += normal.x * 200 * boost;
+      baseVel.z += normal.z * 200 * boost;
+    }
+
+    // Apply vertical jump with boost multiplier
+    baseVel.y = this.config.wallJumpHeight * boost;
 
     this.lastWallJumpTime = now;
     this.wallJumpState = 'none';
@@ -877,13 +920,29 @@ export class FPSMovementProfile implements MovementProfile {
     this.wallJumpPreVelocity = vec3Clone(vel);
   }
 
+  /**
+   * Instant wall jump (no charging)
+   * Uses reflection formula to preserve momentum direction: R = V - 2(V.N)N
+   */
   private executeWallJump(vel: Vec3, normal: Vec3, now: number): void {
-    // Instant push (no charge) - used when chargeTime is 0
-    const horizSpeed = vec3LengthXZ(vel);
-    const pushSpeed = Math.max(horizSpeed, 200) * this.config.wallJumpBounce;
+    const bounce = this.config.wallJumpBounce;
 
-    vel.x = normal.x * pushSpeed;
-    vel.z = normal.z * pushSpeed;
+    // Calculate reflection: R = V - 2(V.N)N
+    const dot = vel.x * normal.x + vel.z * normal.z;
+    const reflectedX = vel.x - 2 * dot * normal.x;
+    const reflectedZ = vel.z - 2 * dot * normal.z;
+
+    // Apply bounce factor to reflected velocity
+    vel.x = reflectedX * bounce;
+    vel.z = reflectedZ * bounce;
+
+    // Ensure minimum outward speed
+    const speed = vec3LengthXZ(vel);
+    if (speed < 100) {
+      vel.x += normal.x * 200;
+      vel.z += normal.z * 200;
+    }
+
     vel.y = this.config.wallJumpHeight;
 
     this.lastWallJumpTime = now;
@@ -1048,36 +1107,39 @@ export class FPSMovementProfile implements MovementProfile {
     // Block during fast upward motion (initial jump burst)
     if (vel.y > 200) return false;
 
-    // Must be pressing forward or have forward velocity
-    const forwardDir = vec3Normalize(input.direction);
-    const hasInput = vec3LengthXZ(forwardDir) > 0.1;
-    const velForwardDot = vel.x * forwardDir.x + vel.z * forwardDir.z;
-    const hasForwardIntent = hasInput || velForwardDot > 50;
-
-    if (!hasForwardIntent) return false;
-
     // Configuration
     const reach = this.config.ledgeReach;
     const climbHeight = this.config.ledgeHeight;
 
-    // Player origin is at waist level in Q3 coordinates
-    // Eye is at +24, waist is at 0, feet are at -24
-    const waistY = pos.y;
+    // Forward direction from view angles (camera yaw)
+    const yaw = input.viewAngles.yaw;
+    const forwardDir = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
+
+    // Must be pressing forward OR moving forward with velocity
+    const isPressingForward = input.isPressed(InputButtons.FORWARD);
+    const velForwardDot = vel.x * forwardDir.x + vel.z * forwardDir.z;
+    const hasForwardIntent = isPressingForward || velForwardDot > 50;
+
+    if (!hasForwardIntent) return false;
+
+    // Eye position (physics origin + 24)
     const eyeY = pos.y + 24;
 
     // === TRACE 1: Check for wall at waist level ===
-    const waistStart = { x: pos.x, y: waistY, z: pos.z };
+    // Waist is ~16 below eye level
+    const waistStart = { x: pos.x, y: eyeY - 16, z: pos.z };
     const waistEnd = vec3Add(waistStart, vec3Scale(forwardDir, reach));
     const waistTrace = collision.trace(waistStart, waistEnd);
 
-    if (!waistTrace.hit) {
-      // No wall at waist level - no ledge to grab
+    if (!waistTrace.hit || waistTrace.fraction >= 1.0) {
       return false;
     }
 
     // Store wall normal for cancel detection
     if (waistTrace.normal) {
       this.ledgeWallNormal = vec3Clone(waistTrace.normal);
+    } else {
+      this.ledgeWallNormal = { x: -forwardDir.x, y: 0, z: -forwardDir.z };
     }
 
     // === TRACE 2: Check if space is clear above eye level ===
@@ -1091,47 +1153,49 @@ export class FPSMovementProfile implements MovementProfile {
     }
 
     // === TRACE 3: Find ledge surface by tracing down from above ===
-    // Start trace above where we expect the ledge to be
-    const aboveLedgeStart = vec3Add(pos, vec3Scale(forwardDir, reach * 0.7));
+    const aboveLedgeStart = vec3Add({ x: pos.x, y: eyeY, z: pos.z }, vec3Scale(forwardDir, reach * 0.7));
     aboveLedgeStart.y += climbHeight;
 
     const aboveLedgeEnd = { x: aboveLedgeStart.x, y: aboveLedgeStart.y - climbHeight - 48, z: aboveLedgeStart.z };
     const ledgeTrace = collision.trace(aboveLedgeStart, aboveLedgeEnd);
 
-    if (!ledgeTrace.hit) {
-      // No ledge surface found
+    if (!ledgeTrace.hit || ledgeTrace.fraction >= 1.0) {
       return false;
     }
 
     // Check if it's a valid floor (normal pointing up)
     if (!ledgeTrace.normal || ledgeTrace.normal.y < 0.7) {
-      // Not a floor surface
       return false;
     }
 
-    // Calculate ledge height
-    const ledgeY = aboveLedgeStart.y - (aboveLedgeStart.y - aboveLedgeEnd.y) * ledgeTrace.fraction;
+    // Calculate ledge surface Y position
+    const ledgeSurfaceY = aboveLedgeStart.y - (aboveLedgeStart.y - aboveLedgeEnd.y) * ledgeTrace.fraction;
 
-    // Ledge must be above current eye level but within reach
-    const minLedgeHeight = eyeY - 8;  // Slightly below eye
-    const maxLedgeHeight = eyeY + climbHeight;
+    // Check eye-to-ledge distance (matching local implementation)
+    const eyeToLedge = ledgeSurfaceY - eyeY;
 
-    if (ledgeY < minLedgeHeight || ledgeY > maxLedgeHeight) {
-      // Ledge is too low or too high
+    // If eye is already above ledge, skip (we're past it)
+    if (eyeToLedge < -16) {
+      return false;
+    }
+
+    // If eye is too far below ledge, skip (can't reach)
+    if (eyeToLedge > climbHeight) {
       return false;
     }
 
     // === TRACE 4: Verify room to stand on ledge ===
-    // Check there's space for the player at the target position
-    const targetPos = vec3Add(pos, vec3Scale(forwardDir, reach * 0.5));
-    targetPos.y = ledgeY + 24 + 1;  // Origin height on ledge + small buffer
+    const targetPos = {
+      x: aboveLedgeStart.x,
+      y: ledgeSurfaceY + 24 + 4, // Stand on ledge (origin height + small buffer)
+      z: aboveLedgeStart.z
+    };
 
-    const standStart = { x: targetPos.x, y: targetPos.y + 32, z: targetPos.z };
-    const standEnd = { x: targetPos.x, y: targetPos.y - 24, z: targetPos.z };
+    const standStart = { x: targetPos.x, y: targetPos.y, z: targetPos.z };
+    const standEnd = { x: targetPos.x, y: targetPos.y + 32, z: targetPos.z };
     const standTrace = collision.trace(standStart, standEnd);
 
     if (standTrace.hit && standTrace.fraction < 0.8) {
-      // Not enough room to stand
       return false;
     }
 
