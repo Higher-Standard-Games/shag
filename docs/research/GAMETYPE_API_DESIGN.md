@@ -215,12 +215,36 @@ abstract class BaseGametype implements Gametype {
   protected context!: GametypeContext;
   protected matchState: MatchState = 'warmup';
   protected matchStartTime: number = 0;
-  protected warmupDuration: number = 30; // seconds
   
-  // Configuration (can be overridden by server config)
-  protected fraglimit: number = 30;
-  protected timelimit: number = 10; // minutes
-  protected respawnTime: number = 3; // seconds
+  // === MATCH CONFIGURATION (gametype-controlled) ===
+  // Server config can override these defaults
+  
+  protected timelimit: number = 10;       // Match duration in MINUTES (0 = no limit)
+  protected scorelimit: number = 30;      // Generic score limit (frags, captures, etc.)
+  protected warmupDuration: number = 30;  // Warmup time in seconds
+  protected intermissionTime: number = 10; // Scoreboard display time in seconds
+  
+  // === RESPAWN CONFIGURATION ===
+  protected playerRespawnTime: number = 3;    // Seconds before player respawns
+  protected itemRespawnTimes: ItemRespawnConfig = {
+    health_small: 15,
+    health_medium: 25,
+    health_large: 25,
+    health_mega: 35,
+    armor_shard: 15,
+    armor_combat: 25,
+    armor_body: 25,
+    armor_red: 30,
+    ammo: 15,
+    weapon: 5,
+    powerup: 120,  // Quad, haste, etc.
+  };
+  
+  // Override for specific item respawn time
+  getItemRespawnTime(item: Item): number {
+    // Gametype can override per-item
+    return this.itemRespawnTimes[item.type] ?? 15;
+  }
   
   init(context: GametypeContext): void {
     this.context = context;
