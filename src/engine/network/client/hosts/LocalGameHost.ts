@@ -3,6 +3,9 @@ import type { GameState } from '../../core/GameState';
 import type { Command } from '../../core/Command';
 import type { Simulation, SimulationConfig } from '../../core/Simulation';
 import type { PlayerId } from '../../core/Entity';
+import { Entity } from '../../core/Entity';
+import type { TransformComponent, Vec3 } from '../../components/TransformComponent';
+import type { VelocityComponent } from '../../components/VelocityComponent';
 
 /**
  * Local game host - runs simulation in-process
@@ -22,6 +25,10 @@ export class LocalGameHost implements IGameHost {
   private lastTickTime: number = 0;
   private timeAccumulator: number = 0;
   private pendingCommands: Command[] = [];
+
+  // Interpolation support
+  private previousPositions: Map<string, Vec3> = new Map();  // entityId -> previous pos
+  private previousVelocities: Map<string, Vec3> = new Map(); // entityId -> previous vel
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
@@ -76,10 +83,58 @@ export class LocalGameHost implements IGameHost {
   }
 
   /**
-   * Get interpolated entity - same as current for local host
+   * Get interpolated entity position and velocity
+   * Uses stored previous state and interpolation factor for smooth rendering
    */
-  getInterpolatedEntity(entityId: string): any {
+  getInterpolatedEntity(entityId: string): Entity | undefined {
     return this.simulation.state.entities.get(entityId);
+  }
+
+  /**
+   * Get interpolated position for an entity
+   * Returns current position interpolated from previous based on accumulated time
+   */
+  getInterpolatedPosition(entityId: string): Vec3 | null {
+    const entity = this.simulation.state.entities.get(entityId) as Entity | undefined;
+    if (!entity) return null;
+
+    const transform = entity.getComponent<TransformComponent>('transform');
+    if (!transform) return null;
+
+    const prevPos = this.previousPositions.get(entityId);
+    if (!prevPos) {
+      return { ...transform.position };
+    }
+
+    const t = this.getInterpolationFactor();
+    return {
+      x: prevPos.x + (transform.position.x - prevPos.x) * t,
+      y: prevPos.y + (transform.position.y - prevPos.y) * t,
+      z: prevPos.z + (transform.position.z - prevPos.z) * t,
+    };
+  }
+
+  /**
+   * Get interpolated velocity for an entity
+   */
+  getInterpolatedVelocity(entityId: string): Vec3 | null {
+    const entity = this.simulation.state.entities.get(entityId) as Entity | undefined;
+    if (!entity) return null;
+
+    const velocity = entity.getComponent<VelocityComponent>('velocity');
+    if (!velocity) return null;
+
+    const prevVel = this.previousVelocities.get(entityId);
+    if (!prevVel) {
+      return { ...velocity.linear };
+    }
+
+    const t = this.getInterpolationFactor();
+    return {
+      x: prevVel.x + (velocity.linear.x - prevVel.x) * t,
+      y: prevVel.y + (velocity.linear.y - prevVel.y) * t,
+      z: prevVel.z + (velocity.linear.z - prevVel.z) * t,
+    };
   }
 
   /**
@@ -137,6 +192,9 @@ export class LocalGameHost implements IGameHost {
 
     // Run ticks while we have enough accumulated time
     while (this.timeAccumulator >= this.tickDuration) {
+      // Store previous positions before tick for interpolation
+      this.storePreviousState();
+
       // Execute tick with all pending commands
       this.simulation.tick(this.pendingCommands);
       this.pendingCommands = []; // Clear commands after processing
@@ -149,6 +207,31 @@ export class LocalGameHost implements IGameHost {
       // Process events
       this.processEvents();
     }
+  }
+
+  /**
+   * Store entity positions before tick for interpolation
+   */
+  private storePreviousState(): void {
+    for (const [entityId, rawEntity] of this.simulation.state.entities) {
+      const entity = rawEntity as Entity;
+      const transform = entity.getComponent<TransformComponent>('transform');
+      const velocity = entity.getComponent<VelocityComponent>('velocity');
+
+      if (transform) {
+        this.previousPositions.set(entityId, { ...transform.position });
+      }
+      if (velocity) {
+        this.previousVelocities.set(entityId, { ...velocity.linear });
+      }
+    }
+  }
+
+  /**
+   * Get interpolation factor (0-1) based on time within current tick
+   */
+  getInterpolationFactor(): number {
+    return Math.min(1, this.timeAccumulator / this.tickDuration);
   }
 
   private notifyStateUpdate(): void {

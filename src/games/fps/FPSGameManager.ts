@@ -224,6 +224,10 @@ export class FPSGameManager {
   /**
    * Get current local player position from simulation
    */
+  /**
+   * Get current local player position from simulation
+   * Uses interpolation for smooth rendering between ticks
+   */
   getLocalPlayerPosition(): { x: number; y: number; z: number } | null {
     if (!this.gameHost) return null;
 
@@ -231,6 +235,14 @@ export class FPSGameManager {
     const player = state.players.get(this.localPlayerId);
     if (!player) return null;
 
+    // Use interpolated position for smooth rendering
+    const localHost = this.gameHost as LocalGameHost;
+    if (localHost.getInterpolatedPosition) {
+      const interpPos = localHost.getInterpolatedPosition(player.entityId);
+      if (interpPos) return interpPos;
+    }
+
+    // Fallback to discrete position
     const entity = state.entities.get(player.entityId);
     if (!entity) return null;
 
