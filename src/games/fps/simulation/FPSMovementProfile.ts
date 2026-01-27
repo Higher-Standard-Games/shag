@@ -155,6 +155,8 @@ export class FPSMovementProfile implements MovementProfile {
   private wallJumpState: 'none' | 'available' | 'charging' = 'none';
   private wallJumpChargeTime: number = 0;
   private wallJumpNormal: Vec3 = vec3Zero();
+  private wallJumpPosition: Vec3 = vec3Zero();  // Position when grab started
+  private wallJumpPreVelocity: Vec3 = vec3Zero();  // Velocity before charging
   private lastWallJumpTime: number = 0;
   private wallJumpKeyReleased: boolean = true;
 
@@ -257,6 +259,12 @@ export class FPSMovementProfile implements MovementProfile {
     // It's set AFTER stepSlideMove, BEFORE updating isGrounded (like local checkGrounded does).
     // justLanded uses values from PREVIOUS frame's end state.
     const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
+
+    // === WALL JUMP CHARGING STATE ===
+    // If charging, we freeze physics - player hangs on wall
+    if (this.wallJumpState === 'charging') {
+      return this.handleWallJumpCharging(position, input, deltaTime, now);
+    }
 
     // === GRAVITY ===
     if (!this.isGrounded) {
@@ -718,24 +726,141 @@ export class FPSMovementProfile implements MovementProfile {
     );
 
     if (wallCheck.hit && wallCheck.normal) {
-      // Found a wall
+      // Found a wall - check if wall extends to eye level
+      // This prevents wall jumping off low obstacles like stairs/railings
+      const eyeHeight = 32; // Eye level in Q3 coordinates
+      const eyeCheckStart = { x: pos.x, y: pos.y + eyeHeight - 10, z: pos.z };
+      const eyeCheckEnd = vec3Add(eyeCheckStart, vec3Scale(forward, reach));
+      const eyeTrace = collision.trace(eyeCheckStart, eyeCheckEnd);
+
+      if (!eyeTrace.hit) {
+        // No wall at eye level - low obstacle, don't wall jump
+        this.wallJumpState = 'none';
+        return;
+      }
+
+      // Verify we're moving toward the wall (not away)
+      const velDot = vel.x * wallCheck.normal.x + vel.z * wallCheck.normal.z;
+      if (velDot > -10) {
+        // Moving away or parallel - don't allow wall jump
+        this.wallJumpState = 'available'; // Show available but don't trigger
+        return;
+      }
+
+      // Wall is valid
       this.wallJumpNormal = wallCheck.normal;
       this.wallJumpState = 'available';
 
       // Execute wall jump on fresh press
       if (isJumping && this.wallJumpKeyReleased) {
         this.wallJumpKeyReleased = false;
-        this.executeWallJump(vel, wallCheck.normal, now);
+
+        // Check if we use charging or instant bounce
+        if (this.config.wallJumpChargeTime > 0) {
+          // Start charging (grab the wall)
+          this.startWallJumpCharge(pos, vel, wallCheck.normal);
+        } else {
+          // Instant bounce (no grab)
+          this.executeWallJump(vel, wallCheck.normal, now);
+        }
       }
     } else {
       this.wallJumpState = 'none';
     }
   }
 
-  private executeWallJump(vel: Vec3, normal: Vec3, now: number): void {
+  /**
+   * Handle wall jump charging state - player hangs on wall
+   * Returns early result, skipping normal physics
+   */
+  private handleWallJumpCharging(
+    position: Vec3,
+    input: MovementInput | null,
+    deltaTime: number,
+    now: number
+  ): AdvancedMovementResult {
+    // Increment charge time
+    this.wallJumpChargeTime += deltaTime;
+
+    const isJumping = input?.isPressed(InputButtons.JUMP) ?? false;
+    const chargeTime = this.config.wallJumpChargeTime;
+
+    // Check for release or timeout
+    if (!isJumping || this.wallJumpChargeTime >= chargeTime) {
+      // Execute the boost push
+      this.executeWallJumpBoost(now);
+
+      // Return with the new velocity after boost
+      return {
+        position: vec3Clone(this.wallJumpPosition),
+        velocity: vec3Clone(this.wallJumpPreVelocity), // Will be modified by executeWallJumpBoost
+        grounded: false,
+        isSliding: this.isSliding,
+        isCrouching: this.isCrouching,
+        wallJumpState: this.wallJumpState,
+        ledgeGrabState: this.ledgeGrabState,
+        actualHorizSpeed: this.actualHorizSpeed,
+        crouchViewOffset: this.crouchViewOffset,
+      };
+    }
+
+    // Still charging - freeze position and velocity
+    // Player hangs on the wall
+    const frozenPos = vec3Clone(this.wallJumpPosition);
+    const frozenVel = vec3Zero();
+
+    // Update crouch visuals even while charging
+    if (input) {
+      this.updateCrouch(input, deltaTime);
+    }
+
+    return {
+      position: frozenPos,
+      velocity: frozenVel,
+      grounded: false,
+      isSliding: false,
+      isCrouching: this.isCrouching,
+      wallJumpState: 'charging',
+      ledgeGrabState: this.ledgeGrabState,
+      actualHorizSpeed: 0,
+      crouchViewOffset: this.crouchViewOffset,
+    };
+  }
+
+  /**
+   * Execute wall jump boost after charging
+   */
+  private executeWallJumpBoost(now: number): void {
+    // Use pre-charge velocity as base for bounce calculation
+    const baseVel = this.wallJumpPreVelocity;
+    const horizSpeed = vec3LengthXZ(baseVel);
+    const pushSpeed = Math.max(horizSpeed, 200) * this.config.wallJumpBounce * this.config.wallJumpBoost;
+
     // Push away from wall
+    baseVel.x = this.wallJumpNormal.x * pushSpeed;
+    baseVel.z = this.wallJumpNormal.z * pushSpeed;
+    baseVel.y = this.config.wallJumpHeight;
+
+    this.lastWallJumpTime = now;
+    this.wallJumpState = 'none';
+    this.wallJumpChargeTime = 0;
+  }
+
+  /**
+   * Start charging state - grab the wall
+   */
+  private startWallJumpCharge(pos: Vec3, vel: Vec3, normal: Vec3): void {
+    this.wallJumpState = 'charging';
+    this.wallJumpChargeTime = 0;
+    this.wallJumpNormal = vec3Clone(normal);
+    this.wallJumpPosition = vec3Clone(pos);
+    this.wallJumpPreVelocity = vec3Clone(vel);
+  }
+
+  private executeWallJump(vel: Vec3, normal: Vec3, now: number): void {
+    // Instant push (no charge) - used when chargeTime is 0
     const horizSpeed = vec3LengthXZ(vel);
-    const pushSpeed = horizSpeed * this.config.wallJumpBounce;
+    const pushSpeed = Math.max(horizSpeed, 200) * this.config.wallJumpBounce;
 
     vel.x = normal.x * pushSpeed;
     vel.z = normal.z * pushSpeed;
