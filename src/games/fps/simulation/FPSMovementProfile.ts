@@ -252,13 +252,10 @@ export class FPSMovementProfile implements MovementProfile {
     const newVel = vec3Clone(velocity);
     const now = Date.now();
 
-    // Store previous grounded state
-    this.wasGroundedLastFrame = this.isGrounded;
 
-    // === GROUND CHECK (also snaps position to ground if close) ===
-    this.isGrounded = this.checkGrounded(newPos, newVel, collision);
-
-    // Just landed check
+    // NOTE: Do NOT set wasGroundedLastFrame here!
+    // It's set AFTER stepSlideMove, BEFORE updating isGrounded (like local checkGrounded does).
+    // justLanded uses values from PREVIOUS frame's end state.
     const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
 
     // === GRAVITY ===
@@ -326,8 +323,25 @@ export class FPSMovementProfile implements MovementProfile {
         }
       } else {
         // === AIR MOVEMENT ===
+        // Detect button states for mode selection (matching local AdvancedCharacterController)
+        const holdingForward = input.isPressed(InputButtons.FORWARD) || input.isPressed(InputButtons.BACK);
+        const holdingStrafe = input.isPressed(InputButtons.LEFT) || input.isPressed(InputButtons.RIGHT);
+
+        // Calculate velocity dot wish for acceleration detection
+        const velocityDotWish = newVel.x * normalizedWish.x + newVel.z * normalizedWish.z;
+        const isAccelerating = velocityDotWish > 0;
+
         if (hasInput) {
-          this.airAccelerate(newVel, normalizedWish, wishspeed, deltaTime);
+          if (holdingForward && !holdingStrafe && isAccelerating) {
+            // Mode 1: Air Accelerate (W only, accelerating forward - Warsow style)
+            this.airAccelerateForward(newVel, normalizedWish, wishspeed, deltaTime);
+          } else if (holdingStrafe && !holdingForward) {
+            // Mode 2: Strafe Bunny (A/D only - CPMA/Q2 strafe jumping)
+            this.strafeBunnyAccelerate(newVel, normalizedWish, wishspeed, deltaTime);
+          } else {
+            // Mode 3: Normal Air Control (default)
+            this.normalAirAccelerate(newVel, normalizedWish, wishspeed, deltaTime);
+          }
         }
 
         // === WALL JUMP (in air) ===
@@ -360,6 +374,9 @@ export class FPSMovementProfile implements MovementProfile {
       newPos.x = result.endPos.x;
       newPos.y = result.endPos.y;
       newPos.z = result.endPos.z;
+
+      // Save previous grounded state BEFORE updating (matches local checkGrounded pattern)
+      this.wasGroundedLastFrame = this.isGrounded;
       this.isGrounded = result.grounded;
 
       // Zero vertical velocity if grounded
@@ -373,10 +390,13 @@ export class FPSMovementProfile implements MovementProfile {
       newPos.z += newVel.z * deltaTime;
 
       // Simple ground clamp at y=0
+      this.wasGroundedLastFrame = this.isGrounded;
       if (newPos.y < 0) {
         newPos.y = 0;
         newVel.y = 0;
         this.isGrounded = true;
+      } else {
+        this.isGrounded = false;
       }
     }
 
@@ -509,20 +529,149 @@ export class FPSMovementProfile implements MovementProfile {
 
   // ================== Air Acceleration ==================
 
-  private airAccelerate(vel: Vec3, wishDir: Vec3, wishSpeed: number, deltaTime: number): void {
-    // Cap air wishspeed
-    const airWishSpeed = Math.min(wishSpeed, this.config.maxAirSpeed);
+  /**
+   * Mode 1: Air Accelerate Forward (W only, accelerating - Warsow style)
+   * Complex forward acceleration with bunny hop mechanics
+   */
+  private airAccelerateForward(vel: Vec3, wishDir: Vec3, wishSpeed: number, deltaTime: number): void {
+    const maxPlayerSpeed = this.config.maxSpeed;
+    const topspeed = this.config.topSpeed;
+    const runSpeed = this.config.runSpeed;
+    const radicalSpeed = 600;
 
-    const currentSpeed = vec3DotXZ(vel, wishDir);
-    const addSpeed = airWishSpeed - currentSpeed;
+    const airforwardaccel = 1.00001;
+    const bunnyaccel = 0.1593;
+    const turnaccel = 4.0;
+    const backtosideratio = 0.8;
 
-    if (addSpeed <= 0) return;
+    const curvelX = vel.x;
+    const curvelZ = vel.z;
+    const curspeed = Math.sqrt(curvelX * curvelX + curvelZ * curvelZ);
 
-    let accelSpeed = this.config.airAcceleration * deltaTime * wishSpeed;
-    if (accelSpeed > addSpeed) accelSpeed = addSpeed;
+    // Calculate accel falloff at high speeds
+    let accelFalloff = 1.0;
+    if (curspeed > runSpeed) {
+      if (curspeed < radicalSpeed) {
+        const ratio = (curspeed - runSpeed) / (radicalSpeed - runSpeed);
+        accelFalloff = 1 - ratio * 0.5;
+      } else {
+        const ratio = (curspeed - radicalSpeed) / (topspeed - radicalSpeed);
+        accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));
+      }
+    }
 
-    vel.x += wishDir.x * accelSpeed;
-    vel.z += wishDir.z * accelSpeed;
+    let targetWishspeed: number;
+    if (wishSpeed > curspeed * 1.01) {
+      const accelspeed = curspeed + airforwardaccel * maxPlayerSpeed * deltaTime * accelFalloff;
+      targetWishspeed = Math.min(wishSpeed, accelspeed);
+    } else {
+      const f = Math.max(0, (topspeed - curspeed) / (topspeed - maxPlayerSpeed));
+      targetWishspeed = Math.max(curspeed, maxPlayerSpeed) + bunnyaccel * f * accelFalloff * maxPlayerSpeed * deltaTime;
+    }
+
+    const wishvelX = wishDir.x * targetWishspeed;
+    const wishvelZ = wishDir.z * targetWishspeed;
+    let accelDirX = wishvelX - curvelX;
+    let accelDirZ = wishvelZ - curvelZ;
+
+    const accelDirLen = Math.sqrt(accelDirX * accelDirX + accelDirZ * accelDirZ);
+    if (accelDirLen < 0.001) return;
+
+    accelDirX /= accelDirLen;
+    accelDirZ /= accelDirLen;
+    const addspeed = accelDirLen;
+
+    let accelspeed = turnaccel * maxPlayerSpeed * deltaTime;
+    if (accelspeed > addspeed) accelspeed = addspeed;
+
+    if (backtosideratio < 1.0 && curspeed > 0.001) {
+      const curDirX = curvelX / curspeed;
+      const curDirZ = curvelZ / curspeed;
+      const dot = accelDirX * curDirX + accelDirZ * curDirZ;
+      if (dot < 0) {
+        accelDirX -= (1.0 - backtosideratio) * dot * curDirX;
+        accelDirZ -= (1.0 - backtosideratio) * dot * curDirZ;
+      }
+    }
+
+    vel.x += accelspeed * accelDirX;
+    vel.z += accelspeed * accelDirZ;
+  }
+
+  /**
+   * Mode 2: Strafe Bunny Accelerate (A/D only - CPMA/Q2 strafe jumping)
+   * The core strafe jumping mechanic
+   */
+  private strafeBunnyAccelerate(vel: Vec3, wishDir: Vec3, wishSpeed: number, deltaTime: number): void {
+    const baseStrafeBunnyAccel = 50;
+    const strafeWishspeed = Math.min(wishSpeed, this.config.maxAirSpeed);
+    const curSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+    const runSpeed = this.config.runSpeed;
+    const radicalSpeed = 600;
+    const topspeed = this.config.topSpeed;
+
+    // Calculate accel falloff at high speeds
+    let accelFalloff = 1.0;
+    if (curSpeed > runSpeed) {
+      if (curSpeed < radicalSpeed) {
+        const ratio = (curSpeed - runSpeed) / (radicalSpeed - runSpeed);
+        accelFalloff = 1 - ratio * 0.5;
+      } else {
+        const ratio = (curSpeed - radicalSpeed) / (topspeed - radicalSpeed);
+        accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));
+      }
+    }
+
+    const strafeBunnyAccel = baseStrafeBunnyAccel * accelFalloff;
+    const currentspeed = vel.x * wishDir.x + vel.z * wishDir.z;
+    const addspeed = strafeWishspeed - currentspeed;
+
+    if (addspeed > 0 && accelFalloff > 0.01) {
+      let accelspeed = strafeBunnyAccel * deltaTime * strafeWishspeed;
+      if (accelspeed > addspeed) accelspeed = addspeed;
+      vel.x += accelspeed * wishDir.x;
+      vel.z += accelspeed * wishDir.z;
+    }
+  }
+
+  /**
+   * Mode 3: Normal Air Accelerate (Default - Q3 style)
+   * Basic air control with falloff
+   */
+  private normalAirAccelerate(vel: Vec3, wishDir: Vec3, wishSpeed: number, deltaTime: number): void {
+    const curSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+    const runSpeed = this.config.runSpeed;
+    const radicalSpeed = 600;
+    const topspeed = this.config.topSpeed;
+    const airaccelerate = this.config.airAcceleration;
+
+    // Calculate accel falloff at high speeds
+    let accelFalloff = 1.0;
+    if (curSpeed > runSpeed) {
+      if (curSpeed < radicalSpeed) {
+        const ratio = (curSpeed - runSpeed) / (radicalSpeed - runSpeed);
+        accelFalloff = 1 - ratio * 0.5;
+      } else {
+        const ratio = (curSpeed - radicalSpeed) / (topspeed - radicalSpeed);
+        accelFalloff = Math.max(0, 0.5 * (1 - ratio * ratio * ratio));
+      }
+    }
+
+    const currentspeed = vel.x * wishDir.x + vel.z * wishDir.z;
+    const addspeed = wishSpeed - currentspeed;
+
+    if (addspeed > 0 && accelFalloff > 0.01) {
+      let accelspeed = airaccelerate * deltaTime * wishSpeed * accelFalloff;
+      if (accelspeed > addspeed) accelspeed = addspeed;
+      vel.x += accelspeed * wishDir.x;
+      vel.z += accelspeed * wishDir.z;
+    }
+  }
+
+  // Note: Original simple airAccelerate kept for reference but unused
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private airAccelerate(_vel: Vec3, _wishDir: Vec3, _wishSpeed: number, _deltaTime: number): void {
+    // Replaced by the three mode-specific methods above
   }
 
   // ================== Wall Jump ==================

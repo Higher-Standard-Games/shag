@@ -17,10 +17,18 @@ export class LocalGameHost implements IGameHost {
   private eventCallbacks: ((event: any) => void)[] = [];
   private isRunning: boolean = false;
 
+  // Fixed timestep accumulator
+  private tickDuration: number; // ms per tick
+  private lastTickTime: number = 0;
+  private timeAccumulator: number = 0;
+  private pendingCommands: Command[] = [];
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
     this.simulation = new SimulationClass(config);
     this.localPlayerId = 'local-player';
+    this.tickDuration = config.tickDuration; // e.g., 16.67ms for 60Hz
+    this.lastTickTime = performance.now();
   }
 
   /**
@@ -31,17 +39,14 @@ export class LocalGameHost implements IGameHost {
   }
 
   /**
-   * Send command - executes immediately in local simulation
+   * Send command - queues for next tick instead of executing immediately
    */
   sendCommand(cmd: Command): void {
-    // Execute command immediately
-    this.simulation.tick([cmd]);
+    // Queue command for processing on next tick
+    this.pendingCommands.push(cmd);
 
-    // Notify state update
-    this.notifyStateUpdate();
-
-    // Process events
-    this.processEvents();
+    // Process any pending ticks based on elapsed time
+    this.processAccumulatedTime();
   }
 
   /**
@@ -110,6 +115,40 @@ export class LocalGameHost implements IGameHost {
 
     // Local host doesn't need to tick continuously
     // Commands are processed immediately when sent
+  }
+
+  /**
+   * Process accumulated time and run simulation ticks at fixed rate
+   * This ensures consistent physics regardless of render framerate
+   */
+  private processAccumulatedTime(): void {
+    const now = performance.now();
+    const elapsed = now - this.lastTickTime;
+    this.lastTickTime = now;
+
+    // Add elapsed time to accumulator
+    this.timeAccumulator += elapsed;
+
+    // Cap accumulator to prevent spiral of death (max 5 ticks per call)
+    const maxAccumulator = this.tickDuration * 5;
+    if (this.timeAccumulator > maxAccumulator) {
+      this.timeAccumulator = maxAccumulator;
+    }
+
+    // Run ticks while we have enough accumulated time
+    while (this.timeAccumulator >= this.tickDuration) {
+      // Execute tick with all pending commands
+      this.simulation.tick(this.pendingCommands);
+      this.pendingCommands = []; // Clear commands after processing
+
+      this.timeAccumulator -= this.tickDuration;
+
+      // Notify state update after each tick
+      this.notifyStateUpdate();
+
+      // Process events
+      this.processEvents();
+    }
   }
 
   private notifyStateUpdate(): void {

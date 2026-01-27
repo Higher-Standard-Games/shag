@@ -153,27 +153,33 @@ export class FPSGameManager {
     if (input.fire) buttons |= InputButtons.FIRE;
     if (input.altFire) buttons |= InputButtons.ALT_FIRE;
 
-    // Calculate movement direction from buttons (in local space)
-    let localX = 0;
-    let localZ = 0;
-    if (input.forward) localZ += 1;
-    if (input.backward) localZ -= 1;
-    if (input.left) localX -= 1;
-    if (input.right) localX += 1;
-
-    // Normalize local direction
-    const localLen = Math.sqrt(localX * localX + localZ * localZ);
-    if (localLen > 0) {
-      localX /= localLen;
-      localZ /= localLen;
-    }
-
-    // Rotate by yaw to get world-space direction
-    // yaw is in radians, rotates around Y axis
+    // Build world-space direction from buttons using Babylon.js LEFT-HANDED coordinate system
+    // In left-handed Y rotation: forward = (sin(yaw), 0, cos(yaw)), right = (cos(yaw), 0, -sin(yaw))
+    // This matches what camera.getDirection(Forward/Right) returns in the local code.
     const cosYaw = Math.cos(input.yaw);
     const sinYaw = Math.sin(input.yaw);
-    const dirX = localX * cosYaw - localZ * sinYaw;
-    const dirZ = localX * sinYaw + localZ * cosYaw;
+
+    // Forward direction in Babylon left-handed
+    const forwardX = sinYaw;
+    const forwardZ = cosYaw;
+    // Right direction in Babylon left-handed (90° clockwise from forward)
+    const rightX = cosYaw;
+    const rightZ = -sinYaw;
+
+    // Build world direction from local input
+    let dirX = 0;
+    let dirZ = 0;
+    if (input.forward) { dirX += forwardX; dirZ += forwardZ; }
+    if (input.backward) { dirX -= forwardX; dirZ -= forwardZ; }
+    if (input.left) { dirX -= rightX; dirZ -= rightZ; }
+    if (input.right) { dirX += rightX; dirZ += rightZ; }
+
+    // Normalize the final direction
+    const dirLen = Math.sqrt(dirX * dirX + dirZ * dirZ);
+    if (dirLen > 0) {
+      dirX /= dirLen;
+      dirZ /= dirLen;
+    }
 
     // Create input command
     const cmd: FPSInputCommand = {
