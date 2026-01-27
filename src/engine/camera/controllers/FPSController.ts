@@ -690,14 +690,28 @@ export class FPSController implements ICameraController {
 
           // Subscribe to state updates for visual effects
           this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
+            // Track previous grounded state for landing detection
+            this.wasGroundedLastFrame = this.isGrounded;
+
+            // Update position and velocity
+            this.physicsX = state.position.x;
+            this.physicsY = state.position.y;
+            this.physicsZ = state.position.z;
+            this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+
             // Update movement state for visual effects
+            this.isGrounded = state.grounded;
             this.isSliding = state.isSliding;
             this.isCrouching = state.isCrouching;
             this.crouchViewOffset = state.crouchViewOffset;
             this.wallJumpState = state.wallJumpState;
             this.ledgeGrabState = state.ledgeGrabState;
             this.actualHorizSpeed = state.actualHorizSpeed;
-            this.isGrounded = state.grounded;
+
+            // Capture landing velocity for impact effect
+            if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
+              this.landingVelocityCapture = Math.abs(state.velocity.y);
+            }
           });
 
           this.networkReady = true;
