@@ -780,11 +780,23 @@ export class FPSController implements ICameraController {
         this.physicsX = pos.x;
         this.physicsY = pos.y;
         this.physicsZ = pos.z;
-        this.smoothedY = pos.y;
 
-        // Apply to camera
+        // Apply stair smoothing (same logic as local mode)
+        const stepHeight = mv.get('sv_stepheight');
+        const smoothFactor = mv.get('cl_smoothfactor');
+        const heightDiff = Math.abs(pos.y - this.smoothedY);
+
+        if (heightDiff > stepHeight * 2) {
+          // Large height change (teleport, big drop) - snap immediately
+          this.smoothedY = pos.y;
+        } else {
+          // Smooth stair climbing
+          this.smoothedY = this.smoothedY + (pos.y - this.smoothedY) * smoothFactor;
+        }
+
+        // Apply to camera with smoothed Y
         this.camera.position.x = pos.x;
-        this.camera.position.y = pos.y + DEFAULT_VIEWHEIGHT;
+        this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
         this.camera.position.z = pos.z;
       }
 

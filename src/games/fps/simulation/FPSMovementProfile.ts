@@ -1059,14 +1059,18 @@ export class FPSMovementProfile implements MovementProfile {
       vel.y = 0;
       vel.z = 0;
 
-      // Cancel on crouch, sprint, or pushing away from wall
-      const wishDir = vec3Normalize(input.direction);
-      const pushingAway = vec3Dot(wishDir, this.ledgeWallNormal) > 0.5 && vec3LengthXZ(wishDir) > 0.1;
+      // Only allow cancel after minimum grab time (prevents flicker from brief input glitches)
+      const minGrabTime = 0.05; // 50ms minimum before cancel allowed
+      if (this.ledgeGrabTime > minGrabTime) {
+        // Cancel on crouch, sprint, or pushing away from wall
+        const wishDir = vec3Normalize(input.direction);
+        const pushingAway = vec3Dot(wishDir, this.ledgeWallNormal) > 0.5 && vec3LengthXZ(wishDir) > 0.1;
 
-      if (input.isPressed(InputButtons.CROUCH) || input.isPressed(InputButtons.SPRINT) || pushingAway) {
-        this.ledgeGrabState = 'none';
-        vel.y = -100; // Drop
-        return false;
+        if (input.isPressed(InputButtons.CROUCH) || input.isPressed(InputButtons.SPRINT) || pushingAway) {
+          this.ledgeGrabState = 'none';
+          vel.y = -100; // Drop
+          return false;
+        }
       }
 
       // Auto-climb after brief pause
