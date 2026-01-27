@@ -72,6 +72,7 @@ export class FPSController implements ICameraController {
   private gameManager: FPSGameManager | null = null;
   private useNetworkMovement: boolean = false;
   private networkReady: boolean = false;  // True only after async init completes
+  private stateUnsubscribe: (() => void) | null = null;  // For cleanup
 
   // Inventory reference (delegated from FPSPlayer)
   private _inventory: InventoryManager | null = null;
@@ -687,6 +688,18 @@ export class FPSController implements ICameraController {
             z: this.physicsZ
           });
 
+          // Subscribe to state updates for visual effects
+          this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
+            // Update movement state for visual effects
+            this.isSliding = state.isSliding;
+            this.isCrouching = state.isCrouching;
+            this.crouchViewOffset = state.crouchViewOffset;
+            this.wallJumpState = state.wallJumpState;
+            this.ledgeGrabState = state.ledgeGrabState;
+            this.actualHorizSpeed = state.actualHorizSpeed;
+            this.isGrounded = state.grounded;
+          });
+
           this.networkReady = true;
           console.log(`[FPS] Network movement initialized - player spawned`);
         }).catch((err: Error) => {
@@ -937,6 +950,12 @@ export class FPSController implements ICameraController {
   }
 
   dispose(): void {
+    // Clean up state subscription
+    if (this.stateUnsubscribe) {
+      this.stateUnsubscribe();
+      this.stateUnsubscribe = null;
+    }
+
     if (this.playerVisuals) {
       this.playerVisuals.dispose();
       this.playerVisuals = null;
