@@ -26,6 +26,7 @@ interface Gametype {
   readonly shortName: string;      // "dm"
   readonly description: string;
   readonly minPlayers: number;     // 2 for duel, 1 for dm
+  readonly maxPlayers: number;     // 2 for duel, 16 for dm
   readonly maxTeams: number;       // 0 for FFA, 2 for team games
   
   // === LIFECYCLE HOOKS ===
@@ -283,6 +284,7 @@ class DeathmatchGametype extends BaseGametype {
   readonly shortName = "dm";
   readonly description = "Free-for-all, first to frag limit wins";
   readonly minPlayers = 2;
+  readonly maxPlayers = 16;  // Server maxClients can be higher for spectators
   readonly maxTeams = 0; // FFA
   
   private scores: Map<string, number> = new Map();
