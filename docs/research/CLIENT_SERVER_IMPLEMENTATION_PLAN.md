@@ -1,14 +1,61 @@
 # Client/Server Architecture Implementation Plan
 
 **Branch:** `feature/client-server-architecture`
-**Date:** 2026-01-26
-**Status:** Milestone 1 Complete, Milestone 2 In Progress
+**Date:** 2026-01-27
+**Status:** Milestone 2.1 Complete - Movement Debug Complete
 
-> **Latest Update (2026-01-26):**
-> - ✅ Milestone 1: Network simulation foundation (`FPSSimulation`, `FPSGameManager`, `LocalGameHost`)
-> - ✅ Milestone 2 partial: `BSPCollisionWorld` adapter wraps existing `CollisionManager`
-> - ⏸️ Full FPSController migration paused: `AdvancedCharacterController` (1166 lines) has all physics
-> - 📋 Next: Add `sv_network_movement` toggle for incremental migration
+> **Latest Update (2026-01-27):**
+> - ✅ Fixed direction calculation (Babylon left-handed coordinates)
+> - ✅ Fixed tick rate (LocalGameHost fixed timestep accumulator)
+> - ✅ Ported 3-mode air acceleration (strafe jumping works!)
+> - ⏸️ Remaining: wall jump grab, crouchslide effect, bobbing, jitter, ledge grab
+
+---
+
+## Debugging Learnings (2026-01-27)
+
+### Bug 1: Direction Inverted (Forward = Backward)
+
+**Symptom:** Moving forward caused backward movement, strafe was mirrored.
+
+**Root Cause:** Direction calculation in `FPSGameManager.sendInput()` used right-handed rotation math, but Babylon.js uses left-handed coordinates.
+
+**Fix:** Changed yaw rotation to match Babylon's conventions:
+```typescript
+// Babylon left-handed: forward = (sin(yaw), 0, cos(yaw))
+const forwardX = Math.sin(input.yaw);
+const forwardZ = Math.cos(input.yaw);
+```
+
+### Bug 2: Ultra-Fast Movement
+
+**Symptom:** Movement speed was 2-4x faster than local mode.
+
+**Root Cause:** `LocalGameHost.sendCommand()` ran `simulation.tick()` on every call. At 120fps render rate with 60Hz tick, this doubled movement speed.
+
+**Fix:** Added fixed timestep accumulator - commands are queued and ticks only run when `timeAccumulator >= tickDuration`.
+
+### Bug 3: Strafe Jumping Didn't Work
+
+**Symptom:** No speed gain from strafe jumping, couldn't build momentum.
+
+**Root Cause:** Network `airAccelerate` was simple Q3-style, missing the mode selection logic from local code.
+
+**Fix:** Ported 3-mode air acceleration:
+| Mode | Condition | Method |
+|------|-----------|--------|
+| 1 | W only + accelerating | `airAccelerateForward` (Warsow-style) |
+| 2 | A/D only | `strafeBunnyAccelerate` (CPMA strafe jumping) |
+| 3 | Default | `normalAirAccelerate` (Q3) |
+
+### Remaining Issues
+- Wall jumping bounces instantly (no grab state)
+- Crouchslide client effect missing
+- Walking/sprinting bobbing animation missing
+- Movement jitter (needs client prediction)
+- Ledge grabbing not working
+
+---
 
 ## Executive Summary
 
