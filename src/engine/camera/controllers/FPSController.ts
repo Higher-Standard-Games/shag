@@ -60,11 +60,19 @@ import { InventoryManager } from "../../game/InventoryManager";
 
 import { PlayerVisuals } from "./components/PlayerVisuals";
 import { AdvancedCharacterController, PlayerInput } from "../../movement/AdvancedCharacterController";
+import { FPSGameManager } from "../../../games/fps/FPSGameManager";
+import { BSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
+import { getCollisionManager } from "../../physics/CollisionManager";
+import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 
 export class FPSController implements ICameraController {
   public readonly type = "fps";
 
   private physics: AdvancedCharacterController | null = null;
+  private gameManager: FPSGameManager | null = null;
+  private useNetworkMovement: boolean = false;
+  private networkReady: boolean = false;  // True only after async init completes
+  private stateUnsubscribe: (() => void) | null = null;  // For cleanup
 
   // Inventory reference (delegated from FPSPlayer)
   private _inventory: InventoryManager | null = null;
@@ -641,10 +649,84 @@ export class FPSController implements ICameraController {
       this.smoothedY = this.physicsY;
       this.smoothingInitialized = true;
 
-      // Initialize Physics Engine
-      if (!this.physics) {
-        this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
-        console.log(`[FPS] Physics Engine Initialized`);
+      // Check network movement toggle
+      this.useNetworkMovement = mv.get('sv_network_movement') > 0;
+
+      if (this.useNetworkMovement) {
+        // === NETWORK MOVEMENT MODE ===
+        console.log(`[FPS] Initializing network movement via FPSGameManager`);
+
+        this.gameManager = FPSGameManager.getInstance();
+        this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
+          // Set up BSP collision if available
+          const cm = getCollisionManager();
+          if (cm.isInitialized()) {
+            const collisionWorld = new BSPCollisionWorld();
+            this.gameManager!.setCollisionWorld(collisionWorld);
+            console.log(`[FPS] BSP collision injected into simulation`);
+          }
+
+          // Extract spawn points from loaded BSP
+          try {
+            const { MapLoader } = await import("../../loader/map/MapLoader");
+            const bsp = MapLoader.getInstance().getCurrentBsp();
+            if (bsp && bsp.entities) {
+              const spawns = extractSpawnPoints(bsp.entities);
+              if (spawns.length > 0) {
+                this.gameManager!.setSpawnPoints(spawns.map(s => s.position));
+                console.log(`[FPS] Extracted ${spawns.length} spawn points from BSP`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[FPS] Could not extract spawn points:`, e);
+          }
+
+          // Spawn player at current position
+          this.gameManager!.spawnLocalPlayer({
+            x: this.physicsX,
+            y: this.physicsY,
+            z: this.physicsZ
+          });
+
+          // Subscribe to state updates for visual effects
+          this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
+            // Track previous grounded state for landing detection
+            this.wasGroundedLastFrame = this.isGrounded;
+
+            // Update position and velocity
+            this.physicsX = state.position.x;
+            this.physicsY = state.position.y;
+            this.physicsZ = state.position.z;
+            this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+
+            // Update movement state for visual effects
+            this.isGrounded = state.grounded;
+            this.isSliding = state.isSliding;
+            this.isCrouching = state.isCrouching;
+            this.crouchViewOffset = state.crouchViewOffset;
+            this.wallJumpState = state.wallJumpState;
+            this.ledgeGrabState = state.ledgeGrabState;
+            this.actualHorizSpeed = state.actualHorizSpeed;
+
+            // Capture landing velocity for impact effect
+            if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
+              this.landingVelocityCapture = Math.abs(state.velocity.y);
+            }
+          });
+
+          this.networkReady = true;
+          console.log(`[FPS] Network movement initialized - player spawned`);
+        }).catch((err: Error) => {
+          console.error(`[FPS] Failed to initialize network movement:`, err);
+          this.useNetworkMovement = false;
+          this.networkReady = false;
+        });
+      } else {
+        // === LOCAL MOVEMENT MODE ===
+        if (!this.physics) {
+          this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
+          console.log(`[FPS] Physics Engine Initialized (local mode)`);
+        }
       }
 
       console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
@@ -675,7 +757,55 @@ export class FPSController implements ICameraController {
     if (hasInput) wishdir.normalize();
 
     // === ADVANCED PHYSICS ===
-    if (this.physics) {
+    if (this.useNetworkMovement && this.networkReady && this.gameManager) {
+      // === NETWORK MOVEMENT MODE ===
+      // Send input to FPSGameManager -> FPSSimulation
+      this.gameManager.sendInput({
+        forward: this.keys.forward,
+        backward: this.keys.backward,
+        left: this.keys.left,
+        right: this.keys.right,
+        jump: this.keys.up,
+        crouch: this.keys.crouch,
+        sprint: this.keys.sprint,
+        fire: this.keys.fire,
+        altFire: this.keys.aim,
+        pitch: this.mouseRotationX,
+        yaw: this.mouseRotationY,
+      });
+
+      // Get state update from simulation
+      const pos = this.gameManager.getLocalPlayerPosition();
+      if (pos) {
+        this.physicsX = pos.x;
+        this.physicsY = pos.y;
+        this.physicsZ = pos.z;
+
+        // Apply stair smoothing (same logic as local mode)
+        const stepHeight = mv.get('sv_stepheight');
+        const smoothFactor = mv.get('cl_smoothfactor');
+        const heightDiff = Math.abs(pos.y - this.smoothedY);
+
+        if (heightDiff > stepHeight * 2) {
+          // Large height change (teleport, big drop) - snap immediately
+          this.smoothedY = pos.y;
+        } else {
+          // Smooth stair climbing
+          this.smoothedY = this.smoothedY + (pos.y - this.smoothedY) * smoothFactor;
+        }
+
+        // Apply to camera with smoothed Y
+        this.camera.position.x = pos.x;
+        this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
+        this.camera.position.z = pos.z;
+      }
+
+      // Update UI
+      const showSpeed = mv.get('cl_showspeed') > 0;
+      this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
+
+    } else if (this.physics) {
+      // === LOCAL MOVEMENT MODE ===
       // 1. Construct Input
       const input: PlayerInput = {
         wishdir: wishdir,
@@ -846,6 +976,12 @@ export class FPSController implements ICameraController {
   }
 
   dispose(): void {
+    // Clean up state subscription
+    if (this.stateUnsubscribe) {
+      this.stateUnsubscribe();
+      this.stateUnsubscribe = null;
+    }
+
     if (this.playerVisuals) {
       this.playerVisuals.dispose();
       this.playerVisuals = null;

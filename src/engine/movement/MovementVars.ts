@@ -622,6 +622,18 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     category: 'camera',
     developerOnly: false,
   },
+
+  // ==================== Networking ====================
+  sv_network_movement: {
+    value: 0,
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    description: 'Use network simulation for movement (0=local physics, 1=server-authoritative)',
+    category: 'movement',
+    developerOnly: true,
+    type: 'int',
+  },
 };
 
 // ==================== MovementVars Class ====================

@@ -58,4 +58,19 @@ export interface IGameHost {
    * Check if connected
    */
   isConnected?(): boolean;
+
+  /**
+   * Start the game host
+   */
+  start?(): void;
+
+  /**
+   * Stop the game host
+   */
+  stop?(): void;
+
+  /**
+   * Update (for hosts that need per-frame updates)
+   */
+  update?(): void;
 }
