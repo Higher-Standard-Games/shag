@@ -13,6 +13,7 @@ import { InputButtons } from '../../engine/network/components/InputComponent';
 import type { GameState } from '../../engine/network/core/GameState';
 import type { TransformComponent } from '../../engine/network/components/TransformComponent';
 import type { VelocityComponent } from '../../engine/network/components/VelocityComponent';
+import type { MovementStateComponent } from '../../engine/network/components/MovementStateComponent';
 
 export interface FPSGameConfig {
   tickRate?: number;
@@ -44,6 +45,14 @@ export interface PlayerStateUpdate {
   velocity: { x: number; y: number; z: number };
   grounded: boolean;
   tick: number;
+
+  // Advanced movement state for client effects
+  isSliding: boolean;
+  isCrouching: boolean;
+  crouchViewOffset: number;
+  wallJumpState: 'none' | 'available' | 'charging';
+  ledgeGrabState: 'none' | 'grabbing' | 'pulling';
+  actualHorizSpeed: number;
 }
 
 export class FPSGameManager {
@@ -280,6 +289,7 @@ export class FPSGameManager {
 
     const transform = entity.getComponent<TransformComponent>('transform');
     const velocity = entity.getComponent<VelocityComponent>('velocity');
+    const movementState = entity.getComponent<MovementStateComponent>('movementState');
 
     if (!transform || !velocity) return;
 
@@ -288,6 +298,13 @@ export class FPSGameManager {
       velocity: { ...velocity.linear },
       grounded: velocity.grounded,
       tick: state.tick,
+      // Advanced movement state
+      isSliding: movementState?.isSliding ?? false,
+      isCrouching: movementState?.isCrouching ?? false,
+      crouchViewOffset: movementState?.crouchViewOffset ?? 0,
+      wallJumpState: movementState?.wallJumpState ?? 'none',
+      ledgeGrabState: movementState?.ledgeGrabState ?? 'none',
+      actualHorizSpeed: movementState?.actualHorizSpeed ?? 0,
     };
 
     // Notify callbacks

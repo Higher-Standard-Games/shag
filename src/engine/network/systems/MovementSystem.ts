@@ -3,6 +3,7 @@ import type { GameState } from '../core/GameState';
 import { TransformComponent } from '../components/TransformComponent';
 import { VelocityComponent } from '../components/VelocityComponent';
 import { InputComponent } from '../components/InputComponent';
+import { MovementStateComponent } from '../components/MovementStateComponent';
 import type { MovementProfile, MovementInput } from './movement/MovementProfile';
 import type { CollisionWorld } from './collision/CollisionWorld';
 
@@ -93,6 +94,21 @@ export class MovementSystem extends GameSystem {
       // Apply rotation if provided
       if (result.rotation) {
         transform.rotation = result.rotation;
+      }
+
+      // Update advanced movement state if component exists
+      // The result may be an extended type (like AdvancedMovementResult) with additional fields
+      const movementState = entity.getComponent<MovementStateComponent>('movementState');
+      if (movementState) {
+        const advancedResult = result as {
+          isSliding?: boolean;
+          isCrouching?: boolean;
+          crouchViewOffset?: number;
+          wallJumpState?: 'none' | 'available' | 'charging';
+          ledgeGrabState?: 'none' | 'grabbing' | 'pulling';
+          actualHorizSpeed?: number;
+        };
+        movementState.updateFrom(advancedResult);
       }
     }
   }

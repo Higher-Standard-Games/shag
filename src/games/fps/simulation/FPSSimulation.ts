@@ -6,6 +6,7 @@ import { MovementSystem } from '../../../engine/network/systems/MovementSystem';
 import { TransformComponent } from '../../../engine/network/components/TransformComponent';
 import { VelocityComponent } from '../../../engine/network/components/VelocityComponent';
 import { InputComponent } from '../../../engine/network/components/InputComponent';
+import { MovementStateComponent } from '../../../engine/network/components/MovementStateComponent';
 import { NullCollisionWorld, type CollisionWorld } from '../../../engine/network/systems/collision/CollisionWorld';
 import { FPSMovementProfile } from './FPSMovementProfile';
 
@@ -149,6 +150,9 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
 
     const input = new InputComponent();
     entity.addComponent('input', input);
+
+    const movementState = new MovementStateComponent();
+    entity.addComponent('movementState', movementState);
 
     // Add to state
     this.state.entities.set(entityId, entity);
