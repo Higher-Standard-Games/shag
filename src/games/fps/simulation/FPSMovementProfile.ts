@@ -165,6 +165,7 @@ export class FPSMovementProfile implements MovementProfile {
   private ledgeGrabTime: number = 0;
   private ledgeTargetPos: Vec3 = vec3Zero();
   private ledgeStartPos: Vec3 = vec3Zero();
+  private ledgeWallNormal: Vec3 = vec3Zero();  // Wall direction for cancel detection
 
   // Speed tracking
   private lastPosX: number = 0;
@@ -264,6 +265,25 @@ export class FPSMovementProfile implements MovementProfile {
     // If charging, we freeze physics - player hangs on wall
     if (this.wallJumpState === 'charging') {
       return this.handleWallJumpCharging(position, input, deltaTime, now);
+    }
+
+    // === LEDGE GRAB ===
+    // Check BEFORE gravity to freeze physics when grabbing
+    if (this.config.ledgeGrabEnabled && input) {
+      if (this.updateLedgeGrab(newPos, newVel, input, collision, deltaTime)) {
+        // Ledge grab is active - return frozen state
+        return {
+          position: newPos,
+          velocity: newVel,
+          grounded: false,
+          isSliding: false,
+          isCrouching: this.isCrouching,
+          wallJumpState: 'none',
+          ledgeGrabState: this.ledgeGrabState,
+          actualHorizSpeed: 0,
+          crouchViewOffset: this.crouchViewOffset,
+        };
+      }
     }
 
     // === GRAVITY ===
@@ -969,8 +989,11 @@ export class FPSMovementProfile implements MovementProfile {
       vel.y = 0;
       vel.z = 0;
 
-      // Cancel on crouch/sprint
-      if (input.isPressed(InputButtons.CROUCH) || input.isPressed(InputButtons.SPRINT)) {
+      // Cancel on crouch, sprint, or pushing away from wall
+      const wishDir = vec3Normalize(input.direction);
+      const pushingAway = vec3Dot(wishDir, this.ledgeWallNormal) > 0.5 && vec3LengthXZ(wishDir) > 0.1;
+
+      if (input.isPressed(InputButtons.CROUCH) || input.isPressed(InputButtons.SPRINT) || pushingAway) {
         this.ledgeGrabState = 'none';
         vel.y = -100; // Drop
         return false;
@@ -1016,16 +1039,105 @@ export class FPSMovementProfile implements MovementProfile {
     }
 
     // === STATE: DETECTION ===
-    // TODO: Implement ledge detection using collision traces
-    // This requires:
-    // 1. Trace at waist level (should hit wall)
-    // 2. Trace at head level (should NOT hit wall)
-    // 3. Trace down from above to find ledge surface
-    // 4. Verify room to stand
-    //
-    // For now, ledge grab is disabled until BSP traces are properly integrated
+    // Skip detection if no collision world
+    if (!collision) return false;
 
-    return false;
+    // Don't detect while grounded (use stair stepping instead)
+    if (this.isGrounded) return false;
+
+    // Block during fast upward motion (initial jump burst)
+    if (vel.y > 200) return false;
+
+    // Must be pressing forward or have forward velocity
+    const forwardDir = vec3Normalize(input.direction);
+    const hasInput = vec3LengthXZ(forwardDir) > 0.1;
+    const velForwardDot = vel.x * forwardDir.x + vel.z * forwardDir.z;
+    const hasForwardIntent = hasInput || velForwardDot > 50;
+
+    if (!hasForwardIntent) return false;
+
+    // Configuration
+    const reach = this.config.ledgeReach;
+    const climbHeight = this.config.ledgeHeight;
+
+    // Player origin is at waist level in Q3 coordinates
+    // Eye is at +24, waist is at 0, feet are at -24
+    const waistY = pos.y;
+    const eyeY = pos.y + 24;
+
+    // === TRACE 1: Check for wall at waist level ===
+    const waistStart = { x: pos.x, y: waistY, z: pos.z };
+    const waistEnd = vec3Add(waistStart, vec3Scale(forwardDir, reach));
+    const waistTrace = collision.trace(waistStart, waistEnd);
+
+    if (!waistTrace.hit) {
+      // No wall at waist level - no ledge to grab
+      return false;
+    }
+
+    // Store wall normal for cancel detection
+    if (waistTrace.normal) {
+      this.ledgeWallNormal = vec3Clone(waistTrace.normal);
+    }
+
+    // === TRACE 2: Check if space is clear above eye level ===
+    const headStart = { x: pos.x, y: eyeY + 8, z: pos.z };
+    const headEnd = vec3Add(headStart, vec3Scale(forwardDir, reach));
+    const headTrace = collision.trace(headStart, headEnd);
+
+    if (headTrace.hit && headTrace.fraction < 0.9) {
+      // Wall above eye level - no ledge, just a wall
+      return false;
+    }
+
+    // === TRACE 3: Find ledge surface by tracing down from above ===
+    // Start trace above where we expect the ledge to be
+    const aboveLedgeStart = vec3Add(pos, vec3Scale(forwardDir, reach * 0.7));
+    aboveLedgeStart.y += climbHeight;
+
+    const aboveLedgeEnd = { x: aboveLedgeStart.x, y: aboveLedgeStart.y - climbHeight - 48, z: aboveLedgeStart.z };
+    const ledgeTrace = collision.trace(aboveLedgeStart, aboveLedgeEnd);
+
+    if (!ledgeTrace.hit) {
+      // No ledge surface found
+      return false;
+    }
+
+    // Check if it's a valid floor (normal pointing up)
+    if (!ledgeTrace.normal || ledgeTrace.normal.y < 0.7) {
+      // Not a floor surface
+      return false;
+    }
+
+    // Calculate ledge height
+    const ledgeY = aboveLedgeStart.y - (aboveLedgeStart.y - aboveLedgeEnd.y) * ledgeTrace.fraction;
+
+    // Ledge must be above current eye level but within reach
+    const minLedgeHeight = eyeY - 8;  // Slightly below eye
+    const maxLedgeHeight = eyeY + climbHeight;
+
+    if (ledgeY < minLedgeHeight || ledgeY > maxLedgeHeight) {
+      // Ledge is too low or too high
+      return false;
+    }
+
+    // === TRACE 4: Verify room to stand on ledge ===
+    // Check there's space for the player at the target position
+    const targetPos = vec3Add(pos, vec3Scale(forwardDir, reach * 0.5));
+    targetPos.y = ledgeY + 24 + 1;  // Origin height on ledge + small buffer
+
+    const standStart = { x: targetPos.x, y: targetPos.y + 32, z: targetPos.z };
+    const standEnd = { x: targetPos.x, y: targetPos.y - 24, z: targetPos.z };
+    const standTrace = collision.trace(standStart, standEnd);
+
+    if (standTrace.hit && standTrace.fraction < 0.8) {
+      // Not enough room to stand
+      return false;
+    }
+
+    // === SUCCESS: Start grabbing! ===
+    this.startLedgeGrab(targetPos, pos);
+    return true;
   }
 
   private startLedgeGrab(targetPos: Vec3, currentPos: Vec3): void {
