@@ -16,6 +16,16 @@ export default class JoinCommand extends Command {
   };
 
   async execute(_args: string[]): Promise<string | void> {
+    // Check if we're in network mode
+    let isNetworkMode = false;
+    try {
+      const { FPSGameManager } = await import('../../../games/fps/FPSGameManager');
+      const gameManager = FPSGameManager.getInstance();
+      isNetworkMode = gameManager.isConnectedToServer();
+    } catch {
+      // Not in network mode
+    }
+
     // Get required systems
     let cameraSystem;
     let mapLoader;
@@ -41,40 +51,44 @@ export default class JoinCommand extends Command {
       return 'No active camera';
     }
 
-    const bsp = mapLoader.getCurrentBsp();
-    if (!bsp) {
-      return 'No map loaded - use "map <mapname>" first';
+    // In network mode, skip local position setting - server is authoritative
+    // Just make sure FPS controller is active
+    if (!isNetworkMode) {
+      const bsp = mapLoader.getCurrentBsp();
+      if (!bsp) {
+        return 'No map loaded - use "map <mapname>" first';
+      }
+
+      // Find spawn points
+      const spawns = bsp.entities.filter((e: { classname: string }) =>
+        e.classname === 'info_player_deathmatch' ||
+        e.classname === 'info_player_start' ||
+        e.classname === 'info_player_team1' ||
+        e.classname === 'info_player_team2'
+      );
+
+      if (spawns.length === 0) {
+        return 'No spawn points found in map';
+      }
+
+      // Pick random spawn point
+      const randomIndex = Math.floor(Math.random() * spawns.length);
+      const spawn = spawns[randomIndex];
+
+      if (!spawn.properties?.origin) {
+        return 'Spawn point has no origin';
+      }
+
+      // Parse origin and teleport
+      const parts = spawn.properties.origin.split(' ').map(Number);
+      // Quake coords: origin is x, y, z but Y is up in Babylon
+      // Add player eye height (48 units) to spawn above ground
+      const spawnX = parts[0];
+      const spawnY = parts[2] + 48;  // Eye level
+      const spawnZ = parts[1];
+
+      camera.position.set(spawnX, spawnY, spawnZ);
     }
-
-    // Find spawn points
-    const spawns = bsp.entities.filter((e: { classname: string }) =>
-      e.classname === 'info_player_deathmatch' ||
-      e.classname === 'info_player_start' ||
-      e.classname === 'info_player_team1' ||
-      e.classname === 'info_player_team2'
-    );
-
-    if (spawns.length === 0) {
-      return 'No spawn points found in map';
-    }
-
-    // Pick random spawn point
-    const randomIndex = Math.floor(Math.random() * spawns.length);
-    const spawn = spawns[randomIndex];
-
-    if (!spawn.properties?.origin) {
-      return 'Spawn point has no origin';
-    }
-
-    // Parse origin and teleport
-    const parts = spawn.properties.origin.split(' ').map(Number);
-    // Quake coords: origin is x, y, z but Y is up in Babylon
-    // Add player eye height (48 units) to spawn above ground
-    const spawnX = parts[0];
-    const spawnY = parts[2] + 48;  // Eye level
-    const spawnZ = parts[1];
-
-    camera.position.set(spawnX, spawnY, spawnZ);
 
     // Register controllers if needed
     if (!cameraSystem.getController('fps')) {
@@ -116,6 +130,9 @@ export default class JoinCommand extends Command {
       console.warn('[Join] Failed to init weapon view:', e);
     }
 
-    return `Joined at ${spawn.classname} - click to capture mouse, WASD to move`;
+    if (isNetworkMode) {
+      return 'Joined game (network mode) - click to capture mouse, WASD to move. Position from server.';
+    }
+    return `Joined at spawn - click to capture mouse, WASD to move`;
   }
 }

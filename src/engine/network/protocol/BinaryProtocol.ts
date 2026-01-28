@@ -1,9 +1,37 @@
+/**
+ * BinaryProtocol.ts - Network State Serialization
+ *
+ * This handles encoding game state into compact binary format for network transmission.
+ * Binary is used instead of JSON because:
+ * 1. Much smaller packet sizes (important at 20-60 snapshots/second)
+ * 2. Faster to encode/decode (no string parsing)
+ * 3. Predictable memory layout
+ *
+ * DELTA COMPRESSION:
+ * Instead of sending full state every time, we compare to a "baseline" (previous acked
+ * snapshot) and only send what changed. This dramatically reduces bandwidth.
+ *
+ * Example: Player moves from (100, 50, 200) to (101, 50, 200)
+ * - Without delta: Send all 3 floats = 12 bytes
+ * - With delta: Send flag (0x01) + 3 floats = 13 bytes (worse for single change)
+ * - BUT if position unchanged: Send flag (0x00) = 1 byte (much better!)
+ *
+ * COMPONENT FLAGS:
+ * - 0x01 = position changed (12 bytes: 3 floats)
+ * - 0x02 = velocity changed (12 bytes: 3 floats)
+ * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
+ *
+ * KNOWN LIMITATIONS (future improvements):
+ * - rotation is not transmitted (always identity) - affects aim direction display
+ * - MovementStateComponent not transmitted - affects crouch/slide animations
+ */
+
 import { GameState } from '../core/GameState';
 import { Entity } from '../core/Entity';
 
 /**
- * Simple binary protocol for network messages
- * Focused on performance and delta compression
+ * Binary protocol for network messages.
+ * Handles encoding/decoding of game state with delta compression.
  */
 export class BinaryProtocol {
   /**
@@ -109,26 +137,41 @@ export class BinaryProtocol {
 
       const vel = entity.getComponent('velocity') as any;
       const baselineVel = baselineEntity?.getComponent('velocity') as any;
-      // Check velocity.velocity for VelocityComponent or direct x/y/z for basic
-      const velData = vel?.velocity || vel;
-      const baselineVelData = baselineVel?.velocity || baselineVel;
+      // Check velocity.linear for VelocityComponent or direct x/y/z for basic
+      const velData = vel?.linear || vel;
+      const baselineVelData = baselineVel?.linear || baselineVel;
       if (!baselineVelData || velData?.x !== baselineVelData.x || velData?.y !== baselineVelData.y || velData?.z !== baselineVelData.z) {
         flags |= 0x02;
+      }
+
+      // Check grounded state - CRITICAL for jump logic!
+      // Without this, client doesn't know if player can jump
+      const grounded = vel?.grounded ?? false;
+      const baselineGrounded = baselineVel?.grounded ?? false;
+      if (grounded !== baselineGrounded) {
+        flags |= 0x04;
       }
 
       encoder.writeUint8(flags);
 
       // Encode changed components
+      // Flag 0x01: Position (12 bytes - 3 floats)
       if (flags & 0x01 && pos) {
         encoder.writeFloat32(pos.x);
         encoder.writeFloat32(pos.y);
         encoder.writeFloat32(pos.z);
       }
 
+      // Flag 0x02: Velocity (12 bytes - 3 floats)
       if (flags & 0x02 && velData) {
         encoder.writeFloat32(velData.x);
         encoder.writeFloat32(velData.y);
         encoder.writeFloat32(velData.z);
+      }
+
+      // Flag 0x04: Grounded state (1 byte - boolean)
+      if (flags & 0x04) {
+        encoder.writeUint8(grounded ? 1 : 0);
       }
     }
   }
@@ -150,38 +193,84 @@ export class BinaryProtocol {
       const baselineEntity = baselineEntities.get(entityId);
 
       // Decode components
+      // Note: We add BOTH 'position' and 'transform' components for compatibility
+      // Some code looks for 'position', other code (FPSGameManager) looks for 'transform.position'
       if (flags & 0x01) {
+        const x = decoder.readFloat32();
+        const y = decoder.readFloat32();
+        const z = decoder.readFloat32();
+
+        // Legacy position component
         const pos = {
-          x: decoder.readFloat32(),
-          y: decoder.readFloat32(),
-          z: decoder.readFloat32(),
+          x, y, z,
           serialize() { return {}; },
           deserialize() { },
           clone() { return { ...this }; }
         };
         entity.addComponent('position', pos);
+
+        // TransformComponent-style for FPSGameManager compatibility
+        const transform = {
+          position: { x, y, z },
+          rotation: { x: 0, y: 0, z: 0, w: 1 },
+          serialize() { return {}; },
+          deserialize() { },
+          clone() { return { position: { ...this.position }, rotation: { ...this.rotation }, serialize: this.serialize, deserialize: this.deserialize, clone: this.clone }; }
+        };
+        entity.addComponent('transform', transform);
       } else if (baselineEntity) {
         const baselinePos = baselineEntity.getComponent('position');
         if (baselinePos) {
           entity.addComponent('position', baselinePos);
         }
+        const baselineTransform = baselineEntity.getComponent('transform');
+        if (baselineTransform) {
+          entity.addComponent('transform', baselineTransform);
+        }
       }
 
+      // Decode velocity (flag 0x02) and grounded (flag 0x04)
+      // These are related - grounded affects whether player can jump
+      let velX = 0, velY = 0, velZ = 0;
+      let grounded = false;
+      let hasVelocityData = false;
+
       if (flags & 0x02) {
+        // Velocity changed - read new values
+        velX = decoder.readFloat32();
+        velY = decoder.readFloat32();
+        velZ = decoder.readFloat32();
+        hasVelocityData = true;
+      } else if (baselineEntity) {
+        // Velocity unchanged - use baseline
+        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        if (baselineVel?.linear) {
+          velX = baselineVel.linear.x;
+          velY = baselineVel.linear.y;
+          velZ = baselineVel.linear.z;
+          grounded = baselineVel.grounded ?? false;
+          hasVelocityData = true;
+        }
+      }
+
+      if (flags & 0x04) {
+        // Grounded state changed - read new value
+        // This is CRITICAL for jump logic - client needs to know if player is on ground!
+        grounded = decoder.readUint8() !== 0;
+      }
+
+      // Create velocity component if we have data
+      if (hasVelocityData || (flags & 0x04)) {
         const vel = {
-          x: decoder.readFloat32(),
-          y: decoder.readFloat32(),
-          z: decoder.readFloat32(),
+          x: velX, y: velY, z: velZ, // Legacy direct access
+          linear: { x: velX, y: velY, z: velZ }, // FPSGameManager expects velocity.linear
+          angular: { x: 0, y: 0, z: 0 },
+          grounded, // Now properly transmitted!
           serialize() { return {}; },
           deserialize() { },
-          clone() { return { ...this }; }
+          clone() { return { ...this, linear: { ...this.linear }, angular: { ...this.angular } }; }
         };
         entity.addComponent('velocity', vel);
-      } else if (baselineEntity) {
-        const baselineVel = baselineEntity.getComponent('velocity');
-        if (baselineVel) {
-          entity.addComponent('velocity', baselineVel);
-        }
       }
     }
   }

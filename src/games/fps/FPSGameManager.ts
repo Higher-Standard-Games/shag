@@ -182,6 +182,31 @@ export class FPSGameManager {
           if (typeof result === 'string' && result.includes('Failed')) {
             console.error(`[FPSGameManager] Map load failed, disconnecting...`);
             this.shutdown();
+            return;
+          }
+
+          // === CRITICAL: Set up FPS controller AFTER map loads ===
+          // This prevents the race condition where scene empty/map command overrides the controller
+          try {
+            const { CameraSystem } = await import('../../engine/camera/CameraSystem');
+            const { FPSController } = await import('../../engine/camera/controllers/FPSController');
+            const cameraSystem = CameraSystem.getInstance();
+
+            // Ensure FPS controller is registered and active
+            if (!cameraSystem.getController('fps')) {
+              cameraSystem.registerController('fps', new FPSController());
+            }
+            cameraSystem.setController('fps');
+            console.log(`[FPSGameManager] Switched to FPS camera mode after map load`);
+
+            // Enable network mode on the FPSController
+            const controller = cameraSystem.getActiveController();
+            if (controller && controller.type === 'fps' && typeof (controller as any).enableNetworkMode === 'function') {
+              (controller as any).enableNetworkMode();
+              console.log(`[FPSGameManager] Enabled network mode on FPSController`);
+            }
+          } catch (e) {
+            console.warn(`[FPSGameManager] Could not set up FPS controller after map load:`, e);
           }
         } catch (error) {
           console.error(`[FPSGameManager] Failed to load map ${serverInfo.map}:`, error);
@@ -209,23 +234,8 @@ export class FPSGameManager {
       });
 
       console.log(`[FPSGameManager] Connected to ${url}, player: ${this.localPlayerId}`);
-
-      // Enable network mode on FPSController (if it exists)
-      // This switches the controller from local to network movement
-      try {
-        const { CameraSystem } = await import('../../engine/camera/CameraSystem');
-        const cameraSystem = CameraSystem.getInstance();
-        const controller = cameraSystem.getActiveController();
-        console.log(`[FPSGameManager] Active controller:`, controller?.type, controller);
-        if (controller && controller.type === 'fps' && typeof (controller as any).enableNetworkMode === 'function') {
-          console.log(`[FPSGameManager] Calling enableNetworkMode on FPSController`);
-          (controller as any).enableNetworkMode();
-        } else {
-          console.warn(`[FPSGameManager] No FPSController found or missing enableNetworkMode method`);
-        }
-      } catch (e) {
-        console.warn(`[FPSGameManager] Could not enable network mode on controller:`, e);
-      }
+      // Note: FPS controller setup is now done in onServerInfo callback AFTER map loads
+      // This prevents race conditions where map loading overrides the controller
     } catch (error) {
       console.error(`[FPSGameManager] Failed to connect to ${url}:`, error);
       throw error;
@@ -446,16 +456,40 @@ export class FPSGameManager {
    */
   private onServerStateUpdate(state: GameState): void {
     const player = state.players.get(this.localPlayerId);
-    if (!player) return;
+    if (!player) {
+      // Debug: log occasionally to avoid spam
+      if (Math.random() < 0.01) {
+        console.log(`[FPSGameManager] onServerStateUpdate: no player for ${this.localPlayerId}, players:`, Array.from(state.players.keys()));
+      }
+      return;
+    }
 
     const entity = state.entities.get(player.entityId);
-    if (!entity) return;
+    if (!entity) {
+      if (Math.random() < 0.01) {
+        console.log(`[FPSGameManager] onServerStateUpdate: no entity for ${player.entityId}, entities:`, Array.from(state.entities.keys()));
+      }
+      return;
+    }
 
     const transform = entity.getComponent<TransformComponent>('transform');
     const velocity = entity.getComponent<VelocityComponent>('velocity');
     const movementState = entity.getComponent<MovementStateComponent>('movementState');
 
-    if (!transform || !velocity) return;
+    if (!transform || !velocity) {
+      if (Math.random() < 0.01) {
+        const componentNames = entity.getComponentNames ? entity.getComponentNames() : 'unknown';
+        console.log(`[FPSGameManager] onServerStateUpdate: missing transform/velocity, components:`, componentNames);
+        console.log(`  transform:`, transform);
+        console.log(`  velocity:`, velocity);
+      }
+      return;
+    }
+
+    // Debug: log position occasionally
+    if (Math.random() < 0.01) {
+      console.log(`[FPSGameManager] State update: pos=(${transform.position.x.toFixed(1)}, ${transform.position.y.toFixed(1)}, ${transform.position.z.toFixed(1)})`);
+    }
 
     const update: PlayerStateUpdate = {
       position: { ...transform.position },

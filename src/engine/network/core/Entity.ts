@@ -51,6 +51,13 @@ export class Entity {
   }
 
   /**
+   * Get all component type names (for debugging)
+   */
+  getComponentNames(): string[] {
+    return Array.from(this.components.keys());
+  }
+
+  /**
    * Serialize entity state to binary
    */
   serialize(encoder: StateEncoder): void {

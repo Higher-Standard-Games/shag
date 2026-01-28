@@ -1,107 +1,244 @@
 # Feature Overview
 
-Complete list of SHAG Engine features and capabilities.
+Everything SHAG Engine can do, and what you can build with it.
+
+---
 
 ## Core Engine
 
-| Feature | Description |
-|---------|-------------|
-| Babylon.js Foundation | Built on Babylon.js 8.x with ES6 modules |
-| Tree-Shaken Bundle | 8MB → 3.4MB (-58%) through aggressive tree-shaking |
-| TypeScript Native | 100% TypeScript codebase with strict typing |
-| Singleton Architecture | Clean service-based architecture |
+| Feature | What It Means |
+|---------|---------------|
+| **Babylon.js 8.x** | Modern WebGL2 with full GPU features |
+| **TypeScript Native** | 100% typed, IDE-friendly, fewer bugs at runtime |
+| **Tree-Shaken** | 8MB → 3.4MB bundle (-58%) through ES6 imports |
+| **Singleton Services** | Clean architecture, easy to extend |
+
+---
 
 ## BSP Map System
 
-| Feature | Description |
-|---------|-------------|
-| IBSP/FBSP Support | Quake 3 and Warsow BSP geometry and lightmaps |
-| Lightmap Rendering | Pre-baked lightmaps with configurable intensity |
-| Entity Parsing | Entity lump parsing (spawn points, lights, doors) |
-| Face Types | Polygons, patches (Bezier curves), meshes, billboards |
-| Collision Detection | BSP-based collision for camera |
-| PVS Culling | Potentially Visible Set for occlusion optimization |
+Load Quake 3 and Warsow maps directly—geometry, lightmaps, entities, and all.
+
+| Feature | Details |
+|---------|---------|
+| **IBSP/FBSP** | Quake 3 (.bsp) and Warsow (FBSP) formats |
+| **Lightmaps** | Pre-baked lighting with configurable intensity |
+| **Face Types** | Polygons, Bezier patches, triangle meshes, billboards |
+| **Entity Parsing** | Spawn points, lights, triggers, item locations |
+| **PVS Culling** | Potentially Visible Set for occlusion (only render what's visible) |
+| **Collision** | Full BSP brush collision with swept AABB |
+
+---
 
 ## Shader System
 
-| Feature | Description |
-|---------|-------------|
-| Shader Parsing | Parses Q3/QFusion shader syntax |
-| Blend Functions | `blendFunc` support (add, blend, filter) |
-| Texture Mods | `tcMod` scroll, scale, rotate, turb |
-| Vertex Deformations | `deformVertexes` wave, autosprite (partial) |
-| Surface Parameters | `surfaceparm` sky, trans, nonsolid |
-| Animated Textures | `animMap` support |
-| Skyparms | Skybox loading from shader definitions |
+Q3 shaders work here—animated textures, scrolling, waving, all the tricks that made Q3 maps look alive.
+
+| Feature | Details |
+|---------|---------|
+| **Q3/QFusion Syntax** | Parses standard shader files from PK3 |
+| **blendFunc** | Add, blend, filter, modulate |
+| **tcMod** | Scroll, scale, rotate, turb (turbulence) |
+| **deformVertexes** | Wave, autosprite (partial), bulge |
+| **surfaceparm** | Sky, trans, nonsolid, nodraw, etc. |
+| **animMap** | Animated texture sequences |
+| **skyparms** | Skybox from shader definitions |
+
+*Note: Some advanced Q3 shader features aren't fully implemented. Focus is on the 90% of shaders that work, not the 10% edge cases.*
+
+---
+
+## Movement System
+
+The physics that made arena shooters feel good. Both Q3 and Warsow movement styles supported.
+
+### Quake 3 Style
+| Feature | Details |
+|---------|---------|
+| **Air Strafing** | Gain speed by strafing mid-air |
+| **Bunny Hopping** | Chain jumps to maintain/gain speed |
+| **Ground Friction** | Configurable via `sv_friction` |
+| **Step Climbing** | Auto-climb small ledges (18 units default) |
+
+### Warsow Style (Extended)
+| Feature | Details |
+|---------|---------|
+| **Wall Jump** | Kick off walls for extra height/momentum |
+| **Ledge Grab** | Grab ledges and pull yourself up |
+| **Crouchslide** | Sprint → crouch = slide with camera tilt |
+| **Air Control** | `sv_aircontrol` for tight mid-air turning |
+
+### Movement CVars
+All tweakable at runtime via console:
+```
+sv_gravity 1000          # Gravity (u/s²)
+sv_jumpheight 320        # Jump velocity
+sv_airaccelerate 1.0     # Air strafe acceleration
+sv_aircontrol 150        # Warsow-style air turning
+sv_walljump 1            # Enable wall jumps
+sv_ledgegrab 1           # Enable ledge grabs
+sv_slide 1               # Enable crouchslide
+```
+
+---
 
 ## Camera System
 
-| Feature | Description |
-|---------|-------------|
-| Freefly Controller | FPS-style WASD + mouse look with collision |
-| Isometric Controller | Top-down RTS/RPG perspective |
-| Sidescroll Controller | 2.5D platformer camera |
-| Follow Controller | Third-person character tracking |
-| Runtime Switching | Change camera mode via console |
-| Orthographic Mode | True orthographic projection |
+Multiple perspectives for different game types, switchable at runtime.
+
+| Controller | Use Case |
+|------------|----------|
+| **FPS/Freefly** | First-person WASD + mouse look with collision |
+| **Isometric** | Top-down for strategy/RPG games |
+| **Sidescroll** | 2.5D platformer view |
+| **Follow** | Third-person tracking |
+| **Orthographic** | True orthographic projection (no perspective) |
+
+Switch via console: `camera mode freefly`, `camera mode isometric`
+
+---
 
 ## Console System
 
-| Feature | Description |
-|---------|-------------|
-| Built-in Commands | Map loading, render variables, camera control |
-| Q3-Style Syntax | Familiar `command arg1 arg2` format |
-| Tab Completion | Auto-complete for commands |
-| Command History | Up/down arrow navigation |
-| Custom Commands | Easy to add your own commands |
+Press `~` and you're in familiar territory.
 
-## Render Variables
+| Feature | Details |
+|---------|---------|
+| **Q3-Style Commands** | `command arg1 arg2` format |
+| **Tab Completion** | Completes commands and arguments |
+| **History** | Up/down arrows navigate history |
+| **CVars** | Configuration variables with persistence |
+| **Custom Commands** | Easy to register your own |
 
-Runtime-configurable rendering:
+```
+map wdm7              # Load a map
+r_lightmap 2          # Increase lightmap intensity
+mv sv_gravity 400     # Lower gravity
+connect localhost:7777 # Join a server
+```
 
-- `r_normalmap` - Normal map intensity (0-4)
-- `r_lightmap` - Lightmap intensity (0-4)
-- `r_wireframe` - Wireframe toggle (0/1)
-- `r_bloom` - Bloom intensity (0-3)
-- And 8 more...
+---
 
-## Networking
+## Networking System
 
-| Feature | Description |
-|---------|-------------|
-| Authoritative Server | Q3-style server-authoritative architecture |
-| Client Prediction | Local prediction with server reconciliation |
-| Smooth Correction | Gradual position correction (not snap) |
-| Binary Protocol | Efficient binary message encoding |
-| Interpolation | Remote entity smoothing via snapshot buffer |
-| WebSocket Transport | Browser-compatible networking |
-| Dedicated Server | `npm run net:server` headless server |
-| Connect Command | In-game `connect <server>` command |
+Server-authoritative multiplayer, the way id Software intended.
+
+### Architecture
+| Component | Role |
+|-----------|------|
+| **Authoritative Server** | Runs the real simulation, clients obey |
+| **Client Prediction** | Instant local feedback, no input lag |
+| **Server Reconciliation** | Smooth correction when prediction was wrong |
+| **Delta Compression** | Only send what changed (saves bandwidth) |
+| **Interpolation** | Smooth remote player movement |
+
+### Key Concepts
+- **Tick-Based Simulation** — Fixed timestep (20Hz default), deterministic
+- **Command Batching** — All player inputs processed together per tick
+- **Grounded Flag** — Server tells client when you can jump (crucial!)
+- **Smooth Correction** — Gradual drift to server position, not jarring snaps
+
+### Commands
+```bash
+# Server
+npm run net:server -- --map wdm7 --port 7777
+
+# Client
+connect ws://localhost:7777
+network status
+disconnect
+```
+
+*See [Networking Guide](../guides/networking.md) for the deep dive.*
+
+---
+
+## Viewport Effects
+
+Post-processing and screen effects for that extra polish.
+
+| Effect | Description |
+|--------|-------------|
+| **Bloom** | Glow on bright areas |
+| **FXAA** | Fast anti-aliasing |
+| **Color Grading** | Tint, saturation, contrast |
+| **Vignette** | Darkened screen edges |
+| **Screen Shake** | For impacts and explosions |
+| **Damage Flash** | Red tint when hurt |
+
+Controlled via render variables: `r_bloom 1.5`, `r_fxaa 1`
+
+---
+
+## Weapon System
+
+Framework for implementing weapons with viewmodels and animation.
+
+| Feature | Details |
+|---------|---------|
+| **Viewmodels** | First-person weapon display |
+| **Animation States** | Idle, fire, reload, switch |
+| **Projectile System** | For rockets, plasma, etc. |
+| **Hitscan** | Instant trace for railguns, etc. |
+| **Ammo System** | Tracking and pickup support |
+
+*Game code implements the actual weapons—SHAG provides the framework.*
+
+---
 
 ## Headless Mode
 
-| Feature | Description |
-|---------|-------------|
-| NullEngine Support | Run without GPU/WebGL |
-| CLI Interface | `npm run cli:game` and `npm run cli:bsp` |
-| Network Server | `npm run net:server` dedicated server |
-| Network Client | `npm run net:client` test client |
-| Full Command Access | All console commands available |
-| CI/CD Ready | Automated testing in pipelines |
+Run the full engine without a GPU. Essential for:
 
-## Cross-Platform
+- **Dedicated Servers** — `npm run net:server`
+- **CI/CD Testing** — Validate maps, shaders, collision
+- **Memory Leak Detection** — `leaktest maprenderer 10`
+- **Automated Workflows** — Load maps, run commands, exit
 
-| Platform | Technology |
-|----------|------------|
-| Web | Vite + static deployment |
-| Mobile | Capacitor (iOS/Android) |
-| Desktop | Electron (Windows/Mac/Linux) |
+```bash
+# Interactive CLI
+npm run cli:game
 
-## Limitations
+# Single command
+npm run cli:game -- --command "map wdm7; bsp info; quit"
 
-SHAG Engine focuses on **asset loading**, not full game logic replication:
+# Dedicated server
+npm run net:server -- --map wdm7
+```
 
-- **No trigger system** - Triggers must be implemented in your game code
-- **No weapon/item logic** - Entity data is parsed but behavior is yours to implement
-- **Partial shader support** - Not all Q3 shader directives are implemented
-- **Game logic required** - Networking provides infrastructure, game simulation is yours
+---
+
+## Cross-Platform Deployment
+
+| Platform | Technology | Notes |
+|----------|------------|-------|
+| **Web** | Vite + static hosting | Just deploy `dist/` |
+| **Desktop** | Electron | Windows, Mac, Linux |
+| **Mobile** | Capacitor | iOS and Android |
+
+One codebase, all platforms. Write once, bunny hop everywhere.
+
+---
+
+## What SHAG Doesn't Do
+
+Being honest about limitations helps you choose the right tool:
+
+| Limitation | Why |
+|------------|-----|
+| **No trigger system** | BSP triggers are parsed but behavior is game code |
+| **No built-in weapons** | Framework only, you implement the guns |
+| **No AI/bots** | Pathfinding and bot logic is game code |
+| **Partial shader support** | ~90% of Q3 shaders work, some edge cases don't |
+| **No map editor** | Use NetRadiant-custom, import the BSP |
+
+SHAG is an **engine**, not a complete game. It handles the hard parts (BSP loading, networking, physics) so you can focus on making your game unique.
+
+---
+
+## What's Next?
+
+- [Getting Started](../getting-started/) — Install and run
+- [Networking Guide](../guides/networking.md) — Deep dive on multiplayer
+- [Movement System](../guides/movement-system.md) — All the physics details
+- [Console System](../guides/console-system.md) — Commands and cvars

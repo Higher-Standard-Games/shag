@@ -1,3 +1,29 @@
+/**
+ * Room.ts - Server-Side Game Room
+ *
+ * This is the heart of the server-side networking. A Room hosts a single game match,
+ * managing connected clients and running the authoritative simulation.
+ *
+ * KEY CONCEPTS:
+ *
+ * 1. AUTHORITATIVE SERVER: The server's simulation is the "source of truth".
+ *    Clients predict locally, but server state always wins.
+ *
+ * 2. TICK-BASED SIMULATION: The game runs in discrete time steps called "ticks".
+ *    At 20Hz, each tick is 50ms. All game logic happens in ticks, not real-time.
+ *
+ * 3. COMMAND BATCHING: Player inputs (commands) arrive asynchronously over the network.
+ *    We queue them and process ALL commands together at the start of each tick.
+ *    This ensures deterministic simulation - same inputs = same outputs.
+ *
+ * 4. SNAPSHOT BROADCASTING: After each tick, we send the current game state to all
+ *    clients. Clients use this to correct their local predictions.
+ *
+ * DATA FLOW:
+ *   Client Input → WebSocket → handleClientMessage → pendingCommands queue
+ *   Tick Timer → tick() → simulation.tick(pendingCommands) → broadcastSnapshot()
+ */
+
 import type { Simulation, SimulationConfig } from '../core/Simulation';
 import type { GameState } from '../core/GameState';
 import type { Command } from '../core/Command';
@@ -6,7 +32,8 @@ import type { Transport } from '../client/transport/Transport';
 import { MessageCodec, MessageType } from '../protocol/MessageCodec';
 
 /**
- * Represents a connected client in a room
+ * Represents a connected client in a room.
+ * Each client has a transport (WebSocket connection) and a player in the simulation.
  */
 interface Client {
   /** Unique client identifier */
@@ -52,6 +79,15 @@ export class Room {
   private onClientJoinCallbacks: ((client: Client) => void)[] = [];
   private onClientLeaveCallbacks: ((client: Client) => void)[] = [];
   private onTickCallbacks: ((tick: number, state: GameState) => void)[] = [];
+
+  // ============================================================================
+  // COMMAND QUEUE - Critical for deterministic simulation!
+  // ============================================================================
+  // Commands arrive asynchronously from clients over the network. If we processed
+  // each command immediately, the simulation would be non-deterministic (depends on
+  // network timing). Instead, we queue all commands and process them together at
+  // the start of each tick. This ensures: same inputs + same tick = same results.
+  private pendingCommands: Command[] = [];
 
   constructor(
     id: string,
@@ -184,13 +220,15 @@ export class Room {
 
   /**
    * Handle command from client
+   * Commands are queued and processed in the next tick for deterministic simulation
    */
   handleCommand(clientId: string, command: Command): void {
     const client = this.clients.get(clientId);
     if (!client) return;
 
-    // Add command to simulation
-    this.simulation.tick([command]);
+    // Queue command for next tick instead of immediate processing
+    // This ensures deterministic simulation: all commands for a tick are processed together
+    this.pendingCommands.push(command);
   }
 
   /**
@@ -290,19 +328,40 @@ export class Room {
       }
     };
   }
+  // ============================================================================
+  // TICK - The heartbeat of the server simulation
+  // ============================================================================
   /**
-   * Private methods
+   * Execute one simulation tick. This is called at a fixed rate (e.g., 20Hz = every 50ms).
+   *
+   * The tick follows this sequence:
+   * 1. Increment tick counter (this is the authoritative server time)
+   * 2. Process ALL queued commands from clients (deterministic order)
+   * 3. Run physics and game systems (MovementSystem, etc.)
+   * 4. Notify any tick listeners (for debugging, logging, etc.)
+   * 5. Broadcast new state to all clients (so they can correct their predictions)
+   *
+   * Why this order matters:
+   * - Commands must be processed BEFORE physics, so player input affects movement
+   * - Snapshot must be sent AFTER physics, so clients see the result of their input
    */
   private tick(): void {
+    // Step 1: Advance server time
     this.currentTick++;
 
-    // Run simulation tick (processes movement, physics, etc.)
-    this.simulation.tick([]);
+    // Step 2 & 3: Process commands and run physics
+    // simulation.tick() does: sort commands → run handlers → run systems → increment sim tick
+    // All queued commands are processed together for determinism
+    this.simulation.tick(this.pendingCommands);
 
-    // Notify tick listeners
+    // Step 3b: Clear the queue for next tick
+    this.pendingCommands = [];
+
+    // Step 4: Notify listeners (debugging, analytics, etc.)
     this.onTickCallbacks.forEach(cb => cb(this.currentTick, this.simulation.state));
 
-    // Send snapshot to all clients
+    // Step 5: Send current state to all clients
+    // Clients will use this to correct their local predictions
     this.broadcastSnapshot();
   }
 

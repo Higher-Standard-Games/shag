@@ -188,15 +188,22 @@ export default class SceneCommand extends Command {
     cameraSystem.init(emptyScene, canvas);
     cameraSystem.setCamera(emptySceneCamera);
 
-    // Create fresh freefly controller
-    const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
-    const existingFreefly = cameraSystem.getController('freefly');
-    if (existingFreefly) {
-      existingFreefly.dispose();
+    // Create fresh freefly controller (unless we're in network mode)
+    const { FPSGameManager } = await import('../../../games/fps/FPSGameManager');
+    const isNetworkMode = FPSGameManager.getInstance().isConnectedToServer();
+
+    if (!isNetworkMode) {
+      const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
+      const existingFreefly = cameraSystem.getController('freefly');
+      if (existingFreefly) {
+        existingFreefly.dispose();
+      }
+      const freeflyController = new FreeflyController();
+      cameraSystem.registerController('freefly', freeflyController);
+      cameraSystem.setController('freefly');
+    } else {
+      console.log('[SceneCommand] Skipping freefly controller - network mode active');
     }
-    const freeflyController = new FreeflyController();
-    cameraSystem.registerController('freefly', freeflyController);
-    cameraSystem.setController('freefly');
 
     // Enter "in_game" state
     const { MenuSystem } = await import('../../MenuSystem');

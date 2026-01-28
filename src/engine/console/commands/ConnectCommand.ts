@@ -39,25 +39,9 @@ export default class ConnectCommand extends Command {
       }
 
       await gameManager.initializeNetwork(url);
-
-      // Switch to FPS camera mode for proper movement
-      try {
-        const { CameraSystem } = await import('../../camera/CameraSystem');
-        const cameraSystem = CameraSystem.getInstance();
-        cameraSystem.setController('fps');
-        console.log('[ConnectCommand] Switched to FPS camera mode');
-
-        // Enable network mode on the FPSController
-        const controller = cameraSystem.getActiveController();
-        if (controller && controller.type === 'fps' && typeof (controller as any).enableNetworkMode === 'function') {
-          (controller as any).enableNetworkMode();
-          console.log('[ConnectCommand] Enabled network mode on FPSController');
-        }
-      } catch (e) {
-        console.warn('[ConnectCommand] Could not switch to FPS camera:', e);
-      }
-
-      return `Connected to ${url}`;
+      // Note: FPS controller setup is now done in FPSGameManager.onServerInfo callback
+      // AFTER the map loads, to prevent race conditions with scene setup
+      return `Connecting to ${url}... Map will load shortly.`;
     } catch (error) {
       return `Failed to connect: ${error}`;
     }

@@ -1,330 +1,467 @@
 # Networking System
 
-SHAG Engine includes a Q3-style authoritative multiplayer networking system. This guide explains the architecture and how to use it in your games.
+SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've ever wondered why Quake felt so good over dial-up while modern games feel laggy over fiber—this is why.
 
-## Architecture Overview
+---
 
-The networking system follows an authoritative server model:
+## The Big Picture
 
 ```
-┌─────────────────┐         ┌─────────────────┐
-│     Client      │ ──────> │     Server      │
-│  (prediction)   │ <────── │  (authoritative)│
-└─────────────────┘         └─────────────────┘
-     Input                    Snapshots
+┌─────────────────────┐                    ┌─────────────────────┐
+│       CLIENT        │                    │       SERVER        │
+│                     │                    │                     │
+│  ┌───────────────┐  │     Commands       │  ┌───────────────┐  │
+│  │  Local Input  │──┼───────────────────>│  │ Command Queue │  │
+│  └───────────────┘  │                    │  └───────┬───────┘  │
+│         │           │                    │          │          │
+│         v           │                    │          v          │
+│  ┌───────────────┐  │                    │  ┌───────────────┐  │
+│  │  Prediction   │  │                    │  │  Simulation   │  │
+│  │  (instant)    │  │                    │  │  (tick-based) │  │
+│  └───────────────┘  │                    │  └───────┬───────┘  │
+│         │           │                    │          │          │
+│         v           │     Snapshots      │          v          │
+│  ┌───────────────┐  │<───────────────────│  ┌───────────────┐  │
+│  │ Reconciliation│  │                    │  │   Broadcast   │  │
+│  └───────────────┘  │                    │  └───────────────┘  │
+└─────────────────────┘                    └─────────────────────┘
 ```
 
-- **Server** runs the authoritative simulation, processes commands, broadcasts state
-- **Client** predicts locally for responsiveness, reconciles with server state
-- **Binary Protocol** for efficient bandwidth usage
-- **Smooth Correction** instead of snap correction for visual quality
+**Key Principle:** The server is the source of truth. Clients predict locally for instant feedback, but server state always wins.
 
-## Console Commands
+---
 
-### Connection Commands
+## Core Concepts
 
-```bash
-# Connect to a server
-connect localhost:7777
-connect ws://192.168.1.100:7777
-connect wss://game.example.com:443
+### 1. Tick-Based Simulation
 
-# Disconnect from server
-disconnect
+The game runs in discrete time steps called **ticks**, not continuous real-time.
 
-# Network management (alternative syntax)
-network connect <url>
-network disconnect
-network status
-network shutdown
+```
+Tick 0    Tick 1    Tick 2    Tick 3    Tick 4
+  │         │         │         │         │
+  ├─ 50ms ──┼─ 50ms ──┼─ 50ms ──┼─ 50ms ──┤
+  │         │         │         │         │
+  Process   Process   Process   Process   Process
+  commands  commands  commands  commands  commands
+  Run       Run       Run       Run       Run
+  physics   physics   physics   physics   physics
 ```
 
-### Status Commands
+At 20Hz tick rate, each tick is 50ms. All game logic happens in ticks:
+- Player inputs are processed at tick boundaries
+- Physics runs once per tick
+- State is broadcast after each tick
 
-```bash
-# Show connection status
-network status
+**Why ticks?** Determinism. Given the same inputs in the same order, the simulation produces identical results on every machine. This is essential for multiplayer.
 
-# Output example:
-# Network Status:
-#   Initialized: true
-#   Mode: network
-#   Connected: true
-#   Server: ws://localhost:7777
+### 2. Command Batching (Critical!)
+
+Network packets arrive asynchronously. If we processed each command the moment it arrived, the simulation would be non-deterministic.
+
+```
+❌ WRONG: Process immediately
+
+   Time ──────────────────────────────────>
+
+   Player A's command arrives... process it
+   Player B's command arrives... process it
+   Player A's next command... process it
+
+   Result: Order depends on network timing = different results on different machines
 ```
 
-## Running a Server
+```
+✅ RIGHT: Batch and process together
 
-### Quick Start
+   Time ──────────────────────────────────>
 
-```bash
-# Start a server on port 7777
-npm run net:server
+   Commands arrive... queue them
+   Commands arrive... queue them
+   TICK! Process ALL queued commands together (sorted by player ID, then sequence)
 
-# With options
-npm run net:server -- --port 8080 --name "My Server" --map dm17
+   Result: Same order everywhere = identical simulation
 ```
 
-### Server Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--port <n>` | 7777 | Server port |
-| `--name <s>` | "SHAG Test Server" | Server name |
-| `--map <s>` | wdm7 | Map name |
-| `--max <n>` | 16 | Max clients |
-
-## Running a Client
-
-### Headless Client (Testing)
-
-```bash
-# Connect to a server
-npm run net:client -- --connect ws://localhost:7777
-
-# With player name
-npm run net:client -- --connect ws://localhost:7777 --name Player1
-```
-
-### In-Game Connection
-
-Open the console (`~`) and type:
-```
-connect localhost:7777
-```
-
-## NetworkManager API
-
-Games can use the NetworkManager API directly:
-
+**Implementation:**
 ```typescript
-import { NetworkManager } from './engine/network';
+// Commands arrive asynchronously
+handleCommand(command: Command): void {
+  this.pendingCommands.push(command);  // Queue, don't process!
+}
 
-// Get the singleton instance
-const nm = NetworkManager.getInstance();
-
-// Connect to a server
-await nm.connect('ws://localhost:7777');
-
-// Check connection status
-nm.isConnected();     // true/false
-nm.getServerUrl();    // 'ws://localhost:7777' or null
-nm.getMode();         // 'local' | 'network' | null
-
-// Subscribe to connection changes
-const unsub = nm.onConnectionChange((connected, url) => {
-  if (connected) {
-    console.log(`Connected to ${url}`);
-  } else {
-    console.log('Disconnected');
-  }
-});
-
-// Send commands
-nm.sendCommand(moveCmd);
-
-// Subscribe to state updates
-nm.onStateUpdate((state) => {
-  // Handle game state update
-});
-
-// Disconnect
-await nm.disconnect();
-```
-
-## IGameHost Interface
-
-The `IGameHost` interface abstracts local vs networked games:
-
-```typescript
-interface IGameHost {
-  // Player info
-  readonly localPlayerId: PlayerId;
-  readonly currentTick: number;
-
-  // Commands
-  sendCommand(cmd: Command): void;
-
-  // State
-  getLocalState(): GameState;
-  getInterpolatedEntity(entityId: string): any;
-
-  // Events
-  onStateUpdate(callback: (state: GameState) => void): () => void;
-  onEvent(callback: (event: any) => void): () => void;
-
-  // Connection (network hosts only)
-  connect?(): Promise<void>;
-  disconnect?(): Promise<void>;
-  isConnected?(): boolean;
+// Tick processes all queued commands
+tick(): void {
+  this.simulation.tick(this.pendingCommands);  // Process ALL together
+  this.pendingCommands = [];                    // Clear for next tick
+  this.broadcastSnapshot();                     // Send results to clients
 }
 ```
 
-### Implementations
+### 3. tick() vs predict() — The Crucial Difference
 
-| Class | Description |
-|-------|-------------|
-| `LocalGameHost` | Single-player, runs simulation in-process |
-| `NetworkGameHost` | Multiplayer client, connects to remote server |
+The server and client both run the same simulation code, but they use it differently:
 
-## Binary Protocol
+**Server uses `tick()`:**
+- Processes commands
+- Runs physics
+- **Increments tick counter** (advances game time)
 
-Messages use a binary format with MessageType prefix:
+**Client uses `predict()`:**
+- Processes commands (local input only)
+- Runs physics
+- **Does NOT increment tick counter**
 
-### Server → Client
-
-| Type | Code | Description |
-|------|------|-------------|
-| Welcome | 0x01 | Server info on connect |
-| JoinAccept | 0x02 | Player accepted |
-| JoinReject | 0x03 | Player rejected |
-| Snapshot | 0x04 | Game state update |
-| PlayerJoined | 0x05 | Another player joined |
-| PlayerLeft | 0x06 | Another player left |
-| GameStart | 0x07 | Game started |
-| Ack | 0x08 | Command acknowledged |
-
-### Client → Server
-
-| Type | Code | Description |
-|------|------|-------------|
-| Join | 0x81 | Request to join |
-| Ready | 0x82 | Player ready |
-| Input | 0x83 | Player command |
-| Disconnect | 0x84 | Disconnect notice |
-
-## Connection Handshake
+Why the difference? Imagine you're running at 60fps with a 20Hz server:
 
 ```
-Client                          Server
-   │                               │
-   │──── TCP/WS Connect ──────────>│
-   │                               │
-   │<──── Welcome ─────────────────│  (server info)
-   │                               │
-   │──── Join ────────────────────>│  (player name)
-   │                               │
-   │<──── JoinAccept ──────────────│  (client/player/entity IDs)
-   │                               │
-   │<──── Snapshot ────────────────│  (initial state)
-   │                               │
-   │──── Input ───────────────────>│  (continuously)
-   │<──── Snapshot ────────────────│  (20 Hz)
-   │                               │
+Without the distinction:
+  Server tick: 0, 1, 2, 3...
+  Client tick: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9...  (racing ahead!)
+
+With predict():
+  Server tick: 0, 1, 2, 3...
+  Client tick: synced from server snapshots
+  Client prediction: runs physics for instant feedback, doesn't advance tick
 ```
 
-## Client Prediction
+**Implementation:**
+```typescript
+// Server
+tick(commands: Command[]): void {
+  this.processCommands(commands);
+  this.runSystems();
+  this.currentTick++;  // Advance game time
+}
 
-The client predicts movement locally for responsiveness:
+// Client
+predict(commands: Command[]): void {
+  this.processCommands(commands);
+  this.runSystems();
+  // Tick NOT incremented - server snapshots set the tick
+}
+```
 
-1. Player presses key → command applied locally immediately
-2. Command sent to server
-3. Server processes command, broadcasts snapshot
-4. Client receives snapshot, reconciles:
-   - If small error → smooth correction over time
-   - If large error → snap to server position
+### 4. Client Prediction
 
-### Smooth Correction
+When you press W to move forward:
 
-Instead of snapping (jarring), the client smoothly interpolates:
+**Without prediction (bad):**
+1. Press W
+2. Send command to server (50ms)
+3. Server processes, sends snapshot (50ms)
+4. See movement (100ms later = laggy!)
+
+**With prediction (good):**
+1. Press W
+2. Apply movement locally (instant!)
+3. Send command to server (background)
+4. Server confirms (or corrects) later
+
+Prediction makes the game feel responsive even with network latency.
+
+### 5. Reconciliation
+
+Sometimes prediction is wrong. Maybe another player shot you, or you hit collision the server knew about but you didn't.
+
+**Small error (< 0.5 units):** Ignore it, not noticeable
+
+**Medium error (0.5-100 units):** Smooth correction
+- Gradually drift toward server position over ~10 frames
+- Player doesn't notice the correction
+
+**Large error (> 100 units):** Snap immediately
+- Probably a teleport, respawn, or major desync
+- No point smoothing a 100-unit error
 
 ```typescript
-// Error < 0.5 units: no correction needed
-// Error 0.5-100 units: smooth correction over ~10 frames
-// Error > 100 units: snap immediately (teleport/respawn)
+const error = serverPos.subtract(localPos).length();
+
+if (error < 0.5) {
+  // Close enough, do nothing
+} else if (error < 100) {
+  // Smooth correction
+  localPos = Vector3.Lerp(localPos, serverPos, 0.3);
+} else {
+  // Snap
+  localPos = serverPos.clone();
+}
 ```
 
-## Entity Interpolation
+### 6. The Grounded Flag (Don't Forget This!)
 
-Remote entities (other players) are interpolated between snapshots:
+The server must tell clients whether the player is on the ground. Without it, the client doesn't know if jumping is allowed.
 
-- Buffer stores last N snapshots
-- Render 2 ticks behind for smooth interpolation
-- Handles packet loss gracefully
+```
+❌ Without grounded flag:
+   - Server knows player landed
+   - Client still thinks player is mid-air
+   - Player presses jump... nothing happens
+   - "This game is broken!"
+
+✅ With grounded flag:
+   - Server sends grounded=true in snapshot
+   - Client knows player can jump
+   - Jump works correctly
+```
+
+**Binary Protocol:**
+```
+Component flags:
+  0x01 = position changed
+  0x02 = velocity changed
+  0x04 = grounded state changed  ← CRITICAL!
+```
+
+### 7. Delta Compression
+
+Sending full state every tick wastes bandwidth. Delta compression sends only what changed:
+
+```
+Full state: 3 players × (position + velocity + grounded) = ~100 bytes
+Delta state: Only player 2 moved = ~25 bytes
+
+At 20Hz = 2KB/sec vs 500 bytes/sec
+```
+
+**How it works:**
+1. Server tracks last acknowledged snapshot per client
+2. Compare current state to acknowledged state
+3. Only encode changed values
+4. Client reconstructs full state from baseline + delta
+
+---
 
 ## Server Architecture
 
 ```
 GameServer
 ├── Room (game instance)
-│   ├── Simulation (game logic)
+│   ├── Simulation (deterministic game logic)
 │   ├── Clients (connected players)
-│   └── Tick loop (20 Hz)
-└── WebSocket handler
+│   ├── Command Queue (pending inputs)
+│   └── Tick Loop (20Hz)
+└── WebSocket Handler
 ```
 
-### Creating Custom Simulations
+### Room Lifecycle
 
 ```typescript
-class MySimulation extends Simulation {
-  protected createInitialState(): GameState {
-    const state = new GameState();
-    // Add initial entities
-    return state;
-  }
+// Create room with game-specific simulation
+const room = new Room('room-1', config, FPSSimulation, 16);
 
-  protected registerSystems(): void {
-    // Register game systems (physics, AI, etc.)
-  }
+// Clients connect
+room.addClient(clientId, transport);  // → WELCOME, JOIN_ACCEPT, SNAPSHOT
 
-  protected registerCommandHandlers(): void {
-    // Handle player commands
-    this.registerHandler('move', (cmd, state) => {
-      // Process movement
-    });
-  }
+// Game runs
+room.start(20);  // 20Hz tick rate
+
+// Tick loop (every 50ms)
+private tick(): void {
+  this.currentTick++;
+  this.simulation.tick(this.pendingCommands);  // All commands together
+  this.pendingCommands = [];
+  this.broadcastSnapshot();  // Send state to all clients
 }
 ```
+
+---
+
+## Console Commands
+
+### Server
+```bash
+# Start dedicated server
+npm run net:server
+
+# With options
+npm run net:server -- --port 8080 --name "My Server" --map dm17 --max 8
+```
+
+### Client
+```bash
+# Connect
+connect localhost:7777
+connect ws://192.168.1.100:7777
+
+# Status
+network status
+
+# Disconnect
+disconnect
+```
+
+---
+
+## Connection Handshake
+
+```
+Client                              Server
+   │                                   │
+   │──── WebSocket Connect ───────────>│
+   │                                   │
+   │<──── WELCOME ─────────────────────│  Server info (name, map, tick rate)
+   │                                   │
+   │──── JOIN ────────────────────────>│  Player name
+   │                                   │
+   │<──── JOIN_ACCEPT ─────────────────│  Client ID, Player ID, Entity ID
+   │                                   │
+   │<──── SNAPSHOT ────────────────────│  Initial game state
+   │                                   │
+   │──── INPUT ───────────────────────>│  (continuous)
+   │<──── SNAPSHOT ────────────────────│  (20Hz)
+   │                                   │
+```
+
+---
+
+## Binary Protocol
+
+All messages use binary encoding for efficiency:
+
+### Server → Client (0x01-0x0F)
+
+| Type | Code | Purpose |
+|------|------|---------|
+| Welcome | 0x01 | Server info on connect |
+| JoinAccept | 0x02 | Player accepted, IDs assigned |
+| JoinReject | 0x03 | Connection refused |
+| Snapshot | 0x04 | Game state update |
+| PlayerJoined | 0x05 | Another player connected |
+| PlayerLeft | 0x06 | Another player disconnected |
+| GameStart | 0x07 | Match started |
+| Ack | 0x08 | Command acknowledged |
+
+### Client → Server (0x81-0x8F)
+
+| Type | Code | Purpose |
+|------|------|---------|
+| Join | 0x81 | Request to join game |
+| Ready | 0x82 | Player ready to start |
+| Input | 0x83 | Player command |
+| Disconnect | 0x84 | Graceful disconnect |
+
+### Snapshot Format
+
+```
+Header:
+  tick (uint32) - Server tick number
+  timestamp (uint32) - Server time (ms)
+
+Entities:
+  count (uint16)
+  for each entity:
+    id (string)
+    flags (uint8)
+      0x01 = position changed
+      0x02 = velocity changed
+      0x04 = grounded changed
+    if 0x01: x, y, z (float32 × 3)
+    if 0x02: vx, vy, vz (float32 × 3)
+    if 0x04: grounded (uint8)
+
+Players:
+  count (uint16)
+  for each player:
+    id (string)
+    flags (uint8)
+    ... (entity ID, name, score)
+
+Events:
+  count (uint16)
+  for each: type + JSON data
+```
+
+---
+
+## Entity Interpolation
+
+Remote players (not the local player) are interpolated between snapshots:
+
+```
+Snapshot at tick 100: Player B at (100, 0, 200)
+Snapshot at tick 101: Player B at (105, 0, 200)
+
+Render at 60fps between ticks:
+  Frame 1: (100.0, 0, 200)
+  Frame 2: (101.7, 0, 200)
+  Frame 3: (103.3, 0, 200)
+  Frame 4: (105.0, 0, 200)
+```
+
+The interpolation buffer stores recent snapshots and renders 2 ticks behind for smoothness. This adds 100ms visual latency for remote players but makes movement perfectly smooth.
+
+---
 
 ## Testing
 
 ### Two-Client Test
-
-Terminal 1 (Server):
 ```bash
-npm run net:server
-```
+# Terminal 1: Server
+npm run net:server -- --map wdm7
 
-Terminal 2 (Client 1):
-```bash
+# Terminal 2: Client 1
 npm run net:client -- --name Alice
-```
 
-Terminal 3 (Client 2):
-```bash
+# Terminal 3: Client 2
 npm run net:client -- --name Bob
 ```
 
 ### In-Game Test
-
 1. Start server: `npm run net:server`
 2. Start game: `npm run dev`
 3. Open console: `~`
-4. Type: `connect localhost:7777`
-5. Check: `network status`
+4. Connect: `connect localhost:7777`
+5. Verify: `network status`
+
+---
 
 ## Troubleshooting
 
-### Connection Failed
+### "Movement feels wrong"
+- Check that grounded flag is being transmitted (0x04 in component flags)
+- Verify command batching is working (all commands processed at tick boundary)
+- Confirm client uses `predict()` not `tick()` for local prediction
 
-- Check server is running: `npm run net:server`
-- Check firewall allows port 7777
-- Verify URL format: `ws://host:port`
+### "Jumping doesn't work"
+- The grounded flag must be transmitted in snapshots
+- Client must read and apply grounded state from velocity component
+- Server must set grounded=true when player touches ground
 
-### High Latency
+### "Players teleport/snap"
+- Smooth correction threshold may be too low
+- Check for large tick divergence between client and server
+- Verify interpolation buffer has enough snapshots
 
-- Server tick rate is 20 Hz (50ms snapshots)
-- Check network conditions
-- Consider geographic proximity
+### "High bandwidth usage"
+- Enable delta compression (compare to baseline)
+- Reduce tick rate if acceptable (20Hz → 10Hz)
+- Check for unnecessary state being transmitted
 
-### Desync Issues
+---
 
-- Client prediction may diverge
-- Smooth correction handles small errors
-- Large desyncs trigger snap correction
+## For AI Assistants
+
+Key files to understand the networking system:
+
+| File | Purpose |
+|------|---------|
+| `src/engine/network/core/Simulation.ts` | tick() vs predict() |
+| `src/engine/network/server/Room.ts` | Command batching, tick loop |
+| `src/engine/network/client/hosts/NetworkGameHost.ts` | Prediction, reconciliation |
+| `src/engine/network/protocol/BinaryProtocol.ts` | Delta compression, grounded flag |
+| `src/engine/network/client/InterpolationBuffer.ts` | Remote entity smoothing |
+
+When debugging networking issues:
+1. Check command batching first (commands queued, not processed immediately)
+2. Verify grounded flag is transmitted and read
+3. Confirm client uses predict() not tick()
+4. Check reconciliation thresholds
+
+---
 
 ## See Also
 
-- [Headless Mode](./headless-mode.md) - CLI testing tools
-- [Console System](./console-system.md) - Command registration
-- [Command Reference](./command-reference.md) - All commands
+- [Headless Mode](./headless-mode.md) — Dedicated server setup
+- [Console System](./console-system.md) — Command registration
+- [Movement System](./movement-system.md) — Physics that networking syncs

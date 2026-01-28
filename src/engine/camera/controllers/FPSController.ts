@@ -192,6 +192,11 @@ export class FPSController implements ICameraController {
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
+      // Debug: log state updates occasionally
+      if (Math.random() < 0.02) {
+        console.log(`[FPS] State callback: pos=(${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)}), grounded=${state.grounded}`);
+      }
+
       // Track previous grounded state for landing detection
       this.wasGroundedLastFrame = this.isGrounded;
 
@@ -653,12 +658,25 @@ export class FPSController implements ICameraController {
 
     this.removeInputHandlers();
 
+    // Clean up network state subscription
+    if (this.stateUnsubscribe) {
+      this.stateUnsubscribe();
+      this.stateUnsubscribe = null;
+    }
+
+    // Reset physics/network state so reattach reinitializes properly
+    this.smoothingInitialized = false;
+    this.useNetworkMovement = false;
+    this.networkReady = false;
+    this.physics = null;
+    this.gameManager = null;
+
     this.camera = null;
     this.scene = null;
     this.canvas = null;
     this.isPointerLocked = false;
 
-    console.log("[FPSController] Detached");
+    console.log("[FPSController] Detached (state reset)");
   }
 
   update(deltaTime: number): void {
@@ -716,7 +734,8 @@ export class FPSController implements ICameraController {
       console.log(`[FPS DEBUG] FPSGameManager state: isRunning=${this.gameManager.isGameRunning()}, serverUrl=${this.gameManager.getServerUrl()}`);
 
       // Check if already connected to a server (via 'connect' command)
-      if (isConnected) {
+      // Skip if network mode was already enabled by enableNetworkMode() to avoid duplicate subscriptions
+      if (isConnected && !this.networkReady) {
         // === SERVER CONNECTION MODE ===
         // FPSGameManager was already initialized by 'connect' command
         // Just subscribe to state updates - don't spawn or init locally
@@ -751,6 +770,10 @@ export class FPSController implements ICameraController {
 
         this.networkReady = true;
         console.log(`[FPS] Server movement ready - inputs will be sent to server`);
+
+      } else if (isConnected && this.networkReady) {
+        // Network mode already enabled by enableNetworkMode() - skip initialization
+        console.log(`[FPS] Network mode already enabled, skipping initialization`);
 
       } else if (mv.get('sv_network_movement') > 0) {
         // === LOCAL NETWORK SIMULATION MODE ===
@@ -904,8 +927,13 @@ export class FPSController implements ICameraController {
         this.camera.position.x = pos.x;
         this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
         this.camera.position.z = pos.z;
-      } else if (Math.random() < 0.01) {
-        console.log(`[FPS] Network mode: getLocalPlayerPosition returned null`);
+      } else {
+        // Position not available from prediction, but we might have it from server state subscription
+        // At minimum, apply correct camera height
+        this.camera.position.y = this.physicsY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
+        if (Math.random() < 0.01) {
+          console.log(`[FPS] Network mode: getLocalPlayerPosition returned null, using physicsY=${this.physicsY.toFixed(1)}`);
+        }
       }
 
       // Update UI
