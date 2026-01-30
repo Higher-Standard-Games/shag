@@ -95,13 +95,13 @@ export class ShaderAnimationSystem {
   private scene: Scene | null = null;
   private entries: Map<string, AnimatedMaterialEntry> = new Map();
   private renderObserver: Observer<Scene> | null = null;
-  
+
   private enabled: boolean = true;
   private timeScale: number = 1.0;
   private totalTime: number = 0;
   private lastTime: number = 0;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ShaderAnimationSystem {
     if (!ShaderAnimationSystem.instance) {
@@ -175,7 +175,7 @@ export class ShaderAnimationSystem {
     alphaGen?: AlphaGen
   ): void {
     // Check if we actually have anything to animate
-    const hasAnimation = 
+    const hasAnimation =
       tcMods.length > 0 ||
       (rgbGen?.type === 'wave') ||
       (alphaGen?.type === 'wave');
@@ -320,7 +320,7 @@ export class ShaderAnimationSystem {
       if (stage.rgbGen?.type === 'wave' && stage.rgbGen.wave) {
         const waveValue = evaluateWaveFunc(stage.rgbGen.wave, this.totalTime);
         const clampedValue = Math.max(0, Math.min(1, waveValue));
-        
+
         if (stage.baseColor) {
           entry.material.diffuseColor = new Color3(
             stage.baseColor.r * clampedValue,
@@ -383,8 +383,23 @@ export class ShaderAnimationSystem {
           break;
 
         case 'transform':
-          // Full 2D matrix transform - complex, skip for now
-          // Would need to apply: [u', v'] = [m00 m01; m10 m11] * [u, v] + [t0, t1]
+          // 2D affine matrix transform: [u', v'] = [m00 m01; m10 m11] * [u, v] + [t0, t1]
+          // Decompose into scale, rotation, and translation that Babylon supports
+          // Note: This doesn't handle shear correctly, but covers most Q3 shader use cases
+
+          // Extract scale from matrix (length of each row vector)
+          const scaleU = Math.sqrt(tcMod.m00 * tcMod.m00 + tcMod.m01 * tcMod.m01);
+          const scaleV = Math.sqrt(tcMod.m10 * tcMod.m10 + tcMod.m11 * tcMod.m11);
+
+          // Extract rotation from first row (assumes no shear)
+          const rotation = Math.atan2(tcMod.m01, tcMod.m00);
+
+          // Apply: set state (transform is typically static, applied once)
+          state.uScale = scaleU;
+          state.vScale = scaleV;
+          state.rotation = rotation;
+          state.uOffset = tcMod.t0;
+          state.vOffset = tcMod.t1;
           break;
       }
     }

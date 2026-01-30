@@ -275,6 +275,11 @@ export class Q3ShaderRegistry {
         props.needsAnimation = true;
       }
 
+      // Texture coordinate generation mode (environment mapping, etc.)
+      if (firstStage.tcGen) {
+        props.tcGen = firstStage.tcGen;
+      }
+
       // Explicit depth write in stage
       if (firstStage.depthWrite !== undefined) {
         props.depthWrite = firstStage.depthWrite;

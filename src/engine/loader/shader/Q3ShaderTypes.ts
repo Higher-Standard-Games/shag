@@ -13,7 +13,7 @@ export type BlendFuncPreset = 'add' | 'blend' | 'filter';
 /**
  * GL blend factors
  */
-export type BlendFactor = 
+export type BlendFactor =
   | 'GL_ONE'
   | 'GL_ZERO'
   | 'GL_SRC_COLOR'
@@ -81,6 +81,21 @@ export interface TcModTransform {
 export type TcMod = TcModScroll | TcModScale | TcModRotate | TcModStretch | TcModTurb | TcModTransform;
 
 /**
+ * Texture coordinate generation modes
+ */
+export type TcGenMode = 'base' | 'lightmap' | 'environment' | 'vector';
+
+export interface TcGenVector {
+  sVector: [number, number, number];  // S direction in world space
+  tVector: [number, number, number];  // T direction in world space
+}
+
+export interface TcGen {
+  mode: TcGenMode;
+  vector?: TcGenVector;  // Only for mode='vector'
+}
+
+/**
  * Wave function for deformations and animations
  */
 export interface WaveFunc {
@@ -95,8 +110,8 @@ export interface WaveFunc {
  * RGB generation modes
  */
 export interface RgbGen {
-  type: 'identity' | 'identityLighting' | 'wave' | 'entity' | 'oneMinusEntity' | 
-        'vertex' | 'oneMinusVertex' | 'lightingDiffuse' | 'const';
+  type: 'identity' | 'identityLighting' | 'wave' | 'entity' | 'oneMinusEntity' |
+  'vertex' | 'oneMinusVertex' | 'lightingDiffuse' | 'const';
   wave?: WaveFunc;
   color?: [number, number, number];
 }
@@ -105,8 +120,8 @@ export interface RgbGen {
  * Alpha generation modes
  */
 export interface AlphaGen {
-  type: 'identity' | 'wave' | 'entity' | 'oneMinusEntity' | 
-        'vertex' | 'oneMinusVertex' | 'lightingSpecular' | 'portal' | 'const';
+  type: 'identity' | 'wave' | 'entity' | 'oneMinusEntity' |
+  'vertex' | 'oneMinusVertex' | 'lightingSpecular' | 'portal' | 'const';
   wave?: WaveFunc;
   value?: number;
 }
@@ -117,37 +132,40 @@ export interface AlphaGen {
 export interface Q3ShaderStage {
   /** Texture map path, or special values like $lightmap, $whiteimage */
   map: string;
-  
+
   /** Clamp texture instead of repeat */
   clampMap?: boolean;
-  
+
   /** Animation frames (for animMap) */
   animMap?: {
     frequency: number;
     frames: string[];
   };
-  
+
   /** Blend function [src, dst] */
   blendFunc?: [BlendFactor, BlendFactor];
-  
+
   /** Alpha test function */
   alphaFunc?: AlphaFunc;
-  
+
   /** RGB color generation */
   rgbGen?: RgbGen;
-  
+
   /** Alpha generation */
   alphaGen?: AlphaGen;
-  
+
   /** Texture coordinate modifiers */
   tcMod?: TcMod[];
-  
+
+  /** Texture coordinate generation mode */
+  tcGen?: TcGen;
+
   /** Depth write enabled */
   depthWrite?: boolean;
-  
+
   /** Depth test function */
   depthFunc?: 'lequal' | 'equal';
-  
+
   /** Detail texture (lower priority) */
   detail?: boolean;
 }
@@ -180,49 +198,49 @@ export interface SkyParms {
 export interface Q3Shader {
   /** Shader name (texture path without extension) */
   name: string;
-  
+
   /** Surface parameters (trans, nonsolid, nomarks, etc.) */
   surfaceParms: Set<string>;
-  
+
   /** Face culling mode */
   cull: CullMode;
-  
+
   /** Render sort order (opaque=3, banner=6, underwater=8, additive=9, etc.) */
   sort?: number | string;
-  
+
   /** Shader stages/passes */
   stages: Q3ShaderStage[];
-  
+
   /** Vertex deformations */
   deformVertexes?: DeformVertexes[];
-  
+
   /** Sky parameters */
   skyParms?: SkyParms;
-  
+
   /** Fog parameters */
   fogParms?: {
     color: [number, number, number];
     depthForOpaque: number;
   };
-  
+
   /** Portal shader */
   portal?: boolean;
-  
+
   /** No mipmaps */
   nomipmaps?: boolean;
-  
+
   /** No picmip (texture quality reduction) */
   nopicmip?: boolean;
-  
+
   /** Polygon offset for decals */
   polygonOffset?: boolean;
-  
+
   /** Entity mergable (optimization hint) */
   entityMergable?: boolean;
-  
+
   /** Q3map compiler directives (we ignore these at runtime) */
   q3map?: Record<string, unknown>;
-  
+
   /** Editor-only parameters (we ignore these) */
   qer?: Record<string, unknown>;
 }
@@ -279,4 +297,7 @@ export interface ResolvedMaterialProps {
 
   /** Autosprite2 - cylindrical billboard, rotates around vertical axis only */
   autosprite2: boolean;
+
+  /** Texture coordinate generation mode (environment mapping, etc.) */
+  tcGen?: TcGen;
 }

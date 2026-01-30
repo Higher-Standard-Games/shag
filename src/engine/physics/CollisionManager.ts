@@ -70,8 +70,9 @@ export class CollisionManager {
       }
     }
 
-    // Set active backend - default to brush collision (Q3-style)
-    const backendType = preferredBackend ?? 'brush';
+    // Set active backend - default to q3 sweep collision since AdvancedCharacterController
+    // requires stepSlideMove which is only available in SweepCollisionBackend
+    const backendType = preferredBackend ?? 'q3';
     this.setBackend(backendType);
 
     this.initialized = true;

@@ -49,7 +49,15 @@ function parseArgs(): ServerConfig {
   };
 
   for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
+    const arg = args[i];
+
+    // Handle --key=value format as well as --key value
+    if (arg.startsWith('--map=')) {
+      config.mapName = arg.substring(6);
+      continue;
+    }
+
+    switch (arg) {
       case '--port':
         config.port = parseInt(args[++i], 10);
         break;
@@ -77,6 +85,12 @@ function parseArgs(): ServerConfig {
       case '-h':
         printHelp();
         process.exit(0);
+      default:
+        // If it's not a flag and not consumed, treat it as positional map name
+        if (!arg.startsWith('-') && !args[i - 1]?.startsWith('--')) {
+          config.mapName = arg;
+        }
+        break;
     }
   }
 
@@ -182,8 +196,8 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
   console.log(`[Server] BSP parsed: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'} v${bsp.header.version}`);
   console.log(`[Server] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
 
-  // Create server-side BSP collision world
-  const collision = new HeadlessBSPCollisionWorld(bsp);
+  // Create server-side BSP collision world (AWAIT async init!)
+  const collision = await HeadlessBSPCollisionWorld.create(bsp);
   console.log(`[Server] Collision world initialized (HeadlessBSPCollisionWorld - server-authoritative mode)`);
 
   // Extract spawn points

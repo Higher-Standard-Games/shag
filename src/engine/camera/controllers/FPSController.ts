@@ -899,41 +899,32 @@ export class FPSController implements ICameraController {
         yaw: this.mouseRotationY,
       });
 
-      // Get state update from simulation
-      const pos = this.gameManager.getLocalPlayerPosition();
-      if (pos) {
-        // Log position updates periodically for debugging
-        if (Math.random() < 0.01) {
-          console.log(`[FPS] Network pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`);
-        }
-        this.physicsX = pos.x;
-        this.physicsY = pos.y;
-        this.physicsZ = pos.z;
+      // IMPORTANT: Don't call getLocalPlayerPosition() here!
+      // That returns CLIENT-SIDE prediction (with NullCollisionWorld = no collision).
+      // Instead, use this.physicsX/Y/Z which are set by the server state callback (lines 194-222).
+      // The callback runs when server snapshots arrive, giving us authoritative position.
 
-        // Apply stair smoothing (same logic as local mode)
-        const stepHeight = mv.get('sv_stepheight');
-        const smoothFactor = mv.get('cl_smoothfactor');
-        const heightDiff = Math.abs(pos.y - this.smoothedY);
+      // Apply stair smoothing using server-provided position
+      const stepHeight = mv.get('sv_stepheight');
+      const smoothFactor = mv.get('cl_smoothfactor');
+      const heightDiff = Math.abs(this.physicsY - this.smoothedY);
 
-        if (heightDiff > stepHeight * 2) {
-          // Large height change (teleport, big drop) - snap immediately
-          this.smoothedY = pos.y;
-        } else {
-          // Smooth stair climbing
-          this.smoothedY = this.smoothedY + (pos.y - this.smoothedY) * smoothFactor;
-        }
-
-        // Apply to camera with smoothed Y
-        this.camera.position.x = pos.x;
-        this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
-        this.camera.position.z = pos.z;
+      if (heightDiff > stepHeight * 2) {
+        // Large height change (teleport, big drop) - snap immediately
+        this.smoothedY = this.physicsY;
       } else {
-        // Position not available from prediction, but we might have it from server state subscription
-        // At minimum, apply correct camera height
-        this.camera.position.y = this.physicsY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
-        if (Math.random() < 0.01) {
-          console.log(`[FPS] Network mode: getLocalPlayerPosition returned null, using physicsY=${this.physicsY.toFixed(1)}`);
-        }
+        // Smooth stair climbing
+        this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
+      }
+
+      // Apply to camera with smoothed Y (from server state)
+      this.camera.position.x = this.physicsX;
+      this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
+      this.camera.position.z = this.physicsZ;
+
+      // Log occasionally for debugging
+      if (Math.random() < 0.01) {
+        console.log(`[FPS] Network pos: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), grounded=${this.isGrounded}`);
       }
 
       // Update UI

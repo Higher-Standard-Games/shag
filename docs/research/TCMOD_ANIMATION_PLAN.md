@@ -410,3 +410,209 @@ Speed/time scale should respect shader defaults. Commands for debug/override onl
 2. **Memory cleanup** - When BSP unloads, ensure all registered materials are cleaned up.
 
 3. **Performance threshold** - At what point do we need LOD-based animation updates?
+
+---
+
+## tcGen Implementation Research (v0.8.25)
+
+### tcGen Modes Overview
+
+| Mode | Q3 Behavior | Babylon.js Equivalent | Priority |
+|------|-------------|----------------------|----------|
+| `base` | Use mesh UV coords (default) | Already works | ✅ Done |
+| `lightmap` | Use lightmap UV coords | UV2 channel | ✅ Done |
+| `environment` | Spherical environment mapping | `reflectionTexture` + `coordinatesMode` | 🔴 HIGH |
+| `vector (sx sy sz) (tx ty tz)` | World-space projection | Custom UV calculation | 🟡 MEDIUM |
+
+### tcGen environment - Detailed Research
+
+**Q3/OpenGL Implementation:**
+```c
+// Q3 uses GL_SPHERE_MAP for environment mapping
+glTexGenf(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+glTexGenf(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+glEnable(GL_TEXTURE_GEN_S);
+glEnable(GL_TEXTURE_GEN_T);
+```
+
+The sphere map generates texture coordinates based on the reflected view vector:
+```
+R = I - 2 * dot(N, I) * N  // Reflect view vector around normal
+u = Rx / (2 * sqrt(Rx² + Ry² + (Rz+1)²)) + 0.5
+v = Ry / (2 * sqrt(Rx² + Ry² + (Rz+1)²)) + 0.5
+```
+
+**Babylon.js Implementation Options:**
+
+1. **Using `reflectionTexture`** (Recommended for static envmaps):
+```typescript
+material.reflectionTexture = texture;
+texture.coordinatesMode = Texture.SPHERICAL_MODE;
+// or Texture.CUBIC_REFLECTION_MODE for cubemaps
+```
+
+2. **Using Custom ShaderMaterial** (For per-vertex calculation):
+```glsl
+// Vertex shader
+varying vec2 vEnvUV;
+void main() {
+    vec3 worldNormal = normalize(mat3(world) * normal);
+    vec3 viewDir = normalize(cameraPosition - worldPos);
+    vec3 reflected = reflect(-viewDir, worldNormal);
+    
+    float m = 2.0 * sqrt(reflected.x*reflected.x + reflected.y*reflected.y + (reflected.z+1.0)*(reflected.z+1.0));
+    vEnvUV = vec2(reflected.x/m + 0.5, reflected.y/m + 0.5);
+}
+```
+
+**Use Cases in Warsow/Q3:**
+- Shiny metal surfaces
+- Reflective armor/weapons
+- Chrome-like effects
+- Fake water reflections
+
+### tcGen vector - Detailed Research
+
+**Q3 Behavior:**
+```
+tcGen vector ( <sx> <sy> <sz> ) ( <tx> <ty> <tz> )
+```
+Projects world position onto texture coordinates using two direction vectors:
+```
+u = dot(worldPos, S_vector)
+v = dot(worldPos, T_vector)
+```
+
+**Babylon.js Implementation:**
+Requires custom shader or vertex attribute modification:
+```typescript
+// In vertex shader or pre-process:
+uv.x = dot(worldPosition, vec3(sx, sy, sz));
+uv.y = dot(worldPosition, vec3(tx, ty, tz));
+```
+
+**Use Cases:**
+- World-aligned textures (water surface that doesn't stretch)
+- Procedural terrain texturing
+- Decals that align to world grid
+
+---
+
+## tcMod transform - Implementation Details
+
+### Current State
+- **Parsing:** ✅ Implemented in `Q3ShaderParser.ts`
+- **Runtime:** ❌ Skipped in `ShaderAnimationSystem.ts`
+
+### Mathematical Definition
+```
+tcMod transform <m00> <m01> <m10> <m11> <t0> <t1>
+
+| u' |   | m00  m01 |   | u |   | t0 |
+|    | = |          | × |   | + |    |
+| v' |   | m10  m11 |   | v |   | t1 |
+```
+
+This is an affine 2D transformation combining:
+- Rotation
+- Scale (non-uniform)
+- Shear
+- Translation
+
+### Babylon.js Implementation
+
+Babylon's Texture class supports:
+```typescript
+texture.uOffset  // Translation U
+texture.vOffset  // Translation V
+texture.uScale   // Scale U
+texture.vScale   // Scale V
+texture.wAng     // Rotation (radians)
+texture.uAng     // Rotation around U axis (rarely used)
+texture.vAng     // Rotation around V axis (rarely used)
+```
+
+**Limitation:** Babylon doesn't natively support shear/non-uniform rotation.
+
+**Solution Options:**
+
+1. **Decompose matrix into supported components** (Good for most cases):
+```typescript
+// Extract scale
+const scaleU = Math.sqrt(m00*m00 + m01*m01);
+const scaleV = Math.sqrt(m10*m10 + m11*m11);
+
+// Extract rotation (assumes no shear)
+const rotation = Math.atan2(m01, m00);
+
+// Apply
+texture.uScale = scaleU;
+texture.vScale = scaleV;
+texture.wAng = rotation;
+texture.uOffset = t0;
+texture.vOffset = t1;
+```
+
+2. **Use ShaderMaterial for full matrix** (For shear support):
+```glsl
+uniform mat2 uvTransform;
+uniform vec2 uvTranslate;
+
+vec2 transformedUV = uvTransform * uv + uvTranslate;
+```
+
+### Animation Considerations
+
+If `tcMod transform` is meant to animate (e.g., via template parameters):
+- Parse initial transform values
+- Store as animated state
+- Apply each frame
+
+Most Q3 maps use `transform` for static adjustments, not animation.
+
+---
+
+## Implementation Priority
+
+### Phase 1: tcMod transform (Easy)
+1. Add matrix decomposition to `ShaderAnimationSystem.applyTcMods()`
+2. Apply scale, rotation, translation to texture
+3. Log warning if shear detected
+
+### Phase 2: tcGen environment (Medium)
+1. Add `TcGen` type to `Q3ShaderTypes.ts`
+2. Parse `tcGen` in `Q3ShaderParser.ts`
+3. Store in `Q3ShaderStage`
+4. In `BspMeshBuilder`, apply `reflectionTexture` when tcGen=environment
+
+### Phase 3: tcGen vector (Advanced)
+1. Requires vertex shader modification
+2. May need ShaderMaterial for affected surfaces
+3. Lower priority - rarely used in Warsow maps
+
+---
+
+## Type Definitions to Add
+
+```typescript
+// Q3ShaderTypes.ts
+
+export type TcGenMode = 'base' | 'lightmap' | 'environment' | 'vector';
+
+export interface TcGenVector {
+  mode: 'vector';
+  sVector: [number, number, number];  // S direction in world space
+  tVector: [number, number, number];  // T direction in world space
+}
+
+export interface TcGen {
+  mode: TcGenMode;
+  vectorParams?: TcGenVector;  // Only for mode='vector'
+}
+
+// In Q3ShaderStage:
+export interface Q3ShaderStage {
+  // ... existing fields ...
+  tcGen?: TcGen;  // NEW: texture coordinate generation mode
+}
+```

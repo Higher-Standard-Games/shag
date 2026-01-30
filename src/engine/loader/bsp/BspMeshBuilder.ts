@@ -1256,6 +1256,18 @@ export class BspMeshBuilder {
               console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
             }
 
+            // tcGen environment - spherical environment mapping for reflective surfaces
+            if (shaderProps.tcGen?.mode === 'environment') {
+              // Use texture as reflection texture with spherical coordinates
+              mat.reflectionTexture = texture;
+              texture.coordinatesMode = Texture.SPHERICAL_MODE;
+              // Clear diffuse since we're using reflection
+              mat.diffuseTexture = null;
+              // Slight ambient to prevent total darkness
+              mat.ambientColor = new Color3(0.1, 0.1, 0.1);
+              console.log(`[BspMeshBuilder] Environment mapping: ${texName}`);
+            }
+
             // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
             if (shaderProps.needsAnimation && shader) {
               const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');

@@ -21,6 +21,7 @@ import type {
   AlphaFunc,
   // CullMode, // Currently unused
   TcMod,
+  TcGen,
   WaveFunc,
   RgbGen,
   AlphaGen,
@@ -600,8 +601,12 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         break;
 
       case 'tcgen':
-        // Skip tcGen for now
+        stage.tcGen = parseTcGen(tokens, pos + 1);
         pos += 2;
+        // Skip additional vector parameters if present
+        while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+          pos++;
+        }
         break;
 
       default:
@@ -809,3 +814,48 @@ function parseTcMod(tokens: string[], pos: number): TcMod | null {
       return null;
   }
 }
+
+/**
+ * Parse tcGen directive
+ */
+function parseTcGen(tokens: string[], pos: number): TcGen {
+  const token = tokens[pos]?.toLowerCase();
+
+  switch (token) {
+    case 'base':
+      return { mode: 'base' };
+    case 'lightmap':
+      return { mode: 'lightmap' };
+    case 'environment':
+      return { mode: 'environment' };
+    case 'vector':
+      // Parse two 3-component vectors: ( sx sy sz ) ( tx ty tz )
+      // Skip opening parenthesis if present
+      let i = pos + 1;
+
+      // Parse S vector
+      if (tokens[i] === '(') i++;
+      const sx = parseFloat(tokens[i++]) || 0;
+      const sy = parseFloat(tokens[i++]) || 0;
+      const sz = parseFloat(tokens[i++]) || 0;
+      if (tokens[i] === ')') i++;
+
+      // Parse T vector
+      if (tokens[i] === '(') i++;
+      const tx = parseFloat(tokens[i++]) || 0;
+      const ty = parseFloat(tokens[i++]) || 0;
+      const tz = parseFloat(tokens[i++]) || 0;
+
+      return {
+        mode: 'vector',
+        vector: {
+          sVector: [sx, sy, sz],
+          tVector: [tx, ty, tz],
+        },
+      };
+    default:
+      // Unknown tcGen mode, default to base
+      return { mode: 'base' };
+  }
+}
+
