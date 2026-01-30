@@ -363,25 +363,40 @@ export class FPSGameManager {
    */
   /**
    * Get current local player position from simulation
-   * Uses interpolation for smooth rendering between ticks
+   * Uses interpolation for smooth rendering between snapshots
    */
   getLocalPlayerPosition(): { x: number; y: number; z: number } | null {
     if (!this.gameHost) {
-      // console.log(`[FPSGameManager] getLocalPlayerPosition: no gameHost`);
       return null;
     }
 
     const state = this.gameHost.getLocalState();
     const player = state.players.get(this.localPlayerId);
     if (!player) {
-      // Only log periodically to avoid spam
       if (Math.random() < 0.01) {
-        console.log(`[FPSGameManager] getLocalPlayerPosition: no player for ${this.localPlayerId}, players:`, Array.from(state.players.keys()));
+        console.log(`[FPSGameManager] getLocalPlayerPosition: no player for ${this.localPlayerId}`);
       }
       return null;
     }
 
-    // Use interpolated position for smooth rendering
+    // For NetworkGameHost, use interpolated entity for smooth rendering
+    // This interpolates between server snapshots for buttery-smooth movement
+    const networkHost = this.gameHost as any;
+    if (typeof networkHost.getInterpolatedEntity === 'function') {
+      const interpolatedEntity = networkHost.getInterpolatedEntity(player.entityId);
+      if (interpolatedEntity) {
+        const transform = interpolatedEntity.getComponent('transform') as any;
+        if (transform?.position) {
+          return {
+            x: transform.position.x,
+            y: transform.position.y,
+            z: transform.position.z
+          };
+        }
+      }
+    }
+
+    // For LocalGameHost, use interpolated position
     const localHost = this.gameHost as LocalGameHost;
     if (localHost.getInterpolatedPosition) {
       const interpPos = localHost.getInterpolatedPosition(player.entityId);
@@ -391,17 +406,11 @@ export class FPSGameManager {
     // Fallback to discrete position
     const entity = state.entities.get(player.entityId);
     if (!entity) {
-      if (Math.random() < 0.01) {
-        console.log(`[FPSGameManager] getLocalPlayerPosition: no entity for ${player.entityId}`);
-      }
       return null;
     }
 
     const transform = entity.getComponent<TransformComponent>('transform');
     if (!transform) {
-      if (Math.random() < 0.01) {
-        console.log(`[FPSGameManager] getLocalPlayerPosition: no transform component`);
-      }
       return null;
     }
 

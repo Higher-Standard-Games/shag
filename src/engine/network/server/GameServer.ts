@@ -125,8 +125,10 @@ export class GameServer {
 
     this.rooms.set(roomId, room);
 
-    // Start the room
-    room.start();
+    // Start the room with physics rate from config and network rate (sv_pps) default 20Hz
+    // Physics runs at high rate (60Hz) for smooth simulation
+    // Network sends snapshots at lower rate (20Hz) for bandwidth efficiency
+    room.start(this.defaultRoomConfig.tickRate, 20);
 
     // Notify listeners
     this.onRoomCreateCallbacks.forEach(cb => cb(room));

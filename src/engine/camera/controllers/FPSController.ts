@@ -899,28 +899,38 @@ export class FPSController implements ICameraController {
         yaw: this.mouseRotationY,
       });
 
-      // IMPORTANT: Don't call getLocalPlayerPosition() here!
-      // That returns CLIENT-SIDE prediction (with NullCollisionWorld = no collision).
-      // Instead, use this.physicsX/Y/Z which are set by the server state callback (lines 194-222).
-      // The callback runs when server snapshots arrive, giving us authoritative position.
+      // Get interpolated position for smooth rendering
+      // This uses NetworkGameHost.getInterpolatedEntity() which interpolates between
+      // server snapshots for buttery-smooth movement even at 20Hz network rate
+      const pos = this.gameManager.getLocalPlayerPosition();
+      if (pos) {
+        this.physicsX = pos.x;
+        this.physicsY = pos.y;
+        this.physicsZ = pos.z;
 
-      // Apply stair smoothing using server-provided position
-      const stepHeight = mv.get('sv_stepheight');
-      const smoothFactor = mv.get('cl_smoothfactor');
-      const heightDiff = Math.abs(this.physicsY - this.smoothedY);
+        // Apply stair smoothing
+        const stepHeight = mv.get('sv_stepheight');
+        const smoothFactor = mv.get('cl_smoothfactor');
+        const heightDiff = Math.abs(pos.y - this.smoothedY);
 
-      if (heightDiff > stepHeight * 2) {
-        // Large height change (teleport, big drop) - snap immediately
-        this.smoothedY = this.physicsY;
+        if (heightDiff > stepHeight * 2) {
+          // Large height change (teleport, big drop) - snap immediately
+          this.smoothedY = pos.y;
+        } else {
+          // Smooth stair climbing
+          this.smoothedY = this.smoothedY + (pos.y - this.smoothedY) * smoothFactor;
+        }
+
+        // Apply to camera with smoothed Y
+        this.camera.position.x = pos.x;
+        this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
+        this.camera.position.z = pos.z;
       } else {
-        // Smooth stair climbing
-        this.smoothedY = this.smoothedY + (this.physicsY - this.smoothedY) * smoothFactor;
+        // No interpolated position yet, use last known server position
+        this.camera.position.x = this.physicsX;
+        this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
+        this.camera.position.z = this.physicsZ;
       }
-
-      // Apply to camera with smoothed Y (from server state)
-      this.camera.position.x = this.physicsX;
-      this.camera.position.y = this.smoothedY + DEFAULT_VIEWHEIGHT + this.crouchViewOffset;
-      this.camera.position.z = this.physicsZ;
 
       // Log occasionally for debugging
       if (Math.random() < 0.01) {

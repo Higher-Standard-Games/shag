@@ -68,7 +68,8 @@ export class Room {
   private clients: Map<string, Client> = new Map();
   private currentTick: number = 0;
   private isRunning: boolean = false;
-  private tickInterval: any = null;
+  private tickInterval: any = null;      // Physics loop interval
+  private networkInterval: any = null;   // Network snapshot interval
 
   // Server info for welcome message
   private serverId: string;
@@ -232,19 +233,28 @@ export class Room {
   }
 
   /**
-   * Start the room simulation
+   * Start the room simulation with separate physics and network loops
+   * @param physicsRate - How often physics simulation runs (default 60Hz)
+   * @param networkRate - How often snapshots are sent to clients (default 20Hz, sv_pps)
    */
-  start(tickRate: number = 20): void {
+  start(physicsRate: number = 60, networkRate: number = 20): void {
     if (this.isRunning) return;
 
     this.isRunning = true;
-    const tickDuration = 1000 / tickRate;
+    const physicsDuration = 1000 / physicsRate;
+    const networkDuration = 1000 / networkRate;
 
+    // Physics loop - runs simulation at high rate for accuracy
     this.tickInterval = setInterval(() => {
-      this.tick();
-    }, tickDuration);
+      this.physicsTick();
+    }, physicsDuration);
 
-    console.log(`[Room ${this.id}] Started at ${tickRate} Hz`);
+    // Network loop - sends snapshots at lower rate for bandwidth efficiency
+    this.networkInterval = setInterval(() => {
+      this.broadcastSnapshot();
+    }, networkDuration);
+
+    console.log(`[Room ${this.id}] Started: physics=${physicsRate}Hz, network=${networkRate}Hz`);
   }
 
   /**
@@ -254,9 +264,17 @@ export class Room {
     if (!this.isRunning) return;
 
     this.isRunning = false;
+
+    // Clear physics loop
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
+    }
+
+    // Clear network loop
+    if (this.networkInterval) {
+      clearInterval(this.networkInterval);
+      this.networkInterval = null;
     }
 
     console.log(`[Room ${this.id}] Stopped`);
@@ -329,23 +347,21 @@ export class Room {
     };
   }
   // ============================================================================
-  // TICK - The heartbeat of the server simulation
+  // PHYSICS TICK - Server simulation heartbeat (runs at high rate, e.g., 60Hz)
   // ============================================================================
   /**
-   * Execute one simulation tick. This is called at a fixed rate (e.g., 20Hz = every 50ms).
+   * Execute one physics tick. Runs at high rate for simulation accuracy.
+   * Network snapshots are sent separately at lower rate (sv_pps).
    *
    * The tick follows this sequence:
    * 1. Increment tick counter (this is the authoritative server time)
    * 2. Process ALL queued commands from clients (deterministic order)
    * 3. Run physics and game systems (MovementSystem, etc.)
    * 4. Notify any tick listeners (for debugging, logging, etc.)
-   * 5. Broadcast new state to all clients (so they can correct their predictions)
    *
-   * Why this order matters:
-   * - Commands must be processed BEFORE physics, so player input affects movement
-   * - Snapshot must be sent AFTER physics, so clients see the result of their input
+   * Note: Snapshot broadcasting is handled by the network loop, not here.
    */
-  private tick(): void {
+  private physicsTick(): void {
     // Step 1: Advance server time
     this.currentTick++;
 
@@ -360,9 +376,8 @@ export class Room {
     // Step 4: Notify listeners (debugging, analytics, etc.)
     this.onTickCallbacks.forEach(cb => cb(this.currentTick, this.simulation.state));
 
-    // Step 5: Send current state to all clients
-    // Clients will use this to correct their local predictions
-    this.broadcastSnapshot();
+    // Note: broadcastSnapshot() is NOT called here anymore.
+    // It runs on a separate network interval for bandwidth efficiency.
   }
 
   /**

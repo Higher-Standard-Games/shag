@@ -55,9 +55,9 @@ import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
  * is barely noticeable and the smoothness is worth it.
  */
 class InterpolationBuffer {
-  private snapshots: Map<number, GameState> = new Map();
-  private currentTick: number = 0;
-  private interpolationDelay: number = 100; // 100ms delay
+  private snapshots: { state: GameState; timestamp: number }[] = [];
+  private interpolationDelay: number = 100; // 100ms delay - render in the past
+  private tickDuration: number = 50; // 50ms per tick at 20Hz network rate
 
   /** Get interpolation delay in ms */
   getInterpolationDelay(): number {
@@ -65,47 +65,73 @@ class InterpolationBuffer {
   }
 
   /**
-   * Add a new snapshot to the buffer
+   * Add a new snapshot to the buffer with timestamp
    */
   addSnapshot(snapshot: GameState): void {
-    this.snapshots.set(snapshot.tick, snapshot);
+    const now = Date.now();
+    this.snapshots.push({ state: snapshot, timestamp: now });
 
-    // Clean up old snapshots
-    const cutoffTick = snapshot.tick - 10;
-    for (const tick of this.snapshots.keys()) {
-      if (tick < cutoffTick) {
-        this.snapshots.delete(tick);
-      }
+    // Keep only the last 10 snapshots
+    while (this.snapshots.length > 10) {
+      this.snapshots.shift();
     }
-
-    this.currentTick = snapshot.tick;
   }
 
   /**
    * Get interpolated state for rendering
+   * Uses actual time to calculate smooth interpolation between snapshots
    */
-  getInterpolatedState(_renderTime: number): GameState {
-    // Find the best snapshot pair for interpolation
-    const targetTick = this.currentTick - 2; // 2 ticks behind for interpolation
+  getInterpolatedState(renderTime: number): GameState {
+    // We render in the past to ensure we always have two snapshots to interpolate between
+    const targetTime = renderTime - this.interpolationDelay;
 
-    let snapshot1 = this.snapshots.get(targetTick);
-    let snapshot2 = this.snapshots.get(targetTick + 1);
-
-    if (!snapshot1) {
-      // Fallback to newest available
-      snapshot1 = this.snapshots.get(this.currentTick) || new GameState();
-      return snapshot1;
+    // Need at least 2 snapshots to interpolate
+    if (this.snapshots.length < 2) {
+      // Return latest snapshot if we have one
+      if (this.snapshots.length === 1) {
+        return this.snapshots[0].state;
+      }
+      return new GameState();
     }
 
-    if (!snapshot2) {
-      return snapshot1;
+    // Find the two snapshots to interpolate between
+    // We want snapshot1.timestamp <= targetTime <= snapshot2.timestamp
+    let snapshot1 = this.snapshots[0];
+    let snapshot2 = this.snapshots[1];
+
+    for (let i = 0; i < this.snapshots.length - 1; i++) {
+      if (this.snapshots[i].timestamp <= targetTime &&
+        this.snapshots[i + 1].timestamp >= targetTime) {
+        snapshot1 = this.snapshots[i];
+        snapshot2 = this.snapshots[i + 1];
+        break;
+      }
+      // If we've passed the target time, use these two
+      if (this.snapshots[i].timestamp > targetTime) {
+        if (i > 0) {
+          snapshot1 = this.snapshots[i - 1];
+          snapshot2 = this.snapshots[i];
+        }
+        break;
+      }
+      // If we're beyond all snapshots, use the two most recent
+      if (i === this.snapshots.length - 2) {
+        snapshot1 = this.snapshots[i];
+        snapshot2 = this.snapshots[i + 1];
+      }
     }
 
-    // Simple linear interpolation between snapshots
-    const t = 0.5; // Mid-point between ticks
-    const interpolated = this.interpolateStates(snapshot1, snapshot2, t);
+    // Calculate interpolation factor t (0 to 1)
+    const timeDiff = snapshot2.timestamp - snapshot1.timestamp;
+    let t: number;
+    if (timeDiff <= 0) {
+      t = 1; // Same timestamp, use snapshot2
+    } else {
+      t = Math.max(0, Math.min(1, (targetTime - snapshot1.timestamp) / timeDiff));
+    }
 
-    return interpolated;
+    // Interpolate between the two snapshots
+    return this.interpolateStates(snapshot1.state, snapshot2.state, t);
   }
 
   private interpolateStates(state1: GameState, state2: GameState, t: number): GameState {
