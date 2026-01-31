@@ -210,7 +210,11 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
       if (origin) {
         const [x, y, z] = origin.split(' ').map(Number);
         // Convert from Quake coords (z-up) to Babylon coords (y-up)
-        spawnPoints.push({ x, y: z, z: y });
+        // Also add PLAYER_ORIGIN_HEIGHT (24 units) because:
+        // - BSP spawn entities are at FEET level
+        // - But player physics uses ORIGIN level (24 units above feet)
+        const PLAYER_ORIGIN_HEIGHT = 24;
+        spawnPoints.push({ x, y: z + PLAYER_ORIGIN_HEIGHT, z: y });
       }
     }
   }

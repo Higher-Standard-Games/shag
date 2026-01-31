@@ -20,6 +20,24 @@
         "paths": {
             "@game/*": [
                 "src/games/fps/*"
+            ],
+            "@engine/server": [
+                "src/engine/server/index.ts"
+            ],
+            "@engine/server/*": [
+                "src/engine/server/*"
+            ],
+            "@shared/server": [
+                "src/shared/server/index.ts"
+            ],
+            "@shared/server/*": [
+                "src/shared/server/*"
+            ],
+            "@games/fps/server": [
+                "src/games/fps/server/index.ts"
+            ],
+            "@games/fps/server/*": [
+                "src/games/fps/server/*"
             ]
         },
         /* Linting */

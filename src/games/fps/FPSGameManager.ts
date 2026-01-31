@@ -195,10 +195,27 @@ export class FPSGameManager {
             // Set up BSP collision for client prediction
             // This is critical for movement responsiveness (avoids "flying through walls" in prediction)
             const cm = getCollisionManager();
+            console.log(`[FPSGameManager] CollisionManager instance: ${cm.getInstanceId()}`);
+            console.log(`[FPSGameManager] CollisionManager.isInitialized() = ${cm.isInitialized()}`);
+            console.log(`[FPSGameManager] CollisionManager.getBackendType() = ${cm.getBackendType()}`);
             if (cm.isInitialized()) {
               const collisionWorld = new BSPCollisionWorld();
               this.setCollisionWorld(collisionWorld);
               console.log(`[FPSGameManager] BSP collision injected into client prediction simulation`);
+
+              // Test trace to verify collision works (use player bounds like server)
+              const PLAYER_RADIUS = 16;
+              const PLAYER_ORIGIN_HEIGHT = 24; // Q3: origin 24 above feet
+              const testBounds = {
+                min: { x: -PLAYER_RADIUS, y: -PLAYER_ORIGIN_HEIGHT, z: -PLAYER_RADIUS },
+                max: { x: PLAYER_RADIUS, y: 32, z: PLAYER_RADIUS }  // 56 total: 24 below + 32 above
+              };
+              const testStart = { x: 880, y: 200, z: 1508 };
+              const testEnd = { x: 880, y: 0, z: 1508 };
+              const testResult = collisionWorld.trace(testStart, testEnd, testBounds);
+              console.log(`[FPSGameManager] Test trace: fraction=${testResult.fraction.toFixed(4)}, hit=${testResult.hit}`);
+            } else {
+              console.warn(`[FPSGameManager] CollisionManager NOT initialized - client prediction will NOT have BSP collision!`);
             }
 
             const { CameraSystem } = await import('../../engine/camera/CameraSystem');

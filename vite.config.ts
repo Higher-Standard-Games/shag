@@ -15,6 +15,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@game': path.resolve(__dirname, `src/games/${selectedGame}`),
+      '@engine/server': path.resolve(__dirname, 'src/engine/server'),
+      '@shared/server': path.resolve(__dirname, 'src/shared/server'),
+      '@games/fps/server': path.resolve(__dirname, 'src/games/fps/server'),
     },
   },
   server: {

@@ -2,6 +2,7 @@
 
 > **Date:** 2026-01-31  
 > **Status:** Design Phase  
+> **Version:** 0.9.0  
 > **Philosophy:** Separate concerns, enforce contracts, eliminate ambiguity, testability-first
 
 ## Executive Summary
@@ -12,6 +13,16 @@ This document proposes a complete redesign of our multiplayer server architectur
 2. **Testability** - Every component is testable in isolation via CLI
 3. **Clean separation** - Simulation, Network, and Game logic are independent
 4. **Type safety** - Explicit units and contracts prevent common bugs
+
+### Related Documents
+
+| Document | Focus |
+|----------|-------|
+| [Tick System Deep Dive](tick-system-deep-dive.md) | Multi-rate orchestration, subsystem independence, performance budgets |
+| [ECS & Network Protocol](ecs-network-protocol-deep-dive.md) | Entity-Component with COW, binary serialization, delta compression |
+| [Lag Compensation](lag-compensation-deep-dive.md) | Hit detection, server rewind, peeker's advantage, modern techniques |
+| [Critical Review Addendum](architecture-review-addendum.md) | Peer review solutions, COW decision, Q3-style prediction |
+| [Implementation Plan](server-implementation-plan.md) | Directory structure, phases, migration strategy |
 
 ---
 
@@ -49,54 +60,81 @@ function displacementToVelocity(d: DisplacementPerTick, dt: number): VelocityPer
 
 ---
 
-### 2. Immutability: Custom Implementation vs Immer.js
+### 2. State Management: Copy-on-Write (COW) ✅
 
-**Decision:** Start with manual cloning, evaluate Immer later if needed.
+**Decision:** Use Copy-on-Write for memory efficiency with hundreds of entities.
 
-#### Immer.js Analysis
+#### The Problem
+Full cloning every tick with hundreds of entities = massive GC pressure.
+- RTS with 500 units, 5% moving per tick
+- Full clone: 500 objects/tick = 62,500/sec at 125Hz
+- **This will stutter on mobile!**
 
-| Aspect | Details |
-|--------|---------|
-| **License** | MIT (permissive, no restrictions) |
-| **Size** | ~5KB gzipped |
-| **Mechanism** | Proxy-based "draft" mutation that produces new immutable state |
+#### Solution: Copy-on-Write
 
-**Pros:**
-- Write mutable-style code, get immutable results
-- Cleaner syntax for nested updates
-- Automatic structural sharing (memory efficient)
-- Prevents accidental mutations (freezes objects)
-
-**Cons:**
-- Performance overhead with large/deeply nested objects (~2-5x slower)
-- Uses `Object.freeze()` which can conflict with some patterns
-- Doesn't support classes well (potential issue with our Entity system)
-- No circular reference support
-- Hidden complexity (Proxy magic)
-
-**Our Recommendation: Manual Cloning**
+Only clone entities that actually change:
 
 ```typescript
-// Simple, explicit, no magic
+/**
+ * COW State: Only clone entities that actually changed
+ */
 class WorldState {
-  clone(): WorldState {
-    const cloned = new WorldState();
-    cloned.tick = this.tick;
-    cloned.entities = new Map();
-    for (const [id, entity] of this.entities) {
-      cloned.entities.set(id, entity.clone());
+  readonly tick: number;
+  private entities: Map<EntityId, Entity>;
+  private modified: Set<EntityId> = new Set();
+  
+  /**
+   * Get entity for reading (returns shared reference)
+   */
+  getEntity(id: EntityId): Readonly<Entity> | undefined {
+    return this.entities.get(id);
+  }
+  
+  /**
+   * Get entity for writing (clones on first write)
+   */
+  getEntityMut(id: EntityId): Entity | undefined {
+    const entity = this.entities.get(id);
+    if (!entity) return undefined;
+    
+    // First write? Clone it
+    if (!this.modified.has(id)) {
+      const cloned = entity.clone();
+      this.entities.set(id, cloned);
+      this.modified.add(id);
+      return cloned;
     }
-    return cloned;
+    
+    // Already cloned this tick
+    return entity;
+  }
+  
+  /**
+   * Advance to next tick - COW reset
+   */
+  nextTick(): WorldState {
+    const next = new WorldState();
+    next.tick = this.tick + 1;
+    next.entities = new Map(this.entities); // Shallow copy
+    next.modified = new Set();
+    return next;
   }
 }
 ```
 
-**Reasons:**
-1. **Full control** - We know exactly what's cloned
-2. **No dependencies** - Simpler build, smaller bundle
-3. **Class support** - Our Entity/Component system uses classes
-4. **Performance** - Can optimize hot paths (object pooling, etc.)
-5. **Debuggable** - No Proxy magic to debug through
+**Memory comparison (RTS, 500 units, 5% moving):**
+
+| Approach | Clones/tick | At 125Hz |
+|----------|-------------|----------|
+| Full Clone | 500 | 62,500/sec |
+| **COW** | 25 | **3,125/sec** |
+
+**20x improvement!** Essential for mobile/browser targets.
+
+#### Implementation Notes
+1. **Entities immutable by default** - use `readonly` properties
+2. **`getEntityMut()` is only write path** - enforces COW discipline
+3. **TypeScript helps** - `Readonly<Entity>` return type for reads
 
 **Future:** If manual cloning becomes unwieldy, Immer is MIT-licensed and could be adopted incrementally for specific subsystems.
 
@@ -357,6 +395,74 @@ npm run test:visual -- --scenario spawn-and-move --tick 60
 | **Speed** | Headless mode, no rendering, parallel test execution |
 | **Coverage** | Simulation code has 100% coverage target |
 
+
+---
+
+### 6. Lag Compensation: Fair Hit Detection ✅
+
+**Decision:** Server-side rewind with configurable bounds, defensive ability override.
+
+> See [Lag Compensation Deep Dive](lag-compensation-deep-dive.md) for detailed research.
+
+#### Evolution of FPS Netcode
+
+| Generation | Era | Approach |
+|------------|-----|----------|
+| Gen 1 | Early FPS | No compensation (high ping = unplayable) |
+| Gen 2 | **Q3 Unlagged** (2002) | Server rewinds to shooter's tick |
+| Gen 3 | **Source** (2004) | cl_interp + bounded rewind |
+| Gen 4 | **Overwatch** (2016) | Favor-the-shooter + ability override |
+| Gen 5 | **Valorant** (2020) | 128Hz + skeleton animation rewind |
+| Gen 6 | **CS2** (2023) | Subtick timestamps, tick-rate independent |
+
+#### Our Approach: Hybrid Modern
+
+```typescript
+interface LagCompensationConfig {
+  /** Max rewind time (higher = more lag friendly, less fair) */
+  maxRewindMs: number;  // 100-150ms typical
+  
+  /** Defensive abilities can override pending hits */
+  allowAbilityOverride: boolean;  // Like Overwatch's Blink/Dash
+  
+  /** Historical buffer for rewind */
+  historyBufferSize: number;  // 128 ticks = 1 sec at 125Hz
+}
+
+// Configurable per game mode
+const configs = {
+  casual:      { maxRewindMs: 200, allowAbilityOverride: true },
+  competitive: { maxRewindMs: 100, allowAbilityOverride: true },
+  tournament:  { maxRewindMs: 50,  allowAbilityOverride: true },
+};
+```
+
+#### Key Decisions
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| **Base system** | Server-side rewind | Q3-proven, anti-cheat friendly |
+| **Max rewind** | 100-150ms (configurable) | Balance fairness vs accessibility |
+| **Hitboxes** | Multi-part capsules | Head/body/legs damage zones |
+| **Projectiles** | No lag comp | They're simulated entities |
+| **Abilities** | Can override hits | Skill expression (dash escapes) |
+
+#### Hitscan vs Projectile
+
+```typescript
+// Hitscan weapons: use lag compensation
+const RIFLE: WeaponConfig = {
+  type: 'hitscan',
+  useLagCompensation: true,  // ← Rewind for hit detection
+};
+
+// Projectile weapons: simulate as entities
+const ROCKET: WeaponConfig = {
+  type: 'projectile',
+  projectileSpeed: 1000,
+  useLagCompensation: false,  // ← No rewind, projectile is entity
+};
+```
 
 ---
 
@@ -1131,6 +1237,32 @@ src/
 - [ ] Zero global mutable state
 - [ ] Every bug has a regression test
 - [ ] Documentation for every public API
+
+---
+
+## Critical Review Decisions (Peer Reviewed 2026-01-31)
+
+These decisions were made after critical "outsider" review of the architecture:
+
+| Topic | Decision | Rationale |
+|-------|----------|-----------|
+| **State cloning** | Copy-on-Write | 20x memory savings for RTS (500 units) |
+| **Multi-rate events** | Best-case optimization | Focus on making things better, not worst-case |
+| **Determinism** | Trust V8, CI tests | Same engine everywhere (Electron, Capacitor, Node) |
+| **Rollback** | Q3 model: input history | Store inputs (~2.5KB), not states |
+| **Server authority** | Absolute | Never trust client for anything |
+| **Anti-cheat** | Architecture now, impl later | Foundation ready, details in Phase 4 |
+| **Branded types** | Utility library day 1 | Make correct usage easy |
+| **Tick timing** | Prediction handles it | Network snapshot variation invisible to player |
+
+### Key Insights from Review
+
+1. **COW is essential** - Full cloning will stutter on mobile with 100+ entities
+2. **No state history needed** - Store inputs, replay from server state
+3. **V8 everywhere** - Cross-platform determinism is less of a concern than feared
+4. **Client prediction smooths everything** - Network rate ≠ perceived smoothness
+
+See [architecture-review-addendum.md](architecture-review-addendum.md) for detailed analysis.
 
 ---
 
