@@ -1,6 +1,6 @@
 /**
- * FPS Physics System
- * Q3/Warsow style movement
+ * Character Physics System
+ * Q3/Warsow style movement - works for FPS & 3rd person
  */
 
 import { Subsystem, type SubsystemConfig } from '@engine/server/core/Subsystem';
@@ -17,12 +17,12 @@ import {
 import { MAX_GROUND_SPEED } from '@shared/server/simulation/physics/constants';
 
 const CONFIG: SubsystemConfig = {
-    name: 'FPSPhysics',
+    name: 'CharacterPhysics',
     priority: 10,
     tickRate: 125,
 };
 
-export class FPSPhysicsSystem extends Subsystem {
+export class CharacterPhysicsSystem extends Subsystem {
     constructor() {
         super(CONFIG);
     }

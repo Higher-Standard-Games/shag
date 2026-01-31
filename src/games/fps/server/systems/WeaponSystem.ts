@@ -1,7 +1,8 @@
 /**
- * FPS Weapon System
+ * Weapon System
  * 
  * Handles weapon switching, firing, ammo management.
+ * Works for any action game with ranged weapons.
  */
 
 import { Subsystem, type SubsystemConfig } from '@engine/server/core/Subsystem';
@@ -11,10 +12,10 @@ import { EntityType, entityId } from '@engine/server/ecs/types';
 import type { Entity } from '@engine/server/ecs/Entity';
 import { createProjectileEntity } from '@engine/server/ecs/Entity';
 import { WEAPONS, type WeaponDef } from '../weapons/WeaponDef';
-import { DamageType, type DamageEvent, HitLocation } from './FPSCombatSystem';
+import { DamageType, type DamageEvent, HitLocation } from './CombatSystem';
 
 const CONFIG: SubsystemConfig = {
-    name: 'FPSWeapon',
+    name: 'Weapon',
     priority: 25, // After input, before combat
     tickRate: 125,
 };
@@ -35,7 +36,7 @@ export interface WeaponState {
 // WEAPON SYSTEM
 // ═══════════════════════════════════════════════════════════════════
 
-export class FPSWeaponSystem extends Subsystem {
+export class WeaponSystem extends Subsystem {
     private weaponStates: Map<EntityId, WeaponState> = new Map();
     private nextProjectileId: number = 10000;
     private pendingDamage: DamageEvent[] = [];

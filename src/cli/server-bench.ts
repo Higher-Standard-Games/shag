@@ -9,7 +9,7 @@
 import { Simulation } from '../engine/server/core/Simulation';
 import { createPlayerEntity, createProjectileEntity } from '../engine/server/ecs/Entity';
 import { entityId, playerId } from '../engine/server/ecs/types';
-import { FPSPhysicsSystem } from '../games/fps/server/systems/FPSPhysicsSystem';
+import { CharacterPhysicsSystem } from '../games/fps/server/systems/CharacterPhysicsSystem';
 import { SnapshotEncoder } from '../engine/server/network/protocol/SnapshotProtocol';
 
 console.log('═══════════════════════════════════════════════════════════════════');
@@ -47,7 +47,7 @@ for (const playerCount of PLAYER_COUNTS) {
 
     // Create simulation
     const sim = new Simulation({ tickMs: 8 });
-    sim.addSubsystem(new FPSPhysicsSystem());
+    sim.addSubsystem(new CharacterPhysicsSystem());
     sim.initialize();
 
     const state = sim.getStateMut();

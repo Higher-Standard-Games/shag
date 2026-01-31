@@ -1,7 +1,8 @@
 /**
- * FPS Combat System
+ * Combat System
  * 
  * Handles damage, kills, deaths, and respawning.
+ * Works for any action game (FPS, TPS, isometric).
  */
 
 import { Subsystem, type SubsystemConfig } from '@engine/server/core/Subsystem';
@@ -10,7 +11,7 @@ import type { TickNumber, EntityId } from '@engine/server/ecs/types';
 import { applyDamage } from '@shared/server/simulation/components/HealthComponent';
 
 const CONFIG: SubsystemConfig = {
-    name: 'FPSCombat',
+    name: 'Combat',
     priority: 30, // After physics
     tickRate: 125,
 };
@@ -66,7 +67,7 @@ export interface KillEvent {
 // COMBAT SYSTEM
 // ═══════════════════════════════════════════════════════════════════
 
-export class FPSCombatSystem extends Subsystem {
+export class CombatSystem extends Subsystem {
     private pendingDamage: DamageEvent[] = [];
     private kills: KillEvent[] = [];
     private respawnQueue: Map<EntityId, number> = new Map(); // Entity -> respawn tick

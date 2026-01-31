@@ -13,10 +13,10 @@
 import { Simulation } from '../engine/server/core/Simulation';
 import { createPlayerEntity } from '../engine/server/ecs/Entity';
 import { entityId, playerId, tickNumber, EntityType } from '../engine/server/ecs/types';
-import { FPSPhysicsSystem } from '../games/fps/server/systems/FPSPhysicsSystem';
-import { FPSCombatSystem } from '../games/fps/server/systems/FPSCombatSystem';
-import { FPSWeaponSystem } from '../games/fps/server/systems/FPSWeaponSystem';
-import { FPSProjectileSystem } from '../games/fps/server/systems/FPSProjectileSystem';
+import { CharacterPhysicsSystem } from '../games/fps/server/systems/CharacterPhysicsSystem';
+import { CombatSystem } from '../games/fps/server/systems/CombatSystem';
+import { WeaponSystem } from '../games/fps/server/systems/WeaponSystem';
+import { ProjectileSystem } from '../games/fps/server/systems/ProjectileSystem';
 import { LagCompensation } from '../engine/server/lagcomp/LagCompensation';
 import { COMPETITIVE_CONFIG } from '../engine/server/lagcomp/config';
 import type { Ray } from '../engine/server/lagcomp/LagCompensation';
@@ -37,10 +37,10 @@ const TICK_MS = 8;
 // Create simulation with all systems
 const sim = new Simulation({ tickMs: TICK_MS });
 
-const physicsSystem = new FPSPhysicsSystem();
-const combatSystem = new FPSCombatSystem(125); // 1 second respawn for testing
-const weaponSystem = new FPSWeaponSystem();
-const projectileSystem = new FPSProjectileSystem();
+const physicsSystem = new CharacterPhysicsSystem();
+const combatSystem = new CombatSystem(125); // 1 second respawn for testing
+const weaponSystem = new WeaponSystem();
+const projectileSystem = new ProjectileSystem();
 
 sim.addSubsystem(physicsSystem);
 sim.addSubsystem(combatSystem);

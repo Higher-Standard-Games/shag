@@ -1,18 +1,19 @@
 /**
- * FPS Projectile System
+ * Projectile System
  * 
  * Handles projectile movement and collision.
+ * Works for any projectile-based combat system.
  */
 
 import { Subsystem, type SubsystemConfig } from '@engine/server/core/Subsystem';
 import type { WorldState } from '@engine/server/core/WorldState';
 import type { TickNumber, EntityId } from '@engine/server/ecs/types';
 import { EntityType } from '@engine/server/ecs/types';
-import { DamageType, type DamageEvent, HitLocation } from './FPSCombatSystem';
+import { DamageType, type DamageEvent, HitLocation } from './CombatSystem';
 import { WEAPONS } from '../weapons/WeaponDef';
 
 const CONFIG: SubsystemConfig = {
-    name: 'FPSProjectile',
+    name: 'Projectile',
     priority: 20, // Early, so explosions happen before combat
     tickRate: 125,
 };
@@ -21,7 +22,7 @@ const CONFIG: SubsystemConfig = {
 // PROJECTILE SYSTEM
 // ═══════════════════════════════════════════════════════════════════
 
-export class FPSProjectileSystem extends Subsystem {
+export class ProjectileSystem extends Subsystem {
     private pendingDamage: DamageEvent[] = [];
     private projectilesToRemove: EntityId[] = [];
     private maxLifetimeTicks: number = 500; // 4 seconds at 125Hz

@@ -9,7 +9,7 @@
 import { Simulation } from '../engine/server/core/Simulation';
 import { createPlayerEntity } from '../engine/server/ecs/Entity';
 import { entityId, playerId } from '../engine/server/ecs/types';
-import { FPSPhysicsSystem } from '../games/fps/server/systems/FPSPhysicsSystem';
+import { CharacterPhysicsSystem } from '../games/fps/server/systems/CharacterPhysicsSystem';
 
 console.log('═══════════════════════════════════════════════════════════════════');
 console.log(' V2 Server Tick Test');
@@ -20,7 +20,7 @@ console.log();
 const sim = new Simulation({ tickMs: 8 });
 
 // Add physics system
-sim.addSubsystem(new FPSPhysicsSystem());
+sim.addSubsystem(new CharacterPhysicsSystem());
 
 // Initialize
 sim.initialize();
@@ -88,7 +88,7 @@ console.log();
 console.log('[DETERMINISM] Running determinism test...');
 
 const sim2 = new Simulation({ tickMs: 8 });
-sim2.addSubsystem(new FPSPhysicsSystem());
+sim2.addSubsystem(new CharacterPhysicsSystem());
 sim2.initialize();
 
 const state2 = sim2.getStateMut();
