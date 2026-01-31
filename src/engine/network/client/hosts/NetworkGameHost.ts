@@ -237,15 +237,22 @@ class SmoothCorrection {
   }
 
   /**
-   * Get and decay the current correction (call once per frame)
+   * Get current correction WITHOUT side effects.
+   * Safe to call multiple times per frame (for camera, rendering, etc.)
    */
   getCorrection(): { x: number; y: number; z: number } {
-    const correction = {
+    return {
       x: this.correctionX * this.correctionDecay,
       y: this.correctionY * this.correctionDecay,
       z: this.correctionZ * this.correctionDecay,
     };
+  }
 
+  /**
+   * Apply decay to stored correction. Call ONCE per frame in update() loop.
+   * This prevents flickering from multiple getCorrection() calls per frame.
+   */
+  applyDecay(): void {
     // Decay the stored correction
     this.correctionX *= (1 - this.correctionDecay);
     this.correctionY *= (1 - this.correctionDecay);
@@ -256,8 +263,6 @@ class SmoothCorrection {
     if (Math.abs(this.correctionX) < epsilon) this.correctionX = 0;
     if (Math.abs(this.correctionY) < epsilon) this.correctionY = 0;
     if (Math.abs(this.correctionZ) < epsilon) this.correctionZ = 0;
-
-    return correction;
   }
 
   /**
@@ -454,11 +459,16 @@ export class NetworkGameHost implements IGameHost {
             transform.position.z += correction.z;
           }
           return correctedEntity;
+        } else {
+          // DEBUG: This should NOT happen in normal gameplay
+          console.warn(`[NetworkGameHost] FALLBACK: Local player entity ${entityId} not found in localState!`);
         }
       }
     }
 
     // Use server interpolation (reliable, but 50ms delayed)
+    // This is used for OTHER players, not local player
+    console.warn(`[NetworkGameHost] Using interpolation buffer for entity ${entityId} (is local player: ${this.localPlayerId === entityId})`);
     const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
     return interpolatedState.entities.get(entityId);
   }
@@ -492,6 +502,9 @@ export class NetworkGameHost implements IGameHost {
    */
   update(): void {
     if (!this._isConnected) return;
+
+    // Apply smooth correction decay (once per frame)
+    this.smoothCorrection.applyDecay();
 
     // Process events from local state
     this.processEvents();
@@ -611,9 +624,10 @@ export class NetworkGameHost implements IGameHost {
     // Step 5: Apply accumulated smooth correction to local position
     this.applySmothCorrection();
 
-    // Step 6: Notify game layer with interpolated state for rendering
-    const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
-    this.stateUpdateCallbacks.forEach(cb => cb(interpolatedState));
+    // NOTE: We do NOT fire stateUpdateCallbacks here anymore!
+    // Callbacks are only fired by predictLocally() with PREDICTED position.
+    // This prevents flickering caused by alternating predicted vs interpolated positions.
+    // (Interpolation buffer is only for OTHER players, not local player rendering.)
   }
 
   /**
@@ -668,13 +682,15 @@ export class NetworkGameHost implements IGameHost {
    */
   private reconcilePrediction(serverState: GameState): void {
     // Find our player in both states
-    const localPlayer = this.localState.players.get(this.localPlayerId);
+    // CRITICAL: We compare simulation.state (what prediction uses) vs server
+    const localPlayer = this.simulation.state.players.get(this.localPlayerId);
     const serverPlayer = serverState.players.get(this.localPlayerId);
 
     if (!localPlayer || !serverPlayer) return;
 
     // Find our entity in both states
-    const localEntity = this.localState.entities.get(localPlayer.entityId);
+    // CRITICAL: We update simulation.state so next predict() uses corrected position
+    const localEntity = this.simulation.state.entities.get(localPlayer.entityId);
     const serverEntity = serverState.entities.get(serverPlayer.entityId);
 
     if (!localEntity || !serverEntity) return;
@@ -694,6 +710,11 @@ export class NetworkGameHost implements IGameHost {
     const dz = serverPos.z - localPos.z;
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
+    // DEBUG: Log error distance periodically
+    if (Math.random() < 0.1) {
+      console.log(`[Reconcile] Error: ${distance.toFixed(1)} units | Client: (${localPos.x.toFixed(1)}, ${localPos.y.toFixed(1)}, ${localPos.z.toFixed(1)}) | Server: (${serverPos.x.toFixed(1)}, ${serverPos.y.toFixed(1)}, ${serverPos.z.toFixed(1)})`);
+    }
+
     // Decide how to handle the error
     if (distance > this.SNAP_THRESHOLD) {
       // CASE 3: Large error - snap immediately (teleport, death, major desync)
@@ -702,6 +723,9 @@ export class NetworkGameHost implements IGameHost {
       localPos.z = serverPos.z;
       this.smoothCorrection.reset(); // Clear any pending smooth corrections
       console.log('[NetworkGameHost] Snapped to server position (large error)');
+
+      // CRITICAL: Update localState to match simulation.state
+      this.localState = this.simulation.state.clone();
     } else if (distance > this.SMOOTH_THRESHOLD) {
       // CASE 2: Medium error - queue smooth correction
       this.smoothCorrection.addCorrection(dx, dy, dz);

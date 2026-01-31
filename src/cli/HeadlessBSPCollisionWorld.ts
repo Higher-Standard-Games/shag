@@ -105,9 +105,13 @@ export class HeadlessBSPCollisionWorld implements CollisionWorld {
 
     /**
      * Q3-style step-slide move with full collision resolution.
+     * 
+     * IMPORTANT: velocity parameter is velocity in units/second, needs to be scaled by deltaTime
      */
     stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
         const startPos = toBabylon(start);
+        // Backend expects MOVEMENT (units), not velocity (units/sec)
+        // So we scale velocity by deltaTime to get movement
         const movement = toBabylon(velocity).scale(deltaTime);
 
         const traceOpts = {
@@ -118,21 +122,36 @@ export class HeadlessBSPCollisionWorld implements CollisionWorld {
         // Use backend's stepSlideMove (same as local)
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
-        // Check if grounded after move
-        const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-        const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-        const grounded = groundTrace.fraction < 1.0;
+        // Check if grounded: did we land on something?
+        // If we had downward velocity but didn't move down much, we hit ground
+        const expectedYMove = movement.y;
+        const actualYMove = result.endPos.y - startPos.y;
 
-        // FIX: Use the CLIPPED velocity from backend, not the original!
-        // The backend clips velocity against collision surfaces.
-        // We need to scale it back from per-frame movement to per-second velocity.
+        // Grounded if:
+        // 1. We expected to move down (expectedYMove < 0)
+        // 2. But we moved less than expected (collision stopped us)
+        // 3. OR we're standing still and there's ground right below us
+        let grounded = false;
+
+        if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
+            // Downward movement was blocked → on ground
+            grounded = true;
+        } else if (Math.abs(movement.y) < 0.1) {
+            // Nearly stationary - check if ground is close below
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            grounded = groundTrace.fraction < 1.0;
+        }
+
+        // Backend returns clipped MOVEMENT delta
+        // Convert back to velocity (units/sec) by dividing by deltaTime
         const clippedVelocity = deltaTime > 0
             ? fromBabylon(result.velocity.scale(1 / deltaTime))
             : { x: 0, y: 0, z: 0 };
 
         // Debug: Log a sample of stepSlideMove calls
         if (Math.random() < 0.02) {
-            console.log(`[HeadlessBSPCollisionWorld] stepSlideMove: start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) vel=(${velocity.x.toFixed(1)},${velocity.y.toFixed(1)},${velocity.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded}`);
+            console.log(`[HeadlessBSPCollisionWorld] stepSlideMove: start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) vel=(${velocity.x.toFixed(1)},${velocity.y.toFixed(1)},${velocity.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded} (expY=${expectedYMove.toFixed(1)}, actY=${actualYMove.toFixed(1)})`);
         }
 
         return {

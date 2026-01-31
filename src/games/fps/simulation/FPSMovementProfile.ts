@@ -408,19 +408,20 @@ export class FPSMovementProfile implements MovementProfile {
         FPSMovementProfile.PLAYER_BOUNDS
       );
 
-      // Apply results
+      // Apply results (CRITICAL: update BOTH position AND velocity!)
       newPos.x = result.endPos.x;
       newPos.y = result.endPos.y;
       newPos.z = result.endPos.z;
 
-      // Save previous grounded state BEFORE updating (matches local checkGrounded pattern)
+      // CRITICAL: Apply clipped velocity from collision
+      // stepSlideMove clips velocity when hitting surfaces - we MUST use it
+      newVel.x = result.velocity.x;
+      newVel.y = result.velocity.y;
+      newVel.z = result.velocity.z;
+
+      // Save previous grounded state BEFORE updating
       this.wasGroundedLastFrame = this.isGrounded;
       this.isGrounded = result.grounded;
-
-      // Zero vertical velocity if grounded
-      if (this.isGrounded && newVel.y < 0) {
-        newVel.y = 0;
-      }
     } else {
       // No collision world - simple move
       newPos.x += newVel.x * deltaTime;
