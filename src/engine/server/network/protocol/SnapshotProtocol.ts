@@ -34,7 +34,7 @@ export class SnapshotEncoder {
     /**
      * Encode full snapshot (all entities)
      */
-    encodeFullSnapshot(state: WorldState): Uint8Array {
+    encodeFullSnapshot(state: Readonly<WorldState>): Uint8Array {
         this.encoder.reset();
 
         // Header
