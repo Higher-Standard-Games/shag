@@ -2,10 +2,13 @@
  * Client Manager
  * 
  * Manages all connected clients, handles authentication, and routes messages.
+ * Uses WebTransport for low-latency game networking with:
+ * - Datagrams (unreliable) for game state snapshots
+ * - Reliable streams for critical messages (auth, events)
  */
 
-import type { Transport, ClientConnection, TransportConfig } from './transport/WebSocketTransport';
-import { WebSocketTransport } from './transport/WebSocketTransport';
+import type { Transport, ClientConnection, TransportConfig } from './transport/WebTransportTransport';
+import { WebTransportServerTransport } from './transport/WebTransportTransport';
 import { snapshotEncoder } from './protocol/SnapshotProtocol';
 import { inputDecoder, type InputCommand } from './protocol/InputProtocol';
 import { MessageType } from './protocol/MessageTypes';
@@ -57,10 +60,14 @@ export class ClientManager {
     ) {
         this.events = events;
 
-        this.transport = new WebSocketTransport(transportConfig, {
+        // Use WebTransport (QUIC/UDP) as primary transport
+        this.transport = new WebTransportServerTransport(transportConfig, {
             onConnect: (conn) => this.handleConnect(conn),
             onDisconnect: (conn, reason) => this.handleDisconnect(conn, reason),
-            onMessage: (conn, data) => this.handleMessage(conn, data),
+            // Datagrams for game state (unreliable, low latency)
+            onDatagram: (conn, data) => this.handleDatagram(conn, data),
+            // Reliable stream for auth, events (ordered, guaranteed)
+            onReliable: (conn, data) => this.handleReliable(conn, data),
             onError: (conn, error) => console.error(`[ClientManager] Error from ${conn.id}:`, error),
         });
     }
@@ -70,7 +77,7 @@ export class ClientManager {
      */
     async start(): Promise<void> {
         await this.transport.start();
-        console.log('[ClientManager] Started');
+        console.log('[ClientManager] Started (WebTransport/QUIC mode)');
     }
 
     /**
@@ -117,10 +124,9 @@ export class ClientManager {
     }
 
     /**
-     * Broadcast snapshot to all clients
+     * Broadcast snapshot to all clients (via datagrams - fast, unreliable)
      */
     broadcastSnapshot(state: Readonly<WorldState>): void {
-        // For each client, send delta snapshot if we have a baseline
         for (const client of this.clients.values()) {
             if (!client.authenticated) continue;
 
@@ -135,7 +141,8 @@ export class ClientManager {
                 bytes = snapshotEncoder.encodeFullSnapshot(state);
             }
 
-            this.transport.send(client.connection.id, bytes);
+            // Use datagram for snapshots (unreliable, low latency)
+            this.transport.sendDatagram(client.connection.id, bytes);
 
             // Update baseline (will be confirmed by client ack)
             this.stateBaselines.set(client.playerId, (state as WorldState).clone());
@@ -147,7 +154,21 @@ export class ClientManager {
      */
     sendSnapshotToClient(clientId: string, state: Readonly<WorldState>): void {
         const bytes = snapshotEncoder.encodeFullSnapshot(state);
-        this.transport.send(clientId, bytes);
+        this.transport.sendDatagram(clientId, bytes);
+    }
+
+    /**
+     * Send reliable message to specific client
+     */
+    sendReliableToClient(clientId: string, data: Uint8Array): void {
+        this.transport.sendReliable(clientId, data);
+    }
+
+    /**
+     * Broadcast reliable message to all clients (for events, chat, etc.)
+     */
+    broadcastReliable(data: Uint8Array, exclude?: Set<string>): void {
+        this.transport.broadcastReliable(data, exclude);
     }
 
     /**
@@ -216,12 +237,12 @@ export class ClientManager {
 
         console.log(`[ClientManager] Client connected: ${conn.id} (Player ${pid})`);
 
-        // Send welcome message (client should respond with auth)
+        // Send welcome message via reliable stream
         const encoder = new BinaryEncoder(64);
         encoder.writeUint8(MessageType.S_Welcome);
         encoder.writeVarUint(pid as number);
         encoder.writeString('Welcome to the server!');
-        conn.send(encoder.toBytes());
+        conn.sendReliable(encoder.toBytes());
 
         // For now, auto-authenticate
         info.authenticated = true;
@@ -247,9 +268,25 @@ export class ClientManager {
     }
 
     /**
-     * Handle incoming message
+     * Handle incoming datagram (unreliable - for inputs)
      */
-    private handleMessage(conn: ClientConnection, data: Uint8Array): void {
+    private handleDatagram(conn: ClientConnection, data: Uint8Array): void {
+        const info = this.clients.get(conn.id);
+        if (!info) return;
+
+        const decoder = new BinaryDecoder(data);
+        const msgType = decoder.readUint8();
+
+        // Only input messages come via datagram
+        if (msgType === MessageType.C_Input) {
+            this.handleInputMessage(info, data);
+        }
+    }
+
+    /**
+     * Handle incoming reliable message (for auth, acks, pong)
+     */
+    private handleReliable(conn: ClientConnection, data: Uint8Array): void {
         const info = this.clients.get(conn.id);
         if (!info) return;
 
@@ -257,9 +294,6 @@ export class ClientManager {
         const msgType = decoder.readUint8();
 
         switch (msgType) {
-            case MessageType.C_Input:
-                this.handleInputMessage(info, data);
-                break;
             case MessageType.C_Ack:
                 this.handleAckMessage(info, decoder);
                 break;
@@ -270,7 +304,7 @@ export class ClientManager {
                 this.handlePongMessage(info, decoder);
                 break;
             default:
-                console.warn(`[ClientManager] Unknown message type: ${msgType}`);
+                console.warn(`[ClientManager] Unknown reliable message type: ${msgType}`);
         }
     }
 

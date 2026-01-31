@@ -1,5 +1,7 @@
 /**
  * Network protocol and transport
+ * 
+ * Uses WebTransport (QUIC/UDP) for low-latency game networking.
  */
 
 // Protocol
@@ -23,14 +25,17 @@ export {
 } from './protocol/InputProtocol';
 export { MessageType } from './protocol/MessageTypes';
 
-// Transport
+// Transport (WebTransport primary, WebSocket fallback)
 export {
-    WebSocketTransport,
+    WebTransportServerTransport,
     type Transport,
     type TransportConfig,
     type TransportEvents,
     type ClientConnection,
 } from './transport';
+
+// Legacy WebSocket (for fallback)
+export { WebSocketTransport } from './transport/WebSocketTransport';
 
 // Client Management
 export { ClientManager, type ClientInfo, type ClientManagerEvents } from './ClientManager';
