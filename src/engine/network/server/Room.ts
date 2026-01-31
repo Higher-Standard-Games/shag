@@ -68,8 +68,10 @@ export class Room {
   private clients: Map<string, Client> = new Map();
   private currentTick: number = 0;
   private isRunning: boolean = false;
-  private tickInterval: any = null;      // Physics loop interval
-  private networkInterval: any = null;   // Network snapshot interval
+  private tickInterval: NodeJS.Timeout | null = null;
+  private networkInterval: NodeJS.Timeout | null = null;
+  private lastTickTime: number = 0;   // Timestamp of last physics tick
+  private accumulator: number = 0;    // Accumulated time for fixed timestep
 
   // Server info for welcome message
   private serverId: string;
@@ -362,22 +364,72 @@ export class Room {
    * Note: Snapshot broadcasting is handled by the network loop, not here.
    */
   private physicsTick(): void {
-    // Step 1: Advance server time
-    this.currentTick++;
+    const outputDebug = Math.random() < 0.05; // 5% chance to log
 
-    // Step 2 & 3: Process commands and run physics
-    // simulation.tick() does: sort commands → run handlers → run systems → increment sim tick
-    // All queued commands are processed together for determinism
-    this.simulation.tick(this.pendingCommands);
+    // 1. Measure actual wall-clock time since last tick
+    const now = Date.now();
+    if (this.lastTickTime === 0) {
+      this.lastTickTime = now;
+      return; // Skip first tick to establish baseline
+    }
 
-    // Step 3b: Clear the queue for next tick
-    this.pendingCommands = [];
+    let frameTime = now - this.lastTickTime;
+    this.lastTickTime = now;
 
-    // Step 4: Notify listeners (debugging, analytics, etc.)
-    this.onTickCallbacks.forEach(cb => cb(this.currentTick, this.simulation.state));
+    // Cap frame time to avoid spiral of death on massive lag spikes (e.g. GC pause)
+    // If server freezes for 1s, we don't want to run 125 physics steps in one go.
+    // Cap at 100ms (max 12 ticks catchup)
+    if (frameTime > 100) {
+      console.warn(`[Room ${this.id}] Large lag spike: ${frameTime}ms (capped to 100ms)`);
+      frameTime = 100;
+    }
 
-    // Note: broadcastSnapshot() is NOT called here anymore.
-    // It runs on a separate network interval for bandwidth efficiency.
+    // 2. Add to accumulator
+    this.accumulator += frameTime;
+
+    // 3. Run fixed physics steps while we have enough accumulated time
+    const tickDuration = 1000 / 125; // 8ms (must match physics config)
+    let steps = 0;
+    const MAX_STEPS = 5; // Safety cap per frame
+
+    while (this.accumulator >= tickDuration && steps < MAX_STEPS) {
+      // Step 1: Advance server time
+      this.currentTick++;
+
+      // Step 2 & 3: Process commands and run physics
+      // We pass pending commands only to the FIRST tick of the batch to ensure responsiveness
+      // Subsequent catch-up ticks simulate physics to catch up time
+      const commandsToProcess = steps === 0 ? this.pendingCommands : [];
+
+      this.simulation.tick(commandsToProcess);
+
+      // Step 3b: Clear the queue after processing
+      if (steps === 0) {
+        this.pendingCommands = [];
+      }
+
+      // Step 4: Notify listeners
+      this.onTickCallbacks.forEach(cb => cb(this.currentTick, this.simulation.state));
+
+      this.accumulator -= tickDuration;
+      steps++;
+    }
+
+    // If we hit the safety cap, discard remaining accumulator to emit "time skipping"
+    // rather than falling permanently behind
+    if (steps >= MAX_STEPS && this.accumulator >= tickDuration) {
+      if (outputDebug) {
+        console.warn(`[Room ${this.id}] Hit max steps safety cap! Discarding ${this.accumulator.toFixed(1)}ms`);
+      }
+      this.accumulator = 0;
+    }
+
+    // Debug logging for loop stability
+    if (outputDebug && steps !== 1) {
+      // Log if we did 0 ticks (fast loop) or >1 ticks (catchup)
+      // This confirms the accumulator is working
+      console.log(`[Room ${this.id}] dt=${frameTime}ms -> ran ${steps} ticks`);
+    }
   }
 
   /**

@@ -124,6 +124,12 @@ export class AdvancedCharacterController {
         const mv = MovementVars.getInstance();
         const cm = getCollisionManager();
 
+        // DEBUG: Compare with server values
+        if (Math.random() < 0.02) {
+            const dir = input.wishdir || { x: 0, z: 0 };
+            console.log(`[LOCAL DEBUG] dt=${(deltaTime * 1000).toFixed(1)}ms, vel=(${this.velocity.x.toFixed(1)}, ${this.velocity.y.toFixed(1)}, ${this.velocity.z.toFixed(1)}), grounded=${this.isGrounded}`);
+        }
+
         // Check if we just landed
         const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
 

@@ -260,6 +260,11 @@ export class FPSMovementProfile implements MovementProfile {
     const newVel = vec3Clone(velocity);
     const now = Date.now();
 
+    // DEBUG: Log deltaTime and velocity periodically
+    if (Math.random() < 0.02) {
+      console.log(`[FPSMovement DEBUG] dt=${(deltaTime * 1000).toFixed(1)}ms, vel=(${newVel.x.toFixed(1)}, ${newVel.y.toFixed(1)}, ${newVel.z.toFixed(1)}), dir=${input?.direction ? `(${input.direction.x.toFixed(2)}, ${input.direction.z.toFixed(2)})` : 'none'}, grounded=${this.isGrounded}`);
+    }
+
 
     // NOTE: Do NOT set wasGroundedLastFrame here!
     // It's set AFTER stepSlideMove, BEFORE updating isGrounded (like local checkGrounded does).

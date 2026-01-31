@@ -17,10 +17,14 @@ import type { TransformComponent } from '../../engine/network/components/Transfo
 import type { VelocityComponent } from '../../engine/network/components/VelocityComponent';
 import type { MovementStateComponent } from '../../engine/network/components/MovementStateComponent';
 
+import { getCollisionManager } from '../../engine/physics/CollisionManager';
+import { BSPCollisionWorld } from './simulation/collision/BSPCollisionWorld';
+
 export interface FPSGameConfig {
   tickRate?: number;
   maxPlayers?: number;
 }
+
 
 /**
  * Player input captured from FPSController
@@ -136,7 +140,7 @@ export class FPSGameManager {
       this.shutdown();
     }
 
-    const tickRate = config.tickRate ?? 60;
+    const tickRate = config.tickRate ?? 125;  // Must match server tick rate (125Hz)
     const maxPlayers = config.maxPlayers ?? 16;
 
     console.log(`[FPSGameManager] Connecting to server: ${url}`);
@@ -188,6 +192,15 @@ export class FPSGameManager {
           // === CRITICAL: Set up FPS controller AFTER map loads ===
           // This prevents the race condition where scene empty/map command overrides the controller
           try {
+            // Set up BSP collision for client prediction
+            // This is critical for movement responsiveness (avoids "flying through walls" in prediction)
+            const cm = getCollisionManager();
+            if (cm.isInitialized()) {
+              const collisionWorld = new BSPCollisionWorld();
+              this.setCollisionWorld(collisionWorld);
+              console.log(`[FPSGameManager] BSP collision injected into client prediction simulation`);
+            }
+
             const { CameraSystem } = await import('../../engine/camera/CameraSystem');
             const { FPSController } = await import('../../engine/camera/controllers/FPSController');
             const cameraSystem = CameraSystem.getInstance();
@@ -531,11 +544,20 @@ export class FPSGameManager {
 
   /**
    * Set collision world (from loaded BSP)
+   * This sets collision on BOTH the local simulation AND the network prediction simulation
    */
   setCollisionWorld(collision: import('../../engine/network/systems/collision/CollisionWorld').CollisionWorld | null): void {
+    // Set on local simulation (for local mode)
     if (this.simulation) {
       this.simulation.setCollisionWorld(collision);
-      console.log('[FPSGameManager] Collision world set');
+      console.log('[FPSGameManager] Collision world set on local simulation');
+    }
+
+    // Also set on NetworkGameHost's prediction simulation (for network mode)
+    const networkHost = this.gameHost as any;
+    if (networkHost && typeof networkHost.setCollisionWorld === 'function') {
+      networkHost.setCollisionWorld(collision);
+      console.log('[FPSGameManager] Collision world set on network prediction simulation');
     }
   }
 }

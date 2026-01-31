@@ -266,6 +266,9 @@ export class FPSController implements ICameraController {
   private baseFOV: number = 1.0;
   private landingVelocityCapture: number = 0;
 
+  // Input throttling for network prediction
+  private commandAccumulator: number = 0;
+
   // Mouse-controlled rotation (stored separately to avoid effect accumulation)
   private mouseRotationX: number = 0;  // Pitch
   private mouseRotationY: number = 0;  // Yaw
@@ -884,20 +887,34 @@ export class FPSController implements ICameraController {
     // === ADVANCED PHYSICS ===
     if (this.useNetworkMovement && this.networkReady && this.gameManager) {
       // === NETWORK MOVEMENT MODE ===
-      // Send input to FPSGameManager -> FPSSimulation
-      this.gameManager.sendInput({
-        forward: this.keys.forward,
-        backward: this.keys.backward,
-        left: this.keys.left,
-        right: this.keys.right,
-        jump: this.keys.up,
-        crouch: this.keys.crouch,
-        sprint: this.keys.sprint,
-        fire: this.keys.fire,
-        altFire: this.keys.aim,
-        pitch: this.mouseRotationX,
-        yaw: this.mouseRotationY,
-      });
+      // Throttle command sending to 125Hz (server tick rate)
+      // This prevents "superfast" movement on high refresh rate monitors (e.g. 144Hz, 240Hz)
+      const TICK_RATE = 125;
+      const TICK_DURATION = 1.0 / TICK_RATE;
+
+      this.commandAccumulator += deltaTime;
+
+      // Limit catch-up to avoid spiral of death if frame rate dips low
+      if (this.commandAccumulator > 0.1) this.commandAccumulator = 0.1;
+
+      while (this.commandAccumulator >= TICK_DURATION) {
+        // Send input to FPSGameManager -> FPSSimulation
+        this.gameManager.sendInput({
+          forward: this.keys.forward,
+          backward: this.keys.backward,
+          left: this.keys.left,
+          right: this.keys.right,
+          jump: this.keys.up,
+          crouch: this.keys.crouch,
+          sprint: this.keys.sprint,
+          fire: this.keys.fire,
+          altFire: this.keys.aim,
+          pitch: this.mouseRotationX,
+          yaw: this.mouseRotationY,
+        });
+
+        this.commandAccumulator -= TICK_DURATION;
+      }
 
       // Get interpolated position for smooth rendering
       // This uses NetworkGameHost.getInterpolatedEntity() which interpolates between

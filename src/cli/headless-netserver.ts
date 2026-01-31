@@ -43,7 +43,7 @@ function parseArgs(): ServerConfig {
     serverName: 'SHAG Server',
     mapName: 'wdm7',
     maxClients: 16,
-    tickRate: 60,
+    tickRate: 125,  // Physics tick rate (125Hz like Quake 3 for responsive input)
     mode: 'fps',  // Default to FPS mode now
     gamePath: './game',
   };

@@ -56,8 +56,7 @@ import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
  */
 class InterpolationBuffer {
   private snapshots: { state: GameState; timestamp: number }[] = [];
-  private interpolationDelay: number = 100; // 100ms delay - render in the past
-  private tickDuration: number = 50; // 50ms per tick at 20Hz network rate
+  private interpolationDelay: number = 50; // 50ms delay - reduced for responsiveness
 
   /** Get interpolation delay in ms */
   getInterpolationDelay(): number {
@@ -433,6 +432,33 @@ export class NetworkGameHost implements IGameHost {
   }
 
   getInterpolatedEntity(entityId: string): any {
+    // Use Client Prediction if possible (requires collision data)
+    // Now that BSP collision is wired up in FPSGameManager, we can safely use this.
+    const USE_CLIENT_PREDICTION = true;
+
+    if (USE_CLIENT_PREDICTION) {
+      // Check if this is the local player's entity
+      const localPlayer = this.localState.players.get(this.localPlayerId);
+      const isLocalPlayer = localPlayer && localPlayer.entityId === entityId;
+
+      if (isLocalPlayer) {
+        // Use LOCAL PREDICTION for instant feedback
+        const predictedEntity = this.localState.entities.get(entityId);
+        if (predictedEntity) {
+          const correctedEntity = predictedEntity.clone();
+          const correction = this.smoothCorrection.getCorrection();
+          const transform = correctedEntity.getComponent('transform') as any;
+          if (transform?.position) {
+            transform.position.x += correction.x;
+            transform.position.y += correction.y;
+            transform.position.z += correction.z;
+          }
+          return correctedEntity;
+        }
+      }
+    }
+
+    // Use server interpolation (reliable, but 50ms delayed)
     const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
     return interpolatedState.entities.get(entityId);
   }
@@ -443,6 +469,22 @@ export class NetworkGameHost implements IGameHost {
 
   isConnected(): boolean {
     return this._isConnected;
+  }
+
+  /**
+   * Set collision world for client-side prediction
+   * This allows the prediction simulation to use BSP collision data
+   * for accurate local physics before server confirmation arrives.
+   */
+  setCollisionWorld(collision: any): void {
+    // Check if simulation has setCollisionWorld method (FPSSimulation does)
+    const sim = this.simulation as any;
+    if (typeof sim.setCollisionWorld === 'function') {
+      sim.setCollisionWorld(collision);
+      console.log('[NetworkGameHost] Collision world set for client prediction');
+    } else {
+      console.warn('[NetworkGameHost] Simulation does not support setCollisionWorld');
+    }
   }
 
   /**
@@ -594,6 +636,11 @@ export class NetworkGameHost implements IGameHost {
     // This prevents client/server tick divergence
     this.simulation.predict([cmd]);
     this.localState = this.simulation.state.clone();
+
+    // Notify callbacks with predicted state for animations
+    // This is critical: without this, FPSController only gets state at snapshot rate (20Hz)
+    // which causes choppy animations. By notifying here, animations update at prediction rate (125Hz).
+    this.stateUpdateCallbacks.forEach(cb => cb(this.localState));
   }
 
   // ============================================================================
