@@ -20,6 +20,7 @@ This document proposes a complete redesign of our multiplayer server architectur
 |----------|-------|
 | [Tick System Deep Dive](tick-system-deep-dive.md) | Multi-rate orchestration, subsystem independence, performance budgets |
 | [ECS & Network Protocol](ecs-network-protocol-deep-dive.md) | Entity-Component with COW, binary serialization, delta compression |
+| [Lag Compensation](lag-compensation-deep-dive.md) | Hit detection, server rewind, peeker's advantage, modern techniques |
 | [Critical Review Addendum](architecture-review-addendum.md) | Peer review solutions, COW decision, Q3-style prediction |
 
 ---
