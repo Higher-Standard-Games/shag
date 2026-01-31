@@ -23,6 +23,8 @@ export class Simulation {
     private config: SimulationConfig;
     private subsystems: Subsystem[] = [];
     private state: WorldState;
+    /** Tick accumulators for multi-rate subsystems */
+    private tickAccumulators: Map<Subsystem, number> = new Map();
 
     constructor(config: Partial<SimulationConfig> = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -40,6 +42,8 @@ export class Simulation {
         this.subsystems.push(subsystem);
         // Sort by priority
         this.subsystems.sort((a, b) => a.priority - b.priority);
+        // Initialize accumulator
+        this.tickAccumulators.set(subsystem, 0);
     }
 
     /**
@@ -106,17 +110,37 @@ export class Simulation {
      * 
      * This is the core deterministic function:
      * (state, tick) → new state
+     * 
+     * Subsystems with tickRate=0 run every tick.
+     * Subsystems with tickRate>0 run at their specified frequency.
      */
     tick(): void {
-        const dt = this.tickSec;
+        const baseDt = this.tickSec;
         const tickNum = this.state.tick;
 
         // Create next tick state (COW - shares unmodified entities)
         this.state = this.state.nextTick();
 
-        // Run all subsystems in priority order
+        // Run all subsystems based on their tick rates
         for (const subsystem of this.subsystems) {
-            subsystem.update(this.state, dt, tickNum);
+            // tickRate 0 = run every tick (physics, core systems)
+            if (subsystem.tickRate === 0) {
+                subsystem.update(this.state, baseDt, tickNum);
+                continue;
+            }
+
+            // Multi-rate: accumulate time and run when threshold reached
+            const acc = (this.tickAccumulators.get(subsystem) ?? 0) + baseDt;
+            const subDt = 1 / subsystem.tickRate;
+
+            if (acc >= subDt) {
+                // Run subsystem with its specific dt
+                subsystem.update(this.state, subDt, tickNum);
+                this.tickAccumulators.set(subsystem, acc - subDt);
+            } else {
+                // Not enough time accumulated yet
+                this.tickAccumulators.set(subsystem, acc);
+            }
         }
     }
 
