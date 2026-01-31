@@ -1,6 +1,9 @@
 /**
  * Character Physics System
  * Q3/Warsow style movement - works for FPS & 3rd person
+ * 
+ * Supports optional CollisionWorld for BSP collision.
+ * Without collision, uses simple velocity integration.
  */
 
 import { Subsystem, type SubsystemConfig } from '@engine/server/core/Subsystem';
@@ -15,6 +18,7 @@ import {
     calculateWishDir,
 } from '@shared/server/simulation/physics/movement';
 import { MAX_GROUND_SPEED } from '@shared/server/simulation/physics/constants';
+import type { CollisionWorld, AABB } from '../../../../engine/network/systems/collision/CollisionWorld';
 
 const CONFIG: SubsystemConfig = {
     name: 'CharacterPhysics',
@@ -22,9 +26,25 @@ const CONFIG: SubsystemConfig = {
     tickRate: 125,
 };
 
+// Default player bounds (Q3-style: 32 wide, 56 tall)
+const PLAYER_BOUNDS: AABB = {
+    min: { x: -16, y: 0, z: -16 },
+    max: { x: 16, y: 56, z: 16 },
+};
+
 export class CharacterPhysicsSystem extends Subsystem {
-    constructor() {
+    private collisionWorld: CollisionWorld | null = null;
+
+    constructor(collisionWorld?: CollisionWorld) {
         super(CONFIG);
+        this.collisionWorld = collisionWorld ?? null;
+    }
+
+    /**
+     * Set the collision world (e.g., after BSP load)
+     */
+    setCollisionWorld(world: CollisionWorld | null): void {
+        this.collisionWorld = world;
     }
 
     update(state: WorldState, dt: number, _tick: TickNumber): void {
@@ -66,13 +86,34 @@ export class CharacterPhysicsSystem extends Subsystem {
                 physics.jumping = false;
             }
 
-            // Apply velocity to position
-            // TODO: Use collision system for actual movement
-            transform.position = {
-                x: transform.position.x + physics.velocity.x * dt,
-                y: transform.position.y + physics.velocity.y * dt,
-                z: transform.position.z + physics.velocity.z * dt,
-            };
+            // Apply velocity to position with collision
+            if (this.collisionWorld) {
+                // Use proper Q3-style stepSlideMove
+                const result = this.collisionWorld.stepSlideMove(
+                    transform.position,
+                    physics.velocity,
+                    dt,
+                    PLAYER_BOUNDS
+                );
+
+                transform.position = result.endPos;
+                physics.velocity = result.velocity;
+                physics.grounded = result.grounded;
+            } else {
+                // No collision - simple integration (for testing)
+                transform.position = {
+                    x: transform.position.x + physics.velocity.x * dt,
+                    y: transform.position.y + physics.velocity.y * dt,
+                    z: transform.position.z + physics.velocity.z * dt,
+                };
+
+                // Simple floor at Y=0 for testing
+                if (transform.position.y < 0) {
+                    transform.position.y = 0;
+                    if (physics.velocity.y < 0) physics.velocity.y = 0;
+                    physics.grounded = true;
+                }
+            }
         }
     }
 }
