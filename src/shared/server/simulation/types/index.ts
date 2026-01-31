@@ -112,3 +112,110 @@ export enum EntityType {
     Trigger = 'trigger',
     World = 'world',
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// DISPLACEMENT TYPE (movement per tick)
+// ═══════════════════════════════════════════════════════════════════
+
+/** Displacement in units per tick (already scaled by dt) */
+export type DisplacementPerTick = Brand<Vec3, 'DisplacementPerTick'>;
+
+export function displacementPerTick(x: number, y: number, z: number): DisplacementPerTick {
+    return { x, y, z } as DisplacementPerTick;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UNIT CONVERSION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Convert velocity (per second) to displacement (per tick)
+ * displacement = velocity * dt
+ */
+export function velocityToDisplacement(
+    velocity: VelocityPerSec,
+    dt: Seconds
+): DisplacementPerTick {
+    return {
+        x: velocity.x * dt,
+        y: velocity.y * dt,
+        z: velocity.z * dt,
+    } as DisplacementPerTick;
+}
+
+/**
+ * Convert displacement (per tick) back to velocity (per second)
+ * velocity = displacement / dt
+ */
+export function displacementToVelocity(
+    displacement: DisplacementPerTick,
+    dt: Seconds
+): VelocityPerSec {
+    const invDt = 1 / dt;
+    return {
+        x: displacement.x * invDt,
+        y: displacement.y * invDt,
+        z: displacement.z * invDt,
+    } as VelocityPerSec;
+}
+
+/**
+ * Apply velocity over time to get new position
+ * position' = position + velocity * dt
+ */
+export function applyVelocity(
+    position: PositionWorld,
+    velocity: VelocityPerSec,
+    dt: Seconds
+): PositionWorld {
+    return {
+        x: position.x + velocity.x * dt,
+        y: position.y + velocity.y * dt,
+        z: position.z + velocity.z * dt,
+    } as PositionWorld;
+}
+
+/**
+ * Apply displacement to position
+ * position' = position + displacement
+ */
+export function applyDisplacement(
+    position: PositionWorld,
+    displacement: DisplacementPerTick
+): PositionWorld {
+    return {
+        x: position.x + displacement.x,
+        y: position.y + displacement.y,
+        z: position.z + displacement.z,
+    } as PositionWorld;
+}
+
+/**
+ * Apply acceleration to velocity
+ * velocity' = velocity + acceleration * dt
+ */
+export function applyAcceleration(
+    velocity: VelocityPerSec,
+    acceleration: AccelerationPerSec2,
+    dt: Seconds
+): VelocityPerSec {
+    return {
+        x: velocity.x + acceleration.x * dt,
+        y: velocity.y + acceleration.y * dt,
+        z: velocity.z + acceleration.z * dt,
+    } as VelocityPerSec;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PHYSICS CONSTANTS (branded)
+// ═══════════════════════════════════════════════════════════════════
+
+/** Gravity acceleration (800 units/sec²) - Q3/Warsow standard */
+export const GRAVITY: AccelerationPerSec2 = { x: 0, y: -800, z: 0 } as AccelerationPerSec2;
+
+/** Standard tick duration at 125Hz */
+export const TICK_DT: Seconds = 0.008 as Seconds;
+
+/** Zero velocity constant */
+export const ZERO_VELOCITY: VelocityPerSec = { x: 0, y: 0, z: 0 } as VelocityPerSec;
+
