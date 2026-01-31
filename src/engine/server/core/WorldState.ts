@@ -105,6 +105,18 @@ export class WorldState {
         }
     }
 
+    /**
+     * Get entity by owner ID
+     */
+    getEntityByOwner(ownerId: number): Readonly<Entity> | undefined {
+        for (const entity of this.entities.values()) {
+            if (entity.ownerId === ownerId) {
+                return entity;
+            }
+        }
+        return undefined;
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // WRITE OPERATIONS (COW - clone on first write)
     // ═══════════════════════════════════════════════════════════════════

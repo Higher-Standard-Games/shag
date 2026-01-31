@@ -22,3 +22,15 @@ export {
     type DecodedInputBatch,
 } from './protocol/InputProtocol';
 export { MessageType } from './protocol/MessageTypes';
+
+// Transport
+export {
+    WebSocketTransport,
+    type Transport,
+    type TransportConfig,
+    type TransportEvents,
+    type ClientConnection,
+} from './transport';
+
+// Client Management
+export { ClientManager, type ClientInfo, type ClientManagerEvents } from './ClientManager';

@@ -4,27 +4,27 @@
 
 export interface LagCompensationConfig {
     /** Max rewind time in ms */
-    maxRewindMs: number;
+    maxCompensationMs: number;
+    /** Server tick rate in Hz */
+    tickRate: number;
     /** Allow defensive abilities to override hits */
     allowAbilityOverride: boolean;
-    /** History buffer size in ticks */
-    historyBufferSize: number;
 }
 
 export const CASUAL_CONFIG: LagCompensationConfig = {
-    maxRewindMs: 200,
+    maxCompensationMs: 200,
+    tickRate: 125,
     allowAbilityOverride: true,
-    historyBufferSize: 256,
 };
 
 export const COMPETITIVE_CONFIG: LagCompensationConfig = {
-    maxRewindMs: 100,
+    maxCompensationMs: 100,
+    tickRate: 125,
     allowAbilityOverride: true,
-    historyBufferSize: 128,
 };
 
 export const TOURNAMENT_CONFIG: LagCompensationConfig = {
-    maxRewindMs: 50,
+    maxCompensationMs: 50,
+    tickRate: 125,
     allowAbilityOverride: true,
-    historyBufferSize: 64,
 };

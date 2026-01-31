@@ -14,6 +14,10 @@ export enum MessageType {
     // ═══ Client → Server ═══
     C_Input = 0x80,
     C_RequestFullSnapshot = 0x81,
-    C_AckSnapshot = 0x82,
+    C_Ack = 0x82,
+    C_AckSnapshot = 0x82, // Alias for backwards compatibility
     C_Chat = 0x83,
+    C_Auth = 0x84,
+    C_Ping = 0x85,
+    C_Pong = 0x86,
 }
