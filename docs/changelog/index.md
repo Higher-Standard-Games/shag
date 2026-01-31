@@ -6,6 +6,15 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.9.0](./v0.9.0.md) | Jan 31, 2026 | Next-Gen Server Architecture - Deterministic simulation, multi-rate ticks, client prediction |
+| [v0.8.25](./v0.8.25.md) | Jan 28, 2026 | Server architecture research and collision debugging |
+| [v0.8.24](./v0.8.24.md) | Jan 20, 2026 | Lightgrid recovery and model lighting |
+| [v0.8.23](./v0.8.23.md) | Jan 18, 2026 | Muzzle flash tuning and weapon effects |
+| [v0.8.22](./v0.8.22.md) | Jan 15, 2026 | Movement enhancements (sprint, speed vars) |
+| [v0.8.21](./v0.8.21.md) | Jan 14, 2026 | FBSP lightgrid support |
+| [v0.8.20](./v0.8.20.md) | Jan 13, 2026 | Model lighting and lightgrid debugging |
+| [v0.8.19](./v0.8.19.md) | Jan 12, 2026 | Advanced movement techniques |
+| [v0.8.17](./v0.8.17.md) | Jan 11, 2026 | Weapon view model system |
 | [v0.8.16](./v0.8.16.md) | Jan 9, 2026 | GamePaths Refactor & Build-Time Game Selection |
 | [v0.8.15](./v0.8.15.md) | Jan 9, 2026 | Cvar System & Engine Refactoring |
 | [v0.8.14](./v0.8.14.md) | Jan 8, 2026 | Documentation & Console Improvements |
