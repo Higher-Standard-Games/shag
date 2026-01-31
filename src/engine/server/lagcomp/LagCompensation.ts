@@ -15,6 +15,7 @@ import { EntityType, tickNumber } from '../ecs/types';
 import { HistoryBuffer } from './HistoryBuffer';
 import type { LagCompensationConfig } from './config';
 import { CASUAL_CONFIG } from './config';
+import type { CollisionWorld } from '../../../engine/network/systems/collision/CollisionWorld';
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACE TYPES
@@ -41,6 +42,7 @@ export interface HitResult {
     hitPart?: 'head' | 'body' | 'legs';
     tick: TickNumber;
     compensationMs: number;
+    blockedByWorld?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -52,6 +54,7 @@ export class LagCompensation {
     private config: LagCompensationConfig;
     private clientLatencies: Map<PlayerId, number> = new Map();
     private _lastUpdateTick: TickNumber = tickNumber(0);
+    private collisionWorld: CollisionWorld | null = null;
 
     constructor(config: LagCompensationConfig = CASUAL_CONFIG) {
         this.config = config;
@@ -59,6 +62,13 @@ export class LagCompensation {
             config.maxCompensationMs,
             config.tickRate
         );
+    }
+
+    /**
+     * Set collision world for BSP traces (blocks shots through walls)
+     */
+    setCollisionWorld(world: CollisionWorld | null): void {
+        this.collisionWorld = world;
     }
 
     /**
@@ -135,6 +145,7 @@ export class LagCompensation {
 
     /**
      * Perform actual ray-vs-capsule trace
+     * Also checks BSP world collision to block shots through walls
      */
     private performTrace(
         ray: Ray,
@@ -149,6 +160,21 @@ export class LagCompensation {
             compensationMs,
         };
         let closestDistance = ray.maxDistance;
+
+        // First: Check BSP world collision (walls, floors, etc.)
+        let worldBlockDistance = Infinity;
+        if (this.collisionWorld) {
+            const endPoint = {
+                x: ray.origin.x + ray.direction.x * ray.maxDistance,
+                y: ray.origin.y + ray.direction.y * ray.maxDistance,
+                z: ray.origin.z + ray.direction.z * ray.maxDistance,
+            };
+
+            const worldTrace = this.collisionWorld.trace(ray.origin, endPoint);
+            if (worldTrace.hit) {
+                worldBlockDistance = worldTrace.fraction * ray.maxDistance;
+            }
+        }
 
         // Check all player entities
         for (const entity of state.entitiesByType(EntityType.Player)) {
@@ -165,29 +191,45 @@ export class LagCompensation {
             const result = this.rayCapsuleIntersect(ray, capsule);
 
             if (result.hit && result.distance! < closestDistance) {
-                closestDistance = result.distance!;
+                // Check if world blocks this hit (wall in the way)
+                if (result.distance! < worldBlockDistance) {
+                    closestDistance = result.distance!;
 
-                // Determine hit part based on height
-                const hitY = result.hitPoint!.y - entity.transform.position.y;
-                let hitPart: 'head' | 'body' | 'legs' = 'body';
-                if (hitY > 48) hitPart = 'head';
-                else if (hitY < 16) hitPart = 'legs';
+                    // Determine hit part based on height
+                    const hitY = result.hitPoint!.y - entity.transform.position.y;
+                    let hitPart: 'head' | 'body' | 'legs' = 'body';
+                    if (hitY > 48) hitPart = 'head';
+                    else if (hitY < 16) hitPart = 'legs';
 
-                closestHit = {
-                    hit: true,
-                    entityId: entity.id,
-                    hitPoint: result.hitPoint,
-                    hitNormal: result.hitNormal,
-                    distance: result.distance,
-                    hitPart,
-                    tick,
-                    compensationMs,
-                };
+                    closestHit = {
+                        hit: true,
+                        entityId: entity.id,
+                        hitPoint: result.hitPoint,
+                        hitNormal: result.hitNormal,
+                        distance: result.distance,
+                        hitPart,
+                        tick,
+                        compensationMs,
+                        blockedByWorld: false,
+                    };
+                }
             }
+        }
+
+        // If no player was hit but world was hit, return world hit info
+        if (!closestHit.hit && worldBlockDistance < ray.maxDistance) {
+            return {
+                hit: false,
+                tick,
+                compensationMs,
+                blockedByWorld: true,
+                distance: worldBlockDistance,
+            };
         }
 
         return closestHit;
     }
+
 
     /**
      * Get player capsule from entity

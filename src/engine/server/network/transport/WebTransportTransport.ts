@@ -1,11 +1,15 @@
 /**
  * WebTransport Server Transport
- * 
+ *
  * Server-side WebTransport using QUIC for low-latency game networking.
  * Supports both datagrams (unreliable) and streams (reliable).
- * 
- * Note: Requires @aspect-build/webtransport or similar library in production.
- * This provides the interface and mock for testing.
+ *
+ * Uses @fails-components/webtransport for Node.js QUIC support.
+ *
+ * Installation:
+ *   npm install @aspect-build/webtransport @fails-components/webtransport
+ *
+ * Note: WebTransport requires TLS certificates. For development, use mkcert.
  */
 
 // ═══════════════════════════════════════════════════════════════════
@@ -22,6 +26,8 @@ export interface TransportConfig {
     certPath?: string;
     /** Path to TLS private key (required for WebTransport) */
     keyPath?: string;
+    /** Max datagram size in bytes (default: 1200 for QUIC) */
+    maxDatagramSize?: number;
 }
 
 export interface ClientConnection {
@@ -79,12 +85,20 @@ export interface Transport {
 // WEBTRANSPORT SERVER TRANSPORT
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * WebTransport server using @fails-components/webtransport.
+ *
+ * Features:
+ * - Datagrams for game state (unreliable, fast)
+ * - Streams for auth/events (reliable, ordered)
+ * - QUIC-based (UDP, no head-of-line blocking)
+ */
 export class WebTransportServerTransport implements Transport {
-    private config: TransportConfig;
+    private config: Required<TransportConfig>;
     private events: TransportEvents;
-    private clients: Map<string, ClientConnection> = new Map();
+    private clients: Map<string, WebTransportClientConnection> = new Map();
     private running: boolean = false;
-    private _server: unknown = null; // Would be WebTransportServer
+    private server: any = null; // WebTransportServer instance
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
     private nextClientId: number = 1;
 
@@ -94,6 +108,9 @@ export class WebTransportServerTransport implements Transport {
             maxClients: 64,
             heartbeatIntervalMs: 1000,
             connectionTimeoutMs: 30000,
+            certPath: '',
+            keyPath: '',
+            maxDatagramSize: 1200,
             ...config,
         };
         this.events = events;
@@ -102,32 +119,158 @@ export class WebTransportServerTransport implements Transport {
     async start(): Promise<void> {
         if (this.running) return;
 
-        // In production with @aspect-build/webtransport or similar:
-        //
-        // import { WebTransportServer } from '@aspect-build/webtransport';
-        // 
-        // this._server = new WebTransportServer({
-        //   host: this.config.host,
-        //   port: this.config.port,
-        //   cert: await fs.readFile(this.config.certPath!),
-        //   key: await fs.readFile(this.config.keyPath!),
-        // });
-        //
-        // this._server.on('session', (session) => {
-        //   this.handleSession(session);
-        // });
-        //
-        // await this._server.listen();
+        try {
+            // Try to load @fails-components/webtransport
+            const { WebTransportServer } = await this.loadWebTransportModule();
 
-        console.log(`[WebTransport] Server starting on ${this.config.host}:${this.config.port}`);
+            if (WebTransportServer) {
+                // Real WebTransport with TLS
+                this.server = await this.createRealServer(WebTransportServer);
+            } else {
+                // Fallback to mock mode for testing
+                console.log('[WebTransport] Running in mock mode (no @fails-components/webtransport)');
+            }
+        } catch (e) {
+            console.log('[WebTransport] Running in mock mode:', (e as Error).message);
+        }
 
-        // Start heartbeat
+        // Start heartbeat for timeout detection
         this.heartbeatInterval = setInterval(() => {
             this.checkHeartbeats();
         }, this.config.heartbeatIntervalMs);
 
         this.running = true;
-        console.log('[WebTransport] Server ready (QUIC/UDP mode)');
+        console.log(`[WebTransport] Server ready on ${this.config.host}:${this.config.port}`);
+    }
+
+    private async loadWebTransportModule(): Promise<{ WebTransportServer: any }> {
+        try {
+            // Dynamic import for optional dependency
+            const module = await import('@aspect-build/webtransport');
+            return { WebTransportServer: module.WebTransportServer };
+        } catch {
+            try {
+                // Try @fails-components/webtransport as fallback
+                const module = await import('@fails-components/webtransport');
+                return { WebTransportServer: module.Http3Server };
+            } catch {
+                return { WebTransportServer: null };
+            }
+        }
+    }
+
+    private async createRealServer(WebTransportServer: any): Promise<any> {
+        const fs = await import('fs').then(m => m.promises);
+
+        // Load TLS certificates
+        const cert = this.config.certPath ? await fs.readFile(this.config.certPath) : undefined;
+        const key = this.config.keyPath ? await fs.readFile(this.config.keyPath) : undefined;
+
+        if (!cert || !key) {
+            throw new Error('WebTransport requires TLS certificates (certPath, keyPath)');
+        }
+
+        const server = new WebTransportServer({
+            host: this.config.host,
+            port: this.config.port,
+            cert,
+            key,
+        });
+
+        // Handle incoming sessions
+        server.on('session', async (session: any) => {
+            const clientId = `wt-${this.nextClientId++}`;
+
+            if (this.clients.size >= this.config.maxClients) {
+                session.close({ closeCode: 503, reason: 'Server full' });
+                return;
+            }
+
+            const client = new WebTransportClientConnection(
+                clientId,
+                session.remoteAddress || 'unknown',
+                session,
+                (id) => this.handleDisconnect(id, 'Session closed')
+            );
+
+            this.clients.set(clientId, client);
+            this.events.onConnect?.(client);
+
+            // Handle incoming datagrams
+            this.handleSessionDatagrams(session, client);
+
+            // Handle incoming streams (reliable)
+            this.handleSessionStreams(session, client);
+
+            // Handle session close
+            session.once('close', () => {
+                this.handleDisconnect(clientId, 'Session closed');
+            });
+        });
+
+        await server.listen();
+        console.log(`[WebTransport] QUIC server listening on ${this.config.host}:${this.config.port}`);
+        return server;
+    }
+
+    private async handleSessionDatagrams(session: any, client: WebTransportClientConnection): Promise<void> {
+        try {
+            const reader = session.datagrams.readable.getReader();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                if (value) {
+                    client.lastMessageAt = Date.now();
+                    this.events.onDatagram?.(client, value);
+                }
+            }
+        } catch (e) {
+            // Session closed or error
+        }
+    }
+
+    private async handleSessionStreams(session: any, client: WebTransportClientConnection): Promise<void> {
+        try {
+            const reader = session.incomingBidirectionalStreams.getReader();
+
+            while (true) {
+                const { value: stream, done } = await reader.read();
+                if (done) break;
+
+                // Handle stream in background
+                this.handleStream(stream, client);
+            }
+        } catch (e) {
+            // Session closed or error
+        }
+    }
+
+    private async handleStream(stream: any, client: WebTransportClientConnection): Promise<void> {
+        try {
+            const reader = stream.readable.getReader();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                if (value) {
+                    client.lastMessageAt = Date.now();
+                    this.events.onReliable?.(client, value);
+                }
+            }
+        } catch (e) {
+            // Stream error
+        }
+    }
+
+    private handleDisconnect(clientId: string, reason: string): void {
+        const client = this.clients.get(clientId);
+        if (client) {
+            this.clients.delete(clientId);
+            this.events.onDisconnect?.(client, reason);
+        }
     }
 
     async stop(): Promise<void> {
@@ -145,9 +288,10 @@ export class WebTransportServerTransport implements Transport {
         this.clients.clear();
 
         // Close server
-        // if (this._server) {
-        //   await this._server.close();
-        // }
+        if (this.server) {
+            await this.server.close?.();
+            this.server = null;
+        }
 
         this.running = false;
         console.log('[WebTransport] Server stopped');
@@ -220,9 +364,11 @@ export class WebTransportServerTransport implements Transport {
         const id = `wt-client-${this.nextClientId++}`;
         const client = new MockWebTransportClient(id, address, (clientId) => {
             this.clients.delete(clientId);
-            this.events.onDisconnect?.(this.clients.get(clientId)!, 'Client closed');
+            if (this.clients.has(clientId)) {
+                this.events.onDisconnect?.(this.clients.get(clientId)!, 'Client closed');
+            }
         });
-        this.clients.set(id, client);
+        this.clients.set(id, client as any);
         this.events.onConnect?.(client);
         return client;
     }
@@ -233,7 +379,7 @@ export class WebTransportServerTransport implements Transport {
     simulateDatagram(clientId: string, data: Uint8Array): void {
         const client = this.clients.get(clientId);
         if (client) {
-            (client as MockWebTransportClient).lastMessageAt = Date.now();
+            client.lastMessageAt = Date.now();
             this.events.onDatagram?.(client, data);
         }
     }
@@ -244,7 +390,7 @@ export class WebTransportServerTransport implements Transport {
     simulateReliable(clientId: string, data: Uint8Array): void {
         const client = this.clients.get(clientId);
         if (client) {
-            (client as MockWebTransportClient).lastMessageAt = Date.now();
+            client.lastMessageAt = Date.now();
             this.events.onReliable?.(client, data);
         }
     }
@@ -262,7 +408,7 @@ export class WebTransportServerTransport implements Transport {
 
     private checkHeartbeats(): void {
         const now = Date.now();
-        const timeout = this.config.connectionTimeoutMs!;
+        const timeout = this.config.connectionTimeoutMs;
 
         for (const [id, client] of this.clients) {
             if (now - client.lastMessageAt > timeout) {
@@ -270,6 +416,64 @@ export class WebTransportServerTransport implements Transport {
                 this.events.onDisconnect?.(client, 'Timeout');
             }
         }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBTRANSPORT CLIENT CONNECTION (Real)
+// ═══════════════════════════════════════════════════════════════════
+
+class WebTransportClientConnection implements ClientConnection {
+    id: string;
+    playerId?: number;
+    address: string;
+    connectedAt: number;
+    lastMessageAt: number;
+    latency: number = 0;
+
+    private session: any;
+    private _reliableWriter: any = null;
+    private onClose: (id: string) => void;
+
+    constructor(id: string, address: string, session: any, onClose: (id: string) => void) {
+        this.id = id;
+        this.address = address;
+        this.session = session;
+        this.connectedAt = Date.now();
+        this.lastMessageAt = Date.now();
+        this.onClose = onClose;
+    }
+
+    sendDatagram(data: Uint8Array): void {
+        try {
+            // Datagrams are sent directly (unreliable)
+            this.session.datagrams.writable.getWriter()
+                .write(data)
+                .catch(() => {/* ignore failed writes */ });
+        } catch {
+            // Session closed
+        }
+    }
+
+    async sendReliable(data: Uint8Array): Promise<void> {
+        try {
+            // Create a unidirectional stream for reliable message
+            const stream = await this.session.createUnidirectionalStream();
+            const writer = stream.writable.getWriter();
+            await writer.write(data);
+            await writer.close();
+        } catch {
+            // Failed to send
+        }
+    }
+
+    close(reason?: string): void {
+        try {
+            this.session.close({ closeCode: 1000, reason: reason || 'Normal closure' });
+        } catch {
+            // Already closed
+        }
+        this.onClose(this.id);
     }
 }
 
@@ -298,12 +502,10 @@ class MockWebTransportClient implements ClientConnection {
     }
 
     sendDatagram(data: Uint8Array): void {
-        // Would send via WebTransport datagram (unreliable)
         this.datagramOutbox.push(data);
     }
 
     sendReliable(data: Uint8Array): void {
-        // Would send via WebTransport stream (reliable)
         this.reliableOutbox.push(data);
     }
 
