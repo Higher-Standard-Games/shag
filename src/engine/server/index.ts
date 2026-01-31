@@ -8,6 +8,7 @@
  * - Multi-rate tick system
  * - Binary network protocol
  * - Lag compensation
+ * - Replay system for determinism verification
  * 
  * @example
  * ```typescript
@@ -25,18 +26,41 @@ export { Subsystem } from './core/Subsystem';
 export type { SubsystemConfig } from './core/Subsystem';
 
 // ECS
-export { Entity } from './ecs/Entity';
-export type { EntityId, PlayerId } from './ecs/types';
+export { Entity, createPlayerEntity, createProjectileEntity } from './ecs/Entity';
+export { EntityType, entityId, playerId, tickNumber } from './ecs/types';
+export type { EntityId, PlayerId, TickNumber } from './ecs/types';
 
 // Tick
 export { TickOrchestrator } from './tick/TickOrchestrator';
+export { FPS_TICK_CONFIG, RTS_TICK_CONFIG } from './tick/TickConfig';
 export type { TickConfig } from './tick/TickConfig';
 
-// Network (to be added)
-// export { ClientManager } from './network/ClientManager';
+// Network Protocol
+export {
+    BinaryEncoder,
+    BinaryDecoder,
+    SnapshotEncoder,
+    SnapshotDecoder,
+    InputEncoder,
+    InputDecoder,
+    MessageType,
+    applyInputCommand,
+    snapshotEncoder,
+    snapshotDecoder,
+    inputEncoder,
+    inputDecoder,
+} from './network';
+export type { InputCommand, DecodedInputBatch, DecodedSnapshot, DecodedEntity } from './network';
 
-// Lag Compensation (to be added)
-// export { LagCompensation } from './lagcomp/LagCompensation';
+// Lag Compensation
+export { LagCompensation } from './lagcomp/LagCompensation';
+export { HistoryBuffer } from './lagcomp/HistoryBuffer';
+export { CASUAL_CONFIG, COMPETITIVE_CONFIG, TOURNAMENT_CONFIG } from './lagcomp/config';
+export type { LagCompensationConfig } from './lagcomp/config';
+
+// Replay
+export { ReplayRecorder, ReplayPlayer } from './replay/Replay';
+export type { ReplayData, ReplayFrame, ReplayHeader, ReplayEvent } from './replay/Replay';
 
 // Main server class
 export { GameServer } from './Server';
