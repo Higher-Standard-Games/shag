@@ -2,6 +2,7 @@
 
 > **Date:** 2026-01-31  
 > **Status:** Design Phase  
+> **Version:** 0.9.0  
 > **Philosophy:** Separate concerns, enforce contracts, eliminate ambiguity, testability-first
 
 ## Executive Summary
@@ -12,6 +13,14 @@ This document proposes a complete redesign of our multiplayer server architectur
 2. **Testability** - Every component is testable in isolation via CLI
 3. **Clean separation** - Simulation, Network, and Game logic are independent
 4. **Type safety** - Explicit units and contracts prevent common bugs
+
+### Related Documents
+
+| Document | Focus |
+|----------|-------|
+| [Tick System Deep Dive](tick-system-deep-dive.md) | Multi-rate orchestration, subsystem independence, performance budgets |
+| [ECS & Network Protocol](ecs-network-protocol-deep-dive.md) | Entity-Component with COW, binary serialization, delta compression |
+| [Critical Review Addendum](architecture-review-addendum.md) | Peer review solutions, COW decision, Q3-style prediction |
 
 ---
 
