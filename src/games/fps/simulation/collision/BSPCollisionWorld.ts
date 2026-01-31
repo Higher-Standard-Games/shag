@@ -47,6 +47,9 @@ export class BSPCollisionWorld implements CollisionWorld {
 
         if (!cm.isInitialized()) {
             // No collision - return no hit
+            if (Math.random() < 0.01) {
+                console.warn(`[BSPCollisionWorld] trace: CollisionManager NOT initialized!`);
+            }
             return { hit: false, fraction: 1 };
         }
 
@@ -65,7 +68,10 @@ export class BSPCollisionWorld implements CollisionWorld {
 
         // Debug: Log trace results occasionally
         if (Math.random() < 0.01) {
-            console.log(`[BSPCollisionWorld] trace: fraction=${result.fraction.toFixed(3)}, hit=${result.fraction < 1}`);
+            const dist = Math.sqrt(
+                (endV.x - startV.x) ** 2 + (endV.y - startV.y) ** 2 + (endV.z - startV.z) ** 2
+            );
+            console.log(`[BSPCollisionWorld] trace: start=(${startV.x.toFixed(1)},${startV.y.toFixed(1)},${startV.z.toFixed(1)}) end=(${endV.x.toFixed(1)},${endV.y.toFixed(1)},${endV.z.toFixed(1)}) dist=${dist.toFixed(1)} fraction=${result.fraction.toFixed(3)}, hit=${result.fraction < 1}, backend=${cm.getBackendType()}`);
         }
 
         // Convert to network TraceResult
@@ -87,6 +93,9 @@ export class BSPCollisionWorld implements CollisionWorld {
 
         if (!cm.isInitialized()) {
             // No collision - just apply velocity directly
+            if (Math.random() < 0.01) {
+                console.warn(`[BSPCollisionWorld] stepSlideMove: CollisionManager NOT initialized!`);
+            }
             return {
                 endPos: {
                     x: start.x + velocity.x * deltaTime,
@@ -118,6 +127,11 @@ export class BSPCollisionWorld implements CollisionWorld {
             const groundTrace = backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
             const grounded = groundTrace.fraction < 1.0;
 
+            // Debug occasionally
+            if (Math.random() < 0.01) {
+                console.log(`[BSPCollisionWorld] stepSlideMove (Q3 backend): start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded}`);
+            }
+
             return {
                 endPos: fromBabylon(result.endPos),
                 velocity: { ...velocity }, // Velocity clipping would be done by movement profile
@@ -126,6 +140,9 @@ export class BSPCollisionWorld implements CollisionWorld {
         }
 
         // Fallback: simple move without collision
+        if (Math.random() < 0.01) {
+            console.warn(`[BSPCollisionWorld] stepSlideMove: Q3 backend NOT available! Falling back to no-collision move. backends=${(cm as any).backends ? 'exists' : 'undefined'}`);
+        }
         return {
             endPos: {
                 x: start.x + velocity.x * deltaTime,

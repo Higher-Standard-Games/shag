@@ -41,7 +41,8 @@
     "server:replay": "npx vite-node src/cli/server-replay.ts",
     "server:bench": "npx vite-node src/cli/server-bench.ts",
     "server:game": "npx vite-node src/cli/server-game.ts",
-    "server:fuzz": "npx vite-node src/cli/server-fuzz.ts --"
+    "server:fuzz": "npx vite-node src/cli/server-fuzz.ts --",
+    "server:integration": "npx vite-node src/cli/server-integration.ts --"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",

@@ -333,6 +333,7 @@ export class NetworkGameHost implements IGameHost {
     SimulationClass: new (config: SimulationConfig) => Simulation
   ) {
     this.transport = transport;
+    console.log(`[NetworkGameHost] Creating simulation with config: tickRate=${config.tickRate}, tickDuration=${config.tickDuration}ms`);
     this.simulation = new SimulationClass(config);
     this.localPlayerId = 'network-player';
     this.localState = this.simulation.state.clone();
@@ -489,6 +490,7 @@ export class NetworkGameHost implements IGameHost {
   setCollisionWorld(collision: any): void {
     // Check if simulation has setCollisionWorld method (FPSSimulation does)
     const sim = this.simulation as any;
+    console.log(`[NetworkGameHost] setCollisionWorld called, simulation type: ${sim.constructor?.name}, has method: ${typeof sim.setCollisionWorld === 'function'}`);
     if (typeof sim.setCollisionWorld === 'function') {
       sim.setCollisionWorld(collision);
       console.log('[NetworkGameHost] Collision world set for client prediction');
@@ -772,3 +774,4 @@ export class NetworkGameHost implements IGameHost {
     });
   }
 }
+

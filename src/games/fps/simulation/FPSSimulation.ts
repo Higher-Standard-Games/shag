@@ -199,6 +199,7 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
    * Set the collision world (called when map loads)
    */
   setCollisionWorld(collision: CollisionWorld | null): void {
+    console.log(`[FPSSimulation] setCollisionWorld called with: ${collision ? collision.constructor.name : 'null'}`);
     if (!this.movementSystem) {
       // Store for later - will be applied when movementSystem is ready
       console.warn('[FPSSimulation] movementSystem not ready, storing pending collision world');
@@ -206,6 +207,6 @@ export class FPSSimulation extends Simulation<GameState, FPSInputCommand> {
       return;
     }
     this.movementSystem.setCollisionWorld(collision);
-    console.log(`[FPSSimulation] Collision world ${collision ? 'set' : 'cleared'}`);
+    console.log(`[FPSSimulation] Collision world forwarded to MovementSystem`);
   }
 }
