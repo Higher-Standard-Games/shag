@@ -397,6 +397,74 @@ npm run test:visual -- --scenario spawn-and-move --tick 60
 
 ---
 
+### 6. Lag Compensation: Fair Hit Detection ✅
+
+**Decision:** Server-side rewind with configurable bounds, defensive ability override.
+
+> See [Lag Compensation Deep Dive](lag-compensation-deep-dive.md) for detailed research.
+
+#### Evolution of FPS Netcode
+
+| Generation | Era | Approach |
+|------------|-----|----------|
+| Gen 1 | Early FPS | No compensation (high ping = unplayable) |
+| Gen 2 | **Q3 Unlagged** (2002) | Server rewinds to shooter's tick |
+| Gen 3 | **Source** (2004) | cl_interp + bounded rewind |
+| Gen 4 | **Overwatch** (2016) | Favor-the-shooter + ability override |
+| Gen 5 | **Valorant** (2020) | 128Hz + skeleton animation rewind |
+| Gen 6 | **CS2** (2023) | Subtick timestamps, tick-rate independent |
+
+#### Our Approach: Hybrid Modern
+
+```typescript
+interface LagCompensationConfig {
+  /** Max rewind time (higher = more lag friendly, less fair) */
+  maxRewindMs: number;  // 100-150ms typical
+  
+  /** Defensive abilities can override pending hits */
+  allowAbilityOverride: boolean;  // Like Overwatch's Blink/Dash
+  
+  /** Historical buffer for rewind */
+  historyBufferSize: number;  // 128 ticks = 1 sec at 125Hz
+}
+
+// Configurable per game mode
+const configs = {
+  casual:      { maxRewindMs: 200, allowAbilityOverride: true },
+  competitive: { maxRewindMs: 100, allowAbilityOverride: true },
+  tournament:  { maxRewindMs: 50,  allowAbilityOverride: true },
+};
+```
+
+#### Key Decisions
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| **Base system** | Server-side rewind | Q3-proven, anti-cheat friendly |
+| **Max rewind** | 100-150ms (configurable) | Balance fairness vs accessibility |
+| **Hitboxes** | Multi-part capsules | Head/body/legs damage zones |
+| **Projectiles** | No lag comp | They're simulated entities |
+| **Abilities** | Can override hits | Skill expression (dash escapes) |
+
+#### Hitscan vs Projectile
+
+```typescript
+// Hitscan weapons: use lag compensation
+const RIFLE: WeaponConfig = {
+  type: 'hitscan',
+  useLagCompensation: true,  // ← Rewind for hit detection
+};
+
+// Projectile weapons: simulate as entities
+const ROCKET: WeaponConfig = {
+  type: 'projectile',
+  projectileSpeed: 1000,
+  useLagCompensation: false,  // ← No rewind, projectile is entity
+};
+```
+
+---
+
 ## Layer 1: Simulation (Deterministic Core)
 
 **Purpose:** Pure game state simulation - zero networking, rendering, or I/O
