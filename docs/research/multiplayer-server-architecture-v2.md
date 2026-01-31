@@ -49,54 +49,81 @@ function displacementToVelocity(d: DisplacementPerTick, dt: number): VelocityPer
 
 ---
 
-### 2. Immutability: Custom Implementation vs Immer.js
+### 2. State Management: Copy-on-Write (COW) ✅
 
-**Decision:** Start with manual cloning, evaluate Immer later if needed.
+**Decision:** Use Copy-on-Write for memory efficiency with hundreds of entities.
 
-#### Immer.js Analysis
+#### The Problem
+Full cloning every tick with hundreds of entities = massive GC pressure.
+- RTS with 500 units, 5% moving per tick
+- Full clone: 500 objects/tick = 62,500/sec at 125Hz
+- **This will stutter on mobile!**
 
-| Aspect | Details |
-|--------|---------|
-| **License** | MIT (permissive, no restrictions) |
-| **Size** | ~5KB gzipped |
-| **Mechanism** | Proxy-based "draft" mutation that produces new immutable state |
+#### Solution: Copy-on-Write
 
-**Pros:**
-- Write mutable-style code, get immutable results
-- Cleaner syntax for nested updates
-- Automatic structural sharing (memory efficient)
-- Prevents accidental mutations (freezes objects)
-
-**Cons:**
-- Performance overhead with large/deeply nested objects (~2-5x slower)
-- Uses `Object.freeze()` which can conflict with some patterns
-- Doesn't support classes well (potential issue with our Entity system)
-- No circular reference support
-- Hidden complexity (Proxy magic)
-
-**Our Recommendation: Manual Cloning**
+Only clone entities that actually change:
 
 ```typescript
-// Simple, explicit, no magic
+/**
+ * COW State: Only clone entities that actually changed
+ */
 class WorldState {
-  clone(): WorldState {
-    const cloned = new WorldState();
-    cloned.tick = this.tick;
-    cloned.entities = new Map();
-    for (const [id, entity] of this.entities) {
-      cloned.entities.set(id, entity.clone());
+  readonly tick: number;
+  private entities: Map<EntityId, Entity>;
+  private modified: Set<EntityId> = new Set();
+  
+  /**
+   * Get entity for reading (returns shared reference)
+   */
+  getEntity(id: EntityId): Readonly<Entity> | undefined {
+    return this.entities.get(id);
+  }
+  
+  /**
+   * Get entity for writing (clones on first write)
+   */
+  getEntityMut(id: EntityId): Entity | undefined {
+    const entity = this.entities.get(id);
+    if (!entity) return undefined;
+    
+    // First write? Clone it
+    if (!this.modified.has(id)) {
+      const cloned = entity.clone();
+      this.entities.set(id, cloned);
+      this.modified.add(id);
+      return cloned;
     }
-    return cloned;
+    
+    // Already cloned this tick
+    return entity;
+  }
+  
+  /**
+   * Advance to next tick - COW reset
+   */
+  nextTick(): WorldState {
+    const next = new WorldState();
+    next.tick = this.tick + 1;
+    next.entities = new Map(this.entities); // Shallow copy
+    next.modified = new Set();
+    return next;
   }
 }
 ```
 
-**Reasons:**
-1. **Full control** - We know exactly what's cloned
-2. **No dependencies** - Simpler build, smaller bundle
-3. **Class support** - Our Entity/Component system uses classes
-4. **Performance** - Can optimize hot paths (object pooling, etc.)
-5. **Debuggable** - No Proxy magic to debug through
+**Memory comparison (RTS, 500 units, 5% moving):**
+
+| Approach | Clones/tick | At 125Hz |
+|----------|-------------|----------|
+| Full Clone | 500 | 62,500/sec |
+| **COW** | 25 | **3,125/sec** |
+
+**20x improvement!** Essential for mobile/browser targets.
+
+#### Implementation Notes
+1. **Entities immutable by default** - use `readonly` properties
+2. **`getEntityMut()` is only write path** - enforces COW discipline
+3. **TypeScript helps** - `Readonly<Entity>` return type for reads
 
 **Future:** If manual cloning becomes unwieldy, Immer is MIT-licensed and could be adopted incrementally for specific subsystems.
 
@@ -1131,6 +1158,32 @@ src/
 - [ ] Zero global mutable state
 - [ ] Every bug has a regression test
 - [ ] Documentation for every public API
+
+---
+
+## Critical Review Decisions (Peer Reviewed 2026-01-31)
+
+These decisions were made after critical "outsider" review of the architecture:
+
+| Topic | Decision | Rationale |
+|-------|----------|-----------|
+| **State cloning** | Copy-on-Write | 20x memory savings for RTS (500 units) |
+| **Multi-rate events** | Best-case optimization | Focus on making things better, not worst-case |
+| **Determinism** | Trust V8, CI tests | Same engine everywhere (Electron, Capacitor, Node) |
+| **Rollback** | Q3 model: input history | Store inputs (~2.5KB), not states |
+| **Server authority** | Absolute | Never trust client for anything |
+| **Anti-cheat** | Architecture now, impl later | Foundation ready, details in Phase 4 |
+| **Branded types** | Utility library day 1 | Make correct usage easy |
+| **Tick timing** | Prediction handles it | Network snapshot variation invisible to player |
+
+### Key Insights from Review
+
+1. **COW is essential** - Full cloning will stutter on mobile with 100+ entities
+2. **No state history needed** - Store inputs, replay from server state
+3. **V8 everywhere** - Cross-platform determinism is less of a concern than feared
+4. **Client prediction smooths everything** - Network rate ≠ perceived smoothness
+
+See [architecture-review-addendum.md](architecture-review-addendum.md) for detailed analysis.
 
 ---
 
