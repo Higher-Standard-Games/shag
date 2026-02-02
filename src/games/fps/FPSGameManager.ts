@@ -19,6 +19,8 @@ import type { MovementStateComponent } from '../../engine/network/components/Mov
 
 import { getCollisionManager } from '../../engine/physics/CollisionManager';
 import { BSPCollisionWorld } from './simulation/collision/BSPCollisionWorld';
+import { V2NetworkClient } from './client';
+import type { ServerSnapshot } from './client';
 
 export interface FPSGameConfig {
   tickRate?: number;
@@ -71,6 +73,9 @@ export class FPSGameManager {
   private isRunning: boolean = false;
   private isNetworkMode: boolean = false;
   private serverUrl: string | null = null;
+
+  // V2 Network Client for prediction/reconciliation
+  private v2Client: V2NetworkClient | null = null;
 
   // Callbacks
   private onStateUpdateCallbacks: ((state: PlayerStateUpdate) => void)[] = [];
@@ -210,9 +215,29 @@ export class FPSGameManager {
                 min: { x: -PLAYER_RADIUS, y: -PLAYER_ORIGIN_HEIGHT, z: -PLAYER_RADIUS },
                 max: { x: PLAYER_RADIUS, y: 32, z: PLAYER_RADIUS }  // 56 total: 24 below + 32 above
               };
-              const testStart = { x: 880, y: 200, z: 1508 };
-              const testEnd = { x: 880, y: 0, z: 1508 };
+
+              // Floor detection test at known position
+              const testX = 880, testZ = 1508;
+              const testStart = { x: testX, y: 200, z: testZ };
+              const testEnd = { x: testX, y: 0, z: testZ };
               const testResult = collisionWorld.trace(testStart, testEnd, testBounds);
+              const floorY = 200 - 200 * testResult.fraction;
+
+              // For player physics, origin is at waist (24 above feet), so origin Y = floorY + 24
+              const expectedOriginY = floorY + PLAYER_ORIGIN_HEIGHT;
+              console.log(`[FPSGameManager] FLOOR TEST: traceFloorY=${floorY.toFixed(1)}, expectedOriginY=${expectedOriginY.toFixed(1)}`);
+
+              // Now test stepSlideMove - start above expected position and let gravity pull down
+              const stepSlideTestStart = { x: testX, y: expectedOriginY + 100, z: testZ };
+              const stepSlideTestVel = { x: 0, y: -500, z: 0 };  // Falling velocity
+              const stepSlideResult = collisionWorld.stepSlideMove(stepSlideTestStart, stepSlideTestVel, 0.5, testBounds);
+              console.log(`[FPSGameManager] STEPSLIDEMOVE TEST: startY=${stepSlideTestStart.y.toFixed(1)}, endY=${stepSlideResult.endPos.y.toFixed(1)}, expectedY=${expectedOriginY.toFixed(1)}`);
+
+              // Check if there's a Y offset between trace and stepSlideMove results
+              const offset = stepSlideResult.endPos.y - expectedOriginY;
+              if (Math.abs(offset) > 0.5) {
+                console.warn(`[FPSGameManager] Y OFFSET DETECTED: stepSlideMove returned ${stepSlideResult.endPos.y.toFixed(1)} but trace floor says origin should be ${expectedOriginY.toFixed(1)}, offset=${offset.toFixed(1)}`);
+              }
               console.log(`[FPSGameManager] Test trace: fraction=${testResult.fraction.toFixed(4)}, hit=${testResult.hit}`);
             } else {
               console.warn(`[FPSGameManager] CollisionManager NOT initialized - client prediction will NOT have BSP collision!`);
@@ -251,21 +276,29 @@ export class FPSGameManager {
       this.serverUrl = url;
       this.isRunning = true;
 
-      // Connect to server (this triggers onServerInfo callback which loads map)
+      // Create V2NetworkClient BEFORE connecting, so it exists when onServerInfo callback
+      // sets up collision world. This fixes the race condition where setCollisionWorld()
+      // was called while v2Client was null.
+      this.v2Client = new V2NetworkClient({ tickRate });
+      console.log(`[FPSGameManager] Created V2NetworkClient for prediction (before connect)`);
+
+      // Tell NetworkGameHost to skip its prediction - V2NetworkClient handles it
+      networkHost.setExternalPrediction(true);
+
+      // Connect to server (this triggers onServerInfo callback which loads map and sets collision)
       await networkHost.connect(url);
 
       // Update player ID after connect (server assigns it during handshake)
       this.localPlayerId = networkHost.localPlayerId;
       this.simulation = null; // No direct simulation access in network mode
 
-      // Subscribe to state updates
+      // Subscribe to state updates - feed to V2NetworkClient for reconciliation
       this.gameHost.onStateUpdate((state: GameState) => {
         this.onServerStateUpdate(state);
       });
 
       console.log(`[FPSGameManager] Connected to ${url}, player: ${this.localPlayerId}`);
-      // Note: FPS controller setup is now done in onServerInfo callback AFTER map loads
-      // This prevents race conditions where map loading overrides the controller
+      console.log(`[FPSGameManager] V2 client ready for Q3-style prediction/reconciliation`);
     } catch (error) {
       console.error(`[FPSGameManager] Failed to connect to ${url}:`, error);
       throw error;
@@ -370,6 +403,17 @@ export class FPSGameManager {
       serialize: () => new Uint8Array(), // TODO: Implement for network
     };
 
+    // === V2 CLIENT: Process input for instant local prediction ===
+    if (this.v2Client && this.isNetworkMode) {
+      this.v2Client.processInput({
+        direction: { x: dirX, y: 0, z: dirZ },
+        pitch: input.pitch,
+        yaw: input.yaw,
+        buttons,
+        clientTick: this.gameHost.currentTick,
+      });
+    }
+
     // Send to host (runs simulation tick)
     this.gameHost.sendCommand(cmd);
   }
@@ -390,14 +434,23 @@ export class FPSGameManager {
 
   /**
    * Get current local player position from simulation
-   */
-  /**
-   * Get current local player position from simulation
    * Uses interpolation for smooth rendering between snapshots
    */
   getLocalPlayerPosition(): { x: number; y: number; z: number } | null {
     if (!this.gameHost) {
       return null;
+    }
+
+    // === V2 CLIENT: Use predicted position for instant, accurate rendering ===
+    // When V2NetworkClient is active, it owns the authoritative client position.
+    // NetworkGameHost.localState is NOT updated (predictLocally is skipped).
+    if (this.v2Client && this.isNetworkMode) {
+      // Wait for first server snapshot - position is (0,0,0) until then
+      if (!this.v2Client.hasValidPosition()) {
+        return null;  // Camera will wait for valid position
+      }
+      const pos = this.v2Client.getPosition();
+      return { x: pos.x, y: pos.y, z: pos.z };
     }
 
     const state = this.gameHost.getLocalState();
@@ -409,8 +462,7 @@ export class FPSGameManager {
       return null;
     }
 
-    // For NetworkGameHost, use interpolated entity for smooth rendering
-    // This interpolates between server snapshots for buttery-smooth movement
+    // For NetworkGameHost (legacy path without V2Client), use interpolated entity
     const networkHost = this.gameHost as any;
     if (typeof networkHost.getInterpolatedEntity === 'function') {
       const interpolatedEntity = networkHost.getInterpolatedEntity(player.entityId);
@@ -530,6 +582,45 @@ export class FPSGameManager {
       console.log(`[FPSGameManager] State update: pos=(${transform.position.x.toFixed(1)}, ${transform.position.y.toFixed(1)}, ${transform.position.z.toFixed(1)})`);
     }
 
+    // === V2 CLIENT: Q3-style reconciliation (reset to server state + replay unacked inputs) ===
+    if (this.v2Client && this.isNetworkMode) {
+      // DEBUG: Log FIRST snapshot position to trace spawn discrepancy
+      if (!this.v2Client.hasValidPosition()) {
+        console.log(`[FPSGameManager] FIRST SNAPSHOT: server pos=(${transform.position.x.toFixed(1)}, ${transform.position.y.toFixed(1)}, ${transform.position.z.toFixed(1)})`);
+        console.log(`[FPSGameManager] FIRST SNAPSHOT: entityId=${player.entityId}, playerId=${this.localPlayerId}`);
+      }
+      const snapshot: ServerSnapshot = {
+        tick: state.tick,
+        ackedInputSeq: state.ackedInputSeq,
+        position: { ...transform.position },
+        velocity: { ...velocity.linear },
+        grounded: velocity.grounded,
+      };
+      this.v2Client.onServerSnapshot(snapshot);
+
+      // Use V2NetworkClient's reconciled position for update
+      const v2State = this.v2Client.getState();
+      const update: PlayerStateUpdate = {
+        position: v2State.position,
+        velocity: v2State.velocity,
+        grounded: v2State.grounded,
+        tick: state.tick,
+        // Advanced movement state (from server - V2 client doesn't track these yet)
+        isSliding: movementState?.isSliding ?? false,
+        isCrouching: movementState?.isCrouching ?? false,
+        crouchViewOffset: movementState?.crouchViewOffset ?? 0,
+        wallJumpState: movementState?.wallJumpState ?? 'none',
+        ledgeGrabState: movementState?.ledgeGrabState ?? 'none',
+        actualHorizSpeed: movementState?.actualHorizSpeed ?? 0,
+      };
+
+      // Notify callbacks with V2 reconciled state
+      for (const callback of this.onStateUpdateCallbacks) {
+        callback(update);
+      }
+      return;
+    }
+
     const update: PlayerStateUpdate = {
       position: { ...transform.position },
       velocity: { ...velocity.linear },
@@ -575,6 +666,12 @@ export class FPSGameManager {
     if (networkHost && typeof networkHost.setCollisionWorld === 'function') {
       networkHost.setCollisionWorld(collision);
       console.log('[FPSGameManager] Collision world set on network prediction simulation');
+    }
+
+    // Set on V2NetworkClient for Q3-style prediction (network mode)
+    if (this.v2Client) {
+      this.v2Client.setCollisionWorld(collision);
+      console.log('[FPSGameManager] Collision world set on V2NetworkClient');
     }
   }
 }

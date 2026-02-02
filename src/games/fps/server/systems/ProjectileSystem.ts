@@ -11,6 +11,7 @@ import type { TickNumber, EntityId } from '@engine/server/ecs/types';
 import { EntityType } from '@engine/server/ecs/types';
 import { DamageType, type DamageEvent, HitLocation } from './CombatSystem';
 import { WEAPONS } from '../weapons/WeaponDef';
+import type { CollisionWorld } from '../../../../engine/network/systems/collision/CollisionWorld';
 
 const CONFIG: SubsystemConfig = {
     name: 'Projectile',
@@ -27,9 +28,18 @@ export class ProjectileSystem extends Subsystem {
     private projectilesToRemove: EntityId[] = [];
     private maxLifetimeTicks: number = 500; // 4 seconds at 125Hz
     private projectileAges: Map<EntityId, number> = new Map();
+    private collisionWorld: CollisionWorld | null = null;
 
-    constructor() {
+    constructor(collisionWorld?: CollisionWorld) {
         super(CONFIG);
+        this.collisionWorld = collisionWorld ?? null;
+    }
+
+    /**
+     * Set collision world for BSP-aware collision detection
+     */
+    setCollisionWorld(world: CollisionWorld): void {
+        this.collisionWorld = world;
     }
 
     /**
@@ -61,17 +71,38 @@ export class ProjectileSystem extends Subsystem {
                 continue;
             }
 
-            // Move projectile
+            // Calculate movement delta
             const oldPos = { ...mutable.transform.position };
-            mutable.transform.position = {
-                x: oldPos.x + mutable.physics.velocity.x * dt,
-                y: oldPos.y + mutable.physics.velocity.y * dt,
-                z: oldPos.z + mutable.physics.velocity.z * dt,
-            };
-            const newPos = mutable.transform.position;
+            const moveX = mutable.physics.velocity.x * dt;
+            const moveY = mutable.physics.velocity.y * dt;
+            const moveZ = mutable.physics.velocity.z * dt;
 
-            // Apply gravity to rockets (slight drop)
-            mutable.physics.velocity.y -= 50 * dt; // Much less than player gravity
+            let newPos = {
+                x: oldPos.x + moveX,
+                y: oldPos.y + moveY,
+                z: oldPos.z + moveZ,
+            };
+            let hitWorld = false;
+
+            // Check BSP collision if available
+            if (this.collisionWorld) {
+                const traceResult = this.collisionWorld.trace(
+                    oldPos,
+                    { x: oldPos.x + moveX, y: oldPos.y + moveY, z: oldPos.z + moveZ },
+                    { min: { x: -2, y: -2, z: -2 }, max: { x: 2, y: 2, z: 2 } } // Small projectile bounds
+                );
+
+                if (traceResult.fraction < 1.0 && traceResult.hitPoint) {
+                    // Hit something in the world
+                    newPos = traceResult.hitPoint;
+                    hitWorld = true;
+                }
+            }
+
+            mutable.transform.position = newPos;
+
+            // Apply gravity to rockets (slight drop), plasma has less gravity
+            mutable.physics.velocity.y -= 50 * dt;
 
             // Check collisions with players
             for (const target of state.entitiesByType(EntityType.Player)) {
@@ -86,28 +117,25 @@ export class ProjectileSystem extends Subsystem {
 
                 const hitRadius = 50; // Projectile + player radius
                 if (distSq < hitRadius ** 2) {
-                    // Direct hit!
+                    // Direct hit! Use plasma damage (20) or fallback to rocket
+                    const damage = WEAPONS.plasmagun?.damage || WEAPONS.rocketLauncher.damage;
                     this.pendingDamage.push({
                         victimId: target.id,
                         attackerId: projectile.ownerId ? state.getEntityByOwner(projectile.ownerId)?.id : undefined,
-                        damage: WEAPONS.rocketLauncher.damage,
+                        damage,
                         armorPiercing: 0,
-                        damageType: DamageType.Explosion,
+                        damageType: DamageType.Plasma,
                         hitLocation: HitLocation.Body,
                     });
-
-                    // Apply splash damage to nearby players
-                    this.applySplashDamage(state, newPos, projectile.ownerId, 120);
 
                     this.projectilesToRemove.push(projectile.id);
                     break;
                 }
             }
 
-            // Check world collision (simplified - just check Y)
-            if (newPos.y < 0) {
-                // Hit ground - explode
-                this.applySplashDamage(state, newPos, projectile.ownerId, 120);
+            // Check world collision
+            if (hitWorld || newPos.y < -1000) {
+                // Hit world geometry or fell out of world
                 this.projectilesToRemove.push(projectile.id);
             }
         }

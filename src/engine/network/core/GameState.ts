@@ -15,6 +15,9 @@ export class GameState {
   /** Current server tick */
   tick: number = 0;
 
+  /** Last acknowledged input sequence (for reconciliation) */
+  ackedInputSeq: number = 0;
+
   /** All entities in the world */
   entities: Map<EntityId, Entity> = new Map();
 
@@ -29,7 +32,8 @@ export class GameState {
    */
   serialize(encoder: any): void {
     encoder.writeUint32(this.tick);
-    
+    encoder.writeUint32(this.ackedInputSeq);
+
     // Serialize entities
     encoder.writeUint16(this.entities.size);
     for (const [id, entity] of this.entities) {
@@ -58,6 +62,7 @@ export class GameState {
    */
   deserialize(decoder: any): void {
     this.tick = decoder.readUint32();
+    this.ackedInputSeq = decoder.readUint32();
 
     // Deserialize entities
     const entityCount = decoder.readUint16();

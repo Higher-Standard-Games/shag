@@ -318,6 +318,9 @@ export class NetworkGameHost implements IGameHost {
   private commandSequence = 0;
   private lastBaselineTick = 0;
 
+  /** When true, V2NetworkClient handles prediction - we only do network transport */
+  private useExternalPrediction = false;
+
   private localState: GameState;
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
@@ -357,6 +360,17 @@ export class NetworkGameHost implements IGameHost {
       const index = this.serverInfoCallbacks.indexOf(callback);
       if (index >= 0) this.serverInfoCallbacks.splice(index, 1);
     };
+  }
+
+  /**
+   * Enable/disable external prediction mode.
+   * When enabled, V2NetworkClient handles all prediction and this class only does network transport.
+   */
+  setExternalPrediction(enabled: boolean): void {
+    this.useExternalPrediction = enabled;
+    if (enabled) {
+      console.log('[NetworkGameHost] External prediction enabled - V2NetworkClient handles physics');
+    }
   }
 
   async connect(url?: string): Promise<void> {
@@ -412,7 +426,12 @@ export class NetworkGameHost implements IGameHost {
       console.log(`[NetworkGameHost] Sent ${this.commandSequence} commands to server`);
     }
 
-    // Apply locally for prediction
+    // Skip local prediction if V2NetworkClient handles it
+    if (this.useExternalPrediction) {
+      return;
+    }
+
+    // Apply locally for prediction (legacy path - used when V2Client not active)
     this.pendingCommands.push(cmd);
     this.predictLocally(cmd);
   }
@@ -712,14 +731,15 @@ export class NetworkGameHost implements IGameHost {
     const dz = serverPos.z - localPos.z;
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-    // DEBUG: Log error distance periodically
-    if (Math.random() < 0.1) {
+    // DEBUG: Log error distance occasionally (was 10%, reduced for performance)
+    if (Math.random() < 0.005) {
       console.log(`[Reconcile] Error: ${distance.toFixed(1)} units | Client: (${localPos.x.toFixed(1)}, ${localPos.y.toFixed(1)}, ${localPos.z.toFixed(1)}) | Server: (${serverPos.x.toFixed(1)}, ${serverPos.y.toFixed(1)}, ${serverPos.z.toFixed(1)})`);
     }
 
     // Decide how to handle the error
     if (distance > this.SNAP_THRESHOLD) {
       // CASE 3: Large error - snap immediately (teleport, death, major desync)
+      // No smooth correction - just hard snap
       localPos.x = serverPos.x;
       localPos.y = serverPos.y;
       localPos.z = serverPos.z;
@@ -729,8 +749,22 @@ export class NetworkGameHost implements IGameHost {
       // CRITICAL: Update localState to match simulation.state
       this.localState = this.simulation.state.clone();
     } else if (distance > this.SMOOTH_THRESHOLD) {
-      // CASE 2: Medium error - queue smooth correction
-      this.smoothCorrection.addCorrection(dx, dy, dz);
+      // CASE 2: Medium error - smooth correction + reset prediction to server
+      // FIX: We MUST reset simulation.state to server position!
+      // Otherwise prediction will continue from wrong base and error persists forever.
+      // The smooth correction provides visual smoothing to hide the snap.
+
+      // Calculate what the visual difference will be after snapping internally
+      // (current localPos -> new serverPos, but rendered with correction offset)
+      this.smoothCorrection.addCorrection(localPos.x - serverPos.x, localPos.y - serverPos.y, localPos.z - serverPos.z);
+
+      // CRITICAL: Reset simulation.state position to server (fixes 24-unit drift bug!)
+      localPos.x = serverPos.x;
+      localPos.y = serverPos.y;
+      localPos.z = serverPos.z;
+
+      // Update localState to match
+      this.localState = this.simulation.state.clone();
     }
     // CASE 1: Tiny error (below SMOOTH_THRESHOLD) - ignore, prediction is good enough
 

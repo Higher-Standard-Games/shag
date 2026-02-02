@@ -11,3 +11,5 @@
 export { TransformComponent, type Vec3 } from './TransformComponent';
 export { VelocityComponent } from './VelocityComponent';
 export { InputComponent, InputButtons } from './InputComponent';
+export { ProjectileComponent } from './ProjectileComponent';
+

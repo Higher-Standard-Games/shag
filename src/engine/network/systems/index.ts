@@ -6,7 +6,7 @@
  * games implement for their specific needs.
  */
 
-// Core systems
+// Core systems (client-side prediction)
 export { MovementSystem } from './MovementSystem';
 
 // Movement profiles

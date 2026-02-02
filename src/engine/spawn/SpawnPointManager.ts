@@ -47,9 +47,15 @@ export function extractSpawnPoints(entities: BspEntity[]): SpawnPoint[] {
         // Convert Quake coords (x, y, z where Z is up) to engine coords (x, y, z where Y is up)
         // Quake: X=right, Y=forward, Z=up
         // Engine: X=right, Y=up, Z=forward
+        // 
+        // Also add PLAYER_ORIGIN_HEIGHT (24 units) because:
+        // - BSP spawn entities are at FEET level
+        // - But player physics uses ORIGIN level (24 units above feet)
+        // This matches the server-side spawn point processing in headless-netserver-v2.ts
+        const PLAYER_ORIGIN_HEIGHT = 24;
         const position: Vec3 = {
             x: parts[0],
-            y: parts[2],  // Quake Z -> Engine Y
+            y: parts[2] + PLAYER_ORIGIN_HEIGHT,  // Quake Z -> Engine Y + origin offset
             z: parts[1],  // Quake Y -> Engine Z
         };
 

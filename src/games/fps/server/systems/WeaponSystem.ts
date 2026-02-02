@@ -59,12 +59,13 @@ export class WeaponSystem extends Subsystem {
      */
     initializeWeapon(entityId: EntityId): void {
         this.weaponStates.set(entityId, {
-            currentWeapon: 'machinegun',
+            currentWeapon: 'plasmagun',
             ammo: new Map([
                 ['machinegun', 100],
                 ['shotgun', 12],
                 ['rocketLauncher', 10],
                 ['railgun', 10],
+                ['plasmagun', 50],
             ]),
             lastFireTick: 0,
             reloading: false,

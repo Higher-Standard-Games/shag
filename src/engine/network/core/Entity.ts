@@ -11,15 +11,34 @@ export type EntityId = string;
 export type PlayerId = string;
 
 /**
+ * Entity types for the network simulation
+ */
+export enum EntityType {
+  Player = 'player',
+  Projectile = 'projectile',
+  Item = 'item',
+  Trigger = 'trigger',
+  Effect = 'effect',
+}
+
+/**
  * Base entity class - container for components.
  * Games use this directly, adding their custom components.
  */
 export class Entity {
   readonly id: EntityId;
+
+  /** Entity type for filtering and identification */
+  type: EntityType = EntityType.Player;
+
+  /** Owner player ID (for projectiles, owned items, etc.) */
+  ownerId?: PlayerId;
+
   protected components: Map<string, IComponent> = new Map();
 
-  constructor(id: EntityId) {
+  constructor(id: EntityId, type: EntityType = EntityType.Player) {
     this.id = id;
+    this.type = type;
   }
 
   /**
@@ -61,6 +80,11 @@ export class Entity {
    * Serialize entity state to binary
    */
   serialize(encoder: StateEncoder): void {
+    // Entity metadata
+    encoder.writeString(this.type);
+    encoder.writeString(this.ownerId ?? '');
+
+    // Components
     encoder.writeUint8(this.components.size);
     for (const [type, component] of this.components) {
       encoder.writeString(type);
@@ -72,10 +96,12 @@ export class Entity {
    * Create a clone of this entity for snapshots
    */
   clone(): Entity {
-    const cloned = new Entity(this.id);
+    const cloned = new Entity(this.id, this.type);
+    cloned.ownerId = this.ownerId;
     for (const [type, component] of this.components) {
       cloned.addComponent(type, component.clone());
     }
     return cloned;
   }
 }
+

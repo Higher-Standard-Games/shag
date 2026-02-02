@@ -97,6 +97,8 @@ export class SweepCollisionBackend implements CollisionBackend {
   private bsp: BspFile | null = null;
   private isFBSP = false;
   private loggedPlayerclipOnce = false;
+  private traceDebugCount = 0;
+  private stepSlideMoveDebugCount = 0;
   private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
 
   // Stats
@@ -298,6 +300,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     const elapsed = performance.now() - startTime;
     this.stats.totalTraceTime += elapsed;
+
+
 
     if (state.debug && result.fraction < 1.0) {
       console.log(`[SweepCollision] HIT: fraction=${result.fraction.toFixed(3)} brush=${result.hitBrushIndex} tex="${result.hitTextureName}"`);
@@ -1198,6 +1202,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // First, try a normal slide move
     const firstResult = this.slideMove(startPos, velocity, options);
+
+
 
     // If we moved the full distance without hitting anything, we're done
     if (firstResult.hitCount === 0) {

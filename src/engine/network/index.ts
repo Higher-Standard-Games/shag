@@ -42,9 +42,8 @@ export { WebSocketTransport } from './client/transport/WebSocketTransport';
 export { LocalGameHost } from './client/hosts/LocalGameHost';
 export { NetworkGameHost } from './client/hosts/NetworkGameHost';
 
-// Server
-export { GameServer } from './server/GameServer';
-export { Room } from './server/Room';
+// Server-side code moved to src/engine/server/network
+// Client-side code remains here
 
 // Manager
 export { NetworkManager } from './NetworkManager';

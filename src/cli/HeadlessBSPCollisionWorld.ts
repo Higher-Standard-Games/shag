@@ -149,11 +149,6 @@ export class HeadlessBSPCollisionWorld implements CollisionWorld {
             ? fromBabylon(result.velocity.scale(1 / deltaTime))
             : { x: 0, y: 0, z: 0 };
 
-        // Debug: Log a sample of stepSlideMove calls
-        if (Math.random() < 0.02) {
-            console.log(`[HeadlessBSPCollisionWorld] stepSlideMove: start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) vel=(${velocity.x.toFixed(1)},${velocity.y.toFixed(1)},${velocity.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded} (expY=${expectedYMove.toFixed(1)}, actY=${actualYMove.toFixed(1)})`);
-        }
-
         return {
             endPos: fromBabylon(result.endPos),
             velocity: clippedVelocity,

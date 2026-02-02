@@ -157,7 +157,6 @@ export class PK3TextureLoader {
 
     const pk3 = PK3Loader.getInstance();
     let data = await pk3.getFile(path);
-    let source = 'pk3';
 
     // Fallback: Check for loose file (development mode)
     if (!data) {
@@ -176,7 +175,6 @@ export class PK3TextureLoader {
 
           if (!isHtml && (isImage || !contentType)) {
             data = await response.arrayBuffer();
-            source = 'loose';
           }
         }
       } catch (e) {
@@ -187,10 +185,6 @@ export class PK3TextureLoader {
     if (!data) {
       return null;
     }
-
-    // Debug: Log first 4 bytes to identify format
-    const preview = new Uint8Array(data, 0, Math.min(4, data.byteLength));
-    console.log(`[PK3TextureLoader] Source: ${source}, Path: ${path}, First bytes: ${Array.from(preview).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
 
     const ext = this.getExtension(path).toLowerCase();
     let texture: Texture | null = null;

@@ -1,74 +1,100 @@
 /**
- * WebSocket Transport
+ * WebSocket Server Transport
+ *
+ * Server-side WebSocket transport for game networking.
+ * Uses the ws package for Node.js WebSocket support.
  * 
- * Server-side WebSocket transport using Node's ws library.
+ * This provides the same Transport interface as WebTransportTransport,
+ * allowing easy swapping between protocols.
  */
 
-// Note: This file contains the interface and a mock implementation.
-// The actual ws dependency would be installed in production.
+import { WebSocketServer, WebSocket } from 'ws';
+import type {
+    Transport,
+    TransportConfig,
+    TransportEvents,
+    ClientConnection,
+} from './WebTransportTransport';
+
+// Re-export interfaces for convenience
+export type { Transport, TransportConfig, TransportEvents, ClientConnection };
 
 // ═══════════════════════════════════════════════════════════════════
-// TRANSPORT INTERFACES
+// WEBSOCKET CLIENT CONNECTION
 // ═══════════════════════════════════════════════════════════════════
 
-export interface TransportConfig {
-    port: number;
-    maxClients?: number;
-    heartbeatIntervalMs?: number;
-    connectionTimeoutMs?: number;
-}
-
-export interface ClientConnection {
+class WebSocketClientConnection implements ClientConnection {
     id: string;
     playerId?: number;
     address: string;
     connectedAt: number;
     lastMessageAt: number;
-    latency: number;
-    send(data: Uint8Array): void;
-    close(reason?: string): void;
-}
+    latency: number = 0;
 
-export interface TransportEvents {
-    onConnect?: (client: ClientConnection) => void;
-    onDisconnect?: (client: ClientConnection, reason: string) => void;
-    onMessage?: (client: ClientConnection, data: Uint8Array) => void;
-    onError?: (client: ClientConnection, error: Error) => void;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// TRANSPORT INTERFACE
-// ═══════════════════════════════════════════════════════════════════
-
-export interface Transport {
-    start(): Promise<void>;
-    stop(): Promise<void>;
-    broadcast(data: Uint8Array, exclude?: Set<string>): void;
-    send(clientId: string, data: Uint8Array): void;
-    getClients(): ReadonlyMap<string, ClientConnection>;
-    getClient(id: string): ClientConnection | undefined;
-    isRunning(): boolean;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// WEBSOCKET TRANSPORT (Node.js implementation)
-// ═══════════════════════════════════════════════════════════════════
-
-export class WebSocketTransport implements Transport {
-    private config: TransportConfig;
+    private ws: WebSocket;
     private events: TransportEvents;
-    private clients: Map<string, ClientConnection> = new Map();
+
+    constructor(id: string, ws: WebSocket, address: string, events: TransportEvents) {
+        this.id = id;
+        this.ws = ws;
+        this.address = address;
+        this.connectedAt = Date.now();
+        this.lastMessageAt = Date.now();
+        this.events = events;
+    }
+
+    sendDatagram(data: Uint8Array): void {
+        // WebSocket doesn't distinguish - treat as regular message
+        if (this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(data);
+        }
+    }
+
+    sendReliable(data: Uint8Array): void {
+        // WebSocket is always reliable
+        if (this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(data);
+        }
+    }
+
+    close(reason?: string): void {
+        this.ws.close(1000, reason || 'Server closed connection');
+    }
+
+    updateLastMessage(): void {
+        this.lastMessageAt = Date.now();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBSOCKET SERVER TRANSPORT
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * WebSocket server transport with same interface as WebTransportTransport.
+ * 
+ * Since WebSocket doesn't have true datagrams, both sendDatagram and
+ * sendReliable use the same WebSocket send. The distinction is kept
+ * for protocol compatibility with WebTransport.
+ */
+export class WebSocketServerTransport implements Transport {
+    private config: Required<TransportConfig>;
+    private events: TransportEvents;
+    private clients: Map<string, WebSocketClientConnection> = new Map();
     private running: boolean = false;
-    private _server: unknown = null; // Would be WebSocketServer from 'ws'
-    private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    private wss: WebSocketServer | null = null;
     private nextClientId: number = 1;
 
-    constructor(config: TransportConfig, events: TransportEvents) {
+    constructor(config: TransportConfig, events: TransportEvents = {}) {
         this.config = {
-            maxClients: 64,
-            heartbeatIntervalMs: 1000,
-            connectionTimeoutMs: 30000,
-            ...config,
+            port: config.port,
+            host: config.host ?? '0.0.0.0',
+            maxClients: config.maxClients ?? 16,
+            heartbeatIntervalMs: config.heartbeatIntervalMs ?? 5000,
+            connectionTimeoutMs: config.connectionTimeoutMs ?? 30000,
+            certPath: config.certPath ?? '',
+            keyPath: config.keyPath ?? '',
+            maxDatagramSize: config.maxDatagramSize ?? 1200,
         };
         this.events = events;
     }
@@ -76,68 +102,118 @@ export class WebSocketTransport implements Transport {
     async start(): Promise<void> {
         if (this.running) return;
 
-        // In production, this would use the 'ws' library:
-        //
-        // const WebSocket = await import('ws');
-        // this.server = new WebSocket.WebSocketServer({ port: this.config.port });
-        //
-        // this.server.on('connection', (socket, req) => {
-        //   this.handleConnection(socket, req);
-        // });
+        return new Promise((resolve, reject) => {
+            try {
+                this.wss = new WebSocketServer({
+                    port: this.config.port,
+                    host: this.config.host,
+                });
 
-        console.log(`[WebSocket] Server starting on port ${this.config.port}`);
+                this.wss.on('connection', (ws, req) => {
+                    this.handleConnection(ws, req);
+                });
 
-        // Start heartbeat
-        this.heartbeatInterval = setInterval(() => {
-            this.checkHeartbeats();
-        }, this.config.heartbeatIntervalMs);
+                this.wss.on('error', (error) => {
+                    console.error('[WebSocket] Server error:', error);
+                    reject(error);
+                });
 
-        this.running = true;
+                this.wss.on('listening', () => {
+                    this.running = true;
+                    console.log(`[WebSocket] Server ready on ${this.config.host}:${this.config.port}`);
+                    resolve();
+                });
+            } catch (error) {
+                reject(error);
+            }
+        });
     }
 
     async stop(): Promise<void> {
-        if (!this.running) return;
+        if (!this.running || !this.wss) return;
 
-        if (this.heartbeatInterval) {
-            clearInterval(this.heartbeatInterval);
-            this.heartbeatInterval = null;
-        }
+        return new Promise((resolve) => {
+            // Close all clients
+            for (const client of this.clients.values()) {
+                client.close('Server shutting down');
+            }
+            this.clients.clear();
 
-        // Close all clients
-        for (const client of this.clients.values()) {
-            client.close('Server shutting down');
-        }
-        this.clients.clear();
-
-        // Close server
-        // if (this.server) {
-        //   await new Promise<void>(resolve => this.server.close(resolve));
-        // }
-
-        this.running = false;
-        console.log('[WebSocket] Server stopped');
+            // Close WebSocket server
+            this.wss!.close(() => {
+                this.running = false;
+                this.wss = null;
+                console.log('[WebSocket] Server stopped');
+                resolve();
+            });
+        });
     }
 
-    broadcast(data: Uint8Array, exclude?: Set<string>): void {
+    private handleConnection(ws: WebSocket, req: any): void {
+        console.log(`[WebSocket] New connection from ${req.socket.remoteAddress}`);
+
+        // Check max clients
+        if (this.clients.size >= this.config.maxClients) {
+            console.log(`[WebSocket] Server full, rejecting`);
+            ws.close(1013, 'Server full');
+            return;
+        }
+
+        const clientId = `ws-${this.nextClientId++}`;
+        const address = req.socket.remoteAddress || 'unknown';
+        const client = new WebSocketClientConnection(clientId, ws, address, this.events);
+
+        this.clients.set(clientId, client);
+        console.log(`[WebSocket] Client ${clientId} registered from ${address}`);
+
+        // Set up message handler - use onDatagram for all game messages
+        let messageCount = 0;
+        ws.on('message', (data: Buffer) => {
+            client.updateLastMessage();
+            const bytes = new Uint8Array(data);
+            messageCount++;
+            // Only log occasionally to avoid spam
+            if (messageCount % 1000 === 0) {
+                console.log(`[WebSocket] Client ${clientId}: ${messageCount} messages received`);
+            }
+            this.events.onDatagram?.(client, bytes);
+        });
+
+        ws.on('close', (code, reason) => {
+            console.log(`[WebSocket] Client ${clientId} disconnected: ${reason || code}`);
+            this.clients.delete(clientId);
+            this.events.onDisconnect?.(client, reason?.toString() || `Code: ${code}`);
+        });
+
+        ws.on('error', (error) => {
+            console.log(`[WebSocket] Client ${clientId} error:`, error);
+            this.events.onError?.(client, error);
+        });
+
+        // Notify connection
+        this.events.onConnect?.(client);
+    }
+
+    broadcastDatagram(data: Uint8Array, exclude?: Set<string>): void {
         for (const [id, client] of this.clients) {
             if (exclude?.has(id)) continue;
-            try {
-                client.send(data);
-            } catch {
-                // Client errored, will be cleaned up on next heartbeat
-            }
+            client.sendDatagram(data);
         }
     }
 
-    send(clientId: string, data: Uint8Array): void {
-        const client = this.clients.get(clientId);
-        if (client) {
-            try {
-                client.send(data);
-            } catch {
-                // Client errored
-            }
+    broadcastReliable(data: Uint8Array, exclude?: Set<string>): void {
+        for (const [id, client] of this.clients) {
+            if (exclude?.has(id)) continue;
+            client.sendReliable(data);
         }
+    }
+
+    sendDatagram(clientId: string, data: Uint8Array): void {
+        this.clients.get(clientId)?.sendDatagram(data);
+    }
+
+    sendReliable(clientId: string, data: Uint8Array): void {
+        this.clients.get(clientId)?.sendReliable(data);
     }
 
     getClients(): ReadonlyMap<string, ClientConnection> {
@@ -150,104 +226,5 @@ export class WebSocketTransport implements Transport {
 
     isRunning(): boolean {
         return this.running;
-    }
-
-    /**
-     * Simulate a client connecting (for testing)
-     */
-    simulateConnect(address: string = '127.0.0.1'): ClientConnection {
-        const id = `client-${this.nextClientId++}`;
-        const client = this.createMockClient(id, address);
-        this.clients.set(id, client);
-        this.events.onConnect?.(client);
-        return client;
-    }
-
-    /**
-     * Simulate receiving a message (for testing)
-     */
-    simulateMessage(clientId: string, data: Uint8Array): void {
-        const client = this.clients.get(clientId);
-        if (client) {
-            (client as MockClient).lastMessageAt = Date.now();
-            this.events.onMessage?.(client, data);
-        }
-    }
-
-    /**
-     * Simulate a client disconnecting (for testing)
-     */
-    simulateDisconnect(clientId: string, reason: string = 'Client disconnected'): void {
-        const client = this.clients.get(clientId);
-        if (client) {
-            this.clients.delete(clientId);
-            this.events.onDisconnect?.(client, reason);
-        }
-    }
-
-    private checkHeartbeats(): void {
-        const now = Date.now();
-        const timeout = this.config.connectionTimeoutMs!;
-
-        for (const [id, client] of this.clients) {
-            if (now - client.lastMessageAt > timeout) {
-                this.clients.delete(id);
-                this.events.onDisconnect?.(client, 'Timeout');
-            }
-        }
-    }
-
-    private createMockClient(id: string, address: string): ClientConnection {
-        return new MockClient(id, address, (clientId) => {
-            this.clients.delete(clientId);
-            this.events.onDisconnect?.(this.clients.get(clientId)!, 'Client closed');
-        });
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MOCK CLIENT (for testing without real WebSocket)
-// ═══════════════════════════════════════════════════════════════════
-
-class MockClient implements ClientConnection {
-    id: string;
-    playerId?: number;
-    address: string;
-    connectedAt: number;
-    lastMessageAt: number;
-    latency: number = 0;
-
-    private onClose: (id: string) => void;
-    private outbox: Uint8Array[] = [];
-
-    constructor(id: string, address: string, onClose: (id: string) => void) {
-        this.id = id;
-        this.address = address;
-        this.connectedAt = Date.now();
-        this.lastMessageAt = Date.now();
-        this.onClose = onClose;
-    }
-
-    send(data: Uint8Array): void {
-        // Would send via WebSocket, stores for testing
-        this.outbox.push(data);
-    }
-
-    close(_reason?: string): void {
-        this.onClose(this.id);
-    }
-
-    /**
-     * Get pending outgoing messages (for testing)
-     */
-    getOutbox(): Uint8Array[] {
-        return this.outbox;
-    }
-
-    /**
-     * Clear outbox (for testing)
-     */
-    clearOutbox(): void {
-        this.outbox = [];
     }
 }

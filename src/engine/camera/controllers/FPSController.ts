@@ -717,24 +717,34 @@ export class FPSController implements ICameraController {
 
     // Initialize physics position on first frame
     // NOTE: Spawn system should call setPositionFromFeet() or setPosition() before first frame
-    // If not, we assume camera.position is at spawn location (may need adjustment)
     if (!this.smoothingInitialized) {
-      // Assume camera was placed at eye level by spawn system
-      // Convert to origin level by subtracting viewheight
-      this.physicsX = this.camera.position.x;
-      this.physicsY = this.camera.position.y - DEFAULT_VIEWHEIGHT; // Convert from eyes to origin
-      this.physicsZ = this.camera.position.z;
-      this.smoothedY = this.physicsY;
-      this.smoothingInitialized = true;
-
-      // Get the game manager instance
+      // Get the game manager instance first to check if we're connected
       this.gameManager = FPSGameManager.getInstance();
-
-      // DEBUG: Log what mode we're detecting
       const isConnected = this.gameManager.isConnectedToServer();
-      const svNetworkMovement = mv.get('sv_network_movement');
-      console.log(`[FPS DEBUG] Mode detection: isConnectedToServer=${isConnected}, sv_network_movement=${svNetworkMovement}`);
-      console.log(`[FPS DEBUG] FPSGameManager state: isRunning=${this.gameManager.isGameRunning()}, serverUrl=${this.gameManager.getServerUrl()}`);
+
+      // If connected to a server, use server-provided position (NOT stale camera position)
+      if (isConnected) {
+        const serverPos = this.gameManager.getLocalPlayerPosition();
+        if (!serverPos) {
+          // Server hasn't sent position yet - wait for next frame
+          return; // Don't initialize until we have server position
+        }
+        // Use position from server
+        this.physicsX = serverPos.x;
+        this.physicsY = serverPos.y;
+        this.physicsZ = serverPos.z;
+        this.smoothedY = this.physicsY;
+        console.log(`[FPS] Using server position for init: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)})`);
+      } else {
+        // Local mode: assume camera was placed at eye level by spawn system
+        // Convert to origin level by subtracting viewheight
+        this.physicsX = this.camera.position.x;
+        this.physicsY = this.camera.position.y - DEFAULT_VIEWHEIGHT;
+        this.physicsZ = this.camera.position.z;
+        this.smoothedY = this.physicsY;
+      }
+
+      this.smoothingInitialized = true;
 
       // Check if already connected to a server (via 'connect' command)
       // Skip if network mode was already enabled by enableNetworkMode() to avoid duplicate subscriptions
@@ -745,8 +755,17 @@ export class FPSController implements ICameraController {
         console.log(`[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`);
         this.useNetworkMovement = true;
 
+        // Track whether we've logged the first server position
+        let loggedFirstServerPosition = false;
+
         // Subscribe to state updates from server
         this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
+          // Log first server position (this is where we actually spawn)
+          if (!loggedFirstServerPosition) {
+            console.log(`[FPS] Server spawn position: (${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)})`);
+            loggedFirstServerPosition = true;
+          }
+
           // Track previous grounded state for landing detection
           this.wasGroundedLastFrame = this.isGrounded;
 

@@ -80,4 +80,15 @@ export const WEAPONS: Record<string, WeaponDef> = {
         maxRange: 10000,
         useLagCompensation: true,
     },
+    plasmagun: {
+        id: 'plasmagun',
+        name: 'Plasma Gun',
+        type: 'projectile',
+        damage: 20,
+        fireRate: 10, // 10 shots per second
+        ammoCapacity: 50,
+        reloadTime: 2,
+        projectileSpeed: 2000, // Fast plasma bolts
+        useLagCompensation: false,
+    },
 };

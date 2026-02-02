@@ -26,10 +26,12 @@ const CONFIG: SubsystemConfig = {
     tickRate: 125,
 };
 
-// Default player bounds (Q3-style: 32 wide, 56 tall)
+// Default player bounds (Q3-style: origin at waist, 24 units above feet)
+// CRITICAL: Must match FPSMovementProfile.PLAYER_BOUNDS exactly!
+// Total height = 56 units: 24 below origin (to feet) + 32 above (to head)
 const PLAYER_BOUNDS: AABB = {
-    min: { x: -16, y: 0, z: -16 },
-    max: { x: 16, y: 56, z: 16 },
+    min: { x: -16, y: -24, z: -16 },  // Feet 24 units BELOW origin
+    max: { x: 16, y: 32, z: 16 },     // Head 32 units ABOVE origin
 };
 
 export class CharacterPhysicsSystem extends Subsystem {

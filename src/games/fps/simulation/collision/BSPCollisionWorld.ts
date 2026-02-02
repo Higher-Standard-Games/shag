@@ -47,9 +47,6 @@ export class BSPCollisionWorld implements CollisionWorld {
 
         if (!cm.isInitialized()) {
             // No collision - return no hit
-            if (Math.random() < 0.01) {
-                console.warn(`[BSPCollisionWorld] trace: CollisionManager NOT initialized!`);
-            }
             return { hit: false, fraction: 1 };
         }
 
@@ -65,14 +62,6 @@ export class BSPCollisionWorld implements CollisionWorld {
             : { radius: 0, height: 0 };
 
         const result = cm.trace(startV, endV, options);
-
-        // Debug: Log trace results occasionally
-        if (Math.random() < 0.01) {
-            const dist = Math.sqrt(
-                (endV.x - startV.x) ** 2 + (endV.y - startV.y) ** 2 + (endV.z - startV.z) ** 2
-            );
-            console.log(`[BSPCollisionWorld] trace: start=(${startV.x.toFixed(1)},${startV.y.toFixed(1)},${startV.z.toFixed(1)}) end=(${endV.x.toFixed(1)},${endV.y.toFixed(1)},${endV.z.toFixed(1)}) dist=${dist.toFixed(1)} fraction=${result.fraction.toFixed(3)}, hit=${result.fraction < 1}, backend=${cm.getBackendType()}`);
-        }
 
         // Convert to network TraceResult
         return {
@@ -127,14 +116,16 @@ export class BSPCollisionWorld implements CollisionWorld {
             const groundTrace = backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
             const grounded = groundTrace.fraction < 1.0;
 
-            // Debug occasionally
-            if (Math.random() < 0.01) {
-                console.log(`[BSPCollisionWorld] stepSlideMove (Q3 backend): start=(${start.x.toFixed(1)},${start.y.toFixed(1)},${start.z.toFixed(1)}) -> end=(${result.endPos.x.toFixed(1)},${result.endPos.y.toFixed(1)},${result.endPos.z.toFixed(1)}) grounded=${grounded}`);
-            }
+            // CRITICAL: Backend returns clipped MOVEMENT delta, not velocity!
+            // Convert back to velocity (units/sec) by dividing by deltaTime.
+            // This matches HeadlessBSPCollisionWorld (server) behavior exactly.
+            const clippedVelocity = deltaTime > 0
+                ? fromBabylon(result.velocity.scale(1 / deltaTime))
+                : { x: 0, y: 0, z: 0 };
 
             return {
                 endPos: fromBabylon(result.endPos),
-                velocity: { ...velocity }, // Velocity clipping would be done by movement profile
+                velocity: clippedVelocity, // Properly clipped velocity from collision
                 grounded
             };
         }
