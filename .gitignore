@@ -69,6 +69,7 @@ release/
 
 # Game data and packages (not in git, download separately)
 *.pk3
+*.wasm
 public/games/
 public/data/
 temp/
