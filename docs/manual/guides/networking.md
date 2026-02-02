@@ -460,6 +460,81 @@ When debugging networking issues:
 
 ---
 
+## V2NetworkClient (FPS Games)
+
+The `V2NetworkClient` provides Q3-style client prediction for FPS games:
+
+```typescript
+import { V2NetworkClient } from '@game/client/V2NetworkClient';
+
+const v2Client = new V2NetworkClient(tickRate);
+
+// On each frame
+v2Client.update(deltaTime, inputState);
+
+// Get predicted position for rendering
+const pos = v2Client.getPosition();
+
+// Check if we have valid server data
+if (v2Client.hasValidPosition()) {
+  // Safe to use position
+}
+```
+
+### Features
+
+- **125Hz client tick rate** with variable server tick rate
+- **Input history** for replay during reconciliation
+- **Smooth correction** for minor position errors
+- **Snap correction** for major desyncs (respawn, teleport)
+
+### Reconciliation Flow
+
+```
+1. Client records input with sequence number
+2. Client predicts locally (instant feedback)
+3. Server processes input, sends snapshot with ack'd sequence
+4. Client compares: predicted position vs server position
+5. If error > threshold:
+   - Rewind to server position
+   - Replay all unacknowledged inputs
+   - Smoothly correct any remaining error
+```
+
+---
+
+## Dedicated Server
+
+Run a headless server without rendering:
+
+```bash
+# Start dedicated FPS server
+npm run net:server -- --map wdm2 --port 7777
+
+# Options
+npm run net:server -- \
+  --map wdm2 \
+  --port 7777 \
+  --name "My Server" \
+  --max 16 \
+  --tickrate 20
+```
+
+### Server Architecture
+
+```
+HeadlessNetServer
+├── WebSocket Server (port 7777)
+├── BSP Collision World (server-side)
+├── FPS Movement Subsystem
+├── Spawn Point Manager
+└── ECS Game State
+```
+
+The server loads the BSP map for collision detection but does no rendering.
+
+---
+
 ## See Also
 
 - [Headless Mode](./headless-mode.md) — Dedicated server setup

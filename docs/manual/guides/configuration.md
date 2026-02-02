@@ -1,129 +1,51 @@
 # Engine Configuration
 
-SHAG Engine uses a central configuration file to define game paths and browser title. Game selection happens at **build time**, ensuring each build is self-contained.
+SHAG Engine uses environment variables and optional configuration files to control game builds and paths.
 
-## engine.json
+## Game Selection
 
-Create `public/engine.json` in your project root. This file is **required** - the engine will throw an error if it's missing.
+Games are selected at **build time** via the `GAME` environment variable. This determines which game submodule's code is bundled.
 
-### Minimal Configuration
-
-```json
-{
-  "defaultGame": "default"
-}
-```
-
-### Full Configuration
-
-```json
-{
-  "defaultGame": "default",
-  "engineAssetsPath": "/engine",
-  "title": "My Game Title"
-}
-```
-
-## Options
-
-### defaultGame (required)
-
-The game directory name. This determines:
-- **Source code**: `src/games/{defaultGame}/` - bundled at build time
-- **Assets**: `public/games/{defaultGame}/` - loaded at runtime
-
-```json
-{
-  "defaultGame": "mygame"
-}
-```
-
-Asset paths will resolve to:
-- Maps: `/games/mygame/maps/`
-- Audio: `/games/mygame/audio/`
-- Data: `/games/mygame/data/`
-
-### engineAssetsPath
-
-Path to shared engine assets. Defaults to `/engine`.
-
-```json
-{
-  "engineAssetsPath": "/engine"
-}
-```
-
-### title
-
-Browser tab title. If not set, defaults to "SHAG Engine v{version}".
-
-```json
-{
-  "title": "My Awesome Game"
-}
-```
-
-## Build-Time Game Selection
-
-Games are selected at **build time**, not runtime. This ensures:
-- Only the selected game's code is bundled
-- Clean separation between engine and game code
-- Self-contained builds for distribution
-
-### Default Build
-
-Uses the game specified in `engine.json`:
+### Development
 
 ```bash
-npm run build
-```
-
-### Override with Environment Variable
-
-Build a different game by setting `GAME`:
-
-```bash
-# Windows PowerShell
-$env:GAME="demo"; npm run build
-
-# Linux/macOS
-GAME=demo npm run build
-```
-
-### Development Server
-
-```bash
-# Use default game
+# Use default game (fps)
 npm run dev
 
-# Use different game
-$env:GAME="demo"; npm run dev
+# Use different game submodule
+GAME=newgame npm run dev
+
+# Windows PowerShell
+$env:GAME="newgame"; npm run dev
+```
+
+### Production Build
+
+```bash
+# Build default game
+npm run build
+
+# Build specific game
+GAME=demo npm run build
 ```
 
 ## Directory Structure
 
 ```
-project/
+shag-engine/
 ├── src/
-│   └── games/
-│       ├── default/         # Default game source
-│       │   ├── GameScene.ts
-│       │   ├── ui/
-│       │   └── ...
-│       └── demo/            # Another game (build with GAME=demo)
-│           └── ...
-└── public/
-    ├── engine.json          # Engine configuration
-    ├── engine/              # Shared engine assets
-    │   ├── fonts/
-    │   └── textures/
-    └── games/
-        ├── default/         # Default game assets
-        │   ├── maps/
-        │   ├── data/
-        │   └── music/
-        └── demo/            # Demo game assets
-            └── ...
+│   ├── engine/           # Engine code (always included)
+│   └── games/            # Game submodules
+│       ├── fps/          # → git submodule (wash-fps)
+│       └── newgame/      # → git submodule (another game)
+├── public/
+│   ├── engine/           # Engine assets (fonts) - IN GIT
+│   └── data/             # Game data - GITIGNORED
+│       ├── maps/
+│       ├── textures/
+│       └── *.pk3
+├── vite.config.ts
+└── package.json
 ```
 
 ## @game Import Alias
@@ -133,10 +55,57 @@ Use the `@game` alias to import from the selected game's source:
 ```typescript
 // In main.ts or engine code
 import { GameScene } from "@game/GameScene";
-import { SaveManager } from "@game/SaveManager";
+import { PlayerController } from "@game/PlayerController";
 ```
 
-The alias resolves to `src/games/{selectedGame}/` at build time.
+The alias resolves to `src/games/${GAME}/` at build time.
+
+## Game Submodules
+
+Games are git submodules under `src/games/`. This allows:
+- Separate git history for each game
+- Independent versioning
+- Easy switching between games
+
+### Adding a Game Submodule
+
+```bash
+git submodule add git@github.com:you/my-game.git src/games/mygame
+git commit -m "Add mygame submodule"
+```
+
+### Updating a Submodule
+
+```bash
+cd src/games/fps
+git pull origin main
+cd ../..
+git add src/games/fps
+git commit -m "chore: update fps submodule"
+```
+
+### Cloning with Submodules
+
+```bash
+git clone --recursive https://github.com/Higher-Standard-Games/shag.git
+# Or if already cloned:
+git submodule update --init --recursive
+```
+
+## Game Data
+
+Game data (maps, pk3 files, textures) is **not stored in git**. Place assets in `public/data/`:
+
+```
+public/data/
+├── maps/           # .bsp and .map files
+├── textures/       # Texture images
+├── music/          # Audio files
+└── *.pk3           # PK3 packages
+```
+
+> [!NOTE]
+> The `public/data/` directory is gitignored. Each developer downloads game data separately.
 
 ## GamePaths API
 
@@ -148,13 +117,24 @@ import { GamePaths } from './engine/core/GamePaths';
 // After init()
 const paths = GamePaths.getInstance();
 
-paths.getGameName();     // "default"
-paths.getGameTitle();    // "My Game Title" or null
-paths.maps('level.map'); // "/games/default/maps/level.map"
-paths.music('theme.mp3'); // "/games/default/music/theme.mp3"
-paths.data('config.json'); // "/games/default/data/config.json"
-paths.engine('font.ttf'); // "/engine/font.ttf"
+paths.getGameName();     // "fps"
+paths.data('maps/level.bsp');   // "/data/maps/level.bsp"
+paths.engine('fonts/Nunito.ttf'); // "/engine/fonts/Nunito.ttf"
 ```
+
+## Legacy: engine.json (Optional)
+
+For backwards compatibility, you can still use `public/engine.json`:
+
+```json
+{
+  "defaultGame": "fps",
+  "engineAssetsPath": "/engine",
+  "title": "My Game"
+}
+```
+
+However, the `GAME` environment variable takes precedence.
 
 ## Customizing UI Styles
 
@@ -162,14 +142,12 @@ Games can customize the engine's UI colors before initialization.
 
 ### Console Colors
 
-The debug console uses the SHAG logo palette by default. Customize via `UIStyles.setConsoleColors()`:
-
 ```typescript
 import { UIStyles } from './engine/ui/UIStyles';
 
-// Call BEFORE UIStyles.injectBase() or any UI initialization
+// Call BEFORE UIStyles.injectBase()
 UIStyles.setConsoleColors({
-  primary: '#ff6600',      // Main accent color
+  primary: '#ff6600',
   primaryDim: 'rgba(255, 102, 0, 0.4)',
   primaryGlow: 'rgba(255, 102, 0, 0.6)',
   error: '#ff4444',
@@ -180,28 +158,6 @@ UIStyles.setConsoleColors({
 
 Available color keys:
 - `primary`, `primaryDim`, `primaryGlow` - Main accent
-- `orange`, `yellow`, `teal`, `magenta`, `green` - SHAG palette
 - `error`, `warn`, `info`, `success` - Semantic colors
 - `text`, `textBright`, `textDim` - Text colors
 - `bg`, `bgHeader`, `bgInput` - Background colors
-
-### Loading Screen Colors
-
-The loading screen uses the SHAG logo palette defined in `LoadingScreen.ts`:
-- Orange: `#E85D04`
-- Yellow: `#FAC748`
-- Teal: `#2EC4B6`
-- Magenta: `#E040FB`
-- Green: `#4ADE80`
-
-## Error Handling
-
-The engine throws clear errors for configuration issues:
-
-```
-[GamePaths] Missing engine.json - create public/engine.json with { "defaultGame": "default" }
-```
-
-```
-[GamePaths] engine.json missing "defaultGame" field
-```

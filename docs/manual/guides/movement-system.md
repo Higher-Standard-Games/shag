@@ -37,6 +37,44 @@ function update(dt: number) {
 }
 ```
 
+## Q3-Style Movement (Strafe Jumping)
+
+The engine implements authentic Quake 3 / Warsow movement physics:
+
+### Strafe Jumping
+
+Strafe jumping exploits the air acceleration code to gain speed:
+
+```
+1. Jump while moving forward
+2. Release W, hold A or D (strafe key)
+3. Smoothly turn mouse in strafe direction
+4. Jump again on landing (autohop helps)
+5. Repeat, alternating sides
+```
+
+Each strafe jump adds ~20-30 u/s if done correctly. Speed can exceed 600+ u/s.
+
+### Air Control
+
+The `sv_aircontrol` cvar enables Warsow-style sharp turning in air:
+
+```
+sv_aircontrol  0   = No air turning (Q3 default)
+sv_aircontrol  150 = Sharp air turning (Warsow style)
+```
+
+With air control enabled, releasing strafe key and just holding W lets you turn sharply mid-air.
+
+### Speed Preservation
+
+Unlike most modern games, speed is preserved through:
+- Bunny hopping (continuous jumping)
+- Strafe jumping (builds speed)
+- Crouch sliding (maintains momentum)
+
+Ground friction only applies when actually walking on ground.
+
 ## Character State
 
 ```typescript
