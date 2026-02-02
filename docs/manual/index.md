@@ -1,10 +1,12 @@
 # SHAG Engine Documentation
 
-**SHAG** (**S**tandards, **H**igh **A**nd **G**ames) is a WebGL game engine for developers who miss the golden age of arena shooters—and want to build something new with those timeless foundations.
+**SHAG**[^1] is a WebGL game engine for developers who miss the golden age of arena shooters—and want to build something new with those timeless foundations.
 
 Built on Babylon.js, SHAG loads Quake 3 and Warsow assets natively: BSP maps, **raw .map files**, PK3 archives, Q3 shaders, and all those beautiful tcMod scrolling textures you remember. If you've ever typed `+set sv_gravity 100` in a console, you're home.
 
-**Open source under the [MIT License](https://github.com/user/shag-engine/blob/main/LICENSE)** — use it for personal projects, commercial games, or just to bunny hop around dm17 in your browser.
+**Open source under the [MIT License](https://github.com/Higher-Standard-Games/shag/blob/main/LICENSE)** — use it for personal projects, commercial games, or just to bunny hop around dm17 in your browser.
+
+[^1]: **What does SHAG stand for?** Depends on the day. Sometimes it's *Spaghetti Hiding All Glitches*. Other days it's *Somehow Holding A Game*. When the code works on the first try, it's *Sublime Hallucinations Are Guaranteed*. And depending on your mood (and what you've been smoking), it might be *Sativa Helped Assemble Geometry* or *Software Highly Augmented by Grass*.
 
 ---
 
@@ -91,7 +93,7 @@ docs/manual/
 
 If you're an AI assistant working on this codebase, welcome! Here's what you need to know:
 
-1. **Read `CLAUDE.md`** in the project root — it has architecture patterns, gotchas, and headless testing instructions
+1. **Read `AGENTS.md`** in the project root — it has architecture patterns, gotchas, and headless testing instructions
 2. **Use headless mode** for testing (`npm run cli:game`) instead of asking the user to test in browser
 3. **Singleton pattern** is used throughout — get instances with `SomeSystem.getInstance()`
 4. **EventBus** for decoupled communication — always store unsubscribe functions
