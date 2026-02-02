@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
+    "postinstall": "node -e \"const fs=require('fs');const src='node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm';const dest='public/wasm/HavokPhysics.wasm';if(fs.existsSync(src)){fs.mkdirSync('public/wasm',{recursive:true});fs.copyFileSync(src,dest);console.log('Copied HavokPhysics.wasm to public/wasm/')}\"",
     "dev": "vite",
     "build": "tsc && vite build",
     "build:textures": "node scripts/convert-ktx2.js",
