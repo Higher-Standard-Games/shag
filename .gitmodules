@@ -1,0 +1,3 @@
+[submodule "src/games/fps"]
+	path = src/games/fps
+	url = git@github.com:Higher-Standard-Games/wash-fps.git

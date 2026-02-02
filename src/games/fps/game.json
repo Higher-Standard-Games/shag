@@ -1,9 +1,0 @@
-{
-    "name": "FPS",
-    "displayName": "SHAG FPS",
-    "version": "0.1.0",
-    "description": "First-Person Shooter game built on SHAG Engine",
-    "author": "Higher Standard Games",
-    "entryPoint": "./index.ts",
-    "type": "fps"
-}
