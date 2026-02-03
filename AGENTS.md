@@ -44,7 +44,8 @@ src/
 │   ├── movement/     # Character controllers
 │   └── ui/           # HUD, menus
 ├── games/            # Game submodules
-│   └── fps/          # → wash-fps repo
+│   ├── fps/          # → wash-fps repo
+│   └── tower/        # → tower repo
 └── cli/              # Headless tools
 
 public/
