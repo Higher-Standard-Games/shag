@@ -1,6 +1,5 @@
 
 import JSZip from "jszip";
-import { GamePaths } from "../../core/GamePaths";
 
 export interface PK3LoaderConfig {
   basePath: string; // e.g., "games/default/"
@@ -20,7 +19,7 @@ export interface PK3File {
  */
 export class PK3Loader {
   private static instance: PK3Loader;
-  private config: PK3LoaderConfig = { basePath: "games/default/", additionalPaths: [] };
+  private config: PK3LoaderConfig = { basePath: "data/", additionalPaths: [] };
   private packages: Map<string, PK3File> = new Map();
   private fileIndex: Map<string, string> = new Map(); // file path -> pk3 filename
 
@@ -37,16 +36,8 @@ export class PK3Loader {
    * Initialize service (called by ServiceLocator)
    */
   public async init(): Promise<void> {
-    const gamePaths = GamePaths.getInstance();
-
-    // Ensure GamePaths is initialized
-    if (!gamePaths.isInitialized()) {
-      console.warn('[PK3Loader] GamePaths not initialized during PK3Loader init, using defaults');
-      return;
-    }
-
-    // Use absolute game path from GamePaths
-    const basePath = gamePaths.game() + '/';
+    // PK3 data files live in public/data/ (served as /data/)
+    const basePath = 'data/';
     this.configure({ basePath });
     console.log(`[PK3Loader] Auto-configured with basePath: ${basePath}`);
   }

@@ -1,5 +1,5 @@
 {
-  "defaultGame": "default",
+  "defaultGame": "fps",
   "engineAssetsPath": "/engine",
-  "title": "Isometric Game Test"
+  "title": "WASH FPS"
 }

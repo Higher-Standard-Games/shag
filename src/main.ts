@@ -67,7 +67,7 @@ async function main() {
 
   // Build PK3 index
   const pk3Index = PK3Index.getInstance();
-  pk3Index.setSearchPaths([GamePaths.getInstance().game() + '/']);
+  pk3Index.setSearchPaths(['data/']);
   await pk3Index.ensureIndex((msg) => loadingScreen.setStatus(msg));
 
   // Initialize debug console
