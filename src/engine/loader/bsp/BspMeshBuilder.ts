@@ -1065,7 +1065,7 @@ export class BspMeshBuilder {
       }
 
       // Try to load texture with various extensions
-      const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+      const extensions = ['.jpg', '.png', '.tga', '.ktx'];
       let texture: any = null;
       let foundCleanPath: string = ''; // Track which path succeeded for normal map loading
 
@@ -2051,7 +2051,7 @@ export async function buildBrushModel(
       }
 
       // Try loading with various extensions
-      const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+      const extensions = ['.jpg', '.png', '.tga', '.ktx'];
       let texture: Texture | null = null;
 
       for (const basePath of allPaths) {

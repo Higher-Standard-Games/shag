@@ -233,14 +233,14 @@ export class PK3TextureLoader {
 
       // Check if format is supported
       if (!isFormatSupported(this.engine, ktx.header.glInternalFormat)) {
-        console.warn(`[PK3TextureLoader] KTX format not supported: ${ktx.formatName}, falling back to placeholder`);
-        // Return a placeholder texture
-        return this.createPlaceholderTexture(path);
+        console.warn(`[PK3TextureLoader] KTX format not supported: ${ktx.formatName}, trying fallback for ${path}`);
+        // Try to find the same texture in a supported format from PK3 data
+        return this.loadKTXFallback(path);
       }
 
       const internalTexture = createTextureFromKTX1(this.engine, ktx, path);
       if (!internalTexture) {
-        return this.createPlaceholderTexture(path);
+        return this.loadKTXFallback(path);
       }
 
       // Wrap in Texture
@@ -251,8 +251,33 @@ export class PK3TextureLoader {
       return texture;
     } catch (e) {
       console.error(`[PK3TextureLoader] KTX parse error for ${path}:`, e);
-      return this.createPlaceholderTexture(path);
+      return this.loadKTXFallback(path);
     }
+  }
+
+  /**
+   * When KTX format is unsupported, try to find the same texture in JPG/PNG/TGA
+   */
+  private async loadKTXFallback(ktxPath: string): Promise<Texture | null> {
+    const basePath = ktxPath.replace(/\.ktx$/i, '');
+    const pk3 = PK3Loader.getInstance();
+
+    for (const altExt of ['.jpg', '.png', '.tga']) {
+      const altPath = basePath + altExt;
+      const altData = await pk3.getFile(altPath);
+      if (altData) {
+        console.log(`[PK3TextureLoader] KTX fallback: ${ktxPath} -> ${altPath}`);
+        // Load directly to avoid infinite recursion through loadTexture
+        if (altExt === '.tga') {
+          return this.loadTGATexture(altPath, altData);
+        } else {
+          return this.loadStandardTexture(altPath, altData, altExt);
+        }
+      }
+    }
+
+    // No alternative found
+    return this.createPlaceholderTexture(ktxPath);
   }
 
   /**
@@ -398,8 +423,8 @@ export class PK3TextureLoader {
     const bpp = view.getUint8(16);
     const descriptor = view.getUint8(17);
 
-    // Only support uncompressed true-color (type 2) and RLE (type 10)
-    if (imageType !== 2 && imageType !== 10) {
+    // Support: uncompressed true-color (2), uncompressed grayscale (3), RLE true-color (10), RLE grayscale (11)
+    if (imageType !== 2 && imageType !== 3 && imageType !== 10 && imageType !== 11) {
       // Check if this might be a JPEG or PNG with wrong extension
       const magic0 = uint8[0], magic1 = uint8[1], magic2 = uint8[2];
       const isPNG = magic0 === 0x89 && magic1 === 0x50 && magic2 === 0x4E;
@@ -414,13 +439,21 @@ export class PK3TextureLoader {
       return null;
     }
 
+    // Grayscale types (3, 11)
+    const isGrayscale = imageType === 3 || imageType === 11;
+
     if (colorMapType !== 0) {
       console.warn(`[TGA] Color-mapped TGA not supported: ${path}`);
       return null;
     }
 
     const bytesPerPixel = bpp / 8;
-    if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
+    if (isGrayscale) {
+      if (bytesPerPixel !== 1 && bytesPerPixel !== 2) {
+        console.warn(`[TGA] Unsupported grayscale BPP: ${bpp} for ${path}`);
+        return null;
+      }
+    } else if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
       console.warn(`[TGA] Unsupported BPP: ${bpp} for ${path}`);
       return null;
     }
@@ -431,8 +464,62 @@ export class PK3TextureLoader {
     // Check if image is flipped
     const isTopToBottom = (descriptor & 0x20) !== 0;
 
-    if (imageType === 2) {
-      // Uncompressed
+    if (isGrayscale && imageType === 3) {
+      // Uncompressed grayscale
+      let srcOffset = headerSize;
+      for (let y = 0; y < height; y++) {
+        const destY = isTopToBottom ? y : (height - 1 - y);
+        for (let x = 0; x < width; x++) {
+          const destOffset = (destY * width + x) * 4;
+          const lum = uint8[srcOffset];
+          pixels[destOffset] = lum;     // R
+          pixels[destOffset + 1] = lum; // G
+          pixels[destOffset + 2] = lum; // B
+          pixels[destOffset + 3] = bytesPerPixel === 2 ? uint8[srcOffset + 1] : 255; // A
+          srcOffset += bytesPerPixel;
+        }
+      }
+    } else if (isGrayscale && imageType === 11) {
+      // RLE grayscale
+      let srcOffset = headerSize;
+      let pixelIndex = 0;
+      while (pixelIndex < width * height) {
+        const packet = uint8[srcOffset++];
+        const count = (packet & 0x7F) + 1;
+        const isRLEPacket = (packet & 0x80) !== 0;
+        if (isRLEPacket) {
+          const lum = uint8[srcOffset];
+          const a = bytesPerPixel === 2 ? uint8[srcOffset + 1] : 255;
+          srcOffset += bytesPerPixel;
+          for (let i = 0; i < count; i++) {
+            const y = Math.floor(pixelIndex / width);
+            const x = pixelIndex % width;
+            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destOffset = (destY * width + x) * 4;
+            pixels[destOffset] = lum;
+            pixels[destOffset + 1] = lum;
+            pixels[destOffset + 2] = lum;
+            pixels[destOffset + 3] = a;
+            pixelIndex++;
+          }
+        } else {
+          for (let i = 0; i < count; i++) {
+            const y = Math.floor(pixelIndex / width);
+            const x = pixelIndex % width;
+            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destOffset = (destY * width + x) * 4;
+            const lum = uint8[srcOffset];
+            pixels[destOffset] = lum;
+            pixels[destOffset + 1] = lum;
+            pixels[destOffset + 2] = lum;
+            pixels[destOffset + 3] = bytesPerPixel === 2 ? uint8[srcOffset + 1] : 255;
+            srcOffset += bytesPerPixel;
+            pixelIndex++;
+          }
+        }
+      }
+    } else if (imageType === 2) {
+      // Uncompressed truecolor
       let srcOffset = headerSize;
 
       for (let y = 0; y < height; y++) {
@@ -451,7 +538,7 @@ export class PK3TextureLoader {
         }
       }
     } else {
-      // RLE compressed
+      // RLE truecolor (type 10)
       let srcOffset = headerSize;
       let pixelIndex = 0;
 

@@ -211,18 +211,18 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
-    
+
     // Try to load the texture from PK3
     let fileData = await pk3.getFile(texturePath);
     let actualPath = texturePath;
-    
+
     if (!fileData) {
       // Try with textures/ prefix
       const altPath = texturePath.startsWith('textures/') ? texturePath : `textures/${texturePath}`;
       fileData = await pk3.getFile(altPath);
       actualPath = altPath;
     }
-    
+
     if (!fileData) {
       return { success: false, error: `Failed to load sky texture: ${texturePath}` };
     }
@@ -246,7 +246,7 @@ export class SkyboxLoader {
     }
     const imageData = new ImageData(new Uint8ClampedArray(rgba.data), rgba.size, rgba.size);
     ctx.putImageData(imageData, 0, 0);
-    
+
     const texture = new Texture(
       canvas.toDataURL(),
       this.scene,
@@ -259,8 +259,8 @@ export class SkyboxLoader {
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
 
     // Create sky sphere - flip inside-out with negative scale
-    const skySphere = MeshBuilder.CreateSphere("skybox", { 
-      diameter: size, 
+    const skySphere = MeshBuilder.CreateSphere("skybox", {
+      diameter: size,
       segments: 32
     }, this.scene);
     skySphere.scaling.x = -1; // Flip to render inside
@@ -349,11 +349,13 @@ export class SkyboxLoader {
     const bpp = view.getUint8(16);
     const descriptor = view.getUint8(17);
 
-    // Only support uncompressed (2) and RLE (10) true-color
-    if (imageType !== 2 && imageType !== 10) {
+    // Support: uncompressed true-color (2), uncompressed grayscale (3), RLE true-color (10), RLE grayscale (11)
+    if (imageType !== 2 && imageType !== 3 && imageType !== 10 && imageType !== 11) {
       console.warn(`[SkyboxLoader] Unsupported TGA type: ${imageType}`);
       return null;
     }
+
+    const isGrayscale = imageType === 3 || imageType === 11;
 
     if (colorMapType !== 0) {
       console.warn(`[SkyboxLoader] Color-mapped TGA not supported`);
@@ -361,7 +363,12 @@ export class SkyboxLoader {
     }
 
     const bytesPerPixel = bpp / 8;
-    if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
+    if (isGrayscale) {
+      if (bytesPerPixel !== 1 && bytesPerPixel !== 2) {
+        console.warn(`[SkyboxLoader] Unsupported grayscale TGA BPP: ${bpp}`);
+        return null;
+      }
+    } else if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
       console.warn(`[SkyboxLoader] Unsupported TGA BPP: ${bpp}`);
       return null;
     }
@@ -370,8 +377,62 @@ export class SkyboxLoader {
     const pixels = new Uint8Array(width * height * 4);
     const isTopToBottom = (descriptor & 0x20) !== 0;
 
-    if (imageType === 2) {
-      // Uncompressed
+    if (isGrayscale && imageType === 3) {
+      // Uncompressed grayscale
+      let srcOffset = headerSize;
+      for (let y = 0; y < height; y++) {
+        const destY = isTopToBottom ? y : height - 1 - y;
+        for (let x = 0; x < width; x++) {
+          const destOffset = (destY * width + x) * 4;
+          const lum = data[srcOffset];
+          pixels[destOffset + 0] = lum;
+          pixels[destOffset + 1] = lum;
+          pixels[destOffset + 2] = lum;
+          pixels[destOffset + 3] = bytesPerPixel === 2 ? data[srcOffset + 1] : 255;
+          srcOffset += bytesPerPixel;
+        }
+      }
+    } else if (isGrayscale && imageType === 11) {
+      // RLE grayscale
+      let srcOffset = headerSize;
+      let pixelIndex = 0;
+      while (pixelIndex < width * height) {
+        const packet = data[srcOffset++];
+        const count = (packet & 0x7f) + 1;
+        const isRLE = (packet & 0x80) !== 0;
+        if (isRLE) {
+          const lum = data[srcOffset];
+          const a = bytesPerPixel === 2 ? data[srcOffset + 1] : 255;
+          srcOffset += bytesPerPixel;
+          for (let i = 0; i < count; i++) {
+            const y = Math.floor(pixelIndex / width);
+            const x = pixelIndex % width;
+            const destY = isTopToBottom ? y : height - 1 - y;
+            const destOffset = (destY * width + x) * 4;
+            pixels[destOffset + 0] = lum;
+            pixels[destOffset + 1] = lum;
+            pixels[destOffset + 2] = lum;
+            pixels[destOffset + 3] = a;
+            pixelIndex++;
+          }
+        } else {
+          for (let i = 0; i < count; i++) {
+            const y = Math.floor(pixelIndex / width);
+            const x = pixelIndex % width;
+            const destY = isTopToBottom ? y : height - 1 - y;
+            const destOffset = (destY * width + x) * 4;
+            const lum = data[srcOffset];
+            pixels[destOffset + 0] = lum;
+            pixels[destOffset + 1] = lum;
+            pixels[destOffset + 2] = lum;
+            pixels[destOffset + 3] = bytesPerPixel === 2 ? data[srcOffset + 1] : 255;
+            srcOffset += bytesPerPixel;
+            pixelIndex++;
+          }
+        }
+      }
+    } else if (imageType === 2) {
+      // Uncompressed truecolor
       let srcOffset = headerSize;
       for (let y = 0; y < height; y++) {
         const destY = isTopToBottom ? y : height - 1 - y;
@@ -385,7 +446,7 @@ export class SkyboxLoader {
         }
       }
     } else {
-      // RLE compressed
+      // RLE truecolor (type 10)
       let srcOffset = headerSize;
       let pixelIndex = 0;
 

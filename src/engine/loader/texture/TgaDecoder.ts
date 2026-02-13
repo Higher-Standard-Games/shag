@@ -26,13 +26,19 @@ export async function decodeTGA(buffer: ArrayBuffer): Promise<string> {
     const bitsPerPixel = data[16];
     const descriptor = data[17];
 
-    // We support uncompressed true-color (type 2) and RLE true-color (type 10)
-    if (imageType !== 2 && imageType !== 10) {
+    // Support: uncompressed true-color (2), uncompressed grayscale (3), RLE true-color (10), RLE grayscale (11)
+    if (imageType !== 2 && imageType !== 3 && imageType !== 10 && imageType !== 11) {
         throw new Error(`Unsupported TGA image type: ${imageType}`);
     }
 
+    const isGrayscale = imageType === 3 || imageType === 11;
     const bytesPerPixel = bitsPerPixel / 8;
-    if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
+
+    if (isGrayscale) {
+        if (bytesPerPixel !== 1 && bytesPerPixel !== 2) {
+            throw new Error(`Unsupported TGA grayscale bit depth: ${bitsPerPixel}`);
+        }
+    } else if (bytesPerPixel !== 3 && bytesPerPixel !== 4) {
         throw new Error(`Unsupported TGA bit depth: ${bitsPerPixel}`);
     }
 
@@ -55,16 +61,101 @@ export async function decodeTGA(buffer: ArrayBuffer): Promise<string> {
     const pixels = imageData.data;
 
     // Decode pixels
-    if (imageType === 2) {
-        // Uncompressed
+    if (isGrayscale && imageType === 3) {
+        decodeGrayscaleUncompressed(data, offset, pixels, width, height, bytesPerPixel, descriptor);
+    } else if (isGrayscale && imageType === 11) {
+        decodeGrayscaleRLE(data, offset, pixels, width, height, bytesPerPixel, descriptor);
+    } else if (imageType === 2) {
         decodeUncompressed(data, offset, pixels, width, height, bytesPerPixel, descriptor);
     } else if (imageType === 10) {
-        // RLE compressed
         decodeRLE(data, offset, pixels, width, height, bytesPerPixel, descriptor);
     }
 
     ctx.putImageData(imageData, 0, 0);
     return canvas.toDataURL('image/png');
+}
+
+function decodeGrayscaleUncompressed(
+    data: Uint8Array,
+    offset: number,
+    pixels: Uint8ClampedArray,
+    width: number,
+    height: number,
+    bytesPerPixel: number,
+    descriptor: number
+): void {
+    const flipVertical = (descriptor & 0x20) === 0;
+
+    for (let y = 0; y < height; y++) {
+        const destY = flipVertical ? height - 1 - y : y;
+        for (let x = 0; x < width; x++) {
+            const srcIdx = offset + (y * width + x) * bytesPerPixel;
+            const destIdx = (destY * width + x) * 4;
+            const lum = data[srcIdx];
+            pixels[destIdx] = lum;     // R
+            pixels[destIdx + 1] = lum; // G
+            pixels[destIdx + 2] = lum; // B
+            pixels[destIdx + 3] = bytesPerPixel === 2 ? data[srcIdx + 1] : 255; // A
+        }
+    }
+}
+
+function decodeGrayscaleRLE(
+    data: Uint8Array,
+    offset: number,
+    pixels: Uint8ClampedArray,
+    width: number,
+    height: number,
+    bytesPerPixel: number,
+    descriptor: number
+): void {
+    const flipVertical = (descriptor & 0x20) === 0;
+    const totalPixels = width * height;
+    let pixelIdx = 0;
+    let srcIdx = offset;
+
+    while (pixelIdx < totalPixels) {
+        const header = data[srcIdx++];
+        const count = (header & 0x7F) + 1;
+
+        if (header & 0x80) {
+            // RLE packet - repeat single value
+            const lum = data[srcIdx];
+            const a = bytesPerPixel === 2 ? data[srcIdx + 1] : 255;
+            srcIdx += bytesPerPixel;
+
+            for (let i = 0; i < count; i++) {
+                const y = Math.floor(pixelIdx / width);
+                const x = pixelIdx % width;
+                const destY = flipVertical ? height - 1 - y : y;
+                const destIdx = (destY * width + x) * 4;
+
+                pixels[destIdx] = lum;
+                pixels[destIdx + 1] = lum;
+                pixels[destIdx + 2] = lum;
+                pixels[destIdx + 3] = a;
+                pixelIdx++;
+            }
+        } else {
+            // Raw packet
+            for (let i = 0; i < count; i++) {
+                const lum = data[srcIdx];
+                const a = bytesPerPixel === 2 ? data[srcIdx + 1] : 255;
+                srcIdx += bytesPerPixel;
+
+                const y = Math.floor(pixelIdx / width);
+                const x = pixelIdx % width;
+                const destY = flipVertical ? height - 1 - y : y;
+                const destIdx = (destY * width + x) * 4;
+
+                pixels[destIdx] = lum;
+                pixels[destIdx + 1] = lum;
+                pixels[destIdx + 2] = lum;
+                pixels[destIdx + 3] = a;
+                pixelIdx++;
+            }
+        }
+    }
 }
 
 function decodeUncompressed(
