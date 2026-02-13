@@ -645,10 +645,13 @@ export class NetworkGameHost implements IGameHost {
     // Step 5: Apply accumulated smooth correction to local position
     this.applySmothCorrection();
 
-    // NOTE: We do NOT fire stateUpdateCallbacks here anymore!
-    // Callbacks are only fired by predictLocally() with PREDICTED position.
-    // This prevents flickering caused by alternating predicted vs interpolated positions.
-    // (Interpolation buffer is only for OTHER players, not local player rendering.)
+    // In legacy mode (no V2 client), callbacks are fired by predictLocally() only.
+    // This prevents flickering from alternating predicted vs interpolated positions.
+    // In V2 mode, predictLocally() is skipped, so we MUST fire callbacks here
+    // so FPSGameManager.onServerStateUpdate() can feed snapshots to V2NetworkClient.
+    if (this.useExternalPrediction) {
+      this.stateUpdateCallbacks.forEach(cb => cb(snapshot));
+    }
   }
 
   /**

@@ -44,6 +44,8 @@ export class BinaryProtocol {
     encoder.writeUint32(state.tick);
     // Use relative timestamp (ms since start, wraps every ~49 days which is fine)
     encoder.writeUint32((Date.now() & 0xFFFFFFFF) >>> 0);
+    // CRITICAL: ackedInputSeq for client-side reconciliation (V2NetworkClient)
+    encoder.writeUint32(state.ackedInputSeq);
 
     // Encode ALL entities with delta-compressed components
     // Note: This is "full state with delta content" model - every entity is included,
@@ -70,6 +72,7 @@ export class BinaryProtocol {
     // Read header
     state.tick = decoder.readUint32();
     decoder.readUint32(); // Skip timestamp for now
+    state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
 
     // Decode entities
     this.decodeEntities(decoder, state, baseline);
@@ -90,7 +93,7 @@ export class BinaryProtocol {
     const encoder = new BinaryEncoder();
 
     encoder.writeString(playerId);
-    encoder.writeUint16(sequence);
+    encoder.writeUint32(sequence);
     encoder.writeString(JSON.stringify(command));
 
     return encoder.getData();
@@ -104,7 +107,7 @@ export class BinaryProtocol {
 
     return {
       playerId: decoder.readString(),
-      sequence: decoder.readUint16(),
+      sequence: decoder.readUint32(),
       command: JSON.parse(decoder.readString())
     };
   }

@@ -100,6 +100,7 @@ export class GameState {
   clone(): GameState {
     const cloned = new GameState();
     cloned.tick = this.tick;
+    cloned.ackedInputSeq = this.ackedInputSeq;
 
     // Clone entities
     for (const [id, entity] of this.entities) {

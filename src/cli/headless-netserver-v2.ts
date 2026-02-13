@@ -34,6 +34,7 @@ import type { CollisionWorld } from '../engine/network/systems/collision/Collisi
 import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
 import { GameState, type PlayerState } from '../engine/network/core/GameState';
 import { Entity } from '../engine/network/core/Entity';
+import { InputButtons } from '../engine/network/components/InputComponent';
 
 // ============================================================================
 // Configuration
@@ -502,11 +503,11 @@ class NextGenServer {
                             mutEntity.input.pitch = command.pitch || 0;
                             mutEntity.input.yaw = command.yaw || 0;
 
-                            // Decode button flags
+                            // Decode button flags using shared InputButtons constants
                             const buttons = command.buttons || 0;
-                            mutEntity.input.jump = (buttons & 0x01) !== 0;
-                            mutEntity.input.crouch = (buttons & 0x02) !== 0;
-                            mutEntity.input.attack = (buttons & 0x04) !== 0;
+                            mutEntity.input.jump = (buttons & InputButtons.JUMP) !== 0;
+                            mutEntity.input.crouch = (buttons & InputButtons.CROUCH) !== 0;
+                            mutEntity.input.attack = (buttons & InputButtons.FIRE) !== 0;
                             mutEntity.input.sequence = command.seq || 0;
 
                             // Track for client reconciliation
