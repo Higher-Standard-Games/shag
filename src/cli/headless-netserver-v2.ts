@@ -159,16 +159,20 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
     const gameDir = gamePath.endsWith('.json') ? path.dirname(gamePath) : gamePath;
 
     // Try to find the BSP file in various locations
+    // Client loads from data/ (served via public/data/) — this is the primary location
     const possiblePaths = [
-        // Direct paths
+        // Primary: public/data/ — matches client PK3Loader basePath
+        path.resolve('./public/data', `map_${mapName}.pk3`),
+        path.resolve('./public/data/maps', `${mapName}.bsp`),
+        path.resolve('./public/data', `${mapName}.bsp`),
+        // Game-specific data directories (for multi-game support)
+        path.join(gameDir, `map_${mapName}.pk3`),
         path.join(gameDir, `${mapName}.bsp`),
         path.join(gameDir, 'maps', `${mapName}.bsp`),
-        path.join(gameDir, `map_${mapName}.pk3`),
-        // Standard locations relative to project root
+        // Warsow basewsw format
+        path.resolve('./public/data/basewsw', `map_${mapName}.pk3`),
+        // Legacy/fallback locations
         path.resolve('./public/games/default', `map_${mapName}.pk3`),
-        path.resolve('./public/games/default/maps', `${mapName}.bsp`),
-        path.resolve('./public/games/default/basewsw', `map_${mapName}.pk3`),
-        // Development dist folder
         path.resolve('./dist/games/default', `map_${mapName}.pk3`),
     ];
 

@@ -124,11 +124,6 @@ export class AdvancedCharacterController {
         const mv = MovementVars.getInstance();
         const cm = getCollisionManager();
 
-        // DEBUG: Compare with server values
-        if (Math.random() < 0.02) {
-            const dir = input.wishdir || { x: 0, z: 0 };
-            console.log(`[LOCAL DEBUG] dt=${(deltaTime * 1000).toFixed(1)}ms, vel=(${this.velocity.x.toFixed(1)}, ${this.velocity.y.toFixed(1)}, ${this.velocity.z.toFixed(1)}), grounded=${this.isGrounded}`);
-        }
 
         // Check if we just landed
         const justLanded = !this.wasGroundedLastFrame && this.isGrounded;
@@ -332,6 +327,15 @@ export class AdvancedCharacterController {
                     const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT };
                     const result = backend.stepSlideMove(this.position.clone(), movement, traceOpts);
                     this.position.copyFrom(result.endPos);
+
+                    // CRITICAL: Update velocity from collision-clipped result.
+                    // stepSlideMove returns the clipped movement vector as 'velocity'.
+                    // Convert it back to actual velocity by dividing by deltaTime.
+                    // Without this, the player's velocity keeps pointing into walls
+                    // they've hit, causing them to get permanently stuck.
+                    if (result.hitCount > 0 && deltaTime > 0) {
+                        this.velocity.copyFrom(result.velocity.scale(1.0 / deltaTime));
+                    }
                 } else {
                     // Fallback local or simple move
                     // TODO: implement slideMove logic locally if needed, for now just add

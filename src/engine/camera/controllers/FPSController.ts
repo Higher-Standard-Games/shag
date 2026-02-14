@@ -192,10 +192,7 @@ export class FPSController implements ICameraController {
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
-      // Debug: log state updates occasionally
-      if (Math.random() < 0.02) {
-        console.log(`[FPS] State callback: pos=(${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)}), grounded=${state.grounded}`);
-      }
+
 
       // Track previous grounded state for landing detection
       this.wasGroundedLastFrame = this.isGrounded;
@@ -611,7 +608,6 @@ export class FPSController implements ICameraController {
         return;
       }
 
-      console.log(`[FPS] MouseDown: btn=${e.button}, locked=${this.isPointerLocked}`);
       if (e.button === 0) this.keys.fire = true;   // Left click = fire
       if (e.button === 2) this.keys.aim = true;    // Right click = ADS
     };
@@ -968,10 +964,7 @@ export class FPSController implements ICameraController {
         this.camera.position.z = this.physicsZ;
       }
 
-      // Log occasionally for debugging
-      if (Math.random() < 0.01) {
-        console.log(`[FPS] Network pos: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), grounded=${this.isGrounded}`);
-      }
+
 
       // Update UI
       const showSpeed = mv.get('cl_showspeed') > 0;

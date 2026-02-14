@@ -153,9 +153,6 @@ export class CharacterController {
 
   // ==================== Physics Update ====================
 
-  // Debug logging throttle
-  private static lastDebugLog: number = 0;
-
   /**
    * Update physics for one frame
    * @param deltaTime Time since last frame in seconds
@@ -171,15 +168,6 @@ export class CharacterController {
 
     // Calculate movement this frame
     const movement = this.state.velocity.scale(deltaTime);
-
-    // Debug logging (once per second)
-    const now = Date.now();
-    if (now - CharacterController.lastDebugLog > 1000) {
-      CharacterController.lastDebugLog = now;
-      const vel = this.state.velocity;
-      const pos = this.state.position;
-      console.log(`[CharController] pos=(${pos.x.toFixed(0)},${pos.y.toFixed(0)},${pos.z.toFixed(0)}) vel=(${vel.x.toFixed(1)},${vel.y.toFixed(1)},${vel.z.toFixed(1)}) grounded=${this.state.isGrounded} move=(${movement.x.toFixed(2)},${movement.y.toFixed(2)},${movement.z.toFixed(2)})`);
-    }
 
     // Apply BSP collision and move
     this.moveWithCollision(movement, deltaTime);

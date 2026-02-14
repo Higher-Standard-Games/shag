@@ -57,7 +57,7 @@ async function runTest() {
     // Initialize collision manager with mock BSP
     const cm = CollisionManager.getInstance();
     console.log("[Test] Initializing CollisionManager...");
-    await cm.init(mockBsp, scene, 'brush');
+    await cm.init(mockBsp, scene, 'q3');
 
     console.log(`[Test] CollisionManager initialized: ${cm.isInitialized()}`);
     console.log(`[Test] Active backend: ${cm.getBackendType()}`);

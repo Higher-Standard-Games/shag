@@ -3,6 +3,10 @@
  * 
  * Provides a unified API for collision detection that can switch
  * between different backend implementations at runtime.
+ * 
+ * Active backends:
+ * - q3 (SweepCollisionBackend): Q3-style swept AABB collision — primary for FPS games
+ * - babylon (BabylonPhysicsBackend): Babylon.js mesh raycasting — for simpler games
  */
 
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -16,9 +20,7 @@ import {
   CollisionStats,
   createDefaultTraceResult,
 } from './CollisionBackend';
-import { ClipBrushBackend } from './ClipBrushBackend';
 import { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
-import { BrushCollisionBackend } from './BrushCollisionBackend';
 import { SweepCollisionBackend } from './SweepCollisionBackend';
 
 /**
@@ -37,11 +39,9 @@ export class CollisionManager {
   private initialized = false;
 
   private constructor() {
-    // Register available backends
-    this.backends.set('brush', new BrushCollisionBackend());
-    this.backends.set('clipbrush', new ClipBrushBackend());
-    this.backends.set('babylon', new BabylonPhysicsBackend());
+    // Register available backends (q3 is primary for FPS, babylon for simpler games)
     this.backends.set('q3', new SweepCollisionBackend());
+    this.backends.set('babylon', new BabylonPhysicsBackend());
     console.log(`[CollisionManager] Created instance ${this.instanceId}`);
   }
 
