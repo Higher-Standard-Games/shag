@@ -763,10 +763,9 @@ export class FPSController implements ICameraController {
           // Track previous grounded state for landing detection
           this.wasGroundedLastFrame = this.isGrounded;
 
-          // Update position and velocity from server
-          this.physicsX = state.position.x;
-          this.physicsY = state.position.y;
-          this.physicsZ = state.position.z;
+          // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
+          // reads V2Client's predicted state directly. Setting position here
+          // causes jitter (one-frame snaps between reconciled and predicted state).
           this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
           // Update movement state for visual effects
@@ -926,6 +925,17 @@ export class FPSController implements ICameraController {
         });
 
         this.commandAccumulator -= TICK_DURATION;
+
+        // === DIAGNOSTIC: Measure actual tick rate ===
+        if (!(this as any)._diagTickCount) { (this as any)._diagTickCount = 0; (this as any)._diagTickStart = performance.now(); }
+        (this as any)._diagTickCount++;
+        const elapsed = (performance.now() - (this as any)._diagTickStart) / 1000;
+        if (elapsed >= 2.0) {
+          const actualRate = (this as any)._diagTickCount / elapsed;
+          console.log(`[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`);
+          (this as any)._diagTickCount = 0;
+          (this as any)._diagTickStart = performance.now();
+        }
       }
 
       // Get interpolated position for smooth rendering
