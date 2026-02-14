@@ -34,7 +34,6 @@ import type { CollisionWorld } from '../engine/network/systems/collision/Collisi
 import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
 import { GameState, type PlayerState } from '../engine/network/core/GameState';
 import { Entity } from '../engine/network/core/Entity';
-import { InputButtons } from '../engine/network/components/InputComponent';
 
 // ============================================================================
 // Configuration
@@ -493,30 +492,26 @@ class NextGenServer {
                 // Decode command using client protocol
                 const { command } = MessageCodec.decodeCommand(data);
 
-                // Find player entity and apply input
+                // Find player entity and queue input for next tick
                 const state = this.simulation.getStateMut();
                 for (const entity of state.allEntities()) {
                     if (entity.ownerId === Number(client.playerId) && entity.input) {
                         const mutEntity = state.getEntityMut(entity.id);
                         if (mutEntity?.input) {
-                            // Apply fps_input command format
-                            if (command.direction) {
-                                mutEntity.input.forward = command.direction.z || 0;
-                                mutEntity.input.right = command.direction.x || 0;
-                            }
-                            mutEntity.input.pitch = command.pitch || 0;
-                            mutEntity.input.yaw = command.yaw || 0;
-
-                            // Decode button flags using shared InputButtons constants
+                            // Queue input for processing during next tick
+                            // (prevents lost inputs when multiple arrive between ticks)
                             const buttons = command.buttons || 0;
-                            mutEntity.input.buttons = buttons; // Store raw bitmask (preserves SPRINT + all flags)
-                            mutEntity.input.jump = (buttons & InputButtons.JUMP) !== 0;
-                            mutEntity.input.crouch = (buttons & InputButtons.CROUCH) !== 0;
-                            mutEntity.input.attack = (buttons & InputButtons.FIRE) !== 0;
-                            mutEntity.input.sequence = command.seq || 0;
+                            mutEntity.input.inputQueue.push({
+                                forward: command.direction?.z || 0,
+                                right: command.direction?.x || 0,
+                                pitch: command.pitch || 0,
+                                yaw: command.yaw || 0,
+                                buttons,
+                                sequence: command.seq || 0,
+                            });
 
-                            // Track for client reconciliation
-                            client.lastInputSeq = mutEntity.input.sequence;
+                            // Track latest seq for client reconciliation ACK
+                            client.lastInputSeq = command.seq || 0;
                         }
                         break;
                     }
