@@ -283,7 +283,7 @@ class NextGenServer {
     private nextPlayerId: number = 1;
     private spawnPoints: Array<{ x: number; y: number; z: number }> = [];
     private running: boolean = false;
-    private tickInterval: ReturnType<typeof setInterval> | null = null;
+    private tickTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Subsystems
     private physicsSystem: FPSMovementSubsystem;
@@ -361,13 +361,10 @@ class NextGenServer {
 
         this.running = true;
 
-        // Start tick loop
-        const tickMs = 1000 / this.config.tickRate;
-        this.tickInterval = setInterval(() => {
-            this.tick();
-        }, tickMs);
+        // Start drift-compensated tick loop (replaces setInterval)
+        this.scheduleNextTick(performance.now());
 
-        console.log(`[Server] Tick loop started at ${this.config.tickRate}Hz`);
+        console.log(`[Server] Tick loop started at ${this.config.tickRate}Hz (drift-compensated)`);
     }
 
     /**
@@ -376,9 +373,9 @@ class NextGenServer {
     async stop(): Promise<void> {
         if (!this.running) return;
 
-        if (this.tickInterval) {
-            clearInterval(this.tickInterval);
-            this.tickInterval = null;
+        if (this.tickTimer) {
+            clearTimeout(this.tickTimer);
+            this.tickTimer = null;
         }
 
         await this.transport.stop();
@@ -570,6 +567,30 @@ class NextGenServer {
             maxPlayers: this.config.maxClients,
             tick: Number(this.simulation.currentTick),
         };
+    }
+
+    /**
+     * Schedule the next tick with drift compensation.
+     * Measures actual elapsed time since last tick and adjusts the
+     * next setTimeout delay to maintain consistent tick rate.
+     */
+    private scheduleNextTick(lastTickTime: number): void {
+        if (!this.running) return;
+
+        const tickMs = 1000 / this.config.tickRate;
+        const now = performance.now();
+        const elapsed = now - lastTickTime;
+        const drift = elapsed - tickMs;
+
+        // Compensate: if tick ran slow (drift > 0), next fires sooner
+        // Clamp to [1, 2*tickMs] to prevent spiral
+        const nextDelay = Math.max(1, Math.min(tickMs * 2, tickMs - drift));
+
+        this.tickTimer = setTimeout(() => {
+            const tickStart = performance.now();
+            this.tick();
+            this.scheduleNextTick(tickStart);
+        }, nextDelay);
     }
 
     /**
