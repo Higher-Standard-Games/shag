@@ -509,6 +509,7 @@ class NextGenServer {
 
                             // Decode button flags using shared InputButtons constants
                             const buttons = command.buttons || 0;
+                            mutEntity.input.buttons = buttons; // Store raw bitmask (preserves SPRINT + all flags)
                             mutEntity.input.jump = (buttons & InputButtons.JUMP) !== 0;
                             mutEntity.input.crouch = (buttons & InputButtons.CROUCH) !== 0;
                             mutEntity.input.attack = (buttons & InputButtons.FIRE) !== 0;
@@ -628,6 +629,19 @@ class NextGenServer {
                     linear: { ...entity.physics.velocity },
                     angular: { x: 0, y: 0, z: 0 },
                     grounded: entity.physics.grounded,
+                    serialize: () => ({}),
+                    deserialize: () => { },
+                    clone: function () { return { ...this }; }
+                });
+
+                // Add movement state for client effects (crouchslide, walljump, ledge grab)
+                clientEntity.addComponent('movementState', {
+                    isSliding: entity.physics.isSliding ?? false,
+                    isCrouching: entity.physics.isCrouching ?? false,
+                    crouchViewOffset: entity.physics.crouchViewOffset ?? 0,
+                    wallJumpState: entity.physics.wallJumpState ?? 'none',
+                    ledgeGrabState: entity.physics.ledgeGrabState ?? 'none',
+                    actualHorizSpeed: entity.physics.actualHorizSpeed ?? 0,
                     serialize: () => ({}),
                     deserialize: () => { },
                     clone: function () { return { ...this }; }

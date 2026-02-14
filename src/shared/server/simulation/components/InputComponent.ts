@@ -11,12 +11,15 @@ export interface InputComponent {
     pitch: number;
     yaw: number;
 
-    /** Button states */
+    /** Button states (individual booleans for backward compat) */
     jump: boolean;
     crouch: boolean;
     attack: boolean;
     altAttack: boolean;
     use: boolean;
+
+    /** Raw button bitmask (InputButtons flags — preserves ALL button states) */
+    buttons: number;
 
     /** Current weapon slot (1-9) */
     weaponSlot: number;
@@ -37,6 +40,7 @@ export function createInput(): InputComponent {
         attack: false,
         altAttack: false,
         use: false,
+        buttons: 0,
         weaponSlot: 1,
         sequence: 0,
     };
