@@ -897,6 +897,11 @@ export class FPSController implements ICameraController {
 
     // === ADVANCED PHYSICS ===
     if (this.useNetworkMovement && this.networkReady && this.gameManager) {
+      // === FRAME-SYNC: Process buffered server snapshots BEFORE input ===
+      // This ensures reconciliation happens at a deterministic point in the frame,
+      // preventing mid-frame camera position discontinuities (primary jitter source).
+      this.gameManager.processSnapshots();
+
       // === NETWORK MOVEMENT MODE ===
       // Throttle command sending to 125Hz (server tick rate)
       // This prevents "superfast" movement on high refresh rate monitors (e.g. 144Hz, 240Hz)
