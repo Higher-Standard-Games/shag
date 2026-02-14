@@ -271,6 +271,8 @@ export class FPSController implements ICameraController {
   private crouchViewOffset: number = 0;  // Current crouch offset (0 = standing, -20 = crouched)
   private slidePhase: number = 0;  // 0-1 intensity for slide camera tilt (from FPSMovementProfile)
   private ledgeGrabPhase: number = 0;  // 0-1 intensity for ledge grab camera tilt (from FPSMovementProfile)
+  private slidePitchOffset: number = 0;  // Computed absolute pitch offset during slide
+  private ledgePitchOffset: number = 0;  // Computed absolute pitch offset during ledge grab
 
   // Player Visuals Component (Debug model, animations)
   private playerVisuals: PlayerVisuals | null = null;
@@ -980,16 +982,9 @@ export class FPSController implements ICameraController {
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
       // === NETWORK CAMERA EFFECTS ===
-      // Apply slide pitch tilt (look down during slide)
-      if (this.slidePhase > 0.01) {
-        const SLIDE_PITCH_TILT = -0.22; // ~12 degrees down, matches AdvancedCharacterController
-        this.mouseRotationX += this.slidePhase * SLIDE_PITCH_TILT;
-      }
-      // Apply ledge grab pitch tilt (look up during grab/climb)
-      if (this.ledgeGrabPhase > 0.01) {
-        const LEDGE_PITCH_TILT = 0.15; // ~8.6 degrees up
-        this.mouseRotationX += this.ledgeGrabPhase * LEDGE_PITCH_TILT;
-      }
+      // Compute absolute pitch offsets (NOT additive to mouseRotationX — that would accumulate per-frame)
+      this.slidePitchOffset = this.slidePhase > 0.01 ? this.slidePhase * -0.22 : 0; // ~12° down
+      this.ledgePitchOffset = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0; // ~8.6° up
 
     }
 
@@ -1003,9 +998,8 @@ export class FPSController implements ICameraController {
 
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
-      // Reset camera rotation to mouse-controlled values before applying effects
-      // NOTE: If sliding, mouseRotationX is already locked to slide pitch
-      this.camera.rotation.x = this.mouseRotationX;
+      // Reset camera rotation to mouse-controlled values + slide/ledge offsets
+      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
       this.camera.rotation.y = this.mouseRotationY;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
 
