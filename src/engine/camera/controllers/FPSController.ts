@@ -718,6 +718,11 @@ export class FPSController implements ICameraController {
 
       // If connected to a server, use server-provided position (NOT stale camera position)
       if (isConnected) {
+        // CRITICAL: Must process buffered snapshots BEFORE getLocalPlayerPosition()!
+        // Otherwise hasValidPosition() is always false (deadlock: smoothing waits for
+        // position, but snapshot processing only happens after smoothing init).
+        this.gameManager.processSnapshots();
+
         const serverPos = this.gameManager.getLocalPlayerPosition();
         if (!serverPos) {
           // Server hasn't sent position yet - wait for next frame
