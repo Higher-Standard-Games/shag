@@ -4,7 +4,7 @@
  */
 
 import { FPSSimulation } from '../games/fps/simulation/FPSSimulation';
-import { BSPCollisionWorld } from '../games/fps/simulation/collision/BSPCollisionWorld';
+import { createBSPCollisionWorld } from '../games/fps/simulation/collision/BSPCollisionWorld';
 
 console.log('\n=== FPSSimulation Initialization Test ===\n');
 
@@ -19,7 +19,7 @@ console.log('[TEST] Testing setCollisionWorld...');
 
 try {
     // BSPCollisionWorld constructor takes no args - uses CollisionManager singleton
-    const collisionWorld = new BSPCollisionWorld();
+    const collisionWorld = createBSPCollisionWorld();
     console.log('[TEST] BSPCollisionWorld created:', !!collisionWorld);
 
     sim.setCollisionWorld(collisionWorld);

@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import JSZip from 'jszip';
 import { FPSMovementProfile } from '../games/fps/simulation/FPSMovementProfile';
-import { HeadlessBSPCollisionWorld } from './HeadlessBSPCollisionWorld';
+import { createHeadlessCollisionWorld } from './HeadlessBSPCollisionWorld';
 import { BspLoader } from '../engine/loader/bsp/BspLoader';
 import type { Vec3 } from '../engine/network/components/TransformComponent';
 import type { MovementInput } from '../engine/network/systems/movement/MovementProfile';
@@ -67,7 +67,7 @@ async function runTest() {
     console.log(`[Test] BSP loaded: ${bsp.brushes.length} brushes, ${bsp.planes.length} planes`);
 
     // Create collision world (await it properly!)
-    const collision = await HeadlessBSPCollisionWorld.create(bsp);
+    const collision = await createHeadlessCollisionWorld(bsp);
     console.log(`[Test] Collision world created`);
 
     // Create movement profile

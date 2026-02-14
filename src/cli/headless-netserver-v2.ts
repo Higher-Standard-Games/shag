@@ -217,15 +217,15 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
     // Parse BSP
     const { BspLoader } = await import('../engine/loader/bsp/BspLoader');
-    const { HeadlessBSPCollisionWorld } = await import('./HeadlessBSPCollisionWorld');
+    const { createHeadlessCollisionWorld } = await import('./HeadlessBSPCollisionWorld');
 
     const bsp = BspLoader.load(bspBuffer);
     console.log(`[Server] BSP parsed: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'} v${bsp.header.version}`);
     console.log(`[Server] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
 
     // Create server-side BSP collision world (AWAIT async init!)
-    const collision = await HeadlessBSPCollisionWorld.create(bsp);
-    console.log(`[Server] Collision world initialized (HeadlessBSPCollisionWorld - server-authoritative mode)`);
+    const collision = await createHeadlessCollisionWorld(bsp);
+    console.log(`[Server] Collision world initialized (SharedCollisionWorld - server-authoritative mode)`);
 
     // Extract spawn points
     const spawnPoints: Array<{ x: number; y: number; z: number }> = [];

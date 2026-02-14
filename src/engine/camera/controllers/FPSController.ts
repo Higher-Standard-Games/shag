@@ -61,7 +61,7 @@ import { InventoryManager } from "../../game/InventoryManager";
 import { PlayerVisuals } from "./components/PlayerVisuals";
 import { AdvancedCharacterController, PlayerInput } from "../../movement/AdvancedCharacterController";
 import { FPSGameManager } from "../../../games/fps/FPSGameManager";
-import { BSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
+import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 
@@ -800,7 +800,7 @@ export class FPSController implements ICameraController {
           // Set up BSP collision if available
           const cm = getCollisionManager();
           if (cm.isInitialized()) {
-            const collisionWorld = new BSPCollisionWorld();
+            const collisionWorld = createBSPCollisionWorld();
             this.gameManager!.setCollisionWorld(collisionWorld);
             console.log(`[FPS] BSP collision injected into simulation`);
           }

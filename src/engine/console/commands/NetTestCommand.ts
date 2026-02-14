@@ -346,13 +346,17 @@ export default class NetTestCommand extends Command {
 
       // Try to set up BSP collision if available
       try {
-        const { BSPCollisionWorld } = await import('../../../games/fps/simulation/collision/BSPCollisionWorld');
+        const { createBSPCollisionWorld } = await import('../../../games/fps/simulation/collision/BSPCollisionWorld');
         const { getCollisionManager } = await import('../../physics/CollisionManager');
         const cm = getCollisionManager();
         if (cm.isInitialized()) {
-          const collisionWorld = new BSPCollisionWorld();
-          gameManager.setCollisionWorld(collisionWorld);
-          lines.push('Injected BSPCollisionWorld from CollisionManager');
+          const collisionWorld = createBSPCollisionWorld();
+          if (collisionWorld) {
+            gameManager.setCollisionWorld(collisionWorld);
+            lines.push('Injected BSPCollisionWorld from CollisionManager');
+          } else {
+            lines.push('BSP collision world could not be created');
+          }
         } else {
           lines.push('CollisionManager not initialized - using NullCollisionWorld');
         }

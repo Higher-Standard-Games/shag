@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import JSZip from 'jszip';
 import { FPSMovementProfile } from '../games/fps/simulation/FPSMovementProfile';
-import { HeadlessBSPCollisionWorld } from './HeadlessBSPCollisionWorld';
+import { createHeadlessCollisionWorld } from './HeadlessBSPCollisionWorld';
 import { BspLoader } from '../engine/loader/bsp/BspLoader';
 import type { Vec3 } from '../engine/network/components/TransformComponent';
 
@@ -26,7 +26,7 @@ async function test() {
     console.log('=== Spawn Test ===\n');
 
     const bsp = await loadBsp();
-    const collision = await HeadlessBSPCollisionWorld.create(bsp);
+    const collision = await createHeadlessCollisionWorld(bsp);
     const movement = new FPSMovementProfile();
 
     // Find spawn

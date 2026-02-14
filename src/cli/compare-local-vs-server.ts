@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import JSZip from 'jszip';
 import { FPSMovementProfile } from '../games/fps/simulation/FPSMovementProfile';
-import { HeadlessBSPCollisionWorld } from './HeadlessBSPCollisionWorld';
+import { createHeadlessCollisionWorld } from './HeadlessBSPCollisionWorld';
 import { BspLoader } from '../engine/loader/bsp/BspLoader';
 import type { Vec3 } from '../engine/network/components/TransformComponent';
 import type { MovementInput } from '../engine/network/systems/movement/MovementProfile';
@@ -62,7 +62,7 @@ async function runComparison() {
     console.log(`[Test] BSP loaded`);
 
     // Create server collision
-    const serverCollision = await HeadlessBSPCollisionWorld.create(bsp);
+    const serverCollision = await createHeadlessCollisionWorld(bsp);
     console.log(`[Test] Server collision created`);
 
     // Find spawn
