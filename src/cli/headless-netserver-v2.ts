@@ -674,10 +674,12 @@ class NextGenServer {
     private broadcastSnapshot(): void {
         if (this.clients.size === 0) return;
 
+        // Generate GameState ONCE per tick (not per-client)
+        const gameState = this.toGameState();
+
         // Send per-client snapshot with their ackedInputSeq
         for (const client of this.clients.values()) {
             try {
-                const gameState = this.toGameState();
                 gameState.ackedInputSeq = client.lastInputSeq;
                 const snapshotBytes = MessageCodec.encodeSnapshot(gameState);
                 client.connection.sendDatagram(snapshotBytes);
