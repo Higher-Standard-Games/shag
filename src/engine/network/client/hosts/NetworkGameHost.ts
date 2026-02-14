@@ -315,7 +315,7 @@ export class NetworkGameHost implements IGameHost {
   private interpolationBuffer = new InterpolationBuffer();
   private smoothCorrection = new SmoothCorrection();
   private pendingCommands: Command[] = [];
-  private commandSequence = 0;
+  private commandSequence = 1;
   private lastBaselineTick = 0;
 
   /** When true, V2NetworkClient handles prediction - we only do network transport */
@@ -633,8 +633,12 @@ export class NetworkGameHost implements IGameHost {
     // Step 1: Buffer for interpolation (smooth rendering of other players)
     this.interpolationBuffer.addSnapshot(snapshot);
 
-    // Step 2: Check our prediction against server truth
-    this.reconcilePrediction(snapshot);
+    // Step 2: Check our prediction against server truth (legacy only)
+    // In V2 mode, V2NetworkClient handles reconciliation — skip legacy path
+    // to avoid wasted CPU and stale state corruption
+    if (!this.useExternalPrediction) {
+      this.reconcilePrediction(snapshot);
+    }
 
     // Step 3: Sync our tick counter to server (server time is authoritative)
     this.currentTick = snapshot.tick;
@@ -642,8 +646,10 @@ export class NetworkGameHost implements IGameHost {
     // Step 4: Acknowledge receipt (server uses this for delta compression baseline)
     this.sendAck(snapshot.tick);
 
-    // Step 5: Apply accumulated smooth correction to local position
-    this.applySmothCorrection();
+    // Step 5: Apply accumulated smooth correction (legacy only)
+    if (!this.useExternalPrediction) {
+      this.applySmothCorrection();
+    }
 
     // In legacy mode (no V2 client), callbacks are fired by predictLocally() only.
     // This prevents flickering from alternating predicted vs interpolated positions.
