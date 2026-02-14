@@ -34,6 +34,7 @@ import type { CollisionWorld } from '../engine/network/systems/collision/Collisi
 import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
 import { GameState, type PlayerState } from '../engine/network/core/GameState';
 import { Entity } from '../engine/network/core/Entity';
+import { InputButtons } from '../engine/network/components/InputComponent';
 
 // ============================================================================
 // Configuration
@@ -158,16 +159,20 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
     const gameDir = gamePath.endsWith('.json') ? path.dirname(gamePath) : gamePath;
 
     // Try to find the BSP file in various locations
+    // Client loads from data/ (served via public/data/) — this is the primary location
     const possiblePaths = [
-        // Direct paths
+        // Primary: public/data/ — matches client PK3Loader basePath
+        path.resolve('./public/data', `map_${mapName}.pk3`),
+        path.resolve('./public/data/maps', `${mapName}.bsp`),
+        path.resolve('./public/data', `${mapName}.bsp`),
+        // Game-specific data directories (for multi-game support)
+        path.join(gameDir, `map_${mapName}.pk3`),
         path.join(gameDir, `${mapName}.bsp`),
         path.join(gameDir, 'maps', `${mapName}.bsp`),
-        path.join(gameDir, `map_${mapName}.pk3`),
-        // Standard locations relative to project root
+        // Warsow basewsw format
+        path.resolve('./public/data/basewsw', `map_${mapName}.pk3`),
+        // Legacy/fallback locations
         path.resolve('./public/games/default', `map_${mapName}.pk3`),
-        path.resolve('./public/games/default/maps', `${mapName}.bsp`),
-        path.resolve('./public/games/default/basewsw', `map_${mapName}.pk3`),
-        // Development dist folder
         path.resolve('./dist/games/default', `map_${mapName}.pk3`),
     ];
 
@@ -212,15 +217,15 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
     // Parse BSP
     const { BspLoader } = await import('../engine/loader/bsp/BspLoader');
-    const { HeadlessBSPCollisionWorld } = await import('./HeadlessBSPCollisionWorld');
+    const { createHeadlessCollisionWorld } = await import('./HeadlessBSPCollisionWorld');
 
     const bsp = BspLoader.load(bspBuffer);
     console.log(`[Server] BSP parsed: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'} v${bsp.header.version}`);
     console.log(`[Server] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
 
     // Create server-side BSP collision world (AWAIT async init!)
-    const collision = await HeadlessBSPCollisionWorld.create(bsp);
-    console.log(`[Server] Collision world initialized (HeadlessBSPCollisionWorld - server-authoritative mode)`);
+    const collision = await createHeadlessCollisionWorld(bsp);
+    console.log(`[Server] Collision world initialized (SharedCollisionWorld - server-authoritative mode)`);
 
     // Extract spawn points
     const spawnPoints: Array<{ x: number; y: number; z: number }> = [];
@@ -502,11 +507,12 @@ class NextGenServer {
                             mutEntity.input.pitch = command.pitch || 0;
                             mutEntity.input.yaw = command.yaw || 0;
 
-                            // Decode button flags
+                            // Decode button flags using shared InputButtons constants
                             const buttons = command.buttons || 0;
-                            mutEntity.input.jump = (buttons & 0x01) !== 0;
-                            mutEntity.input.crouch = (buttons & 0x02) !== 0;
-                            mutEntity.input.attack = (buttons & 0x04) !== 0;
+                            mutEntity.input.buttons = buttons; // Store raw bitmask (preserves SPRINT + all flags)
+                            mutEntity.input.jump = (buttons & InputButtons.JUMP) !== 0;
+                            mutEntity.input.crouch = (buttons & InputButtons.CROUCH) !== 0;
+                            mutEntity.input.attack = (buttons & InputButtons.FIRE) !== 0;
                             mutEntity.input.sequence = command.seq || 0;
 
                             // Track for client reconciliation
@@ -623,6 +629,19 @@ class NextGenServer {
                     linear: { ...entity.physics.velocity },
                     angular: { x: 0, y: 0, z: 0 },
                     grounded: entity.physics.grounded,
+                    serialize: () => ({}),
+                    deserialize: () => { },
+                    clone: function () { return { ...this }; }
+                });
+
+                // Add movement state for client effects (crouchslide, walljump, ledge grab)
+                clientEntity.addComponent('movementState', {
+                    isSliding: entity.physics.isSliding ?? false,
+                    isCrouching: entity.physics.isCrouching ?? false,
+                    crouchViewOffset: entity.physics.crouchViewOffset ?? 0,
+                    wallJumpState: entity.physics.wallJumpState ?? 'none',
+                    ledgeGrabState: entity.physics.ledgeGrabState ?? 'none',
+                    actualHorizSpeed: entity.physics.actualHorizSpeed ?? 0,
                     serialize: () => ({}),
                     deserialize: () => { },
                     clone: function () { return { ...this }; }

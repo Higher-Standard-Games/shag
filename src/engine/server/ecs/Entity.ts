@@ -150,6 +150,12 @@ export function createProjectileEntity(
         angularVelocity: { x: 0, y: 0, z: 0 },
         grounded: false,
         jumping: false,
+        isSliding: false,
+        isCrouching: false,
+        crouchViewOffset: 0,
+        wallJumpState: 'none',
+        ledgeGrabState: 'none',
+        actualHorizSpeed: 0,
     };
     return entity;
 }

@@ -1,10 +1,9 @@
 /**
  * CollisionBackend - Abstract interface for swappable collision systems
  * 
- * Implementations:
- * - BrushCollisionBackend: Original BSP brush-based collision
- * - ClipBrushBackend: Generated clip brushes from floor faces
- * - BabylonPhysicsBackend: Babylon.js mesh-based collision
+ * Active implementations:
+ * - SweepCollisionBackend (q3): Q3-style swept AABB collision — primary for FPS
+ * - BabylonPhysicsBackend (babylon): Babylon.js mesh raycasting — for simpler games
  */
 
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -54,7 +53,7 @@ export interface TraceOptions {
 /**
  * Backend type identifier
  */
-export type CollisionBackendType = 'brush' | 'clipbrush' | 'babylon' | 'q3';
+export type CollisionBackendType = 'babylon' | 'q3';
 
 /**
  * Abstract collision backend interface

@@ -61,7 +61,7 @@ import { InventoryManager } from "../../game/InventoryManager";
 import { PlayerVisuals } from "./components/PlayerVisuals";
 import { AdvancedCharacterController, PlayerInput } from "../../movement/AdvancedCharacterController";
 import { FPSGameManager } from "../../../games/fps/FPSGameManager";
-import { BSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
+import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 
@@ -192,18 +192,13 @@ export class FPSController implements ICameraController {
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
-      // Debug: log state updates occasionally
-      if (Math.random() < 0.02) {
-        console.log(`[FPS] State callback: pos=(${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)}), grounded=${state.grounded}`);
-      }
-
       // Track previous grounded state for landing detection
       this.wasGroundedLastFrame = this.isGrounded;
 
-      // Update position and velocity from server
-      this.physicsX = state.position.x;
-      this.physicsY = state.position.y;
-      this.physicsZ = state.position.z;
+      // NOTE: Do NOT set physicsX/Y/Z here when V2Client is active!
+      // getLocalPlayerPosition() already reads V2Client's latest predicted state.
+      // Setting position here causes one-frame backward snaps (jitter) because
+      // the camera restores from stale physicsX/Y/Z at the start of the next frame.
       this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
       // Update movement state for visual effects
@@ -611,7 +606,6 @@ export class FPSController implements ICameraController {
         return;
       }
 
-      console.log(`[FPS] MouseDown: btn=${e.button}, locked=${this.isPointerLocked}`);
       if (e.button === 0) this.keys.fire = true;   // Left click = fire
       if (e.button === 2) this.keys.aim = true;    // Right click = ADS
     };
@@ -769,10 +763,9 @@ export class FPSController implements ICameraController {
           // Track previous grounded state for landing detection
           this.wasGroundedLastFrame = this.isGrounded;
 
-          // Update position and velocity from server
-          this.physicsX = state.position.x;
-          this.physicsY = state.position.y;
-          this.physicsZ = state.position.z;
+          // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
+          // reads V2Client's predicted state directly. Setting position here
+          // causes jitter (one-frame snaps between reconciled and predicted state).
           this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
           // Update movement state for visual effects
@@ -807,7 +800,7 @@ export class FPSController implements ICameraController {
           // Set up BSP collision if available
           const cm = getCollisionManager();
           if (cm.isInitialized()) {
-            const collisionWorld = new BSPCollisionWorld();
+            const collisionWorld = createBSPCollisionWorld();
             this.gameManager!.setCollisionWorld(collisionWorld);
             console.log(`[FPS] BSP collision injected into simulation`);
           }
@@ -839,10 +832,9 @@ export class FPSController implements ICameraController {
             // Track previous grounded state for landing detection
             this.wasGroundedLastFrame = this.isGrounded;
 
-            // Update position and velocity
-            this.physicsX = state.position.x;
-            this.physicsY = state.position.y;
-            this.physicsZ = state.position.z;
+            // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
+            // reads V2Client's predicted state directly. Setting position here
+            // causes jitter (one-frame snaps between reconciled and predicted state).
             this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
             // Update movement state for visual effects
@@ -933,6 +925,17 @@ export class FPSController implements ICameraController {
         });
 
         this.commandAccumulator -= TICK_DURATION;
+
+        // === DIAGNOSTIC: Measure actual tick rate ===
+        if (!(this as any)._diagTickCount) { (this as any)._diagTickCount = 0; (this as any)._diagTickStart = performance.now(); }
+        (this as any)._diagTickCount++;
+        const elapsed = (performance.now() - (this as any)._diagTickStart) / 1000;
+        if (elapsed >= 2.0) {
+          const actualRate = (this as any)._diagTickCount / elapsed;
+          console.log(`[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`);
+          (this as any)._diagTickCount = 0;
+          (this as any)._diagTickStart = performance.now();
+        }
       }
 
       // Get interpolated position for smooth rendering
@@ -968,10 +971,7 @@ export class FPSController implements ICameraController {
         this.camera.position.z = this.physicsZ;
       }
 
-      // Log occasionally for debugging
-      if (Math.random() < 0.01) {
-        console.log(`[FPS] Network pos: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), grounded=${this.isGrounded}`);
-      }
+
 
       // Update UI
       const showSpeed = mv.get('cl_showspeed') > 0;

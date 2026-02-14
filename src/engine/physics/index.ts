@@ -1,5 +1,10 @@
 /**
  * Physics module - BSP collision and player movement
+ *
+ * Active collision backends:
+ * - SweepCollisionBackend (q3): Primary Q3-style swept AABB collision
+ * - BabylonPhysicsBackend: Babylon.js mesh raycasting for simpler games
+ * - BspCollision: Low-level BSP trace (used by CLI debug tools)
  */
 
 export { BspCollision } from './BspCollision';
@@ -15,6 +20,5 @@ export type {
   CollisionStats,
 } from './CollisionBackend';
 export { Contents, createDefaultTraceResult } from './CollisionBackend';
-export { ClipBrushBackend } from './ClipBrushBackend';
 export { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
 export { CollisionManager, getCollisionManager } from './CollisionManager';
