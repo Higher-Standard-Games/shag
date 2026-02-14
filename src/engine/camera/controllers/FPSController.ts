@@ -192,15 +192,13 @@ export class FPSController implements ICameraController {
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
-
-
       // Track previous grounded state for landing detection
       this.wasGroundedLastFrame = this.isGrounded;
 
-      // Update position and velocity from server
-      this.physicsX = state.position.x;
-      this.physicsY = state.position.y;
-      this.physicsZ = state.position.z;
+      // NOTE: Do NOT set physicsX/Y/Z here when V2Client is active!
+      // getLocalPlayerPosition() already reads V2Client's latest predicted state.
+      // Setting position here causes one-frame backward snaps (jitter) because
+      // the camera restores from stale physicsX/Y/Z at the start of the next frame.
       this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
       // Update movement state for visual effects
@@ -835,10 +833,9 @@ export class FPSController implements ICameraController {
             // Track previous grounded state for landing detection
             this.wasGroundedLastFrame = this.isGrounded;
 
-            // Update position and velocity
-            this.physicsX = state.position.x;
-            this.physicsY = state.position.y;
-            this.physicsZ = state.position.z;
+            // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
+            // reads V2Client's predicted state directly. Setting position here
+            // causes jitter (one-frame snaps between reconciled and predicted state).
             this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
 
             // Update movement state for visual effects
