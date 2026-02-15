@@ -93,6 +93,11 @@ export interface WeaponDef extends EntityDef {
     /** Hitscan visual effect type (only relevant when hitscan=true) */
     hitscanType?: 'tracer' | 'pellet' | 'beam' | 'bolt';
 
+    /** Hip-fire spread angle in degrees (0 = perfect accuracy) */
+    spread?: number;
+    /** ADS spread angle in degrees (typically tighter than hip spread) */
+    adsSpread?: number;
+
     /** Firing mode */
     fireMode: 'auto' | 'semi' | 'burst';
     /** Shots per burst (if fireMode is 'burst') */
@@ -133,6 +138,8 @@ export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
     reloadTime: 2.0,
     range: 1000,
     hitscan: false,
+    spread: 0,
+    adsSpread: 0,
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
     ads: {

@@ -402,13 +402,23 @@ export class NetworkGameHost implements IGameHost {
     await this.transport.disconnect();
   }
 
+  // Debug counter
+  private _sendCommandCalls = 0;
+
   sendCommand(cmd: Command): void {
+    this._sendCommandCalls++;
+
     if (!this._isConnected) {
-      // Log once every 100 calls to avoid spam
-      if (Math.random() < 0.01) {
-        console.log(`[NetworkGameHost] sendCommand skipped - not connected`);
+      // Log first call and every 250th
+      if (this._sendCommandCalls === 1 || this._sendCommandCalls % 250 === 0) {
+        console.warn(`[NetworkGameHost] sendCommand BLOCKED #${this._sendCommandCalls}: _isConnected=${this._isConnected}`);
       }
       return;
+    }
+
+    // Log first successful send
+    if (this.commandSequence === 1) {
+      console.log(`[NetworkGameHost] FIRST sendCommand: _isConnected=${this._isConnected}, playerId=${this.localPlayerId}`);
     }
 
     // Add sequence number
@@ -422,7 +432,7 @@ export class NetworkGameHost implements IGameHost {
     this.transport.send(data, false); // Unreliable for commands (sent frequently)
 
     // Log periodically
-    if (this.commandSequence % 60 === 0) {
+    if (this.commandSequence % 250 === 0) {
       console.log(`[NetworkGameHost] Sent ${this.commandSequence} commands to server`);
     }
 
@@ -578,21 +588,28 @@ export class NetworkGameHost implements IGameHost {
           console.log(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           this._isConnected = true;
 
-          // Spawn local player in client-side prediction simulation
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sim = this.simulation as any;
-          if (typeof sim.spawnPlayer === 'function') {
-            sim.spawnPlayer(playerId);
-            // CRITICAL: Update localState after spawning so getLocalPlayerPosition() works
-            this.localState = this.simulation.state.clone();
-            console.log(`[NetworkGameHost] Spawned local player in prediction simulation: ${playerId}`);
-          }
-
-          // Resolve connect() promise
+          // CRITICAL: Resolve connect() promise FIRST, before any potentially-throwing code.
+          // If spawnPlayer throws, the error is caught by the outer catch and the promise
+          // would never resolve, hanging connect() forever.
           if (this._onJoinAccept) {
             this._onJoinAccept();
             this._onJoinAccept = null;
           }
+
+          // Spawn local player in client-side prediction simulation
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const sim = this.simulation as any;
+            if (typeof sim.spawnPlayer === 'function') {
+              sim.spawnPlayer(playerId);
+              // CRITICAL: Update localState after spawning so getLocalPlayerPosition() works
+              this.localState = this.simulation.state.clone();
+              console.log(`[NetworkGameHost] Spawned local player in prediction simulation: ${playerId}`);
+            }
+          } catch (spawnError) {
+            console.error(`[NetworkGameHost] Failed to spawn local player:`, spawnError);
+          }
+
           break;
         }
         case MessageType.Welcome: {
