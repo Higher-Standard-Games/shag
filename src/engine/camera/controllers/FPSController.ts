@@ -298,6 +298,7 @@ export class FPSController implements ICameraController {
     fire: false,     // Mouse1 (fire)
     aim: false,      // Mouse2 (ADS)
     reload: false,   // R (reload)
+    use: false,      // F (interact/pickup)
   };
 
   // ADS sensitivity lerp (matches ADS animation timing)
@@ -408,6 +409,7 @@ export class FPSController implements ICameraController {
   // Callbacks for high-level game logic
   public onWeaponSelect: ((index: number) => void) | null = null;
   public onReload: (() => void) | null = null;
+  public onUse: (() => void) | null = null; // F key interact/pickup
 
   // Input state accessors
   public isAiming(): boolean { return this.keys.aim; }
@@ -419,6 +421,8 @@ export class FPSController implements ICameraController {
   private onMouseDown: ((e: MouseEvent) => void) | null = null;
   private onMouseUp: ((e: MouseEvent) => void) | null = null;
   private onContextMenu: ((e: Event) => void) | null = null;
+  private onMouseWheel: ((e: WheelEvent) => void) | null = null;
+  private currentWeaponSlot: number = 0; // Track active slot for scroll cycling
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
@@ -575,6 +579,10 @@ export class FPSController implements ICameraController {
           this.keys.reload = true;
           if (this.onReload) this.onReload();
           break;
+        case 'KeyF':
+          this.keys.use = true;
+          if (this.onUse) this.onUse();
+          break;
       }
 
       // Weapon switching (1-9)
@@ -582,6 +590,14 @@ export class FPSController implements ICameraController {
         const digit = parseInt(e.code.replace('Digit', ''));
         if (digit > 0 && digit <= 9 && this.onWeaponSelect) {
           this.onWeaponSelect(digit - 1);
+        }
+      }
+
+      // F4 = Ready up (match warmup)
+      if (e.code === 'F4') {
+        e.preventDefault();
+        if (this.gameManager) {
+          this.gameManager.sendReady();
         }
       }
     };
@@ -596,6 +612,7 @@ export class FPSController implements ICameraController {
         case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
         case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = false; break;
         case 'KeyR': this.keys.reload = false; break;
+        case 'KeyF': this.keys.use = false; break;
       }
     };
 
@@ -620,6 +637,20 @@ export class FPSController implements ICameraController {
       if (this.isPointerLocked) e.preventDefault();
     };
 
+    // Mouse wheel for weapon scrolling (COD-style 2-weapon swap)
+    this.onMouseWheel = (e: WheelEvent) => {
+      if (!this.isPointerLocked || !this.onWeaponSelect) return;
+      e.preventDefault();
+
+      // Scroll up = previous slot, scroll down = next slot
+      if (e.deltaY < 0) {
+        this.currentWeaponSlot = Math.max(0, this.currentWeaponSlot - 1);
+      } else if (e.deltaY > 0) {
+        this.currentWeaponSlot = Math.min(1, this.currentWeaponSlot + 1);
+      }
+      this.onWeaponSelect(this.currentWeaponSlot);
+    };
+
     // Add event listeners - use document for click to ensure we catch it
     if (this.onCanvasClick) document.addEventListener('click', this.onCanvasClick);
     if (this.onPointerLockChange) document.addEventListener('pointerlockchange', this.onPointerLockChange);
@@ -629,6 +660,7 @@ export class FPSController implements ICameraController {
     if (this.onMouseDown) document.addEventListener('mousedown', this.onMouseDown);
     if (this.onMouseUp) document.addEventListener('mouseup', this.onMouseUp);
     if (this.onContextMenu) document.addEventListener('contextmenu', this.onContextMenu);
+    if (this.onMouseWheel) document.addEventListener('wheel', this.onMouseWheel, { passive: false });
   }
 
   private removeInputHandlers(): void {

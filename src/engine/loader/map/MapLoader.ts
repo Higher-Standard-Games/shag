@@ -21,6 +21,9 @@ import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
 import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandlerRegistry';
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
 import { EntityManager } from '../../entities/EntityManager';
+import { EntityRegistry } from '../../../shared/entities/EntityRegistry';
+import { EntityType } from '../../../shared/entities/EntityType';
+import { initializeEntityDefs } from '../../../shared/entities';
 import { EventBus } from '../../core/EventBus';
 import { LOADING_EVENTS, type LoadingProgressEvent, type LoadingCompleteEvent } from '../../core/LoadingEvents';
 
@@ -214,6 +217,26 @@ export class MapLoader {
         console.warn(`[MapLoader] Failed to load dependency ${pk3}:`, e);
       }
       loaded++;
+    }
+
+    // Phase 3b: Resolve entity model dependencies (weapons, ammo, items)
+    // Mirror of Phase 3 but for BSP entity models instead of textures.
+    progress('Dependencies', 'Resolving entity model PK3s');
+    initializeEntityDefs(); // Ensure entity definitions are populated
+    const modelPk3s = this.resolveEntityModelDependencies(bsp);
+    for (const pk3 of modelPk3s) {
+      if (!loadedPk3s.has(pk3)) {
+        progress('Dependencies', `Loading model assets from ${pk3}`);
+        try {
+          const pk3Path = this.pk3Index.getPK3Path(pk3);
+          if (pk3Path) {
+            await this.pk3Loader.loadPK3FromUrl(pk3Path);
+            loadedPk3s.add(pk3);
+          }
+        } catch (e) {
+          console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
+        }
+      }
     }
 
     // Phase 4: Load shaders
@@ -608,6 +631,46 @@ export class MapLoader {
     if (registered.length > 0) {
       console.log(`[MapLoader] Available entity handlers: ${registered.join(', ')}`);
     }
+  }
+
+  /**
+   * Resolve entity model dependencies — find which PK3s contain weapon/ammo models
+   * referenced by BSP entities. Mirrors resolveMapDependencies() for textures.
+   */
+  private resolveEntityModelDependencies(bsp: BspFile): Set<string> {
+    const requiredPk3s = new Set<string>();
+    const registry = EntityRegistry.getInstance();
+    const seenModels = new Set<string>();
+
+    for (const entity of bsp.entities) {
+      const classname = entity.classname;
+      if (!classname) continue;
+
+      const def = registry.getByClassname(classname);
+      if (!def) continue;
+
+      // Only resolve weapons and ammo
+      if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
+
+      const modelPath = (def as any).modelPath as string | undefined;
+      if (!modelPath || seenModels.has(modelPath)) continue;
+      seenModels.add(modelPath);
+
+      // Find which PK3 contains this model
+      const pk3 = this.pk3Index.findFile(modelPath);
+      if (pk3) {
+        requiredPk3s.add(pk3);
+        console.log(`[MapLoader] Entity model dependency: ${modelPath} → ${pk3}`);
+      } else {
+        console.warn(`[MapLoader] No PK3 found for entity model: ${modelPath}`);
+      }
+    }
+
+    if (requiredPk3s.size > 0) {
+      console.log(`[MapLoader] Resolved ${requiredPk3s.size} entity model PK3(s): ${[...requiredPk3s].join(', ')}`);
+    }
+
+    return requiredPk3s;
   }
 
   // NOTE: buildClipBrushMeshes, brushToBounds, intersectPlanes, and isInsideAllPlanes

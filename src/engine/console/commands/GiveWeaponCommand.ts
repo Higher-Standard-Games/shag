@@ -34,7 +34,8 @@ export default class GiveWeaponCommand extends Command {
         }
 
         // Try to give as weapon
-        if (fpsController.inventory.giveWeapon(itemId)) {
+        const result = fpsController.inventory.giveWeapon(itemId);
+        if (result.acquired) {
             // Also give default ammo
             fpsController.inventory.giveAmmo(itemId, amount); // Most IDs are same for weapon/ammo in this simple ref
 

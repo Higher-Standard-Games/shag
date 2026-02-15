@@ -18,6 +18,7 @@ export class InventoryManager {
 
     // Limits
     private static readonly MAX_AMMO = 200; // Default fallback
+    public static readonly MAX_WEAPONS = 2; // COD-style: max 2 weapons
 
     constructor() {
         // Initialize with default ammo types (optional)
@@ -32,30 +33,42 @@ export class InventoryManager {
     }
 
     /**
-     * Give a weapon to the player
-     * @returns true if weapon was new
+     * Give a weapon to the player.
+     * If at MAX_WEAPONS capacity, drops the currently equipped weapon.
+     * @returns { acquired: boolean, dropped: WeaponDef | null }
      */
-    public giveWeapon(weaponId: string): boolean {
+    public giveWeapon(weaponId: string): { acquired: boolean; dropped: WeaponDef | null } {
         if (this.weapons.has(weaponId)) {
-            return false;
+            return { acquired: false, dropped: null };
         }
 
         const def = EntityRegistry.getInstance().get<WeaponDef>(weaponId);
         if (!def || def.type !== EntityType.WEAPON) {
             console.warn(`[InventoryManager] Invalid weapon ID: ${weaponId}`);
-            return false;
+            return { acquired: false, dropped: null };
+        }
+
+        let dropped: WeaponDef | null = null;
+
+        // At capacity? Drop the active weapon first
+        if (this.slots.length >= InventoryManager.MAX_WEAPONS) {
+            const activeId = this.currentWeaponId;
+            if (activeId) {
+                dropped = this.dropWeapon(activeId);
+            } else {
+                // No active weapon — drop the last slot
+                dropped = this.dropWeapon(this.slots[this.slots.length - 1]);
+            }
         }
 
         this.weapons.set(weaponId, def);
-        this.slots.push(weaponId); // Add to next available slot
-        console.log(`[InventoryManager] Acquired weapon: ${def.name} (Slot ${this.slots.length})`);
+        this.slots.push(weaponId);
+        console.log(`[InventoryManager] Acquired weapon: ${def.name} (Slot ${this.slots.length}/${InventoryManager.MAX_WEAPONS})`);
 
-        // Auto-switch if it's the first weapon or better? (For now, just log)
-        if (!this.currentWeaponId) {
-            this.equipWeapon(weaponId);
-        }
+        // Auto-equip new weapon
+        this.equipWeapon(weaponId);
 
-        return true;
+        return { acquired: true, dropped };
     }
 
     /**
@@ -70,6 +83,30 @@ export class InventoryManager {
         this.ammo[ammoType] = current + added;
 
         return added;
+    }
+
+    /**
+     * Drop a weapon — removes it from inventory and returns its def
+     * for re-spawning as a world pickup.
+     */
+    public dropWeapon(weaponId: string): WeaponDef | null {
+        const def = this.weapons.get(weaponId);
+        if (!def) return null;
+
+        this.weapons.delete(weaponId);
+        this.slots = this.slots.filter(id => id !== weaponId);
+        this.weaponStates.delete(weaponId);
+
+        // If we dropped the active weapon, switch to whatever's left
+        if (this.currentWeaponId === weaponId) {
+            this.currentWeaponId = this.slots.length > 0 ? this.slots[0] : null;
+            if (this.currentWeaponId) {
+                console.log(`[InventoryManager] Auto-switched to: ${this.weapons.get(this.currentWeaponId)?.name}`);
+            }
+        }
+
+        console.log(`[InventoryManager] Dropped weapon: ${def.name}`);
+        return def;
     }
 
     /**
@@ -197,6 +234,27 @@ export class InventoryManager {
 
     public getCurrentWeaponId(): string | null {
         return this.currentWeaponId;
+    }
+
+    /**
+     * Get all weapon IDs in slot order
+     */
+    public getWeapons(): string[] {
+        return [...this.slots];
+    }
+
+    /**
+     * Get number of occupied weapon slots
+     */
+    public getSlotCount(): number {
+        return this.slots.length;
+    }
+
+    /**
+     * Get the slot index (0-based) of a weapon
+     */
+    public getWeaponSlotIndex(weaponId: string): number {
+        return this.slots.indexOf(weaponId);
     }
 
 

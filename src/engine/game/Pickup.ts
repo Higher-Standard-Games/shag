@@ -43,6 +43,7 @@ export class Pickup extends TransformNode {
     private _startPos: Vector3 | null = null;
     private glowLight: PointLight | null = null;
     private glowPulseTime: number = 0;
+    private pickupImmunityUntil: number = 0; // Timestamp until which pickup is immune (prevents instant re-pickup)
 
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
@@ -222,6 +223,13 @@ export class Pickup extends TransformNode {
         this.glowLight.intensity = pulseValue;
     }
 
+    /**
+     * Set pickup immunity timer (prevents instant re-pickup of dropped weapons)
+     */
+    public setPickupImmunity(durationMs: number): void {
+        this.pickupImmunityUntil = performance.now() + durationMs;
+    }
+
     private checkPickup() {
         if (!this.isActive) return;
 
@@ -229,11 +237,9 @@ export class Pickup extends TransformNode {
         if (!camera) return;
 
         // Try to get player's feet position from FPSController
-        // This avoids the issue where camera eye height > pickup radius
         let playerPos = camera.position;
         const controller = CameraSystem.getInstance().getActiveController();
 
-        // Check if controller has getPlayerPosition (FPSController)
         if (controller && 'getPlayerPosition' in controller && typeof (controller as any).getPlayerPosition === 'function') {
             playerPos = (controller as any).getPlayerPosition();
         }
@@ -244,79 +250,192 @@ export class Pickup extends TransformNode {
         // Use Cylindrical Check (Vertical + Horizontal separate)
         const dx = playerPos.x - targetPos.x;
         const dz = playerPos.z - targetPos.z;
-        const dy = playerPos.y - targetPos.y; // player.y is feet, target.y is pickup bottom/center
+        const dy = playerPos.y - targetPos.y;
 
         const horizDistSquared = dx * dx + dz * dz;
-        const pickupRadius = 48; // Horizontal radius (32 unit player + 16 unit item approx)
+        const pickupRadius = 48;
         const pickupRadiusSq = pickupRadius * pickupRadius;
 
-        // Vertical check: 
-        // Allow pickup if player's feet are slightly above (standing on it) or below (crouching/slopes)
-        // Range: -24 (feet just below pickup base) to 88 (head height + reach, allowing for jumping over)
         const verticalRangeMin = -24;
         const verticalRangeMax = 88;
 
-        if (horizDistSquared < pickupRadiusSq && dy > verticalRangeMin && dy < verticalRangeMax) {
-            this.tryPickup();
+        const inRange = horizDistSquared < pickupRadiusSq && dy > verticalRangeMin && dy < verticalRangeMax;
+
+        if (inRange) {
+            // Check immunity
+            if (this.pickupImmunityUntil > 0 && performance.now() < this.pickupImmunityUntil) {
+                return;
+            }
+
+            if (this.options.type === 'weapon') {
+                // Weapons require F key — just register as nearby
+                Pickup.setNearbyWeapon(this);
+            } else {
+                // Ammo/health/armor auto-pickup on touch
+                this.executePickup();
+            }
+        } else {
+            // Out of range — clear if we were the nearby weapon
+            if (Pickup.nearbyWeaponPickup === this) {
+                Pickup.clearNearbyWeapon();
+            }
         }
     }
 
-    private tryPickup() {
-        // Logic to give item to player
-        // We need access to InventoryManager. 
-        // Usually valid in GameScene context. 
-        // We can get it via a Singleton or ServiceLocator if available, 
-        // or pass it in. For now, let's assume we can import the instance/singleton logic 
-        // or we need to find where InventoryManager lives. 
+    // ═══════════════════════════════════════════════════════════════════
+    // STATIC: Nearby weapon tracking + HUD prompt
+    // ═══════════════════════════════════════════════════════════════════
 
-        // InventoryManager is instantiated in FPSController usually? 
-        // Or GameScene? 
+    private static nearbyWeaponPickup: Pickup | null = null;
+    private static hudPromptElement: HTMLDivElement | null = null;
 
-        // Let's assume we can get the player/FPS controller or finding the InventoryManager
-        // If InventoryManager is not a singleton, we might have a problem.
-        // It is NOT a singleton in the current code (new InventoryManager() in FPSController).
+    /** Called by FPSController.onUse (F key) */
+    public static triggerUseAction(): void {
+        if (Pickup.nearbyWeaponPickup && Pickup.nearbyWeaponPickup.isActive) {
+            Pickup.nearbyWeaponPickup.executePickup();
+            Pickup.clearNearbyWeapon();
+        }
+    }
 
-        // Hack: We can emit an event "try_pickup" and let the controller handle it?
-        // OR we can rely on the fact that FPSController is the active controller.
+    private static setNearbyWeapon(pickup: Pickup): void {
+        if (Pickup.nearbyWeaponPickup === pickup) return; // Already set
 
+        Pickup.nearbyWeaponPickup = pickup;
+
+        // Determine prompt text
         const controller = CameraSystem.getInstance().getActiveController();
-        if (controller && (controller as any).inventory) {
-            const inventory = (controller as any).inventory as InventoryManager;
+        const inventory = controller && (controller as any).inventory as InventoryManager | null;
+        const weaponName = pickup.options.id.replace(/_/g, ' ').toUpperCase();
 
-            let success = false;
-            if (this.options.type === 'weapon') {
-                const weaponId = this.options.value as string;
-                success = inventory.giveWeapon(weaponId);
+        let promptText: string;
+        if (inventory && inventory.getSlotCount() >= InventoryManager.MAX_WEAPONS) {
+            promptText = `PRESS [F] TO SWAP TO ${weaponName}`;
+        } else {
+            promptText = `PRESS [F] TO PICKUP ${weaponName}`;
+        }
 
-                // If player already has weapon, give ammo instead
-                if (!success && inventory.hasWeapon(weaponId)) {
-                    // Find ammo type for this weapon
-                    // We need to look up the weapon def or assume standard logic
-                    // InventoryManager has access to definitions.
-                    // Let's try to get ammo type from InventoryManager (we might need a public helper there)
-                    // OR just cheat and assume we know the ammo type or pass it in options. 
-                    // For now, let's just force success = true so it picks up (and disappears), 
-                    // maybe giving some standard ammo amount if possible.
+        Pickup.showHudPrompt(promptText);
+    }
 
-                    // Better approach: Check if we can get the weapon def from registry
-                    import('../../shared/entities/EntityRegistry').then(({ EntityRegistry }) => {
-                        const def = EntityRegistry.getInstance().get(weaponId) as any;
-                        if (def && def.ammoType) {
-                            inventory.giveAmmo(def.ammoType, 50); // Give standard pack amount
-                        }
-                    });
-                    success = true; // Consumed as ammo
+    private static clearNearbyWeapon(): void {
+        Pickup.nearbyWeaponPickup = null;
+        Pickup.hideHudPrompt();
+    }
+
+    private static showHudPrompt(text: string): void {
+        if (!Pickup.hudPromptElement) {
+            const el = document.createElement('div');
+            el.id = 'pickup-hud-prompt';
+            el.style.cssText = `
+                position: fixed;
+                bottom: 25%;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: #ffffff;
+                font-family: 'Inter', 'Segoe UI', sans-serif;
+                font-size: 16px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                padding: 10px 24px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                pointer-events: none;
+                z-index: 10000;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+                backdrop-filter: blur(4px);
+                transition: opacity 0.15s ease;
+            `;
+            document.body.appendChild(el);
+            Pickup.hudPromptElement = el;
+        }
+        Pickup.hudPromptElement.textContent = text;
+        Pickup.hudPromptElement.style.opacity = '1';
+        Pickup.hudPromptElement.style.display = 'block';
+    }
+
+    private static hideHudPrompt(): void {
+        if (Pickup.hudPromptElement) {
+            Pickup.hudPromptElement.style.opacity = '0';
+            // Hide after fade
+            setTimeout(() => {
+                if (Pickup.hudPromptElement) {
+                    Pickup.hudPromptElement.style.display = 'none';
                 }
-            } else if (this.options.type === 'ammo') {
-                // Value is ammo type (e.g. 'cells')
-                const amount = this.options.amount || 50;
-                const added = inventory.giveAmmo(this.options.value as string, amount);
-                success = added > 0;
-            }
+            }, 150);
+        }
+    }
 
-            if (success) {
-                this.onPickedUp();
+    /**
+     * Execute the actual pickup logic (called directly for ammo, or via F-key for weapons)
+     */
+    private executePickup() {
+        const controller = CameraSystem.getInstance().getActiveController();
+        if (!controller || !(controller as any).inventory) return;
+
+        const inventory = (controller as any).inventory as InventoryManager;
+
+        let success = false;
+        if (this.options.type === 'weapon') {
+            const weaponId = this.options.value as string;
+            const result = inventory.giveWeapon(weaponId);
+
+            if (result.acquired) {
+                success = true;
+
+                // If a weapon was dropped, spawn it as a new pickup at player's position
+                if (result.dropped) {
+                    const playerPos = ('getPlayerPosition' in controller && typeof (controller as any).getPlayerPosition === 'function')
+                        ? (controller as any).getPlayerPosition() as Vector3
+                        : CameraSystem.getInstance().getCamera()?.position || this.position;
+
+                    const droppedId = result.dropped.id || (result.dropped as any).weaponId || weaponId;
+                    const droppedDef = result.dropped;
+
+                    const dropPos = playerPos.clone();
+                    dropPos.y += 10;
+
+                    const droppedPickup = new Pickup(
+                        `dropped_${droppedId}_${Date.now()}`,
+                        this.getScene(),
+                        dropPos,
+                        {
+                            id: droppedId,
+                            modelPath: droppedDef.modelPath || `models/weapons/${droppedId}/${droppedId}.md3`,
+                            type: 'weapon',
+                            value: droppedId,
+                            respawnTime: 30,
+                            scale: this.options.scale,
+                            bobbing: false,
+                            glowColor: droppedDef.glowColor,
+                        }
+                    );
+                    droppedPickup.setPickupImmunity(800);
+                    console.log(`[Pickup] Dropped weapon spawned: ${droppedId} at ${dropPos}`);
+                }
+
+                // Load viewmodel for newly acquired weapon
+                import('../weapon/WeaponViewManager').then(({ WeaponViewManager }) => {
+                    WeaponViewManager.getInstance().loadWeapon(weaponId);
+                });
+            } else if (inventory.hasWeapon(weaponId)) {
+                // Already have this weapon — give ammo instead
+                import('../../shared/entities/EntityRegistry').then(({ EntityRegistry }) => {
+                    const def = EntityRegistry.getInstance().get(weaponId) as any;
+                    if (def && def.ammoType) {
+                        inventory.giveAmmo(def.ammoType, 50);
+                    }
+                });
+                success = true;
             }
+        } else if (this.options.type === 'ammo') {
+            const amount = this.options.amount || 50;
+            const added = inventory.giveAmmo(this.options.value as string, amount);
+            success = added > 0;
+        }
+
+        if (success) {
+            this.onPickedUp();
         }
     }
 

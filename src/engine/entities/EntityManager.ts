@@ -167,7 +167,8 @@ export class EntityManager {
     }
 
     private pickupEntity(entity: any, inventory: InventoryManager): void {
-        if (inventory.giveWeapon(entity.def.id)) {
+        const result = inventory.giveWeapon(entity.def.id);
+        if (result.acquired) {
             console.log(`[EntityManager] Picked up ${entity.def.name}`);
             entity.active = false;
 

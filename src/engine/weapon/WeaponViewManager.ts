@@ -240,12 +240,12 @@ export class WeaponViewManager {
         // Construct paths - use definition if available
         const modelPath = weaponDef?.viewModel?.modelPath
             ?? `models/weapons/${weaponName}/${weaponName}.md3`;
-        const texturePath = `models/weapons/${weaponName}/${weaponName}.jpg`;
+        const weaponDir = `models/weapons/${weaponName}`;
 
         // Check if model exists
         if (!pk3.hasFile(modelPath)) {
             console.error(`[WeaponViewManager] Model not found: ${modelPath}`);
-            console.log('[WeaponViewManager] Available files:', pk3.listDirectory(`models/weapons/${weaponName}`));
+            console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
             return false;
         }
 
@@ -284,18 +284,65 @@ export class WeaponViewManager {
             mesh.layerMask = WEAPON_LAYER_MASK;
         }
 
-        // Load texture
-        if (pk3.hasFile(texturePath)) {
-            const textureUrl = await pk3.getFileAsURL(texturePath, 'image/jpeg');
-            if (textureUrl) {
-                for (const mesh of this.currentWeapon.meshes) {
-                    const mat = new StandardMaterial(`${weaponName}_mat`, this.scene);
-                    mat.diffuseTexture = new Texture(textureUrl, this.scene);
-                    mat.specularColor.set(0.2, 0.2, 0.2);
-                    mat.backFaceCulling = true;
-                    mesh.material = mat;
+        // Load texture - try multiple extensions (Warsow uses .tga, others may use .jpg/.png)
+        const textureExtensions = ['.jpg', '.tga', '.png', '.jpeg'];
+        let textureLoaded = false;
+
+        for (const ext of textureExtensions) {
+            const texturePath = `${weaponDir}/${weaponName}${ext}`;
+            if (pk3.hasFile(texturePath)) {
+                const mimeType = ext === '.tga' ? 'image/x-tga'
+                    : ext === '.png' ? 'image/png'
+                        : 'image/jpeg';
+                const textureUrl = await pk3.getFileAsURL(texturePath, mimeType);
+                if (textureUrl) {
+                    for (const mesh of this.currentWeapon.meshes) {
+                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene);
+                        mat.diffuseTexture = new Texture(textureUrl, this.scene);
+                        mat.specularColor.set(0.2, 0.2, 0.2);
+                        mat.backFaceCulling = true;
+                        mesh.material = mat;
+                    }
+                    console.log(`[WeaponViewManager] Loaded texture: ${texturePath}`);
+                    textureLoaded = true;
+                    break;
                 }
             }
+        }
+
+        // Fallback: scan directory for any image file
+        if (!textureLoaded) {
+            const dirFiles = pk3.listDirectory(weaponDir);
+            const imageFile = dirFiles.find(f => {
+                const lower = f.toLowerCase();
+                return (lower.endsWith('.jpg') || lower.endsWith('.tga') ||
+                    lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
+                    !lower.includes('_flash') && !lower.includes('_hand');
+            });
+            if (imageFile) {
+                const ext = imageFile.substring(imageFile.lastIndexOf('.'));
+                const mimeType = ext === '.tga' ? 'image/x-tga'
+                    : ext === '.png' ? 'image/png'
+                        : 'image/jpeg';
+                const fullPath = `${weaponDir}/${imageFile}`;
+                const textureUrl = await pk3.getFileAsURL(fullPath, mimeType);
+                if (textureUrl) {
+                    for (const mesh of this.currentWeapon.meshes) {
+                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene);
+                        mat.diffuseTexture = new Texture(textureUrl, this.scene);
+                        mat.specularColor.set(0.2, 0.2, 0.2);
+                        mat.backFaceCulling = true;
+                        mesh.material = mat;
+                    }
+                    console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
+                    textureLoaded = true;
+                }
+            }
+        }
+
+        if (!textureLoaded) {
+            console.warn(`[WeaponViewManager] No texture found for weapon: ${weaponName}`);
+            console.log(`[WeaponViewManager] Searched in: ${weaponDir}`, pk3.listDirectory(weaponDir));
         }
 
         // Load muzzle flash model (e.g., plasmagun_flash.md3)

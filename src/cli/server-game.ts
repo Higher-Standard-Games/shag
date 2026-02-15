@@ -38,7 +38,7 @@ const TICK_MS = 8;
 const sim = new Simulation({ tickMs: TICK_MS });
 
 const physicsSystem = new CharacterPhysicsSystem();
-const combatSystem = new CombatSystem(125); // 1 second respawn for testing
+const combatSystem = new CombatSystem(); // Respawning now handled by GametypeController
 const weaponSystem = new WeaponSystem();
 const projectileSystem = new ProjectileSystem();
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.9.1](./v0.9.1.md) | Feb 15, 2026 | Warsow weapons & COD-style pickup system (2-weapon limit, F-key pickup, HUD prompt) |
 | [v0.9.0](./v0.9.0.md) | Jan 31, 2026 | Next-Gen Server Architecture - Deterministic simulation, multi-rate ticks, client prediction |
 | [v0.8.25](./v0.8.25.md) | Jan 28, 2026 | Server architecture research and collision debugging |
 | [v0.8.24](./v0.8.24.md) | Jan 20, 2026 | Lightgrid recovery and model lighting |

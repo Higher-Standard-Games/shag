@@ -88,7 +88,7 @@ export default class WeaponCommand extends Command {
      */
     private async spawnInWorld(args: string[]): Promise<string> {
         const weaponName = args[0] || 'plasmagun';
-        const pk3Path = 'games/default/basewsw/data0_15pure.pk3';
+        const pk3Path = 'data/data0_21pure.pk3';
         const scale = parseFloat(args[1]) || 1.0;
 
         try {
@@ -154,7 +154,7 @@ export default class WeaponCommand extends Command {
             return 'Usage: weapon load <name> [pk3path]';
         }
 
-        const pk3Path = args[1] || 'games/default/basewsw/data0_15pure.pk3';
+        const pk3Path = args[1] || 'data/data0_21pure.pk3';
 
         const wvm = getWeaponViewManager();
         const success = await wvm.loadWeapon(weaponName, pk3Path);

@@ -169,6 +169,16 @@ export class MessageCodec {
   }
 
   /**
+   * Encode a ready message (Client → Server)
+   * Simple 1-byte message — the server identifies the sender by connection.
+   */
+  static encodeReady(): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Ready);
+    return encoder.getData();
+  }
+
+  /**
    * Get message type from raw data without consuming it
    */
   static peekMessageType(data: Uint8Array): MessageType {
