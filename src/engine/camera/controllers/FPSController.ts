@@ -31,6 +31,7 @@ import "@babylonjs/loaders";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { Cvar } from "../../core/Cvar";
 import { MovementVars } from "../../movement/MovementVars";
+import { DeveloperBar } from "../../debug/DeveloperBar";
 import {
   PLAYER_RADIUS,
   PLAYER_HEIGHT,
@@ -59,7 +60,6 @@ import { InventoryManager } from "../../game/InventoryManager";
 // import { WeaponDef } from "../../../shared/entities";
 
 import { PlayerVisuals } from "./components/PlayerVisuals";
-import { AdvancedCharacterController, PlayerInput } from "../../movement/AdvancedCharacterController";
 import { FPSGameManager } from "../../../games/fps/FPSGameManager";
 import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
@@ -68,7 +68,6 @@ import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 export class FPSController implements ICameraController {
   public readonly type = "fps";
 
-  private physics: AdvancedCharacterController | null = null;
   private gameManager: FPSGameManager | null = null;
   private useNetworkMovement: boolean = false;
   private networkReady: boolean = false;  // True only after async init completes
@@ -184,11 +183,6 @@ export class FPSController implements ICameraController {
     console.log(`[FPS] Switching to network movement mode (server: ${this.gameManager.getServerUrl()})`);
     this.useNetworkMovement = true;
 
-    // Dispose local physics if it exists
-    if (this.physics) {
-      console.log(`[FPS] Disposing local physics controller`);
-      this.physics = null;
-    }
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
@@ -209,6 +203,8 @@ export class FPSController implements ICameraController {
       this.wallJumpState = state.wallJumpState;
       this.ledgeGrabState = state.ledgeGrabState;
       this.actualHorizSpeed = state.actualHorizSpeed;
+      this.slidePhase = state.slidePhase;
+      this.ledgeGrabPhase = state.ledgeGrabPhase;
 
       // Capture landing velocity for impact effect
       if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
@@ -268,12 +264,16 @@ export class FPSController implements ICameraController {
   private mouseRotationX: number = 0;  // Pitch
   private mouseRotationY: number = 0;  // Yaw
 
-  // Crouchslide state (delegated to AdvancedCharacterController, keeping only flags for sync if needed)
+  // Crouchslide state
   public isSliding: boolean = false;
 
   // Crouch state (separate from slide)
   private isCrouching: boolean = false;
   private crouchViewOffset: number = 0;  // Current crouch offset (0 = standing, -20 = crouched)
+  private slidePhase: number = 0;  // 0-1 intensity for slide camera tilt (from FPSMovementProfile)
+  private ledgeGrabPhase: number = 0;  // 0-1 intensity for ledge grab camera tilt (from FPSMovementProfile)
+  private slidePitchOffset: number = 0;  // Computed absolute pitch offset during slide
+  private ledgePitchOffset: number = 0;  // Computed absolute pitch offset during ledge grab
 
   // Player Visuals Component (Debug model, animations)
   private playerVisuals: PlayerVisuals | null = null;
@@ -547,9 +547,9 @@ export class FPSController implements ICameraController {
         Math.min(Math.PI / 2 - 0.1, this.mouseRotationX)
       );
 
-      // Apply to camera (will be reset before effects each frame)
+      // Apply to camera (slide/ledge offsets are applied here too so async events don't overwrite them)
       this.camera.rotation.y = this.mouseRotationY;
-      this.camera.rotation.x = this.mouseRotationX;
+      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
     };
 
     // Keyboard input
@@ -665,7 +665,7 @@ export class FPSController implements ICameraController {
     this.smoothingInitialized = false;
     this.useNetworkMovement = false;
     this.networkReady = false;
-    this.physics = null;
+
     this.gameManager = null;
 
     this.camera = null;
@@ -718,6 +718,11 @@ export class FPSController implements ICameraController {
 
       // If connected to a server, use server-provided position (NOT stale camera position)
       if (isConnected) {
+        // CRITICAL: Must process buffered snapshots BEFORE getLocalPlayerPosition()!
+        // Otherwise hasValidPosition() is always false (deadlock: smoothing waits for
+        // position, but snapshot processing only happens after smoothing init).
+        this.gameManager.processSnapshots();
+
         const serverPos = this.gameManager.getLocalPlayerPosition();
         if (!serverPos) {
           // Server hasn't sent position yet - wait for next frame
@@ -790,10 +795,10 @@ export class FPSController implements ICameraController {
         // Network mode already enabled by enableNetworkMode() - skip initialization
         console.log(`[FPS] Network mode already enabled, skipping initialization`);
 
-      } else if (mv.get('sv_network_movement') > 0) {
-        // === LOCAL NETWORK SIMULATION MODE ===
-        // Using local simulation with network-style movement (for testing)
-        console.log(`[FPS] Initializing local network simulation via FPSGameManager`);
+      } else {
+        // === LOCAL SIMULATION MODE ===
+        // Using local FPSMovementProfile simulation (same physics as server)
+        console.log(`[FPS] Initializing local simulation via FPSGameManager`);
         this.useNetworkMovement = true;
 
         this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
@@ -845,6 +850,8 @@ export class FPSController implements ICameraController {
             this.wallJumpState = state.wallJumpState;
             this.ledgeGrabState = state.ledgeGrabState;
             this.actualHorizSpeed = state.actualHorizSpeed;
+            this.slidePhase = state.slidePhase;
+            this.ledgeGrabPhase = state.ledgeGrabPhase;
 
             // Capture landing velocity for impact effect
             if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
@@ -859,13 +866,6 @@ export class FPSController implements ICameraController {
           this.useNetworkMovement = false;
           this.networkReady = false;
         });
-      } else {
-        // === LOCAL MOVEMENT MODE ===
-        this.useNetworkMovement = false;
-        if (!this.physics) {
-          this.physics = new AdvancedCharacterController(new Vector3(this.physicsX, this.physicsY, this.physicsZ));
-          console.log(`[FPS] Physics Engine Initialized (local mode)`);
-        }
       }
 
       console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
@@ -897,6 +897,11 @@ export class FPSController implements ICameraController {
 
     // === ADVANCED PHYSICS ===
     if (this.useNetworkMovement && this.networkReady && this.gameManager) {
+      // === FRAME-SYNC: Process buffered server snapshots BEFORE input ===
+      // This ensures reconciliation happens at a deterministic point in the frame,
+      // preventing mid-frame camera position discontinuities (primary jitter source).
+      this.gameManager.processSnapshots();
+
       // === NETWORK MOVEMENT MODE ===
       // Throttle command sending to 125Hz (server tick rate)
       // This prevents "superfast" movement on high refresh rate monitors (e.g. 144Hz, 240Hz)
@@ -977,62 +982,28 @@ export class FPSController implements ICameraController {
       const showSpeed = mv.get('cl_showspeed') > 0;
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
-    } else if (this.physics) {
-      // === LOCAL MOVEMENT MODE ===
-      // 1. Construct Input
-      const input: PlayerInput = {
-        wishdir: wishdir,
-        up: this.keys.up,
-        crouch: this.keys.crouch,
-        sprint: this.keys.sprint,
-        aim: this.keys.aim,
-        forward: this.keys.forward || this.keys.backward,
-        strafe: this.keys.left || this.keys.right,
-        viewForward: forward.clone()
-      };
-
-      // 2. Run Physics
-      const result = this.physics.update(deltaTime, input, this.mouseRotationX);
-
-      // 3. Apply Results
-      this.camera.position.copyFrom(result.position);
-      this.velocity.copyFrom(result.velocity);
-
-      this.isGrounded = result.isGrounded;
-      this.isSliding = result.isSliding;
-      this.isCrouching = result.isCrouching;
-      this.wallJumpState = result.wallJumpState;
-      this.ledgeGrabState = result.ledgeGrabState;
-      this.crouchViewOffset = result.crouchViewOffset;
-      this.smoothedY = result.smoothedY;
-      this.actualHorizSpeed = result.actualHorizSpeed;
-
-      // Apply sliding camera lock - OVERRIDE mouseRotationX during slide
-      if (result.isSlideActive) {
-        // Lock vertical look to the calculated slide pitch
-        this.mouseRotationX = result.slideCameraPitch;
-        this.camera.rotation.x = result.slideCameraPitch;
+      // Update developer bar (if visible)
+      const devBar = DeveloperBar.getInstance();
+      if (devBar.isVisible()) {
+        const engine = this.camera.getScene().getEngine();
+        const ping = this.gameManager?.getPing() ?? -1;
+        devBar.setStats(
+          engine.getFps(),
+          ping,
+          this.actualHorizSpeed,
+          { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
+        );
       }
 
-      // Apply ledge grab camera pitch - OVERRIDE mouseRotationX during ledge grab
-      if (result.isLedgeGrabActive) {
-        // Smooth camera tilt during ledge grab animation
-        this.mouseRotationX = result.ledgeCameraPitch;
-        this.camera.rotation.x = result.ledgeCameraPitch;
+      // === NETWORK CAMERA EFFECTS ===
+      // Compute absolute pitch offsets (NOT additive to mouseRotationX — that would accumulate per-frame)
+      this.slidePitchOffset = this.slidePhase > 0.01 ? this.slidePhase * -0.22 : 0; // ~12° down
+      this.ledgePitchOffset = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0; // ~8.6° up
+      // DEBUG: Log when slide effect is active
+      if (this.slidePhase > 0.01) {
+        console.log(`[FPS] SLIDE CAM: phase=${this.slidePhase.toFixed(3)}, pitchOffset=${this.slidePitchOffset.toFixed(4)}`);
       }
 
-      // Update Sync Vars (legacy/compatibility)
-      this.physicsX = result.position.x;
-      this.physicsY = result.position.y;
-      this.physicsZ = result.position.z;
-
-      // 4. Update UI
-      const showSpeed = mv.get('cl_showspeed') > 0;
-      this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
-
-      // 5. Apply View (Physics origin + Viewheight + Crouch offset)
-      const viewheight = DEFAULT_VIEWHEIGHT;
-      this.camera.position.y = this.smoothedY + viewheight + this.crouchViewOffset;
     }
 
     // === PICKUP CHECK ===
@@ -1045,9 +1016,8 @@ export class FPSController implements ICameraController {
 
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
-      // Reset camera rotation to mouse-controlled values before applying effects
-      // NOTE: If sliding, mouseRotationX is already locked to slide pitch
-      this.camera.rotation.x = this.mouseRotationX;
+      // Reset camera rotation to mouse-controlled values + slide/ledge offsets
+      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
       this.camera.rotation.y = this.mouseRotationY;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
 

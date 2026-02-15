@@ -34,7 +34,6 @@ import type { CollisionWorld } from '../engine/network/systems/collision/Collisi
 import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
 import { GameState, type PlayerState } from '../engine/network/core/GameState';
 import { Entity } from '../engine/network/core/Entity';
-import { InputButtons } from '../engine/network/components/InputComponent';
 
 // ============================================================================
 // Configuration
@@ -284,7 +283,7 @@ class NextGenServer {
     private nextPlayerId: number = 1;
     private spawnPoints: Array<{ x: number; y: number; z: number }> = [];
     private running: boolean = false;
-    private tickInterval: ReturnType<typeof setInterval> | null = null;
+    private tickTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Subsystems
     private physicsSystem: FPSMovementSubsystem;
@@ -362,13 +361,10 @@ class NextGenServer {
 
         this.running = true;
 
-        // Start tick loop
-        const tickMs = 1000 / this.config.tickRate;
-        this.tickInterval = setInterval(() => {
-            this.tick();
-        }, tickMs);
+        // Start drift-compensated tick loop (replaces setInterval)
+        this.scheduleNextTick(performance.now());
 
-        console.log(`[Server] Tick loop started at ${this.config.tickRate}Hz`);
+        console.log(`[Server] Tick loop started at ${this.config.tickRate}Hz (drift-compensated)`);
     }
 
     /**
@@ -377,9 +373,9 @@ class NextGenServer {
     async stop(): Promise<void> {
         if (!this.running) return;
 
-        if (this.tickInterval) {
-            clearInterval(this.tickInterval);
-            this.tickInterval = null;
+        if (this.tickTimer) {
+            clearTimeout(this.tickTimer);
+            this.tickTimer = null;
         }
 
         await this.transport.stop();
@@ -493,30 +489,26 @@ class NextGenServer {
                 // Decode command using client protocol
                 const { command } = MessageCodec.decodeCommand(data);
 
-                // Find player entity and apply input
+                // Find player entity and queue input for next tick
                 const state = this.simulation.getStateMut();
                 for (const entity of state.allEntities()) {
                     if (entity.ownerId === Number(client.playerId) && entity.input) {
                         const mutEntity = state.getEntityMut(entity.id);
                         if (mutEntity?.input) {
-                            // Apply fps_input command format
-                            if (command.direction) {
-                                mutEntity.input.forward = command.direction.z || 0;
-                                mutEntity.input.right = command.direction.x || 0;
-                            }
-                            mutEntity.input.pitch = command.pitch || 0;
-                            mutEntity.input.yaw = command.yaw || 0;
-
-                            // Decode button flags using shared InputButtons constants
+                            // Queue input for processing during next tick
+                            // (prevents lost inputs when multiple arrive between ticks)
                             const buttons = command.buttons || 0;
-                            mutEntity.input.buttons = buttons; // Store raw bitmask (preserves SPRINT + all flags)
-                            mutEntity.input.jump = (buttons & InputButtons.JUMP) !== 0;
-                            mutEntity.input.crouch = (buttons & InputButtons.CROUCH) !== 0;
-                            mutEntity.input.attack = (buttons & InputButtons.FIRE) !== 0;
-                            mutEntity.input.sequence = command.seq || 0;
+                            mutEntity.input.inputQueue.push({
+                                forward: command.direction?.z || 0,
+                                right: command.direction?.x || 0,
+                                pitch: command.pitch || 0,
+                                yaw: command.yaw || 0,
+                                buttons,
+                                sequence: command.seq || 0,
+                            });
 
-                            // Track for client reconciliation
-                            client.lastInputSeq = mutEntity.input.sequence;
+                            // Track latest seq for client reconciliation ACK
+                            client.lastInputSeq = command.seq || 0;
                         }
                         break;
                     }
@@ -575,6 +567,30 @@ class NextGenServer {
             maxPlayers: this.config.maxClients,
             tick: Number(this.simulation.currentTick),
         };
+    }
+
+    /**
+     * Schedule the next tick with drift compensation.
+     * Measures actual elapsed time since last tick and adjusts the
+     * next setTimeout delay to maintain consistent tick rate.
+     */
+    private scheduleNextTick(lastTickTime: number): void {
+        if (!this.running) return;
+
+        const tickMs = 1000 / this.config.tickRate;
+        const now = performance.now();
+        const elapsed = now - lastTickTime;
+        const drift = elapsed - tickMs;
+
+        // Compensate: if tick ran slow (drift > 0), next fires sooner
+        // Clamp to [1, 2*tickMs] to prevent spiral
+        const nextDelay = Math.max(1, Math.min(tickMs * 2, tickMs - drift));
+
+        this.tickTimer = setTimeout(() => {
+            const tickStart = performance.now();
+            this.tick();
+            this.scheduleNextTick(tickStart);
+        }, nextDelay);
     }
 
     /**
@@ -679,10 +695,12 @@ class NextGenServer {
     private broadcastSnapshot(): void {
         if (this.clients.size === 0) return;
 
+        // Generate GameState ONCE per tick (not per-client)
+        const gameState = this.toGameState();
+
         // Send per-client snapshot with their ackedInputSeq
         for (const client of this.clients.values()) {
             try {
-                const gameState = this.toGameState();
                 gameState.ackedInputSeq = client.lastInputSeq;
                 const snapshotBytes = MessageCodec.encodeSnapshot(gameState);
                 client.connection.sendDatagram(snapshotBytes);

@@ -2,6 +2,16 @@
  * InputComponent - Player input state
  */
 
+/** A single queued input from a client command */
+export interface QueuedInput {
+    forward: number;
+    right: number;
+    pitch: number;
+    yaw: number;
+    buttons: number;
+    sequence: number;
+}
+
 export interface InputComponent {
     /** Movement input (-1 to 1 for analog, -1/0/1 for digital) */
     forward: number;
@@ -26,6 +36,9 @@ export interface InputComponent {
 
     /** Sequence number for reconciliation */
     sequence: number;
+
+    /** Queued inputs waiting to be processed (newest at end) */
+    inputQueue: QueuedInput[];
 }
 
 /** Create default input */
@@ -43,10 +56,11 @@ export function createInput(): InputComponent {
         buttons: 0,
         weaponSlot: 1,
         sequence: 0,
+        inputQueue: [],
     };
 }
 
 /** Clone input (for COW) */
 export function cloneInput(i: InputComponent): InputComponent {
-    return { ...i };
+    return { ...i, inputQueue: [...i.inputQueue] };
 }
