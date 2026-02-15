@@ -13,6 +13,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
@@ -26,9 +27,16 @@ interface ActiveProjectile {
     light: PointLight | null;
     direction: Vector3;
     speed: number;
+    velocity: Vector3;       // Full velocity vector (modified by gravity)
+    gravity: number;         // 0 = none, 1 = full (800 u/s²)
+    bouncesLeft: number;     // Remaining bounces before explode
+    bounceFactor: number;    // Velocity retention on bounce (0.65)
     spawnTime: number;
     lifetime: number;
     materials: StandardMaterial[]; // For fade-in effect
+    trailPoints: Vector3[];      // Position history for trail rendering
+    trailMesh: LinesMesh | null;      // Current trail line mesh
+    trailMaterial: StandardMaterial | null; // Trail material for disposal
 }
 
 interface ActiveImpact {
@@ -344,16 +352,24 @@ export class ProjectileManager {
             }
         }
 
+        const normalDir = direction.normalize();
         const projectile: ActiveProjectile = {
             id,
             defId,
             node,
             light,
-            direction: direction.normalize(),
+            direction: normalDir,
             speed: def.speed,
+            velocity: normalDir.scale(def.speed),
+            gravity: def.gravity ?? 0,
+            bouncesLeft: def.bounces ?? 0,
+            bounceFactor: 0.65,
             spawnTime: performance.now() / 1000,
             lifetime: def.lifetime,
             materials,
+            trailPoints: [],
+            trailMesh: null,
+            trailMaterial: null,
         };
 
         this.projectiles.push(projectile);
@@ -361,6 +377,9 @@ export class ProjectileManager {
 
         return id;
     }
+
+    // Gravity constant (Quake-style: ~800 units/s²)
+    private static readonly GRAVITY = 800;
 
     /**
      * Update all projectiles
@@ -375,6 +394,10 @@ export class ProjectileManager {
             // Check lifetime
             const age = now - proj.spawnTime;
             if (age > proj.lifetime) {
+                // Grenades explode at end of lifetime too
+                if (proj.gravity > 0) {
+                    this.spawnImpact(proj.defId, proj.node.position.clone(), Vector3.Up());
+                }
                 toRemove.push(proj.id);
                 continue;
             }
@@ -387,34 +410,84 @@ export class ProjectileManager {
                     mat.alpha = alpha;
                 }
             } else if (proj.materials.length > 0 && proj.materials[0].alpha < 1.0) {
-                // Ensure fully opaque after fade-in completes
                 for (const mat of proj.materials) {
                     mat.alpha = 1.0;
                 }
             }
 
-            // Calculate move amount
-            const moveAmount = proj.direction.scale(proj.speed * deltaTime);
-            const nextPos = proj.node.position.add(moveAmount);
+            // Apply gravity to velocity
+            if (proj.gravity > 0) {
+                proj.velocity.y -= ProjectileManager.GRAVITY * proj.gravity * deltaTime;
+            }
+
+            // Calculate move amount from velocity
+            const moveAmount = proj.velocity.scale(deltaTime);
+            const moveDir = proj.velocity.normalizeToNew();
+            const moveDist = moveAmount.length();
 
             // Raycast to check for collision
-            const ray = new Ray(proj.node.position, proj.direction, moveAmount.length() + 1);
+            const ray = new Ray(proj.node.position, moveDir, moveDist + 1);
             const hit = this.scene.pickWithRay(ray, (mesh) => {
-                // Ignore projectile meshes and non-pickable
                 if (!mesh.isPickable) return false;
                 if (mesh.name.startsWith('proj_')) return false;
+                if (mesh.name.startsWith('impact_')) return false;
                 return true;
             });
 
             if (hit && hit.hit && hit.pickedPoint) {
-                // HIT! Spawn impact effect
-                this.spawnImpact(proj.defId, hit.pickedPoint, hit.getNormal(true) ?? proj.direction.scale(-1));
-                toRemove.push(proj.id);
+                const normal = hit.getNormal(true) ?? moveDir.scale(-1);
+
+                if (proj.bouncesLeft > 0) {
+                    // BOUNCE: reflect velocity off surface normal
+                    proj.bouncesLeft--;
+                    const velDotN = Vector3.Dot(proj.velocity, normal);
+                    // Reflect: v' = v - 2(v·n)n, then scale by bounce factor
+                    proj.velocity = proj.velocity.subtract(normal.scale(2 * velDotN)).scale(proj.bounceFactor);
+                    proj.direction = proj.velocity.normalizeToNew();
+                    proj.speed = proj.velocity.length();
+
+                    // Move to hit point + small offset along normal
+                    proj.node.position = hit.pickedPoint.add(normal.scale(1.0));
+
+                    // Small bounce spark
+                    this.spawnBounceEffect(hit.pickedPoint, normal);
+                } else {
+                    // No bounces left — full impact
+                    this.spawnImpact(proj.defId, hit.pickedPoint, normal);
+                    toRemove.push(proj.id);
+                }
                 continue;
             }
 
             // No hit, move projectile
-            proj.node.position = nextPos;
+            proj.node.position.addInPlace(moveAmount);
+
+            // Update direction for model orientation (gravity changes trajectory)
+            if (proj.gravity > 0) {
+                proj.direction = moveDir;
+                // Re-orient model to face direction of travel
+                const defaultFwd = new Vector3(0, 0, 1);
+                const dot = Vector3.Dot(defaultFwd, moveDir);
+                if (dot > 0.9999) {
+                    proj.node.rotationQuaternion = Quaternion.Identity();
+                } else if (dot < -0.9999) {
+                    proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
+                } else {
+                    const axis = Vector3.Cross(defaultFwd, moveDir).normalize();
+                    const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
+                    proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
+                }
+                // MD3 alignment correction
+                const yRot = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
+                if (proj.node.rotationQuaternion) {
+                    proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
+                }
+            }
+
+            // Update trail for gravity projectiles
+            if (proj.gravity > 0) {
+                this.updateTrail(proj);
+            }
         }
 
         // Remove projectiles that hit or expired
@@ -424,6 +497,41 @@ export class ProjectileManager {
 
         // Update impacts (fade out)
         this.updateImpacts(deltaTime);
+    }
+
+    /**
+     * Spawn a small bounce spark at the bounce point
+     */
+    private spawnBounceEffect(position: Vector3, normal: Vector3): void {
+        if (!this.scene) return;
+
+        const id = `bounce_${this.nextId++}`;
+
+        // Small sphere flash
+        const mesh = MeshBuilder.CreateSphere(`${id}_mesh`, { diameter: 0.6 }, this.scene);
+        mesh.position = position.add(normal.scale(0.1));
+        mesh.isPickable = false;
+
+        const mat = new StandardMaterial(`${id}_mat`, this.scene);
+        mat.emissiveColor = new Color3(1.0, 0.9, 0.5);  // warm spark
+        mat.diffuseColor = Color3.Black();
+        mat.disableLighting = true;
+        mesh.material = mat;
+
+        // Small flash light
+        const light = new PointLight(`${id}_light`, position, this.scene);
+        light.diffuse = new Color3(1.0, 0.9, 0.5);
+        light.intensity = 4;
+        light.range = 15;
+
+        this.impacts.push({
+            id,
+            mesh,
+            material: mat,
+            light,
+            spawnTime: performance.now() / 1000,
+            duration: 0.12,  // Very fast — just a spark
+        });
     }
 
     /**
@@ -566,6 +674,8 @@ export class ProjectileManager {
 
         // Cleanup
         proj.light?.dispose();
+        proj.trailMesh?.dispose();
+        proj.trailMaterial?.dispose();
         proj.node.dispose();
 
         this.projectiles.splice(index, 1);
@@ -585,9 +695,48 @@ export class ProjectileManager {
     public clear(): void {
         for (const proj of this.projectiles) {
             proj.light?.dispose();
+            proj.trailMesh?.dispose();
+            proj.trailMaterial?.dispose();
             proj.node.dispose();
         }
         this.projectiles = [];
+    }
+
+    /**
+     * Update trail line mesh for a gravity projectile
+     */
+    private updateTrail(proj: ActiveProjectile): void {
+        if (!this.scene) return;
+
+        const MAX_TRAIL_POINTS = 20;
+
+        // Record current position
+        proj.trailPoints.push(proj.node.position.clone());
+
+        // Trim old points
+        while (proj.trailPoints.length > MAX_TRAIL_POINTS) {
+            proj.trailPoints.shift();
+        }
+
+        // Need at least 2 points for a line
+        if (proj.trailPoints.length < 2) return;
+
+        // Dispose old trail mesh
+        proj.trailMesh?.dispose();
+
+        // Create new line mesh from trail points
+        proj.trailMesh = MeshBuilder.CreateLines(`${proj.id}_trail`, {
+            points: proj.trailPoints,
+            updatable: false,
+        }, this.scene);
+        proj.trailMesh.isPickable = false;
+
+        // Color based on projectile def
+        const registry = getEntityRegistry();
+        const def = registry.get<ProjectileDef>(proj.defId);
+        const color = def?.lightColor ?? { r: 0.6, g: 1.0, b: 0.3 };
+        proj.trailMesh.color = new Color3(color.r, color.g, color.b);
+        proj.trailMesh.alpha = 0.5;
     }
 }
 

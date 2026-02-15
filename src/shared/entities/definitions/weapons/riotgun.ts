@@ -32,6 +32,7 @@ export const RIOTGUN: WeaponDef = {
     reloadTime: 0.9,
     range: 8192,
     hitscan: true,
+    hitscanType: 'pellet',
     fireMode: 'semi',
     burstCount: 20,       // 20 pellets per shot
     pickupBounds: { x: 32, y: 32, z: 32 },

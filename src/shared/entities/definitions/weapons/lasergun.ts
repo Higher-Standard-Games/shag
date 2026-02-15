@@ -31,6 +31,7 @@ export const LASERGUN: WeaponDef = {
     reloadTime: 0.05,
     range: 850,           // Short range beam
     hitscan: true,
+    hitscanType: 'beam',
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
 

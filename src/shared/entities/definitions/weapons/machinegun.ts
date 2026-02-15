@@ -31,6 +31,7 @@ export const MACHINEGUN: WeaponDef = {
     reloadTime: 0.1,
     range: 6000,
     hitscan: true,
+    hitscanType: 'tracer',
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
 

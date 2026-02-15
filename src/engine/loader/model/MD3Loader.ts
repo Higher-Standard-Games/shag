@@ -21,8 +21,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
-import { PK3Loader } from '../pk3/PK3Loader';
-import { decodeTGA } from '../texture/TgaDecoder';
+import { PK3TextureLoader } from '../pk3/PK3TextureLoader';
 
 // MD3 Constants
 const MD3_IDENT = 0x33504449; // "IDP3" in little-endian
@@ -468,109 +467,29 @@ export class MD3Loader {
         // Create a promise that resolves when texture loading completes
         let textureLoadPromise: Promise<void> = Promise.resolve();
 
-        // Try to load texture
+        // Route all texture loading through PK3TextureLoader for unified KTX/TGA/PNG/JPG
+        // handling with caching. This ensures KTX (ETC1) textures are software-decoded
+        // and the same texture is shared between pickup models and viewmodels.
         if (texturePath) {
-            // Resolve texture path
-            let resolvedPath = texturePath;
-            if (!resolvedPath.startsWith('/')) {
-                resolvedPath = '/' + resolvedPath;
-            }
-            // Try loading from PK3 or direct path
-            const pk3 = PK3Loader.getInstance();
-            const cleanPath = resolvedPath.replace(/^\//, '');
+            const texLoader = PK3TextureLoader.getInstance();
 
-            // Try with original extension, then fallback to other formats
-            const extensions = ['', '.tga', '.png', '.jpg'];
-            const basePath = cleanPath.replace(/\.(tga|png|jpg|jpeg)$/i, '');
-
-            let foundPath: string | null = null;
-            for (const ext of extensions) {
-                const tryPath = basePath + ext;
-                if (pk3.hasFile(tryPath)) {
-                    foundPath = tryPath;
-                    break;
-                }
-            }
-
-            if (foundPath) {
-                console.log(`[MD3] Loading texture from PK3: ${foundPath}`);
-
-                // If TGA, we must decode it. If PNG/JPG, we can use Blob URL directly.
-                const isTga = foundPath.toLowerCase().endsWith('.tga');
-
-                if (isTga) {
-                    textureLoadPromise = pk3.getFile(foundPath).then(buffer => {
-                        if (buffer) {
-                            return decodeTGA(buffer);
-                        }
-                        return null;
-                    }).then(dataUrl => {
-                        if (dataUrl) {
-                            console.log(`[MD3] TGA decoded from PK3: ${foundPath}`);
-                            const tex = new Texture(dataUrl, this.scene!);
-                            tex.hasAlpha = props.isTransparent ?? false;
-                            mat.diffuseTexture = tex;
-                            if (props.isTransparent) {
-                                mat.useAlphaFromDiffuseTexture = true;
-                            }
-                            if (props.alphaMode === 'add') {
-                                mat.emissiveTexture = tex;
-                            }
-                        }
-                    }).catch(err => {
-                        console.error(`[MD3] Error decoding TGA ${foundPath}:`, err);
-                    });
+            textureLoadPromise = texLoader.resolveAndLoadTexture(texturePath).then(tex => {
+                if (tex) {
+                    console.log(`[MD3] Texture loaded via PK3TextureLoader: ${texturePath}`);
+                    tex.hasAlpha = props.isTransparent ?? false;
+                    mat.diffuseTexture = tex;
+                    if (props.isTransparent) {
+                        mat.useAlphaFromDiffuseTexture = true;
+                    }
+                    if (props.alphaMode === 'add') {
+                        mat.emissiveTexture = tex;
+                    }
                 } else {
-                    // PNG/JPG
-                    textureLoadPromise = pk3.getFileAsURL(foundPath, 'image/png').then(url => {
-                        if (url) {
-                            console.log(`[MD3] Texture URL created: ${url.substring(0, 50)}...`);
-                            const tex = new Texture(url, this.scene!);
-                            tex.hasAlpha = props.isTransparent ?? false;
-                            mat.diffuseTexture = tex;
-                            if (props.isTransparent) {
-                                mat.useAlphaFromDiffuseTexture = true;
-                            }
-                            // For additive blending, also use as emissive
-                            if (props.alphaMode === 'add') {
-                                mat.emissiveTexture = tex;
-                            }
-                            console.log(`[MD3] Assigned texture URL to material '${materialName}'`);
-                        } else {
-                            console.warn(`[MD3] Failed to create URL for texture: ${foundPath}`);
-                        }
-                    }).catch(err => {
-                        console.error(`[MD3] Error loading texture ${foundPath}:`, err);
-                    });
+                    console.warn(`[MD3] No texture found for: ${texturePath}`);
                 }
-            } else {
-                // Fallback: try loading directly from public/games/default/
-                // Try PNG first, then decode TGA on-the-fly
-                const basePath = cleanPath.replace(/\.(tga|jpg|jpeg)$/i, '');
-                const pngPath = `/games/default/${basePath}.png`;
-                const tgaPath = `/games/default/${cleanPath}`;
-
-                console.log(`[MD3] Trying direct texture path: ${pngPath}`);
-
-                // Try PNG first (browsers can load this natively)
-                textureLoadPromise = fetch(pngPath, { method: 'HEAD' })
-                    .then(resp => {
-                        if (resp.ok) {
-                            // PNG exists, load it
-                            console.log(`[MD3] Found PNG texture: ${pngPath}`);
-                            mat.diffuseTexture = new Texture(pngPath, this.scene!);
-                            mat.diffuseTexture.hasAlpha = props.isTransparent ?? false;
-                        } else {
-                            // Try TGA with on-the-fly decoding
-                            console.log(`[MD3] PNG not found, trying TGA decode: ${tgaPath}`);
-                            return this.loadTgaTextureAsync(tgaPath, mat, props.isTransparent ?? false);
-                        }
-                    })
-                    .catch(() => {
-                        // Network error, try TGA
-                        return this.loadTgaTextureAsync(tgaPath, mat, props.isTransparent ?? false);
-                    });
-            }
+            }).catch(err => {
+                console.error(`[MD3] Error loading texture ${texturePath}:`, err);
+            });
         }
 
         // Apply material properties from shader
@@ -595,35 +514,7 @@ export class MD3Loader {
         return { material: mat, textureLoadPromise };
     }
 
-    /**
-     * Load a TGA texture by decoding it on-the-fly to a data URL (async version)
-     */
-    private loadTgaTextureAsync(tgaPath: string, mat: StandardMaterial, hasAlpha: boolean): Promise<void> {
-        return fetch(tgaPath)
-            .then(resp => {
-                if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}`);
-                }
-                return resp.arrayBuffer();
-            })
-            .then(buffer => decodeTGA(buffer))
-            .then(dataUrl => {
-                console.log(`[MD3] TGA decoded successfully: ${tgaPath}`);
-                const tex = new Texture(dataUrl, this.scene!);
-                tex.hasAlpha = hasAlpha;
-                mat.diffuseTexture = tex;
-                // For additive, also set emissive
-                if (mat.disableLighting) {
-                    mat.emissiveTexture = tex;
-                }
-                if (hasAlpha) {
-                    mat.useAlphaFromDiffuseTexture = true;
-                }
-            })
-            .catch(err => {
-                console.error(`[MD3] Failed to load TGA texture: ${tgaPath}`, err);
-            });
-    }
+
 
     /**
      * Create Babylon.js meshes from parsed MD3 model

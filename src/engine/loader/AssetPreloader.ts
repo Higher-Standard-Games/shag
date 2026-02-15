@@ -7,6 +7,8 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { EntityRegistry } from '../../shared/entities/EntityRegistry';
 import { EntityType } from '../../shared/entities/EntityType';
 import { ModelLoader, type ModelLoadResult } from './model/ModelLoader';
@@ -157,13 +159,9 @@ export class AssetPreloader {
         if (!cached) return null;
 
         try {
-            // Import TransformNode for creating new root
-            const { TransformNode } = require('@babylonjs/core/Meshes/transformNode');
-            const { Mesh } = require('@babylonjs/core/Meshes/mesh');
-
             // Create a new root for the cloned model
             const clonedRoot = new TransformNode(`${cached.root.name}_clone_${Date.now()}`, scene);
-            const clonedMeshes: typeof Mesh[] = [];
+            const clonedMeshes: Mesh[] = [];
 
             // Clone each mesh from the cached model
             for (const mesh of cached.meshes) {

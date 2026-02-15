@@ -90,6 +90,8 @@ export interface WeaponDef extends EntityDef {
     projectileId?: string;
     /** Is hitscan (instant hit)? */
     hitscan?: boolean;
+    /** Hitscan visual effect type (only relevant when hitscan=true) */
+    hitscanType?: 'tracer' | 'pellet' | 'beam' | 'bolt';
 
     /** Firing mode */
     fireMode: 'auto' | 'semi' | 'burst';

@@ -31,6 +31,7 @@ export const INSTAGUN: WeaponDef = {
     reloadTime: 1.3,
     range: 8024,
     hitscan: true,
+    hitscanType: 'bolt',
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
 

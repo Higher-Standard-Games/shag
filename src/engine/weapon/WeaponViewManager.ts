@@ -10,16 +10,17 @@ import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
+import { PK3TextureLoader } from '../loader/pk3/PK3TextureLoader';
 import { MovementVars } from '../movement/MovementVars';
 import { BspManager } from '../loader/bsp/BspManager';
 import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
+import { getHitscanEffects } from './HitscanEffects';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -191,6 +192,9 @@ export class WeaponViewManager {
         // Args: (groupId, autoClear, depth, stencil)
         scene.setRenderingAutoClearDepthStencil(1, true, true, false);
 
+        // Initialize hitscan effects system
+        getHitscanEffects().init(scene);
+
         // Register update loop
         scene.onBeforeRenderObservable.add(() => {
             const deltaTime = scene.getEngine().getDeltaTime() / 1000;
@@ -284,59 +288,76 @@ export class WeaponViewManager {
             mesh.layerMask = WEAPON_LAYER_MASK;
         }
 
-        // Load texture - try multiple extensions (Warsow uses .tga, others may use .jpg/.png)
-        const textureExtensions = ['.jpg', '.tga', '.png', '.jpeg'];
+        // Load texture — route through PK3TextureLoader for unified KTX/TGA/PNG/JPG
+        // handling with caching. Same texture instance is shared with pickup models.
         let textureLoaded = false;
+        const texLoader = PK3TextureLoader.getInstance();
 
-        for (const ext of textureExtensions) {
-            const texturePath = `${weaponDir}/${weaponName}${ext}`;
-            if (pk3.hasFile(texturePath)) {
-                const mimeType = ext === '.tga' ? 'image/x-tga'
-                    : ext === '.png' ? 'image/png'
-                        : 'image/jpeg';
-                const textureUrl = await pk3.getFileAsURL(texturePath, mimeType);
-                if (textureUrl) {
-                    for (const mesh of this.currentWeapon.meshes) {
-                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene);
-                        mat.diffuseTexture = new Texture(textureUrl, this.scene);
-                        mat.specularColor.set(0.2, 0.2, 0.2);
-                        mat.backFaceCulling = true;
-                        mesh.material = mat;
-                    }
-                    console.log(`[WeaponViewManager] Loaded texture: ${texturePath}`);
-                    textureLoaded = true;
-                    break;
-                }
+        // Try weapon-specific texture path first
+        const weaponTexPath = `${weaponDir}/${weaponName}`;
+        const diffuseTex = await texLoader.resolveAndLoadTexture(weaponTexPath);
+
+        if (diffuseTex) {
+            for (const mesh of this.currentWeapon.meshes) {
+                const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
+                mat.specularColor.set(0.2, 0.2, 0.2);
+                mat.backFaceCulling = true;
+                mat.diffuseTexture = diffuseTex;
+                mesh.material = mat;
             }
-        }
-
-        // Fallback: scan directory for any image file
-        if (!textureLoaded) {
+            console.log(`[WeaponViewManager] Loaded texture via PK3TextureLoader: ${weaponTexPath}`);
+            textureLoaded = true;
+        } else {
+            // Fallback: scan directory for any suitable image
+            const pk3 = PK3Loader.getInstance();
             const dirFiles = pk3.listDirectory(weaponDir);
             const imageFile = dirFiles.find(f => {
                 const lower = f.toLowerCase();
-                return (lower.endsWith('.jpg') || lower.endsWith('.tga') ||
+                return (lower.endsWith('.ktx') || lower.endsWith('.jpg') || lower.endsWith('.tga') ||
                     lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
-                    !lower.includes('_flash') && !lower.includes('_hand');
+                    !lower.includes('_flash') && !lower.includes('_hand') &&
+                    !lower.includes('_norm') && !lower.includes('_gloss');
             });
             if (imageFile) {
-                const ext = imageFile.substring(imageFile.lastIndexOf('.'));
-                const mimeType = ext === '.tga' ? 'image/x-tga'
-                    : ext === '.png' ? 'image/png'
-                        : 'image/jpeg';
                 const fullPath = `${weaponDir}/${imageFile}`;
-                const textureUrl = await pk3.getFileAsURL(fullPath, mimeType);
-                if (textureUrl) {
+                const fallbackTex = await texLoader.resolveAndLoadTexture(fullPath);
+                if (fallbackTex) {
                     for (const mesh of this.currentWeapon.meshes) {
-                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene);
-                        mat.diffuseTexture = new Texture(textureUrl, this.scene);
+                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
                         mat.specularColor.set(0.2, 0.2, 0.2);
                         mat.backFaceCulling = true;
+                        mat.diffuseTexture = fallbackTex;
                         mesh.material = mat;
                     }
                     console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
                     textureLoaded = true;
                 }
+            }
+        }
+
+        // --- Load normal map (_norm) and gloss map (_gloss) ---
+        if (textureLoaded) {
+            const normTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_norm`);
+            if (normTex) {
+                for (const mesh of this.currentWeapon.meshes) {
+                    const mat = mesh.material as StandardMaterial;
+                    if (mat) {
+                        mat.bumpTexture = normTex;
+                    }
+                }
+                console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
+            }
+
+            const glossTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_gloss`);
+            if (glossTex) {
+                for (const mesh of this.currentWeapon.meshes) {
+                    const mat = mesh.material as StandardMaterial;
+                    if (mat) {
+                        mat.specularTexture = glossTex;
+                        mat.specularColor.set(0.6, 0.6, 0.6);
+                    }
+                }
+                console.log(`[WeaponViewManager] Loaded gloss map for ${weaponName}`);
             }
         }
 
@@ -539,6 +560,9 @@ export class WeaponViewManager {
 
         // Update projectiles
         getProjectileManager().update(deltaTime);
+
+        // Update hitscan effects (fade, cleanup)
+        getHitscanEffects().update(deltaTime);
     }
 
     /**
@@ -822,13 +846,43 @@ export class WeaponViewManager {
         // Trigger recoil
         this.recoilOffset = WeaponViewManager.RECOIL_KICK;
 
-        // Spawn projectile
-        if (this.mainCamera && this.currentWeaponDef?.projectileId) {
-            const projMgr = getProjectileManager();
+        // Spawn projectile OR hitscan effect
+        if (this.mainCamera && this.currentWeaponDef) {
             const origin = this.mainCamera.position.clone();
             const forward = this.mainCamera.getDirection(Vector3.Forward());
             origin.addInPlace(forward.scale(2));  // 2 units in front
-            projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
+
+            if (this.currentWeaponDef.hitscan && this.currentWeaponDef.hitscanType) {
+                // Hitscan weapon → fire visual effect
+                const fx = getHitscanEffects();
+                const mfColor = this.currentWeaponDef.muzzleFlash?.color;
+                const color = mfColor
+                    ? new Color3(mfColor.r, mfColor.g, mfColor.b)
+                    : undefined;
+                const range = this.currentWeaponDef.range ?? 8192;
+
+                switch (this.currentWeaponDef.hitscanType) {
+                    case 'tracer':
+                        fx.fireTracer({ origin, direction: forward, maxRange: range, color });
+                        break;
+                    case 'pellet':
+                        fx.firePellets({
+                            origin, direction: forward, maxRange: range, color,
+                            pelletCount: this.currentWeaponDef.burstCount ?? 20,
+                        });
+                        break;
+                    case 'beam':
+                        fx.updateBeam({ origin, direction: forward, maxRange: range, color });
+                        break;
+                    case 'bolt':
+                        fx.fireBolt({ origin, direction: forward, maxRange: range, color });
+                        break;
+                }
+            } else if (this.currentWeaponDef.projectileId) {
+                // Projectile weapon → spawn projectile
+                const projMgr = getProjectileManager();
+                projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
+            }
         }
 
         // Create/Update light

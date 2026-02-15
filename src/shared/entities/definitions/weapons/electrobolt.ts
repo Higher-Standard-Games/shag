@@ -31,6 +31,7 @@ export const ELECTROBOLT: WeaponDef = {
     reloadTime: 1.25,
     range: 10000,
     hitscan: true,
+    hitscanType: 'bolt',
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
 

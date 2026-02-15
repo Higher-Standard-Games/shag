@@ -15,7 +15,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PK3Loader } from "./PK3Loader";
-import { parseKTX1, createTextureFromKTX1, isFormatSupported } from "../texture/KTX1Loader";
+import { parseKTX1, createTextureFromKTX1 } from "../texture/KTX1Loader";
 
 export interface TextureSet {
   /** Base/diffuse texture path */
@@ -132,6 +132,45 @@ export class PK3TextureLoader {
   }
 
   /**
+   * Resolve a texture path by trying multiple extensions, then load it.
+   * Accepts paths with or without extension. Prefers lossless formats (TGA, PNG, JPG)
+   * and falls back to KTX (lossy ETC1) only when no lossless source exists.
+   * 
+   * @param basePath - Texture path, e.g. "models/weapons/plasmagun/plasmagun" or "textures/foo.tga"
+   */
+  public async resolveAndLoadTexture(basePath: string): Promise<Texture | null> {
+    const pk3 = PK3Loader.getInstance();
+    const cleanPath = basePath.replace(/^\//, '');
+
+    // Strip existing extension to get the base
+    const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, '');
+
+    // Try extensions in priority order: lossless formats first,
+    // then KTX (lossy ETC1 compression) as fallback only when no lossless source exists
+    const candidates = [
+      cleanPath,       // original path with original extension (highest priority)
+      `${stripped}.tga`,
+      `${stripped}.png`,
+      `${stripped}.jpg`,
+      `${stripped}.ktx`,  // lossy ETC1 — fallback only
+    ];
+
+    // De-duplicate (in case cleanPath === stripped + ext matches one above)
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      const key = candidate.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (pk3.hasFile(candidate)) {
+        return this.loadTexture(candidate);
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Load a single texture from PK3
    */
   public async loadTexture(path: string): Promise<Texture | null> {
@@ -231,15 +270,13 @@ export class PK3TextureLoader {
     try {
       const ktx = parseKTX1(data);
 
-      // Check if format is supported
-      if (!isFormatSupported(this.engine, ktx.header.glInternalFormat)) {
-        console.warn(`[PK3TextureLoader] KTX format not supported: ${ktx.formatName}, trying fallback for ${path}`);
-        // Try to find the same texture in a supported format from PK3 data
-        return this.loadKTXFallback(path);
-      }
-
+      // Try createTextureFromKTX1 first — it handles:
+      // 1. GPU compressed upload (if extension present)
+      // 2. Software decode (DXT1/3/5, ETC1)
+      // 3. Uncompressed KTX data
       const internalTexture = createTextureFromKTX1(this.engine, ktx, path);
       if (!internalTexture) {
+        console.warn(`[PK3TextureLoader] KTX format unsupported: ${ktx.formatName}, trying fallback for ${path}`);
         return this.loadKTXFallback(path);
       }
 
