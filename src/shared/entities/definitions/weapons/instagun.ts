@@ -1,0 +1,72 @@
+/**
+ * Instagun - Weapon Definition
+ * 
+ * One-hit-kill hitscan weapon (instagib mode).
+ * Stats from Warsow gs_weapondefs.c.
+ */
+
+import { WeaponDef } from '../../WeaponDef';
+import { EntityType } from '../../EntityType';
+
+export const INSTAGUN: WeaponDef = {
+    // Identity
+    id: 'instagun',
+    name: 'Instagun',
+    type: EntityType.WEAPON,
+    classname: 'weapon_instagun',
+
+    // Model
+    modelPath: 'models/weapons/instagun/instagun.md3',
+    scale: 2.0,
+
+    // Pickup glow (bright purple)
+    glowColor: { r: 0.8, g: 0.2, b: 1.0 },
+
+    // Gameplay (server-authoritative)
+    damage: 200,
+    fireRate: 0.77,       // 1300ms reload = ~0.77 shots/sec
+    clipSize: 5,
+    ammoType: 'instas',
+    maxAmmo: 5,
+    reloadTime: 1.3,
+    range: 8024,
+    hitscan: true,
+    fireMode: 'semi',
+    pickupBounds: { x: 32, y: 32, z: 32 },
+
+    // View Model
+    viewModel: {
+        modelPath: 'models/weapons/instagun/instagun.md3',
+        handModelPath: 'models/weapons/instagun/instagun_hand.md3',
+        flashModelPath: 'models/weapons/instagun/instagun_flash.md3',
+
+        hipOffset: { x: 10, y: -19, z: 25 },
+        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+
+        adsOffset: { x: 0, y: -15, z: 25 },
+        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+
+        scale: 2.0,
+    },
+
+    // ADS
+    ads: {
+        time: 0.08,
+        fovReduction: 20,
+        sensitivity: 0.4,
+        movementPenalty: 0.6,
+    },
+
+    // Muzzle Flash — bright purple
+    muzzleFlash: {
+        color: { r: 0.8, g: 0.2, b: 1.0 },
+        intensity: 40,
+        range: 70,
+        duration: 0.12,
+    },
+
+    // Sounds
+    sounds: {
+        fire: 'sounds/weapons/instagun_strong.ogg',
+    },
+};

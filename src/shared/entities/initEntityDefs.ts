@@ -5,8 +5,23 @@
  */
 
 import { getEntityRegistry } from './EntityRegistry';
-import { PLASMAGUN } from './definitions/weapons';
-import { PLASMA_BOLT } from './definitions/projectiles';
+
+// Weapons
+import {
+    GUNBLADE, MACHINEGUN, RIOTGUN, GRENADE_LAUNCHER,
+    ROCKET_LAUNCHER, PLASMAGUN, LASERGUN, ELECTROBOLT, INSTAGUN,
+} from './definitions/weapons';
+
+// Projectiles
+import {
+    PLASMA_BOLT, GUNBLADE_BLAST, GRENADE, ROCKET,
+} from './definitions/projectiles';
+
+// Ammo
+import {
+    PLASMA_AMMO, GUNBLADE_AMMO, BULLET_AMMO, SHELL_AMMO,
+    GRENADE_AMMO, ROCKET_AMMO, LASER_AMMO, BOLT_AMMO, INSTA_AMMO,
+} from './definitions/ammo';
 
 /**
  * Register all entity definitions with the registry.
@@ -18,16 +33,32 @@ export function initializeEntityDefs(): void {
     console.log('[EntityDefs] Registering entity definitions...');
 
     // Weapons
+    registry.register(GUNBLADE);
+    registry.register(MACHINEGUN);
+    registry.register(RIOTGUN);
+    registry.register(GRENADE_LAUNCHER);
+    registry.register(ROCKET_LAUNCHER);
     registry.register(PLASMAGUN);
-    // TODO: registry.register(ROCKET_LAUNCHER);
-    // TODO: registry.register(RAILGUN);
+    registry.register(LASERGUN);
+    registry.register(ELECTROBOLT);
+    registry.register(INSTAGUN);
 
     // Projectiles
     registry.register(PLASMA_BOLT);
-    // TODO: registry.register(ROCKET);
+    registry.register(GUNBLADE_BLAST);
+    registry.register(GRENADE);
+    registry.register(ROCKET);
 
-    // TODO: Pickups
-    // registry.register(HEALTH_SMALL);
+    // Ammo
+    registry.register(PLASMA_AMMO);
+    registry.register(GUNBLADE_AMMO);
+    registry.register(BULLET_AMMO);
+    registry.register(SHELL_AMMO);
+    registry.register(GRENADE_AMMO);
+    registry.register(ROCKET_AMMO);
+    registry.register(LASER_AMMO);
+    registry.register(BOLT_AMMO);
+    registry.register(INSTA_AMMO);
 
     console.log(`[EntityDefs] Registered ${registry.getCount()} definitions`);
 }
