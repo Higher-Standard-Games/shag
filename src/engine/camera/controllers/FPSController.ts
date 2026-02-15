@@ -31,6 +31,7 @@ import "@babylonjs/loaders";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { Cvar } from "../../core/Cvar";
 import { MovementVars } from "../../movement/MovementVars";
+import { DeveloperBar } from "../../debug/DeveloperBar";
 import {
   PLAYER_RADIUS,
   PLAYER_HEIGHT,
@@ -546,9 +547,9 @@ export class FPSController implements ICameraController {
         Math.min(Math.PI / 2 - 0.1, this.mouseRotationX)
       );
 
-      // Apply to camera (will be reset before effects each frame)
+      // Apply to camera (slide/ledge offsets are applied here too so async events don't overwrite them)
       this.camera.rotation.y = this.mouseRotationY;
-      this.camera.rotation.x = this.mouseRotationX;
+      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
     };
 
     // Keyboard input
@@ -981,10 +982,27 @@ export class FPSController implements ICameraController {
       const showSpeed = mv.get('cl_showspeed') > 0;
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
+      // Update developer bar (if visible)
+      const devBar = DeveloperBar.getInstance();
+      if (devBar.isVisible()) {
+        const engine = this.camera.getScene().getEngine();
+        const ping = this.gameManager?.getPing() ?? -1;
+        devBar.setStats(
+          engine.getFps(),
+          ping,
+          this.actualHorizSpeed,
+          { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
+        );
+      }
+
       // === NETWORK CAMERA EFFECTS ===
       // Compute absolute pitch offsets (NOT additive to mouseRotationX — that would accumulate per-frame)
       this.slidePitchOffset = this.slidePhase > 0.01 ? this.slidePhase * -0.22 : 0; // ~12° down
       this.ledgePitchOffset = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0; // ~8.6° up
+      // DEBUG: Log when slide effect is active
+      if (this.slidePhase > 0.01) {
+        console.log(`[FPS] SLIDE CAM: phase=${this.slidePhase.toFixed(3)}, pitchOffset=${this.slidePitchOffset.toFixed(4)}`);
+      }
 
     }
 

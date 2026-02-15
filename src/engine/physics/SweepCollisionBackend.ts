@@ -1100,56 +1100,22 @@ export class SweepCollisionBackend implements CollisionBackend {
 
       for (let i = 0; i < numPlanes; i++) {
         const into = Vector3.Dot(currentVel, planes[i]);
-        if (into >= 0.1) {
+        if (into >= 0) {
           continue; // Moving away from this plane
         }
 
         // Clip against this plane
         clippedVel = this.clipVelocity(currentVel, planes[i]);
 
-        // WALL CLIMB PREVENTION: If this is a steep wall (not a floor/ramp),
-        // ensure we never gain upward velocity. Instead of just zeroing Y (which causes penetration),
-        // we project velocity onto the horizontal contour of the wall.
-        const isWall = planes[i].y < 0.7; // Standard Q3 walkable slope threshold
-        if (isWall && clippedVel.y > 0) {
-          const up = new Vector3(0, 1, 0);
-          // Tangent to wall, perpendicular to up (horizontal slide direction)
-          const wallDir = Vector3.Cross(planes[i], up);
-
-          if (wallDir.lengthSquared() > 0.001) {
-            wallDir.normalize();
-            // Project current velocity onto this horizontal direction
-            const speed = Vector3.Dot(clippedVel, wallDir);
-            clippedVel = wallDir.scale(speed);
-          } else {
-            clippedVel.setAll(0); // Should unlikely happen for steep walls
-          }
-        }
-
         // Check if clipped velocity enters another plane
         for (let j = 0; j < numPlanes; j++) {
           if (j === i) continue;
-          if (Vector3.Dot(clippedVel, planes[j]) >= 0.1) {
+          if (Vector3.Dot(clippedVel, planes[j]) >= 0) {
             continue; // Moving away from this plane
           }
 
           // Clip against the second plane too
           clippedVel = this.clipVelocity(clippedVel, planes[j]);
-
-          // Wall climb prevention on second plane too
-          const isWallJ = planes[j].y < 0.7;
-          if (isWallJ && clippedVel.y > 0) {
-            const up = new Vector3(0, 1, 0);
-            const wallDir = Vector3.Cross(planes[j], up);
-
-            if (wallDir.lengthSquared() > 0.001) {
-              wallDir.normalize();
-              const speed = Vector3.Dot(clippedVel, wallDir);
-              clippedVel = wallDir.scale(speed);
-            } else {
-              clippedVel.setAll(0);
-            }
-          }
 
           // Check if it goes back into the first plane
           if (Vector3.Dot(clippedVel, planes[i]) >= 0) {
@@ -1164,7 +1130,7 @@ export class SweepCollisionBackend implements CollisionBackend {
           // Check for a third plane
           for (let k = 0; k < numPlanes; k++) {
             if (k === i || k === j) continue;
-            if (Vector3.Dot(clippedVel, planes[k]) >= 0.1) {
+            if (Vector3.Dot(clippedVel, planes[k]) >= 0) {
               continue;
             }
             // Stuck in a corner - apply gravity escape instead of stopping
