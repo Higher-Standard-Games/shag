@@ -269,12 +269,52 @@ async function main(): Promise<void> {
 
     console.log('');
     console.log(`[Server] ✓ Ready for connections`);
+    console.log('[Server] Commands: spawn_bots <N>, status, help');
     console.log('[Server] Press Ctrl+C to stop');
     console.log('');
+
+    // ── stdin command handler ──────────────────────────────────────
+    const readline = await import('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    rl.on('line', (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const parts = trimmed.split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+
+        switch (cmd) {
+            case 'spawn_bots':
+            case 'bots': {
+                const count = parseInt(parts[1] || '3', 10);
+                if (isNaN(count) || count < 1 || count > 32) {
+                    console.log('[Server] Usage: spawn_bots <1-32>');
+                    break;
+                }
+                server.spawnBots(count);
+                break;
+            }
+            case 'status': {
+                console.log(`[Server] Map: ${config.mapName}, Tick rate: ${config.tickRate}Hz`);
+                break;
+            }
+            case 'help': {
+                console.log('[Server] Commands:');
+                console.log('  spawn_bots <N>  - Spawn N bot entities at spawn points');
+                console.log('  status          - Show server status');
+                console.log('  help            - Show this help');
+                break;
+            }
+            default:
+                console.log(`[Server] Unknown command: ${cmd}. Type 'help' for available commands.`);
+        }
+    });
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
         console.log('\n[Server] Shutting down...');
+        rl.close();
         await server.stop();
         console.log('[Server] Goodbye!');
         process.exit(0);

@@ -513,14 +513,14 @@ export class ProjectileManager {
         mesh.isPickable = false;
 
         const mat = new StandardMaterial(`${id}_mat`, this.scene);
-        mat.emissiveColor = new Color3(1.0, 0.9, 0.5);  // warm spark
+        mat.emissiveColor = new Color3(0.4, 0.6, 1.0);  // blue spark
         mat.diffuseColor = Color3.Black();
         mat.disableLighting = true;
         mesh.material = mat;
 
         // Small flash light
         const light = new PointLight(`${id}_light`, position, this.scene);
-        light.diffuse = new Color3(1.0, 0.9, 0.5);
+        light.diffuse = new Color3(0.4, 0.6, 1.0);
         light.intensity = 4;
         light.range = 15;
 
@@ -708,7 +708,8 @@ export class ProjectileManager {
     private updateTrail(proj: ActiveProjectile): void {
         if (!this.scene) return;
 
-        const MAX_TRAIL_POINTS = 20;
+        const MAX_TRAIL_POINTS = 60;   // longer trail (was 20)
+        const TRAIL_WIDTH = 2.4;        // ribbon half-width in world units
 
         // Record current position
         proj.trailPoints.push(proj.node.position.clone());
@@ -718,25 +719,61 @@ export class ProjectileManager {
             proj.trailPoints.shift();
         }
 
-        // Need at least 2 points for a line
+        // Need at least 2 points for a ribbon
         if (proj.trailPoints.length < 2) return;
 
-        // Dispose old trail mesh
+        // Dispose old trail mesh & material
         proj.trailMesh?.dispose();
+        proj.trailMaterial?.dispose();
 
-        // Create new line mesh from trail points
-        proj.trailMesh = MeshBuilder.CreateLines(`${proj.id}_trail`, {
-            points: proj.trailPoints,
+        // Build ribbon path arrays (two edges offset perpendicular to travel direction)
+        const pathA: Vector3[] = [];
+        const pathB: Vector3[] = [];
+
+        for (let i = 0; i < proj.trailPoints.length; i++) {
+            const p = proj.trailPoints[i];
+
+            // Compute a perpendicular offset direction
+            let tangent: Vector3;
+            if (i < proj.trailPoints.length - 1) {
+                tangent = proj.trailPoints[i + 1].subtract(p).normalize();
+            } else {
+                tangent = p.subtract(proj.trailPoints[i - 1]).normalize();
+            }
+
+            // Cross tangent with world up for a horizontal offset
+            let perp = Vector3.Cross(tangent, Vector3.Up());
+            if (perp.lengthSquared() < 0.001) {
+                // Tangent is nearly vertical — use forward as fallback
+                perp = Vector3.Cross(tangent, Vector3.Forward());
+            }
+            perp.normalize();
+
+            // Taper width: 0 at tail → full at head
+            const t = i / (proj.trailPoints.length - 1);
+            const width = TRAIL_WIDTH * t;
+
+            pathA.push(p.add(perp.scale(width)));
+            pathB.push(p.subtract(perp.scale(width)));
+        }
+
+        // Create ribbon mesh
+        proj.trailMesh = MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
+            pathArray: [pathA, pathB],
             updatable: false,
-        }, this.scene);
+            sideOrientation: Mesh.DOUBLESIDE,
+        }, this.scene) as unknown as LinesMesh;
         proj.trailMesh.isPickable = false;
 
-        // Color based on projectile def
-        const registry = getEntityRegistry();
-        const def = registry.get<ProjectileDef>(proj.defId);
-        const color = def?.lightColor ?? { r: 0.6, g: 1.0, b: 0.3 };
-        proj.trailMesh.color = new Color3(color.r, color.g, color.b);
-        proj.trailMesh.alpha = 0.5;
+        // Blue emissive material
+        const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
+        mat.emissiveColor = new Color3(0.3, 0.5, 1.0);   // blue glow
+        mat.diffuseColor = Color3.Black();
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.alpha = 0.6;
+        proj.trailMesh.material = mat;
+        proj.trailMaterial = mat;
     }
 }
 
