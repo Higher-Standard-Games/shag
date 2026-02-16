@@ -252,7 +252,7 @@ export class ExplosionEffect {
      */
     private createFireball(id: string, pos: Vector3, scale: number, config: ExplosionConfig) {
         const mesh = MeshBuilder.CreateIcoSphere(`${id}_fireball`, {
-            radius: 2 * scale,
+            radius: 2.5 * scale,
             subdivisions: 3,
             flat: true,  // Flat shading for that faceted cartoon look
         }, this.scene!);
@@ -577,8 +577,8 @@ export class ExplosionEffect {
      * along the surface plane — fire "slides" across the wall/floor.
      */
     private updateFireball(exp: ActiveExplosion, t: number): void {
-        // Scale: near-instant expand to full size ("BOOM!"), then just fade alpha
-        const expandPhase = Math.min(t / 0.05, 1.0);
+        // Scale: expand in sync with the shockwave ring (70% of fire lifetime)
+        const expandPhase = Math.min(t / 0.7, 1.0);
 
         const scaleVal = easeOutQuad(expandPhase);
         exp.fireball.scaling.setAll(scaleVal);
@@ -586,14 +586,11 @@ export class ExplosionEffect {
         // Color: 3-stage shift  white-hot → orange → dark red
         let emissive: Color3;
         if (t < 0.3) {
-            // Stage 1: white-hot core → orange
             emissive = Color3.Lerp(exp.config.coreColor, exp.config.outerColor, t / 0.3);
         } else if (t < 0.6) {
-            // Stage 2: orange → dark red embers
             const darkRed = new Color3(0.6, 0.1, 0.02);
             emissive = Color3.Lerp(exp.config.outerColor, darkRed, (t - 0.3) / 0.3);
         } else {
-            // Stage 3: dark red → smoke (nearly black)
             const darkRed = new Color3(0.6, 0.1, 0.02);
             emissive = Color3.Lerp(darkRed, exp.config.smokeColor, (t - 0.6) / 0.4);
         }
@@ -606,18 +603,13 @@ export class ExplosionEffect {
         if (exp.fireballOrigPositions.length > 0) {
             const positions = exp.fireball.getVerticesData(VertexBuffer.PositionKind);
             if (positions) {
-                // Amplify only the spike deviations, not the base sphere
-                // The icosphere was created with radius = 2 * scale;
-                // noise deformed vertices around that. We amplify only the
-                // deviation from R so spikes get bigger without enlarging base.
-                const baseR = 2 * exp.config.scale;  // matches fireball radius
-                const spikeAmp = 1.0 + easeOutQuad(expandPhase) * 1.5; // 50% bigger spikes
+                const baseR = 2.5 * exp.config.scale;
+                const spikeAmp = 1.0 + easeOutQuad(expandPhase) * 1.5;
 
-                // Surface spread: how much to spread across the hit surface
-                // (only kicks in during the fade-out phase, after t=0.4)
+                // Surface spread (kicks in during fade-out, after t=0.4)
                 const fadePhase = t > 0.4 ? (t - 0.4) / 0.6 : 0;
                 const spreadAmount = easeOutQuad(fadePhase) * 1.2;
-                const n = exp.normal;  // Hit surface normal
+                const n = exp.normal;
 
                 for (let i = 0; i < positions.length; i += 3) {
                     const ox = exp.fireballOrigPositions[i];
@@ -627,7 +619,6 @@ export class ExplosionEffect {
                     const dist = Math.sqrt(ox * ox + oy * oy + oz * oz);
                     if (dist === 0) { continue; }
 
-                    // deviation = how much this vertex sticks out (or in) from base
                     const deviation = dist - baseR;
                     const newDist = baseR + deviation * spikeAmp;
                     const ratio = newDist / dist;
@@ -637,20 +628,16 @@ export class ExplosionEffect {
                     let vz = oz * ratio;
 
                     if (spreadAmount > 0) {
-                        // Decompose vertex into normal component and surface-plane component
                         const dotN = vx * n.x + vy * n.y + vz * n.z;
 
-                        // Normal component (along the hit normal)
                         const nCompX = dotN * n.x;
                         const nCompY = dotN * n.y;
                         const nCompZ = dotN * n.z;
 
-                        // Surface-plane component (perpendicular to normal)
                         const tCompX = vx - nCompX;
                         const tCompY = vy - nCompY;
                         const tCompZ = vz - nCompZ;
 
-                        // Compress along normal (keep volume), stretch along surface
                         const normalCompress = Math.max(0.3, 1.0 - spreadAmount * 0.4);
                         const surfaceStretch = 1.0 + spreadAmount * 0.5;
 
