@@ -275,6 +275,12 @@ export class FPSController implements ICameraController {
   private slidePitchOffset: number = 0;  // Computed absolute pitch offset during slide
   private ledgePitchOffset: number = 0;  // Computed absolute pitch offset during ledge grab
 
+  // Camera shake (from explosions, etc.)
+  private shakeIntensity: number = 0;
+  private shakePitchOffset: number = 0;
+  private shakeYawOffset: number = 0;
+  private shakeDecayRate: number = 6;  // How fast shake decays (higher = faster)
+
   // Player Visuals Component (Debug model, animations)
   private playerVisuals: PlayerVisuals | null = null;
 
@@ -394,6 +400,15 @@ export class FPSController implements ICameraController {
       x: this.mouseRotationX,
       y: this.mouseRotationY
     };
+  }
+
+  /**
+   * Trigger camera shake (e.g. from nearby explosions)
+   * @param intensity - Shake strength (0-1 range, where 1 = very close explosion)
+   */
+  shakeCamera(intensity: number): void {
+    // Stack with existing shake but cap at 1.0
+    this.shakeIntensity = Math.min(1.0, this.shakeIntensity + intensity);
   }
 
   /**
@@ -1049,9 +1064,25 @@ export class FPSController implements ICameraController {
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
       // Reset camera rotation to mouse-controlled values + slide/ledge offsets
-      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
-      this.camera.rotation.y = this.mouseRotationY;
+      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset + this.shakePitchOffset;
+      this.camera.rotation.y = this.mouseRotationY + this.shakeYawOffset;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
+
+      // Update camera shake (decaying random offsets)
+      if (this.shakeIntensity > 0.001) {
+        // Generate new random offsets each frame, scaled by intensity
+        const maxAngle = 0.10;  // ~5.7 degrees max shake at full intensity
+        this.shakePitchOffset = (Math.random() * 2 - 1) * maxAngle * this.shakeIntensity;
+        this.shakeYawOffset = (Math.random() * 2 - 1) * maxAngle * this.shakeIntensity;
+
+        // Decay intensity
+        this.shakeIntensity *= Math.max(0, 1 - this.shakeDecayRate * deltaTime);
+        if (this.shakeIntensity < 0.001) {
+          this.shakeIntensity = 0;
+          this.shakePitchOffset = 0;
+          this.shakeYawOffset = 0;
+        }
+      }
 
       // Note: landingVelocityCapture is set in ground detection (before velocity is zeroed)
 
