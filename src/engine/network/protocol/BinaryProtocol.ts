@@ -20,9 +20,9 @@
  * - 0x01 = position changed (12 bytes: 3 floats)
  * - 0x02 = velocity changed (12 bytes: 3 floats)
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
+ * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
  *
  * KNOWN LIMITATIONS (future improvements):
- * - rotation is not transmitted (always identity) - affects aim direction display
  * - MovementStateComponent not transmitted - affects crouch/slide animations
  */
 
@@ -155,6 +155,13 @@ export class BinaryProtocol {
         flags |= 0x04;
       }
 
+      // Check rotation (yaw + pitch) for remote player aiming direction
+      const rot = transform?.rotation;
+      const baselineRot = baselineTransform?.rotation;
+      if (rot && (!baselineRot || rot.y !== baselineRot.y || rot.x !== baselineRot.x)) {
+        flags |= 0x08;
+      }
+
       encoder.writeUint8(flags);
 
       // Encode changed components
@@ -175,6 +182,12 @@ export class BinaryProtocol {
       // Flag 0x04: Grounded state (1 byte - boolean)
       if (flags & 0x04) {
         encoder.writeUint8(grounded ? 1 : 0);
+      }
+
+      // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
+      if (flags & 0x08 && rot) {
+        encoder.writeFloat32(rot.y); // yaw
+        encoder.writeFloat32(rot.x); // pitch
       }
     }
   }
@@ -212,10 +225,14 @@ export class BinaryProtocol {
         };
         entity.addComponent('position', pos);
 
+        // Preserve existing rotation if transform already exists (rotation may arrive independently)
+        const existingTransform = entity.getComponent('transform') as any;
+        const existingRot = existingTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+
         // TransformComponent-style for FPSGameManager compatibility
         const transform = {
           position: { x, y, z },
-          rotation: { x: 0, y: 0, z: 0, w: 1 },
+          rotation: { ...existingRot },
           serialize() { return {}; },
           deserialize() { },
           clone() { return { position: { ...this.position }, rotation: { ...this.rotation }, serialize: this.serialize, deserialize: this.deserialize, clone: this.clone }; }
@@ -260,6 +277,28 @@ export class BinaryProtocol {
         // Grounded state changed - read new value
         // This is CRITICAL for jump logic - client needs to know if player is on ground!
         grounded = decoder.readUint8() !== 0;
+      }
+
+      // Flag 0x08: Rotation (yaw + pitch)
+      if (flags & 0x08) {
+        const rotY = decoder.readFloat32(); // yaw
+        const rotX = decoder.readFloat32(); // pitch
+
+        // Update transform rotation (create transform if it doesn't exist)
+        let transform = entity.getComponent('transform') as any;
+        if (transform) {
+          transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
+        } else {
+          // No position yet, create transform with zero position + received rotation
+          transform = {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: rotX, y: rotY, z: 0, w: 1 },
+            serialize() { return {}; },
+            deserialize() { },
+            clone() { return { position: { ...this.position }, rotation: { ...this.rotation }, serialize: this.serialize, deserialize: this.deserialize, clone: this.clone }; }
+          };
+          entity.addComponent('transform', transform);
+        }
       }
 
       // Create velocity component if we have data
