@@ -123,6 +123,7 @@ Examples:
 interface BspData {
     collision: CollisionWorld;
     spawnPoints: Array<{ x: number; y: number; z: number }>;
+    pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }>;
 }
 
 async function loadBspCollision(mapName: string, gamePath: string): Promise<BspData | null> {
@@ -214,7 +215,32 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
     console.log(`[Server] Found ${spawnPoints.length} spawn points`);
 
-    return { collision, spawnPoints };
+    // Debug: list ALL entity classnames in the BSP
+    const classnameSet = new Set<string>();
+    for (const entity of bsp.entities) {
+        classnameSet.add(entity.classname);
+    }
+    console.log(`[Server] BSP entity classnames: ${[...classnameSet].sort().join(', ')}`);
+
+    // Extract weapon/item pickups
+    const pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }> = [];
+
+    for (const entity of bsp.entities) {
+        if (entity.classname.startsWith('weapon_') || entity.classname.startsWith('item_')) {
+            const origin = entity.properties.origin;
+            if (origin) {
+                const [x, y, z] = origin.split(' ').map(Number);
+                pickupItems.push({
+                    classname: entity.classname,
+                    position: { x, y: z, z: y },  // Q3→Babylon coord swap: Y↔Z
+                });
+            }
+        }
+    }
+
+    console.log(`[Server] Found ${pickupItems.length} weapon/item pickups`);
+
+    return { collision, spawnPoints, pickupItems };
 }
 
 // ============================================================================
@@ -260,6 +286,8 @@ async function main(): Promise<void> {
     if (bspData) {
         server.setCollisionWorld(bspData.collision);
         server.setSpawnPoints(bspData.spawnPoints);
+        server.setPickupItems(bspData.pickupItems);
+        server.setPickupRespawnTime(25); // 25 second respawn
     } else {
         console.log('[Server] Running without BSP collision (open space mode)');
     }
@@ -269,12 +297,52 @@ async function main(): Promise<void> {
 
     console.log('');
     console.log(`[Server] ✓ Ready for connections`);
+    console.log('[Server] Commands: spawn_bots <N>, status, help');
     console.log('[Server] Press Ctrl+C to stop');
     console.log('');
+
+    // ── stdin command handler ──────────────────────────────────────
+    const readline = await import('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    rl.on('line', (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const parts = trimmed.split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+
+        switch (cmd) {
+            case 'spawn_bots':
+            case 'bots': {
+                const count = parseInt(parts[1] || '3', 10);
+                if (isNaN(count) || count < 1 || count > 32) {
+                    console.log('[Server] Usage: spawn_bots <1-32>');
+                    break;
+                }
+                server.spawnBots(count);
+                break;
+            }
+            case 'status': {
+                console.log(`[Server] Map: ${config.mapName}, Tick rate: ${config.tickRate}Hz`);
+                break;
+            }
+            case 'help': {
+                console.log('[Server] Commands:');
+                console.log('  spawn_bots <N>  - Spawn N bot entities at spawn points');
+                console.log('  status          - Show server status');
+                console.log('  help            - Show this help');
+                break;
+            }
+            default:
+                console.log(`[Server] Unknown command: ${cmd}. Type 'help' for available commands.`);
+        }
+    });
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
         console.log('\n[Server] Shutting down...');
+        rl.close();
         await server.stop();
         console.log('[Server] Goodbye!');
         process.exit(0);

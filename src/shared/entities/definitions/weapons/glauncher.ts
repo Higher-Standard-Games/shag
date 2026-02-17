@@ -25,7 +25,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     // Gameplay (server-authoritative)
     damage: 80,
     fireRate: 1.25,       // 800ms reload = 1.25 shots/sec
-    clipSize: 20,
+    clipSize: 1,
     ammoType: 'grenades',
     maxAmmo: 20,
     reloadTime: 0.8,

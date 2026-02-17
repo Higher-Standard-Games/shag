@@ -32,6 +32,8 @@ export const MACHINEGUN: WeaponDef = {
     range: 6000,
     hitscan: true,
     hitscanType: 'tracer',
+    spread: 1.5,          // 1.5° hip-fire cone
+    adsSpread: 0.3,       // 0.3° when ADS
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
 

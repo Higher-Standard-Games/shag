@@ -29,7 +29,7 @@ export const GRENADE: ProjectileDef = {
     bounces: 3,            // Bounces before explode
 
     // Light
-    lightColor: { r: 0.6, g: 1.0, b: 0.3 },
+    lightColor: { r: 0.3, g: 0.5, b: 1.0 },
     lightIntensity: 6,
     lightRange: 20,
 

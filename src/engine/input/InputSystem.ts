@@ -41,7 +41,7 @@ const DEFAULT_ACTIONS: ActionDefinition[] = [
   { id: "camera_pan", type: "button", name: "Camera Pan", defaultBindings: [{ mouseButton: "left" }] },
   { id: "camera_zoom_in", type: "button", name: "Zoom In", defaultBindings: [{ key: "Equal" }] },
   { id: "camera_zoom_out", type: "button", name: "Zoom Out", defaultBindings: [{ key: "Minus" }] },
-  
+
   // Movement actions
   { id: "move_forward", type: "button", name: "Move Forward", defaultBindings: [{ key: "KeyW" }, { key: "ArrowUp" }] },
   { id: "move_back", type: "button", name: "Move Back", defaultBindings: [{ key: "KeyS" }, { key: "ArrowDown" }] },
@@ -49,16 +49,16 @@ const DEFAULT_ACTIONS: ActionDefinition[] = [
   { id: "move_right", type: "button", name: "Move Right", defaultBindings: [{ key: "KeyD" }, { key: "ArrowRight" }] },
   { id: "move_up", type: "button", name: "Move Up", defaultBindings: [{ key: "Space" }] },
   { id: "move_down", type: "button", name: "Move Down", defaultBindings: [{ key: "ShiftLeft" }] },
-  
+
   // Rotation actions (for FPS-style)
   { id: "rotate_left", type: "button", name: "Rotate Left", defaultBindings: [{ key: "KeyQ" }] },
   { id: "rotate_right", type: "button", name: "Rotate Right", defaultBindings: [{ key: "KeyE" }] },
-  
+
   // Common game actions
   { id: "interact", type: "button", name: "Interact", defaultBindings: [{ key: "KeyE" }, { mouseButton: "left" }] },
   { id: "cancel", type: "button", name: "Cancel", defaultBindings: [{ key: "Escape" }] },
   { id: "confirm", type: "button", name: "Confirm", defaultBindings: [{ key: "Enter" }, { key: "Space" }] },
-  
+
   // UI actions
   { id: "menu_up", type: "button", name: "Menu Up", defaultBindings: [{ key: "ArrowUp" }, { key: "KeyW" }] },
   { id: "menu_down", type: "button", name: "Menu Down", defaultBindings: [{ key: "ArrowDown" }, { key: "KeyS" }] },
@@ -95,23 +95,23 @@ const DEFAULT_CONTEXTS: ContextDefinition[] = [
 
 export class InputSystem {
   private static instance: InputSystem;
-  
+
   // Scene reference (stored for future gesture/raycast support)
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
-  
+
   // Definitions
   private actions: Map<string, ActionDefinition> = new Map();
   private contexts: Map<string, ContextDefinition> = new Map();
-  
+
   // Runtime state
   private contextStack: string[] = ["gameplay"];
   private actionStates: Map<string, ActionState> = new Map();
   private rawState: RawInputState;
-  
+
   // Binding overrides (from game config)
   private bindingOverrides: Map<string, InputBinding[]> = new Map();
-  
+
   // Event listeners (for cleanup)
   private boundKeyDown: (e: KeyboardEvent) => void;
   private boundKeyUp: (e: KeyboardEvent) => void;
@@ -127,7 +127,7 @@ export class InputSystem {
   private constructor() {
     // Initialize raw state
     this.rawState = this.createEmptyRawState();
-    
+
     // Bind event handlers
     this.boundKeyDown = this.onKeyDown.bind(this);
     this.boundKeyUp = this.onKeyUp.bind(this);
@@ -139,7 +139,7 @@ export class InputSystem {
     this.boundTouchMove = this.onTouchMove.bind(this);
     this.boundTouchEnd = this.onTouchEnd.bind(this);
     this.boundContextMenu = (e: Event) => e.preventDefault();
-    
+
     // Register default actions and contexts
     this.registerDefaults();
   }
@@ -159,7 +159,7 @@ export class InputSystem {
   init(scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
     this.canvas = canvas;
-    
+
     // Add event listeners
     document.addEventListener("keydown", this.boundKeyDown);
     document.addEventListener("keyup", this.boundKeyUp);
@@ -171,14 +171,14 @@ export class InputSystem {
     canvas.addEventListener("touchmove", this.boundTouchMove, { passive: false });
     canvas.addEventListener("touchend", this.boundTouchEnd);
     canvas.addEventListener("contextmenu", this.boundContextMenu);
-    
+
     // Update action states BEFORE render (so controllers can query them)
-    scene.onBeforeRenderObservable.addOnce(() => {}); // Ensure we're first
+    scene.onBeforeRenderObservable.addOnce(() => { }); // Ensure we're first
     scene.onBeforeRenderObservable.add(() => this.updateActionStates(), -1000); // High priority (runs first)
-    
+
     // Clear per-frame state AFTER render
     scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
-    
+
     console.log("[InputSystem] Initialized");
   }
 
@@ -205,7 +205,7 @@ export class InputSystem {
         }
       }
     }
-    
+
     // Register custom contexts
     if (config.contexts) {
       for (const [id, partial] of Object.entries(config.contexts)) {
@@ -222,14 +222,14 @@ export class InputSystem {
         }
       }
     }
-    
+
     // Apply binding overrides
     if (config.bindings) {
       for (const [actionId, bindings] of Object.entries(config.bindings)) {
         this.bindingOverrides.set(actionId, bindings);
       }
     }
-    
+
     console.log("[InputSystem] Loaded config");
   }
 
@@ -273,8 +273,8 @@ export class InputSystem {
       return undefined;
     }
     const popped = this.contextStack.pop();
-    EventBus.emit("input:context_changed", { 
-      context: this.getActiveContext(), 
+    EventBus.emit("input:context_changed", {
+      context: this.getActiveContext(),
       action: "pop",
       previous: popped,
     });
@@ -425,7 +425,7 @@ export class InputSystem {
     this.rawState.mouse.wheel = 0;
     this.rawState.touch.pointsStarted = [];
     this.rawState.touch.pointsEnded = [];
-    
+
     // Clear pressed/released on action states (keep active)
     for (const state of this.actionStates.values()) {
       state.pressed = false;
@@ -437,23 +437,23 @@ export class InputSystem {
   private updateActionStates(): void {
     const activeContext = this.contexts.get(this.getActiveContext());
     if (!activeContext) return;
-    
+
     // Check each action in the active context
     for (const actionId of activeContext.actions) {
       const action = this.actions.get(actionId);
       const state = this.actionStates.get(actionId);
       if (!action || !state) continue;
-      
+
       // Get bindings (overrides take priority)
-      const bindings = this.bindingOverrides.get(actionId) 
+      const bindings = this.bindingOverrides.get(actionId)
         || activeContext.bindings?.[actionId]
         || action.defaultBindings;
-      
+
       // Check if any binding is active
       let isActive = false;
       let wasPressed = false;
       let wasReleased = false;
-      
+
       for (const binding of bindings) {
         // Check modifiers first
         if (binding.modifiers) {
@@ -461,14 +461,14 @@ export class InputSystem {
           if (binding.modifiers.shift && !this.rawState.keys.has("ShiftLeft") && !this.rawState.keys.has("ShiftRight")) continue;
           if (binding.modifiers.alt && !this.rawState.keys.has("AltLeft") && !this.rawState.keys.has("AltRight")) continue;
         }
-        
+
         // Check keyboard
         if (binding.key) {
           if (this.rawState.keys.has(binding.key)) isActive = true;
           if (this.rawState.keysPressed.has(binding.key)) wasPressed = true;
           if (this.rawState.keysReleased.has(binding.key)) wasReleased = true;
         }
-        
+
         // Check mouse
         if (binding.mouseButton) {
           if (this.rawState.mouse.buttons.has(binding.mouseButton)) isActive = true;
@@ -476,11 +476,11 @@ export class InputSystem {
           if (this.rawState.mouse.buttonsReleased.has(binding.mouseButton)) wasReleased = true;
         }
       }
-      
+
       state.active = isActive;
       state.pressed = wasPressed;
       state.released = wasReleased;
-      
+
       // For pan action, also track delta
       if (actionId === "camera_pan" && isActive) {
         state.delta = { x: this.rawState.mouse.deltaX, y: this.rawState.mouse.deltaY };
@@ -492,6 +492,18 @@ export class InputSystem {
 
   private onKeyDown(e: KeyboardEvent): void {
     if (e.repeat) return;
+
+    // Alt+Enter → toggle fullscreen
+    if (e.altKey && e.code === 'Enter') {
+      e.preventDefault();
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { });
+      } else {
+        document.documentElement.requestFullscreen().catch(() => { });
+      }
+      return;
+    }
+
     this.rawState.keys.add(e.code);
     this.rawState.keysPressed.add(e.code);
   }

@@ -427,6 +427,33 @@ export class HitscanEffects {
             if (mesh.name.startsWith('proj_')) return false;
             if (mesh.name.startsWith('impact_')) return false;
             if (mesh.name.startsWith('wallmark_')) return false;
+
+            // Skip non-solid meshes (light halos, flares, billboards, effects)
+            const name = mesh.name.toLowerCase();
+            if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||
+                name.includes('billboard') || name.includes('sprite') || name.includes('particle') ||
+                name.includes('effect') || name.includes('light_')) {
+                return false;
+            }
+
+            // Skip by texture name patterns
+            const textureName = (mesh.metadata?.textureName || '').toLowerCase();
+            if (textureName.includes('flare') || textureName.includes('halo') ||
+                textureName.includes('glow') || textureName.includes('flareshader') ||
+                textureName.includes('lights/') || textureName.includes('sfx/')) {
+                return false;
+            }
+
+            // Skip meshes with additive blending (light effects)
+            const material = mesh.material;
+            if (material) {
+                if ((material as any).alphaMode === 1 || (material as any).alphaMode === 2) return false;
+                if ((material as any).alpha !== undefined && (material as any).alpha < 0.5) return false;
+            }
+
+            // Skip billboard faces (faceType 4 in BSP)
+            if (mesh.metadata?.faceType === 4) return false;
+
             return true;
         });
 

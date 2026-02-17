@@ -113,7 +113,7 @@ export class WeaponViewManager {
     private muzzleFlashModel: TransformNode | null = null;  // Flash MD3 model at tag_flash
     private muzzleFlashIntensity: number = 0;  // Current flash intensity (fades out)
     private static readonly MUZZLE_FLASH_MAX_INTENSITY = 15.0;  // Peak brightness
-    private static readonly MUZZLE_FLASH_DECAY = 45.0;  // How fast it fades (higher = faster)
+    private static readonly MUZZLE_FLASH_DECAY = 150.0;  // How fast it fades (higher = faster)
     private static readonly MUZZLE_FLASH_OPACITY = 0.75; // Max opacity (0.75 = 75% visible)
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
     // Weapon recoil

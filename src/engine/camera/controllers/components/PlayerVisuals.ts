@@ -3,14 +3,9 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Skeleton } from "@babylonjs/core/Bones/skeleton";
-import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
-import { Animation } from "@babylonjs/core/Animations/animation";
 import { FPSController } from "../FPSController";
 import { Cvar } from "../../../core/Cvar";
+import { PlayerModelManager, type PlayerModelInstance } from '../../../animation/PlayerModelManager';
 
 /**
  * PlayerVisuals - Handles the visual representation of the player
@@ -28,23 +23,19 @@ export class PlayerVisuals {
     // Debug visualization (cl_debugbbox cvar)
     private debugBboxMesh: Mesh | null = null;
 
-    // Debug player model visualization (cl_debugplayer cvar)
-    private debugPlayerMesh: Mesh | null = null;
-    private debugPlayerSkeleton: Skeleton | null = null;
-    private debugPlayerAnims: { name: string; animations: { target: TransformNode; animation: Animation }[] }[] = [];
-    private debugPlayerMasterGroup: AnimationGroup | null = null;
-    private debugPlayerCurrentAnim: string = "";
-    private debugPlayerAnchor: TransformNode | null = null;
+    // Debug player model (via shared PlayerModelManager)
+    private modelManager: PlayerModelManager;
+    private debugInstance: PlayerModelInstance | null = null;
+    private debugInitializing = false;
 
     // Smoothed tracking to prevent idle jitter
     private debugPlayerSmoothedYaw: number = 0;
     private debugPlayerSmoothedPos: Vector3 = new Vector3(0, 0, 0);
 
-    private debugPlayerLoading: boolean = false;
-
     constructor(controller: FPSController, scene: Scene) {
         this.controller = controller;
         this.scene = scene;
+        this.modelManager = new PlayerModelManager(scene);
     }
 
     /**
@@ -56,7 +47,11 @@ export class PlayerVisuals {
     }
 
     public dispose(): void {
-        this.disposeDebugPlayer();
+        if (this.debugInstance) {
+            this.modelManager.disposeInstance(this.debugInstance);
+            this.debugInstance = null;
+        }
+        this.modelManager.dispose();
         if (this.debugBboxMesh) {
             this.debugBboxMesh.dispose();
             this.debugBboxMesh = null;
@@ -198,197 +193,70 @@ export class PlayerVisuals {
     }
 
     /**
-     * Initialize debug player model and load animations
+     * Initialize debug player model via shared PlayerModelManager
      */
     private async initDebugPlayer(): Promise<void> {
-        if (!this.scene || this.debugPlayerLoading || this.debugPlayerMesh) return;
+        if (!this.scene || this.debugInitializing || this.debugInstance) return;
 
-        this.debugPlayerLoading = true;
-        console.log("[DebugPlayer] Loading vanguard.glb...");
+        this.debugInitializing = true;
 
         try {
-            const result = await SceneLoader.ImportMeshAsync(
-                "",
-                "games/default/animations/",
-                "vanguard.glb",
-                this.scene
-            );
+            // Load model + animations (idempotent)
+            await this.modelManager.loadModel();
 
-            if (result.meshes.length === 0) {
-                console.error("[DebugPlayer] No meshes in model");
-                return;
-            }
-
-            this.debugPlayerMesh = result.meshes[0] as Mesh;
-            this.debugPlayerSkeleton = result.skeletons[0] || null;
-
-            // === CREATE PARENT ANCHOR NODE ===
-            this.debugPlayerAnchor = new TransformNode("debugPlayerAnchor", this.scene);
-
-            // Unparent mesh from any existing parent and reparent to our anchor
-            this.debugPlayerMesh.setParent(this.debugPlayerAnchor);
-
-            // Reset mesh local position to zero - it will be relative to anchor
-            this.debugPlayerMesh.position.set(0, 0, 0);
+            // Create instance
+            const scaleCvar = Cvar.get('cl_debugplayer_scale');
+            const scale = scaleCvar !== undefined ? Number(scaleCvar) : 36;
+            this.debugInstance = this.modelManager.createInstance('debug', scale);
+            if (!this.debugInstance) return;
 
             // Initialize smoothed values to prevent fly-in from origin
             const yaw = this.controller.getRotation().y;
             const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
             const myPos = this.controller.getPlayerPosition();
             const initialPos = new Vector3(myPos.x, myPos.y, myPos.z);
-            initialPos.addInPlace(forward.scale(100)); // default offset
+            initialPos.addInPlace(forward.scale(100));
 
-            // Need CONST_PLAYER_MINS_Z again (assuming -24)
             const CONST_PLAYER_MINS_Z = -24;
             initialPos.y = myPos.y + CONST_PLAYER_MINS_Z;
 
             this.debugPlayerSmoothedPos.copyFrom(initialPos);
             this.debugPlayerSmoothedYaw = yaw;
 
-            // Stop embedded animation
-            result.animationGroups.forEach(g => g.stop());
-
-            // Build bone map
-            const targetBoneMap = new Map<string, TransformNode>();
-            if (this.debugPlayerSkeleton) {
-                for (const bone of this.debugPlayerSkeleton.bones) {
-                    const node = bone.getTransformNode();
-                    if (node) targetBoneMap.set(bone.name, node);
-                }
-            }
-
-            // Store embedded animation (with position filtering)
-            if (result.animationGroups.length > 0) {
-                const embeddedAnims: { target: TransformNode; animation: Animation }[] = [];
-                for (const ta of result.animationGroups[0].targetedAnimations) {
-                    const targetName = (ta.target as TransformNode).name;
-                    const prop = ta.animation.targetProperty;
-
-                    // Skip position animations ONLY on Hips (root motion)
-                    const isHipsBone = targetName.toLowerCase().includes('hips');
-                    if (prop === 'position' && isHipsBone) {
-                        console.log(`[DebugPlayer] Filtering root motion: ${targetName}`);
-                        continue;
-                    }
-
-                    embeddedAnims.push({
-                        target: ta.target as TransformNode,
-                        animation: ta.animation.clone()
-                    });
-                }
-                this.debugPlayerAnims.push({ name: "embedded", animations: embeddedAnims });
-                result.animationGroups[0].dispose();
-            }
-
-            // Create master group
-            this.debugPlayerMasterGroup = new AnimationGroup("debugPlayerMaster", this.scene);
-
-            // Load external animations
-            const animFiles = [
-                { name: "idle", file: "rifle aiming idle.glb" },
-                { name: "run", file: "rifle run.glb" },
-                { name: "strafe_l", file: "strafe left.glb" },
-                { name: "strafe_r", file: "strafe right.glb" },
-                { name: "jump", file: "rifle jump.glb" },
-                { name: "walk", file: "walking.glb" },
-                { name: "reload", file: "reloading.glb" },
-            ];
-
-            for (const anim of animFiles) {
-                try {
-                    // CRITICAL: Stop ALL animation groups BEFORE importing
-                    for (const g of this.scene!.animationGroups) {
-                        g.stop();
-                    }
-
-                    const animResult = await SceneLoader.ImportAnimationsAsync(
-                        "",
-                        "games/default/animations/" + anim.file,
-                        this.scene,
-                        false
-                    );
-
-                    // CRITICAL: Stop ALL animation groups IMMEDIATELY after import
-                    for (const g of this.scene!.animationGroups) {
-                        g.stop();
-                    }
-
-                    if (animResult.animationGroups.length > 0) {
-                        const sourceGroup = animResult.animationGroups[0];
-                        const storedAnims: { target: TransformNode; animation: Animation }[] = [];
-
-                        for (const ta of sourceGroup.targetedAnimations) {
-                            const targetName = (ta.target as TransformNode).name;
-
-                            const ourBone = targetBoneMap.get(targetName);
-                            if (ourBone) {
-                                const prop = ta.animation.targetProperty;
-
-                                // Skip position animations ONLY on Hips (root motion)
-                                const isHipsBone = targetName.toLowerCase().includes('hips');
-                                if (prop === 'position' && isHipsBone) {
-                                    continue; // Filter out root motion
-                                }
-
-                                const clonedAnim = ta.animation.clone();
-                                clonedAnim.name = `${anim.name}_${ta.animation.name}`;
-                                storedAnims.push({ target: ourBone, animation: clonedAnim });
-                            }
-                        }
-
-                        if (storedAnims.length > 0) {
-                            this.debugPlayerAnims.push({ name: anim.name, animations: storedAnims });
-                            console.log(`[DebugPlayer] Loaded ${anim.name}: ${storedAnims.length} channels`);
-                        } else {
-                            console.warn(`[DebugPlayer] ${anim.name} has 0 channels - animation may not work!`);
-                        }
-                        sourceGroup.dispose();
-
-                        // CRITICAL: Stop ALL animation groups in scene after each import
-                        for (const g of this.scene!.animationGroups) {
-                            g.stop();
-                        }
-                    }
-                } catch (err) {
-                    console.error(`[DebugPlayer] Error loading ${anim.file}:`, err);
-                }
-            }
-
-            console.log(`[DebugPlayer] Loaded ${this.debugPlayerAnims.length} animations`);
-            this.playAnimation("idle");
+            this.modelManager.playAnimation(this.debugInstance, 'idle');
         } catch (error) {
-            console.error("[DebugPlayer] Load error:", error);
+            console.error('[DebugPlayer] Init error:', error);
         } finally {
-            this.debugPlayerLoading = false;
+            this.debugInitializing = false;
         }
     }
 
     /**
      * Update debug player model position and animation
      */
-    private updateDebugPlayer(deltaTime: number): void {
+    private updateDebugPlayer(_deltaTime: number): void {
         if (!this.scene) return;
 
         const debugCvar = Cvar.get('cl_debugplayer');
         const debugEnabled = debugCvar !== undefined && Number(debugCvar) > 0;
 
         if (!debugEnabled) {
-            // Hide anchor and mesh if exists
-            if (this.debugPlayerAnchor) this.debugPlayerAnchor.setEnabled(false);
-            if (this.debugPlayerMesh) {
-                this.debugPlayerMesh.isVisible = false;
-                this.debugPlayerMesh.getChildMeshes().forEach(m => m.isVisible = false);
+            if (this.debugInstance) {
+                this.debugInstance.anchor.setEnabled(false);
+                this.debugInstance.mesh.isVisible = false;
+                this.debugInstance.mesh.getChildMeshes().forEach(m => m.isVisible = false);
             }
             return;
         }
 
         // Initialize if needed
-        if (!this.debugPlayerMesh && !this.debugPlayerLoading) {
+        if (!this.debugInstance && !this.debugInitializing) {
             this.initDebugPlayer();
             return;
         }
 
-        if (!this.debugPlayerMesh || !this.debugPlayerAnchor) return;
+        const inst = this.debugInstance;
+        if (!inst) return;
 
         // Get cvars
         const offsetCvar = Cvar.get('cl_debugplayer_offset');
@@ -424,54 +292,45 @@ export class PlayerVisuals {
         this.debugPlayerSmoothedYaw += yawDelta * 0.15;
 
         // Set anchor position and rotation
-        this.debugPlayerAnchor.position.copyFrom(this.debugPlayerSmoothedPos);
-        if (this.debugPlayerAnchor.rotationQuaternion) {
-            this.debugPlayerAnchor.rotationQuaternion = null;
+        inst.anchor.position.copyFrom(this.debugPlayerSmoothedPos);
+        if (inst.anchor.rotationQuaternion) {
+            inst.anchor.rotationQuaternion = null;
         }
-        this.debugPlayerAnchor.rotation.set(0, this.debugPlayerSmoothedYaw, 0);
-        this.debugPlayerAnchor.setEnabled(true);
+        inst.anchor.rotation.set(0, this.debugPlayerSmoothedYaw, 0);
+        inst.anchor.setEnabled(true);
 
-        // Force positions to zero
-        this.debugPlayerMesh.position.set(0, 0, 0);
-        for (const child of this.debugPlayerMesh.getChildTransformNodes(true)) {
-            const name = child.name.toLowerCase();
-            if (name.includes("armature") || name.includes("root") || name.includes("hips")) {
-                child.position.set(0, 0, 0);
-            }
-        }
-
-        // Apply scale
-        this.debugPlayerMesh.scaling.set(scale, scale, scale);
+        // Reset root motion and apply scale
+        this.modelManager.resetRootMotion(inst);
+        inst.mesh.scaling.set(scale, scale, scale);
 
         // Clear rotation
-        if (this.debugPlayerMesh.rotationQuaternion) {
-            this.debugPlayerMesh.rotationQuaternion = null;
+        if (inst.mesh.rotationQuaternion) {
+            inst.mesh.rotationQuaternion = null;
         }
-        this.debugPlayerMesh.rotation.set(0, 0, 0);
+        inst.mesh.rotation.set(0, 0, 0);
 
         // Make visible
-        this.debugPlayerMesh.isVisible = true;
-        this.debugPlayerMesh.getChildMeshes().forEach(m => m.isVisible = true);
+        inst.mesh.isVisible = true;
+        inst.mesh.getChildMeshes().forEach(m => m.isVisible = true);
 
         // Determine animation from movement state
         const derivedAnim = this.deriveAnimationState();
 
-        if (derivedAnim !== this.debugPlayerCurrentAnim) {
+        if (this.modelManager.playAnimation(inst, derivedAnim)) {
             console.log(`[DebugPlayer] Switching to: ${derivedAnim} (speed: ${speed.toFixed(1)})`);
-            this.playAnimation(derivedAnim);
         }
 
         // Anim speed scaling
-        if (this.debugPlayerMasterGroup) {
+        if (inst.masterGroup) {
             const walkNaturalCvar = Cvar.get('cl_debugplayer_walk_speed');
             const runNaturalCvar = Cvar.get('cl_debugplayer_run_speed');
             const WALK_NATURAL_SPEED = walkNaturalCvar !== undefined ? Number(walkNaturalCvar) : 50;
             const RUN_NATURAL_SPEED = runNaturalCvar !== undefined ? Number(runNaturalCvar) : 400;
 
             let naturalSpeed = WALK_NATURAL_SPEED;
-            if (this.debugPlayerCurrentAnim === 'run') {
+            if (inst.currentAnim === 'run') {
                 naturalSpeed = RUN_NATURAL_SPEED;
-            } else if (this.debugPlayerCurrentAnim === 'walk') {
+            } else if (inst.currentAnim === 'walk') {
                 naturalSpeed = WALK_NATURAL_SPEED;
             }
 
@@ -484,10 +343,10 @@ export class PlayerVisuals {
 
             const clampedRatio = Math.max(-3.0, Math.min(3.0, speedRatio));
 
-            if (this.debugPlayerCurrentAnim === 'walk' || this.debugPlayerCurrentAnim === 'run') {
-                this.debugPlayerMasterGroup.speedRatio = clampedRatio;
+            if (inst.currentAnim === 'walk' || inst.currentAnim === 'run') {
+                inst.masterGroup.speedRatio = clampedRatio;
             } else {
-                this.debugPlayerMasterGroup.speedRatio = 1.0;
+                inst.masterGroup.speedRatio = 1.0;
             }
         }
     }
@@ -535,49 +394,5 @@ export class PlayerVisuals {
         return "idle";
     }
 
-    private playAnimation(name: string): void {
-        if (!this.debugPlayerMasterGroup || !this.scene) return;
-
-        const animData = this.debugPlayerAnims.find(a => a.name === name);
-        if (!animData) return;
-
-        // Stop current master
-        this.debugPlayerMasterGroup.stop();
-        this.debugPlayerMasterGroup.dispose();
-
-        // Create new master
-        this.debugPlayerMasterGroup = new AnimationGroup("debugPlayerMaster", this.scene);
-
-        for (const item of animData.animations) {
-            if (item.target) {
-                this.debugPlayerMasterGroup.addTargetedAnimation(item.animation, item.target);
-            }
-        }
-
-        this.debugPlayerMasterGroup.play(true);
-        this.debugPlayerCurrentAnim = name;
-    }
-
-    /**
-     * Clean up resources
-     */
-    private disposeDebugPlayer(): void {
-        if (this.debugPlayerMesh) {
-            this.debugPlayerMesh.dispose();
-            this.debugPlayerMesh = null;
-        }
-        if (this.debugPlayerSkeleton) {
-            this.debugPlayerSkeleton.dispose();
-            this.debugPlayerSkeleton = null;
-        }
-        if (this.debugPlayerMasterGroup) {
-            this.debugPlayerMasterGroup.dispose();
-            this.debugPlayerMasterGroup = null;
-        }
-        if (this.debugPlayerAnchor) {
-            this.debugPlayerAnchor.dispose();
-            this.debugPlayerAnchor = null;
-        }
-        this.debugPlayerAnims = [];
-    }
 }
+

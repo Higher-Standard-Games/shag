@@ -133,6 +133,29 @@ export class GameState {
         encoder.writeString(event.playerId);
         encoder.writeString(event.message);
         break;
+      case 'weapon_fire':
+        encoder.writeString(event.entityId);    // shooter entity
+        encoder.writeString(event.weaponId);     // weapon id
+        encoder.writeFloat32(event.originX);     // fire origin
+        encoder.writeFloat32(event.originY);
+        encoder.writeFloat32(event.originZ);
+        encoder.writeFloat32(event.dirX);        // fire direction
+        encoder.writeFloat32(event.dirY);
+        encoder.writeFloat32(event.dirZ);
+        break;
+      case 'weapon_stop':
+        encoder.writeString(event.entityId);     // shooter entity
+        encoder.writeString(event.weaponId);     // weapon id
+        break;
+      case 'projectile_impact':
+        encoder.writeString(event.defId);         // weapon definition id
+        encoder.writeFloat32(event.x);            // impact position
+        encoder.writeFloat32(event.y);
+        encoder.writeFloat32(event.z);
+        encoder.writeFloat32(event.normalX);      // surface normal
+        encoder.writeFloat32(event.normalY);
+        encoder.writeFloat32(event.normalZ);
+        break;
       default:
         // Serialize as JSON for unknown events
         const json = JSON.stringify(event);
@@ -160,6 +183,35 @@ export class GameState {
           type,
           playerId: decoder.readString(),
           message: decoder.readString(),
+        };
+      case 'weapon_fire':
+        return {
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+          originX: decoder.readFloat32(),
+          originY: decoder.readFloat32(),
+          originZ: decoder.readFloat32(),
+          dirX: decoder.readFloat32(),
+          dirY: decoder.readFloat32(),
+          dirZ: decoder.readFloat32(),
+        };
+      case 'weapon_stop':
+        return {
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+        };
+      case 'projectile_impact':
+        return {
+          type,
+          defId: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+          normalX: decoder.readFloat32(),
+          normalY: decoder.readFloat32(),
+          normalZ: decoder.readFloat32(),
         };
       default:
         const json = decoder.readString();
