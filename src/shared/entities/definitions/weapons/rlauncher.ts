@@ -25,7 +25,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     // Gameplay (server-authoritative)
     damage: 80,
     fireRate: 1.05,       // 950ms reload = ~1.05 shots/sec
-    clipSize: 20,
+    clipSize: 1,
     ammoType: 'rockets',
     maxAmmo: 20,
     reloadTime: 0.95,

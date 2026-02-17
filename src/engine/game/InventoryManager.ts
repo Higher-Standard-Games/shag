@@ -227,6 +227,17 @@ export class InventoryManager {
         return this.weapons.has(weaponId);
     }
 
+    /**
+     * Get weapon definition (from inventory or entity registry)
+     */
+    public getWeaponDef(weaponId: string): WeaponDef | undefined {
+        const owned = this.weapons.get(weaponId);
+        if (owned) return owned;
+        // Fallback: look up from entity registry
+        const def = EntityRegistry.getInstance().get<WeaponDef>(weaponId);
+        return def?.type === EntityType.WEAPON ? def : undefined;
+    }
+
     public getCurrentWeapon(): WeaponDef | undefined {
         if (!this.currentWeaponId) return undefined;
         return this.weapons.get(this.currentWeaponId);
@@ -261,6 +272,13 @@ export class InventoryManager {
 
     public getAmmoCount(ammoType: string): number {
         return this.ammo[ammoType] || 0;
+    }
+
+    /**
+     * Set ammo count directly (used for server state sync)
+     */
+    public setAmmo(ammoType: string, amount: number): void {
+        this.ammo[ammoType] = amount;
     }
 
     public hasAmmo(ammoType: string, amount: number): boolean {

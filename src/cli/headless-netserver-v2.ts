@@ -123,6 +123,7 @@ Examples:
 interface BspData {
     collision: CollisionWorld;
     spawnPoints: Array<{ x: number; y: number; z: number }>;
+    pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }>;
 }
 
 async function loadBspCollision(mapName: string, gamePath: string): Promise<BspData | null> {
@@ -214,7 +215,32 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
     console.log(`[Server] Found ${spawnPoints.length} spawn points`);
 
-    return { collision, spawnPoints };
+    // Debug: list ALL entity classnames in the BSP
+    const classnameSet = new Set<string>();
+    for (const entity of bsp.entities) {
+        classnameSet.add(entity.classname);
+    }
+    console.log(`[Server] BSP entity classnames: ${[...classnameSet].sort().join(', ')}`);
+
+    // Extract weapon/item pickups
+    const pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }> = [];
+
+    for (const entity of bsp.entities) {
+        if (entity.classname.startsWith('weapon_') || entity.classname.startsWith('item_')) {
+            const origin = entity.properties.origin;
+            if (origin) {
+                const [x, y, z] = origin.split(' ').map(Number);
+                pickupItems.push({
+                    classname: entity.classname,
+                    position: { x, y: z, z: y },  // Q3→Babylon coord swap: Y↔Z
+                });
+            }
+        }
+    }
+
+    console.log(`[Server] Found ${pickupItems.length} weapon/item pickups`);
+
+    return { collision, spawnPoints, pickupItems };
 }
 
 // ============================================================================
@@ -260,6 +286,8 @@ async function main(): Promise<void> {
     if (bspData) {
         server.setCollisionWorld(bspData.collision);
         server.setSpawnPoints(bspData.spawnPoints);
+        server.setPickupItems(bspData.pickupItems);
+        server.setPickupRespawnTime(25); // 25 second respawn
     } else {
         console.log('[Server] Running without BSP collision (open space mode)');
     }

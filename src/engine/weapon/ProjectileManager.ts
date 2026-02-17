@@ -19,6 +19,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
 import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
+import { getExplosionEffect } from './ExplosionEffect';
 
 interface ActiveProjectile {
     id: string;
@@ -76,6 +77,7 @@ export class ProjectileManager {
 
     public init(scene: Scene): void {
         this.scene = scene;
+        getExplosionEffect().init(scene);
         console.log('[ProjectileManager] Initialized');
     }
 
@@ -431,6 +433,33 @@ export class ProjectileManager {
                 if (!mesh.isPickable) return false;
                 if (mesh.name.startsWith('proj_')) return false;
                 if (mesh.name.startsWith('impact_')) return false;
+
+                // Skip non-solid meshes (light halos, flares, billboards, effects)
+                const name = mesh.name.toLowerCase();
+                if (name.includes('flare') || name.includes('halo') || name.includes('glow') ||
+                    name.includes('billboard') || name.includes('sprite') || name.includes('particle') ||
+                    name.includes('effect') || name.includes('light_')) {
+                    return false;
+                }
+
+                // Skip by texture name patterns
+                const textureName = (mesh.metadata?.textureName || '').toLowerCase();
+                if (textureName.includes('flare') || textureName.includes('halo') ||
+                    textureName.includes('glow') || textureName.includes('flareshader') ||
+                    textureName.includes('lights/') || textureName.includes('sfx/')) {
+                    return false;
+                }
+
+                // Skip meshes with additive blending (light effects)
+                const material = mesh.material;
+                if (material) {
+                    if ((material as any).alphaMode === 1 || (material as any).alphaMode === 2) return false;
+                    if ((material as any).alpha !== undefined && (material as any).alpha < 0.5) return false;
+                }
+
+                // Skip billboard faces (faceType 4 in BSP)
+                if (mesh.metadata?.faceType === 4) return false;
+
                 return true;
             });
 
@@ -497,6 +526,9 @@ export class ProjectileManager {
 
         // Update impacts (fade out)
         this.updateImpacts(deltaTime);
+
+        // Update explosion effects
+        getExplosionEffect().update(deltaTime);
     }
 
     /**
@@ -539,6 +571,12 @@ export class ProjectileManager {
      */
     private spawnImpact(projDefId: string, position: Vector3, normal: Vector3): void {
         if (!this.scene) return;
+
+        // Rocket, grenade, and plasma explosions are now server-authoritative
+        // (spawned via projectile_impact events in FPSGameManager)
+        if (projDefId === 'rocket' || projDefId === 'grenade' || projDefId === 'plasma_bolt') {
+            return;
+        }
 
         const registry = getEntityRegistry();
         const def = registry.get<ProjectileDef>(projDefId);

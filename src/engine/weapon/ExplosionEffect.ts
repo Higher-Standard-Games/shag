@@ -61,6 +61,16 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
     splashRadius: 125,
 };
 
+/** Preset for plasma explosions — small, fast, green */
+export const PLASMA_EXPLOSION: ExplosionConfig = {
+    scale: 3.0,
+    speed: 1.5,                                // fast pop
+    coreColor: new Color3(0.8, 1.0, 0.6),     // bright white-green core
+    outerColor: new Color3(0.1, 0.9, 0.2),    // vivid green outer
+    smokeColor: new Color3(0.1, 0.2, 0.1),    // green-tinted smoke
+    splashRadius: 40,
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // ACTIVE EXPLOSION TRACKING
 // ═══════════════════════════════════════════════════════════════════
