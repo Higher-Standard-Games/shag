@@ -397,6 +397,7 @@ Both sides use the same `MessageCodec` for encoding/decoding. The codec always p
 | `src/engine/network/client/ClockSync.ts` | NTP-like clock offset calculation |
 | `src/engine/network/client/NetGraph.ts` | Real-time network stats overlay (ping, snap rate, loss %, clock offset) |
 | `src/games/fps/server/GameServer.ts` | Server tick loop, client management, snapshot broadcast |
+| `src/games/fps/server/MovementValidator.ts` | Anti-warp input rate limiting (rate cap + time budget) |
 | `src/games/fps/client/V2NetworkClient.ts` | Input history + reconciliation (Q3-style) |
 | `src/games/fps/client/RemotePlayerRenderer.ts` | Model rendering for other players (uses SnapshotBuffer) |
 | `src/games/fps/FPSGameManager.ts` | Orchestrates everything on the client side |
@@ -436,3 +437,68 @@ Toggled via `cl_netgraph` CVar (0=off, 1=text, 2=text+graph). Displays:
 | Clock offset | ClockSync (server - client) | `clock: +12ms` |
 
 **Packet loss detection** works by tracking snapshot tick gaps. If we expect snapshots every N ticks and see a gap of 2N, that's 1 lost packet. Loss is calculated over a rolling window of the last 100 snapshots.
+
+---
+
+## Anti-Warp / MovementValidator
+
+Server-side cheat prevention that rate-limits client inputs to prevent speed hacking. Without this, a cheater could flood inputs faster than real-time and move at 2-5× normal speed.
+
+### The Attack
+
+The server processes **all inputs** in a client's queue per tick. A cheater sends 5 inputs per frame instead of 1 → 5× physics steps → 5× speed. Position hacking is already prevented (server runs authoritative physics), but input flooding is a real attack vector.
+
+### Defense: Two Layers
+
+The `MovementValidator` runs two checks on every input **after** dedup but **before** the input enters the physics queue:
+
+**Layer 1 — Rate Cap** (hard limit):
+
+```text
+maxInputsPerTick = ceil(clientRate / serverRate) + 2
+→ ceil(144/128) + 2 = 4 inputs/tick max
+
+If client exceeds this → drop input, count strike
+```
+
+**Layer 2 — Time Budget** (soft, jitter-tolerant):
+
+```text
+Each accepted input "costs" 6.94ms (= 1000/144Hz)
+Real elapsed time between inputs earns budget credit
+Max banked budget: 200ms (prevents idle-banking exploits)
+
+if timeBudget < inputCost:
+  → client is sending faster than real-time
+  → drop input, count strike
+else:
+  → deduct cost, accept input
+```
+
+### Why This Works
+
+- **Normal play:** Budget stays positive. 1.125 inputs/tick average at 144Hz/128Hz — well under the rate cap. Zero false positives.
+- **Network burst:** Budget absorbs bursts up to 200ms without dropping. Client jitter is normal.
+- **Speed hack:** Budget drains instantly because inputs arrive faster than real-time allows. Movement stutters, strikes accumulate.
+- **Silent drops:** Cheater gets no error — their movement just stops responding when flooding.
+
+### Integration Points
+
+```text
+handleDatagram() → handleInput(client, data)
+  1. Dedup check (seq ≤ lastInputSeq? skip)
+  2. MovementValidator.validateInput(playerId)   ← NEW
+  3. Push to entity.input.inputQueue[]
+
+tick()
+  0. MovementValidator.onTick()                  ← NEW (reset per-tick counters)
+  1. Run simulation
+  ...
+```
+
+| Parameter | Default | Rationale |
+| --------- | ------- | --------- |
+| `maxBudgetMs` | 200ms | ~2 frames at 144Hz, absorbs jitter |
+| `inputCostMs` | 6.94ms | 1000/144 = one input's time cost |
+| `maxInputsPerTick` | 4 | ceil(144/128) + 2 jitter buffer |
+| `strikeWarnThreshold` | 50 | ~350ms of flooding before log warning |
