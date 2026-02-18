@@ -317,7 +317,9 @@ export class NetworkGameHost implements IGameHost {
   private smoothCorrection = new SmoothCorrection();
   private pendingCommands: Command[] = [];
   private commandSequence = 1;
-  private lastBaselineTick = 0;
+  /** Clone of the last acked snapshot — used as decode baseline for delta compression.
+   * This must NOT be localState (which gets mutated by prediction). */
+  private lastAckedSnapshot: GameState | null = null;
 
   /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
   private recentCommandPayloads: Uint8Array[] = [];
@@ -600,7 +602,7 @@ export class NetworkGameHost implements IGameHost {
 
       switch (messageType) {
         case MessageType.Snapshot: {
-          const snapshot = MessageCodec.decodeSnapshot(data, this.lastBaselineTick > 0 ? this.localState : undefined);
+          const snapshot = MessageCodec.decodeSnapshot(data, this.lastAckedSnapshot ?? undefined);
           this.handleSnapshot(snapshot);
           break;
         }
@@ -701,7 +703,7 @@ export class NetworkGameHost implements IGameHost {
     this.currentTick = snapshot.tick;
 
     // Step 4: Acknowledge receipt (server uses this for delta compression baseline)
-    this.sendAck(snapshot.tick);
+    this.sendAck(snapshot.tick, snapshot);
 
     // Step 5: Apply accumulated smooth correction (legacy only)
     if (!this.useExternalPrediction) {
@@ -720,10 +722,12 @@ export class NetworkGameHost implements IGameHost {
   /**
    * Send acknowledgment for received snapshot
    */
-  private sendAck(tick: number): void {
+  private sendAck(tick: number, snapshot: GameState): void {
     const data = MessageCodec.encodeAck(tick);
     this.transport.send(data, false);
-    this.lastBaselineTick = tick;
+    // Store a clone of the RECEIVED snapshot as the decode baseline for future deltas.
+    // This must match exactly what the server stores in its snapshot history for this tick.
+    this.lastAckedSnapshot = snapshot.clone();
   }
 
   /**
