@@ -41,6 +41,8 @@ export interface MatchConfig {
     postGameDuration: number;
     /** Respawn delay in seconds after death */
     respawnDelay: number;
+    /** Self-damage multiplier (1.0 = full, 0.0 = none). Default: 1.0 (Warsow DM-style) */
+    selfDamage: number;
 }
 
 // ============================================================================
