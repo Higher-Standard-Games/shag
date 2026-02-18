@@ -40,6 +40,7 @@ import type { Simulation, SimulationConfig } from '../../core/Simulation';
 import type { PlayerId } from '../../core/Entity';
 import type { Transport } from '../transport/Transport';
 import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
+import { ClockSync } from '../ClockSync';
 
 // ============================================================================
 // INTERPOLATION BUFFER
@@ -318,8 +319,15 @@ export class NetworkGameHost implements IGameHost {
   private commandSequence = 1;
   private lastBaselineTick = 0;
 
+  /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
+  private recentCommandPayloads: Uint8Array[] = [];
+  private readonly COMMAND_REDUNDANCY = 3; // Send last 3 commands per packet
+
   /** When true, V2NetworkClient handles prediction - we only do network transport */
   private useExternalPrediction = false;
+
+  /** ClockSync for NTP-like server time synchronization */
+  readonly clockSync = new ClockSync();
 
   private localState: GameState;
   private _isConnected: boolean = false;
@@ -341,6 +349,9 @@ export class NetworkGameHost implements IGameHost {
     this.localPlayerId = 'network-player';
     this.localState = this.simulation.state.clone();
 
+    // Wire ClockSync to use transport for sending pings
+    this.clockSync.setSendFunction((data, reliable) => this.transport.send(data, reliable));
+
     this.setupTransportHandlers();
   }
 
@@ -349,6 +360,13 @@ export class NetworkGameHost implements IGameHost {
    */
   getServerInfo(): ServerInfo | null {
     return this._serverInfo;
+  }
+
+  /**
+   * Get ClockSync instance for server time conversion.
+   */
+  getClockSync(): ClockSync {
+    return this.clockSync;
   }
 
   /**
@@ -399,6 +417,7 @@ export class NetworkGameHost implements IGameHost {
 
   async disconnect(): Promise<void> {
     this._isConnected = false;
+    this.clockSync.stop();
     await this.transport.disconnect();
   }
 
@@ -429,7 +448,19 @@ export class NetworkGameHost implements IGameHost {
 
     // Send to server using binary protocol
     const data = MessageCodec.encodeCommand(this.localPlayerId, sequencedCmd.seq, sequencedCmd);
-    this.transport.send(data, false); // Unreliable for commands (sent frequently)
+
+    // Buffer for redundancy (last 3 commands re-sent per tick for packet loss resilience)
+    this.recentCommandPayloads.push(data);
+    if (this.recentCommandPayloads.length > this.COMMAND_REDUNDANCY) {
+      this.recentCommandPayloads.shift();
+    }
+
+    // Send all buffered commands as separate datagrams (server parses one command per datagram)
+    // On packet loss, the missing command will be re-sent as a redundant copy in subsequent ticks
+    // Server deduplicates by sequence number — no double-processing
+    for (const payload of this.recentCommandPayloads) {
+      this.transport.send(payload, false); // Unreliable datagrams
+    }
 
     // Log periodically
     if (this.commandSequence % 250 === 0) {
@@ -596,6 +627,10 @@ export class NetworkGameHost implements IGameHost {
             this._onJoinAccept = null;
           }
 
+          // Start ClockSync after confirmed connection
+          this.clockSync.startSync();
+          console.log(`[NetworkGameHost] ClockSync started`);
+
           // Spawn local player in client-side prediction simulation
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -621,6 +656,11 @@ export class NetworkGameHost implements IGameHost {
 
           // Notify callbacks (for map loading, etc.)
           this.serverInfoCallbacks.forEach(cb => cb(welcome));
+          break;
+        }
+        case MessageType.Pong: {
+          const { clientSendTime, serverTime } = MessageCodec.decodePong(data);
+          this.clockSync.processPong(clientSendTime, serverTime);
           break;
         }
         default:

@@ -18,6 +18,9 @@ export class GameState {
   /** Last acknowledged input sequence (for reconciliation) */
   ackedInputSeq: number = 0;
 
+  /** Server timestamp from snapshot header (Date.now() & 0xFFFFFFFF) for ClockSync */
+  serverTimestamp: number = 0;
+
   /** All entities in the world */
   entities: Map<EntityId, Entity> = new Map();
 

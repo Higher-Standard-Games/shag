@@ -187,4 +187,58 @@ export class MessageCodec {
     }
     return data[0] as MessageType;
   }
+
+  // ── ClockSync: Ping / Pong ───────────────────────────────
+
+  /**
+   * Encode a ping message (Client → Server)
+   * Format: [MessageType.Ping][clientSendTime: float64]
+   */
+  static encodePing(clientSendTime: number): Uint8Array {
+    const encoder = new BinaryEncoder(16);
+    encoder.writeUint8(MessageType.Ping);
+    encoder.writeFloat64(clientSendTime);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a ping message
+   */
+  static decodePing(data: Uint8Array): { clientSendTime: number } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Ping) {
+      throw new Error(`Expected Ping message (0x${MessageType.Ping.toString(16)}), got 0x${messageType.toString(16)}`);
+    }
+    return {
+      clientSendTime: decoder.readFloat64(),
+    };
+  }
+
+  /**
+   * Encode a pong message (Server → Client)
+   * Format: [MessageType.Pong][clientSendTime: float64][serverTime: float64]
+   */
+  static encodePong(clientSendTime: number, serverTime: number): Uint8Array {
+    const encoder = new BinaryEncoder(24);
+    encoder.writeUint8(MessageType.Pong);
+    encoder.writeFloat64(clientSendTime);
+    encoder.writeFloat64(serverTime);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a pong message
+   */
+  static decodePong(data: Uint8Array): { clientSendTime: number; serverTime: number } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Pong) {
+      throw new Error(`Expected Pong message (0x${MessageType.Pong.toString(16)}), got 0x${messageType.toString(16)}`);
+    }
+    return {
+      clientSendTime: decoder.readFloat64(),
+      serverTime: decoder.readFloat64(),
+    };
+  }
 }

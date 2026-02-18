@@ -381,13 +381,12 @@ export class ExplosionEffect {
     }
 
     /**
-     * Layer 3: Shockwave ring — expanding torus
+     * Layer 3: Shockwave disc — expanding solid circle
      */
     private createShockwave(id: string, pos: Vector3, scale: number, config: ExplosionConfig, normal: Vector3 = Vector3.Up()) {
-        const mesh = MeshBuilder.CreateTorus(`${id}_shockwave`, {
-            diameter: 1 * scale,
-            thickness: 0.4 * scale,
-            tessellation: 24,
+        const mesh = MeshBuilder.CreateDisc(`${id}_shockwave`, {
+            radius: 0.5 * scale,
+            tessellation: 32,
         }, this.scene!);
 
         mesh.position = pos.clone();

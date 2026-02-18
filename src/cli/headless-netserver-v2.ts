@@ -32,6 +32,7 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
         mapName: 'wdm7',
         maxClients: 16,
         tickRate: 125,
+        snapshotRate: 30,
         gamePath: './game',
         certPath: './certs/localhost.pem',
         keyPath: './certs/localhost-key.pem',
@@ -62,6 +63,9 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
                 break;
             case '--tickrate':
                 config.tickRate = parseInt(args[++i], 10);
+                break;
+            case '--snapshotrate':
+                config.snapshotRate = parseInt(args[++i], 10);
                 break;
             case '--game':
                 config.gamePath = args[++i];
