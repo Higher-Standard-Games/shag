@@ -21,7 +21,7 @@ The server is **authoritative**. Clients predict locally and reconcile when the 
 
 All messages start with a 1-byte type header. The rest is binary-encoded data (no JSON on the wire).
 
-```
+```text
 enum MessageType {
   Snapshot   = 0x01   // Server → Client  (unreliable)
   Input      = 0x02   // Client → Server  (unreliable)
@@ -81,8 +81,7 @@ Once connected, the game settles into a simple loop. The server ticks at a fixed
 
 ### Server Tick Loop
 
-```
-Every 1/tickRate seconds:
+```text
   1. Run simulation (physics, weapons, combat)
   2. Process pending damage (weapon hits, projectile impacts)
   3. Run gametype post-tick (kills, respawns, match state)
@@ -91,8 +90,7 @@ Every 1/tickRate seconds:
 
 ### Client Frame Loop
 
-```
-Every render frame (~144Hz or whatever the monitor is):
+```text
   1. Capture input (WASD, mouse, buttons)
   2. Send input to server (with sequence number)
   3. Apply input locally for instant prediction
@@ -126,7 +124,7 @@ sequenceDiagram
 
 ### Input (Client → Server)
 
-```
+```text
 [0x02] [playerId: string] [seq: uint32] [command: json]
 
 command = {
@@ -142,28 +140,38 @@ command = {
 
 ### Snapshot (Server → Client)
 
-```
+```text
 [0x01] [tick: uint32] [timestamp: uint32] [ackedInputSeq: uint32]
-       [entities...] [players...] [events...]
 ```
 
-This is the big one. The snapshot contains the **entire game state** — but delta-compressed.
+This is the big one. The snapshot contains the **entire game state** — but delta-compressed against each client's last acknowledged baseline.
 
-#### Delta Compression
+#### Delta Compression (Per-Client Baselines)
 
-Instead of sending full state every time, we compare to the last **acked** snapshot (baseline). Only changed values are sent.
+Instead of sending full state every time, the server compares against the last snapshot each client **acked**. Only changed values are sent.
 
-```
+The server maintains:
+
+- **`lastAckedTick` per client** — updated when an Ack arrives
+- **Snapshot history** (ring buffer, 64 entries) — recent GameStates keyed by tick
+
+For each client:
+
+1. Look up `snapshotHistory[client.lastAckedTick]` → baseline
+2. Delta-encode current state against baseline
+3. If no acked tick yet (first snapshot), send full state (no baseline)
+
+```text
 Per entity:
   [entityId: string]
-  [componentFlags: uint8]    ← which components changed
+  [componentFlags: uint8]    ← which components changed vs baseline
     0x01 = position changed  → 3 floats (12 bytes)
     0x02 = velocity changed  → 3 floats (12 bytes)
     0x04 = grounded changed  → 1 byte
     0x08 = rotation changed  → 2 floats (8 bytes)
 ```
 
-If nothing changed for an entity, it's still listed (so the client knows it exists), but `componentFlags = 0x00` means zero data bytes for that entity. Entities **not** in the snapshot are implicitly removed.
+If nothing changed for an entity, it's still listed (so the client knows it exists), but `componentFlags = 0x00` means zero data bytes for that entity. In a typical game with 2 players, a stationary player transmits only the entityId + 1 byte flags — **no position or velocity data**.
 
 #### The `ackedInputSeq` Field
 
@@ -185,11 +193,18 @@ Events are only sent once — if the packet is lost, the event is lost. This is 
 
 ### Ack (Client → Server)
 
-```
+```text
 [0x06] [tick: uint32]
 ```
 
-Simple: "I received snapshot for tick N." The server uses this to know which snapshot to use as the delta-compression baseline for the next snapshot.
+Simple: "I received snapshot for tick N." The server:
+
+1. Updates `client.lastAckedTick = tick` (only if tick > current value)
+2. Uses `snapshotHistory[tick]` as the delta-compression baseline for that client's next snapshot
+
+The client also stores a **clone of the received snapshot** as its decode baseline (`lastAckedSnapshot`). This must be the raw received state — not `localState`, which gets mutated by client-side prediction.
+
+> **Lost Acks:** If an Ack is lost, the server's `lastAckedTick` stays at the older value. This is fine — deltas against an older baseline are slightly larger but still correct. The next Ack will catch up.
 
 ### Ready (Client → Server)
 
@@ -266,8 +281,7 @@ That feels terrible in an FPS.
 
 ### The Solution
 
-```
-┌─────────────────────────────────────────────────────────┐
+```text
 │                     Client Frame                         │
 │                                                          │
 │  1. Capture input (W pressed)                           │
@@ -294,8 +308,7 @@ That feels terrible in an FPS.
 
 The local player uses prediction. Everyone else uses **interpolation**: we render them slightly in the past (100ms behind), smoothly blending between the two most recent snapshots.
 
-```
-SnapshotBuffer:
+```text
   [snap t=0ms] ←─ before
   [snap t=33ms] ←─ after
   [snap t=66ms]    (newest)
@@ -340,15 +353,16 @@ Time    Server (128Hz tick, 30Hz snapshot)        Client (144Hz render)
                                                   → send Ack(1032)
                                                   → interpolate other players at t = now - 100ms
 
-100ms   receive Ack(1032)                         
-        → next snapshot will delta against 1032   
+100ms   receive Ack(1032)
+        → store client.lastAckedTick = 1032
+        → next snapshot deltas against snapshotHistory[1032]
 ```
 
 ---
 
 ## Transport Layer
 
-```
+```text
 WebSocketServerTransport (server)
   ├── listen() on WSS port
   ├── onConnect(conn)
@@ -373,7 +387,7 @@ Both sides use the same `MessageCodec` for encoding/decoding. The codec always p
 ## Source Files
 
 | File | Role |
-|------|------|
+| ---- | ---- |
 | `src/engine/network/protocol/BinaryProtocol.ts` | Binary encoder/decoder, snapshot delta compression |
 | `src/engine/network/protocol/MessageCodec.ts` | High-level encode/decode for all message types |
 | `src/engine/network/core/GameState.ts` | The state object that flows between server and client |
@@ -381,7 +395,7 @@ Both sides use the same `MessageCodec` for encoding/decoding. The codec always p
 | `src/engine/network/client/hosts/NetworkGameHost.ts` | Client-side message handling, prediction, reconciliation |
 | `src/engine/network/client/SnapshotBuffer.ts` | Time-based interpolation buffer for remote players |
 | `src/engine/network/client/ClockSync.ts` | NTP-like clock offset calculation |
-| `src/engine/network/client/NetGraph.ts` | Real-time network stats overlay |
+| `src/engine/network/client/NetGraph.ts` | Real-time network stats overlay (ping, snap rate, loss %, clock offset) |
 | `src/games/fps/server/GameServer.ts` | Server tick loop, client management, snapshot broadcast |
 | `src/games/fps/client/V2NetworkClient.ts` | Input history + reconciliation (Q3-style) |
 | `src/games/fps/client/RemotePlayerRenderer.ts` | Model rendering for other players (uses SnapshotBuffer) |
@@ -394,11 +408,31 @@ Both sides use the same `MessageCodec` for encoding/decoding. The codec always p
 Rough per-tick sizes at 30Hz snapshot rate, 2 players:
 
 | Direction | Message | ~Size | Rate | Bandwidth |
-|-----------|---------|-------|------|-----------|
-| S→C | Snapshot (2 players, delta) | ~80-200 bytes | 30/s | ~3-6 KB/s |
+| --------- | ------- | ----- | ---- | --------- |
+| S→C | Snapshot (full, no baseline) | ~80-200 bytes | first only | one-time |
+| S→C | Snapshot (delta, both moving) | ~40-80 bytes | 30/s | ~1.2-2.4 KB/s |
+| S→C | Snapshot (delta, one idle) | ~20-40 bytes | 30/s | ~0.6-1.2 KB/s |
 | C→S | Input (×3 redundancy) | ~60 bytes × 3 | 144/s | ~25 KB/s |
 | C→S | Ack | 5 bytes | 30/s | ~0.15 KB/s |
 | C↔S | Ping/Pong | 9-17 bytes | 0.03/s | negligible |
-| **Total** | | | | **~28-31 KB/s** |
+| **Total** | | | | **~27-29 KB/s** |
 
-The biggest cost is command redundancy (sending 3 copies of each input). This is the price we pay for unreliable transport — and it's still tiny compared to the gains from not using TCP for game data.
+With per-client delta baselines active, snapshot bandwidth drops **50-70%** compared to always sending full state. The biggest cost is now command redundancy (sending 3 copies of each input) — the price we pay for unreliable transport.
+
+---
+
+## Diagnostics: NetGraph
+
+Toggled via `cl_netgraph` CVar (0=off, 1=text, 2=text+graph). Displays:
+
+| Metric | Source | Display |
+| ------ | ------ | ------- |
+| Ping (RTT) | Server snapshot round-trip | `ping: 42ms` |
+| Snapshot rate | Received snapshots/sec | `snap: 30/s` |
+| Packet loss % | Tick gap detection (expected vs actual) | `loss: 0.0%` |
+| Interp delay | SnapshotBuffer render offset | `interp: 100ms` |
+| Command rate | Outgoing inputs/sec | `cmd: 125/s` |
+| Reconciliation rate | Corrections/sec | `recon: 0.0/s` |
+| Clock offset | ClockSync (server - client) | `clock: +12ms` |
+
+**Packet loss detection** works by tracking snapshot tick gaps. If we expect snapshots every N ticks and see a gap of 2N, that's 1 lost packet. Loss is calculated over a rolling window of the last 100 snapshots.
