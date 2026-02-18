@@ -89,6 +89,7 @@ export class NetGraph {
     private reconciliationCounter = new RollingCounter(1000);
 
     private interpDelayMs = 0;
+    private clockOffsetMs = 0;
     private lastSampleTime = 0;
 
     // Graph data (sampled at fixed intervals)
@@ -161,6 +162,13 @@ export class NetGraph {
         }
     }
 
+    /** Set clock offset from ClockSync (server - client in ms) */
+    static setClockOffset(offsetMs: number): void {
+        if (NetGraph.instance) {
+            NetGraph.instance.clockOffsetMs = offsetMs;
+        }
+    }
+
     // ========================================================================
     // Rendering (call each frame)
     // ========================================================================
@@ -190,7 +198,7 @@ export class NetGraph {
 
         // Calculate panel dimensions
         const lineHeight = 16;
-        const textLines = 5;
+        const textLines = 6;
         const panelHeight = (textLines * lineHeight) + GRAPH_PADDING * 2 +
             (showGraph ? GRAPH_HEIGHT + GRAPH_PADDING : 0);
         const panelWidth = GRAPH_WIDTH + GRAPH_PADDING * 2;
@@ -246,6 +254,12 @@ export class NetGraph {
             : 0;
         ctx.fillStyle = TEXT_COLOR;
         ctx.fillText(`avg:  ${avgPing.toFixed(0)}ms`, x, y);
+        y += lineHeight;
+
+        // Clock offset (ClockSync)
+        const clkOff = inst.clockOffsetMs;
+        ctx.fillStyle = Math.abs(clkOff) > 500 ? CMD_COLOR : TEXT_COLOR;
+        ctx.fillText(`clock: ${clkOff >= 0 ? '+' : ''}${clkOff.toFixed(0)}ms`, x, y);
         y += lineHeight;
 
         // Graph (level 2 only)

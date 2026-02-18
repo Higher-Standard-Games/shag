@@ -36,6 +36,8 @@ export interface BufferedSnapshot {
     tick: number;
     /** Entity states keyed by entity ID */
     entities: Map<string, EntitySnapshot>;
+    /** Server timestamp (Date.now() on server) converted to local time via ClockSync, if available */
+    serverLocalTime?: number;
 }
 
 /** Interpolated result for a single entity */
@@ -88,8 +90,12 @@ export class SnapshotBuffer {
     /**
      * Push a new snapshot into the buffer.
      * Call this when a server state update arrives.
+     *
+     * @param tick Server tick number
+     * @param entities Entity snapshot data
+     * @param serverLocalTime Optional server timestamp converted to local time via ClockSync
      */
-    push(tick: number, entities: Map<string, EntitySnapshot>): void {
+    push(tick: number, entities: Map<string, EntitySnapshot>, serverLocalTime?: number): void {
         const now = performance.now();
 
         // Track jitter for adaptive delay
@@ -107,6 +113,7 @@ export class SnapshotBuffer {
             receiveTime: now,
             tick,
             entities,
+            serverLocalTime,
         });
 
         // Evict old snapshots
@@ -131,11 +138,13 @@ export class SnapshotBuffer {
         const renderTime = performance.now() - delay + timenudge;
 
         // Find the two snapshots bracketing renderTime
+        // Use serverLocalTime when available for more accurate timing
         let before: BufferedSnapshot | null = null;
         let after: BufferedSnapshot | null = null;
 
         for (let i = 0; i < this.buffer.length; i++) {
-            if (this.buffer[i].receiveTime <= renderTime) {
+            const snapTime = this.getSnapTime(this.buffer[i]);
+            if (snapTime <= renderTime) {
                 before = this.buffer[i];
             } else {
                 after = this.buffer[i];
@@ -149,8 +158,8 @@ export class SnapshotBuffer {
             const afterEntity = after.entities.get(entityId);
 
             if (beforeEntity && afterEntity) {
-                const range = after.receiveTime - before.receiveTime;
-                const t = range > 0 ? (renderTime - before.receiveTime) / range : 0;
+                const range = this.getSnapTime(after) - this.getSnapTime(before);
+                const t = range > 0 ? (renderTime - this.getSnapTime(before)) / range : 0;
                 return this.lerpEntity(beforeEntity, afterEntity, t);
             }
 
@@ -166,7 +175,7 @@ export class SnapshotBuffer {
             if (!entity) return null;
 
             // Extrapolate using velocity (capped to prevent flying off)
-            const elapsed = Math.min((renderTime - before.receiveTime) / 1000, 0.2); // Max 200ms extrapolation
+            const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, 0.2); // Max 200ms extrapolation
             return {
                 x: entity.x + entity.vx * elapsed,
                 y: entity.y + entity.vy * elapsed,
@@ -213,6 +222,14 @@ export class SnapshotBuffer {
     }
 
     // ── Internal ─────────────────────────────────────────────
+
+    /**
+     * Get the effective timestamp for a snapshot.
+     * Prefers server-synced local time (more accurate) with fallback to receiveTime.
+     */
+    private getSnapTime(snap: BufferedSnapshot): number {
+        return snap.serverLocalTime ?? snap.receiveTime;
+    }
 
     private lerpEntity(a: EntitySnapshot, b: EntitySnapshot, t: number): InterpolatedEntity {
         const clampedT = Math.max(0, Math.min(1, t));

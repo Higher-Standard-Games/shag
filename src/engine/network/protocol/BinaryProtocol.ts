@@ -71,7 +71,7 @@ export class BinaryProtocol {
 
     // Read header
     state.tick = decoder.readUint32();
-    decoder.readUint32(); // Skip timestamp for now
+    state.serverTimestamp = decoder.readUint32(); // Server Date.now() & 0xFFFFFFFF for ClockSync
     state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
 
     // Decode entities
@@ -428,12 +428,14 @@ export enum MessageType {
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
+  Pong = 0x0A,
 
   // Client → Server
   Join = 0x81,
   Ready = 0x82,
   Input = 0x83,
   Disconnect = 0x84,
+  Ping = 0x85,
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)
@@ -488,6 +490,12 @@ export class BinaryEncoder {
     this.ensureSpace(4);
     this.view.setFloat32(this.offset, value, true);
     this.offset += 4;
+  }
+
+  writeFloat64(value: number): void {
+    this.ensureSpace(8);
+    this.view.setFloat64(this.offset, value, true);
+    this.offset += 8;
   }
 
   /**
@@ -597,6 +605,13 @@ export class BinaryDecoder {
     this.checkBounds(4);
     const value = this.view.getFloat32(this.offset, true);
     this.offset += 4;
+    return value;
+  }
+
+  readFloat64(): number {
+    this.checkBounds(8);
+    const value = this.view.getFloat64(this.offset, true);
+    this.offset += 8;
     return value;
   }
 

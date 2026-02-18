@@ -40,6 +40,7 @@ import type { Simulation, SimulationConfig } from '../../core/Simulation';
 import type { PlayerId } from '../../core/Entity';
 import type { Transport } from '../transport/Transport';
 import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
+import { ClockSync } from '../ClockSync';
 
 // ============================================================================
 // INTERPOLATION BUFFER
@@ -325,6 +326,9 @@ export class NetworkGameHost implements IGameHost {
   /** When true, V2NetworkClient handles prediction - we only do network transport */
   private useExternalPrediction = false;
 
+  /** ClockSync for NTP-like server time synchronization */
+  readonly clockSync = new ClockSync();
+
   private localState: GameState;
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
@@ -345,6 +349,9 @@ export class NetworkGameHost implements IGameHost {
     this.localPlayerId = 'network-player';
     this.localState = this.simulation.state.clone();
 
+    // Wire ClockSync to use transport for sending pings
+    this.clockSync.setSendFunction((data, reliable) => this.transport.send(data, reliable));
+
     this.setupTransportHandlers();
   }
 
@@ -353,6 +360,13 @@ export class NetworkGameHost implements IGameHost {
    */
   getServerInfo(): ServerInfo | null {
     return this._serverInfo;
+  }
+
+  /**
+   * Get ClockSync instance for server time conversion.
+   */
+  getClockSync(): ClockSync {
+    return this.clockSync;
   }
 
   /**
@@ -403,6 +417,7 @@ export class NetworkGameHost implements IGameHost {
 
   async disconnect(): Promise<void> {
     this._isConnected = false;
+    this.clockSync.stop();
     await this.transport.disconnect();
   }
 
@@ -612,6 +627,10 @@ export class NetworkGameHost implements IGameHost {
             this._onJoinAccept = null;
           }
 
+          // Start ClockSync after confirmed connection
+          this.clockSync.startSync();
+          console.log(`[NetworkGameHost] ClockSync started`);
+
           // Spawn local player in client-side prediction simulation
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -637,6 +656,11 @@ export class NetworkGameHost implements IGameHost {
 
           // Notify callbacks (for map loading, etc.)
           this.serverInfoCallbacks.forEach(cb => cb(welcome));
+          break;
+        }
+        case MessageType.Pong: {
+          const { clientSendTime, serverTime } = MessageCodec.decodePong(data);
+          this.clockSync.processPong(clientSendTime, serverTime);
           break;
         }
         default:
