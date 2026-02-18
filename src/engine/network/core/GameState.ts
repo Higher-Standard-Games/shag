@@ -126,11 +126,20 @@ export class GameState {
     switch (event.type) {
       case 'damage':
         encoder.writeString(event.entityId);
+        encoder.writeString(event.attackerId ?? '');
         encoder.writeFloat32(event.damage);
+        encoder.writeString(event.weaponId ?? '');
         break;
       case 'death':
         encoder.writeString(event.entityId);
         encoder.writeString(event.killerId);
+        encoder.writeString(event.weaponId ?? '');
+        break;
+      case 'combat_state':
+        encoder.writeString(event.entityId);
+        encoder.writeUint16(event.health);
+        encoder.writeUint16(event.armor);
+        encoder.writeUint8(event.dead ? 1 : 0);
         break;
       case 'chat':
         encoder.writeString(event.playerId);
@@ -173,13 +182,24 @@ export class GameState {
         return {
           type,
           entityId: decoder.readString(),
+          attackerId: decoder.readString(),
           damage: decoder.readFloat32(),
+          weaponId: decoder.readString(),
         };
       case 'death':
         return {
           type,
           entityId: decoder.readString(),
           killerId: decoder.readString(),
+          weaponId: decoder.readString(),
+        };
+      case 'combat_state':
+        return {
+          type,
+          entityId: decoder.readString(),
+          health: decoder.readUint16(),
+          armor: decoder.readUint16(),
+          dead: decoder.readUint8() === 1,
         };
       case 'chat':
         return {
@@ -239,6 +259,9 @@ export class PlayerState {
   /** Score */
   score: number = 0;
 
+  /** Deaths */
+  deaths: number = 0;
+
   /** Ping in milliseconds */
   ping: number = 0;
 
@@ -250,6 +273,7 @@ export class PlayerState {
     encoder.writeString(this.name);
     encoder.writeString(this.team);
     encoder.writeUint32(this.score);
+    encoder.writeUint16(this.deaths);
     encoder.writeUint16(this.ping);
   }
 
@@ -261,6 +285,7 @@ export class PlayerState {
     this.name = decoder.readString();
     this.team = decoder.readString();
     this.score = decoder.readUint32();
+    this.deaths = decoder.readUint16();
     this.ping = decoder.readUint16();
   }
 
@@ -273,6 +298,7 @@ export class PlayerState {
     cloned.name = this.name;
     cloned.team = this.team;
     cloned.score = this.score;
+    cloned.deaths = this.deaths;
     cloned.ping = this.ping;
     return cloned;
   }

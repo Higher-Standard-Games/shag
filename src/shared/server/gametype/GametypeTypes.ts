@@ -114,4 +114,5 @@ export interface MatchStateSnapshot {
     readyCount: number;
     totalPlayers: number;
     gametypeName: string;
+    scoreLimit: number;
 }
