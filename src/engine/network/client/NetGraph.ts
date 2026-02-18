@@ -7,13 +7,14 @@
  * Metrics tracked:
  * - Ping (RTT) from server snapshots
  * - Snapshot receive rate (measured)
+ * - Packet loss % (detected via snapshot tick gaps)
  * - Interpolation delay (from SnapshotBuffer)
  * - Command send rate
  * - Reconciliation corrections/sec
  *
  * Usage:
  *   NetGraph.init() — call once after engine boot
- *   NetGraph.recordSnapshot(ping) — call on each server snapshot
+ *   NetGraph.recordSnapshot(ping, tick) — call on each server snapshot
  *   NetGraph.recordReconciliation() — call on each reconciliation correction
  *   NetGraph.recordCommandSent() — call on each command sent
  *   NetGraph.render() — call each frame
@@ -31,6 +32,7 @@ const GRAPH_HEIGHT = 64;
 const GRAPH_PADDING = 8;
 const HISTORY_SIZE = 128; // Number of samples in the rolling graph
 const SAMPLE_INTERVAL_MS = 100; // Sample metrics every 100ms
+const LOSS_WINDOW_SIZE = 100; // Track last N snapshots for loss %
 
 // Colors
 const BG_COLOR = 'rgba(0, 0, 0, 0.65)';
@@ -39,6 +41,7 @@ const PING_COLOR = '#4fc3f7'; // Light blue
 const SNAP_COLOR = '#81c784'; // Green
 const CMD_COLOR = '#ffb74d';  // Orange
 const RECON_COLOR = '#ef5350'; // Red
+const LOSS_COLOR = '#ff7043';  // Deep orange
 const GRAPH_LINE_COLOR = 'rgba(255, 255, 255, 0.1)';
 
 // ============================================================================
@@ -92,6 +95,14 @@ export class NetGraph {
     private clockOffsetMs = 0;
     private lastSampleTime = 0;
 
+    // Packet loss tracking (tick gap detection)
+    private lastSnapshotTick = -1;
+    private ticksPerSnapshot = 4;  // auto-detected from first gap
+    private tickStepDetected = false;
+    /** Circular buffer: true = received, false = gap (lost) */
+    private lossWindow: boolean[] = [];
+    private packetLossPct = 0;
+
     // Graph data (sampled at fixed intervals)
     private pingGraph: number[] = new Array(HISTORY_SIZE).fill(0);
     private snapRateGraph: number[] = new Array(HISTORY_SIZE).fill(0);
@@ -136,13 +147,18 @@ export class NetGraph {
     // ========================================================================
 
     /** Call on each received server snapshot */
-    static recordSnapshot(pingMs: number): void {
+    static recordSnapshot(pingMs: number, tick?: number): void {
         const inst = NetGraph.instance;
         if (!inst) return;
         inst.currentPing = pingMs;
         inst.snapshotCounter.record();
         inst.pingHistory.push(pingMs);
         if (inst.pingHistory.length > 60) inst.pingHistory.shift();
+
+        // Packet loss detection via tick gaps
+        if (tick !== undefined && tick > 0) {
+            inst.recordTickForLoss(tick);
+        }
     }
 
     /** Call on each reconciliation correction */
@@ -159,6 +175,14 @@ export class NetGraph {
     static setInterpDelay(delayMs: number): void {
         if (NetGraph.instance) {
             NetGraph.instance.interpDelayMs = delayMs;
+        }
+    }
+
+    /** Configure expected ticks-per-snapshot for accurate loss detection */
+    static setTicksPerSnapshot(tps: number): void {
+        if (NetGraph.instance) {
+            NetGraph.instance.ticksPerSnapshot = tps;
+            NetGraph.instance.tickStepDetected = true;
         }
     }
 
@@ -189,7 +213,7 @@ export class NetGraph {
             inst.lastSampleTime = now;
             inst.pingGraph.push(inst.currentPing);
             if (inst.pingGraph.length > HISTORY_SIZE) inst.pingGraph.shift();
-            inst.snapRateGraph.push(inst.snapshotCounter.rate(now));
+            inst.snapRateGraph.push(inst.packetLossPct);
             if (inst.snapRateGraph.length > HISTORY_SIZE) inst.snapRateGraph.shift();
         }
 
@@ -198,7 +222,7 @@ export class NetGraph {
 
         // Calculate panel dimensions
         const lineHeight = 16;
-        const textLines = 6;
+        const textLines = 7;
         const panelHeight = (textLines * lineHeight) + GRAPH_PADDING * 2 +
             (showGraph ? GRAPH_HEIGHT + GRAPH_PADDING : 0);
         const panelWidth = GRAPH_WIDTH + GRAPH_PADDING * 2;
@@ -230,17 +254,21 @@ export class NetGraph {
         ctx.fillText(`ping: ${ping.toFixed(0)}ms`, x, y);
         y += lineHeight;
 
-        // Snapshot rate
+        // Snapshot rate + packet loss
         ctx.fillStyle = snapRate < 15 ? RECON_COLOR : SNAP_COLOR;
         ctx.fillText(`snap: ${snapRate.toFixed(0)}/s`, x, y);
-        // Interp delay on same line
-        ctx.fillStyle = TEXT_COLOR;
-        ctx.fillText(`interp: ${interp.toFixed(0)}ms`, x + 120, y);
+        // Packet loss on same line
+        const loss = inst.packetLossPct;
+        ctx.fillStyle = loss > 5 ? RECON_COLOR : loss > 1 ? LOSS_COLOR : TEXT_COLOR;
+        ctx.fillText(`loss: ${loss.toFixed(1)}%`, x + 120, y);
         y += lineHeight;
 
-        // Command rate
+        // Interp delay
+        ctx.fillStyle = TEXT_COLOR;
+        ctx.fillText(`interp: ${interp.toFixed(0)}ms`, x, y);
+        // Command rate on same line
         ctx.fillStyle = CMD_COLOR;
-        ctx.fillText(`cmd:  ${cmdRate.toFixed(0)}/s`, x, y);
+        ctx.fillText(`cmd: ${cmdRate.toFixed(0)}/s`, x + 120, y);
         y += lineHeight;
 
         // Reconciliation rate
@@ -265,7 +293,11 @@ export class NetGraph {
         // Graph (level 2 only)
         if (showGraph) {
             y += GRAPH_PADDING / 2;
-            inst.drawGraph(ctx, x, y, GRAPH_WIDTH, GRAPH_HEIGHT, inst.pingGraph, PING_COLOR, 200);
+            // Top graph: ping history
+            const halfH = Math.floor((GRAPH_HEIGHT - 2) / 2);
+            inst.drawGraph(ctx, x, y, GRAPH_WIDTH, halfH, inst.pingGraph, PING_COLOR, 200);
+            // Bottom graph: packet loss %
+            inst.drawGraph(ctx, x, y + halfH + 2, GRAPH_WIDTH, halfH, inst.snapRateGraph, LOSS_COLOR, 10);
         }
     }
 
@@ -346,5 +378,56 @@ export class NetGraph {
         ctx.font = '9px monospace';
         ctx.fillText(`${maxValue}`, x + 2, y + 2);
         ctx.fillText('0', x + 2, y + h - 10);
+    }
+
+    // ========================================================================
+    // Packet Loss Tracking
+    // ========================================================================
+
+    /**
+     * Track snapshot ticks to detect gaps (lost packets).
+     * If we expect snapshots every N ticks and see a jump of 2N,
+     * that means one snapshot was lost.
+     */
+    private recordTickForLoss(tick: number): void {
+        if (this.lastSnapshotTick < 0) {
+            // First snapshot — just record, no loss info yet
+            this.lastSnapshotTick = tick;
+            return;
+        }
+
+        const gap = tick - this.lastSnapshotTick;
+        this.lastSnapshotTick = tick;
+
+        if (gap <= 0) return; // Ignore out-of-order or duplicate
+
+        // Auto-detect tick step from first valid gap
+        if (!this.tickStepDetected && gap > 0) {
+            this.ticksPerSnapshot = gap;
+            this.tickStepDetected = true;
+        }
+
+        const step = this.ticksPerSnapshot;
+        // How many snapshots were expected in this gap?
+        const expected = Math.round(gap / step);
+        // We received 1, so lost = expected - 1
+        const lost = Math.max(0, expected - 1);
+
+        // Push received + lost into circular buffer
+        for (let i = 0; i < lost; i++) {
+            this.lossWindow.push(false);
+        }
+        this.lossWindow.push(true); // This snapshot arrived
+
+        // Trim to window size
+        while (this.lossWindow.length > LOSS_WINDOW_SIZE) {
+            this.lossWindow.shift();
+        }
+
+        // Recalculate loss %
+        if (this.lossWindow.length > 0) {
+            const lostCount = this.lossWindow.filter(v => !v).length;
+            this.packetLossPct = (lostCount / this.lossWindow.length) * 100;
+        }
     }
 }
