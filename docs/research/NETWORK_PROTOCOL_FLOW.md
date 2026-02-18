@@ -8,10 +8,10 @@
 
 ## The Big Picture
 
-Everything runs over **WebSocket** (WSS). There's no UDP — browsers don't support raw UDP, so we use WebSocket with two logical channels:
+Everything runs over **WebTransport** (QUIC/HTTP3) when available, with **WebSocket** (WSS) as a fallback. WebTransport gives us true unreliable datagrams (UDP-like); WebSocket simulates this since all WS messages are reliable. Both transports expose the same interface with two logical channels:
 
-- **Reliable** — for connection lifecycle messages (Join, Welcome, JoinAccept). These *must* arrive.
-- **Unreliable (datagrams)** — for game traffic (Snapshots, Input, Ack, Ping/Pong). Lost packets are fine — the next one replaces it.
+- **Reliable** — for connection lifecycle messages (Join, Welcome, JoinAccept). These *must* arrive. WebTransport uses unidirectional QUIC streams; WebSocket uses regular messages.
+- **Unreliable (datagrams)** — for game traffic (Snapshots, Input, Ack, Ping/Pong). Lost packets are fine — the next one replaces it. WebTransport uses QUIC datagrams; WebSocket sends as regular messages (no true unreliability, but the protocol handles it).
 
 The server is **authoritative**. Clients predict locally and reconcile when the server disagrees. The whole thing is modeled after Quake 3 / Source Engine networking.
 
@@ -363,24 +363,30 @@ Time    Server (128Hz tick, 30Hz snapshot)        Client (144Hz render)
 ## Transport Layer
 
 ```text
-WebSocketServerTransport (server)
-  ├── listen() on WSS port
+WebTransportServerTransport (server, primary)
+  ├── start()                        ← listen on QUIC/HTTP3 port
   ├── onConnect(conn)
   ├── onDisconnect(conn, reason)
-  ├── onDatagram(conn, data)      ← game traffic
-  ├── onReliable(conn, data)      ← lifecycle traffic
+  ├── onDatagram(conn, data)         ← game traffic (QUIC datagrams)
+  ├── onReliable(conn, data)         ← lifecycle traffic (QUIC streams)
   └── onError(conn, error)
 
-WebSocketTransport (client)
+WebSocketServerTransport (server, fallback)
+  ├── start()                        ← listen on WSS port
+  ├── same interface as above
+  └── both channels use WS messages (no true datagrams)
+
+Client Transport (auto-detected)
+  ├── TransportFactory.create(url)   ← tries WebTransport first, falls back to WS
   ├── connect(url)
-  ├── send(data, reliable)
+  ├── send(data, reliable?)
   ├── onMessage(callback)
   ├── onConnect(callback)
   ├── onDisconnect(callback)
   └── onError(callback)
 ```
 
-Both sides use the same `MessageCodec` for encoding/decoding. The codec always prepends the message type byte, and `peekMessageType()` reads byte 0 to route the message without decoding the full payload.
+Both sides use the same `MessageCodec` for encoding/decoding. The codec always prepends the message type byte, and `peekMessageType()` reads byte 0 to route the message without decoding the full payload. The transport layer is transparent — game code never knows which transport is active.
 
 ---
 
@@ -396,6 +402,11 @@ Both sides use the same `MessageCodec` for encoding/decoding. The codec always p
 | `src/engine/network/client/SnapshotBuffer.ts` | Time-based interpolation buffer for remote players |
 | `src/engine/network/client/ClockSync.ts` | NTP-like clock offset calculation |
 | `src/engine/network/client/NetGraph.ts` | Real-time network stats overlay (ping, snap rate, loss %, clock offset) |
+| `src/engine/server/network/transport/WebTransportTransport.ts` | Server QUIC transport (datagrams + streams) |
+| `src/engine/server/network/transport/WebSocketTransport.ts` | Server WebSocket fallback transport |
+| `src/engine/network/client/transport/Transport.ts` | Client transport interface + auto-detection factory |
+| `src/engine/network/client/transport/WebTransportTransport.ts` | Client QUIC transport |
+| `src/engine/network/client/transport/WebSocketTransport.ts` | Client WebSocket fallback transport |
 | `src/games/fps/server/GameServer.ts` | Server tick loop, client management, snapshot broadcast |
 | `src/games/fps/server/MovementValidator.ts` | Anti-warp input rate limiting (rate cap + time budget) |
 | `src/games/fps/client/V2NetworkClient.ts` | Input history + reconciliation (Q3-style) |
