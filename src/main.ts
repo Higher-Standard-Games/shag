@@ -32,13 +32,14 @@ import { FPSController } from "./engine/camera/controllers/FPSController";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
+import gameJson from "@game/game.json";
 
 /**
  * Main application entry point.
  */
 async function main() {
   // Initialize GamePaths
-  await GamePaths.getInstance().init();
+  await GamePaths.getInstance().init(gameJson.displayName);
 
   // Set browser title
   EngineVersion.getInstance().setDocumentTitle();

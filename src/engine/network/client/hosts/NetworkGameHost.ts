@@ -318,6 +318,10 @@ export class NetworkGameHost implements IGameHost {
   private commandSequence = 1;
   private lastBaselineTick = 0;
 
+  /** Redundant command buffer: store last N encoded payloads for packet loss resilience */
+  private recentCommandPayloads: Uint8Array[] = [];
+  private readonly COMMAND_REDUNDANCY = 3; // Send last 3 commands per packet
+
   /** When true, V2NetworkClient handles prediction - we only do network transport */
   private useExternalPrediction = false;
 
@@ -429,7 +433,19 @@ export class NetworkGameHost implements IGameHost {
 
     // Send to server using binary protocol
     const data = MessageCodec.encodeCommand(this.localPlayerId, sequencedCmd.seq, sequencedCmd);
-    this.transport.send(data, false); // Unreliable for commands (sent frequently)
+
+    // Buffer for redundancy (last 3 commands re-sent per tick for packet loss resilience)
+    this.recentCommandPayloads.push(data);
+    if (this.recentCommandPayloads.length > this.COMMAND_REDUNDANCY) {
+      this.recentCommandPayloads.shift();
+    }
+
+    // Send all buffered commands as separate datagrams (server parses one command per datagram)
+    // On packet loss, the missing command will be re-sent as a redundant copy in subsequent ticks
+    // Server deduplicates by sequence number — no double-processing
+    for (const payload of this.recentCommandPayloads) {
+      this.transport.send(payload, false); // Unreliable datagrams
+    }
 
     // Log periodically
     if (this.commandSequence % 250 === 0) {

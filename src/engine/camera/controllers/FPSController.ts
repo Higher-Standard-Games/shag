@@ -948,6 +948,8 @@ export class FPSController implements ICameraController {
       // This ensures reconciliation happens at a deterministic point in the frame,
       // preventing mid-frame camera position discontinuities (primary jitter source).
       this.gameManager.processSnapshots();
+      // Render remote players with per-frame interpolated positions from snapshot buffer
+      this.gameManager.renderRemotePlayers();
 
       // === NETWORK MOVEMENT MODE ===
       // Throttle command sending to 125Hz (server tick rate)

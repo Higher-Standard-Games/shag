@@ -27,18 +27,17 @@
 export interface EngineConfig {
   defaultGame: string;
   engineAssetsPath?: string;
-  title?: string;  // Optional game title for browser tab
 }
 
 export class GamePaths {
   private static instance: GamePaths;
-  
+
   private gameName: string = 'default';
   private gameTitle: string | null = null;  // Optional title from config
   private enginePath: string = '/engine';
   private initialized: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): GamePaths {
     if (!GamePaths.instance) {
@@ -56,8 +55,9 @@ export class GamePaths {
 
   /**
    * Initialize from engine.json
+   * @param gameTitle Optional game title (from game's game.json, passed by caller)
    */
-  public async init(): Promise<void> {
+  public async init(gameTitle?: string): Promise<void> {
     if (this.initialized) return;
 
     // Load engine.json (required)
@@ -81,7 +81,7 @@ export class GamePaths {
 
     this.gameName = config.defaultGame;
     this.enginePath = config.engineAssetsPath || '/engine';
-    this.gameTitle = config.title || null;
+    this.gameTitle = gameTitle || null;
 
     this.initialized = true;
     console.log(`[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);

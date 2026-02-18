@@ -19,7 +19,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
 import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
-import { getExplosionEffect } from './ExplosionEffect';
+import { getExplosionEffect, ROCKET_EXPLOSION, GRENADE_EXPLOSION, PLASMA_EXPLOSION } from './ExplosionEffect';
 
 interface ActiveProjectile {
     id: string;
@@ -56,6 +56,13 @@ export class ProjectileManager {
     private impacts: ActiveImpact[] = [];
     private nextId: number = 0;
 
+    // Track predicted projectile impacts for deduplication with server events
+    private recentPredictedImpacts: Array<{
+        pos: Vector3;
+        time: number;
+        defId: string;
+    }> = [];
+
     // Cache loaded projectile models for cloning
     private modelCache: Map<string, MD3LoadResult> = new Map();
     // Cache projectile model textures
@@ -73,6 +80,26 @@ export class ProjectileManager {
             ProjectileManager.instance = new ProjectileManager();
         }
         return ProjectileManager.instance;
+    }
+
+    /**
+     * Check if a predicted explosion was recently shown near the given position.
+     * Used by FPSGameManager to deduplicate server-authoritative explosions
+     * against client-predicted ones.
+     */
+    public hasRecentPrediction(pos: Vector3, defId: string, tolerance = 50, maxAgeMs = 500): boolean {
+        const now = performance.now();
+        for (let i = this.recentPredictedImpacts.length - 1; i >= 0; i--) {
+            const p = this.recentPredictedImpacts[i];
+            if (p.defId === defId &&
+                now - p.time < maxAgeMs &&
+                Vector3.Distance(p.pos, pos) < tolerance) {
+                // Consume the prediction (one server event per prediction)
+                this.recentPredictedImpacts.splice(i, 1);
+                return true;
+            }
+        }
+        return false;
     }
 
     public init(scene: Scene): void {
@@ -389,6 +416,10 @@ export class ProjectileManager {
     public update(deltaTime: number): void {
         if (!this.scene) return;
 
+        // Cleanup stale predicted impacts (older than 1s)
+        const cleanupTime = performance.now() - 1000;
+        this.recentPredictedImpacts = this.recentPredictedImpacts.filter(p => p.time > cleanupTime);
+
         const now = performance.now() / 1000;
         const toRemove: string[] = [];
 
@@ -572,9 +603,21 @@ export class ProjectileManager {
     private spawnImpact(projDefId: string, position: Vector3, normal: Vector3): void {
         if (!this.scene) return;
 
-        // Rocket, grenade, and plasma explosions are now server-authoritative
-        // (spawned via projectile_impact events in FPSGameManager)
+        // Client-side predicted explosions for rockets/grenades/plasma
+        // These are shown immediately; server events are deduplicated against them
         if (projDefId === 'rocket' || projDefId === 'grenade' || projDefId === 'plasma_bolt') {
+            // Record prediction for dedup and spawn the explosion locally
+            this.recentPredictedImpacts.push({
+                pos: position.clone(),
+                time: performance.now(),
+                defId: projDefId,
+            });
+
+            // Spawn the explosion locally using the config for this projectile type
+            const config = projDefId === 'grenade' ? GRENADE_EXPLOSION
+                : projDefId === 'plasma_bolt' ? PLASMA_EXPLOSION
+                    : ROCKET_EXPLOSION;
+            getExplosionEffect().spawn(position, config, normal);
             return;
         }
 

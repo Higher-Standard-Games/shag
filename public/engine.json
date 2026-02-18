@@ -1,5 +1,4 @@
 {
-  "defaultGame": "fps",
-  "engineAssetsPath": "/engine",
-  "title": "WASH FPS"
+    "defaultGame": "fps",
+    "engineAssetsPath": "/engine"
 }
