@@ -63,6 +63,13 @@ export class ClockSync {
     /** Transport send function — injected so ClockSync has no direct transport dependency */
     private sendFn: ((data: Uint8Array, reliable: boolean) => void) | null = null;
 
+    /**
+     * Cached offset between Date.now() and performance.now().
+     * Computed once at construction to avoid per-call jitter from
+     * Date.now()'s coarse ~1ms resolution vs performance.now()'s sub-ms precision.
+     */
+    private readonly dateToPerf: number = Date.now() - performance.now();
+
     // ── Setup ───────────────────────────────────────────────
 
     /**
@@ -147,10 +154,21 @@ export class ClockSync {
     }
 
     /**
-     * Convert a server Date.now() timestamp to local time.
+     * Convert a server Date.now() timestamp to local performance.now() time.
+     * 
+     * This is what SnapshotBuffer uses for interpolation.
+     * SnapshotBuffer.sample() computes renderTime = performance.now() - delay,
+     * so snapshot timestamps must also be in performance.now() basis.
+     * 
+     * Conversion: serverDateNow → clientDateNow → clientPerformanceNow
+     *   clientDateNow = serverTime - offset
+     *   clientPerformanceNow = clientDateNow - (Date.now() - performance.now())
      */
     toLocalTime(serverTime: number): number {
-        return serverTime - this._offset;
+        const clientDateNow = serverTime - this._offset;
+        // Convert from Date.now() basis to performance.now() basis
+        // Uses cached dateToPerf for stable, jitter-free conversion
+        return clientDateNow - this.dateToPerf;
     }
 
     // ── Getters ─────────────────────────────────────────────

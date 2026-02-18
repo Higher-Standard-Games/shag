@@ -52,6 +52,9 @@ export interface InterpolatedEntity {
     grounded: boolean;
 }
 
+/** Server gravity constant (must match server physics) */
+const GRAVITY = -800;
+
 export class SnapshotBuffer {
     private buffer: BufferedSnapshot[] = [];
     private readonly maxBufferSize = 32;
@@ -174,15 +177,19 @@ export class SnapshotBuffer {
             const entity = before.entities.get(entityId);
             if (!entity) return null;
 
-            // Extrapolate using velocity (capped to prevent flying off)
+            // Extrapolate using velocity + gravity (capped to prevent flying off)
             const elapsed = Math.min((renderTime - this.getSnapTime(before)) / 1000, 0.2); // Max 200ms extrapolation
+            // Apply gravity to Y velocity for parabolic arc (not constant velocity)
+            const extraY = entity.grounded
+                ? entity.y  // Grounded: don't extrapolate Y (stay on surface)
+                : entity.y + entity.vy * elapsed + 0.5 * GRAVITY * elapsed * elapsed;
             return {
                 x: entity.x + entity.vx * elapsed,
-                y: entity.y + entity.vy * elapsed,
+                y: extraY,
                 z: entity.z + entity.vz * elapsed,
                 yaw: entity.yaw,
                 vx: entity.vx,
-                vy: entity.vy,
+                vy: entity.grounded ? entity.vy : entity.vy + GRAVITY * elapsed,
                 vz: entity.vz,
                 grounded: entity.grounded,
             };
@@ -215,7 +222,7 @@ export class SnapshotBuffer {
     }
 
     /**
-     * Get buffer size for diagnostics.
+     * Get the current number of buffered snapshots.
      */
     getBufferSize(): number {
         return this.buffer.length;
@@ -226,9 +233,18 @@ export class SnapshotBuffer {
     /**
      * Get the effective timestamp for a snapshot.
      * Prefers server-synced local time (more accurate) with fallback to receiveTime.
+     * Sanity-checks serverLocalTime: if it drifts >500ms from receiveTime,
+     * it's likely corrupted by clock conversion issues — fall back to receiveTime.
      */
     private getSnapTime(snap: BufferedSnapshot): number {
-        return snap.serverLocalTime ?? snap.receiveTime;
+        if (snap.serverLocalTime !== undefined) {
+            const drift = Math.abs(snap.serverLocalTime - snap.receiveTime);
+            if (drift < 500) {
+                return snap.serverLocalTime;
+            }
+            // Drift too large — serverLocalTime is unreliable
+        }
+        return snap.receiveTime;
     }
 
     private lerpEntity(a: EntitySnapshot, b: EntitySnapshot, t: number): InterpolatedEntity {
