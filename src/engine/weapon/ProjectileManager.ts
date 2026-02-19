@@ -515,17 +515,11 @@ export class ProjectileManager {
                     this.spawnBounceEffect(hit.pickedPoint, normal);
                 } else {
                     // No bounces left — full impact
-                    if (proj.isLocalPrediction) {
-                        // Predicted explosion: show immediately, record for server dedup
-                        this.spawnImpact(proj.defId, hit.pickedPoint, normal);
-                        this.recentPredictedImpacts.push({
-                            pos: hit.pickedPoint.clone(),
-                            time: performance.now(),
-                            defId: proj.defId,
-                        });
-                    } else {
+                    if (!proj.isLocalPrediction) {
+                        // Non-predicted projectile (remote player): show explosion
                         this.spawnImpact(proj.defId, hit.pickedPoint, normal);
                     }
+                    // Local predictions silently despawn — server event handles explosion
                     toRemove.push(proj.id);
                 }
                 continue;
