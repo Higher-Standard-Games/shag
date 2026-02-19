@@ -10,7 +10,12 @@ console.log('\n=== FPSSimulation Initialization Test ===\n');
 
 // Create simulation
 console.log('[TEST] Creating FPSSimulation...');
-const sim = new FPSSimulation({ tickRate: 60 });
+const sim = new FPSSimulation({
+    tickRate: 60,
+    tickDuration: 1 / 60,
+    maxPlayers: 1,
+    gameRules: {},
+} as any);
 
 console.log('[TEST] Simulation created');
 
@@ -40,11 +45,11 @@ try {
     console.log('[TEST] Player has transform:', !!transform);
     console.log('[TEST] Player has velocity:', !!velocity);
     if (transform) {
-        console.log('[TEST] Player position:', transform.position);
+        console.log('[TEST] Player position:', (transform as any).position);
     }
     if (velocity) {
-        console.log('[TEST] Player velocity:', velocity.linear);
-        console.log('[TEST] Player grounded:', velocity.grounded);
+        console.log('[TEST] Player velocity:', (velocity as any).linear);
+        console.log('[TEST] Player grounded:', (velocity as any).grounded);
     }
 } catch (err) {
     console.error('[TEST] Error spawning player:', err);
@@ -55,7 +60,7 @@ console.log('\n[TEST] Testing simulation ticks with gravity...');
 try {
     // Run 10 simulation ticks
     for (let i = 0; i < 10; i++) {
-        sim.tick(16); // 16ms deltaTime
+        sim.tick([] as any); // empty input commands
     }
     console.log('[TEST] 10 simulation ticks completed');
 

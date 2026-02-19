@@ -670,6 +670,9 @@ export class NetworkGameHost implements IGameHost {
       }
     } catch (error) {
       console.error('[NetworkGameHost] Failed to handle message:', error);
+      // Clear baseline to break cascading delta decode failures —
+      // next snapshot will decode without delta baseline
+      this.lastAckedSnapshot = null;
     }
   }
 

@@ -10,6 +10,8 @@ export interface QueuedInput {
     yaw: number;
     buttons: number;
     sequence: number;
+    /** Weapon slot the player wants to switch to (1-based, 0 = no change) */
+    weaponSlot: number;
 }
 
 export interface InputComponent {

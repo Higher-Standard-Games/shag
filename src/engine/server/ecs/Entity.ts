@@ -159,3 +159,30 @@ export function createProjectileEntity(
     };
     return entity;
 }
+
+/**
+ * Create a dropped weapon entity (world item) with optional toss velocity
+ */
+export function createDroppedWeaponEntity(
+    id: EntityId,
+    position: { x: number; y: number; z: number },
+    velocity?: { x: number; y: number; z: number },
+): Entity {
+    const entity = new Entity(id, EntityType.Item);
+    entity.transform = createTransform(position);
+    if (velocity) {
+        entity.physics = {
+            velocity,
+            angularVelocity: { x: 0, y: 0, z: 0 },
+            grounded: false,
+            jumping: false,
+            isSliding: false,
+            isCrouching: false,
+            crouchViewOffset: 0,
+            wallJumpState: 'none',
+            ledgeGrabState: 'none',
+            actualHorizSpeed: 0,
+        };
+    }
+    return entity;
+}

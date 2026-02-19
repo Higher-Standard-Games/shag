@@ -127,12 +127,23 @@ export class WeaponViewManager {
         startTime: 0,
         duration: 1.0,  // Will be set from weapon def
     };
-    // Reload animation constants (TODO: implement reload animation)
-    // private static readonly RELOAD_ROLL_MAX = Math.PI / 3;  // 60 degrees
-    // private static readonly RELOAD_Y_OFFSET = -10;  // Down offset
-    // private static readonly RELOAD_Z_BACK = -8;   // Pull back
-    // private static readonly RELOAD_Z_FORWARD = 3;  // Push forward
-    // private static readonly RELOAD_X_CHEST = -8;  // Pull toward chest (left/center)
+
+    // Weapon switch animation state
+    private switchState: {
+        phase: 'idle' | 'down' | 'load' | 'up';
+        startTime: number;
+        pendingWeaponId: string | null;
+        pendingPk3Path?: string;
+    } = {
+            phase: 'idle',
+            startTime: 0,
+            pendingWeaponId: null,
+        };
+    // Switch animation tuning (ms)
+    private static readonly SWITCH_DOWN_DURATION = 120;  // Slide current weapon down
+    private static readonly SWITCH_UP_DURATION = 140;    // Slide new weapon up
+    private static readonly SWITCH_Y_DROP = -45;         // How far down (Quake units)
+    private static readonly SWITCH_ROLL = Math.PI / 6;   // Slight roll during switch
 
     // Debug
     private debugEnabled: boolean = false;
@@ -540,6 +551,9 @@ export class WeaponViewManager {
      * Update per frame (for animations, sway, CVar changes)
      */
     public update(deltaTime: number): void {
+        // Process switch animation state transitions (even if no weapon loaded yet)
+        this.updateSwitchAnimation();
+
         if (!this.currentWeapon) return;
 
         // Throttle CVar checking - 10 times per second max
@@ -709,11 +723,14 @@ export class WeaponViewManager {
         // Get reload animation offsets
         const reloadOffsets = this.getReloadAnimationOffsets();
 
-        // Apply position offset (bob + jump/land + ADS + recoil + reload)
+        // Get switch animation offsets
+        const switchOffsets = this.getSwitchAnimationOffsets();
+
+        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset,  // REMOVED RECOIL FROM X
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset,
-            basePos.z + reloadOffsets.zOffset - this.recoilOffset   // Recoil kicks back on Z (backward)
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset,
+            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -727,7 +744,7 @@ export class WeaponViewManager {
         root.rotation.set(
             baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch,
             baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + this.recoilOffset * 0.06  // Recoil on Z (Pitch due to Y-90)
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06
         );
     }
 
@@ -949,6 +966,135 @@ export class WeaponViewManager {
             this.recoilOffset -= WeaponViewManager.RECOIL_RECOVER * deltaTime;
             if (this.recoilOffset < 0) this.recoilOffset = 0;
         }
+    }
+
+    // ==================== WEAPON SWITCH ANIMATION ====================
+
+    /**
+     * Switch weapon with slide-down / swap / slide-up animation.
+     * Cancels any in-progress switch or reload.
+     */
+    public async switchWeaponAnimated(weaponId: string, pk3Path?: string): Promise<void> {
+        // Cancel reload
+        this.cancelReload();
+
+        // If already switching to the same weapon, ignore
+        if (this.switchState.phase !== 'idle' && this.switchState.pendingWeaponId === weaponId) {
+            return;
+        }
+
+        // Start (or restart) the switch-down phase
+        this.switchState = {
+            phase: 'down',
+            startTime: performance.now(),
+            pendingWeaponId: weaponId,
+            pendingPk3Path: pk3Path,
+        };
+    }
+
+    /**
+     * Process switch animation state transitions.
+     * Called every frame from update().
+     */
+    private updateSwitchAnimation(): void {
+        const state = this.switchState;
+        if (state.phase === 'idle') return;
+
+        const now = performance.now();
+        const elapsed = now - state.startTime;
+
+        if (state.phase === 'down') {
+            // Wait for slide-down to complete
+            if (elapsed >= WeaponViewManager.SWITCH_DOWN_DURATION) {
+                // Transition to load phase — swap the model at the bottom
+                state.phase = 'load';
+                state.startTime = now;
+
+                if (state.pendingWeaponId) {
+                    // Load the new weapon model (async, but we start slide-up immediately)
+                    this.loadWeapon(state.pendingWeaponId, state.pendingPk3Path).then(() => {
+                        // Model loaded — if still in 'load' or 'up' phase, we're good
+                        if (this.switchState.pendingWeaponId === state.pendingWeaponId) {
+                            // Ensure we transition to 'up' if still in 'load'
+                            if (this.switchState.phase === 'load') {
+                                this.switchState.phase = 'up';
+                                this.switchState.startTime = performance.now();
+                            }
+                        }
+                    });
+                }
+            }
+        } else if (state.phase === 'load') {
+            // If loadWeapon is fast (cached), it may have already transitioned to 'up'
+            // Otherwise, give it a max wait of 200ms before starting slide-up anyway
+            if (elapsed >= 200) {
+                state.phase = 'up';
+                state.startTime = now;
+            }
+        } else if (state.phase === 'up') {
+            // Wait for slide-up to complete
+            if (elapsed >= WeaponViewManager.SWITCH_UP_DURATION) {
+                state.phase = 'idle';
+                state.pendingWeaponId = null;
+            }
+        }
+    }
+
+    /**
+     * Calculate switch animation offsets based on current phase.
+     * Returns { yOffset, roll, xOffset, zOffset }
+     */
+    private getSwitchAnimationOffsets(): { yOffset: number; roll: number; xOffset: number; zOffset: number } {
+        const state = this.switchState;
+        if (state.phase === 'idle') {
+            return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
+        }
+
+        const now = performance.now();
+        const elapsed = now - state.startTime;
+
+        if (state.phase === 'down') {
+            // Ease-out-cubic: fast start, smooth settle at bottom
+            const t = Math.min(1.0, elapsed / WeaponViewManager.SWITCH_DOWN_DURATION);
+            const eased = 1 - Math.pow(1 - t, 3);
+            return {
+                yOffset: eased * WeaponViewManager.SWITCH_Y_DROP,
+                roll: eased * WeaponViewManager.SWITCH_ROLL,
+                xOffset: 0,
+                zOffset: 0,
+            };
+        }
+
+        if (state.phase === 'load') {
+            // Hold at bottom while model loads
+            return {
+                yOffset: WeaponViewManager.SWITCH_Y_DROP,
+                roll: WeaponViewManager.SWITCH_ROLL,
+                xOffset: 0,
+                zOffset: 0,
+            };
+        }
+
+        if (state.phase === 'up') {
+            // Ease-out-cubic: slides up from bottom to rest position
+            const t = Math.min(1.0, elapsed / WeaponViewManager.SWITCH_UP_DURATION);
+            const eased = 1 - Math.pow(1 - t, 3);
+            return {
+                yOffset: WeaponViewManager.SWITCH_Y_DROP * (1 - eased),
+                roll: WeaponViewManager.SWITCH_ROLL * (1 - eased),
+                xOffset: 0,
+                zOffset: 0,
+            };
+        }
+
+        return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
+    }
+
+    /**
+     * Check if currently in a weapon switch animation (blocks firing)
+     */
+    public isSwitching(): boolean {
+        return this.switchState.phase !== 'idle';
     }
 
     // ==================== RELOAD ANIMATION ====================

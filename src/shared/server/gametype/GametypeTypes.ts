@@ -39,8 +39,10 @@ export interface MatchConfig {
     timeLimit: number;
     /** Post-game scoreboard display duration in seconds */
     postGameDuration: number;
-    /** Respawn delay in seconds after death */
+    /** Minimum respawn delay in seconds (player CAN respawn after this) */
     respawnDelay: number;
+    /** Maximum respawn delay in seconds (auto-respawn deadline). Default: respawnDelay * 2 */
+    maxRespawnDelay?: number;
     /** Self-damage multiplier (1.0 = full, 0.0 = none). Default: 1.0 (Warsow DM-style) */
     selfDamage: number;
 }

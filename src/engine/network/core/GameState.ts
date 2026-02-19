@@ -129,11 +129,22 @@ export class GameState {
         encoder.writeString(event.attackerId ?? '');
         encoder.writeFloat32(event.damage);
         encoder.writeString(event.weaponId ?? '');
+        // Victim position for floating damage numbers
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
         break;
       case 'death':
         encoder.writeString(event.entityId);
         encoder.writeString(event.killerId);
         encoder.writeString(event.weaponId ?? '');
+        // Victim position + velocity for gib spawning
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        encoder.writeFloat32(event.velX ?? 0);
+        encoder.writeFloat32(event.velY ?? 0);
+        encoder.writeFloat32(event.velZ ?? 0);
         break;
       case 'combat_state':
         encoder.writeString(event.entityId);
@@ -189,6 +200,10 @@ export class GameState {
           attackerId: decoder.readString(),
           damage: decoder.readFloat32(),
           weaponId: decoder.readString(),
+          // Victim position for floating damage numbers
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
         };
       case 'death':
         return {
@@ -196,6 +211,13 @@ export class GameState {
           entityId: decoder.readString(),
           killerId: decoder.readString(),
           weaponId: decoder.readString(),
+          // Victim position + velocity for gib spawning
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+          velX: decoder.readFloat32(),
+          velY: decoder.readFloat32(),
+          velZ: decoder.readFloat32(),
         };
       case 'combat_state':
         return {

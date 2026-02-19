@@ -281,6 +281,11 @@ export class FPSController implements ICameraController {
   private shakeYawOffset: number = 0;
   private shakeDecayRate: number = 6;  // How fast shake decays (higher = faster)
 
+  // Death camera (Warsow-style: tilt sideways + drop to ground)
+  private deathCamPhase: number = 0;    // 0 = alive, 1 = fully dead effect
+  private deathCamRoll: number = 0;     // Current roll angle (radians)
+  private deathCamHeightDrop: number = 0; // Y offset to lower view toward feet
+
   // Player Visuals Component (Debug model, animations)
   private playerVisuals: PlayerVisuals | null = null;
 
@@ -426,6 +431,10 @@ export class FPSController implements ICameraController {
   public onReload: (() => void) | null = null;
   public onUse: (() => void) | null = null; // F key interact/pickup
 
+  // Weapon slot tracking for network sync
+  public currentWeaponSlot: number = 0; // 0-based index into inventory slots
+  private _pendingWeaponSlot: number = 0; // 1-based slot to send to server (0 = no change)
+
   // Input state accessors
   public isAiming(): boolean { return this.keys.aim; }
   private onCanvasClick: ((e: MouseEvent) => void) | null = null;
@@ -437,7 +446,6 @@ export class FPSController implements ICameraController {
   private onMouseUp: ((e: MouseEvent) => void) | null = null;
   private onContextMenu: ((e: Event) => void) | null = null;
   private onMouseWheel: ((e: WheelEvent) => void) | null = null;
-  private currentWeaponSlot: number = 0; // Track active slot for scroll cycling
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     this.scene = scene;
@@ -604,6 +612,8 @@ export class FPSController implements ICameraController {
       if (e.code.startsWith('Digit')) {
         const digit = parseInt(e.code.replace('Digit', ''));
         if (digit > 0 && digit <= 9 && this.onWeaponSelect) {
+          this.currentWeaponSlot = digit - 1;
+          this._pendingWeaponSlot = digit; // 1-based for server
           this.onWeaponSelect(digit - 1);
         }
       }
@@ -652,17 +662,20 @@ export class FPSController implements ICameraController {
       if (this.isPointerLocked) e.preventDefault();
     };
 
-    // Mouse wheel for weapon scrolling (COD-style 2-weapon swap)
+    // Mouse wheel for weapon scrolling (COD-style 3-weapon swap: gunblade + 2 pickups)
     this.onMouseWheel = (e: WheelEvent) => {
       if (!this.isPointerLocked || !this.onWeaponSelect) return;
       e.preventDefault();
 
-      // Scroll up = previous slot, scroll down = next slot
+      const weaponCount = this._inventory ? this._inventory.getSlotCount() : 3;
+
+      // Scroll up = previous slot, scroll down = next slot (wrapping)
       if (e.deltaY < 0) {
-        this.currentWeaponSlot = Math.max(0, this.currentWeaponSlot - 1);
+        this.currentWeaponSlot = (this.currentWeaponSlot - 1 + weaponCount) % weaponCount;
       } else if (e.deltaY > 0) {
-        this.currentWeaponSlot = Math.min(1, this.currentWeaponSlot + 1);
+        this.currentWeaponSlot = (this.currentWeaponSlot + 1) % weaponCount;
       }
+      this._pendingWeaponSlot = this.currentWeaponSlot + 1; // 1-based for server
       this.onWeaponSelect(this.currentWeaponSlot);
     };
 
@@ -964,6 +977,10 @@ export class FPSController implements ICameraController {
 
       while (this.commandAccumulator >= TICK_DURATION) {
         // Send input to FPSGameManager -> FPSSimulation
+        // Consume pending weapon slot (fire-and-forget: sent once, then cleared)
+        const weaponSlot = this._pendingWeaponSlot;
+        this._pendingWeaponSlot = 0;
+
         this.gameManager.sendInput({
           forward: this.keys.forward,
           backward: this.keys.backward,
@@ -977,6 +994,7 @@ export class FPSController implements ICameraController {
           use: this.keys.use,
           pitch: this.mouseRotationX,
           yaw: this.mouseRotationY,
+          weaponSlot,
         });
 
         this.commandAccumulator -= TICK_DURATION;
@@ -1071,6 +1089,33 @@ export class FPSController implements ICameraController {
       this.camera.rotation.y = this.mouseRotationY + this.shakeYawOffset;
       this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
 
+      // === DEATH CAMERA ===
+      // Warsow-style: smoothly tilt camera sideways and drop view to ground when dead
+      const isDead = this.gameManager?.isPlayerDead() ?? false;
+      if (isDead) {
+        // Ramp up death effect over ~0.8s
+        this.deathCamPhase = Math.min(1.0, this.deathCamPhase + deltaTime * 1.25);
+      } else if (this.deathCamPhase > 0) {
+        // Snap reset on respawn
+        this.deathCamPhase = 0;
+        this.deathCamRoll = 0;
+        this.deathCamHeightDrop = 0;
+      }
+
+      if (this.deathCamPhase > 0) {
+        // Smoothstep for natural ease-in
+        const t = this.deathCamPhase;
+        const smooth = t * t * (3 - 2 * t);
+
+        // Roll: tilt ~40° (0.7 rad) sideways
+        this.deathCamRoll = smooth * 0.7;
+        this.camera.rotation.z = this.deathCamRoll;
+
+        // Height drop: lower camera by ~20 units (from eye to near feet)
+        this.deathCamHeightDrop = smooth * 20;
+        this.camera.position.y -= this.deathCamHeightDrop;
+      }
+
       // Update camera shake (decaying random offsets)
       if (this.shakeIntensity > 0.001) {
         // Generate new random offsets each frame, scaled by intensity
@@ -1110,9 +1155,73 @@ export class FPSController implements ICameraController {
       this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
     }
 
+    // === CROSSHAIR ===
+    if (this.gameManager) {
+      // Lazy init crosshair on first frame (avoids import at module load)
+      if (!(this as any)._crosshairReady) {
+        import('../../../games/fps/client/Crosshair').then(m => {
+          const ch = m.Crosshair.getInstance();
+          ch.init();
+          (this as any)._crosshairReady = true;
+          (this as any)._crosshair = ch;
+        });
+        (this as any)._crosshairReady = 'pending';
+      }
+
+      const ch = (this as any)._crosshair;
+      if (ch) {
+        // Look up weapon crosshair config
+        const weaponId = this.gameManager.getCurrentWeaponId();
+        if (!(this as any)._weaponsMap) {
+          // Lazy load WEAPONS map (fire-and-forget)
+          import('../../../games/fps/server/weapons/WeaponDef').then(m => {
+            (this as any)._weaponsMap = m.WEAPONS;
+          });
+        }
+        const weapons = (this as any)._weaponsMap;
+        const weaponDef = weapons?.[weaponId];
+        const crosshairConfig = weaponDef?.crosshair ?? null;
+
+        ch.update(
+          this.adsSensitivityProgress,
+          this.actualHorizSpeed,
+          crosshairConfig,
+          this.gameManager.isPlayerDead(),
+          this.gameManager.isConnectedToServer() || this.networkReady,
+        );
+      }
+    }
+
     // === PLAYER VISUALS ===
     if (this.playerVisuals) {
       this.playerVisuals.update(deltaTime);
+    }
+
+    // === GIBS ===
+    // Update gib physics/rendering (lazy — only if GibSystem was initialized by a death event)
+    if ((this as any)._gibSystem) {
+      (this as any)._gibSystem.update(deltaTime);
+    } else if (this.gameManager) {
+      // Try to get singleton if a death event has already initialized it
+      import('../../../games/fps/client/GibSystem').then(m => {
+        const gs = m.GibSystem.getInstance();
+        if (gs['scene']) { // Only cache reference if already initialized
+          (this as any)._gibSystem = gs;
+        }
+      });
+    }
+
+    // === DAMAGE NUMBERS ===
+    // Update floating damage number positions (lazy — only if DamageNumbers was initialized)
+    if ((this as any)._damageNumbers) {
+      (this as any)._damageNumbers.update(deltaTime);
+    } else if (this.gameManager) {
+      import('../../../games/fps/client/DamageNumbers').then(m => {
+        const dn = m.DamageNumbers.getInstance();
+        if (dn['scene']) {
+          (this as any)._damageNumbers = dn;
+        }
+      });
     }
   }
 

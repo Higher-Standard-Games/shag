@@ -32,7 +32,7 @@ export type { SubsystemConfig } from './core/Subsystem';
 // ECS
 // ═══════════════════════════════════════════════════════════════════
 
-export { Entity, createPlayerEntity, createProjectileEntity } from './ecs/Entity';
+export { Entity, createPlayerEntity, createProjectileEntity, createDroppedWeaponEntity } from './ecs/Entity';
 export { EntityType, entityId, playerId, tickNumber } from './ecs/types';
 export type { EntityId, PlayerId, TickNumber } from './ecs/types';
 
@@ -66,7 +66,7 @@ export {
     // Message types
     MessageType,
     // Transport
-    WebSocketTransport,
+    WebSocketServerTransport,
     // Client management
     ClientManager,
 } from './network';

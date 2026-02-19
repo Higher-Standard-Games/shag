@@ -18,7 +18,7 @@ export class InventoryManager {
 
     // Limits
     private static readonly MAX_AMMO = 200; // Default fallback
-    public static readonly MAX_WEAPONS = 2; // COD-style: max 2 weapons
+    public static readonly MAX_WEAPONS = 3; // COD-style: gunblade + 2 pickable
 
     constructor() {
         // Initialize with default ammo types (optional)
@@ -83,6 +83,48 @@ export class InventoryManager {
         this.ammo[ammoType] = current + added;
 
         return added;
+    }
+
+    /**
+     * Sync inventory from server-authoritative weapon_state event.
+     * Adds missing weapons, removes stale weapons, syncs ammo and current weapon.
+     * @returns whether currentWeapon changed (needs model load)
+     */
+    public syncFromServer(
+        serverWeapons: string[],
+        serverAmmo: Record<string, number>,
+        serverCurrentWeapon: string
+    ): boolean {
+        // Remove weapons the server no longer has
+        const clientWeapons = [...this.slots];
+        for (const weaponId of clientWeapons) {
+            if (!serverWeapons.includes(weaponId)) {
+                this.dropWeapon(weaponId);
+            }
+        }
+
+        // Add weapons we don't have
+        for (const weaponId of serverWeapons) {
+            if (!this.weapons.has(weaponId)) {
+                this.giveWeapon(weaponId);
+            }
+        }
+
+        // Reorder slots to match server order
+        this.slots = serverWeapons.filter(w => this.weapons.has(w));
+
+        // Sync ammo — server uses weaponId as key, client uses weaponId directly
+        for (const [weaponId, count] of Object.entries(serverAmmo)) {
+            this.setAmmo(weaponId, count);
+        }
+
+        // Equip the server's current weapon
+        const changed = this.currentWeaponId !== serverCurrentWeapon;
+        if (serverCurrentWeapon && this.weapons.has(serverCurrentWeapon)) {
+            this.currentWeaponId = serverCurrentWeapon;
+        }
+
+        return changed;
     }
 
     /**
