@@ -32,7 +32,7 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
         mapName: 'wdm7',
         maxClients: 16,
         tickRate: 125,
-        snapshotRate: 30,
+        snapshotRate: 60,
         gamePath: './game',
         certPath: './certs/localhost.pem',
         keyPath: './certs/localhost-key.pem',
@@ -103,6 +103,7 @@ Options:
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --tickrate <n>         Tick rate in Hz (default: 125)
+  --snapshotrate <n>     Snapshot rate in Hz (default: 60)
   --game <path>          Game data path (default: ./game)
   --cert <path>          TLS certificate path
   --key <path>           TLS key path

@@ -539,8 +539,33 @@ export class ProjectileManager {
 
             // Server-driven projectiles: position is set externally by
             // FPSGameManager.renderServerProjectiles() using SnapshotBuffer interpolation.
-            // No client-side movement or collision needed.
+            // No client-side movement or collision needed — but still update visual effects.
             if (proj.isServerDriven) {
+                // Re-orient model to face direction of travel (gravity arcs)
+                if (proj.gravity > 0 && proj.velocity.lengthSquared() > 0.01) {
+                    const dir = proj.velocity.normalizeToNew();
+                    proj.direction = dir;
+                    const defaultFwd = new Vector3(0, 0, 1);
+                    const dot = Vector3.Dot(defaultFwd, dir);
+                    if (dot > 0.9999) {
+                        proj.node.rotationQuaternion = Quaternion.Identity();
+                    } else if (dot < -0.9999) {
+                        proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
+                    } else {
+                        const axis = Vector3.Cross(defaultFwd, dir).normalize();
+                        const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
+                        proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
+                    }
+                    // MD3 alignment correction
+                    const yRot = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
+                    if (proj.node.rotationQuaternion) {
+                        proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
+                    }
+                }
+                // Update trail effect (blue trail for grenades, etc.)
+                if (proj.gravity > 0) {
+                    this.updateTrail(proj);
+                }
                 continue;
             }
 

@@ -60,7 +60,7 @@ export class SnapshotBuffer {
     private readonly maxBufferSize = 32;
 
     /** Base interpolation delay in ms (auto-adjusts based on jitter) */
-    private interpDelay: number = 100; // 100ms = safe default for 30Hz snapshots
+    private interpDelay: number = 50; // 50ms = safe default for 60Hz snapshots (~3 intervals)
 
     /** Whether CVars have been registered (once globally) */
     private static cvarsRegistered = false;
@@ -271,7 +271,7 @@ export class SnapshotBuffer {
 
     /**
      * Auto-adjust interp delay based on observed snapshot jitter.
-     * delay = avgInterval + 2 * jitter (provides a safe buffer)
+     * delay = avgInterval + 1 * jitter (tight buffer for competitive play)
      */
     private updateInterpDelay(): void {
         if (this.jitterSamples.length < 3) return;
@@ -280,8 +280,8 @@ export class SnapshotBuffer {
         const variance = this.jitterSamples.reduce((s, v) => s + (v - avg) ** 2, 0) / this.jitterSamples.length;
         const stddev = Math.sqrt(variance);
 
-        // Interp delay = 1 snapshot interval + 2 stddev jitter margin
-        // Clamped between 33ms (30Hz) and 200ms (aggressive extrapolation territory)
-        this.interpDelay = Math.max(33, Math.min(200, avg + stddev * 2));
+        // Interp delay = 1 snapshot interval + 1 stddev jitter margin
+        // Clamped between 16ms (60Hz) and 150ms (high-jitter territory)
+        this.interpDelay = Math.max(16, Math.min(150, avg + stddev));
     }
 }
