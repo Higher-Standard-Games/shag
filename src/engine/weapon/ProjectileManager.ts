@@ -38,6 +38,7 @@ interface ActiveProjectile {
     trailPoints: Vector3[];      // Position history for trail rendering
     trailMesh: LinesMesh | null;      // Current trail line mesh
     trailMaterial: StandardMaterial | null; // Trail material for disposal
+    isLocalPrediction: boolean;  // If true, silently despawn on hit (no explosion)
 }
 
 interface ActiveImpact {
@@ -242,7 +243,7 @@ export class ProjectileManager {
      * @param origin - Starting position
      * @param direction - Direction (normalized)
      */
-    public spawn(defId: string, origin: Vector3, direction: Vector3): string | null {
+    public spawn(defId: string, origin: Vector3, direction: Vector3, opts?: { isLocalPrediction?: boolean }): string | null {
         if (!this.scene) {
             console.error('[ProjectileManager] Not initialized');
             return null;
@@ -399,6 +400,7 @@ export class ProjectileManager {
             trailPoints: [],
             trailMesh: null,
             trailMaterial: null,
+            isLocalPrediction: opts?.isLocalPrediction ?? false,
         };
 
         this.projectiles.push(projectile);
@@ -428,7 +430,7 @@ export class ProjectileManager {
             const age = now - proj.spawnTime;
             if (age > proj.lifetime) {
                 // Grenades explode at end of lifetime too
-                if (proj.gravity > 0) {
+                if (proj.gravity > 0 && !proj.isLocalPrediction) {
                     this.spawnImpact(proj.defId, proj.node.position.clone(), Vector3.Up());
                 }
                 toRemove.push(proj.id);
@@ -513,7 +515,10 @@ export class ProjectileManager {
                     this.spawnBounceEffect(hit.pickedPoint, normal);
                 } else {
                     // No bounces left — full impact
-                    this.spawnImpact(proj.defId, hit.pickedPoint, normal);
+                    if (!proj.isLocalPrediction) {
+                        this.spawnImpact(proj.defId, hit.pickedPoint, normal);
+                    }
+                    // Local predictions silently despawn — server event handles explosion
                     toRemove.push(proj.id);
                 }
                 continue;
