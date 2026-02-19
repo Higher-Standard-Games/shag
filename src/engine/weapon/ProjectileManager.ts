@@ -618,8 +618,6 @@ export class ProjectileManager {
                 defId: projDefId,
             });
 
-            console.log(`[EXPLOSION-PREDICTED] Client-side ${projDefId} at (${position.x.toFixed(0)}, ${position.y.toFixed(0)}, ${position.z.toFixed(0)})`);
-
             // Spawn the explosion locally using the config for this projectile type
             const config = projDefId === 'grenade' ? GRENADE_EXPLOSION
                 : projDefId === 'plasma_bolt' ? PLASMA_EXPLOSION
