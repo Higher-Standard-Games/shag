@@ -41,10 +41,6 @@ interface ActiveProjectile {
     isLocalPrediction: boolean;  // If true, silently despawn on hit (no explosion)
     isServerDriven: boolean;     // If true, position comes from server snapshots (no client raycast)
     serverEntityId?: string;     // Server entity ID (e.g. 'proj_10001') for linking
-    serverLastPos?: Vector3;     // Last known server position (for extrapolation)
-    serverLastVel?: Vector3;     // Last known server velocity (for extrapolation)
-    serverUpdateTime?: number;   // Time of last server update (performance.now()/1000)
-    serverPosError?: Vector3;    // Position error to smooth out (decays each frame)
 }
 
 interface ActiveImpact {
@@ -147,7 +143,9 @@ export class ProjectileManager {
     }
 
     /**
-     * Update a server-driven projectile's position from snapshot data.
+     * Update a server-driven projectile's position from interpolated snapshot data.
+     * Called every frame by FPSGameManager.renderServerProjectiles() with
+     * SnapshotBuffer-interpolated positions (Q3-style lerp between snapshots).
      */
     public updateServerPosition(
         serverEntityId: string,
@@ -156,33 +154,11 @@ export class ProjectileManager {
     ): void {
         const proj = this.projectiles.find(p => p.serverEntityId === serverEntityId);
         if (!proj) return;
-
-        // Calculate position error: difference between current visual and new server pos
-        // This error will be smoothed out over subsequent frames
-        if (proj.serverLastPos && proj.serverLastVel && proj.serverUpdateTime) {
-            // Where the visual currently is (extrapolated from old data)
-            const timeSinceOld = (performance.now() / 1000) - proj.serverUpdateTime;
-            const currentExtrapolated = proj.serverLastPos.add(
-                proj.serverLastVel.scale(timeSinceOld)
-            );
-            // Add any remaining old error
-            if (proj.serverPosError) {
-                currentExtrapolated.addInPlace(proj.serverPosError);
-            }
-            // New error = where we visually are - where server says we should be
-            proj.serverPosError = currentExtrapolated.subtract(position);
-        } else {
-            proj.serverPosError = Vector3.Zero();
-            // First update — snap directly
-            proj.node.position.copyFrom(position);
-        }
-
-        // Update server state for extrapolation
-        proj.serverLastPos = position.clone();
-        proj.serverLastVel = velocity.clone();
-        proj.serverUpdateTime = performance.now() / 1000;
+        proj.node.position.copyFrom(position);
         proj.velocity.copyFrom(velocity);
-        proj.direction = velocity.normalizeToNew();
+        if (velocity.lengthSquared() > 0.01) {
+            proj.direction = velocity.normalizeToNew();
+        }
         proj.speed = velocity.length();
     }
 
@@ -561,38 +537,10 @@ export class ProjectileManager {
             const moveDir = proj.velocity.normalizeToNew();
             const moveDist = moveAmount.length();
 
-            // Server-driven projectiles: extrapolate from last server position
-            // No client collision — server handles all hit detection
+            // Server-driven projectiles: position is set externally by
+            // FPSGameManager.renderServerProjectiles() using SnapshotBuffer interpolation.
+            // No client-side movement or collision needed.
             if (proj.isServerDriven) {
-                if (proj.serverLastPos && proj.serverLastVel && proj.serverUpdateTime) {
-                    // Extrapolate: pos = serverPos + serverVel * timeSinceUpdate
-                    const timeSinceUpdate = (performance.now() / 1000) - proj.serverUpdateTime;
-                    const extrapolated = proj.serverLastPos.add(
-                        proj.serverLastVel.scale(timeSinceUpdate)
-                    );
-
-                    // Smooth out position error (exponential decay)
-                    if (proj.serverPosError) {
-                        // Decay error by ~90% over 100ms (smooth correction)
-                        const decayRate = 1 - Math.pow(0.1, deltaTime / 0.1);
-                        proj.serverPosError.scaleInPlace(1 - decayRate);
-
-                        // Apply remaining error offset
-                        extrapolated.addInPlace(proj.serverPosError);
-
-                        // Zero out tiny errors to avoid floating point drift
-                        if (proj.serverPosError.lengthSquared() < 0.01) {
-                            proj.serverPosError = undefined;
-                        }
-                    }
-
-                    proj.node.position.copyFrom(extrapolated);
-
-                    // Update direction for visual rotation
-                    if (proj.serverLastVel.lengthSquared() > 0.01) {
-                        proj.direction = proj.serverLastVel.normalizeToNew();
-                    }
-                }
                 continue;
             }
 
