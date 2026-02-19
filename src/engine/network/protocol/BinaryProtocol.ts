@@ -332,6 +332,8 @@ export class BinaryProtocol {
       if (!baselinePlayer || player.entityId !== baselinePlayer.entityId) flags |= 0x01;
       if (!baselinePlayer || player.name !== baselinePlayer.name) flags |= 0x02;
       if (!baselinePlayer || player.score !== baselinePlayer.score) flags |= 0x04;
+      if (!baselinePlayer || player.deaths !== baselinePlayer.deaths) flags |= 0x08;
+      if (!baselinePlayer || player.ping !== baselinePlayer.ping) flags |= 0x10;
 
       encoder.writeUint8(flags);
 
@@ -339,6 +341,8 @@ export class BinaryProtocol {
       if (flags & 0x01) encoder.writeString(player.entityId);
       if (flags & 0x02) encoder.writeString(player.name);
       if (flags & 0x04) encoder.writeUint32(player.score);
+      if (flags & 0x08) encoder.writeUint32(player.deaths);
+      if (flags & 0x10) encoder.writeUint16(player.ping);
     }
   }
 
@@ -357,6 +361,7 @@ export class BinaryProtocol {
           name: '',
           team: '',
           score: 0,
+          deaths: 0,
           ping: 0,
           serialize() { return {}; },
           deserialize() { },
@@ -385,6 +390,18 @@ export class BinaryProtocol {
         player!.score = decoder.readUint32();
       } else if (baselinePlayer) {
         player!.score = baselinePlayer.score;
+      }
+
+      if (flags & 0x08) {
+        player!.deaths = decoder.readUint32();
+      } else if (baselinePlayer) {
+        player!.deaths = baselinePlayer.deaths;
+      }
+
+      if (flags & 0x10) {
+        player!.ping = decoder.readUint16();
+      } else if (baselinePlayer) {
+        player!.ping = baselinePlayer.ping;
       }
     }
   }

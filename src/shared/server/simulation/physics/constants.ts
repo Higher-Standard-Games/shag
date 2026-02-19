@@ -9,6 +9,9 @@
 /** Gravity in units/sec² (Q3 default: 800) */
 export const GRAVITY = 800;
 
+/** Falling gravity multiplier — applied when vy < 0 for snappier descents */
+export const FALLING_GRAVITY_MULTIPLIER = 1.25;
+
 /** Max ground speed in units/sec (Q3: 320, Warsow: 320) */
 export const MAX_GROUND_SPEED = 320;
 

@@ -38,6 +38,9 @@ interface ActiveProjectile {
     trailPoints: Vector3[];      // Position history for trail rendering
     trailMesh: LinesMesh | null;      // Current trail line mesh
     trailMaterial: StandardMaterial | null; // Trail material for disposal
+    isLocalPrediction: boolean;  // If true, silently despawn on hit (no explosion)
+    isServerDriven: boolean;     // If true, position comes from server snapshots (no client raycast)
+    serverEntityId?: string;     // Server entity ID (e.g. 'proj_10001') for linking
 }
 
 interface ActiveImpact {
@@ -106,6 +109,74 @@ export class ProjectileManager {
         this.scene = scene;
         getExplosionEffect().init(scene);
         console.log('[ProjectileManager] Initialized');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SERVER-DRIVEN PROJECTILE API
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Spawn a server-driven projectile visual.
+     * Position will be updated from server snapshots.
+     */
+    public spawnFromServer(
+        serverEntityId: string,
+        defId: string,
+        position: Vector3,
+        velocity: Vector3
+    ): string | null {
+        // Map weapon defId → projectile defId
+        const projDefId = defId === 'glauncher' ? 'grenade'
+            : defId === 'plasmagun' ? 'plasma_bolt'
+                : defId === 'rlauncher' ? 'rocket'
+                    : defId === 'gunblade' ? 'gunblade_blast'
+                        : 'rocket';
+
+        const direction = velocity.normalizeToNew();
+        const id = this.spawn(projDefId, position, direction, {
+            isLocalPrediction: false,
+            isServerDriven: true,
+            serverEntityId,
+            velocityOverride: velocity,
+        });
+        return id;
+    }
+
+    /**
+     * Update a server-driven projectile's position from interpolated snapshot data.
+     * Called every frame by FPSGameManager.renderServerProjectiles() with
+     * SnapshotBuffer-interpolated positions (Q3-style lerp between snapshots).
+     */
+    public updateServerPosition(
+        serverEntityId: string,
+        position: Vector3,
+        velocity: Vector3
+    ): void {
+        const proj = this.projectiles.find(p => p.serverEntityId === serverEntityId);
+        if (!proj) return;
+        proj.node.position.copyFrom(position);
+        proj.velocity.copyFrom(velocity);
+        if (velocity.lengthSquared() > 0.01) {
+            proj.direction = velocity.normalizeToNew();
+        }
+        proj.speed = velocity.length();
+    }
+
+    /**
+     * Despawn a server-driven projectile by its server entity ID.
+     */
+    public despawnByEntityId(serverEntityId: string): void {
+        const proj = this.projectiles.find(p => p.serverEntityId === serverEntityId);
+        if (proj) {
+            this.despawn(proj.id);
+        }
+    }
+
+    /**
+     * Check if a server-driven projectile exists.
+     */
+    public hasServerProjectile(serverEntityId: string): boolean {
+        return this.projectiles.some(p => p.serverEntityId === serverEntityId);
     }
 
     /**
@@ -242,7 +313,12 @@ export class ProjectileManager {
      * @param origin - Starting position
      * @param direction - Direction (normalized)
      */
-    public spawn(defId: string, origin: Vector3, direction: Vector3): string | null {
+    public spawn(defId: string, origin: Vector3, direction: Vector3, opts?: {
+        isLocalPrediction?: boolean;
+        isServerDriven?: boolean;
+        serverEntityId?: string;
+        velocityOverride?: Vector3;
+    }): string | null {
         if (!this.scene) {
             console.error('[ProjectileManager] Not initialized');
             return null;
@@ -389,7 +465,7 @@ export class ProjectileManager {
             light,
             direction: normalDir,
             speed: def.speed,
-            velocity: normalDir.scale(def.speed),
+            velocity: opts?.velocityOverride ? opts.velocityOverride.clone() : normalDir.scale(def.speed),
             gravity: def.gravity ?? 0,
             bouncesLeft: def.bounces ?? 0,
             bounceFactor: 0.65,
@@ -399,6 +475,9 @@ export class ProjectileManager {
             trailPoints: [],
             trailMesh: null,
             trailMaterial: null,
+            isLocalPrediction: opts?.isLocalPrediction ?? false,
+            isServerDriven: opts?.isServerDriven ?? false,
+            serverEntityId: opts?.serverEntityId,
         };
 
         this.projectiles.push(projectile);
@@ -428,7 +507,7 @@ export class ProjectileManager {
             const age = now - proj.spawnTime;
             if (age > proj.lifetime) {
                 // Grenades explode at end of lifetime too
-                if (proj.gravity > 0) {
+                if (proj.gravity > 0 && !proj.isLocalPrediction) {
                     this.spawnImpact(proj.defId, proj.node.position.clone(), Vector3.Up());
                 }
                 toRemove.push(proj.id);
@@ -458,7 +537,39 @@ export class ProjectileManager {
             const moveDir = proj.velocity.normalizeToNew();
             const moveDist = moveAmount.length();
 
-            // Raycast to check for collision
+            // Server-driven projectiles: position is set externally by
+            // FPSGameManager.renderServerProjectiles() using SnapshotBuffer interpolation.
+            // No client-side movement or collision needed — but still update visual effects.
+            if (proj.isServerDriven) {
+                // Re-orient model to face direction of travel (gravity arcs)
+                if (proj.gravity > 0 && proj.velocity.lengthSquared() > 0.01) {
+                    const dir = proj.velocity.normalizeToNew();
+                    proj.direction = dir;
+                    const defaultFwd = new Vector3(0, 0, 1);
+                    const dot = Vector3.Dot(defaultFwd, dir);
+                    if (dot > 0.9999) {
+                        proj.node.rotationQuaternion = Quaternion.Identity();
+                    } else if (dot < -0.9999) {
+                        proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
+                    } else {
+                        const axis = Vector3.Cross(defaultFwd, dir).normalize();
+                        const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
+                        proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
+                    }
+                    // MD3 alignment correction
+                    const yRot = Quaternion.RotationAxis(Vector3.Up(), -Math.PI / 2);
+                    if (proj.node.rotationQuaternion) {
+                        proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
+                    }
+                }
+                // Update trail effect (blue trail for grenades, etc.)
+                if (proj.gravity > 0) {
+                    this.updateTrail(proj);
+                }
+                continue;
+            }
+
+            // Client-side collision check (only for local predictions / non-server projectiles)
             const ray = new Ray(proj.node.position, moveDir, moveDist + 1);
             const hit = this.scene.pickWithRay(ray, (mesh) => {
                 if (!mesh.isPickable) return false;
@@ -513,7 +624,11 @@ export class ProjectileManager {
                     this.spawnBounceEffect(hit.pickedPoint, normal);
                 } else {
                     // No bounces left — full impact
-                    this.spawnImpact(proj.defId, hit.pickedPoint, normal);
+                    if (!proj.isLocalPrediction) {
+                        // Non-predicted projectile (remote player): show explosion
+                        this.spawnImpact(proj.defId, hit.pickedPoint, normal);
+                    }
+                    // Local predictions silently despawn — server event handles explosion
                     toRemove.push(proj.id);
                 }
                 continue;

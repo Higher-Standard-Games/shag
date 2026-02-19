@@ -39,7 +39,7 @@ function parseArgs(): TestConfig {
         numClients: 2,
         durationMs: 3000,
         tickRateHz: 125,
-        snapshotRateHz: 20,
+        snapshotRateHz: 60,
         port: 17777, // Use high port to avoid conflicts
     };
 

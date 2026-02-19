@@ -879,9 +879,8 @@ export class WeaponViewManager {
                         break;
                 }
             } else if (this.currentWeaponDef.projectileId) {
-                // Projectile weapon → spawn projectile
-                const projMgr = getProjectileManager();
-                projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward);
+                // Projectile weapons: visuals now come from server entities (Q3-style)
+                // No local prediction needed — server snapshot drives projectile rendering
             }
         }
 

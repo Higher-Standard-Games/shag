@@ -8,6 +8,7 @@
 import type { Vec3 } from '../types';
 import {
     GRAVITY,
+    FALLING_GRAVITY_MULTIPLIER,
     GROUND_ACCELERATION,
     AIR_ACCELERATION,
     GROUND_FRICTION,
@@ -152,12 +153,14 @@ export function moveAir(
 }
 
 /**
- * Apply gravity
+ * Apply gravity (asymmetric: stronger when falling for snappier feel)
  */
 export function applyGravity(velocity: Vec3, dt: number): Vec3 {
+    // When falling (vy < 0), apply stronger gravity for less floaty descents
+    const gravityScale = velocity.y < 0 ? FALLING_GRAVITY_MULTIPLIER : 1.0;
     return {
         x: velocity.x,
-        y: velocity.y - GRAVITY * dt,
+        y: velocity.y - GRAVITY * gravityScale * dt,
         z: velocity.z,
     };
 }

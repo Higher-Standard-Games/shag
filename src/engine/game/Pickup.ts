@@ -253,7 +253,7 @@ export class Pickup extends TransformNode {
         const dy = playerPos.y - targetPos.y;
 
         const horizDistSquared = dx * dx + dz * dz;
-        const pickupRadius = 48;
+        const pickupRadius = 96;
         const pickupRadiusSq = pickupRadius * pickupRadius;
 
         const verticalRangeMin = -24;
@@ -268,8 +268,18 @@ export class Pickup extends TransformNode {
             }
 
             if (this.options.type === 'weapon') {
-                // Weapons require F key — just register as nearby
-                Pickup.setNearbyWeapon(this);
+                // Check if player has room for auto-pickup
+                const controller = CameraSystem.getInstance().getActiveController();
+                const inventory = controller && (controller as any).inventory as InventoryManager | null;
+                const hasRoom = inventory ? inventory.getSlotCount() < InventoryManager.MAX_WEAPONS : false;
+
+                if (hasRoom) {
+                    // Auto-pickup when player has room
+                    this.executePickup();
+                } else {
+                    // At capacity — require F key for swap
+                    Pickup.setNearbyWeapon(this);
+                }
             } else {
                 // Ammo/health/armor auto-pickup on touch
                 this.executePickup();
