@@ -168,6 +168,10 @@ export class GameState {
         encoder.writeFloat32(event.normalY);
         encoder.writeFloat32(event.normalZ);
         break;
+      case 'projectile_spawn':
+        encoder.writeString(event.entityId);      // projectile entity id (proj_XXX)
+        encoder.writeString(event.defId);          // weapon def id (rlauncher, glauncher, etc.)
+        break;
       default:
         // Serialize as JSON for unknown events
         const json = JSON.stringify(event);
@@ -235,6 +239,12 @@ export class GameState {
           normalX: decoder.readFloat32(),
           normalY: decoder.readFloat32(),
           normalZ: decoder.readFloat32(),
+        };
+      case 'projectile_spawn':
+        return {
+          type,
+          entityId: decoder.readString(),
+          defId: decoder.readString(),
         };
       default:
         const json = decoder.readString();

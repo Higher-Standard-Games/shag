@@ -879,10 +879,8 @@ export class WeaponViewManager {
                         break;
                 }
             } else if (this.currentWeaponDef.projectileId) {
-                // Projectile weapon → spawn visual-only projectile for local player
-                // isLocalPrediction: true = silently despawn on hit (server event handles explosion)
-                const projMgr = getProjectileManager();
-                projMgr.spawn(this.currentWeaponDef.projectileId, origin, forward, { isLocalPrediction: true });
+                // Projectile weapons: visuals now come from server entities (Q3-style)
+                // No local prediction needed — server snapshot drives projectile rendering
             }
         }
 

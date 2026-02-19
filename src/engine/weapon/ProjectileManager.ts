@@ -39,6 +39,12 @@ interface ActiveProjectile {
     trailMesh: LinesMesh | null;      // Current trail line mesh
     trailMaterial: StandardMaterial | null; // Trail material for disposal
     isLocalPrediction: boolean;  // If true, silently despawn on hit (no explosion)
+    isServerDriven: boolean;     // If true, position comes from server snapshots (no client raycast)
+    serverEntityId?: string;     // Server entity ID (e.g. 'proj_10001') for linking
+    serverLastPos?: Vector3;     // Last known server position (for extrapolation)
+    serverLastVel?: Vector3;     // Last known server velocity (for extrapolation)
+    serverUpdateTime?: number;   // Time of last server update (performance.now()/1000)
+    serverPosError?: Vector3;    // Position error to smooth out (decays each frame)
 }
 
 interface ActiveImpact {
@@ -107,6 +113,94 @@ export class ProjectileManager {
         this.scene = scene;
         getExplosionEffect().init(scene);
         console.log('[ProjectileManager] Initialized');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SERVER-DRIVEN PROJECTILE API
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Spawn a server-driven projectile visual.
+     * Position will be updated from server snapshots.
+     */
+    public spawnFromServer(
+        serverEntityId: string,
+        defId: string,
+        position: Vector3,
+        velocity: Vector3
+    ): string | null {
+        // Map weapon defId → projectile defId
+        const projDefId = defId === 'glauncher' ? 'grenade'
+            : defId === 'plasmagun' ? 'plasma_bolt'
+                : defId === 'rlauncher' ? 'rocket'
+                    : defId === 'gunblade' ? 'gunblade_blast'
+                        : 'rocket';
+
+        const direction = velocity.normalizeToNew();
+        const id = this.spawn(projDefId, position, direction, {
+            isLocalPrediction: false,
+            isServerDriven: true,
+            serverEntityId,
+            velocityOverride: velocity,
+        });
+        return id;
+    }
+
+    /**
+     * Update a server-driven projectile's position from snapshot data.
+     */
+    public updateServerPosition(
+        serverEntityId: string,
+        position: Vector3,
+        velocity: Vector3
+    ): void {
+        const proj = this.projectiles.find(p => p.serverEntityId === serverEntityId);
+        if (!proj) return;
+
+        // Calculate position error: difference between current visual and new server pos
+        // This error will be smoothed out over subsequent frames
+        if (proj.serverLastPos && proj.serverLastVel && proj.serverUpdateTime) {
+            // Where the visual currently is (extrapolated from old data)
+            const timeSinceOld = (performance.now() / 1000) - proj.serverUpdateTime;
+            const currentExtrapolated = proj.serverLastPos.add(
+                proj.serverLastVel.scale(timeSinceOld)
+            );
+            // Add any remaining old error
+            if (proj.serverPosError) {
+                currentExtrapolated.addInPlace(proj.serverPosError);
+            }
+            // New error = where we visually are - where server says we should be
+            proj.serverPosError = currentExtrapolated.subtract(position);
+        } else {
+            proj.serverPosError = Vector3.Zero();
+            // First update — snap directly
+            proj.node.position.copyFrom(position);
+        }
+
+        // Update server state for extrapolation
+        proj.serverLastPos = position.clone();
+        proj.serverLastVel = velocity.clone();
+        proj.serverUpdateTime = performance.now() / 1000;
+        proj.velocity.copyFrom(velocity);
+        proj.direction = velocity.normalizeToNew();
+        proj.speed = velocity.length();
+    }
+
+    /**
+     * Despawn a server-driven projectile by its server entity ID.
+     */
+    public despawnByEntityId(serverEntityId: string): void {
+        const proj = this.projectiles.find(p => p.serverEntityId === serverEntityId);
+        if (proj) {
+            this.despawn(proj.id);
+        }
+    }
+
+    /**
+     * Check if a server-driven projectile exists.
+     */
+    public hasServerProjectile(serverEntityId: string): boolean {
+        return this.projectiles.some(p => p.serverEntityId === serverEntityId);
     }
 
     /**
@@ -243,7 +337,12 @@ export class ProjectileManager {
      * @param origin - Starting position
      * @param direction - Direction (normalized)
      */
-    public spawn(defId: string, origin: Vector3, direction: Vector3, opts?: { isLocalPrediction?: boolean }): string | null {
+    public spawn(defId: string, origin: Vector3, direction: Vector3, opts?: {
+        isLocalPrediction?: boolean;
+        isServerDriven?: boolean;
+        serverEntityId?: string;
+        velocityOverride?: Vector3;
+    }): string | null {
         if (!this.scene) {
             console.error('[ProjectileManager] Not initialized');
             return null;
@@ -390,7 +489,7 @@ export class ProjectileManager {
             light,
             direction: normalDir,
             speed: def.speed,
-            velocity: normalDir.scale(def.speed),
+            velocity: opts?.velocityOverride ? opts.velocityOverride.clone() : normalDir.scale(def.speed),
             gravity: def.gravity ?? 0,
             bouncesLeft: def.bounces ?? 0,
             bounceFactor: 0.65,
@@ -401,6 +500,8 @@ export class ProjectileManager {
             trailMesh: null,
             trailMaterial: null,
             isLocalPrediction: opts?.isLocalPrediction ?? false,
+            isServerDriven: opts?.isServerDriven ?? false,
+            serverEntityId: opts?.serverEntityId,
         };
 
         this.projectiles.push(projectile);
@@ -460,7 +561,42 @@ export class ProjectileManager {
             const moveDir = proj.velocity.normalizeToNew();
             const moveDist = moveAmount.length();
 
-            // Raycast to check for collision
+            // Server-driven projectiles: extrapolate from last server position
+            // No client collision — server handles all hit detection
+            if (proj.isServerDriven) {
+                if (proj.serverLastPos && proj.serverLastVel && proj.serverUpdateTime) {
+                    // Extrapolate: pos = serverPos + serverVel * timeSinceUpdate
+                    const timeSinceUpdate = (performance.now() / 1000) - proj.serverUpdateTime;
+                    const extrapolated = proj.serverLastPos.add(
+                        proj.serverLastVel.scale(timeSinceUpdate)
+                    );
+
+                    // Smooth out position error (exponential decay)
+                    if (proj.serverPosError) {
+                        // Decay error by ~90% over 100ms (smooth correction)
+                        const decayRate = 1 - Math.pow(0.1, deltaTime / 0.1);
+                        proj.serverPosError.scaleInPlace(1 - decayRate);
+
+                        // Apply remaining error offset
+                        extrapolated.addInPlace(proj.serverPosError);
+
+                        // Zero out tiny errors to avoid floating point drift
+                        if (proj.serverPosError.lengthSquared() < 0.01) {
+                            proj.serverPosError = undefined;
+                        }
+                    }
+
+                    proj.node.position.copyFrom(extrapolated);
+
+                    // Update direction for visual rotation
+                    if (proj.serverLastVel.lengthSquared() > 0.01) {
+                        proj.direction = proj.serverLastVel.normalizeToNew();
+                    }
+                }
+                continue;
+            }
+
+            // Client-side collision check (only for local predictions / non-server projectiles)
             const ray = new Ray(proj.node.position, moveDir, moveDist + 1);
             const hit = this.scene.pickWithRay(ray, (mesh) => {
                 if (!mesh.isPickable) return false;
