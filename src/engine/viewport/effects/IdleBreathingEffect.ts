@@ -42,7 +42,7 @@ export class IdleBreathingEffect extends BaseViewportEffect {
         }
 
         if (!Cvar.exists('cg_idleamplitude')) {
-            Cvar.register('cg_idleamplitude', 0.05, {
+            Cvar.register('cg_idleamplitude', 0.02, {
                 type: 'float',
                 min: 0,
                 max: 0.5,
@@ -52,7 +52,7 @@ export class IdleBreathingEffect extends BaseViewportEffect {
         }
 
         if (!Cvar.exists('cg_idlefrequency')) {
-            Cvar.register('cg_idlefrequency', 0.8, {
+            Cvar.register('cg_idlefrequency', 0.6, {
                 type: 'float',
                 min: 0.3,
                 max: 2,
@@ -69,8 +69,8 @@ export class IdleBreathingEffect extends BaseViewportEffect {
         const idleEnabled = Cvar.getNumber('cg_idle') !== 0;
         if (!idleEnabled) return delta;
 
-        const amplitude = Cvar.getNumber('cg_idleamplitude') ?? 0.3;
-        const frequency = Cvar.getNumber('cg_idlefrequency') ?? 1.5;
+        const amplitude = Cvar.getNumber('cg_idleamplitude') ?? 0.02;
+        const frequency = Cvar.getNumber('cg_idlefrequency') ?? 0.6;
 
         // Calculate idle factor: 1 when still, 0 when moving fast
         const idleFactor = 1.0 - Math.min(state.horizontalSpeed / this.IDLE_THRESHOLD, 1);
