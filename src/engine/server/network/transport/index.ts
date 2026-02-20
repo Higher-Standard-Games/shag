@@ -10,4 +10,4 @@ export {
 } from './WebTransportTransport';
 
 // Legacy WebSocket for fallback
-export { WebSocketTransport } from './WebSocketTransport';
+export { WebSocketServerTransport } from './WebSocketTransport';

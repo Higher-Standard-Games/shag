@@ -35,7 +35,7 @@ export {
 } from './transport';
 
 // Legacy WebSocket (for fallback)
-export { WebSocketTransport } from './transport/WebSocketTransport';
+export { WebSocketServerTransport } from './transport/WebSocketTransport';
 
 // Client Management
 export { ClientManager, type ClientInfo, type ClientManagerEvents } from './ClientManager';

@@ -134,7 +134,8 @@ export class BinaryProtocol {
       const pos = transform?.position || entity.getComponent('position') as any;
       const baselineTransform = baselineEntity?.getComponent('transform') as any;
       const baselinePos = baselineTransform?.position || baselineEntity?.getComponent('position') as any;
-      if (!baselinePos || pos?.x !== baselinePos.x || pos?.y !== baselinePos.y || pos?.z !== baselinePos.z) {
+      // Only set flag if pos EXISTS and differs from baseline (or no baseline)
+      if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
         flags |= 0x01;
       }
 
@@ -143,7 +144,8 @@ export class BinaryProtocol {
       // Check velocity.linear for VelocityComponent or direct x/y/z for basic
       const velData = vel?.linear || vel;
       const baselineVelData = baselineVel?.linear || baselineVel;
-      if (!baselineVelData || velData?.x !== baselineVelData.x || velData?.y !== baselineVelData.y || velData?.z !== baselineVelData.z) {
+      // Only set flag if velData EXISTS and differs from baseline (or no baseline)
+      if (velData && (!baselineVelData || velData.x !== baselineVelData.x || velData.y !== baselineVelData.y || velData.z !== baselineVelData.z)) {
         flags |= 0x02;
       }
 
@@ -166,14 +168,14 @@ export class BinaryProtocol {
 
       // Encode changed components
       // Flag 0x01: Position (12 bytes - 3 floats)
-      if (flags & 0x01 && pos) {
+      if (flags & 0x01) {
         encoder.writeFloat32(pos.x);
         encoder.writeFloat32(pos.y);
         encoder.writeFloat32(pos.z);
       }
 
       // Flag 0x02: Velocity (12 bytes - 3 floats)
-      if (flags & 0x02 && velData) {
+      if (flags & 0x02) {
         encoder.writeFloat32(velData.x);
         encoder.writeFloat32(velData.y);
         encoder.writeFloat32(velData.z);
@@ -185,7 +187,7 @@ export class BinaryProtocol {
       }
 
       // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
-      if (flags & 0x08 && rot) {
+      if (flags & 0x08) {
         encoder.writeFloat32(rot.y); // yaw
         encoder.writeFloat32(rot.x); // pitch
       }

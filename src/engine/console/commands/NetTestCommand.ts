@@ -94,6 +94,7 @@ export default class NetTestCommand extends Command {
       pitch: 0,
       yaw: 0,
       buttons: InputButtons.FORWARD,
+      weaponSlot: 0,
       serialize: () => new Uint8Array(),
     };
 
@@ -243,6 +244,7 @@ export default class NetTestCommand extends Command {
       pitch: 0,
       yaw: 0,
       buttons,
+      weaponSlot: 0,
       serialize: () => new Uint8Array(),
     };
 
@@ -314,6 +316,7 @@ export default class NetTestCommand extends Command {
         pitch: 0,
         yaw: 0,
         buttons,
+        weaponSlot: 0,
         serialize: () => new Uint8Array(),
       };
       this.simulation.tick([cmd]);
@@ -392,8 +395,10 @@ export default class NetTestCommand extends Command {
           sprint: false,
           fire: false,
           altFire: false,
+          use: false,
           pitch: 0,
           yaw: 0,
+          weaponSlot: 0,
         });
       }
 
@@ -405,7 +410,7 @@ export default class NetTestCommand extends Command {
 
       // Show last state update
       if (lastUpdate) {
-        lines.push(`Last state update: (${lastUpdate.position.x.toFixed(2)}, ${lastUpdate.position.y.toFixed(2)}, ${lastUpdate.position.z.toFixed(2)})`);
+        lines.push(`Last state update: (${(lastUpdate as any).position.x.toFixed(2)}, ${(lastUpdate as any).position.y.toFixed(2)}, ${(lastUpdate as any).position.z.toFixed(2)})`);
       }
 
       lines.push(`Current tick: ${gameManager.getCurrentTick()}`);
