@@ -48,6 +48,7 @@ cameraSystem.setHeight(500);
 Full first-person shooter controller with physics, weapons, and advanced movement. The primary controller for gameplay.
 
 **Features:**
+
 - Full Q3/Warsow physics (gravity, jumping, sliding)
 - Weapon system integration (viewmodels, firing, reload, ADS)
 - Advanced movement: crouchslide, wall jump, ledge grab
@@ -55,6 +56,7 @@ Full first-person shooter controller with physics, weapons, and advanced movemen
 - Collision via CollisionManager
 
 **Controls:**
+
 - WASD - Movement
 - Mouse - Look
 - Space - Jump (wall jump when airborne)
@@ -67,6 +69,7 @@ Full first-person shooter controller with physics, weapons, and advanced movemen
 - Q - Quick switch
 
 **Key Methods:**
+
 ```typescript
 controller.getPlayerPosition()       // Origin position (Q3-style)
 controller.getPlayerFeetPosition()   // Feet position
@@ -76,6 +79,7 @@ controller.getCrouchState()          // {isCrouching, isSliding, height}
 ```
 
 **Console:**
+
 ```
 spectator 0           # Enable physics mode
 spectator 1           # Noclip/fly mode
@@ -88,12 +92,14 @@ sv_jumpheight 320     # Jump velocity
 FPS-style first-person camera with optional collision.
 
 **Controls:**
+
 - WASD - Movement
 - Mouse - Look
 - Space/Shift - Up/Down
 - Scroll - Speed
 
 **Console:**
+
 ```
 camera controller freefly
 freefly_speed 2.0
@@ -105,11 +111,13 @@ freefly_collision 1
 Top-down camera for strategy/RPG games.
 
 **Features:**
+
 - Fixed angle view
 - Pan with WASD or edge scroll
 - Zoom with scroll wheel
 
 **Console:**
+
 ```
 camera controller isometric
 camera height 800
@@ -120,11 +128,13 @@ camera height 800
 2.5D camera for platformers.
 
 **Features:**
+
 - Horizontal tracking
 - Fixed depth position
 - Vertical follow
 
 **Console:**
+
 ```
 camera controller sidescroll
 ```
@@ -134,11 +144,13 @@ camera controller sidescroll
 Third-person camera that tracks a target.
 
 **Features:**
+
 - Smooth following
 - Orbit controls
 - Collision avoidance
 
 **Console:**
+
 ```
 camera controller follow
 ```
@@ -153,6 +165,7 @@ cameraSystem.setMode('orthographic');  // True orthographic
 ```
 
 **Console:**
+
 ```
 camera mode perspective
 camera mode orthographic
@@ -212,7 +225,34 @@ if (spawns.length > 0) {
 | `freefly_speed <n>` | Movement speed |
 | `freefly_collision <0/1>` | Toggle collision |
 
+## Network Integration
+
+In multiplayer, FPS/Freefly camera integrates with the networking stack:
+
+- **Prediction:** FPSController applies predicted movement instantly for responsive camera
+- **Reconciliation:** `visualOffset` absorbs server corrections via exponential decay (~50ms)
+- **Remote players:** Interpolated via `SnapshotBuffer`, camera position is not affected
+- **processSnapshots():** Called each frame to apply server state while preserving visual smoothness
+
+See [Networking System](./networking.md) for details.
+
+## Viewport Effects Integration
+
+The `ViewportEffectsManager` processes camera effects each frame via the FPSController:
+
+1. Controller gathers `PlayerState` (speed, grounded, jumping, direction)
+2. Each effect produces a `ViewportDelta` (position offset, rotation offset, FOV change, `bobCycle`)
+3. Deltas are accumulated and applied to the camera
+4. `bobCycle` syncs weapon bob with walk bob for visual coherence
+
+Effects: WalkBob, LandingImpact, SpeedFOV, StrafeLean, IdleBreathing, DamageFlash.
+
+See [Viewport Effects](./viewport-effects.md) for details.
+
 ## Related
 
+- [Movement System](./movement-system.md) - Physics integration
+- [Viewport Effects](./viewport-effects.md) - Camera effects pipeline
+- [Networking System](./networking.md) - Prediction and reconciliation
 - [Tutorial: Camera Navigation](../tutorials/beginner/camera-navigation.md)
 - [Tutorial: Custom Camera Controller](../tutorials/advanced/custom-camera.md)

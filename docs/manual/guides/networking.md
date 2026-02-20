@@ -7,24 +7,24 @@ SHAG Engine uses Q3-style server-authoritative multiplayer networking. If you've
 ## The Big Picture
 
 ```
-┌─────────────────────┐                    ┌─────────────────────┐
-│       CLIENT        │                    │       SERVER        │
-│                     │                    │                     │
-│  ┌───────────────┐  │     Commands       │  ┌───────────────┐  │
-│  │  Local Input  │──┼───────────────────>│  │ Command Queue │  │
-│  └───────────────┘  │                    │  └───────┬───────┘  │
-│         │           │                    │          │          │
-│         v           │                    │          v          │
-│  ┌───────────────┐  │                    │  ┌───────────────┐  │
-│  │  Prediction   │  │                    │  │  Simulation   │  │
-│  │  (instant)    │  │                    │  │  (tick-based) │  │
-│  └───────────────┘  │                    │  └───────┬───────┘  │
-│         │           │                    │          │          │
-│         v           │     Snapshots      │          v          │
-│  ┌───────────────┐  │<───────────────────│  ┌───────────────┐  │
-│  │ Reconciliation│  │                    │  │   Broadcast   │  │
-│  └───────────────┘  │                    │  └───────────────┘  │
-└─────────────────────┘                    └─────────────────────┘
+┌─────────────────────────┐                    ┌─────────────────────────┐
+│         CLIENT          │                    │         SERVER          │
+│                         │                    │                         │
+│  ┌─────────────────┐    │     Commands       │  ┌─────────────────┐    │
+│  │  Local Input     │───┼───────────────────>│  │ Command Queue   │    │
+│  └─────────────────┘    │     (125Hz)        │  └───────┬─────────┘    │
+│         │               │                    │          │              │
+│         v               │                    │          v              │
+│  ┌─────────────────┐    │                    │  ┌─────────────────┐    │
+│  │  Prediction      │   │                    │  │  Simulation     │    │
+│  │  (instant)       │   │                    │  │  (125Hz ticks)  │    │
+│  └─────────────────┘    │                    │  └───────┬─────────┘    │
+│         │               │     Snapshots      │          │              │
+│         v               │     (60Hz)         │          v              │
+│  ┌─────────────────┐    │<───────────────────│  ┌─────────────────┐    │
+│  │ Reconciliation   │   │                    │  │   Broadcast     │    │
+│  └─────────────────┘    │                    │  └─────────────────┘    │
+└─────────────────────────┘                    └─────────────────────────┘
 ```
 
 **Key Principle:** The server is the source of truth. Clients predict locally for instant feedback, but server state always wins.
@@ -40,7 +40,7 @@ The game runs in discrete time steps called **ticks**, not continuous real-time.
 ```
 Tick 0    Tick 1    Tick 2    Tick 3    Tick 4
   │         │         │         │         │
-  ├─ 50ms ──┼─ 50ms ──┼─ 50ms ──┼─ 50ms ──┤
+  ├─ 8ms ───┼─ 8ms ───┼─ 8ms ───┼─ 8ms ───┤
   │         │         │         │         │
   Process   Process   Process   Process   Process
   commands  commands  commands  commands  commands
@@ -48,10 +48,11 @@ Tick 0    Tick 1    Tick 2    Tick 3    Tick 4
   physics   physics   physics   physics   physics
 ```
 
-At 20Hz tick rate, each tick is 50ms. All game logic happens in ticks:
+At **125Hz** tick rate, each tick is **8ms**. All game logic happens in ticks:
+
 - Player inputs are processed at tick boundaries
 - Physics runs once per tick
-- State is broadcast after each tick
+- Snapshots broadcast every 2nd tick (**60Hz**)
 
 **Why ticks?** Determinism. Given the same inputs in the same order, the simulation produces identical results on every machine. This is essential for multiplayer.
 
@@ -84,6 +85,7 @@ Network packets arrive asynchronously. If we processed each command the moment i
 ```
 
 **Implementation:**
+
 ```typescript
 // Commands arrive asynchronously
 handleCommand(command: Command): void {
@@ -103,16 +105,18 @@ tick(): void {
 The server and client both run the same simulation code, but they use it differently:
 
 **Server uses `tick()`:**
+
 - Processes commands
 - Runs physics
 - **Increments tick counter** (advances game time)
 
 **Client uses `predict()`:**
+
 - Processes commands (local input only)
 - Runs physics
 - **Does NOT increment tick counter**
 
-Why the difference? Imagine you're running at 60fps with a 20Hz server:
+Why the difference? Imagine you're running at 60fps with a 125Hz server:
 
 ```
 Without the distinction:
@@ -120,26 +124,8 @@ Without the distinction:
   Client tick: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9...  (racing ahead!)
 
 With predict():
-  Server tick: 0, 1, 2, 3...
-  Client tick: synced from server snapshots
+  Server tick: synced via snapshots
   Client prediction: runs physics for instant feedback, doesn't advance tick
-```
-
-**Implementation:**
-```typescript
-// Server
-tick(commands: Command[]): void {
-  this.processCommands(commands);
-  this.runSystems();
-  this.currentTick++;  // Advance game time
-}
-
-// Client
-predict(commands: Command[]): void {
-  this.processCommands(commands);
-  this.runSystems();
-  // Tick NOT incremented - server snapshots set the tick
-}
 ```
 
 ### 4. Client Prediction
@@ -147,12 +133,14 @@ predict(commands: Command[]): void {
 When you press W to move forward:
 
 **Without prediction (bad):**
+
 1. Press W
 2. Send command to server (50ms)
 3. Server processes, sends snapshot (50ms)
 4. See movement (100ms later = laggy!)
 
 **With prediction (good):**
+
 1. Press W
 2. Apply movement locally (instant!)
 3. Send command to server (background)
@@ -160,75 +148,122 @@ When you press W to move forward:
 
 Prediction makes the game feel responsive even with network latency.
 
-### 5. Reconciliation
+### 5. Reconciliation (Input Replay + Visual Smoothing)
 
-Sometimes prediction is wrong. Maybe another player shot you, or you hit collision the server knew about but you didn't.
+Sometimes prediction is wrong. Maybe another player shot you, or collision differed slightly on the server.
 
-**Small error (< 0.5 units):** Ignore it, not noticeable
+**How it works:**
 
-**Medium error (0.5-100 units):** Smooth correction
-- Gradually drift toward server position over ~10 frames
-- Player doesn't notice the correction
+1. Server sends snapshot with `ackedInputSeq` — the last input it processed
+2. Client rewinds to server state (position, velocity, grounded)
+3. Client replays all **unacknowledged inputs** from `ackedInputSeq` forward
+4. Result: predicted position that accounts for server corrections
 
-**Large error (> 100 units):** Snap immediately
-- Probably a teleport, respawn, or major desync
-- No point smoothing a 100-unit error
+**Visual smoothing:** The difference between the pre- and post-reconciliation positions is stored as a `visualOffset`, which decays over ~50ms. This prevents camera jitter from minor corrections.
 
 ```typescript
-const error = serverPos.subtract(localPos).length();
+// After reconciliation:
+const correction = preReconcilePos - postReconcilePos;
 
-if (error < 0.5) {
-  // Close enough, do nothing
-} else if (error < 100) {
-  // Smooth correction
-  localPos = Vector3.Lerp(localPos, serverPos, 0.3);
+if (correctionMagnitude > 50) {
+  // Large correction (KB, teleport, respawn) → snap immediately
+  visualOffset = { x: 0, y: 0, z: 0 };
 } else {
-  // Snap
-  localPos = serverPos.clone();
+  // Small correction → smooth it over time
+  visualOffset += correction;
 }
+
+// Each frame: decay toward zero
+visualOffset *= (1 - dt * 20);  // ~50ms settle time
 ```
 
-### 6. The Grounded Flag (Don't Forget This!)
+**Grounded state protection:** When no inputs need replay (`unacked=0`), the client preserves its local grounded state instead of adopting the server's, which can be stale. This prevents animation glitches (walk bob restarts) from reconciliation.
 
-The server must tell clients whether the player is on the ground. Without it, the client doesn't know if jumping is allowed.
+### 6. Delta Compression
 
-```
-❌ Without grounded flag:
-   - Server knows player landed
-   - Client still thinks player is mid-air
-   - Player presses jump... nothing happens
-   - "This game is broken!"
-
-✅ With grounded flag:
-   - Server sends grounded=true in snapshot
-   - Client knows player can jump
-   - Jump works correctly
-```
-
-**Binary Protocol:**
-```
-Component flags:
-  0x01 = position changed
-  0x02 = velocity changed
-  0x04 = grounded state changed  ← CRITICAL!
-```
-
-### 7. Delta Compression
-
-Sending full state every tick wastes bandwidth. Delta compression sends only what changed:
+Sending full state every snapshot wastes bandwidth. Delta compression sends only what changed:
 
 ```
-Full state: 3 players × (position + velocity + grounded) = ~100 bytes
-Delta state: Only player 2 moved = ~25 bytes
+Full snapshot: all entities × (position + velocity + grounded) = ~200 bytes
+Delta snapshot: only changed entities = ~40 bytes
 
-At 20Hz = 2KB/sec vs 500 bytes/sec
+At 60Hz = savings of 50-70% bandwidth
 ```
 
 **How it works:**
-1. Server tracks last acknowledged snapshot per client
-2. Compare current state to acknowledged state
-3. Only encode changed values
-4. Client reconstructs full state from baseline + delta
+
+1. Server maintains a 64-entry snapshot history ring buffer
+2. Each client acknowledges received snapshots via `Ack` messages
+3. Server finds client's last acked snapshot as the **baseline**
+4. Only encode values that changed since baseline
+5. Client reconstructs full state from baseline + delta
+
+### 7. ClockSync
+
+Remote entity interpolation needs accurate time. `ClockSync` provides NTP-like synchronization:
+
+1. **Burst sampling** — 5 Ping/Pong round-trips on connect
+2. **Offset calculation** — `serverTime = localTime + offset`
+3. **Outlier rejection** — Discard pings with abnormal RTT
+4. **Periodic resync** — Every 30 seconds to correct clock drift
+
+The `SnapshotBuffer` uses server-authoritative timestamps (converted to local time via ClockSync) for interpolation, eliminating jitter from network delay variation.
+
+### 8. SnapshotBuffer & Entity Interpolation
+
+Remote players (not the local player) are interpolated between snapshots using `SnapshotBuffer`:
+
+```
+Snapshot at t=100ms: Player B at (100, 0, 200)
+Snapshot at t=116ms: Player B at (105, 0, 200)
+
+Render at 60fps between snapshots:
+  Frame 1: (100.0, 0, 200)
+  Frame 2: (101.7, 0, 200)
+  Frame 3: (103.3, 0, 200)
+  Frame 4: (105.0, 0, 200)
+```
+
+**Features:**
+
+- **Auto-adjusting interp delay** — Based on snapshot arrival jitter (1× stddev), clamped to 16-150ms
+- **Velocity-based extrapolation** — On packet loss, extrapolate using last known velocity
+- **`cl_interp` CVar** — Manual interpolation delay (0 = auto-adjust)
+- **`cl_timenudge` CVar** — Render time offset for competitive advantage
+
+Default interpolation delay: **~50ms** (down from 100ms in earlier versions).
+
+### 9. Server-Authoritative Projectiles
+
+Projectiles (rockets, grenades, plasma) are server-authoritative:
+
+1. Client sends fire input → server creates projectile entity
+2. Projectile included in snapshots as `proj_` entities with position + velocity
+3. Client renders projectiles by interpolating `proj_` entities via `SnapshotBuffer`
+4. Server handles all collision detection and damage
+5. `projectile_spawn` event tells client which weapon model/trail to render
+
+**Client-predicted explosions:** For responsiveness, the client shows explosions immediately on local impact. Server events are deduplicated via position + defId matching.
+
+### 10. Knockback System
+
+Server-side knockback with client prediction:
+
+1. **Server:** Damage dealt → knockback impulse queued on victim
+2. **Server:** Impulse applied as velocity change before next movement simulation
+3. **Client:** Self-damage detected locally → immediate KB prediction via `V2NetworkClient.applyKnockback()`
+4. **Reconciliation:** Server confirms or corrects the predicted KB
+
+Splash damage uses radius-based falloff with configurable `splashRadius`, `splashDamage`, and `knockbackScale` per weapon.
+
+### 11. Anti-Warp (MovementValidator)
+
+Server-side protection against speed hacking via input flooding:
+
+- **Rate cap** — Max inputs per tick prevents flooding
+- **Time budget** — Accumulated delta-time prevents time manipulation
+- **Silent drops** — Rejected inputs silently dropped (no disconnect)
+- **Strike counter** — Tracks violations for server-side monitoring
 
 ---
 
@@ -236,33 +271,19 @@ At 20Hz = 2KB/sec vs 500 bytes/sec
 
 ```
 GameServer
-├── Room (game instance)
-│   ├── Simulation (deterministic game logic)
-│   ├── Clients (connected players)
-│   ├── Command Queue (pending inputs)
-│   └── Tick Loop (20Hz)
-└── WebSocket Handler
-```
-
-### Room Lifecycle
-
-```typescript
-// Create room with game-specific simulation
-const room = new Room('room-1', config, FPSSimulation, 16);
-
-// Clients connect
-room.addClient(clientId, transport);  // → WELCOME, JOIN_ACCEPT, SNAPSHOT
-
-// Game runs
-room.start(20);  // 20Hz tick rate
-
-// Tick loop (every 50ms)
-private tick(): void {
-  this.currentTick++;
-  this.simulation.tick(this.pendingCommands);  // All commands together
-  this.pendingCommands = [];
-  this.broadcastSnapshot();  // Send state to all clients
-}
+├── WebSocket Server (port 7777)
+├── BSP Collision World (server-side)
+├── ECS Game State
+├── Systems
+│   ├── FPSMovementSubsystem (125Hz physics)
+│   ├── ProjectileSystem (server-auth projectiles)
+│   ├── CombatSystem (damage, knockback)
+│   ├── WeaponSystem (fire, ammo, switching)
+│   ├── DroppedWeaponSystem (death drops, pickup)
+│   ├── PickupSystem (item spawns, respawn timers)
+│   └── MovementValidator (anti-warp)
+├── GametypeController (deathmatch rules, spawns)
+└── Tick Loop (125Hz, snapshots every 2nd tick = 60Hz)
 ```
 
 ---
@@ -270,15 +291,20 @@ private tick(): void {
 ## Console Commands
 
 ### Server
+
 ```bash
 # Start dedicated server
-npm run net:server
+npm run net:server -- --map wdm2
 
 # With options
-npm run net:server -- --port 8080 --name "My Server" --map dm17 --max 8
+npm run net:server -- --port 8080 --name "My Server" --map wdm2 --max 8
+
+# Custom snapshot rate
+npm run net:server -- --map wdm2 --snapshotrate 30
 ```
 
 ### Client
+
 ```bash
 # Connect
 connect localhost:7777
@@ -289,6 +315,16 @@ network status
 
 # Disconnect
 disconnect
+
+# NetGraph (Q3-style diagnostics overlay)
+cl_netgraph 0         # Off
+cl_netgraph 1         # Text stats
+cl_netgraph 2         # Text + rolling graph
+
+# Interpolation tuning
+cl_interp 0           # Auto-adjust (default)
+cl_interp 50          # Fixed 50ms delay
+cl_timenudge -20      # Render 20ms ahead (competitive)
 ```
 
 ---
@@ -306,10 +342,14 @@ Client                              Server
    │                                   │
    │<──── JOIN_ACCEPT ─────────────────│  Client ID, Player ID, Entity ID
    │                                   │
-   │<──── SNAPSHOT ────────────────────│  Initial game state
+   │<──── SNAPSHOT ────────────────────│  Initial game state (full, no delta)
    │                                   │
-   │──── INPUT ───────────────────────>│  (continuous)
-   │<──── SNAPSHOT ────────────────────│  (20Hz)
+   │<──── Ping ────────────────────────│  ClockSync burst (×5)
+   │──── Pong ────────────────────────>│
+   │                                   │
+   │──── INPUT ───────────────────────>│  (continuous, 125Hz)
+   │<──── SNAPSHOT ────────────────────│  (60Hz, delta-compressed)
+   │──── ACK ─────────────────────────>│  (acknowledges snapshots)
    │                                   │
 ```
 
@@ -326,11 +366,13 @@ All messages use binary encoding for efficiency:
 | Welcome | 0x01 | Server info on connect |
 | JoinAccept | 0x02 | Player accepted, IDs assigned |
 | JoinReject | 0x03 | Connection refused |
-| Snapshot | 0x04 | Game state update |
+| Snapshot | 0x04 | Game state update (delta-compressed) |
 | PlayerJoined | 0x05 | Another player connected |
 | PlayerLeft | 0x06 | Another player disconnected |
 | GameStart | 0x07 | Match started |
 | Ack | 0x08 | Command acknowledged |
+| Ping | 0x09 | ClockSync ping (server → client) |
+| Pong | 0x0A | ClockSync pong (client → server) |
 
 ### Client → Server (0x81-0x8F)
 
@@ -338,15 +380,17 @@ All messages use binary encoding for efficiency:
 |------|------|---------|
 | Join | 0x81 | Request to join game |
 | Ready | 0x82 | Player ready to start |
-| Input | 0x83 | Player command |
+| Input | 0x83 | Player command (with sequence #) |
 | Disconnect | 0x84 | Graceful disconnect |
+| Ack | 0x85 | Snapshot acknowledgement |
 
 ### Snapshot Format
 
 ```
 Header:
   tick (uint32) - Server tick number
-  timestamp (uint32) - Server time (ms)
+  timestamp (float64) - Server time (ms, for ClockSync interpolation)
+  ackedInputSeq (uint32) - Last processed input sequence
 
 Entities:
   count (uint16)
@@ -356,107 +400,24 @@ Entities:
       0x01 = position changed
       0x02 = velocity changed
       0x04 = grounded changed
+      0x08 = rotation changed (yaw/pitch)
     if 0x01: x, y, z (float32 × 3)
     if 0x02: vx, vy, vz (float32 × 3)
     if 0x04: grounded (uint8)
+    if 0x08: yaw, pitch (float32 × 2)
 
 Players:
   count (uint16)
   for each player:
     id (string)
     flags (uint8)
-    ... (entity ID, name, score)
+    ... (entity ID, name, score, deaths, ping)
 
 Events:
   count (uint16)
-  for each: type + JSON data
+  for each: type (uint8) + payload
+    Types: projectile_spawn, damage, death, combat_state, ...
 ```
-
----
-
-## Entity Interpolation
-
-Remote players (not the local player) are interpolated between snapshots:
-
-```
-Snapshot at tick 100: Player B at (100, 0, 200)
-Snapshot at tick 101: Player B at (105, 0, 200)
-
-Render at 60fps between ticks:
-  Frame 1: (100.0, 0, 200)
-  Frame 2: (101.7, 0, 200)
-  Frame 3: (103.3, 0, 200)
-  Frame 4: (105.0, 0, 200)
-```
-
-The interpolation buffer stores recent snapshots and renders 2 ticks behind for smoothness. This adds 100ms visual latency for remote players but makes movement perfectly smooth.
-
----
-
-## Testing
-
-### Two-Client Test
-```bash
-# Terminal 1: Server
-npm run net:server -- --map wdm7
-
-# Terminal 2: Client 1
-npm run net:client -- --name Alice
-
-# Terminal 3: Client 2
-npm run net:client -- --name Bob
-```
-
-### In-Game Test
-1. Start server: `npm run net:server`
-2. Start game: `npm run dev`
-3. Open console: `~`
-4. Connect: `connect localhost:7777`
-5. Verify: `network status`
-
----
-
-## Troubleshooting
-
-### "Movement feels wrong"
-- Check that grounded flag is being transmitted (0x04 in component flags)
-- Verify command batching is working (all commands processed at tick boundary)
-- Confirm client uses `predict()` not `tick()` for local prediction
-
-### "Jumping doesn't work"
-- The grounded flag must be transmitted in snapshots
-- Client must read and apply grounded state from velocity component
-- Server must set grounded=true when player touches ground
-
-### "Players teleport/snap"
-- Smooth correction threshold may be too low
-- Check for large tick divergence between client and server
-- Verify interpolation buffer has enough snapshots
-
-### "High bandwidth usage"
-- Enable delta compression (compare to baseline)
-- Reduce tick rate if acceptable (20Hz → 10Hz)
-- Check for unnecessary state being transmitted
-
----
-
-## For AI Assistants
-
-Key files to understand the networking system:
-
-| File | Purpose |
-|------|---------|
-| `src/engine/network/core/Simulation.ts` | tick() vs predict() |
-| `src/engine/network/server/Room.ts` | Command batching, tick loop |
-| `src/engine/network/client/hosts/NetworkGameHost.ts` | Prediction, reconciliation |
-| `src/engine/network/protocol/BinaryProtocol.ts` | Delta compression, grounded flag |
-| `src/engine/network/client/InterpolationBuffer.ts` | Remote entity smoothing |
-
-When debugging networking issues:
-1. Check command batching first (commands queued, not processed immediately)
-2. Verify grounded flag is transmitted and read
-3. Confirm client uses predict() not tick()
-4. Check reconciliation thresholds
 
 ---
 
@@ -472,66 +433,172 @@ const v2Client = new V2NetworkClient(tickRate);
 // On each frame
 v2Client.update(deltaTime, inputState);
 
-// Get predicted position for rendering
-const pos = v2Client.getPosition();
+// Get predicted position for rendering (with visual smoothing)
+const pos = v2Client.getVisualPosition();
+
+// Get raw predicted position (without smoothing)
+const rawPos = v2Client.getPosition();
 
 // Check if we have valid server data
 if (v2Client.hasValidPosition()) {
   // Safe to use position
 }
+
+// Get predicted movement state for visual effects
+const ms = v2Client.getMovementState();
+// { isSliding, isCrouching, crouchViewOffset, wallJumpState,
+//   ledgeGrabState, actualHorizSpeed, slidePhase, ledgeGrabPhase }
+
+// Apply client-predicted knockback (for instant self-damage feedback)
+v2Client.applyKnockback(damage, direction, kbScale, isSelf);
 ```
 
 ### Features
 
-- **125Hz client tick rate** with variable server tick rate
+- **125Hz client tick rate** with 60Hz server snapshot rate
 - **Input history** for replay during reconciliation
-- **Smooth correction** for minor position errors
-- **Snap correction** for major desyncs (respawn, teleport)
+- **Visual offset smoothing** (absorbs corrections over ~50ms)
+- **Snap correction** for major desyncs (respawn, teleport, knockback > 50 units)
+- **Grounded state protection** when no inputs need replay
+- **Predicted movement state** for visual effects (crouchslide, wall jump, ledge grab)
+- **Client-side knockback prediction** for instant self-damage feedback
 
 ### Reconciliation Flow
 
 ```
 1. Client records input with sequence number
 2. Client predicts locally (instant feedback)
-3. Server processes input, sends snapshot with ack'd sequence
-4. Client compares: predicted position vs server position
-5. If error > threshold:
-   - Rewind to server position
-   - Replay all unacknowledged inputs
-   - Smoothly correct any remaining error
+3. Server processes input, sends snapshot with ackedInputSeq
+4. Client finds unacknowledged inputs (seq > ackedInputSeq)
+5. Client resets to server position/velocity/grounded
+6. Client replays all unacked inputs through physics
+7. Compute visual offset = (pre-reconcile pos) - (post-reconcile pos)
+8. Decay visual offset over ~50ms for smooth camera
 ```
 
 ---
 
-## Dedicated Server
+## NetGraph Overlay
 
-Run a headless server without rendering:
+Quake 3 / Source-style network diagnostics:
+
+```
+cl_netgraph 0         # Off
+cl_netgraph 1         # Text-only stats
+cl_netgraph 2         # Text + rolling history graph
+```
+
+**Displayed metrics (7 total):**
+
+| Metric | Description |
+|--------|-------------|
+| Ping | Round-trip time to server |
+| Snapshot Rate | Snapshots received per second |
+| Packet Loss % | Estimated from tick gaps |
+| Interp Delay | Current interpolation buffer delay |
+| Command Rate | Inputs sent per second |
+| Reconciliation | Reconciliation events per second |
+| Clock Offset | ClockSync time offset to server |
+
+---
+
+## HUD Data Layer
+
+Server sends gameplay data to clients via snapshot events:
+
+| Event | Data | Recipient |
+|-------|------|-----------|
+| `combat_state` | Health, armor | Owner only (private) |
+| `damage` | Amount, attacker, weapon | Victim |
+| `death` | Victim, attacker, weapon | All clients |
+| `projectile_spawn` | Entity ID, weapon def | All clients |
+
+**Client-side:** `HUDState` singleton aggregates all events into a queryable state object (health, armor, scoreboard, kill feed, damage numbers).
+
+---
+
+## Testing
+
+### Two-Client Test
 
 ```bash
-# Start dedicated FPS server
-npm run net:server -- --map wdm2 --port 7777
+# Terminal 1: Server
+npm run net:server -- --map wdm2
 
-# Options
-npm run net:server -- \
-  --map wdm2 \
-  --port 7777 \
-  --name "My Server" \
-  --max 16 \
-  --tickrate 20
+# Terminal 2: Client 1 (browser)
+npm run dev
+# Console: connect localhost:7777
+
+# Terminal 3: Client 2 (headless)
+npm run net:client -- --name Bob
 ```
 
-### Server Architecture
+### In-Game Test
 
-```
-HeadlessNetServer
-├── WebSocket Server (port 7777)
-├── BSP Collision World (server-side)
-├── FPS Movement Subsystem
-├── Spawn Point Manager
-└── ECS Game State
-```
+1. Start server: `npm run net:server -- --map wdm2`
+2. Start game: `npm run dev`
+3. Open console: `~`
+4. Connect: `connect localhost:7777`
+5. Verify: `network status`
+6. NetGraph: `cl_netgraph 2`
 
-The server loads the BSP map for collision detection but does no rendering.
+---
+
+## Troubleshooting
+
+### "Movement feels wrong"
+
+- Check that grounded flag is being transmitted (0x04 in component flags)
+- Verify command batching is working (all commands processed at tick boundary)
+- Confirm client uses `predict()` not `tick()` for local prediction
+
+### "Jumping doesn't work"
+
+- The grounded flag must be transmitted in snapshots
+- Client must read and apply grounded state from velocity component
+- Server must set grounded=true when player touches ground
+
+### "Players teleport/snap"
+
+- Check visual offset smoothing is working (`getVisualPosition()` not `getPosition()`)
+- Verify reconciliation isn't replaying too many inputs (max 32 cap)
+- Check for large knockback events (> 50 units triggers snap)
+
+### "High bandwidth usage"
+
+- Delta compression should be active (client sends Ack messages)
+- Check snapshot rate: `--snapshotrate 30` for lower bandwidth
+- Verify SnapshotBuffer isn't accumulating stale entries
+
+### "Jittery remote players"
+
+- Check `cl_netgraph 2` for packet loss %
+- Increase `cl_interp` for smoother interpolation (trade-off: more visual latency)
+- Verify ClockSync is active (clock offset should be stable)
+
+---
+
+## For AI Assistants
+
+Key files to understand the networking system:
+
+| File | Purpose |
+|------|---------|
+| `src/games/fps/client/V2NetworkClient.ts` | Client prediction, reconciliation, visual smoothing |
+| `src/games/fps/FPSGameManager.ts` | Game loop: processSnapshots → input → tick |
+| `src/games/fps/server/GameServer.ts` | Server tick loop, snapshot broadcast, delta compression |
+| `src/engine/network/client/SnapshotBuffer.ts` | Time-based interpolation for remote entities |
+| `src/engine/network/client/ClockSync.ts` | NTP-like time synchronization |
+| `src/games/fps/client/RemotePlayerRenderer.ts` | Remote player interpolation rendering |
+| `src/games/fps/server/systems/CombatSystem.ts` | Damage, knockback, splash damage |
+| `src/games/fps/server/systems/WeaponSystem.ts` | Server-side weapon logic |
+
+When debugging networking issues:
+
+1. Check `cl_netgraph 2` for connection quality
+2. Look at reconciliation warnings in console (`GROUNDED FLIP`, `SPEED CHANGE`)
+3. Verify snapshot rate matches expectations (60Hz default)
+4. Check ClockSync offset stability
 
 ---
 
@@ -540,3 +607,4 @@ The server loads the BSP map for collision detection but does no rendering.
 - [Headless Mode](./headless-mode.md) — Dedicated server setup
 - [Console System](./console-system.md) — Command registration
 - [Movement System](./movement-system.md) — Physics that networking syncs
+- [Weapon System](./weapon-system.md) — Server-authoritative weapons

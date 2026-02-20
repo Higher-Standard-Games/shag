@@ -13,16 +13,19 @@ Built on Babylon.js, SHAG loads Quake 3 and Warsow assets natively: BSP maps, **
 ## Who Is This For?
 
 **Game Developers** wanting to:
+
 - Build arena shooters, movement games, or anything using Q3/Warsow assets
 - Use a familiar idTech3-style workflow with modern web tech
 - Deploy to browser, desktop, and mobile from one codebase
 
 **Warsow/Quake Nostalgics** who:
+
 - Have PK3 files sitting on old hard drives that deserve new life
 - Know what `sv_aircontrol` does and why it matters
 - Want to prototype that gametype idea they've had for years
 
 **AI Assistants** (like Claude) who need:
+
 - A well-documented, AI-friendly architecture
 - Headless mode for testing without a GPU
 - Consistent patterns to understand and modify
@@ -48,7 +51,7 @@ Built on Babylon.js, SHAG loads Quake 3 and Warsow assets natively: BSP maps, **
 - **Raw .map Support** — Design in NetRadiant and play immediately without compiling—perfect for rapid prototyping
 - **Q3 Movement** — Air strafing, bunny hopping, all the good physics
 - **Warsow Movement** — Wall jumps, ledge grabs, crouchslide with camera effects
-- **Multiplayer Networking** — Tick-based server, client prediction, smooth reconciliation
+- **Multiplayer Networking** — 125Hz server, 60Hz snapshots, client prediction, delta compression, visual smoothing
 - **Console System** — `~` to open, tab-complete, cvars, just like you remember
 - **Headless Mode** — Run the full engine without a GPU (CI/CD, testing, dedicated servers)
 - **Cross-Platform** — Web, Electron desktop, Capacitor mobile

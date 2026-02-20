@@ -1,24 +1,62 @@
 # Weapon System
 
-The SHAG Engine weapon system provides first-person weapon rendering, animations, projectiles, and hitscan mechanics.
+The SHAG Engine weapon system provides server-authoritative combat with first-person weapon rendering, projectile physics, knockback, crosshairs, and weapon drops.
 
 ## Architecture
 
 ```
-WeaponViewManager (Singleton)
-    ├── weaponCamera - Separate camera for viewmodel rendering
-    ├── loadWeapon() - Load MD3 model from pk3
-    ├── fire() - Trigger fire effect and projectile
-    ├── startReload() - Begin reload animation
-    └── update(dt) - Per-frame updates (bob, sway, flash)
+Server Side                          Client Side
+──────────                           ───────────
+WeaponSystem                         WeaponViewManager (Singleton)
+├── fire() → CombatSystem               ├── weaponCamera (separate for viewmodel)
+├── switchWeapon()                       ├── loadWeapon() → MD3 from pk3
+├── ammo tracking                        ├── update(dt) → bob, sway, flash
+└── WeaponDefs (per-weapon config)       └── syncBobCycle() → ViewportEffects
 
-ProjectileManager (Singleton)
-    ├── spawnProjectile() - Create projectile entity
-    ├── update(dt) - Move and collide projectiles
-    └── doHitscan() - Instant raycast damage
+ProjectileSystem                     Crosshair (Singleton)
+├── tick() → move + collide              ├── per-weapon styles
+├── splash damage                        ├── hit markers
+└── snapshot entities (proj_*)           └── cg_crosshair* CVars
+
+CombatSystem                         GibSystem
+├── processDamage()                      ├── bone-mapped gibs
+├── knockback impulse queue              ├── Havok physics
+└── splash radius falloff                └── object pooling
+
+DroppedWeaponSystem                  DroppedWeaponRenderer
+├── spawnDrop() on death                 ├── Havok physics rendering
+├── pickup detection                     └── model + collision
+└── respawn timers
 ```
 
-## Quick Start
+## Server-Side Weapon Definitions
+
+Weapons are defined with full combat properties:
+
+```typescript
+interface WeaponDef {
+  id: string;
+  displayName: string;
+  model: string;           // Viewmodel path in pk3
+  fireRate: number;        // Shots per second
+  damage: number;          // Direct hit damage
+  projectileSpeed: number; // 0 = hitscan
+  splashDamage: number;    // Splash damage at epicenter
+  splashRadius: number;    // Splash damage radius
+  knockbackScale: number;  // Knockback multiplier
+  selfDamageMultiplier: number; // Self-damage reduction
+  spread: number;          // Accuracy cone
+  ammoType: string;
+  ammoPerShot: number;
+  maxAmmo: number;
+}
+```
+
+Each game defines its own weapon roster via `WeaponDef` objects (e.g. in `WeaponDefs.ts`). The engine provides the framework — fire rates, splash damage, knockback, projectile speeds — but specific values are game configuration.
+
+## Client-Side Rendering
+
+### WeaponViewManager API
 
 ```typescript
 import { WeaponViewManager } from '@/engine/weapon';
@@ -29,7 +67,7 @@ const wvm = WeaponViewManager.getInstance();
 wvm.init(scene, camera);
 
 // Load a weapon
-await wvm.loadWeapon('plasmagun', 'baseq3/pak0.pk3');
+await wvm.loadWeapon('rlauncher', 'basewsw/pak0.pk3');
 
 // In game loop
 wvm.update(deltaTime);
@@ -38,70 +76,7 @@ wvm.update(deltaTime);
 wvm.fire();
 ```
 
-## WeaponViewManager API
-
-### Loading
-
-```typescript
-// Load by weapon ID (looks up in entity registry)
-await wvm.loadWeapon('machinegun');
-
-// Load from specific pk3
-await wvm.loadWeapon('rocketlauncher', 'baseq3/pak0.pk3');
-
-// Clear current weapon
-wvm.clear();
-```
-
-### Positioning
-
-```typescript
-// Use preset positions
-wvm.setPosition('hip');      // Normal hold
-wvm.setPosition('ads');      // Aim down sights
-wvm.setPosition('lowered');  // Sprint/lowered
-
-// Manual offset (x, y, z in camera local space)
-wvm.setOffset(15, -8, 35);
-wvm.setScale(2.0);
-```
-
-### Weapon Info
-
-```typescript
-const info = wvm.getWeaponInfo();
-// { name: 'plasmagun', frames: 10, surfaces: 3 }
-
-const pos = wvm.getCurrentPosition();
-// { offset: Vector3, rotation: Vector3, scale: number }
-```
-
-### Fire and Reload
-
-```typescript
-wvm.fire();                    // Fire with effects
-wvm.startReload(600);          // Start reload (ms)
-wvm.cancelReload();            // Cancel reload
-wvm.isReloading();             // Check state
-wvm.getReloadProgress();       // 0-1 progress
-```
-
-## Handedness
-
-Set weapon screen position via cvar:
-
-```
-cg_handedness 0   # Left hand
-cg_handedness 1   # Right hand (default)
-cg_handedness 2   # Center
-```
-
-Offset values:
-- Right: +12 units
-- Center: 0 units
-- Left: -12 units
-
-## Weapon Bob
+### Weapon Bob
 
 Syncs with player movement via ViewportEffectsManager:
 
@@ -115,7 +90,17 @@ Syncs with player movement via ViewportEffectsManager:
 | `cl_gunbob_jump` | 2.0 | Jump bob intensity |
 | `cl_gunbob_land` | 3.0 | Landing bob intensity |
 
-## ADS (Aim Down Sights)
+### Handedness
+
+Set weapon screen position via cvar:
+
+```
+cg_handedness 0   # Left hand
+cg_handedness 1   # Right hand (default)
+cg_handedness 2   # Center
+```
+
+### ADS (Aim Down Sights)
 
 | CVar | Default | Description |
 |------|---------|-------------|
@@ -124,51 +109,50 @@ Syncs with player movement via ViewportEffectsManager:
 | `cl_ads_fov_reduction` | 15 | FOV zoom (%) |
 | `cl_ads_sensitivity` | 0.5 | Sensitivity multiplier |
 
-## ProjectileManager
+## Crosshair System
 
-Handles projectile spawning and collision.
+Configurable per-weapon crosshairs with hit markers:
 
-```typescript
-const pm = getProjectileManager();
+| CVar | Default | Description |
+|------|---------|-------------|
+| `cg_crosshairSize` | 24 | Crosshair size in pixels |
+| `cg_crosshairColor` | white | Crosshair color |
+| `cg_crosshairAlpha` | 0.8 | Crosshair opacity |
 
-pm.init(scene);
+**Hit markers:** Brief crosshair flash on confirmed damage event from server.
 
-// Spawn projectile
-pm.spawnProjectile({
-  position: muzzlePos,
-  direction: fireDir,
-  speed: 2000,
-  damage: 20,
-  radius: 8,
-  lifetime: 10,
-  type: 'plasma',
-});
+## Server-Authoritative Projectiles
 
-// Hitscan weapon
-const hit = pm.doHitscan(origin, direction, range, damage);
-if (hit.entity) {
-  // Apply damage
-}
+Projectiles are fully server-side:
+
+1. Player fires → server creates `proj_` entity with position + velocity
+2. Server moves projectile each tick, checks BSP collision
+3. Snapshots include `proj_` entities → client interpolates via SnapshotBuffer
+4. On collision → server applies damage + splash damage + knockback
+5. `projectile_spawn` event tells client which model/trail to render
+
+**Client-predicted explosions:** Local client shows explosion on impact immediately. Server event is deduplicated via position + defId matching.
+
+## Knockback & Splash Damage
+
+```
+Damage = splashDamage × (1 - distance / splashRadius)
+KB Direction = normalize(victim - epicenter) with upward bias
+KB Magnitude = damage × knockbackScale
 ```
 
-## Weapon Definitions
+- **Server-side impulse queue** — KB applied as velocity change before movement sim
+- **Client-predicted KB** — `V2NetworkClient.applyKnockback()` for instant self-damage feedback
+- **Self-damage** — Reduced by `selfDamageMultiplier` (typically 0.5)
 
-Weapons are defined in the entity registry:
+## Weapon Drops
 
-```typescript
-interface WeaponDef {
-  id: string;
-  displayName: string;
-  model: string;           // Path in pk3
-  fireRate: number;        // Shots per second
-  damage: number;
-  projectileSpeed: number; // 0 = hitscan
-  spread: number;          // Accuracy cone
-  clipSize: number;
-  reloadTime: number;      // ms
-  ammoType: string;
-}
-```
+On player death:
+
+1. Server spawns `DroppedWeapon` entity at death position
+2. Client renders with Havok physics (tumbling, bouncing)
+3. Other players can pick up dropped weapons (walk over them)
+4. Dropped weapons grant the weapon + remaining ammo
 
 ## Console Commands
 
@@ -177,9 +161,14 @@ weapon <name>           - Equip weapon
 give <weapon>           - Add weapon to inventory
 give ammo               - Refill ammo
 weapon_debug 1          - Show weapon debug info
+weapon load <name>      - Load weapon model
+weapon pos <x> <y> <z>  - Set position offset
+weapon scale <n>        - Set weapon scale
+weapon clear            - Remove current weapon
 ```
 
 ## See Also
 
 - [Camera System](./camera-system.md) - FPSController integration
-- [Physics System](./physics-system.md) - Projectile collision
+- [Networking System](./networking.md) - Server-authoritative architecture
+- [Viewport Effects](./viewport-effects.md) - Walk bob, landing impact

@@ -23,6 +23,7 @@ Load Quake 3 and Warsow maps directly—geometry, lightmaps, entities, and all.
 |---------|---------|
 | **IBSP/FBSP** | Quake 3 (.bsp) and Warsow (FBSP) formats |
 | **Lightmaps** | Pre-baked lighting with configurable intensity |
+| **LightGrid** | Per-vertex/model ambient lighting from BSP lightgrid data |
 | **Face Types** | Polygons, Bezier patches, triangle meshes, billboards |
 | **Entity Parsing** | Spawn points, lights, triggers, item locations |
 | **PVS Culling** | Potentially Visible Set for occlusion (only render what's visible) |
@@ -53,6 +54,7 @@ Q3 shaders work here—animated textures, scrolling, waving, all the tricks that
 The physics that made arena shooters feel good. Both Q3 and Warsow movement styles supported.
 
 ### Quake 3 Style
+
 | Feature | Details |
 |---------|---------|
 | **Air Strafing** | Gain speed by strafing mid-air |
@@ -61,6 +63,7 @@ The physics that made arena shooters feel good. Both Q3 and Warsow movement styl
 | **Step Climbing** | Auto-climb small ledges (18 units default) |
 
 ### Warsow Style (Extended)
+
 | Feature | Details |
 |---------|---------|
 | **Wall Jump** | Kick off walls for extra height/momentum |
@@ -69,7 +72,9 @@ The physics that made arena shooters feel good. Both Q3 and Warsow movement styl
 | **Air Control** | `sv_aircontrol` for tight mid-air turning |
 
 ### Movement CVars
+
 All tweakable at runtime via console:
+
 ```
 sv_gravity 1000          # Gravity (u/s²)
 sv_jumpheight 320        # Jump velocity
@@ -78,6 +83,8 @@ sv_aircontrol 150        # Warsow-style air turning
 sv_walljump 1            # Enable wall jumps
 sv_ledgegrab 1           # Enable ledge grabs
 sv_slide 1               # Enable crouchslide
+sv_movementSpeed 320     # Base movement speed
+sv_movementRunSpeed 425  # Sprint speed
 ```
 
 ---
@@ -115,6 +122,7 @@ map wdm7              # Load a map
 r_lightmap 2          # Increase lightmap intensity
 mv sv_gravity 400     # Lower gravity
 connect localhost:7777 # Join a server
+cl_netgraph 2         # Show network diagnostics
 ```
 
 ---
@@ -124,24 +132,37 @@ connect localhost:7777 # Join a server
 Server-authoritative multiplayer, the way id Software intended.
 
 ### Architecture
+
 | Component | Role |
 |-----------|------|
-| **Authoritative Server** | Runs the real simulation, clients obey |
+| **Authoritative Server** | Runs the real simulation at 125Hz |
 | **Client Prediction** | Instant local feedback, no input lag |
-| **Server Reconciliation** | Smooth correction when prediction was wrong |
-| **Delta Compression** | Only send what changed (saves bandwidth) |
-| **Interpolation** | Smooth remote player movement |
+| **Server Reconciliation** | Input replay + visual smoothing on correction |
+| **Delta Compression** | Only send what changed (50-70% bandwidth savings) |
+| **SnapshotBuffer** | Time-based interpolation for smooth remote players |
+| **ClockSync** | NTP-like time synchronization for accurate interpolation |
+| **Anti-Warp** | Server-side rate limiting protects against speed hacks |
 
-### Key Concepts
-- **Tick-Based Simulation** — Fixed timestep (20Hz default), deterministic
-- **Command Batching** — All player inputs processed together per tick
-- **Grounded Flag** — Server tells client when you can jump (crucial!)
-- **Smooth Correction** — Gradual drift to server position, not jarring snaps
+### Key Specs
+
+- **125Hz server tick rate** — 8ms per tick, deterministic physics
+- **60Hz snapshot rate** — Every 2nd tick, delta-compressed per client
+- **~50ms interpolation delay** — Auto-adjusting based on jitter
+- **Visual reconciliation smoothing** — No camera jitter from corrections
+
+### Network Diagnostics (NetGraph)
+
+```
+cl_netgraph 2         # Q3/Source-style overlay
+```
+
+Shows: ping, snapshot rate, packet loss %, interp delay, command rate, reconciliation rate, clock offset.
 
 ### Commands
+
 ```bash
 # Server
-npm run net:server -- --map wdm7 --port 7777
+npm run net:server -- --map wdm2 --port 7777
 
 # Client
 connect ws://localhost:7777
@@ -153,36 +174,95 @@ disconnect
 
 ---
 
+## Weapon System
+
+Server-authoritative weapon pipeline with first-person rendering.
+
+| Feature | Details |
+|---------|---------|
+| **Server-auth combat** | Server handles all damage, ammo, and hit detection |
+| **Server-auth projectiles** | Projectile entities rendered via snapshot interpolation |
+| **Viewmodels** | First-person weapon display with bob sync |
+| **Weapon definitions** | Per-weapon fire rate, damage, splash, knockback config |
+| **Crosshair system** | Per-weapon crosshair styles, hit markers |
+| **Ammo system** | Server-tracked ammo with pickup support |
+| **Weapon switching** | Slot-based (1-9) or quick-switch (Q) |
+| **Weapon drops** | Havok physics on death, pickable by other players |
+
+### Knockback & Splash Damage
+
+| Feature | Details |
+|---------|---------|
+| **Server-side impulse queue** | Knockback applied as velocity impulse before movement |
+| **Splash damage falloff** | Radius-based damage with distance falloff |
+| **Client-predicted KB** | Instant self-damage knockback for responsive feel |
+| **Configurable per weapon** | `splashRadius`, `splashDamage`, `knockbackScale` |
+
+---
+
+## HUD Data Layer
+
+Real-time game data pipeline for UI rendering.
+
+| Feature | Details |
+|---------|---------|
+| **Combat state** | Health/armor sent privately to owning player |
+| **Damage events** | Attacker, weapon, damage amount |
+| **Death events** | Victim, attacker, weapon for kill feed |
+| **Scoreboard** | Kills, deaths, ping per player |
+| **Damage numbers** | Floating positional damage indicators |
+
+`HUDState` singleton aggregates all events into a queryable state.
+
+---
+
+## Gib System
+
+Physics-based death effects for overkill damage.
+
+| Feature | Details |
+|---------|---------|
+| **Bone-mapped gibs** | Gib pieces mapped to skeleton bones |
+| **Physics simulation** | Gibs inherit death force vector velocity |
+| **BSP collision** | Gibs collide with map geometry and settle |
+| **Object pooling** | Prevents GC spikes from rapid creation/destruction |
+| **Configurable** | `gib_threshold`, `gib_count`, `gib_lifetime` CVars |
+
+---
+
+## Death & Respawn
+
+Warsow-inspired death and respawn flow.
+
+| Feature | Details |
+|---------|---------|
+| **Camera freeze** | Camera locks at death position |
+| **Weapon drops** | Dropped weapons use Havok physics for realistic tumbling |
+| **Dropped weapon pickup** | Other players can pick up dropped weapons with ammo |
+| **Respawn system** | Gametype-controlled spawn point selection |
+| **Entity cleanup** | Proper dead player model disposal and state reset |
+
+---
+
 ## Viewport Effects
 
-Post-processing and screen effects for that extra polish.
+Post-processing and first-person camera effects for polish.
 
 | Effect | Description |
 |--------|-------------|
+| **Walk Bob** | View bobbing while moving (synced with weapon bob) |
+| **Landing Impact** | Camera punch on landing |
+| **Speed FOV** | FOV increase at high speed |
+| **Strafe Lean** | Camera roll on strafe |
+| **Idle Breathing** | Subtle idle movement |
+| **Screen Shake** | For impacts and explosions |
+| **Damage Flash** | Red tint when hurt |
 | **Bloom** | Glow on bright areas |
 | **FXAA** | Fast anti-aliasing |
 | **Color Grading** | Tint, saturation, contrast |
 | **Vignette** | Darkened screen edges |
-| **Screen Shake** | For impacts and explosions |
-| **Damage Flash** | Red tint when hurt |
 
-Controlled via render variables: `r_bloom 1.5`, `r_fxaa 1`
-
----
-
-## Weapon System
-
-Framework for implementing weapons with viewmodels and animation.
-
-| Feature | Details |
-|---------|---------|
-| **Viewmodels** | First-person weapon display |
-| **Animation States** | Idle, fire, reload, switch |
-| **Projectile System** | For rockets, plasma, etc. |
-| **Hitscan** | Instant trace for railguns, etc. |
-| **Ammo System** | Tracking and pickup support |
-
-*Game code implements the actual weapons—SHAG provides the framework.*
+Controlled via CVars: `cl_bobbing 1`, `r_bloom 1.5`, `r_fxaa 1`
 
 ---
 
@@ -203,7 +283,7 @@ npm run cli:game
 npm run cli:game -- --command "map wdm7; bsp info; quit"
 
 # Dedicated server
-npm run net:server -- --map wdm7
+npm run net:server -- --map wdm2
 ```
 
 ---
@@ -226,8 +306,7 @@ Being honest about limitations helps you choose the right tool:
 
 | Limitation | Why |
 |------------|-----|
-| **No trigger system** | BSP triggers are parsed but behavior is game code |
-| **No built-in weapons** | Framework only, you implement the guns |
+| **No built-in game modes** | Engine provides framework, you implement game logic |
 | **No AI/bots** | Pathfinding and bot logic is game code |
 | **Partial shader support** | ~90% of Q3 shaders work, some edge cases don't |
 | **No map editor** | Use NetRadiant-custom, import the BSP |
@@ -242,3 +321,4 @@ SHAG is an **engine**, not a complete game. It handles the hard parts (BSP loadi
 - [Networking Guide](../guides/networking.md) — Deep dive on multiplayer
 - [Movement System](../guides/movement-system.md) — All the physics details
 - [Console System](../guides/console-system.md) — Commands and cvars
+- [Weapon System](../guides/weapon-system.md) — Server-authoritative weapons

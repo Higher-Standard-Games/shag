@@ -69,6 +69,7 @@ With air control enabled, releasing strafe key and just holding W lets you turn 
 ### Speed Preservation
 
 Unlike most modern games, speed is preserved through:
+
 - Bunny hopping (continuous jumping)
 - Strafe jumping (builds speed)
 - Crouch sliding (maintains momentum)
@@ -84,6 +85,10 @@ interface CharacterState {
   isGrounded: boolean; // On walkable surface
   isJumping: boolean;  // In jump
   isCrouching: boolean;
+  isSliding: boolean;  // Crouchslide active
+  wallJumpState: string;  // Wall jump phase
+  ledgeGrabState: string; // Ledge grab phase
+  actualHorizSpeed: number; // Measured horizontal speed
 }
 ```
 
@@ -121,6 +126,10 @@ Access via console or `MovementVars.getInstance().get('name')`:
 | `sv_aircontrol` | 150 | Warsow-style turning |
 | `sv_autohop` | 1 | Bunny hop enabled |
 | `sv_stepheight` | 18 | Auto-climb height |
+| `sv_movementSpeed` | 320 | Base movement speed |
+| `sv_movementRunSpeed` | 425 | Sprint speed |
+
+> **Note:** Gravity multiplier for falling (`FALLING_GRAVITY_MULTIPLIER`) was reduced from 1.8 to 1.25 in v0.9.3 for less harsh descents while maintaining jump height.
 
 ### Wall Jump
 
@@ -155,12 +164,14 @@ Access via console or `MovementVars.getInstance().get('name')`:
 Sprint (425+ speed) → Crouch = Slide
 
 **Behavior:**
+
 - 800ms max duration, 1500ms cooldown
 - Speed preserved for 400ms, then decays
 - Jump cancel after 400ms grace period
 - Hold jump for 1.3x velocity boost
 
 **Camera Effects:**
+
 - Camera tilts up ~12°
 - Walk bob disabled
 - Vertical look locked during animation
@@ -183,8 +194,20 @@ mv <name> <val> - Set variable
 mv_reset        - Reset all to defaults
 ```
 
+## Network Synchronization
+
+In multiplayer, movement runs server-authoritative:
+
+- **Server:** `FPSMovementSubsystem` runs identical physics at 125Hz
+- **Client:** `V2NetworkClient` predicts locally and reconciles with server snapshots
+- **Visual smoothing:** `visualOffset` absorbs reconciliation corrections over ~50ms
+- **Grounded state:** Client preserves its own grounded flag when no inputs need replay (prevents walk bob jitter)
+
+See [Networking System](./networking.md) for details.
+
 ## See Also
 
 - [Physics System](./physics-system.md) - Collision detection
 - [Camera System](./camera-system.md) - View handling
 - [CVar System](./cvar-system.md) - Console variables
+- [Networking System](./networking.md) - Server-authoritative sync

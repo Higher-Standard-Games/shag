@@ -20,8 +20,8 @@ Let's get you bunny hopping in under 5 minutes.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/user/shag-engine.git
-cd shag-engine
+git clone https://github.com/Higher-Standard-Games/shag.git
+cd shag
 ```
 
 ### 2. Install Dependencies
@@ -112,17 +112,21 @@ This is how you test changes without opening a browser. AI assistants: use this.
 ## Multiplayer Quick Start
 
 **Terminal 1 — Server:**
+
 ```bash
 npm run net:server -- --map wdm7
 ```
 
 **Terminal 2 — Client (browser):**
+
 ```bash
 npm run dev
 ```
+
 Then open console and type: `connect localhost:7777`
 
 **Or use the headless client:**
+
 ```bash
 npm run net:client -- --name TestPlayer
 ```
@@ -163,10 +167,11 @@ The engine reads `public/engine.json` at startup:
 {
   "defaultMap": "wdm7",
   "defaultCamera": "freefly",
-  "pk3Paths": ["games/default/basewsw"],
-  "tickRate": 20
+  "pk3Paths": ["games/default/basewsw"]
 }
 ```
+
+> **Note:** The server tick rate (125Hz) and snapshot rate (60Hz) are configured via server flags, not `engine.json`. See the [Networking Guide](../guides/networking.md).
 
 See [Configuration Guide](../guides/configuration.md) for all options.
 

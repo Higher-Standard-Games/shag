@@ -54,26 +54,61 @@ src/engine/
 │   │   └── TextureLoader.ts
 │   └── map/
 │       └── MapLoader.ts        # High-level map loading
+├── network/
+│   ├── core/
+│   │   └── Simulation.ts         # tick() vs predict()
+│   ├── client/
+│   │   ├── SnapshotBuffer.ts     # Time-based interpolation
+│   │   └── ClockSync.ts          # NTP-like time sync
+│   ├── server/
+│   │   └── Room.ts               # Command batching, tick loop
+│   └── protocol/
+│       └── BinaryProtocol.ts     # Delta compression, encoding
+├── viewport/
+│   ├── ViewportEffectsManager.ts  # Effect pipeline
+│   └── effects/                   # WalkBob, IdleBreathing, etc.
+├── weapon/
+│   └── WeaponViewManager.ts      # First-person weapon rendering
 └── rendering/
     └── RenderVars.ts           # Runtime render config
 ```
 
 ### Games (`src/games/`)
 
-Game-specific code that uses the engine. Each game lives in its own directory.
+Game-specific code. Each game lives in its own directory (can be a Git submodule).
 
 ```
 src/games/
-└── default/                   # Default game (set in engine.json)
-    ├── GameScene.ts           # Main game scene
-    ├── GameState.ts           # Game state management
-    ├── SaveManager.ts         # Save/load coordination
-    ├── data/                  # Game data definitions
-    ├── ui/                    # Game-specific UI components
-    └── systems/               # Game systems
+└── fps/                       # FPS game mode (Git submodule)
+    ├── client/
+    │   ├── V2NetworkClient.ts     # Client prediction & reconciliation
+    │   └── RemotePlayerRenderer.ts # Remote player interpolation
+    ├── server/
+    │   ├── GameServer.ts          # Dedicated server
+    │   ├── GametypeController.ts  # Deathmatch rules
+    │   └── systems/
+    │       ├── FPSMovementSubsystem.ts
+    │       ├── CombatSystem.ts
+    │       ├── WeaponSystem.ts
+    │       ├── ProjectileSystem.ts
+    │       └── DroppedWeaponSystem.ts
+    ├── simulation/
+    │   └── FPSMovementProfile.ts   # Shared physics (client + server)
+    ├── FPSGameManager.ts          # Game loop orchestrator
+    └── WeaponDefs.ts              # Warsow weapon definitions
 ```
 
-The active game is selected at build time via `engine.json` or `GAME` env variable.
+### Shared (`src/shared/`)
+
+Code shared between client and server (simulation, types, protocol).
+
+```
+src/shared/
+└── server/
+    └── simulation/
+        └── components/
+            └── InputComponent.ts   # Input history for reconciliation
+```
 
 ### CLI (`src/cli/`)
 
@@ -112,3 +147,6 @@ public/
 | `Q3ShaderRegistry` | `Q3ShaderRegistry.getInstance()` | Shader lookup |
 | `RenderVars` | `RenderVars.getInstance()` | Render configuration |
 | `ConsoleCommandRegistry` | `ConsoleCommandRegistry.getInstance()` | Console commands |
+| `WeaponViewManager` | `WeaponViewManager.getInstance()` | Weapon rendering |
+| `ViewportEffectsManager` | `ViewportEffectsManager.getInstance()` | Camera effects |
+| `HUDState` | `HUDState.getInstance()` | HUD data aggregator |

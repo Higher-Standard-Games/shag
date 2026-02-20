@@ -158,6 +158,39 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `s_volume` | float | Master volume |
 | `s_musicenabled` | bool | Music enabled |
 
+### Network Cvars
+
+| Cvar | Type | Description |
+|------|------|-------------|
+| `cl_netgraph` | int | NetGraph overlay (0=off, 1=text, 2=text+graph) |
+| `cl_interp` | int | Interpolation delay ms (0=auto) |
+| `cl_timenudge` | int | Render time offset ms (negative=ahead) |
+
+### Crosshair Cvars
+
+| Cvar | Type | Description |
+|------|------|-------------|
+| `cg_crosshairSize` | int | Crosshair size in pixels |
+| `cg_crosshairColor` | string | Crosshair color |
+| `cg_crosshairAlpha` | float | Crosshair opacity |
+
+### Viewport Effect Cvars
+
+| Cvar | Type | Description |
+|------|------|-------------|
+| `cl_vieweffects` | int | Master toggle for viewport effects |
+| `cl_bobbing` | int | Enable walk bob |
+| `cg_idleamplitude` | float | Idle breathing intensity (default 0.02) |
+| `cg_idlefrequency` | float | Idle breathing speed (default 0.6) |
+
+### Gib Cvars
+
+| Cvar | Type | Description |
+|------|------|-------------|
+| `gib_threshold` | int | Overkill damage to trigger gibs |
+| `gib_count` | int | Number of gib pieces |
+| `gib_lifetime` | float | Gib lifetime in seconds |
+
 ## Rendering & Post-Processing
 
 | Command | Description |
@@ -229,6 +262,9 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `network shutdown` | Shutdown networking |
 | `join <server>` | Join game server |
 | `net ...` | Alias for network |
+| `cl_netgraph 0\|1\|2` | NetGraph overlay (off/text/graph) |
+| `cl_interp <ms>` | Interpolation delay (0=auto) |
+| `cl_timenudge <ms>` | Render time offset |
 
 ## Physics
 
