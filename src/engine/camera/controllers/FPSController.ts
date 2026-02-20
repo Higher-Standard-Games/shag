@@ -1044,7 +1044,30 @@ export class FPSController implements ICameraController {
         this.camera.position.z = this.physicsZ;
       }
 
+      // === SYNC MOVEMENT STATE WITH POSITION (post-tick-loop) ===
+      // The onPlayerStateUpdate callback fires BEFORE the tick loop (on snapshot frames only).
+      // But position is read AFTER the tick loop from V2Client's latest prediction.
+      // Re-reading state here ensures velocity, grounded, isSliding etc. match the
+      // current predicted position — preventing 1-frame desync that causes jitter/bob glitches.
+      const currentState = this.gameManager.getCurrentMovementState();
+      if (currentState) {
+        this.wasGroundedLastFrame = this.isGrounded;
+        this.velocity.set(currentState.velocity.x, currentState.velocity.y, currentState.velocity.z);
+        this.isGrounded = currentState.grounded;
+        this.isSliding = currentState.isSliding;
+        this.isCrouching = currentState.isCrouching;
+        this.crouchViewOffset = currentState.crouchViewOffset;
+        this.wallJumpState = currentState.wallJumpState;
+        this.ledgeGrabState = currentState.ledgeGrabState;
+        this.actualHorizSpeed = currentState.actualHorizSpeed;
+        this.slidePhase = currentState.slidePhase ?? 0;
+        this.ledgeGrabPhase = currentState.ledgeGrabPhase ?? 0;
 
+        // Capture landing velocity for impact effect
+        if (!this.wasGroundedLastFrame && this.isGrounded && currentState.velocity.y < -50) {
+          this.landingVelocityCapture = Math.abs(currentState.velocity.y);
+        }
+      }
 
       // Update UI
       const showSpeed = mv.get('cl_showspeed') > 0;
