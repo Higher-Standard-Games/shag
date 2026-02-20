@@ -67,7 +67,7 @@ How SHAG Engine stacks up against the legends. Technically accurate, no marketin
 | **Delta compression** | ✅ Per-client acknowledged | ✅ Q2-style delta | ✅ **Per-client delta** |
 | **Bandwidth savings** | ~60% reduction | ~60% reduction | **50-70% reduction** |
 | **Rate limiting** | ✅ `rate` cvar | ✅ `rate` cvar | ✅ Server-side configurable |
-| **PVS culling** | ✅ BSP-based | ✅ BSP-based | 🔄 Planned |
+| **PVS culling** | ✅ BSP-based | ✅ BSP-based | ✅ Rendering (server-side planned) |
 | **Packet fragmentation** | Custom over UDP | Custom over UDP | Handled by transport layer |
 | **Unreliable channel** | ✅ UDP native | ✅ UDP native | ✅ WebTransport datagrams |
 | **Reliable channel** | ✅ App-layer over UDP | ✅ App-layer over UDP | ✅ WebSocket / WT streams |

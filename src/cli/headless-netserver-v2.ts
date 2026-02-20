@@ -129,6 +129,8 @@ interface BspData {
     collision: CollisionWorld;
     spawnPoints: Array<{ x: number; y: number; z: number }>;
     pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }>;
+    /** PVS data for server-side network visibility culling */
+    pvs: import('../engine/server/ServerPVS').ServerPVSData | null;
 }
 
 async function loadBspCollision(mapName: string, gamePath: string): Promise<BspData | null> {
@@ -245,7 +247,21 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
     console.log(`[Server] Found ${pickupItems.length} weapon/item pickups`);
 
-    return { collision, spawnPoints, pickupItems };
+    // Retain PVS data for server-side network visibility culling
+    const pvs = bsp.visData ? {
+        nodes: bsp.nodes,
+        leafs: bsp.leafs,
+        planes: bsp.planes,
+        visData: bsp.visData,
+    } : null;
+
+    if (pvs) {
+        console.log(`[Server] PVS data retained: ${bsp.visData!.numClusters} clusters`);
+    } else {
+        console.log(`[Server] No PVS data in BSP (open-world mode)`);
+    }
+
+    return { collision, spawnPoints, pickupItems, pvs };
 }
 
 // ============================================================================
@@ -293,6 +309,9 @@ async function main(): Promise<void> {
         server.setSpawnPoints(bspData.spawnPoints);
         server.setPickupItems(bspData.pickupItems);
         server.setPickupRespawnTime(25); // 25 second respawn
+        if (bspData.pvs) {
+            server.setPVSData(bspData.pvs);
+        }
     } else {
         console.log('[Server] Running without BSP collision (open space mode)');
     }
