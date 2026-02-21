@@ -86,15 +86,19 @@ export class InventoryManager {
     }
 
     /**
-     * Sync inventory from server-authoritative weapon_state event.
-     * Adds missing weapons, removes stale weapons, syncs ammo and current weapon.
-     * @returns whether currentWeapon changed (needs model load)
-     */
+ * Sync inventory from server-authoritative weapon_state event.
+ * Adds missing weapons, removes stale weapons, syncs ammo and current weapon.
+ * @returns whether currentWeapon changed (needs model load)
+ */
     public syncFromServer(
         serverWeapons: string[],
         serverAmmo: Record<string, number>,
         serverCurrentWeapon: string
     ): boolean {
+        // Capture previous weapon BEFORE any mutations
+        // (giveWeapon auto-equips, which would overwrite currentWeaponId before we check)
+        const previousWeaponId = this.currentWeaponId;
+
         // Remove weapons the server no longer has
         const clientWeapons = [...this.slots];
         for (const weaponId of clientWeapons) {
@@ -103,10 +107,15 @@ export class InventoryManager {
             }
         }
 
-        // Add weapons we don't have
+        // Add weapons we don't have — use direct add instead of giveWeapon()
+        // to avoid client-side drop logic (server already handles drops)
         for (const weaponId of serverWeapons) {
             if (!this.weapons.has(weaponId)) {
-                this.giveWeapon(weaponId);
+                const def = EntityRegistry.getInstance().get<WeaponDef>(weaponId);
+                if (def && def.type === EntityType.WEAPON) {
+                    this.weapons.set(weaponId, def);
+                    this.slots.push(weaponId);
+                }
             }
         }
 
@@ -119,14 +128,13 @@ export class InventoryManager {
         }
 
         // Equip the server's current weapon
-        const changed = this.currentWeaponId !== serverCurrentWeapon;
         if (serverCurrentWeapon && this.weapons.has(serverCurrentWeapon)) {
             this.currentWeaponId = serverCurrentWeapon;
         }
 
-        return changed;
+        // Compare against PREVIOUS weapon to detect changes
+        return previousWeaponId !== serverCurrentWeapon;
     }
-
     /**
      * Drop a weapon — removes it from inventory and returns its def
      * for re-spawning as a world pickup.
