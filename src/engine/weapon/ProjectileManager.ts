@@ -562,8 +562,9 @@ export class ProjectileManager {
                         proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
                     }
                 }
-                // Update trail effect (blue trail for grenades, etc.)
-                if (proj.gravity > 0) {
+                // Update trail effect (for projectiles with trailEffect defined)
+                const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
+                if (trailDef?.trailEffect) {
                     this.updateTrail(proj);
                 }
                 continue;
@@ -659,8 +660,9 @@ export class ProjectileManager {
                 }
             }
 
-            // Update trail for gravity projectiles
-            if (proj.gravity > 0) {
+            // Update trail for projectiles with trailEffect defined
+            const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
+            if (trailDef?.trailEffect) {
                 this.updateTrail(proj);
             }
         }
@@ -899,7 +901,7 @@ export class ProjectileManager {
     }
 
     /**
-     * Update trail line mesh for a gravity projectile
+     * Update trail ribbon mesh for a projectile (grenades, rockets, etc.)
      */
     private updateTrail(proj: ActiveProjectile): void {
         if (!this.scene) return;
@@ -961,9 +963,15 @@ export class ProjectileManager {
         }, this.scene) as unknown as LinesMesh;
         proj.trailMesh.isPickable = false;
 
-        // Blue emissive material
+        // Per-projectile trail color from lightColor, fallback to blue
+        const registry = getEntityRegistry();
+        const def = registry.get<ProjectileDef>(proj.defId);
+        const trailColor = def?.lightColor
+            ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
+            : new Color3(0.3, 0.5, 1.0); // fallback blue
+
         const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
-        mat.emissiveColor = new Color3(0.3, 0.5, 1.0);   // blue glow
+        mat.emissiveColor = trailColor;
         mat.diffuseColor = Color3.Black();
         mat.disableLighting = true;
         mat.backFaceCulling = false;
