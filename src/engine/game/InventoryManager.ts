@@ -86,17 +86,16 @@ export class InventoryManager {
     }
 
     /**
- * Sync inventory from server-authoritative weapon_state event.
- * Adds missing weapons, removes stale weapons, syncs ammo and current weapon.
- * @returns whether currentWeapon changed (needs model load)
- */
+     * Sync inventory from server-authoritative weapon_state event.
+     * Adds missing weapons, removes stale weapons, syncs ammo and current weapon.
+     * @returns whether currentWeapon changed (needs model load)
+     */
     public syncFromServer(
         serverWeapons: string[],
         serverAmmo: Record<string, number>,
         serverCurrentWeapon: string
     ): boolean {
         // Capture previous weapon BEFORE any mutations
-        // (giveWeapon auto-equips, which would overwrite currentWeaponId before we check)
         const previousWeaponId = this.currentWeaponId;
 
         // Remove weapons the server no longer has
@@ -127,10 +126,10 @@ export class InventoryManager {
             this.setAmmo(weaponId, count);
         }
 
-        // Equip the server's current weapon
-        if (serverCurrentWeapon && this.weapons.has(serverCurrentWeapon)) {
-            this.currentWeaponId = serverCurrentWeapon;
-        }
+        // Always set current weapon from server (authoritative)
+        // Don't guard on weapons.has() — that caused infinite animation loops
+        // when the weapon def wasn't in the local map yet
+        this.currentWeaponId = serverCurrentWeapon;
 
         // Compare against PREVIOUS weapon to detect changes
         return previousWeaponId !== serverCurrentWeapon;
