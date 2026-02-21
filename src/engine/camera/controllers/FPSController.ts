@@ -434,6 +434,10 @@ export class FPSController implements ICameraController {
   // Weapon slot tracking for network sync
   public currentWeaponSlot: number = 0; // 0-based index into inventory slots
   private _pendingWeaponSlot: number = 0; // 1-based slot to send to server (0 = no change)
+  private _isWeaponSwitchBlocked: (() => boolean) | null = null; // Dynamic check for animation state
+
+  /** Set a callback that returns true when weapon switching should be blocked (e.g., during animation) */
+  public setWeaponSwitchBlockedCheck(check: (() => boolean) | null): void { this._isWeaponSwitchBlocked = check; }
 
   // Input state accessors
   public isAiming(): boolean { return this.keys.aim; }
@@ -608,8 +612,8 @@ export class FPSController implements ICameraController {
           break;
       }
 
-      // Weapon switching (1-9)
-      if (e.code.startsWith('Digit')) {
+      // Weapon switching (1-9) — blocked during switch animation
+      if (e.code.startsWith('Digit') && !(this._isWeaponSwitchBlocked?.() ?? false)) {
         const digit = parseInt(e.code.replace('Digit', ''));
         if (digit > 0 && digit <= 9 && this.onWeaponSelect) {
           this.currentWeaponSlot = digit - 1;
@@ -667,7 +671,11 @@ export class FPSController implements ICameraController {
       if (!this.isPointerLocked || !this.onWeaponSelect) return;
       e.preventDefault();
 
+      // Block scroll during weapon switch animation
+      if (this._isWeaponSwitchBlocked?.() ?? false) return;
+
       const weaponCount = this._inventory ? this._inventory.getSlotCount() : 3;
+      if (weaponCount <= 1) return;
 
       // Scroll up = previous slot, scroll down = next slot (wrapping)
       if (e.deltaY < 0) {
