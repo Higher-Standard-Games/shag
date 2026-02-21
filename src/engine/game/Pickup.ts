@@ -45,11 +45,20 @@ export class Pickup extends TransformNode {
     private glowPulseTime: number = 0;
     private pickupImmunityUntil: number = 0; // Timestamp until which pickup is immune (prevents instant re-pickup)
 
+    // ═══════════════════════════════════════════════════════════════════
+    // STATIC: Server-driven pickup registry
+    // ═══════════════════════════════════════════════════════════════════
+    /** Registry of all Pickup instances for server-driven deactivation */
+    private static allPickups: Pickup[] = [];
+
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
         console.log(`[Pickup] Constructor called for ${name} at ${position}`);
         this.options = options;
         this.position = position;
+
+        // Register for server-driven deactivation
+        Pickup.allPickups.push(this);
 
         this.loadModel();
     }
@@ -262,28 +271,27 @@ export class Pickup extends TransformNode {
         const inRange = horizDistSquared < pickupRadiusSq && dy > verticalRangeMin && dy < verticalRangeMax;
 
         if (inRange) {
-            // Check immunity
-            if (this.pickupImmunityUntil > 0 && performance.now() < this.pickupImmunityUntil) {
-                return;
-            }
-
+            // Client-side Pickup is DISPLAY-ONLY.
+            // All actual pickup logic is server-authoritative (PickupSystem.ts).
+            // We only show/hide the SWAP prompt here for the HUD.
             if (this.options.type === 'weapon') {
-                // Check if player has room for auto-pickup
                 const controller = CameraSystem.getInstance().getActiveController();
                 const inventory = controller && (controller as any).inventory as InventoryManager | null;
+                const alreadyHas = inventory ? inventory.hasWeapon(this.options.value as string) : false;
                 const hasRoom = inventory ? inventory.getSlotCount() < InventoryManager.MAX_WEAPONS : false;
 
-                if (hasRoom) {
-                    // Auto-pickup when player has room
-                    this.executePickup();
+                if (alreadyHas || hasRoom) {
+                    // Player already owns weapon (server gives ammo auto) or has room
+                    // → server handles auto-pickup, no prompt needed
+                    if (Pickup.nearbyWeaponPickup === this) {
+                        Pickup.clearNearbyWeapon();
+                    }
                 } else {
-                    // At capacity — require F key for swap
+                    // At capacity + new weapon → show SWAP prompt (server waits for USE key)
                     Pickup.setNearbyWeapon(this);
                 }
-            } else {
-                // Ammo/health/armor auto-pickup on touch
-                this.executePickup();
             }
+            // Ammo/health/armor: server handles auto-pickup, no client action needed
         } else {
             // Out of range — clear if we were the nearby weapon
             if (Pickup.nearbyWeaponPickup === this) {
@@ -299,10 +307,12 @@ export class Pickup extends TransformNode {
     private static nearbyWeaponPickup: Pickup | null = null;
     private static hudPromptElement: HTMLDivElement | null = null;
 
-    /** Called by FPSController.onUse (F key) */
+    /** Called by FPSController.onUse (F key) — now only clears prompt.
+     *  The USE key is sent to server as a button flag; server handles the swap. */
     public static triggerUseAction(): void {
-        if (Pickup.nearbyWeaponPickup && Pickup.nearbyWeaponPickup.isActive) {
-            Pickup.nearbyWeaponPickup.executePickup();
+        // Don't execute pickup client-side — server handles it via PickupSystem.
+        // Just clear the prompt (server will sync the weapon state).
+        if (Pickup.nearbyWeaponPickup) {
             Pickup.clearNearbyWeapon();
         }
     }
@@ -377,75 +387,39 @@ export class Pickup extends TransformNode {
     }
 
     /**
-     * Execute the actual pickup logic (called directly for ammo, or via F-key for weapons)
+     * Deactivate this pickup from a server event (item_pickup).
+     * This is the ONLY way pickups should be deactivated — server-authoritative.
      */
-    private executePickup() {
-        const controller = CameraSystem.getInstance().getActiveController();
-        if (!controller || !(controller as any).inventory) return;
+    public deactivateFromServer(): void {
+        this.onPickedUp();
+    }
 
-        const inventory = (controller as any).inventory as InventoryManager;
+    /**
+     * Deactivate a pickup by position match (called from FPSGameManager on item_pickup event).
+     * Uses position proximity since server numeric IDs don't map to client string IDs.
+     */
+    public static deactivateByPosition(weaponId: string, x: number, y: number, z: number): void {
+        const MATCH_DIST_SQ = 100 * 100; // 100 unit tolerance
+        let bestPickup: Pickup | null = null;
+        let bestDistSq = Infinity;
 
-        let success = false;
-        if (this.options.type === 'weapon') {
-            const weaponId = this.options.value as string;
-            const result = inventory.giveWeapon(weaponId);
+        for (const pickup of Pickup.allPickups) {
+            if (!pickup.isActive) continue;
+            if (pickup.options.value !== weaponId && pickup.options.id !== weaponId) continue;
 
-            if (result.acquired) {
-                success = true;
+            const dx = pickup.position.x - x;
+            const dy = pickup.position.y - y;
+            const dz = pickup.position.z - z;
+            const distSq = dx * dx + dy * dy + dz * dz;
 
-                // If a weapon was dropped, spawn it as a new pickup at player's position
-                if (result.dropped) {
-                    const playerPos = ('getPlayerPosition' in controller && typeof (controller as any).getPlayerPosition === 'function')
-                        ? (controller as any).getPlayerPosition() as Vector3
-                        : CameraSystem.getInstance().getCamera()?.position || this.position;
-
-                    const droppedId = result.dropped.id || (result.dropped as any).weaponId || weaponId;
-                    const droppedDef = result.dropped;
-
-                    const dropPos = playerPos.clone();
-                    dropPos.y += 10;
-
-                    const droppedPickup = new Pickup(
-                        `dropped_${droppedId}_${Date.now()}`,
-                        this.getScene(),
-                        dropPos,
-                        {
-                            id: droppedId,
-                            modelPath: droppedDef.modelPath || `models/weapons/${droppedId}/${droppedId}.md3`,
-                            type: 'weapon',
-                            value: droppedId,
-                            respawnTime: 30,
-                            scale: this.options.scale,
-                            bobbing: false,
-                            glowColor: droppedDef.glowColor,
-                        }
-                    );
-                    droppedPickup.setPickupImmunity(800);
-                    console.log(`[Pickup] Dropped weapon spawned: ${droppedId} at ${dropPos}`);
-                }
-
-                // Load viewmodel for newly acquired weapon
-                import('../weapon/WeaponViewManager').then(({ WeaponViewManager }) => {
-                    WeaponViewManager.getInstance().loadWeapon(weaponId);
-                });
-            } else if (inventory.hasWeapon(weaponId)) {
-                // Already have this weapon — give ammo instead
-                import('../../shared/entities/EntityRegistry').then(({ EntityRegistry }) => {
-                    const def = EntityRegistry.getInstance().get(weaponId) as any;
-                    if (def && def.ammoType) {
-                        inventory.giveAmmo(def.ammoType, 50);
-                    }
-                });
-                success = true;
+            if (distSq < MATCH_DIST_SQ && distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestPickup = pickup;
             }
-        } else if (this.options.type === 'ammo') {
-            const amount = this.options.amount || 50;
-            const added = inventory.giveAmmo(this.options.value as string, amount);
-            success = added > 0;
         }
 
-        if (success) {
-            this.onPickedUp();
+        if (bestPickup) {
+            bestPickup.deactivateFromServer();
         }
     }
 
