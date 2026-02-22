@@ -254,7 +254,7 @@ export class HitscanEffects {
         if (!this.scene) return [];
         const count = cfg.pelletCount ?? 20;
         const spreadDeg = cfg.spreadAngle ?? 12;
-        const duration = cfg.duration ?? 0.08;
+        const duration = cfg.duration ?? 0.25;
         const color = cfg.color ?? new Color3(1.0, 0.9, 0.4); // warm yellow
         const range = cfg.maxRange ?? 8192;
         const visibleCount = cfg.visibleTracers ?? 5;
@@ -282,15 +282,18 @@ export class HitscanEffects {
 
             if (hit?.point) hitPoints.push(hit.point);
 
-            // Impact sparks for ALL pellets
+            // Impact sparks for ALL pellets (wall marks only — lights are expensive)
             if (hit?.point) {
-                this.spawnImpactFlash(hit.point, color, hit.normal, duration * 2);
-                this.spawnWallMark(hit.point, hit.normal, color, 0.2);
+                this.spawnWallMark(hit.point, hit.normal, color, 2.0);
             }
 
             // Traveling tracer only for selected representative pellets
             if (tracerIndices.has(i)) {
                 this.spawnTravelingPellet(cfg.origin, endpoint, color, duration, now);
+                // Impact flash light only for visible tracers (5 lights, not 20)
+                if (hit?.point) {
+                    this.spawnImpactFlash(hit.point, color, hit.normal, duration * 2);
+                }
             }
         }
 
@@ -313,12 +316,12 @@ export class HitscanEffects {
         const id = `pellet_${this.nextId++}`;
         const segFrac = 0.15; // segment covers 15% of total ray length
 
-        // Create a short thick cylinder for the tracer
+        // Create a cone-shaped tracer (wide head, narrow tail) for dynamic shotgun blast feel
         const mesh = MeshBuilder.CreateCylinder(id, {
             height: 1,
-            diameterTop: 0.3,
-            diameterBottom: 0.3,
-            tessellation: 4,
+            diameterTop: 2.5,     // wide head (leading edge)
+            diameterBottom: 0.3,  // narrow tail
+            tessellation: 6,
         }, this.scene);
         mesh.isPickable = false;
 
@@ -462,7 +465,8 @@ export class HitscanEffects {
             }
 
             // Slide segment along the ray: head moves from 0→1, tail follows
-            const headT = t;  // head position along ray (0..1)
+            // Start with a minimum length to avoid zero-length cylinder
+            const headT = Math.max(0.02, t);  // head position along ray (0..1)
             const tailT = Math.max(0, headT - tp.segmentFraction);
 
             const rayDir = tp.endpoint.subtract(tp.origin);
@@ -629,8 +633,8 @@ export class HitscanEffects {
 
         const light = new PointLight(`impact_flash_${this.nextId++}`, pos.add(offset), this.scene);
         light.diffuse = color;
-        light.intensity = 5;
-        light.range = 12;
+        light.intensity = 25;
+        light.range = 60;
 
         // Impact light is cleaned up by the effect that owns it
         return light;
@@ -651,7 +655,7 @@ export class HitscanEffects {
         }
 
         const id = `wallmark_${this.nextId++}`;
-        const mesh = MeshBuilder.CreatePlane(id, { size }, this.scene);
+        const mesh = MeshBuilder.CreateDisc(id, { radius: size, tessellation: 3 }, this.scene);
         mesh.isPickable = false;
 
         // Position slightly off the wall to avoid z-fighting

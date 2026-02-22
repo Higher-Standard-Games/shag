@@ -121,9 +121,26 @@ export class InventoryManager {
         // Reorder slots to match server order
         this.slots = serverWeapons.filter(w => this.weapons.has(w));
 
-        // Sync ammo — server uses weaponId as key, client uses weaponId directly
+        // Sync ammo — server sends ammo keyed by weaponId, but client reserve uses ammoType
         for (const [weaponId, count] of Object.entries(serverAmmo)) {
+            // Set by weaponId directly (for HUD display compatibility)
             this.setAmmo(weaponId, count);
+
+            // Also set by ammoType (for reload/consumeLoadedAmmo compatibility)
+            const def = this.weapons.get(weaponId);
+            if (def?.ammoType) {
+                this.setAmmo(def.ammoType, count);
+            }
+
+            // Sync loaded ammo (clip) — if server says we have ammo, ensure clip is loaded
+            if (def?.clipSize) {
+                this.ensureWeaponState(weaponId, def.clipSize);
+                const state = this.weaponStates.get(weaponId);
+                if (state && state.loadedAmmo <= 0 && count > 0) {
+                    // Server has ammo but client clip is empty — refill clip
+                    state.loadedAmmo = Math.min(def.clipSize, count);
+                }
+            }
         }
 
         // Always set current weapon from server (authoritative)

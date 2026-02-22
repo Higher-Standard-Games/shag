@@ -63,6 +63,22 @@ export interface MuzzleFlashDef {
     duration: number;
 }
 
+// ==================== CROSSHAIR CONFIG ====================
+
+/** Crosshair visual config per weapon */
+export interface CrosshairConfig {
+    /** Draw style */
+    style: 'cross' | 'dot' | 'circle' | 'cross_dot';
+    /** Center gap in pixels (hip-fire spread) */
+    baseGap: number;
+    /** Arm length in pixels */
+    lineLength: number;
+    /** Arm thickness in pixels */
+    lineWidth: number;
+    /** Override color (hex without #). Falls back to cg_crosshairColor cvar */
+    color?: string;
+}
+
 // ==================== WEAPON DEF ====================
 
 /**
@@ -105,6 +121,27 @@ export interface WeaponDef extends EntityDef {
 
     /** Pickup collision box dimensions (default 32x32x32) */
     pickupBounds?: { x: number; y: number; z: number };
+
+    // === SERVER-AUTHORITATIVE (combat) ===
+    /** Number of pellets per shot (for shotguns) */
+    pelletCount?: number;
+    /** Splash damage radius */
+    splashRadius?: number;
+    /** Max splash damage (at center) */
+    splashDamage?: number;
+    /** Min splash damage (at outer edge of radius, Warsow-style floor) */
+    minSplashDamage?: number;
+    /** Knockback scale (multiplied by damage to get impulse force) */
+    knockbackScale?: number;
+    /** For projectile: speed in units/sec */
+    projectileSpeed?: number;
+    /** Whether to use lag compensation for hitscan */
+    useLagCompensation?: boolean;
+    /** Ammo given on pickup (defaults to maxAmmo if unset) */
+    pickupAmmo?: number;
+
+    /** Crosshair visual config */
+    crosshair?: CrosshairConfig;
 
     // === CLIENT-SIDE (visuals) ===
     /** First-person view model */

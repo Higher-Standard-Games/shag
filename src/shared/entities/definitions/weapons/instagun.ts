@@ -34,6 +34,10 @@ export const INSTAGUN: WeaponDef = {
     hitscanType: 'bolt',
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
+    splashRadius: 80,
+    knockbackScale: 12.0,
+    useLagCompensation: true,
+    crosshair: { style: 'circle', baseGap: 0, lineLength: 0, lineWidth: 2 },
 
     // View Model
     viewModel: {

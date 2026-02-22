@@ -51,6 +51,9 @@ export class Pickup extends TransformNode {
     /** Registry of all Pickup instances for server-driven deactivation */
     private static allPickups: Pickup[] = [];
 
+    /** Deferred deactivation queue — for item_pickup events that arrive before client Pickup is created */
+    private static pendingDeactivations: { weaponId: string; x: number; y: number; z: number; timestamp: number }[] = [];
+
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
         console.log(`[Pickup] Constructor called for ${name} at ${position}`);
@@ -59,6 +62,9 @@ export class Pickup extends TransformNode {
 
         // Register for server-driven deactivation
         Pickup.allPickups.push(this);
+
+        // Check deferred deactivation queue — if server already picked this up before we existed
+        Pickup.checkDeferredDeactivation(this);
 
         this.loadModel();
     }
@@ -399,18 +405,27 @@ export class Pickup extends TransformNode {
      * Uses position proximity since server numeric IDs don't map to client string IDs.
      */
     public static deactivateByPosition(weaponId: string, x: number, y: number, z: number): void {
-        const MATCH_DIST_SQ = 100 * 100; // 100 unit tolerance
+        // Use XZ-only matching — client Y differs from server because dropToGround()
+        // raycasts to floor, but server uses raw BSP entity position
+        const MATCH_DIST_SQ = 200 * 200; // 200 unit tolerance (XZ only)
         let bestPickup: Pickup | null = null;
         let bestDistSq = Infinity;
 
         for (const pickup of Pickup.allPickups) {
             if (!pickup.isActive) continue;
-            if (pickup.options.value !== weaponId && pickup.options.id !== weaponId) continue;
+            // Match weaponId against both options.value (weapon type) and options.id (entity id)
+            // Also try with 'weapon_' prefix stripped since server sends e.g. 'riotgun' 
+            // but client might store 'weapon_riotgun'
+            const val = String(pickup.options.value || '');
+            const id = String(pickup.options.id || '');
+            const matchesWeapon = val === weaponId || id === weaponId ||
+                val === `weapon_${weaponId}` || id === `weapon_${weaponId}` ||
+                val.replace('weapon_', '') === weaponId || id.replace('weapon_', '') === weaponId;
+            if (!matchesWeapon) continue;
 
             const dx = pickup.position.x - x;
-            const dy = pickup.position.y - y;
             const dz = pickup.position.z - z;
-            const distSq = dx * dx + dy * dy + dz * dz;
+            const distSq = dx * dx + dz * dz; // XZ only — ignore Y
 
             if (distSq < MATCH_DIST_SQ && distSq < bestDistSq) {
                 bestDistSq = distSq;
@@ -419,7 +434,44 @@ export class Pickup extends TransformNode {
         }
 
         if (bestPickup) {
+            console.log(`[Pickup] Server deactivate: ${weaponId} at (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)}) matched client pickup '${bestPickup.options.id}' dist=${Math.sqrt(bestDistSq).toFixed(0)}`);
             bestPickup.deactivateFromServer();
+        } else {
+            console.warn(`[Pickup] Server deactivate MISS: ${weaponId} at (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)}) — queuing for deferred deactivation (${Pickup.allPickups.filter(p => p.isActive).length} active pickups)`);
+            // Queue for deferred deactivation — the Pickup might not exist yet
+            Pickup.pendingDeactivations.push({ weaponId, x, y, z, timestamp: Date.now() });
+            // Clean up old entries (>10s)
+            Pickup.pendingDeactivations = Pickup.pendingDeactivations.filter(d => Date.now() - d.timestamp < 10000);
+        }
+    }
+
+    /**
+     * Check deferred deactivation queue when a new Pickup is created.
+     * If there's a pending deactivation that matches this pickup, deactivate it immediately.
+     */
+    private static checkDeferredDeactivation(pickup: Pickup): void {
+        const MATCH_DIST_SQ = 200 * 200;
+        const val = String(pickup.options.value || '');
+        const id = String(pickup.options.id || '');
+
+        for (let i = Pickup.pendingDeactivations.length - 1; i >= 0; i--) {
+            const pending = Pickup.pendingDeactivations[i];
+            const matchesWeapon = val === pending.weaponId || id === pending.weaponId ||
+                val === `weapon_${pending.weaponId}` || id === `weapon_${pending.weaponId}` ||
+                val.replace('weapon_', '') === pending.weaponId || id.replace('weapon_', '') === pending.weaponId;
+            if (!matchesWeapon) continue;
+
+            const dx = pickup.position.x - pending.x;
+            const dz = pickup.position.z - pending.z;
+            const distSq = dx * dx + dz * dz;
+
+            if (distSq < MATCH_DIST_SQ) {
+                console.log(`[Pickup] Deferred deactivation: ${pending.weaponId} matched new pickup '${id}' dist=${Math.sqrt(distSq).toFixed(0)}`);
+                Pickup.pendingDeactivations.splice(i, 1);
+                // Deactivate after a short delay to let the model load
+                setTimeout(() => pickup.deactivateFromServer(), 100);
+                return;
+            }
         }
     }
 
