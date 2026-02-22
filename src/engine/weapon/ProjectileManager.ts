@@ -562,8 +562,9 @@ export class ProjectileManager {
                         proj.node.rotationQuaternion = proj.node.rotationQuaternion.multiply(yRot);
                     }
                 }
-                // Update trail effect (blue trail for grenades, etc.)
-                if (proj.gravity > 0) {
+                // Update trail effect (for projectiles with trailEffect defined)
+                const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
+                if (trailDef?.trailEffect) {
                     this.updateTrail(proj);
                 }
                 continue;
@@ -659,8 +660,9 @@ export class ProjectileManager {
                 }
             }
 
-            // Update trail for gravity projectiles
-            if (proj.gravity > 0) {
+            // Update trail for projectiles with trailEffect defined
+            const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
+            if (trailDef?.trailEffect) {
                 this.updateTrail(proj);
             }
         }
@@ -899,13 +901,13 @@ export class ProjectileManager {
     }
 
     /**
-     * Update trail line mesh for a gravity projectile
+     * Update trail ribbon mesh for a projectile (grenades, rockets, etc.)
      */
     private updateTrail(proj: ActiveProjectile): void {
         if (!this.scene) return;
 
         const MAX_TRAIL_POINTS = 60;   // longer trail (was 20)
-        const TRAIL_WIDTH = 2.4;        // ribbon half-width in world units
+        const TRAIL_WIDTH = 6.0;        // ribbon half-width in world units
 
         // Record current position
         proj.trailPoints.push(proj.node.position.clone());
@@ -922,9 +924,11 @@ export class ProjectileManager {
         proj.trailMesh?.dispose();
         proj.trailMaterial?.dispose();
 
-        // Build ribbon path arrays (two edges offset perpendicular to travel direction)
+        // Build ribbon path arrays — X-formation: two perpendicular planes for volume
         const pathA: Vector3[] = [];
         const pathB: Vector3[] = [];
+        const pathC: Vector3[] = [];
+        const pathD: Vector3[] = [];
 
         for (let i = 0; i < proj.trailPoints.length; i++) {
             const p = proj.trailPoints[i];
@@ -937,33 +941,45 @@ export class ProjectileManager {
                 tangent = p.subtract(proj.trailPoints[i - 1]).normalize();
             }
 
-            // Cross tangent with world up for a horizontal offset
-            let perp = Vector3.Cross(tangent, Vector3.Up());
-            if (perp.lengthSquared() < 0.001) {
-                // Tangent is nearly vertical — use forward as fallback
-                perp = Vector3.Cross(tangent, Vector3.Forward());
+            // First perpendicular: cross tangent with world up (horizontal)
+            let perp1 = Vector3.Cross(tangent, Vector3.Up());
+            if (perp1.lengthSquared() < 0.001) {
+                perp1 = Vector3.Cross(tangent, Vector3.Forward());
             }
-            perp.normalize();
+            perp1.normalize();
+
+            // Second perpendicular: cross tangent with first perp (vertical)
+            const perp2 = Vector3.Cross(tangent, perp1).normalize();
 
             // Taper width: 0 at tail → full at head
             const t = i / (proj.trailPoints.length - 1);
             const width = TRAIL_WIDTH * t;
 
-            pathA.push(p.add(perp.scale(width)));
-            pathB.push(p.subtract(perp.scale(width)));
+            // First ribbon plane (horizontal)
+            pathA.push(p.add(perp1.scale(width)));
+            pathB.push(p.subtract(perp1.scale(width)));
+            // Second ribbon plane (vertical) — X formation
+            pathC.push(p.add(perp2.scale(width)));
+            pathD.push(p.subtract(perp2.scale(width)));
         }
 
-        // Create ribbon mesh
+        // Create single 4-path ribbon (two crossed planes)
         proj.trailMesh = MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
-            pathArray: [pathA, pathB],
+            pathArray: [pathA, pathB, pathC, pathD],
             updatable: false,
             sideOrientation: Mesh.DOUBLESIDE,
         }, this.scene) as unknown as LinesMesh;
         proj.trailMesh.isPickable = false;
 
-        // Blue emissive material
+        // Per-projectile trail color from lightColor, fallback to blue
+        const registry = getEntityRegistry();
+        const def = registry.get<ProjectileDef>(proj.defId);
+        const trailColor = def?.lightColor
+            ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
+            : new Color3(0.3, 0.5, 1.0); // fallback blue
+
         const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
-        mat.emissiveColor = new Color3(0.3, 0.5, 1.0);   // blue glow
+        mat.emissiveColor = trailColor;
         mat.diffuseColor = Color3.Black();
         mat.disableLighting = true;
         mat.backFaceCulling = false;

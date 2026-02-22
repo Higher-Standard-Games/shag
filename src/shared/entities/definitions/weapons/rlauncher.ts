@@ -24,16 +24,24 @@ export const ROCKET_LAUNCHER: WeaponDef = {
 
     // Gameplay (server-authoritative)
     damage: 80,
-    fireRate: 1.05,       // 950ms reload = ~1.05 shots/sec
-    clipSize: 1,
+    fireRate: 1.5625,      // 640ms between shots = 1.5625 shots/sec
+    clipSize: 0,
     ammoType: 'rockets',
     maxAmmo: 20,
-    reloadTime: 0.95,
+    reloadTime: 0.64,
     range: 10000,
     hitscan: false,
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'rocket',
+    projectileSpeed: 2592,
+    splashRadius: 125,
+    splashDamage: 80,
+    minSplashDamage: 15,
+    knockbackScale: 10.0,
+    pickupAmmo: 10,
+    useLagCompensation: false,
+    crosshair: { style: 'cross_dot', baseGap: 6, lineLength: 6, lineWidth: 2 },
 
     // View Model
     viewModel: {

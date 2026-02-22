@@ -25,19 +25,24 @@ export const RIOTGUN: WeaponDef = {
     // Gameplay (server-authoritative)
     // 5 damage per pellet × 20 pellets = 100 max damage
     damage: 5,
-    fireRate: 1.11,       // 900ms reload = ~1.11 shots/sec
+    fireRate: 1.875,       // ~533ms between shots (20% faster than Warsow's 640ms)
     clipSize: 20,
     ammoType: 'shells',
     maxAmmo: 20,
-    reloadTime: 0.9,
+    reloadTime: 0.64,
     range: 8192,
     hitscan: true,
     hitscanType: 'pellet',
-    spread: 12,           // 12° shotgun cone (hip-fire)
+    spread: 12,           // 12° shotgun cone (hip-fire, Warsow: 160 ≈ 12°)
     adsSpread: 8,         // 8° when ADS
     fireMode: 'semi',
     burstCount: 20,       // 20 pellets per shot
     pickupBounds: { x: 32, y: 32, z: 32 },
+    pelletCount: 20,
+    knockbackScale: 2.5,
+    pickupAmmo: 10,
+    useLagCompensation: true,
+    crosshair: { style: 'cross', baseGap: 12, lineLength: 8, lineWidth: 2 },
 
     // View Model
     viewModel: {

@@ -18,6 +18,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { mulberry32 } from '../../shared/SpreadUtils';
 
 // ── Config types ─────────────────────────────────────────────────────
 
@@ -53,10 +54,14 @@ export interface BeamConfig extends HitscanFireConfig {
 export interface PelletConfig extends HitscanFireConfig {
     /** Number of pellets. Default 20 */
     pelletCount?: number;
-    /** Spread angle in degrees. Default 9 */
+    /** Spread angle in degrees. Default 12 */
     spreadAngle?: number;
-    /** Per-pellet tracer duration. Default 0.06 */
+    /** Per-pellet tracer duration. Default 0.08 */
     duration?: number;
+    /** Deterministic PRNG seed (from SpreadUtils.computeSpreadSeed). If omitted, uses Math.random(). */
+    seed?: number;
+    /** Number of visible traveling tracers (subset of pellets). Default 5 */
+    visibleTracers?: number;
 }
 
 /** Bolt / rail trail (electrobolt/instagun-style thick beam) */
@@ -80,12 +85,27 @@ interface ActiveEffect {
     duration: number;
 }
 
+/** A traveling pellet tracer — short segment that slides along a ray */
+interface TravelingPellet {
+    id: string;
+    mesh: Mesh;
+    material: StandardMaterial;
+    origin: Vector3;
+    endpoint: Vector3;
+    rayLength: number;
+    spawnTime: number;
+    duration: number;
+    /** Fraction of ray length that the segment covers (0..1) */
+    segmentFraction: number;
+}
+
 // ── Singleton ────────────────────────────────────────────────────────
 
 export class HitscanEffects {
     private static instance: HitscanEffects;
     private scene: Scene | null = null;
     private effects: ActiveEffect[] = [];
+    private travelingPellets: TravelingPellet[] = [];
     private nextId = 0;
 
     /** Reusable beam mesh for lasergun (updated every frame, not created/destroyed) */
@@ -227,55 +247,110 @@ export class HitscanEffects {
 
     /**
      * Pellet spread  (riotgun / shotgun)
-     * Fires N rays in a cone and spawns a tracer for each hit.
+     * Fires N rays in a cone with deterministic or random spread.
+     * Shows a subset as "traveling" thick tracers and spawns impact sparks for all hits.
      */
     firePellets(cfg: PelletConfig): Vector3[] {
         if (!this.scene) return [];
         const count = cfg.pelletCount ?? 20;
-        const spreadDeg = cfg.spreadAngle ?? 9;
-        const duration = cfg.duration ?? 0.06;
-        const color = cfg.color ?? new Color3(1.0, 0.9, 0.4); // bright yellow
+        const spreadDeg = cfg.spreadAngle ?? 12;
+        const duration = cfg.duration ?? 0.25;
+        const color = cfg.color ?? new Color3(1.0, 0.9, 0.4); // warm yellow
         const range = cfg.maxRange ?? 8192;
-
-        const hitPoints: Vector3[] = [];
+        const visibleCount = cfg.visibleTracers ?? 5;
         const spreadRad = (spreadDeg * Math.PI) / 180;
 
+        // Build PRNG: seeded if seed provided, otherwise Math.random fallback
+        const rng = cfg.seed != null ? mulberry32(cfg.seed) : Math.random;
+
+        const hitPoints: Vector3[] = [];
+        const now = performance.now() / 1000;
+
+        // Determine which pellet indices get visible tracers
+        // Evenly spaced across the pellet array for good cone coverage
+        const tracerStride = Math.max(1, Math.floor(count / visibleCount));
+        const tracerIndices = new Set<number>();
+        for (let t = 0; t < visibleCount; t++) {
+            tracerIndices.add(t * tracerStride);
+        }
+
         for (let i = 0; i < count; i++) {
-            // Random direction within spread cone
-            const dir = this.spreadDirection(cfg.direction, spreadRad);
+            // Deterministic spread direction using seeded RNG
+            const dir = this.spreadDirectionSeeded(cfg.direction, spreadRad, rng);
             const hit = this.traceRay(cfg.origin, dir, range);
             const endpoint = hit?.point ?? cfg.origin.add(dir.scale(range));
 
             if (hit?.point) hitPoints.push(hit.point);
 
-            // Short tracer per pellet (thinner, shorter-lived)
-            const id = `pellet_${this.nextId++}`;
-            const line = MeshBuilder.CreateLines(id, {
-                points: [cfg.origin.clone(), endpoint.clone()],
-                colors: [
-                    new Color4(color.r, color.g, color.b, 0.6),
-                    new Color4(color.r, color.g, color.b, 0.15),
-                ],
-            }, this.scene);
-            line.isPickable = false;
-
-            this.effects.push({
-                id,
-                meshes: [line],
-                materials: [],
-                light: null,
-                spawnTime: performance.now() / 1000,
-                duration,
-            });
-
-            // Small spark at each hit
+            // Impact sparks for ALL pellets (wall marks only — lights are expensive)
             if (hit?.point) {
-                this.spawnImpactFlash(hit.point, color, hit.normal, duration * 1.5);
-                this.spawnWallMark(hit.point, hit.normal, color, 0.2);
+                this.spawnWallMark(hit.point, hit.normal, color, 2.0);
+            }
+
+            // Traveling tracer only for selected representative pellets
+            if (tracerIndices.has(i)) {
+                this.spawnTravelingPellet(cfg.origin, endpoint, color, duration, now);
+                // Impact flash light only for visible tracers (5 lights, not 20)
+                if (hit?.point) {
+                    this.spawnImpactFlash(hit.point, color, hit.normal, duration * 2);
+                }
             }
         }
 
         return hitPoints;
+    }
+
+    /**
+     * Spawn a traveling pellet tracer — a short thick segment that slides
+     * from origin to endpoint over `duration` seconds.
+     */
+    private spawnTravelingPellet(
+        origin: Vector3,
+        endpoint: Vector3,
+        color: Color3,
+        duration: number,
+        now: number
+    ): void {
+        if (!this.scene) return;
+
+        const id = `pellet_${this.nextId++}`;
+        const segFrac = 0.15; // segment covers 15% of total ray length
+
+        // Create a cone-shaped tracer (wide head, narrow tail) for dynamic shotgun blast feel
+        const mesh = MeshBuilder.CreateCylinder(id, {
+            height: 1,
+            diameterTop: 2.5,     // wide head (leading edge)
+            diameterBottom: 0.3,  // narrow tail
+            tessellation: 6,
+        }, this.scene);
+        mesh.isPickable = false;
+
+        const mat = new StandardMaterial(`${id}_mat`, this.scene);
+        mat.emissiveColor = color;
+        mat.disableLighting = true;
+        mat.alpha = 0.85;
+        mat.backFaceCulling = false;
+        mesh.material = mat;
+
+        const rayLength = endpoint.subtract(origin).length();
+
+        // Initially position at the start
+        const segLen = rayLength * segFrac;
+        const segStart = origin.clone();
+        const segEnd = origin.add(endpoint.subtract(origin).normalize().scale(segLen));
+        this.orientCylinder(mesh, segStart, segEnd);
+
+        this.travelingPellets.push({
+            id,
+            mesh,
+            material: mat,
+            origin: origin.clone(),
+            endpoint: endpoint.clone(),
+            rayLength,
+            spawnTime: now,
+            duration,
+            segmentFraction: segFrac,
+        });
     }
 
     /**
@@ -375,6 +450,38 @@ export class HitscanEffects {
             }
         }
 
+        // Animate traveling pellet tracers
+        for (let i = this.travelingPellets.length - 1; i >= 0; i--) {
+            const tp = this.travelingPellets[i];
+            const age = now - tp.spawnTime;
+            const t = Math.min(1, age / tp.duration);
+
+            if (t >= 1) {
+                // Done traveling — dispose
+                tp.mesh.dispose();
+                tp.material.dispose();
+                this.travelingPellets.splice(i, 1);
+                continue;
+            }
+
+            // Slide segment along the ray: head moves from 0→1, tail follows
+            // Start with a minimum length to avoid zero-length cylinder
+            const headT = Math.max(0.02, t);  // head position along ray (0..1)
+            const tailT = Math.max(0, headT - tp.segmentFraction);
+
+            const rayDir = tp.endpoint.subtract(tp.origin);
+            const segStart = tp.origin.add(rayDir.scale(tailT));
+            const segEnd = tp.origin.add(rayDir.scale(headT));
+
+            this.orientCylinder(tp.mesh, segStart, segEnd);
+
+            // Fade out over the last 30% of travel
+            const fadeStart = 0.7;
+            if (t > fadeStart) {
+                tp.material.alpha = 0.85 * (1 - (t - fadeStart) / (1 - fadeStart));
+            }
+        }
+
         // Fade wall marks
         for (let i = this.wallMarks.length - 1; i >= 0; i--) {
             const wm = this.wallMarks[i];
@@ -408,6 +515,11 @@ export class HitscanEffects {
             fx.light?.dispose();
         }
         this.effects = [];
+        for (const tp of this.travelingPellets) {
+            tp.mesh.dispose();
+            tp.material.dispose();
+        }
+        this.travelingPellets = [];
         this.stopBeam();
     }
 
@@ -491,11 +603,11 @@ export class HitscanEffects {
         }
     }
 
-    /** Create a random direction within a cone (spread in radians) */
-    private spreadDirection(dir: Vector3, spreadRad: number): Vector3 {
-        // Random point in unit disk
-        const r = Math.sqrt(Math.random()) * Math.tan(spreadRad);
-        const theta = Math.random() * Math.PI * 2;
+    /** Create a random direction within a cone using a provided RNG function */
+    private spreadDirectionSeeded(dir: Vector3, spreadRad: number, rng: () => number): Vector3 {
+        // Random point in unit disk using provided RNG
+        const r = Math.sqrt(rng()) * Math.tan(spreadRad);
+        const theta = rng() * Math.PI * 2;
         const offsetX = r * Math.cos(theta);
         const offsetY = r * Math.sin(theta);
 
@@ -521,8 +633,8 @@ export class HitscanEffects {
 
         const light = new PointLight(`impact_flash_${this.nextId++}`, pos.add(offset), this.scene);
         light.diffuse = color;
-        light.intensity = 5;
-        light.range = 12;
+        light.intensity = 25;
+        light.range = 60;
 
         // Impact light is cleaned up by the effect that owns it
         return light;
@@ -543,7 +655,7 @@ export class HitscanEffects {
         }
 
         const id = `wallmark_${this.nextId++}`;
-        const mesh = MeshBuilder.CreatePlane(id, { size }, this.scene);
+        const mesh = MeshBuilder.CreateDisc(id, { radius: size, tessellation: 3 }, this.scene);
         mesh.isPickable = false;
 
         // Position slightly off the wall to avoid z-fighting

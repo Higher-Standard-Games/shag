@@ -33,6 +33,13 @@ export const PLASMAGUN: WeaponDef = {
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'plasma_bolt',
+    projectileSpeed: 2500,
+    splashRadius: 45,
+    splashDamage: 15,
+    minSplashDamage: 5,
+    knockbackScale: 4.5,
+    useLagCompensation: false,
+    crosshair: { style: 'cross_dot', baseGap: 4, lineLength: 5, lineWidth: 2 },
 
     // View Model
     viewModel: {
