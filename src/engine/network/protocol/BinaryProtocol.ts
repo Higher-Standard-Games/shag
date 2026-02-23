@@ -470,7 +470,7 @@ export class BinaryEncoder {
   private view: DataView;
   private offset: number = 0;
 
-  constructor(initialSize: number = 4096) {
+  constructor(initialSize: number = 16384) {
     this.buffer = new ArrayBuffer(initialSize);
     this.view = new DataView(this.buffer);
   }

@@ -39,16 +39,16 @@ Tracked on branch `feature/optimizations`. Golden rule: **no functionality chang
 
 | # | Description | File(s) | Status |
 |---|-------------|---------|--------|
-| 1 | Extract `calcAccelFalloff()` (3× duplicated) | `FPSMovementProfile.ts` | 🔲 |
-| 2 | Replace `Date.now()` with passed-in timestamp | `FPSMovementProfile.ts` | 🔲 |
-| 3 | Avoid `{ ...cmd.direction }` spread in hot loop | `FPSSimulation.ts` | 🔲 |
-| 4 | Break up 335-line `onServerStateUpdate` | `FPSGameManager.ts` | 🔲 |
-| 5 | Replace `JSON.stringify` in binary event encoding | `BinaryProtocol.ts` | 🔲 |
-| 6 | Pre-allocate larger `BinaryEncoder` buffer | `BinaryProtocol.ts` | 🔲 |
-| 7 | Remove `Array.from()` allocation in diagnostics | `FPSGameManager.ts` | 🔲 |
-| 8 | Cache `getComponent<T>()` per entity per tick | `FPSSimulation.ts` | 🔲 |
-| 9 | Split 2400-line `FPSHud.ts` into widget files | `FPSHud.ts` | 🔲 |
-| 10 | Reduce init-time console.log spam engine-wide | Multiple | 🔲 |
+| 1 | Extract `calcAccelFalloff()` (3× duplicated) | `FPSMovementProfile.ts` | ✅ |
+| 2 | Replace `Date.now()` with deltaTime accumulators | `FPSMovementProfile.ts` | ✅ |
+| 3 | Avoid `{ ...cmd.direction }` spread in hot loop | `FPSSimulation.ts` | ✅ |
+| 4 | Break up 335-line `onServerStateUpdate` | `FPSGameManager.ts` | 🔲 Deferred |
+| 5 | Replace `JSON.stringify` in binary event encoding | `BinaryProtocol.ts` | 🔲 Deferred |
+| 6 | Pre-allocate larger `BinaryEncoder` buffer | `BinaryProtocol.ts` | ✅ |
+| 7 | Replace `Array.from()` with `[...keys]` | `FPSGameManager.ts` | ✅ |
+| 8 | Cache `getComponent<T>()` per entity per tick | `FPSSimulation.ts` | 🔲 Deferred |
+| 9 | Split 2400-line `FPSHud.ts` into widget files | `FPSHud.ts` | 🔲 Deferred |
+| 10 | Reduce init-time console.log spam engine-wide | Multiple | ✅ |
 
 ## Hard Gains — Advanced (Deferred)
 
