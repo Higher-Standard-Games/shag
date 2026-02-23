@@ -65,6 +65,20 @@ Tracked on branch `feature/optimizations`. Golden rule: **no functionality chang
 | 9 | Build-time CSS injection | `WashikiTheme.css` | — Skipped |
 | 10 | Scope event listeners to canvas | `FPSController.ts` | ✅ |
 
+## v0.9+ Performance Pass
+
+| # | Description | File(s) | Status |
+|---|-------------|---------|--------|
+| 1 | PK3Loader: O(1) file lookup via pre-built `zipFileIndex` Map | `PK3Loader.ts` | ✅ |
+| 2 | PK3Loader: track and revoke Blob URLs to prevent memory leaks | `PK3Loader.ts` | ✅ |
+| 3 | Q3ShaderRegistry: cache `resolveMaterialProps()` results by texture name | `Q3ShaderRegistry.ts` | ✅ |
+| 4 | AssetPreloader: parallel batch model loading (4 concurrent) | `AssetPreloader.ts` | ✅ |
+| 5 | TextureLoader: parallel HEAD probes via `Promise.allSettled` | `TextureLoader.ts` | ✅ |
+| 6 | SweepCollisionBackend: pool TraceState + scratch tuples | `SweepCollisionBackend.ts` | ✅ |
+| 7 | SweepCollisionBackend: pre-filter clip brushes at init | `SweepCollisionBackend.ts` | ✅ |
+| 8 | RenderVars: material-level dedup in `applyToScene` | `RenderVars.ts` | ✅ |
+| 9 | Frozen Material Mode: `material.freeze()` after BSP load | `MapLoader.ts` | ✅ |
+
 ### Legend
 
 - ✅ Done

@@ -113,11 +113,60 @@ export class SweepCollisionBackend implements CollisionBackend {
   private readonly _ssm_downV = Vector3.Zero();
   private readonly _ssm_traceEnd = Vector3.Zero();
 
+  // Pre-filtered clip brush indices (built once during init, avoids per-trace full scan)
+  private clipBrushIndices: number[] = [];
+
+  // Pooled trace state to avoid per-trace allocations
+  private readonly _pooledState: TraceState = {
+    type: 'box',
+    start: [0, 0, 0],
+    end: [0, 0, 0],
+    mins: [0, 0, 0],
+    maxs: [0, 0, 0],
+    extents: [0, 0, 0],
+    contentMask: 0,
+    result: {
+      fraction: 1.0,
+      endPos: [0, 0, 0],
+      normal: null,
+      startSolid: false,
+      allSolid: false,
+      contents: 0,
+      hitBrushIndex: -1,
+      hitTextureName: '',
+    },
+    debug: false,
+  };
+
+
+
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
 
     this.processFaces();
+    this.buildClipBrushIndex();
+  }
+
+  /**
+   * Pre-filter clip brushes once during init (avoids scanning ALL brushes every trace)
+   */
+  private buildClipBrushIndex(): void {
+    if (!this.bsp) return;
+    this.clipBrushIndices = [];
+
+    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+      const brush = this.bsp.brushes[bi];
+      if (!brush || brush.numSides < 4) continue;
+
+      const texture = this.getBrushTexture(brush);
+      if (!texture) continue;
+
+      const name = (texture.name || '').toLowerCase();
+      if (name.includes('fullclip') || name.includes('playerclip')) {
+        this.clipBrushIndices.push(bi);
+      }
+    }
   }
 
   private processFaces(): void {
@@ -232,31 +281,26 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;
 
-    // Create trace state
-    const state: TraceState = {
-      type: 'box',
-      start: q3Start,
-      end: q3End,
-      mins,
-      maxs,
-      extents: [
-        Math.max(Math.abs(mins[0]), Math.abs(maxs[0])),
-        Math.max(Math.abs(mins[1]), Math.abs(maxs[1])),
-        Math.max(Math.abs(mins[2]), Math.abs(maxs[2])),
-      ],
-      contentMask,
-      result: {
-        fraction: 1.0,
-        endPos: [...q3End],
-        normal: null,
-        startSolid: false,
-        allSolid: false,
-        contents: 0,
-        hitBrushIndex: -1,
-        hitTextureName: '',
-      },
-      debug: options?.debug ?? false,
-    };
+    // Reset pooled trace state instead of allocating new objects
+    const state = this._pooledState;
+    state.type = 'box';
+    state.start[0] = q3Start[0]; state.start[1] = q3Start[1]; state.start[2] = q3Start[2];
+    state.end[0] = q3End[0]; state.end[1] = q3End[1]; state.end[2] = q3End[2];
+    state.mins[0] = mins[0]; state.mins[1] = mins[1]; state.mins[2] = mins[2];
+    state.maxs[0] = maxs[0]; state.maxs[1] = maxs[1]; state.maxs[2] = maxs[2];
+    state.extents[0] = Math.max(Math.abs(mins[0]), Math.abs(maxs[0]));
+    state.extents[1] = Math.max(Math.abs(mins[1]), Math.abs(maxs[1]));
+    state.extents[2] = Math.max(Math.abs(mins[2]), Math.abs(maxs[2]));
+    state.contentMask = contentMask;
+    state.result.fraction = 1.0;
+    state.result.endPos[0] = q3End[0]; state.result.endPos[1] = q3End[1]; state.result.endPos[2] = q3End[2];
+    state.result.normal = null;
+    state.result.startSolid = false;
+    state.result.allSolid = false;
+    state.result.contents = 0;
+    state.result.hitBrushIndex = -1;
+    state.result.hitTextureName = '';
+    state.debug = options?.debug ?? false;
 
     if (state.debug) {
       console.log(`[SweepCollision] Trace start: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)})`);
@@ -829,32 +873,22 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
 
   /**
-   * Check ALL clip brushes directly (fullclip, playerclip)
-   * This bypasses BSP tree traversal because clip brushes may not be in leafBrushes
+   * Check pre-filtered clip brushes (fullclip, playerclip)
+   * Uses pre-built index from init() instead of scanning all brushes every trace
    */
   private traceAllClipBrushes(state: TraceState): void {
     if (!this.bsp) return;
 
     const wantsPlayerclip = (state.contentMask & ContentFlags.PLAYERCLIP) !== 0;
-    if (!wantsPlayerclip) return; // Only do this for player collision
+    if (!wantsPlayerclip) return;
 
-    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+    for (const bi of this.clipBrushIndices) {
       const brush = this.bsp.brushes[bi];
       if (!brush || brush.numSides < 4) continue;
 
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-      const name = (texture.name || '').toLowerCase();
-      const isFullclip = name.includes('fullclip');
-      const isPlayerclip = name.includes('playerclip');
-
-      // Only check clip brushes
-      if (!isFullclip && !isPlayerclip) continue;
-
-
-
-      // Check collision with this brush
       this.traceBrush(brush, bi, texture, state);
     }
   }

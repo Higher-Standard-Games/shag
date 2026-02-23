@@ -398,6 +398,20 @@ export class MapLoader {
     bspManager.setBsp(mapName, bsp); // Set BSP data
     bspManager.setMeshResult(meshResult); // Store mesh result
 
+    // Phase 12: Freeze BSP materials to skip per-frame dirty checks.
+    // All textures, lightmaps, and properties are final at this point.
+    let frozenCount = 0;
+    const frozenMats = new Set<number>();
+    for (const mesh of scene.meshes) {
+      const mat = mesh.material;
+      if (mat && !frozenMats.has(mat.uniqueId)) {
+        frozenMats.add(mat.uniqueId);
+        mat.freeze();
+        frozenCount++;
+      }
+    }
+    console.log(`[MapLoader] Froze ${frozenCount} materials for render perf`);
+
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
 

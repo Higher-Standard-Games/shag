@@ -101,7 +101,7 @@ export class AssetPreloader {
 
         console.log(`[AssetPreloader] Found ${modelPaths.size} unique pickup models to preload`);
 
-        // Preload each model
+        // Preload models in parallel batches for faster loading
         const loader = ModelLoader.getInstance();
         if (!loader.isInitialized()) {
             loader.init(scene);
@@ -109,19 +109,18 @@ export class AssetPreloader {
 
         let loaded = 0;
         const total = modelPaths.size;
+        const BATCH_SIZE = 4;
 
-        for (const modelPath of modelPaths) {
+        const loadOneModel = async (modelPath: string): Promise<void> => {
             // Skip if already cached
             if (this.modelCache.has(modelPath)) {
-                console.log(`[AssetPreloader] Already cached: ${modelPath}`);
                 loaded++;
-                continue;
+                return;
             }
 
             onProgress?.({ current: loaded, total, modelPath });
 
             try {
-                console.log(`[AssetPreloader] Preloading: ${modelPath}`);
                 const result = await loader.loadModel(modelPath, {
                     position: new Vector3(0, -10000, 0), // Load offscreen
                     scale: 1.0,
@@ -131,20 +130,25 @@ export class AssetPreloader {
                 if (result) {
                     // Wait for all textures to finish loading
                     if (result.textureLoadPromises && result.textureLoadPromises.length > 0) {
-                        console.log(`[AssetPreloader] Waiting for ${result.textureLoadPromises.length} texture(s) to load...`);
                         await Promise.all(result.textureLoadPromises);
                     }
 
                     // Hide the preloaded model (it's just for caching)
                     result.root.setEnabled(false);
                     this.modelCache.set(modelPath, result);
-                    console.log(`[AssetPreloader] Cached: ${modelPath}`);
                 }
             } catch (e) {
                 console.warn(`[AssetPreloader] Failed to preload ${modelPath}:`, e);
             }
 
             loaded++;
+        };
+
+        // Process in batches of BATCH_SIZE for bounded concurrency
+        const pathArray = Array.from(modelPaths);
+        for (let i = 0; i < pathArray.length; i += BATCH_SIZE) {
+            const batch = pathArray.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(p => loadOneModel(p)));
         }
 
         console.log(`[AssetPreloader] Preloaded ${this.modelCache.size} models`);

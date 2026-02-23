@@ -27,19 +27,30 @@ export async function loadTextureWithTgaFallback(
     const cleanPath = texturePath.replace(/^\//, '');
     const pathWithoutExt = cleanPath.replace(/\.(tga|png|jpg|jpeg)$/i, '');
 
-    // Extensions to try in order
+    // Extensions to try — fire all probes in parallel instead of sequentially
     const extensions = ['.png', '.jpg', '', '.tga'];
+    const candidates = extensions.map(ext => ({
+        ext,
+        url: `${basePath}${pathWithoutExt}${ext}`,
+    }));
 
-    for (const ext of extensions) {
-        const tryPath = `${basePath}${pathWithoutExt}${ext}`;
+    // Probe all extensions in parallel
+    const results = await Promise.allSettled(
+        candidates.map(async ({ ext, url }) => {
+            const resp = await fetch(url, { method: 'HEAD' });
+            if (!resp.ok) throw new Error(`${resp.status}`);
+            return { ext, url };
+        })
+    );
+
+    // Take the first successful probe (preserves priority order)
+    for (const result of results) {
+        if (result.status !== 'fulfilled') continue;
+        const { ext, url: tryPath } = result.value;
 
         try {
-            const resp = await fetch(tryPath, { method: 'HEAD' });
-            if (!resp.ok) continue;
-
             // Check if it's a TGA that needs decoding
             if (ext === '.tga' || tryPath.endsWith('.tga')) {
-
                 const dataResp = await fetch(tryPath);
                 const buffer = await dataResp.arrayBuffer();
                 const dataUrl = await decodeTGA(buffer);
@@ -49,14 +60,13 @@ export async function loadTextureWithTgaFallback(
                 return texture;
             } else {
                 // Native format - load directly
-
                 const texture = new Texture(tryPath, scene);
                 texture.name = cleanPath;
                 texture.hasAlpha = options.hasAlpha ?? false;
                 return texture;
             }
         } catch {
-            // Try next extension
+            // Probe succeeded but load failed, try next
             continue;
         }
     }
