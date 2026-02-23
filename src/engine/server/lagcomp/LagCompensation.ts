@@ -53,7 +53,7 @@ export class LagCompensation {
     private historyBuffer: HistoryBuffer;
     private config: LagCompensationConfig;
     private clientLatencies: Map<PlayerId, number> = new Map();
-    private _lastUpdateTick: TickNumber = tickNumber(0);
+
     private collisionWorld: CollisionWorld | null = null;
 
     constructor(config: LagCompensationConfig = CASUAL_CONFIG) {
@@ -78,7 +78,6 @@ export class LagCompensation {
     recordSnapshot(state: Readonly<WorldState>): void {
         // Only record players and their vicinity for efficiency
         this.historyBuffer.push(state as WorldState);
-        this._lastUpdateTick = state.tick;
     }
 
     /**

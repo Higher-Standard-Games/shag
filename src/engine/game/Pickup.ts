@@ -10,7 +10,7 @@ import { PhysicsSystem } from "../physics/PhysicsSystem";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
+
 import { AudioManager } from "../AudioManager";
 
 // ... (interface) ...
@@ -40,10 +40,10 @@ export class Pickup extends TransformNode {
     private bobSpeed: number = 2.0;
     private bobHeight: number = 5.0; // Units
     private respawnTimer: number | null = null;
-    private _startPos: Vector3 | null = null;
     private glowLight: PointLight | null = null;
+
     private glowPulseTime: number = 0;
-    private pickupImmunityUntil: number = 0; // Timestamp until which pickup is immune (prevents instant re-pickup)
+
 
     // ═══════════════════════════════════════════════════════════════════
     // STATIC: Server-driven pickup registry
@@ -56,7 +56,7 @@ export class Pickup extends TransformNode {
 
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
-        console.log(`[Pickup] Constructor called for ${name} at ${position}`);
+
         this.options = options;
         this.position = position;
 
@@ -71,7 +71,7 @@ export class Pickup extends TransformNode {
 
     private async loadModel() {
         try {
-            console.log(`[Pickup] loadModel started for ${this.name}`);
+
 
             // Check AssetPreloader cache first for instant spawn
             let result = null;
@@ -79,7 +79,7 @@ export class Pickup extends TransformNode {
                 const { AssetPreloader } = await import('../loader/AssetPreloader');
                 const preloader = AssetPreloader.getInstance();
                 if (preloader.hasModel(this.options.modelPath)) {
-                    console.log(`[Pickup] Using cached model: ${this.options.modelPath}`);
+
                     result = preloader.cloneCachedModel(this.options.modelPath, this.getScene());
                 }
             } catch {
@@ -99,7 +99,7 @@ export class Pickup extends TransformNode {
             }
 
             if (result && result.root) {
-                console.log(`[Pickup] Model loaded for ${this.name}. Meshes: ${result.meshes.length}`);
+
                 // Direct Parenting Strategy: Bypass potential issues with the loader's root node
                 // Parent meshes directly to the Pickup entity (like the Green Sphere test which worked)
                 result.meshes.forEach(m => {
@@ -118,14 +118,14 @@ export class Pickup extends TransformNode {
                 }
 
                 this.mesh = result.meshes[0]; // Keep reference to one mesh for bobbing
-                console.log(`[Pickup] Meshes parented directly to ${this.name}`);
+
 
                 // Create glow light if glowColor is defined
-                console.log(`[Pickup] ${this.name} glowColor:`, this.options.glowColor);
+
                 if (this.options.glowColor) {
                     // this.createGlowLight(); // Disabled for testing
                 } else {
-                    console.log(`[Pickup] No glowColor defined for ${this.name}`);
+
                 }
 
                 // PHYSICS IMPLEMENTATION (Havok)
@@ -189,39 +189,7 @@ export class Pickup extends TransformNode {
         }
     }
 
-    /**
-     * Create a pulsing glow light for the pickup
-     */
-    private _createGlowLight(): void {
-        if (!this.options.glowColor) return;
 
-        const color = this.options.glowColor;
-
-        // Create point light attached to this pickup
-        this.glowLight = new PointLight(
-            `${this.name}_glow`,
-            new Vector3(0, 10, 0), // Small offset above pickup center
-            this.getScene()
-        );
-
-        // Set light properties - high intensity for visibility
-        this.glowLight.diffuse = new Color3(color.r, color.g, color.b);
-        this.glowLight.specular = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
-        this.glowLight.intensity = 500.0; // Very high intensity
-        this.glowLight.range = 500; // Large radius
-
-        // Disable shadow casting for performance
-        this.glowLight.shadowEnabled = false;
-
-        // Parent to mesh if available (follows physics), otherwise to this TransformNode
-        if (this.mesh) {
-            this.glowLight.parent = this.mesh;
-        } else {
-            this.glowLight.parent = this;
-        }
-
-        console.log(`[Pickup] Created glow light for ${this.name}, parent: ${this.glowLight.parent?.name}`);
-    }
 
     /**
      * Update the glow light pulse effect
@@ -238,12 +206,7 @@ export class Pickup extends TransformNode {
         this.glowLight.intensity = pulseValue;
     }
 
-    /**
-     * Set pickup immunity timer (prevents instant re-pickup of dropped weapons)
-     */
-    public setPickupImmunity(durationMs: number): void {
-        this.pickupImmunityUntil = performance.now() + durationMs;
-    }
+
 
     private checkPickup() {
         if (!this.isActive) return;
@@ -435,7 +398,7 @@ export class Pickup extends TransformNode {
         }
 
         if (bestPickup) {
-            console.log(`[Pickup] Server deactivate: ${weaponId} at (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)}) matched client pickup '${bestPickup.options.id}' dist=${Math.sqrt(bestDistSq).toFixed(0)}`);
+
             bestPickup.deactivateFromServer();
         } else {
             console.warn(`[Pickup] Server deactivate MISS: ${weaponId} at (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)}) — queuing for deferred deactivation (${Pickup.allPickups.filter(p => p.isActive).length} active pickups)`);
@@ -467,7 +430,7 @@ export class Pickup extends TransformNode {
             const distSq = dx * dx + dz * dz;
 
             if (distSq < MATCH_DIST_SQ) {
-                console.log(`[Pickup] Deferred deactivation: ${pending.weaponId} matched new pickup '${id}' dist=${Math.sqrt(distSq).toFixed(0)}`);
+
                 Pickup.pendingDeactivations.splice(i, 1);
                 // Deactivate after a short delay to let the model load
                 setTimeout(() => pickup.deactivateFromServer(), 100);
@@ -480,19 +443,15 @@ export class Pickup extends TransformNode {
      * Raycast down to find the floor and snap the entity to it.
      */
     public dropToGround() {
-        console.log(`\n[Pickup:dropToGround] === START for ${this.name} ===`);
-        console.log(`[Pickup:dropToGround] Current position: ${this.position}`);
-        console.log(`[Pickup:dropToGround] Gravity option: ${this.options.gravity}`);
+
 
         // Method 1: Try BSP Collision System (Most accurate for map geometry)
         try {
             const cm = getCollisionManager();
-            console.log(`[Pickup:dropToGround] CollisionManager exists: ${!!cm}`);
-            console.log(`[Pickup:dropToGround] CollisionManager initialized: ${cm.isInitialized()}`);
-            console.log(`[Pickup:dropToGround] Active backend: ${cm.getBackendType()}`);
+
 
             if (cm.isInitialized()) {
-                console.log(`[Pickup:dropToGround] Calling findGround from Y=${this.position.y}...`);
+
                 // Use a tiny radius (raycast-like) to avoid getting stuck on walls or invisible clip brushes
                 // contentMask: 1 = SOLID only (ignores PLAYERCLIP 0x10000)
                 const ground = cm.findGround(this.position, 2000, {
@@ -500,14 +459,13 @@ export class Pickup extends TransformNode {
                     contentMask: 1,
                     debug: false
                 });
-                console.log(`[Pickup:dropToGround] findGround result: ${ground ? `Y=${ground.position.y}` : 'NULL'}`);
+
 
                 if (ground) {
                     const groundY = ground.position.y;
                     const offset = 2; // Almost flush with floor (was 16)
                     const newY = groundY + offset;
-                    console.log(`[Pickup:dropToGround] Ground Y=${groundY}, offset=${offset}, newY=${newY}`);
-                    console.log(`[Pickup:dropToGround] SUCCESS! Dropping from Y=${this.position.y} to Y=${newY}`);
+
                     // Use full Vector3 assignment to trigger Babylon.js dirty flags
                     this.position = new Vector3(this.position.x, newY, this.position.z);
                     // Force world matrix recalculation for parent and ALL children (recursive)
@@ -517,32 +475,31 @@ export class Pickup extends TransformNode {
                         if (node.getChildren) node.getChildren().forEach(updateChildren);
                     };
                     this.getChildren().forEach(updateChildren);
-                    console.log(`[Pickup:dropToGround] Updated ${this.getChildren().length} children`);
-                    console.log(`[Pickup:dropToGround] VERIFY: this.position.y is now ${this.position.y}`);
 
 
 
-                    this._startPos = this.position.clone();
-                    console.log(`[Pickup:dropToGround] === END (BSP Success) ===\n`);
+
+
+
                     return;
                 } else {
-                    console.warn(`[Pickup:dropToGround] findGround returned NULL - trying fallback`);
+
                 }
             } else {
-                console.warn(`[Pickup:dropToGround] CollisionManager NOT initialized!`);
+
             }
         } catch (e) {
             console.error("[Pickup:dropToGround] BSP collision EXCEPTION:", e);
         }
 
         // Method 2: Visual Raycast (Fallback for non-BSP maps or bugs)
-        console.log(`[Pickup:dropToGround] Trying visual raycast fallback...`);
+
         const rayOrigin = this.position.clone();
         rayOrigin.y += 50;
         const rayDir = new Vector3(0, -1, 0);
         const ray = new Ray(rayOrigin, rayDir, 2000);
 
-        console.log(`[Pickup:dropToGround] Ray origin: ${rayOrigin}, direction: ${rayDir}`);
+
 
         const hit = this.getScene().pickWithRay(ray, (mesh) => {
             if (mesh === this.mesh || mesh.isDescendantOf(this)) return false;
@@ -552,11 +509,11 @@ export class Pickup extends TransformNode {
             return true;
         });
 
-        console.log(`[Pickup:dropToGround] Raycast result: hit=${hit?.hit}, point=${hit?.pickedPoint}, mesh=${hit?.pickedMesh?.name}`);
+
 
         if (hit && hit.hit && hit.pickedPoint) {
             const newY = hit.pickedPoint.y + (this.options.scale || 1.0) * 8;
-            console.log(`[Pickup:dropToGround] Raycast SUCCESS! Dropping to Y=${newY}`);
+
             // Use full Vector3 assignment to trigger Babylon.js dirty flags
             this.position = new Vector3(this.position.x, newY, this.position.z);
             // Force world matrix recalculation for parent and ALL children (recursive)
@@ -566,16 +523,16 @@ export class Pickup extends TransformNode {
                 if (node.getChildren) node.getChildren().forEach(updateChildren);
             };
             this.getChildren().forEach(updateChildren);
-            this._startPos = this.position.clone();
+
         } else {
             console.error(`[Pickup:dropToGround] BOTH METHODS FAILED - item will float!`);
         }
-        console.log(`[Pickup:dropToGround] === END ===\n`);
+
     }
 
 
     private onPickedUp() {
-        console.log(`Picked up ${this.options.id}`);
+
         // Play sound (use static import to avoid async hiccups)
         const soundKey = this.options.type === 'weapon' ? 'weapon_pickup' : 'ammo_pickup';
         AudioManager.getInstance().playSfx(soundKey, 0.5);

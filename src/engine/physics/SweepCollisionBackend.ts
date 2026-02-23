@@ -96,9 +96,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   private bsp: BspFile | null = null;
   private isFBSP = false;
-  private loggedPlayerclipOnce = false;
-  private traceDebugCount = 0;
-  private stepSlideMoveDebugCount = 0;
+
   private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
 
   // Stats
@@ -111,17 +109,12 @@ export class SweepCollisionBackend implements CollisionBackend {
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
-    console.log(`[SweepCollision] Initialized with ${bsp.brushes?.length || 0} brushes (FBSP=${this.isFBSP})`);
+
     this.processFaces();
   }
 
   private processFaces(): void {
     if (!this.bsp) return;
-
-    const startTime = performance.now();
-    let meshCount = 0;
-    let patchCount = 0;
-    let skippedByFlags = 0;
 
     this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
 
@@ -131,7 +124,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Filter by flags: Must be SOLID or PLAYERCLIP
       const texture = this.bsp.textures[face.textureIndex];
       if (!texture) {
-        skippedByFlags++;
         continue;
       }
 
@@ -139,7 +131,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       const isPlayerClip = (texture.contentFlags & ContentFlags.PLAYERCLIP) !== 0;
 
       if (!isSolid && !isPlayerClip) {
-        skippedByFlags++;
         continue;
       }
 
@@ -149,7 +140,6 @@ export class SweepCollisionBackend implements CollisionBackend {
         const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          patchCount++;
         }
       }
       // Type 3: Mesh (Triangle Soup)
@@ -157,13 +147,11 @@ export class SweepCollisionBackend implements CollisionBackend {
         const mesh = this.buildMeshFace(face);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          meshCount++;
         }
       }
     }
-
-    console.log(`[SweepCollision] Generated collision geometry: ${patchCount} patches, ${meshCount} meshes (${(performance.now() - startTime).toFixed(2)}ms)`);
   }
+
 
   private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
     if (!this.bsp) return null;
@@ -440,24 +428,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-      // Debug: Log playerclip brushes ONCE to understand why they're being skipped
-      const isPlayerclipName = texture.name?.toLowerCase().includes('playerclip');
-      if (isPlayerclipName && !this.loggedPlayerclipOnce) {
-        this.loggedPlayerclipOnce = true;
-        const contentFlags = texture.contentFlags;
-        const surfaceFlags = texture.surfaceFlags;
-        const hasNonsolid = (surfaceFlags & SurfaceFlags.NONSOLID) !== 0;
-        const hasHint = (surfaceFlags & SurfaceFlags.HINT) !== 0;
-        const hasDetail = (contentFlags & ContentFlags.DETAIL) !== 0;
-        const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;
-        const hasPlayerclip = (contentFlags & ContentFlags.PLAYERCLIP) !== 0;
-        console.log(`[SweepCollision] PLAYERCLIP BRUSH DEBUG:`);
-        console.log(`  name="${texture.name}"`);
-        console.log(`  contentFlags=0x${contentFlags.toString(16)} surfaceFlags=0x${surfaceFlags.toString(16)}`);
-        console.log(`  hasNonsolid=${hasNonsolid} hasHint=${hasHint} hasDetail=${hasDetail}`);
-        console.log(`  hasSolid=${hasSolid} hasPlayerclip=${hasPlayerclip}`);
-        console.log(`  contentMask=0x${state.contentMask.toString(16)}`);
-      }
+
 
       // Check content flags
       if (!this.shouldCollideWith(texture, state.contentMask)) {
@@ -874,11 +845,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Only check clip brushes
       if (!isFullclip && !isPlayerclip) continue;
 
-      // Debug: log first playerclip found
-      if (isPlayerclip && !this.loggedPlayerclipOnce) {
-        this.loggedPlayerclipOnce = true;
-        console.log(`[SweepCollision] Found playerclip via direct iteration: brush ${bi} "${texture.name}"`);
-      }
+
 
       // Check collision with this brush
       this.traceBrush(brush, bi, texture, state);

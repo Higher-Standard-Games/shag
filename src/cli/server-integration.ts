@@ -80,7 +80,7 @@ interface ServerMetrics {
 
 class MockClient {
     private ws: WebSocket;
-    private myPlayerId: string = '';
+
     private myEntityId: number = 0;
     private connected = false;
     private inputSequence = 0;
@@ -131,7 +131,7 @@ class MockClient {
                 break;
 
             case 0x10: // S_JoinAccept (custom for test)
-                this.myPlayerId = decoder.readString();
+                decoder.readString(); // playerId (consumed to advance decoder)
                 this.myEntityId = decoder.readVarUint();
                 // Initialize predicted position from spawn
                 this.predictedPosition = {

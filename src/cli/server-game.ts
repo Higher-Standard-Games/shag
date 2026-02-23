@@ -12,7 +12,7 @@
 
 import { Simulation } from '../engine/server/core/Simulation';
 import { createPlayerEntity } from '../engine/server/ecs/Entity';
-import { entityId, playerId, tickNumber, EntityType } from '../engine/server/ecs/types';
+import { entityId, playerId, EntityType } from '../engine/server/ecs/types';
 import { CharacterPhysicsSystem } from '../games/fps/server/systems/CharacterPhysicsSystem';
 import { CombatSystem } from '../games/fps/server/systems/CombatSystem';
 import { WeaponSystem } from '../games/fps/server/systems/WeaponSystem';
@@ -94,7 +94,7 @@ for (let i = 1; i <= NUM_PLAYERS; i++) {
     stats.set(i, { kills: 0, deaths: 0, damageDealt: 0, shotsFired: 0 });
 }
 
-let _totalProjectilesFired = 0;
+
 let totalLagCompTraces = 0;
 let totalHits = 0;
 
@@ -102,7 +102,7 @@ console.log('[MATCH] Starting simulation...');
 const startTime = performance.now();
 
 for (let tick = 0; tick < MATCH_DURATION_TICKS; tick++) {
-    const _currentTick = tickNumber(tick);
+
 
     // Apply AI-like inputs to all players
     for (let i = 1; i <= NUM_PLAYERS; i++) {

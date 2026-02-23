@@ -32,15 +32,15 @@ class WebSocketClientConnection implements ClientConnection {
     latency: number = 0;
 
     private ws: WebSocket;
-    private events: TransportEvents;
 
-    constructor(id: string, ws: WebSocket, address: string, events: TransportEvents) {
+
+    constructor(id: string, ws: WebSocket, address: string, _events: TransportEvents) {
         this.id = id;
         this.ws = ws;
         this.address = address;
         this.connectedAt = Date.now();
         this.lastMessageAt = Date.now();
-        this.events = events;
+
     }
 
     sendDatagram(data: Uint8Array): void {
