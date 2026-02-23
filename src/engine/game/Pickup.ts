@@ -214,6 +214,15 @@ export class Pickup extends TransformNode {
         const camera = CameraSystem.getInstance().getCamera();
         if (!camera) return;
 
+        // Suppress pickup prompts in spectator (freefly) mode or when paused (no pointer lock)
+        const activeController = CameraSystem.getInstance().getActiveController();
+        if (activeController?.type === 'freefly' || !document.pointerLockElement) {
+            if (Pickup.nearbyWeaponPickup === this) {
+                Pickup.clearNearbyWeapon();
+            }
+            return;
+        }
+
         // Try to get player's feet position from FPSController
         let playerPos = camera.position;
         const controller = CameraSystem.getInstance().getActiveController();
@@ -320,19 +329,19 @@ export class Pickup extends TransformNode {
                 bottom: 25%;
                 left: 50%;
                 transform: translateX(-50%);
-                background: hsla(240, 15%, 8%, 0.85);
-                color: hsl(185, 100%, 55%);
+                background: linear-gradient(180deg, rgba(10,8,16,0.9) 0%, rgba(6,4,12,0.85) 100%);
+                color: rgba(255, 160, 80, 1);
                 font-family: 'Orbitron', 'Rajdhani', 'Inter', system-ui, sans-serif;
-                font-size: 32px;
+                font-size: 24px;
                 font-weight: 700;
-                letter-spacing: 0.08em;
-                padding: 16px 36px;
-                border: 2px solid hsla(185, 100%, 55%, 0.5);
-                border-radius: 4px;
+                letter-spacing: 0.12em;
+                padding: 14px 32px;
+                border: 1px solid rgba(255, 100, 0, 0.45);
+                border-radius: 3px;
                 pointer-events: none;
                 z-index: 900;
-                text-shadow: 0 0 12px hsla(185, 100%, 55%, 0.5), 0 0 24px hsla(185, 100%, 55%, 0.15);
-                box-shadow: 0 0 20px hsla(185, 100%, 55%, 0.15), inset 0 0 20px hsla(185, 100%, 55%, 0.05);
+                text-shadow: 0 0 12px rgba(255, 100, 0, 0.4), 0 0 24px rgba(255, 80, 0, 0.12);
+                box-shadow: 0 0 20px rgba(255, 80, 0, 0.1), inset 0 1px 0 rgba(255, 140, 0, 0.08);
                 backdrop-filter: blur(6px);
                 transition: opacity 0.15s ease;
             `;

@@ -1264,6 +1264,16 @@ export class FPSController implements ICameraController {
   private static speedNumberEl: HTMLSpanElement | null = null;
 
   /**
+   * Reset speed display static refs (called when switching to spectator mode).
+   * The DOM element is removed externally; this just nulls the cached refs
+   * so a fresh widget is created when rejoining.
+   */
+  static resetSpeedDisplay(): void {
+    FPSController.speedDisplayEl = null;
+    FPSController.speedNumberEl = null;
+  }
+
+  /**
    * Update on-screen speed display
    */
   private updateSpeedDisplay(show: boolean, speed: number): void {

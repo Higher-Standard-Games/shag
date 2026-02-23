@@ -455,6 +455,8 @@ export enum MessageType {
   Input = 0x83,
   Disconnect = 0x84,
   Ping = 0x85,
+  JoinGame = 0x86,    // Spectator → Player: request to join the game
+  Spectate = 0x87,    // Player → Spectator: request to leave game and spectate
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

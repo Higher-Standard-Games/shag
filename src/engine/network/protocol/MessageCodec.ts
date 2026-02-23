@@ -188,6 +188,28 @@ export class MessageCodec {
     return data[0] as MessageType;
   }
 
+  /**
+   * Encode a JoinGame message (Client → Server)
+   * Sent when spectator wants to enter the game.
+   * Simple 1-byte message — server identifies sender by connection.
+   */
+  static encodeJoinGame(): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.JoinGame);
+    return encoder.getData();
+  }
+
+  /**
+   * Encode a Spectate message (Client → Server)
+   * Sent when player wants to leave game and become spectator.
+   * Simple 1-byte message — server identifies sender by connection.
+   */
+  static encodeSpectate(): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Spectate);
+    return encoder.getData();
+  }
+
   // ── ClockSync: Ping / Pong ───────────────────────────────
 
   /**

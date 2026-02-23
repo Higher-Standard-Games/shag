@@ -423,6 +423,28 @@ export class NetworkGameHost implements IGameHost {
     await this.transport.disconnect();
   }
 
+  /**
+   * Send JoinGame message — spectator → player transition.
+   * Server will create entity and respond with JoinAccept.
+   */
+  sendJoinGame(): void {
+    if (!this._isConnected) return;
+    const data = MessageCodec.encodeJoinGame();
+    this.transport.send(data, true); // Reliable
+    console.log('[NetworkGameHost] Sent JoinGame request');
+  }
+
+  /**
+   * Send Spectate message — player → spectator transition.
+   * Server will remove entity.
+   */
+  sendSpectate(): void {
+    if (!this._isConnected) return;
+    const data = MessageCodec.encodeSpectate();
+    this.transport.send(data, true); // Reliable
+    console.log('[NetworkGameHost] Sent Spectate request');
+  }
+
   // Debug counter
   private _sendCommandCalls = 0;
 
