@@ -1258,6 +1258,7 @@ export class FPSController implements ICameraController {
 
   // Speed display element
   private static speedDisplayEl: HTMLDivElement | null = null;
+  private static speedNumberEl: HTMLSpanElement | null = null;
 
   /**
    * Update on-screen speed display
@@ -1265,27 +1266,36 @@ export class FPSController implements ICameraController {
   private updateSpeedDisplay(show: boolean, speed: number): void {
     if (show) {
       if (!FPSController.speedDisplayEl) {
-        // Create speed display element
+        // Create speed display widget
         const el = document.createElement('div');
         el.id = 'fps-speed-display';
-        el.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-family: monospace;
-          font-size: 24px;
-          font-weight: bold;
-          color: #0f0;
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-          z-index: 9999;
-          pointer-events: none;
-        `;
-        document.body.appendChild(el);
+        el.className = 'fps-speedometer manga-panel';
+
+        // Corner brackets
+        const corners = document.createElement('div');
+        corners.className = 'manga-panel-corners';
+        el.appendChild(corners);
+
+        // Number
+        const num = document.createElement('span');
+        num.className = 'fps-speedometer-number';
+        num.textContent = '0';
+        el.appendChild(num);
+
+        // Label
+        const label = document.createElement('span');
+        label.className = 'fps-speedometer-label';
+        label.textContent = 'u/s';
+        el.appendChild(label);
+
+        // Attach to HUD bottom-center zone (unified bottom bar), fallback to body
+        const bottomCenter = document.querySelector('.fps-hud-bottom-center');
+        (bottomCenter || document.body).appendChild(el);
         FPSController.speedDisplayEl = el;
+        FPSController.speedNumberEl = num;
       }
-      FPSController.speedDisplayEl.textContent = `${Math.round(speed)} u/s`;
-      FPSController.speedDisplayEl.style.display = 'block';
+      FPSController.speedNumberEl!.textContent = String(Math.round(speed));
+      FPSController.speedDisplayEl.style.display = '';
     } else if (FPSController.speedDisplayEl) {
       FPSController.speedDisplayEl.style.display = 'none';
     }
