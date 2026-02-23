@@ -1712,7 +1712,7 @@
 
 .fps-phase-message {
     position: fixed;
-    top: 22%;
+    top: calc(76px * var(--ui-scale, 1));
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
@@ -1728,7 +1728,7 @@
 
 .fps-phase-title {
     font-family: var(--w-font-display);
-    font-size: calc(52px * var(--ui-scale, 1));
+    font-size: calc(28px * var(--ui-scale, 1));
     font-weight: 900;
     color: var(--w-text);
     text-shadow:
@@ -1742,7 +1742,7 @@
 
 .fps-phase-subtitle {
     font-family: var(--w-font-body);
-    font-size: calc(22px * var(--ui-scale, 1));
+    font-size: calc(16px * var(--ui-scale, 1));
     font-weight: 500;
     color: var(--w-text-muted);
     text-shadow: 0 2px 10px hsla(0, 0%, 0%, 0.6);
@@ -1818,7 +1818,7 @@
 
 .fps-ready-bar {
     position: fixed;
-    top: 38%;
+    top: calc(120px * var(--ui-scale, 1));
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(180deg, hsla(200, 60%, 8%, 0.85) 0%, hsla(200, 60%, 4%, 0.9) 100%);
