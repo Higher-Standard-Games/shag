@@ -18,15 +18,15 @@ export class NetworkManager {
   private currentServerUrl: string | null = null;
   private connectionCallbacks: ((connected: boolean, serverUrl?: string) => void)[] = [];
 
-  private constructor() {}
-  
+  private constructor() { }
+
   public static getInstance(): NetworkManager {
     if (!NetworkManager.instance) {
       NetworkManager.instance = new NetworkManager();
     }
     return NetworkManager.instance;
   }
-  
+
   /**
    * Initialize networking system
    * Can be called multiple times with different configurations
@@ -41,11 +41,11 @@ export class NetworkManager {
       // Shutdown existing host
       await this.shutdown();
     }
-    
+
     const mode = config?.mode || 'local';
     const SimulationClass = config?.SimulationClass || this.getDefaultSimulationClass();
     const simulationConfig = config?.simulationConfig || this.getDefaultSimulationConfig();
-    
+
     switch (mode) {
       case 'local':
         this.gameHost = new LocalGameHost(simulationConfig, SimulationClass);
@@ -67,16 +67,16 @@ export class NetworkManager {
       default:
         throw new Error(`Unknown network mode: ${mode}`);
     }
-    
+
     // Start the game host
     if ('start' in this.gameHost) {
       (this.gameHost as any).start();
     }
-    
+
     this.isInitialized = true;
-    console.log(`[NetworkManager] Initialized in ${mode} mode`);
+
   }
-  
+
   /**
    * Check if networking is initialized
    */
@@ -90,7 +90,7 @@ export class NetworkManager {
   getGameHost(): IGameHost | null {
     return this.gameHost;
   }
-  
+
   /**
    * Send a command to the game host
    */
@@ -99,34 +99,34 @@ export class NetworkManager {
       console.warn('[NetworkManager] No game host initialized');
       return;
     }
-    
+
     this.gameHost.sendCommand(cmd);
   }
-  
+
   /**
    * Subscribe to state updates
    */
   onStateUpdate(callback: (state: GameState) => void): () => void {
     if (!this.gameHost) {
       console.warn('[NetworkManager] No game host initialized');
-      return () => {};
+      return () => { };
     }
-    
+
     return this.gameHost.onStateUpdate(callback);
   }
-  
+
   /**
    * Subscribe to game events
    */
   onEvent(callback: (event: any) => void): () => void {
     if (!this.gameHost) {
       console.warn('[NetworkManager] No game host initialized');
-      return () => {};
+      return () => { };
     }
-    
+
     return this.gameHost.onEvent(callback);
   }
-  
+
   /**
    * Get interpolated entity for rendering
    */
@@ -134,10 +134,10 @@ export class NetworkManager {
     if (!this.gameHost) {
       return null;
     }
-    
+
     return this.gameHost.getInterpolatedEntity(entityId);
   }
-  
+
   /**
    * Get local state for prediction
    */
@@ -145,10 +145,10 @@ export class NetworkManager {
     if (!this.gameHost) {
       return null;
     }
-    
+
     return this.gameHost.getLocalState();
   }
-  
+
   /**
    * Check if connected
    */
@@ -156,25 +156,25 @@ export class NetworkManager {
     if (!this.gameHost) {
       return false;
     }
-    
+
     if ('isConnected' in this.gameHost && typeof this.gameHost.isConnected === 'function') {
       return this.gameHost.isConnected();
     }
-    
+
     return true; // LocalGameHost is always "connected"
   }
-  
+
   /**
    * Update the network manager (called from game loop)
    */
   update(): void {
     if (!this.gameHost) return;
-    
+
     if ('update' in this.gameHost) {
       (this.gameHost as any).update();
     }
   }
-  
+
   /**
    * Shutdown the network manager
    */
@@ -193,7 +193,7 @@ export class NetworkManager {
     this.isInitialized = false;
     this.currentServerUrl = null;
 
-    console.log('[NetworkManager] Shutdown complete');
+
   }
 
   /**
@@ -213,7 +213,7 @@ export class NetworkManager {
     const simClass = SimulationClass || this.getDefaultSimulationClass();
     const simConfig = simulationConfig || this.getDefaultSimulationConfig();
 
-    console.log(`[NetworkManager] Connecting to ${serverUrl}...`);
+
 
     try {
       // Create transport (auto-selects WebTransport or WebSocket)
@@ -232,7 +232,7 @@ export class NetworkManager {
       // Notify callbacks
       this.connectionCallbacks.forEach(cb => cb(true, serverUrl));
 
-      console.log(`[NetworkManager] Connected to ${serverUrl}`);
+
     } catch (error) {
       console.error(`[NetworkManager] Connection failed:`, error);
       this.connectionCallbacks.forEach(cb => cb(false, serverUrl));
@@ -245,7 +245,7 @@ export class NetworkManager {
    */
   async disconnect(): Promise<void> {
     if (!this.gameHost) {
-      console.log('[NetworkManager] Not connected');
+
       return;
     }
 
@@ -255,7 +255,7 @@ export class NetworkManager {
     // Notify callbacks
     this.connectionCallbacks.forEach(cb => cb(false, wasUrl || undefined));
 
-    console.log('[NetworkManager] Disconnected');
+
   }
 
   /**
@@ -277,7 +277,7 @@ export class NetworkManager {
       }
     };
   }
-  
+
   /**
    * Get current mode
    */
@@ -296,7 +296,7 @@ export class NetworkManager {
 
     return null;
   }
-  
+
   /**
    * Get default simulation class
    * In production, this would be the actual game simulation
@@ -305,7 +305,7 @@ export class NetworkManager {
     // For now, return a mock simulation
     // In production, this would be:
     // return (config) => new GameSimulation(config);
-    
+
     return class MockSimulation extends Simulation {
       protected createInitialState(): GameState {
         const state = new GameState();
@@ -313,30 +313,30 @@ export class NetworkManager {
         const entity = new Entity('test-entity');
         entity.addComponent('position', {
           x: 0, y: 0, z: 0,
-          serialize() {},
-          deserialize() {},
+          serialize() { },
+          deserialize() { },
           clone() { return { ...this }; }
         });
         entity.addComponent('velocity', {
           x: 0, y: 0, z: 0,
-          serialize() {},
-          deserialize() {},
+          serialize() { },
+          deserialize() { },
           clone() { return { ...this }; }
         });
         state.entities.set('test-entity', entity);
         return state;
       }
-      
+
       protected registerSystems(): void {
         // Add game systems here
       }
-      
+
       protected registerCommandHandlers(): void {
         // Add command handlers here
       }
     };
   }
-  
+
   /**
    * Get default simulation configuration
    */

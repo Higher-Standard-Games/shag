@@ -78,27 +78,27 @@ export class PhysicsSystem {
 
     this.initializing = true;
     this.initializing = true;
-    console.log('[PhysicsSystem] Starting Havok initialization...');
+
 
     try {
       // Dynamic import to allow tree-shaking if not used
       const HavokPhysics = (await import('@babylonjs/havok')).default;
-      console.log('[PhysicsSystem] Havok script loaded. Initializing WASM...');
+
 
       // Explicitly locate the WASM file properly served from public/wasm
       // Note: We use manual path instead of Vite specific imports to ensure compatibility
       // with both browser (Vite dev server) and headless (vite-node) environments.
       this.havokInstance = await HavokPhysics({
-        locateFile: (path) => {
-          console.log(`[PhysicsSystem] locating file: ${path} -> /wasm/HavokPhysics.wasm`);
+        locateFile: (_path) => {
+
           return '/wasm/HavokPhysics.wasm';
         }
       });
-      console.log('[PhysicsSystem] Havok WASM loaded!');
+
 
       this.havokPlugin = new HavokPlugin(true, this.havokInstance);
 
-      console.log('[PhysicsSystem] Havok Physics initialized successfully');
+
       this.initializing = false;
       return true;
     } catch (error) {
@@ -137,7 +137,7 @@ export class PhysicsSystem {
       this.scene = scene;
       this.initialized = true;
 
-      console.log(`[PhysicsSystem] Physics enabled on scene (gravity: ${gravity.y})`);
+
       return true;
     } catch (error) {
       console.error('[PhysicsSystem] Failed to enable physics:', error);

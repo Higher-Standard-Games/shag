@@ -39,7 +39,7 @@ export async function loadTextureWithTgaFallback(
 
             // Check if it's a TGA that needs decoding
             if (ext === '.tga' || tryPath.endsWith('.tga')) {
-                console.log(`[TextureLoader] Decoding TGA: ${tryPath}`);
+
                 const dataResp = await fetch(tryPath);
                 const buffer = await dataResp.arrayBuffer();
                 const dataUrl = await decodeTGA(buffer);
@@ -49,7 +49,7 @@ export async function loadTextureWithTgaFallback(
                 return texture;
             } else {
                 // Native format - load directly
-                console.log(`[TextureLoader] Loading: ${tryPath}`);
+
                 const texture = new Texture(tryPath, scene);
                 texture.name = cleanPath;
                 texture.hasAlpha = options.hasAlpha ?? false;

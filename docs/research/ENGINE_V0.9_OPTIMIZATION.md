@@ -30,10 +30,10 @@ Tracked on branch `feature/optimizations`. Golden rule: **no functionality chang
 | 22 | Strip verbose debug logs from `PickupSystem` (6 logs) | `PickupSystem.ts` | ✅ Done |
 | 23 | Strip verbose debug logs from `SweepCollisionBackend` | `SweepCollisionBackend.ts` | ✅ Done |
 | 24 | Strip verbose debug logs from `DroppedWeaponSystem` | `DroppedWeaponSystem.ts` | ✅ Done |
-| 25 | Strip verbose debug logs from `CollisionManager`/`PhysicsSystem` | `CollisionManager.ts`, `PhysicsSystem.ts` | 🔲 |
-| 26 | Strip verbose debug logs from `WeaponSystem`/`CombatSystem` | `WeaponSystem.ts`, `CombatSystem.ts` | 🔲 |
-| 27 | Strip verbose debug logs from network layer init | `NetworkManager.ts`, `ClockSync.ts` | 🔲 |
-| 28 | Strip verbose debug logs from loader subsystems | `ModelLoader.ts`, `TextureLoader.ts`, `BspMeshBuilder.ts` | 🔲 |
+| 25 | Strip verbose debug logs from `CollisionManager`/`PhysicsSystem` | `CollisionManager.ts`, `PhysicsSystem.ts` | ✅ Done |
+| 26 | Strip verbose debug logs from `WeaponSystem`/`CombatSystem` | `WeaponSystem.ts`, `CombatSystem.ts` | ✅ Done |
+| 27 | Strip verbose debug logs from network layer init | `NetworkManager.ts`, `ClockSync.ts` | ✅ Done |
+| 28 | Strip verbose debug logs from loader subsystems | `ModelLoader.ts`, `TextureLoader.ts`, `BspMeshBuilder.ts` | ✅ Done |
 
 ## Medium Gains — Refactors
 
