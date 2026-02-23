@@ -54,16 +54,16 @@ Tracked on branch `feature/optimizations`. Golden rule: **no functionality chang
 
 | # | Description | File(s) | Status |
 |---|-------------|---------|--------|
-| 1 | Mutating vec3 helpers for hot paths | `FPSMovementProfile.ts` | 🔲 |
-| 2 | ECS: indexed slots instead of string keys | Engine ECS | 🔲 |
-| 3 | Pool `SnapshotBuffer` Maps | `SnapshotBuffer.ts` | 🔲 |
-| 4 | Encode-once server broadcast | Server snapshot pipeline | 🔲 |
-| 5 | Pool `TraceResult` objects | `CollisionWorld.ts` | 🔲 |
-| 6 | Pre-alloc scratch vectors in `stepSlideMove` | CollisionWorld | 🔲 |
-| 7 | Batch entity interpolation sampling | `FPSGameManager.ts` | 🔲 |
-| 8 | Skip weapon sync when state hash unchanged | `FPSGameManager.ts` | 🔲 |
-| 9 | Build-time CSS injection | `WashikiTheme.css` | 🔲 |
-| 10 | Scope event listeners to canvas | `FPSController.ts` | 🔲 |
+| 1 | Mutating vec3 helpers for hot paths | `FPSMovementProfile.ts` | ✅ |
+| 2 | ECS: indexed slots instead of string keys | Engine ECS | 🔲 Deferred |
+| 3 | Pool `SnapshotBuffer` Maps | `SnapshotBuffer.ts` | 🔲 Deferred |
+| 4 | Encode-once server broadcast | Server snapshot pipeline | 🔲 Deferred |
+| 5 | Pool `TraceResult` objects | `CollisionWorld.ts` | 🔲 Deferred |
+| 6 | Pre-alloc scratch vectors in `stepSlideMove` | `SweepCollisionBackend.ts` | ✅ |
+| 7 | Batch entity interpolation sampling | `FPSGameManager.ts` | — Skipped |
+| 8 | Skip weapon sync when state hash unchanged | `FPSGameManager.ts` | — Skipped |
+| 9 | Build-time CSS injection | `WashikiTheme.css` | — Skipped |
+| 10 | Scope event listeners to canvas | `FPSController.ts` | ✅ |
 
 ### Legend
 

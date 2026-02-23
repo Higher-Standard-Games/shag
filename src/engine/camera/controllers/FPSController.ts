@@ -687,16 +687,18 @@ export class FPSController implements ICameraController {
       this.onWeaponSelect(this.currentWeaponSlot);
     };
 
-    // Add event listeners - use document for click to ensure we catch it
-    if (this.onCanvasClick) document.addEventListener('click', this.onCanvasClick);
+    // Mouse events scoped to canvas; keyboard + pointerlockchange stay on document.
+    // mousemove stays on document because Pointer Lock dispatches there.
+    const canvas = this.canvas;
+    if (this.onCanvasClick && canvas) canvas.addEventListener('click', this.onCanvasClick);
     if (this.onPointerLockChange) document.addEventListener('pointerlockchange', this.onPointerLockChange);
     if (this.onMouseMove) document.addEventListener('mousemove', this.onMouseMove);
     if (this.onKeyDown) document.addEventListener('keydown', this.onKeyDown);
     if (this.onKeyUp) document.addEventListener('keyup', this.onKeyUp);
-    if (this.onMouseDown) document.addEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp) document.addEventListener('mouseup', this.onMouseUp);
-    if (this.onContextMenu) document.addEventListener('contextmenu', this.onContextMenu);
-    if (this.onMouseWheel) document.addEventListener('wheel', this.onMouseWheel, { passive: false });
+    if (this.onMouseDown && canvas) canvas.addEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.addEventListener('mouseup', this.onMouseUp);
+    if (this.onContextMenu && canvas) canvas.addEventListener('contextmenu', this.onContextMenu);
+    if (this.onMouseWheel && canvas) canvas.addEventListener('wheel', this.onMouseWheel, { passive: false });
   }
 
   private removeInputHandlers(): void {
@@ -705,14 +707,15 @@ export class FPSController implements ICameraController {
       document.exitPointerLock();
     }
 
-    if (this.onCanvasClick) document.removeEventListener('click', this.onCanvasClick);
+    const canvas = this.canvas;
+    if (this.onCanvasClick && canvas) canvas.removeEventListener('click', this.onCanvasClick);
     if (this.onPointerLockChange) document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     if (this.onMouseMove) document.removeEventListener('mousemove', this.onMouseMove);
     if (this.onKeyDown) document.removeEventListener('keydown', this.onKeyDown);
     if (this.onKeyUp) document.removeEventListener('keyup', this.onKeyUp);
-    if (this.onMouseDown) document.removeEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp) document.removeEventListener('mouseup', this.onMouseUp);
-    if (this.onContextMenu) document.removeEventListener('contextmenu', this.onContextMenu);
+    if (this.onMouseDown && canvas) canvas.removeEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.removeEventListener('mouseup', this.onMouseUp);
+    if (this.onContextMenu && canvas) canvas.removeEventListener('contextmenu', this.onContextMenu);
   }
 
   detach(): void {

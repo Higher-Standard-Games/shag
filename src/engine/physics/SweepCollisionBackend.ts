@@ -106,6 +106,13 @@ export class SweepCollisionBackend implements CollisionBackend {
     totalTraceTime: 0,
   };
 
+  // Pre-allocated scratch vectors for stepSlideMove (avoid per-tick allocations)
+  private readonly _ssm_startO = Vector3.Zero();
+  private readonly _ssm_startV = Vector3.Zero();
+  private readonly _ssm_downO = Vector3.Zero();
+  private readonly _ssm_downV = Vector3.Zero();
+  private readonly _ssm_traceEnd = Vector3.Zero();
+
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
@@ -1130,8 +1137,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     velocity: Vector3,
     options?: TraceOptions
   ): { endPos: Vector3; velocity: Vector3; hitCount: number; stepped: boolean } {
-    const startO = startPos.clone();
-    const startV = velocity.clone();
+    const startO = this._ssm_startO;
+    const startV = this._ssm_startV;
+    startO.copyFrom(startPos);
+    startV.copyFrom(velocity);
 
     // First, try a normal slide move
     const firstResult = this.slideMove(startPos, velocity, options);
@@ -1140,39 +1149,62 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // If we moved the full distance without hitting anything, we're done
     if (firstResult.hitCount === 0) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: 0,
+        stepped: false,
+      };
     }
 
     // Check if we're on ground (can only step if grounded)
     // With asymmetric box, origin is 24 units above feet.
     // Tracing down by STEPSIZE checks if there's ground within step distance.
+    this._ssm_traceEnd.set(startO.x, startO.y - STEPSIZE, startO.z);
     const downTrace = this.trace(
       startO,
-      startO.add(new Vector3(0, -STEPSIZE, 0)),
+      this._ssm_traceEnd,
       options
     );
 
     // If not on ground (trace went full distance down), don't try to step
     if (downTrace.fraction >= 1.0) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Check ground normal - only step on floors (normal pointing up)
     if (downTrace.normal && downTrace.normal.y < 0.7) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Save the non-stepped result for comparison
-    const downO = firstResult.endPos.clone();
-    const downV = firstResult.velocity.clone();
+    const downO = this._ssm_downO;
+    const downV = this._ssm_downV;
+    downO.copyFrom(firstResult.endPos);
+    downV.copyFrom(firstResult.velocity);
 
     // Try stepping up by STEPSIZE
-    const upDest = startO.add(new Vector3(0, STEPSIZE, 0));
-    const upTrace = this.trace(startO, upDest, options);
+    this._ssm_traceEnd.set(startO.x, startO.y + STEPSIZE, startO.z);
+    const upTrace = this.trace(startO, this._ssm_traceEnd, options);
 
     // Only abort if completely stuck (allSolid), not just touching a wall (startSolid)
     if (upTrace.allSolid) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Calculate how much we actually stepped up
@@ -1182,8 +1214,12 @@ export class SweepCollisionBackend implements CollisionBackend {
     const raisedResult = this.slideMove(upTrace.endPos, startV, options);
 
     // Step back down by the same amount we stepped up
-    const downDest = raisedResult.endPos.add(new Vector3(0, -stepSize, 0));
-    const stepDownTrace = this.trace(raisedResult.endPos, downDest, options);
+    this._ssm_traceEnd.set(
+      raisedResult.endPos.x,
+      raisedResult.endPos.y - stepSize,
+      raisedResult.endPos.z
+    );
+    const stepDownTrace = this.trace(raisedResult.endPos, this._ssm_traceEnd, options);
 
     if (!stepDownTrace.allSolid) {
       // Use the stepped position
@@ -1212,8 +1248,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Non-stepped result was better or equal
     return {
-      endPos: downO,
-      velocity: downV,
+      endPos: downO.clone(),
+      velocity: downV.clone(),
       hitCount: firstResult.hitCount,
       stepped: false,
     };
