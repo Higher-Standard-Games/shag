@@ -6,6 +6,11 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.9.6](./v0.9.6.md) | Feb 23, 2026 | Washiki HUD overhaul + performance optimization pass (47 items across loading, collision, rendering) |
+| [v0.9.5](./v0.9.5.md) | Feb 22, 2026 | V2 network client, movement refinements |
+| [v0.9.4](./v0.9.4.md) | Feb 21, 2026 | Network prediction improvements |
+| [v0.9.3](./v0.9.3.md) | Feb 19, 2026 | Client-side prediction and collision |
+| [v0.9.2](./v0.9.2.md) | Feb 17, 2026 | Movement techniques and fast movement debugging |
 | [v0.9.1](./v0.9.1.md) | Feb 15, 2026 | Warsow weapons & COD-style pickup system (2-weapon limit, F-key pickup, HUD prompt) |
 | [v0.9.0](./v0.9.0.md) | Jan 31, 2026 | Next-Gen Server Architecture - Deterministic simulation, multi-rate ticks, client prediction |
 | [v0.8.25](./v0.8.25.md) | Jan 28, 2026 | Server architecture research and collision debugging |
