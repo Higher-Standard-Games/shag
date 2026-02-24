@@ -53,8 +53,9 @@ export class FreeflyController implements ICameraController {
     backward: false, // S
     left: false,     // A
     right: false,    // D
-    up: false,       // Space
-    down: false,     // Shift
+    up: false,       // Space (jump)
+    down: false,     // Crouch
+    sprint: false,   // Shift
   };
 
   // Configuration
@@ -305,8 +306,9 @@ export class FreeflyController implements ICameraController {
     this.keys.backward = input.isActive(FPS.MOVE_BACKWARD);
     this.keys.left = input.isActive(FPS.MOVE_LEFT);
     this.keys.right = input.isActive(FPS.MOVE_RIGHT);
-    this.keys.up = input.isActive(FPS.FLY_UP);
-    this.keys.down = input.isActive(FPS.FLY_DOWN);
+    this.keys.up = input.isActive(FPS.JUMP);       // Quake-style: jump = fly up
+    this.keys.down = input.isActive(FPS.CROUCH);    // Quake-style: crouch = fly down
+    this.keys.sprint = input.isActive(FPS.SPRINT);
   }
 
   update(deltaTime: number): void {
@@ -315,7 +317,8 @@ export class FreeflyController implements ICameraController {
     // Sync key state from InputSystem
     this.syncKeysFromInput();
 
-    const speed = (this.config.speed || 200) * deltaTime;
+    const sprintMultiplier = this.keys.sprint ? 3 : 1;
+    const speed = (this.config.speed || 200) * sprintMultiplier * deltaTime;
     const stepHeight = 18; // Max stair step height
     const smoothFactor = 0.15;
 
