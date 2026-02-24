@@ -429,11 +429,11 @@ export class NetworkGameHost implements IGameHost {
    * Send JoinGame message — spectator → player transition.
    * Server will create entity and respond with JoinAccept.
    */
-  sendJoinGame(): void {
+  sendJoinGame(teamId?: string): void {
     if (!this._isConnected) return;
-    const data = MessageCodec.encodeJoinGame();
+    const data = MessageCodec.encodeJoinGame(teamId);
     this.transport.send(data, true); // Reliable
-    console.log('[NetworkGameHost] Sent JoinGame request');
+    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ''}`);
   }
 
   /**

@@ -1,4 +1,5 @@
 import { Entity, type EntityId, type PlayerId } from './Entity';
+import type { MatchStateSnapshot } from '../../../shared/server/gametype';
 
 /**
  * Game event that can be synchronized
@@ -30,6 +31,9 @@ export class GameState {
   /** Pending events to be processed */
   events: GameEvent[] = [];
 
+  /** Add-on for high level game state logic */
+  matchSnapshot?: MatchStateSnapshot;
+
   /**
    * Serialize state to binary
    */
@@ -57,6 +61,14 @@ export class GameState {
       encoder.writeString(event.type);
       // Serialize event data based on type
       this.serializeEvent(encoder, event);
+    }
+
+    // Serialize match snapshot (if present)
+    if (this.matchSnapshot) {
+      encoder.writeUint8(1);
+      encoder.writeString(JSON.stringify(this.matchSnapshot));
+    } else {
+      encoder.writeUint8(0);
     }
   }
 
@@ -95,6 +107,14 @@ export class GameState {
       const event = this.deserializeEvent(decoder, type);
       this.events.push(event);
     }
+
+    // Deserialize match snapshot
+    const hasSnapshot = decoder.readUint8() === 1;
+    if (hasSnapshot) {
+      this.matchSnapshot = JSON.parse(decoder.readString());
+    } else {
+      this.matchSnapshot = undefined;
+    }
   }
 
   /**
@@ -117,6 +137,10 @@ export class GameState {
 
     // Clone events
     cloned.events = [...this.events];
+
+    if (this.matchSnapshot) {
+      cloned.matchSnapshot = JSON.parse(JSON.stringify(this.matchSnapshot));
+    }
 
     return cloned;
   }

@@ -1207,6 +1207,50 @@
     color: var(--w-text-dim);
 }
 
+/* --- Team Scoreboard Variants --- */
+
+.fps-scoreboard-teams {
+    display: flex;
+    gap: calc(20px * var(--ui-scale, 1));
+    width: 100%;
+}
+
+.fps-scoreboard-team {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.fps-scoreboard-team-title {
+    font-family: var(--w-font-display);
+    font-size: calc(14px * var(--ui-scale, 1));
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: calc(8px * var(--ui-scale, 1));
+    text-align: center;
+}
+
+/* Udon Team (Magenta/Red) */
+.fps-scoreboard-team--udon .fps-scoreboard-team-title {
+    color: var(--w-magenta);
+    text-shadow: var(--w-glow-magenta-sm);
+}
+
+.fps-scoreboard-team--udon .fps-scoreboard-row {
+    border-left: 2px solid var(--w-magenta);
+}
+
+/* Soba Team (Cyan/Blue) */
+.fps-scoreboard-team--soba .fps-scoreboard-team-title {
+    color: var(--w-cyan);
+    text-shadow: var(--w-glow-cyan-sm);
+}
+
+.fps-scoreboard-team--soba .fps-scoreboard-row {
+    border-left: 2px solid var(--w-cyan);
+}
+
 
 /* ============================================================================
    Chat UI
@@ -1872,4 +1916,44 @@
     letter-spacing: 0.15em;
     text-shadow: 0 0 8px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.2);
     padding: calc(2px * var(--ui-scale, 1)) 0;
+}
+
+/* ============================================================================
+   Scoreboard Spectators
+   ============================================================================ */
+
+.fps-scoreboard-spectators {
+    margin-top: calc(8px * var(--ui-scale, 1));
+    border-top: 1px solid hsla(180, 100%, 50%, 0.15);
+    padding-top: calc(8px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard-spectators-title {
+    font-family: var(--w-font-display);
+    font-size: calc(11px * var(--ui-scale, 1));
+    color: var(--w-text-muted);
+    text-align: center;
+    margin-bottom: calc(4px * var(--ui-scale, 1));
+    letter-spacing: 0.1em;
+}
+
+.fps-scoreboard-spectators-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(8px * var(--ui-scale, 1));
+    justify-content: center;
+}
+
+.fps-scoreboard-spectator-row {
+    font-family: var(--w-font-mono);
+    font-size: calc(12px * var(--ui-scale, 1));
+    color: var(--w-text);
+    padding: calc(2px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+    background: hsla(220, 30%, 20%, 0.4);
+    border-radius: 2px;
+}
+
+.fps-scoreboard-spectator-row.fps-scoreboard-row--self {
+    color: var(--w-cyan);
+    background: hsla(180, 100%, 50%, 0.15);
 }
