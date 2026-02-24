@@ -18,6 +18,8 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { getCollisionManager } from "../../physics";
 import { Cvar } from "../../core/Cvar";
+import { InputSystem } from "../../input/InputSystem";
+import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 
 export class FreeflyController implements ICameraController {
@@ -133,6 +135,12 @@ export class FreeflyController implements ICameraController {
   private onPointerLockChange: (() => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
+    // Register FPS actions with InputSystem (idempotent)
+    registerFPSActions();
+
+    // Ensure InputSystem event listeners are registered (idempotent)
+    InputSystem.getInstance().init(scene, canvas);
+
     this.scene = scene;
     this.canvas = canvas;
 
@@ -230,29 +238,14 @@ export class FreeflyController implements ICameraController {
       );
     };
 
-    // Keyboard input
+    // Keyboard input — only handles preventDefault; key state comes from InputSystem
     this.onKeyDown = (e: KeyboardEvent) => {
       if (!this.isPointerLocked) return;
-
-      switch (e.code) {
-        case 'KeyW': this.keys.forward = true; break;
-        case 'KeyS': this.keys.backward = true; break;
-        case 'KeyA': this.keys.left = true; break;
-        case 'KeyD': this.keys.right = true; break;
-        case 'Space': this.keys.up = true; e.preventDefault(); break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.down = true; break;
-      }
+      if (e.code === 'Space') e.preventDefault();
     };
 
-    this.onKeyUp = (e: KeyboardEvent) => {
-      switch (e.code) {
-        case 'KeyW': this.keys.forward = false; break;
-        case 'KeyS': this.keys.backward = false; break;
-        case 'KeyA': this.keys.left = false; break;
-        case 'KeyD': this.keys.right = false; break;
-        case 'Space': this.keys.up = false; break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.down = false; break;
-      }
+    this.onKeyUp = (_e: KeyboardEvent) => {
+      // No-op: key state is driven by InputSystem in syncKeysFromInput()
     };
 
     // Add event listeners - use document for click to ensure we catch it
@@ -302,8 +295,25 @@ export class FreeflyController implements ICameraController {
     console.log("[FreeflyController] Detached");
   }
 
+  /**
+   * Sync this.keys state from InputSystem per frame.
+   * Uses spectator context actions (shared WASD + fly up/down).
+   */
+  private syncKeysFromInput(): void {
+    const input = InputSystem.getInstance();
+    this.keys.forward = input.isActive(FPS.MOVE_FORWARD);
+    this.keys.backward = input.isActive(FPS.MOVE_BACKWARD);
+    this.keys.left = input.isActive(FPS.MOVE_LEFT);
+    this.keys.right = input.isActive(FPS.MOVE_RIGHT);
+    this.keys.up = input.isActive(FPS.FLY_UP);
+    this.keys.down = input.isActive(FPS.FLY_DOWN);
+  }
+
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
+
+    // Sync key state from InputSystem
+    this.syncKeysFromInput();
 
     const speed = (this.config.speed || 200) * deltaTime;
     const stepHeight = 18; // Max stair step height

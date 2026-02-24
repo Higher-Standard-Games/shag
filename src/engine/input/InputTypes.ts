@@ -32,6 +32,8 @@ export interface InputBinding {
   key?: string;
   /** Mouse button */
   mouseButton?: MouseButton;
+  /** Scroll wheel direction */
+  scrollDirection?: "up" | "down";
   /** Touch gesture (future) */
   gesture?: string;
   /** Gamepad button (future) */
@@ -79,7 +81,7 @@ export interface RawInputState {
   keysPressed: Set<string>;
   /** Keys released this frame */
   keysReleased: Set<string>;
-  
+
   /** Mouse state */
   mouse: {
     x: number;
@@ -91,7 +93,7 @@ export interface RawInputState {
     buttonsReleased: Set<MouseButton>;
     wheel: number;
   };
-  
+
   /** Touch state */
   touch: {
     points: TouchPoint[];

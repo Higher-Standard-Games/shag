@@ -30,6 +30,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import "@babylonjs/loaders";
 import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { Cvar } from "../../core/Cvar";
+import { InputSystem } from "../../input/InputSystem";
 import { MovementVars } from "../../movement/MovementVars";
 import { DeveloperBar } from "../../debug/DeveloperBar";
 import {
@@ -61,6 +62,7 @@ import { InventoryManager } from "../../game/InventoryManager";
 
 import { PlayerVisuals } from "./components/PlayerVisuals";
 import { FPSGameManager } from "../../../games/fps/FPSGameManager";
+import { FPS, getWeaponSlotPressed, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
@@ -449,9 +451,14 @@ export class FPSController implements ICameraController {
   private onMouseDown: ((e: MouseEvent) => void) | null = null;
   private onMouseUp: ((e: MouseEvent) => void) | null = null;
   private onContextMenu: ((e: Event) => void) | null = null;
-  private onMouseWheel: ((e: WheelEvent) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
+    // Register FPS actions with InputSystem (idempotent, safe to call multiple times)
+    registerFPSActions();
+
+    // Ensure InputSystem event listeners are registered (idempotent)
+    InputSystem.getInstance().init(scene, canvas);
+
     this.scene = scene;
     this.canvas = canvas;
 
@@ -583,66 +590,20 @@ export class FPSController implements ICameraController {
       this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
     };
 
-    // Keyboard input
+    // Keyboard input — only handles preventDefault; key state comes from InputSystem
     this.onKeyDown = (e: KeyboardEvent) => {
       if (!this.isPointerLocked) return;
 
-      // Block ALL Ctrl+key browser shortcuts when pointer locked (like Ctrl+W, Ctrl+T)
-      if (e.ctrlKey) {
-        e.preventDefault();
-      }
+      // Block ALL Ctrl+key browser shortcuts when pointer locked
+      if (e.ctrlKey) e.preventDefault();
 
-      switch (e.code) {
-        case 'KeyW': this.keys.forward = true; break;
-        case 'KeyS': this.keys.backward = true; break;
-        case 'KeyA': this.keys.left = true; break;
-        case 'KeyD': this.keys.right = true; break;
-        case 'Space': this.keys.up = true; e.preventDefault(); break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
-        case 'ControlLeft': case 'ControlRight': case 'KeyC':
-          this.keys.crouch = true;
-          break;
-        case 'KeyR':
-          this.keys.reload = true;
-          if (this.onReload) this.onReload();
-          break;
-        case 'KeyF':
-          this.keys.use = true;
-          if (this.onUse) this.onUse();
-          break;
-      }
-
-      // Weapon switching (1-9) — blocked during switch animation
-      if (e.code.startsWith('Digit') && !(this._isWeaponSwitchBlocked?.() ?? false)) {
-        const digit = parseInt(e.code.replace('Digit', ''));
-        if (digit > 0 && digit <= 9 && this.onWeaponSelect) {
-          this.currentWeaponSlot = digit - 1;
-          this._pendingWeaponSlot = digit; // 1-based for server
-          this.onWeaponSelect(digit - 1);
-        }
-      }
-
-      // F4 = Ready up (match warmup)
-      if (e.code === 'F4') {
-        e.preventDefault();
-        if (this.gameManager) {
-          this.gameManager.sendReady();
-        }
-      }
+      // Prevent default for keys that would interfere with the browser
+      if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
+      if (e.code === 'F4') e.preventDefault();
     };
 
-    this.onKeyUp = (e: KeyboardEvent) => {
-      switch (e.code) {
-        case 'KeyW': this.keys.forward = false; break;
-        case 'KeyS': this.keys.backward = false; break;
-        case 'KeyA': this.keys.left = false; break;
-        case 'KeyD': this.keys.right = false; break;
-        case 'Space': this.keys.up = false; break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
-        case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = false; break;
-        case 'KeyR': this.keys.reload = false; break;
-        case 'KeyF': this.keys.use = false; break;
-      }
+    this.onKeyUp = (_e: KeyboardEvent) => {
+      // No-op: key state is driven by InputSystem in syncKeysFromInput()
     };
 
     // Mouse button handlers for fire and ADS
@@ -666,26 +627,6 @@ export class FPSController implements ICameraController {
       if (this.isPointerLocked) e.preventDefault();
     };
 
-    // Mouse wheel for weapon scrolling (COD-style 3-weapon swap: gunblade + 2 pickups)
-    this.onMouseWheel = (e: WheelEvent) => {
-      if (!this.isPointerLocked || !this.onWeaponSelect) return;
-      e.preventDefault();
-
-      // Block scroll during weapon switch animation
-      if (this._isWeaponSwitchBlocked?.() ?? false) return;
-
-      const weaponCount = this._inventory ? this._inventory.getSlotCount() : 3;
-      if (weaponCount <= 1) return;
-
-      // Scroll up = previous slot, scroll down = next slot (wrapping)
-      if (e.deltaY < 0) {
-        this.currentWeaponSlot = (this.currentWeaponSlot - 1 + weaponCount) % weaponCount;
-      } else if (e.deltaY > 0) {
-        this.currentWeaponSlot = (this.currentWeaponSlot + 1) % weaponCount;
-      }
-      this._pendingWeaponSlot = this.currentWeaponSlot + 1; // 1-based for server
-      this.onWeaponSelect(this.currentWeaponSlot);
-    };
 
     // Mouse events scoped to canvas; keyboard + pointerlockchange stay on document.
     // mousemove stays on document because Pointer Lock dispatches there.
@@ -698,7 +639,7 @@ export class FPSController implements ICameraController {
     if (this.onMouseDown && canvas) canvas.addEventListener('mousedown', this.onMouseDown);
     if (this.onMouseUp && canvas) canvas.addEventListener('mouseup', this.onMouseUp);
     if (this.onContextMenu && canvas) canvas.addEventListener('contextmenu', this.onContextMenu);
-    if (this.onMouseWheel && canvas) canvas.addEventListener('wheel', this.onMouseWheel, { passive: false });
+
   }
 
   private removeInputHandlers(): void {
@@ -747,8 +688,83 @@ export class FPSController implements ICameraController {
     console.log("[FPSController] Detached (state reset)");
   }
 
+  /**
+   * Sync this.keys state from InputSystem per frame.
+   * Replaces the old onKeyDown/onKeyUp switch/case blocks.
+   */
+  private syncKeysFromInput(): void {
+    const input = InputSystem.getInstance();
+
+    // Continuous hold state
+    this.keys.forward = input.isActive(FPS.MOVE_FORWARD);
+    this.keys.backward = input.isActive(FPS.MOVE_BACKWARD);
+    this.keys.left = input.isActive(FPS.MOVE_LEFT);
+    this.keys.right = input.isActive(FPS.MOVE_RIGHT);
+    this.keys.up = input.isActive(FPS.JUMP);
+    this.keys.sprint = input.isActive(FPS.SPRINT);
+    this.keys.crouch = input.isActive(FPS.CROUCH);
+    this.keys.reload = input.isActive(FPS.RELOAD);
+    this.keys.use = input.isActive(FPS.USE);
+
+    // Fire/Aim: only when pointer locked (InputSystem tracks globally)
+    this.keys.fire = this.isPointerLocked && input.isActive(FPS.FIRE);
+    this.keys.aim = this.isPointerLocked && input.isActive(FPS.AIM);
+
+    // One-shot callbacks via wasPressed()
+    if (input.wasPressed(FPS.RELOAD) && this.onReload) this.onReload();
+    if (input.wasPressed(FPS.USE) && this.onUse) this.onUse();
+    if (input.wasPressed(FPS.READY) && this.gameManager) this.gameManager.sendReady();
+
+    // Weapon select (1-9 keys) — blocked during switch animation
+    if (!(this._isWeaponSwitchBlocked?.() ?? false)) {
+      const slot = getWeaponSlotPressed();
+      if (slot > 0 && this.onWeaponSelect) {
+        this.currentWeaponSlot = slot - 1;
+        this._pendingWeaponSlot = slot; // 1-based for server
+        this.onWeaponSelect(slot - 1);
+      }
+
+      // Scroll weapon cycling via InputSystem actions (skip gunblade at slot 0)
+      if (this.onWeaponSelect) {
+        const weaponCount = this._inventory ? this._inventory.getSlotCount() : 3;
+        if (weaponCount > 1) {
+          let next = -1;
+
+          if (input.wasPressed(FPS.WEAPON_NEXT)) {
+            next = this.currentWeaponSlot + 1;
+            if (next >= weaponCount) next = 1;   // wrap to first non-gunblade
+            if (next === 0) next = 1;             // skip gunblade
+          } else if (input.wasPressed(FPS.WEAPON_PREV)) {
+            next = this.currentWeaponSlot - 1;
+            if (next <= 0) next = weaponCount - 1; // wrap to last slot, skip gunblade
+          }
+
+          if (next > 0) {
+            this.currentWeaponSlot = next;
+            this._pendingWeaponSlot = next + 1; // 1-based for server
+            this.onWeaponSelect(next);
+          }
+        }
+      }
+    }
+
+    // HUD actions (Tab = scoreboard, T = chat) — per-frame checks
+    // Import lazily to avoid circular dependency (FPSHud depends on engine)
+    if (input.wasPressed(FPS.SCOREBOARD)) {
+      const { FPSHud } = require('../../../games/fps/client/FPSHud');
+      FPSHud.getInstance()?.scoreboard?.toggle();
+    }
+    if (input.wasPressed(FPS.CHAT)) {
+      const { FPSHud } = require('../../../games/fps/client/FPSHud');
+      FPSHud.getInstance()?.chat?.openInput();
+    }
+  }
+
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera || !this.isPointerLocked) return;
+
+    // Sync key state from InputSystem (replaces hardcoded switch/case handlers)
+    this.syncKeysFromInput();
 
     const mv = MovementVars.getInstance();
 
