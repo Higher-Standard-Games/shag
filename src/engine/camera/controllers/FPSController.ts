@@ -748,16 +748,8 @@ export class FPSController implements ICameraController {
       }
     }
 
-    // HUD actions (Tab = scoreboard, T = chat) — per-frame checks
-    // Import lazily to avoid circular dependency (FPSHud depends on engine)
-    if (input.wasPressed(FPS.SCOREBOARD)) {
-      const { FPSHud } = require('../../../games/fps/client/FPSHud');
-      FPSHud.getInstance()?.scoreboard?.toggle();
-    }
-    if (input.wasPressed(FPS.CHAT)) {
-      const { FPSHud } = require('../../../games/fps/client/FPSHud');
-      FPSHud.getInstance()?.chat?.openInput();
-    }
+    // NOTE: HUD actions (scoreboard, chat) moved to FPSGameManager
+    // to avoid circular dependency and browser `require` crashes
   }
 
   update(deltaTime: number): void {
