@@ -153,10 +153,16 @@ export class InputSystem {
 
   // ==================== Initialization ====================
 
+  private _initialized = false;
+
   /**
-   * Initialize the input system with a scene and canvas
+   * Initialize the input system with a scene and canvas.
+   * Idempotent — safe to call multiple times.
    */
   init(scene: Scene, canvas: HTMLCanvasElement): void {
+    if (this._initialized) return;
+    this._initialized = true;
+
     this.scene = scene;
     this.canvas = canvas;
 
@@ -173,8 +179,7 @@ export class InputSystem {
     canvas.addEventListener("contextmenu", this.boundContextMenu);
 
     // Update action states BEFORE render (so controllers can query them)
-    scene.onBeforeRenderObservable.addOnce(() => { }); // Ensure we're first
-    scene.onBeforeRenderObservable.add(() => this.updateActionStates(), -1000); // High priority (runs first)
+    scene.onBeforeRenderObservable.add(() => this.updateActionStates());
 
     // Clear per-frame state AFTER render
     scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
@@ -469,11 +474,21 @@ export class InputSystem {
           if (this.rawState.keysReleased.has(binding.key)) wasReleased = true;
         }
 
-        // Check mouse
+        // Check mouse button
         if (binding.mouseButton) {
           if (this.rawState.mouse.buttons.has(binding.mouseButton)) isActive = true;
           if (this.rawState.mouse.buttonsPressed.has(binding.mouseButton)) wasPressed = true;
           if (this.rawState.mouse.buttonsReleased.has(binding.mouseButton)) wasReleased = true;
+        }
+
+        // Check scroll wheel direction (impulse — fires as pressed for one frame)
+        if (binding.scrollDirection) {
+          const wheel = this.rawState.mouse.wheel;
+          if ((binding.scrollDirection === "down" && wheel > 0) ||
+            (binding.scrollDirection === "up" && wheel < 0)) {
+            isActive = true;
+            wasPressed = true;
+          }
         }
       }
 
@@ -588,6 +603,110 @@ export class InputSystem {
     }
   }
 
+  // ==================== Binding Queries & Rebinding ====================
+
+  /**
+   * Get the scroll wheel delta this frame (positive = scroll down, negative = scroll up).
+   */
+  getScrollDelta(): number {
+    return this.rawState.mouse.wheel;
+  }
+
+  /**
+   * Get the current bindings for an action (overrides > context > defaults).
+   */
+  getBindingsForAction(actionId: string): InputBinding[] {
+    // Check overrides first
+    const overrides = this.bindingOverrides.get(actionId);
+    if (overrides) return overrides;
+
+    // Check active context bindings
+    const ctx = this.contexts.get(this.getActiveContext());
+    if (ctx?.bindings?.[actionId]) return ctx.bindings[actionId];
+
+    // Fall back to action defaults
+    const action = this.actions.get(actionId);
+    return action?.defaultBindings ?? [];
+  }
+
+  /**
+   * Rebind an action at runtime. Persists to localStorage.
+   */
+  rebind(actionId: string, bindings: InputBinding[]): void {
+    this.bindingOverrides.set(actionId, bindings);
+    this.saveBindingsToStorage();
+  }
+
+  /**
+   * Reset an action to its default bindings.
+   */
+  resetBinding(actionId: string): void {
+    this.bindingOverrides.delete(actionId);
+    this.saveBindingsToStorage();
+  }
+
+  /**
+   * Reset ALL bindings to defaults.
+   */
+  resetAllBindings(): void {
+    this.bindingOverrides.clear();
+    this.saveBindingsToStorage();
+  }
+
+  /**
+   * Load saved binding overrides from localStorage.
+   */
+  loadBindingsFromStorage(): void {
+    try {
+      const saved = localStorage.getItem('shag_keybindings');
+      if (!saved) return;
+      const data = JSON.parse(saved) as Record<string, InputBinding[]>;
+      for (const [actionId, bindings] of Object.entries(data)) {
+        this.bindingOverrides.set(actionId, bindings);
+      }
+      console.log(`[InputSystem] Loaded ${Object.keys(data).length} binding overrides`);
+    } catch {
+      // Silently ignore corrupt data
+    }
+  }
+
+  private saveBindingsToStorage(): void {
+    try {
+      const data: Record<string, InputBinding[]> = {};
+      for (const [actionId, bindings] of this.bindingOverrides) {
+        data[actionId] = bindings;
+      }
+      localStorage.setItem('shag_keybindings', JSON.stringify(data));
+    } catch {
+      // localStorage might be unavailable
+    }
+  }
+
+  /**
+   * Export all binding overrides as a JSON-serializable object.
+   * Use for PlayerAPI sync or settings export.
+   */
+  exportBindings(): Record<string, InputBinding[]> {
+    const data: Record<string, InputBinding[]> = {};
+    for (const [actionId, bindings] of this.bindingOverrides) {
+      data[actionId] = bindings;
+    }
+    return data;
+  }
+
+  /**
+   * Import binding overrides from a JSON object (e.g. from PlayerAPI or settings import).
+   * Replaces all current overrides and persists to localStorage.
+   */
+  importBindings(data: Record<string, InputBinding[]>): void {
+    this.bindingOverrides.clear();
+    for (const [actionId, bindings] of Object.entries(data)) {
+      this.bindingOverrides.set(actionId, bindings);
+    }
+    this.saveBindingsToStorage();
+    console.log(`[InputSystem] Imported ${Object.keys(data).length} binding overrides`);
+  }
+
   // ==================== Accessors ====================
 
   /** Get scene reference (for future gesture/raycast support) */
@@ -612,5 +731,6 @@ export class InputSystem {
     }
     this.scene = null;
     this.canvas = null;
+    this._initialized = false;
   }
 }
