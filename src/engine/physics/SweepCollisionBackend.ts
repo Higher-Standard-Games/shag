@@ -1048,9 +1048,31 @@ export class SweepCollisionBackend implements CollisionBackend {
       const trace = this.trace(currentPos, endPos, options);
 
       if (trace.allSolid) {
-        // Stuck in solid - zero vertical velocity, try to escape
-        currentVel.y = 0;
-        return { endPos: currentPos, velocity: currentVel, hitCount };
+        // Stuck entirely inside solid — try to nudge out in 6 cardinal directions
+        // Q3-style recovery: find an escape direction instead of trapping the player
+        const NUDGE = 1.0;
+        const nudges = [
+          new Vector3(NUDGE, 0, 0), new Vector3(-NUDGE, 0, 0),
+          new Vector3(0, NUDGE, 0), new Vector3(0, -NUDGE, 0),
+          new Vector3(0, 0, NUDGE), new Vector3(0, 0, -NUDGE),
+        ];
+        let escaped = false;
+        for (const nudge of nudges) {
+          const testPos = currentPos.add(nudge);
+          const testTrace = this.trace(testPos, testPos, options);
+          if (!testTrace.allSolid && !testTrace.startSolid) {
+            currentPos.copyFrom(testPos);
+            escaped = true;
+            break;
+          }
+        }
+        if (!escaped) {
+          // Truly stuck — zero all velocity, return current position
+          currentVel = Vector3.Zero();
+          return { endPos: currentPos, velocity: currentVel, hitCount };
+        }
+        // Escaped — continue sliding from new position
+        continue;
       }
 
       // DEPENETRATION: If we started inside geometry, nudge out along normal

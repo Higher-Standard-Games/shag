@@ -321,6 +321,11 @@ export class AudioManager {
 
     console.log(`[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`);
 
+    // Invalidate any in-flight async track loads from the previous playlist.
+    // playCurrentTrack checks loadingRequestId after each await; bumping it here
+    // ensures old loads abort before they call audio.play().
+    this.loadingRequestId++;
+
     // Stop any currently playing music immediately (no crossfade between playlists)
     this.stopMusic(false);
 

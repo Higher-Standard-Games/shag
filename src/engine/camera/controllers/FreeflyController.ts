@@ -155,11 +155,14 @@ export class FreeflyController implements ICameraController {
 
     if (!(camera instanceof FreeCamera)) {
       this.camera = new FreeCamera("freeflyCamera", startPos, scene);
-      this.camera.rotation.x = 0;
-      this.camera.rotation.y = 0;
     } else {
       this.camera = camera;
     }
+
+    // Always reset rotation when entering freefly mode — prevents carrying
+    // corrupted pitch/yaw from e.g. being stuck at a weird angle in FPS mode
+    this.camera.rotation.x = 0;
+    this.camera.rotation.y = 0;
 
     // Always set as active camera (fixes blue screen when switching controllers)
     scene.activeCamera = this.camera;
