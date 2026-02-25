@@ -93,16 +93,15 @@ export class SharedCollisionWorld implements CollisionWorld {
         // Q3 PM_GroundTrace style: ALWAYS trace down, regardless of movement direction.
         // Previous conditional paths missed uphill movement (movement.y > 0.1),
         // causing grounded/airborne oscillation on ramps.
-        const MIN_WALK_NORMAL = 0.7;
         let grounded = false;
 
         // Unconditional ground trace: always check for ground within 2u below.
-        // Detection only — no position snap (snap was causing crouch slide shaking).
+        // Detection only — no position snap, no velocity clip.
+        // NOTE: original code used fraction < 1.0 only (no normal check).
+        // Adding normal.y >= 0.7 broke crouch slides near walls/uneven surfaces.
         const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
         const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-        if (groundTrace.fraction < 1.0
-            && groundTrace.normal !== undefined
-            && groundTrace.normal.y >= MIN_WALK_NORMAL) {
+        if (groundTrace.fraction < 1.0) {
             grounded = true;
         }
 
