@@ -103,21 +103,6 @@ export class SharedCollisionWorld implements CollisionWorld {
             && groundTrace.normal !== undefined
             && groundTrace.normal.y >= MIN_WALK_NORMAL) {
             grounded = true;
-
-            // Ground snap: stick player to the surface (prevents hovering/oscillation)
-            // Q3 does this in PM_GroundTrace after every move
-            if (groundTrace.fraction > 0.001) {
-                result.endPos.copyFrom(groundTrace.endPos);
-            }
-
-            // Clip velocity to ground plane (prevents velocity from pointing into surface)
-            const nrm = groundTrace.normal;
-            const vDotN = result.velocity.x * nrm.x + result.velocity.y * nrm.y + result.velocity.z * nrm.z;
-            if (vDotN < 0) {
-                result.velocity.x -= nrm.x * vDotN;
-                result.velocity.y -= nrm.y * vDotN;
-                result.velocity.z -= nrm.z * vDotN;
-            }
         }
 
         // ── VELOCITY CONVERSION ──
