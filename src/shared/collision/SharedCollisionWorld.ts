@@ -90,10 +90,9 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Q3-style: grounded only if standing on a surface with normal.y >= 0.75
-        // 0.75 ≈ 41° — makes 45° slopes (cos45 ≈ 0.707) non-walkable/surfable
-        // matching Warsow feel. Ramps up to ~41° remain walkable.
-        const MIN_WALK_NORMAL = 0.75;
+        // Q3-style: grounded only if standing on a surface with normal.y >= 0.7 (MIN_WALK_NORMAL)
+        // In Warsow, 45° ramps (cos45=0.707) are walkable. Only steeper surfaces cause sliding.
+        const MIN_WALK_NORMAL = 0.7;
         const expectedYMove = movement.y;
         const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
@@ -119,26 +118,6 @@ export class SharedCollisionWorld implements CollisionWorld {
         const clippedVelocity = deltaTime > 0
             ? fromBabylon(result.velocity.scale(1 / deltaTime))
             : { x: 0, y: 0, z: 0 };
-
-        // ── RAMP DETECTION ──
-        // If slideMove redirected velocity significantly upward (hit a ramp/slope),
-        // override grounded to false. Without this, at ramp/floor junctions the
-        // ground trace finds the flat floor below → falsely grounded → friction
-        // kills all speed. Q3 uses vel[2] > 180 to prevent grounding when going up.
-        //
-        // Check: did the slide move ADD significant upward velocity that wasn't
-        // in the original input? If so, velocity was redirected by a non-walkable
-        // surface (ramp), and the player should be airborne for friction purposes.
-        if (grounded && deltaTime > 0) {
-            const inputVelY = velocity.y;
-            const outputVelY = clippedVelocity.y;
-            const addedUpwardVel = outputVelY - inputVelY;
-            // Threshold: > 30 units/sec of added upward velocity means ramp contact
-            // (A player running at 300 u/s into a 45° ramp gets ~150 u/s upward)
-            if (addedUpwardVel > 30) {
-                grounded = false;
-            }
-        }
 
         return {
             endPos: fromBabylon(result.endPos),

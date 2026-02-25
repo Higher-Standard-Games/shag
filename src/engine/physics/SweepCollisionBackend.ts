@@ -964,9 +964,44 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Check results
     if (!startOut) {
-      // Started inside brush
+      // Started inside brush — compute least-penetrated plane normal
+      // (the plane we're closest to escaping through, Q3 CM_TraceThroughBrush behavior)
+      let bestDist = -Infinity;
+      let bestNormal: [number, number, number] | null = null;
+
+      for (let i = 0; i < brush.numSides; i++) {
+        const side = this.bsp.brushSides[brush.firstSide + i];
+        if (!side) continue;
+        const plane = this.bsp.planes[side.planeIndex];
+        if (!plane) continue;
+
+        // Calculate how far inside this plane the start point is
+        // (same offset logic as above)
+        const offset: [number, number, number] = [0, 0, 0];
+        for (let j = 0; j < 3; j++) {
+          if (plane.normal[j] < 0) {
+            offset[j] = state.maxs[j];
+          } else {
+            offset[j] = state.mins[j];
+          }
+        }
+        const dist = (state.start[0] + offset[0]) * plane.normal[0] +
+          (state.start[1] + offset[1]) * plane.normal[1] +
+          (state.start[2] + offset[2]) * plane.normal[2] -
+          plane.dist;
+
+        // dist < 0 means inside; the LEAST negative is closest to escape
+        if (dist > bestDist) {
+          bestDist = dist;
+          bestNormal = [...plane.normal] as [number, number, number];
+        }
+      }
+
       state.result.startSolid = true;
       state.result.contents = texture.contentFlags;
+      if (bestNormal) {
+        state.result.normal = bestNormal;
+      }
       if (!endOut) {
         state.result.allSolid = true;
         state.result.fraction = 0;
@@ -1241,8 +1276,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       };
     }
 
-    // Check ground normal - only step on walkable floors (MIN_WALK_NORMAL = 0.75)
-    if (downTrace.normal && downTrace.normal.y < 0.75) {
+    // Check ground normal - only step on walkable floors (MIN_WALK_NORMAL = 0.7)
+    if (downTrace.normal && downTrace.normal.y < 0.7) {
       return {
         endPos: firstResult.endPos,
         velocity: firstResult.velocity,
