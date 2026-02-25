@@ -90,19 +90,26 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Two-path check for accurate grounded state:
+        // Q3-style: grounded only if standing on a surface with normal.y >= 0.7 (MIN_WALK_NORMAL)
+        const MIN_WALK_NORMAL = 0.7;
         const expectedYMove = movement.y;
         const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
 
         if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
-            // Path 1: downward movement was blocked by collision → on ground
-            grounded = true;
+            // Path 1: downward movement was blocked — verify it's a floor, not a wall
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            grounded = groundTrace.fraction < 1.0
+                && groundTrace.normal !== undefined
+                && groundTrace.normal.y >= MIN_WALK_NORMAL;
         } else if (Math.abs(movement.y) < 0.1) {
             // Path 2: nearly stationary vertically → trace to detect floor
             const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
             const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-            grounded = groundTrace.fraction < 1.0;
+            grounded = groundTrace.fraction < 1.0
+                && groundTrace.normal !== undefined
+                && groundTrace.normal.y >= MIN_WALK_NORMAL;
         }
 
         // ── VELOCITY CONVERSION ──

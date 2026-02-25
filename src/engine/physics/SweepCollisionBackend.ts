@@ -1053,10 +1053,10 @@ export class SweepCollisionBackend implements CollisionBackend {
         return { endPos: currentPos, velocity: currentVel, hitCount };
       }
 
-      // DEPENETRATION: If we started inside geometry, nudge us out slightly
-      // This prevents getting stuck in corners where velocity clipping alone isn't enough
+      // DEPENETRATION: If we started inside geometry, nudge out along normal
+      // Q3 uses 0.25 units — enough to escape tight corners and angled brush seams
       if (trace.startSolid && trace.normal) {
-        currentPos.addInPlace(trace.normal.scale(0.05));
+        currentPos.addInPlace(trace.normal.scale(0.25));
       }
 
       if (trace.fraction > 0) {
@@ -1141,9 +1141,9 @@ export class SweepCollisionBackend implements CollisionBackend {
             if (Vector3.Dot(clippedVel, planes[k]) >= 0) {
               continue;
             }
-            // Stuck in a corner - apply gravity escape instead of stopping
-            // This lets the player naturally fall out of impossible positions
-            currentVel = new Vector3(0, -50, 0);  // Small downward velocity to escape
+            // Stuck in a 3-plane corner — full stop (Q3 PM_SlideMove behavior)
+            // Pushing downward can clip through floors; zeroing is always safe.
+            currentVel = Vector3.Zero();
             return { endPos: currentPos, velocity: currentVel, hitCount };
           }
         }
