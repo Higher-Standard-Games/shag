@@ -90,27 +90,33 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Q3-style: grounded only if standing on a surface with normal.y >= 0.7 (MIN_WALK_NORMAL)
-        // In Warsow, 45° ramps (cos45=0.707) are walkable. Only steeper surfaces cause sliding.
+        // Q3 PM_GroundTrace style: ALWAYS trace down, regardless of movement direction.
+        // Previous conditional paths missed uphill movement (movement.y > 0.1),
+        // causing grounded/airborne oscillation on ramps.
         const MIN_WALK_NORMAL = 0.7;
-        const expectedYMove = movement.y;
-        const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
 
-        if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
-            // Path 1: downward movement was blocked — verify it's a floor, not a wall
-            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-            grounded = groundTrace.fraction < 1.0
-                && groundTrace.normal !== undefined
-                && groundTrace.normal.y >= MIN_WALK_NORMAL;
-        } else if (Math.abs(movement.y) < 0.1) {
-            // Path 2: nearly stationary vertically → trace to detect floor
-            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-            grounded = groundTrace.fraction < 1.0
-                && groundTrace.normal !== undefined
-                && groundTrace.normal.y >= MIN_WALK_NORMAL;
+        const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+        const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+        if (groundTrace.fraction < 1.0
+            && groundTrace.normal !== undefined
+            && groundTrace.normal.y >= MIN_WALK_NORMAL) {
+            grounded = true;
+
+            // Ground snap: stick player to the surface (prevents hovering/oscillation)
+            // Q3 does this in PM_GroundTrace after every move
+            if (groundTrace.fraction > 0.001) {
+                result.endPos.copyFrom(groundTrace.endPos);
+            }
+
+            // Clip velocity to ground plane (prevents velocity from pointing into surface)
+            const nrm = groundTrace.normal;
+            const vDotN = result.velocity.x * nrm.x + result.velocity.y * nrm.y + result.velocity.z * nrm.z;
+            if (vDotN < 0) {
+                result.velocity.x -= nrm.x * vDotN;
+                result.velocity.y -= nrm.y * vDotN;
+                result.velocity.z -= nrm.z * vDotN;
+            }
         }
 
         // ── VELOCITY CONVERSION ──
