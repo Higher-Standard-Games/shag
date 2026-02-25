@@ -130,3 +130,36 @@ The residual shake likely comes from:
 - `src/games/fps/client/V2NetworkClient.ts`
 - `src/engine/network/client/hosts/NetworkGameHost.ts`
 - `src/engine/camera/controllers/FPSController.ts`
+
+---
+
+## 🟡 Medium: No Momentum Preservation on 45° Slopes
+
+**Status:** Open  
+**Severity:** Medium  
+**First Observed:** v0.9.5 development  
+**Affected:** All modes
+
+### Symptoms
+
+- Player loses all speed when hitting a 45° ramp surface
+- In Warsow, players can slide along ramps maintaining momentum (surf-style)
+- Speed is killed on contact despite velocity clipping working correctly
+
+### Investigation So Far
+
+- `MIN_WALK_NORMAL` raised from 0.7 to 0.75 — makes 45° surfaces non-walkable (cos45°=0.707 < 0.75)
+- Ramp velocity detection added to `SharedCollisionWorld` — if slideMove redirects velocity upward >30 u/s, override grounded=false
+- Issue persists: at ramp/floor junctions, ground trace still finds flat floor below the player, reporting grounded=true before the ramp check fires
+- Friction in `Acceleration.applyFriction()` kills horizontal speed on the first grounded frame before the airborne override can take effect
+
+### Suspected Root Cause
+
+The ground detection architecture traces DOWN from the player's end position. At ramp/floor junctions, this always finds the flat floor (not the ramp), causing false grounding. A possible fix is to use the slideMove hit normals directly for ground detection instead of a secondary downward trace.
+
+### Related Files
+
+- `src/shared/collision/SharedCollisionWorld.ts` — ground detection
+- `src/games/fps/simulation/MovementProfile.ts` — ground plane clipping, slope physics
+- `src/games/fps/simulation/Acceleration.ts` — friction, ground/air acceleration
+- `src/engine/physics/SweepCollisionBackend.ts` — slideMove, clipVelocity

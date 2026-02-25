@@ -1077,11 +1077,15 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
 
       // DEPENETRATION: If we started inside geometry, nudge out along normal
-      // and RESTART the slide from the new position. Do NOT accept the trace's
-      // fractional movement — it pushes back into the corner that caused startSolid.
+      // and clip velocity so it no longer points INTO the surface.
+      // Without the clip, velocity pushes player right back in next frame → stuck loop.
       if (trace.startSolid && trace.normal) {
         currentPos.addInPlace(trace.normal.scale(0.5));
-        // Don't consume timeLeft — retry from nudged position
+        // Clip velocity: remove the into-surface component (Q3 PM_SlideMove behavior)
+        const into = Vector3.Dot(currentVel, trace.normal);
+        if (into < 0) {
+          currentVel = this.clipVelocity(currentVel, trace.normal);
+        }
         continue;
       }
 
