@@ -96,8 +96,9 @@ export class SharedCollisionWorld implements CollisionWorld {
         const MIN_WALK_NORMAL = 0.7;
         let grounded = false;
 
-        // Q3 PM_GroundTrace: trace down 0.25u (tight snap, prevents crouch slide shaking)
-        const groundCheckEnd = result.endPos.add(new Vector3(0, -0.25, 0));
+        // Unconditional ground trace: always check for ground within 2u below.
+        // Detection only — no position snap (snap was causing crouch slide shaking).
+        const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
         const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
         if (groundTrace.fraction < 1.0
             && groundTrace.normal !== undefined
