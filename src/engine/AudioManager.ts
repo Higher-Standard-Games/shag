@@ -1,5 +1,7 @@
 import { AssetLoader } from "./AssetLoader";
 import { Cvar } from "./core/Cvar";
+import { PK3Loader } from "./loader/pk3/PK3Loader";
+import { PK3Index } from "./loader/pk3/PK3Index";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -21,6 +23,11 @@ export class AudioManager {
   private fadingOutMusic: HTMLAudioElement | null = null;
   private musicVolume = 0.5;
   private musicEnabled = true;
+
+  // Sound effects state
+  private sfxVolume = 0.7;
+  private sfxEnabled = true;
+
   private fadeInterval: number | null = null;
 
   // Playlist state
@@ -28,6 +35,11 @@ export class AudioManager {
   private currentTrackIndex = 0;
   private playlistName: string | null = null;
   private isPlayingPlaylist = false;
+
+  /** Map of active audio elements to their associated Blob URLs for proper cleanup */
+  private audioBlobUrls: Map<HTMLAudioElement, string> = new Map();
+  /** Tracking the latest request ID to prevent race conditions in async loading */
+  private loadingRequestId = 0;
 
   private constructor() {
     // Register cvars immediately so they're available even if init() isn't called
@@ -101,21 +113,13 @@ export class AudioManager {
   }
 
   public playMusic(key: string, loop = true, fadeIn = true): void {
-    console.log(`[AudioManager] playMusic called: key=${key}, enabled=${this.musicEnabled}, volume=${this.musicVolume}`);
-    
-    if (!this.musicEnabled) {
-      console.log("[AudioManager] Music disabled, skipping");
-      return;
-    }
+    if (!this.musicEnabled) return;
 
     const audio = AssetLoader.getInstance().getAudio(key);
     if (!audio) {
       console.warn(`[AudioManager] Audio not found: ${key}`);
       return;
     }
-    
-    console.log(`[AudioManager] Audio found, preparing to play`);
-
 
     // Stop current music
     this.stopMusic(fadeIn);
@@ -140,14 +144,25 @@ export class AudioManager {
       this.fadingOutMusic.pause();
       this.fadingOutMusic = null;
     }
-    
+
     if (!this.currentMusic) return;
 
     if (fadeOut) {
       this.fadeOutMusic();
     } else {
-      this.currentMusic.pause();
-      this.currentMusic = null;
+      if (this.currentMusic) {
+        this.currentMusic.pause();
+        this.currentMusic.src = ""; // Clear source
+
+        // Cleanup Blob URL if this element had one
+        const blobUrl = this.audioBlobUrls.get(this.currentMusic);
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl);
+          this.audioBlobUrls.delete(this.currentMusic);
+        }
+
+        this.currentMusic = null;
+      }
     }
   }
 
@@ -190,9 +205,9 @@ export class AudioManager {
 
     const musicToFade = this.currentMusic;
     this.currentMusic = null;
-    
+
     if (!musicToFade) return;
-    
+
     // Track the fading music so we can stop it if needed
     this.fadingOutMusic = musicToFade;
 
@@ -201,6 +216,15 @@ export class AudioManager {
         musicToFade.volume -= 0.02;
       } else {
         musicToFade.pause();
+        musicToFade.src = ""; // Clear source
+
+        // Cleanup Blob URL when fade finished
+        const blobUrl = this.audioBlobUrls.get(musicToFade);
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl);
+          this.audioBlobUrls.delete(musicToFade);
+        }
+
         this.fadingOutMusic = null;
         if (this.fadeInterval) clearInterval(this.fadeInterval);
       }
@@ -230,9 +254,6 @@ export class AudioManager {
   }
 
   // ==================== Sound Effects ====================
-
-  private sfxVolume = 0.7;
-  private sfxEnabled = true;
 
   /**
    * Play a sound effect (one-shot, no looping)
@@ -322,11 +343,24 @@ export class AudioManager {
    */
   public async loadPlaylist(playlistUrl: string): Promise<void> {
     try {
-      const response = await fetch(playlistUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const pk3 = PK3Loader.getInstance();
+      let playlist: Playlist;
+
+      if (pk3.hasFile(playlistUrl)) {
+        const buffer = await pk3.getFile(playlistUrl);
+        if (!buffer) throw new Error("Failed to read playlist from PK3");
+        const text = new TextDecoder().decode(buffer);
+        playlist = JSON.parse(text) as Playlist;
+        console.log(`[AudioManager] Loaded playlist from PK3: ${playlistUrl}`);
+      } else {
+        const response = await fetch(playlistUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        playlist = await response.json() as Playlist;
+        console.log(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
       }
-      const playlist = await response.json() as Playlist;
+
       this.startPlaylist(playlist, playlistUrl);
     } catch (e) {
       console.error(`[AudioManager] Failed to load playlist: ${playlistUrl}`, e);
@@ -348,7 +382,7 @@ export class AudioManager {
    */
   private failedTrackAttempts = 0;
 
-  private playCurrentTrack(fadeIn = true): void {
+  private async playCurrentTrack(fadeIn = true): Promise<void> {
     if (!this.currentPlaylist || !this.isPlayingPlaylist) return;
 
     const track = this.currentPlaylist.tracks[this.currentTrackIndex];
@@ -359,14 +393,74 @@ export class AudioManager {
 
     console.log(`[AudioManager] Playing track ${this.currentTrackIndex + 1}/${this.currentPlaylist.tracks.length}: ${track.title || track.file}`);
 
-    // Get audio from AssetLoader using the file name (without extension) as key
-    const audioKey = track.file.replace(/\.[^.]+$/, ""); // Remove extension
-    const audio = AssetLoader.getInstance().getAudio(audioKey);
-    
+    // Stop current music first
+    if (this.currentMusic) {
+      this.stopMusic(fadeIn);
+    }
+
+    // Increment request ID to invalidate any slow-loading previous tracks
+    const requestId = ++this.loadingRequestId;
+
+    let audio: HTMLAudioElement | null = null;
+    let audioUrl: string | null = null;
+
+    // 1. Try AssetLoader first (for preloaded/conventional files)
+    const audioKey = track.file.replace(/\.[^.]+$/, "");
+    const preloadedAudio = AssetLoader.getInstance().getAudio(audioKey);
+
+    if (preloadedAudio) {
+      audio = preloadedAudio.cloneNode(true) as HTMLAudioElement;
+      audioUrl = preloadedAudio.src;
+    } else {
+      // 2. Try PK3Loader (streaming from package)
+      const pk3 = PK3Loader.getInstance();
+
+      // Try exact path, then music/ subdir
+      let finalPath = track.file;
+      if (!pk3.hasFile(finalPath)) {
+        finalPath = `music/${track.file}`;
+      }
+
+      // If PK3Loader doesn't have the file, check PK3Index to find and load the right pk3
+      if (!pk3.hasFile(finalPath)) {
+        const pk3Index = PK3Index.getInstance();
+        const pk3Name = pk3Index.findFile(track.file) || pk3Index.findFile(`music/${track.file}`);
+        if (pk3Name) {
+          console.log(`[AudioManager] Loading PK3 for music: ${pk3Name}`);
+          try {
+            await pk3.loadPK3(pk3Name);
+          } catch (e) {
+            console.error(`[AudioManager] Failed to load PK3: ${pk3Name}`, e);
+          }
+          // Re-resolve the path after loading
+          finalPath = track.file;
+          if (!pk3.hasFile(finalPath)) {
+            finalPath = `music/${track.file}`;
+          }
+        }
+      }
+
+      if (pk3.hasFile(finalPath)) {
+        const blobUrl = await pk3.getFileAsURL(finalPath, "audio/mpeg");
+        if (blobUrl) {
+          audio = new Audio(blobUrl);
+          audioUrl = blobUrl;
+        }
+      }
+    }
+
+    // If a newer request was started while we were awaiting PK3, abort this one
+    if (requestId !== this.loadingRequestId) {
+      console.log(`[AudioManager] Aborting track load for request ${requestId} (now on ${this.loadingRequestId})`);
+      if (audioUrl && audioUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      return;
+    }
+
     if (!audio) {
-      console.warn(`[AudioManager] Track audio not found: ${audioKey}, trying next track`);
+      console.warn(`[AudioManager] Track audio not found: ${track.file}, trying next track`);
       this.failedTrackAttempts++;
-      // Prevent infinite loop - if we've tried all tracks and none work, stop
       if (this.failedTrackAttempts >= this.currentPlaylist.tracks.length) {
         console.error(`[AudioManager] All tracks failed to load, stopping playlist`);
         this.isPlayingPlaylist = false;
@@ -376,21 +470,16 @@ export class AudioManager {
       this.nextTrack();
       return;
     }
-    
-    // Reset failed attempts on successful load
-    this.failedTrackAttempts = 0;
 
-    // Stop current music
-    if (this.currentMusic) {
-      this.stopMusic(fadeIn);
+    this.failedTrackAttempts = 0;
+    if (audioUrl && audioUrl.startsWith("blob:")) {
+      this.audioBlobUrls.set(audio, audioUrl);
     }
 
-    // Clone and play
-    this.currentMusic = audio.cloneNode(true) as HTMLAudioElement;
-    this.currentMusic.loop = false; // We handle looping via playlist
+    this.currentMusic = audio;
+    this.currentMusic.loop = false;
     this.currentMusic.volume = fadeIn ? 0 : this.musicVolume;
 
-    // Listen for track end to play next
     this.currentMusic.addEventListener("ended", () => {
       this.nextTrack();
     });
