@@ -1111,17 +1111,13 @@ export class SweepCollisionBackend implements CollisionBackend {
         continue;
       }
 
-      // DEPENETRATION: If we started inside geometry, nudge out along normal
-      // and clip velocity so it no longer points INTO the surface.
-      // Without the clip, velocity pushes player right back in next frame → stuck loop.
+      // DEPENETRATION: If we started inside geometry, nudge out slightly along normal.
+      // Use a gentle nudge (0.05u) and fall through to normal fraction/clip handling.
+      // The traceBrush fix means this handler now fires (it previously was dead code
+      // because brushes never returned a startSolid normal). Keep the nudge small
+      // to avoid jitter during fast movement like crouch slides.
       if (trace.startSolid && trace.normal) {
-        currentPos.addInPlace(trace.normal.scale(0.5));
-        // Clip velocity: remove the into-surface component (Q3 PM_SlideMove behavior)
-        const into = Vector3.Dot(currentVel, trace.normal);
-        if (into < 0) {
-          currentVel = this.clipVelocity(currentVel, trace.normal);
-        }
-        continue;
+        currentPos.addInPlace(trace.normal.scale(0.05));
       }
 
       if (trace.fraction > 0) {
