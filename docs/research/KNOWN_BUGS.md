@@ -10,6 +10,7 @@ This document tracks known issues with the multiplayer networking and spawn syst
 **Affected:** Multiplayer mode (dedicated server)
 
 ### Symptoms
+
 - Player connects to server and receives correct spawn position
 - Client shows correct spawn coordinates in reconciliation logs
 - Despite 0.0 reconciliation error, player cannot move
@@ -58,9 +59,11 @@ This document tracks known issues with the multiplayer networking and spawn syst
 **Fixed In:** v0.9.0 (commit pending)
 
 ### Issue
+
 When mouse pointer was captured (click to play), FPSController would re-initialize physics position from stale `camera.position` instead of using server-provided spawn position.
 
 ### Fix
+
 Modified `FPSController.ts` to wait for `V2NetworkClient.hasValidPosition()` before initializing in network mode.
 
 ---
@@ -72,10 +75,58 @@ Modified `FPSController.ts` to wait for `V2NetworkClient.hasValidPosition()` bef
 **Affected Maps:** Various FBSP maps (Warsow)
 
 ### Symptoms
+
 ```
 [BspLoader] LightGrid Counts: Predicted=10880, Actual=10822
 [BspLoader] LightGrid dimension mismatch!
 ```
 
 ### Impact
+
 Model lighting may be slightly incorrect near map edges.
+
+---
+
+## 🟡 Medium: Ledge Grab Micro-Shake with +forward Input
+
+**Status:** Open (cosmetic — grab is functional)
+**Severity:** Minor
+**First Observed:** v0.9.7 development
+
+### Symptoms
+
+Holding W (+forward) + Jump near a ledge while airborne causes a subtle 2–3 frame camera shake at the moment the ledge grab initiates. Releasing +forward before the grab triggers results in a perfectly smooth grab.
+
+### Investigation & Fixes Applied
+
+Five issues were identified and fixed, each reducing shake but not fully eliminating it:
+
+| Layer | Issue | Fix |
+|-------|-------|-----|
+| `LedgeGrab.ts` cancel logic | Sprint and directional input (`pushingAway` dot product) could cancel grabs at angles → detection→cancel oscillation | Only Crouch cancels now |
+| `LedgeGrab.ts` detection tick | Velocity not zeroed on frame 0 of grab | `vel.x/y/z = 0` on detection |
+| `V2NetworkClient.visualOffset` | Reconciliation corrections smoothed over ~50ms during grab | Snapped to zero when `ledgeGrabState !== 'none'` |
+| `NetworkGameHost.reconcilePrediction` | Smooth correction applied during grab | Reconciliation skipped during grab |
+| `FPSController.smoothedY` | Camera Y lerped at 15%/frame during grab | Snapped when `ledgeGrabState !== 'none'` |
+
+### Remaining Cause (Suspected)
+
+The residual shake likely comes from:
+
+- **Collision response before detection** — Air accel from +forward pushes into wall collision (step-slide-move clips position) on the tick before detection, creating a sub-unit position jerk that gets frozen
+- **Input replay FP drift** — V2Client replays unacked inputs from server position; accumulated floating point differences cause the replayed grab to trigger at a slightly different position
+- **Detection timing sensitivity** — Waist trace (`ledgeReach = 32u`) fires at varying distances depending on exact sub-unit position
+
+### Potential Future Approaches
+
+1. **Pre-emptive detection** — Increase `ledgeReach` so grab triggers before wall contact
+2. **Deterministic grab position** — Snap to a computed wall-relative position instead of freezing at current position
+3. **Reconciliation-aware grab** — Force replayed grabs to trigger at the same sequence as original prediction
+
+### Related Files
+
+- `src/games/fps/simulation/LedgeGrab.ts`
+- `src/games/fps/simulation/MovementProfile.ts`
+- `src/games/fps/client/V2NetworkClient.ts`
+- `src/engine/network/client/hosts/NetworkGameHost.ts`
+- `src/engine/camera/controllers/FPSController.ts`
