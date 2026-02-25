@@ -160,9 +160,13 @@ export class FreeflyController implements ICameraController {
     }
 
     // Always reset rotation when entering freefly mode — prevents carrying
-    // corrupted pitch/yaw from e.g. being stuck at a weird angle in FPS mode
+    // corrupted pitch/yaw/roll from e.g. being stuck at a weird angle in FPS mode.
+    // IMPORTANT: rotationQuaternion takes precedence in Babylon.js. If it's set
+    // (e.g. by FPS controller or physics), Euler rotation is ignored. Clear it.
+    this.camera.rotationQuaternion = null;
     this.camera.rotation.x = 0;
     this.camera.rotation.y = 0;
+    this.camera.rotation.z = 0;
 
     // Always set as active camera (fixes blue screen when switching controllers)
     scene.activeCamera = this.camera;

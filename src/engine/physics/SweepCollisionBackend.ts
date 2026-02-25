@@ -1048,13 +1048,16 @@ export class SweepCollisionBackend implements CollisionBackend {
       const trace = this.trace(currentPos, endPos, options);
 
       if (trace.allSolid) {
-        // Stuck entirely inside solid — try to nudge out in 6 cardinal directions
+        // Stuck entirely inside solid — try to nudge out in multiple directions
         // Q3-style recovery: find an escape direction instead of trapping the player
-        const NUDGE = 1.0;
+        const NUDGE = 2.0;
         const nudges = [
           new Vector3(NUDGE, 0, 0), new Vector3(-NUDGE, 0, 0),
           new Vector3(0, NUDGE, 0), new Vector3(0, -NUDGE, 0),
           new Vector3(0, 0, NUDGE), new Vector3(0, 0, -NUDGE),
+          // Diagonals for corner junctions
+          new Vector3(NUDGE, NUDGE, 0), new Vector3(-NUDGE, NUDGE, 0),
+          new Vector3(0, NUDGE, NUDGE), new Vector3(0, NUDGE, -NUDGE),
         ];
         let escaped = false;
         for (const nudge of nudges) {
@@ -1067,18 +1070,19 @@ export class SweepCollisionBackend implements CollisionBackend {
           }
         }
         if (!escaped) {
-          // Truly stuck — zero all velocity, return current position
           currentVel = Vector3.Zero();
           return { endPos: currentPos, velocity: currentVel, hitCount };
         }
-        // Escaped — continue sliding from new position
         continue;
       }
 
       // DEPENETRATION: If we started inside geometry, nudge out along normal
-      // Q3 uses 0.25 units — enough to escape tight corners and angled brush seams
+      // and RESTART the slide from the new position. Do NOT accept the trace's
+      // fractional movement — it pushes back into the corner that caused startSolid.
       if (trace.startSolid && trace.normal) {
-        currentPos.addInPlace(trace.normal.scale(0.25));
+        currentPos.addInPlace(trace.normal.scale(0.5));
+        // Don't consume timeLeft — retry from nudged position
+        continue;
       }
 
       if (trace.fraction > 0) {
