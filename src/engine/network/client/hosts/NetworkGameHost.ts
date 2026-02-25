@@ -834,6 +834,14 @@ export class NetworkGameHost implements IGameHost {
 
     if (!localEntity || !serverEntity) return;
 
+    // Skip reconciliation during ledge grab — client prediction is deterministic
+    // (frozen position), server just hasn't confirmed yet. Correcting here causes micro-shake.
+    const movementState = localEntity.getComponent('movementState') as any;
+    if (movementState && movementState.ledgeGrabState && movementState.ledgeGrabState !== 'none') {
+      this.smoothCorrection.reset();
+      return;
+    }
+
     // Get positions - prefer 'transform' (FPSSimulation) with fallback to 'position' (legacy)
     const localTransform = localEntity.getComponent('transform') as any;
     const serverTransform = serverEntity.getComponent('transform') as any;

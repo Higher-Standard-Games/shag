@@ -1039,13 +1039,13 @@ export class FPSController implements ICameraController {
         this.physicsY = pos.y;
         this.physicsZ = pos.z;
 
-        // Apply stair smoothing
+        // Apply stair smoothing (snap during ledge grab — frozen position is deterministic)
         const stepHeight = mv.get('sv_stepheight');
         const smoothFactor = mv.get('cl_smoothfactor');
         const heightDiff = Math.abs(pos.y - this.smoothedY);
 
-        if (heightDiff > stepHeight * 2) {
-          // Large height change (teleport, big drop) - snap immediately
+        if (heightDiff > stepHeight * 2 || (this.ledgeGrabState && this.ledgeGrabState !== 'none')) {
+          // Large height change, teleport, or ledge grab - snap immediately
           this.smoothedY = pos.y;
         } else {
           // Smooth stair climbing
