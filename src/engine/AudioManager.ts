@@ -1,6 +1,7 @@
 import { AssetLoader } from "./AssetLoader";
 import { Cvar } from "./core/Cvar";
 import { PK3Loader } from "./loader/pk3/PK3Loader";
+import { PK3Index } from "./loader/pk3/PK3Index";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -418,6 +419,25 @@ export class AudioManager {
       let finalPath = track.file;
       if (!pk3.hasFile(finalPath)) {
         finalPath = `music/${track.file}`;
+      }
+
+      // If PK3Loader doesn't have the file, check PK3Index to find and load the right pk3
+      if (!pk3.hasFile(finalPath)) {
+        const pk3Index = PK3Index.getInstance();
+        const pk3Name = pk3Index.findFile(track.file) || pk3Index.findFile(`music/${track.file}`);
+        if (pk3Name) {
+          console.log(`[AudioManager] Loading PK3 for music: ${pk3Name}`);
+          try {
+            await pk3.loadPK3(pk3Name);
+          } catch (e) {
+            console.error(`[AudioManager] Failed to load PK3: ${pk3Name}`, e);
+          }
+          // Re-resolve the path after loading
+          finalPath = track.file;
+          if (!pk3.hasFile(finalPath)) {
+            finalPath = `music/${track.file}`;
+          }
+        }
       }
 
       if (pk3.hasFile(finalPath)) {
