@@ -1237,8 +1237,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       };
     }
 
-    // Check ground normal - only step on floors (normal pointing up)
-    if (downTrace.normal && downTrace.normal.y < 0.7) {
+    // Check ground normal - only step on walkable floors (MIN_WALK_NORMAL = 0.75)
+    if (downTrace.normal && downTrace.normal.y < 0.75) {
       return {
         endPos: firstResult.endPos,
         velocity: firstResult.velocity,

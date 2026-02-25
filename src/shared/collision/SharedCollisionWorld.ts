@@ -90,8 +90,10 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Q3-style: grounded only if standing on a surface with normal.y >= 0.7 (MIN_WALK_NORMAL)
-        const MIN_WALK_NORMAL = 0.7;
+        // Q3-style: grounded only if standing on a surface with normal.y >= 0.75
+        // 0.75 ≈ 41° — makes 45° slopes (cos45 ≈ 0.707) non-walkable/surfable
+        // matching Warsow feel. Ramps up to ~41° remain walkable.
+        const MIN_WALK_NORMAL = 0.75;
         const expectedYMove = movement.y;
         const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
