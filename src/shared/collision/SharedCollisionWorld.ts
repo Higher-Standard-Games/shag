@@ -90,19 +90,32 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Q3 PM_GroundTrace style: ALWAYS trace down, regardless of movement direction.
-        // Previous conditional paths missed uphill movement (movement.y > 0.1),
-        // causing grounded/airborne oscillation on ramps.
+        // Three-path system:
+        //   Path 1: downward movement was blocked → grounded (original)
+        //   Path 2: nearly level movement → trace for floor (original)
+        //   Path 3: uphill movement that HIT something → on a ramp (new, for ramp walking)
+        // The unconditional trace broke crouch slides: during small bumps, the player
+        // lifts 0.5u above floor (movement.y > 0.1), but a 2u trace still found the
+        // floor → falsely grounded → friction oscillation → shaking + camera loss.
+        const expectedYMove = movement.y;
+        const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
 
-        // Unconditional ground trace: always check for ground within 2u below.
-        // Detection only — no position snap, no velocity clip.
-        // NOTE: original code used fraction < 1.0 only (no normal check).
-        // Adding normal.y >= 0.7 broke crouch slides near walls/uneven surfaces.
-        const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-        const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
-        if (groundTrace.fraction < 1.0) {
+        if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
+            // Path 1: downward movement was blocked by collision → on ground
             grounded = true;
+        } else if (Math.abs(movement.y) < 0.1) {
+            // Path 2: nearly stationary vertically → trace to detect floor
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            grounded = groundTrace.fraction < 1.0;
+        } else if (movement.y > 0.1 && result.hitCount > 0) {
+            // Path 3: moving uphill AND hit a surface → on a ramp
+            // hitCount > 0 distinguishes ramp walking (hit the ramp) from
+            // jumping/bumps (no collision, just moving through air)
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            grounded = groundTrace.fraction < 1.0;
         }
 
         // ── VELOCITY CONVERSION ──
