@@ -90,9 +90,7 @@ export class PlayerVisuals {
             this.debugBboxMesh.dispose(); // Discard the solid box
 
             // Manual box lines
-            const w = this.controller.radius;
-            const h = this.controller.height / 2;
-            const d = this.controller.radius;
+
 
             // 8 corners... actually let's use CreateBox with enableEdgesRendering? 
             // Or just standard BJS EdgesRenderer.
@@ -166,8 +164,6 @@ export class PlayerVisuals {
         // For now, porting the existing logic logic:
 
         const isCrouched = height < 56; // approximate check
-        const PLAYER_MINS_Z = -24;
-        const CROUCH_MINS_Z = -24 + 20; // Actually crouch mins is -24, Maxs changes? 
         // In Quake 3:
         // Standard: -24 to 32 (56 units)
         // Crouch: -24 to 12 (36 units)

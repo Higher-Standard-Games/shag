@@ -27,7 +27,7 @@ export interface RenderVar {
   category: 'material' | 'lighting' | 'display' | 'texture' | 'debug';
 }
 
-export type RenderVarName = 
+export type RenderVarName =
   | 'r_normalmap'
   | 'r_glossmap'
   | 'r_lightmap'
@@ -257,11 +257,11 @@ type RenderVarPostProcessBaseline = {
 
 export class RenderVars {
   private static instance: RenderVars;
-  
+
   private vars: Map<string, RenderVar> = new Map();
   private scene: Scene | null = null;
   private updateScheduled = false;
-  
+
   /** Listeners for var changes */
   private listeners: Map<string, Set<(value: number) => void>> = new Map();
 
@@ -300,7 +300,7 @@ export class RenderVars {
       // Determine type based on var characteristics
       const isDebug = def.category === 'debug';
       const isInt = name === 'r_anisotropy' || def.max === 1;
-      
+
       Cvar.register(name, def.value, {
         type: isInt ? 'int' : 'float',
         min: def.min,
@@ -592,9 +592,21 @@ export class RenderVars {
 
     if (!this.scene) return;
 
-    // Update all meshes
+    // Deduplicate: many meshes share the same material. Track processed materials to skip redundant work.
+    const processedMaterials = new Set<number>();
+
+    // Update all meshes (skipping already-processed materials)
     for (const mesh of this.scene.meshes) {
+      const mat = mesh.material;
+      if (mat) {
+        if (processedMaterials.has(mat.uniqueId)) continue;
+        processedMaterials.add(mat.uniqueId);
+        // Unfreeze so property changes take effect (frozen materials ignore mutations)
+        mat.unfreeze();
+      }
       this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity, emissiveIntensity, anisotropy, wireframe);
+      // Re-freeze after applying changes
+      if (mat) mat.freeze();
     }
 
     // Update ambient color

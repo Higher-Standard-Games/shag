@@ -36,6 +36,9 @@ export const MACHINEGUN: WeaponDef = {
     adsSpread: 0.3,       // 0.3° when ADS
     fireMode: 'auto',
     pickupBounds: { x: 32, y: 32, z: 32 },
+    knockbackScale: 2.0,
+    useLagCompensation: true,
+    crosshair: { style: 'cross', baseGap: 4, lineLength: 6, lineWidth: 2 },
 
     // View Model
     viewModel: {

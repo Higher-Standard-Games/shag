@@ -34,6 +34,13 @@ export const GUNBLADE: WeaponDef = {
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'gunblade_blast',
+    projectileSpeed: 3000,
+    splashRadius: 80,
+    splashDamage: 50,
+    minSplashDamage: 10,
+    knockbackScale: 8.0,
+    useLagCompensation: false,
+    crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 2 },
 
     // View Model
     viewModel: {

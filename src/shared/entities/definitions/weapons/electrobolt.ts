@@ -34,6 +34,10 @@ export const ELECTROBOLT: WeaponDef = {
     hitscanType: 'bolt',
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
+    knockbackScale: 3.5,
+    pickupAmmo: 5,
+    useLagCompensation: true,
+    crosshair: { style: 'cross_dot', baseGap: 2, lineLength: 5, lineWidth: 1 },
 
     // View Model
     viewModel: {

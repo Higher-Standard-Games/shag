@@ -886,6 +886,7 @@ export class WeaponViewManager {
                         fx.firePellets({
                             origin, direction: forward, maxRange: range, color,
                             pelletCount: this.currentWeaponDef.burstCount ?? 20,
+                            spreadAngle: this.currentWeaponDef.spread ?? 12,
                         });
                         break;
                     case 'beam':

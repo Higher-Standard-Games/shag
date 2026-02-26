@@ -21,7 +21,13 @@ export class PK3Loader {
   private static instance: PK3Loader;
   private config: PK3LoaderConfig = { basePath: "data/", additionalPaths: [] };
   private packages: Map<string, PK3File> = new Map();
-  private fileIndex: Map<string, string> = new Map(); // file path -> pk3 filename
+  private fileIndex: Map<string, string> = new Map(); // normalized path -> pk3 filename
+
+  /** O(1) lookup from normalized path to JSZip file object (avoids forEach scan) */
+  private zipFileIndex: Map<string, JSZip.JSZipObject> = new Map();
+
+  /** Track Blob URLs created via getFileAsURL() for cleanup */
+  private blobUrls: string[] = [];
 
   private constructor() { }
 
@@ -133,7 +139,7 @@ export class PK3Loader {
       // Determine priority from filename
       const priority = this.getPriorityFromFilename(filename);
 
-      // Collect file list
+      // Collect file list and build zip entry index for O(1) lookups
       const files = new Set<string>();
       zip.forEach((relativePath) => {
         // Normalize path (lowercase, forward slashes)
@@ -152,7 +158,7 @@ export class PK3Loader {
 
       this.packages.set(filename, pk3File);
 
-      // Rebuild file index
+      // Rebuild file index + zip entry index
       this.rebuildFileIndex();
 
       console.log(`[PK3Loader] Loaded ${filename} with ${files.size} files (priority ${priority})`);
@@ -193,10 +199,12 @@ export class PK3Loader {
 
   /**
    * Rebuild the file index based on priority
-   * Higher priority packages override lower priority ones
+   * Higher priority packages override lower priority ones.
+   * Also builds O(1) zip entry index to avoid forEach scans in getFile().
    */
   private rebuildFileIndex(): void {
     this.fileIndex.clear();
+    this.zipFileIndex.clear();
 
     // Sort packages by priority (ascending)
     const sortedPackages = Array.from(this.packages.values())
@@ -207,6 +215,13 @@ export class PK3Loader {
       for (const file of pkg.files) {
         this.fileIndex.set(file, pkg.filename);
       }
+      // Build zip entry index: normalized path -> JSZip object (O(1) lookup)
+      pkg.zip.forEach((relativePath, zipObj) => {
+        const normalized = relativePath.toLowerCase().replace(/\\/g, "/");
+        if (!normalized.endsWith("/")) {
+          this.zipFileIndex.set(normalized, zipObj);
+        }
+      });
     }
   }
 
@@ -226,30 +241,14 @@ export class PK3Loader {
    */
   public async getFile(path: string): Promise<ArrayBuffer | null> {
     const normalizedPath = path.toLowerCase().replace(/\\/g, "/");
-    const pk3Filename = this.fileIndex.get(normalizedPath);
 
-    if (!pk3Filename) {
+    // O(1) lookup via pre-built zip entry index
+    const zipObj = this.zipFileIndex.get(normalizedPath);
+    if (!zipObj) {
       return null;
     }
 
-    const pkg = this.packages.get(pk3Filename);
-    if (!pkg) {
-      return null;
-    }
-
-    // Find the actual file in the zip (case-insensitive)
-    let foundFile: JSZip.JSZipObject | null = null;
-    pkg.zip.forEach((relativePath, file) => {
-      if (relativePath.toLowerCase().replace(/\\/g, "/") === normalizedPath) {
-        foundFile = file;
-      }
-    });
-
-    if (!foundFile) {
-      return null;
-    }
-
-    return await (foundFile as JSZip.JSZipObject).async("arraybuffer");
+    return await zipObj.async("arraybuffer");
   }
 
   /**
@@ -264,7 +263,9 @@ export class PK3Loader {
     }
 
     const blob = new Blob([data], { type: mimeType });
-    return URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    this.blobUrls.push(url);
+    return url;
   }
 
   /**
@@ -319,6 +320,14 @@ export class PK3Loader {
   public unloadAll(): void {
     this.packages.clear();
     this.fileIndex.clear();
+    this.zipFileIndex.clear();
+
+    // Revoke all Blob URLs to free memory
+    for (const url of this.blobUrls) {
+      URL.revokeObjectURL(url);
+    }
+    this.blobUrls.length = 0;
+
     console.log("[PK3Loader] All packages unloaded");
   }
 }

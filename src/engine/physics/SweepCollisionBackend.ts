@@ -96,9 +96,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   private bsp: BspFile | null = null;
   private isFBSP = false;
-  private loggedPlayerclipOnce = false;
-  private traceDebugCount = 0;
-  private stepSlideMoveDebugCount = 0;
+
   private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
 
   // Stats
@@ -108,20 +106,71 @@ export class SweepCollisionBackend implements CollisionBackend {
     totalTraceTime: 0,
   };
 
+  // Pre-allocated scratch vectors for stepSlideMove (avoid per-tick allocations)
+  private readonly _ssm_startO = Vector3.Zero();
+  private readonly _ssm_startV = Vector3.Zero();
+  private readonly _ssm_downO = Vector3.Zero();
+  private readonly _ssm_downV = Vector3.Zero();
+  private readonly _ssm_traceEnd = Vector3.Zero();
+
+  // Pre-filtered clip brush indices (built once during init, avoids per-trace full scan)
+  private clipBrushIndices: number[] = [];
+
+  // Pooled trace state to avoid per-trace allocations
+  private readonly _pooledState: TraceState = {
+    type: 'box',
+    start: [0, 0, 0],
+    end: [0, 0, 0],
+    mins: [0, 0, 0],
+    maxs: [0, 0, 0],
+    extents: [0, 0, 0],
+    contentMask: 0,
+    result: {
+      fraction: 1.0,
+      endPos: [0, 0, 0],
+      normal: null,
+      startSolid: false,
+      allSolid: false,
+      contents: 0,
+      hitBrushIndex: -1,
+      hitTextureName: '',
+    },
+    debug: false,
+  };
+
+
+
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
     this.isFBSP = (bsp as any).header?.isFBSP ?? false;
-    console.log(`[SweepCollision] Initialized with ${bsp.brushes?.length || 0} brushes (FBSP=${this.isFBSP})`);
+
     this.processFaces();
+    this.buildClipBrushIndex();
+  }
+
+  /**
+   * Pre-filter clip brushes once during init (avoids scanning ALL brushes every trace)
+   */
+  private buildClipBrushIndex(): void {
+    if (!this.bsp) return;
+    this.clipBrushIndices = [];
+
+    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+      const brush = this.bsp.brushes[bi];
+      if (!brush || brush.numSides < 4) continue;
+
+      const texture = this.getBrushTexture(brush);
+      if (!texture) continue;
+
+      const name = (texture.name || '').toLowerCase();
+      if (name.includes('fullclip') || name.includes('playerclip')) {
+        this.clipBrushIndices.push(bi);
+      }
+    }
   }
 
   private processFaces(): void {
     if (!this.bsp) return;
-
-    const startTime = performance.now();
-    let meshCount = 0;
-    let patchCount = 0;
-    let skippedByFlags = 0;
 
     this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
 
@@ -131,7 +180,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Filter by flags: Must be SOLID or PLAYERCLIP
       const texture = this.bsp.textures[face.textureIndex];
       if (!texture) {
-        skippedByFlags++;
         continue;
       }
 
@@ -139,7 +187,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       const isPlayerClip = (texture.contentFlags & ContentFlags.PLAYERCLIP) !== 0;
 
       if (!isSolid && !isPlayerClip) {
-        skippedByFlags++;
         continue;
       }
 
@@ -149,7 +196,6 @@ export class SweepCollisionBackend implements CollisionBackend {
         const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          patchCount++;
         }
       }
       // Type 3: Mesh (Triangle Soup)
@@ -157,13 +203,11 @@ export class SweepCollisionBackend implements CollisionBackend {
         const mesh = this.buildMeshFace(face);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          meshCount++;
         }
       }
     }
-
-    console.log(`[SweepCollision] Generated collision geometry: ${patchCount} patches, ${meshCount} meshes (${(performance.now() - startTime).toFixed(2)}ms)`);
   }
+
 
   private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
     if (!this.bsp) return null;
@@ -237,31 +281,26 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;
 
-    // Create trace state
-    const state: TraceState = {
-      type: 'box',
-      start: q3Start,
-      end: q3End,
-      mins,
-      maxs,
-      extents: [
-        Math.max(Math.abs(mins[0]), Math.abs(maxs[0])),
-        Math.max(Math.abs(mins[1]), Math.abs(maxs[1])),
-        Math.max(Math.abs(mins[2]), Math.abs(maxs[2])),
-      ],
-      contentMask,
-      result: {
-        fraction: 1.0,
-        endPos: [...q3End],
-        normal: null,
-        startSolid: false,
-        allSolid: false,
-        contents: 0,
-        hitBrushIndex: -1,
-        hitTextureName: '',
-      },
-      debug: options?.debug ?? false,
-    };
+    // Reset pooled trace state instead of allocating new objects
+    const state = this._pooledState;
+    state.type = 'box';
+    state.start[0] = q3Start[0]; state.start[1] = q3Start[1]; state.start[2] = q3Start[2];
+    state.end[0] = q3End[0]; state.end[1] = q3End[1]; state.end[2] = q3End[2];
+    state.mins[0] = mins[0]; state.mins[1] = mins[1]; state.mins[2] = mins[2];
+    state.maxs[0] = maxs[0]; state.maxs[1] = maxs[1]; state.maxs[2] = maxs[2];
+    state.extents[0] = Math.max(Math.abs(mins[0]), Math.abs(maxs[0]));
+    state.extents[1] = Math.max(Math.abs(mins[1]), Math.abs(maxs[1]));
+    state.extents[2] = Math.max(Math.abs(mins[2]), Math.abs(maxs[2]));
+    state.contentMask = contentMask;
+    state.result.fraction = 1.0;
+    state.result.endPos[0] = q3End[0]; state.result.endPos[1] = q3End[1]; state.result.endPos[2] = q3End[2];
+    state.result.normal = null;
+    state.result.startSolid = false;
+    state.result.allSolid = false;
+    state.result.contents = 0;
+    state.result.hitBrushIndex = -1;
+    state.result.hitTextureName = '';
+    state.debug = options?.debug ?? false;
 
     if (state.debug) {
       console.log(`[SweepCollision] Trace start: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)})`);
@@ -440,24 +479,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-      // Debug: Log playerclip brushes ONCE to understand why they're being skipped
-      const isPlayerclipName = texture.name?.toLowerCase().includes('playerclip');
-      if (isPlayerclipName && !this.loggedPlayerclipOnce) {
-        this.loggedPlayerclipOnce = true;
-        const contentFlags = texture.contentFlags;
-        const surfaceFlags = texture.surfaceFlags;
-        const hasNonsolid = (surfaceFlags & SurfaceFlags.NONSOLID) !== 0;
-        const hasHint = (surfaceFlags & SurfaceFlags.HINT) !== 0;
-        const hasDetail = (contentFlags & ContentFlags.DETAIL) !== 0;
-        const hasSolid = (contentFlags & ContentFlags.SOLID) !== 0;
-        const hasPlayerclip = (contentFlags & ContentFlags.PLAYERCLIP) !== 0;
-        console.log(`[SweepCollision] PLAYERCLIP BRUSH DEBUG:`);
-        console.log(`  name="${texture.name}"`);
-        console.log(`  contentFlags=0x${contentFlags.toString(16)} surfaceFlags=0x${surfaceFlags.toString(16)}`);
-        console.log(`  hasNonsolid=${hasNonsolid} hasHint=${hasHint} hasDetail=${hasDetail}`);
-        console.log(`  hasSolid=${hasSolid} hasPlayerclip=${hasPlayerclip}`);
-        console.log(`  contentMask=0x${state.contentMask.toString(16)}`);
-      }
+
 
       // Check content flags
       if (!this.shouldCollideWith(texture, state.contentMask)) {
@@ -851,36 +873,22 @@ export class SweepCollisionBackend implements CollisionBackend {
   }
 
   /**
-   * Check ALL clip brushes directly (fullclip, playerclip)
-   * This bypasses BSP tree traversal because clip brushes may not be in leafBrushes
+   * Check pre-filtered clip brushes (fullclip, playerclip)
+   * Uses pre-built index from init() instead of scanning all brushes every trace
    */
   private traceAllClipBrushes(state: TraceState): void {
     if (!this.bsp) return;
 
     const wantsPlayerclip = (state.contentMask & ContentFlags.PLAYERCLIP) !== 0;
-    if (!wantsPlayerclip) return; // Only do this for player collision
+    if (!wantsPlayerclip) return;
 
-    for (let bi = 0; bi < this.bsp.brushes.length; bi++) {
+    for (const bi of this.clipBrushIndices) {
       const brush = this.bsp.brushes[bi];
       if (!brush || brush.numSides < 4) continue;
 
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-      const name = (texture.name || '').toLowerCase();
-      const isFullclip = name.includes('fullclip');
-      const isPlayerclip = name.includes('playerclip');
-
-      // Only check clip brushes
-      if (!isFullclip && !isPlayerclip) continue;
-
-      // Debug: log first playerclip found
-      if (isPlayerclip && !this.loggedPlayerclipOnce) {
-        this.loggedPlayerclipOnce = true;
-        console.log(`[SweepCollision] Found playerclip via direct iteration: brush ${bi} "${texture.name}"`);
-      }
-
-      // Check collision with this brush
       this.traceBrush(brush, bi, texture, state);
     }
   }
@@ -1163,8 +1171,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     velocity: Vector3,
     options?: TraceOptions
   ): { endPos: Vector3; velocity: Vector3; hitCount: number; stepped: boolean } {
-    const startO = startPos.clone();
-    const startV = velocity.clone();
+    const startO = this._ssm_startO;
+    const startV = this._ssm_startV;
+    startO.copyFrom(startPos);
+    startV.copyFrom(velocity);
 
     // First, try a normal slide move
     const firstResult = this.slideMove(startPos, velocity, options);
@@ -1173,39 +1183,62 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // If we moved the full distance without hitting anything, we're done
     if (firstResult.hitCount === 0) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: 0,
+        stepped: false,
+      };
     }
 
     // Check if we're on ground (can only step if grounded)
     // With asymmetric box, origin is 24 units above feet.
     // Tracing down by STEPSIZE checks if there's ground within step distance.
+    this._ssm_traceEnd.set(startO.x, startO.y - STEPSIZE, startO.z);
     const downTrace = this.trace(
       startO,
-      startO.add(new Vector3(0, -STEPSIZE, 0)),
+      this._ssm_traceEnd,
       options
     );
 
     // If not on ground (trace went full distance down), don't try to step
     if (downTrace.fraction >= 1.0) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Check ground normal - only step on floors (normal pointing up)
     if (downTrace.normal && downTrace.normal.y < 0.7) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Save the non-stepped result for comparison
-    const downO = firstResult.endPos.clone();
-    const downV = firstResult.velocity.clone();
+    const downO = this._ssm_downO;
+    const downV = this._ssm_downV;
+    downO.copyFrom(firstResult.endPos);
+    downV.copyFrom(firstResult.velocity);
 
     // Try stepping up by STEPSIZE
-    const upDest = startO.add(new Vector3(0, STEPSIZE, 0));
-    const upTrace = this.trace(startO, upDest, options);
+    this._ssm_traceEnd.set(startO.x, startO.y + STEPSIZE, startO.z);
+    const upTrace = this.trace(startO, this._ssm_traceEnd, options);
 
     // Only abort if completely stuck (allSolid), not just touching a wall (startSolid)
     if (upTrace.allSolid) {
-      return { ...firstResult, stepped: false };
+      return {
+        endPos: firstResult.endPos,
+        velocity: firstResult.velocity,
+        hitCount: firstResult.hitCount,
+        stepped: false,
+      };
     }
 
     // Calculate how much we actually stepped up
@@ -1215,8 +1248,12 @@ export class SweepCollisionBackend implements CollisionBackend {
     const raisedResult = this.slideMove(upTrace.endPos, startV, options);
 
     // Step back down by the same amount we stepped up
-    const downDest = raisedResult.endPos.add(new Vector3(0, -stepSize, 0));
-    const stepDownTrace = this.trace(raisedResult.endPos, downDest, options);
+    this._ssm_traceEnd.set(
+      raisedResult.endPos.x,
+      raisedResult.endPos.y - stepSize,
+      raisedResult.endPos.z
+    );
+    const stepDownTrace = this.trace(raisedResult.endPos, this._ssm_traceEnd, options);
 
     if (!stepDownTrace.allSolid) {
       // Use the stepped position
@@ -1245,8 +1282,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Non-stepped result was better or equal
     return {
-      endPos: downO,
-      velocity: downV,
+      endPos: downO.clone(),
+      velocity: downV.clone(),
       hitCount: firstResult.hitCount,
       stepped: false,
     };

@@ -9,7 +9,7 @@
 import { Simulation } from '../engine/server/core/Simulation';
 import { createPlayerEntity } from '../engine/server/ecs/Entity';
 import { entityId, playerId, tickNumber, type TickNumber } from '../engine/server/ecs/types';
-import { FPSPhysicsSystem } from '../games/fps/server/systems/FPSPhysicsSystem';
+import { CharacterPhysicsSystem } from '../games/fps/server/systems/CharacterPhysicsSystem';
 import { ReplayRecorder, ReplayPlayer } from '../engine/server/replay/Replay';
 import type { InputCommand } from '../engine/server/network/protocol/InputProtocol';
 
@@ -25,7 +25,7 @@ console.log();
 console.log('[RECORD] Starting simulation recording...');
 
 const sim1 = new Simulation({ tickMs: 8 });
-sim1.addSubsystem(new FPSPhysicsSystem());
+sim1.addSubsystem(new CharacterPhysicsSystem());
 sim1.initialize();
 
 const state1 = sim1.getStateMut();
@@ -106,7 +106,7 @@ console.log();
 
 // Create fresh simulation
 const sim2 = new Simulation({ tickMs: 8 });
-sim2.addSubsystem(new FPSPhysicsSystem());
+sim2.addSubsystem(new CharacterPhysicsSystem());
 sim2.initialize();
 
 const state2 = sim2.getStateMut();

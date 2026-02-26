@@ -50,6 +50,13 @@ export class Entity {
     /** Health and armor */
     health?: HealthComponent;
 
+    /**
+     * Tick when this entity was spawned/respawned.
+     * Physics is frozen for SPAWN_FREEZE_TICKS after this tick to
+     * ensure the first snapshots contain the correct spawn position.
+     */
+    spawnTick: number = 0;
+
     // Future components:
     // weapon?: WeaponComponent;
     // inventory?: InventoryComponent;
@@ -75,6 +82,7 @@ export class Entity {
     clone(): Entity {
         const cloned = new Entity(this.id, this.type);
         cloned.ownerId = this.ownerId;
+        cloned.spawnTick = this.spawnTick;
 
         // Clone each component if present
         if (this.transform) cloned.transform = cloneTransform(this.transform);

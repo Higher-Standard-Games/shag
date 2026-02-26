@@ -432,7 +432,7 @@ class WebTransportClientConnection implements ClientConnection {
     latency: number = 0;
 
     private session: any;
-    private _reliableWriter: any = null;
+
     private onClose: (id: string) => void;
 
     constructor(id: string, address: string, session: any, onClose: (id: string) => void) {

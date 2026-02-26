@@ -35,6 +35,9 @@ export class Q3ShaderRegistry {
   /** Track which shader files have been processed */
   private processedShaderFiles: Set<string> = new Set();
 
+  /** Cache resolved material props to avoid redundant resolution (perf: called per-face during BSP build) */
+  private resolvedCache: Map<string, ResolvedMaterialProps> = new Map();
+
   /**
    * Load all shaders from PK3Loader (uses singleton)
    * Can be called multiple times - will load from any new PK3s
@@ -130,6 +133,10 @@ export class Q3ShaderRegistry {
    * This is the main interface for BspMeshBuilder
    */
   resolveMaterialProps(textureName: string): ResolvedMaterialProps {
+    // Check cache first (same texture always resolves to the same props)
+    const cached = this.resolvedCache.get(textureName);
+    if (cached) return cached;
+
     const shader = this.getShader(textureName);
 
     // Default opaque material
@@ -149,6 +156,7 @@ export class Q3ShaderRegistry {
     };
 
     if (!shader) {
+      this.resolvedCache.set(textureName, defaults);
       return defaults;
     }
 
@@ -297,6 +305,7 @@ export class Q3ShaderRegistry {
       }
     }
 
+    this.resolvedCache.set(textureName, props);
     return props;
   }
 
@@ -320,6 +329,7 @@ export class Q3ShaderRegistry {
   clear(): void {
     this.shaders.clear();
     this.processedShaderFiles.clear();
+    this.resolvedCache.clear();
     this.loaded = false;
   }
 

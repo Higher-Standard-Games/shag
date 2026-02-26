@@ -6,9 +6,9 @@
  */
 
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import type { BspFile, BspBrush, BspPlane, BspLeaf, BspFace, BspVertex } from '../loader/bsp/BspLoader';
+import type { BspFile, BspBrush, BspPlane, BspLeaf, BspFace } from '../loader/bsp/BspLoader';
 import { CollisionMasks, ContentFlags, SurfaceFlags } from './ContentFlags';
-import { PatchTessellator, PatchCollisionMesh } from './PatchTessellator';
+import { PatchTessellator } from './PatchTessellator';
 
 /** Small epsilon for plane distance calculations */
 const DIST_EPSILON = 0.03125; // 1/32
@@ -51,31 +51,19 @@ export class BspCollision {
   constructor(bsp: BspFile) {
     this.bsp = bsp;
     this.isFBSP = bsp.header.isFBSP;
-    console.log(`[BspCollision] Initialized for ${this.isFBSP ? 'FBSP' : 'IBSP'} format`);
+
     this.processFaces();
   }
 
   private processFaces(): void {
-    const startTime = performance.now();
-    let meshCount = 0;
-    let patchCount = 0;
-    let skippedByFlags = 0;
-    let skippedByType = 0;
-    let faceTypeCounts: { [key: number]: number } = {};
-
     this.faceCollisionMeshes = new Array(this.bsp.faces.length).fill(null);
-
-    console.log(`[BspCollision] Processing ${this.bsp.faces.length} faces for collision...`);
 
     for (let i = 0; i < this.bsp.faces.length; i++) {
       const face = this.bsp.faces[i];
 
-      faceTypeCounts[face.faceType] = (faceTypeCounts[face.faceType] || 0) + 1;
-
       // Filter by flags: Must be SOLID or PLAYERCLIP
       const texture = this.bsp.textures[face.textureIndex];
       if (!texture) {
-        skippedByFlags++;
         continue;
       }
 
@@ -83,10 +71,6 @@ export class BspCollision {
       const isPlayerClip = (texture.contentFlags & ContentFlags.PLAYERCLIP) !== 0;
 
       if (!isSolid && !isPlayerClip) {
-        skippedByFlags++;
-        if (i < 5 || (face.faceType === 2 && patchCount < 3)) {
-          console.log(`[BspCollision] Face ${i} type=${face.faceType} texture=${texture.name} flags=0x${texture.contentFlags.toString(16)} - SKIPPED (no SOLID/PLAYERCLIP)`);
-        }
         continue;
       }
 
@@ -95,10 +79,6 @@ export class BspCollision {
         const mesh = PatchTessellator.buildPatch(this.bsp, face, 3); // LOD 3 for collision
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          patchCount++;
-          if (patchCount <= 3) {
-            console.log(`[BspCollision] Patch ${i} created: ${mesh.vertices.length} verts, ${mesh.indices.length / 3} tris, texture=${texture.name}`);
-          }
         }
       }
       // Type 3: Mesh (Triangle Soup)
@@ -106,21 +86,11 @@ export class BspCollision {
         const mesh = this.buildMeshFace(face);
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
-          meshCount++;
-          if (meshCount <= 3) {
-            console.log(`[BspCollision] Mesh ${i} created: ${mesh.vertices.length} verts, ${mesh.indices.length / 3} tris, texture=${texture.name}`);
-          }
         }
-      } else {
-        skippedByType++;
       }
     }
-
-    console.log(`[BspCollision] Face types: ${JSON.stringify(faceTypeCounts)}`);
-    console.log(`[BspCollision] Generated collision geometry: ${patchCount} patches, ${meshCount} meshes`);
-    console.log(`[BspCollision] Skipped: ${skippedByFlags} by flags, ${skippedByType} by type`);
-    console.log(`[BspCollision] Total time: ${(performance.now() - startTime).toFixed(2)}ms`);
   }
+
 
   private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
     const vertices: Vector3[] = [];
@@ -188,7 +158,7 @@ export class BspCollision {
     end: [number, number, number],
     brush: BspBrush,
     result: TraceResult,
-    debug: boolean,
+    _debug: boolean,
     flip: boolean
   ): void {
     let enterFrac = -1.0;
@@ -318,8 +288,8 @@ export class BspCollision {
   private traceTriangleBox(
     start: Vector3,
     end: Vector3,
-    mins: Vector3,
-    maxs: Vector3,
+    _mins: Vector3,
+    _maxs: Vector3,
     p1: Vector3,
     p2: Vector3,
     p3: Vector3,
@@ -879,7 +849,7 @@ export class BspCollision {
     end: [number, number, number],
     brush: BspBrush,
     result: TraceResult,
-    debug: boolean = false
+    _debug: boolean = false
   ): void {
     let enterFrac = -1.0;
     let leaveFrac = 1.0;
@@ -942,7 +912,7 @@ export class BspCollision {
     maxs: [number, number, number],
     brush: BspBrush,
     result: TraceResult & { realfraction: number },
-    debug: boolean = false
+    _debug: boolean = false
   ): void {
     let enterFrac = -1.0;
     let enterFrac2 = -1.0;
@@ -1023,7 +993,7 @@ export class BspCollision {
     maxs: [number, number, number],
     brush: BspBrush,
     result: TraceResult & { realfraction: number },
-    debug: boolean,
+    _debug: boolean,
     flip: boolean
   ): void {
     let enterFrac = -1.0;

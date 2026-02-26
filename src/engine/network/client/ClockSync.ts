@@ -140,7 +140,8 @@ export class ClockSync {
 
         if (!this._synced) {
             this._synced = true;
-            console.log(`[ClockSync] First sync: offset=${this._offset.toFixed(1)}ms, RTT=${rtt.toFixed(1)}ms`);
+
+
         }
     }
 
