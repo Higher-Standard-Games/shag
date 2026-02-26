@@ -23,7 +23,7 @@ export const PLASMAGUN: WeaponDef = {
 
     // Gameplay (server-authoritative)
     damage: 15,
-    fireRate: 10,      // 10 shots per second
+    fireRate: 12.5,    // 12.5 shots per second (25% faster)
     clipSize: 50,
     ammoType: 'cells',
     maxAmmo: 200,

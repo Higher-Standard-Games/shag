@@ -43,6 +43,8 @@ export interface ExplosionConfig {
     showShockwave?: boolean;
     /** Camera shake intensity multiplier (default: 1.0, 0 = no shake) */
     shakeIntensity?: number;
+    /** Max distance for camera shake in game units (default: 720) */
+    shakeMaxRange?: number;
 }
 
 /** Preset for rocket explosions */
@@ -53,6 +55,7 @@ export const ROCKET_EXPLOSION: ExplosionConfig = {
     outerColor: new Color3(1.0, 0.4, 0.05),   // deep orange flames
     smokeColor: new Color3(0.3, 0.25, 0.2),   // dark smoke
     splashRadius: 125,
+    shakeMaxRange: 540,                        // 25% reduced from 720
 };
 
 /** Preset for grenade explosions */
@@ -63,6 +66,7 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
     outerColor: new Color3(1.0, 0.5, 0.1),    // orange flames
     smokeColor: new Color3(0.3, 0.25, 0.2),   // dark smoke
     splashRadius: 125,
+    shakeMaxRange: 540,                        // 25% reduced from 720
 };
 
 /** Preset for plasma explosions — small, fast, green */
@@ -75,6 +79,7 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
     splashRadius: 40,
     showShockwave: false,                      // no shockwave ring for plasma
     shakeIntensity: 0.15,                      // minimal camera shake
+    shakeMaxRange: 360,                        // half of default (close range only)
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -207,8 +212,8 @@ export class ExplosionEffect {
             const distance = Vector3.Distance(explosionPos, playerPos);
 
             // Shake range: tuned for Q3/Warsow game unit distances
-            const fullShakeRange = 300;   // Full intensity within this distance
-            const maxShakeRange = 720;    // Zero shake beyond this
+            const maxShakeRange = config.shakeMaxRange ?? 720;
+            const fullShakeRange = maxShakeRange * 0.42;  // ~42% of max = full intensity zone
 
             if (distance >= maxShakeRange) return;
 

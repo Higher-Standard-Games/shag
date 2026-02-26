@@ -21,7 +21,7 @@ export const PLASMA_BOLT: ProjectileDef = {
     scale: 1.0,
 
     // Gameplay (server-authoritative)
-    speed: 3000,       // Units per second - fast! (20% faster than original)
+    speed: 3750,       // Units per second (50% faster than original 2500)
     damage: 15,
     splashDamage: 5,
     splashRadius: 40,
