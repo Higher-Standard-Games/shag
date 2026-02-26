@@ -1,0 +1,77 @@
+/*
+ * WashikiTheme.css — Washiki Washoi HUD Theme
+ *
+ * Orange neon accents, dark translucent backgrounds,
+ * corner brackets, and arena-shooter aesthetic.
+ */
+
+:root {
+    --washiki-bg: rgba(10, 10, 15, 0.85);
+    --washiki-bg-light: rgba(20, 20, 30, 0.7);
+    --washiki-border: rgba(255, 140, 40, 0.3);
+    --washiki-accent: #ff8c28;
+    --washiki-accent-dim: rgba(255, 140, 40, 0.15);
+    --washiki-text: #e8e4dc;
+    --washiki-text-dim: rgba(232, 228, 220, 0.5);
+    --washiki-health: #44cc44;
+    --washiki-armor: #4488ff;
+    --washiki-ammo: #ffcc44;
+    --washiki-danger: #ff4444;
+    --washiki-font: 'Outfit', 'Inter', system-ui, sans-serif;
+    --ui-scale: 1;
+}
+
+/* Base HUD panel styling */
+.washiki-panel {
+    background: var(--washiki-bg);
+    border: 1px solid var(--washiki-border);
+    color: var(--washiki-text);
+    font-family: var(--washiki-font);
+    backdrop-filter: blur(4px);
+}
+
+/* Corner bracket decorations */
+.washiki-bracket::before,
+.washiki-bracket::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-color: var(--washiki-accent);
+    border-style: solid;
+    border-width: 0;
+    pointer-events: none;
+}
+
+.washiki-bracket::before {
+    top: -1px;
+    left: -1px;
+    border-top-width: 2px;
+    border-left-width: 2px;
+}
+
+.washiki-bracket::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom-width: 2px;
+    border-right-width: 2px;
+}
+
+/* Accent glow text */
+.washiki-glow {
+    color: var(--washiki-accent);
+    text-shadow: 0 0 8px rgba(255, 140, 40, 0.4);
+}
+
+/* Stat bar backgrounds */
+.washiki-bar {
+    background: var(--washiki-bg-light);
+    border: 1px solid var(--washiki-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.washiki-bar-fill {
+    height: 100%;
+    transition: width 0.15s ease-out;
+}
