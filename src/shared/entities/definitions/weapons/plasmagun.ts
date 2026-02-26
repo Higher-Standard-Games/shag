@@ -59,7 +59,7 @@ export const PLASMAGUN: WeaponDef = {
 
     // Muzzle Flash - PLASMA CYAN!
     muzzleFlash: {
-        color: { r: 0.2, g: 0.8, b: 1.0 },
+        color: { r: 0.3, g: 1.0, b: 0.3 },
         intensity: 20,
         range: 40,
         duration: 0.06,

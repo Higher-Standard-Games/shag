@@ -21,7 +21,7 @@ export const PLASMA_BOLT: ProjectileDef = {
     scale: 1.0,
 
     // Gameplay (server-authoritative)
-    speed: 2500,       // Units per second - fast!
+    speed: 3000,       // Units per second - fast! (20% faster than original)
     damage: 15,
     splashDamage: 5,
     splashRadius: 40,
@@ -30,7 +30,7 @@ export const PLASMA_BOLT: ProjectileDef = {
     bounces: 0,        // Explode on first hit
 
     // Light
-    lightColor: { r: 0.2, g: 0.8, b: 1.0 },  // Plasma cyan
+    lightColor: { r: 0.3, g: 1.0, b: 0.3 },  // Plasma green (matches gun model)
     lightIntensity: 8,
     lightRange: 25,
 
