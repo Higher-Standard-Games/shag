@@ -25,6 +25,9 @@ export enum MatchPhase {
     PostGame = 3,
 }
 
+export type TeamId = 'udon' | 'soba' | 'spectator';
+
+
 /**
  * Match configuration — gametype defines these values
  */
@@ -119,4 +122,7 @@ export interface MatchStateSnapshot {
     totalPlayers: number;
     gametypeName: string;
     scoreLimit: number;
+    teamScores?: Record<TeamId, number>;
+    playerTeams?: Record<string, TeamId>;
+    teamNames?: Record<TeamId, string>;
 }

@@ -964,9 +964,44 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Check results
     if (!startOut) {
-      // Started inside brush
+      // Started inside brush — compute least-penetrated plane normal
+      // (the plane we're closest to escaping through, Q3 CM_TraceThroughBrush behavior)
+      let bestDist = -Infinity;
+      let bestNormal: [number, number, number] | null = null;
+
+      for (let i = 0; i < brush.numSides; i++) {
+        const side = this.bsp.brushSides[brush.firstSide + i];
+        if (!side) continue;
+        const plane = this.bsp.planes[side.planeIndex];
+        if (!plane) continue;
+
+        // Calculate how far inside this plane the start point is
+        // (same offset logic as above)
+        const offset: [number, number, number] = [0, 0, 0];
+        for (let j = 0; j < 3; j++) {
+          if (plane.normal[j] < 0) {
+            offset[j] = state.maxs[j];
+          } else {
+            offset[j] = state.mins[j];
+          }
+        }
+        const dist = (state.start[0] + offset[0]) * plane.normal[0] +
+          (state.start[1] + offset[1]) * plane.normal[1] +
+          (state.start[2] + offset[2]) * plane.normal[2] -
+          plane.dist;
+
+        // dist < 0 means inside; the LEAST negative is closest to escape
+        if (dist > bestDist) {
+          bestDist = dist;
+          bestNormal = [...plane.normal] as [number, number, number];
+        }
+      }
+
       state.result.startSolid = true;
       state.result.contents = texture.contentFlags;
+      if (bestNormal) {
+        state.result.normal = bestNormal;
+      }
       if (!endOut) {
         state.result.allSolid = true;
         state.result.fraction = 0;
@@ -1048,13 +1083,39 @@ export class SweepCollisionBackend implements CollisionBackend {
       const trace = this.trace(currentPos, endPos, options);
 
       if (trace.allSolid) {
-        // Stuck in solid - zero vertical velocity, try to escape
-        currentVel.y = 0;
-        return { endPos: currentPos, velocity: currentVel, hitCount };
+        // Stuck entirely inside solid — try to nudge out in multiple directions
+        // Q3-style recovery: find an escape direction instead of trapping the player
+        const NUDGE = 2.0;
+        const nudges = [
+          new Vector3(NUDGE, 0, 0), new Vector3(-NUDGE, 0, 0),
+          new Vector3(0, NUDGE, 0), new Vector3(0, -NUDGE, 0),
+          new Vector3(0, 0, NUDGE), new Vector3(0, 0, -NUDGE),
+          // Diagonals for corner junctions
+          new Vector3(NUDGE, NUDGE, 0), new Vector3(-NUDGE, NUDGE, 0),
+          new Vector3(0, NUDGE, NUDGE), new Vector3(0, NUDGE, -NUDGE),
+        ];
+        let escaped = false;
+        for (const nudge of nudges) {
+          const testPos = currentPos.add(nudge);
+          const testTrace = this.trace(testPos, testPos, options);
+          if (!testTrace.allSolid && !testTrace.startSolid) {
+            currentPos.copyFrom(testPos);
+            escaped = true;
+            break;
+          }
+        }
+        if (!escaped) {
+          currentVel = Vector3.Zero();
+          return { endPos: currentPos, velocity: currentVel, hitCount };
+        }
+        continue;
       }
 
-      // DEPENETRATION: If we started inside geometry, nudge us out slightly
-      // This prevents getting stuck in corners where velocity clipping alone isn't enough
+      // DEPENETRATION: If we started inside geometry, nudge out slightly along normal.
+      // Use a gentle nudge (0.05u) and fall through to normal fraction/clip handling.
+      // The traceBrush fix means this handler now fires (it previously was dead code
+      // because brushes never returned a startSolid normal). Keep the nudge small
+      // to avoid jitter during fast movement like crouch slides.
       if (trace.startSolid && trace.normal) {
         currentPos.addInPlace(trace.normal.scale(0.05));
       }
@@ -1141,9 +1202,9 @@ export class SweepCollisionBackend implements CollisionBackend {
             if (Vector3.Dot(clippedVel, planes[k]) >= 0) {
               continue;
             }
-            // Stuck in a corner - apply gravity escape instead of stopping
-            // This lets the player naturally fall out of impossible positions
-            currentVel = new Vector3(0, -50, 0);  // Small downward velocity to escape
+            // Stuck in a 3-plane corner — full stop (Q3 PM_SlideMove behavior)
+            // Pushing downward can clip through floors; zeroing is always safe.
+            currentVel = Vector3.Zero();
             return { endPos: currentPos, velocity: currentVel, hitCount };
           }
         }
@@ -1211,7 +1272,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       };
     }
 
-    // Check ground normal - only step on floors (normal pointing up)
+    // Check ground normal - only step on walkable floors (MIN_WALK_NORMAL = 0.7)
     if (downTrace.normal && downTrace.normal.y < 0.7) {
       return {
         endPos: firstResult.endPos,

@@ -41,6 +41,8 @@ import type { PlayerId } from '../../core/Entity';
 import type { Transport } from '../transport/Transport';
 import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
 import { ClockSync } from '../ClockSync';
+import { AudioManager } from '../../../AudioManager';
+import { MatchPhase } from '../../../../shared/server/gametype/GametypeTypes';
 
 // ============================================================================
 // INTERPOLATION BUFFER
@@ -331,6 +333,8 @@ export class NetworkGameHost implements IGameHost {
   /** ClockSync for NTP-like server time synchronization */
   readonly clockSync = new ClockSync();
 
+  private lastMatchPhase: MatchPhase | null = null;
+
   private localState: GameState;
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
@@ -429,11 +433,11 @@ export class NetworkGameHost implements IGameHost {
    * Send JoinGame message — spectator → player transition.
    * Server will create entity and respond with JoinAccept.
    */
-  sendJoinGame(): void {
+  sendJoinGame(teamId?: string): void {
     if (!this._isConnected) return;
-    const data = MessageCodec.encodeJoinGame();
+    const data = MessageCodec.encodeJoinGame(teamId);
     this.transport.send(data, true); // Reliable
-    console.log('[NetworkGameHost] Sent JoinGame request');
+    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ''}`);
   }
 
   /**
@@ -610,6 +614,8 @@ export class NetworkGameHost implements IGameHost {
     this.transport.onDisconnect((reason) => {
       console.log('[NetworkGameHost] Disconnected:', reason);
       this._isConnected = false;
+      this.lastMatchPhase = null;
+      AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
     });
 
     this.transport.onError((error) => {
@@ -652,6 +658,9 @@ export class NetworkGameHost implements IGameHost {
             this._onJoinAccept();
             this._onJoinAccept = null;
           }
+
+          // Start Game Music
+          AudioManager.getInstance().loadPlaylist("data/game.playlist.json");
 
           // Start ClockSync after confirmed connection
           this.clockSync.startSync();
@@ -744,6 +753,18 @@ export class NetworkGameHost implements IGameHost {
     if (this.useExternalPrediction) {
       this.stateUpdateCallbacks.forEach(cb => cb(snapshot));
     }
+
+    // Handle Match Phase transitions (for music)
+    if (snapshot.matchSnapshot) {
+      const currentPhase = snapshot.matchSnapshot.phase;
+      if (currentPhase !== this.lastMatchPhase) {
+        if (currentPhase === MatchPhase.PostGame) {
+          console.log('[NetworkGameHost] Match finished, starting endgame music');
+          AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json");
+        }
+        this.lastMatchPhase = currentPhase;
+      }
+    }
   }
 
   /**
@@ -812,6 +833,14 @@ export class NetworkGameHost implements IGameHost {
     const serverEntity = serverState.entities.get(serverPlayer.entityId);
 
     if (!localEntity || !serverEntity) return;
+
+    // Skip reconciliation during ledge grab — client prediction is deterministic
+    // (frozen position), server just hasn't confirmed yet. Correcting here causes micro-shake.
+    const movementState = localEntity.getComponent('movementState') as any;
+    if (movementState && movementState.ledgeGrabState && movementState.ledgeGrabState !== 'none') {
+      this.smoothCorrection.reset();
+      return;
+    }
 
     // Get positions - prefer 'transform' (FPSSimulation) with fallback to 'position' (legacy)
     const localTransform = localEntity.getComponent('transform') as any;

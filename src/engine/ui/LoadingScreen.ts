@@ -74,22 +74,22 @@ export class LoadingScreen {
   private createBranding(): void {
     const engineBranding = document.createElement("div");
     engineBranding.className = "ui-loading-branding";
-    
+
     const engineName = document.createElement("div");
     engineName.textContent = EngineVersion.getInstance().getEngineName();
     engineName.className = "ui-loading-branding__name";
     engineBranding.appendChild(engineName);
-    
+
     const tagline = document.createElement("div");
     tagline.textContent = EngineVersion.getInstance().getEngineTagline();
     tagline.className = "ui-loading-branding__tagline";
     engineBranding.appendChild(tagline);
-    
+
     const version = document.createElement("div");
     version.textContent = EngineVersion.getInstance().getVersionString();
     version.className = "ui-loading-branding__version";
     engineBranding.appendChild(version);
-    
+
     this.container.appendChild(engineBranding);
   }
 
@@ -125,6 +125,7 @@ export class LoadingScreen {
 
     // Unlock browser audio context
     AudioManager.getInstance().unlockAudio();
+    AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
 
     // Resolve the promise
     const resolver = instance.readyResolver;
@@ -231,6 +232,7 @@ export class LoadingScreen {
 
         // Unlock browser audio context
         AudioManager.getInstance().unlockAudio();
+        AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
 
         // Clear resolver and resolve
         this.readyResolver = null;

@@ -90,7 +90,13 @@ export class SharedCollisionWorld implements CollisionWorld {
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
 
         // ── GROUND DETECTION ──
-        // Two-path check for accurate grounded state:
+        // Three-path system:
+        //   Path 1: downward movement was blocked → grounded (original)
+        //   Path 2: nearly level movement → trace for floor (original)
+        //   Path 3: uphill movement that HIT something → on a ramp (new, for ramp walking)
+        // The unconditional trace broke crouch slides: during small bumps, the player
+        // lifts 0.5u above floor (movement.y > 0.1), but a 2u trace still found the
+        // floor → falsely grounded → friction oscillation → shaking + camera loss.
         const expectedYMove = movement.y;
         const actualYMove = result.endPos.y - startPos.y;
         let grounded = false;
@@ -100,6 +106,13 @@ export class SharedCollisionWorld implements CollisionWorld {
             grounded = true;
         } else if (Math.abs(movement.y) < 0.1) {
             // Path 2: nearly stationary vertically → trace to detect floor
+            const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
+            const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+            grounded = groundTrace.fraction < 1.0;
+        } else if (movement.y > 0.1 && result.hitCount > 0) {
+            // Path 3: moving uphill AND hit a surface → on a ramp
+            // hitCount > 0 distinguishes ramp walking (hit the ramp) from
+            // jumping/bumps (no collision, just moving through air)
             const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
             const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
             grounded = groundTrace.fraction < 1.0;

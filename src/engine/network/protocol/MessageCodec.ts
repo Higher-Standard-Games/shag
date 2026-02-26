@@ -191,12 +191,32 @@ export class MessageCodec {
   /**
    * Encode a JoinGame message (Client → Server)
    * Sent when spectator wants to enter the game.
-   * Simple 1-byte message — server identifies sender by connection.
    */
-  static encodeJoinGame(): Uint8Array {
+  static encodeJoinGame(teamId?: string): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.JoinGame);
+    if (teamId) {
+      encoder.writeUint8(1);
+      encoder.writeString(teamId);
+    } else {
+      encoder.writeUint8(0);
+    }
     return encoder.getData();
+  }
+
+  /**
+   * Decode a JoinGame message
+   */
+  static decodeJoinGame(data: Uint8Array): { teamId?: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.JoinGame) {
+      throw new Error(`Expected JoinGame message, got 0x${messageType.toString(16)}`);
+    }
+    const hasTeamId = decoder.readUint8() === 1;
+    return {
+      teamId: hasTeamId ? decoder.readString() : undefined
+    };
   }
 
   /**
