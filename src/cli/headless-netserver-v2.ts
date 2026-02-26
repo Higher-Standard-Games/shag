@@ -19,12 +19,15 @@ import JSZip from 'jszip';
 import type { CollisionWorld } from '../engine/network/systems/collision/CollisionWorld';
 import { GameServer, type GameServerConfig } from '../games/fps/server/GameServer';
 import { Deathmatch } from '../games/fps/server/gametypes/Deathmatch';
+import { TeamDeathmatch } from '../games/fps/server/gametypes/TeamDeathmatch';
+import { Duel } from '../games/fps/server/gametypes/Duel';
+import type { BaseGametype } from '../games/fps/server/gametypes/BaseGametype';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-function parseArgs(): GameServerConfig & { gamePath: string } {
+function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } {
     const args = process.argv.slice(2);
     const config = {
         port: 7777,
@@ -36,7 +39,10 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
         gamePath: './game',
         certPath: './certs/localhost.pem',
         keyPath: './certs/localhost-key.pem',
+        gametype: 'Deathmatch',
     };
+
+    let positionalPos = 0;
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -56,6 +62,10 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
                 break;
             case '--map':
                 config.mapName = args[++i];
+                break;
+            case '--gametype':
+            case '-g':
+                config.gametype = args[++i];
                 break;
             case '--max':
             case '--maxclients':
@@ -81,8 +91,19 @@ function parseArgs(): GameServerConfig & { gamePath: string } {
                 printHelp();
                 process.exit(0);
             default:
-                if (!arg.startsWith('-') && !args[i - 1]?.startsWith('--')) {
-                    config.mapName = arg;
+                if (!arg.startsWith('-')) {
+                    const prev = i > 0 ? args[i - 1] : '';
+                    const isValueForPrev = prev.startsWith('-') && prev !== '--' && !prev.includes('=');
+
+                    if (!isValueForPrev || prev === '--') {
+                        if (positionalPos === 0) {
+                            config.mapName = arg;
+                            positionalPos++;
+                        } else if (positionalPos === 1) {
+                            config.gametype = arg;
+                            positionalPos++;
+                        }
+                    }
                 }
                 break;
         }
@@ -100,6 +121,7 @@ Usage: npx vite-node src/cli/headless-netserver-v2.ts [options]
 Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
+  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --tickrate <n>         Tick rate in Hz (default: 125)
@@ -301,8 +323,26 @@ async function main(): Promise<void> {
     // Load BSP
     const bspData = await loadBspCollision(config.mapName, config.gamePath);
 
-    // Create game server with Deathmatch gametype
-    const server = new GameServer(config, new Deathmatch());
+    // Create game server with selected gametype
+    let gametypeInstance: BaseGametype;
+    switch (config.gametype.toLowerCase()) {
+        case 'tdm':
+        case 'teamdeathmatch':
+            gametypeInstance = new TeamDeathmatch();
+            break;
+        case 'duel':
+        case '1v1':
+            gametypeInstance = new Duel();
+            break;
+        case 'dm':
+        case 'deathmatch':
+        default:
+            gametypeInstance = new Deathmatch();
+            break;
+    }
+    console.log(`[Server] Gametype: ${gametypeInstance.name}`);
+
+    const server = new GameServer(config, gametypeInstance);
 
     if (bspData) {
         server.setCollisionWorld(bspData.collision);
