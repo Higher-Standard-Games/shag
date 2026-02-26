@@ -265,8 +265,18 @@ export class Pickup extends TransformNode {
                         Pickup.clearNearbyWeapon();
                     }
                 } else {
-                    // At capacity + new weapon → show SWAP prompt (server waits for USE key)
-                    Pickup.setNearbyWeapon(this);
+                    // At capacity + new weapon → check if holding gunblade
+                    // Gunblade is always swappable (server auto-swaps), no prompt needed
+                    const currentWeapon = inventory ? inventory.getCurrentWeaponId() : null;
+                    if (currentWeapon === 'gunblade') {
+                        // Holding gunblade at capacity — no swap prompt, server handles it
+                        if (Pickup.nearbyWeaponPickup === this) {
+                            Pickup.clearNearbyWeapon();
+                        }
+                    } else {
+                        // At capacity with non-gunblade — show SWAP prompt (server waits for USE key)
+                        Pickup.setNearbyWeapon(this);
+                    }
                 }
             }
             // Ammo/health/armor: server handles auto-pickup, no client action needed

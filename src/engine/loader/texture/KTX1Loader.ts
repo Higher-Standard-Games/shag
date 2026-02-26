@@ -473,13 +473,61 @@ export function createTextureFromKTX1(
   if (!ktx.isCompressed) {
     if (ktx.mipLevels.length > 0) {
       const mip = ktx.mipLevels[0];
+      const baseFmt = ktx.header.glBaseInternalFormat;
+      const pixelCount = mip.width * mip.height;
+
+      // Always convert to RGBA before upload to avoid WebGL format/alignment issues.
+      // Some Babylon.js code paths internally expect RGBA-sized buffers even when
+      // TEXTUREFORMAT_RGB is specified, causing "ArrayBufferView not big enough" errors.
+      let rgba: Uint8Array;
+
+      if (baseFmt === GL_FORMATS.RGBA && mip.data.length >= pixelCount * 4) {
+        // Already RGBA — use directly
+        rgba = mip.data;
+      } else if (baseFmt === GL_FORMATS.RGB) {
+        // RGB (3 bytes/pixel) → RGBA (4 bytes/pixel): add alpha=255
+        rgba = new Uint8Array(pixelCount * 4);
+        for (let i = 0; i < pixelCount; i++) {
+          rgba[i * 4] = mip.data[i * 3];
+          rgba[i * 4 + 1] = mip.data[i * 3 + 1];
+          rgba[i * 4 + 2] = mip.data[i * 3 + 2];
+          rgba[i * 4 + 3] = 255;
+        }
+        console.log(`[KTX1Loader] Converted RGB→RGBA: ${name} (${mip.width}x${mip.height})`);
+      } else if (baseFmt === GL_FORMATS.LUMINANCE) {
+        // Luminance (1 byte/pixel) → RGBA
+        rgba = new Uint8Array(pixelCount * 4);
+        for (let i = 0; i < pixelCount; i++) {
+          const v = mip.data[i];
+          rgba[i * 4] = v;
+          rgba[i * 4 + 1] = v;
+          rgba[i * 4 + 2] = v;
+          rgba[i * 4 + 3] = 255;
+        }
+        console.log(`[KTX1Loader] Converted LUMINANCE→RGBA: ${name} (${mip.width}x${mip.height})`);
+      } else if (baseFmt === GL_FORMATS.LUMINANCE_ALPHA) {
+        // Luminance+Alpha (2 bytes/pixel) → RGBA
+        rgba = new Uint8Array(pixelCount * 4);
+        for (let i = 0; i < pixelCount; i++) {
+          const v = mip.data[i * 2];
+          const a = mip.data[i * 2 + 1];
+          rgba[i * 4] = v;
+          rgba[i * 4 + 1] = v;
+          rgba[i * 4 + 2] = v;
+          rgba[i * 4 + 3] = a;
+        }
+        console.log(`[KTX1Loader] Converted LUMINANCE_ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
+      } else {
+        // Unknown format — try as RGBA, may fail but better than crashing silently
+        console.warn(`[KTX1Loader] Unknown uncompressed format 0x${baseFmt.toString(16)} for ${name}, attempting as RGBA`);
+        rgba = mip.data;
+      }
+
       const internalTexture = engine.createRawTexture(
-        mip.data,
+        rgba,
         mip.width,
         mip.height,
-        ktx.header.glBaseInternalFormat === GL_FORMATS.RGBA
-          ? Constants.TEXTUREFORMAT_RGBA
-          : Constants.TEXTUREFORMAT_RGB,
+        Constants.TEXTUREFORMAT_RGBA,
         false, false,
         Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
         null,

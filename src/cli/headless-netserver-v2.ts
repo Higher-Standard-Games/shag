@@ -121,7 +121,7 @@ Usage: npx vite-node src/cli/headless-netserver-v2.ts [options]
 Options:
   --port <n>             Server port (default: 7777)
   --map <name>           Map to load (default: wdm7)
-  --gametype <name>      Gametype to play (Deathmatch, TeamDeathmatch, Duel)
+  --gametype <name>      Gametype (Deathmatch, TeamDeathmatch, Duel)
   --name <name>          Server name
   --max <n>              Max clients (default: 16)
   --tickrate <n>         Tick rate in Hz (default: 125)

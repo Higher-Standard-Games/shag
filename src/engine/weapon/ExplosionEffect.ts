@@ -39,6 +39,12 @@ export interface ExplosionConfig {
     smokeColor: Color3;
     /** Splash damage radius in game units — shockwave expands to this */
     splashRadius: number;
+    /** Whether to show the expanding shockwave disc (default: true) */
+    showShockwave?: boolean;
+    /** Camera shake intensity multiplier (default: 1.0, 0 = no shake) */
+    shakeIntensity?: number;
+    /** Max distance for camera shake in game units (default: 720) */
+    shakeMaxRange?: number;
 }
 
 /** Preset for rocket explosions */
@@ -49,6 +55,7 @@ export const ROCKET_EXPLOSION: ExplosionConfig = {
     outerColor: new Color3(1.0, 0.4, 0.05),   // deep orange flames
     smokeColor: new Color3(0.3, 0.25, 0.2),   // dark smoke
     splashRadius: 125,
+    shakeMaxRange: 540,                        // 25% reduced from 720
 };
 
 /** Preset for grenade explosions */
@@ -59,6 +66,7 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
     outerColor: new Color3(1.0, 0.5, 0.1),    // orange flames
     smokeColor: new Color3(0.3, 0.25, 0.2),   // dark smoke
     splashRadius: 125,
+    shakeMaxRange: 540,                        // 25% reduced from 720
 };
 
 /** Preset for plasma explosions — small, fast, green */
@@ -69,6 +77,9 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
     outerColor: new Color3(0.1, 0.9, 0.2),    // vivid green outer
     smokeColor: new Color3(0.1, 0.2, 0.1),    // green-tinted smoke
     splashRadius: 40,
+    showShockwave: false,                      // no shockwave ring for plasma
+    shakeIntensity: 0.15,                      // minimal camera shake
+    shakeMaxRange: 360,                        // half of default (close range only)
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -153,9 +164,11 @@ export class ExplosionEffect {
         // ─── Layer 2: Radial Rays ──────────────────────────────
         const rays = this.createRays(id, position, s, config);
 
-        // ─── Layer 3: Shockwave Ring ───────────────────────────
-        const { mesh: shockwave, material: shockwaveMat } =
-            this.createShockwave(id, position, s, config, normal);
+        // ─── Layer 3: Shockwave Ring (skip for some weapons) ──
+        const showShockwave = config.showShockwave !== false;
+        const { mesh: shockwave, material: shockwaveMat } = showShockwave
+            ? this.createShockwave(id, position, s, config, normal)
+            : this.createDummyShockwave(id);
 
         // ─── Layer 4: Particle Sparks ──────────────────────────
         const particles = this.createParticles(id, position, s, config);
@@ -199,8 +212,8 @@ export class ExplosionEffect {
             const distance = Vector3.Distance(explosionPos, playerPos);
 
             // Shake range: tuned for Q3/Warsow game unit distances
-            const fullShakeRange = 300;   // Full intensity within this distance
-            const maxShakeRange = 720;    // Zero shake beyond this
+            const maxShakeRange = config.shakeMaxRange ?? 720;
+            const fullShakeRange = maxShakeRange * 0.42;  // ~42% of max = full intensity zone
 
             if (distance >= maxShakeRange) return;
 
@@ -215,7 +228,8 @@ export class ExplosionEffect {
 
             // Scale by explosion size (rockets shake more than grenades)
             const sizeMultiplier = Math.min(config.scale / 10, 1.5);
-            const finalIntensity = intensity * sizeMultiplier;
+            const shakeScale = config.shakeIntensity ?? 1.0;
+            const finalIntensity = intensity * sizeMultiplier * shakeScale;
 
             if (finalIntensity < 0.01) return;
 
@@ -416,6 +430,24 @@ export class ExplosionEffect {
     }
 
     /**
+     * Create an invisible dummy shockwave mesh (for weapons that skip shockwave)
+     */
+    private createDummyShockwave(id: string) {
+        const mesh = MeshBuilder.CreateDisc(`${id}_shockwave_dummy`, {
+            radius: 0.01,
+            tessellation: 4,
+        }, this.scene!);
+        mesh.setEnabled(false);
+        mesh.isPickable = false;
+
+        const mat = new StandardMaterial(`${id}_shockwaveDummyMat`, this.scene!);
+        mat.alpha = 0;
+        mesh.material = mat;
+
+        return { mesh, material: mat };
+    }
+
+    /**
      * Layer 4: Particle sparks
      */
     private createParticles(id: string, pos: Vector3, scale: number, config: ExplosionConfig): ParticleSystem {
@@ -593,15 +625,15 @@ export class ExplosionEffect {
         exp.fireball.scaling.setAll(scaleVal);
 
         // Color: 3-stage shift  white-hot → orange → dark red
+        // Derive fade color from config (not hardcoded red — plasma fades green)
+        const fadeColor = exp.config.outerColor.scale(0.4);
         let emissive: Color3;
         if (t < 0.3) {
             emissive = Color3.Lerp(exp.config.coreColor, exp.config.outerColor, t / 0.3);
         } else if (t < 0.6) {
-            const darkRed = new Color3(0.6, 0.1, 0.02);
-            emissive = Color3.Lerp(exp.config.outerColor, darkRed, (t - 0.3) / 0.3);
+            emissive = Color3.Lerp(exp.config.outerColor, fadeColor, (t - 0.3) / 0.3);
         } else {
-            const darkRed = new Color3(0.6, 0.1, 0.02);
-            emissive = Color3.Lerp(darkRed, exp.config.smokeColor, (t - 0.6) / 0.4);
+            emissive = Color3.Lerp(fadeColor, exp.config.smokeColor, (t - 0.6) / 0.4);
         }
         exp.fireballMat.emissiveColor = emissive;
 

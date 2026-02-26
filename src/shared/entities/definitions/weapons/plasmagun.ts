@@ -23,7 +23,7 @@ export const PLASMAGUN: WeaponDef = {
 
     // Gameplay (server-authoritative)
     damage: 15,
-    fireRate: 10,      // 10 shots per second
+    fireRate: 12.5,    // 12.5 shots per second (25% faster)
     clipSize: 50,
     ammoType: 'cells',
     maxAmmo: 200,
@@ -66,7 +66,7 @@ export const PLASMAGUN: WeaponDef = {
 
     // Muzzle Flash - PLASMA CYAN!
     muzzleFlash: {
-        color: { r: 0.2, g: 0.8, b: 1.0 },
+        color: { r: 0.3, g: 1.0, b: 0.3 },
         intensity: 20,
         range: 40,
         duration: 0.06,

@@ -163,3 +163,46 @@ The ground detection architecture traces DOWN from the player's end position. At
 - `src/games/fps/simulation/MovementProfile.ts` — ground plane clipping, slope physics
 - `src/games/fps/simulation/Acceleration.ts` — friction, ground/air acceleration
 - `src/engine/physics/SweepCollisionBackend.ts` — slideMove, clipVelocity
+
+---
+
+## 🟡 Medium: Intermittent Texture Loading Failure (Race Condition)
+
+**Status:** Open  
+**Severity:** Medium  
+**First Observed:** v0.9.7 development  
+**Affected:** Map loading (BSP textures)
+
+### Symptoms
+
+- Map loads but some/all textures appear missing or black
+- Happens intermittently — most loads succeed, but occasionally fails
+- Game is otherwise functional (collision, networking, HUD all work)
+- Reloading the page usually fixes it
+
+### Console Evidence
+
+```
+WebGL: INVALID_OPERATION: texImage2D: ArrayBufferView not big enough for request
+[KTX1Loader] Truncated KTX: mip 8 needs 65408 bytes at offset 262272, but buffer is only 262281 bytes
+[KTX1Loader] Uncompressed texture: textures/scifi_interior/covenant2.ktx (512x512)
+```
+
+### Suspected Cause
+
+Race condition in async texture loading pipeline. Multiple textures are loaded concurrently via `PK3TextureLoader`, and KTX1 software decoding + `updateRawTexture` may conflict when:
+
+1. Multiple KTX1 textures are decoded simultaneously and share buffer state
+2. Texture ArrayBufferView is partially overwritten before WebGL upload
+3. PK3 extraction yields truncated data under concurrent reads
+
+### Key Observation
+
+The `ArrayBufferView not big enough for request` error suggests the raw pixel data buffer doesn't match the expected texture dimensions, pointing to either truncated PK3 extraction or a shared buffer being reused before upload completes.
+
+### Related Files
+
+- `src/engine/loader/pk3/PK3Loader.ts` — PK3 archive extraction
+- `src/engine/loader/pk3/PK3TextureLoader.ts` — Texture loading from PK3
+- `src/engine/loader/mesh/KTX1Loader.ts` — KTX1 software decoding
+- `src/engine/map/BspMeshBuilder.ts` — Material/texture assignment
