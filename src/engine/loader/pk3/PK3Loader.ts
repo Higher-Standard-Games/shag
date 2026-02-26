@@ -76,6 +76,56 @@ export class PK3Loader {
   }
 
   /**
+   * Fetch a PK3 and validate ZIP integrity. Retries on truncation/corruption.
+   * ZIP files always start with magic bytes PK\x03\x04 (0x504B0304).
+   * If the download is truncated (e.g. by Vite HMR restart), magic or size
+   * check will fail and trigger a retry after a brief delay.
+   */
+  private async fetchAndValidatePK3(
+    url: string,
+    filename: string,
+    maxRetries = 2
+  ): Promise<ArrayBuffer> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText} for ${filename}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Validate minimum ZIP size (empty ZIP end-of-central-directory is 22 bytes)
+      if (arrayBuffer.byteLength < 22) {
+        if (attempt < maxRetries) {
+          console.warn(`[PK3Loader] ${filename}: too small (${arrayBuffer.byteLength} bytes), retrying (${attempt + 1}/${maxRetries})...`);
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
+        throw new Error(`PK3 file too small (${arrayBuffer.byteLength} bytes): ${filename}`);
+      }
+
+      // Validate ZIP magic bytes: PK\x03\x04
+      const magic = new Uint8Array(arrayBuffer, 0, 4);
+      if (magic[0] !== 0x50 || magic[1] !== 0x4B || magic[2] !== 0x03 || magic[3] !== 0x04) {
+        if (attempt < maxRetries) {
+          console.warn(`[PK3Loader] ${filename}: invalid ZIP magic [${magic.join(',')}], retrying (${attempt + 1}/${maxRetries})...`);
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
+        throw new Error(`Invalid PK3 file (bad ZIP magic): ${filename}`);
+      }
+
+      if (attempt > 0) {
+        console.log(`[PK3Loader] ${filename}: valid on retry ${attempt}`);
+      }
+      return arrayBuffer;
+    }
+
+    // Unreachable, but TypeScript needs it
+    throw new Error(`PK3 fetch failed after ${maxRetries} retries: ${filename}`);
+  }
+
+  /**
    * Load a PK3 file by full URL path
    * @param url - Full URL to the pk3 file (e.g., "games/default/basewsw/tex_concrete.pk3")
    * @returns Promise that resolves when loaded
@@ -86,12 +136,7 @@ export class PK3Loader {
 
     console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await this.fetchAndValidatePK3(url, filename);
     await this.processPK3ArrayBuffer(filename, arrayBuffer);
   }
 
@@ -102,31 +147,22 @@ export class PK3Loader {
    */
   public async loadPK3(filename: string): Promise<void> {
     const searchPaths = this.getSearchPaths();
-    let loadedFrom: string | null = null;
-    let arrayBuffer: ArrayBuffer | null = null;
 
-    // Try each search path until we find the file
+    // Try each search path until we find a valid PK3
     for (const basePath of searchPaths) {
       const url = `${basePath}${filename}`;
       try {
-        const response = await fetch(url);
-        if (response.ok) {
-          arrayBuffer = await response.arrayBuffer();
-          loadedFrom = url;
-          break;
-        }
+        const arrayBuffer = await this.fetchAndValidatePK3(url, filename);
+        console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
+        await this.processPK3ArrayBuffer(filename, arrayBuffer);
+        return;
       } catch {
         // Try next path
       }
     }
 
-    if (!arrayBuffer || !loadedFrom) {
-      const pathsStr = searchPaths.join(', ');
-      throw new Error(`PK3 not found in any search path: ${filename} (searched: ${pathsStr})`);
-    }
-
-    console.log(`[PK3Loader] Loading ${filename} from ${loadedFrom}...`);
-    await this.processPK3ArrayBuffer(filename, arrayBuffer);
+    const pathsStr = searchPaths.join(', ');
+    throw new Error(`PK3 not found in any search path: ${filename} (searched: ${pathsStr})`);
   }
 
   /**
