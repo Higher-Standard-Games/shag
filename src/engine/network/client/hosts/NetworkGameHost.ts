@@ -393,7 +393,7 @@ export class NetworkGameHost implements IGameHost {
     }
   }
 
-  async connect(url?: string): Promise<void> {
+  async connect(url?: string, playerName?: string): Promise<void> {
     // Create promise that resolves when JoinAccept is received
     const joinAcceptPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -410,7 +410,9 @@ export class NetworkGameHost implements IGameHost {
     await this.transport.connect(url || 'ws://localhost:8080');
 
     // Send join message using binary protocol
-    const joinData = MessageCodec.encodeJoin(this.localPlayerId);
+    // Use player profile name if provided, otherwise fall back to localPlayerId
+    const displayName = playerName || this.localPlayerId;
+    const joinData = MessageCodec.encodeJoin(displayName);
     this.transport.send(joinData, true); // Reliable for join
 
     // Wait for JoinAccept before returning
