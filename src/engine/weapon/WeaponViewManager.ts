@@ -882,13 +882,21 @@ export class WeaponViewManager {
                     case 'tracer':
                         fx.fireTracer({ origin, direction: forward, maxRange: range, color });
                         break;
-                    case 'pellet':
+                    case 'pellet': {
+                        // Check ADS state for spread angle
+                        const viewportManager = ViewportEffectsManager.getInstance();
+                        const pState = viewportManager.getCurrentState();
+                        const isAiming = pState.isAiming;
+                        const spreadAngle = (isAiming && this.currentWeaponDef.adsSpread !== undefined)
+                            ? this.currentWeaponDef.adsSpread
+                            : (this.currentWeaponDef.spread ?? 12);
                         fx.firePellets({
                             origin, direction: forward, maxRange: range, color,
                             pelletCount: this.currentWeaponDef.burstCount ?? 20,
-                            spreadAngle: this.currentWeaponDef.spread ?? 12,
+                            spreadAngle,
                         });
                         break;
+                    }
                     case 'beam':
                         fx.updateBeam({ origin, direction: forward, maxRange: range, color });
                         break;

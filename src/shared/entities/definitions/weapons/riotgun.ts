@@ -33,8 +33,8 @@ export const RIOTGUN: WeaponDef = {
     range: 8192,
     hitscan: true,
     hitscanType: 'pellet',
-    spread: 6,            // 6° shotgun cone (halved from 12°)
-    adsSpread: 3,         // 3° when ADS (50% of hip-fire)
+    spread: 8,            // 8° shotgun cone (hip-fire)
+    adsSpread: 2,         // 2° when ADS (4x tighter)
     fireMode: 'semi',
     burstCount: 20,       // 20 pellets per shot
     pickupBounds: { x: 32, y: 32, z: 32 },
