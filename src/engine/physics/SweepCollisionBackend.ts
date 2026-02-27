@@ -938,32 +938,25 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (startDist > 0) startOut = true;
       if (endDist > 0) endOut = true;
 
-      // Q3 early-out: if start is in front of the plane AND (end is >= epsilon
-      // in front OR moving away from plane), the trace is entirely outside this
-      // brush. Without this stricter guard, AABB edges can report false
-      // collisions when grazing brush edges by less than epsilon.
-      const SURFACE_CLIP_EPSILON = 0.125; // Q3 value (1/8 unit)
-      if (startDist > 0 && (endDist >= SURFACE_CLIP_EPSILON || endDist >= startDist)) {
-        return;
-      }
+      // Both points outside this plane - not inside brush
+      if (startDist > 0 && endDist > 0) return;
 
       // Both points inside this plane - continue to next plane
       if (startDist <= 0 && endDist <= 0) continue;
 
       // Crossing the plane
       if (startDist > endDist) {
-        // Entering the brush — use SURFACE_CLIP_EPSILON (Q3: 0.125)
-        const fraction = (startDist - SURFACE_CLIP_EPSILON) / (startDist - endDist);
-        if (fraction < 0 ? 0 : fraction > enterFraction) {
-          enterFraction = fraction < 0 ? 0 : fraction;
+        // Entering the brush
+        const fraction = (startDist - 0.03125) / (startDist - endDist);
+        if (fraction > enterFraction) {
+          enterFraction = fraction;
           hitPlaneNormal = [...plane.normal] as [number, number, number];
         }
       } else {
         // Leaving the brush
-        const fraction = (startDist + SURFACE_CLIP_EPSILON) / (startDist - endDist);
-        const clampedFrac = fraction > 1 ? 1 : fraction;
-        if (clampedFrac < leaveFraction) {
-          leaveFraction = clampedFrac;
+        const fraction = (startDist + 0.03125) / (startDist - endDist);
+        if (fraction < leaveFraction) {
+          leaveFraction = fraction;
         }
       }
     }
