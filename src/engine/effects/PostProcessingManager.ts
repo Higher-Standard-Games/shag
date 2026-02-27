@@ -522,7 +522,7 @@ export class PostProcessingManager {
       onChange: (value) => cel.setNormalThreshold(value as number),
     });
 
-    Cvar.register('r_cel_opacity', 0.85, {
+    Cvar.register('r_cel_opacity', 1.0, {
       type: 'float',
       min: 0.0,
       max: 1.0,

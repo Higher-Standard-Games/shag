@@ -135,7 +135,7 @@ export class CelOutlinePostProcess {
     private _thickness = 1.5;
     private _depthThreshold = 0.1;      // Depth-relative: 10% depth difference = edge
     private _normalThreshold = 0.3;     // Normal dot product difference threshold
-    private _opacity = 0.85;
+    private _opacity = 1.0;
     private _color = new Color3(0, 0, 0);
 
     private constructor() { }
@@ -196,17 +196,22 @@ export class CelOutlinePostProcess {
         const depthTex = depthRenderer.getDepthMap();
         console.log(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
 
-        // Create the post-process
+        // Create the post-process with HALF_FLOAT to preserve HDR pipeline quality.
+        // Without this, PostProcess defaults to UNSIGNED_BYTE (8-bit) which quantizes
+        // the HDR float16 output from DefaultRenderingPipeline, causing visible
+        // color banding and texture detail loss ("8-bit graphics" look).
         this.postProcess = new PostProcess(
             'celOutline',
-            'celOutline',                // Shader name → looks up 'celOutlineFragmentShader' in store
+            'celOutline',
             ['texelSize', 'thickness', 'depthThreshold', 'normalThreshold', 'opacity', 'outlineColor', 'cameraNear', 'cameraFar'],
-            ['depthSampler'],            // Only need depth — normals are reconstructed in shader
-            1.0,                         // Full resolution
+            ['depthSampler'],
+            1.0,
             this.camera,
             Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
             engine,
-            false,
+            false,                              // reusable
+            undefined,                          // defines
+            Constants.TEXTURETYPE_HALF_FLOAT,   // preserve HDR precision
         );
 
         this.postProcess.onApply = (effect: Effect) => {
