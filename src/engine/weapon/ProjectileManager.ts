@@ -481,6 +481,16 @@ export class ProjectileManager {
         };
 
         this.projectiles.push(projectile);
+
+        // Exclude projectile from cel outline depth pass (prevents black blob outlines)
+        if (!node.metadata) node.metadata = {};
+        node.metadata.celOutlineExclude = true;
+        // Also tag all child meshes
+        for (const child of node.getChildMeshes()) {
+            if (!child.metadata) child.metadata = {};
+            child.metadata.celOutlineExclude = true;
+        }
+
         console.log(`[ProjectileManager] Spawned ${defId} (${id}) with ${materials.length} materials for fade-in`);
 
         return id;

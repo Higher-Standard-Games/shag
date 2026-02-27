@@ -196,6 +196,21 @@ export class CelOutlinePostProcess {
         const depthTex = depthRenderer.getDepthMap();
         console.log(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
 
+        // Filter what writes to the depth buffer for outline detection.
+        // Exclude: alpha-blended meshes (particles, explosions), tagged meshes (projectiles).
+        depthTex.renderListPredicate = (mesh) => {
+            // Skip invisible or non-rendered meshes
+            if (!mesh.isVisible || !mesh.isEnabled()) return false;
+            // Skip meshes explicitly excluded from cel outlines
+            if (mesh.metadata?.celOutlineExclude) return false;
+            // Skip alpha-blended materials (particles, explosions, sprites)
+            const mat = mesh.material;
+            if (mat && mat.needAlphaBlendingForMesh(mesh)) return false;
+            // Skip meshes with very low visibility (fading effects)
+            if (mesh.visibility < 0.5) return false;
+            return true;
+        };
+
         // Create the post-process with HALF_FLOAT to preserve HDR pipeline quality.
         // Without this, PostProcess defaults to UNSIGNED_BYTE (8-bit) which quantizes
         // the HDR float16 output from DefaultRenderingPipeline, causing visible
@@ -303,5 +318,39 @@ export class CelOutlinePostProcess {
         this.scene = null;
         this.camera = null;
         console.log('[CelOutline] Disposed');
+    }
+
+    // ==================== Static Helpers ====================
+
+    /**
+     * Exclude a mesh (and its children) from cel outline depth pass.
+     * Use for projectiles, particles, UI elements, etc.
+     */
+    public static excludeMesh(mesh: { metadata: any; getChildMeshes?: () => any[] }): void {
+        if (!mesh.metadata) mesh.metadata = {};
+        mesh.metadata.celOutlineExclude = true;
+        // Also tag children
+        if (mesh.getChildMeshes) {
+            for (const child of mesh.getChildMeshes()) {
+                if (!child.metadata) child.metadata = {};
+                child.metadata.celOutlineExclude = true;
+            }
+        }
+    }
+
+    /**
+     * Re-include a mesh in cel outline depth pass.
+     */
+    public static includeMesh(mesh: { metadata: any; getChildMeshes?: () => any[] }): void {
+        if (mesh.metadata) {
+            mesh.metadata.celOutlineExclude = false;
+        }
+        if (mesh.getChildMeshes) {
+            for (const child of mesh.getChildMeshes()) {
+                if (child.metadata) {
+                    child.metadata.celOutlineExclude = false;
+                }
+            }
+        }
     }
 }
