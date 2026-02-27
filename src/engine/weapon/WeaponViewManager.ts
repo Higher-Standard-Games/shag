@@ -21,6 +21,7 @@ import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
 import { getHitscanEffects } from './HitscanEffects';
+import { Color3 as MathColor3 } from '@babylonjs/core/Maths/math.color';
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -147,6 +148,11 @@ export class WeaponViewManager {
 
     // Debug
     private debugEnabled: boolean = false;
+
+    // Weapon outline state (r_cel_weapon_* cvars)
+    private _weaponOutlineEnabled = true;
+    private _weaponOutlineWidth = 0.02;
+    private _weaponOutlineColor = new MathColor3(0, 0, 0);
 
     private constructor() { }
 
@@ -431,6 +437,9 @@ export class WeaponViewManager {
         // Apply default position
         this.applyPosition(this.currentPosition);
 
+        // Apply weapon outlines if enabled
+        this.applyWeaponOutlines();
+
         console.log(`[WeaponViewManager] Loaded weapon: ${weaponName}`);
         console.log(`[WeaponViewManager] Model: ${model.header.numSurfaces} surfaces, ${model.header.numFrames} frames`);
 
@@ -506,6 +515,47 @@ export class WeaponViewManager {
         if (this.currentWeapon) {
             this.currentWeapon.root.dispose();
             this.currentWeapon = null;
+        }
+    }
+
+    // ==================== Weapon Outlines ====================
+
+    /**
+     * Apply or remove renderOutline on all weapon meshes
+     */
+    public applyWeaponOutlines(): void {
+        if (!this.currentWeapon) return;
+
+        for (const mesh of this.currentWeapon.meshes) {
+            mesh.renderOutline = this._weaponOutlineEnabled;
+            mesh.outlineWidth = this._weaponOutlineWidth;
+            mesh.outlineColor = this._weaponOutlineColor;
+        }
+    }
+
+    public setWeaponOutlineEnabled(enabled: boolean): void {
+        this._weaponOutlineEnabled = enabled;
+        this.applyWeaponOutlines();
+    }
+
+    public setWeaponOutlineWidth(width: number): void {
+        this._weaponOutlineWidth = Math.max(0.001, Math.min(0.1, width));
+        this.applyWeaponOutlines();
+    }
+
+    public setWeaponOutlineColor(r: number, g: number, b: number): void {
+        this._weaponOutlineColor = new MathColor3(
+            Math.max(0, Math.min(1, r)),
+            Math.max(0, Math.min(1, g)),
+            Math.max(0, Math.min(1, b))
+        );
+        this.applyWeaponOutlines();
+    }
+
+    public setWeaponOutlineColorFromString(colorStr: string): void {
+        const parts = colorStr.trim().split(/\s+/).map(Number);
+        if (parts.length >= 3 && parts.every(n => !isNaN(n))) {
+            this.setWeaponOutlineColor(parts[0], parts[1], parts[2]);
         }
     }
 

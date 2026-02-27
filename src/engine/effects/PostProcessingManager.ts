@@ -545,5 +545,33 @@ export class PostProcessingManager {
     cel.setColorFromString(Cvar.getString('r_cel_color'));
 
     console.log('[PostProcessingManager] Cel outline cvars registered');
+
+    // ── Weapon viewmodel outlines (r_cel_weapon_*) ──
+    // Uses Babylon's built-in mesh.renderOutline (inverted hull)
+    const getWVM = () => import('../weapon/WeaponViewManager').then(m => m.getWeaponViewManager());
+
+    Cvar.register('r_cel_weapon_outlines', 1, {
+      type: 'int',
+      min: 0,
+      max: 1,
+      description: 'Enable cel outlines on first-person weapon (0/1)',
+      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineEnabled(!!value)),
+    });
+
+    Cvar.register('r_cel_weapon_width', 0.02, {
+      type: 'float',
+      min: 0.001,
+      max: 0.1,
+      description: 'Weapon outline width (inverted hull scale)',
+      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineWidth(value as number)),
+    });
+
+    Cvar.register('r_cel_weapon_color', '0 0 0', {
+      type: 'string',
+      description: 'Weapon outline RGB color ("r g b", 0-1 range)',
+      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineColorFromString(value as string)),
+    });
+
+    console.log('[PostProcessingManager] Weapon outline cvars registered');
   }
 }

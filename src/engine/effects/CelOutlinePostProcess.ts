@@ -118,6 +118,13 @@ void main(void) {
     float edge = max(depthLine, normalLine);
     edge = clamp(edge * opacity, 0.0, 1.0);
     
+    // Fade outlines on bright pixels (explosions, particles use additive blending).
+    // These effects don't write to depth, so the shader detects geometry edges
+    // behind them. By fading on bright pixels, outlines disappear under effects.
+    float brightness = max(sceneColor.r, max(sceneColor.g, sceneColor.b));
+    float brightFade = 1.0 - smoothstep(0.7, 1.5, brightness);
+    edge *= brightFade;
+    
     vec3 finalColor = mix(sceneColor.rgb, outlineColor, edge);
     gl_FragColor = vec4(finalColor, sceneColor.a);
 }
