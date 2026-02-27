@@ -1045,12 +1045,6 @@ export class SweepCollisionBackend implements CollisionBackend {
   clipVelocity(velocity: Vector3, normal: Vector3, overbounce: number = SweepCollisionBackend.OVERCLIP): Vector3 {
     const backoff = Vector3.Dot(velocity, normal) * overbounce;
     const out = velocity.subtract(normal.scale(backoff));
-
-    // Tiny velocities can cause problems, zero them out
-    if (Math.abs(out.x) < 0.001) out.x = 0;
-    if (Math.abs(out.y) < 0.001) out.y = 0;
-    if (Math.abs(out.z) < 0.001) out.z = 0;
-
     return out;
   }
 

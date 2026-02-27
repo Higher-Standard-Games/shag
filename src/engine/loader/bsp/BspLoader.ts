@@ -505,14 +505,29 @@ export class BspLoader {
     const count = Math.floor(lump.length / PLANE_SIZE);
     const planes: BspPlane[] = [];
 
+    // Q3 NORMAL_EPSILON: snap near-zero normal components to exactly 0.
+    // Without this, floating-point noise in BSP normals (e.g. 0.0000001 instead of 0)
+    // causes traceBrush to select the wrong AABB corner for distance calculation,
+    // leading to false collisions and player stuckage on brush edges.
+    const NORMAL_EPSILON = 0.00001;
+
     for (let i = 0; i < count; i++) {
       const offset = i * PLANE_SIZE;
+      const normal: [number, number, number] = [
+        lump.data.getFloat32(offset, true),
+        lump.data.getFloat32(offset + 4, true),
+        lump.data.getFloat32(offset + 8, true),
+      ];
+
+      // Snap near-zero components to exactly 0 (Q3 CM_SnapVector)
+      for (let j = 0; j < 3; j++) {
+        if (Math.abs(normal[j]) < NORMAL_EPSILON) {
+          normal[j] = 0;
+        }
+      }
+
       planes.push({
-        normal: [
-          lump.data.getFloat32(offset, true),
-          lump.data.getFloat32(offset + 4, true),
-          lump.data.getFloat32(offset + 8, true),
-        ],
+        normal,
         dist: lump.data.getFloat32(offset + 12, true),
       });
     }
