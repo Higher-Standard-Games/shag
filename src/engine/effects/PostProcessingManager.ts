@@ -17,11 +17,13 @@ import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPi
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import { EventBus } from "../core/EventBus";
+import { CelOutlinePostProcess } from "./CelOutlinePostProcess";
+import { Cvar } from "../core/Cvar";
 
 export interface PostProcessingSettings {
   // Master toggle
   enabled: boolean;
-  
+
   // Bloom settings
   bloom: {
     enabled: boolean;
@@ -30,7 +32,7 @@ export interface PostProcessingSettings {
     kernel: number;       // Blur kernel size (default 64)
     scale: number;        // Resolution scale (0.5 = half res for performance)
   };
-  
+
   // Color grading
   colorGrading: {
     enabled: boolean;
@@ -38,7 +40,7 @@ export interface PostProcessingSettings {
     exposure: number;     // 1.0 = normal
     saturation: number;   // 1.0 = normal
   };
-  
+
   // Vignette
   vignette: {
     enabled: boolean;
@@ -46,7 +48,7 @@ export interface PostProcessingSettings {
     color: { r: number; g: number; b: number };
     stretch: number;      // How much to stretch (0-1)
   };
-  
+
   // SSAO (Screen Space Ambient Occlusion)
   ssao: {
     enabled: boolean;
@@ -54,7 +56,7 @@ export interface PostProcessingSettings {
     samples: number;      // Quality (8-32)
     intensity: number;    // Darkness intensity
   };
-  
+
   // Chromatic Aberration (subtle lens effect)
   chromaticAberration: {
     enabled: boolean;
@@ -65,7 +67,7 @@ export interface PostProcessingSettings {
 // Default settings - balanced for performance and visuals
 const DEFAULT_SETTINGS: PostProcessingSettings = {
   enabled: true,
-  
+
   bloom: {
     enabled: true,
     threshold: 0.8,      // Only bright things glow
@@ -73,28 +75,28 @@ const DEFAULT_SETTINGS: PostProcessingSettings = {
     kernel: 64,
     scale: 0.5,          // Half resolution for performance
   },
-  
+
   colorGrading: {
     enabled: true,
     contrast: 1.05,      // Slightly more contrast
     exposure: 1.0,
     saturation: 1.1,     // Slightly more vibrant
   },
-  
+
   vignette: {
     enabled: true,
     weight: 0.3,         // Subtle darkening
     color: { r: 0, g: 0, b: 0 },
     stretch: 0.5,
   },
-  
+
   ssao: {
     enabled: false,      // Disabled by default (performance heavy)
     radius: 2,
     samples: 16,
     intensity: 1.0,
   },
-  
+
   chromaticAberration: {
     enabled: false,      // Disabled by default
     amount: 0.5,
@@ -103,18 +105,18 @@ const DEFAULT_SETTINGS: PostProcessingSettings = {
 
 export class PostProcessingManager {
   private static instance: PostProcessingManager;
-  
+
   private scene: Scene | null = null;
   private camera: Camera | null = null;
   private pipeline: DefaultRenderingPipeline | null = null;
   private ssaoPipeline: SSAO2RenderingPipeline | null = null;
-  
+
   private settings: PostProcessingSettings = { ...DEFAULT_SETTINGS };
   private initialized = false;
 
   private _cameraChangeUnsub: (() => void) | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): PostProcessingManager {
     if (!PostProcessingManager.instance) {
@@ -131,13 +133,14 @@ export class PostProcessingManager {
       console.warn("[PostProcessingManager] Already initialized");
       return;
     }
-    
+
     this.scene = scene;
     this.camera = camera;
-    
+
     this.createPipeline();
     this.setupEventListeners();
-    
+    this.initCelOutline(scene, camera);
+
     this.initialized = true;
     console.log("[PostProcessingManager] Initialized with default settings");
   }
@@ -152,6 +155,9 @@ export class PostProcessingManager {
     if (this.camera === camera) return;
 
     this.camera = camera;
+
+    // Rebind cel outline to new camera
+    CelOutlinePostProcess.getInstance().setCamera(camera);
 
     // Recreate the pipelines to ensure they are attached to the new camera
     if (this.pipeline) {
@@ -171,7 +177,7 @@ export class PostProcessingManager {
    */
   private createPipeline(): void {
     if (!this.scene || !this.camera) return;
-    
+
     // Create DefaultRenderingPipeline
     this.pipeline = new DefaultRenderingPipeline(
       "defaultPipeline",
@@ -179,10 +185,10 @@ export class PostProcessingManager {
       this.scene,
       [this.camera]
     );
-    
+
     // Apply all settings
     this.applySettings();
-    
+
     console.log("[PostProcessingManager] Pipeline created");
   }
 
@@ -191,9 +197,9 @@ export class PostProcessingManager {
    */
   private applySettings(): void {
     if (!this.pipeline) return;
-    
+
     const s = this.settings;
-    
+
     // Master toggle
     if (!s.enabled) {
       this.pipeline.bloomEnabled = false;
@@ -201,7 +207,7 @@ export class PostProcessingManager {
       this.pipeline.chromaticAberrationEnabled = false;
       return;
     }
-    
+
     // Bloom
     this.pipeline.bloomEnabled = s.bloom.enabled;
     if (s.bloom.enabled) {
@@ -210,13 +216,13 @@ export class PostProcessingManager {
       this.pipeline.bloomKernel = s.bloom.kernel;
       this.pipeline.bloomScale = s.bloom.scale;
     }
-    
+
     // Color grading (via image processing)
     this.pipeline.imageProcessingEnabled = s.colorGrading.enabled || s.vignette.enabled;
     if (this.pipeline.imageProcessing) {
       this.pipeline.imageProcessing.contrast = s.colorGrading.contrast;
       this.pipeline.imageProcessing.exposure = s.colorGrading.exposure;
-      
+
       // Vignette
       this.pipeline.imageProcessing.vignetteEnabled = s.vignette.enabled;
       if (s.vignette.enabled) {
@@ -230,13 +236,13 @@ export class PostProcessingManager {
         this.pipeline.imageProcessing.vignetteStretch = s.vignette.stretch;
       }
     }
-    
+
     // Chromatic Aberration
     this.pipeline.chromaticAberrationEnabled = s.chromaticAberration.enabled;
     if (s.chromaticAberration.enabled && this.pipeline.chromaticAberration) {
       this.pipeline.chromaticAberration.aberrationAmount = s.chromaticAberration.amount;
     }
-    
+
     // SSAO (separate pipeline)
     this.updateSSAO();
   }
@@ -246,9 +252,9 @@ export class PostProcessingManager {
    */
   private updateSSAO(): void {
     if (!this.scene || !this.camera) return;
-    
+
     const s = this.settings.ssao;
-    
+
     if (s.enabled && !this.ssaoPipeline) {
       // Create SSAO2 pipeline (better quality than SSAO)
       this.ssaoPipeline = new SSAO2RenderingPipeline(
@@ -303,18 +309,18 @@ export class PostProcessingManager {
    */
   private updateColorGradingForTime(hour: number, minute: number): void {
     if (!this.pipeline?.imageProcessing || !this.settings.colorGrading.enabled) return;
-    
+
     // Calculate time as decimal (0-24)
     const time = hour + minute / 60;
-    
+
     // Adjust exposure and saturation based on time
     // Dawn (5-7): warm, slightly desaturated
     // Day (7-17): normal
     // Dusk (17-20): warm, golden hour
     // Night (20-5): cool, desaturated
-    
+
     let exposure = 1.0;
-    
+
     if (time >= 5 && time < 7) {
       // Dawn - gradually brighten
       const t = (time - 5) / 2;
@@ -327,7 +333,7 @@ export class PostProcessingManager {
       // Night - dark
       exposure = 0.7;
     }
-    
+
     // Apply smoothly (don't override user settings, just modulate)
     this.pipeline.imageProcessing.exposure = this.settings.colorGrading.exposure * exposure;
     // Note: saturation is not directly available in imageProcessing, would need color curves
@@ -465,11 +471,79 @@ export class PostProcessingManager {
       this.ssaoPipeline.dispose();
       this.ssaoPipeline = null;
     }
+    CelOutlinePostProcess.getInstance().dispose();
     if (this._cameraChangeUnsub) {
       this._cameraChangeUnsub();
       this._cameraChangeUnsub = null;
     }
     this.initialized = false;
     console.log("[PostProcessingManager] Disposed");
+  }
+
+  // ==================== Cel Outline ====================
+
+  /**
+   * Initialize cel outline post-process and register cvars
+   */
+  private initCelOutline(scene: Scene, camera: Camera): void {
+    const cel = CelOutlinePostProcess.getInstance();
+    cel.init(scene, camera);
+
+    // Register cvars with onChange callbacks
+    Cvar.register('r_cel_outlines', 1, {
+      type: 'int',
+      min: 0,
+      max: 1,
+      description: 'Enable cel-shading outlines (0/1)',
+      onChange: (value) => cel.setEnabled(!!value),
+    });
+
+    Cvar.register('r_cel_thickness', 1.0, {
+      type: 'float',
+      min: 0.1,
+      max: 8.0,
+      description: 'Cel outline thickness in pixels',
+      onChange: (value) => cel.setThickness(value as number),
+    });
+
+    Cvar.register('r_cel_depth_threshold', 0.002, {
+      type: 'float',
+      min: 0.0001,
+      max: 0.1,
+      description: 'Cel outline depth edge sensitivity',
+      onChange: (value) => cel.setDepthThreshold(value as number),
+    });
+
+    Cvar.register('r_cel_normal_threshold', 0.5, {
+      type: 'float',
+      min: 0.01,
+      max: 2.0,
+      description: 'Cel outline normal edge sensitivity',
+      onChange: (value) => cel.setNormalThreshold(value as number),
+    });
+
+    Cvar.register('r_cel_opacity', 0.8, {
+      type: 'float',
+      min: 0.0,
+      max: 1.0,
+      description: 'Cel outline opacity',
+      onChange: (value) => cel.setOpacity(value as number),
+    });
+
+    Cvar.register('r_cel_color', '0 0 0', {
+      type: 'string',
+      description: 'Cel outline RGB color ("r g b", 0-1 range)',
+      onChange: (value) => cel.setColorFromString(value as string),
+    });
+
+    // Apply initial cvar values (in case they were loaded from storage)
+    cel.setEnabled(Cvar.getBool('r_cel_outlines'));
+    cel.setThickness(Cvar.getNumber('r_cel_thickness'));
+    cel.setDepthThreshold(Cvar.getNumber('r_cel_depth_threshold'));
+    cel.setNormalThreshold(Cvar.getNumber('r_cel_normal_threshold'));
+    cel.setOpacity(Cvar.getNumber('r_cel_opacity'));
+    cel.setColorFromString(Cvar.getString('r_cel_color'));
+
+    console.log('[PostProcessingManager] Cel outline cvars registered');
   }
 }
