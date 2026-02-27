@@ -1118,7 +1118,11 @@ export class FPSController implements ICameraController {
       // === NETWORK CAMERA EFFECTS ===
       // Compute absolute pitch offsets (NOT additive to mouseRotationX — that would accumulate per-frame)
       this.slidePitchOffset = this.slidePhase > 0.01 ? this.slidePhase * -0.22 : 0; // ~12° down
-      this.ledgePitchOffset = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0; // ~8.6° up
+      // Smooth the ledge grab pitch offset — phase drops from 1→0 instantly on completion,
+      // so lerp toward the target to avoid an 8.6° camera snap that looks like a warp
+      const targetLedgePitch = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0;
+      const lerpSpeed = 8; // decay speed (higher = faster return to normal)
+      this.ledgePitchOffset += (targetLedgePitch - this.ledgePitchOffset) * Math.min(1, deltaTime * lerpSpeed);
       // DEBUG: Log when slide effect is active
       if (this.slidePhase > 0.01) {
         console.log(`[FPS] SLIDE CAM: phase=${this.slidePhase.toFixed(3)}, pitchOffset=${this.slidePitchOffset.toFixed(4)}`);
