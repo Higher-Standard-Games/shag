@@ -441,27 +441,28 @@ export class MapLoader {
       }
     }
 
-    // Layer 3: Wait for scene to be fully ready (all textures GPU-uploaded)
-    // This keeps the loading screen / transition visible until every texture
-    // (diffuse, lightmap, skybox) has finished GPU upload. Without this,
-    // the caller returns immediately and the map can flash with dark surfaces
-    // before textures finish uploading.
-    progress('Finalizing', 'Waiting for GPU textures');
-    try {
-      await scene.whenReadyAsync();
-      console.log('[MapLoader] Scene fully ready — all textures GPU-uploaded');
-    } catch (e) {
-      console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
-    }
-
-    // Pre-compile all effect shader permutations (trails, explosions, impacts)
-    // to prevent first-frame flicker when effects spawn during gameplay.
+    // Pre-compile all shader permutations used during gameplay:
+    // - BSP lightmap + useLightmapAsShadowmap (with AND without dynamic PointLight)
+    // - Trail ribbons, explosions, impacts, shockwaves
+    // This runs BEFORE scene.whenReadyAsync() so shader compilations from warm-up
+    // are included in the readiness check.
     progress('Finalizing', 'Warming up effect shaders');
     try {
       const { preloadEffectShaders } = await import('../../weapon/EffectPreloader');
       await preloadEffectShaders(scene);
     } catch (e) {
       console.warn('[MapLoader] Effect shader warm-up failed, proceeding anyway:', e);
+    }
+
+    // Final gate: Wait for scene to be fully ready (all textures GPU-uploaded,
+    // all shaders compiled including the warm-up variants above).
+    // This keeps the loading screen visible until everything is guaranteed ready.
+    progress('Finalizing', 'Waiting for GPU readiness');
+    try {
+      await scene.whenReadyAsync();
+      console.log('[MapLoader] Scene fully ready — all textures and shaders compiled');
+    } catch (e) {
+      console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
     }
 
     // Emit loading:complete event
