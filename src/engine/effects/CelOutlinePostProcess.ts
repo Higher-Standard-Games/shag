@@ -175,11 +175,10 @@ export class CelOutlinePostProcess {
 
         this.camera = camera;
 
-        if (this.postProcess) {
-            this.destroyPostProcess();
-            if (this._enabled) {
-                this.createPostProcess();
-            }
+        // Always recreate on new camera (initial create may have failed on old camera)
+        this.destroyPostProcess();
+        if (this._enabled) {
+            this.createPostProcess();
         }
     }
 
