@@ -248,6 +248,7 @@ export class FPSController implements ICameraController {
   private actualHorizSpeed: number = 0;  // Real speed based on position delta
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
+  private ledgeGrabSnapFrames: number = 0;  // Post-grab grace period for smoothedY snap
   private smoothingInitialized: boolean = false;
   // Jump state for auto-bunny hop
   private wasGroundedLastFrame: boolean = false;
@@ -1039,13 +1040,22 @@ export class FPSController implements ICameraController {
         this.physicsY = pos.y;
         this.physicsZ = pos.z;
 
-        // Apply stair smoothing (snap during ledge grab — frozen position is deterministic)
+        // Apply stair smoothing (snap during/after ledge grab — frozen position is deterministic)
         const stepHeight = mv.get('sv_stepheight');
         const smoothFactor = mv.get('cl_smoothfactor');
         const heightDiff = Math.abs(pos.y - this.smoothedY);
 
-        if (heightDiff > stepHeight * 2 || (this.ledgeGrabState && this.ledgeGrabState !== 'none')) {
-          // Large height change, teleport, or ledge grab - snap immediately
+        // Track post-grab grace period: keep snapping smoothedY for a few frames
+        // after grab ends so the post-grab boost (vel.y=50) doesn't cause a lerp warp
+        const inGrab = this.ledgeGrabState && this.ledgeGrabState !== 'none';
+        if (inGrab) {
+          this.ledgeGrabSnapFrames = 15; // ~250ms at 60fps
+        } else if (this.ledgeGrabSnapFrames > 0) {
+          this.ledgeGrabSnapFrames--;
+        }
+
+        if (heightDiff > stepHeight * 2 || inGrab || this.ledgeGrabSnapFrames > 0) {
+          // Large height change, teleport, or ledge grab (+grace) - snap immediately
           this.smoothedY = pos.y;
         } else {
           // Smooth stair climbing
