@@ -31,10 +31,9 @@ const CEL_OUTLINE_FRAGMENT = `
 precision highp float;
 
 varying vec2 vUV;
-uniform sampler2D textureSampler;  // Scene color
-uniform sampler2D depthSampler;    // Depth buffer
+uniform sampler2D textureSampler;
+uniform sampler2D depthSampler;
 
-// Configuration
 uniform vec2 texelSize;
 uniform float thickness;
 uniform float depthThreshold;
@@ -44,55 +43,64 @@ uniform vec3 outlineColor;
 uniform float cameraNear;
 uniform float cameraFar;
 
-// Get linear depth (0=near, 1=far)
 float getDepth(vec2 uv) {
     return texture2D(depthSampler, uv).r;
 }
 
-// Reconstruct view-space normal from depth buffer using cross-product
-// of neighboring depth samples (standard technique)
-vec3 reconstructNormal(vec2 uv) {
-    float d  = getDepth(uv);
-    float dR = getDepth(uv + vec2(texelSize.x, 0.0));
-    float dL = getDepth(uv - vec2(texelSize.x, 0.0));
-    float dU = getDepth(uv + vec2(0.0, texelSize.y));
-    float dD = getDepth(uv - vec2(0.0, texelSize.y));
+// Simple 4-tap depth edge detection with depth-relative comparison
+// Divides depth differences by center depth to normalize across distances
+float depthEdge(vec2 uv, vec2 offset) {
+    float center = getDepth(uv);
     
-    // Use the neighbor pair with smallest depth difference (handles edges better)
-    float dx = abs(dR - d) < abs(d - dL) ? (dR - d) : (d - dL);
-    float dy = abs(dU - d) < abs(d - dD) ? (dU - d) : (d - dD);
+    // Skip sky
+    if (center > 0.999) return 0.0;
     
-    return normalize(vec3(dx, dy, texelSize.x * 2.0));
+    // Sample 4 neighbors
+    float left  = getDepth(uv - vec2(offset.x, 0.0));
+    float right = getDepth(uv + vec2(offset.x, 0.0));
+    float up    = getDepth(uv + vec2(0.0, offset.y));
+    float down  = getDepth(uv - vec2(0.0, offset.y));
+    
+    // Depth-relative differences (normalize by center depth)
+    // This prevents close surfaces from overwhelming the detector
+    float invDepth = 1.0 / max(center, 0.001);
+    float dx = abs(right - left) * invDepth;
+    float dy = abs(up - down) * invDepth;
+    
+    return max(dx, dy);
 }
 
-// Sobel edge detection on depth
-float sobelDepth(vec2 uv, vec2 offset) {
-    float d00 = getDepth(uv + vec2(-offset.x, -offset.y));
-    float d10 = getDepth(uv + vec2( 0.0,      -offset.y));
-    float d20 = getDepth(uv + vec2( offset.x,  -offset.y));
-    float d01 = getDepth(uv + vec2(-offset.x,   0.0));
-    float d21 = getDepth(uv + vec2( offset.x,   0.0));
-    float d02 = getDepth(uv + vec2(-offset.x,   offset.y));
-    float d12 = getDepth(uv + vec2( 0.0,        offset.y));
-    float d22 = getDepth(uv + vec2( offset.x,   offset.y));
+// Normal edge via depth-reconstructed normals (4-tap)
+float normalEdge(vec2 uv, vec2 offset) {
+    // Reconstruct normals from depth at 4 positions
+    float c  = getDepth(uv);
+    float cR = getDepth(uv + vec2(offset.x, 0.0));
+    float cL = getDepth(uv - vec2(offset.x, 0.0));
+    float cU = getDepth(uv + vec2(0.0, offset.y));
+    float cD = getDepth(uv - vec2(0.0, offset.y));
     
-    float gx = -d00 - 2.0*d01 - d02 + d20 + 2.0*d21 + d22;
-    float gy = -d00 - 2.0*d10 - d20 + d02 + 2.0*d12 + d22;
+    // Skip sky
+    if (c > 0.999) return 0.0;
     
-    return sqrt(gx*gx + gy*gy);
-}
-
-// Roberts cross on reconstructed normals
-float robertsNormal(vec2 uv, vec2 offset) {
-    vec3 n00 = reconstructNormal(uv);
-    vec3 n11 = reconstructNormal(uv + offset);
-    vec3 n10 = reconstructNormal(uv + vec2(offset.x, 0.0));
-    vec3 n01 = reconstructNormal(uv + vec2(0.0, offset.y));
+    // Central normal
+    vec3 n0 = normalize(vec3(cL - cR, cD - cU, 2.0 * length(offset)));
     
-    float cross1 = length(n00 - n11);
-    float cross2 = length(n10 - n01);
+    // Offset normals (shift one texel in each direction)
+    float rR = getDepth(uv + vec2(offset.x * 2.0, 0.0));
+    float rU = getDepth(uv + vec2(offset.x, offset.y));
+    float rD = getDepth(uv + vec2(offset.x, -offset.y));
+    vec3 n1 = normalize(vec3(cR - rR, rD - rU, 2.0 * length(offset)));
     
-    return sqrt(cross1*cross1 + cross2*cross2);
+    float uU = getDepth(uv + vec2(0.0, offset.y * 2.0));
+    float uR = getDepth(uv + vec2(offset.x, offset.y));
+    float uL = getDepth(uv + vec2(-offset.x, offset.y));
+    vec3 n2 = normalize(vec3(uL - uR, cU - uU, 2.0 * length(offset)));
+    
+    // Compare normals via dot product (1 = same, 0 = perpendicular)
+    float d1 = 1.0 - abs(dot(n0, n1));
+    float d2 = 1.0 - abs(dot(n0, n2));
+    
+    return max(d1, d2);
 }
 
 void main(void) {
@@ -100,25 +108,15 @@ void main(void) {
     
     vec2 offset = texelSize * thickness;
     
-    // Depth edge detection (silhouettes, large depth discontinuities)
-    float dEdge = sobelDepth(vUV, offset);
+    float dEdge = depthEdge(vUV, offset);
+    float nEdge = normalEdge(vUV, offset);
     
-    // Normal edge detection (surface creases, face angle changes)
-    float nEdge = robertsNormal(vUV, offset);
+    // Threshold with slight anti-aliasing
+    float depthLine = smoothstep(depthThreshold * 0.7, depthThreshold, dEdge);
+    float normalLine = smoothstep(normalThreshold * 0.7, normalThreshold, nEdge);
     
-    // Crisp threshold with slight smoothstep for anti-aliasing
-    float depthLine = smoothstep(depthThreshold * 0.5, depthThreshold, dEdge);
-    float normalLine = smoothstep(normalThreshold * 0.5, normalThreshold, nEdge);
-    
-    // Combine
     float edge = max(depthLine, normalLine);
     edge = clamp(edge * opacity, 0.0, 1.0);
-    
-    // Skip skybox (depth ~1.0)
-    float centerDepth = getDepth(vUV);
-    if (centerDepth > 0.999) {
-        edge = 0.0;
-    }
     
     vec3 finalColor = mix(sceneColor.rgb, outlineColor, edge);
     gl_FragColor = vec4(finalColor, sceneColor.a);
@@ -134,10 +132,10 @@ export class CelOutlinePostProcess {
 
     // Settings
     private _enabled = true;
-    private _thickness = 1.0;
-    private _depthThreshold = 0.002;
-    private _normalThreshold = 0.5;
-    private _opacity = 0.8;
+    private _thickness = 1.5;
+    private _depthThreshold = 0.1;      // Depth-relative: 10% depth difference = edge
+    private _normalThreshold = 0.3;     // Normal dot product difference threshold
+    private _opacity = 0.85;
     private _color = new Color3(0, 0, 0);
 
     private constructor() { }
@@ -262,7 +260,7 @@ export class CelOutlinePostProcess {
     }
 
     public setDepthThreshold(t: number): void {
-        this._depthThreshold = Math.max(0.0001, Math.min(0.1, t));
+        this._depthThreshold = Math.max(0.001, Math.min(1.0, t));
     }
 
     public setNormalThreshold(t: number): void {

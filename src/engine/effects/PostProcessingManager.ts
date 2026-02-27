@@ -498,7 +498,7 @@ export class PostProcessingManager {
       onChange: (value) => cel.setEnabled(!!value),
     });
 
-    Cvar.register('r_cel_thickness', 1.0, {
+    Cvar.register('r_cel_thickness', 1.5, {
       type: 'float',
       min: 0.1,
       max: 8.0,
@@ -506,23 +506,23 @@ export class PostProcessingManager {
       onChange: (value) => cel.setThickness(value as number),
     });
 
-    Cvar.register('r_cel_depth_threshold', 0.002, {
+    Cvar.register('r_cel_depth_threshold', 0.1, {
       type: 'float',
-      min: 0.0001,
-      max: 0.1,
-      description: 'Cel outline depth edge sensitivity',
+      min: 0.001,
+      max: 1.0,
+      description: 'Cel outline depth edge sensitivity (lower = more edges)',
       onChange: (value) => cel.setDepthThreshold(value as number),
     });
 
-    Cvar.register('r_cel_normal_threshold', 0.5, {
+    Cvar.register('r_cel_normal_threshold', 0.3, {
       type: 'float',
       min: 0.01,
       max: 2.0,
-      description: 'Cel outline normal edge sensitivity',
+      description: 'Cel outline normal edge sensitivity (lower = more edges)',
       onChange: (value) => cel.setNormalThreshold(value as number),
     });
 
-    Cvar.register('r_cel_opacity', 0.8, {
+    Cvar.register('r_cel_opacity', 0.85, {
       type: 'float',
       min: 0.0,
       max: 1.0,
