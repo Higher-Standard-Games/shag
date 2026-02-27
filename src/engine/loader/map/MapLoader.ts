@@ -282,13 +282,14 @@ export class MapLoader {
       progress('Skybox', 'Skipped (NullEngine)');
     }
 
-    // Phase 7: Apply lightmaps (DISABLED - Lightmaps are corrupted/black and break visibility)
-    // progress('Lighting', 'Applying lightmaps');
-    // try {
-    //   BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
-    // } catch (e) {
-    //   console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
-    // }
+    // Phase 7: Apply lightmaps (Q3 baked lighting)
+    progress('Lighting', 'Applying lightmaps');
+    try {
+      const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
+      console.log(`[MapLoader] Applied ${lmCount} lightmaps`);
+    } catch (e) {
+      console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
+    }
 
     // (Post-Lightmap pause removed to reduce noise)
 

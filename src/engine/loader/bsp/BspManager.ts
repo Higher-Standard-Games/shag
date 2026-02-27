@@ -444,13 +444,12 @@ export class BspManager {
   /**
    * Apply lightmaps to rendered BSP
    */
-  applyLightmaps(mode: 'desktop' | 'mobile' = 'desktop', intensity = 1.5): number {
+  applyLightmaps(intensity = 2.0): number {
     if (!this.meshResult) {
       throw new Error('No BSP rendered');
     }
 
     return BspMeshBuilder.applyLightmaps(this.meshResult, {
-      mode,
       intensity,
     });
   }

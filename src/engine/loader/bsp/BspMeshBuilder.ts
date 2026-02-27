@@ -1242,11 +1242,12 @@ export class BspMeshBuilder {
             }
 
             // Fullbright surfaces (lamps, light panels) - appear self-lit
+            // These have surfaceparm nolightmap - they ARE the light sources
             if (shaderProps.isFullbright) {
               mat.emissiveTexture = texture;
               mat.emissiveColor = new Color3(1, 1, 1);
-              // Keep diffuse for base color but reduce to avoid over-brightness
-              mat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+              mat.diffuseColor = new Color3(1, 1, 1);
+              mat.disableLighting = true; // Immune to scene lights — renders at full brightness
               // Mark mesh to skip lightmap application
               if (mesh.metadata) {
                 mesh.metadata.isFullbright = true;
@@ -1301,14 +1302,14 @@ export class BspMeshBuilder {
   }
 
   /**
-   * Apply lightmaps to BSP materials
-   * Call this after bsp render to enable lightmapping
+   * Apply lightmaps to BSP materials using Babylon.js lightmapTexture
+   * Uses useLightmapAsShadowmap=true for Q3-style texture × lightmap multiplication
    */
   public static applyLightmaps(
     result: BspMeshBuildResult,
-    options?: { intensity?: number; mode?: 'desktop' | 'mobile' }
+    options?: { intensity?: number }
   ): number {
-    const { intensity = 1.5, mode = 'desktop' } = options || {};
+    const { intensity = 2.0 } = options || {};
     const lightmaps = result.lightmapTextures;
 
     if (lightmaps.length === 0) {
@@ -1333,36 +1334,22 @@ export class BspMeshBuilder {
       const mat = mesh.material;
 
       if (mat instanceof StandardMaterial) {
-        if (mode === 'mobile') {
-          // Mobile mode: Use ambient texture for simple multiply
-          // This is more performant than full lightmap blending
-          mat.ambientTexture = lightmapTex;
-          mat.ambientTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
-        } else {
-          // Desktop mode: "Safe Mode" - Use only emissive texture to guarantee visibility
-          // We suspect ambient settings or lighting system is interfering with ambient/diffuse
+        // Q3 lighting formula: finalColor = diffuseTexture × lightmap × overbright
+        // Babylon.js lightmapTexture with useLightmapAsShadowmap=true does texture × lightmap
+        mat.lightmapTexture = lightmapTex;
+        mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+        mat.lightmapTexture.level = intensity;
+        mat.useLightmapAsShadowmap = true; // Multiplicative (not shadow-only)
 
-          // Disable ambient to avoid interference
-          mat.ambientTexture = null;
-          mat.ambientColor = new Color3(0, 0, 0); // Restore to default black
+        // Ensure diffuse is white so lightmap modulates at full range
+        mat.diffuseColor = new Color3(1, 1, 1);
 
-          // Apply lightmap via emissive channel only (additive, independent of lighting)
-          mat.emissiveTexture = lightmapTex;
-          mat.emissiveTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+        // Clear any stale emissive that might wash out the lightmap
+        mat.emissiveTexture = null;
+        mat.emissiveColor = new Color3(0, 0, 0);
 
-          // Use high intensity for visibility check
-          mat.emissiveTexture.level = intensity;
-
-          // Set base emissive color to black so only texture contributes
-          mat.emissiveColor = new Color3(0, 0, 0);
-
-          // Prevent shadowmap usage
-          mat.useLightmapAsShadowmap = false;
-
-          if (appliedCount === 0) {
-            console.log(`[BspMeshBuilder:SAFE] Applied first lightmap to ${mesh.name} (Material: ${mat.name})`);
-            console.log(`[BspMeshBuilder:SAFE] Diffuse: ${mat.diffuseColor}, EmissiveLevel: ${mat.emissiveTexture.level}`);
-          }
+        if (appliedCount === 0) {
+          console.log(`[BspMeshBuilder] Applied first lightmap to ${mesh.name} (intensity: ${intensity})`);
         }
 
         appliedCount++;
@@ -1378,7 +1365,7 @@ export class BspMeshBuilder {
       }
     }
 
-    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (mode: ${mode})`);
+    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (intensity: ${intensity})`);
     return appliedCount;
   }
 

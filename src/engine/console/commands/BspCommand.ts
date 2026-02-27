@@ -287,13 +287,12 @@ export class BspCommand extends Command {
           return 'No BSP rendered. Use "bsp render" first.';
         }
 
-        const mode = args[1]?.toLowerCase() === 'mobile' ? 'mobile' : 'desktop';
-        const intensityArg = args[mode === 'mobile' ? 2 : 1];
-        const intensity = intensityArg ? parseFloat(intensityArg) : 1.5;
+        const intensityArg = args[1];
+        const intensity = intensityArg ? parseFloat(intensityArg) : 2.0;
 
         try {
-          const count = manager.applyLightmaps(mode, isNaN(intensity) ? 1.5 : intensity);
-          return `Applied ${count} lightmaps (mode: ${mode}, intensity: ${intensity.toFixed(1)})`;
+          const count = manager.applyLightmaps(isNaN(intensity) ? 2.0 : intensity);
+          return `Applied ${count} lightmaps (intensity: ${intensity.toFixed(1)})`;
         } catch (e) {
           return `Failed to apply lightmaps: ${e}`;
         }
