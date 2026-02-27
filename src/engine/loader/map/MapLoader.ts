@@ -454,6 +454,16 @@ export class MapLoader {
       console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
     }
 
+    // Pre-compile all effect shader permutations (trails, explosions, impacts)
+    // to prevent first-frame flicker when effects spawn during gameplay.
+    progress('Finalizing', 'Warming up effect shaders');
+    try {
+      const { preloadEffectShaders } = await import('../../weapon/EffectPreloader');
+      await preloadEffectShaders(scene);
+    } catch (e) {
+      console.warn('[MapLoader] Effect shader warm-up failed, proceeding anyway:', e);
+    }
+
     // Emit loading:complete event
     const completeEvent: LoadingCompleteEvent = {
       type: 'map',

@@ -180,11 +180,11 @@ export class ExplosionEffect {
         light.intensity = 5 * s;
         light.range = 40 * s;
 
-        // ─── Layer 6: Directional Sparks ───────────────────────
-        const sparks = this.createDirectionalSparks(id, position, s, config, normal);
-
-        // ─── Layer 7: Debris Particles ─────────────────────────
-        const debris = this.createDebris(id, position, s, config, normal);
+        // ─── Layer 6 & 7: Directional Sparks & Debris (REMOVED) ──
+        // These didn't look good and had a first-hit-only rendering bug.
+        // Keep empty ParticleSystems to satisfy ActiveExplosion interface cleanup.
+        const sparks = new ParticleSystem(`${id}_sparks_noop`, 0, this.scene);
+        const debris = new ParticleSystem(`${id}_debris_noop`, 0, this.scene);
 
         this.explosions.push({
             id, config, position: position.clone(), normal: normal.clone(), spawnTime: now,
@@ -500,7 +500,8 @@ export class ExplosionEffect {
     /**
      * Layer 7: Debris particles — chunky pieces thrown outward with gravity
      */
-    private createDebris(id: string, pos: Vector3, scale: number, config: ExplosionConfig, normal: Vector3 = Vector3.Up()): ParticleSystem {
+    // @ts-ignore — kept for potential future use
+    private _createDebris(id: string, pos: Vector3, scale: number, config: ExplosionConfig, normal: Vector3 = Vector3.Up()): ParticleSystem {
         const ps = new ParticleSystem(`${id}_debris`, 25, this.scene!);
 
         if (this.particleTexture) {
@@ -554,7 +555,8 @@ export class ExplosionEffect {
     /**
      * Layer 6: Directional sparks — bright, fast, small particles spraying along the impact normal
      */
-    private createDirectionalSparks(id: string, pos: Vector3, scale: number, _config: ExplosionConfig, normal: Vector3): ParticleSystem {
+    // @ts-ignore — kept for potential future use
+    private _createDirectionalSparks(id: string, pos: Vector3, scale: number, _config: ExplosionConfig, normal: Vector3): ParticleSystem {
         const ps = new ParticleSystem(`${id}_sparks`, 40, this.scene!);
 
         if (this.particleTexture) {
