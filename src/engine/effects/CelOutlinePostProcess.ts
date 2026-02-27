@@ -1,96 +1,94 @@
 /**
  * CelOutlinePostProcess - Warsow-style cel-shading outlines
  * 
- * Uses post-process edge detection on depth + normal buffers to
- * draw toon-style black outlines on geometry edges and surface creases.
+ * Uses post-process edge detection on depth buffer to draw toon-style
+ * black outlines on geometry edges and surface creases.
  * 
- * Much better than Warsow's old approach of rendering black rectangles
- * over surfaces — this is a single full-screen shader pass.
+ * Normals are reconstructed from the depth buffer via cross-product,
+ * eliminating the need for a separate geometry/normal buffer.
  * 
  * Configurable via cvars:
- * - r_cel_outlines (bool)       - Enable/disable
- * - r_cel_thickness (float)     - Outline width in pixels
+ * - r_cel_outlines (bool)         - Enable/disable
+ * - r_cel_thickness (float)       - Outline width in pixels
  * - r_cel_depth_threshold (float) - Depth edge sensitivity
- * - r_cel_normal_threshold (float) - Normal edge sensitivity
- * - r_cel_opacity (float)       - Outline opacity
- * - r_cel_color (string)        - Outline RGB color "r g b"
+ * - r_cel_normal_threshold (float)- Normal edge sensitivity
+ * - r_cel_opacity (float)         - Outline opacity
+ * - r_cel_color (string)          - Outline RGB color "r g b"
  */
 
 import { Scene } from "@babylonjs/core/scene";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
 import { Effect } from "@babylonjs/core/Materials/effect";
-import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
-import "@babylonjs/core/Rendering/geometryBufferRendererSceneComponent";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 
-// Fragment shader for edge detection on depth + normals
+// Import depth renderer side-effects so scene.enableDepthRenderer() exists
+import "@babylonjs/core/Rendering/depthRendererSceneComponent";
+
+// Fragment shader: depth-only edge detection with reconstructed normals
 const CEL_OUTLINE_FRAGMENT = `
 precision highp float;
 
-// Scene color from previous pass
 varying vec2 vUV;
-uniform sampler2D textureSampler;
+uniform sampler2D textureSampler;  // Scene color
+uniform sampler2D depthSampler;    // Depth buffer
 
-// Engine-provided buffers
-uniform sampler2D depthSampler;
-uniform sampler2D normalSampler;
+// Configuration
+uniform vec2 texelSize;
+uniform float thickness;
+uniform float depthThreshold;
+uniform float normalThreshold;
+uniform float opacity;
+uniform vec3 outlineColor;
+uniform float cameraNear;
+uniform float cameraFar;
 
-// Configuration uniforms
-uniform vec2 texelSize;       // 1.0 / screenResolution
-uniform float thickness;      // Outline thickness in pixels
-uniform float depthThreshold; // Sensitivity to depth edges
-uniform float normalThreshold;// Sensitivity to normal edges
-uniform float opacity;        // Outline opacity
-uniform vec3 outlineColor;    // Outline color (default black)
-uniform float nearPlane;
-uniform float farPlane;
-
-// Linearize depth from depth buffer
-float linearizeDepth(float rawDepth) {
-    // Babylon.js depth buffer stores: (viewZ - near) / (far - near)
-    return rawDepth;
+// Get linear depth (0=near, 1=far)
+float getDepth(vec2 uv) {
+    return texture2D(depthSampler, uv).r;
 }
 
-// Sample depth at offset (in pixel units)
-float sampleDepth(vec2 uv) {
-    return linearizeDepth(texture2D(depthSampler, uv).r);
-}
-
-// Sample normal at offset
-vec3 sampleNormal(vec2 uv) {
-    return texture2D(normalSampler, uv).rgb * 2.0 - 1.0;
+// Reconstruct view-space normal from depth buffer using cross-product
+// of neighboring depth samples (standard technique)
+vec3 reconstructNormal(vec2 uv) {
+    float d  = getDepth(uv);
+    float dR = getDepth(uv + vec2(texelSize.x, 0.0));
+    float dL = getDepth(uv - vec2(texelSize.x, 0.0));
+    float dU = getDepth(uv + vec2(0.0, texelSize.y));
+    float dD = getDepth(uv - vec2(0.0, texelSize.y));
+    
+    // Use the neighbor pair with smallest depth difference (handles edges better)
+    float dx = abs(dR - d) < abs(d - dL) ? (dR - d) : (d - dL);
+    float dy = abs(dU - d) < abs(d - dD) ? (dU - d) : (d - dD);
+    
+    return normalize(vec3(dx, dy, texelSize.x * 2.0));
 }
 
 // Sobel edge detection on depth
-float depthEdge(vec2 uv, vec2 offset) {
-    // 3x3 Sobel kernel
-    float d00 = sampleDepth(uv + vec2(-offset.x, -offset.y));
-    float d10 = sampleDepth(uv + vec2( 0.0,      -offset.y));
-    float d20 = sampleDepth(uv + vec2( offset.x,  -offset.y));
-    float d01 = sampleDepth(uv + vec2(-offset.x,   0.0));
-    float d21 = sampleDepth(uv + vec2( offset.x,   0.0));
-    float d02 = sampleDepth(uv + vec2(-offset.x,   offset.y));
-    float d12 = sampleDepth(uv + vec2( 0.0,        offset.y));
-    float d22 = sampleDepth(uv + vec2( offset.x,   offset.y));
+float sobelDepth(vec2 uv, vec2 offset) {
+    float d00 = getDepth(uv + vec2(-offset.x, -offset.y));
+    float d10 = getDepth(uv + vec2( 0.0,      -offset.y));
+    float d20 = getDepth(uv + vec2( offset.x,  -offset.y));
+    float d01 = getDepth(uv + vec2(-offset.x,   0.0));
+    float d21 = getDepth(uv + vec2( offset.x,   0.0));
+    float d02 = getDepth(uv + vec2(-offset.x,   offset.y));
+    float d12 = getDepth(uv + vec2( 0.0,        offset.y));
+    float d22 = getDepth(uv + vec2( offset.x,   offset.y));
     
-    // Sobel X: horizontal gradient
     float gx = -d00 - 2.0*d01 - d02 + d20 + 2.0*d21 + d22;
-    // Sobel Y: vertical gradient
     float gy = -d00 - 2.0*d10 - d20 + d02 + 2.0*d12 + d22;
     
     return sqrt(gx*gx + gy*gy);
 }
 
-// Roberts cross edge detection on normals (faster, good enough)
-float normalEdge(vec2 uv, vec2 offset) {
-    vec3 n00 = sampleNormal(uv);
-    vec3 n11 = sampleNormal(uv + offset);
-    vec3 n10 = sampleNormal(uv + vec2(offset.x, 0.0));
-    vec3 n01 = sampleNormal(uv + vec2(0.0, offset.y));
+// Roberts cross on reconstructed normals
+float robertsNormal(vec2 uv, vec2 offset) {
+    vec3 n00 = reconstructNormal(uv);
+    vec3 n11 = reconstructNormal(uv + offset);
+    vec3 n10 = reconstructNormal(uv + vec2(offset.x, 0.0));
+    vec3 n01 = reconstructNormal(uv + vec2(0.0, offset.y));
     
-    // Roberts cross: diagonal differences
     float cross1 = length(n00 - n11);
     float cross2 = length(n10 - n01);
     
@@ -100,26 +98,29 @@ float normalEdge(vec2 uv, vec2 offset) {
 void main(void) {
     vec4 sceneColor = texture2D(textureSampler, vUV);
     
-    // Scale offset by thickness
     vec2 offset = texelSize * thickness;
     
-    // Detect edges
-    float dEdge = depthEdge(vUV, offset);
-    float nEdge = normalEdge(vUV, offset);
+    // Depth edge detection (silhouettes, large depth discontinuities)
+    float dEdge = sobelDepth(vUV, offset);
     
-    // Apply thresholds — step function for crisp toon outlines
+    // Normal edge detection (surface creases, face angle changes)
+    float nEdge = robertsNormal(vUV, offset);
+    
+    // Crisp threshold with slight smoothstep for anti-aliasing
     float depthLine = smoothstep(depthThreshold * 0.5, depthThreshold, dEdge);
     float normalLine = smoothstep(normalThreshold * 0.5, normalThreshold, nEdge);
     
-    // Combine: take the strongest edge
+    // Combine
     float edge = max(depthLine, normalLine);
-    
-    // Clamp and apply opacity
     edge = clamp(edge * opacity, 0.0, 1.0);
     
-    // Mix outline color into scene
-    vec3 finalColor = mix(sceneColor.rgb, outlineColor, edge);
+    // Skip skybox (depth ~1.0)
+    float centerDepth = getDepth(vUV);
+    if (centerDepth > 0.999) {
+        edge = 0.0;
+    }
     
+    vec3 finalColor = mix(sceneColor.rgb, outlineColor, edge);
     gl_FragColor = vec4(finalColor, sceneColor.a);
 }
 `;
@@ -130,7 +131,6 @@ export class CelOutlinePostProcess {
     private scene: Scene | null = null;
     private camera: Camera | null = null;
     private postProcess: PostProcess | null = null;
-    private depthRenderer: DepthRenderer | null = null;
 
     // Settings
     private _enabled = true;
@@ -138,7 +138,7 @@ export class CelOutlinePostProcess {
     private _depthThreshold = 0.002;
     private _normalThreshold = 0.5;
     private _opacity = 0.8;
-    private _color = new Color3(0, 0, 0); // Black
+    private _color = new Color3(0, 0, 0);
 
     private constructor() { }
 
@@ -156,7 +156,7 @@ export class CelOutlinePostProcess {
         this.scene = scene;
         this.camera = camera;
 
-        // Register the custom shader
+        // Register the custom shader in Babylon's shader store
         Effect.ShadersStore['celOutlineFragmentShader'] = CEL_OUTLINE_FRAGMENT;
 
         if (this._enabled) {
@@ -175,7 +175,6 @@ export class CelOutlinePostProcess {
 
         this.camera = camera;
 
-        // Recreate the post-process on the new camera
         if (this.postProcess) {
             this.destroyPostProcess();
             if (this._enabled) {
@@ -186,46 +185,32 @@ export class CelOutlinePostProcess {
 
     private createPostProcess(): void {
         if (!this.scene || !this.camera) return;
-        if (this.postProcess) return; // Already created
+        if (this.postProcess) return;
 
         const engine = this.scene.getEngine();
 
-        // Enable depth renderer if not already active
-        if (!this.scene.enableDepthRenderer) {
-            console.warn('[CelOutline] Depth renderer not available');
+        // Enable depth renderer — this is the ONLY dependency
+        const depthRenderer = this.scene.enableDepthRenderer(this.camera, false);
+        if (!depthRenderer) {
+            console.warn('[CelOutline] Failed to enable depth renderer');
             return;
         }
-        this.depthRenderer = this.scene.enableDepthRenderer(this.camera, false);
 
-        // Enable geometry buffer renderer for normals
-        let geometryBufferRenderer = this.scene.geometryBufferRenderer;
-        if (!geometryBufferRenderer) {
-            this.scene.enableGeometryBufferRenderer();
-            geometryBufferRenderer = this.scene.geometryBufferRenderer;
-        }
-
-        if (!geometryBufferRenderer) {
-            console.warn('[CelOutline] Geometry buffer renderer not available');
-            return;
-        }
+        const depthTex = depthRenderer.getDepthMap();
+        console.log(`[CelOutline] Depth texture ready: ${depthTex.getSize().width}x${depthTex.getSize().height}`);
 
         // Create the post-process
         this.postProcess = new PostProcess(
             'celOutline',
-            'celOutline',
-            // Uniforms
-            ['texelSize', 'thickness', 'depthThreshold', 'normalThreshold', 'opacity', 'outlineColor', 'nearPlane', 'farPlane'],
-            // Samplers
-            ['depthSampler', 'normalSampler'],
-            1.0, // Full resolution
+            'celOutline',                // Shader name → looks up 'celOutlineFragmentShader' in store
+            ['texelSize', 'thickness', 'depthThreshold', 'normalThreshold', 'opacity', 'outlineColor', 'cameraNear', 'cameraFar'],
+            ['depthSampler'],            // Only need depth — normals are reconstructed in shader
+            1.0,                         // Full resolution
             this.camera,
             Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
             engine,
-            false, // reusable
+            false,
         );
-
-        const depthTex = this.depthRenderer.getDepthMap();
-        const normalTex = geometryBufferRenderer.getGBuffer().textures[1]; // Normal texture
 
         this.postProcess.onApply = (effect: Effect) => {
             const width = engine.getRenderWidth();
@@ -237,22 +222,21 @@ export class CelOutlinePostProcess {
             effect.setFloat('normalThreshold', this._normalThreshold);
             effect.setFloat('opacity', this._opacity);
             effect.setColor3('outlineColor', this._color);
-            effect.setFloat('nearPlane', this.camera!.minZ);
-            effect.setFloat('farPlane', this.camera!.maxZ);
+            effect.setFloat('cameraNear', this.camera!.minZ);
+            effect.setFloat('cameraFar', this.camera!.maxZ);
 
             effect.setTexture('depthSampler', depthTex);
-            effect.setTexture('normalSampler', normalTex);
         };
 
-        console.log('[CelOutline] Post-process created');
+        console.log('[CelOutline] Post-process created and attached to camera');
     }
 
     private destroyPostProcess(): void {
         if (this.postProcess) {
             this.postProcess.dispose();
             this.postProcess = null;
+            console.log('[CelOutline] Post-process destroyed');
         }
-        // Note: don't dispose depthRenderer/geometryBuffer — other systems may use them
     }
 
     // ==================== Public API ====================
