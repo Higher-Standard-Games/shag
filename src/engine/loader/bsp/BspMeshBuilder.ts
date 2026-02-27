@@ -1305,11 +1305,9 @@ export class BspMeshBuilder {
    * Apply lightmaps to BSP materials using Babylon.js lightmapTexture
    * Uses useLightmapAsShadowmap=true for Q3-style texture × lightmap multiplication
    *
-   * Three-layer defense against dark textures race condition:
-   * 1. Assign lightmap textures immediately but WITHOUT useLightmapAsShadowmap
-   *    (surfaces render with just diffuse, not black)
-   * 2. After scene.executeWhenReady() (all textures GPU-ready), wait 2 frames
-   * 3. Then enable useLightmapAsShadowmap on all materials (safe multiplication)
+   * The multiplicative flag is set IMMEDIATELY (not deferred). To avoid first-frame
+   * flicker, the EffectPreloader pre-compiles the lightmap shader variant during
+   * map load, and scene.whenReadyAsync() gates the loading screen until ready.
    */
   public static applyLightmaps(
     result: BspMeshBuildResult,
@@ -1327,9 +1325,6 @@ export class BspMeshBuilder {
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
     let appliedCount = 0;
 
-    // Collect materials that need deferred lightmap activation
-    const deferredMaterials: StandardMaterial[] = [];
-
     for (const mesh of meshes) {
       if (!mesh.metadata?.lightmapIndex || mesh.metadata.lightmapIndex < 0) continue;
 
@@ -1344,16 +1339,11 @@ export class BspMeshBuilder {
 
       if (mat instanceof StandardMaterial) {
         // Q3 lighting formula: finalColor = diffuseTexture × lightmap × overbright
-        // Assign lightmap texture and UV settings immediately
+        // Babylon.js lightmapTexture with useLightmapAsShadowmap=true does texture × lightmap
         mat.lightmapTexture = lightmapTex;
         mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
         mat.lightmapTexture.level = intensity;
-
-        // DEFER useLightmapAsShadowmap — this is the multiplicative flag.
-        // If enabled before diffuse textures are GPU-ready, the multiplication
-        // produces black (black × lightmap = black). Leave it off for now;
-        // surfaces will render with diffuse only until we activate it below.
-        // mat.useLightmapAsShadowmap = true; // DEFERRED — see below
+        mat.useLightmapAsShadowmap = true; // Multiplicative — set immediately
 
         // Pre-allocate light slots so dynamic PointLights (projectiles, explosions)
         // work without shader recompilation (which frozen materials can't do)
@@ -1365,8 +1355,6 @@ export class BspMeshBuilder {
         // Clear any stale emissive that might wash out the lightmap
         mat.emissiveTexture = null;
         mat.emissiveColor = new Color3(0, 0, 0);
-
-        deferredMaterials.push(mat);
 
         if (appliedCount === 0) {
           console.log(`[BspMeshBuilder] Applied first lightmap to ${mesh.name} (intensity: ${intensity})`);
@@ -1385,44 +1373,7 @@ export class BspMeshBuilder {
       }
     }
 
-    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (intensity: ${intensity}), deferred activation for ${deferredMaterials.length} materials`);
-
-    // ── Deferred lightmap activation (three-layer defense) ──
-    // Layer 1: scene.executeWhenReady — waits for all textures to be GPU-ready
-    // Layer 2: 2-frame delay — extra safety margin after textures report ready
-    if (deferredMaterials.length > 0) {
-      const scene = result.worldMesh.getScene();
-
-      const activateLightmaps = () => {
-        // Layer 2: Wait 2 additional render frames as safety margin
-        let framesWaited = 0;
-        const frameObserver = scene.onAfterRenderObservable.add(() => {
-          framesWaited++;
-          if (framesWaited >= 2) {
-            scene.onAfterRenderObservable.remove(frameObserver);
-
-            // Now safe to enable multiplicative lightmap blending
-            for (const mat of deferredMaterials) {
-              mat.useLightmapAsShadowmap = true;
-            }
-            console.log(`[BspMeshBuilder] Activated useLightmapAsShadowmap on ${deferredMaterials.length} materials (deferred, ${framesWaited} frames after ready)`);
-          }
-        });
-      };
-
-      // Layer 1: Wait for scene to report all textures as GPU-ready
-      if (scene.isReady()) {
-        console.log('[BspMeshBuilder] Scene already ready, activating lightmaps after 2 frames');
-        activateLightmaps();
-      } else {
-        console.log('[BspMeshBuilder] Waiting for scene.executeWhenReady before activating lightmaps...');
-        scene.executeWhenReady(() => {
-          console.log('[BspMeshBuilder] Scene ready, activating lightmaps after 2 frames');
-          activateLightmaps();
-        });
-      }
-    }
-
+    console.log(`[BspMeshBuilder] Applied ${appliedCount} lightmaps (intensity: ${intensity})`);
     return appliedCount;
   }
 
