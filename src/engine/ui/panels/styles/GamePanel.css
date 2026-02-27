@@ -666,6 +666,60 @@
     border-color: hsla(45, 100%, 55%, 0.7);
 }
 
+/* Danger button (Disconnect) */
+.game-panel .fps-btn--danger {
+    border-color: hsla(0, 60%, 40%, 0.3);
+    color: hsla(0, 80%, 65%, 0.8);
+}
+
+.game-panel .fps-btn--danger:hover {
+    border-color: hsla(0, 80%, 50%, 0.5);
+    background: hsla(0, 60%, 20%, 0.3);
+    color: hsla(0, 100%, 70%, 1);
+    box-shadow: 0 0 12px hsla(0, 80%, 50%, 0.2);
+}
+
+.game-panel .fps-btn--danger::before {
+    border-top-color: hsla(0, 80%, 50%, 0.4);
+    border-left-color: hsla(0, 80%, 50%, 0.4);
+}
+
+.game-panel .fps-btn--danger::after {
+    border-bottom-color: hsla(0, 60%, 40%, 0.4);
+    border-right-color: hsla(0, 60%, 40%, 0.4);
+}
+
+/* ============================================================================
+   Menu Buttons — Centered vertical stack (Pause Menu, etc.)
+   ============================================================================ */
+
+/* Vertically + horizontally center the scroll content when it's a menu */
+.game-panel__menu-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 100%;
+    padding: 40px 0;
+}
+
+/* Wide menu button variant */
+.game-panel .fps-btn--menu {
+    width: 280px;
+    text-align: center;
+    padding: 14px 28px;
+    font-size: 0.9rem;
+}
+
+/* Separator line between button groups */
+.game-panel__menu-separator {
+    width: 200px;
+    height: 1px;
+    margin: 8px 0;
+    background: linear-gradient(90deg, transparent, hsla(180, 100%, 50%, 0.15), transparent);
+}
+
 /* ============================================================================
    Keyframe Animations
    ============================================================================ */
