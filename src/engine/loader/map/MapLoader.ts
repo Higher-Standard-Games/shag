@@ -399,19 +399,27 @@ export class MapLoader {
     bspManager.setBsp(mapName, bsp); // Set BSP data
     bspManager.setMeshResult(meshResult); // Store mesh result
 
-    // Phase 12: Freeze BSP materials to skip per-frame dirty checks.
-    // All textures, lightmaps, and properties are final at this point.
+    // Phase 12: Freeze materials that don't need dynamic light updates.
+    // Lightmapped BSP materials are NOT frozen — they need to respond to
+    // dynamic PointLights from projectiles, explosions, and muzzle flashes.
+    // mat.freeze() blocks isReadyForSubMesh() which prevents new light binding.
     let frozenCount = 0;
+    let skippedCount = 0;
     const frozenMats = new Set<number>();
     for (const mesh of scene.meshes) {
-      const mat = mesh.material;
+      const mat = mesh.material as any;
       if (mat && !frozenMats.has(mat.uniqueId)) {
         frozenMats.add(mat.uniqueId);
+        // Skip freeze for lightmapped materials (they need dynamic light binding)
+        if (mat.lightmapTexture) {
+          skippedCount++;
+          continue;
+        }
         mat.freeze();
         frozenCount++;
       }
     }
-    console.log(`[MapLoader] Froze ${frozenCount} materials for render perf`);
+    console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped (need dynamic lights)`);
 
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
