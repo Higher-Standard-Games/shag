@@ -151,7 +151,7 @@ export class WeaponViewManager {
 
     // Weapon outline state (r_cel_weapon_* cvars)
     private _weaponOutlineEnabled = true;
-    private _weaponOutlineWidth = 0.02;
+    private _weaponOutlineWidth = 0.15;  // Actual Babylon value (cvar is *100 scale, default 15)
     private _weaponOutlineColor = new MathColor3(0, 0, 0);
 
     private constructor() { }
@@ -539,7 +539,8 @@ export class WeaponViewManager {
     }
 
     public setWeaponOutlineWidth(width: number): void {
-        this._weaponOutlineWidth = Math.max(0.001, Math.min(0.1, width));
+        // Cvar is 0-100 scale, Babylon expects small values (divide by 100)
+        this._weaponOutlineWidth = Math.max(0.001, Math.min(1.0, width / 100));
         this.applyWeaponOutlines();
     }
 

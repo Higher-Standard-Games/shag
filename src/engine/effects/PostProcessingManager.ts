@@ -490,7 +490,7 @@ export class PostProcessingManager {
     cel.init(scene, camera);
 
     // Register cvars with onChange callbacks
-    Cvar.register('r_cel_outlines', 1, {
+    Cvar.register('r_cel_outlines', 0, {
       type: 'int',
       min: 0,
       max: 1,
@@ -558,11 +558,11 @@ export class PostProcessingManager {
       onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineEnabled(!!value)),
     });
 
-    Cvar.register('r_cel_weapon_width', 0.02, {
+    Cvar.register('r_cel_weapon_width', 15, {
       type: 'float',
-      min: 0.001,
-      max: 0.1,
-      description: 'Weapon outline width (inverted hull scale)',
+      min: 0.1,
+      max: 100,
+      description: 'Weapon outline width (0-100 scale, default 2)',
       onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineWidth(value as number)),
     });
 
