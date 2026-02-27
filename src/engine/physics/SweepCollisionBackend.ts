@@ -272,11 +272,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT));  // -24 for height 56
     const maxsZ = height + minsZ;                                 // +32 for height 56
 
-    // EPSILON shrink: slightly smaller bbox for traces to leave collision margin
-    // This helps prevent "exact surface" stuck states
-    const TRACE_EPSILON = 0.125;
-    const mins: [number, number, number] = [-radius + TRACE_EPSILON, -radius + TRACE_EPSILON, minsZ + TRACE_EPSILON];
-    const maxs: [number, number, number] = [radius - TRACE_EPSILON, radius - TRACE_EPSILON, maxsZ - TRACE_EPSILON];
+    // Use exact bbox — Q3 does NOT shrink the collision hull.
+    // SURFACE_CLIP_EPSILON in traceBrush provides the safety margin.
+    const mins: [number, number, number] = [-radius, -radius, minsZ];
+    const maxs: [number, number, number] = [radius, radius, maxsZ];
 
     // Content mask - default to SOLID | PLAYERCLIP for player collision
     const contentMask = options?.contentMask ?? PLAYER_CONTENTS;
@@ -939,25 +938,32 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (startDist > 0) startOut = true;
       if (endDist > 0) endOut = true;
 
-      // Both points outside this plane - not inside brush
-      if (startDist > 0 && endDist > 0) return;
+      // Q3 early-out: if start is in front of the plane AND (end is >= epsilon
+      // in front OR moving away from plane), the trace is entirely outside this
+      // brush. Without this stricter guard, AABB edges can report false
+      // collisions when grazing brush edges by less than epsilon.
+      const SURFACE_CLIP_EPSILON = 0.125; // Q3 value (1/8 unit)
+      if (startDist > 0 && (endDist >= SURFACE_CLIP_EPSILON || endDist >= startDist)) {
+        return;
+      }
 
       // Both points inside this plane - continue to next plane
       if (startDist <= 0 && endDist <= 0) continue;
 
       // Crossing the plane
       if (startDist > endDist) {
-        // Entering the brush
-        const fraction = (startDist - 0.03125) / (startDist - endDist);
-        if (fraction > enterFraction) {
-          enterFraction = fraction;
+        // Entering the brush — use SURFACE_CLIP_EPSILON (Q3: 0.125)
+        const fraction = (startDist - SURFACE_CLIP_EPSILON) / (startDist - endDist);
+        if (fraction < 0 ? 0 : fraction > enterFraction) {
+          enterFraction = fraction < 0 ? 0 : fraction;
           hitPlaneNormal = [...plane.normal] as [number, number, number];
         }
       } else {
         // Leaving the brush
-        const fraction = (startDist + 0.03125) / (startDist - endDist);
-        if (fraction < leaveFraction) {
-          leaveFraction = fraction;
+        const fraction = (startDist + SURFACE_CLIP_EPSILON) / (startDist - endDist);
+        const clampedFrac = fraction > 1 ? 1 : fraction;
+        if (clampedFrac < leaveFraction) {
+          leaveFraction = clampedFrac;
         }
       }
     }
