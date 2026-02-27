@@ -176,6 +176,9 @@ export class SkyboxLoader {
     const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
     skybox.infiniteDistance = true;
     skybox.renderingGroupId = 0; // Render first
+    // Exclude from CelOutline depth pass — skybox writes max depth (1.0) which
+    // interferes with the main-pass rendering of infiniteDistance meshes
+    skybox.metadata = { celOutlineExclude: true };
 
     // Create skybox material
     const skyMaterial = new StandardMaterial("skyboxMat", this.scene);
@@ -185,6 +188,7 @@ export class SkyboxLoader {
     skyMaterial.disableLighting = true;
     skyMaterial.diffuseColor = new Color3(0, 0, 0);
     skyMaterial.specularColor = new Color3(0, 0, 0);
+    skyMaterial.disableDepthWrite = true; // Don't write to depth buffer
 
     skybox.material = skyMaterial;
 
@@ -266,6 +270,9 @@ export class SkyboxLoader {
     skySphere.scaling.x = -1; // Flip to render inside
     skySphere.infiniteDistance = true;
     skySphere.renderingGroupId = 0; // Render first
+    // Exclude from CelOutline depth pass — skybox writes max depth (1.0) which
+    // interferes with the main-pass rendering of infiniteDistance meshes
+    skySphere.metadata = { celOutlineExclude: true };
 
     // Create sky material - use diffuseTexture with lighting disabled
     const skyMaterial = new StandardMaterial("skySphereMat", this.scene);
@@ -276,6 +283,7 @@ export class SkyboxLoader {
     skyMaterial.emissiveColor = new Color3(1, 1, 1); // Full brightness
     skyMaterial.specularColor = new Color3(0, 0, 0);
     skyMaterial.ambientColor = new Color3(1, 1, 1);
+    skyMaterial.disableDepthWrite = true; // Don't write to depth buffer
 
     skySphere.material = skyMaterial;
 

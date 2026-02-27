@@ -277,7 +277,12 @@ export class MapLoader {
     const engineCtorName = engineAny?.constructor?.name;
     const isHeadlessNullEngine = engineClass === 'NullEngine' || engineCtorName === 'NullEngine';
     if (!isHeadlessNullEngine) {
-      await BspMeshBuilder.applySkybox(meshResult, scene);
+      const skyResult = await BspMeshBuilder.applySkybox(meshResult, scene);
+      if (skyResult.success) {
+        console.log(`[MapLoader] Skybox created (${meshResult.skyShaders.length} sky shaders)`);
+      } else if (skyResult.error) {
+        console.warn(`[MapLoader] Skybox failed: ${skyResult.error}`);
+      }
     } else {
       progress('Skybox', 'Skipped (NullEngine)');
     }
@@ -412,6 +417,12 @@ export class MapLoader {
         frozenMats.add(mat.uniqueId);
         // Skip freeze for lightmapped materials (they need dynamic light binding)
         if (mat.lightmapTexture) {
+          skippedCount++;
+          continue;
+        }
+        // Skip skybox material — its cube texture may still be loading.
+        // Freezing a not-ready material locks it permanently in a non-rendering state.
+        if (mesh.name === 'skybox') {
           skippedCount++;
           continue;
         }
