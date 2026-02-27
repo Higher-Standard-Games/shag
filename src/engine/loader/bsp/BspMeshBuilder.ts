@@ -1341,6 +1341,10 @@ export class BspMeshBuilder {
         mat.lightmapTexture.level = intensity;
         mat.useLightmapAsShadowmap = true; // Multiplicative (not shadow-only)
 
+        // Pre-allocate light slots so dynamic PointLights (projectiles, explosions)
+        // work without shader recompilation (which frozen materials can't do)
+        mat.maxSimultaneousLights = 8;
+
         // Ensure diffuse is white so lightmap modulates at full range
         mat.diffuseColor = new Color3(1, 1, 1);
 
