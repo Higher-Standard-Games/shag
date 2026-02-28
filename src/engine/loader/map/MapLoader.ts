@@ -72,11 +72,15 @@ export class MapLoader {
 
   /**
    * Load a map by name - auto-detects type (local .map or PK3 BSP)
+   * @param opts.backgroundOnly - If true, load only geometry + textures + lightmaps.
+   *   Skips collisions, entities, models, effects, shader warmup.
+   *   Use for lobby/menu background maps.
    */
   async loadMap(
     mapName: string,
     scene: Scene,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    opts?: { backgroundOnly?: boolean }
   ): Promise<MapLoadResult> {
     const startTime = Date.now();
 
@@ -111,7 +115,7 @@ export class MapLoader {
       // Check if it's a BSP map in the index
       const bspPk3 = this.pk3Index.findMap(mapName);
       if (bspPk3) {
-        const result = await this.loadBspMap(mapName, bspPk3, scene, progress);
+        const result = await this.loadBspMap(mapName, bspPk3, scene, progress, opts?.backgroundOnly);
 
         // Emit loading:complete event
         EventBus.emit(LOADING_EVENTS.COMPLETE, {
@@ -165,12 +169,14 @@ export class MapLoader {
 
   /**
    * Load a BSP map from PK3 with full dependency resolution
+   * @param backgroundOnly - Skip collisions, entities, models, effects (for menu background)
    */
   private async loadBspMap(
     mapName: string,
     mapPk3: string,
     scene: Scene,
-    progress: (phase: string, detail?: string, pct?: number) => void
+    progress: (phase: string, detail?: string, pct?: number) => void,
+    backgroundOnly?: boolean
   ): Promise<MapLoadResult> {
     const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
@@ -220,21 +226,23 @@ export class MapLoader {
     }
 
     // Phase 3b: Resolve entity model dependencies (weapons, ammo, items)
-    // Mirror of Phase 3 but for BSP entity models instead of textures.
-    progress('Dependencies', 'Resolving entity model PK3s');
-    initializeEntityDefs(); // Ensure entity definitions are populated
-    const modelPk3s = this.resolveEntityModelDependencies(bsp);
-    for (const pk3 of modelPk3s) {
-      if (!loadedPk3s.has(pk3)) {
-        progress('Dependencies', `Loading model assets from ${pk3}`);
-        try {
-          const pk3Path = this.pk3Index.getPK3Path(pk3);
-          if (pk3Path) {
-            await this.pk3Loader.loadPK3FromUrl(pk3Path);
-            loadedPk3s.add(pk3);
+    // Skip for background-only loads — no gameplay entities needed
+    if (!backgroundOnly) {
+      progress('Dependencies', 'Resolving entity model PK3s');
+      initializeEntityDefs(); // Ensure entity definitions are populated
+      const modelPk3s = this.resolveEntityModelDependencies(bsp);
+      for (const pk3 of modelPk3s) {
+        if (!loadedPk3s.has(pk3)) {
+          progress('Dependencies', `Loading model assets from ${pk3}`);
+          try {
+            const pk3Path = this.pk3Index.getPK3Path(pk3);
+            if (pk3Path) {
+              await this.pk3Loader.loadPK3FromUrl(pk3Path);
+              loadedPk3s.add(pk3);
+            }
+          } catch (e) {
+            console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
           }
-        } catch (e) {
-          console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
         }
       }
     }
@@ -361,76 +369,68 @@ export class MapLoader {
       });
     }
 
-    // Phase 9: Generate collision meshes for invisible clip brushes (PLAYERCLIP, etc.)
-    // TEMPORARILY DISABLED TO TEST IF COLLISION MESHES CAUSE STUCK CAMERA
-    progress('Collision', 'Building clip brush meshes');
-    const clipMeshCount = 0; // DISABLED: this.buildClipBrushMeshes(bsp as BspFile, scene);
-    console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
+    // ── Phases 9-12: Gameplay-only (skip for background maps) ──
+    if (!backgroundOnly) {
+      // Phase 9: Generate collision meshes
+      progress('Collision', 'Building clip brush meshes');
+      const clipMeshCount = 0; // DISABLED for testing
+      console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
 
-    // Phase 9b: Initialize collision system
-    progress('Collision', 'Initializing');
-    try {
-      const { getCollisionManager } = await import('../../physics');
-      const cm = getCollisionManager();
-      await cm.init(bsp, scene as never, 'q3'); // Use 'q3' sweep collision for reliable floor detection
-      console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
-    } catch (e) {
-      console.warn('[MapLoader] Failed to initialize collision:', e);
-    }
-
-    // Phase 10: Preload pickup assets (weapons/ammo models)
-    progress('Assets', 'Preloading pickup models');
-    try {
-      const { AssetPreloader } = await import('../AssetPreloader');
-      const preloader = AssetPreloader.getInstance();
-      const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
-        progress('Assets', `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
-      });
-      console.log(`[MapLoader] Preloaded ${preloadCount} pickup models`);
-    } catch (e) {
-      console.warn('[MapLoader] Failed to preload assets:', e);
-    }
-
-    // Phase 11: Process BSP entities through EntityHandlerRegistry
-    progress('Entities', 'Processing');
-    registerBspEntityHandlers(); // Register func_door, etc.
-    EntityManager.getInstance().registerHandlers(); // Register weapons, pickups via EntityManager
-    setCurrentBspForHandlers(bsp); // Set BSP reference for handlers
-    await this.processBspEntities(bsp, scene);
-
-    // Store BSP and meshResult in BspManager for PVS system
-    const { BspManager } = await import('../bsp/BspManager');
-    const bspManager = BspManager.getInstance();
-    bspManager.setBsp(mapName, bsp); // Set BSP data
-    bspManager.setMeshResult(meshResult); // Store mesh result
-
-    // Phase 12: Freeze materials that don't need dynamic light updates.
-    // Lightmapped BSP materials are NOT frozen — they need to respond to
-    // dynamic PointLights from projectiles, explosions, and muzzle flashes.
-    // mat.freeze() blocks isReadyForSubMesh() which prevents new light binding.
-    let frozenCount = 0;
-    let skippedCount = 0;
-    const frozenMats = new Set<number>();
-    for (const mesh of scene.meshes) {
-      const mat = mesh.material as any;
-      if (mat && !frozenMats.has(mat.uniqueId)) {
-        frozenMats.add(mat.uniqueId);
-        // Skip freeze for lightmapped materials (they need dynamic light binding)
-        if (mat.lightmapTexture) {
-          skippedCount++;
-          continue;
-        }
-        // Skip skybox material — its cube texture may still be loading.
-        // Freezing a not-ready material locks it permanently in a non-rendering state.
-        if (mesh.name === 'skybox') {
-          skippedCount++;
-          continue;
-        }
-        mat.freeze();
-        frozenCount++;
+      // Phase 9b: Initialize collision system
+      progress('Collision', 'Initializing');
+      try {
+        const { getCollisionManager } = await import('../../physics');
+        const cm = getCollisionManager();
+        await cm.init(bsp, scene as never, 'q3');
+        console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
+      } catch (e) {
+        console.warn('[MapLoader] Failed to initialize collision:', e);
       }
+
+      // Phase 10: Preload pickup assets (weapons/ammo models)
+      progress('Assets', 'Preloading pickup models');
+      try {
+        const { AssetPreloader } = await import('../AssetPreloader');
+        const preloader = AssetPreloader.getInstance();
+        const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
+          progress('Assets', `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
+        });
+        console.log(`[MapLoader] Preloaded ${preloadCount} pickup models`);
+      } catch (e) {
+        console.warn('[MapLoader] Failed to preload assets:', e);
+      }
+
+      // Phase 11: Process BSP entities through EntityHandlerRegistry
+      progress('Entities', 'Processing');
+      registerBspEntityHandlers();
+      EntityManager.getInstance().registerHandlers();
+      setCurrentBspForHandlers(bsp);
+      await this.processBspEntities(bsp, scene);
+
+      // Store BSP and meshResult in BspManager for PVS system
+      const { BspManager } = await import('../bsp/BspManager');
+      const bspManager = BspManager.getInstance();
+      bspManager.setBsp(mapName, bsp);
+      bspManager.setMeshResult(meshResult);
+
+      // Phase 12: Freeze materials
+      let frozenCount = 0;
+      let skippedCount = 0;
+      const frozenMats = new Set<number>();
+      for (const mesh of scene.meshes) {
+        const mat = mesh.material as any;
+        if (mat && !frozenMats.has(mat.uniqueId)) {
+          frozenMats.add(mat.uniqueId);
+          if (mat.lightmapTexture) { skippedCount++; continue; }
+          if (mesh.name === 'skybox') { skippedCount++; continue; }
+          mat.freeze();
+          frozenCount++;
+        }
+      }
+      console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped`);
+    } else {
+      console.log(`[MapLoader] Background mode: skipped collisions, entities, assets`);
     }
-    console.log(`[MapLoader] Froze ${frozenCount} materials, skipped ${skippedCount} lightmapped (need dynamic lights)`);
 
     this.currentMap = mapName;
     progress('Complete', `Map ${mapName} loaded successfully`);
@@ -438,42 +438,36 @@ export class MapLoader {
     // Find player start position
     let playerStartPosition = new Vector3(0, 50, 0); // Default
     let playerStart = bsp.entities.find(e => e.classname === 'info_player_start');
-
-    // Fallback to deathmatch start
     if (!playerStart) {
       playerStart = bsp.entities.find(e => e.classname === 'info_player_deathmatch');
     }
-
     if (playerStart && playerStart.properties.origin) {
       const parts = playerStart.properties.origin.split(' ').map(parseFloat);
       if (parts.length === 3 && !parts.some(isNaN)) {
-        // Convert Q3 (X, Y, Z) to Babylon (X, Z, Y) because Q3 Z-up -> Babylon Y-up
         playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
       }
     }
 
-    // Pre-compile all shader permutations used during gameplay:
-    // - BSP lightmap + useLightmapAsShadowmap (with AND without dynamic PointLight)
-    // - Trail ribbons, explosions, impacts, shockwaves
-    // This runs BEFORE scene.whenReadyAsync() so shader compilations from warm-up
-    // are included in the readiness check.
-    progress('Finalizing', 'Warming up effect shaders');
-    try {
-      const { preloadEffectShaders } = await import('../../weapon/EffectPreloader');
-      await preloadEffectShaders(scene);
-    } catch (e) {
-      console.warn('[MapLoader] Effect shader warm-up failed, proceeding anyway:', e);
-    }
+    // ── Shader warmup & GPU readiness: gameplay only ──
+    if (!backgroundOnly) {
+      progress('Finalizing', 'Warming up effect shaders');
+      try {
+        const { preloadEffectShaders } = await import('../../weapon/EffectPreloader');
+        await preloadEffectShaders(scene);
+      } catch (e) {
+        console.warn('[MapLoader] Effect shader warm-up failed, proceeding anyway:', e);
+      }
 
-    // Final gate: Wait for scene to be fully ready (all textures GPU-uploaded,
-    // all shaders compiled including the warm-up variants above).
-    // This keeps the loading screen visible until everything is guaranteed ready.
-    progress('Finalizing', 'Waiting for GPU readiness');
-    try {
-      await scene.whenReadyAsync();
-      console.log('[MapLoader] Scene fully ready — all textures and shaders compiled');
-    } catch (e) {
-      console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
+      // Final gate: Wait for scene to be fully ready
+      progress('Finalizing', 'Waiting for GPU readiness');
+      try {
+        await scene.whenReadyAsync();
+        console.log('[MapLoader] Scene fully ready — all textures and shaders compiled');
+      } catch (e) {
+        console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
+      }
+    } else {
+      console.log('[MapLoader] Background mode: skipped shader warmup and GPU wait');
     }
 
     // Emit loading:complete event

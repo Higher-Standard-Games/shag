@@ -89,9 +89,8 @@ async function main() {
   await loadingScreen.waitForReady();
   loadingScreen.hide();
 
-  // Enable map loading overlay
-  // Enable map loading overlay
-  MapLoadingOverlay.enable();
+  // NOTE: MapLoadingOverlay is enabled AFTER the background map loads
+  // to avoid showing a loading overlay for the initial ui map.
 
   // Create scene
   console.log('[Main] Creating scene...');
@@ -172,6 +171,9 @@ async function main() {
   const requestedMap = new URLSearchParams(window.location.search).get('map');
 
   if (requestedMap) {
+    // Enable map loading overlay for explicit map loads
+    MapLoadingOverlay.enable();
+
     // Load map if specified in URL
     console.log(`[Main] Loading map from URL: ${requestedMap}`);
     const mapLoader = MapLoader.getInstance();
@@ -189,14 +191,17 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // ── Load UI map as lobby background ──
+    // ── Load UI map as lobby background (lightweight: no collisions/entities/effects) ──
     console.log('[Main] Loading ui map as lobby background...');
     const mapLoader = MapLoader.getInstance();
-    const bgResult = await mapLoader.loadMap('ui', scene);
+    const bgResult = await mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
     if (bgResult.success && bgResult.playerStartPosition) {
       camera.position.copyFrom(bgResult.playerStartPosition);
       console.log(`[Main] Background map loaded: ui`);
     }
+
+    // NOW enable the overlay for future map loads (e.g., joining a match)
+    MapLoadingOverlay.enable();
 
     // Show lobby UI — main menu on top of the 3D background
     const lobby = new LobbyPanel();
