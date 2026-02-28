@@ -189,14 +189,32 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // Show lobby UI — main menu with game mode cards
+    // ── Load UI map as lobby background ──
+    console.log('[Main] Loading ui map as lobby background...');
+    const mapLoader = MapLoader.getInstance();
+    const bgResult = await mapLoader.loadMap('ui', scene);
+    if (bgResult.success && bgResult.playerStartPosition) {
+      camera.position.copyFrom(bgResult.playerStartPosition);
+      console.log(`[Main] Background map loaded: ui`);
+    }
+
+    // Show lobby UI — main menu on top of the 3D background
     const lobby = new LobbyPanel();
     lobby.show();
 
-    // Connect settings button to the settings overlay
+    // Connect settings button — hide lobby, show settings, restore on close
     lobby.setOnSettings(async () => {
       const { FPSSettingsOverlay } = await import('./games/fps/client/hud/widgets/SettingsOverlay');
       const settingsPanel = new FPSSettingsOverlay();
+
+      // Instantly hide lobby (no animation — settings opens right away)
+      lobby.hideInstant();
+
+      // When settings closes, restore lobby instantly
+      settingsPanel.onClose(() => {
+        lobby.showInstant();
+      });
+
       settingsPanel.open();
     });
 
@@ -205,27 +223,22 @@ async function main() {
       console.log(`[Lobby] Queue for mode: ${mode}`);
     });
 
-    // Store lobby reference for map:loaded cleanup
+    // Store lobby reference for gameplay map transitions
     (window as any).__lobbyPanel = lobby;
   }
 
-  // Import EventBus async
+  // Hide lobby when a GAMEPLAY map loads (not the background ui map)
   import('./engine/core/EventBus').then(({ EventBus }) => {
-    const unsubscribe = EventBus.on('map:loaded', () => {
-      // Hide lobby panel if visible
+    EventBus.on('map:loaded', (data: any) => {
+      const mapName = data?.mapName || '';
+      // Don't hide lobby for the background ui map
+      if (mapName === 'ui') return;
+
       const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
       if (lobby?.isVisible()) {
         lobby.hide();
-        console.log('[Main] Lobby hidden (map loaded)');
+        console.log(`[Main] Lobby hidden (gameplay map: ${mapName})`);
       }
-      // Also remove old placeholder UI if still present
-      const el = document.getElementById('placeholder-ui');
-      if (el) {
-        el.style.transition = 'opacity 0.3s ease';
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 300);
-      }
-      unsubscribe();
     });
   });
 

@@ -129,6 +129,21 @@ export class LobbyPanel extends GamePanel {
         this.queueIntervals.clear();
         this.close();
     }
+
+    /** Instantly hide without animation (for switching to another panel) */
+    hideInstant(): void {
+        this.queueIntervals.forEach(i => clearInterval(i));
+        this.queueIntervals.clear();
+        this.root.style.display = 'none';
+        this.logoCanvas?.pause();
+    }
+
+    /** Instantly show without animation (for returning from another panel) */
+    showInstant(): void {
+        this.root.style.display = '';
+        this.logoCanvas?.start();
+    }
+
     isVisible(): boolean { return this.isOpen(); }
     setOnSettings(cb: () => void): void { this._onSettingsClick = cb; }
     setOnPlay(cb: (mode: string) => void): void { this._onPlayClick = cb; }
