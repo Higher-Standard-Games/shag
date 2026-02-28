@@ -1,15 +1,15 @@
 /**
- * LobbyPanel — Main Lobby UI
+ * LobbyPanel — Main Lobby UI (extends GamePanel)
  *
- * Full-viewport lobby screen shown on startup. Features:
- * - Game mode cards (DUEL 1v1, TEAM 2v2, FFA) with map backgrounds
+ * Full-viewport lobby screen shown on startup, using the same immersive
+ * GamePanel system as Settings and Pause menus. Features:
+ * - Blur zones, neon dividers, kanji watermarks, particles, scanline (from GamePanel)
+ * - Game mode cards (DUEL 1v1, TEAM 2v2, FFA) with unique color accents
  * - Social sidebar (players, live matches, chat)
- * - Settings button
  * - Queue state management (mock for Phase 1)
- *
- * Uses the Washiki neon color system (cyan/magenta/gold) from GamePanel.
  */
 
+import { GamePanel } from './GamePanel';
 import { UIStyles } from '../UIStyles';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 
@@ -22,10 +22,8 @@ interface GameMode {
     title: string;
     subtitle: string;
     icon: string;
-    color: string;       // HSL hue for accent
-    glowColor: string;   // Full HSLA for glow effects
-    borderColor: string;  // Full HSLA for borders
-    gradient: string;     // Bottom gradient for card overlay
+    hue: string;       // HSL hue number
+    glowColor: string;  // HSLA for glow effects
 }
 
 interface MockPlayer {
@@ -53,53 +51,29 @@ const GAME_MODES: GameMode[] = [
         title: 'DUEL',
         subtitle: '1 vs 1',
         icon: '⚔️',
-        color: '180',
+        hue: '180',
         glowColor: 'hsla(180, 100%, 50%, 0.4)',
-        borderColor: 'hsla(180, 100%, 50%, 0.35)',
-        gradient: `linear-gradient(
-            to top,
-            hsla(185, 80%, 8%, 0.97) 0%,
-            hsla(185, 60%, 10%, 0.7) 25%,
-            hsla(185, 40%, 8%, 0.3) 55%,
-            transparent 100%
-        )`,
     },
     {
         id: 'team',
         title: 'TEAM',
         subtitle: '2 vs 2',
         icon: '🛡️',
-        color: '320',
+        hue: '320',
         glowColor: 'hsla(320, 100%, 60%, 0.35)',
-        borderColor: 'hsla(320, 100%, 55%, 0.35)',
-        gradient: `linear-gradient(
-            to top,
-            hsla(320, 60%, 8%, 0.97) 0%,
-            hsla(320, 40%, 10%, 0.7) 25%,
-            hsla(320, 30%, 8%, 0.3) 55%,
-            transparent 100%
-        )`,
     },
     {
         id: 'ffa',
         title: 'FFA',
         subtitle: 'FREE FOR ALL',
         icon: '💥',
-        color: '45',
+        hue: '45',
         glowColor: 'hsla(45, 100%, 55%, 0.35)',
-        borderColor: 'hsla(45, 100%, 50%, 0.35)',
-        gradient: `linear-gradient(
-            to top,
-            hsla(40, 60%, 6%, 0.97) 0%,
-            hsla(40, 40%, 8%, 0.7) 25%,
-            hsla(40, 30%, 6%, 0.3) 55%,
-            transparent 100%
-        )`,
     },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// MOCK DATA (Phase 1 — no backend)
+// MOCK DATA
 // ═══════════════════════════════════════════════════════════════════
 
 const MOCK_PLAYERS: MockPlayer[] = [
@@ -126,159 +100,243 @@ const MOCK_CHAT = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// LOBBY PANEL CLASS
+// LOBBY PANEL CLASS (extends GamePanel)
 // ═══════════════════════════════════════════════════════════════════
 
-export class LobbyPanel {
-    private root: HTMLElement | null = null;
+export class LobbyPanel extends GamePanel {
     private queueState: Map<string, boolean> = new Map();
     private queueTimers: Map<string, number> = new Map();
     private queueIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
-    private onSettingsClick: (() => void) | null = null;
-    private onPlayClick: ((mode: string) => void) | null = null;
+    private _onPlayClick: ((mode: string) => void) | null = null;
 
     constructor() {
-        // Inject CSS once
+        super('PLAY');
+
+        // Inject lobby-specific CSS
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
+
+        // Footer: Settings button + version
+        const settingsBtn = this.createButton('⚙ Settings', '', () => {
+            this.openSettings();
+        });
+        const consoleBtn = this.createButton('Console ~', '', () => {
+            // Will be wired up externally
+        });
+        this.footerArea.appendChild(consoleBtn);
+        this.footerArea.appendChild(settingsBtn);
+
+        // Build the lobby layout and put it in the scrollable content area
+        const lobbyContent = this.buildLobbyContent();
+        this.setContent(lobbyContent);
     }
 
     /**
-     * Show the lobby UI
+     * Show the lobby (delegates to GamePanel.open)
      */
     show(): void {
-        if (this.root) return;
-
-        this.root = document.createElement('div');
-        this.root.className = 'lobby';
-        this.root.id = 'lobby-panel';
-
-        this.root.innerHTML = `
-            ${this.buildTopBar()}
-            <div class="lobby__body">
-                ${this.buildParticles()}
-                <div class="lobby__scan"></div>
-                ${this.buildModeCards()}
-                ${this.buildSidebar()}
-            </div>
-            ${this.buildBottomBar()}
-        `;
-
-        document.body.appendChild(this.root);
-        this.attachEventListeners();
-
-        console.log('[Lobby] Shown');
+        this.open();
     }
 
     /**
-     * Hide the lobby with fade-out animation
+     * Hide the lobby (delegates to GamePanel.close)
      */
     hide(): void {
-        if (!this.root) return;
-
         // Clear all queue intervals
         this.queueIntervals.forEach(interval => clearInterval(interval));
         this.queueIntervals.clear();
-
-        this.root.classList.add('lobby--closing');
-        this.root.addEventListener('animationend', () => {
-            this.root?.remove();
-            this.root = null;
-        }, { once: true });
-
-        console.log('[Lobby] Hidden');
+        this.close();
     }
 
     /**
      * Check if lobby is visible
      */
     isVisible(): boolean {
-        return this.root !== null;
+        return this.isOpen();
     }
 
     /**
      * Register settings button callback
      */
     setOnSettings(callback: () => void): void {
-        this.onSettingsClick = callback;
+        this._onSettingsClick = callback;
     }
 
     /**
-     * Register play/queue callback (receives mode ID)
+     * Register play/queue callback
      */
     setOnPlay(callback: (mode: string) => void): void {
-        this.onPlayClick = callback;
+        this._onPlayClick = callback;
+    }
+
+    private _onSettingsClick: (() => void) | null = null;
+
+    private openSettings(): void {
+        this._onSettingsClick?.();
     }
 
     // ═══════════════════════════════════════════════════════════════════
     // BUILD METHODS
     // ═══════════════════════════════════════════════════════════════════
 
-    private buildTopBar(): string {
-        return `
-            <div class="lobby__topbar">
-                <div class="lobby__logo">
-                    SHAG
-                    <span class="lobby__logo-sub">ARENA FPS</span>
-                </div>
-                <div class="lobby__topbar-right">
-                    <span class="lobby__version">v0.9.8</span>
-                    <button class="lobby__settings-btn" id="lobby-settings-btn">
-                        ⚙ SETTINGS
-                    </button>
-                </div>
-            </div>
+    private buildLobbyContent(): HTMLElement {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'lobby__layout';
+
+        // === Left: Game mode cards ===
+        const modesSection = document.createElement('div');
+        modesSection.className = 'lobby__modes';
+
+        for (const mode of GAME_MODES) {
+            modesSection.appendChild(this.buildModeCard(mode));
+        }
+        wrapper.appendChild(modesSection);
+
+        // === Right: Social sidebar ===
+        const sidebar = document.createElement('div');
+        sidebar.className = 'lobby__sidebar';
+
+        // Players
+        sidebar.appendChild(this.buildSectionTitle('PLAYERS ONLINE'));
+        sidebar.appendChild(this.buildPlayerList());
+
+        // Live Matches
+        sidebar.appendChild(this.buildSectionTitle('LIVE MATCHES'));
+        sidebar.appendChild(this.buildMatchList());
+
+        // Chat
+        sidebar.appendChild(this.buildChat());
+
+        wrapper.appendChild(sidebar);
+
+        // Bottom info bar inside the panel
+        const infoBar = document.createElement('div');
+        infoBar.className = 'lobby__infobar';
+        infoBar.innerHTML = `
+            <span class="lobby__status-dot">CONNECTED</span>
+            <span>${MOCK_PLAYERS.length} ONLINE</span>
         `;
+        wrapper.appendChild(infoBar);
+
+        return wrapper;
     }
 
-    private buildModeCards(): string {
-        const cards = GAME_MODES.map(mode => `
-            <div class="lobby__mode-card" data-mode="${mode.id}" style="
-                --card-hue: ${mode.color};
-                --card-glow: ${mode.glowColor};
-            ">
-                <div class="lobby__mode-bg" style="
-                    background-image: url('/placeholder-${mode.id}.jpg');
-                    background-color: hsl(${mode.color}, 25%, 8%);
-                "></div>
-                <div class="lobby__mode-overlay" style="background: ${mode.gradient}"></div>
-                <div class="lobby__mode-content">
-                    <div class="lobby__mode-icon">${mode.icon}</div>
-                    <div class="lobby__mode-title" style="
-                        color: hsl(${mode.color}, 100%, 80%);
-                        text-shadow: 0 0 20px ${mode.glowColor}, 0 0 40px hsla(${mode.color}, 100%, 50%, 0.15);
-                    ">${mode.title}</div>
-                    <div class="lobby__mode-subtitle">${mode.subtitle}</div>
-                    <div class="lobby__mode-queue-count">${Math.floor(Math.random() * 5)} IN QUEUE</div>
-                    <button class="lobby__find-btn" id="lobby-find-${mode.id}" style="
-                        border-color: hsla(${mode.color}, 100%, 50%, 0.3);
-                        color: hsl(${mode.color}, 100%, 65%);
-                        background: hsla(${mode.color}, 100%, 50%, 0.06);
-                    ">
-                        FIND MATCH
-                    </button>
-                </div>
-            </div>
-        `).join('');
+    private buildModeCard(mode: GameMode): HTMLElement {
+        const card = document.createElement('div');
+        card.className = 'lobby__mode-card';
+        card.dataset.mode = mode.id;
 
-        return `<div class="lobby__modes">${cards}</div>`;
+        // Background placeholder (colored)
+        const bg = document.createElement('div');
+        bg.className = 'lobby__mode-bg';
+        bg.style.backgroundColor = `hsl(${mode.hue}, 25%, 8%)`;
+        card.appendChild(bg);
+
+        // Gradient overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'lobby__mode-overlay';
+        card.appendChild(overlay);
+
+        // Content at bottom
+        const content = document.createElement('div');
+        content.className = 'lobby__mode-content';
+
+        const icon = document.createElement('div');
+        icon.className = 'lobby__mode-icon';
+        icon.textContent = mode.icon;
+        content.appendChild(icon);
+
+        const title = document.createElement('div');
+        title.className = 'lobby__mode-title';
+        title.textContent = mode.title;
+        title.style.color = `hsl(${mode.hue}, 100%, 80%)`;
+        title.style.textShadow = `0 0 20px ${mode.glowColor}, 0 0 40px hsla(${mode.hue}, 100%, 50%, 0.15)`;
+        content.appendChild(title);
+
+        const subtitle = document.createElement('div');
+        subtitle.className = 'lobby__mode-subtitle';
+        subtitle.textContent = mode.subtitle;
+        content.appendChild(subtitle);
+
+        const queueCount = document.createElement('div');
+        queueCount.className = 'lobby__mode-queue-count';
+        queueCount.textContent = `${Math.floor(Math.random() * 5)} IN QUEUE`;
+        content.appendChild(queueCount);
+
+        const btn = document.createElement('button');
+        btn.className = 'lobby__find-btn';
+        btn.id = `lobby-find-${mode.id}`;
+        btn.textContent = 'FIND MATCH';
+        btn.style.borderColor = `hsla(${mode.hue}, 100%, 50%, 0.3)`;
+        btn.style.color = `hsl(${mode.hue}, 100%, 65%)`;
+        btn.style.background = `hsla(${mode.hue}, 100%, 50%, 0.06)`;
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleQueue(mode.id, btn, mode);
+        });
+        content.appendChild(btn);
+
+        card.appendChild(content);
+
+        // Card click = find match
+        card.addEventListener('click', () => {
+            this.toggleQueue(mode.id, btn, mode);
+        });
+
+        return card;
     }
 
-    private buildSidebar(): string {
-        const players = MOCK_PLAYERS.map(p => `
-            <div class="lobby__player">
-                <div class="lobby__player-dot lobby__player-dot--${p.status}"></div>
-                <span class="lobby__player-name">${p.name}</span>
-                ${p.status === 'searching'
-                ? `<span class="lobby__player-status">🔍 ${p.mode}</span>`
-                : p.status === 'ingame'
-                    ? `<span class="lobby__player-status">🎮 IN MATCH</span>`
-                    : ''
+    private buildSectionTitle(text: string): HTMLElement {
+        const el = document.createElement('div');
+        el.className = 'lobby__section-title';
+        el.textContent = text;
+        return el;
+    }
+
+    private buildPlayerList(): HTMLElement {
+        const list = document.createElement('div');
+        list.className = 'lobby__players';
+
+        for (const p of MOCK_PLAYERS) {
+            const row = document.createElement('div');
+            row.className = 'lobby__player';
+
+            const dot = document.createElement('div');
+            dot.className = `lobby__player-dot lobby__player-dot--${p.status}`;
+            row.appendChild(dot);
+
+            const name = document.createElement('span');
+            name.className = 'lobby__player-name';
+            name.textContent = p.name;
+            row.appendChild(name);
+
+            if (p.status === 'searching') {
+                const status = document.createElement('span');
+                status.className = 'lobby__player-status';
+                status.textContent = `🔍 ${p.mode}`;
+                row.appendChild(status);
+            } else if (p.status === 'ingame') {
+                const status = document.createElement('span');
+                status.className = 'lobby__player-status';
+                status.textContent = '🎮 IN MATCH';
+                row.appendChild(status);
             }
-            </div>
-        `).join('');
 
-        const matches = MOCK_MATCHES.map(m => `
-            <div class="lobby__match">
+            list.appendChild(row);
+        }
+
+        return list;
+    }
+
+    private buildMatchList(): HTMLElement {
+        const list = document.createElement('div');
+        list.className = 'lobby__matches';
+
+        for (const m of MOCK_MATCHES) {
+            const match = document.createElement('div');
+            match.className = 'lobby__match';
+
+            match.innerHTML = `
                 <div class="lobby__match-header">
                     <span class="lobby__match-type">🔴 ${m.type}</span>
                     <span class="lobby__match-time">${m.time}</span>
@@ -289,123 +347,68 @@ export class LobbyPanel {
                     <span class="lobby__match-score">${m.score}</span>
                     <button class="lobby__watch-btn">WATCH</button>
                 </div>
-            </div>
-        `).join('');
+            `;
 
-        const chatMsgs = MOCK_CHAT.map(c =>
-            c.system
-                ? `<div class="lobby__chat-msg lobby__chat-msg--system">${c.msg}</div>`
-                : `<div class="lobby__chat-msg"><span class="lobby__chat-msg-name">${c.name}</span>${c.msg}</div>`
-        ).join('');
-
-        return `
-            <div class="lobby__sidebar">
-                <div class="lobby__section-title">PLAYERS ONLINE</div>
-                <div class="lobby__players">${players}</div>
-
-                <div class="lobby__section-title">LIVE MATCHES</div>
-                <div class="lobby__matches">${matches}</div>
-
-                <div class="lobby__chat">
-                    <div class="lobby__section-title">CHAT</div>
-                    <div class="lobby__chat-messages">${chatMsgs}</div>
-                    <div class="lobby__chat-input-wrap">
-                        <input type="text" class="lobby__chat-input" placeholder="Type a message..." spellcheck="false" autocomplete="off" />
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    private buildBottomBar(): string {
-        return `
-            <div class="lobby__bottombar">
-                <div class="lobby__status-left">
-                    <span class="lobby__status-dot">CONNECTED</span>
-                    <span>${MOCK_PLAYERS.length} ONLINE</span>
-                </div>
-                <span>SHAG ENGINE v0.9.8 · WASHOI.NET</span>
-            </div>
-        `;
-    }
-
-    private buildParticles(): string {
-        const particles: string[] = [];
-        const colors = [
-            'hsla(180, 100%, 50%, 0.4)',   // cyan
-            'hsla(320, 100%, 60%, 0.35)',   // magenta
-            'hsla(45, 100%, 55%, 0.35)',    // gold
-        ];
-
-        for (let i = 0; i < 20; i++) {
-            const color = colors[i % 3];
-            const size = 1 + Math.random() * 3;
-            const left = Math.random() * 100;
-            const top = Math.random() * 100;
-            const duration = 6 + Math.random() * 10;
-            const delay = Math.random() * 8;
-
-            particles.push(`
-                <div class="lobby__particle" style="
-                    width: ${size}px;
-                    height: ${size}px;
-                    background: ${color};
-                    box-shadow: 0 0 ${size * 2}px ${color};
-                    left: ${left}%;
-                    top: ${top}%;
-                    animation-duration: ${duration}s, ${duration * 0.8}s;
-                    animation-delay: ${delay}s, ${delay}s;
-                "></div>
-            `);
+            list.appendChild(match);
         }
 
-        return `<div class="lobby__particles">${particles.join('')}</div>`;
+        return list;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // EVENT HANDLING
-    // ═══════════════════════════════════════════════════════════════════
+    private buildChat(): HTMLElement {
+        const chat = document.createElement('div');
+        chat.className = 'lobby__chat';
 
-    private attachEventListeners(): void {
-        if (!this.root) return;
+        chat.appendChild(this.buildSectionTitle('CHAT'));
 
-        // Settings button
-        const settingsBtn = this.root.querySelector('#lobby-settings-btn');
-        settingsBtn?.addEventListener('click', () => {
-            this.onSettingsClick?.();
-        });
+        const messages = document.createElement('div');
+        messages.className = 'lobby__chat-messages';
 
-        // Find Match buttons
-        GAME_MODES.forEach(mode => {
-            const btn = this.root?.querySelector(`#lobby-find-${mode.id}`) as HTMLButtonElement | null;
-            btn?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.toggleQueue(mode.id, btn, mode);
-            });
+        for (const c of MOCK_CHAT) {
+            const msg = document.createElement('div');
+            if ((c as any).system) {
+                msg.className = 'lobby__chat-msg lobby__chat-msg--system';
+                msg.textContent = c.msg;
+            } else {
+                msg.className = 'lobby__chat-msg';
+                msg.innerHTML = `<span class="lobby__chat-msg-name">${c.name}</span>${c.msg}`;
+            }
+            messages.appendChild(msg);
+        }
+        chat.appendChild(messages);
 
-            // Card click = same as find match
-            const card = this.root?.querySelector(`[data-mode="${mode.id}"]`);
-            card?.addEventListener('click', () => {
-                if (btn) this.toggleQueue(mode.id, btn, mode);
-            });
-        });
+        const inputWrap = document.createElement('div');
+        inputWrap.className = 'lobby__chat-input-wrap';
 
-        // Chat input — prevent game controls when typing
-        const chatInput = this.root.querySelector('.lobby__chat-input') as HTMLInputElement | null;
-        chatInput?.addEventListener('keydown', (e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter' && chatInput.value.trim()) {
-                console.log(`[Lobby] Chat: "${chatInput.value}"`);
-                chatInput.value = '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'lobby__chat-input';
+        input.placeholder = 'Type a message...';
+        input.spellcheck = false;
+        input.autocomplete = 'off';
+
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation(); // Don't trigger game controls
+            if (e.key === 'Enter' && input.value.trim()) {
+                console.log(`[Lobby] Chat: "${input.value}"`);
+                input.value = '';
             }
         });
+
+        inputWrap.appendChild(input);
+        chat.appendChild(inputWrap);
+
+        return chat;
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // QUEUE TOGGLE
+    // ═══════════════════════════════════════════════════════════════════
 
     private toggleQueue(modeId: string, btn: HTMLButtonElement, mode: GameMode): void {
         const isQueued = this.queueState.get(modeId) || false;
 
         if (isQueued) {
-            // Cancel queue
             this.queueState.set(modeId, false);
             const interval = this.queueIntervals.get(modeId);
             if (interval) clearInterval(interval);
@@ -414,11 +417,10 @@ export class LobbyPanel {
 
             btn.textContent = 'FIND MATCH';
             btn.classList.remove('lobby__find-btn--searching');
-            btn.style.borderColor = `hsla(${mode.color}, 100%, 50%, 0.3)`;
-            btn.style.color = `hsl(${mode.color}, 100%, 65%)`;
-            btn.style.background = `hsla(${mode.color}, 100%, 50%, 0.06)`;
+            btn.style.borderColor = `hsla(${mode.hue}, 100%, 50%, 0.3)`;
+            btn.style.color = `hsl(${mode.hue}, 100%, 65%)`;
+            btn.style.background = `hsla(${mode.hue}, 100%, 50%, 0.06)`;
         } else {
-            // Start queue
             this.queueState.set(modeId, true);
             this.queueTimers.set(modeId, 0);
 
@@ -426,6 +428,7 @@ export class LobbyPanel {
             btn.style.borderColor = '';
             btn.style.color = '';
             btn.style.background = '';
+            btn.textContent = 'SEARCHING... 0:00';
 
             const interval = setInterval(() => {
                 const elapsed = (this.queueTimers.get(modeId) || 0) + 1;
@@ -436,9 +439,7 @@ export class LobbyPanel {
             }, 1000);
             this.queueIntervals.set(modeId, interval);
 
-            btn.textContent = `SEARCHING... 0:00`;
-
-            this.onPlayClick?.(modeId);
+            this._onPlayClick?.(modeId);
         }
     }
 }
