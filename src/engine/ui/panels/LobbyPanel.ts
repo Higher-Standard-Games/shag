@@ -40,11 +40,22 @@ const MOCK_PLAYERS = [
     { name: 'plasma_rush', status: 'ingame' as const },
     { name: 'strafejmp', status: 'online' as const },
     { name: 'q3_veteran', status: 'online' as const },
+    { name: 'cpma_wizard', status: 'searching' as const, mode: 'DUEL' },
+    { name: 'rail_queen', status: 'ingame' as const },
+    { name: 'shaft_master', status: 'online' as const },
+    { name: 'bunny_hop', status: 'online' as const },
+    { name: 'lg_demon', status: 'ingame' as const },
+    { name: 'warsow_fan', status: 'searching' as const, mode: 'TEAM' },
+    { name: 'arena_noob', status: 'online' as const },
+    { name: 'rocket_queen', status: 'online' as const },
 ];
 
 const MOCK_MATCHES = [
     { type: 'DUEL', p1: 'rocketJump99', p2: 'speedrunner', map: 'wdm7', score: '5 – 3', time: '2:41' },
     { type: '2v2', p1: 'Team Alpha', p2: 'Team Bravo', map: 'wdm2', score: '12 – 8', time: '1:12' },
+    { type: 'DUEL', p1: 'rail_queen', p2: 'lg_demon', map: 'wdm5', score: '7 – 6', time: '4:30' },
+    { type: 'FFA', p1: '6 players', p2: '', map: 'wdm1', score: '', time: '0:45' },
+    { type: 'DUEL', p1: 'cpma_wizard', p2: 'warsow_fan', map: 'wdm3', score: '2 – 0', time: '0:22' },
 ];
 
 const MOCK_CHAT = [
@@ -74,16 +85,23 @@ export class LobbyPanel extends GamePanel {
         super('PLAY');
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
 
-        // Tabs (like settings panel)
+        // Single tab (no Custom Game for now)
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
-        this.addTab('custom', 'Custom Game', this.buildComingSoonTab('Custom Game'));
         this.switchTab('matchmaking');
 
-        // Footer buttons
+        // Add Console & Settings buttons inline with tab row
+        const headerBtns = document.createElement('div');
+        headerBtns.className = 'lobby__header-actions';
+
         const consoleBtn = this.createButton('Console ~', '');
         const settingsBtn = this.createButton('⚙ Settings', '', () => this._onSettingsClick?.());
-        this.footerArea.appendChild(consoleBtn);
-        this.footerArea.appendChild(settingsBtn);
+        headerBtns.appendChild(consoleBtn);
+        headerBtns.appendChild(settingsBtn);
+
+        this.tabBar.appendChild(headerBtns);
+
+        // Hide the footer since buttons are in the header now
+        this.footerArea.style.display = 'none';
     }
 
     show(): void { this.open(); }
@@ -112,16 +130,6 @@ export class LobbyPanel extends GamePanel {
         layout.appendChild(this.buildChatColumn());
 
         return layout;
-    }
-
-    private buildComingSoonTab(name: string): HTMLElement {
-        const container = document.createElement('div');
-        container.className = 'lobby__coming-soon';
-        container.innerHTML = `
-            <div class="lobby__coming-soon-text">${name.toUpperCase()}</div>
-            <div class="lobby__coming-soon-sub">COMING SOON</div>
-        `;
-        return container;
     }
 
     // ═══════════════════════════════════════════════════════════════════

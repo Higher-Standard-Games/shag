@@ -22,29 +22,28 @@
     -webkit-mask-image: none;
 }
 
-/* Coming soon placeholder */
-.lobby__coming-soon {
+/* Header action buttons (Console, Settings) — right-aligned in tab row */
+.game-panel__tabs:has(.lobby__header-actions) {
+    position: relative;
+}
+
+.lobby__header-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 8px;
+    gap: 6px;
 }
 
-.lobby__coming-soon-text {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0.25em;
-    color: hsla(180, 50%, 60%, 0.2);
+.lobby__header-actions .fps-btn {
+    font-size: 0.7rem;
+    padding: 7px 16px;
 }
 
-.lobby__coming-soon-sub {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    color: hsla(180, 40%, 50%, 0.15);
+/* Hide footer when lobby is active */
+.game-panel:has(.lobby__layout) .game-panel__footer {
+    display: none;
 }
 
 /* ============================================================================
