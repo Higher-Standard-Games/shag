@@ -235,25 +235,26 @@ export class GamePanel {
     }
 
     /**
-     * Enable the 3D logo in the header (replaces text title).
+     * Enable the 3D logo floating OVER the panel top edge.
+     * The logo is bigger and centered on the top border line,
+     * overlapping outside the panel for dramatic effect.
      * Call from subclass constructor after super().
      */
     protected enableLogo(opts?: { width?: number; height?: number }): void {
         this.logoCanvas = new LogoCanvas({
-            width: opts?.width ?? 340,
-            height: opts?.height ?? 100,
+            width: opts?.width ?? 500,
+            height: opts?.height ?? 160,
             showGlow: true,
         });
 
-        // Replace title + decoration with logo
+        // Hide text title + decoration
         this.titleEl.style.display = 'none';
         this.titleDeco.style.display = 'none';
 
-        // Insert logo before tab bar
-        this.headerArea.insertBefore(
-            this.logoCanvas.getElement(),
-            this.tabBar
-        );
+        // Add logo to ROOT (not header) so it can float above the panel
+        const logoEl = this.logoCanvas.getElement();
+        logoEl.classList.add('game-panel__logo-float');
+        this.root.appendChild(logoEl);
 
         // Init after a tick (needs to be in DOM)
         requestAnimationFrame(() => {
