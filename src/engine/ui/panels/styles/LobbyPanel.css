@@ -1,9 +1,9 @@
 /**
- * LobbyPanel.css — 3-column lobby layout inside GamePanel
+ * LobbyPanel.css — Lobby layout inside GamePanel
  *
- * LEFT:   Players + Live Matches
- * CENTER: Game mode cards (compact vertical stack)
- * RIGHT:  Chat (full spacious column)
+ * LEFT:   Full-height game mode cards (with background effects)
+ * CENTER: Players Online + Live Matches
+ * RIGHT:  Lobby Chat
  */
 
 /* ============================================================================
@@ -22,8 +22,33 @@
     -webkit-mask-image: none;
 }
 
+/* Coming soon placeholder */
+.lobby__coming-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+}
+
+.lobby__coming-soon-text {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: hsla(180, 50%, 60%, 0.2);
+}
+
+.lobby__coming-soon-sub {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: hsla(180, 40%, 50%, 0.15);
+}
+
 /* ============================================================================
-   3-Column Layout
+   Main Layout — 3 columns
    ============================================================================ */
 
 .lobby__layout {
@@ -33,31 +58,207 @@
     min-height: 0;
 }
 
+/* Shared column styles */
 .lobby__col {
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
 
-.lobby__col--left {
-    flex: 0 0 260px;
+.lobby__col--social {
+    flex: 0 0 280px;
+    border-left: 1px solid hsla(180, 100%, 50%, 0.06);
     border-right: 1px solid hsla(180, 100%, 50%, 0.06);
     padding: 4px 0;
 }
 
-.lobby__col--center {
-    flex: 1;
-    padding: 4px 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.lobby__col--chat {
+    flex: 0 0 300px;
+    padding: 4px 0;
 }
 
-.lobby__col--right {
-    flex: 0 0 300px;
-    border-left: 1px solid hsla(180, 100%, 50%, 0.06);
-    padding: 4px 0;
+/* ============================================================================
+   Full-Height Game Mode Cards (left side)
+   ============================================================================ */
+
+.lobby__modes {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    min-width: 0;
+}
+
+.lobby__mode-card {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    border-right: 1px solid hsla(180, 60%, 30%, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.lobby__mode-card:last-child {
+    border-right: none;
+}
+
+.lobby__mode-card:hover {
+    flex: 1.2;
+}
+
+/* Corner brackets */
+.lobby__mode-card::before,
+.lobby__mode-card::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    z-index: 5;
+    transition: all 0.35s ease;
+    opacity: 0.4;
+}
+
+.lobby__mode-card::before {
+    top: 8px;
+    left: 8px;
+    border-top: 2px solid hsl(calc(var(--card-hue, 180)), 100%, 50%);
+    border-left: 2px solid hsl(calc(var(--card-hue, 180)), 100%, 50%);
+}
+
+.lobby__mode-card::after {
+    bottom: 8px;
+    right: 8px;
+    border-bottom: 2px solid hsl(calc(var(--card-hue, 180)), 100%, 50%);
+    border-right: 2px solid hsl(calc(var(--card-hue, 180)), 100%, 50%);
+}
+
+.lobby__mode-card:hover::before,
+.lobby__mode-card:hover::after {
+    opacity: 0.8;
+    width: 18px;
+    height: 18px;
+}
+
+/* Searching state */
+.lobby__mode-card--searching {
+    box-shadow: inset 0 0 40px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.06);
+}
+
+.lobby__mode-card--searching::before,
+.lobby__mode-card--searching::after {
+    opacity: 0.7;
+    animation: lobby-bracket-pulse 2s ease-in-out infinite;
+}
+
+/* Background fill (will show map screenshots later) */
+.lobby__mode-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            hsla(calc(var(--card-hue, 180)), 40%, 8%, 1) 0%,
+            hsla(calc(var(--card-hue, 180)), 30%, 5%, 1) 60%,
+            hsla(240, 20%, 4%, 1) 100%);
+    transition: all 0.5s ease;
+}
+
+.lobby__mode-card:hover .lobby__mode-bg {
+    background: linear-gradient(135deg,
+            hsla(calc(var(--card-hue, 180)), 50%, 12%, 1) 0%,
+            hsla(calc(var(--card-hue, 180)), 35%, 7%, 1) 60%,
+            hsla(240, 20%, 5%, 1) 100%);
+}
+
+/* Bottom gradient overlay */
+.lobby__mode-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top,
+            hsla(calc(var(--card-hue, 180)), 15%, 4%, 0.9) 0%,
+            transparent 50%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Content pinned to bottom */
+.lobby__mode-content {
+    position: relative;
+    z-index: 2;
+    padding: 20px 16px;
+    text-align: center;
+}
+
+.lobby__mode-title {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: hsl(calc(var(--card-hue, 180)), 100%, 78%);
+    text-shadow:
+        0 0 15px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.3),
+        0 0 40px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.1);
+    margin-bottom: 4px;
+    transition: all 0.35s ease;
+}
+
+.lobby__mode-card:hover .lobby__mode-title {
+    letter-spacing: 0.35em;
+    text-shadow:
+        0 0 20px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.45),
+        0 0 50px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15);
+}
+
+.lobby__mode-sub {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.65rem;
+    color: hsla(calc(var(--card-hue, 180)), 40%, 60%, 0.45);
+    letter-spacing: 0.15em;
+    margin-bottom: 14px;
+}
+
+.lobby__mode-queue {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.55rem;
+    color: hsla(180, 30%, 50%, 0.25);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+}
+
+.lobby__mode-queue--active {
+    color: hsla(calc(var(--card-hue, 180)), 80%, 60%, 0.55);
+}
+
+/* FIND MATCH button */
+.lobby__find-btn {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border: 1px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.25);
+    background: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.05);
+    color: hsl(calc(var(--card-hue, 180)), 100%, 65%);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    width: 100%;
+}
+
+.lobby__find-btn:hover {
+    background: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.12);
+    border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.45);
+    box-shadow: 0 0 16px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15);
+    text-shadow: 0 0 8px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.4);
+}
+
+.lobby__find-btn--searching {
+    border-color: hsla(calc(var(--card-hue, 180)), 100%, 60%, 0.4);
+    color: hsl(calc(var(--card-hue, 180)), 100%, 75%);
+    background: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.08);
+    animation: lobby-pulse 1.5s ease-in-out infinite;
 }
 
 /* ============================================================================
@@ -91,12 +292,7 @@
     background: hsla(180, 100%, 50%, 0.06);
     padding: 1px 8px;
     border: 1px solid hsla(180, 100%, 50%, 0.12);
-    letter-spacing: 0.05em;
 }
-
-/* ============================================================================
-   Divider
-   ============================================================================ */
 
 .lobby__divider {
     height: 1px;
@@ -165,7 +361,6 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     padding: 1px 6px;
-    border-radius: 1px;
 }
 
 .lobby__player-badge--search {
@@ -280,182 +475,6 @@
 }
 
 /* ============================================================================
-   Game Mode Cards — Compact banner-style with colored accent line
-   ============================================================================ */
-
-.lobby__mode-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    max-width: 480px;
-}
-
-.lobby__mode-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 14px 18px;
-    border: 1px solid hsla(180, 40%, 25%, 0.12);
-    background: hsla(180, 15%, 8%, 0.25);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.lobby__mode-card:hover {
-    border-color: hsla(calc(var(--card-hue, 180)), 80%, 50%, 0.3);
-    background: hsla(calc(var(--card-hue, 180)), 20%, 10%, 0.3);
-    box-shadow:
-        0 0 20px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.06),
-        inset 0 0 30px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.02);
-}
-
-/* Corner brackets */
-.lobby__mode-card::before,
-.lobby__mode-card::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    transition: all 0.3s ease;
-}
-
-.lobby__mode-card::before {
-    top: -1px;
-    left: -1px;
-    border-top: 2px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.2);
-    border-left: 2px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.2);
-}
-
-.lobby__mode-card::after {
-    bottom: -1px;
-    right: -1px;
-    border-bottom: 2px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15);
-    border-right: 2px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15);
-}
-
-.lobby__mode-card:hover::before {
-    border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.5);
-    width: 14px;
-    height: 14px;
-}
-
-.lobby__mode-card:hover::after {
-    border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.35);
-    width: 14px;
-    height: 14px;
-}
-
-/* Searching state — pulsing border */
-.lobby__mode-card--searching {
-    border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.3);
-    animation: lobby-card-pulse 2s ease-in-out infinite;
-}
-
-/* Neon accent bar (left edge) */
-.lobby__mode-accent {
-    flex: 0 0 3px;
-    align-self: stretch;
-    background: linear-gradient(to bottom,
-            hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.5),
-            hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15));
-    box-shadow: 0 0 8px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.2);
-    border-radius: 1px;
-    transition: all 0.3s ease;
-}
-
-.lobby__mode-card:hover .lobby__mode-accent {
-    background: linear-gradient(to bottom,
-            hsla(calc(var(--card-hue, 180)), 100%, 60%, 0.8),
-            hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.3));
-    box-shadow: 0 0 14px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.35);
-}
-
-/* Mode text */
-.lobby__mode-text {
-    flex: 1;
-    min-width: 0;
-}
-
-.lobby__mode-title {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: hsla(calc(var(--card-hue, 180)), 100%, 80%, 0.9);
-    text-shadow: 0 0 12px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.2);
-    transition: all 0.3s ease;
-}
-
-.lobby__mode-card:hover .lobby__mode-title {
-    text-shadow: 0 0 18px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.35);
-    letter-spacing: 0.25em;
-}
-
-.lobby__mode-sub {
-    font-size: 0.7rem;
-    color: hsla(180, 30%, 60%, 0.4);
-    letter-spacing: 0.08em;
-    margin-top: 2px;
-}
-
-/* Queue count */
-.lobby__mode-queue {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
-    color: hsla(180, 30%, 50%, 0.3);
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-}
-
-.lobby__mode-queue--active {
-    color: hsla(calc(var(--card-hue, 180)), 80%, 65%, 0.6);
-}
-
-/* Find Match button (right side of card) */
-.lobby__find-btn {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 8px 18px;
-    border: 1px solid hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.25);
-    background: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.05);
-    color: hsla(calc(var(--card-hue, 180)), 100%, 65%, 0.85);
-    cursor: pointer;
-    transition: all 0.25s ease;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.lobby__find-btn:hover {
-    background: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.12);
-    border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.4);
-    box-shadow: 0 0 12px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.15);
-}
-
-.lobby__find-btn--searching {
-    border-color: hsla(320, 100%, 60%, 0.35);
-    color: hsla(320, 100%, 75%, 0.85);
-    background: hsla(320, 100%, 50%, 0.06);
-    animation: lobby-pulse 1.5s ease-in-out infinite;
-}
-
-/* Hint text below cards */
-.lobby__hint {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
-    color: hsla(180, 30%, 50%, 0.2);
-    letter-spacing: 0.15em;
-    text-align: center;
-    margin-top: 16px;
-}
-
-/* ============================================================================
    Chat Column
    ============================================================================ */
 
@@ -466,8 +485,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    mask-image: linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
 }
 
 .lobby__chat-msg {
@@ -487,7 +506,6 @@
     font-style: italic;
     color: hsla(180, 35%, 55%, 0.3);
     font-size: 0.75rem;
-    padding: 2px 0;
 }
 
 .lobby__chat-input-wrap {
@@ -572,16 +590,14 @@
     }
 }
 
-@keyframes lobby-card-pulse {
+@keyframes lobby-bracket-pulse {
 
     0%,
     100% {
-        border-color: hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.3);
-        box-shadow: 0 0 10px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.05);
+        opacity: 0.5;
     }
 
     50% {
-        border-color: hsla(calc(var(--card-hue, 180)), 100%, 60%, 0.5);
-        box-shadow: 0 0 20px hsla(calc(var(--card-hue, 180)), 100%, 50%, 0.12);
+        opacity: 1;
     }
 }
