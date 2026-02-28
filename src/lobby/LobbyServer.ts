@@ -649,12 +649,12 @@ export class LobbyServer {
                 lobby: waitingLobby.toInfo(),
             });
 
-            // Broadcast status change
+            // Broadcast status change to ALL (including self)
             this.broadcast({
                 type: 'player:status',
                 playerId: player.id,
                 status: 'in_lobby',
-            }, player.id);
+            });
         } else {
             // No waiting lobby — create one immediately
             const lobby = new MatchLobby(gametype);
@@ -672,12 +672,12 @@ export class LobbyServer {
                 lobby: lobby.toInfo(),
             });
 
-            // Broadcast status change
+            // Broadcast status change to ALL (including self)
             this.broadcast({
                 type: 'player:status',
                 playerId: player.id,
                 status: 'in_lobby',
-            }, player.id);
+            });
         }
     }
 
