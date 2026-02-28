@@ -565,7 +565,7 @@ export class MapLoader {
         }
 
         const suffixes = ['_ft', '_bk', '_lf', '_rt', '_up', '_dn'];
-        const extensions = ['.tga', '.jpg', '.png'];
+        const extensions = ['.ktx', '.tga', '.jpg', '.png'];
 
         for (const suffix of suffixes) {
           for (const ext of extensions) {

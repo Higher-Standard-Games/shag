@@ -49,6 +49,8 @@ export interface BspMeshBuildResult {
     skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
     /** Stage textures for sky shaders without skyparms (for textured skybox) */
     stageTextures?: string[];
+    /** Editor image (qer_editorimage) — fallback when cubemap and stage textures are missing */
+    editorImage?: string;
   }[];
   /** Statistics */
   stats: {
@@ -412,9 +414,12 @@ export class BspMeshBuilder {
       }
 
       // Sky shader detection - track for skybox creation
+      // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
       const textureName = this.bsp.textures[face.textureIndex]?.name || '';
       const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
-      if (shaderProps.isSky) {
+      const bspSurfaceFlags = this.bsp.textures[face.textureIndex]?.surfaceFlags ?? 0;
+      const isSkyFace = shaderProps.isSky || (bspSurfaceFlags & 0x4) !== 0;
+      if (isSkyFace) {
         if (!foundSkyTextures.has(face.textureIndex)) {
           foundSkyTextures.add(face.textureIndex);
           // Get full shader to extract stage textures for fallback skybox
@@ -426,6 +431,7 @@ export class BspMeshBuilder {
             textureName,
             skyParms: shaderProps.skyParms,
             stageTextures,
+            editorImage: shader?.editorImage,
           });
           if (shaderProps.skyParms?.farbox) {
             console.log(`[BspMeshBuilder] Found sky shader: ${textureName} -> farbox: ${shaderProps.skyParms.farbox}`);
@@ -1424,10 +1430,36 @@ export class BspMeshBuilder {
         console.log(`[BspMeshBuilder] Created textured skybox from: ${skyTexture}`);
         return loadResult;
       }
-      return { success: false, error: `Failed to load textured skybox: ${skyTexture}` };
     }
 
-    return { success: false, error: 'No sky shader with valid skyparms or stage textures found' };
+    // Fallback: try qer_editorimage as sky sphere texture
+    // (tried before raw texture name because editorImage is a curated preview
+    // while the BSP texture name might match a tiny star/dot texture)
+    for (const sky of result.skyShaders) {
+      if (!sky.editorImage) continue;
+
+      console.log(`[BspMeshBuilder] Trying editorImage as sky texture: ${sky.editorImage}`);
+      const editorResult = await skyboxLoader.loadSkyboxFromTexture(sky.editorImage);
+      if (editorResult.success) {
+        console.log(`[BspMeshBuilder] Created sky sphere from editorImage: ${sky.editorImage}`);
+        return editorResult;
+      }
+    }
+
+    // Last resort: try sky texture name as cubemap prefix only
+    for (const sky of result.skyShaders) {
+      const texName = sky.textureName;
+      if (!texName) continue;
+
+      console.log(`[BspMeshBuilder] Trying sky texture name as cubemap: ${texName}`);
+      const loadResult = await skyboxLoader.loadSkybox(texName);
+      if (loadResult.success) {
+        console.log(`[BspMeshBuilder] Created cubemap skybox from texture name: ${texName}`);
+        return loadResult;
+      }
+    }
+
+    return { success: false, error: `No skybox textures found for ${result.skyShaders.length} sky shader(s): ${result.skyShaders.map(s => s.textureName).join(', ')}` };
   }
 
   /**

@@ -414,6 +414,42 @@ function parseShaderBody(
         break;
       }
 
+      case 'skyparmssides': {
+        // Warsow/QFusion extension: skyparmssides <basename> <rt> <bk> <lf> <ft> <up> <dn> [- -]
+        // Example: skyparmssides env/starsky rt rt rt env/starsky_up rt - -
+        // We extract the basename for cubemap loading
+        pos++;
+
+        let skyBaseName = '-';
+
+        // Read basename
+        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+          skyBaseName = tokens[pos];
+          pos++;
+        }
+
+        // Skip remaining parameters (face suffixes and trailing dashes)
+        while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' &&
+          !isDirective(tokens[pos])) {
+          pos++;
+        }
+
+        shader.skyParms = {
+          farbox: skyBaseName !== '-' ? skyBaseName : '',
+          cloudHeight: 0,
+          nearbox: '',
+        };
+        break;
+      }
+
+      case 'qer_editorimage':
+        // Capture editor image — used as fallback for sky textures when cubemap is missing
+        if (tokens[pos + 1]) {
+          shader.editorImage = tokens[pos + 1];
+        }
+        pos += 2;
+        break;
+
       default:
         // Skip q3map_*, qer_*, and other unknown directives
         if (token.startsWith('q3map') || token.startsWith('qer_')) {
@@ -439,7 +475,8 @@ function parseShaderBody(
 function isDirective(token: string): boolean {
   const directives = [
     'surfaceparm', 'cull', 'sort', 'nomipmaps', 'nopicmip', 'polygonoffset',
-    'portal', 'entitymergable', 'deformvertexes', 'fogparms', 'skyparms',
+    'portal', 'entitymergable', 'deformvertexes', 'fogparms', 'skyparms', 'skyparmssides',
+    'qer_editorimage',
   ];
   return directives.includes(token.toLowerCase());
 }

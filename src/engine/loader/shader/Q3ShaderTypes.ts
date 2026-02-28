@@ -243,6 +243,9 @@ export interface Q3Shader {
 
   /** Editor-only parameters (we ignore these) */
   qer?: Record<string, unknown>;
+
+  /** Editor image (qer_editorimage) — used as fallback for sky textures */
+  editorImage?: string;
 }
 
 /**

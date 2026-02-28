@@ -16,6 +16,7 @@ import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTextur
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { PK3Loader } from "../pk3/PK3Loader";
+import { parseKTX1 } from "./KTX1Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
@@ -215,13 +216,33 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
+    const extensions = ['.ktx', '.tga', '.jpg', '.png', '.jpeg'];
 
     // Try to load the texture from PK3
     let fileData = await pk3.getFile(texturePath);
     let actualPath = texturePath;
 
+    // If path has no extension, try common image extensions
+    if (!fileData && !texturePath.match(/\.(ktx|tga|jpg|jpeg|png)$/i)) {
+      for (const ext of extensions) {
+        fileData = await pk3.getFile(texturePath + ext);
+        if (fileData) {
+          actualPath = texturePath + ext;
+          break;
+        }
+        // Also try with textures/ prefix
+        if (!texturePath.startsWith('textures/')) {
+          fileData = await pk3.getFile('textures/' + texturePath + ext);
+          if (fileData) {
+            actualPath = 'textures/' + texturePath + ext;
+            break;
+          }
+        }
+      }
+    }
+
     if (!fileData) {
-      // Try with textures/ prefix
+      // Try with textures/ prefix (no extension change)
       const altPath = texturePath.startsWith('textures/') ? texturePath : `textures/${texturePath}`;
       fileData = await pk3.getFile(altPath);
       actualPath = altPath;
@@ -304,7 +325,7 @@ export class SkyboxLoader {
     suffix: string
   ): Promise<{ data: Uint8Array; size: number; path: string } | null> {
     const pk3 = PK3Loader.getInstance();
-    const extensions = ['.tga', '.jpg', '.png', '.jpeg'];
+    const extensions = ['.ktx', '.tga', '.jpg', '.png', '.jpeg'];
 
     // Try different path prefixes
     const pathPrefixes = ['', 'textures/'];
@@ -339,8 +360,69 @@ export class SkyboxLoader {
       return this.parseTGAToRGBA(data);
     }
 
+    if (ext === '.ktx') {
+      return this.parseKTXToRGBA(data);
+    }
+
     // For JPG/PNG, use browser's image decoding
     return await this.parseStandardImageToRGBA(data, ext);
+  }
+
+  /**
+   * Parse KTX1 texture to RGBA using existing KTX1Loader
+   */
+  private parseKTXToRGBA(data: Uint8Array): { data: Uint8Array; size: number } | null {
+    try {
+      const ktx = parseKTX1(data.buffer as ArrayBuffer);
+      if (ktx.mipLevels.length === 0) return null;
+
+      const mip = ktx.mipLevels[0];
+      const pixelCount = mip.width * mip.height;
+
+      if (!ktx.isCompressed) {
+        // Uncompressed KTX
+        const baseFmt = ktx.header.glBaseInternalFormat;
+        let rgba: Uint8Array;
+
+        if (baseFmt === 0x1908 && mip.data.length >= pixelCount * 4) {
+          // RGBA
+          rgba = new Uint8Array(mip.data);
+        } else if (baseFmt === 0x1907) {
+          // RGB → RGBA
+          rgba = new Uint8Array(pixelCount * 4);
+          for (let i = 0; i < pixelCount; i++) {
+            rgba[i * 4] = mip.data[i * 3];
+            rgba[i * 4 + 1] = mip.data[i * 3 + 1];
+            rgba[i * 4 + 2] = mip.data[i * 3 + 2];
+            rgba[i * 4 + 3] = 255;
+          }
+        } else if (baseFmt === 0x1909) {
+          // LUMINANCE → RGBA
+          rgba = new Uint8Array(pixelCount * 4);
+          for (let i = 0; i < pixelCount; i++) {
+            const v = mip.data[i];
+            rgba[i * 4] = v;
+            rgba[i * 4 + 1] = v;
+            rgba[i * 4 + 2] = v;
+            rgba[i * 4 + 3] = 255;
+          }
+        } else {
+          // Try as RGBA
+          rgba = new Uint8Array(mip.data);
+        }
+
+        return { data: rgba, size: mip.width };
+      }
+
+      // Compressed KTX — can't software-decompress for cubemap faces
+      // GPU-compressed textures need createTextureFromKTX1 which requires an engine reference
+      const compFmt = ktx.header.glInternalFormat;
+      console.warn(`[SkyboxLoader] Cannot decode compressed KTX format 0x${compFmt.toString(16)} for skybox face`);
+      return null;
+    } catch (e) {
+      console.warn(`[SkyboxLoader] KTX parse error:`, e);
+      return null;
+    }
   }
 
   /**
