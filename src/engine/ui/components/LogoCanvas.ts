@@ -192,7 +192,7 @@ export class LogoCanvas {
         spotGold.intensity = 0.8;
 
         // ── Load the model ──
-        const modelPath = this.options.modelPath ?? '/data/washoi.glb';
+        const modelPath = this.options.modelPath ?? '/data/washoi_opt.glb';
         try {
             const result = await SceneLoader.ImportMeshAsync(
                 '',

@@ -85,12 +85,10 @@ async function main() {
   await uiTheme.loadNunitoFont();
   await uiTheme.loadShareTechMonoFont();
 
-  // Wait for user click
-  await loadingScreen.waitForReady();
-  loadingScreen.hide();
+  // Start waiting for user click (non-blocking — runs in parallel)
+  const userReadyPromise = loadingScreen.waitForReady();
 
-  // NOTE: MapLoadingOverlay is enabled AFTER the background map loads
-  // to avoid showing a loading overlay for the initial ui map.
+  // ── Engine initialization (runs while user is looking at splash screen) ──
 
   // Create scene
   console.log('[Main] Creating scene...');
@@ -171,6 +169,10 @@ async function main() {
   const requestedMap = new URLSearchParams(window.location.search).get('map');
 
   if (requestedMap) {
+    // Wait for user click before switching to MapLoadingOverlay
+    await userReadyPromise;
+    loadingScreen.hide();
+
     // Enable map loading overlay for explicit map loads
     MapLoadingOverlay.enable();
 
@@ -191,17 +193,24 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // ── Load UI map as lobby background (lightweight: no collisions/entities/effects) ──
+    // ── Load UI map as lobby background (runs while splash is still showing) ──
     console.log('[Main] Loading ui map as lobby background...');
     const mapLoader = MapLoader.getInstance();
-    const bgResult = await mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
+    const bgResultPromise = mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
+
+    // Wait for BOTH: user click AND background map loaded
+    const [, bgResult] = await Promise.all([userReadyPromise, bgResultPromise]);
+
     if (bgResult.success && bgResult.playerStartPosition) {
       camera.position.copyFrom(bgResult.playerStartPosition);
       console.log(`[Main] Background map loaded: ui`);
     }
 
-    // NOW enable the overlay for future map loads (e.g., joining a match)
+    // Enable overlay for future map loads (e.g., joining a match)
     MapLoadingOverlay.enable();
+
+    // Hide splash → show lobby (seamless: both click AND map are ready)
+    loadingScreen.hide();
 
     // Show lobby UI — main menu on top of the 3D background
     const lobby = new LobbyPanel();
