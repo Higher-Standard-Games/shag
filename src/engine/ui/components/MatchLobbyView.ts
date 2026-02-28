@@ -9,6 +9,8 @@
  */
 
 import { ConnectingOverlay } from './ConnectingOverlay';
+import type { LobbyClient } from '../../../lobby/LobbyClient';
+import type { MatchLobbyInfo } from '../../../lobby/types';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & MOCK DATA
@@ -77,24 +79,115 @@ export class MatchLobbyView {
     private players: MatchLobbyPlayer[];
     private localReady = false;
     private onLeaveCallback: (() => void) | null = null;
+    private lobbyClient: LobbyClient | null = null;
+    private unsubscribers: (() => void)[] = [];
 
-    constructor(gametype: string) {
-        this.config = GAMETYPE_CONFIG[gametype] || GAMETYPE_CONFIG.duel;
-        this.lobbyId = generateLobbyId();
+    constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo) {
+        this.lobbyClient = lobbyClient || null;
 
-        // Pick 3 maps from pool
-        const pool = MAP_POOLS[gametype] || MAP_POOLS.duel;
-        this.maps = pool.map(m => ({
-            name: m.name,
-            displayName: m.displayName,
-            votes: 0,
-            votedByLocal: false,
-        }));
-
-        // Mock players (local player + some others based on gametype)
-        this.players = this.generateMockPlayers();
+        if (lobbyInfo) {
+            // Use real server data
+            this.config = {
+                gametype: lobbyInfo.gametype,
+                gametypeLabel: (lobbyInfo.config.hasTeams && lobbyInfo.config.maxPlayers === 2) ? 'DUEL 1v1' :
+                    (lobbyInfo.config.hasTeams) ? `TEAM ${lobbyInfo.config.maxPlayers / 2}v${lobbyInfo.config.maxPlayers / 2}` :
+                        'FFA',
+                maxPlayers: lobbyInfo.config.maxPlayers,
+                hasTeams: lobbyInfo.config.hasTeams,
+            };
+            this.lobbyId = lobbyInfo.id;
+            this.maps = lobbyInfo.maps.map(m => ({
+                name: m.name,
+                displayName: m.displayName,
+                votes: m.votes,
+                votedByLocal: false,
+            }));
+            this.players = lobbyInfo.players.map(p => ({
+                name: p.name,
+                team: p.team as 'alpha' | 'bravo' | 'none',
+                ready: p.ready,
+                isLocal: p.id === lobbyInfo.players[0]?.id,  // First player is creator
+            }));
+        } else {
+            // Fallback: mock data
+            this.config = GAMETYPE_CONFIG[gametype] || GAMETYPE_CONFIG.duel;
+            this.lobbyId = generateLobbyId();
+            const pool = MAP_POOLS[gametype] || MAP_POOLS.duel;
+            this.maps = pool.map(m => ({
+                name: m.name, displayName: m.displayName, votes: 0, votedByLocal: false,
+            }));
+            this.players = this.generateMockPlayers();
+        }
 
         this.root = this.build();
+
+        // Wire lobby events if connected
+        if (this.lobbyClient) {
+            this.wireLobbyEvents();
+        }
+    }
+
+    private wireLobbyEvents(): void {
+        if (!this.lobbyClient) return;
+
+        // Vote updates
+        this.unsubscribers.push(this.lobbyClient.on('lobby:votes_updated', (msg) => {
+            for (const map of this.maps) {
+                if (msg.votes[map.name] !== undefined) {
+                    map.votes = msg.votes[map.name];
+                }
+            }
+            this.refreshMapVotes();
+        }));
+
+        // Player ready updates
+        this.unsubscribers.push(this.lobbyClient.on('lobby:player_updated', (msg) => {
+            const player = this.players.find(p => p.name === msg.playerId || p.isLocal);
+            if (player && !player.isLocal) {
+                player.ready = msg.ready;
+                this.refreshPlayerSlots();
+            }
+        }));
+
+        // Player joined
+        this.unsubscribers.push(this.lobbyClient.on('lobby:player_joined', (msg) => {
+            this.players.push({
+                name: msg.player.name,
+                team: msg.player.team as 'alpha' | 'bravo' | 'none',
+                ready: msg.player.ready,
+                isLocal: false,
+            });
+            this.refreshPlayerSlots();
+            this.refreshHeader();
+        }));
+
+        // Player left
+        this.unsubscribers.push(this.lobbyClient.on('lobby:player_left', (msg) => {
+            this.players = this.players.filter(p => p.name !== msg.playerId);
+            this.refreshPlayerSlots();
+            this.refreshHeader();
+        }));
+
+        // All ready → connect
+        this.unsubscribers.push(this.lobbyClient.on('lobby:all_ready', () => {
+            // Show all players as ready
+            for (const p of this.players) p.ready = true;
+            this.refreshPlayerSlots();
+        }));
+
+        this.unsubscribers.push(this.lobbyClient.on('lobby:connect', (msg) => {
+            const overlay = new ConnectingOverlay();
+            overlay.show(msg.serverUrl);
+        }));
+
+        // Teams shuffled
+        this.unsubscribers.push(this.lobbyClient.on('lobby:teams_shuffled', (msg) => {
+            for (const sp of msg.players) {
+                const p = this.players.find(pp => pp.name === sp.name);
+                if (p) p.team = sp.team;
+            }
+            this.refreshPlayerSlots();
+        }));
     }
 
     onLeave(cb: () => void): void {
@@ -192,23 +285,56 @@ export class MatchLobbyView {
         for (const m of this.maps) {
             if (m.votedByLocal && m !== map) {
                 m.votedByLocal = false;
-                m.votes = Math.max(0, m.votes - 1);
+                if (!this.lobbyClient) m.votes = Math.max(0, m.votes - 1);
             }
         }
 
         // Toggle this map
         map.votedByLocal = !map.votedByLocal;
-        map.votes += map.votedByLocal ? 1 : -1;
+        if (!this.lobbyClient) {
+            map.votes += map.votedByLocal ? 1 : -1;
+        }
 
-        // Update all cards
+        // Send to server if connected
+        if (this.lobbyClient && map.votedByLocal) {
+            this.lobbyClient.voteMap(this.lobbyId, map.name);
+        }
+
+        // Update all cards (local visual toggle)
         const cards = this.root.querySelectorAll('.match-lobby__map-card');
-        const voteCounts = this.root.querySelectorAll('.match-lobby__map-votes');
         this.maps.forEach((m, i) => {
             cards[i]?.classList.toggle('match-lobby__map-card--voted', m.votedByLocal);
+        });
+
+        // If not connected, also update vote counts locally
+        if (!this.lobbyClient) {
+            this.refreshMapVotes();
+        }
+    }
+
+    private refreshMapVotes(): void {
+        const voteCounts = this.root.querySelectorAll('.match-lobby__map-votes');
+        this.maps.forEach((m, i) => {
             if (voteCounts[i]) {
                 (voteCounts[i] as HTMLElement).textContent = m.votes > 0 ? `${m.votes} vote${m.votes !== 1 ? 's' : ''}` : '';
             }
         });
+    }
+
+    private refreshPlayerSlots(): void {
+        // Rebuild player area
+        const playerArea = this.root.querySelector('.match-lobby__players, .match-lobby__teams');
+        if (playerArea) {
+            const newArea = this.buildPlayerArea();
+            playerArea.replaceWith(newArea);
+        }
+    }
+
+    private refreshHeader(): void {
+        const countEl = this.root.querySelector('.match-lobby__player-count');
+        if (countEl) {
+            countEl.textContent = `${this.players.length} / ${this.config.maxPlayers} PLAYERS`;
+        }
     }
 
     // ── Players ──
@@ -352,6 +478,9 @@ export class MatchLobbyView {
         leaveBtn.className = 'match-lobby__btn match-lobby__btn--leave';
         leaveBtn.textContent = '← LEAVE';
         leaveBtn.addEventListener('click', () => {
+            // Cleanup event subscriptions
+            for (const unsub of this.unsubscribers) unsub();
+            this.unsubscribers = [];
             this.onLeaveCallback?.();
         });
         actions.appendChild(leaveBtn);
@@ -362,6 +491,9 @@ export class MatchLobbyView {
             shuffleBtn.className = 'match-lobby__btn match-lobby__btn--shuffle';
             shuffleBtn.textContent = '🔀 SHUFFLE TEAMS';
             shuffleBtn.addEventListener('click', () => {
+                if (this.lobbyClient) {
+                    this.lobbyClient.voteShuffle(this.lobbyId);
+                }
                 shuffleBtn.textContent = '🔀 VOTED (1/' + Math.ceil(this.players.length / 2) + ')';
                 shuffleBtn.classList.add('match-lobby__btn--voted');
             });
@@ -386,9 +518,14 @@ export class MatchLobbyView {
                 if (statusEl) statusEl.textContent = this.localReady ? '✓ READY' : 'NOT READY';
             }
 
-            // Demo: when local readies up, simulate other players readying after delay
-            if (this.localReady) {
-                setTimeout(() => this.simulateAllReady(), 1000);
+            // Send to lobby server if connected
+            if (this.lobbyClient) {
+                this.lobbyClient.setReady(this.lobbyId, this.localReady);
+            } else {
+                // Demo: when local readies up, simulate other players readying after delay
+                if (this.localReady) {
+                    setTimeout(() => this.simulateAllReady(), 1000);
+                }
             }
         });
         actions.appendChild(readyBtn);

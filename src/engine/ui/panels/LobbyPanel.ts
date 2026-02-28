@@ -10,6 +10,8 @@
 import { GamePanel } from './GamePanel';
 import { UIStyles } from '../UIStyles';
 import { MatchLobbyView } from '../components/MatchLobbyView';
+import { LobbyClient } from '../../../lobby/LobbyClient';
+import type { PlayerInfo, MatchLobbyInfo } from '../../../lobby/types';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 import matchLobbyCSSRaw from '../components/styles/MatchLobbyView.css?raw';
 
@@ -96,6 +98,16 @@ export class LobbyPanel extends GamePanel {
     private modesContainer: HTMLElement | null = null;
     private matchLobbyView: MatchLobbyView | null = null;
 
+    // Lobby server connection
+    private lobbyClient: LobbyClient;
+    private livePlayers: PlayerInfo[] = [];
+    private playerListEl: HTMLElement | null = null;
+    private playerCountBadge: HTMLElement | null = null;
+    private chatMessagesEl: HTMLElement | null = null;
+    private chatInput: HTMLInputElement | null = null;
+    private currentLobbyId: string | null = null;
+    private unsubscribers: (() => void)[] = [];
+
     constructor() {
         super('PLAY');
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
@@ -103,6 +115,10 @@ export class LobbyPanel extends GamePanel {
 
         // 3D Logo floating above panel
         this.enableLogo();
+
+        // Initialize lobby client
+        this.lobbyClient = new LobbyClient();
+        this.initLobbyConnection();
 
         // Tabs — Settings is now a tab alongside the others
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
@@ -122,6 +138,164 @@ export class LobbyPanel extends GamePanel {
 
         // Hide footer
         this.footerArea.style.display = 'none';
+    }
+
+    // ── Lobby Server Connection ──────────────────────────────────
+
+    private async initLobbyConnection(): Promise<void> {
+        try {
+            await this.lobbyClient.connect('ws://localhost:9000');
+
+            // Generate a player name (later: from profile/login)
+            const name = `player_${Math.random().toString(36).slice(2, 6)}`;
+            this.lobbyClient.auth(name);
+
+            // Handle welcome — initial data dump
+            this.unsubscribers.push(this.lobbyClient.on('welcome', (msg) => {
+                console.log('[LobbyPanel] Welcome from lobby server:', msg.playerId);
+                this.livePlayers = msg.onlinePlayers || [];
+                this.refreshPlayerList();
+
+                // Load chat history
+                if (msg.chatHistory && this.chatMessagesEl) {
+                    for (const c of msg.chatHistory) {
+                        this.appendChatMessage(c.from, c.text, false);
+                    }
+                }
+            }));
+
+            // Player join/leave/status
+            this.unsubscribers.push(this.lobbyClient.on('player:join', (msg) => {
+                this.livePlayers.push(msg.player);
+                this.refreshPlayerList();
+            }));
+            this.unsubscribers.push(this.lobbyClient.on('player:leave', (msg) => {
+                this.livePlayers = this.livePlayers.filter(p => p.id !== msg.playerId);
+                this.refreshPlayerList();
+            }));
+            this.unsubscribers.push(this.lobbyClient.on('player:status', (msg) => {
+                const player = this.livePlayers.find(p => p.id === msg.playerId);
+                if (player) player.status = msg.status;
+                this.refreshPlayerList();
+            }));
+
+            // Chat messages
+            this.unsubscribers.push(this.lobbyClient.on('chat:message', (msg) => {
+                this.appendChatMessage(msg.from, msg.text, false);
+            }));
+
+            // Lobby created (response to lobby:create)
+            this.unsubscribers.push(this.lobbyClient.on('lobby:created', (msg) => {
+                this.handleLobbyCreated(msg.lobby);
+            }));
+
+            // Lobby errors
+            this.unsubscribers.push(this.lobbyClient.on('lobby:error', (msg) => {
+                console.warn('[LobbyPanel] Lobby error:', msg.error);
+            }));
+
+        } catch (err) {
+            console.warn('[LobbyPanel] Could not connect to lobby server:', err);
+            console.log('[LobbyPanel] Falling back to mock data');
+            // Fallback: show mock data if server is not running
+            this.useMockData();
+        }
+    }
+
+    private useMockData(): void {
+        // Populate with mock data when lobby server is unavailable
+        for (const p of MOCK_PLAYERS) {
+            this.livePlayers.push({
+                id: p.name,
+                name: p.name,
+                status: p.status === 'searching' ? 'in_lobby' :
+                    p.status === 'ingame' ? 'in_match' : 'online',
+            });
+        }
+        this.refreshPlayerList();
+        for (const c of MOCK_CHAT) {
+            this.appendChatMessage(c.name, c.msg, !!(c as any).system);
+        }
+    }
+
+    private refreshPlayerList(): void {
+        if (!this.playerListEl) return;
+        this.playerListEl.innerHTML = '';
+
+        for (const p of this.livePlayers) {
+            const row = document.createElement('div');
+            row.className = 'lobby__player';
+
+            const dot = document.createElement('div');
+            const statusClass = p.status === 'in_lobby' ? 'searching' :
+                p.status === 'in_match' ? 'ingame' : 'online';
+            dot.className = `lobby__player-dot lobby__player-dot--${statusClass}`;
+            row.appendChild(dot);
+
+            const name = document.createElement('span');
+            name.className = 'lobby__player-name';
+            name.textContent = p.name;
+            row.appendChild(name);
+
+            if (p.status === 'in_lobby') {
+                const badge = document.createElement('span');
+                badge.className = 'lobby__player-badge lobby__player-badge--search';
+                badge.textContent = 'IN LOBBY';
+                row.appendChild(badge);
+            } else if (p.status === 'in_match') {
+                const badge = document.createElement('span');
+                badge.className = 'lobby__player-badge lobby__player-badge--ingame';
+                badge.textContent = 'IN MATCH';
+                row.appendChild(badge);
+            }
+
+            this.playerListEl.appendChild(row);
+        }
+
+        // Update badge count
+        if (this.playerCountBadge) {
+            this.playerCountBadge.textContent = `${this.livePlayers.length}`;
+        }
+    }
+
+    private appendChatMessage(from: string, text: string, system: boolean): void {
+        if (!this.chatMessagesEl) return;
+
+        const msg = document.createElement('div');
+        if (system || !from) {
+            msg.className = 'lobby__chat-msg lobby__chat-msg--system';
+            msg.textContent = text;
+        } else {
+            msg.className = 'lobby__chat-msg';
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'lobby__chat-name';
+            nameSpan.textContent = from;
+            msg.appendChild(nameSpan);
+            msg.appendChild(document.createTextNode(text));
+        }
+        this.chatMessagesEl.appendChild(msg);
+        this.chatMessagesEl.scrollTop = this.chatMessagesEl.scrollHeight;
+    }
+
+    private handleLobbyCreated(lobby: MatchLobbyInfo): void {
+        this.currentLobbyId = lobby.id;
+        if (!this.modesContainer) return;
+        const layout = this.modesContainer.parentElement;
+        if (!layout) return;
+
+        // Create match lobby view with real server data
+        this.matchLobbyView = new MatchLobbyView(lobby.gametype, this.lobbyClient, lobby);
+        this.matchLobbyView.onLeave(() => {
+            if (this.currentLobbyId) {
+                this.lobbyClient.leaveLobby(this.currentLobbyId);
+                this.currentLobbyId = null;
+            }
+            this.showGametypeCards();
+        });
+
+        // Swap mode cards for match lobby
+        layout.replaceChild(this.matchLobbyView.root, this.modesContainer);
+        console.log(`[LobbyPanel] Opened match lobby: ${lobby.id}`);
     }
 
     show(): void { this.open(); }
@@ -216,7 +390,9 @@ export class LobbyPanel extends GamePanel {
         const col = document.createElement('div');
         col.className = 'lobby__col lobby__col--social';
 
-        col.appendChild(this.sectionTitle('PLAYERS ONLINE', `${MOCK_PLAYERS.length}`));
+        const titleEl = this.sectionTitle('PLAYERS ONLINE', '0');
+        this.playerCountBadge = titleEl.querySelector('.lobby__section-badge') as HTMLElement;
+        col.appendChild(titleEl);
         col.appendChild(this.buildPlayerList());
 
         const divider = document.createElement('div');
@@ -232,34 +408,8 @@ export class LobbyPanel extends GamePanel {
     private buildPlayerList(): HTMLElement {
         const list = document.createElement('div');
         list.className = 'lobby__players';
-
-        for (const p of MOCK_PLAYERS) {
-            const row = document.createElement('div');
-            row.className = 'lobby__player';
-
-            const dot = document.createElement('div');
-            dot.className = `lobby__player-dot lobby__player-dot--${p.status}`;
-            row.appendChild(dot);
-
-            const name = document.createElement('span');
-            name.className = 'lobby__player-name';
-            name.textContent = p.name;
-            row.appendChild(name);
-
-            if (p.status === 'searching') {
-                const badge = document.createElement('span');
-                badge.className = 'lobby__player-badge lobby__player-badge--search';
-                badge.textContent = (p as any).mode || '?';
-                row.appendChild(badge);
-            } else if (p.status === 'ingame') {
-                const badge = document.createElement('span');
-                badge.className = 'lobby__player-badge lobby__player-badge--ingame';
-                badge.textContent = 'IN MATCH';
-                row.appendChild(badge);
-            }
-
-            list.appendChild(row);
-        }
+        this.playerListEl = list;
+        // Will be populated by refreshPlayerList() when server data arrives
         return list;
     }
 
@@ -313,22 +463,8 @@ export class LobbyPanel extends GamePanel {
 
         const messages = document.createElement('div');
         messages.className = 'lobby__chat-messages';
-
-        for (const c of MOCK_CHAT) {
-            const msg = document.createElement('div');
-            if ((c as any).system) {
-                msg.className = 'lobby__chat-msg lobby__chat-msg--system';
-                msg.textContent = c.msg;
-            } else {
-                msg.className = 'lobby__chat-msg';
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'lobby__chat-name';
-                nameSpan.textContent = c.name;
-                msg.appendChild(nameSpan);
-                msg.appendChild(document.createTextNode(c.msg));
-            }
-            messages.appendChild(msg);
-        }
+        this.chatMessagesEl = messages;
+        // Will be populated by welcome chatHistory and live chat:message events
         col.appendChild(messages);
 
         const inputWrap = document.createElement('div');
@@ -340,10 +476,11 @@ export class LobbyPanel extends GamePanel {
         input.placeholder = 'Type a message...';
         input.spellcheck = false;
         input.autocomplete = 'off';
+        this.chatInput = input;
         input.addEventListener('keydown', (e) => {
             e.stopPropagation();
             if (e.key === 'Enter' && input.value.trim()) {
-                console.log(`[Lobby] Chat: "${input.value}"`);
+                this.lobbyClient.chatSend(input.value.trim());
                 input.value = '';
             }
         });
@@ -778,17 +915,21 @@ export class LobbyPanel extends GamePanel {
 
     private showMatchLobby(gametypeId: string): void {
         if (!this.modesContainer) return;
+
+        // If lobby server is connected, create lobby on server
+        if (this.lobbyClient.connected) {
+            this.lobbyClient.createLobby(gametypeId);
+            // handleLobbyCreated() will be called when server responds
+            return;
+        }
+
+        // Fallback: local mock lobby
         const layout = this.modesContainer.parentElement;
         if (!layout) return;
-
-        // Create match lobby view
         this.matchLobbyView = new MatchLobbyView(gametypeId);
         this.matchLobbyView.onLeave(() => this.showGametypeCards());
-
-        // Swap mode cards for match lobby
         layout.replaceChild(this.matchLobbyView.root, this.modesContainer);
-
-        console.log(`[LobbyPanel] Opened match lobby for: ${gametypeId}`);
+        console.log(`[LobbyPanel] Opened mock match lobby for: ${gametypeId}`);
     }
 
     private showGametypeCards(): void {
@@ -799,6 +940,7 @@ export class LobbyPanel extends GamePanel {
         // Swap match lobby back to mode cards
         layout.replaceChild(this.modesContainer, this.matchLobbyView.root);
         this.matchLobbyView = null;
+        this.currentLobbyId = null;
 
         console.log(`[LobbyPanel] Returned to gametype cards`);
     }
