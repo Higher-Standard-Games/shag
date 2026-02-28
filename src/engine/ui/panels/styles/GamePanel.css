@@ -108,6 +108,20 @@
 }
 
 /* ============================================================================
+   Floating 3D Logo — Positioned over the panel top border line
+   ============================================================================ */
+
+.game-panel__logo-float.logo-canvas {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -5%);
+    z-index: 10;
+    pointer-events: none;
+    margin: 0;
+}
+
+/* ============================================================================
    Center Zone — Solid dark panel with all content
    ============================================================================ */
 

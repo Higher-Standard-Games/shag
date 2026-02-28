@@ -32,6 +32,7 @@ import { FPSController } from "./engine/camera/controllers/FPSController";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
+import { LobbyPanel } from "./engine/ui/panels/LobbyPanel";
 import gameJson from "@game/game.json";
 
 /**
@@ -84,13 +85,18 @@ async function main() {
   await uiTheme.loadNunitoFont();
   await uiTheme.loadShareTechMonoFont();
 
-  // Wait for user click
-  await loadingScreen.waitForReady();
-  loadingScreen.hide();
+  // Start waiting for user click (non-blocking — runs in parallel)
+  const userReadyPromise = loadingScreen.waitForReady();
 
-  // Enable map loading overlay
-  // Enable map loading overlay
-  MapLoadingOverlay.enable();
+  // Pipe map loading progress into the splash screen
+  const { EventBus } = await import('./engine/core/EventBus');
+  const unsubProgress = EventBus.on('loading:progress', (data: any) => {
+    if (data?.type === 'map' && data?.phase) {
+      loadingScreen.setStatus(data.detail || data.phase);
+    }
+  });
+
+  // ── Engine initialization (runs while user is looking at splash screen) ──
 
   // Create scene
   console.log('[Main] Creating scene...');
@@ -124,6 +130,7 @@ async function main() {
   console.log(`[Main] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
 
   // Load engine settings
+  loadingScreen.setStatus('Loading engine settings...');
   const { EngineSettings } = await import("./engine/core/EngineSettings");
   await EngineSettings.getInstance().load();
 
@@ -142,10 +149,12 @@ async function main() {
   console.log('[InstancedMeshManager] Initialized');
 
   // Initialize scene services
+  loadingScreen.setStatus('Initializing services...');
   await ServiceLocator.getInstance().initScene(scene);
 
   // Initialize Physics System
   try {
+    loadingScreen.setStatus('Initializing physics...');
     const { PhysicsSystem } = await import('./engine/physics/PhysicsSystem');
     const success = await PhysicsSystem.getInstance().enablePhysics(scene);
     console.log(`[Main] Physics initialized: ${success}`);
@@ -171,6 +180,13 @@ async function main() {
   const requestedMap = new URLSearchParams(window.location.search).get('map');
 
   if (requestedMap) {
+    // Wait for user click before switching to MapLoadingOverlay
+    await userReadyPromise;
+    loadingScreen.hide();
+
+    // Enable map loading overlay for explicit map loads
+    MapLoadingOverlay.enable();
+
     // Load map if specified in URL
     console.log(`[Main] Loading map from URL: ${requestedMap}`);
     const mapLoader = MapLoader.getInstance();
@@ -188,21 +204,55 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // Show placeholder UI - no map specified
-    showPlaceholderUI();
+    // ── Load UI map as lobby background (runs while splash is still showing) ──
+    loadingScreen.setStatus('Loading lobby...');
+    console.log('[Main] Loading ui map as lobby background...');
+    const mapLoader = MapLoader.getInstance();
+    const bgResultPromise = mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
+
+    // Wait for BOTH: user click AND background map loaded
+    const [, bgResult] = await Promise.all([userReadyPromise, bgResultPromise]);
+
+    if (bgResult.success && bgResult.playerStartPosition) {
+      camera.position.copyFrom(bgResult.playerStartPosition);
+      console.log(`[Main] Background map loaded: ui`);
+    }
+
+    // Stop piping progress to splash screen
+    unsubProgress();
+
+    // Enable overlay for future map loads (e.g., joining a match)
+    MapLoadingOverlay.enable();
+
+    // Hide splash → show lobby (seamless: both click AND map are ready)
+    loadingScreen.hide();
+
+    // Show lobby UI — main menu on top of the 3D background
+    const lobby = new LobbyPanel();
+    lobby.show();
+
+    // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
+    lobby.setOnPlay((mode) => {
+      console.log(`[Lobby] Queue for mode: ${mode}`);
+    });
+
+    // Store lobby reference for gameplay map transitions
+    (window as any).__lobbyPanel = lobby;
   }
 
-  // Import EventBus async
+  // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
+  // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.
   import('./engine/core/EventBus').then(({ EventBus }) => {
-    const unsubscribe = EventBus.on('map:loaded', () => {
-      const el = document.getElementById('placeholder-ui');
-      if (el) {
-        el.style.transition = 'opacity 0.3s ease';
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 300);
-        console.log('[Main] Placeholder UI removed');
+    EventBus.on('loading:start', (data: any) => {
+      if (data?.type !== 'map') return;
+      // Don't hide for background ui map
+      if (data?.id === 'ui') return;
+
+      const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
+      if (lobby?.isVisible()) {
+        lobby.hide();
+        console.log(`[Main] Lobby hidden (map loading: ${data?.id})`);
       }
-      unsubscribe();
     });
   });
 
@@ -224,28 +274,6 @@ async function main() {
   console.log('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
 }
 
-function showPlaceholderUI() {
-  const container = document.createElement('div');
-  container.id = 'placeholder-ui';
-  container.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: #fff;
-    font-family: 'Share Tech Mono', monospace;
-    z-index: 100;
-    pointer-events: none;
-  `;
-  container.innerHTML = `
-    <h1 style="font-size: 24px; margin: 0 0 20px;">SHAG Engine - FPS Mode</h1>
-    <p style="margin: 10px 0; font-size: 14px; color: #888;">Press <code style="background: #333; padding: 2px 6px; border-radius: 3px; color: #0f0;">~</code> to open console</p>
-    <p style="margin: 10px 0; font-size: 14px; color: #888;">Type <code style="background: #333; padding: 2px 6px; border-radius: 3px; color: #0f0;">map wdm1</code> to load a map</p>
-    <p style="margin: 20px 0 0; font-size: 12px; color: #666;">Or add <code>?map=wdm1</code> to URL</p>
-  `;
-  document.body.appendChild(container);
-  console.log('[Main] Placeholder UI shown');
-}
+// showPlaceholderUI replaced by LobbyPanel (see above)
 
 main().catch(console.error);

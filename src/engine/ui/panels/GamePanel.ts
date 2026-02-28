@@ -23,6 +23,7 @@ import { UIStyles } from '../UIStyles';
 import { spawnParticles, clearParticles } from './effects/FloatingParticles';
 import { createNeonDivider } from './effects/NeonDivider';
 import { createKanjiWatermarks } from './effects/KanjiWatermark';
+import { LogoCanvas } from '../components/LogoCanvas';
 import gamePanelCSS from './styles/GamePanel.css?raw';
 
 export class GamePanel {
@@ -44,6 +45,7 @@ export class GamePanel {
     private tabs: { id: string; label: string; content: HTMLElement; btn: HTMLElement }[] = [];
     private activeTabId: string | null = null;
     private tabChangeCallback: ((tabId: string) => void) | null = null;
+    protected logoCanvas: LogoCanvas | null = null;
 
     constructor(title?: string) {
         // Inject CSS (once)
@@ -163,6 +165,9 @@ export class GamePanel {
         this.root.classList.remove('game-panel--closing');
         this.root.style.display = '';
         document.addEventListener('keydown', this.escHandler, true);
+
+        // Resume logo rendering
+        this.logoCanvas?.start();
     }
 
     public close(): void {
@@ -185,6 +190,9 @@ export class GamePanel {
             }
         };
         this.root.addEventListener('animationend', onEnd);
+
+        // Pause logo rendering
+        this.logoCanvas?.pause();
     }
 
     public isOpen(): boolean {
@@ -203,6 +211,7 @@ export class GamePanel {
         document.removeEventListener('keydown', this.escHandler, true);
         clearParticles(this.particles);
         for (const el of this.kanjiElements) el.remove();
+        this.logoCanvas?.dispose();
         this.root.remove();
     }
 
@@ -223,6 +232,34 @@ export class GamePanel {
      */
     protected getScrollContainer(): HTMLElement {
         return this.scrollInner;
+    }
+
+    /**
+     * Enable the 3D logo floating OVER the panel top edge.
+     * The logo is bigger and centered on the top border line,
+     * overlapping outside the panel for dramatic effect.
+     * Call from subclass constructor after super().
+     */
+    protected enableLogo(opts?: { width?: number; height?: number }): void {
+        this.logoCanvas = new LogoCanvas({
+            width: opts?.width ?? 600,
+            height: opts?.height ?? 200,
+            showGlow: true,
+        });
+
+        // Hide text title + decoration
+        this.titleEl.style.display = 'none';
+        this.titleDeco.style.display = 'none';
+
+        // Add logo to ROOT (not header) so it can float above the panel
+        const logoEl = this.logoCanvas.getElement();
+        logoEl.classList.add('game-panel__logo-float');
+        this.root.appendChild(logoEl);
+
+        // Init after a tick (needs to be in DOM)
+        requestAnimationFrame(() => {
+            this.logoCanvas?.init();
+        });
     }
 
     /**
