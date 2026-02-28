@@ -1,0 +1,106 @@
+/**
+ * LogoCanvas.css — Pulsing glow triangles behind the 3D logo
+ *
+ * Drop-shadow-on-steroids effect with pink and teal triangles.
+ */
+
+.logo-canvas {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+/* The Babylon.js canvas sits on top */
+.logo-canvas__canvas {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Glow container sits behind */
+.logo-canvas__glow {
+    position: absolute;
+    inset: -30%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Triangle base shape */
+.logo-canvas__tri {
+    position: absolute;
+    width: 0;
+    height: 0;
+    filter: blur(18px);
+    opacity: 0;
+    animation: logo-tri-pulse 6s ease-in-out infinite;
+}
+
+/* ── Teal triangles ── */
+
+.logo-canvas__tri--teal {
+    top: 25%;
+    left: 10%;
+    border-left: 80px solid transparent;
+    border-right: 80px solid transparent;
+    border-bottom: 120px solid hsla(180, 100%, 50%, 0.2);
+    animation-delay: 0s;
+}
+
+.logo-canvas__tri--teal2 {
+    top: 35%;
+    left: 5%;
+    border-left: 50px solid transparent;
+    border-right: 50px solid transparent;
+    border-bottom: 80px solid hsla(180, 100%, 50%, 0.12);
+    animation-delay: 3s;
+    filter: blur(25px);
+}
+
+/* ── Pink triangles ── */
+
+.logo-canvas__tri--pink {
+    top: 20%;
+    right: 10%;
+    border-left: 70px solid transparent;
+    border-right: 70px solid transparent;
+    border-bottom: 110px solid hsla(320, 100%, 55%, 0.18);
+    animation-delay: 1.5s;
+}
+
+.logo-canvas__tri--pink2 {
+    top: 40%;
+    right: 15%;
+    border-left: 45px solid transparent;
+    border-right: 45px solid transparent;
+    border-bottom: 70px solid hsla(320, 100%, 55%, 0.1);
+    animation-delay: 4.5s;
+    filter: blur(25px);
+}
+
+/* Pulse animation — slow fade in/out with subtle scale */
+@keyframes logo-tri-pulse {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(4px);
+    }
+
+    30% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05) translateY(-2px);
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.9) translateY(4px);
+    }
+}

@@ -99,6 +99,9 @@ export class LobbyPanel extends GamePanel {
         super('PLAY');
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
 
+        // 3D Logo in header
+        this.enableLogo({ width: 340, height: 100 });
+
         // Tabs
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
         this.addTab('leaderboard', 'Leaderboard', this.buildLeaderboardTab());
