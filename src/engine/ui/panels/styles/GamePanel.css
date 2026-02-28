@@ -119,6 +119,8 @@
     flex-direction: column;
     overflow: hidden;
     z-index: 1;
+    border-top: 1px solid hsla(180, 100%, 50%, 0.15);
+    border-bottom: 1px solid hsla(180, 100%, 50%, 0.15);
 }
 
 /* ============================================================================
@@ -704,6 +706,13 @@
     padding: 40px 0;
 }
 
+/* Hide scrollbar when using menu buttons (no scrolling needed) */
+.game-panel__scroll:has(.game-panel__menu-buttons) {
+    overflow: hidden;
+    mask-image: none;
+    -webkit-mask-image: none;
+}
+
 /* Wide menu button variant */
 .game-panel .fps-btn--menu {
     width: 280px;
@@ -718,6 +727,38 @@
     height: 1px;
     margin: 8px 0;
     background: linear-gradient(90deg, transparent, hsla(180, 100%, 50%, 0.15), transparent);
+}
+
+/* Join button group (holds FFA or team buttons) */
+.game-panel__join-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Team Udon button — magenta/pink glow */
+.game-panel .fps-btn--team-udon {
+    border-color: hsla(310, 100%, 50%, 0.4);
+    color: hsla(310, 100%, 75%, 0.9);
+}
+
+.game-panel .fps-btn--team-udon:hover {
+    border-color: hsla(310, 100%, 60%, 0.6);
+    background: hsla(310, 100%, 30%, 0.25);
+    box-shadow: 0 0 16px hsla(310, 100%, 50%, 0.25);
+}
+
+/* Team Soba button — cyan glow */
+.game-panel .fps-btn--team-soba {
+    border-color: hsla(180, 100%, 50%, 0.4);
+    color: hsla(180, 100%, 75%, 0.9);
+}
+
+.game-panel .fps-btn--team-soba:hover {
+    border-color: hsla(180, 100%, 60%, 0.6);
+    background: hsla(180, 100%, 30%, 0.25);
+    box-shadow: 0 0 16px hsla(180, 100%, 50%, 0.25);
 }
 
 /* ============================================================================
