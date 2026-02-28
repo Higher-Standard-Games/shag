@@ -1,12 +1,10 @@
 /**
  * LobbyPanel — Main Lobby UI (extends GamePanel)
  *
- * Layout:
- *   LEFT:   Full-height game mode cards (with background colors, inviting)
- *   CENTER: Players Online + Live Matches
- *   RIGHT:  Lobby Chat
- *
- * Uses GamePanel tabs for future expansion (MATCHMAKING / CUSTOM / PRACTICE)
+ * Tabs:
+ *   MATCHMAKING: Mode cards (left) + Social (center) + Chat (right)
+ *   LEADERBOARD: Fun stat table with rankings
+ *   MY PROFILE:  Player name, stats, settings
  */
 
 import { GamePanel } from './GamePanel';
@@ -70,6 +68,22 @@ const MOCK_CHAT = [
     { name: 'strafejmp', msg: 'that crouchslide is smooth now' },
 ];
 
+// ── Leaderboard mock data ──
+const MOCK_LEADERBOARD = [
+    { rank: 1, name: 'zeroQL', rating: 2847, wins: 342, losses: 51, kd: '3.21', weapon: 'Railgun', acc: '48%', topSpeed: '1240 ups', streak: 14 },
+    { rank: 2, name: 'cpma_wizard', rating: 2691, wins: 289, losses: 67, kd: '2.85', weapon: 'Lightning', acc: '52%', topSpeed: '1180 ups', streak: 9 },
+    { rank: 3, name: 'rail_queen', rating: 2534, wins: 256, losses: 82, kd: '2.44', weapon: 'Railgun', acc: '55%', topSpeed: '1120 ups', streak: 7 },
+    { rank: 4, name: 'rocketJump99', rating: 2401, wins: 198, losses: 94, kd: '2.11', weapon: 'Rocket', acc: '38%', topSpeed: '1340 ups', streak: 5 },
+    { rank: 5, name: 'fragmaster', rating: 2298, wins: 187, losses: 103, kd: '1.92', weapon: 'Rocket', acc: '41%', topSpeed: '1090 ups', streak: 4 },
+    { rank: 6, name: 'plasma_rush', rating: 2155, wins: 164, losses: 112, kd: '1.78', weapon: 'Plasma', acc: '35%', topSpeed: '1260 ups', streak: 3 },
+    { rank: 7, name: 'shaft_master', rating: 2089, wins: 152, losses: 120, kd: '1.65', weapon: 'Lightning', acc: '58%', topSpeed: '1050 ups', streak: 6 },
+    { rank: 8, name: 'neon_ghost', rating: 1987, wins: 141, losses: 131, kd: '1.41', weapon: 'Gauntlet', acc: '100%', topSpeed: '980 ups', streak: 2 },
+    { rank: 9, name: 'strafejmp', rating: 1876, wins: 128, losses: 140, kd: '1.22', weapon: 'Rocket', acc: '36%', topSpeed: '1410 ups', streak: 3 },
+    { rank: 10, name: 'warsow_fan', rating: 1745, wins: 115, losses: 152, kd: '1.08', weapon: 'Lightning', acc: '45%', topSpeed: '1190 ups', streak: 2 },
+    { rank: 11, name: 'q3_veteran', rating: 1689, wins: 102, losses: 158, kd: '0.95', weapon: 'Railgun', acc: '42%', topSpeed: '1080 ups', streak: 1 },
+    { rank: 12, name: 'bunny_hop', rating: 1534, wins: 88, losses: 167, kd: '0.84', weapon: 'Rocket', acc: '33%', topSpeed: '1520 ups', streak: 1 },
+];
+
 // ═══════════════════════════════════════════════════════════════════
 // LOBBY PANEL
 // ═══════════════════════════════════════════════════════════════════
@@ -85,11 +99,13 @@ export class LobbyPanel extends GamePanel {
         super('PLAY');
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
 
-        // Single tab (no Custom Game for now)
+        // Tabs
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
+        this.addTab('leaderboard', 'Leaderboard', this.buildLeaderboardTab());
+        this.addTab('profile', 'My Profile', this.buildProfileTab());
         this.switchTab('matchmaking');
 
-        // Add Console & Settings buttons inline with tab row
+        // Console & Settings buttons in tab row
         const headerBtns = document.createElement('div');
         headerBtns.className = 'lobby__header-actions';
 
@@ -100,7 +116,7 @@ export class LobbyPanel extends GamePanel {
 
         this.tabBar.appendChild(headerBtns);
 
-        // Hide the footer since buttons are in the header now
+        // Hide footer
         this.footerArea.style.display = 'none';
     }
 
@@ -115,35 +131,28 @@ export class LobbyPanel extends GamePanel {
     setOnPlay(cb: (mode: string) => void): void { this._onPlayClick = cb; }
 
     // ═══════════════════════════════════════════════════════════════════
-    // TAB BUILDERS
+    // TAB 1: MATCHMAKING
     // ═══════════════════════════════════════════════════════════════════
 
     private buildMatchmakingTab(): HTMLElement {
         const layout = document.createElement('div');
         layout.className = 'lobby__layout';
 
-        // LEFT: Full-height game mode cards
         layout.appendChild(this.buildModeCards());
-        // CENTER: Players + Matches
         layout.appendChild(this.buildSocialColumn());
-        // RIGHT: Chat
         layout.appendChild(this.buildChatColumn());
 
         return layout;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // LEFT: GAME MODE CARDS (full-height)
-    // ═══════════════════════════════════════════════════════════════════
+    // ── Mode cards ──
 
     private buildModeCards(): HTMLElement {
         const container = document.createElement('div');
         container.className = 'lobby__modes';
-
         for (const mode of GAME_MODES) {
             container.appendChild(this.buildModeCard(mode));
         }
-
         return container;
     }
 
@@ -153,17 +162,14 @@ export class LobbyPanel extends GamePanel {
         card.dataset.mode = mode.id;
         card.style.setProperty('--card-hue', mode.hue);
 
-        // Background (colored, will show map screenshots later)
         const bg = document.createElement('div');
         bg.className = 'lobby__mode-bg';
         card.appendChild(bg);
 
-        // Gradient overlay
         const overlay = document.createElement('div');
         overlay.className = 'lobby__mode-overlay';
         card.appendChild(overlay);
 
-        // Content at bottom
         const content = document.createElement('div');
         content.className = 'lobby__mode-content';
 
@@ -190,36 +196,29 @@ export class LobbyPanel extends GamePanel {
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.toggleQueue(mode.id, btn, mode);
+            this.toggleQueue(mode.id, btn);
         });
         content.appendChild(btn);
 
         card.appendChild(content);
-
-        // Card click = find match
-        card.addEventListener('click', () => this.toggleQueue(mode.id, btn, mode));
+        card.addEventListener('click', () => this.toggleQueue(mode.id, btn));
 
         return card;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // CENTER: SOCIAL (Players + Matches)
-    // ═══════════════════════════════════════════════════════════════════
+    // ── Social column ──
 
     private buildSocialColumn(): HTMLElement {
         const col = document.createElement('div');
         col.className = 'lobby__col lobby__col--social';
 
-        // Players Online
         col.appendChild(this.sectionTitle('PLAYERS ONLINE', `${MOCK_PLAYERS.length}`));
         col.appendChild(this.buildPlayerList());
 
-        // Divider
         const divider = document.createElement('div');
         divider.className = 'lobby__divider';
         col.appendChild(divider);
 
-        // Live Matches
         col.appendChild(this.sectionTitle('LIVE MATCHES'));
         col.appendChild(this.buildMatchList());
 
@@ -257,7 +256,6 @@ export class LobbyPanel extends GamePanel {
 
             list.appendChild(row);
         }
-
         return list;
     }
 
@@ -280,7 +278,7 @@ export class LobbyPanel extends GamePanel {
 
             const players = document.createElement('div');
             players.className = 'lobby__match-players';
-            players.textContent = `${m.p1} vs ${m.p2}`;
+            players.textContent = m.p2 ? `${m.p1} vs ${m.p2}` : m.p1;
             match.appendChild(players);
 
             const footer = document.createElement('div');
@@ -298,13 +296,10 @@ export class LobbyPanel extends GamePanel {
             match.appendChild(footer);
             list.appendChild(match);
         }
-
         return list;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // RIGHT: CHAT
-    // ═══════════════════════════════════════════════════════════════════
+    // ── Chat column ──
 
     private buildChatColumn(): HTMLElement {
         const col = document.createElement('div');
@@ -341,7 +336,6 @@ export class LobbyPanel extends GamePanel {
         input.placeholder = 'Type a message...';
         input.spellcheck = false;
         input.autocomplete = 'off';
-
         input.addEventListener('keydown', (e) => {
             e.stopPropagation();
             if (e.key === 'Enter' && input.value.trim()) {
@@ -354,6 +348,234 @@ export class LobbyPanel extends GamePanel {
         col.appendChild(inputWrap);
 
         return col;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TAB 2: LEADERBOARD
+    // ═══════════════════════════════════════════════════════════════════
+
+    private buildLeaderboardTab(): HTMLElement {
+        const container = document.createElement('div');
+        container.className = 'lobby__leaderboard';
+
+        // Season info
+        const seasonBar = document.createElement('div');
+        seasonBar.className = 'lobby__lb-season';
+        seasonBar.innerHTML = `
+            <span class="lobby__lb-season-label">SEASON 1</span>
+            <span class="lobby__lb-season-mode">DUEL 1v1</span>
+            <span class="lobby__lb-season-ends">Ends in 24d 7h</span>
+        `;
+        container.appendChild(seasonBar);
+
+        // Table
+        const table = document.createElement('div');
+        table.className = 'lobby__lb-table';
+
+        // Header row
+        const headerRow = document.createElement('div');
+        headerRow.className = 'lobby__lb-row lobby__lb-row--header';
+        headerRow.innerHTML = `
+            <span class="lobby__lb-cell lobby__lb-cell--rank">#</span>
+            <span class="lobby__lb-cell lobby__lb-cell--name">PLAYER</span>
+            <span class="lobby__lb-cell lobby__lb-cell--rating">RATING</span>
+            <span class="lobby__lb-cell lobby__lb-cell--wl">W / L</span>
+            <span class="lobby__lb-cell lobby__lb-cell--kd">K/D</span>
+            <span class="lobby__lb-cell lobby__lb-cell--weapon">WEAPON</span>
+            <span class="lobby__lb-cell lobby__lb-cell--acc">ACC</span>
+            <span class="lobby__lb-cell lobby__lb-cell--speed">TOP SPEED</span>
+            <span class="lobby__lb-cell lobby__lb-cell--streak">STREAK</span>
+        `;
+        table.appendChild(headerRow);
+
+        // Data rows
+        for (const p of MOCK_LEADERBOARD) {
+            const row = document.createElement('div');
+            row.className = 'lobby__lb-row';
+
+            // Highlight top 3
+            if (p.rank <= 3) row.classList.add(`lobby__lb-row--top${p.rank}`);
+
+            const rankClass = p.rank <= 3 ? ` lobby__lb-rank--${p.rank}` : '';
+            row.innerHTML = `
+                <span class="lobby__lb-cell lobby__lb-cell--rank"><span class="lobby__lb-rank${rankClass}">${p.rank}</span></span>
+                <span class="lobby__lb-cell lobby__lb-cell--name">${p.name}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--rating">${p.rating}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--wl"><span class="lobby__lb-wins">${p.wins}</span> / <span class="lobby__lb-losses">${p.losses}</span></span>
+                <span class="lobby__lb-cell lobby__lb-cell--kd">${p.kd}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--weapon">${p.weapon}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--acc">${p.acc}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--speed">${p.topSpeed}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--streak">${p.streak > 1 ? '🔥 ' + p.streak : p.streak}</span>
+            `;
+            table.appendChild(row);
+        }
+
+        container.appendChild(table);
+
+        // Fun stats at bottom
+        const funStats = document.createElement('div');
+        funStats.className = 'lobby__lb-fun';
+        funStats.innerHTML = `
+            <div class="lobby__lb-fun-stat">
+                <span class="lobby__lb-fun-value">1520 ups</span>
+                <span class="lobby__lb-fun-label">TOP SPEED RECORD</span>
+                <span class="lobby__lb-fun-by">by bunny_hop</span>
+            </div>
+            <div class="lobby__lb-fun-stat">
+                <span class="lobby__lb-fun-value">14</span>
+                <span class="lobby__lb-fun-label">LONGEST WIN STREAK</span>
+                <span class="lobby__lb-fun-by">by zeroQL</span>
+            </div>
+            <div class="lobby__lb-fun-stat">
+                <span class="lobby__lb-fun-value">100%</span>
+                <span class="lobby__lb-fun-label">BEST ACCURACY</span>
+                <span class="lobby__lb-fun-by">by neon_ghost (Gauntlet)</span>
+            </div>
+            <div class="lobby__lb-fun-stat">
+                <span class="lobby__lb-fun-value">342</span>
+                <span class="lobby__lb-fun-label">MOST VICTORIES</span>
+                <span class="lobby__lb-fun-by">by zeroQL</span>
+            </div>
+        `;
+        container.appendChild(funStats);
+
+        return container;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TAB 3: MY PROFILE
+    // ═══════════════════════════════════════════════════════════════════
+
+    private buildProfileTab(): HTMLElement {
+        const container = document.createElement('div');
+        container.className = 'lobby__profile';
+
+        // ── Left: Player identity ──
+        const identity = document.createElement('div');
+        identity.className = 'lobby__profile-identity';
+
+        // Avatar/rank area
+        const avatar = document.createElement('div');
+        avatar.className = 'lobby__profile-avatar';
+        avatar.innerHTML = `
+            <div class="lobby__profile-rank-badge">
+                <span class="lobby__profile-rank-num">#4</span>
+            </div>
+        `;
+        identity.appendChild(avatar);
+
+        // Player name (editable)
+        const nameSection = document.createElement('div');
+        nameSection.className = 'lobby__profile-name-section';
+
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'lobby__profile-label';
+        nameLabel.textContent = 'PLAYER NAME';
+        nameSection.appendChild(nameLabel);
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'lobby__profile-name-input';
+        nameInput.value = 'Player_001';
+        nameInput.spellcheck = false;
+        nameInput.addEventListener('keydown', (e) => e.stopPropagation());
+        nameSection.appendChild(nameInput);
+
+        const nameHint = document.createElement('div');
+        nameHint.className = 'lobby__profile-hint';
+        nameHint.textContent = 'Press Enter to change';
+        nameSection.appendChild(nameHint);
+
+        identity.appendChild(nameSection);
+
+        // Rating display
+        const ratingSection = document.createElement('div');
+        ratingSection.className = 'lobby__profile-rating';
+        ratingSection.innerHTML = `
+            <div class="lobby__profile-label">RATING</div>
+            <div class="lobby__profile-rating-value">2401</div>
+            <div class="lobby__profile-rating-change">+24 this week</div>
+        `;
+        identity.appendChild(ratingSection);
+
+        container.appendChild(identity);
+
+        // ── Center: Stats ──
+        const stats = document.createElement('div');
+        stats.className = 'lobby__profile-stats';
+
+        stats.appendChild(this.sectionTitle('STATISTICS'));
+
+        const statsGrid = document.createElement('div');
+        statsGrid.className = 'lobby__profile-stats-grid';
+
+        const statItems = [
+            { label: 'MATCHES', value: '292' },
+            { label: 'WINS', value: '198' },
+            { label: 'LOSSES', value: '94' },
+            { label: 'WIN RATE', value: '67.8%' },
+            { label: 'K/D RATIO', value: '2.11' },
+            { label: 'TOTAL KILLS', value: '4,821' },
+            { label: 'TOTAL DEATHS', value: '2,285' },
+            { label: 'ACCURACY', value: '38.4%' },
+            { label: 'TOP SPEED', value: '1,340 ups' },
+            { label: 'PLAY TIME', value: '127h 42m' },
+            { label: 'WIN STREAK', value: '5' },
+            { label: 'FAV WEAPON', value: 'Rocket' },
+        ];
+
+        for (const s of statItems) {
+            const item = document.createElement('div');
+            item.className = 'lobby__profile-stat';
+            item.innerHTML = `
+                <span class="lobby__profile-stat-value">${s.value}</span>
+                <span class="lobby__profile-stat-label">${s.label}</span>
+            `;
+            statsGrid.appendChild(item);
+        }
+
+        stats.appendChild(statsGrid);
+        container.appendChild(stats);
+
+        // ── Right: Quick settings ──
+        const settings = document.createElement('div');
+        settings.className = 'lobby__profile-settings';
+
+        settings.appendChild(this.sectionTitle('QUICK SETTINGS'));
+
+        const settingsList = document.createElement('div');
+        settingsList.className = 'lobby__profile-settings-list';
+
+        const settingItems = [
+            { label: 'FOV', value: '110' },
+            { label: 'Sensitivity', value: '5.0' },
+            { label: 'Name', value: 'Player_001' },
+            { label: 'Crosshair', value: 'Cross' },
+        ];
+
+        for (const s of settingItems) {
+            const row = document.createElement('div');
+            row.className = 'lobby__profile-setting-row';
+            row.innerHTML = `
+                <span class="lobby__profile-setting-label">${s.label}</span>
+                <span class="lobby__profile-setting-value">${s.value}</span>
+            `;
+            settingsList.appendChild(row);
+        }
+
+        settings.appendChild(settingsList);
+
+        // Open full settings button
+        const fullSettingsBtn = document.createElement('button');
+        fullSettingsBtn.className = 'lobby__profile-settings-btn';
+        fullSettingsBtn.textContent = '⚙ OPEN FULL SETTINGS';
+        fullSettingsBtn.addEventListener('click', () => this._onSettingsClick?.());
+        settings.appendChild(fullSettingsBtn);
+
+        container.appendChild(settings);
+
+        return container;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -373,7 +595,7 @@ export class LobbyPanel extends GamePanel {
         return el;
     }
 
-    private toggleQueue(modeId: string, btn: HTMLButtonElement, mode: GameMode): void {
+    private toggleQueue(modeId: string, btn: HTMLButtonElement): void {
         const isQueued = this.queueState.get(modeId) || false;
         const card = btn.closest('.lobby__mode-card') as HTMLElement | null;
 

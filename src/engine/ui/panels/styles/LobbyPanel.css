@@ -10,11 +10,15 @@
    Override GamePanel content area for full-width lobby layout
    ============================================================================ */
 
-.game-panel:has(.lobby__layout) .game-panel__content {
+.game-panel:has(.lobby__layout) .game-panel__content,
+.game-panel:has(.lobby__leaderboard) .game-panel__content,
+.game-panel:has(.lobby__profile) .game-panel__content {
     padding: 0;
 }
 
-.game-panel:has(.lobby__layout) .game-panel__scroll {
+.game-panel:has(.lobby__layout) .game-panel__scroll,
+.game-panel:has(.lobby__leaderboard) .game-panel__scroll,
+.game-panel:has(.lobby__profile) .game-panel__scroll {
     max-width: 100%;
     padding: 0;
     overflow: hidden;
@@ -555,6 +559,478 @@
 .lobby__players::-webkit-scrollbar-thumb,
 .lobby__matches::-webkit-scrollbar-thumb,
 .lobby__chat-messages::-webkit-scrollbar-thumb {
+    background: hsla(180, 100%, 50%, 0.1);
+    border-radius: 2px;
+}
+
+/* ============================================================================
+   LEADERBOARD TAB
+   ============================================================================ */
+
+.lobby__leaderboard {
+    padding: 16px 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Season bar */
+.lobby__lb-season {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    margin-bottom: 14px;
+    border: 1px solid hsla(180, 100%, 50%, 0.08);
+    background: hsla(180, 30%, 10%, 0.15);
+}
+
+.lobby__lb-season-label {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: hsla(180, 100%, 70%, 0.8);
+}
+
+.lobby__lb-season-mode {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: hsla(180, 50%, 60%, 0.4);
+    border-left: 1px solid hsla(180, 100%, 50%, 0.1);
+    padding-left: 16px;
+}
+
+.lobby__lb-season-ends {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.55rem;
+    color: hsla(45, 80%, 60%, 0.5);
+    margin-left: auto;
+}
+
+/* Table */
+.lobby__lb-table {
+    flex: 1;
+    min-height: 0;
+}
+
+.lobby__lb-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 80px 90px 55px 95px 55px 90px 65px;
+    align-items: center;
+    padding: 7px 12px;
+    border-bottom: 1px solid hsla(180, 40%, 25%, 0.06);
+    transition: background 0.15s ease;
+}
+
+.lobby__lb-row:hover:not(.lobby__lb-row--header) {
+    background: hsla(180, 30%, 15%, 0.1);
+}
+
+.lobby__lb-row--header {
+    border-bottom: 1px solid hsla(180, 100%, 50%, 0.1);
+    margin-bottom: 4px;
+}
+
+.lobby__lb-row--header .lobby__lb-cell {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: hsla(180, 60%, 60%, 0.35);
+}
+
+/* Top 3 row accents */
+.lobby__lb-row--top1 {
+    border-left: 2px solid hsla(45, 100%, 55%, 0.5);
+}
+
+.lobby__lb-row--top2 {
+    border-left: 2px solid hsla(180, 60%, 70%, 0.4);
+}
+
+.lobby__lb-row--top3 {
+    border-left: 2px solid hsla(320, 80%, 60%, 0.3);
+}
+
+.lobby__lb-cell {
+    font-size: 0.78rem;
+    color: hsla(180, 25%, 75%, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lobby__lb-cell--rank {
+    text-align: center;
+}
+
+.lobby__lb-cell--name {
+    font-weight: 600;
+    color: hsla(180, 35%, 80%, 0.7);
+}
+
+.lobby__lb-cell--rating {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.75rem;
+    color: hsla(180, 80%, 70%, 0.7);
+    text-align: center;
+}
+
+.lobby__lb-cell--wl {
+    text-align: center;
+}
+
+.lobby__lb-cell--kd {
+    text-align: center;
+}
+
+.lobby__lb-cell--acc {
+    text-align: center;
+}
+
+.lobby__lb-cell--speed {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.65rem;
+    color: hsla(45, 80%, 60%, 0.5);
+    text-align: center;
+}
+
+.lobby__lb-cell--streak {
+    text-align: center;
+}
+
+/* Rank badges */
+.lobby__lb-rank {
+    display: inline-block;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    color: hsla(180, 30%, 60%, 0.5);
+}
+
+.lobby__lb-rank--1 {
+    color: hsla(45, 100%, 65%, 0.9);
+    text-shadow: 0 0 8px hsla(45, 100%, 55%, 0.4);
+}
+
+.lobby__lb-rank--2 {
+    color: hsla(180, 70%, 70%, 0.8);
+    text-shadow: 0 0 6px hsla(180, 100%, 50%, 0.3);
+}
+
+.lobby__lb-rank--3 {
+    color: hsla(320, 80%, 70%, 0.7);
+    text-shadow: 0 0 6px hsla(320, 100%, 60%, 0.25);
+}
+
+/* Win/loss coloring */
+.lobby__lb-wins {
+    color: hsla(120, 60%, 60%, 0.7);
+}
+
+.lobby__lb-losses {
+    color: hsla(0, 60%, 55%, 0.5);
+}
+
+/* Fun stats cards at bottom */
+.lobby__lb-fun {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid hsla(180, 100%, 50%, 0.08);
+}
+
+.lobby__lb-fun-stat {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid hsla(180, 100%, 50%, 0.06);
+    background: hsla(180, 20%, 8%, 0.2);
+    text-align: center;
+}
+
+.lobby__lb-fun-value {
+    display: block;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: hsla(45, 100%, 65%, 0.75);
+    text-shadow: 0 0 10px hsla(45, 100%, 55%, 0.2);
+    margin-bottom: 4px;
+}
+
+.lobby__lb-fun-label {
+    display: block;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: hsla(180, 50%, 60%, 0.4);
+    margin-bottom: 3px;
+}
+
+.lobby__lb-fun-by {
+    display: block;
+    font-size: 0.65rem;
+    color: hsla(180, 30%, 55%, 0.3);
+    font-style: italic;
+}
+
+/* ============================================================================
+   MY PROFILE TAB
+   ============================================================================ */
+
+.lobby__profile {
+    display: flex;
+    padding: 20px;
+    gap: 20px;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Left: Identity */
+.lobby__profile-identity {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    border: 1px solid hsla(180, 100%, 50%, 0.06);
+    background: hsla(180, 20%, 8%, 0.15);
+}
+
+.lobby__profile-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lobby__profile-rank-badge {
+    width: 80px;
+    height: 80px;
+    border: 2px solid hsla(180, 100%, 50%, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: hsla(180, 30%, 10%, 0.3);
+}
+
+/* Corner accents on rank badge */
+.lobby__profile-rank-badge::before,
+.lobby__profile-rank-badge::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+}
+
+.lobby__profile-rank-badge::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid hsla(45, 100%, 55%, 0.5);
+    border-left: 2px solid hsla(45, 100%, 55%, 0.5);
+}
+
+.lobby__profile-rank-badge::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid hsla(45, 100%, 55%, 0.5);
+    border-right: 2px solid hsla(45, 100%, 55%, 0.5);
+}
+
+.lobby__profile-rank-num {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: hsla(45, 100%, 65%, 0.8);
+    text-shadow: 0 0 12px hsla(45, 100%, 55%, 0.3);
+}
+
+.lobby__profile-name-section {
+    text-align: center;
+    width: 100%;
+}
+
+.lobby__profile-label {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: hsla(180, 60%, 60%, 0.4);
+    margin-bottom: 6px;
+}
+
+.lobby__profile-name-input {
+    width: 100%;
+    padding: 8px 12px;
+    text-align: center;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    background: hsla(180, 20%, 8%, 0.4);
+    border: 1px solid hsla(180, 100%, 50%, 0.15);
+    color: hsla(180, 80%, 80%, 0.85);
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.lobby__profile-name-input:focus {
+    border-color: hsla(180, 100%, 50%, 0.35);
+    box-shadow: 0 0 10px hsla(180, 100%, 50%, 0.08);
+}
+
+.lobby__profile-hint {
+    font-size: 0.6rem;
+    color: hsla(180, 30%, 50%, 0.2);
+    margin-top: 4px;
+}
+
+/* Rating */
+.lobby__profile-rating {
+    text-align: center;
+    width: 100%;
+}
+
+.lobby__profile-rating-value {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 2rem;
+    font-weight: 700;
+    color: hsla(180, 100%, 70%, 0.8);
+    text-shadow: 0 0 15px hsla(180, 100%, 50%, 0.2);
+    margin: 4px 0;
+}
+
+.lobby__profile-rating-change {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.6rem;
+    color: hsla(120, 70%, 60%, 0.6);
+    letter-spacing: 0.05em;
+}
+
+/* Center: Stats grid */
+.lobby__profile-stats {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.lobby__profile-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.lobby__profile-stat {
+    padding: 12px 10px;
+    border: 1px solid hsla(180, 100%, 50%, 0.05);
+    background: hsla(180, 20%, 8%, 0.12);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.lobby__profile-stat:hover {
+    border-color: hsla(180, 100%, 50%, 0.12);
+    background: hsla(180, 20%, 10%, 0.2);
+}
+
+.lobby__profile-stat-value {
+    display: block;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1rem;
+    font-weight: 700;
+    color: hsla(180, 80%, 75%, 0.75);
+    text-shadow: 0 0 6px hsla(180, 100%, 50%, 0.1);
+    margin-bottom: 4px;
+}
+
+.lobby__profile-stat-label {
+    display: block;
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.45rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: hsla(180, 40%, 55%, 0.35);
+}
+
+/* Right: Quick settings */
+.lobby__profile-settings {
+    flex: 0 0 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.lobby__profile-settings-list {
+    flex: 0 0 auto;
+    padding: 0 8px;
+}
+
+.lobby__profile-setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid hsla(180, 100%, 50%, 0.04);
+}
+
+.lobby__profile-setting-label {
+    font-size: 0.8rem;
+    color: hsla(180, 25%, 75%, 0.6);
+}
+
+.lobby__profile-setting-value {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.75rem;
+    color: hsla(180, 70%, 70%, 0.65);
+}
+
+.lobby__profile-settings-btn {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    margin: auto 8px 0;
+    border: 1px solid hsla(180, 100%, 50%, 0.2);
+    background: hsla(180, 100%, 50%, 0.04);
+    color: hsla(180, 80%, 65%, 0.7);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.lobby__profile-settings-btn:hover {
+    border-color: hsla(180, 100%, 50%, 0.35);
+    background: hsla(180, 100%, 50%, 0.1);
+    color: var(--w-cyan, hsl(180, 100%, 50%));
+    box-shadow: 0 0 12px hsla(180, 100%, 50%, 0.12);
+}
+
+/* Leaderboard + Profile scrollbars */
+.lobby__leaderboard::-webkit-scrollbar,
+.lobby__profile::-webkit-scrollbar {
+    width: 3px;
+}
+
+.lobby__leaderboard::-webkit-scrollbar-track,
+.lobby__profile::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lobby__leaderboard::-webkit-scrollbar-thumb,
+.lobby__profile::-webkit-scrollbar-thumb {
     background: hsla(180, 100%, 50%, 0.1);
     border-radius: 2px;
 }
