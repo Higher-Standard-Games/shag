@@ -33,6 +33,8 @@ export interface LogoCanvasOptions {
     modelPath?: string;
     /** Show pulsing glow triangles behind the model (default: true) */
     showGlow?: boolean;
+    /** Camera distance from model — smaller = bigger (default: 5.5) */
+    cameraRadius?: number;
 }
 
 export class LogoCanvas {
@@ -123,16 +125,17 @@ export class LogoCanvas {
         this.scene.clearColor = new Color4(0, 0, 0, 0); // transparent
 
         // Camera (fixed — no user interaction)
+        const radius = this.options.cameraRadius ?? 5.5;
         const camera = new ArcRotateCamera(
             'logoCam',
             Math.PI / 2,    // alpha (horizontal)
             Math.PI / 2.2,  // beta (slightly above center)
-            5.5,            // radius — closer for bigger model
+            radius,
             Vector3.Zero(),
             this.scene
         );
-        camera.lowerRadiusLimit = 5.5;
-        camera.upperRadiusLimit = 5.5;
+        camera.lowerRadiusLimit = radius;
+        camera.upperRadiusLimit = radius;
         camera.attachControl(this.canvas, false);
         camera.inputs.clear();
 
