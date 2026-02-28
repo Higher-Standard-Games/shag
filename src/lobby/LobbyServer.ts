@@ -212,6 +212,8 @@ export class LobbyServer {
     private spawner: GameServerSpawner;
     /** Map matchId → lobbyId for server exit cleanup */
     private matchToLobby: Map<string, string> = new Map();
+    /** Matchmaking queues: gametypeId → ordered list of player IDs */
+    private queues: Map<string, string[]> = new Map();
 
     private readonly MAX_CHAT_HISTORY = 50;
 
@@ -304,6 +306,9 @@ export class LobbyServer {
     private handleDisconnect(player: ConnectedPlayer): void {
         console.log(`[LobbyServer] Disconnected: ${player.name || player.id}`);
 
+        // Remove from queue if queued
+        this.removeFromQueue(player);
+
         // Leave lobby if in one
         if (player.lobbyId) {
             this.handleLobbyLeave(player, player.lobbyId);
@@ -350,6 +355,12 @@ export class LobbyServer {
                 break;
             case 'lobby:vote_shuffle':
                 this.handleLobbyVoteShuffle(player, msg.lobbyId);
+                break;
+            case 'queue:join':
+                this.handleQueueJoin(player, msg.gametype);
+                break;
+            case 'queue:leave':
+                this.handleQueueLeave(player);
                 break;
             default:
                 console.log(`[LobbyServer] Unknown message type: ${msg.type}`);
@@ -584,6 +595,134 @@ export class LobbyServer {
                 votes: result.votes,
                 needed: result.needed,
             });
+        }
+    }
+
+    // ── Matchmaking Queue ───────────────────────────────────────
+
+    private handleQueueJoin(player: ConnectedPlayer, gametypeId: string): void {
+        // Already in queue or lobby?
+        if (player.lobbyId) {
+            this.send(player, { type: 'lobby:error', error: 'Already in a lobby. Leave first.' });
+            return;
+        }
+
+        const gametype = GAMETYPES.find(g => g.id === gametypeId);
+        if (!gametype) {
+            this.send(player, { type: 'lobby:error', error: `Unknown gametype: ${gametypeId}` });
+            return;
+        }
+
+        // Remove from any existing queue first
+        this.removeFromQueue(player);
+
+        // Add to queue
+        if (!this.queues.has(gametypeId)) {
+            this.queues.set(gametypeId, []);
+        }
+        const queue = this.queues.get(gametypeId)!;
+        if (!queue.includes(player.id)) {
+            queue.push(player.id);
+        }
+
+        player.status = 'in_queue';
+        console.log(`[LobbyServer] ${player.name} queued for ${gametypeId} (${queue.length}/${gametype.maxPlayers})`);
+
+        // Notify player
+        this.send(player, {
+            type: 'queue:update',
+            gametype: gametypeId,
+            position: queue.indexOf(player.id) + 1,
+            total: queue.length,
+            needed: gametype.maxPlayers,
+        });
+
+        // Broadcast status
+        this.broadcast({
+            type: 'player:status',
+            playerId: player.id,
+            status: 'in_queue',
+        }, player.id);
+
+        // Try to match
+        this.processQueue(gametypeId);
+    }
+
+    private handleQueueLeave(player: ConnectedPlayer): void {
+        this.removeFromQueue(player);
+        player.status = 'online';
+
+        this.send(player, { type: 'queue:left' });
+        this.broadcast({
+            type: 'player:status',
+            playerId: player.id,
+            status: 'online',
+        }, player.id);
+    }
+
+    private removeFromQueue(player: ConnectedPlayer): void {
+        for (const [gametypeId, queue] of this.queues.entries()) {
+            const idx = queue.indexOf(player.id);
+            if (idx >= 0) {
+                queue.splice(idx, 1);
+                console.log(`[LobbyServer] ${player.name} removed from ${gametypeId} queue`);
+                if (queue.length === 0) {
+                    this.queues.delete(gametypeId);
+                }
+            }
+        }
+    }
+
+    /** Process a gametype queue — create lobbies while enough players are waiting */
+    private processQueue(gametypeId: string): void {
+        const gametype = GAMETYPES.find(g => g.id === gametypeId);
+        if (!gametype) return;
+
+        const queue = this.queues.get(gametypeId);
+        if (!queue) return;
+
+        while (queue.length >= gametype.maxPlayers) {
+            // Pop enough players for one lobby
+            const matchedIds = queue.splice(0, gametype.maxPlayers);
+            const matchedPlayers = matchedIds
+                .map(id => this.players.get(id))
+                .filter((p): p is ConnectedPlayer => !!p && p.authenticated);
+
+            if (matchedPlayers.length < gametype.maxPlayers) {
+                console.warn(`[LobbyServer] Some queued players disconnected, skipping`);
+                continue;
+            }
+
+            // Create lobby for matched players
+            const lobby = new MatchLobby(gametype);
+            this.lobbies.set(lobby.id, lobby);
+
+            console.log(`[LobbyServer] Queue matched! Lobby ${lobby.id} (${gametypeId}): ${matchedPlayers.map(p => p.name).join(', ')}`);
+
+            // Add all players to lobby
+            for (const player of matchedPlayers) {
+                lobby.addPlayer(player);
+                player.lobbyId = lobby.id;
+                player.status = 'in_lobby';
+
+                // Send full lobby state to each player
+                this.send(player, {
+                    type: 'lobby:created',
+                    lobby: lobby.toInfo(),
+                });
+
+                // Broadcast status change
+                this.broadcast({
+                    type: 'player:status',
+                    playerId: player.id,
+                    status: 'in_lobby',
+                }, player.id);
+            }
+        }
+
+        // Clean up empty queues
+        if (queue.length === 0) {
+            this.queues.delete(gametypeId);
         }
     }
 

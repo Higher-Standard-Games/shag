@@ -927,10 +927,11 @@ export class LobbyPanel extends GamePanel {
     private showMatchLobby(gametypeId: string): void {
         if (!this.modesContainer) return;
 
-        // If lobby server is connected, create lobby on server
+        // If lobby server is connected, join the matchmaking queue
         if (this.lobbyClient.connected) {
-            this.lobbyClient.createLobby(gametypeId);
-            // handleLobbyCreated() will be called when server responds
+            this.lobbyClient.joinQueue(gametypeId);
+            // lobby:created will be sent when enough players are matched
+            this.appendChatMessage('', `🔍 Searching for ${gametypeId.toUpperCase()} match...`, true);
             return;
         }
 

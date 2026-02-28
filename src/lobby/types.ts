@@ -34,7 +34,7 @@ export interface GametypeInfo {
 // Player State
 // ============================================================================
 
-export type PlayerStatus = 'online' | 'in_lobby' | 'in_match';
+export type PlayerStatus = 'online' | 'in_queue' | 'in_lobby' | 'in_match';
 
 export interface PlayerInfo {
     id: string;
@@ -129,6 +129,15 @@ export interface LobbyReadyMessage extends LobbyMessage {
 export interface LobbyVoteShuffleMessage extends LobbyMessage {
     type: 'lobby:vote_shuffle';
     lobbyId: string;
+}
+
+export interface QueueJoinMessage extends LobbyMessage {
+    type: 'queue:join';
+    gametype: string;
+}
+
+export interface QueueLeaveMessage extends LobbyMessage {
+    type: 'queue:leave';
 }
 
 // ============================================================================

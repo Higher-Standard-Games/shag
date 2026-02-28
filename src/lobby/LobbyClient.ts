@@ -121,6 +121,16 @@ export class LobbyClient {
         this.send({ type: 'lobby:vote_shuffle', lobbyId });
     }
 
+    // ── Matchmaking Queue ───────────────────────────────────────
+
+    joinQueue(gametype: string): void {
+        this.send({ type: 'queue:join', gametype });
+    }
+
+    leaveQueue(): void {
+        this.send({ type: 'queue:leave' });
+    }
+
     // ── Event Handling ──────────────────────────────────────────
 
     /**
