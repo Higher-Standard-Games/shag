@@ -53,19 +53,19 @@ export class ShaderCommand extends Command {
 
       case 'info': {
         const textureName = args[1];
-        
+
         if (!textureName) {
           // Inspect aimed mesh
           const { CameraSystem } = await import('../../camera/CameraSystem');
           const cameraSystem = CameraSystem.getInstance();
           const camera = cameraSystem.getCamera();
           const scene = camera?.getScene();
-          
+
           if (!scene || !camera) return 'No scene/camera available';
-          
-          const mesh = this.getAimedMesh(scene, camera);
+
+          const mesh = await this.getAimedMesh(scene, camera);
           if (!mesh) return 'No mesh hit under crosshair';
-          
+
           return this.buildMeshShaderInfo(mesh);
         }
 
@@ -100,7 +100,7 @@ export class ShaderCommand extends Command {
         const cameraSystem = CameraSystem.getInstance();
         const camera = cameraSystem.getCamera();
         const scene = camera?.getScene();
-        
+
         if (!scene || !camera) return 'No scene/camera available';
 
         const value = args[1]?.toLowerCase();
@@ -365,14 +365,14 @@ export class ShaderCommand extends Command {
     }
   }
 
-  private getAimedMesh(scene: Scene, camera: any): AbstractMesh | null {
-    const { Ray } = require('@babylonjs/core/Culling/ray');
-    const { Vector3 } = require('@babylonjs/core/Maths/math.vector');
-    
-    const ray = camera?.getForwardRay 
-      ? camera.getForwardRay(10000) 
+  private async getAimedMesh(scene: Scene, camera: any): Promise<AbstractMesh | null> {
+    const { Ray } = await import('@babylonjs/core/Culling/ray');
+    const { Vector3 } = await import('@babylonjs/core/Maths/math.vector');
+
+    const ray = camera?.getForwardRay
+      ? camera.getForwardRay(10000)
       : new Ray(camera.position, camera.getDirection(new Vector3(0, 0, 1)), 10000);
-    
+
     const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
       if (!m) return false;
       if (m.isPickable === false) return false;
@@ -381,8 +381,8 @@ export class ShaderCommand extends Command {
       if (m.name?.startsWith('clipbrush_')) return false;
       return true;
     });
-    
-    return pick?.hit ? (pick.pickedMesh as AbstractMesh | null) : null;
+
+    return (pick?.hit ? pick.pickedMesh as AbstractMesh | null : null) ?? null;
   }
 
   private buildMeshShaderInfo(mesh: AbstractMesh): string {
@@ -410,23 +410,39 @@ export class ShaderCommand extends Command {
     return lines.join('\n');
   }
 
-  private enableAimHighlight(scene: Scene, camera: any): void {
-    const { Color4 } = require('@babylonjs/core/Maths/math.color');
-    
+  private async enableAimHighlight(scene: Scene, camera: any): Promise<void> {
+    const { Color4 } = await import('@babylonjs/core/Maths/math.color');
+    // Pre-import Ray and Vector3 for synchronous use in render loop
+    const { Ray } = await import('@babylonjs/core/Culling/ray');
+    const { Vector3 } = await import('@babylonjs/core/Maths/math.vector');
+
     if (!aimObserver) {
       aimObserver = scene.onBeforeRenderObservable.add(() => {
         try {
           if (!(window as any)._shaderAimEnabled) return;
-          
-          const mesh = this.getAimedMesh(scene, camera);
+
+          // Synchronous aim detection (imports pre-loaded above)
+          const ray = camera?.getForwardRay
+            ? camera.getForwardRay(10000)
+            : new Ray(camera.position, camera.getDirection(new Vector3(0, 0, 1)), 10000);
+          const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
+            if (!m) return false;
+            if (m.isPickable === false) return false;
+            if ((m as any).metadata?.isLightGizmo) return false;
+            if (m.name?.startsWith('collision_')) return false;
+            if (m.name?.startsWith('clipbrush_')) return false;
+            return true;
+          });
+          const mesh = (pick?.hit ? pick.pickedMesh as AbstractMesh | null : null) ?? null;
+
           if (mesh === aimLastMesh) return;
-          
+
           if (aimLastMesh) {
             try { aimLastMesh.disableEdgesRendering(); } catch { /* ignore */ }
           }
-          
+
           aimLastMesh = mesh;
-          
+
           if (mesh) {
             try {
               mesh.enableEdgesRendering();
