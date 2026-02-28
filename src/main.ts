@@ -32,6 +32,7 @@ import { FPSController } from "./engine/camera/controllers/FPSController";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
+import { LobbyPanel } from "./engine/ui/panels/LobbyPanel";
 import gameJson from "@game/game.json";
 
 /**
@@ -188,19 +189,41 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // Show placeholder UI - no map specified
-    showPlaceholderUI();
+    // Show lobby UI — main menu with game mode cards
+    const lobby = new LobbyPanel();
+    lobby.show();
+
+    // Connect settings button to the settings overlay
+    lobby.setOnSettings(async () => {
+      const { FPSSettingsOverlay } = await import('./games/fps/client/hud/widgets/SettingsOverlay');
+      const settingsPanel = new FPSSettingsOverlay();
+      settingsPanel.open();
+    });
+
+    // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
+    lobby.setOnPlay((mode) => {
+      console.log(`[Lobby] Queue for mode: ${mode}`);
+    });
+
+    // Store lobby reference for map:loaded cleanup
+    (window as any).__lobbyPanel = lobby;
   }
 
   // Import EventBus async
   import('./engine/core/EventBus').then(({ EventBus }) => {
     const unsubscribe = EventBus.on('map:loaded', () => {
+      // Hide lobby panel if visible
+      const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
+      if (lobby?.isVisible()) {
+        lobby.hide();
+        console.log('[Main] Lobby hidden (map loaded)');
+      }
+      // Also remove old placeholder UI if still present
       const el = document.getElementById('placeholder-ui');
       if (el) {
         el.style.transition = 'opacity 0.3s ease';
         el.style.opacity = '0';
         setTimeout(() => el.remove(), 300);
-        console.log('[Main] Placeholder UI removed');
       }
       unsubscribe();
     });
@@ -224,28 +247,6 @@ async function main() {
   console.log('[Main] FPS mode ready. Press ~ for console, use "map <name>" to load maps.');
 }
 
-function showPlaceholderUI() {
-  const container = document.createElement('div');
-  container.id = 'placeholder-ui';
-  container.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: #fff;
-    font-family: 'Share Tech Mono', monospace;
-    z-index: 100;
-    pointer-events: none;
-  `;
-  container.innerHTML = `
-    <h1 style="font-size: 24px; margin: 0 0 20px;">SHAG Engine - FPS Mode</h1>
-    <p style="margin: 10px 0; font-size: 14px; color: #888;">Press <code style="background: #333; padding: 2px 6px; border-radius: 3px; color: #0f0;">~</code> to open console</p>
-    <p style="margin: 10px 0; font-size: 14px; color: #888;">Type <code style="background: #333; padding: 2px 6px; border-radius: 3px; color: #0f0;">map wdm1</code> to load a map</p>
-    <p style="margin: 20px 0 0; font-size: 12px; color: #666;">Or add <code>?map=wdm1</code> to URL</p>
-  `;
-  document.body.appendChild(container);
-  console.log('[Main] Placeholder UI shown');
-}
+// showPlaceholderUI replaced by LobbyPanel (see above)
 
 main().catch(console.error);
