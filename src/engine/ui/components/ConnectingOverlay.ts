@@ -50,6 +50,11 @@ export class ConnectingOverlay {
             await gameManager.initializeNetwork(serverUrl);
             this.setStatus('CONNECTED');
 
+            // Auto-join the game since we came from lobby matchmaking
+            // (skip spectator overlay — players should go straight to playing)
+            await gameManager.joinGame();
+            this.setStatus('JOINING');
+
             // The lobby hide + overlay cleanup happens when EventBus fires 'loading:start'
             // which triggers the lobby to hide — we clean up ourselves after a moment
             await this.delay(1500);
