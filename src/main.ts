@@ -88,6 +88,14 @@ async function main() {
   // Start waiting for user click (non-blocking — runs in parallel)
   const userReadyPromise = loadingScreen.waitForReady();
 
+  // Pipe map loading progress into the splash screen
+  const { EventBus } = await import('./engine/core/EventBus');
+  const unsubProgress = EventBus.on('loading:progress', (data: any) => {
+    if (data?.type === 'map' && data?.phase) {
+      loadingScreen.setStatus(data.detail || data.phase);
+    }
+  });
+
   // ── Engine initialization (runs while user is looking at splash screen) ──
 
   // Create scene
@@ -122,6 +130,7 @@ async function main() {
   console.log(`[Main] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
 
   // Load engine settings
+  loadingScreen.setStatus('Loading engine settings...');
   const { EngineSettings } = await import("./engine/core/EngineSettings");
   await EngineSettings.getInstance().load();
 
@@ -140,10 +149,12 @@ async function main() {
   console.log('[InstancedMeshManager] Initialized');
 
   // Initialize scene services
+  loadingScreen.setStatus('Initializing services...');
   await ServiceLocator.getInstance().initScene(scene);
 
   // Initialize Physics System
   try {
+    loadingScreen.setStatus('Initializing physics...');
     const { PhysicsSystem } = await import('./engine/physics/PhysicsSystem');
     const success = await PhysicsSystem.getInstance().enablePhysics(scene);
     console.log(`[Main] Physics initialized: ${success}`);
@@ -194,6 +205,7 @@ async function main() {
     }
   } else {
     // ── Load UI map as lobby background (runs while splash is still showing) ──
+    loadingScreen.setStatus('Loading lobby...');
     console.log('[Main] Loading ui map as lobby background...');
     const mapLoader = MapLoader.getInstance();
     const bgResultPromise = mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
@@ -205,6 +217,9 @@ async function main() {
       camera.position.copyFrom(bgResult.playerStartPosition);
       console.log(`[Main] Background map loaded: ui`);
     }
+
+    // Stop piping progress to splash screen
+    unsubProgress();
 
     // Enable overlay for future map loads (e.g., joining a match)
     MapLoadingOverlay.enable();
