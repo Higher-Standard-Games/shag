@@ -93,7 +93,7 @@ export class LobbyPanel extends GamePanel {
     private queueTimers: Map<string, number> = new Map();
     private queueIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
     private _onPlayClick: ((mode: string) => void) | null = null;
-    private _onSettingsClick: (() => void) | null = null;
+    private settingsChangeCallback: ((key: string, value: any) => void) | null = null;
 
     constructor() {
         super('PLAY');
@@ -102,20 +102,19 @@ export class LobbyPanel extends GamePanel {
         // 3D Logo floating above panel
         this.enableLogo();
 
-        // Tabs
+        // Tabs — Settings is now a tab alongside the others
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
         this.addTab('leaderboard', 'Leaderboard', this.buildLeaderboardTab());
         this.addTab('profile', 'My Profile', this.buildProfileTab());
+        this.addTab('settings', '⚙ Settings', this.buildSettingsTab());
         this.switchTab('matchmaking');
 
-        // Console & Settings buttons in tab row
+        // Console button in tab row
         const headerBtns = document.createElement('div');
         headerBtns.className = 'lobby__header-actions';
 
         const consoleBtn = this.createButton('Console ~', '');
-        const settingsBtn = this.createButton('⚙ Settings', '', () => this._onSettingsClick?.());
         headerBtns.appendChild(consoleBtn);
-        headerBtns.appendChild(settingsBtn);
 
         this.tabBar.appendChild(headerBtns);
 
@@ -130,23 +129,9 @@ export class LobbyPanel extends GamePanel {
         this.close();
     }
 
-    /** Instantly hide without animation (for switching to another panel) */
-    hideInstant(): void {
-        this.queueIntervals.forEach(i => clearInterval(i));
-        this.queueIntervals.clear();
-        this.root.style.display = 'none';
-        this.logoCanvas?.pause();
-    }
-
-    /** Instantly show without animation (for returning from another panel) */
-    showInstant(): void {
-        this.root.style.display = '';
-        this.logoCanvas?.start();
-    }
-
     isVisible(): boolean { return this.isOpen(); }
-    setOnSettings(cb: () => void): void { this._onSettingsClick = cb; }
     setOnPlay(cb: (mode: string) => void): void { this._onPlayClick = cb; }
+    onSettingsChange(cb: (key: string, value: any) => void): void { this.settingsChangeCallback = cb; }
 
     // ═══════════════════════════════════════════════════════════════════
     // TAB 1: MATCHMAKING
@@ -588,12 +573,189 @@ export class LobbyPanel extends GamePanel {
         const fullSettingsBtn = document.createElement('button');
         fullSettingsBtn.className = 'lobby__profile-settings-btn';
         fullSettingsBtn.textContent = '⚙ OPEN FULL SETTINGS';
-        fullSettingsBtn.addEventListener('click', () => this._onSettingsClick?.());
+        fullSettingsBtn.addEventListener('click', () => this.switchTab('settings'));
         settings.appendChild(fullSettingsBtn);
 
         container.appendChild(settings);
 
         return container;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TAB 4: SETTINGS
+    // ═══════════════════════════════════════════════════════════════════
+
+    private buildSettingsTab(): HTMLElement {
+        const container = document.createElement('div');
+        container.className = 'lobby__settings-tab';
+
+        // ── Video Settings ──
+        container.appendChild(this.settingsSection('Display', [
+            this.settingsSlider('FOV', 'video.fov', 70, 120, 90),
+            this.settingsToggle('VSync', 'video.vsync', true),
+            this.settingsToggle('Fullscreen', 'video.fullscreen', false),
+        ]));
+
+        container.appendChild(this.settingsSection('Graphics', [
+            this.settingsSlider('Render Scale', 'video.renderScale', 50, 100, 100, '%'),
+            this.settingsToggle('Shadows', 'video.shadows', true),
+            this.settingsToggle('Anti-Aliasing', 'video.antiAlias', true),
+        ]));
+
+        // ── Audio Settings ──
+        container.appendChild(this.settingsSection('Volume', [
+            this.settingsSlider('Master', 'audio.master', 0, 100, 80, '%'),
+            this.settingsSlider('Effects', 'audio.effects', 0, 100, 100, '%'),
+            this.settingsSlider('Music', 'audio.music', 0, 100, 50, '%'),
+            this.settingsSlider('Voice', 'audio.voice', 0, 100, 100, '%'),
+        ]));
+
+        container.appendChild(this.settingsSection('Audio Options', [
+            this.settingsToggle('Hit Sound', 'audio.hitSound', true),
+            this.settingsToggle('Kill Sound', 'audio.killSound', true),
+        ]));
+
+        // ── Controls Settings ──
+        container.appendChild(this.settingsSection('Mouse', [
+            this.settingsSlider('Sensitivity', 'controls.sensitivity', 1, 30, 5),
+            this.settingsToggle('Invert Y', 'controls.invertY', false),
+            this.settingsToggle('Raw Input', 'controls.rawInput', true),
+        ]));
+
+        container.appendChild(this.settingsSection('Movement', [
+            this.settingsKeybind('Forward', 'controls.forward', 'W'),
+            this.settingsKeybind('Back', 'controls.back', 'S'),
+            this.settingsKeybind('Left', 'controls.left', 'A'),
+            this.settingsKeybind('Right', 'controls.right', 'D'),
+            this.settingsKeybind('Jump', 'controls.jump', 'Space'),
+            this.settingsKeybind('Crouch', 'controls.crouch', 'Ctrl'),
+        ]));
+
+        return container;
+    }
+
+    // ── Settings Helpers ──
+
+    private settingsSection(title: string, rows: HTMLElement[]): HTMLElement {
+        const section = document.createElement('div');
+        section.className = 'fps-settings-section';
+        const titleEl = document.createElement('div');
+        titleEl.className = 'fps-settings-section-title';
+        titleEl.textContent = title;
+        section.appendChild(titleEl);
+        for (const row of rows) section.appendChild(row);
+        return section;
+    }
+
+    private settingsSlider(label: string, key: string, min: number, max: number, value: number, suffix = ''): HTMLElement {
+        const row = document.createElement('div');
+        row.className = 'fps-settings-row';
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'fps-settings-label';
+        labelEl.textContent = label;
+        row.appendChild(labelEl);
+
+        const control = document.createElement('div');
+        control.className = 'fps-settings-control';
+
+        const slider = document.createElement('input');
+        slider.className = 'fps-settings-slider';
+        slider.type = 'range';
+        slider.min = String(min);
+        slider.max = String(max);
+        slider.value = String(value);
+
+        const valueEl = document.createElement('span');
+        valueEl.className = 'fps-settings-value';
+        valueEl.textContent = `${value}${suffix}`;
+
+        const updateTrack = () => {
+            const pct = ((Number(slider.value) - min) / (max - min)) * 100;
+            slider.style.background = `linear-gradient(90deg, hsla(180, 100%, 50%, 0.4) 0%, hsla(180, 100%, 50%, 0.25) ${pct}%, hsla(180, 40%, 30%, 0.2) ${pct}%)`;
+        };
+        updateTrack();
+
+        slider.addEventListener('input', () => {
+            valueEl.textContent = `${slider.value}${suffix}`;
+            updateTrack();
+            this.settingsChangeCallback?.(key, Number(slider.value));
+        });
+
+        control.appendChild(slider);
+        control.appendChild(valueEl);
+        row.appendChild(control);
+        return row;
+    }
+
+    private settingsToggle(label: string, key: string, value: boolean): HTMLElement {
+        const row = document.createElement('div');
+        row.className = 'fps-settings-row';
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'fps-settings-label';
+        labelEl.textContent = label;
+        row.appendChild(labelEl);
+
+        const control = document.createElement('div');
+        control.className = 'fps-settings-control';
+
+        const toggle = document.createElement('button');
+        toggle.className = `fps-settings-toggle ${value ? 'fps-settings-toggle--on' : ''}`;
+        toggle.addEventListener('click', () => {
+            value = !value;
+            toggle.classList.toggle('fps-settings-toggle--on', value);
+            this.settingsChangeCallback?.(key, value);
+        });
+
+        control.appendChild(toggle);
+        row.appendChild(control);
+        return row;
+    }
+
+    private settingsKeybind(label: string, key: string, currentKey: string): HTMLElement {
+        const row = document.createElement('div');
+        row.className = 'fps-settings-row';
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'fps-settings-label';
+        labelEl.textContent = label;
+        row.appendChild(labelEl);
+
+        const control = document.createElement('div');
+        control.className = 'fps-settings-control';
+
+        const keybindBtn = document.createElement('button');
+        keybindBtn.className = 'fps-settings-keybind';
+        keybindBtn.textContent = currentKey;
+
+        let listening = false;
+        const keyListener = (e: KeyboardEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            keybindBtn.textContent = e.key === ' ' ? 'Space' : e.key;
+            keybindBtn.classList.remove('fps-settings-keybind--listening');
+            listening = false;
+            document.removeEventListener('keydown', keyListener, true);
+            this.settingsChangeCallback?.(key, e.key);
+        };
+
+        keybindBtn.addEventListener('click', () => {
+            if (listening) {
+                keybindBtn.classList.remove('fps-settings-keybind--listening');
+                document.removeEventListener('keydown', keyListener, true);
+                listening = false;
+            } else {
+                keybindBtn.classList.add('fps-settings-keybind--listening');
+                keybindBtn.textContent = '...';
+                listening = true;
+                document.addEventListener('keydown', keyListener, true);
+            }
+        });
+
+        control.appendChild(keybindBtn);
+        row.appendChild(control);
+        return row;
     }
 
     // ═══════════════════════════════════════════════════════════════════

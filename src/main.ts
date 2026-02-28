@@ -207,22 +207,6 @@ async function main() {
     const lobby = new LobbyPanel();
     lobby.show();
 
-    // Connect settings button — hide lobby, show settings, restore on close
-    lobby.setOnSettings(async () => {
-      const { FPSSettingsOverlay } = await import('./games/fps/client/hud/widgets/SettingsOverlay');
-      const settingsPanel = new FPSSettingsOverlay();
-
-      // Instantly hide lobby (no animation — settings opens right away)
-      lobby.hideInstant();
-
-      // When settings closes, restore lobby instantly
-      settingsPanel.onClose(() => {
-        lobby.showInstant();
-      });
-
-      settingsPanel.open();
-    });
-
     // Connect play button (Phase 1: just log; Phase 2+: real matchmaking)
     lobby.setOnPlay((mode) => {
       console.log(`[Lobby] Queue for mode: ${mode}`);
