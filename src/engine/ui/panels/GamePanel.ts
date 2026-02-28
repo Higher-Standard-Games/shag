@@ -242,8 +242,8 @@ export class GamePanel {
      */
     protected enableLogo(opts?: { width?: number; height?: number }): void {
         this.logoCanvas = new LogoCanvas({
-            width: opts?.width ?? 500,
-            height: opts?.height ?? 160,
+            width: opts?.width ?? 600,
+            height: opts?.height ?? 200,
             showGlow: true,
         });
 
