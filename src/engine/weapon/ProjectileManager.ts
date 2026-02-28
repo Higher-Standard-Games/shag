@@ -915,12 +915,17 @@ export class ProjectileManager {
 
     /**
      * Update trail ribbon mesh for a projectile (grenades, rockets, etc.)
+     *
+     * The ribbon mesh is recreated each frame (point count changes as trail grows),
+     * but the material is created once and reused. Creating a new StandardMaterial
+     * every frame triggered Babylon shader compilations that caused intermittent
+     * jagged triangle artifacts when the compilation wasn't finished before render.
      */
     private updateTrail(proj: ActiveProjectile): void {
         if (!this.scene) return;
 
-        const MAX_TRAIL_POINTS = 60;   // longer trail (was 20)
-        const TRAIL_WIDTH = 6.0;        // ribbon half-width in world units
+        const MAX_TRAIL_POINTS = 60;
+        const TRAIL_WIDTH = 6.0;
 
         // Record current position
         proj.trailPoints.push(proj.node.position.clone());
@@ -933,9 +938,11 @@ export class ProjectileManager {
         // Need at least 2 points for a ribbon
         if (proj.trailPoints.length < 2) return;
 
-        // Dispose old trail mesh & material
-        proj.trailMesh?.dispose();
-        proj.trailMaterial?.dispose();
+        // Dispose old trail mesh (but keep material for reuse)
+        if (proj.trailMesh) {
+            proj.trailMesh.dispose();
+            proj.trailMesh = null;
+        }
 
         // Build ribbon path arrays — X-formation: two perpendicular planes for volume
         const pathA: Vector3[] = [];
@@ -976,7 +983,7 @@ export class ProjectileManager {
             pathD.push(p.subtract(perp2.scale(width)));
         }
 
-        // Create single 4-path ribbon (two crossed planes)
+        // Create ribbon mesh
         proj.trailMesh = MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
             pathArray: [pathA, pathB, pathC, pathD],
             updatable: false,
@@ -984,21 +991,23 @@ export class ProjectileManager {
         }, this.scene) as unknown as LinesMesh;
         proj.trailMesh.isPickable = false;
 
-        // Per-projectile trail color from lightColor, fallback to blue
-        const registry = getEntityRegistry();
-        const def = registry.get<ProjectileDef>(proj.defId);
-        const trailColor = def?.lightColor
-            ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
-            : new Color3(0.3, 0.5, 1.0); // fallback blue
+        // Create material once, reuse on subsequent frames
+        if (!proj.trailMaterial) {
+            const registry = getEntityRegistry();
+            const def = registry.get<ProjectileDef>(proj.defId);
+            const trailColor = def?.lightColor
+                ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)
+                : new Color3(0.3, 0.5, 1.0);
 
-        const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
-        mat.emissiveColor = trailColor;
-        mat.diffuseColor = Color3.Black();
-        mat.disableLighting = true;
-        mat.backFaceCulling = false;
-        mat.alpha = 0.6;
-        proj.trailMesh.material = mat;
-        proj.trailMaterial = mat;
+            const mat = new StandardMaterial(`${proj.id}_trailMat`, this.scene);
+            mat.emissiveColor = trailColor;
+            mat.diffuseColor = Color3.Black();
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            mat.alpha = 0.6;
+            proj.trailMaterial = mat;
+        }
+        proj.trailMesh.material = proj.trailMaterial;
     }
 }
 
