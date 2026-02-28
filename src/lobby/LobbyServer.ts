@@ -625,28 +625,29 @@ export class LobbyServer {
 
         if (waitingLobby) {
             // Join existing lobby — match found!
-            waitingLobby.addPlayer(player);
+            const lobbyPlayer = waitingLobby.addPlayer(player);
             player.lobbyId = waitingLobby.id;
             player.status = 'in_lobby';
 
-            console.log(`[LobbyServer] ${player.name} matched into lobby ${waitingLobby.id} (${gametypeId})`);
+            console.log(`[LobbyServer] ${player.name} matched into lobby ${waitingLobby.id} (${gametypeId}), team=${lobbyPlayer.team}`);
+
+            // Notify existing lobby members about new player FIRST
+            // (before sending lobby:created to joining player)
+            this.broadcastToLobby(waitingLobby.id, {
+                type: 'lobby:player_joined',
+                player: {
+                    id: lobbyPlayer.id,
+                    name: lobbyPlayer.name,
+                    team: lobbyPlayer.team,
+                    ready: lobbyPlayer.ready,
+                },
+            }, player.id);
 
             // Send full lobby state to the joining player
             this.send(player, {
                 type: 'lobby:created',
                 lobby: waitingLobby.toInfo(),
             });
-
-            // Notify existing lobby members about new player
-            this.broadcastToLobby(waitingLobby.id, {
-                type: 'lobby:player_joined',
-                player: {
-                    id: player.id,
-                    name: player.name || 'Unknown',
-                    team: 'alpha',
-                    ready: false,
-                },
-            }, player.id);
 
             // Broadcast status change
             this.broadcast({
