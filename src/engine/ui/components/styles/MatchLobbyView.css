@@ -3,11 +3,37 @@
  * ═══════════════════════════════════════════════════════════════════ */
 
 .match-lobby {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 10px 0;
     height: 100%;
+    overflow: hidden;
+    padding: 0 16px;
+}
+
+/* Scrollable content area (maps + URL + teams) */
+.match-lobby__content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 0 0 10px 0;
+}
+
+.match-lobby__content::-webkit-scrollbar {
+    width: 3px;
+}
+
+.match-lobby__content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.match-lobby__content::-webkit-scrollbar-thumb {
+    background: hsla(180, 100%, 50%, 0.1);
+    border-radius: 2px;
 }
 
 /* ── Header ── */
@@ -16,7 +42,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 4px;
+    padding: 6px 0 8px;
+    flex-shrink: 0;
 }
 
 .match-lobby__gametype {
@@ -67,7 +94,7 @@
 
 .match-lobby__map-img {
     width: 100%;
-    height: 100px;
+    height: 72px;
     opacity: 0.7;
     transition: opacity 0.2s;
 }
@@ -298,11 +325,15 @@
 
 /* ── Action Buttons ── */
 
+/* Static bottom action bar */
 .match-lobby__actions {
+    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+    padding: 10px 0 2px;
+    border-top: 1px solid hsla(180, 60%, 40%, 0.1);
 }
 
 .match-lobby__btn {

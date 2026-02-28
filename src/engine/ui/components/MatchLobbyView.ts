@@ -107,7 +107,7 @@ export class MatchLobbyView {
         const container = document.createElement('div');
         container.className = 'match-lobby';
 
-        // ── Header ──
+        // ── Header (static top) ──
         const header = document.createElement('div');
         header.className = 'match-lobby__header';
         header.innerHTML = `
@@ -116,16 +116,22 @@ export class MatchLobbyView {
         `;
         container.appendChild(header);
 
-        // ── Map Vote Row ──
-        container.appendChild(this.buildMapVoteRow());
+        // ── Scrollable content area ──
+        const content = document.createElement('div');
+        content.className = 'match-lobby__content';
 
-        // ── Players / Teams ──
-        container.appendChild(this.buildPlayerArea());
+        // Map Vote Row
+        content.appendChild(this.buildMapVoteRow());
 
-        // ── Lobby URL ──
-        container.appendChild(this.buildUrlBar());
+        // Lobby URL (between maps and teams)
+        content.appendChild(this.buildUrlBar());
 
-        // ── Action Buttons ──
+        // Players / Teams
+        content.appendChild(this.buildPlayerArea());
+
+        container.appendChild(content);
+
+        // ── Action Buttons (static bottom) ──
         container.appendChild(this.buildActions());
 
         return container;
