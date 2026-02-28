@@ -9,6 +9,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'crypto';
+import { GameServerSpawner } from './GameServerSpawner';
 import type {
     LobbyMessage, GametypeInfo, PlayerInfo, PlayerStatus,
     ChatMessage as ChatMsg, MatchLobbyInfo, LobbyPlayerInfo, MapOption,
@@ -208,11 +209,20 @@ export class LobbyServer {
     private chatHistory: ChatMsg[] = [];
     private port: number;
     private nextPlayerId = 1;
+    private spawner: GameServerSpawner;
+    /** Map matchId → lobbyId for server exit cleanup */
+    private matchToLobby: Map<string, string> = new Map();
 
     private readonly MAX_CHAT_HISTORY = 50;
 
     constructor(port: number = 9000) {
         this.port = port;
+        this.spawner = new GameServerSpawner();
+
+        // Handle game server exits
+        this.spawner.onServerExit = (matchId, code) => {
+            this.handleServerExit(matchId, code);
+        };
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────
@@ -236,12 +246,17 @@ export class LobbyServer {
 
     async stop(): Promise<void> {
         if (!this.wss) return;
+
+        // Shutdown all game servers
+        await this.spawner.shutdownAll();
+
         // Close all connections
         for (const player of this.players.values()) {
             player.ws.close(1000, 'Server shutting down');
         }
         this.players.clear();
         this.lobbies.clear();
+        this.matchToLobby.clear();
 
         return new Promise((resolve) => {
             this.wss!.close(() => {
@@ -576,7 +591,8 @@ export class LobbyServer {
 
     private async handleAllReady(lobby: MatchLobby): Promise<void> {
         const map = lobby.getWinningMap();
-        console.log(`[LobbyServer] All ready in ${lobby.id}! Map: ${map}, Gametype: ${lobby.gametype.id}`);
+        const gametypeId = lobby.gametype.id;
+        console.log(`[LobbyServer] All ready in ${lobby.id}! Map: ${map}, Gametype: ${gametypeId}`);
 
         // Notify lobby
         this.broadcastToLobby(lobby.id, { type: 'lobby:all_ready' });
@@ -586,14 +602,23 @@ export class LobbyServer {
             status: 'spawning_server',
         });
 
-        // TODO: Spawn game server via GameServerSpawner
-        // For now, send a test URL
-        setTimeout(() => {
+        try {
+            // Spawn game server as child process
+            const server = await this.spawner.spawn({
+                map,
+                gametype: gametypeId,
+                maxClients: lobby.gametype.maxPlayers,
+            });
+
+            // Track matchId → lobbyId mapping for cleanup
+            this.matchToLobby.set(server.matchId, lobby.id);
+
+            // Send connect URL to all lobby players
             this.broadcastToLobby(lobby.id, {
                 type: 'lobby:connect',
-                serverUrl: 'ws://localhost:7777',
+                serverUrl: server.url,
                 map,
-                gametype: lobby.gametype.id,
+                gametype: gametypeId,
             });
 
             // Update player statuses
@@ -608,7 +633,60 @@ export class LobbyServer {
                     });
                 }
             }
-        }, 1000);  // Simulate spawn delay
+
+            console.log(`[LobbyServer] Players connecting to ${server.url}`);
+
+        } catch (err) {
+            console.error(`[LobbyServer] Failed to spawn server:`, err);
+            this.broadcastToLobby(lobby.id, {
+                type: 'lobby:error',
+                error: `Failed to start game server: ${(err as Error).message}`,
+            });
+
+            // Reset all players to not-ready
+            for (const lp of lobby.players.values()) {
+                lp.ready = false;
+                this.broadcastToLobby(lobby.id, {
+                    type: 'lobby:player_updated',
+                    playerId: lp.id,
+                    ready: false,
+                });
+            }
+        }
+    }
+
+    // ── Game Server Exit Handling ────────────────────────────
+
+    private handleServerExit(matchId: string, code: number | null): void {
+        const lobbyId = this.matchToLobby.get(matchId);
+        this.matchToLobby.delete(matchId);
+
+        console.log(`[LobbyServer] Game server exited: match=${matchId} lobby=${lobbyId} code=${code}`);
+
+        if (!lobbyId) return;
+        const lobby = this.lobbies.get(lobbyId);
+        if (!lobby) return;
+
+        // Notify lobby players that match ended
+        this.broadcastToLobby(lobbyId, {
+            type: 'match:ended',
+            matchId,
+            exitCode: code,
+        });
+
+        // Return all players to online status
+        for (const lp of lobby.players.values()) {
+            lp.ready = false;
+            const player = this.players.get(lp.id);
+            if (player) {
+                player.status = 'in_lobby';
+                this.broadcast({
+                    type: 'player:status',
+                    playerId: player.id,
+                    status: 'in_lobby',
+                });
+            }
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────
