@@ -107,8 +107,6 @@ export class LobbyPanel extends GamePanel {
     private chatInput: HTMLInputElement | null = null;
     private currentLobbyId: string | null = null;
     private unsubscribers: (() => void)[] = [];
-    private searchingView: HTMLElement | null = null;
-    private searchingDotsInterval: ReturnType<typeof setInterval> | null = null;
 
     constructor() {
         super('PLAY');
@@ -293,19 +291,8 @@ export class LobbyPanel extends GamePanel {
     private handleLobbyCreated(lobby: MatchLobbyInfo): void {
         this.currentLobbyId = lobby.id;
         if (!this.modesContainer) return;
-
-        // Find the element currently in the DOM to replace
-        // (could be modesContainer or searchingView if coming from queue)
-        const currentElement = this.searchingView || this.modesContainer;
-        const layout = currentElement.parentElement;
+        const layout = this.modesContainer.parentElement;
         if (!layout) return;
-
-        // Clean up searching state
-        if (this.searchingDotsInterval) {
-            clearInterval(this.searchingDotsInterval);
-            this.searchingDotsInterval = null;
-        }
-        this.searchingView = null;
 
         // Create match lobby view with real server data
         this.matchLobbyView = new MatchLobbyView(lobby.gametype, this.lobbyClient, lobby);
@@ -317,8 +304,8 @@ export class LobbyPanel extends GamePanel {
             this.showGametypeCards();
         });
 
-        // Swap current element for match lobby
-        layout.replaceChild(this.matchLobbyView.root, currentElement);
+        // Swap mode cards for match lobby
+        layout.replaceChild(this.matchLobbyView.root, this.modesContainer);
         console.log(`[LobbyPanel] Opened match lobby: ${lobby.id}`);
     }
 
@@ -940,12 +927,10 @@ export class LobbyPanel extends GamePanel {
     private showMatchLobby(gametypeId: string): void {
         if (!this.modesContainer) return;
 
-        // If lobby server is connected, join the matchmaking queue
+        // If lobby server is connected, join queue → server creates lobby immediately
         if (this.lobbyClient.connected) {
             this.lobbyClient.joinQueue(gametypeId);
-            this.appendChatMessage('', `🔍 Searching for ${gametypeId.toUpperCase()} match...`, true);
-            // Show searching view immediately
-            this.showSearchingView(gametypeId);
+            // Server sends lobby:created → handleLobbyCreated opens lobby view
             return;
         }
 
@@ -956,108 +941,6 @@ export class LobbyPanel extends GamePanel {
         this.matchLobbyView.onLeave(() => this.showGametypeCards());
         layout.replaceChild(this.matchLobbyView.root, this.modesContainer);
         console.log(`[LobbyPanel] Opened mock match lobby for: ${gametypeId}`);
-    }
-
-    // ── Searching View (queue waiting state) ────────────────────
-
-    private showSearchingView(gametypeId: string): void {
-        if (!this.modesContainer) return;
-        const layout = this.modesContainer.parentElement;
-        if (!layout) return;
-
-        // Build searching element
-        const view = document.createElement('div');
-        view.style.cssText = `
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 20px; height: 100%;
-            min-height: 200px; padding: 40px 20px;
-        `;
-
-        // Gametype label
-        const label = document.createElement('div');
-        label.style.cssText = `
-            font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
-            color: rgba(255,255,255,0.5); font-weight: 600;
-        `;
-        label.textContent = gametypeId.toUpperCase();
-
-        // Searching text with animated dots
-        const searchText = document.createElement('div');
-        searchText.style.cssText = `
-            font-size: 22px; font-weight: 700; letter-spacing: 2px;
-            color: rgba(255,255,255,0.9);
-        `;
-        searchText.textContent = 'SEARCHING';
-
-        // Animated dots
-        const dots = document.createElement('span');
-        dots.style.cssText = 'color: rgba(255,180,0,0.9);';
-        searchText.appendChild(dots);
-        let dotCount = 0;
-        this.searchingDotsInterval = setInterval(() => {
-            dotCount = (dotCount + 1) % 4;
-            dots.textContent = '.'.repeat(dotCount);
-        }, 400);
-
-        // Pulsing ring animation
-        const ring = document.createElement('div');
-        ring.style.cssText = `
-            width: 60px; height: 60px; border-radius: 50%;
-            border: 3px solid rgba(255,180,0,0.3);
-            border-top-color: rgba(255,180,0,0.9);
-            animation: spin 1s linear infinite;
-        `;
-        // Add keyframes if not already present
-        if (!document.getElementById('queue-spin-style')) {
-            const style = document.createElement('style');
-            style.id = 'queue-spin-style';
-            style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-            document.head.appendChild(style);
-        }
-
-        // Cancel button
-        const cancel = document.createElement('button');
-        cancel.style.cssText = `
-            background: rgba(255,60,60,0.15); border: 1px solid rgba(255,60,60,0.4);
-            color: rgba(255,255,255,0.7); padding: 10px 30px; border-radius: 4px;
-            cursor: pointer; font-size: 12px; letter-spacing: 2px;
-            text-transform: uppercase; font-weight: 600;
-            transition: all 0.15s;
-        `;
-        cancel.textContent = 'CANCEL';
-        cancel.addEventListener('mouseenter', () => {
-            cancel.style.background = 'rgba(255,60,60,0.3)';
-            cancel.style.borderColor = 'rgba(255,60,60,0.7)';
-        });
-        cancel.addEventListener('mouseleave', () => {
-            cancel.style.background = 'rgba(255,60,60,0.15)';
-            cancel.style.borderColor = 'rgba(255,60,60,0.4)';
-        });
-        cancel.addEventListener('click', () => {
-            this.lobbyClient.leaveQueue();
-            this.hideSearchingView();
-            this.appendChatMessage('', 'Search cancelled', true);
-        });
-
-        view.appendChild(label);
-        view.appendChild(ring);
-        view.appendChild(searchText);
-        view.appendChild(cancel);
-
-        this.searchingView = view;
-        layout.replaceChild(view, this.modesContainer);
-    }
-
-    private hideSearchingView(): void {
-        if (this.searchingDotsInterval) {
-            clearInterval(this.searchingDotsInterval);
-            this.searchingDotsInterval = null;
-        }
-        if (!this.searchingView || !this.modesContainer) return;
-        const layout = this.searchingView.parentElement;
-        if (!layout) return;
-        layout.replaceChild(this.modesContainer, this.searchingView);
-        this.searchingView = null;
     }
 
     private showGametypeCards(): void {

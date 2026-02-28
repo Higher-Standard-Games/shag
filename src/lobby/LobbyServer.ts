@@ -82,6 +82,9 @@ class MatchLobby {
     votes: Map<string, string> = new Map();  // playerId → mapName
     shuffleVotes: Set<string> = new Set();
     createdAt: number = Date.now();
+    isStarting: boolean = false;
+
+    get playerCount(): number { return this.players.size; }
 
     constructor(gametype: GametypeInfo) {
         this.id = randomUUID().slice(0, 8);
@@ -212,8 +215,6 @@ export class LobbyServer {
     private spawner: GameServerSpawner;
     /** Map matchId → lobbyId for server exit cleanup */
     private matchToLobby: Map<string, string> = new Map();
-    /** Matchmaking queues: gametypeId → ordered list of player IDs */
-    private queues: Map<string, string[]> = new Map();
 
     private readonly MAX_CHAT_HISTORY = 50;
 
@@ -306,9 +307,6 @@ export class LobbyServer {
     private handleDisconnect(player: ConnectedPlayer): void {
         console.log(`[LobbyServer] Disconnected: ${player.name || player.id}`);
 
-        // Remove from queue if queued
-        this.removeFromQueue(player);
-
         // Leave lobby if in one
         if (player.lobbyId) {
             this.handleLobbyLeave(player, player.lobbyId);
@@ -360,7 +358,11 @@ export class LobbyServer {
                 this.handleQueueJoin(player, msg.gametype);
                 break;
             case 'queue:leave':
-                this.handleQueueLeave(player);
+                // queue:leave with immediate-lobby = leave current lobby
+                if (player.lobbyId) {
+                    this.handleLobbyLeave(player, player.lobbyId);
+                }
+                this.send(player, { type: 'queue:left' });
                 break;
             default:
                 console.log(`[LobbyServer] Unknown message type: ${msg.type}`);
@@ -613,117 +615,81 @@ export class LobbyServer {
             return;
         }
 
-        // Remove from any existing queue first
-        this.removeFromQueue(player);
-
-        // Add to queue
-        if (!this.queues.has(gametypeId)) {
-            this.queues.set(gametypeId, []);
-        }
-        const queue = this.queues.get(gametypeId)!;
-        if (!queue.includes(player.id)) {
-            queue.push(player.id);
+        // Leave existing lobby if in one (e.g., switching gametypes)
+        if (player.lobbyId) {
+            this.handleLobbyLeave(player, player.lobbyId);
         }
 
-        player.status = 'in_queue';
-        console.log(`[LobbyServer] ${player.name} queued for ${gametypeId} (${queue.length}/${gametype.maxPlayers})`);
+        // Try to find an existing waiting lobby for this gametype
+        const waitingLobby = this.findWaitingLobby(gametypeId);
 
-        // Notify player
-        this.send(player, {
-            type: 'queue:update',
-            gametype: gametypeId,
-            position: queue.indexOf(player.id) + 1,
-            total: queue.length,
-            needed: gametype.maxPlayers,
-        });
+        if (waitingLobby) {
+            // Join existing lobby — match found!
+            waitingLobby.addPlayer(player);
+            player.lobbyId = waitingLobby.id;
+            player.status = 'in_lobby';
 
-        // Broadcast status
-        this.broadcast({
-            type: 'player:status',
-            playerId: player.id,
-            status: 'in_queue',
-        }, player.id);
+            console.log(`[LobbyServer] ${player.name} matched into lobby ${waitingLobby.id} (${gametypeId})`);
 
-        // Try to match
-        this.processQueue(gametypeId);
-    }
+            // Send full lobby state to the joining player
+            this.send(player, {
+                type: 'lobby:created',
+                lobby: waitingLobby.toInfo(),
+            });
 
-    private handleQueueLeave(player: ConnectedPlayer): void {
-        this.removeFromQueue(player);
-        player.status = 'online';
+            // Notify existing lobby members about new player
+            this.broadcastToLobby(waitingLobby.id, {
+                type: 'lobby:player_joined',
+                player: {
+                    id: player.id,
+                    name: player.name || 'Unknown',
+                    team: 'alpha',
+                    ready: false,
+                },
+            }, player.id);
 
-        this.send(player, { type: 'queue:left' });
-        this.broadcast({
-            type: 'player:status',
-            playerId: player.id,
-            status: 'online',
-        }, player.id);
-    }
-
-    private removeFromQueue(player: ConnectedPlayer): void {
-        for (const [gametypeId, queue] of this.queues.entries()) {
-            const idx = queue.indexOf(player.id);
-            if (idx >= 0) {
-                queue.splice(idx, 1);
-                console.log(`[LobbyServer] ${player.name} removed from ${gametypeId} queue`);
-                if (queue.length === 0) {
-                    this.queues.delete(gametypeId);
-                }
-            }
-        }
-    }
-
-    /** Process a gametype queue — create lobbies while enough players are waiting */
-    private processQueue(gametypeId: string): void {
-        const gametype = GAMETYPES.find(g => g.id === gametypeId);
-        if (!gametype) return;
-
-        const queue = this.queues.get(gametypeId);
-        if (!queue) return;
-
-        while (queue.length >= gametype.maxPlayers) {
-            // Pop enough players for one lobby
-            const matchedIds = queue.splice(0, gametype.maxPlayers);
-            const matchedPlayers = matchedIds
-                .map(id => this.players.get(id))
-                .filter((p): p is ConnectedPlayer => !!p && p.authenticated);
-
-            if (matchedPlayers.length < gametype.maxPlayers) {
-                console.warn(`[LobbyServer] Some queued players disconnected, skipping`);
-                continue;
-            }
-
-            // Create lobby for matched players
+            // Broadcast status change
+            this.broadcast({
+                type: 'player:status',
+                playerId: player.id,
+                status: 'in_lobby',
+            }, player.id);
+        } else {
+            // No waiting lobby — create one immediately
             const lobby = new MatchLobby(gametype);
             this.lobbies.set(lobby.id, lobby);
 
-            console.log(`[LobbyServer] Queue matched! Lobby ${lobby.id} (${gametypeId}): ${matchedPlayers.map(p => p.name).join(', ')}`);
+            lobby.addPlayer(player);
+            player.lobbyId = lobby.id;
+            player.status = 'in_lobby';
 
-            // Add all players to lobby
-            for (const player of matchedPlayers) {
-                lobby.addPlayer(player);
-                player.lobbyId = lobby.id;
-                player.status = 'in_lobby';
+            console.log(`[LobbyServer] ${player.name} created waiting lobby ${lobby.id} (${gametypeId})`);
 
-                // Send full lobby state to each player
-                this.send(player, {
-                    type: 'lobby:created',
-                    lobby: lobby.toInfo(),
-                });
+            // Send lobby state — player goes straight to lobby view
+            this.send(player, {
+                type: 'lobby:created',
+                lobby: lobby.toInfo(),
+            });
 
-                // Broadcast status change
-                this.broadcast({
-                    type: 'player:status',
-                    playerId: player.id,
-                    status: 'in_lobby',
-                }, player.id);
+            // Broadcast status change
+            this.broadcast({
+                type: 'player:status',
+                playerId: player.id,
+                status: 'in_lobby',
+            }, player.id);
+        }
+    }
+
+    /** Find an existing lobby of this gametype that still has room */
+    private findWaitingLobby(gametypeId: string): MatchLobby | undefined {
+        for (const lobby of this.lobbies.values()) {
+            if (lobby.gametype.id === gametypeId &&
+                lobby.playerCount < lobby.gametype.maxPlayers &&
+                !lobby.isStarting) {
+                return lobby;
             }
         }
-
-        // Clean up empty queues
-        if (queue.length === 0) {
-            this.queues.delete(gametypeId);
-        }
+        return undefined;
     }
 
     // ── All Ready → Game Start ───────────────────────────────────
