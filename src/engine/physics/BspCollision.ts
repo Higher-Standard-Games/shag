@@ -76,7 +76,7 @@ export class BspCollision {
 
       // Type 2: Patch
       if (face.faceType === 2) {
-        const mesh = PatchTessellator.buildPatch(this.bsp, face, 3); // LOD 3 for collision
+        const mesh = PatchTessellator.buildPatch(this.bsp, face); // Uses default tessLevel (5)
         if (mesh) {
           this.faceCollisionMeshes[i] = mesh;
         }

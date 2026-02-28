@@ -29,7 +29,7 @@ export class PatchTessellator {
      * @param face The patch face to tessellate
      * @param level Tessellation level (default 3 for collision - lower than visual)
      */
-    public static buildPatch(bsp: BspFile, face: BspFace, level: number = 3): PatchCollisionMesh | null {
+    public static buildPatch(bsp: BspFile, face: BspFace, level: number = 5): PatchCollisionMesh | null {
         const width = face.patchSize[0];
         const height = face.patchSize[1];
 

@@ -1553,7 +1553,13 @@ export class BspMeshBuilder {
 
   /**
    * Build patch face (type 2) - Bezier surface
-   * Control points form a grid, we tessellate to create geometry
+   *
+   * Uses a shared vertex grid across all sub-patches to eliminate seam gaps.
+   * For an NxM quilt of 3×3 sub-patches (numPatchesX × numPatchesY):
+   *   - Total grid = (numPatchesX * tessLevel + 1) × (numPatchesY * tessLevel + 1)
+   *   - Adjacent sub-patches share their edge vertices exactly
+   *
+   * This matches Q3/Warsow rendering where curved surfaces are seamless.
    */
   private buildPatchFace(face: BspFace): { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } {
     const positions: number[] = [];
@@ -1571,8 +1577,6 @@ export class BspMeshBuilder {
       return { positions, normals, uvs, uv2s, colors, indices };
     }
 
-    console.log(`[BspMeshBuilder] Building patch: ${width}x${height} control points`);
-
     // Get control points
     const controlPoints: BspVertex[][] = [];
     for (let row = 0; row < height; row++) {
@@ -1584,11 +1588,10 @@ export class BspMeshBuilder {
       controlPoints.push(rowPoints);
     }
 
-    // Tessellation level (can be made dynamic based on distance)
-    const tessLevel = 4;
+    // Tessellation level per sub-patch (Q3 "high" geometry used ~8)
+    const tessLevel = 8;
 
-    // Process each 3x3 patch segment
-    // Patches are stored as overlapping 3x3 grids: width=3 means 1 patch, width=5 means 2, etc.
+    // Number of 3×3 sub-patches in each direction
     const numPatchesX = Math.floor((width - 1) / 2);
     const numPatchesY = Math.floor((height - 1) / 2);
 
@@ -1597,11 +1600,17 @@ export class BspMeshBuilder {
       return { positions, normals, uvs, uv2s, colors, indices };
     }
 
-    let vertexIndex = 0;
+    // Total grid dimensions (shared edges between sub-patches)
+    const gridW = numPatchesX * tessLevel + 1;
+    const gridH = numPatchesY * tessLevel + 1;
+
+    // Build shared vertex grid
+    type TessVert = { pos: [number, number, number]; normal: [number, number, number]; uv: [number, number]; uv2: [number, number]; color: [number, number, number, number] };
+    const grid: TessVert[] = new Array(gridW * gridH);
 
     for (let py = 0; py < numPatchesY; py++) {
       for (let px = 0; px < numPatchesX; px++) {
-        // Extract 3x3 control grid for this patch
+        // Extract 3×3 control grid for this sub-patch
         const ctrl: BspVertex[][] = [];
         for (let j = 0; j < 3; j++) {
           const row: BspVertex[] = [];
@@ -1611,46 +1620,46 @@ export class BspMeshBuilder {
           ctrl.push(row);
         }
 
-        // Tessellate this patch
-        const tessVerts: { pos: [number, number, number]; normal: [number, number, number]; uv: [number, number]; uv2: [number, number]; color: [number, number, number, number] }[][] = [];
+        // Tessellate this sub-patch into the shared grid
+        // Only write interior + right/bottom edges; left/top edges come from adjacent sub-patch
+        const uStart = (px === 0) ? 0 : 1; // skip left edge if not first column
+        const vStart = (py === 0) ? 0 : 1; // skip top edge if not first row
 
-        for (let v = 0; v <= tessLevel; v++) {
-          const row: typeof tessVerts[0] = [];
-          for (let u = 0; u <= tessLevel; u++) {
+        for (let v = vStart; v <= tessLevel; v++) {
+          for (let u = uStart; u <= tessLevel; u++) {
             const s = u / tessLevel;
             const t = v / tessLevel;
-            row.push(this.evaluateBezierPatch(ctrl, s, t));
-          }
-          tessVerts.push(row);
-        }
-
-        // Generate triangles
-        const startIdx = vertexIndex;
-        for (let v = 0; v <= tessLevel; v++) {
-          for (let u = 0; u <= tessLevel; u++) {
-            const vert = tessVerts[v][u];
-            positions.push(vert.pos[0], vert.pos[1], vert.pos[2]);
-            normals.push(vert.normal[0], vert.normal[1], vert.normal[2]);
-            uvs.push(vert.uv[0], vert.uv[1]);
-            uv2s.push(vert.uv2[0], vert.uv2[1]);
-            colors.push(vert.color[0], vert.color[1], vert.color[2], vert.color[3]);
-            vertexIndex++;
+            const gridX = px * tessLevel + u;
+            const gridY = py * tessLevel + v;
+            grid[gridY * gridW + gridX] = this.evaluateBezierPatch(ctrl, s, t);
           }
         }
+      }
+    }
 
-        // Create indices for this patch (reversed winding for coordinate system change)
-        for (let v = 0; v < tessLevel; v++) {
-          for (let u = 0; u < tessLevel; u++) {
-            const i00 = startIdx + v * (tessLevel + 1) + u;
-            const i10 = i00 + 1;
-            const i01 = i00 + (tessLevel + 1);
-            const i11 = i01 + 1;
+    // Emit vertices from grid
+    for (let gy = 0; gy < gridH; gy++) {
+      for (let gx = 0; gx < gridW; gx++) {
+        const vert = grid[gy * gridW + gx];
+        positions.push(vert.pos[0], vert.pos[1], vert.pos[2]);
+        normals.push(vert.normal[0], vert.normal[1], vert.normal[2]);
+        uvs.push(vert.uv[0], vert.uv[1]);
+        uv2s.push(vert.uv2[0], vert.uv2[1]);
+        colors.push(vert.color[0], vert.color[1], vert.color[2], vert.color[3]);
+      }
+    }
 
-            // Two triangles per quad (winding reversed: CCW -> CW)
-            indices.push(i00, i10, i01);
-            indices.push(i10, i11, i01);
-          }
-        }
+    // Create indices (reversed winding for Q3→Babylon coordinate system change)
+    for (let gy = 0; gy < gridH - 1; gy++) {
+      for (let gx = 0; gx < gridW - 1; gx++) {
+        const i00 = gy * gridW + gx;
+        const i10 = i00 + 1;
+        const i01 = i00 + gridW;
+        const i11 = i01 + 1;
+
+        // Two triangles per quad (CW winding for Babylon)
+        indices.push(i00, i10, i01);
+        indices.push(i10, i11, i01);
       }
     }
 
