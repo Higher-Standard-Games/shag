@@ -513,10 +513,13 @@ export class ProjectileManager {
         const toRemove: string[] = [];
 
         for (const proj of this.projectiles) {
-            // Check lifetime
+            // Check lifetime — but skip for server-driven projectiles, whose lifecycle
+            // is controlled by snapshots (despawnByEntityId when entity disappears)
             const age = now - proj.spawnTime;
-            if (age > proj.lifetime) {
-                // Grenades explode at end of lifetime too
+            if (age > proj.lifetime && !proj.isServerDriven) {
+                // Grenades explode at end of lifetime — but only show client-predicted explosion
+                // for non-server-driven projectiles. Server-driven ones get their explosion
+                // from the authoritative projectile_impact event at the correct position.
                 if (proj.gravity > 0 && !proj.isLocalPrediction) {
                     this.spawnImpact(proj.defId, proj.node.position.clone(), Vector3.Up());
                 }
