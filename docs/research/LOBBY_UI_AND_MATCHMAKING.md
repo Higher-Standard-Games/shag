@@ -216,3 +216,102 @@ Building on existing **GamePanel** aesthetic:
 - Holographic edge animations
 - Subtle CRT scanline effects
 - Same design language as pause menu and settings panel
+
+---
+
+## Match Lobby (Pre-Match Room)
+
+When a player clicks "FIND MATCH" on a gametype card, they enter a **match lobby** — a pre-match room where players gather, vote on maps, and ready up before the game starts.
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Map voting** | 3 random maps from gametype pool | Keeps variety, alpha will have exactly 3 maps per gametype |
+| **Ready system** | Instant connect, no countdown | Game has warmup phase built into gametype |
+| **Team assignment** | Auto-assign by default | Shuffle teams vote available (50% threshold) |
+| **Lobby lifecycle** | UUID-based, dies when empty | No server cost until match starts |
+
+### UI Layout
+
+The match lobby **replaces the gametype cards** in the Matchmaking tab. The sidebar (Players Online + Chat) stays visible.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     🔥 washiki washoi! 🔥                          │
+│  [MATCHMAKING]  [LEADERBOARD]  [MY PROFILE]  [⚙ SETTINGS]         │
+├───────────────────────────────────┬──────────────┬──────────────────┤
+│                                   │ PLAYERS (16) │ LOBBY CHAT       │
+│  ┌─────────┐ ┌─────────┐ ┌─────┐ │              │                  │
+│  │ MAP 1   │ │ MAP 2   │ │MAP 3│ │  • player1   │ player1: glhf    │
+│  │ [image] │ │ [image] │ │[img]│ │  • player2   │ player2: gg      │
+│  │  ✓ vote │ │         │ │     │ │  ...         │ ...              │
+│  └─────────┘ └─────────┘ └─────┘ │              │                  │
+│                                   │              │                  │
+│  ┌─── TEAM ALPHA ──┐ ┌── TEAM BRAVO ──┐         │                  │
+│  │ player1 [READY] │ │ player3        │         │                  │
+│  │ player2         │ │ (waiting...)   │         │                  │
+│  └─────────────────┘ └────────────────┘         │                  │
+│                                                  │                  │
+│  DUEL LOBBY • 2/2 players                        │                  │
+│  ┌──────────────────────────────────────┐        │                  │
+│  │ 🔗 washoi.gg/lobby/abc-123  [COPY]  │        │                  │
+│  └──────────────────────────────────────┘        │                  │
+│                                                  │                  │
+│  [ ← LEAVE ]                    [ ✓ READY ]     │                  │
+├───────────────────────────────────┴──────────────┴──────────────────┤
+```
+
+For **Duel/FFA**: single player list (no team columns).
+For **Team 2v2**: two columns with auto-assigned teams + shuffle vote button.
+
+### Match Lobby Flow
+
+```mermaid
+sequenceDiagram
+    participant Player as Player Client
+    participant API as REST API
+    participant WS as Lobby WebSocket
+    participant Cloud as Cloud Server Pool
+
+    Player->>API: POST /lobby/create {gametype: 'duel'}
+    API-->>Player: {lobbyId, maps: [3 random], shareUrl}
+    Player->>WS: Subscribe to lobby updates
+
+    Note over Player: Match lobby view opens (replaces gametype cards)
+    Note over Player: Sees 3 map vote options, player slots, lobby URL
+
+    Player->>WS: Vote for map
+    WS-->>Player: Updated vote counts
+
+    Note over WS: Other players join via share URL
+
+    Player->>WS: READY
+    WS-->>Player: Player ready status update
+
+    Note over WS: All players ready → instant start
+
+    WS->>Cloud: Provision game server
+    Cloud-->>WS: Server URL
+    WS-->>Player: CONNECT {serverUrl}
+
+    Note over Player: "GAME STARTING, CONNECTING..." dialog
+    Player->>Cloud: WebTransport connect
+```
+
+### Lobby Lifecycle
+
+1. **Create**: `POST /lobby/create` → UUID assigned, 3 maps selected from pool
+2. **Join**: Friends open share URL → join via `POST /lobby/{id}/join`
+3. **Vote**: Players vote on map (majority wins, random tiebreak)
+4. **Ready**: All players click READY → server spins up, auto-connect
+5. **Leave**: `POST /lobby/{id}/leave` → back to gametype cards
+6. **Destroy**: Last player leaves → lobby UUID is destroyed, no server started
+
+### Team Shuffle Vote
+
+For team gametypes, an optional "Shuffle Teams" vote button is available:
+
+- Any player can initiate a shuffle vote
+- 50% of lobby must vote yes for shuffle to happen
+- Teams are re-randomized if vote passes

@@ -1,0 +1,371 @@
+/* ═══════════════════════════════════════════════════════════════════
+ * MatchLobbyView — Pre-match lobby styles
+ * ═══════════════════════════════════════════════════════════════════ */
+
+.match-lobby {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 0;
+    height: 100%;
+}
+
+/* ── Header ── */
+
+.match-lobby__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.match-lobby__gametype {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    color: hsla(180, 100%, 65%, 1);
+    text-shadow: 0 0 12px hsla(180, 100%, 50%, 0.5);
+}
+
+.match-lobby__player-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: hsla(180, 60%, 60%, 0.7);
+}
+
+/* ── Map Vote Row ── */
+
+.match-lobby__maps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.match-lobby__map-card {
+    position: relative;
+    border: 1px solid hsla(180, 60%, 40%, 0.25);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: hsla(200, 40%, 8%, 0.6);
+}
+
+.match-lobby__map-card:hover {
+    border-color: hsla(180, 80%, 50%, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px hsla(180, 80%, 40%, 0.15);
+}
+
+.match-lobby__map-card--voted {
+    border-color: hsla(180, 100%, 50%, 0.7);
+    box-shadow: 0 0 20px hsla(180, 100%, 50%, 0.2),
+        inset 0 0 30px hsla(180, 100%, 50%, 0.05);
+}
+
+.match-lobby__map-img {
+    width: 100%;
+    height: 100px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.match-lobby__map-card:hover .match-lobby__map-img {
+    opacity: 1;
+}
+
+.match-lobby__map-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: hsla(0, 0%, 90%, 0.95);
+    padding: 8px 10px 2px;
+    text-transform: uppercase;
+}
+
+.match-lobby__map-id {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: hsla(180, 60%, 60%, 0.5);
+    padding: 0 10px 6px;
+}
+
+.match-lobby__map-votes {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: hsla(180, 100%, 60%, 0.8);
+    padding: 0 10px 8px;
+    min-height: 16px;
+}
+
+.match-lobby__map-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: hsla(180, 100%, 50%, 0.15);
+    border: 1px solid hsla(180, 100%, 50%, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: transparent;
+    transition: all 0.2s;
+}
+
+.match-lobby__map-card--voted .match-lobby__map-check {
+    background: hsla(180, 100%, 50%, 0.3);
+    border-color: hsla(180, 100%, 50%, 0.8);
+    color: hsla(180, 100%, 80%, 1);
+    box-shadow: 0 0 10px hsla(180, 100%, 50%, 0.4);
+}
+
+/* ── Players / Teams ── */
+
+.match-lobby__players {
+    flex: 1;
+    min-height: 0;
+}
+
+.match-lobby__players--teams {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.match-lobby__players--ffa {
+    display: flex;
+}
+
+.match-lobby__team,
+.match-lobby__player-list {
+    flex: 1;
+}
+
+.match-lobby__team-header {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: hsla(180, 80%, 60%, 0.7);
+    text-align: center;
+    padding: 8px 0;
+    border-bottom: 1px solid hsla(180, 60%, 40%, 0.2);
+    margin-bottom: 8px;
+}
+
+.match-lobby__team--alpha .match-lobby__team-header {
+    color: hsla(200, 100%, 65%, 0.9);
+    border-color: hsla(200, 80%, 50%, 0.3);
+}
+
+.match-lobby__team--bravo .match-lobby__team-header {
+    color: hsla(350, 100%, 65%, 0.9);
+    border-color: hsla(350, 80%, 50%, 0.3);
+}
+
+.match-lobby__team-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.match-lobby__vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    color: hsla(0, 0%, 50%, 0.4);
+    padding-top: 40px;
+}
+
+/* ── Player Slots ── */
+
+.match-lobby__slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid hsla(180, 40%, 30%, 0.2);
+    background: hsla(200, 30%, 10%, 0.3);
+    min-height: 38px;
+    transition: all 0.2s;
+}
+
+.match-lobby__slot--filled {
+    border-color: hsla(180, 50%, 35%, 0.3);
+}
+
+.match-lobby__slot--local {
+    border-color: hsla(180, 80%, 50%, 0.4);
+    background: hsla(180, 50%, 15%, 0.15);
+}
+
+.match-lobby__slot--ready {
+    border-color: hsla(140, 80%, 45%, 0.4);
+}
+
+.match-lobby__slot--empty {
+    border-style: dashed;
+    border-color: hsla(180, 30%, 30%, 0.2);
+}
+
+.match-lobby__slot-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: hsla(0, 0%, 85%, 0.9);
+}
+
+.match-lobby__slot--local .match-lobby__slot-name {
+    color: hsla(180, 100%, 70%, 1);
+}
+
+.match-lobby__slot-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: hsla(0, 0%, 50%, 0.6);
+}
+
+.match-lobby__slot--ready .match-lobby__slot-status {
+    color: hsla(140, 80%, 55%, 0.9);
+}
+
+.match-lobby__slot-waiting {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: hsla(0, 0%, 40%, 0.5);
+    font-style: italic;
+}
+
+/* ── URL Bar ── */
+
+.match-lobby__url-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 4px;
+    border: 1px solid hsla(180, 40%, 30%, 0.2);
+    background: hsla(200, 30%, 8%, 0.4);
+}
+
+.match-lobby__url-icon {
+    font-size: 14px;
+}
+
+.match-lobby__url-text {
+    flex: 1;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: hsla(180, 80%, 60%, 0.8);
+    user-select: all;
+}
+
+.match-lobby__url-copy {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 4px 12px;
+    border: 1px solid hsla(180, 60%, 40%, 0.3);
+    border-radius: 3px;
+    background: hsla(180, 50%, 20%, 0.2);
+    color: hsla(180, 100%, 65%, 0.9);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.match-lobby__url-copy:hover {
+    background: hsla(180, 50%, 25%, 0.3);
+    border-color: hsla(180, 80%, 50%, 0.5);
+    box-shadow: 0 0 10px hsla(180, 80%, 50%, 0.2);
+}
+
+/* ── Action Buttons ── */
+
+.match-lobby__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.match-lobby__btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    padding: 10px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.match-lobby__btn--leave {
+    border: 1px solid hsla(0, 0%, 40%, 0.3);
+    background: hsla(0, 0%, 15%, 0.3);
+    color: hsla(0, 0%, 65%, 0.8);
+}
+
+.match-lobby__btn--leave:hover {
+    border-color: hsla(350, 60%, 50%, 0.5);
+    color: hsla(350, 80%, 70%, 0.9);
+    background: hsla(350, 40%, 15%, 0.3);
+}
+
+.match-lobby__btn--shuffle {
+    border: 1px solid hsla(45, 60%, 40%, 0.3);
+    background: hsla(45, 30%, 12%, 0.3);
+    color: hsla(45, 80%, 60%, 0.8);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 8px 16px;
+}
+
+.match-lobby__btn--shuffle:hover {
+    border-color: hsla(45, 80%, 50%, 0.5);
+    color: hsla(45, 100%, 65%, 0.9);
+}
+
+.match-lobby__btn--voted {
+    border-color: hsla(45, 80%, 50%, 0.5);
+    background: hsla(45, 40%, 15%, 0.4);
+}
+
+.match-lobby__btn--ready {
+    border: 1px solid hsla(140, 60%, 40%, 0.4);
+    background: hsla(140, 40%, 12%, 0.3);
+    color: hsla(140, 80%, 60%, 0.9);
+    margin-left: auto;
+}
+
+.match-lobby__btn--ready:hover {
+    border-color: hsla(140, 80%, 50%, 0.6);
+    background: hsla(140, 50%, 15%, 0.4);
+    box-shadow: 0 0 15px hsla(140, 80%, 40%, 0.2);
+}
+
+.match-lobby__btn--ready-active {
+    border-color: hsla(140, 100%, 50%, 0.8);
+    background: hsla(140, 60%, 18%, 0.5);
+    color: hsla(140, 100%, 70%, 1);
+    box-shadow: 0 0 20px hsla(140, 100%, 40%, 0.3),
+        inset 0 0 20px hsla(140, 100%, 40%, 0.1);
+    text-shadow: 0 0 8px hsla(140, 100%, 50%, 0.5);
+}

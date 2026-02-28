@@ -9,7 +9,9 @@
 
 import { GamePanel } from './GamePanel';
 import { UIStyles } from '../UIStyles';
+import { MatchLobbyView } from '../components/MatchLobbyView';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
+import matchLobbyCSSRaw from '../components/styles/MatchLobbyView.css?raw';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & DATA
@@ -89,15 +91,15 @@ const MOCK_LEADERBOARD = [
 // ═══════════════════════════════════════════════════════════════════
 
 export class LobbyPanel extends GamePanel {
-    private queueState: Map<string, boolean> = new Map();
-    private queueTimers: Map<string, number> = new Map();
-    private queueIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
     private _onPlayClick: ((mode: string) => void) | null = null;
     private settingsChangeCallback: ((key: string, value: any) => void) | null = null;
+    private modesContainer: HTMLElement | null = null;
+    private matchLobbyView: MatchLobbyView | null = null;
 
     constructor() {
         super('PLAY');
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
+        UIStyles.injectCSS('match-lobby', matchLobbyCSSRaw);
 
         // 3D Logo floating above panel
         this.enableLogo();
@@ -124,8 +126,6 @@ export class LobbyPanel extends GamePanel {
 
     show(): void { this.open(); }
     hide(): void {
-        this.queueIntervals.forEach(i => clearInterval(i));
-        this.queueIntervals.clear();
         this.close();
     }
 
@@ -141,7 +141,8 @@ export class LobbyPanel extends GamePanel {
         const layout = document.createElement('div');
         layout.className = 'lobby__layout';
 
-        layout.appendChild(this.buildModeCards());
+        this.modesContainer = this.buildModeCards();
+        layout.appendChild(this.modesContainer);
         layout.appendChild(this.buildSocialColumn());
         layout.appendChild(this.buildChatColumn());
 
@@ -199,12 +200,12 @@ export class LobbyPanel extends GamePanel {
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.toggleQueue(mode.id, btn);
+            this.showMatchLobby(mode.id);
         });
         content.appendChild(btn);
 
         card.appendChild(content);
-        card.addEventListener('click', () => this.toggleQueue(mode.id, btn));
+        card.addEventListener('click', () => this.showMatchLobby(mode.id));
 
         return card;
     }
@@ -775,38 +776,30 @@ export class LobbyPanel extends GamePanel {
         return el;
     }
 
-    private toggleQueue(modeId: string, btn: HTMLButtonElement): void {
-        const isQueued = this.queueState.get(modeId) || false;
-        const card = btn.closest('.lobby__mode-card') as HTMLElement | null;
+    private showMatchLobby(gametypeId: string): void {
+        if (!this.modesContainer) return;
+        const layout = this.modesContainer.parentElement;
+        if (!layout) return;
 
-        if (isQueued) {
-            this.queueState.set(modeId, false);
-            const interval = this.queueIntervals.get(modeId);
-            if (interval) clearInterval(interval);
-            this.queueIntervals.delete(modeId);
-            this.queueTimers.delete(modeId);
+        // Create match lobby view
+        this.matchLobbyView = new MatchLobbyView(gametypeId);
+        this.matchLobbyView.onLeave(() => this.showGametypeCards());
 
-            btn.textContent = 'FIND MATCH';
-            btn.classList.remove('lobby__find-btn--searching');
-            card?.classList.remove('lobby__mode-card--searching');
-        } else {
-            this.queueState.set(modeId, true);
-            this.queueTimers.set(modeId, 0);
+        // Swap mode cards for match lobby
+        layout.replaceChild(this.matchLobbyView.root, this.modesContainer);
 
-            btn.classList.add('lobby__find-btn--searching');
-            card?.classList.add('lobby__mode-card--searching');
-            btn.textContent = 'SEARCHING... 0:00';
+        console.log(`[LobbyPanel] Opened match lobby for: ${gametypeId}`);
+    }
 
-            const interval = setInterval(() => {
-                const elapsed = (this.queueTimers.get(modeId) || 0) + 1;
-                this.queueTimers.set(modeId, elapsed);
-                const mins = Math.floor(elapsed / 60);
-                const secs = elapsed % 60;
-                btn.textContent = `SEARCHING... ${mins}:${secs.toString().padStart(2, '0')}`;
-            }, 1000);
-            this.queueIntervals.set(modeId, interval);
+    private showGametypeCards(): void {
+        if (!this.matchLobbyView || !this.modesContainer) return;
+        const layout = this.matchLobbyView.root.parentElement;
+        if (!layout) return;
 
-            this._onPlayClick?.(modeId);
-        }
+        // Swap match lobby back to mode cards
+        layout.replaceChild(this.modesContainer, this.matchLobbyView.root);
+        this.matchLobbyView = null;
+
+        console.log(`[LobbyPanel] Returned to gametype cards`);
     }
 }
