@@ -40,6 +40,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
         certPath: './certs/localhost.pem',
         keyPath: './certs/localhost-key.pem',
         gametype: 'Deathmatch',
+        shutdownOnEmpty: false,
     };
 
     let positionalPos = 0;
@@ -86,6 +87,9 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
             case '--key':
                 config.keyPath = args[++i];
                 break;
+            case '--shutdown':
+                config.shutdownOnEmpty = true;
+                break;
             case '--help':
             case '-h':
                 printHelp();
@@ -129,6 +133,7 @@ Options:
   --game <path>          Game data path (default: ./game)
   --cert <path>          TLS certificate path
   --key <path>           TLS key path
+  --shutdown             Auto-exit when all clients disconnect
   --help, -h             Show this help
 
 WebTransport Setup:
@@ -305,6 +310,9 @@ async function main(): Promise<void> {
     console.log(`[Server] Max clients: ${config.maxClients}`);
     console.log(`[Server] Tick rate: ${config.tickRate}Hz`);
     console.log(`[Server] TLS Cert: ${config.certPath}`);
+    if (config.shutdownOnEmpty) {
+        console.log(`[Server] Shutdown mode: auto-exit when empty`);
+    }
     console.log('');
 
     // Check for TLS certificates

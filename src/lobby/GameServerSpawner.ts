@@ -59,6 +59,7 @@ export class GameServerSpawner {
             '--map', config.map,
             '--gametype', config.gametype,
             '--port', String(port),
+            '--shutdown',  // Auto-exit when all clients disconnect
         ];
 
         if (config.maxClients) {

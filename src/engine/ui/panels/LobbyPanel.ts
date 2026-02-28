@@ -194,6 +194,17 @@ export class LobbyPanel extends GamePanel {
                 console.warn('[LobbyPanel] Lobby error:', msg.error);
             }));
 
+            // Match ended — server exited, return to lobby
+            this.unsubscribers.push(this.lobbyClient.on('match:ended', (msg) => {
+                console.log(`[LobbyPanel] Match ended (${msg.matchId})`);
+                this.appendChatMessage('', '⚔ Match ended — returning to lobby', true);
+                this.currentLobbyId = null;
+                // Return to gametype cards if in match lobby view
+                if (this.matchLobbyView) {
+                    this.showGametypeCards();
+                }
+            }));
+
         } catch (err) {
             console.warn('[LobbyPanel] Could not connect to lobby server:', err);
             console.log('[LobbyPanel] Falling back to mock data');
