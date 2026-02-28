@@ -226,9 +226,28 @@ export class BspCollision {
 
 
   /**
-   * Ray-Triangle Intersection (Möller–Trumbore)
+   * Ray-Triangle Intersection (Möller–Trumbore) — double-sided
+   *
+   * Tests both triangle winding orders so patches block from both sides.
+   * Q3 patches are always solid from both directions (glass, archways, etc).
    */
   private traceTriangle(
+    start: Vector3,
+    end: Vector3,
+    p1: Vector3,
+    p2: Vector3,
+    p3: Vector3,
+    result: TraceResult,
+    debug: boolean
+  ): void {
+    // Try front face first
+    this._traceTriangleSided(start, end, p1, p2, p3, result, debug);
+    // Try back face (flipped winding)
+    this._traceTriangleSided(start, end, p1, p3, p2, result, debug);
+  }
+
+  /** Single-sided Möller–Trumbore ray-triangle intersection */
+  private _traceTriangleSided(
     start: Vector3,
     end: Vector3,
     p1: Vector3,
@@ -247,7 +266,7 @@ export class BspCollision {
     const h = Vector3.Cross(dir, edge2);
     const a = Vector3.Dot(edge1, h);
 
-    if (a > -0.00001 && a < 0.00001) return; // Parallel
+    if (a < 0.00001) return; // Back-face or parallel — skip (other winding handles back-face)
 
     const f = 1.0 / a;
     const s = start.subtract(p1);

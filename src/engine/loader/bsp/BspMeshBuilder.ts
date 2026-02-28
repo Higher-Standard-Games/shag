@@ -484,10 +484,17 @@ export class BspMeshBuilder {
       }
 
       // Get or create texture+lightmap group (key by both to preserve UV2 alignment)
+      // Patch faces get their own group with two-sided rendering (Q3 patches are always two-sided)
       const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
-      const groupKey = `${face.textureIndex}_${lmIdx}`;
+      const isPatch = face.faceType === 2;
+      const groupKey = `${face.textureIndex}_${lmIdx}${isPatch ? '_patch' : ''}`;
       let group = textureGroups.get(groupKey);
       if (!group) {
+        // For patches, force two-sided rendering: bezier normals can face inward at edges
+        const patchShaderProps = isPatch
+          ? { ...shaderProps, backFaceCulling: false, twoSidedLighting: true }
+          : shaderProps;
+
         // Debug: log transparent/special shaders (only once per texture)
         if ((shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') && lmIdx === -1) {
           console.log(`[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`);
@@ -497,7 +504,7 @@ export class BspMeshBuilder {
           textureIndex: face.textureIndex,
           textureName,
           lightmapIndex: lmIdx,
-          shaderProps,
+          shaderProps: patchShaderProps,
           positions: [],
           normals: [],
           uvs: [],
@@ -1668,6 +1675,10 @@ export class BspMeshBuilder {
 
   /**
    * Evaluate bezier patch at (s, t) parameter
+   *
+   * Normals are interpolated from control point normals using the same bezier
+   * basis functions (matching Q3/ioquake3). This avoids degenerate normals at
+   * patch corners where the cross-product of partial derivatives goes to zero.
    */
   private evaluateBezierPatch(
     ctrl: BspVertex[][],
@@ -1683,38 +1694,23 @@ export class BspMeshBuilder {
     const b1t = 2 * t * (1 - t);
     const b2t = t * t;
 
-    // Derivatives for normal calculation
-    const db0s = -2 * (1 - s);
-    const db1s = 2 - 4 * s;
-    const db2s = 2 * s;
-
-    const db0t = -2 * (1 - t);
-    const db1t = 2 - 4 * t;
-    const db2t = 2 * t;
-
     // Initialize outputs
     let px = 0, py = 0, pz = 0;
+    let nx = 0, ny = 0, nz = 0;
     let u = 0, v = 0;
     let lu = 0, lv = 0;
     let cr = 0, cg = 0, cb = 0, ca = 0;
 
-    // Partial derivatives
-    let dpdsx = 0, dpdsy = 0, dpdsz = 0;
-    let dpdtx = 0, dpdty = 0, dpdtz = 0;
-
     const bs = [b0s, b1s, b2s];
     const bt = [b0t, b1t, b2t];
-    const dbs = [db0s, db1s, db2s];
-    const dbt = [db0t, db1t, db2t];
 
     for (let j = 0; j < 3; j++) {
       for (let i = 0; i < 3; i++) {
         const cp = ctrl[j][i];
         const w = bs[i] * bt[j];
-        const ws = dbs[i] * bt[j];
-        const wt = bs[i] * dbt[j];
 
         const pos = getVertexPosition(cp);
+        const norm = getVertexNormal(cp);
         const tex = getVertexTexCoord(cp);
         const lm = getVertexLightmapCoord(cp);
         const col = getVertexColor(cp);
@@ -1722,6 +1718,11 @@ export class BspMeshBuilder {
         px += pos[0] * w;
         py += pos[1] * w;
         pz += pos[2] * w;
+
+        // Interpolate control point normals (Q3 approach)
+        nx += norm[0] * w;
+        ny += norm[1] * w;
+        nz += norm[2] * w;
 
         u += tex[0] * w;
         v += tex[1] * w;
@@ -1733,25 +1734,23 @@ export class BspMeshBuilder {
         cg += col[1] * w;
         cb += col[2] * w;
         ca += col[3] * w;
-
-        dpdsx += pos[0] * ws;
-        dpdsy += pos[1] * ws;
-        dpdsz += pos[2] * ws;
-
-        dpdtx += pos[0] * wt;
-        dpdty += pos[1] * wt;
-        dpdtz += pos[2] * wt;
       }
     }
 
-    // Calculate normal from cross product of partial derivatives
-    const dpds = new Vector3(dpdsx, dpdsy, dpdsz);
-    const dpdt = new Vector3(dpdtx, dpdty, dpdtz);
-    const normal = Vector3.Cross(dpds, dpdt).normalize();
+    // Normalize the interpolated normal
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (len > 0.0001) {
+      nx /= len;
+      ny /= len;
+      nz /= len;
+    } else {
+      // Degenerate — fall back to up vector
+      nx = 0; ny = 1; nz = 0;
+    }
 
     return {
       pos: [px, py, pz],
-      normal: [normal.x, normal.y, normal.z],
+      normal: [nx, ny, nz],
       uv: [u, v],
       uv2: [lu, lv],
       color: [cr, cg, cb, ca],
