@@ -8,6 +8,8 @@
  * Phase 1: Pure UI with mock data. Phase 2: Wire to REST+WebSocket.
  */
 
+import { ConnectingOverlay } from './ConnectingOverlay';
+
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & MOCK DATA
 // ═══════════════════════════════════════════════════════════════════
@@ -383,10 +385,42 @@ export class MatchLobbyView {
                 const statusEl = localSlot?.querySelector('.match-lobby__slot-status');
                 if (statusEl) statusEl.textContent = this.localReady ? '✓ READY' : 'NOT READY';
             }
+
+            // Demo: when local readies up, simulate other players readying after delay
+            if (this.localReady) {
+                setTimeout(() => this.simulateAllReady(), 1000);
+            }
         });
         actions.appendChild(readyBtn);
 
         return actions;
+    }
+
+    /**
+     * Demo: simulate all players becoming ready, then show connecting overlay.
+     */
+    private simulateAllReady(): void {
+        if (!this.localReady) return; // User unreadied during the delay
+
+        // Set all mock players to ready
+        for (const player of this.players) {
+            player.ready = true;
+        }
+
+        // Update all slot visuals
+        const slots = this.root.querySelectorAll('.match-lobby__slot--filled');
+        slots.forEach(slot => {
+            slot.classList.add('match-lobby__slot--ready');
+            const statusEl = slot.querySelector('.match-lobby__slot-status');
+            if (statusEl) statusEl.textContent = '✓ READY';
+        });
+
+        // Short pause for visual feedback, then show overlay
+        setTimeout(() => {
+            if (!this.localReady) return;
+            const overlay = new ConnectingOverlay();
+            overlay.show('ws://localhost:7777');
+        }, 800);
     }
 
     // ═══════════════════════════════════════════════════════════════

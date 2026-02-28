@@ -1,0 +1,232 @@
+/* ═══════════════════════════════════════════════════════════════════
+ * ConnectingOverlay — Full-screen "GAME STARTING" overlay
+ * Shown when all players are ready and the server is starting.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* Darkened full-screen backdrop */
+.connecting-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: hsla(240, 20%, 3%, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: co-fade-in 0.4s ease-out both;
+}
+
+/* Center content block */
+.connecting-overlay__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 60px 80px;
+    position: relative;
+}
+
+/* Corner brackets on the content box */
+.connecting-overlay__content::before,
+.connecting-overlay__content::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    opacity: 0.4;
+}
+
+.connecting-overlay__content::before {
+    top: 0;
+    left: 0;
+    border-top: 2px solid hsla(180, 100%, 50%, 1);
+    border-left: 2px solid hsla(180, 100%, 50%, 1);
+}
+
+.connecting-overlay__content::after {
+    bottom: 0;
+    right: 0;
+    border-bottom: 2px solid hsla(45, 100%, 55%, 1);
+    border-right: 2px solid hsla(45, 100%, 55%, 1);
+}
+
+/* Title: GAME STARTING */
+.connecting-overlay__title {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--w-cyan, hsl(180, 100%, 50%));
+    text-shadow:
+        0 0 20px hsla(180, 100%, 50%, 0.5),
+        0 0 40px hsla(180, 100%, 50%, 0.2);
+    animation: co-title-pulse 2s ease-in-out infinite;
+}
+
+/* Status line: CONNECTING... */
+.connecting-overlay__status {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: hsla(180, 60%, 70%, 0.7);
+}
+
+/* Animated dots */
+.connecting-overlay__dots {
+    display: inline;
+    animation: co-dots 1.5s steps(4, end) infinite;
+}
+
+/* Decorative progress bar */
+.connecting-overlay__bar {
+    width: 240px;
+    height: 2px;
+    background: hsla(180, 40%, 20%, 0.3);
+    position: relative;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.connecting-overlay__bar-fill {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsla(180, 100%, 50%, 0.7), transparent);
+    animation: co-bar-sweep 1.8s ease-in-out infinite;
+}
+
+/* Decorative line separators */
+.connecting-overlay__deco {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.connecting-overlay__deco span:nth-child(1) {
+    width: 4px;
+    height: 4px;
+    background: var(--w-cyan, hsl(180, 100%, 50%));
+    opacity: 0.5;
+}
+
+.connecting-overlay__deco span:nth-child(2) {
+    width: 40px;
+    height: 2px;
+    background: var(--w-cyan, hsl(180, 100%, 50%));
+    opacity: 0.2;
+}
+
+.connecting-overlay__deco span:nth-child(3) {
+    width: 4px;
+    height: 4px;
+    background: var(--w-magenta, hsl(320, 100%, 60%));
+    opacity: 0.5;
+}
+
+.connecting-overlay__deco span:nth-child(4) {
+    width: 40px;
+    height: 2px;
+    background: var(--w-magenta, hsl(320, 100%, 60%));
+    opacity: 0.2;
+}
+
+.connecting-overlay__deco span:nth-child(5) {
+    width: 4px;
+    height: 4px;
+    background: var(--w-gold, hsl(45, 100%, 55%));
+    opacity: 0.5;
+}
+
+/* Server info text */
+.connecting-overlay__server {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    color: hsla(180, 40%, 50%, 0.35);
+    margin-top: 8px;
+}
+
+/* Error state */
+.connecting-overlay__error {
+    font-family: var(--w-font-display, 'Orbitron', monospace);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: hsla(0, 80%, 60%, 0.9);
+    text-shadow: 0 0 8px hsla(0, 80%, 50%, 0.3);
+    margin-top: 4px;
+}
+
+/* ── Animations ── */
+
+@keyframes co-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes co-title-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        text-shadow: 0 0 20px hsla(180, 100%, 50%, 0.5), 0 0 40px hsla(180, 100%, 50%, 0.2);
+    }
+
+    50% {
+        opacity: 0.85;
+        text-shadow: 0 0 30px hsla(180, 100%, 50%, 0.7), 0 0 60px hsla(180, 100%, 50%, 0.3);
+    }
+}
+
+@keyframes co-bar-sweep {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes co-dots {
+    0% {
+        content: '';
+    }
+
+    25% {
+        content: '.';
+    }
+
+    50% {
+        content: '..';
+    }
+
+    75% {
+        content: '...';
+    }
+}
+
+/* Fallback for dots via JS class toggle */
+.connecting-overlay__dots--1::after {
+    content: '.';
+}
+
+.connecting-overlay__dots--2::after {
+    content: '..';
+}
+
+.connecting-overlay__dots--3::after {
+    content: '...';
+}
