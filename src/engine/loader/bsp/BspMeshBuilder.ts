@@ -1215,7 +1215,8 @@ export class BspMeshBuilder {
               mat.useAlphaFromDiffuseTexture = true;
               texture.hasAlpha = true;
             } else if (shaderProps.alphaMode === 'add') {
-              // Additive blending for glow effects (halos, flares)
+              // Additive blending for glow effects (halos, flares, glass)
+              mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
               mat.alphaMode = Constants.ALPHA_ADD;
               mat.useAlphaFromDiffuseTexture = true;
               texture.hasAlpha = true;
@@ -1460,6 +1461,7 @@ export class BspMeshBuilder {
       switch (props.alphaMode) {
         case 'add':
           // Additive blending (GL_ONE, GL_ONE)
+          mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
           mat.alphaMode = Constants.ALPHA_ADD;
           mat.alpha = 1;
           // Make emissive for additive glow effect
