@@ -1,12 +1,10 @@
 /**
  * LobbyPanel — Main Lobby UI (extends GamePanel)
  *
- * Full-viewport lobby screen shown on startup, using the same immersive
- * GamePanel system as Settings and Pause menus. Features:
- * - Blur zones, neon dividers, kanji watermarks, particles, scanline (from GamePanel)
- * - Game mode cards (DUEL 1v1, TEAM 2v2, FFA) with unique color accents
- * - Social sidebar (players, live matches, chat)
- * - Queue state management (mock for Phase 1)
+ * 3-column layout inside GamePanel:
+ *   LEFT:   Players Online + Live Matches
+ *   CENTER: Game mode cards (compact vertical stack)
+ *   RIGHT:  Chat (full spacious column)
  */
 
 import { GamePanel } from './GamePanel';
@@ -14,81 +12,37 @@ import { UIStyles } from '../UIStyles';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 
 // ═══════════════════════════════════════════════════════════════════
-// TYPES
+// TYPES & DATA
 // ═══════════════════════════════════════════════════════════════════
 
 interface GameMode {
     id: string;
     title: string;
     subtitle: string;
-    icon: string;
-    hue: string;       // HSL hue number
-    glowColor: string;  // HSLA for glow effects
+    hue: string;
+    queued: number;
 }
-
-interface MockPlayer {
-    name: string;
-    status: 'online' | 'searching' | 'ingame';
-    mode?: string;
-}
-
-interface MockMatch {
-    type: string;
-    player1: string;
-    player2: string;
-    map: string;
-    score: string;
-    time: string;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// GAME MODE DEFINITIONS
-// ═══════════════════════════════════════════════════════════════════
 
 const GAME_MODES: GameMode[] = [
-    {
-        id: 'duel',
-        title: 'DUEL',
-        subtitle: '1 vs 1',
-        icon: '⚔️',
-        hue: '180',
-        glowColor: 'hsla(180, 100%, 50%, 0.4)',
-    },
-    {
-        id: 'team',
-        title: 'TEAM',
-        subtitle: '2 vs 2',
-        icon: '🛡️',
-        hue: '320',
-        glowColor: 'hsla(320, 100%, 60%, 0.35)',
-    },
-    {
-        id: 'ffa',
-        title: 'FFA',
-        subtitle: 'FREE FOR ALL',
-        icon: '💥',
-        hue: '45',
-        glowColor: 'hsla(45, 100%, 55%, 0.35)',
-    },
+    { id: 'duel', title: 'DUEL', subtitle: '1v1 — Ranked', hue: '180', queued: 4 },
+    { id: 'team', title: 'TEAM', subtitle: '2v2 — Team Deathmatch', hue: '320', queued: 1 },
+    { id: 'ffa', title: 'FFA', subtitle: 'Free For All', hue: '45', queued: 0 },
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// MOCK DATA
-// ═══════════════════════════════════════════════════════════════════
-
-const MOCK_PLAYERS: MockPlayer[] = [
-    { name: 'zeroQL', status: 'searching', mode: 'DUEL' },
-    { name: 'washoi_dev', status: 'online' },
-    { name: 'rocketJump99', status: 'ingame' },
-    { name: 'fragmaster', status: 'searching', mode: 'FFA' },
-    { name: 'neon_ghost', status: 'online' },
-    { name: 'plasma_rush', status: 'ingame' },
-    { name: 'strafejmp', status: 'online' },
+const MOCK_PLAYERS = [
+    { name: 'zeroQL', status: 'searching' as const, mode: 'DUEL' },
+    { name: 'washoi_dev', status: 'online' as const },
+    { name: 'rocketJump99', status: 'ingame' as const },
+    { name: 'fragmaster', status: 'searching' as const, mode: 'FFA' },
+    { name: 'neon_ghost', status: 'online' as const },
+    { name: 'plasma_rush', status: 'ingame' as const },
+    { name: 'strafejmp', status: 'online' as const },
+    { name: 'q3_veteran', status: 'online' as const },
 ];
 
-const MOCK_MATCHES: MockMatch[] = [
-    { type: 'DUEL', player1: 'rocketJump99', player2: 'speedrunner', map: 'wdm7', score: '5 – 3', time: '2:41' },
-    { type: '2v2', player1: 'Team Alpha', player2: 'Team Bravo', map: 'wdm2', score: '12 – 8', time: '1:12' },
+const MOCK_MATCHES = [
+    { type: 'DUEL', p1: 'rocketJump99', p2: 'speedrunner', map: 'wdm7', score: '5 – 3', time: '2:41' },
+    { type: '2v2', p1: 'Team Alpha', p2: 'Team Bravo', map: 'wdm2', score: '12 – 8', time: '1:12' },
 ];
 
 const MOCK_CHAT = [
@@ -96,11 +50,14 @@ const MOCK_CHAT = [
     { name: 'washoi_dev', msg: 'gg last game, that rocket was insane' },
     { name: 'fragmaster', msg: 'queueing FFA, join up!' },
     { name: '', msg: 'plasma_rush joined the lobby', system: true },
-    { name: 'neon_ghost', msg: 'new map when? 🗺️' },
+    { name: 'neon_ghost', msg: 'new map when?' },
+    { name: 'q3_veteran', msg: 'this engine is sick' },
+    { name: '', msg: 'rocketJump99 started a match', system: true },
+    { name: 'washoi_dev', msg: 'nice movement tech in this build' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// LOBBY PANEL CLASS (extends GamePanel)
+// LOBBY PANEL
 // ═══════════════════════════════════════════════════════════════════
 
 export class LobbyPanel extends GamePanel {
@@ -108,189 +65,70 @@ export class LobbyPanel extends GamePanel {
     private queueTimers: Map<string, number> = new Map();
     private queueIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
     private _onPlayClick: ((mode: string) => void) | null = null;
+    private _onSettingsClick: (() => void) | null = null;
 
     constructor() {
         super('PLAY');
-
-        // Inject lobby-specific CSS
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
 
-        // Footer: Settings button + version
-        const settingsBtn = this.createButton('⚙ Settings', '', () => {
-            this.openSettings();
-        });
-        const consoleBtn = this.createButton('Console ~', '', () => {
-            // Will be wired up externally
-        });
+        // Footer buttons
+        const consoleBtn = this.createButton('Console ~', '');
+        const settingsBtn = this.createButton('⚙ Settings', '', () => this._onSettingsClick?.());
         this.footerArea.appendChild(consoleBtn);
         this.footerArea.appendChild(settingsBtn);
 
-        // Build the lobby layout and put it in the scrollable content area
-        const lobbyContent = this.buildLobbyContent();
-        this.setContent(lobbyContent);
+        // Build lobby content
+        this.setContent(this.buildLayout());
     }
 
-    /**
-     * Show the lobby (delegates to GamePanel.open)
-     */
-    show(): void {
-        this.open();
-    }
-
-    /**
-     * Hide the lobby (delegates to GamePanel.close)
-     */
+    show(): void { this.open(); }
     hide(): void {
-        // Clear all queue intervals
-        this.queueIntervals.forEach(interval => clearInterval(interval));
+        this.queueIntervals.forEach(i => clearInterval(i));
         this.queueIntervals.clear();
         this.close();
     }
-
-    /**
-     * Check if lobby is visible
-     */
-    isVisible(): boolean {
-        return this.isOpen();
-    }
-
-    /**
-     * Register settings button callback
-     */
-    setOnSettings(callback: () => void): void {
-        this._onSettingsClick = callback;
-    }
-
-    /**
-     * Register play/queue callback
-     */
-    setOnPlay(callback: (mode: string) => void): void {
-        this._onPlayClick = callback;
-    }
-
-    private _onSettingsClick: (() => void) | null = null;
-
-    private openSettings(): void {
-        this._onSettingsClick?.();
-    }
+    isVisible(): boolean { return this.isOpen(); }
+    setOnSettings(cb: () => void): void { this._onSettingsClick = cb; }
+    setOnPlay(cb: (mode: string) => void): void { this._onPlayClick = cb; }
 
     // ═══════════════════════════════════════════════════════════════════
-    // BUILD METHODS
+    // LAYOUT
     // ═══════════════════════════════════════════════════════════════════
 
-    private buildLobbyContent(): HTMLElement {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'lobby__layout';
+    private buildLayout(): HTMLElement {
+        const layout = document.createElement('div');
+        layout.className = 'lobby__layout';
 
-        // === Left: Game mode cards ===
-        const modesSection = document.createElement('div');
-        modesSection.className = 'lobby__modes';
+        // LEFT: Players + Matches
+        layout.appendChild(this.buildLeftColumn());
+        // CENTER: Game modes
+        layout.appendChild(this.buildCenterColumn());
+        // RIGHT: Chat
+        layout.appendChild(this.buildRightColumn());
 
-        for (const mode of GAME_MODES) {
-            modesSection.appendChild(this.buildModeCard(mode));
-        }
-        wrapper.appendChild(modesSection);
+        return layout;
+    }
 
-        // === Right: Social sidebar ===
-        const sidebar = document.createElement('div');
-        sidebar.className = 'lobby__sidebar';
+    // ── Left Column: Players & Matches ──────────────────────────────
+
+    private buildLeftColumn(): HTMLElement {
+        const col = document.createElement('div');
+        col.className = 'lobby__col lobby__col--left';
 
         // Players
-        sidebar.appendChild(this.buildSectionTitle('PLAYERS ONLINE'));
-        sidebar.appendChild(this.buildPlayerList());
+        col.appendChild(this.sectionTitle('PLAYERS ONLINE', `${MOCK_PLAYERS.length}`));
+        col.appendChild(this.buildPlayerList());
+
+        // Divider
+        const divider = document.createElement('div');
+        divider.className = 'lobby__divider';
+        col.appendChild(divider);
 
         // Live Matches
-        sidebar.appendChild(this.buildSectionTitle('LIVE MATCHES'));
-        sidebar.appendChild(this.buildMatchList());
+        col.appendChild(this.sectionTitle('LIVE MATCHES'));
+        col.appendChild(this.buildMatchList());
 
-        // Chat
-        sidebar.appendChild(this.buildChat());
-
-        wrapper.appendChild(sidebar);
-
-        // Bottom info bar inside the panel
-        const infoBar = document.createElement('div');
-        infoBar.className = 'lobby__infobar';
-        infoBar.innerHTML = `
-            <span class="lobby__status-dot">CONNECTED</span>
-            <span>${MOCK_PLAYERS.length} ONLINE</span>
-        `;
-        wrapper.appendChild(infoBar);
-
-        return wrapper;
-    }
-
-    private buildModeCard(mode: GameMode): HTMLElement {
-        const card = document.createElement('div');
-        card.className = 'lobby__mode-card';
-        card.dataset.mode = mode.id;
-
-        // Background placeholder (colored)
-        const bg = document.createElement('div');
-        bg.className = 'lobby__mode-bg';
-        bg.style.backgroundColor = `hsl(${mode.hue}, 25%, 8%)`;
-        card.appendChild(bg);
-
-        // Gradient overlay
-        const overlay = document.createElement('div');
-        overlay.className = 'lobby__mode-overlay';
-        card.appendChild(overlay);
-
-        // Content at bottom
-        const content = document.createElement('div');
-        content.className = 'lobby__mode-content';
-
-        const icon = document.createElement('div');
-        icon.className = 'lobby__mode-icon';
-        icon.textContent = mode.icon;
-        content.appendChild(icon);
-
-        const title = document.createElement('div');
-        title.className = 'lobby__mode-title';
-        title.textContent = mode.title;
-        title.style.color = `hsl(${mode.hue}, 100%, 80%)`;
-        title.style.textShadow = `0 0 20px ${mode.glowColor}, 0 0 40px hsla(${mode.hue}, 100%, 50%, 0.15)`;
-        content.appendChild(title);
-
-        const subtitle = document.createElement('div');
-        subtitle.className = 'lobby__mode-subtitle';
-        subtitle.textContent = mode.subtitle;
-        content.appendChild(subtitle);
-
-        const queueCount = document.createElement('div');
-        queueCount.className = 'lobby__mode-queue-count';
-        queueCount.textContent = `${Math.floor(Math.random() * 5)} IN QUEUE`;
-        content.appendChild(queueCount);
-
-        const btn = document.createElement('button');
-        btn.className = 'lobby__find-btn';
-        btn.id = `lobby-find-${mode.id}`;
-        btn.textContent = 'FIND MATCH';
-        btn.style.borderColor = `hsla(${mode.hue}, 100%, 50%, 0.3)`;
-        btn.style.color = `hsl(${mode.hue}, 100%, 65%)`;
-        btn.style.background = `hsla(${mode.hue}, 100%, 50%, 0.06)`;
-
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.toggleQueue(mode.id, btn, mode);
-        });
-        content.appendChild(btn);
-
-        card.appendChild(content);
-
-        // Card click = find match
-        card.addEventListener('click', () => {
-            this.toggleQueue(mode.id, btn, mode);
-        });
-
-        return card;
-    }
-
-    private buildSectionTitle(text: string): HTMLElement {
-        const el = document.createElement('div');
-        el.className = 'lobby__section-title';
-        el.textContent = text;
-        return el;
+        return col;
     }
 
     private buildPlayerList(): HTMLElement {
@@ -311,15 +149,15 @@ export class LobbyPanel extends GamePanel {
             row.appendChild(name);
 
             if (p.status === 'searching') {
-                const status = document.createElement('span');
-                status.className = 'lobby__player-status';
-                status.textContent = `🔍 ${p.mode}`;
-                row.appendChild(status);
+                const st = document.createElement('span');
+                st.className = 'lobby__player-badge lobby__player-badge--search';
+                st.textContent = (p as any).mode || '?';
+                row.appendChild(st);
             } else if (p.status === 'ingame') {
-                const status = document.createElement('span');
-                status.className = 'lobby__player-status';
-                status.textContent = '🎮 IN MATCH';
-                row.appendChild(status);
+                const st = document.createElement('span');
+                st.className = 'lobby__player-badge lobby__player-badge--ingame';
+                st.textContent = 'IN MATCH';
+                row.appendChild(st);
             }
 
             list.appendChild(row);
@@ -336,30 +174,130 @@ export class LobbyPanel extends GamePanel {
             const match = document.createElement('div');
             match.className = 'lobby__match';
 
-            match.innerHTML = `
-                <div class="lobby__match-header">
-                    <span class="lobby__match-type">🔴 ${m.type}</span>
-                    <span class="lobby__match-time">${m.time}</span>
-                </div>
-                <div class="lobby__match-players">${m.player1} vs ${m.player2}</div>
-                <div class="lobby__match-footer">
-                    <span class="lobby__match-map">${m.map}</span>
-                    <span class="lobby__match-score">${m.score}</span>
-                    <button class="lobby__watch-btn">WATCH</button>
-                </div>
+            const header = document.createElement('div');
+            header.className = 'lobby__match-header';
+            header.innerHTML = `
+                <span class="lobby__match-live">● LIVE</span>
+                <span class="lobby__match-type">${m.type}</span>
+                <span class="lobby__match-time">${m.time}</span>
             `;
+            match.appendChild(header);
 
+            const players = document.createElement('div');
+            players.className = 'lobby__match-players';
+            players.textContent = `${m.p1} vs ${m.p2}`;
+            match.appendChild(players);
+
+            const footer = document.createElement('div');
+            footer.className = 'lobby__match-footer';
+
+            const mapEl = document.createElement('span');
+            mapEl.className = 'lobby__match-map';
+            mapEl.textContent = m.map;
+            footer.appendChild(mapEl);
+
+            const score = document.createElement('span');
+            score.className = 'lobby__match-score';
+            score.textContent = m.score;
+            footer.appendChild(score);
+
+            const watchBtn = document.createElement('button');
+            watchBtn.className = 'lobby__watch-btn';
+            watchBtn.textContent = 'WATCH';
+            footer.appendChild(watchBtn);
+
+            match.appendChild(footer);
             list.appendChild(match);
         }
 
         return list;
     }
 
-    private buildChat(): HTMLElement {
-        const chat = document.createElement('div');
-        chat.className = 'lobby__chat';
+    // ── Center Column: Game Modes ───────────────────────────────────
 
-        chat.appendChild(this.buildSectionTitle('CHAT'));
+    private buildCenterColumn(): HTMLElement {
+        const col = document.createElement('div');
+        col.className = 'lobby__col lobby__col--center';
+
+        col.appendChild(this.sectionTitle('QUEUE FOR MATCH'));
+
+        const cards = document.createElement('div');
+        cards.className = 'lobby__mode-cards';
+
+        for (const mode of GAME_MODES) {
+            cards.appendChild(this.buildModeCard(mode));
+        }
+
+        col.appendChild(cards);
+
+        // Status hint
+        const hint = document.createElement('div');
+        hint.className = 'lobby__hint';
+        hint.textContent = 'SELECT A MODE TO FIND A MATCH';
+        col.appendChild(hint);
+
+        return col;
+    }
+
+    private buildModeCard(mode: GameMode): HTMLElement {
+        const card = document.createElement('div');
+        card.className = 'lobby__mode-card';
+        card.dataset.mode = mode.id;
+        card.style.setProperty('--card-hue', mode.hue);
+
+        // Accent line left
+        const accent = document.createElement('div');
+        accent.className = 'lobby__mode-accent';
+        card.appendChild(accent);
+
+        // Text section
+        const text = document.createElement('div');
+        text.className = 'lobby__mode-text';
+
+        const title = document.createElement('div');
+        title.className = 'lobby__mode-title';
+        title.textContent = mode.title;
+        text.appendChild(title);
+
+        const sub = document.createElement('div');
+        sub.className = 'lobby__mode-sub';
+        sub.textContent = mode.subtitle;
+        text.appendChild(sub);
+
+        card.appendChild(text);
+
+        // Queue count
+        const queueEl = document.createElement('div');
+        queueEl.className = 'lobby__mode-queue';
+        queueEl.textContent = mode.queued > 0 ? `${mode.queued} in queue` : 'No queue';
+        if (mode.queued > 0) queueEl.classList.add('lobby__mode-queue--active');
+        card.appendChild(queueEl);
+
+        // Find Match button
+        const btn = document.createElement('button');
+        btn.className = 'lobby__find-btn';
+        btn.id = `lobby-find-${mode.id}`;
+        btn.textContent = 'FIND MATCH';
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleQueue(mode.id, btn, mode);
+        });
+        card.appendChild(btn);
+
+        // Card click
+        card.addEventListener('click', () => this.toggleQueue(mode.id, btn, mode));
+
+        return card;
+    }
+
+    // ── Right Column: Chat ──────────────────────────────────────────
+
+    private buildRightColumn(): HTMLElement {
+        const col = document.createElement('div');
+        col.className = 'lobby__col lobby__col--right';
+
+        col.appendChild(this.sectionTitle('LOBBY CHAT'));
 
         const messages = document.createElement('div');
         messages.className = 'lobby__chat-messages';
@@ -371,12 +309,17 @@ export class LobbyPanel extends GamePanel {
                 msg.textContent = c.msg;
             } else {
                 msg.className = 'lobby__chat-msg';
-                msg.innerHTML = `<span class="lobby__chat-msg-name">${c.name}</span>${c.msg}`;
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'lobby__chat-name';
+                nameSpan.textContent = c.name;
+                msg.appendChild(nameSpan);
+                msg.appendChild(document.createTextNode(c.msg));
             }
             messages.appendChild(msg);
         }
-        chat.appendChild(messages);
+        col.appendChild(messages);
 
+        // Input
         const inputWrap = document.createElement('div');
         inputWrap.className = 'lobby__chat-input-wrap';
 
@@ -388,7 +331,7 @@ export class LobbyPanel extends GamePanel {
         input.autocomplete = 'off';
 
         input.addEventListener('keydown', (e) => {
-            e.stopPropagation(); // Don't trigger game controls
+            e.stopPropagation();
             if (e.key === 'Enter' && input.value.trim()) {
                 console.log(`[Lobby] Chat: "${input.value}"`);
                 input.value = '';
@@ -396,17 +339,35 @@ export class LobbyPanel extends GamePanel {
         });
 
         inputWrap.appendChild(input);
-        chat.appendChild(inputWrap);
+        col.appendChild(inputWrap);
 
-        return chat;
+        return col;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // QUEUE TOGGLE
-    // ═══════════════════════════════════════════════════════════════════
+    // ── Helpers ─────────────────────────────────────────────────────
+
+    private sectionTitle(text: string, badge?: string): HTMLElement {
+        const el = document.createElement('div');
+        el.className = 'lobby__section-title';
+
+        const label = document.createTextNode(text);
+        el.appendChild(label);
+
+        if (badge) {
+            const b = document.createElement('span');
+            b.className = 'lobby__section-badge';
+            b.textContent = badge;
+            el.appendChild(b);
+        }
+
+        return el;
+    }
+
+    // ── Queue Logic ─────────────────────────────────────────────────
 
     private toggleQueue(modeId: string, btn: HTMLButtonElement, mode: GameMode): void {
         const isQueued = this.queueState.get(modeId) || false;
+        const card = btn.closest('.lobby__mode-card') as HTMLElement | null;
 
         if (isQueued) {
             this.queueState.set(modeId, false);
@@ -417,17 +378,13 @@ export class LobbyPanel extends GamePanel {
 
             btn.textContent = 'FIND MATCH';
             btn.classList.remove('lobby__find-btn--searching');
-            btn.style.borderColor = `hsla(${mode.hue}, 100%, 50%, 0.3)`;
-            btn.style.color = `hsl(${mode.hue}, 100%, 65%)`;
-            btn.style.background = `hsla(${mode.hue}, 100%, 50%, 0.06)`;
+            card?.classList.remove('lobby__mode-card--searching');
         } else {
             this.queueState.set(modeId, true);
             this.queueTimers.set(modeId, 0);
 
             btn.classList.add('lobby__find-btn--searching');
-            btn.style.borderColor = '';
-            btn.style.color = '';
-            btn.style.background = '';
+            card?.classList.add('lobby__mode-card--searching');
             btn.textContent = 'SEARCHING... 0:00';
 
             const interval = setInterval(() => {
