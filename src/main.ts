@@ -225,17 +225,18 @@ async function main() {
     (window as any).__lobbyPanel = lobby;
   }
 
-  // Hide lobby when a GAMEPLAY map loads (not the background ui map)
+  // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
+  // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.
   import('./engine/core/EventBus').then(({ EventBus }) => {
-    EventBus.on('map:loaded', (data: any) => {
-      const mapName = data?.mapName || '';
-      // Don't hide lobby for the background ui map
-      if (mapName === 'ui') return;
+    EventBus.on('loading:start', (data: any) => {
+      if (data?.type !== 'map') return;
+      // Don't hide for background ui map
+      if (data?.id === 'ui') return;
 
       const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
       if (lobby?.isVisible()) {
         lobby.hide();
-        console.log(`[Main] Lobby hidden (gameplay map: ${mapName})`);
+        console.log(`[Main] Lobby hidden (map loading: ${data?.id})`);
       }
     });
   });
