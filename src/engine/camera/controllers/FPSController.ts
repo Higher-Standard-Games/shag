@@ -1123,10 +1123,7 @@ export class FPSController implements ICameraController {
       const targetLedgePitch = this.ledgeGrabPhase > 0.01 ? this.ledgeGrabPhase * 0.15 : 0;
       const lerpSpeed = 8; // decay speed (higher = faster return to normal)
       this.ledgePitchOffset += (targetLedgePitch - this.ledgePitchOffset) * Math.min(1, deltaTime * lerpSpeed);
-      // DEBUG: Log when slide effect is active
-      if (this.slidePhase > 0.01) {
-        console.log(`[FPS] SLIDE CAM: phase=${this.slidePhase.toFixed(3)}, pitchOffset=${this.slidePitchOffset.toFixed(4)}`);
-      }
+      // (debug log removed — was firing every frame during crouchslide, causing 60fps drop)
 
     }
 
