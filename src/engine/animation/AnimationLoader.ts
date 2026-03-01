@@ -54,7 +54,7 @@ export class AnimationLoader {
     private static instance: AnimationLoader;
 
     private scene: Scene | null = null;
-    private animationsPath: string = "games/default/animations/";
+    private animationsPath: string = "/games/default/animations/";
     private loadedAnimations: Map<string, AnimationGroup[]> = new Map();
     private loading: Map<string, Promise<AnimationGroup[]>> = new Map();
 

@@ -754,10 +754,26 @@ export class FPSController implements ICameraController {
   }
 
   update(deltaTime: number): void {
-    if (!this.enabled || !this.camera || !this.isPointerLocked) return;
+    if (!this.enabled || !this.camera) return;
 
-    // Sync key state from InputSystem (replaces hardcoded switch/case handlers)
-    this.syncKeysFromInput();
+    // When pointer lock is lost (e.g. pause menu), zero out inputs to prevent moving
+    // but DO NOT return early so we still process networking and render remote players.
+    if (!this.isPointerLocked) {
+      this.keys.forward = false;
+      this.keys.backward = false;
+      this.keys.left = false;
+      this.keys.right = false;
+      this.keys.up = false;
+      this.keys.sprint = false;
+      this.keys.crouch = false;
+      this.keys.reload = false;
+      this.keys.use = false;
+      this.keys.fire = false;
+      this.keys.aim = false;
+    } else {
+      // Sync key state from InputSystem (replaces hardcoded switch/case handlers)
+      this.syncKeysFromInput();
+    }
 
     const mv = MovementVars.getInstance();
 
