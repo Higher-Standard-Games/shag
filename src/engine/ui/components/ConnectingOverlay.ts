@@ -25,6 +25,11 @@ export class ConnectingOverlay {
         if (this.el) return;
 
         this.el = this.build(serverUrl);
+
+        // Wait for fonts (Orbitron) to load before showing overlay
+        // to prevent flash of unstyled text (FOUT)
+        await document.fonts.ready;
+
         document.body.appendChild(this.el);
 
         // Start animated dots
@@ -47,7 +52,7 @@ export class ConnectingOverlay {
                 return;
             }
 
-            await gameManager.initializeNetwork(serverUrl);
+            await gameManager.initializeNetwork(serverUrl, { autoJoin: true });
             this.setStatus('CONNECTED');
 
             // The lobby hide + overlay cleanup happens when EventBus fires 'loading:start'

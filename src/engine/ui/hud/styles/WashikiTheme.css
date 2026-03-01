@@ -2,10 +2,104 @@
  * WashikiTheme - Washiki Washoi Design System for HUD & UI
  * 
  * Visual language extracted from washoi-net website.
- * Fonts: Orbitron (display) + Rajdhani (body) — loaded locally via UITheme.loadFont()
+ * Fonts: Orbitron (display) + Rajdhani (body) — loaded locally from /engine/fonts/
  * Colors: neon-cyan, neon-magenta, neon-gold on dark bg
  * Signature: MangaPanel with corner brackets
  */
+
+/* ============================================================================
+   Font Face Declarations — Local fonts from public/engine/fonts/
+   ============================================================================ */
+
+/* Orbitron — Display / Title font */
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('/engine/fonts/Orbitron/static/Orbitron-Black.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: block;
+}
+
+/* Rajdhani — Body / Label font */
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/engine/fonts/Rajdhani/Rajdhani-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/engine/fonts/Rajdhani/Rajdhani-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/engine/fonts/Rajdhani/Rajdhani-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/engine/fonts/Rajdhani/Rajdhani-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
 
 /* ============================================================================
    CSS Custom Properties (Design Tokens)

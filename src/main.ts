@@ -204,19 +204,9 @@ async function main() {
       console.error(`[Main] Failed to load map: ${requestedMap}`);
     }
   } else {
-    // ── Load UI map as lobby background (runs while splash is still showing) ──
+    // ── Lobby (no 3D background — will use background image in future) ──
     loadingScreen.setStatus('Loading lobby...');
-    console.log('[Main] Loading ui map as lobby background...');
-    const mapLoader = MapLoader.getInstance();
-    const bgResultPromise = mapLoader.loadMap('ui', scene, undefined, { backgroundOnly: true });
-
-    // Wait for BOTH: user click AND background map loaded
-    const [, bgResult] = await Promise.all([userReadyPromise, bgResultPromise]);
-
-    if (bgResult.success && bgResult.playerStartPosition) {
-      camera.position.copyFrom(bgResult.playerStartPosition);
-      console.log(`[Main] Background map loaded: ui`);
-    }
+    await userReadyPromise;
 
     // Stop piping progress to splash screen
     unsubProgress();
