@@ -41,7 +41,7 @@
 }
 
 .lobby__header-actions .fps-btn {
-    font-size: 0.7rem;
+    font-size: 0.95rem;
     padding: 7px 16px;
 }
 
@@ -197,7 +197,7 @@
 
 .lobby__mode-title {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.4rem;
+    font-size: 1.8rem;
     font-weight: 700;
     letter-spacing: 0.25em;
     text-transform: uppercase;
@@ -218,7 +218,7 @@
 
 .lobby__mode-sub {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
+    font-size: 0.9rem;
     color: hsla(calc(var(--card-hue, 180)), 40%, 60%, 0.45);
     letter-spacing: 0.15em;
     margin-bottom: 14px;
@@ -226,7 +226,7 @@
 
 .lobby__mode-queue {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     color: hsla(180, 30%, 50%, 0.25);
     letter-spacing: 0.1em;
     margin-bottom: 10px;
@@ -239,7 +239,7 @@
 /* FIND MATCH button */
 .lobby__find-btn {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.7rem;
+    font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -272,7 +272,7 @@
 
 .lobby__section-title {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.6rem;
+    font-size: 0.85rem;
     font-weight: 600;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -292,7 +292,7 @@
 }
 
 .lobby__section-badge {
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     color: hsla(180, 100%, 60%, 0.5);
     background: hsla(180, 100%, 50%, 0.06);
     padding: 1px 8px;
@@ -352,7 +352,7 @@
 }
 
 .lobby__player-name {
-    font-size: 0.85rem;
+    font-size: 1.05rem;
     color: hsla(180, 25%, 78%, 0.7);
     flex: 1;
     overflow: hidden;
@@ -362,7 +362,7 @@
 
 .lobby__player-badge {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     padding: 1px 6px;
@@ -413,14 +413,14 @@
 
 .lobby__match-live {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     color: hsla(0, 85%, 58%, 0.9);
     animation: lobby-dot-pulse 2s ease-in-out infinite;
 }
 
 .lobby__match-type {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.1em;
     color: hsla(180, 60%, 70%, 0.6);
@@ -428,13 +428,13 @@
 
 .lobby__match-time {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     color: hsla(180, 40%, 55%, 0.4);
     margin-left: auto;
 }
 
 .lobby__match-players {
-    font-size: 0.78rem;
+    font-size: 1.0rem;
     color: hsla(180, 25%, 78%, 0.6);
     margin-bottom: 4px;
 }
@@ -446,13 +446,13 @@
 }
 
 .lobby__match-map {
-    font-size: 0.6rem;
+    font-size: 0.8rem;
     color: hsla(180, 30%, 55%, 0.3);
 }
 
 .lobby__match-score {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
+    font-size: 0.9rem;
     color: hsla(180, 60%, 70%, 0.55);
     flex: 1;
     text-align: center;
@@ -460,7 +460,7 @@
 
 .lobby__watch-btn {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -495,7 +495,7 @@
 }
 
 .lobby__chat-msg {
-    font-size: 0.82rem;
+    font-size: 1.0rem;
     line-height: 1.5;
     color: hsla(180, 18%, 74%, 0.6);
     padding: 3px 0;
@@ -510,7 +510,7 @@
 .lobby__chat-msg--system {
     font-style: italic;
     color: hsla(180, 35%, 55%, 0.3);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
 }
 
 .lobby__chat-input-wrap {
@@ -523,7 +523,7 @@
     width: 100%;
     padding: 8px 12px;
     font-family: var(--w-font-body, 'Rajdhani', sans-serif);
-    font-size: 0.85rem;
+    font-size: 1.0rem;
     background: hsla(180, 20%, 8%, 0.4);
     border: 1px solid hsla(180, 40%, 25%, 0.15);
     color: hsla(180, 30%, 85%, 0.8);
@@ -591,7 +591,7 @@
 
 .lobby__lb-season-label {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 0.15em;
     color: hsla(180, 100%, 70%, 0.8);
@@ -599,7 +599,7 @@
 
 .lobby__lb-season-mode {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.6rem;
+    font-size: 0.85rem;
     letter-spacing: 0.1em;
     color: hsla(180, 50%, 60%, 0.4);
     border-left: 1px solid hsla(180, 100%, 50%, 0.1);
@@ -608,7 +608,7 @@
 
 .lobby__lb-season-ends {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     color: hsla(45, 80%, 60%, 0.5);
     margin-left: auto;
 }
@@ -639,7 +639,7 @@
 
 .lobby__lb-row--header .lobby__lb-cell {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.15em;
     color: hsla(180, 60%, 60%, 0.35);
@@ -659,7 +659,7 @@
 }
 
 .lobby__lb-cell {
-    font-size: 0.78rem;
+    font-size: 1.0rem;
     color: hsla(180, 25%, 75%, 0.6);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -677,7 +677,7 @@
 
 .lobby__lb-cell--rating {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: hsla(180, 80%, 70%, 0.7);
     text-align: center;
 }
@@ -696,7 +696,7 @@
 
 .lobby__lb-cell--speed {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
+    font-size: 0.85rem;
     color: hsla(45, 80%, 60%, 0.5);
     text-align: center;
 }
@@ -709,7 +709,7 @@
 .lobby__lb-rank {
     display: inline-block;
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     font-weight: 700;
     width: 22px;
     height: 22px;
@@ -762,7 +762,7 @@
 .lobby__lb-fun-value {
     display: block;
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.1rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: hsla(45, 100%, 65%, 0.75);
     text-shadow: 0 0 10px hsla(45, 100%, 55%, 0.2);
@@ -772,7 +772,7 @@
 .lobby__lb-fun-label {
     display: block;
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.12em;
     color: hsla(180, 50%, 60%, 0.4);
@@ -781,7 +781,7 @@
 
 .lobby__lb-fun-by {
     display: block;
-    font-size: 0.65rem;
+    font-size: 0.85rem;
     color: hsla(180, 30%, 55%, 0.3);
     font-style: italic;
 }
@@ -866,7 +866,7 @@
 
 .lobby__profile-label {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.55rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.2em;
     color: hsla(180, 60%, 60%, 0.4);
@@ -895,7 +895,7 @@
 }
 
 .lobby__profile-hint {
-    font-size: 0.6rem;
+    font-size: 0.8rem;
     color: hsla(180, 30%, 50%, 0.2);
     margin-top: 4px;
 }
@@ -917,7 +917,7 @@
 
 .lobby__profile-rating-change {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.6rem;
+    font-size: 0.8rem;
     color: hsla(120, 70%, 60%, 0.6);
     letter-spacing: 0.05em;
 }
@@ -963,7 +963,7 @@
 .lobby__profile-stat-label {
     display: block;
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.45rem;
+    font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.12em;
     color: hsla(180, 40%, 55%, 0.35);
@@ -990,19 +990,19 @@
 }
 
 .lobby__profile-setting-label {
-    font-size: 0.8rem;
+    font-size: 1.0rem;
     color: hsla(180, 25%, 75%, 0.6);
 }
 
 .lobby__profile-setting-value {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: hsla(180, 70%, 70%, 0.65);
 }
 
 .lobby__profile-settings-btn {
     font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.65rem;
+    font-size: 0.9rem;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
