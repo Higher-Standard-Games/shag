@@ -7,6 +7,7 @@
  */
 
 import "./style.css";
+import "./engine/ui/styles/WashikiFonts.css"; // Washiki fonts available at startup (before HUD)
 console.log("ANTIGRAVITY_DEBUG_ACTIVE: " + Date.now());
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
