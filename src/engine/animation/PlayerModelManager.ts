@@ -83,7 +83,7 @@ export class PlayerModelManager {
      * Idempotent — calling multiple times is safe; only loads once.
      */
     async loadModel(
-        modelPath: string = 'games/default/animations/',
+        modelPath: string = '/games/default/animations/',
         modelFile: string = 'vanguard.glb',
         animFiles: AnimFileConfig[] = DEFAULT_ANIM_FILES,
     ): Promise<void> {
@@ -203,6 +203,7 @@ export class PlayerModelManager {
      * @param scale  Mixamo → BSP scale factor (default 36)
      */
     createInstance(id: string, scale: number = 36): PlayerModelInstance | null {
+        console.log(`[PlayerModelManager] createInstance called for ${id}. sourceMesh=${!!this.sourceMesh}, sourceSkeleton=${!!this.sourceSkeleton}`);
         if (!this.sourceMesh || !this.sourceSkeleton) return null;
 
         // Clone mesh

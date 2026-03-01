@@ -42,8 +42,8 @@ export class BinaryProtocol {
 
     // Write header
     encoder.writeUint32(state.tick);
-    // Use relative timestamp (ms since start, wraps every ~49 days which is fine)
-    encoder.writeUint32((Date.now() & 0xFFFFFFFF) >>> 0);
+    // Use full 64-bit timestamp for ClockSync compatibility
+    encoder.writeFloat64(Date.now());
     // CRITICAL: ackedInputSeq for client-side reconciliation (V2NetworkClient)
     encoder.writeUint32(state.ackedInputSeq);
 
@@ -71,7 +71,7 @@ export class BinaryProtocol {
 
     // Read header
     state.tick = decoder.readUint32();
-    state.serverTimestamp = decoder.readUint32(); // Server Date.now() & 0xFFFFFFFF for ClockSync
+    state.serverTimestamp = decoder.readFloat64(); // Server Date.now() for ClockSync
     state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
 
     // Decode entities

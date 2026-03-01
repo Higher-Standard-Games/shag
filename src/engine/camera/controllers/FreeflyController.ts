@@ -21,6 +21,7 @@ import { Cvar } from "../../core/Cvar";
 import { InputSystem } from "../../input/InputSystem";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
+import { FPSGameManager } from "../../../games/fps/FPSGameManager";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -319,10 +320,31 @@ export class FreeflyController implements ICameraController {
   }
 
   update(deltaTime: number): void {
-    if (!this.enabled || !this.camera || !this.isPointerLocked) return;
+    if (!this.enabled || !this.camera) return;
 
-    // Sync key state from InputSystem
-    this.syncKeysFromInput();
+    // Tick the network and render remote players even when paused or spectating
+    try {
+      const gameManager = FPSGameManager.getInstance();
+      if (gameManager.isGameRunning()) {
+        gameManager.processSnapshots();
+        gameManager.renderRemotePlayers();
+      }
+    } catch (e) {
+      // Ignore if not initialized yet
+    }
+
+    if (!this.isPointerLocked) {
+      this.keys.forward = false;
+      this.keys.backward = false;
+      this.keys.left = false;
+      this.keys.right = false;
+      this.keys.up = false;
+      this.keys.down = false;
+      this.keys.sprint = false;
+    } else {
+      // Sync key state from InputSystem
+      this.syncKeysFromInput();
+    }
 
     const sprintMultiplier = this.keys.sprint ? 3 : 1;
     const speed = (this.config.speed || 200) * sprintMultiplier * deltaTime;
