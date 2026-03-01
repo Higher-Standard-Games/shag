@@ -19,24 +19,24 @@ export interface UIThemeConfig {
   successColor: string;
   warningColor: string;
   errorColor: string;
-  
+
   // Backgrounds
   panelBg: string;
   panelBgAlt: string;          // Alternate/header background
   cardBg: string;              // Card/item background
   inputBg: string;             // Input field background
-  
+
   // Text
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
   textOnPrimary: string;       // Text on primary color buttons
-  
+
   // Borders
   borderColor: string;
   borderColorLight: string;
   borderRadius: string;
-  
+
   // Button 3D effect
   buttonBg: string;
   buttonBgHover: string;
@@ -44,11 +44,11 @@ export interface UIThemeConfig {
   buttonBorder: string;
   buttonText: string;
   buttonShadow: string;
-  
+
   // Fonts
   fontFamily: string;
   fontFamilyHeading: string;
-  
+
   // Shadows
   shadowLight: string;
   shadowMedium: string;
@@ -65,24 +65,24 @@ const LIGHT_THEME: UIThemeConfig = {
   successColor: "#4CAF50",
   warningColor: "#F57C00",
   errorColor: "#D32F2F",
-  
+
   // Backgrounds
   panelBg: "#FAFAFA",
   panelBgAlt: "#F5F5F5",
   cardBg: "#FFFFFF",
   inputBg: "#FFFFFF",
-  
+
   // Text
   textPrimary: "#333333",
   textSecondary: "#666666",
   textMuted: "#888888",
   textOnPrimary: "#FFFFFF",
-  
+
   // Borders
   borderColor: "#E0E0E0",
   borderColorLight: "#E8E8E8",
   borderRadius: "12px",
-  
+
   // Button 3D effect (secondary/default)
   buttonBg: "#F5F5F5",
   buttonBgHover: "#FFFFFF",
@@ -90,11 +90,11 @@ const LIGHT_THEME: UIThemeConfig = {
   buttonBorder: "#CCCCCC",
   buttonText: "#333333",
   buttonShadow: "rgba(0, 0, 0, 0.1)",
-  
+
   // Fonts
-  fontFamily: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
-  fontFamilyHeading: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
-  
+  fontFamily: "'Rajdhani', sans-serif",
+  fontFamilyHeading: "'Orbitron', monospace",
+
   // Shadows
   shadowLight: "0 2px 4px rgba(0, 0, 0, 0.08)",
   shadowMedium: "0 4px 16px rgba(0, 0, 0, 0.12)",
@@ -111,24 +111,24 @@ const DARK_THEME: UIThemeConfig = {
   successColor: "#4CAF50",
   warningColor: "#FFC107",
   errorColor: "#F44336",
-  
+
   // Backgrounds
   panelBg: "rgba(25, 25, 25, 0.95)",
   panelBgAlt: "rgba(35, 35, 35, 0.95)",
   cardBg: "rgba(40, 40, 40, 0.9)",
   inputBg: "rgba(50, 50, 50, 0.9)",
-  
+
   // Text
   textPrimary: "#FFFFFF",
   textSecondary: "#CCCCCC",
   textMuted: "#888888",
   textOnPrimary: "#FFFFFF",
-  
+
   // Borders
   borderColor: "rgba(255, 255, 255, 0.1)",
   borderColorLight: "rgba(255, 255, 255, 0.05)",
   borderRadius: "12px",
-  
+
   // Button 3D effect (secondary/default)
   buttonBg: "rgba(255, 255, 255, 0.1)",
   buttonBgHover: "rgba(255, 255, 255, 0.15)",
@@ -136,11 +136,11 @@ const DARK_THEME: UIThemeConfig = {
   buttonBorder: "rgba(255, 255, 255, 0.2)",
   buttonText: "#FFFFFF",
   buttonShadow: "rgba(0, 0, 0, 0.3)",
-  
+
   // Fonts
-  fontFamily: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
-  fontFamilyHeading: "'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif",
-  
+  fontFamily: "'Rajdhani', sans-serif",
+  fontFamilyHeading: "'Orbitron', monospace",
+
   // Shadows
   shadowLight: "0 2px 8px rgba(0, 0, 0, 0.3)",
   shadowMedium: "0 4px 16px rgba(0, 0, 0, 0.4)",
@@ -231,19 +231,19 @@ export class UITheme {
    */
   public setMode(mode: ThemeMode): void {
     if (mode === this.themeMode) return;
-    
+
     this.themeMode = mode;
     this.theme = mode === "dark" ? { ...DARK_THEME } : { ...LIGHT_THEME };
-    
+
     // Persist preference
     localStorage.setItem(STORAGE_KEY, mode);
-    
+
     // Inject updated styles
     this.injectStyles();
-    
+
     // Notify listeners
     this.listeners.forEach(fn => fn(mode));
-    
+
     console.log(`[UITheme] Switched to ${mode} mode`);
   }
 
@@ -297,7 +297,7 @@ export class UITheme {
     // Use engine fonts directly (these are engine assets, not game-overridable)
     const gamePaths = GamePaths.getInstance();
     let loadedCount = 0;
-    
+
     for (const { weight, file } of weights) {
       const fontPath = gamePaths.engine(`fonts/Nunito/static/${file}`);
       const success = await this.loadFont("Nunito", fontPath, weight, true);
@@ -484,7 +484,7 @@ export class UITheme {
         top: 0;
       `;
     }
-    
+
     return `
       background: ${this.theme.buttonBg};
       border: none;

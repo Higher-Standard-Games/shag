@@ -6,7 +6,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.1s ease;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -15,7 +15,7 @@
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   transition: transform 0.2s ease;
   border: 1px solid #E0E0E0;
   border-bottom: none;
@@ -84,7 +84,7 @@
   transition: all 0.1s ease;
   position: relative;
   top: 0;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   min-height: var(--ui-touch-min, 44px);
 }
 
@@ -140,7 +140,7 @@
   position: relative;
   top: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 .bottom-bar-item:hover {
@@ -253,7 +253,7 @@
   padding: var(--ui-space-sm, 6px);
   top: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 .bottom-bar-slot:hover {

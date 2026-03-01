@@ -34,11 +34,11 @@ export class UIStyles {
     style.textContent = css;
     document.head.appendChild(style);
     this.injectedIds.add(id);
-    
+
     // Re-append mobile styles to ensure they come last (highest priority)
     this.reapplyMobileStyles();
   }
-  
+
   /**
    * Set mobile/responsive CSS overrides. These are always injected LAST
    * to ensure they override component styles.
@@ -47,24 +47,24 @@ export class UIStyles {
     this.mobileCSS = css;
     this.reapplyMobileStyles();
   }
-  
+
   /**
    * Re-append mobile styles to end of head (ensures highest priority)
    */
   private static reapplyMobileStyles(): void {
     if (!this.mobileCSS) return;
-    
+
     // Remove existing mobile style element
     if (this.mobileStyleElement) {
       this.mobileStyleElement.remove();
     }
-    
+
     // Create and append at end of head
     this.mobileStyleElement = document.createElement("style");
     this.mobileStyleElement.id = "ui-styles-mobile-overrides";
     this.mobileStyleElement.textContent = this.mobileCSS;
     document.head.appendChild(this.mobileStyleElement);
-    
+
     console.log(`[UIStyles] Mobile CSS reapplied (${this.mobileCSS.length} chars), now last in head`);
   }
 
@@ -118,7 +118,7 @@ export class UIStyles {
     return `
 /* ==================== Base / Reset ==================== */
 .ui-base {
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   box-sizing: border-box;
 }
 
@@ -139,25 +139,25 @@ export class UIStyles {
     primary: '#2EC4B6',
     primaryDim: 'rgba(46, 196, 182, 0.4)',
     primaryGlow: 'rgba(46, 196, 182, 0.6)',
-    
+
     // SHAG palette for variety
     orange: '#E85D04',
     yellow: '#FAC748',
     teal: '#2EC4B6',
     magenta: '#E040FB',
     green: '#4ADE80',
-    
+
     // Semantic colors
     error: '#ff6b6b',
     warn: '#FAC748',
     info: '#54a0ff',
     success: '#4ADE80',
-    
+
     // Text
     text: '#c8c8c8',
     textBright: '#e8e8e8',
     textDim: 'rgba(255, 255, 255, 0.4)',
-    
+
     // Background
     bg: 'rgba(10, 12, 16, 0.95)',
     bgHeader: 'rgba(46, 196, 182, 0.15)',
@@ -274,7 +274,7 @@ export class UIStyles {
     return `
 /* ==================== Typography ==================== */
 .ui-text {
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   color: #333333;
   line-height: 1.5;
 }
@@ -296,7 +296,7 @@ export class UIStyles {
 .ui-text--extrabold { font-weight: 800; }
 
 .ui-heading {
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   font-weight: 800;
   color: #333333;
   letter-spacing: -0.02em;
@@ -316,7 +316,7 @@ export class UIStyles {
     return `
 /* ==================== Buttons ==================== */
 .ui-btn {
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   font-weight: 600;
   font-size: 1rem;
   padding: 12px 24px;
@@ -466,7 +466,7 @@ export class UIStyles {
   flex-direction: column;
   overflow: hidden;
   animation: ui-scale-in-centered 0.25s ease-out;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 .ui-dialog--sm { width: 400px; max-width: 95vw; }
@@ -539,7 +539,7 @@ export class UIStyles {
   border: 1px solid #E0E0E0;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 .ui-panel__header {
@@ -578,7 +578,7 @@ export class UIStyles {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   z-index: 100;
 }
 
@@ -685,7 +685,7 @@ export class UIStyles {
     return `
 /* ==================== Forms ==================== */
 .ui-input {
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   font-size: 1rem;
   padding: 12px 16px;
   border: 2px solid #E0E0E0;
@@ -804,7 +804,7 @@ export class UIStyles {
   letter-spacing: 0.3em;
   margin: 0 0 24px 0;
   text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  font-family: var(--ui-font, 'Nunito', 'Segoe UI', system-ui, sans-serif);
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 @keyframes ui-fade-out {
@@ -835,7 +835,7 @@ export class UIStyles {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  font-family: var(--ui-font, 'Nunito', 'Segoe UI', system-ui, sans-serif);
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   color: #fff;
 }
 

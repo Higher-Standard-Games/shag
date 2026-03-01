@@ -68,7 +68,7 @@ export class WorldIndicatorSystem {
   private animationFrameId: number | null = null;
   private styleInjected: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): WorldIndicatorSystem {
     if (!WorldIndicatorSystem.instance) {
@@ -84,11 +84,11 @@ export class WorldIndicatorSystem {
     this.scene = scene;
     this.camera = camera;
     this.engine = engine;
-    
+
     this.injectStyles();
     this.createContainer();
     this.startUpdateLoop();
-    
+
     console.log("WorldIndicatorSystem initialized");
   }
 
@@ -298,11 +298,11 @@ export class WorldIndicatorSystem {
     };
 
     const screenPos = this.worldToScreen(worldPos);
-    
-    if (screenPos && 
-        screenPos.x > -100 && screenPos.y > -100 && 
-        screenPos.x < window.innerWidth + 100 && 
-        screenPos.y < window.innerHeight + 100) {
+
+    if (screenPos &&
+      screenPos.x > -100 && screenPos.y > -100 &&
+      screenPos.x < window.innerWidth + 100 &&
+      screenPos.y < window.innerHeight + 100) {
       indicator.element.style.left = `${screenPos.x}px`;
       indicator.element.style.top = `${screenPos.y}px`;
       indicator.element.style.display = "flex";
@@ -400,7 +400,7 @@ export class WorldIndicatorSystem {
         font-weight: 600;
         white-space: nowrap;
         margin-top: 6px;
-        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        font-family: var(--w-font-body, 'Rajdhani', sans-serif);
       }
 
       /* Bounce animation */

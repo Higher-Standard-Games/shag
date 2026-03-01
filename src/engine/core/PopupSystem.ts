@@ -74,7 +74,7 @@ export class PopupSystem {
     const popup = document.createElement("div");
     popup.className = `popup-container ${config.className || ""}`;
     popup.style.width = config.width || "400px";
-    
+
     if (config.position === "top") {
       popup.style.marginTop = "80px";
       popup.style.marginBottom = "auto";
@@ -167,16 +167,16 @@ export class PopupSystem {
     if (!popup) return;
 
     popup.overlay.classList.remove("popup-visible");
-    
+
     // Wait for animation
     setTimeout(() => {
       popup.overlay.remove();
       this.popups.delete(id);
-      
+
       if (popup.config.onClose) {
         popup.config.onClose();
       }
-      
+
       EventBus.emit("popup:closed", { id });
     }, 200);
   }
@@ -258,7 +258,7 @@ export class PopupSystem {
         flex-direction: column;
         transform: scale(0.9) translateY(20px);
         transition: transform 0.2s ease;
-        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        font-family: var(--w-font-body, 'Rajdhani', sans-serif);
       }
 
       .popup-visible .popup-container {
@@ -327,7 +327,7 @@ export class PopupSystem {
         cursor: pointer;
         transition: all 0.1s ease;
         border: none;
-        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        font-family: var(--w-font-body, 'Rajdhani', sans-serif);
         position: relative;
         top: 0;
       }

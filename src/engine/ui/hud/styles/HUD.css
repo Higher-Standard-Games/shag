@@ -14,7 +14,7 @@
   bottom: 0;
   pointer-events: none;
   z-index: 500;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
 }
 
 .hud-container * {
@@ -29,7 +29,7 @@
   pointer-events: none;
 }
 
-.hud-area > * {
+.hud-area>* {
   pointer-events: auto;
 }
 
@@ -261,8 +261,15 @@
 }
 
 @keyframes hud-debug-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* ============================================================================
@@ -383,9 +390,17 @@
 }
 
 @keyframes hud-badge-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .hud-accordion-toggle {
@@ -523,39 +538,87 @@
 }
 
 @keyframes hud-fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes hud-fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes hud-scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes hud-scaleOut {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.9); }
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 }
 
 @keyframes hud-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 @keyframes hud-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 @keyframes hud-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 /* ============================================================================
@@ -579,25 +642,68 @@
 }
 
 @keyframes hud-flash-gain {
-  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
-  50% { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+  }
 }
 
 @keyframes hud-flash-loss {
-  0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-  50% { box-shadow: 0 0 0 8px rgba(244, 67, 54, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(244, 67, 54, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+  }
 }
 
 @keyframes hud-flash-damage {
-  0%, 100% { transform: translateX(0); background-color: inherit; }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); background-color: #FFEBEE; }
-  20%, 40%, 60%, 80% { transform: translateX(2px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+    background-color: inherit;
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+    background-color: #FFEBEE;
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
 }
 
 @keyframes hud-flash-info {
-  0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
-  50% { box-shadow: 0 0 0 8px rgba(33, 150, 243, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(33, 150, 243, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
+  }
 }

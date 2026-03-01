@@ -13,7 +13,7 @@
 /**
  * Z-index layers - all UI z-index values should come from here
  */
-export type ZIndexLayer = 
+export type ZIndexLayer =
   | "GAME_UI"      // 100 - Side panels, bottom bar, HUD
   | "TOOLTIP"      // 200 - Tooltips, hover info
   | "DROPDOWN"     // 300 - Dropdowns, select menus
@@ -182,7 +182,7 @@ export class UIManager {
       
       /* Button base styles */
       .ui-button {
-        font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        font-family: var(--w-font-body, 'Rajdhani', sans-serif);
         border: none;
         border-radius: 8px;
         cursor: pointer;

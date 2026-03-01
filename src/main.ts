@@ -82,7 +82,6 @@ async function main() {
   // Initialize UI
   UIScale.getInstance().init();
   const uiTheme = UITheme.getInstance();
-  await uiTheme.loadNunitoFont();
   await uiTheme.loadShareTechMonoFont();
 
   // Start waiting for user click (non-blocking — runs in parallel)

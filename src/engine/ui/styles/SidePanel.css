@@ -9,7 +9,7 @@
   border-radius: var(--ui-radius-lg, 12px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 900;
-  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
   border: 1px solid #E0E0E0;
   overflow: hidden;
   transition: all 0.2s ease;
