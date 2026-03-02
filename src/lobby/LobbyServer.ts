@@ -13,6 +13,7 @@ import { GameServerSpawner } from './GameServerSpawner';
 import type {
     LobbyMessage, GametypeInfo, PlayerInfo, PlayerStatus,
     ChatMessage as ChatMsg, MatchLobbyInfo, LobbyPlayerInfo, MapOption,
+    LiveMatchInfo,
 } from './types';
 
 // ============================================================================
@@ -83,6 +84,8 @@ class MatchLobby {
     shuffleVotes: Set<string> = new Set();
     createdAt: number = Date.now();
     isStarting: boolean = false;
+    matchMap: string = '';       // Set when match starts
+    state: 'waiting' | 'playing' = 'waiting';
 
     get playerCount(): number { return this.players.size; }
 
@@ -383,7 +386,7 @@ export class LobbyServer {
             gametypes: GAMETYPES,
             onlinePlayers: this.getOnlinePlayers(),
             chatHistory: this.chatHistory,
-            liveMatches: [],  // TODO
+            liveMatches: this.getLiveMatches(),
         };
         this.send(player, welcome);
 
@@ -458,6 +461,9 @@ export class LobbyServer {
             playerId: player.id,
             status: 'in_lobby',
         }, player.id);
+
+        // Broadcast updated matches list
+        this.broadcastMatchesUpdate();
     }
 
     // ── Lobby: Join ──────────────────────────────────────────────
@@ -503,6 +509,9 @@ export class LobbyServer {
             playerId: player.id,
             status: 'in_lobby',
         }, player.id);
+
+        // Broadcast updated matches list
+        this.broadcastMatchesUpdate();
     }
 
     // ── Lobby: Leave ─────────────────────────────────────────────
@@ -535,6 +544,9 @@ export class LobbyServer {
             playerId: player.id,
             status: 'online',
         }, player.id);
+
+        // Broadcast updated matches list
+        this.broadcastMatchesUpdate();
     }
 
     // ── Lobby: Vote Map ──────────────────────────────────────────
@@ -655,6 +667,9 @@ export class LobbyServer {
                 playerId: player.id,
                 status: 'in_lobby',
             });
+
+            // Broadcast updated matches list
+            this.broadcastMatchesUpdate();
         } else {
             // No waiting lobby — create one immediately
             const lobby = new MatchLobby(gametype);
@@ -678,6 +693,9 @@ export class LobbyServer {
                 playerId: player.id,
                 status: 'in_lobby',
             });
+
+            // Broadcast updated matches list
+            this.broadcastMatchesUpdate();
         }
     }
 
@@ -707,6 +725,12 @@ export class LobbyServer {
             map,
             status: 'spawning_server',
         });
+
+        // Mark lobby as starting/playing immediately so others can see it
+        lobby.isStarting = true;
+        lobby.state = 'playing';
+        lobby.matchMap = map;
+        this.broadcastMatchesUpdate();
 
         try {
             // Spawn game server as child process
@@ -744,6 +768,12 @@ export class LobbyServer {
 
         } catch (err) {
             console.error(`[LobbyServer] Failed to spawn server:`, err);
+
+            // Revert lobby state on failure
+            lobby.isStarting = false;
+            lobby.state = 'waiting';
+            lobby.matchMap = '';
+
             this.broadcastToLobby(lobby.id, {
                 type: 'lobby:error',
                 error: `Failed to start game server: ${(err as Error).message}`,
@@ -758,6 +788,9 @@ export class LobbyServer {
                     ready: false,
                 });
             }
+
+            // Broadcast reverted state to all clients
+            this.broadcastMatchesUpdate();
         }
     }
 
@@ -780,6 +813,10 @@ export class LobbyServer {
             exitCode: code,
         });
 
+        // Return lobby to waiting state
+        lobby.state = 'waiting';
+        lobby.matchMap = '';
+
         // Return all players to online status
         for (const lp of lobby.players.values()) {
             lp.ready = false;
@@ -793,6 +830,9 @@ export class LobbyServer {
                 });
             }
         }
+
+        // Broadcast updated matches list
+        this.broadcastMatchesUpdate();
     }
 
     // ── Helpers ──────────────────────────────────────────────────
@@ -837,5 +877,33 @@ export class LobbyServer {
                 status: p.status,
                 lobbyId: p.lobbyId || undefined,
             }));
+    }
+
+    // ── Live Matches ────────────────────────────────────────────
+
+    private getLiveMatches(): LiveMatchInfo[] {
+        const matches: LiveMatchInfo[] = [];
+        for (const lobby of this.lobbies.values()) {
+            matches.push({
+                id: lobby.id,
+                gametype: lobby.gametype.id,
+                gametypeName: lobby.gametype.name,
+                map: lobby.matchMap,
+                mapDisplayName: lobby.matchMap ? (MAP_NAMES[lobby.matchMap] || lobby.matchMap) : '',
+                players: [...lobby.players.values()].map(p => p.name),
+                playerCount: lobby.players.size,
+                maxPlayers: lobby.gametype.maxPlayers,
+                state: lobby.state,
+                startedAt: lobby.createdAt,
+            });
+        }
+        return matches;
+    }
+
+    private broadcastMatchesUpdate(): void {
+        this.broadcast({
+            type: 'matches:update',
+            matches: this.getLiveMatches(),
+        });
     }
 }

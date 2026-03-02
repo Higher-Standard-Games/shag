@@ -137,6 +137,8 @@
     border-bottom: 1px solid hsla(180, 100%, 50%, 0.15);
 }
 
+/* Background artwork moved to body level (style.css) */
+
 /* ============================================================================
    Kanji Watermarks — Faint background decoration
    ============================================================================ */

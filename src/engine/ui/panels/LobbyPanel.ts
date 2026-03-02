@@ -11,7 +11,7 @@ import { GamePanel } from './GamePanel';
 import { UIStyles } from '../UIStyles';
 import { MatchLobbyView } from '../components/MatchLobbyView';
 import { LobbyClient } from '../../../lobby/LobbyClient';
-import type { PlayerInfo, MatchLobbyInfo } from '../../../lobby/types';
+import type { PlayerInfo, MatchLobbyInfo, LiveMatchInfo } from '../../../lobby/types';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 import matchLobbyCSSRaw from '../components/styles/MatchLobbyView.css?raw';
 
@@ -30,8 +30,8 @@ interface GameMode {
 
 const GAME_MODES: GameMode[] = [
     { id: 'duel', title: 'DUEL', subtitle: '1 vs 1', hue: '180', queued: 4, image: '/data/ui/card_duel_opt.png' },
-    { id: 'team', title: 'TEAM', subtitle: '2 vs 2', hue: '320', queued: 1 },
-    { id: 'ffa', title: 'FFA', subtitle: 'FREE FOR ALL', hue: '45', queued: 0 },
+    { id: 'team', title: 'TEAM', subtitle: '2 vs 2', hue: '320', queued: 1, image: '/data/ui/card_2v2_opt.png' },
+    { id: 'ffa', title: 'FFA', subtitle: 'FREE FOR ALL', hue: '45', queued: 0, image: '/data/ui/card_ffa_opt.png' },
 ];
 
 const MOCK_PLAYERS = [
@@ -51,14 +51,6 @@ const MOCK_PLAYERS = [
     { name: 'warsow_fan', status: 'searching' as const, mode: 'TEAM' },
     { name: 'arena_noob', status: 'online' as const },
     { name: 'rocket_queen', status: 'online' as const },
-];
-
-const MOCK_MATCHES = [
-    { type: 'DUEL', p1: 'rocketJump99', p2: 'speedrunner', map: 'wdm7', score: '5 – 3', time: '2:41' },
-    { type: '2v2', p1: 'Team Alpha', p2: 'Team Bravo', map: 'wdm2', score: '12 – 8', time: '1:12' },
-    { type: 'DUEL', p1: 'rail_queen', p2: 'lg_demon', map: 'wdm5', score: '7 – 6', time: '4:30' },
-    { type: 'FFA', p1: '6 players', p2: '', map: 'wdm1', score: '', time: '0:45' },
-    { type: 'DUEL', p1: 'cpma_wizard', p2: 'warsow_fan', map: 'wdm3', score: '2 – 0', time: '0:22' },
 ];
 
 const MOCK_CHAT = [
@@ -109,8 +101,13 @@ export class LobbyPanel extends GamePanel {
     private currentLobbyId: string | null = null;
     private unsubscribers: (() => void)[] = [];
 
+    // Live matches
+    private liveMatches: LiveMatchInfo[] = [];
+    private matchListEl: HTMLElement | null = null;
+
     constructor() {
         super('PLAY');
+        this.closable = false; // Main menu cannot be closed via ESC
         UIStyles.injectCSS('lobby-panel', lobbyCSSRaw);
         UIStyles.injectCSS('match-lobby', matchLobbyCSSRaw);
 
@@ -157,6 +154,10 @@ export class LobbyPanel extends GamePanel {
                 this.livePlayers = msg.onlinePlayers || [];
                 this.refreshPlayerList();
 
+                // Load live matches
+                this.liveMatches = msg.liveMatches || [];
+                this.refreshMatchList();
+
                 // Load chat history
                 if (msg.chatHistory && this.chatMessagesEl) {
                     for (const c of msg.chatHistory) {
@@ -193,6 +194,12 @@ export class LobbyPanel extends GamePanel {
             // Lobby errors
             this.unsubscribers.push(this.lobbyClient.on('lobby:error', (msg) => {
                 console.warn('[LobbyPanel] Lobby error:', msg.error);
+            }));
+
+            // Live matches updates
+            this.unsubscribers.push(this.lobbyClient.on('matches:update', (msg) => {
+                this.liveMatches = msg.matches || [];
+                this.refreshMatchList();
             }));
 
             // Match ended — server exited, return to lobby
@@ -432,41 +439,77 @@ export class LobbyPanel extends GamePanel {
     private buildMatchList(): HTMLElement {
         const list = document.createElement('div');
         list.className = 'lobby__matches';
+        this.matchListEl = list;
+        // Will be populated by refreshMatchList() when server data arrives
+        return list;
+    }
 
-        for (const m of MOCK_MATCHES) {
+    private refreshMatchList(): void {
+        if (!this.matchListEl) return;
+        this.matchListEl.innerHTML = '';
+
+        if (this.liveMatches.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'lobby__chat-msg lobby__chat-msg--system';
+            empty.textContent = 'No live matches';
+            empty.style.padding = '8px 10px';
+            this.matchListEl.appendChild(empty);
+            return;
+        }
+
+        for (const m of this.liveMatches) {
             const match = document.createElement('div');
             match.className = 'lobby__match';
+
+            // Elapsed time
+            const elapsed = Math.floor((Date.now() - m.startedAt) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            const stateLabel = m.state === 'playing' ? '● LIVE' : '○ LOBBY';
 
             const header = document.createElement('div');
             header.className = 'lobby__match-header';
             header.innerHTML = `
-                <span class="lobby__match-live">● LIVE</span>
-                <span class="lobby__match-type">${m.type}</span>
-                <span class="lobby__match-time">${m.time}</span>
+                <span class="lobby__match-live">${stateLabel}</span>
+                <span class="lobby__match-type">${m.gametypeName}</span>
+                <span class="lobby__match-time">${timeStr}</span>
             `;
             match.appendChild(header);
 
             const players = document.createElement('div');
             players.className = 'lobby__match-players';
-            players.textContent = m.p2 ? `${m.p1} vs ${m.p2}` : m.p1;
+            players.textContent = m.players.length > 0
+                ? m.players.join(' vs ')
+                : `${m.playerCount} player${m.playerCount !== 1 ? 's' : ''}`;
             match.appendChild(players);
 
             const footer = document.createElement('div');
             footer.className = 'lobby__match-footer';
             footer.innerHTML = `
-                <span class="lobby__match-map">${m.map}</span>
-                <span class="lobby__match-score">${m.score}</span>
+                <span class="lobby__match-map">${m.mapDisplayName || m.gametype}</span>
+                <span class="lobby__match-score">${m.playerCount}/${m.maxPlayers}</span>
             `;
 
-            const watchBtn = document.createElement('button');
-            watchBtn.className = 'lobby__watch-btn';
-            watchBtn.textContent = 'WATCH';
-            footer.appendChild(watchBtn);
+            if (m.state === 'playing') {
+                const watchBtn = document.createElement('button');
+                watchBtn.className = 'lobby__watch-btn';
+                watchBtn.textContent = 'WATCH';
+                footer.appendChild(watchBtn);
+            } else {
+                const joinBtn = document.createElement('button');
+                joinBtn.className = 'lobby__watch-btn';
+                joinBtn.textContent = 'JOIN';
+                joinBtn.addEventListener('click', () => {
+                    this.lobbyClient.joinLobby(m.id);
+                });
+                footer.appendChild(joinBtn);
+            }
 
             match.appendChild(footer);
-            list.appendChild(match);
+            this.matchListEl.appendChild(match);
         }
-        return list;
     }
 
     // ── Chat column ──

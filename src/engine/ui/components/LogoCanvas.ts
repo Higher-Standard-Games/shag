@@ -141,18 +141,18 @@ export class LogoCanvas {
 
         // ── Base ambient light ──
         const hemi = new HemisphericLight('hemi', new Vector3(0, 1, 0), this.scene);
-        hemi.intensity = 0.6;
-        hemi.diffuse = new Color3(0.7, 0.8, 1.0);
-        hemi.groundColor = new Color3(0.2, 0.05, 0.3);
+        hemi.intensity = 1.0;
+        hemi.diffuse = new Color3(0.8, 0.9, 1.0);
+        hemi.groundColor = new Color3(0.3, 0.1, 0.4);
 
         // ── Static key lights ──
         const lightTeal = new PointLight('lightTeal', new Vector3(-3, 2, 3), this.scene);
         lightTeal.diffuse = new Color3(0, 1, 0.85);
-        lightTeal.intensity = 1.4;
+        lightTeal.intensity = 2.2;
 
         const lightPink = new PointLight('lightPink', new Vector3(3, 1, -2), this.scene);
         lightPink.diffuse = new Color3(1, 0.2, 0.6);
-        lightPink.intensity = 1.0;
+        lightPink.intensity = 1.8;
 
         // ── Orbiting spotlights — dramatic animated lighting ──
         // Teal spotlight orbits from behind/left
@@ -166,7 +166,7 @@ export class LogoCanvas {
         );
         spotTeal.diffuse = new Color3(0, 0.95, 0.9);   // Bright teal
         spotTeal.specular = new Color3(0, 1, 1);
-        spotTeal.intensity = 2.5;
+        spotTeal.intensity = 3.5;
 
         // Pink spotlight orbits from behind/right
         const spotPink = new SpotLight(
@@ -179,7 +179,7 @@ export class LogoCanvas {
         );
         spotPink.diffuse = new Color3(1, 0.1, 0.55);   // Hot pink
         spotPink.specular = new Color3(1, 0.3, 0.7);
-        spotPink.intensity = 2.0;
+        spotPink.intensity = 3.0;
 
         // Third accent spotlight — warm gold/yellow pulse
         const spotGold = new SpotLight(
@@ -192,7 +192,7 @@ export class LogoCanvas {
         );
         spotGold.diffuse = new Color3(1, 0.75, 0.2);
         spotGold.specular = new Color3(1, 0.9, 0.5);
-        spotGold.intensity = 0.8;
+        spotGold.intensity = 1.4;
 
         // ── Load the model ──
         const modelPath = this.options.modelPath ?? '/data/washoi_opt.glb';
@@ -260,9 +260,9 @@ export class LogoCanvas {
                     spotGold.direction = Vector3.Zero().subtract(spotGold.position).normalize();
 
                     // Pulse spotlight intensities for extra drama
-                    spotTeal.intensity = 2.0 + Math.sin(t * 0.9) * 0.8;
-                    spotPink.intensity = 1.6 + Math.sin(t * 0.7 + 2) * 0.6;
-                    spotGold.intensity = 0.5 + Math.sin(t * 0.5 + 4) * 0.4;
+                    spotTeal.intensity = 3.0 + Math.sin(t * 0.9) * 1.0;
+                    spotPink.intensity = 2.5 + Math.sin(t * 0.7 + 2) * 0.8;
+                    spotGold.intensity = 1.0 + Math.sin(t * 0.5 + 4) * 0.6;
                 });
             }
         } catch (e) {
