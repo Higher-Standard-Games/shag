@@ -25,10 +25,11 @@ interface GameMode {
     subtitle: string;
     hue: string;
     queued: number;
+    image?: string;
 }
 
 const GAME_MODES: GameMode[] = [
-    { id: 'duel', title: 'DUEL', subtitle: '1 vs 1', hue: '180', queued: 4 },
+    { id: 'duel', title: 'DUEL', subtitle: '1 vs 1', hue: '180', queued: 4, image: '/data/ui/card_duel_opt.png' },
     { id: 'team', title: 'TEAM', subtitle: '2 vs 2', hue: '320', queued: 1 },
     { id: 'ffa', title: 'FFA', subtitle: 'FREE FOR ALL', hue: '45', queued: 0 },
 ];
@@ -353,6 +354,10 @@ export class LobbyPanel extends GamePanel {
 
         const bg = document.createElement('div');
         bg.className = 'lobby__mode-bg';
+        if (mode.image) {
+            bg.style.backgroundImage = `url(${mode.image})`;
+            bg.classList.add('lobby__mode-bg--image');
+        }
         card.appendChild(bg);
 
         const overlay = document.createElement('div');
