@@ -86,6 +86,23 @@ export interface MatchLobbyInfo {
 }
 
 // ============================================================================
+// Live Match Info (visible to all clients)
+// ============================================================================
+
+export interface LiveMatchInfo {
+    id: string;              // lobby ID
+    gametype: string;        // 'duel', 'tdm', 'ffa'
+    gametypeName: string;    // 'DUEL', 'TEAM', 'FFA'
+    map: string;             // map name (set when match starts, else '')
+    mapDisplayName: string;
+    players: string[];       // player names
+    playerCount: number;
+    maxPlayers: number;
+    state: 'waiting' | 'playing';
+    startedAt: number;       // lobby creation timestamp
+}
+
+// ============================================================================
 // Client → Server Messages
 // ============================================================================
 
@@ -150,7 +167,7 @@ export interface WelcomeMessage extends LobbyMessage {
     gametypes: GametypeInfo[];
     onlinePlayers: PlayerInfo[];
     chatHistory: ChatMessage[];
-    liveMatches: any[];   // TODO: match info type
+    liveMatches: LiveMatchInfo[];
 }
 
 export interface ChatBroadcastMessage extends LobbyMessage {
@@ -223,4 +240,9 @@ export interface LobbyConnectMessage extends LobbyMessage {
 export interface LobbyErrorMessage extends LobbyMessage {
     type: 'lobby:error';
     error: string;
+}
+
+export interface MatchesUpdateMessage extends LobbyMessage {
+    type: 'matches:update';
+    matches: LiveMatchInfo[];
 }

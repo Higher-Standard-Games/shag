@@ -176,6 +176,70 @@
             hsla(240, 20%, 5%, 1) 100%);
 }
 
+/* Card with background image — fill without stretching */
+.lobby__mode-bg--image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: brightness(0.7) saturate(1.1);
+    transition: all 0.5s ease, filter 0.4s ease;
+}
+
+.lobby__mode-card:hover .lobby__mode-bg--image {
+    background-size: cover;
+    background-position: center;
+    transform: scale(1.08);
+    filter: brightness(0.85) saturate(1.3);
+}
+
+/* CRT scanlines overlay on image cards */
+.lobby__mode-card:has(.lobby__mode-bg--image) .lobby__mode-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom,
+            transparent 0px,
+            transparent 2px,
+            rgba(0, 0, 0, 0.08) 2px,
+            rgba(0, 0, 0, 0.08) 4px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Diagonal shimmer sweep on hover */
+.lobby__mode-card:has(.lobby__mode-bg--image)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(105deg,
+            transparent 20%,
+            hsla(calc(var(--card-hue, 180)), 100%, 80%, 0.06) 40%,
+            hsla(calc(var(--card-hue, 180)), 100%, 90%, 0.12) 50%,
+            hsla(calc(var(--card-hue, 180)), 100%, 80%, 0.06) 60%,
+            transparent 80%);
+    z-index: 3;
+    pointer-events: none;
+    transition: none;
+    /* Override the corner bracket styles for image cards */
+    border: none;
+    width: 60%;
+    height: 100%;
+    opacity: 1;
+}
+
+.lobby__mode-card:has(.lobby__mode-bg--image):hover::after {
+    left: 130%;
+    transition: left 0.8s ease;
+    /* Override corner bracket hover */
+    border: none;
+    width: 60%;
+    height: 100%;
+    opacity: 1;
+}
+
 /* Bottom gradient overlay */
 .lobby__mode-overlay {
     position: absolute;

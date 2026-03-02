@@ -45,6 +45,9 @@ export class GamePanel {
     private tabs: { id: string; label: string; content: HTMLElement; btn: HTMLElement }[] = [];
     private activeTabId: string | null = null;
     private tabChangeCallback: ((tabId: string) => void) | null = null;
+
+    /** If false, ESC key will not close this panel (e.g. main menu) */
+    protected closable: boolean = true;
     protected logoCanvas: LogoCanvas | null = null;
 
     constructor(title?: string) {
@@ -138,7 +141,7 @@ export class GamePanel {
 
         // ESC key handler
         this.escHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && this.visible) {
+            if (e.key === 'Escape' && this.visible && this.closable) {
                 this.close();
                 e.preventDefault();
                 e.stopPropagation();
@@ -164,6 +167,7 @@ export class GamePanel {
 
         this.root.classList.remove('game-panel--closing');
         this.root.style.display = '';
+        document.body.classList.add('show-ui-bg');
         document.addEventListener('keydown', this.escHandler, true);
 
         // Resume logo rendering
@@ -181,6 +185,7 @@ export class GamePanel {
             this.root.removeEventListener('animationend', onEnd);
             this.root.style.display = 'none';
             this.root.classList.remove('game-panel--closing');
+            document.body.classList.remove('show-ui-bg');
 
             // Cleanup particles
             clearParticles(this.particles);
