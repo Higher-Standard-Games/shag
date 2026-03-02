@@ -187,7 +187,7 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
             if (bspPath.endsWith('.pk3')) {
                 const pk3Buffer = fs.readFileSync(bspPath);
-                const zip = await JSZip.loadAsync(pk3Buffer);
+                const zip = await JSZip.loadAsync(new Uint8Array(pk3Buffer));
 
                 for (const filename of Object.keys(zip.files)) {
                     if (filename.endsWith('.bsp')) {
@@ -202,7 +202,7 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
                 bspBuffer = buffer.buffer.slice(
                     buffer.byteOffset,
                     buffer.byteOffset + buffer.byteLength
-                );
+                ) as ArrayBuffer;
             }
             break;
         }

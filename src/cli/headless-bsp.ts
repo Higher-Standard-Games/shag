@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     }
 
     const buffer = fs.readFileSync(bspFile);
-    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
     console.log(`[HeadlessBSP] Loaded ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 
@@ -197,46 +197,46 @@ function printTextures(bsp: BspFile): void {
 
 function analyzeClipBrushes(bsp: BspFile): void {
   console.log("=== Clip Brush Analysis ===\n");
-  
+
   const PLAYERCLIP = 0x10000;
   const SOLID = 0x1;
   const DETAIL = 0x8000000;
-  
+
   let totalBrushes = 0;
   let clipByFlag = 0;
   let clipByName = 0;
   let solidClip = 0;
   let nonSolidClip = 0;
-  
+
   const clipTextures: Map<string, { count: number; flags: number; solid: boolean }> = new Map();
-  
+
   for (let bi = 0; bi < bsp.brushes.length; bi++) {
     const brush = bsp.brushes[bi];
     const texture = bsp.textures[brush.shaderIndex];
     if (!texture) continue;
-    
+
     const contentFlags = texture.contentFlags;
     const texName = texture.name?.toLowerCase() || '';
-    
+
     // Skip detail
     if (contentFlags & DETAIL) continue;
-    
+
     const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
     const isSolid = (contentFlags & SOLID) !== 0;
-    const isClipByName = texName.includes('clip') || 
-                         texName.includes('fullclip') || 
-                         texName.includes('playerclip') ||
-                         texName.includes('common/clip') ||
-                         texName.includes('system/clip') ||
-                         texName === 'nodraw';
-    
+    const isClipByName = texName.includes('clip') ||
+      texName.includes('fullclip') ||
+      texName.includes('playerclip') ||
+      texName.includes('common/clip') ||
+      texName.includes('system/clip') ||
+      texName === 'nodraw';
+
     if (isPlayerClipByFlag || isClipByName) {
       totalBrushes++;
       if (isPlayerClipByFlag) clipByFlag++;
       if (isClipByName) clipByName++;
       if (isSolid) solidClip++;
       else nonSolidClip++;
-      
+
       // Track by texture name
       const existing = clipTextures.get(texName);
       if (existing) {
@@ -246,7 +246,7 @@ function analyzeClipBrushes(bsp: BspFile): void {
       }
     }
   }
-  
+
   console.log(`Total clip brushes found: ${totalBrushes}`);
   console.log(`  By PLAYERCLIP flag: ${clipByFlag}`);
   console.log(`  By texture name: ${clipByName}`);
@@ -254,28 +254,28 @@ function analyzeClipBrushes(bsp: BspFile): void {
   console.log(`  Without SOLID flag: ${nonSolidClip}`);
   console.log("");
   console.log("Clip textures breakdown:");
-  
+
   for (const [name, info] of clipTextures) {
     console.log(`  "${name}": ${info.count} brushes, flags=0x${info.flags.toString(16)}, solid=${info.solid}`);
   }
-  
+
   console.log("");
   console.log(`With fix: Should generate ${totalBrushes} collision meshes (was only ${nonSolidClip} before)`);
-  
+
   // Test bounds computation
   console.log("\nTesting bounds computation...");
   let boundsSuccess = 0;
   let boundsFail = 0;
-  
+
   for (let bi = 0; bi < bsp.brushes.length; bi++) {
     const brush = bsp.brushes[bi];
     const texture = bsp.textures[brush.shaderIndex];
     if (!texture) continue;
-    
+
     const texName = texture.name?.toLowerCase() || '';
     const isClip = texName.includes('clip');
     if (!isClip) continue;
-    
+
     // Test bounds computation using plane intersection
     const planes: { nx: number; ny: number; nz: number; d: number }[] = [];
     for (let i = 0; i < brush.numSides; i++) {
@@ -285,7 +285,7 @@ function analyzeClipBrushes(bsp: BspFile): void {
       if (!plane) continue;
       planes.push({ nx: plane.normal[0], ny: plane.normal[1], nz: plane.normal[2], d: plane.dist });
     }
-    
+
     // Find vertices
     const vertices: [number, number, number][] = [];
     for (let i = 0; i < planes.length - 2; i++) {
@@ -298,11 +298,11 @@ function analyzeClipBrushes(bsp: BspFile): void {
         }
       }
     }
-    
+
     if (vertices.length >= 4) boundsSuccess++;
     else boundsFail++;
   }
-  
+
   console.log(`  Bounds computed successfully: ${boundsSuccess}`);
   console.log(`  Bounds computation failed: ${boundsFail}`);
 }
@@ -435,8 +435,8 @@ async function testCollision(bsp: BspFile): Promise<void> {
   const collision = new BspCollision(bsp);
 
   // Find spawn points for test positions
-  const spawns = bsp.entities.filter(e => 
-    e.classname === 'info_player_deathmatch' || 
+  const spawns = bsp.entities.filter(e =>
+    e.classname === 'info_player_deathmatch' ||
     e.classname === 'info_player_start'
   );
 
@@ -444,7 +444,7 @@ async function testCollision(bsp: BspFile): Promise<void> {
 
   // Analyze coordinate system by checking vertex bounds vs brush bounds
   console.log("=== Coordinate Analysis ===");
-  
+
   // Get vertex bounds (Q3 coords as stored in BSP)
   let vMinX = Infinity, vMaxX = -Infinity;
   let vMinY = Infinity, vMaxY = -Infinity;
@@ -473,7 +473,7 @@ async function testCollision(bsp: BspFile): Promise<void> {
     const isDetail = texture && (texture.contentFlags & 0x8000000) !== 0;
     if (!isSolid || isDetail) continue;
     solidCount++;
-    
+
     console.log(`  Brush ${bi}: "${texture?.name}" (${brush.numSides} sides)`);
     for (let si = 0; si < Math.min(3, brush.numSides); si++) {
       const side = bsp.brushSides[brush.firstSide + si];
@@ -489,14 +489,14 @@ async function testCollision(bsp: BspFile): Promise<void> {
     const originStr = spawn.properties.origin || "0 0 0";
     const origin = originStr.split(' ').map(Number);
     // Entity origin is in Q3 coords: [x, y, z] where z=up
-    
-    console.log(`\nSpawn ${i+1}: Q3 origin = (${origin[0]}, ${origin[1]}, ${origin[2]})`);
-    
+
+    console.log(`\nSpawn ${i + 1}: Q3 origin = (${origin[0]}, ${origin[1]}, ${origin[2]})`);
+
     // Convert to Babylon coords for the trace API
     // Q3 (x, y, z) -> Babylon (x, z, y)
     const babylonPos = new Vector3(origin[0], origin[2], origin[1]);
     console.log(`  Babylon pos = (${babylonPos.x}, ${babylonPos.y}, ${babylonPos.z})`);
-    
+
     // Trace DOWN in Babylon coords (negative Y)
     const downEnd = babylonPos.add(new Vector3(0, -500, 0));
     const downTrace = collision.traceBox(
@@ -523,21 +523,21 @@ async function testCollision(bsp: BspFile): Promise<void> {
     const spawn = spawns[0];
     const originStr = spawn.properties.origin || "0 0 0";
     const q3Origin = originStr.split(' ').map(Number);
-    
+
     // Trace directly in Q3 coords (z=up, so trace -z for down)
     // But the API expects Babylon coords, so we need to pass through conversion
     // Let's check what the internal trace sees
     console.log(`Testing raw Q3 origin: (${q3Origin[0]}, ${q3Origin[1]}, ${q3Origin[2]})`);
-    
+
     // The issue might be: when we pass Babylon coords, it converts to Q3
     // But if spawn origins are already in Q3, we're double-converting!
-    
+
     // Test 1: Pass Q3 coords directly as if they were Babylon (wrong, but let's see)
     const wrongPos = new Vector3(q3Origin[0], q3Origin[1], q3Origin[2]);
     const wrongEnd = wrongPos.add(new Vector3(0, -500, 0));
     const wrongTrace = collision.tracePoint(wrongPos, wrongEnd, false);
     console.log(`  If Q3 passed as Babylon: frac=${wrongTrace.fraction.toFixed(3)}, startSolid=${wrongTrace.startSolid}`);
-    
+
     // Test 2: Pass correctly converted coords
     const rightPos = new Vector3(q3Origin[0], q3Origin[2], q3Origin[1]); // Babylon = (q3.x, q3.z, q3.y)
     const rightEnd = rightPos.add(new Vector3(0, -500, 0));

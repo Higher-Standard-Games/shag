@@ -39,10 +39,10 @@ export function generatePerlinHeightmap(
     persistence = 0.5,
     lacunarity = 2.0,
   } = options;
-  
+
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
-  
+
   for (let y = 0; y < config.height; y++) {
     data[y] = [];
     for (let x = 0; x < config.width; x++) {
@@ -50,19 +50,19 @@ export function generatePerlinHeightmap(
       let freq = frequency;
       let value = 0;
       let maxValue = 0;
-      
+
       for (let o = 0; o < octaves; o++) {
         value += noise.noise2D(x * freq, y * freq) * amplitude;
         maxValue += amplitude;
         amplitude *= persistence;
         freq *= lacunarity;
       }
-      
+
       // Normalize to 0-1
       data[y][x] = (value / maxValue + 1) / 2;
     }
   }
-  
+
   return data;
 }
 
@@ -86,34 +86,34 @@ export function generateHillHeightmap(
     falloff = 2,
     noiseAmount = 0.2,
   } = options;
-  
+
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
-  
+
   for (let y = 0; y < config.height; y++) {
     data[y] = [];
     for (let x = 0; x < config.width; x++) {
       const u = x / (config.width - 1);
       const v = y / (config.height - 1);
-      
+
       // Distance from center
       const dx = u - centerX;
       const dy = v - centerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
+
       // Hill shape (inverse distance with falloff)
       let height = Math.max(0, 1 - Math.pow(dist / radius, falloff));
-      
+
       // Add noise for natural look
       if (noiseAmount > 0) {
         const noiseVal = (noise.noise2D(x * 0.05, y * 0.05) + 1) / 2;
         height = height * (1 - noiseAmount) + height * noiseVal * noiseAmount;
       }
-      
+
       data[y][x] = Math.max(0, Math.min(1, height));
     }
   }
-  
+
   return data;
 }
 
@@ -135,15 +135,15 @@ export function generateMultiHillHeightmap(
     maxRadius = 0.35,
     noiseAmount = 0.15,
   } = options;
-  
+
   const rng = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
-  
+
   // Initialize to zero
   for (let y = 0; y < config.height; y++) {
     data[y] = new Array(config.width).fill(0);
   }
-  
+
   // Generate random hills
   const hills: Array<{ x: number; y: number; radius: number; height: number }> = [];
   for (let i = 0; i < hillCount; i++) {
@@ -154,13 +154,13 @@ export function generateMultiHillHeightmap(
       height: 0.5 + (rng.noise2D(i * 75, i * 25) + 1) / 2 * 0.5,
     });
   }
-  
+
   // Accumulate hill heights
   for (let y = 0; y < config.height; y++) {
     for (let x = 0; x < config.width; x++) {
       const u = x / (config.width - 1);
       const v = y / (config.height - 1);
-      
+
       let height = 0;
       for (const hill of hills) {
         const dx = u - hill.x;
@@ -169,17 +169,17 @@ export function generateMultiHillHeightmap(
         const contribution = Math.max(0, 1 - Math.pow(dist / hill.radius, 2)) * hill.height;
         height = Math.max(height, contribution);
       }
-      
+
       // Add noise
       if (noiseAmount > 0) {
         const noiseVal = (rng.noise2D(x * 0.03, y * 0.03) + 1) / 2;
         height = height * (1 - noiseAmount) + height * noiseVal * noiseAmount * 2;
       }
-      
+
       data[y][x] = Math.max(0, Math.min(1, height));
     }
   }
-  
+
   return data;
 }
 
@@ -199,21 +199,21 @@ export function generateValleyHeightmap(
     valleyDepth = 0.8,
     noiseAmount = 0.2,
   } = options;
-  
+
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
-  
+
   for (let y = 0; y < config.height; y++) {
     data[y] = [];
     for (let x = 0; x < config.width; x++) {
       const u = x / (config.width - 1);
       const v = y / (config.height - 1);
-      
+
       // Distance from center line (horizontal valley)
       // u available for vertical valley variant
       void u;
       const distFromCenter = Math.abs(v - 0.5) * 2;
-      
+
       // Valley shape
       let height;
       if (distFromCenter < valleyWidth) {
@@ -224,17 +224,17 @@ export function generateValleyHeightmap(
         const slopePos = (distFromCenter - valleyWidth) / (1 - valleyWidth);
         height = (1 - valleyDepth) + slopePos * valleyDepth;
       }
-      
+
       // Add noise
       if (noiseAmount > 0) {
         const noiseVal = (noise.noise2D(x * 0.04, y * 0.04) + 1) / 2;
         height += (noiseVal - 0.5) * noiseAmount;
       }
-      
+
       data[y][x] = Math.max(0, Math.min(1, height));
     }
   }
-  
+
   return data;
 }
 
@@ -254,21 +254,21 @@ export function generatePlateauHeightmap(
     edgeSharpness = 8,
     noiseAmount = 0.1,
   } = options;
-  
+
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
-  
+
   for (let y = 0; y < config.height; y++) {
     data[y] = [];
     for (let x = 0; x < config.width; x++) {
       const u = x / (config.width - 1);
       const v = y / (config.height - 1);
-      
+
       // Distance from center
       const dx = u - 0.5;
       const dy = v - 0.5;
       const dist = Math.sqrt(dx * dx + dy * dy) * 2;
-      
+
       // Plateau shape using sigmoid-like function
       let height;
       if (dist < plateauRadius) {
@@ -277,17 +277,17 @@ export function generatePlateauHeightmap(
         const t = (dist - plateauRadius) / (1 - plateauRadius);
         height = 1 / (1 + Math.exp(edgeSharpness * (t - 0.5)));
       }
-      
+
       // Add noise to top surface
       if (noiseAmount > 0 && height > 0.5) {
         const noiseVal = (noise.noise2D(x * 0.05, y * 0.05) + 1) / 2;
         height += (noiseVal - 0.5) * noiseAmount * height;
       }
-      
+
       data[y][x] = Math.max(0, Math.min(1, height));
     }
   }
-  
+
   return data;
 }
 
@@ -312,15 +312,15 @@ export function createHeightmapData(
   seed?: number
 ): { data: number[][]; width: number; height: number } {
   const config: HeightmapConfig = { width, height, seed };
-  
-  const generator = typeof preset === 'function' 
-    ? preset 
+
+  const generator = typeof preset === 'function'
+    ? preset
     : HEIGHTMAP_PRESETS[preset];
-  
+
   if (!generator) {
     throw new Error(`Unknown heightmap preset: ${preset}`);
   }
-  
+
   return {
     data: generator(config),
     width,
@@ -336,20 +336,20 @@ export function loadHeightmapFromPNG(
   filePath: string
 ): { data: number[][]; width: number; height: number } {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
-  
+
   if (!fs.existsSync(absolutePath)) {
     throw new Error(`Heightmap file not found: ${absolutePath}`);
   }
-  
+
   // Read and parse PNG file synchronously
   const buffer = fs.readFileSync(absolutePath);
   const png = PNG.sync.read(buffer);
-  
+
   const { width, height } = png;
   const data: number[][] = [];
-  
+
   console.log(`Loading heightmap: ${width}x${height} from ${path.basename(absolutePath)}`);
-  
+
   for (let y = 0; y < height; y++) {
     data[y] = [];
     for (let x = 0; x < width; x++) {
@@ -357,14 +357,14 @@ export function loadHeightmapFromPNG(
       const r = png.data[idx];
       const g = png.data[idx + 1];
       const b = png.data[idx + 2];
-      
+
       // Use luminance formula for grayscale conversion
       // Or just use red channel if it's already grayscale
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       data[y][x] = luminance;
     }
   }
-  
+
   return { data, width, height };
 }
 
@@ -376,18 +376,18 @@ export function loadHeightmapFromRaw(
   filePath: string
 ): { data: number[][]; width: number; height: number } {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
-  
+
   if (!fs.existsSync(absolutePath)) {
     throw new Error(`Heightmap file not found: ${absolutePath}`);
   }
-  
+
   const buffer = fs.readFileSync(absolutePath);
   const width = buffer.readUInt32LE(0);
   const height = buffer.readUInt32LE(4);
-  
+
   const data: number[][] = [];
   let offset = 8;
-  
+
   for (let y = 0; y < height; y++) {
     data[y] = [];
     for (let x = 0; x < width; x++) {
@@ -395,9 +395,9 @@ export function loadHeightmapFromRaw(
       data[y][x] = buffer[offset++] / 255;
     }
   }
-  
+
   console.log(`Loaded raw heightmap: ${width}x${height} from ${path.basename(absolutePath)}`);
-  
+
   return { data, width, height };
 }
 
@@ -410,10 +410,10 @@ export function saveHeightmapToRaw(
 ): void {
   const { data, width, height } = heightmap;
   const buffer = Buffer.alloc(8 + width * height);
-  
+
   buffer.writeUInt32LE(width, 0);
   buffer.writeUInt32LE(height, 4);
-  
+
   let offset = 8;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -421,8 +421,8 @@ export function saveHeightmapToRaw(
       buffer[offset++] = Math.round(Math.max(0, Math.min(1, data[y][x])) * 255);
     }
   }
-  
+
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
-  fs.writeFileSync(absolutePath, buffer);
+  fs.writeFileSync(absolutePath, new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
   console.log(`Saved heightmap: ${width}x${height} to ${path.basename(absolutePath)}`);
 }

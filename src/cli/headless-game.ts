@@ -163,7 +163,7 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
         const pk3Path = path.join(gamePath, pk3File);
         try {
           const buffer = fs.readFileSync(pk3Path);
-          const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+          const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
           // Use processPK3ArrayBuffer directly for Node.js (fetch doesn't work)
           await (pk3Loader as unknown as { processPK3ArrayBuffer: (f: string, a: ArrayBuffer) => Promise<void> })
             .processPK3ArrayBuffer(pk3File, arrayBuffer);

@@ -12,7 +12,7 @@ import type { Vec3 } from '../engine/network/components/TransformComponent';
 async function loadBsp() {
     const bspPath = path.resolve('./public/games/default/map_wdm14.pk3');
     const pk3Buffer = fs.readFileSync(bspPath);
-    const zip = await JSZip.loadAsync(pk3Buffer);
+    const zip = await JSZip.loadAsync(new Uint8Array(pk3Buffer));
     for (const filename of Object.keys(zip.files)) {
         if (filename.endsWith('.bsp')) {
             const bspBuffer = await zip.files[filename].async('arraybuffer');

@@ -81,7 +81,7 @@ async function buildIndex(basePath: string, pk3Files: string[]): Promise<Map<str
         }
 
         const data = fs.readFileSync(pk3Path);
-        const zip = await JSZip.loadAsync(data);
+        const zip = await JSZip.loadAsync(new Uint8Array(data));
 
         zip.forEach((relativePath) => {
             const normalized = relativePath.toLowerCase().replace(/\\/g, "/");
@@ -107,7 +107,7 @@ async function buildShaderIndex(basePath: string, pk3Files: string[]): Promise<S
         if (!fs.existsSync(pk3Path)) continue;
 
         const data = fs.readFileSync(pk3Path);
-        const zip = await JSZip.loadAsync(data);
+        const zip = await JSZip.loadAsync(new Uint8Array(data));
 
         for (const [filePath, file] of Object.entries(zip.files)) {
             const normalized = filePath.toLowerCase();
@@ -163,7 +163,7 @@ async function findBspInPk3(basePath: string, pk3Files: string[], mapName: strin
         if (!fs.existsSync(pk3Path)) continue;
 
         const data = fs.readFileSync(pk3Path);
-        const zip = await JSZip.loadAsync(data);
+        const zip = await JSZip.loadAsync(new Uint8Array(data));
 
         for (const [filePath, file] of Object.entries(zip.files)) {
             if (filePath.toLowerCase() === bspPath) {

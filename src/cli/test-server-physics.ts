@@ -44,7 +44,7 @@ async function loadBsp(mapName: string): Promise<ReturnType<typeof BspLoader.loa
         if (fs.existsSync(bspPath)) {
             console.log(`[Test] Found BSP at: ${bspPath}`);
             const pk3Buffer = fs.readFileSync(bspPath);
-            const zip = await JSZip.loadAsync(pk3Buffer);
+            const zip = await JSZip.loadAsync(new Uint8Array(pk3Buffer));
 
             for (const filename of Object.keys(zip.files)) {
                 if (filename.endsWith('.bsp')) {
