@@ -245,8 +245,10 @@ export class BinaryProtocol {
         entity.addComponent('position', pos);
 
         // Preserve existing rotation if transform already exists (rotation may arrive independently)
+        // Fall back to baseline rotation if entity was just created fresh
         const existingTransform = entity.getComponent('transform') as any;
-        const existingRot = existingTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+        const baselineTransform = baselineEntity?.getComponent('transform') as any;
+        const existingRot = existingTransform?.rotation || baselineTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
 
         // TransformComponent-style for FPSGameManager compatibility
         const transform = {
