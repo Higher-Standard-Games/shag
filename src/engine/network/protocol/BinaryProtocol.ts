@@ -21,9 +21,7 @@
  * - 0x02 = velocity changed (12 bytes: 3 floats)
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
- *
- * KNOWN LIMITATIONS (future improvements):
- * - MovementStateComponent not transmitted - affects crouch/slide animations
+ * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding)
  */
 
 import { GameState } from '../core/GameState';
@@ -164,6 +162,17 @@ export class BinaryProtocol {
         flags |= 0x08;
       }
 
+      // Check movement state (crouch/slide) for hitbox sync
+      const movState = entity.getComponent('movementState') as any;
+      const baselineMovState = baselineEntity?.getComponent('movementState') as any;
+      const isCrouching = movState?.isCrouching ?? false;
+      const isSliding = movState?.isSliding ?? false;
+      const baselineCrouching = baselineMovState?.isCrouching ?? false;
+      const baselineSliding = baselineMovState?.isSliding ?? false;
+      if (isCrouching !== baselineCrouching || isSliding !== baselineSliding) {
+        flags |= 0x10;
+      }
+
       encoder.writeUint8(flags);
 
       // Encode changed components
@@ -190,6 +199,14 @@ export class BinaryProtocol {
       if (flags & 0x08) {
         encoder.writeFloat32(rot.y); // yaw
         encoder.writeFloat32(rot.x); // pitch
+      }
+
+      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding)
+      if (flags & 0x10) {
+        let movFlags = 0;
+        if (isCrouching) movFlags |= 1;
+        if (isSliding) movFlags |= 2;
+        encoder.writeUint8(movFlags);
       }
     }
   }
@@ -228,8 +245,10 @@ export class BinaryProtocol {
         entity.addComponent('position', pos);
 
         // Preserve existing rotation if transform already exists (rotation may arrive independently)
+        // Fall back to baseline rotation if entity was just created fresh
         const existingTransform = entity.getComponent('transform') as any;
-        const existingRot = existingTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+        const baselineTransform = baselineEntity?.getComponent('transform') as any;
+        const existingRot = existingTransform?.rotation || baselineTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
 
         // TransformComponent-style for FPSGameManager compatibility
         const transform = {
@@ -257,6 +276,14 @@ export class BinaryProtocol {
       let grounded = false;
       let hasVelocityData = false;
 
+      // Always preserve baseline grounded (overridden below if flag 0x04 is set)
+      if (baselineEntity) {
+        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        if (baselineVel) {
+          grounded = baselineVel.grounded ?? false;
+        }
+      }
+
       if (flags & 0x02) {
         // Velocity changed - read new values
         velX = decoder.readFloat32();
@@ -270,7 +297,6 @@ export class BinaryProtocol {
           velX = baselineVel.linear.x;
           velY = baselineVel.linear.y;
           velZ = baselineVel.linear.z;
-          grounded = baselineVel.grounded ?? false;
           hasVelocityData = true;
         }
       }
@@ -303,13 +329,29 @@ export class BinaryProtocol {
         }
       }
 
+      // Flag 0x10: Movement state (crouch/slide)
+      let isCrouching = false;
+      let isSliding = false;
+      if (flags & 0x10) {
+        const movFlags = decoder.readUint8();
+        isCrouching = (movFlags & 1) !== 0;
+        isSliding = (movFlags & 2) !== 0;
+      } else if (baselineEntity) {
+        // Carry forward from baseline
+        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        isCrouching = baselineVel?.isCrouching ?? false;
+        isSliding = baselineVel?.isSliding ?? false;
+      }
+
       // Create velocity component if we have data
-      if (hasVelocityData || (flags & 0x04)) {
+      if (hasVelocityData || (flags & 0x04) || (flags & 0x10)) {
         const vel = {
           x: velX, y: velY, z: velZ, // Legacy direct access
           linear: { x: velX, y: velY, z: velZ }, // FPSGameManager expects velocity.linear
           angular: { x: 0, y: 0, z: 0 },
           grounded, // Now properly transmitted!
+          isCrouching,
+          isSliding,
           serialize() { return {}; },
           deserialize() { },
           clone() { return { ...this, linear: { ...this.linear }, angular: { ...this.angular } }; }

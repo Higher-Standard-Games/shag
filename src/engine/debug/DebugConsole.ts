@@ -195,6 +195,7 @@ export class DebugConsole {
       <div class="debug-console-header">
         <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
         <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
+        <span class="debug-console-close" title="Close console">✕</span>
       </div>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
@@ -227,6 +228,10 @@ export class DebugConsole {
 
     // Apply saved console size
     this.applyConsoleSize();
+
+    // Close button handler
+    const closeBtn = this.container.querySelector('.debug-console-close');
+    closeBtn?.addEventListener('click', () => this.toggle());
   }
 
   private destroyDOM(): void {
