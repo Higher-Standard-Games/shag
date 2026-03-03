@@ -788,9 +788,11 @@ export class FPSController implements ICameraController {
 
     // cl_autorun inverts run/walk: run by default, walk when holding shift
     // ADS and CROUCH both force walk mode (cannot sprint while aiming or crouching)
+    // Sprint only applies to pure forward movement (no strafe, no back)
     const canRun = !this.keys.aim && !this.keys.crouch;  // No sprinting while ADS or crouching
     const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
-    let wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    const forwardOnly = this.keys.forward && !this.keys.backward && !this.keys.left && !this.keys.right;
+    let wishspeed = (isRunning && forwardOnly) ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
 
     // Apply crouch walk speed (reduced when crouching but not sliding)
     if (this.keys.crouch && !this.isSliding) {
