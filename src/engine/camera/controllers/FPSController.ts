@@ -788,9 +788,11 @@ export class FPSController implements ICameraController {
 
     // cl_autorun inverts run/walk: run by default, walk when holding shift
     // ADS and CROUCH both force walk mode (cannot sprint while aiming or crouching)
+    // Sprint only applies to pure forward movement (no strafe, no back)
     const canRun = !this.keys.aim && !this.keys.crouch;  // No sprinting while ADS or crouching
     const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
-    let wishspeed = isRunning ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    const forwardOnly = this.keys.forward && !this.keys.backward && !this.keys.left && !this.keys.right;
+    let wishspeed = (isRunning && forwardOnly) ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
 
     // Apply crouch walk speed (reduced when crouching but not sliding)
     if (this.keys.crouch && !this.isSliding) {
@@ -1056,10 +1058,14 @@ export class FPSController implements ICameraController {
         this.physicsY = pos.y;
         this.physicsZ = pos.z;
 
-        // Apply stair smoothing (snap during/after ledge grab — frozen position is deterministic)
+        // Apply stair smoothing — ONLY for upward stair-climbing movement.
+        // During freefall, the old 0.15 smoothFactor caused camera to lag 5-6 frames
+        // behind physics, making collision appear shifted (camera 40-80u above
+        // actual physics position). Then when lag exceeded stepHeight*2 it snapped,
+        // creating the jerky warping pattern during falls.
         const stepHeight = mv.get('sv_stepheight');
         const smoothFactor = mv.get('cl_smoothfactor');
-        const heightDiff = Math.abs(pos.y - this.smoothedY);
+        const yDelta = pos.y - this.smoothedY; // positive = going up, negative = going down
 
         // Track post-grab grace period: keep snapping smoothedY for a few frames
         // after grab ends so the post-grab boost (vel.y=50) doesn't cause a lerp warp
@@ -1070,12 +1076,17 @@ export class FPSController implements ICameraController {
           this.ledgeGrabSnapFrames--;
         }
 
-        if (heightDiff > stepHeight * 2 || inGrab || this.ledgeGrabSnapFrames > 0) {
-          // Large height change, teleport, or ledge grab (+grace) - snap immediately
+        // Determine if we should smooth or snap
+        const shouldSnap =
+          Math.abs(yDelta) > stepHeight * 2 || // Large height change / teleport
+          inGrab || this.ledgeGrabSnapFrames > 0 || // Ledge grab (+grace)
+          yDelta < -0.5; // Falling — camera must track physics exactly
+
+        // Only lerp for small UPWARD movement (actual stair climbing)
+        if (shouldSnap) {
           this.smoothedY = pos.y;
         } else {
-          // Smooth stair climbing
-          this.smoothedY = this.smoothedY + (pos.y - this.smoothedY) * smoothFactor;
+          this.smoothedY = this.smoothedY + yDelta * smoothFactor;
         }
 
         // Apply to camera with smoothed Y
