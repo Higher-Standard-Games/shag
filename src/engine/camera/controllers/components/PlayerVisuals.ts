@@ -320,27 +320,39 @@ export class PlayerVisuals {
         if (inst.masterGroup) {
             const walkNaturalCvar = Cvar.get('cl_debugplayer_walk_speed');
             const runNaturalCvar = Cvar.get('cl_debugplayer_run_speed');
-            const WALK_NATURAL_SPEED = walkNaturalCvar !== undefined ? Number(walkNaturalCvar) : 50;
-            const RUN_NATURAL_SPEED = runNaturalCvar !== undefined ? Number(runNaturalCvar) : 400;
-
-            let naturalSpeed = WALK_NATURAL_SPEED;
-            if (inst.currentAnim === 'run') {
-                naturalSpeed = RUN_NATURAL_SPEED;
-            } else if (inst.currentAnim === 'walk') {
-                naturalSpeed = WALK_NATURAL_SPEED;
-            }
-
-            const velocityDir = new Vector3(velocity.x, 0, velocity.z);
-            const forwardDot = Vector3.Dot(forward, velocityDir);
-            const isMovingBackwards = forwardDot < 0;
-
-            let speedRatio = speed / naturalSpeed;
-            if (isMovingBackwards) speedRatio = -speedRatio;
-
-            const clampedRatio = Math.max(-3.0, Math.min(3.0, speedRatio));
+            const WALK_NATURAL_SPEED = walkNaturalCvar !== undefined ? Number(walkNaturalCvar) : 40;
+            const RUN_NATURAL_SPEED = runNaturalCvar !== undefined ? Number(runNaturalCvar) : 100;
+            const STRAFE_NATURAL_SPEED = 29;
+            const JUMP_VELOCITY = 320;
 
             if (inst.currentAnim === 'walk' || inst.currentAnim === 'run') {
-                inst.masterGroup.speedRatio = clampedRatio;
+                const naturalSpeed = inst.currentAnim === 'run' ? RUN_NATURAL_SPEED : WALK_NATURAL_SPEED;
+
+                const velocityDir = new Vector3(velocity.x, 0, velocity.z);
+                const forwardDot = Vector3.Dot(forward, velocityDir);
+                const isMovingBackwards = forwardDot < 0;
+
+                let speedRatio = speed / naturalSpeed;
+                if (isMovingBackwards) speedRatio = -speedRatio;
+                inst.masterGroup.speedRatio = Math.max(-3.0, Math.min(3.0, speedRatio));
+
+            } else if (inst.currentAnim === 'strafe_l' || inst.currentAnim === 'strafe_r') {
+                const right = new Vector3(forward.z, 0, -forward.x);
+                const velocityDir = new Vector3(velocity.x, 0, velocity.z);
+                const lateralSpeed = Math.abs(Vector3.Dot(right, velocityDir));
+                const speedRatio = lateralSpeed / STRAFE_NATURAL_SPEED;
+                inst.masterGroup.speedRatio = Math.max(0.3, Math.min(3.0, speedRatio));
+
+            } else if (inst.currentAnim === 'jump') {
+                // Warsow-style: ascending plays forward, descending reverses
+                if (velocity.y > 10) {
+                    inst.masterGroup.speedRatio = Math.max(0.3, velocity.y / JUMP_VELOCITY * 2.0);
+                } else if (velocity.y < -10) {
+                    inst.masterGroup.speedRatio = Math.min(-0.2, velocity.y / JUMP_VELOCITY * 1.5);
+                } else {
+                    inst.masterGroup.speedRatio = 0;
+                }
+
             } else {
                 inst.masterGroup.speedRatio = 1.0;
             }
@@ -368,7 +380,7 @@ export class PlayerVisuals {
 
         const velocity = this.controller.getVelocity();
 
-        if (!this.controller.isPlayerGrounded() && velocity.y > 50) return "jump";
+        if (!this.controller.isPlayerGrounded()) return "jump";
 
         const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
 
@@ -381,7 +393,7 @@ export class PlayerVisuals {
             const rightDot = right.x * velocity.x + right.z * velocity.z;
 
             if (Math.abs(rightDot) > Math.abs(forwardDot) * 1.5) {
-                return rightDot > 0 ? "strafe_r" : "strafe_l";
+                return rightDot > 0 ? "strafe_l" : "strafe_r";
             }
 
             return speed > 300 ? "run" : "walk";

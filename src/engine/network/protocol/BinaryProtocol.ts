@@ -276,6 +276,14 @@ export class BinaryProtocol {
       let grounded = false;
       let hasVelocityData = false;
 
+      // Always preserve baseline grounded (overridden below if flag 0x04 is set)
+      if (baselineEntity) {
+        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        if (baselineVel) {
+          grounded = baselineVel.grounded ?? false;
+        }
+      }
+
       if (flags & 0x02) {
         // Velocity changed - read new values
         velX = decoder.readFloat32();
@@ -289,7 +297,6 @@ export class BinaryProtocol {
           velX = baselineVel.linear.x;
           velY = baselineVel.linear.y;
           velZ = baselineVel.linear.z;
-          grounded = baselineVel.grounded ?? false;
           hasVelocityData = true;
         }
       }
