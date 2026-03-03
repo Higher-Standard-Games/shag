@@ -118,6 +118,23 @@ export class GameState {
   }
 
   /**
+   * Shallow copy — shares entity/player/event references but copies scalar fields.
+   * Used in broadcastSnapshot() so each client gets its own ackedInputSeq
+   * without the cost of deep-cloning all entities and players.
+   */
+  shallowCopy(): GameState {
+    const copy = new GameState();
+    copy.tick = this.tick;
+    copy.serverTimestamp = this.serverTimestamp;
+    copy.ackedInputSeq = this.ackedInputSeq;
+    copy.entities = this.entities;    // Share reference (read-only during broadcast)
+    copy.players = this.players;      // Share reference
+    copy.events = this.events;        // Share reference
+    copy.matchSnapshot = this.matchSnapshot;
+    return copy;
+  }
+
+  /**
    * Clone state for snapshot
    */
   clone(): GameState {
