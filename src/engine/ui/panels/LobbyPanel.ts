@@ -11,6 +11,7 @@ import { GamePanel } from './GamePanel';
 import { UIStyles } from '../UIStyles';
 import { MatchLobbyView } from '../components/MatchLobbyView';
 import { LobbyClient } from '../../../lobby/LobbyClient';
+import { DebugConsole } from '../../debug/DebugConsole';
 import type { PlayerInfo, MatchLobbyInfo, LiveMatchInfo } from '../../../lobby/types';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 import matchLobbyCSSRaw from '../components/styles/MatchLobbyView.css?raw';
@@ -130,6 +131,7 @@ export class LobbyPanel extends GamePanel {
         headerBtns.className = 'lobby__header-actions';
 
         const consoleBtn = this.createButton('Console ~', '');
+        consoleBtn.addEventListener('click', () => DebugConsole.getInstance().toggle());
         headerBtns.appendChild(consoleBtn);
 
         this.tabBar.appendChild(headerBtns);
