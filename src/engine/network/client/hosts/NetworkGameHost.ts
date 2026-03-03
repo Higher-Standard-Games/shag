@@ -70,7 +70,7 @@ class InterpolationBuffer {
    * Add a new snapshot to the buffer with timestamp
    */
   addSnapshot(snapshot: GameState): void {
-    const now = Date.now();
+    const now = performance.now();
     this.snapshots.push({ state: snapshot, timestamp: now });
 
     // Keep only the last 10 snapshots
@@ -560,7 +560,7 @@ export class NetworkGameHost implements IGameHost {
     // Use server interpolation (reliable, but 50ms delayed)
     // This is used for OTHER players, not local player
     console.warn(`[NetworkGameHost] Using interpolation buffer for entity ${entityId} (is local player: ${this.localPlayerId === entityId})`);
-    const interpolatedState = this.interpolationBuffer.getInterpolatedState(Date.now());
+    const interpolatedState = this.interpolationBuffer.getInterpolatedState(performance.now());
     return interpolatedState.entities.get(entityId);
   }
 
@@ -772,10 +772,10 @@ export class NetworkGameHost implements IGameHost {
    */
   private sendAck(tick: number, snapshot: GameState): void {
     const data = MessageCodec.encodeAck(tick);
-    this.transport.send(data, false);
-    // Store a clone of the RECEIVED snapshot as the decode baseline for future deltas.
-    // This must match exactly what the server stores in its snapshot history for this tick.
-    this.lastAckedSnapshot = snapshot.clone();
+    this.transport.send(data, true); // Reliable — prevents delta baseline desync on loss
+    // Store a lightweight copy of the RECEIVED snapshot as the decode baseline for future deltas.
+    // shallowCopy is sufficient: entity/player/event references are never mutated by decode.
+    this.lastAckedSnapshot = snapshot.shallowCopy();
   }
 
   /**
