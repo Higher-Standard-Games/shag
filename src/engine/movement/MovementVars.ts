@@ -64,8 +64,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
   sv_runSpeed: {
-    value: 350,
-    defaultValue: 350,
+    value: 400,
+    defaultValue: 400,
     min: 100,
     max: 3000,
     description: 'Sprint/run movement speed (units/sec)',
@@ -369,8 +369,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: false,
   },
   cl_showspeed: {
-    value: 0,
-    defaultValue: 0,
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
     description: 'Show player speed on screen',

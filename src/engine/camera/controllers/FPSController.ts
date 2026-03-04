@@ -1019,6 +1019,9 @@ export class FPSController implements ICameraController {
         const weaponSlot = this._pendingWeaponSlot;
         this._pendingWeaponSlot = 0;
 
+        // cl_autorun: invert sprint so server sees "running" by default
+        const sprintForServer = autorun ? !this.keys.sprint : this.keys.sprint;
+
         this.gameManager.sendInput({
           forward: this.keys.forward,
           backward: this.keys.backward,
@@ -1026,7 +1029,7 @@ export class FPSController implements ICameraController {
           right: this.keys.right,
           jump: this.keys.up,
           crouch: this.keys.crouch,
-          sprint: this.keys.sprint,
+          sprint: sprintForServer,
           fire: this.keys.fire,
           altFire: this.keys.aim,
           use: this.keys.use,
@@ -1324,7 +1327,17 @@ export class FPSController implements ICameraController {
    */
   private updateSpeedDisplay(show: boolean, speed: number): void {
     if (show) {
+      // If element exists but was removed from DOM (e.g. spectator mode), reset refs
+      if (FPSController.speedDisplayEl && !FPSController.speedDisplayEl.isConnected) {
+        FPSController.speedDisplayEl = null;
+        FPSController.speedNumberEl = null;
+      }
+
       if (!FPSController.speedDisplayEl) {
+        // Only create when HUD container is ready — don't fall back to body
+        const bottomCenter = document.querySelector('.fps-hud-bottom-center');
+        if (!bottomCenter) return; // HUD not ready yet, try again next frame
+
         // Create speed display widget
         const el = document.createElement('div');
         el.id = 'fps-speed-display';
@@ -1347,9 +1360,7 @@ export class FPSController implements ICameraController {
         label.textContent = 'u/s';
         el.appendChild(label);
 
-        // Attach to HUD bottom-center zone (unified bottom bar), fallback to body
-        const bottomCenter = document.querySelector('.fps-hud-bottom-center');
-        (bottomCenter || document.body).appendChild(el);
+        bottomCenter.appendChild(el);
         FPSController.speedDisplayEl = el;
         FPSController.speedNumberEl = num;
       }
