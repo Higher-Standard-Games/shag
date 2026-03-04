@@ -183,8 +183,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
   sv_playerheight: {
-    value: 56,
-    defaultValue: 56,
+    value: 64,
+    defaultValue: 64,
     min: 32,
     max: 96,
     description: 'Player collision height',
@@ -192,8 +192,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     developerOnly: true,
   },
   sv_eyeoffset: {
-    value: 48,
-    defaultValue: 48,
+    value: 58,
+    defaultValue: 58,
     min: 24,
     max: 72,
     description: 'Eye position above feet (camera height)',

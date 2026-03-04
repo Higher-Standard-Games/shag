@@ -140,7 +140,7 @@ export default class DebugCommand extends Command {
 
     // Player dimensions (from movement vars or defaults)
     // Standard Q3/Warsow player: 56 units tall, 32 diameter (16 radius)
-    const playerHeight = 56;
+    const playerHeight = 64;
     const playerRadius = 16;
 
     // Create capsule visualization using cylinder + two spheres

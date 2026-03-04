@@ -6,11 +6,11 @@
  * Q3 Coordinate System:
  * - Origin (position tracked) is at "waist" level, NOT at feet
  * - Box extends 24 units DOWN from origin (to feet)
- * - Box extends 32 units UP from origin (to head)
- * - Total height: 56 units
+ * - Box extends 40 units UP from origin (to head)
+ * - Total height: 64 units (taller than Q3's 56 to fit vanguard model)
  *
  * ```
- * HEAD    (+32 above origin)  ┌─────────┐
+ * HEAD    (+40 above origin)  ┌─────────┐
  *                             │         │
  * ORIGIN  (position tracked)  │    *    │  ← This is where position.y points
  *                             │         │
@@ -35,9 +35,9 @@ export const PLAYER_RADIUS = 16;
 export const PLAYER_MINS_Z = -24;
 
 /** How far bounding box extends ABOVE origin (to head) */
-export const PLAYER_MAXS_Z = 32;
+export const PLAYER_MAXS_Z = 40;
 
-/** Total player height (56 = 24 + 32) */
+/** Total player height (64 = 24 + 40) */
 export const PLAYER_HEIGHT = PLAYER_MAXS_Z - PLAYER_MINS_Z;
 
 /** Distance from feet to origin (24 units) */
@@ -47,8 +47,8 @@ export const PLAYER_ORIGIN_HEIGHT = -PLAYER_MINS_Z;
 // VIEW HEIGHT
 // =============================================================================
 
-/** Eye position relative to origin when standing (Q3: 26) */
-export const DEFAULT_VIEWHEIGHT = 26;
+/** Eye position relative to origin when standing (raised from Q3's 26 to match taller model) */
+export const DEFAULT_VIEWHEIGHT = 34;
 
 /** Eye position relative to origin when crouching (Q3: 12) */
 export const CROUCH_VIEWHEIGHT = 12;

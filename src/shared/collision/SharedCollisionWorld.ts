@@ -33,7 +33,7 @@ function fromBabylon(v: Vector3): Vec3 {
 export class SharedCollisionWorld implements CollisionWorld {
     // Player dimensions matching Q3 asymmetric box
     private static readonly PLAYER_RADIUS = 16;
-    private static readonly PLAYER_HEIGHT = 56;
+    private static readonly PLAYER_HEIGHT = 64;
 
     private backend: SweepCollisionBackend;
 

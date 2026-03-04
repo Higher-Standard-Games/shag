@@ -43,8 +43,8 @@ export const JUMP_VELOCITY = 270;
 /** Player bounding box half-width (Q3: 15) */
 export const PLAYER_HALF_WIDTH = 15;
 
-/** Player height standing (Q3: 56) */
-export const PLAYER_HEIGHT = 56;
+/** Player height standing (64 = taller than Q3's 56 to fit vanguard model) */
+export const PLAYER_HEIGHT = 64;
 
 /** Player height crouching (Q3: 32) */
 export const PLAYER_CROUCH_HEIGHT = 32;
