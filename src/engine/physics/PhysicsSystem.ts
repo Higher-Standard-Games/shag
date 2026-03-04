@@ -228,6 +228,76 @@ export class PhysicsSystem {
     }
   }
 
+  // ==================== BSP Collision ====================
+
+  private bspCollisionBodies: PhysicsAggregate[] = [];
+
+  /**
+   * Create static Havok collision from BSP worldMesh.
+   * Call once after the BSP map is rendered.
+   * Creates a static trimesh for each child mesh of the worldMesh,
+   * giving decoration physics (ragdolls, weapon drops) proper
+   * collision with the entire map geometry.
+   */
+  createBspCollision(worldMesh: Mesh): number {
+    if (!this.isInitialized() || !this.scene) {
+      console.warn('[PhysicsSystem] Cannot create BSP collision — not initialized');
+      return 0;
+    }
+
+    // Dispose any previous BSP collision
+    this.disposeBspCollision();
+
+    let count = 0;
+    const childMeshes = worldMesh.getChildMeshes(false);
+
+    for (const child of childMeshes) {
+      if (!(child instanceof Mesh)) continue;
+      // Skip invisible/empty meshes
+      if (!child.isVisible || !child.getTotalVertices || child.getTotalVertices() === 0) continue;
+
+      try {
+        // Make mesh non-pickable so it doesn't interfere with game raycasts
+        // (BSP collision for gameplay uses BspCollision system, not Havok)
+        const wasPickable = child.isPickable;
+
+        const aggregate = new PhysicsAggregate(
+          child,
+          PhysicsShapeType.MESH, // trimesh — exact surface collision
+          { mass: 0 }, // static (immovable)
+          this.scene!
+        );
+        this.bspCollisionBodies.push(aggregate);
+        count++;
+
+        // Restore pickable state (game raycasts need pickable BSP)
+        child.isPickable = wasPickable;
+      } catch (e) {
+        // Some meshes may fail (degenerate geometry, etc.) — skip silently
+      }
+    }
+
+    console.log(`[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`);
+    return count;
+  }
+
+  /**
+   * Check if BSP collision is loaded
+   */
+  hasBspCollision(): boolean {
+    return this.bspCollisionBodies.length > 0;
+  }
+
+  /**
+   * Dispose BSP collision bodies
+   */
+  disposeBspCollision(): void {
+    for (const agg of this.bspCollisionBodies) {
+      try { agg.dispose(); } catch (_) { /* noop */ }
+    }
+    this.bspCollisionBodies = [];
+  }
+
   /**
    * Remove a physics body
    */
@@ -287,6 +357,7 @@ export class PhysicsSystem {
    * Dispose all physics bodies
    */
   clear(): void {
+    this.disposeBspCollision();
     for (const handle of this.bodies.values()) {
       handle.aggregate.dispose();
     }
