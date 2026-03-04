@@ -301,6 +301,69 @@ export class PlayerModelManager {
         return true;
     }
 
+    // ── Team Colors ─────────────────────────────────────────────
+
+    /** Predefined team colors (match UI palette) */
+    static readonly TEAM_COLORS = {
+        alpha: { r: 0.05, g: 0.9, b: 1.5 },   // Teal/cyan — blue-biased to counteract warm base texture
+        bravo: { r: 1.4, g: 0.2, b: 1.2 },    // Neon hot pink (HDR for vivid pop)
+    };
+
+    /**
+     * Apply a team color tint to a player model instance.
+     * Clones all PBR materials on the mesh and sets albedoColor to the team color.
+     * The albedoColor multiplies the albedoTexture — light armor takes the tint,
+     * dark undersuit/visor areas remain dark.
+     *
+     * @param instance The player model instance to tint
+     * @param team 'alpha' (teal) or 'bravo' (magenta), or null to reset
+     */
+    applyTeamColor(instance: PlayerModelInstance, team: 'alpha' | 'bravo' | null): void {
+        const allMeshes = [instance.mesh, ...instance.mesh.getChildMeshes()];
+
+        for (const mesh of allMeshes) {
+            if (!mesh.material) continue;
+
+            // Clone material so each instance has its own
+            const mat = mesh.material;
+            const cloneName = `teamMat_${instance.id}_${mesh.name}`;
+
+            // Avoid re-cloning if already team-colored
+            if (mat.name === cloneName) {
+                // Already cloned — just update the color
+                const pbrMat = mat as any;
+                if (team && pbrMat.albedoColor) {
+                    const c = PlayerModelManager.TEAM_COLORS[team];
+                    pbrMat.albedoColor.r = c.r;
+                    pbrMat.albedoColor.g = c.g;
+                    pbrMat.albedoColor.b = c.b;
+                } else if (!team && pbrMat.albedoColor) {
+                    // Reset to white (no tint)
+                    pbrMat.albedoColor.r = 1;
+                    pbrMat.albedoColor.g = 1;
+                    pbrMat.albedoColor.b = 1;
+                }
+                continue;
+            }
+
+            // Clone the material
+            const cloned = mat.clone(cloneName);
+            if (!cloned) continue;
+            mesh.material = cloned;
+
+            // Apply team color
+            const pbrCloned = cloned as any;
+            if (team && pbrCloned.albedoColor) {
+                const c = PlayerModelManager.TEAM_COLORS[team];
+                pbrCloned.albedoColor.r = c.r;
+                pbrCloned.albedoColor.g = c.g;
+                pbrCloned.albedoColor.b = c.b;
+            }
+        }
+
+        console.log(`[PlayerModelManager] Applied team color: ${team ?? 'none'} to ${instance.id}`);
+    }
+
     // ── Per-Frame Utilities ──────────────────────────────────────
 
     /**
