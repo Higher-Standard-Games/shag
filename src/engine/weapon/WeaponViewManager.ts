@@ -202,14 +202,7 @@ export class WeaponViewManager {
     } = { active: false, startTime: 0, params: SLASH_PRESETS[0] };
     private slashPresetIndex: number = 0;  // cycles through presets
 
-    // === Slash Trail Effect ===
-    private slashTrailPoints: Vector3[] = [];     // World-space blade tip positions
-    private slashTrailMesh: Mesh | null = null;
-    private slashTrailMaterial: StandardMaterial | null = null;
-    private slashTrailFadeStart: number = 0;      // When trail starts fading
-    private static readonly SLASH_TRAIL_FADE_MS = 150;   // How fast trail fades out
-    private static readonly SLASH_TRAIL_WIDTH = 8.0;     // Trail ribbon width
-    private static readonly SLASH_TRAIL_MAX_POINTS = 40; // Max trail points
+
 
     // Reload animation state
     private reloadState = {
@@ -1170,143 +1163,154 @@ export class WeaponViewManager {
         };
     }
 
+    // === Slash Trail Effect ===
+    private slashTrails: {
+        tipPoints: Vector3[];
+        handlePoints: Vector3[];
+        mesh: Mesh | null;
+        material: StandardMaterial | null;
+        fadeStart: number;         // 0 = still active, >0 = fading
+        active: boolean;           // true = collecting points from current slash
+    }[] = [];
+    private slashTrailWasActive: boolean = false;
+    private static readonly SLASH_TRAIL_FADE_MS = 800;
+
     /**
-     * Update slash trail effect — red ribbon tracing blade tip during slash.
-     * Collects world-space blade tip positions during swing phase,
-     * then fades and disposes the ribbon after the slash completes.
+     * Update slash trail effect — supports multiple concurrent trail instances.
+     * Each slash creates a new trail that collects points during animation,
+     * then fades independently.
      */
     private updateSlashTrail(): void {
-        if (!this.scene || !this.currentWeapon) return;
+        if (!this.scene || !this.currentWeapon || !this.mainCamera) return;
 
         const now = performance.now();
+        const isSlashing = this.slashState.active;
 
-        // During active slash: collect blade tip world positions
-        if (this.slashState.active && this.mainCamera) {
-            // Compute blade tip from camera position + direction offsets
-            // The slash animation offsets move the weapon root, which moves relative to camera
-            // We place the trail source ahead of the camera, offset by the current slash position
+        // Edge detect: new slash started → create fresh trail instance
+        if (isSlashing && !this.slashTrailWasActive) {
+            // Finalize any previous active trail (start its fade)
+            for (const trail of this.slashTrails) {
+                if (trail.active) {
+                    trail.active = false;
+                    trail.fadeStart = now;
+                }
+            }
+            // Create new trail instance
+            this.slashTrails.push({
+                tipPoints: [],
+                handlePoints: [],
+                mesh: null,
+                material: null,
+                fadeStart: 0,
+                active: true,
+            });
+        }
+        this.slashTrailWasActive = isSlashing;
+
+        // Collect points for the active trail
+        const activeTrail = this.slashTrails.find(t => t.active);
+        if (activeTrail && isSlashing) {
             const cam = this.mainCamera;
             const forward = cam.getDirection(Vector3.Forward());
             const up = cam.getDirection(Vector3.Up());
             const right = cam.getDirection(Vector3.Right());
 
-            // Get current slash animation offsets for trail position
             const slashOff = this.getSlashAnimationOffsets();
 
-            // Base tip position: camera + 2 units forward + 0.5 up + slight right
-            // Then add slash offsets (scaled down since they're in weapon-view units)
-            const tipWorld = cam.position.clone()
-                .addInPlace(forward.scale(2.5))
-                .addInPlace(up.scale(0.3))
-                .addInPlace(right.scale(0.3))
+            // Handle (pivot) — barely moves
+            const handle = cam.position.clone()
+                .addInPlace(forward.scale(15))
+                .addInPlace(up.scale(-4))
+                .addInPlace(right.scale(2))
                 .addInPlace(up.scale(slashOff.yOffset * 0.04))
-                .addInPlace(right.scale(slashOff.xOffset * 0.04))
-                .addInPlace(forward.scale(slashOff.zOffset * 0.04));
+                .addInPlace(right.scale(slashOff.xOffset * 0.04));
 
-            this.slashTrailPoints.push(tipWorld);
+            // Tip — sweeps wide
+            const tip = cam.position.clone()
+                .addInPlace(forward.scale(28))
+                .addInPlace(up.scale(5))
+                .addInPlace(right.scale(-2))
+                .addInPlace(up.scale(slashOff.yOffset * 0.25))
+                .addInPlace(right.scale(slashOff.xOffset * 0.25))
+                .addInPlace(forward.scale(slashOff.zOffset * 0.1));
 
-            // Trim old points
-            while (this.slashTrailPoints.length > WeaponViewManager.SLASH_TRAIL_MAX_POINTS) {
-                this.slashTrailPoints.shift();
+            activeTrail.tipPoints.push(tip);
+            activeTrail.handlePoints.push(handle);
+
+            // Build ribbon mesh during animation (visible immediately!)
+            if (activeTrail.tipPoints.length >= 2) {
+                this.buildTrailMesh(activeTrail);
             }
+        }
 
-            // Build trail ribbon
-            this.buildSlashTrailMesh();
-        } else if (this.slashTrailPoints.length > 0) {
-            // Slash ended — start fading
-            if (this.slashTrailFadeStart === 0) {
-                this.slashTrailFadeStart = now;
-            }
+        // When slash ends, start fading the active trail
+        if (!isSlashing && activeTrail) {
+            activeTrail.active = false;
+            activeTrail.fadeStart = now;
+        }
 
-            const fadeElapsed = now - this.slashTrailFadeStart;
-            const fadeProgress = fadeElapsed / WeaponViewManager.SLASH_TRAIL_FADE_MS;
+        // Update fading trails + clean up finished ones
+        for (let i = this.slashTrails.length - 1; i >= 0; i--) {
+            const trail = this.slashTrails[i];
+            if (trail.active) continue; // Still collecting points
 
-            if (fadeProgress >= 1.0) {
-                // Fully faded — clean up
-                this.disposeSlashTrail();
-            } else {
-                // Fade alpha
-                if (this.slashTrailMaterial) {
-                    this.slashTrailMaterial.alpha = 0.7 * (1.0 - fadeProgress);
+            if (trail.fadeStart > 0) {
+                const fadeProgress = (now - trail.fadeStart) / WeaponViewManager.SLASH_TRAIL_FADE_MS;
+                if (fadeProgress >= 1.0) {
+                    // Fully faded — dispose and remove
+                    if (trail.mesh) trail.mesh.dispose();
+                    if (trail.material) trail.material.dispose();
+                    this.slashTrails.splice(i, 1);
+                } else {
+                    // Fade alpha
+                    if (trail.material) {
+                        trail.material.alpha = 0.7 * (1.0 - fadeProgress);
+                    }
                 }
             }
         }
     }
 
     /**
-     * Build/rebuild the slash trail ribbon mesh from collected points.
+     * Build/rebuild ribbon mesh for a specific trail instance.
      */
-    private buildSlashTrailMesh(): void {
-        if (!this.scene || this.slashTrailPoints.length < 2) return;
+    private buildTrailMesh(trail: typeof this.slashTrails[0]): void {
+        if (!this.scene || trail.tipPoints.length < 2) return;
 
-        // Dispose old ribbon (recreate each frame as point count changes)
-        if (this.slashTrailMesh) {
-            this.slashTrailMesh.dispose();
-            this.slashTrailMesh = null;
+        if (trail.mesh) {
+            trail.mesh.dispose();
+            trail.mesh = null;
         }
 
-        // Build ribbon paths — X-formation for volume
-        const pathA: Vector3[] = [];
-        const pathB: Vector3[] = [];
-
-        for (let i = 0; i < this.slashTrailPoints.length; i++) {
-            const p = this.slashTrailPoints[i];
-
-            // Compute perpendicular direction
-            let tangent: Vector3;
-            if (i < this.slashTrailPoints.length - 1) {
-                tangent = this.slashTrailPoints[i + 1].subtract(p).normalize();
-            } else {
-                tangent = p.subtract(this.slashTrailPoints[i - 1]).normalize();
-            }
-
-            // Perpendicular cross with world up
-            let perp = Vector3.Cross(tangent, Vector3.Up());
-            if (perp.lengthSquared() < 0.001) {
-                perp = Vector3.Cross(tangent, Vector3.Forward());
-            }
-            perp.normalize();
-
-            // Taper width: thin at tail → full at head
-            const t = i / (this.slashTrailPoints.length - 1);
-            const width = WeaponViewManager.SLASH_TRAIL_WIDTH * t;
-
-            pathA.push(p.add(perp.scale(width)));
-            pathB.push(p.subtract(perp.scale(width)));
-        }
-
-        // Create ribbon mesh
-        this.slashTrailMesh = MeshBuilder.CreateRibbon('slashTrail', {
-            pathArray: [pathA, pathB],
+        trail.mesh = MeshBuilder.CreateRibbon('slashTrail', {
+            pathArray: [trail.tipPoints, trail.handlePoints],
             updatable: false,
             sideOrientation: Mesh.DOUBLESIDE,
         }, this.scene);
-        this.slashTrailMesh.isPickable = false;
+        trail.mesh.isPickable = false;
 
-        // Create material once, reuse
-        if (!this.slashTrailMaterial) {
+        if (!trail.material) {
             const mat = new StandardMaterial('slashTrailMat', this.scene);
-            mat.emissiveColor = new Color3(1.0, 0.15, 0.05); // Bright red
+            mat.emissiveColor = new Color3(1.0, 0.15, 0.05);
             mat.diffuseColor = Color3.Black();
             mat.disableLighting = true;
             mat.backFaceCulling = false;
             mat.alpha = 0.7;
-            this.slashTrailMaterial = mat;
+            trail.material = mat;
         }
-        this.slashTrailMaterial.alpha = 0.7; // Reset alpha for active trail
-        this.slashTrailMesh.material = this.slashTrailMaterial;
+        trail.material.alpha = 0.7;
+        trail.mesh.material = trail.material;
     }
 
     /**
-     * Clean up slash trail mesh and state.
+     * Clean up all slash trails.
      */
     private disposeSlashTrail(): void {
-        if (this.slashTrailMesh) {
-            this.slashTrailMesh.dispose();
-            this.slashTrailMesh = null;
+        for (const trail of this.slashTrails) {
+            if (trail.mesh) trail.mesh.dispose();
+            if (trail.material) trail.material.dispose();
         }
-        this.slashTrailPoints = [];
-        this.slashTrailFadeStart = 0;
+        this.slashTrails = [];
     }
 
     /**
