@@ -163,6 +163,10 @@ export interface WeaponDef extends EntityDef {
     /** @deprecated Use chargedDamageMax instead */
     chargedDamage?: number;
 
+    // === MOVEMENT ===
+    /** Bonus movement speed while this weapon is equipped (e.g., +25 for blade) */
+    speedBonus?: number;
+
     /** Crosshair visual config */
     crosshair?: CrosshairConfig;
 
