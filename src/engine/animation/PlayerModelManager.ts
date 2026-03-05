@@ -325,8 +325,9 @@ export class PlayerModelManager {
      * Play a one-shot animation on an instance (e.g. attack, hit reaction).
      * Uses an OVERLAY approach — does NOT touch the existing masterGroup.
      * The one-shot plays on top and auto-disposes when complete.
+     * @param speedRatio - Optional playback speed multiplier (default 1.0, higher = faster)
      */
-    playOnce(instance: PlayerModelInstance, name: string): boolean {
+    playOnce(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): boolean {
         const animData = instance.anims.find(a => a.name === name);
         if (!animData || animData.animations.length === 0) return false;
 
@@ -339,6 +340,9 @@ export class PlayerModelManager {
                 group.addTargetedAnimation(item.animation, item.target);
             }
         }
+
+        // Apply speed ratio (higher = faster animation)
+        group.speedRatio = speedRatio;
 
         // Play once (loop = false), auto-dispose when complete
         group.play(false);

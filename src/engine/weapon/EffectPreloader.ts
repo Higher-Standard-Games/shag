@@ -202,7 +202,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
 
     console.log(`[EffectPreloader] Warming up ${warmupMeshes.length} shader permutations (incl. lightmap + PointLight variants)...`);
 
-    // Wait for one render frame so all shaders get compiled by WebGL
+    // Wait for one render frame so all dummy shaders get compiled by WebGL
     await new Promise<void>((resolve) => {
         scene.onAfterRenderObservable.addOnce(() => {
             // Cleanup all warm-up geometry, materials, textures, lights
@@ -216,4 +216,50 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
             resolve();
         });
     });
+
+    // ─── PHASE 2: Force-compile ALL BSP materials with PointLight variant ────
+    // The dummy warmup above only compiles shaders for the DUMMY materials.
+    // Each real BSP material has its own StandardMaterial instance that needs
+    // its own "with dynamic light" shader variant. Without this, the first
+    // projectile PointLight entering range of BSP surfaces triggers synchronous
+    // shader recompilation → visible wall flicker / disappearing geometry.
+    //
+    // Fix: create a temporary PointLight at origin, iterate every BSP
+    // StandardMaterial, and call forceCompilationAsync() to pre-compile
+    // the dynamic-light shader variant before gameplay starts.
+    {
+        // Build mapping: material → first mesh that uses it
+        const matMeshMap = new Map<StandardMaterial, Mesh>();
+        for (const mesh of scene.meshes) {
+            if (mesh.material instanceof StandardMaterial && mesh.material.name.startsWith('bsp_')) {
+                if (!matMeshMap.has(mesh.material)) {
+                    matMeshMap.set(mesh.material, mesh as Mesh);
+                }
+            }
+        }
+
+        if (matMeshMap.size > 0) {
+            // Create temporary light so materials compile with the "has lights" variant
+            const tmpLight = new PointLight('_warmup_bsp_light2', new Vector3(0, 0, 0), scene);
+            tmpLight.intensity = 1;
+            tmpLight.range = 999999; // Ensure it affects ALL materials
+            tmpLight.diffuse = new Color3(1, 1, 1);
+
+            console.log(`[EffectPreloader] Force-compiling ${matMeshMap.size} BSP materials with PointLight variant...`);
+
+            // Force-compile all BSP materials with the light active, using their actual meshes
+            const compilations: Promise<void>[] = [];
+            for (const [mat, mesh] of matMeshMap) {
+                compilations.push(new Promise<void>((resolve) => {
+                    mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
+                }));
+            }
+
+            await Promise.all(compilations);
+
+            // Dispose temporary light
+            tmpLight.dispose();
+            console.log(`[EffectPreloader] BSP material force-compilation complete — ${matMeshMap.size} materials`);
+        }
+    }
 }
