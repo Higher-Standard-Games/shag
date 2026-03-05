@@ -337,31 +337,44 @@ export class WeaponViewManager {
                 glbRoot.rotation.x = Math.PI;
                 // Tilt blade tip upward ~52° for natural melee carry
                 glbRoot.rotation.y = 0.9;
+                // NOTE: GLB root has scl:(1,1,-1) from Blender export — keep it,
+                // the negative Z is needed for correct orientation. Use backFaceCulling=false
+                // on materials to handle the flipped winding order.
 
                 const glbMeshes: any[] = [];
+                // Convert shared PBR materials to StandardMaterial ONCE per material
+                const convertedMaterials = new Map<string, StandardMaterial>();
+
                 for (const mesh of result.meshes) {
                     if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
-                    (mesh as any)._isGlbWeapon = true;  // Tag for updateLightingFromBsp skip
 
-                    // Configure PBR materials for weapon camera rendering.
-                    // DO NOT set unlit — it kills emissive channel (blade glow).
+                    // Convert PBR → StandardMaterial (self-lit, same as MD3 weapons)
                     if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
                         const pbr = mesh.material as any;
-                        pbr.unfreeze();
-                        // Boost albedo for visibility in weapon camera
-                        if (pbr.albedoColor) {
-                            pbr.albedoColor.r = Math.min(1.0, pbr.albedoColor.r * 2.0);
-                            pbr.albedoColor.g = Math.min(1.0, pbr.albedoColor.g * 2.0);
-                            pbr.albedoColor.b = Math.min(1.0, pbr.albedoColor.b * 2.0);
+                        const matId = pbr.uniqueId || pbr.name;
+
+                        if (!convertedMaterials.has(matId)) {
+                            const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
+                            stdMat.disableLighting = true;
+                            stdMat.diffuseColor = new Color3(1, 1, 1);
+
+                            // Transfer textures (don't dispose PBR — it disposes textures too!)
+                            if (pbr.albedoTexture) stdMat.diffuseTexture = pbr.albedoTexture;
+                            if (pbr.emissiveTexture) {
+                                stdMat.emissiveTexture = pbr.emissiveTexture;
+                                stdMat.emissiveColor = new Color3(1, 1, 1);
+                            }
+                            stdMat.backFaceCulling = false;
+                            convertedMaterials.set(matId, stdMat);
+
+                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", diffuse: ${!!stdMat.diffuseTexture}, emissive: ${!!stdMat.emissiveTexture}`);
                         }
-                        // Boost emissive intensity for glow effect
-                        if (pbr.emissiveColor) {
-                            pbr.emissiveIntensity = Math.max(pbr.emissiveIntensity || 1.0, 2.0);
-                        }
-                        pbr.backFaceCulling = false;
-                        pbr.markAsDirty(1 | 4 | 16);
-                        pbr._doNotFreeze = true;
+                        mesh.material = convertedMaterials.get(matId)!;
                     }
+
+                    // Ensure ALL meshes have weapon layer mask
+                    mesh.renderingGroupId = 1;
+                    mesh.layerMask = WEAPON_LAYER_MASK;
 
                     if (mesh !== glbRoot) glbMeshes.push(mesh);
                 }
@@ -672,9 +685,14 @@ export class WeaponViewManager {
     public applyWeaponOutlines(): void {
         if (!this.currentWeapon) return;
 
+        // GLB models are scaled much larger than MD3 (e.g. 30x), so outlines
+        // appear proportionally thicker. Divide by root scale to normalize.
+        const rootScale = this.currentWeapon.root.scaling.x || 1;
+        const adjustedWidth = this._weaponOutlineWidth / rootScale;
+
         for (const mesh of this.currentWeapon.meshes) {
             mesh.renderOutline = this._weaponOutlineEnabled;
-            mesh.outlineWidth = this._weaponOutlineWidth;
+            mesh.outlineWidth = adjustedWidth;
             mesh.outlineColor = this._weaponOutlineColor;
         }
     }
@@ -998,12 +1016,10 @@ export class WeaponViewManager {
             this.currentLightG += (targetG - this.currentLightG) * lerpFactor;
             this.currentLightB += (targetB - this.currentLightB) * lerpFactor;
 
-            // Apply smoothed lighting to weapon materials
+            // Apply smoothed lighting to weapon materials (all use StandardMaterial now)
             for (const mesh of this.currentWeapon.meshes) {
-                // Skip GLB weapon meshes — they use unlit PBR, not BSP lighting
-                if ((mesh as any)._isGlbWeapon) continue;
                 const mat = mesh.material as StandardMaterial;
-                if (mat && mat.diffuseColor) {
+                if (mat?.diffuseColor) {
                     mat.diffuseColor.set(this.currentLightR, this.currentLightG, this.currentLightB);
                 }
             }
