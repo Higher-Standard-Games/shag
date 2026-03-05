@@ -65,6 +65,62 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
 
+// === Slash Animation Definitions ===
+
+/** Parameters for a single slash animation swing */
+interface SlashParams {
+    // Rotation offsets (radians) at swing start and end
+    startPitch: number;   // X rotation at swing start
+    startRoll: number;    // Z rotation at swing start
+    endPitch: number;     // X rotation at swing end
+    endRoll: number;      // Z rotation at swing end
+    startYaw: number;     // Y rotation at start (0 for most slashes)
+    endYaw: number;       // Y rotation at end
+
+    // Position offsets at swing start and end
+    startOffset: { x: number; y: number; z: number };
+    endOffset: { x: number; y: number; z: number };
+
+    // Timing (ms)
+    windupDuration: number;   // move to start pose
+    swingDuration: number;    // the actual slash (fast)
+    returnDuration: number;   // ease back to idle
+}
+
+/** Slash animation presets — cycled/randomized on each fire */
+const SLASH_PRESETS: SlashParams[] = [
+    // Slash 1: Vertical down — blade raised, slashes downward
+    {
+        startPitch: -0.4, startRoll: 0, startYaw: 0,
+        endPitch: 0.6, endRoll: 0, endYaw: 0,
+        startOffset: { x: 0, y: 4, z: -2 },
+        endOffset: { x: 0, y: -6, z: 4 },
+        windupDuration: 30,
+        swingDuration: 80,
+        returnDuration: 140,
+    },
+    // Slash 2: Diagonal left-to-right
+    {
+        startPitch: -0.3, startRoll: -0.4, startYaw: -0.15,
+        endPitch: 0.4, endRoll: 0.5, endYaw: 0.15,
+        startOffset: { x: -4, y: 3, z: -1 },
+        endOffset: { x: 5, y: -4, z: 3 },
+        windupDuration: 25,
+        swingDuration: 90,
+        returnDuration: 135,
+    },
+    // Slash 3: Diagonal right-to-left
+    {
+        startPitch: -0.3, startRoll: 0.4, startYaw: 0.15,
+        endPitch: 0.4, endRoll: -0.5, endYaw: -0.15,
+        startOffset: { x: 4, y: 3, z: -1 },
+        endOffset: { x: -5, y: -4, z: 3 },
+        windupDuration: 25,
+        swingDuration: 90,
+        returnDuration: 135,
+    },
+];
+
 export class WeaponViewManager {
     private static instance: WeaponViewManager;
 
@@ -135,6 +191,14 @@ export class WeaponViewManager {
     private savedOutlineWidth: number = 0;
     private savedOutlineColor: Color3 = new Color3(0, 0, 0);
     private savedOutlineEnabled: boolean = false;
+
+    // === Slash Animation System ===
+    private slashState: {
+        active: boolean;
+        startTime: number;       // performance.now() when triggered
+        params: SlashParams;     // current animation parameters
+    } = { active: false, startTime: 0, params: SLASH_PRESETS[0] };
+    private slashPresetIndex: number = 0;  // cycles through presets
 
     // Reload animation state
     private reloadState = {
@@ -1003,11 +1067,14 @@ export class WeaponViewManager {
         // Get switch animation offsets
         const switchOffsets = this.getSwitchAnimationOffsets();
 
-        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake)
+        // Get slash animation offsets (melee weapons)
+        const slashOffsets = this.getSlashAnimationOffsets();
+
+        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake + slash)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX,
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY,
-            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY + slashOffsets.yOffset,
+            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset + slashOffsets.zOffset
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -1019,10 +1086,74 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch,
-            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch,
+            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180) + slashOffsets.yaw,
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06 + slashOffsets.roll
         );
+    }
+
+    /**
+     * Get slash animation offsets for melee weapons.
+     * 3-phase animation: windup → swing → return to idle.
+     * Uses easeOut for swing (fast start, decel), easeInOut for return.
+     */
+    private getSlashAnimationOffsets(): {
+        xOffset: number; yOffset: number; zOffset: number;
+        pitch: number; yaw: number; roll: number;
+    } {
+        const zero = { xOffset: 0, yOffset: 0, zOffset: 0, pitch: 0, yaw: 0, roll: 0 };
+        if (!this.slashState.active) return zero;
+
+        const now = performance.now();
+        const elapsed = now - this.slashState.startTime;
+        const p = this.slashState.params;
+        const totalDuration = p.windupDuration + p.swingDuration + p.returnDuration;
+
+        if (elapsed >= totalDuration) {
+            this.slashState.active = false;
+            return zero;
+        }
+
+        let t: number; // 0-1 interpolation
+        let fromPitch: number, fromRoll: number, fromYaw: number;
+        let toPitch: number, toRoll: number, toYaw: number;
+        let fromX: number, fromY: number, fromZ: number;
+        let toX: number, toY: number, toZ: number;
+
+        if (elapsed < p.windupDuration) {
+            // Phase 1: Windup — idle to start pose
+            t = p.windupDuration > 0 ? elapsed / p.windupDuration : 1;
+            t = t * t; // easeIn (accelerate into start)
+            fromPitch = 0; fromRoll = 0; fromYaw = 0;
+            toPitch = p.startPitch; toRoll = p.startRoll; toYaw = p.startYaw;
+            fromX = 0; fromY = 0; fromZ = 0;
+            toX = p.startOffset.x; toY = p.startOffset.y; toZ = p.startOffset.z;
+        } else if (elapsed < p.windupDuration + p.swingDuration) {
+            // Phase 2: Swing — start pose to end pose (fast, easeOut)
+            t = (elapsed - p.windupDuration) / p.swingDuration;
+            t = 1 - (1 - t) * (1 - t); // easeOut (fast start, decel)
+            fromPitch = p.startPitch; fromRoll = p.startRoll; fromYaw = p.startYaw;
+            toPitch = p.endPitch; toRoll = p.endRoll; toYaw = p.endYaw;
+            fromX = p.startOffset.x; fromY = p.startOffset.y; fromZ = p.startOffset.z;
+            toX = p.endOffset.x; toY = p.endOffset.y; toZ = p.endOffset.z;
+        } else {
+            // Phase 3: Return — end pose back to idle (smooth, easeInOut)
+            t = (elapsed - p.windupDuration - p.swingDuration) / p.returnDuration;
+            t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOut
+            fromPitch = p.endPitch; fromRoll = p.endRoll; fromYaw = p.endYaw;
+            toPitch = 0; toRoll = 0; toYaw = 0;
+            fromX = p.endOffset.x; fromY = p.endOffset.y; fromZ = p.endOffset.z;
+            toX = 0; toY = 0; toZ = 0;
+        }
+
+        return {
+            xOffset: fromX + (toX - fromX) * t,
+            yOffset: fromY + (toY - fromY) * t,
+            zOffset: fromZ + (toZ - fromZ) * t,
+            pitch: fromPitch + (toPitch - fromPitch) * t,
+            yaw: fromYaw + (toYaw - fromYaw) * t,
+            roll: fromRoll + (toRoll - fromRoll) * t,
+        };
     }
 
     /**
@@ -1139,6 +1270,17 @@ export class WeaponViewManager {
 
         // Trigger recoil
         this.recoilOffset = WeaponViewManager.RECOIL_KICK;
+
+        // Trigger slash animation for melee weapons
+        if (this.currentWeaponDef?.meleeRadius) {
+            const preset = SLASH_PRESETS[this.slashPresetIndex % SLASH_PRESETS.length];
+            this.slashPresetIndex++;
+            this.slashState = {
+                active: true,
+                startTime: performance.now(),
+                params: preset,
+            };
+        }
 
         // Spawn projectile OR hitscan effect
         if (this.mainCamera && this.currentWeaponDef) {
