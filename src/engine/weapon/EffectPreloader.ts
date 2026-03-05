@@ -285,20 +285,50 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
  * Revalidate all scene materials after tab was backgrounded.
  *
  * When the browser tab is hidden during map loading, WebGL texture uploads
- * and shader compilations silently fail. This function forces all materials
- * to re-evaluate their shader defines and recompile if needed.
+ * and shader compilations silently fail. This function forces:
+ * 1. Engine texture cache reset — forces all textures to re-bind on next render
+ * 2. All textures to re-upload to GPU via updateSamplingMode()
+ * 3. All materials marked dirty — forces shader re-evaluation
+ * 4. All StandardMaterials force-compiled with PointLight variant
+ * 5. Scene whenReadyAsync — final GPU readiness gate
  *
  * Called by MapLoader when it detects the tab was backgrounded during load.
  */
 export async function revalidateMaterials(scene: Scene): Promise<void> {
     const startTime = performance.now();
+    const engine = scene.getEngine();
 
-    // 1. Mark all materials as dirty to force shader re-evaluation
+    // 1. Reset the engine's internal texture cache — forces all textures
+    //    to be re-bound to WebGL texture units on the next render pass
+    (engine as any).resetTextureCache?.();
+    console.log(`[EffectPreloader] Reset engine texture cache`);
+
+    // 2. Force all textures to re-upload to GPU
+    //    When backgrounded, texture.isReady() may return true but the
+    //    actual WebGL texture handle may be empty. Calling updateSamplingMode()
+    //    forces Babylon to re-bind and re-upload the texture data.
+    let texCount = 0;
+    for (const tex of scene.textures) {
+        if (tex && tex.isReady()) {
+            try {
+                // Force the texture to re-initialize its WebGL sampler
+                // This triggers an internal _rebuild-like path
+                const sampling = tex.samplingMode;
+                tex.updateSamplingMode(sampling);
+                texCount++;
+            } catch (_) {
+                // Some texture types may not support this — skip
+            }
+        }
+    }
+    console.log(`[EffectPreloader] Forced ${texCount} textures to re-upload`);
+
+    // 3. Mark all materials as dirty to force shader re-evaluation
     const { Constants } = await import('@babylonjs/core/Engines/constants');
     scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
     console.log(`[EffectPreloader] Marked all materials dirty for revalidation`);
 
-    // 2. Force-compile all StandardMaterials with PointLight variant (same as Phase 2)
+    // 4. Force-compile all StandardMaterials with PointLight variant (same as Phase 2)
     const matMeshMap = new Map<StandardMaterial, Mesh>();
     for (const mesh of scene.meshes) {
         if (mesh.material instanceof StandardMaterial) {
@@ -336,9 +366,10 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
         });
     }
 
-    // 3. Wait for scene readiness (ensures all textures are GPU-uploaded)
+    // 5. Wait for scene readiness (ensures all textures are GPU-uploaded)
     await scene.whenReadyAsync();
 
     const elapsed = (performance.now() - startTime).toFixed(0);
-    console.log(`[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials in ${elapsed}ms`);
+    console.log(`[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials, ${texCount} textures in ${elapsed}ms`);
 }
+
