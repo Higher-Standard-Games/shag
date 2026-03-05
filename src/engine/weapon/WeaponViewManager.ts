@@ -12,6 +12,7 @@ import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { PK3TextureLoader } from '../loader/pk3/PK3TextureLoader';
@@ -358,8 +359,12 @@ export class WeaponViewManager {
                             stdMat.disableLighting = true;
                             stdMat.diffuseColor = new Color3(1, 1, 1);
 
-                            // Transfer textures (don't dispose PBR — it disposes textures too!)
-                            if (pbr.albedoTexture) stdMat.diffuseTexture = pbr.albedoTexture;
+                            // Load external BaseColor texture — PBR albedo is near-black
+                            // for metallic surfaces (color comes from specular reflections)
+                            const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
+                            const baseColorTex = new Texture(baseColorPath, this.scene!);
+                            stdMat.diffuseTexture = baseColorTex;
+
                             if (pbr.emissiveTexture) {
                                 stdMat.emissiveTexture = pbr.emissiveTexture;
                                 stdMat.emissiveColor = new Color3(1, 1, 1);
@@ -367,7 +372,7 @@ export class WeaponViewManager {
                             stdMat.backFaceCulling = false;
                             convertedMaterials.set(matId, stdMat);
 
-                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", diffuse: ${!!stdMat.diffuseTexture}, emissive: ${!!stdMat.emissiveTexture}`);
+                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", baseColor: ${baseColorPath}, emissive: ${!!stdMat.emissiveTexture}`);
                         }
                         mesh.material = convertedMaterials.get(matId)!;
                     }
