@@ -89,35 +89,35 @@ interface SlashParams {
 
 /** Slash animation presets — cycled/randomized on each fire */
 const SLASH_PRESETS: SlashParams[] = [
-    // Slash 1: Vertical down — blade raised, slashes downward
+    // Slash 1: Big vertical down — raised high, sweeps down with lunge
     {
-        startPitch: -0.4, startRoll: 0, startYaw: 0,
-        endPitch: 0.6, endRoll: 0, endYaw: 0,
-        startOffset: { x: 0, y: 4, z: -2 },
-        endOffset: { x: 0, y: -6, z: 4 },
-        windupDuration: 30,
-        swingDuration: 80,
-        returnDuration: 140,
+        startPitch: 0, startRoll: -2.0, startYaw: 0,
+        endPitch: 0, endRoll: 1.4, endYaw: 0,
+        startOffset: { x: 5, y: 30, z: -15 },    // raised way up, pulled back
+        endOffset: { x: -5, y: -25, z: 18 },    // swept down, lunged forward hard
+        windupDuration: 50,
+        swingDuration: 130,
+        returnDuration: 170,
     },
-    // Slash 2: Diagonal left-to-right
+    // Slash 2: Diagonal upper-right to lower-left
     {
-        startPitch: -0.3, startRoll: -0.4, startYaw: -0.15,
-        endPitch: 0.4, endRoll: 0.5, endYaw: 0.15,
-        startOffset: { x: -4, y: 3, z: -1 },
-        endOffset: { x: 5, y: -4, z: 3 },
-        windupDuration: 25,
-        swingDuration: 90,
-        returnDuration: 135,
+        startPitch: 0.7, startRoll: -1.8, startYaw: -0.4,
+        endPitch: -0.7, endRoll: 1.2, endYaw: 0.4,
+        startOffset: { x: -12, y: 28, z: -12 },
+        endOffset: { x: 12, y: -22, z: 15 },
+        windupDuration: 45,
+        swingDuration: 130,
+        returnDuration: 175,
     },
-    // Slash 3: Diagonal right-to-left
+    // Slash 3: Diagonal upper-left to lower-right
     {
-        startPitch: -0.3, startRoll: 0.4, startYaw: 0.15,
-        endPitch: 0.4, endRoll: -0.5, endYaw: -0.15,
-        startOffset: { x: 4, y: 3, z: -1 },
-        endOffset: { x: -5, y: -4, z: 3 },
-        windupDuration: 25,
-        swingDuration: 90,
-        returnDuration: 135,
+        startPitch: -0.7, startRoll: -1.8, startYaw: 0.4,
+        endPitch: 0.7, endRoll: 1.2, endYaw: -0.4,
+        startOffset: { x: 12, y: 28, z: -12 },
+        endOffset: { x: -12, y: -22, z: 15 },
+        windupDuration: 45,
+        swingDuration: 130,
+        returnDuration: 175,
     },
 ];
 
