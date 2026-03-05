@@ -1046,7 +1046,7 @@ export class WeaponViewManager {
             chargeShakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
 
             // Red pulsing outline
-            const outlineMin = 15, outlineMax = 30;
+            const outlineMin = 0.3, outlineMax = 0.8;
             const scaledWidth = outlineMin + this.chargeProgress * (outlineMax - outlineMin);
             const rootScale = this.currentWeapon.root.scaling.x || 1;
             const pulseRate = 4 + this.chargeProgress * 8; // faster pulse at higher charge

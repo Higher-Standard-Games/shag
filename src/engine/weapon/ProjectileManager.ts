@@ -19,7 +19,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
 import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
-import { getExplosionEffect, ROCKET_EXPLOSION, GRENADE_EXPLOSION, PLASMA_EXPLOSION } from './ExplosionEffect';
+import { getExplosionEffect, ROCKET_EXPLOSION, GRENADE_EXPLOSION, PLASMA_EXPLOSION, BLADE_EXPLOSION } from './ExplosionEffect';
 
 interface ActiveProjectile {
     id: string;
@@ -735,7 +735,7 @@ export class ProjectileManager {
 
         // Client-side predicted explosions for rockets/grenades/plasma
         // These are shown immediately; server events are deduplicated against them
-        if (projDefId === 'rocket' || projDefId === 'grenade' || projDefId === 'plasma_bolt') {
+        if (projDefId === 'rocket' || projDefId === 'grenade' || projDefId === 'plasma_bolt' || projDefId === 'blade_blast') {
             // Record prediction for dedup and spawn the explosion locally
             this.recentPredictedImpacts.push({
                 pos: position.clone(),
@@ -746,7 +746,8 @@ export class ProjectileManager {
             // Spawn the explosion locally using the config for this projectile type
             const config = projDefId === 'grenade' ? GRENADE_EXPLOSION
                 : projDefId === 'plasma_bolt' ? PLASMA_EXPLOSION
-                    : ROCKET_EXPLOSION;
+                    : projDefId === 'blade_blast' ? BLADE_EXPLOSION
+                        : ROCKET_EXPLOSION;
             getExplosionEffect().spawn(position, config, normal);
             return;
         }
