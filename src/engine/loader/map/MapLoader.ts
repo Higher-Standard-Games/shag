@@ -57,6 +57,11 @@ export class MapLoader {
   private currentBsp: BspFile | null = null;
   private currentMeshResult: BspMeshBuildResult | null = null;
 
+  /** True while a BSP map is being loaded */
+  private isLoadingMap: boolean = false;
+  /** Set to true if the tab was backgrounded during map loading */
+  private wasBackgroundedDuringLoad: boolean = false;
+
   private constructor() {
     this.pk3Index = PK3Index.getInstance();
     this.pk3Loader = PK3Loader.getInstance();
@@ -178,6 +183,20 @@ export class MapLoader {
     progress: (phase: string, detail?: string, pct?: number) => void,
     backgroundOnly?: boolean
   ): Promise<MapLoadResult> {
+    // ── Tab visibility tracking ──────────────────────────────────────────
+    // When the browser tab is backgrounded, WebGL texture uploads and shader
+    // compilations silently fail. Track visibility so we can revalidate after.
+    this.isLoadingMap = true;
+    this.wasBackgroundedDuringLoad = false;
+
+    const onVisibilityChange = () => {
+      if (document.hidden && this.isLoadingMap) {
+        this.wasBackgroundedDuringLoad = true;
+        console.warn('[MapLoader] ⚠ Tab backgrounded during map load — will revalidate textures on return');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
     // Phase 1: Ensure map PK3 is loaded
@@ -468,6 +487,43 @@ export class MapLoader {
       }
     } else {
       console.log('[MapLoader] Background mode: skipped shader warmup and GPU wait');
+    }
+
+    // ── Tab visibility recovery ──────────────────────────────────────────
+    // If the tab was backgrounded at any point during loading, texture
+    // uploads and shader compilations may have silently failed. Force a
+    // full revalidation now that loading is complete.
+    this.isLoadingMap = false;
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+
+    if (this.wasBackgroundedDuringLoad) {
+      console.warn('[MapLoader] Tab was backgrounded during load — revalidating textures and shaders...');
+      progress('Recovery', 'Revalidating textures (tab was backgrounded)');
+
+      // If tab is still hidden, wait for it to become visible first
+      if (document.hidden) {
+        console.log('[MapLoader] Tab still hidden — waiting for visibility...');
+        await new Promise<void>((resolve) => {
+          const waitForVisible = () => {
+            if (!document.hidden) {
+              document.removeEventListener('visibilitychange', waitForVisible);
+              resolve();
+            }
+          };
+          document.addEventListener('visibilitychange', waitForVisible);
+        });
+        console.log('[MapLoader] Tab now visible — starting revalidation');
+      }
+
+      try {
+        const { revalidateMaterials } = await import('../../weapon/EffectPreloader');
+        await revalidateMaterials(scene);
+        console.log('[MapLoader] Post-background revalidation complete');
+      } catch (e) {
+        console.warn('[MapLoader] Post-background revalidation failed:', e);
+      }
+
+      this.wasBackgroundedDuringLoad = false;
     }
 
     // Emit loading:complete event

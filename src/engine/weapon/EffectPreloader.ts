@@ -280,3 +280,65 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         }
     }
 }
+
+/**
+ * Revalidate all scene materials after tab was backgrounded.
+ *
+ * When the browser tab is hidden during map loading, WebGL texture uploads
+ * and shader compilations silently fail. This function forces all materials
+ * to re-evaluate their shader defines and recompile if needed.
+ *
+ * Called by MapLoader when it detects the tab was backgrounded during load.
+ */
+export async function revalidateMaterials(scene: Scene): Promise<void> {
+    const startTime = performance.now();
+
+    // 1. Mark all materials as dirty to force shader re-evaluation
+    const { Constants } = await import('@babylonjs/core/Engines/constants');
+    scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
+    console.log(`[EffectPreloader] Marked all materials dirty for revalidation`);
+
+    // 2. Force-compile all StandardMaterials with PointLight variant (same as Phase 2)
+    const matMeshMap = new Map<StandardMaterial, Mesh>();
+    for (const mesh of scene.meshes) {
+        if (mesh.material instanceof StandardMaterial) {
+            if (!matMeshMap.has(mesh.material)) {
+                matMeshMap.set(mesh.material, mesh as Mesh);
+            }
+        }
+    }
+
+    if (matMeshMap.size > 0) {
+        const tmpLight = new PointLight('_revalidation_light', new Vector3(0, 0, 0), scene);
+        tmpLight.intensity = 1;
+        tmpLight.range = 999999;
+        tmpLight.diffuse = new Color3(1, 1, 1);
+
+        const compilations: Promise<void>[] = [];
+        for (const [mat, mesh] of matMeshMap) {
+            compilations.push(new Promise<void>((resolve) => {
+                mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
+            }));
+        }
+
+        await Promise.all(compilations);
+
+        // Wait one render frame with light active
+        await new Promise<void>((resolve) => {
+            scene.onAfterRenderObservable.addOnce(() => resolve());
+        });
+
+        tmpLight.dispose();
+
+        // Wait one settle frame
+        await new Promise<void>((resolve) => {
+            scene.onAfterRenderObservable.addOnce(() => resolve());
+        });
+    }
+
+    // 3. Wait for scene readiness (ensures all textures are GPU-uploaded)
+    await scene.whenReadyAsync();
+
+    const elapsed = (performance.now() - startTime).toFixed(0);
+    console.log(`[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials in ${elapsed}ms`);
+}
