@@ -36,7 +36,7 @@ export const BLADE: WeaponDef = {
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
     knockbackScale: 10.0,     // Same as RL for melee knockback
-    speedBonus: 25,            // Ninja blade agility: +25 move speed (305 walk, 425 run)
+    speedBonus: 10,            // Agile melee: +10 speed (410 run)
     useLagCompensation: false,
     crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 2 },
 

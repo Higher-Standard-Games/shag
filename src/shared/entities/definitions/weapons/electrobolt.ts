@@ -38,7 +38,7 @@ export const ELECTROBOLT: WeaponDef = {
     pickupAmmo: 5,
     useLagCompensation: true,
     crosshair: { style: 'cross_dot', baseGap: 2, lineLength: 5, lineWidth: 1 },
-    speedBonus: -25,           // Heavy sniper: -25 speed (255 walk, 375 run)
+    speedBonus: -20,           // Heavy sniper: -20 speed (380 run)
 
     // View Model
     viewModel: {
