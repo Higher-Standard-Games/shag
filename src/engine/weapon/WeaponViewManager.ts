@@ -22,7 +22,7 @@ import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
 import { getHitscanEffects } from './HitscanEffects';
-import { Color3 as MathColor3 } from '@babylonjs/core/Maths/math.color';
+
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -128,6 +128,14 @@ export class WeaponViewManager {
     private static readonly RECOIL_KICK = 1.5;  // Max recoil distance
     private static readonly RECOIL_RECOVER = 20.0;  // How fast recoil recovers
 
+    // Blade charge state (client-side visual tracking)
+    private chargeActive: boolean = false;
+    private chargeStartTime: number = 0;  // performance.now() when charge started
+    private chargeProgress: number = 0;   // 0-1 charge level (0=just started, 1=fully charged)
+    private savedOutlineWidth: number = 0;
+    private savedOutlineColor: Color3 = new Color3(0, 0, 0);
+    private savedOutlineEnabled: boolean = false;
+
     // Reload animation state
     private reloadState = {
         active: false,
@@ -158,7 +166,7 @@ export class WeaponViewManager {
     // Weapon outline state (r_cel_weapon_* cvars)
     private _weaponOutlineEnabled = true;
     private _weaponOutlineWidth = 0.15;  // Actual Babylon value (cvar is *100 scale, default 15)
-    private _weaponOutlineColor = new MathColor3(0, 0, 0);
+    private _weaponOutlineColor = new Color3(0, 0, 0);
 
     // Load generation counter — prevents concurrent loadWeapon calls from clobbering each other
     private _loadGeneration: number = 0;
@@ -714,7 +722,7 @@ export class WeaponViewManager {
     }
 
     public setWeaponOutlineColor(r: number, g: number, b: number): void {
-        this._weaponOutlineColor = new MathColor3(
+        this._weaponOutlineColor = new Color3(
             Math.max(0, Math.min(1, r)),
             Math.max(0, Math.min(1, g)),
             Math.max(0, Math.min(1, b))
@@ -940,16 +948,65 @@ export class WeaponViewManager {
         const adsX = basePos.x * (1.0 - this.adsProgress);  // Lerp toward 0 (center)
         const adsY = adsOffsetY * this.adsProgress;          // Move up
 
+        // === Blade charge effects ===
+        const isBladeCharging = state.isAiming && this.currentWeaponDef?.meleeRadius;
+        let chargeShakeX = 0, chargeShakeY = 0;
+
+        if (isBladeCharging) {
+            const now = performance.now();
+            if (!this.chargeActive) {
+                // Just started charging — save current outline state
+                this.chargeActive = true;
+                this.chargeStartTime = now;
+                this.savedOutlineWidth = this._weaponOutlineWidth;
+                this.savedOutlineColor = this._weaponOutlineColor.clone();
+                this.savedOutlineEnabled = this._weaponOutlineEnabled;
+            }
+
+            // Calculate charge progress (0-1 over chargeTime)
+            const chargeTime = (this.currentWeaponDef?.chargeTime || 1.0) * 1000; // ms
+            const elapsed = now - this.chargeStartTime;
+            this.chargeProgress = Math.min(1.0, elapsed / chargeTime);
+
+            // Shake: sinusoidal noise, intensity scales with charge
+            const shakeIntensity = this.chargeProgress * 2.5; // max 2.5 units at full charge
+            const shakeFreq = 20 + this.chargeProgress * 30; // faster shake as charge builds
+            chargeShakeX = Math.sin(now * 0.001 * shakeFreq) * shakeIntensity;
+            chargeShakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
+
+            // Red pulsing outline
+            const outlineMin = 15, outlineMax = 30;
+            const scaledWidth = outlineMin + this.chargeProgress * (outlineMax - outlineMin);
+            const rootScale = this.currentWeapon.root.scaling.x || 1;
+            const pulseRate = 4 + this.chargeProgress * 8; // faster pulse at higher charge
+            const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
+            const red = new Color3(1.0 * pulse, 0.1 * pulse, 0.05 * pulse);
+
+            for (const mesh of this.currentWeapon.meshes) {
+                mesh.renderOutline = true;
+                mesh.outlineWidth = scaledWidth / rootScale;
+                mesh.outlineColor = red;
+            }
+        } else if (this.chargeActive) {
+            // Charge released — restore original outline state
+            this.chargeActive = false;
+            this.chargeProgress = 0;
+            this._weaponOutlineWidth = this.savedOutlineWidth;
+            this._weaponOutlineColor = this.savedOutlineColor;
+            this._weaponOutlineEnabled = this.savedOutlineEnabled;
+            this.applyWeaponOutlines();
+        }
+
         // Get reload animation offsets
         const reloadOffsets = this.getReloadAnimationOffsets();
 
         // Get switch animation offsets
         const switchOffsets = this.getSwitchAnimationOffsets();
 
-        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch)
+        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset,
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset,
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY,
             basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset
         );
 

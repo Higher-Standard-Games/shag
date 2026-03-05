@@ -148,11 +148,17 @@ export interface WeaponDef extends EntityDef {
     meleeRadius?: number;
 
     // === CHARGED ATTACK ===
-    /** Time to hold fire for charged attack (seconds) */
+    /** Time to hold fire for max charged attack (seconds) */
     chargeTime?: number;
+    /** Minimum charge time before projectile can fire (seconds) */
+    chargeMinTime?: number;
     /** Projectile launched on charged release */
     chargedProjectileId?: string;
-    /** Damage for charged projectile */
+    /** Damage at minimum charge */
+    chargedDamageMin?: number;
+    /** Damage at full charge */
+    chargedDamageMax?: number;
+    /** @deprecated Use chargedDamageMax instead */
     chargedDamage?: number;
 
     /** Crosshair visual config */
