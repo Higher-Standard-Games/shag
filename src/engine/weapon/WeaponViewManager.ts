@@ -1409,7 +1409,7 @@ export class WeaponViewManager {
      * Trigger weapon fire effect and projectile
      * Called by controller when logic permits (ammo, fire rate, etc.)
      */
-    public fire(): void {
+    public fire(opts?: { isProjectileFire?: boolean }): void {
         // this.lastFireTime = performance.now() / 1000;
 
         // FIRE! Trigger muzzle flash
@@ -1428,8 +1428,8 @@ export class WeaponViewManager {
         // Trigger recoil
         this.recoilOffset = WeaponViewManager.RECOIL_KICK;
 
-        // Trigger slash animation for melee weapons
-        if (this.currentWeaponDef?.meleeRadius) {
+        // Trigger slash animation for melee weapons (skip for charged projectile fire)
+        if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
             const preset = SLASH_PRESETS[this.slashPresetIndex % SLASH_PRESETS.length];
             this.slashPresetIndex++;
             this.slashState = {
