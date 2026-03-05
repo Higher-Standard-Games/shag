@@ -286,17 +286,32 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
  *
  * When the browser tab is hidden during map loading, WebGL texture uploads
  * and shader compilations silently fail. This function forces:
+ * 0. Unfreeze all materials — frozen materials have stale texture bindings
  * 1. Engine texture cache reset — forces all textures to re-bind on next render
  * 2. All textures to re-upload to GPU via updateSamplingMode()
  * 3. All materials marked dirty — forces shader re-evaluation
  * 4. All StandardMaterials force-compiled with PointLight variant
  * 5. Scene whenReadyAsync — final GPU readiness gate
+ * 6. Re-freeze non-lightmapped materials (matches MapLoader freeze logic)
  *
  * Called by MapLoader when it detects the tab was backgrounded during load.
  */
 export async function revalidateMaterials(scene: Scene): Promise<void> {
     const startTime = performance.now();
     const engine = scene.getEngine();
+
+    // 0. CRITICAL: Unfreeze ALL materials first.
+    //    Materials frozen during a backgrounded load have stale/empty texture
+    //    handles baked into them. Unfreezing allows them to pick up the
+    //    re-uploaded textures during recompilation.
+    let unfrozenCount = 0;
+    for (const mat of scene.materials) {
+        if (mat instanceof StandardMaterial && mat.isFrozen) {
+            mat.unfreeze();
+            unfrozenCount++;
+        }
+    }
+    console.log(`[EffectPreloader] Unfroze ${unfrozenCount} materials for revalidation`);
 
     // 1. Reset the engine's internal texture cache — forces all textures
     //    to be re-bound to WebGL texture units on the next render pass
@@ -369,7 +384,21 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
     // 5. Wait for scene readiness (ensures all textures are GPU-uploaded)
     await scene.whenReadyAsync();
 
+    // 6. Re-freeze non-lightmapped materials (matches MapLoader freeze logic)
+    //    Lightmapped materials stay unfrozen so dynamic lights work correctly.
+    let refrozenCount = 0;
+    for (const mat of scene.materials) {
+        if (mat instanceof StandardMaterial && !mat.isFrozen) {
+            const matAny = mat as any;
+            if (matAny.lightmapTexture) continue; // Skip lightmapped
+            if (mat.name === 'skybox') continue;
+            mat.freeze();
+            refrozenCount++;
+        }
+    }
+    console.log(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
+
     const elapsed = (performance.now() - startTime).toFixed(0);
-    console.log(`[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials, ${texCount} textures in ${elapsed}ms`);
+    console.log(`[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials, ${texCount} textures, ${unfrozenCount} unfrozen→${refrozenCount} refrozen in ${elapsed}ms`);
 }
 
