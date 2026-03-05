@@ -304,24 +304,16 @@ export class PlayerModelManager {
 
     /**
      * Play a one-shot animation on an instance (e.g. attack, hit reaction).
-     * After the animation completes, reverts to the previous looping anim.
-     * Does NOT change instance.currentAnim so movement derivation continues.
+     * Uses an OVERLAY approach — does NOT touch the existing masterGroup.
+     * The one-shot plays on top and auto-disposes when complete.
      */
     playOnce(instance: PlayerModelInstance, name: string): boolean {
         const animData = instance.anims.find(a => a.name === name);
-        if (!animData) return false;
+        if (!animData || animData.animations.length === 0) return false;
 
-        const prevAnim = instance.currentAnim;
-
-        // Tear down current animation
-        if (instance.masterGroup) {
-            instance.masterGroup.stop();
-            instance.masterGroup.dispose();
-        }
-
-        // Build one-shot group
+        // Create overlay animation group (separate from masterGroup)
         const group = new AnimationGroup(
-            `anim_${instance.id}_${name}_once`, this.scene,
+            `anim_${instance.id}_${name}_overlay`, this.scene,
         );
         for (const item of animData.animations) {
             if (item.target) {
@@ -329,20 +321,12 @@ export class PlayerModelManager {
             }
         }
 
-        // Play once (loop = false), then revert to previous anim on end
+        // Play once (loop = false), auto-dispose when complete
         group.play(false);
-        instance.masterGroup = group;
-        // Force currentAnim to empty so movement derivation can override after completion
-        instance.currentAnim = '';
 
         group.onAnimationEndObservable.addOnce(() => {
+            group.stop();
             group.dispose();
-            // Revert to previous animation if instance is still alive
-            if (instance.masterGroup === group) {
-                instance.masterGroup = null;
-                instance.currentAnim = ''; // Force re-play of movement anim
-                this.playAnimation(instance, prevAnim || 'idle');
-            }
         });
 
         return true;
