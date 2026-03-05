@@ -572,6 +572,11 @@ export class WeaponViewManager {
                         const mat = mesh.material as StandardMaterial;
                         if (mat) {
                             mat.bumpTexture = normTex;
+                            // MD3 UVs are V-flipped (1.0 - v) to convert from Quake's
+                            // bottom-left origin. This flips the tangent bitangent direction,
+                            // making normal map green channel point the wrong way. Invert Y
+                            // to re-align the normal map with the flipped UV space.
+                            mat.invertNormalMapY = true;
                         }
                     }
                     console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
