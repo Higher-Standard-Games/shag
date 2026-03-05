@@ -211,6 +211,11 @@ export class GameState {
         encoder.writeString(event.entityId);     // shooter entity
         encoder.writeString(event.weaponId);     // weapon id
         break;
+      case 'weapon_charge':
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.weaponId);
+        encoder.writeUint8(event.charging ? 1 : 0);
+        break;
       case 'projectile_impact':
         encoder.writeString(event.defId);         // weapon definition id
         encoder.writeFloat32(event.x);            // impact position
@@ -291,6 +296,13 @@ export class GameState {
           type,
           entityId: decoder.readString(),
           weaponId: decoder.readString(),
+        };
+      case 'weapon_charge':
+        return {
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+          charging: decoder.readUint8() === 1,
         };
       case 'projectile_impact':
         return {
