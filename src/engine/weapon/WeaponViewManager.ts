@@ -1181,19 +1181,27 @@ export class WeaponViewManager {
         const now = performance.now();
 
         // During active slash: collect blade tip world positions
-        if (this.slashState.active) {
-            const root = this.currentWeapon.root;
+        if (this.slashState.active && this.mainCamera) {
+            // Compute blade tip from camera position + direction offsets
+            // The slash animation offsets move the weapon root, which moves relative to camera
+            // We place the trail source ahead of the camera, offset by the current slash position
+            const cam = this.mainCamera;
+            const forward = cam.getDirection(Vector3.Forward());
+            const up = cam.getDirection(Vector3.Up());
+            const right = cam.getDirection(Vector3.Right());
 
-            // Compute blade tip world position
-            // The blade tip is at roughly (0, tipHeight, 0) in local space of the root
-            // We use the root's world matrix to transform to world space
-            root.computeWorldMatrix(true);
-            const worldMatrix = root.getWorldMatrix();
+            // Get current slash animation offsets for trail position
+            const slashOff = this.getSlashAnimationOffsets();
 
-            // Blade tip offset in local space (above the handle, forward along blade)
-            // The blade model is scaled 30x, pointing "up" in local Y
-            const tipLocal = new Vector3(0, 50, 0); // High up on the blade mesh
-            const tipWorld = Vector3.TransformCoordinates(tipLocal, worldMatrix);
+            // Base tip position: camera + 2 units forward + 0.5 up + slight right
+            // Then add slash offsets (scaled down since they're in weapon-view units)
+            const tipWorld = cam.position.clone()
+                .addInPlace(forward.scale(2.5))
+                .addInPlace(up.scale(0.3))
+                .addInPlace(right.scale(0.3))
+                .addInPlace(up.scale(slashOff.yOffset * 0.04))
+                .addInPlace(right.scale(slashOff.xOffset * 0.04))
+                .addInPlace(forward.scale(slashOff.zOffset * 0.04));
 
             this.slashTrailPoints.push(tipWorld);
 
@@ -1274,7 +1282,6 @@ export class WeaponViewManager {
             sideOrientation: Mesh.DOUBLESIDE,
         }, this.scene);
         this.slashTrailMesh.isPickable = false;
-        this.slashTrailMesh.layerMask = WEAPON_LAYER_MASK;
 
         // Create material once, reuse
         if (!this.slashTrailMaterial) {
