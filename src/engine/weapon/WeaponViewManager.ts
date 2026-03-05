@@ -97,9 +97,9 @@ const SLASH_PRESETS: SlashParams[] = [
         endPitch: 0, endRoll: 1.4, endYaw: 0,
         startOffset: { x: 5, y: 30, z: -15 },    // raised way up, pulled back
         endOffset: { x: -5, y: -25, z: 18 },    // swept down, lunged forward hard
-        windupDuration: 50,
-        swingDuration: 130,
-        returnDuration: 170,
+        windupDuration: 60,
+        swingDuration: 160,
+        returnDuration: 230,
     },
     // Slash 2: Diagonal upper-right to lower-left
     {
@@ -107,9 +107,9 @@ const SLASH_PRESETS: SlashParams[] = [
         endPitch: -0.7, endRoll: 1.2, endYaw: 0.4,
         startOffset: { x: -12, y: 28, z: -12 },
         endOffset: { x: 12, y: -22, z: 15 },
-        windupDuration: 45,
-        swingDuration: 130,
-        returnDuration: 175,
+        windupDuration: 55,
+        swingDuration: 165,
+        returnDuration: 230,
     },
     // Slash 3: Diagonal upper-left to lower-right
     {
@@ -117,9 +117,9 @@ const SLASH_PRESETS: SlashParams[] = [
         endPitch: 0.7, endRoll: 1.2, endYaw: -0.4,
         startOffset: { x: 12, y: 28, z: -12 },
         endOffset: { x: -12, y: -22, z: 15 },
-        windupDuration: 45,
-        swingDuration: 130,
-        returnDuration: 175,
+        windupDuration: 55,
+        swingDuration: 165,
+        returnDuration: 230,
     },
 ];
 
@@ -1274,6 +1274,7 @@ export class WeaponViewManager {
             sideOrientation: Mesh.DOUBLESIDE,
         }, this.scene);
         this.slashTrailMesh.isPickable = false;
+        this.slashTrailMesh.layerMask = WEAPON_LAYER_MASK;
 
         // Create material once, reuse
         if (!this.slashTrailMaterial) {

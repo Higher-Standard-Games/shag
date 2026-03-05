@@ -146,6 +146,8 @@ export interface WeaponDef extends EntityDef {
     // === MELEE ===
     /** Melee hit detection radius (wider than hitscan ray) */
     meleeRadius?: number;
+    /** Delay before melee damage check (seconds) — gives dodge window */
+    meleeDamageDelay?: number;
 
     // === CHARGED ATTACK ===
     /** Time to hold fire for max charged attack (seconds) */

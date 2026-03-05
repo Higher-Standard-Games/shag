@@ -26,7 +26,7 @@ export const BLADE: WeaponDef = {
 
     // Gameplay (server-authoritative) — primary fire: melee slash
     damage: 80,               // Big hit for close range
-    fireRate: 2.5,            // 400ms between swings (dramatic slashing)
+    fireRate: 2.0,            // 500ms between swings
     clipSize: 1,
     ammoType: 'blade',
     maxAmmo: 1,
@@ -41,6 +41,7 @@ export const BLADE: WeaponDef = {
 
     // Melee-specific
     meleeRadius: 48,          // Wide cone check radius (players within this of ray center count)
+    meleeDamageDelay: 0.075,  // 75ms delay before damage check (dodge window)
 
     // Charged attack — hold ALT_FIRE to charge, release to fire projectile
     chargeTime: 1.0,          // Max charge time (seconds)
