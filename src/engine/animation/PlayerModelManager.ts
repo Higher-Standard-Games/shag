@@ -179,6 +179,25 @@ export class PlayerModelManager {
 
                         // Stop again after dispose
                         for (const g of this.scene.animationGroups) g.stop();
+
+                        // CRITICAL: Clear any .animations injected onto source bones by the import.
+                        // Without this, FBX-converted GLBs (like blade_slash) can leave auto-playing
+                        // animation data on skeleton nodes, causing exaggerated idle on clones.
+                        if (this.sourceMesh) {
+                            this.sourceMesh.animations = [];
+                            for (const node of this.sourceMesh.getChildTransformNodes(true)) {
+                                node.animations = [];
+                            }
+                            for (const child of this.sourceMesh.getChildMeshes()) {
+                                child.animations = [];
+                            }
+                        }
+                        if (this.sourceSkeleton) {
+                            for (const bone of this.sourceSkeleton.bones) {
+                                const node = bone.getTransformNode();
+                                if (node) node.animations = [];
+                            }
+                        }
                     }
                 } catch (err) {
                     console.warn(`[PlayerModelManager] Failed to load ${anim.file}:`, err);
