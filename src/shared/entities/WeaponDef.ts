@@ -33,6 +33,9 @@ export interface ViewModelDef {
 
     /** Model scale */
     scale: number;
+
+    /** Model format: 'md3' (default) or 'glb' */
+    viewModelFormat?: 'md3' | 'glb';
 }
 
 /**
@@ -139,6 +142,18 @@ export interface WeaponDef extends EntityDef {
     useLagCompensation?: boolean;
     /** Ammo given on pickup (defaults to maxAmmo if unset) */
     pickupAmmo?: number;
+
+    // === MELEE ===
+    /** Melee hit detection radius (wider than hitscan ray) */
+    meleeRadius?: number;
+
+    // === CHARGED ATTACK ===
+    /** Time to hold fire for charged attack (seconds) */
+    chargeTime?: number;
+    /** Projectile launched on charged release */
+    chargedProjectileId?: string;
+    /** Damage for charged projectile */
+    chargedDamage?: number;
 
     /** Crosshair visual config */
     crosshair?: CrosshairConfig;

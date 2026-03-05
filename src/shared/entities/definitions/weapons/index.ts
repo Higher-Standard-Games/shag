@@ -11,3 +11,4 @@ export { ROCKET_LAUNCHER } from './rlauncher';
 export { LASERGUN } from './lasergun';
 export { ELECTROBOLT } from './electrobolt';
 export { INSTAGUN } from './instagun';
+export { BLADE } from './blade';

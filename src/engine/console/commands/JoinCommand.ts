@@ -116,7 +116,7 @@ export default class JoinCommand extends Command {
         wvm.init(scene, camera);
 
         // Load weapon by ID (looks up in entity registry)
-        wvm.loadWeapon('gunblade', 'data/data0_21pure.pk3')
+        wvm.loadWeapon('gunblade')
           .then(async success => {
             if (success) {
               console.log('[Join] Weapon loaded from entity registry');
@@ -127,6 +127,7 @@ export default class JoinCommand extends Command {
                 projMgr.preloadModel('grenade'),
                 projMgr.preloadModel('rocket'),
                 projMgr.preloadModel('gunblade_blast'),
+                projMgr.preloadModel('blade_blast'),
               ]);
             }
           });
