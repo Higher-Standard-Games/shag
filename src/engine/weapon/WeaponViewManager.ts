@@ -573,9 +573,13 @@ export class WeaponViewManager {
                         if (mat) {
                             mat.bumpTexture = normTex;
                             // MD3 UVs are V-flipped (1.0 - v) to convert from Quake's
-                            // bottom-left origin. This flips the tangent bitangent direction,
-                            // making normal map green channel point the wrong way. Invert Y
-                            // to re-align the normal map with the flipped UV space.
+                            // bottom-left origin. The normal map texture was authored for
+                            // the original (non-flipped) UV space, so we need to:
+                            // 1. Flip bump texture V sampling to match the flipped mesh UVs
+                            // 2. Invert tangent space axes to correct the bump direction
+                            (normTex as Texture).vScale = -1;
+                            (normTex as Texture).vOffset = 1;
+                            mat.invertNormalMapX = true;
                             mat.invertNormalMapY = true;
                         }
                     }
