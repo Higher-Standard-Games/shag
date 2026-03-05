@@ -35,7 +35,7 @@ export const BLADE: WeaponDef = {
     hitscan: true,            // Melee is instant hit check
     fireMode: 'semi',
     pickupBounds: { x: 32, y: 32, z: 32 },
-    knockbackScale: 12.0,     // Strong melee knockback
+    knockbackScale: 10.0,     // Same as RL for melee knockback
     useLagCompensation: false,
     crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 2 },
 
