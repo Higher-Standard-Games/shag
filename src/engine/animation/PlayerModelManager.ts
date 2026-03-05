@@ -54,6 +54,7 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
     { name: 'jump', file: 'rifle jump.glb' },
     { name: 'walk', file: 'walking.glb' },
     { name: 'reload', file: 'reloading.glb' },
+    { name: 'blade_slash', file: 'blade_slash.glb' },
 ];
 
 // ─── Manager ─────────────────────────────────────────────────────
@@ -178,6 +179,25 @@ export class PlayerModelManager {
 
                         // Stop again after dispose
                         for (const g of this.scene.animationGroups) g.stop();
+
+                        // CRITICAL: Clear any .animations injected onto source bones by the import.
+                        // Without this, FBX-converted GLBs (like blade_slash) can leave auto-playing
+                        // animation data on skeleton nodes, causing exaggerated idle on clones.
+                        if (this.sourceMesh) {
+                            this.sourceMesh.animations = [];
+                            for (const node of this.sourceMesh.getChildTransformNodes(true)) {
+                                node.animations = [];
+                            }
+                            for (const child of this.sourceMesh.getChildMeshes()) {
+                                child.animations = [];
+                            }
+                        }
+                        if (this.sourceSkeleton) {
+                            for (const bone of this.sourceSkeleton.bones) {
+                                const node = bone.getTransformNode();
+                                if (node) node.animations = [];
+                            }
+                        }
                     }
                 } catch (err) {
                     console.warn(`[PlayerModelManager] Failed to load ${anim.file}:`, err);
@@ -298,6 +318,40 @@ export class PlayerModelManager {
         }
         instance.masterGroup.play(true);
         instance.currentAnim = name;
+        return true;
+    }
+
+    /**
+     * Play a one-shot animation on an instance (e.g. attack, hit reaction).
+     * Uses an OVERLAY approach — does NOT touch the existing masterGroup.
+     * The one-shot plays on top and auto-disposes when complete.
+     * @param speedRatio - Optional playback speed multiplier (default 1.0, higher = faster)
+     */
+    playOnce(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): boolean {
+        const animData = instance.anims.find(a => a.name === name);
+        if (!animData || animData.animations.length === 0) return false;
+
+        // Create overlay animation group (separate from masterGroup)
+        const group = new AnimationGroup(
+            `anim_${instance.id}_${name}_overlay`, this.scene,
+        );
+        for (const item of animData.animations) {
+            if (item.target) {
+                group.addTargetedAnimation(item.animation, item.target);
+            }
+        }
+
+        // Apply speed ratio (higher = faster animation)
+        group.speedRatio = speedRatio;
+
+        // Play once (loop = false), auto-dispose when complete
+        group.play(false);
+
+        group.onAnimationEndObservable.addOnce(() => {
+            group.stop();
+            group.dispose();
+        });
+
         return true;
     }
 

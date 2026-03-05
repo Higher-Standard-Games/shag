@@ -12,6 +12,9 @@ import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { PK3TextureLoader } from '../loader/pk3/PK3TextureLoader';
@@ -21,7 +24,7 @@ import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
 import { getHitscanEffects } from './HitscanEffects';
-import { Color3 as MathColor3 } from '@babylonjs/core/Maths/math.color';
+
 
 // Weapon position presets
 export interface WeaponPosition {
@@ -64,10 +67,71 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
 
+// === Slash Animation Definitions ===
+
+/** Parameters for a single slash animation swing */
+interface SlashParams {
+    // Rotation offsets (radians) at swing start and end
+    startPitch: number;   // X rotation at swing start
+    startRoll: number;    // Z rotation at swing start
+    endPitch: number;     // X rotation at swing end
+    endRoll: number;      // Z rotation at swing end
+    startYaw: number;     // Y rotation at start (0 for most slashes)
+    endYaw: number;       // Y rotation at end
+
+    // Position offsets at swing start and end
+    startOffset: { x: number; y: number; z: number };
+    endOffset: { x: number; y: number; z: number };
+
+    // Timing (ms)
+    windupDuration: number;   // move to start pose
+    swingDuration: number;    // the actual slash (fast)
+    returnDuration: number;   // ease back to idle
+}
+
+/** Slash animation presets — cycled/randomized on each fire */
+const SLASH_PRESETS: SlashParams[] = [
+    // Slash 1: Big vertical down — raised high, sweeps down with lunge
+    {
+        startPitch: 0, startRoll: -2.0, startYaw: 0,
+        endPitch: 0, endRoll: 1.4, endYaw: 0,
+        startOffset: { x: 5, y: 30, z: -15 },    // raised way up, pulled back
+        endOffset: { x: -5, y: -25, z: 18 },    // swept down, lunged forward hard
+        windupDuration: 60,
+        swingDuration: 160,
+        returnDuration: 230,
+    },
+    // Slash 2: Diagonal upper-right to lower-left
+    {
+        startPitch: 0.7, startRoll: -1.8, startYaw: -0.4,
+        endPitch: -0.7, endRoll: 1.2, endYaw: 0.4,
+        startOffset: { x: -12, y: 28, z: -12 },
+        endOffset: { x: 12, y: -22, z: 15 },
+        windupDuration: 55,
+        swingDuration: 165,
+        returnDuration: 230,
+    },
+    // Slash 3: Diagonal upper-left to lower-right
+    {
+        startPitch: -0.7, startRoll: -1.8, startYaw: 0.4,
+        endPitch: 0.7, endRoll: 1.2, endYaw: -0.4,
+        startOffset: { x: 12, y: 28, z: -12 },
+        endOffset: { x: -12, y: -22, z: 15 },
+        windupDuration: 55,
+        swingDuration: 165,
+        returnDuration: 230,
+    },
+];
+
 export class WeaponViewManager {
     private static instance: WeaponViewManager;
 
     private scene: Scene | null = null;
+
+    /** Check if the weapon view manager has been initialized */
+    public get isReady(): boolean {
+        return this.scene !== null && this.weaponRoot !== null;
+    }
     private weaponCamera: FreeCamera | null = null;
     private mainCamera: FreeCamera | null = null;  // Main player camera for aim direction
     private weaponRoot: TransformNode | null = null;
@@ -122,6 +186,24 @@ export class WeaponViewManager {
     private static readonly RECOIL_KICK = 1.5;  // Max recoil distance
     private static readonly RECOIL_RECOVER = 20.0;  // How fast recoil recovers
 
+    // Blade charge state (client-side visual tracking)
+    private chargeActive: boolean = false;
+    private chargeStartTime: number = 0;  // performance.now() when charge started
+    private chargeProgress: number = 0;   // 0-1 charge level (0=just started, 1=fully charged)
+    private savedOutlineWidth: number = 0;
+    private savedOutlineColor: Color3 = new Color3(0, 0, 0);
+    private savedOutlineEnabled: boolean = false;
+
+    // === Slash Animation System ===
+    private slashState: {
+        active: boolean;
+        startTime: number;       // performance.now() when triggered
+        params: SlashParams;     // current animation parameters
+    } = { active: false, startTime: 0, params: SLASH_PRESETS[0] };
+    private slashPresetIndex: number = 0;  // cycles through presets
+
+
+
     // Reload animation state
     private reloadState = {
         active: false,
@@ -152,7 +234,10 @@ export class WeaponViewManager {
     // Weapon outline state (r_cel_weapon_* cvars)
     private _weaponOutlineEnabled = true;
     private _weaponOutlineWidth = 0.15;  // Actual Babylon value (cvar is *100 scale, default 15)
-    private _weaponOutlineColor = new MathColor3(0, 0, 0);
+    private _weaponOutlineColor = new Color3(0, 0, 0);
+
+    // Load generation counter — prevents concurrent loadWeapon calls from clobbering each other
+    private _loadGeneration: number = 0;
 
     private constructor() { }
 
@@ -234,6 +319,9 @@ export class WeaponViewManager {
             return false;
         }
 
+        // Increment load generation — stale concurrent loads will check this and bail out
+        const loadGen = ++(this as any)._loadGeneration;
+
         // Try to look up weapon definition from entity registry
         const registry = getEntityRegistry();
         const weaponDef = registry.get<WeaponDef>(weaponName);
@@ -263,34 +351,305 @@ export class WeaponViewManager {
             ?? `models/weapons/${weaponName}/${weaponName}.md3`;
         const weaponDir = `models/weapons/${weaponName}`;
 
-        // Check if model exists
-        if (!pk3.hasFile(modelPath)) {
-            console.error(`[WeaponViewManager] Model not found: ${modelPath}`);
-            console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
-            return false;
+        // === GLB MODEL LOADING ===
+        // GLB models use Babylon's SceneLoader instead of PK3+MD3 parser.
+        // We load the meshes, clean up SceneLoader side effects, then fall
+        // through to the SAME weapon setup code that MD3 uses below.
+        let isGlbWeapon = false;
+        if (weaponDef?.viewModel?.viewModelFormat === 'glb') {
+            console.log(`[WeaponViewManager] GLB path — loading ${weaponName}, modelPath: ${modelPath}`);
+
+            const { SceneLoader } = await import('@babylonjs/core/Loading/sceneLoader');
+            await import('@babylonjs/loaders/glTF');
+
+            // Check if a newer load started while we were importing modules
+            if (this._loadGeneration !== loadGen) {
+                console.log(`[WeaponViewManager] GLB load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
+                return false;
+            }
+
+            // Remove previous weapon before loading new one
+            if (this.currentWeapon) {
+                this.currentWeapon.root.dispose();
+                this.currentWeapon = null;
+            }
+
+            try {
+                const lastSlash = modelPath.lastIndexOf('/');
+                const dir = modelPath.substring(0, lastSlash + 1);
+                const file = modelPath.substring(lastSlash + 1);
+
+                // Save scene state — SceneLoader can add cameras/lights and set
+                // scene.activeCamera, which breaks our dual-camera weapon rendering.
+                const savedActiveCameras = this.scene!.activeCameras ? [...this.scene!.activeCameras] : null;
+                const cameraCountBefore = this.scene!.cameras.length;
+
+                const result = await SceneLoader.ImportMeshAsync('', dir, file, this.scene!);
+
+                // Check if superseded during async import
+                if (this._loadGeneration !== loadGen) {
+                    for (const mesh of result.meshes) mesh.dispose();
+                    return false;
+                }
+
+                // Restore scene camera state — GLB importer may have corrupted it
+                if (savedActiveCameras) {
+                    this.scene!.activeCameras = savedActiveCameras;
+                }
+                if (this.scene!.cameras.length > cameraCountBefore) {
+                    const added = this.scene!.cameras.slice(cameraCountBefore);
+                    for (const cam of added) cam.dispose();
+                }
+                (this.scene! as any).activeCamera = null;
+
+                // Build weapon structure matching MD3 output:
+                // root TransformNode + flat meshes array
+                const weaponNode = new TransformNode(`weapon_${weaponName}`, this.scene!);
+                const glbRoot = result.meshes[0];
+                glbRoot.parent = weaponNode;
+                if (glbRoot.rotationQuaternion) glbRoot.rotationQuaternion = null;
+
+                // Flip barrel rotation in model's local space (child rotation is independent
+                // of parent's Euler angles, avoiding gimbal lock coupling issues)
+                glbRoot.rotation.x = Math.PI;
+                // Tilt blade tip upward ~52° for natural melee carry
+                glbRoot.rotation.y = 0.9;
+                // NOTE: GLB root has scl:(1,1,-1) from Blender export — keep it,
+                // the negative Z is needed for correct orientation. Use backFaceCulling=false
+                // on materials to handle the flipped winding order.
+
+                const glbMeshes: any[] = [];
+                // Convert shared PBR materials to StandardMaterial ONCE per material
+                const convertedMaterials = new Map<string, StandardMaterial>();
+
+                for (const mesh of result.meshes) {
+                    if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
+
+                    // Convert PBR → StandardMaterial (self-lit, same as MD3 weapons)
+                    if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+                        const pbr = mesh.material as any;
+                        const matId = pbr.uniqueId || pbr.name;
+
+                        if (!convertedMaterials.has(matId)) {
+                            const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
+                            stdMat.disableLighting = true;
+                            stdMat.diffuseColor = new Color3(1, 1, 1);
+
+                            // Load external BaseColor texture — PBR albedo is near-black
+                            // for metallic surfaces (color comes from specular reflections)
+                            const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
+                            const baseColorTex = new Texture(baseColorPath, this.scene!);
+                            stdMat.diffuseTexture = baseColorTex;
+
+                            if (pbr.emissiveTexture) {
+                                stdMat.emissiveTexture = pbr.emissiveTexture;
+                                stdMat.emissiveColor = new Color3(1, 1, 1);
+                            }
+                            stdMat.backFaceCulling = false;
+                            convertedMaterials.set(matId, stdMat);
+
+                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", baseColor: ${baseColorPath}, emissive: ${!!stdMat.emissiveTexture}`);
+                        }
+                        mesh.material = convertedMaterials.get(matId)!;
+                    }
+
+                    // Ensure ALL meshes have weapon layer mask
+                    mesh.renderingGroupId = 1;
+                    mesh.layerMask = WEAPON_LAYER_MASK;
+
+                    if (mesh !== glbRoot) glbMeshes.push(mesh);
+                }
+
+                // Set currentWeapon to match MD3LoadResult shape, then fall through
+                // to the shared setup code below (parenting, layerMask, position, etc.)
+                this.currentWeapon = {
+                    root: weaponNode,
+                    meshes: glbMeshes,
+                    model: { header: { name: weaponName, numSurfaces: glbMeshes.length, numFrames: 1, numTags: 0, numSkins: 0, filesize: 0, ident: 0, version: 0, framesOffset: 0, tagsOffset: 0, surfacesOffset: 0, eofOffset: 0 }, frames: [], tags: [], surfaces: [] },
+                    getTag: () => null,
+                } as any;
+
+                isGlbWeapon = true;
+                console.log(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
+                // FALL THROUGH to shared weapon setup below ↓
+            } catch (e) {
+                console.error(`[WeaponViewManager] Failed to load GLB: ${modelPath}`, e);
+                return false;
+            }
         }
 
-        // Load model data
-        const modelBuffer = await pk3.getFile(modelPath);
-        if (!modelBuffer) {
-            console.error(`[WeaponViewManager] Failed to load model: ${modelPath}`);
-            return false;
+        // === MD3 MODEL LOADING (only when not loaded via GLB above) ===
+        if (!isGlbWeapon) {
+            // Check if a newer load started while we were loading PK3/model data
+            if (this._loadGeneration !== loadGen) {
+                console.log(`[WeaponViewManager] MD3 load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
+                return false;
+            }
+
+            // Check if model exists
+            if (!pk3.hasFile(modelPath)) {
+                console.error(`[WeaponViewManager] Model not found: ${modelPath}`);
+                console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
+                return false;
+            }
+
+            // Load model data
+            const modelBuffer = await pk3.getFile(modelPath);
+            if (!modelBuffer) {
+                console.error(`[WeaponViewManager] Failed to load model: ${modelPath}`);
+                return false;
+            }
+
+            // Parse MD3
+            const md3 = getMD3Loader();
+            const model = md3.parseMD3(modelBuffer);
+
+            // Remove previous weapon
+            if (this.currentWeapon) {
+                this.currentWeapon.root.dispose();
+                this.currentWeapon = null;
+            }
+
+            // Create meshes
+            this.currentWeapon = md3.createMeshes(model, weaponName);
+            if (!this.currentWeapon) {
+                console.error('[WeaponViewManager] Failed to create meshes');
+                return false;
+            }
+
+            // Load texture — route through PK3TextureLoader for unified KTX/TGA/PNG/JPG
+            // handling with caching. Same texture instance is shared with pickup models.
+            let textureLoaded = false;
+            const texLoader = PK3TextureLoader.getInstance();
+
+            // Try weapon-specific texture path first
+            const weaponTexPath = `${weaponDir}/${weaponName}`;
+            const diffuseTex = await texLoader.resolveAndLoadTexture(weaponTexPath);
+
+            if (diffuseTex) {
+                for (const mesh of this.currentWeapon.meshes) {
+                    const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
+                    mat.specularColor.set(0.2, 0.2, 0.2);
+                    mat.backFaceCulling = true;
+                    mat.diffuseTexture = diffuseTex;
+                    mesh.material = mat;
+                }
+                console.log(`[WeaponViewManager] Loaded texture via PK3TextureLoader: ${weaponTexPath}`);
+                textureLoaded = true;
+            } else {
+                // Fallback: scan directory for any suitable image
+                const pk3 = PK3Loader.getInstance();
+                const dirFiles = pk3.listDirectory(weaponDir);
+                const imageFile = dirFiles.find(f => {
+                    const lower = f.toLowerCase();
+                    return (lower.endsWith('.ktx') || lower.endsWith('.jpg') || lower.endsWith('.tga') ||
+                        lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
+                        !lower.includes('_flash') && !lower.includes('_hand') &&
+                        !lower.includes('_norm') && !lower.includes('_gloss');
+                });
+                if (imageFile) {
+                    const fullPath = `${weaponDir}/${imageFile}`;
+                    const fallbackTex = await texLoader.resolveAndLoadTexture(fullPath);
+                    if (fallbackTex) {
+                        for (const mesh of this.currentWeapon.meshes) {
+                            const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
+                            mat.specularColor.set(0.2, 0.2, 0.2);
+                            mat.backFaceCulling = true;
+                            mat.diffuseTexture = fallbackTex;
+                            mesh.material = mat;
+                        }
+                        console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
+                        textureLoaded = true;
+                    }
+                }
+            }
+
+            // --- Load normal map (_norm) and gloss map (_gloss) ---
+            if (textureLoaded) {
+                const normTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_norm`);
+                if (normTex) {
+                    for (const mesh of this.currentWeapon.meshes) {
+                        const mat = mesh.material as StandardMaterial;
+                        if (mat) {
+                            mat.bumpTexture = normTex;
+                        }
+                    }
+                    console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
+                }
+
+                const glossTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_gloss`);
+                if (glossTex) {
+                    for (const mesh of this.currentWeapon.meshes) {
+                        const mat = mesh.material as StandardMaterial;
+                        if (mat) {
+                            mat.specularTexture = glossTex;
+                            mat.specularColor.set(0.6, 0.6, 0.6);
+                        }
+                    }
+                    console.log(`[WeaponViewManager] Loaded gloss map for ${weaponName}`);
+                }
+            }
+
+            if (!textureLoaded) {
+                console.warn(`[WeaponViewManager] No texture found for weapon: ${weaponName}`);
+                console.log(`[WeaponViewManager] Searched in: ${weaponDir}`, pk3.listDirectory(weaponDir));
+            }
+
+            // Load muzzle flash model (e.g., plasmagun_flash.md3)
+            const flashModelPath = weaponDef?.viewModel?.flashModelPath
+                ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
+            if (pk3.hasFile(flashModelPath)) {
+                const flashData = await pk3.getFile(flashModelPath);
+                if (flashData) {
+                    try {
+                        const flashMd3 = md3.parseMD3(flashData);
+                        const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
+                        if (flashResult) {
+                            // Parent flash to weapon root
+                            flashResult.root.parent = this.currentWeapon.root;
+                            this.muzzleFlashModel = flashResult.root;
+
+                            // Scale the flash model appropriately
+                            flashResult.root.scaling.setAll(1.5);
+
+                            // Set up flash meshes
+                            for (const mesh of flashResult.meshes) {
+                                mesh.renderingGroupId = 1;
+                                mesh.layerMask = WEAPON_LAYER_MASK;
+                                mesh.isPickable = false;
+
+                                // Ensure lighting is disabled for flash
+                                const mat = mesh.material as StandardMaterial;
+                                if (mat) {
+                                    mat.disableLighting = true;
+                                    mat.backFaceCulling = false;
+                                }
+                            }
+
+                            // Position at tag_flash and align rotation
+                            const flashTag = this.currentWeapon.getTag('tag_flash');
+                            if (flashTag) {
+                                flashResult.root.position = flashTag.origin.clone();
+
+                                // Apply rotation from tag properties
+                                if (!flashResult.root.rotationQuaternion) {
+                                    flashResult.root.rotationQuaternion = new Quaternion();
+                                }
+                                Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
+                            }
+                            flashResult.root.setEnabled(false);
+                            console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
+                        }
+                    } catch (e) {
+                        console.warn(`[WeaponViewManager] Failed to load flash model: ${flashModelPath}`, e);
+                    }
+                }
+            }
         }
 
-        // Parse MD3
-        const md3 = getMD3Loader();
-        const model = md3.parseMD3(modelBuffer);
-
-        // Remove previous weapon
-        if (this.currentWeapon) {
-            this.currentWeapon.root.dispose();
-            this.currentWeapon = null;
-        }
-
-        // Create meshes
-        this.currentWeapon = md3.createMeshes(model, weaponName);
+        // === SHARED SETUP (runs for both MD3 and GLB weapons) ===
         if (!this.currentWeapon) {
-            console.error('[WeaponViewManager] Failed to create meshes');
+            console.error('[WeaponViewManager] No weapon loaded');
             return false;
         }
 
@@ -305,143 +664,24 @@ export class WeaponViewManager {
             mesh.layerMask = WEAPON_LAYER_MASK;
         }
 
-        // Load texture — route through PK3TextureLoader for unified KTX/TGA/PNG/JPG
-        // handling with caching. Same texture instance is shared with pickup models.
-        let textureLoaded = false;
-        const texLoader = PK3TextureLoader.getInstance();
-
-        // Try weapon-specific texture path first
-        const weaponTexPath = `${weaponDir}/${weaponName}`;
-        const diffuseTex = await texLoader.resolveAndLoadTexture(weaponTexPath);
-
-        if (diffuseTex) {
-            for (const mesh of this.currentWeapon.meshes) {
-                const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
-                mat.specularColor.set(0.2, 0.2, 0.2);
-                mat.backFaceCulling = true;
-                mat.diffuseTexture = diffuseTex;
-                mesh.material = mat;
-            }
-            console.log(`[WeaponViewManager] Loaded texture via PK3TextureLoader: ${weaponTexPath}`);
-            textureLoaded = true;
+        // Apply position — GLB weapons use their viewModel offsets,
+        // MD3 weapons reset to default hip position
+        if (isGlbWeapon && weaponDef?.viewModel) {
+            const vm = weaponDef.viewModel;
+            this.currentPosition = {
+                offset: new Vector3(vm.hipOffset.x, vm.hipOffset.y, vm.hipOffset.z),
+                rotation: new Vector3(vm.hipRotation.x, vm.hipRotation.y, vm.hipRotation.z),
+                scale: vm.scale,
+            };
         } else {
-            // Fallback: scan directory for any suitable image
-            const pk3 = PK3Loader.getInstance();
-            const dirFiles = pk3.listDirectory(weaponDir);
-            const imageFile = dirFiles.find(f => {
-                const lower = f.toLowerCase();
-                return (lower.endsWith('.ktx') || lower.endsWith('.jpg') || lower.endsWith('.tga') ||
-                    lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
-                    !lower.includes('_flash') && !lower.includes('_hand') &&
-                    !lower.includes('_norm') && !lower.includes('_gloss');
-            });
-            if (imageFile) {
-                const fullPath = `${weaponDir}/${imageFile}`;
-                const fallbackTex = await texLoader.resolveAndLoadTexture(fullPath);
-                if (fallbackTex) {
-                    for (const mesh of this.currentWeapon.meshes) {
-                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
-                        mat.specularColor.set(0.2, 0.2, 0.2);
-                        mat.backFaceCulling = true;
-                        mat.diffuseTexture = fallbackTex;
-                        mesh.material = mat;
-                    }
-                    console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
-                    textureLoaded = true;
-                }
-            }
+            this.currentPosition = DEFAULT_POSITIONS.hip;
         }
-
-        // --- Load normal map (_norm) and gloss map (_gloss) ---
-        if (textureLoaded) {
-            const normTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_norm`);
-            if (normTex) {
-                for (const mesh of this.currentWeapon.meshes) {
-                    const mat = mesh.material as StandardMaterial;
-                    if (mat) {
-                        mat.bumpTexture = normTex;
-                    }
-                }
-                console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
-            }
-
-            const glossTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_gloss`);
-            if (glossTex) {
-                for (const mesh of this.currentWeapon.meshes) {
-                    const mat = mesh.material as StandardMaterial;
-                    if (mat) {
-                        mat.specularTexture = glossTex;
-                        mat.specularColor.set(0.6, 0.6, 0.6);
-                    }
-                }
-                console.log(`[WeaponViewManager] Loaded gloss map for ${weaponName}`);
-            }
-        }
-
-        if (!textureLoaded) {
-            console.warn(`[WeaponViewManager] No texture found for weapon: ${weaponName}`);
-            console.log(`[WeaponViewManager] Searched in: ${weaponDir}`, pk3.listDirectory(weaponDir));
-        }
-
-        // Load muzzle flash model (e.g., plasmagun_flash.md3)
-        const flashModelPath = weaponDef?.viewModel?.flashModelPath
-            ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
-        if (pk3.hasFile(flashModelPath)) {
-            const flashData = await pk3.getFile(flashModelPath);
-            if (flashData) {
-                try {
-                    const flashMd3 = md3.parseMD3(flashData);
-                    const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
-                    if (flashResult) {
-                        // Parent flash to weapon root
-                        flashResult.root.parent = this.currentWeapon.root;
-                        this.muzzleFlashModel = flashResult.root;
-
-                        // Scale the flash model appropriately
-                        flashResult.root.scaling.setAll(1.5);
-
-                        // Set up flash meshes
-                        for (const mesh of flashResult.meshes) {
-                            mesh.renderingGroupId = 1;
-                            mesh.layerMask = WEAPON_LAYER_MASK;
-                            mesh.isPickable = false;
-
-                            // Ensure lighting is disabled for flash
-                            const mat = mesh.material as StandardMaterial;
-                            if (mat) {
-                                mat.disableLighting = true;
-                                mat.backFaceCulling = false;
-                            }
-                        }
-
-                        // Position at tag_flash and align rotation
-                        const flashTag = this.currentWeapon.getTag('tag_flash');
-                        if (flashTag) {
-                            flashResult.root.position = flashTag.origin.clone();
-
-                            // Apply rotation from tag properties
-                            if (!flashResult.root.rotationQuaternion) {
-                                flashResult.root.rotationQuaternion = new Quaternion();
-                            }
-                            Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
-                        }
-                        flashResult.root.setEnabled(false);
-                        console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
-                    }
-                } catch (e) {
-                    console.warn(`[WeaponViewManager] Failed to load flash model: ${flashModelPath}`, e);
-                }
-            }
-        }
-
-        // Apply default position
         this.applyPosition(this.currentPosition);
 
         // Apply weapon outlines if enabled
         this.applyWeaponOutlines();
 
-        console.log(`[WeaponViewManager] Loaded weapon: ${weaponName}`);
-        console.log(`[WeaponViewManager] Model: ${model.header.numSurfaces} surfaces, ${model.header.numFrames} frames`);
+        console.log(`[WeaponViewManager] Loaded weapon: ${weaponName} (${isGlbWeapon ? 'GLB' : 'MD3'})`);
 
         return true;
     }
@@ -526,9 +766,14 @@ export class WeaponViewManager {
     public applyWeaponOutlines(): void {
         if (!this.currentWeapon) return;
 
+        // GLB models are scaled much larger than MD3 (e.g. 30x), so outlines
+        // appear proportionally thicker. Divide by root scale to normalize.
+        const rootScale = this.currentWeapon.root.scaling.x || 1;
+        const adjustedWidth = this._weaponOutlineWidth / rootScale;
+
         for (const mesh of this.currentWeapon.meshes) {
             mesh.renderOutline = this._weaponOutlineEnabled;
-            mesh.outlineWidth = this._weaponOutlineWidth;
+            mesh.outlineWidth = adjustedWidth;
             mesh.outlineColor = this._weaponOutlineColor;
         }
     }
@@ -545,7 +790,7 @@ export class WeaponViewManager {
     }
 
     public setWeaponOutlineColor(r: number, g: number, b: number): void {
-        this._weaponOutlineColor = new MathColor3(
+        this._weaponOutlineColor = new Color3(
             Math.max(0, Math.min(1, r)),
             Math.max(0, Math.min(1, g)),
             Math.max(0, Math.min(1, b))
@@ -628,6 +873,9 @@ export class WeaponViewManager {
 
         // Update hitscan effects (fade, cleanup)
         getHitscanEffects().update(deltaTime);
+
+        // Update slash trail effect
+        this.updateSlashTrail();
     }
 
     /**
@@ -771,17 +1019,69 @@ export class WeaponViewManager {
         const adsX = basePos.x * (1.0 - this.adsProgress);  // Lerp toward 0 (center)
         const adsY = adsOffsetY * this.adsProgress;          // Move up
 
+        // === Blade charge effects ===
+        const isBladeCharging = state.isAiming && this.currentWeaponDef?.meleeRadius;
+        let chargeShakeX = 0, chargeShakeY = 0;
+
+        if (isBladeCharging) {
+            const now = performance.now();
+            if (!this.chargeActive) {
+                // Just started charging — save current outline state
+                this.chargeActive = true;
+                this.chargeStartTime = now;
+                this.savedOutlineWidth = this._weaponOutlineWidth;
+                this.savedOutlineColor = this._weaponOutlineColor.clone();
+                this.savedOutlineEnabled = this._weaponOutlineEnabled;
+            }
+
+            // Calculate charge progress (0-1 over chargeTime)
+            const chargeTime = (this.currentWeaponDef?.chargeTime || 1.0) * 1000; // ms
+            const elapsed = now - this.chargeStartTime;
+            this.chargeProgress = Math.min(1.0, elapsed / chargeTime);
+
+            // Shake: sinusoidal noise, intensity scales with charge
+            const shakeIntensity = this.chargeProgress * 2.5; // max 2.5 units at full charge
+            const shakeFreq = 20 + this.chargeProgress * 30; // faster shake as charge builds
+            chargeShakeX = Math.sin(now * 0.001 * shakeFreq) * shakeIntensity;
+            chargeShakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
+
+            // Red pulsing outline
+            const outlineMin = 0.3, outlineMax = 0.8;
+            const scaledWidth = outlineMin + this.chargeProgress * (outlineMax - outlineMin);
+            const rootScale = this.currentWeapon.root.scaling.x || 1;
+            const pulseRate = 4 + this.chargeProgress * 8; // faster pulse at higher charge
+            const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
+            const red = new Color3(1.0 * pulse, 0.1 * pulse, 0.05 * pulse);
+
+            for (const mesh of this.currentWeapon.meshes) {
+                mesh.renderOutline = true;
+                mesh.outlineWidth = scaledWidth / rootScale;
+                mesh.outlineColor = red;
+            }
+        } else if (this.chargeActive) {
+            // Charge released — restore original outline state
+            this.chargeActive = false;
+            this.chargeProgress = 0;
+            this._weaponOutlineWidth = this.savedOutlineWidth;
+            this._weaponOutlineColor = this.savedOutlineColor;
+            this._weaponOutlineEnabled = this.savedOutlineEnabled;
+            this.applyWeaponOutlines();
+        }
+
         // Get reload animation offsets
         const reloadOffsets = this.getReloadAnimationOffsets();
 
         // Get switch animation offsets
         const switchOffsets = this.getSwitchAnimationOffsets();
 
-        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch)
+        // Get slash animation offsets (melee weapons)
+        const slashOffsets = this.getSlashAnimationOffsets();
+
+        // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake + slash)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset,
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset,
-            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset
+            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
+            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY + slashOffsets.yOffset,
+            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset + slashOffsets.zOffset
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -793,10 +1093,224 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch,
-            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180),
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch,
+            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180) + slashOffsets.yaw,
+            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06 + slashOffsets.roll
         );
+    }
+
+    /**
+     * Get slash animation offsets for melee weapons.
+     * 3-phase animation: windup → swing → return to idle.
+     * Uses easeOut for swing (fast start, decel), easeInOut for return.
+     */
+    private getSlashAnimationOffsets(): {
+        xOffset: number; yOffset: number; zOffset: number;
+        pitch: number; yaw: number; roll: number;
+    } {
+        const zero = { xOffset: 0, yOffset: 0, zOffset: 0, pitch: 0, yaw: 0, roll: 0 };
+        if (!this.slashState.active) return zero;
+
+        const now = performance.now();
+        const elapsed = now - this.slashState.startTime;
+        const p = this.slashState.params;
+        const totalDuration = p.windupDuration + p.swingDuration + p.returnDuration;
+
+        if (elapsed >= totalDuration) {
+            this.slashState.active = false;
+            return zero;
+        }
+
+        let t: number; // 0-1 interpolation
+        let fromPitch: number, fromRoll: number, fromYaw: number;
+        let toPitch: number, toRoll: number, toYaw: number;
+        let fromX: number, fromY: number, fromZ: number;
+        let toX: number, toY: number, toZ: number;
+
+        if (elapsed < p.windupDuration) {
+            // Phase 1: Windup — idle to start pose
+            t = p.windupDuration > 0 ? elapsed / p.windupDuration : 1;
+            t = t * t; // easeIn (accelerate into start)
+            fromPitch = 0; fromRoll = 0; fromYaw = 0;
+            toPitch = p.startPitch; toRoll = p.startRoll; toYaw = p.startYaw;
+            fromX = 0; fromY = 0; fromZ = 0;
+            toX = p.startOffset.x; toY = p.startOffset.y; toZ = p.startOffset.z;
+        } else if (elapsed < p.windupDuration + p.swingDuration) {
+            // Phase 2: Swing — start pose to end pose (fast, easeOut)
+            t = (elapsed - p.windupDuration) / p.swingDuration;
+            t = 1 - (1 - t) * (1 - t); // easeOut (fast start, decel)
+            fromPitch = p.startPitch; fromRoll = p.startRoll; fromYaw = p.startYaw;
+            toPitch = p.endPitch; toRoll = p.endRoll; toYaw = p.endYaw;
+            fromX = p.startOffset.x; fromY = p.startOffset.y; fromZ = p.startOffset.z;
+            toX = p.endOffset.x; toY = p.endOffset.y; toZ = p.endOffset.z;
+        } else {
+            // Phase 3: Return — end pose back to idle (smooth, easeInOut)
+            t = (elapsed - p.windupDuration - p.swingDuration) / p.returnDuration;
+            t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOut
+            fromPitch = p.endPitch; fromRoll = p.endRoll; fromYaw = p.endYaw;
+            toPitch = 0; toRoll = 0; toYaw = 0;
+            fromX = p.endOffset.x; fromY = p.endOffset.y; fromZ = p.endOffset.z;
+            toX = 0; toY = 0; toZ = 0;
+        }
+
+        return {
+            xOffset: fromX + (toX - fromX) * t,
+            yOffset: fromY + (toY - fromY) * t,
+            zOffset: fromZ + (toZ - fromZ) * t,
+            pitch: fromPitch + (toPitch - fromPitch) * t,
+            yaw: fromYaw + (toYaw - fromYaw) * t,
+            roll: fromRoll + (toRoll - fromRoll) * t,
+        };
+    }
+
+    // === Slash Trail Effect ===
+    private slashTrails: {
+        tipPoints: Vector3[];
+        handlePoints: Vector3[];
+        mesh: Mesh | null;
+        material: StandardMaterial | null;
+        fadeStart: number;         // 0 = still active, >0 = fading
+        active: boolean;           // true = collecting points from current slash
+    }[] = [];
+    private slashTrailWasActive: boolean = false;
+    private static readonly SLASH_TRAIL_FADE_MS = 800;
+
+    /**
+     * Update slash trail effect — supports multiple concurrent trail instances.
+     * Each slash creates a new trail that collects points during animation,
+     * then fades independently.
+     */
+    private updateSlashTrail(): void {
+        if (!this.scene || !this.currentWeapon || !this.mainCamera) return;
+
+        const now = performance.now();
+        const isSlashing = this.slashState.active;
+
+        // Edge detect: new slash started → create fresh trail instance
+        if (isSlashing && !this.slashTrailWasActive) {
+            // Finalize any previous active trail (start its fade)
+            for (const trail of this.slashTrails) {
+                if (trail.active) {
+                    trail.active = false;
+                    trail.fadeStart = now;
+                }
+            }
+            // Create new trail instance
+            this.slashTrails.push({
+                tipPoints: [],
+                handlePoints: [],
+                mesh: null,
+                material: null,
+                fadeStart: 0,
+                active: true,
+            });
+        }
+        this.slashTrailWasActive = isSlashing;
+
+        // Collect points for the active trail
+        const activeTrail = this.slashTrails.find(t => t.active);
+        if (activeTrail && isSlashing) {
+            const cam = this.mainCamera;
+            const forward = cam.getDirection(Vector3.Forward());
+            const up = cam.getDirection(Vector3.Up());
+            const right = cam.getDirection(Vector3.Right());
+
+            const slashOff = this.getSlashAnimationOffsets();
+
+            // Handle (pivot) — barely moves
+            const handle = cam.position.clone()
+                .addInPlace(forward.scale(15))
+                .addInPlace(up.scale(-4))
+                .addInPlace(right.scale(2))
+                .addInPlace(up.scale(slashOff.yOffset * 0.04))
+                .addInPlace(right.scale(slashOff.xOffset * 0.04));
+
+            // Tip — sweeps wide
+            const tip = cam.position.clone()
+                .addInPlace(forward.scale(28))
+                .addInPlace(up.scale(5))
+                .addInPlace(right.scale(-2))
+                .addInPlace(up.scale(slashOff.yOffset * 0.25))
+                .addInPlace(right.scale(slashOff.xOffset * 0.25))
+                .addInPlace(forward.scale(slashOff.zOffset * 0.1));
+
+            activeTrail.tipPoints.push(tip);
+            activeTrail.handlePoints.push(handle);
+
+            // Build ribbon mesh during animation (visible immediately!)
+            if (activeTrail.tipPoints.length >= 2) {
+                this.buildTrailMesh(activeTrail);
+            }
+        }
+
+        // When slash ends, start fading the active trail
+        if (!isSlashing && activeTrail) {
+            activeTrail.active = false;
+            activeTrail.fadeStart = now;
+        }
+
+        // Update fading trails + clean up finished ones
+        for (let i = this.slashTrails.length - 1; i >= 0; i--) {
+            const trail = this.slashTrails[i];
+            if (trail.active) continue; // Still collecting points
+
+            if (trail.fadeStart > 0) {
+                const fadeProgress = (now - trail.fadeStart) / WeaponViewManager.SLASH_TRAIL_FADE_MS;
+                if (fadeProgress >= 1.0) {
+                    // Fully faded — dispose and remove
+                    if (trail.mesh) trail.mesh.dispose();
+                    if (trail.material) trail.material.dispose();
+                    this.slashTrails.splice(i, 1);
+                } else {
+                    // Fade alpha
+                    if (trail.material) {
+                        trail.material.alpha = 0.7 * (1.0 - fadeProgress);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Build/rebuild ribbon mesh for a specific trail instance.
+     */
+    private buildTrailMesh(trail: typeof this.slashTrails[0]): void {
+        if (!this.scene || trail.tipPoints.length < 2) return;
+
+        if (trail.mesh) {
+            trail.mesh.dispose();
+            trail.mesh = null;
+        }
+
+        trail.mesh = MeshBuilder.CreateRibbon('slashTrail', {
+            pathArray: [trail.tipPoints, trail.handlePoints],
+            updatable: false,
+            sideOrientation: Mesh.DOUBLESIDE,
+        }, this.scene);
+        trail.mesh.isPickable = false;
+
+        if (!trail.material) {
+            const mat = new StandardMaterial('slashTrailMat', this.scene);
+            mat.emissiveColor = new Color3(1.0, 0.15, 0.05);
+            mat.diffuseColor = Color3.Black();
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            mat.alpha = 0.7;
+            trail.material = mat;
+        }
+        trail.material.alpha = 0.7;
+        trail.mesh.material = trail.material;
+    }
+
+    /**
+     * Clean up all slash trails.
+     */
+    private disposeSlashTrail(): void {
+        for (const trail of this.slashTrails) {
+            if (trail.mesh) trail.mesh.dispose();
+            if (trail.material) trail.material.dispose();
+        }
+        this.slashTrails = [];
     }
 
     /**
@@ -852,10 +1366,10 @@ export class WeaponViewManager {
             this.currentLightG += (targetG - this.currentLightG) * lerpFactor;
             this.currentLightB += (targetB - this.currentLightB) * lerpFactor;
 
-            // Apply smoothed lighting to weapon materials
+            // Apply smoothed lighting to weapon materials (all use StandardMaterial now)
             for (const mesh of this.currentWeapon.meshes) {
                 const mat = mesh.material as StandardMaterial;
-                if (mat && mat.diffuseColor) {
+                if (mat?.diffuseColor) {
                     mat.diffuseColor.set(this.currentLightR, this.currentLightG, this.currentLightB);
                 }
             }
@@ -895,7 +1409,7 @@ export class WeaponViewManager {
      * Trigger weapon fire effect and projectile
      * Called by controller when logic permits (ammo, fire rate, etc.)
      */
-    public fire(): void {
+    public fire(opts?: { isProjectileFire?: boolean }): void {
         // this.lastFireTime = performance.now() / 1000;
 
         // FIRE! Trigger muzzle flash
@@ -913,6 +1427,17 @@ export class WeaponViewManager {
 
         // Trigger recoil
         this.recoilOffset = WeaponViewManager.RECOIL_KICK;
+
+        // Trigger slash animation for melee weapons (skip for charged projectile fire)
+        if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
+            const preset = SLASH_PRESETS[this.slashPresetIndex % SLASH_PRESETS.length];
+            this.slashPresetIndex++;
+            this.slashState = {
+                active: true,
+                startTime: performance.now(),
+                params: preset,
+            };
+        }
 
         // Spawn projectile OR hitscan effect
         if (this.mainCamera && this.currentWeaponDef) {

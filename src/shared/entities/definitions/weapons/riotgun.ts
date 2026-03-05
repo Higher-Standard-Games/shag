@@ -43,6 +43,7 @@ export const RIOTGUN: WeaponDef = {
     pickupAmmo: 10,
     useLagCompensation: true,
     crosshair: { style: 'cross', baseGap: 12, lineLength: 8, lineWidth: 2 },
+    speedBonus: 5,             // Light shotgun: +5 speed (405 run)
 
     // View Model
     viewModel: {

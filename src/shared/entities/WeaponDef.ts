@@ -33,6 +33,9 @@ export interface ViewModelDef {
 
     /** Model scale */
     scale: number;
+
+    /** Model format: 'md3' (default) or 'glb' */
+    viewModelFormat?: 'md3' | 'glb';
 }
 
 /**
@@ -139,6 +142,30 @@ export interface WeaponDef extends EntityDef {
     useLagCompensation?: boolean;
     /** Ammo given on pickup (defaults to maxAmmo if unset) */
     pickupAmmo?: number;
+
+    // === MELEE ===
+    /** Melee hit detection radius (wider than hitscan ray) */
+    meleeRadius?: number;
+    /** Delay before melee damage check (seconds) — gives dodge window */
+    meleeDamageDelay?: number;
+
+    // === CHARGED ATTACK ===
+    /** Time to hold fire for max charged attack (seconds) */
+    chargeTime?: number;
+    /** Minimum charge time before projectile can fire (seconds) */
+    chargeMinTime?: number;
+    /** Projectile launched on charged release */
+    chargedProjectileId?: string;
+    /** Damage at minimum charge */
+    chargedDamageMin?: number;
+    /** Damage at full charge */
+    chargedDamageMax?: number;
+    /** @deprecated Use chargedDamageMax instead */
+    chargedDamage?: number;
+
+    // === MOVEMENT ===
+    /** Bonus movement speed while this weapon is equipped (e.g., +25 for blade) */
+    speedBonus?: number;
 
     /** Crosshair visual config */
     crosshair?: CrosshairConfig;

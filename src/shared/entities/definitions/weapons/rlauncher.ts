@@ -42,6 +42,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     pickupAmmo: 10,
     useLagCompensation: false,
     crosshair: { style: 'cross_dot', baseGap: 6, lineLength: 6, lineWidth: 2 },
+    speedBonus: -25,           // Heavy weapon: -25 speed (375 run)
 
     // View Model
     viewModel: {

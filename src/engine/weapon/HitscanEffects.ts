@@ -680,6 +680,86 @@ export class HitscanEffects {
             spawnTime: performance.now() / 1000,
         });
     }
+    /**
+     * Third-person slash arc — ribbon at a remote player's fire position.
+     * Creates a fan-shaped sweep using the fire origin + direction.
+     */
+    fireSlash(cfg: HitscanFireConfig): void {
+        if (!this.scene) return;
+
+        const origin = cfg.origin;
+        const dir = cfg.direction.normalize();
+        const color = cfg.color ?? new Color3(1.0, 0.15, 0.05); // Red
+
+        // Build coordinate frame from fire direction
+        let right = Vector3.Cross(dir, Vector3.Up());
+        if (right.lengthSquared() < 0.001) {
+            right = Vector3.Cross(dir, Vector3.Forward());
+        }
+        right.normalize();
+        const up = Vector3.Cross(right, dir).normalize();
+
+        // Generate arc keyframes — blade sweeps ~120° in the up/right plane
+        const arcSteps = 12;
+        const tipDistance = 15;    // How far the tip is from origin
+        const handleDistance = 3;  // How far the handle is from origin
+        const arcAngle = Math.PI * 0.65; // ~117° sweep
+        const startAngle = -arcAngle / 2;
+
+        const tipPoints: Vector3[] = [];
+        const handlePoints: Vector3[] = [];
+
+        for (let i = 0; i <= arcSteps; i++) {
+            const t = i / arcSteps;
+            const angle = startAngle + t * arcAngle;
+
+            // Sweep direction in the up/right plane, projected forward
+            const sweepDir = up.scale(Math.sin(angle))
+                .add(right.scale(Math.cos(angle)));
+
+            // Tip traces the outer arc
+            const tipPos = origin.clone()
+                .addInPlace(dir.scale(5))   // slightly forward
+                .addInPlace(sweepDir.scale(tipDistance));
+
+            // Handle traces a much tighter arc near the origin
+            const handlePos = origin.clone()
+                .addInPlace(dir.scale(3))
+                .addInPlace(sweepDir.scale(handleDistance));
+
+            tipPoints.push(tipPos);
+            handlePoints.push(handlePos);
+        }
+
+        if (tipPoints.length < 2) return;
+
+        // Create ribbon mesh
+        const id = `slash_${this.nextId++}`;
+        const mesh = MeshBuilder.CreateRibbon(id, {
+            pathArray: [tipPoints, handlePoints],
+            updatable: false,
+            sideOrientation: Mesh.DOUBLESIDE,
+        }, this.scene);
+        mesh.isPickable = false;
+
+        const mat = new StandardMaterial(`${id}_mat`, this.scene);
+        mat.emissiveColor = color;
+        mat.diffuseColor = Color3.Black();
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.alpha = 0.7;
+        mesh.material = mat;
+
+        // Register as active effect — fades automatically via update()
+        this.effects.push({
+            id,
+            meshes: [mesh],
+            materials: [mat],
+            light: null,
+            spawnTime: performance.now() / 1000,
+            duration: 0.8,  // Same as first-person trail fade
+        });
+    }
 }
 
 // Convenience export

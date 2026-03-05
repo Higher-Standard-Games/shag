@@ -1,0 +1,89 @@
+/**
+ * Blade - Weapon Definition
+ * 
+ * New default melee weapon replacing gunblade.
+ * Primary fire: fast melee slash (80 damage, 100 unit range, ~500ms cooldown)
+ * Charged fire: hold attack 1s → releases red energy projectile (50 damage, large splash)
+ * Uses GLB model from public/data/models/weapons/blade/blade.glb
+ */
+
+import { WeaponDef } from '../../WeaponDef';
+import { EntityType } from '../../EntityType';
+
+export const BLADE: WeaponDef = {
+    // Identity
+    id: 'blade',
+    name: 'Blade',
+    type: EntityType.WEAPON,
+    classname: 'weapon_blade',
+
+    // Model (world/pickup)
+    modelPath: '/data/models/weapons/blade/blade.glb',
+    scale: 1.0,
+
+    // Pickup glow — red energy
+    glowColor: { r: 1.0, g: 0.2, b: 0.15 },
+
+    // Gameplay (server-authoritative) — primary fire: melee slash
+    damage: 80,               // Big hit for close range
+    fireRate: 2.0,            // 500ms between swings
+    clipSize: 1,
+    ammoType: 'blade',
+    maxAmmo: 1,
+    reloadTime: 0.5,
+    range: 100,               // Melee reach (~1.5 player widths)
+    hitscan: true,            // Melee is instant hit check
+    fireMode: 'semi',
+    pickupBounds: { x: 32, y: 32, z: 32 },
+    knockbackScale: 10.0,     // Same as RL for melee knockback
+    speedBonus: 10,            // Agile melee: +10 speed (410 run)
+    useLagCompensation: false,
+    crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 2 },
+
+    // Melee-specific
+    meleeRadius: 48,          // Wide cone check radius (players within this of ray center count)
+    meleeDamageDelay: 0.075,  // 75ms delay before damage check (dodge window)
+
+    // Charged attack — hold ALT_FIRE to charge, release to fire projectile
+    chargeTime: 1.0,          // Max charge time (seconds)
+    chargeMinTime: 0.5,       // Min charge to fire (seconds)
+    chargedProjectileId: 'blade_blast',
+    chargedDamageMin: 25,     // Damage at minimum charge (500ms)
+    chargedDamageMax: 50,     // Damage at full charge (1000ms)
+
+    // View Model — GLB format
+    viewModel: {
+        modelPath: '/data/models/weapons/blade/blade.glb',
+        viewModelFormat: 'glb',
+
+        // Blade has no ADS — hip and ads positions are identical
+        hipOffset: { x: 10, y: -28, z: 19 },
+        hipRotation: { x: Math.PI / 2, y: Math.PI / 2, z: Math.PI / 6 + Math.PI },
+
+        adsOffset: { x: 10, y: -28, z: 19 },
+        adsRotation: { x: Math.PI / 2, y: Math.PI / 2, z: Math.PI / 6 + Math.PI },
+
+        scale: 30.0,
+    },
+
+    // ADS (not really used for melee, but required by interface)
+    ads: {
+        time: 0.08,
+        fovReduction: 0,
+        sensitivity: 1.0,
+        movementPenalty: 0,
+    },
+
+    // Muzzle Flash — red energy burst on charged release
+    muzzleFlash: {
+        color: { r: 1.0, g: 0.15, b: 0.1 },
+        intensity: 25,
+        range: 40,
+        duration: 0.08,
+    },
+
+    // Sounds
+    sounds: {
+        fire: 'sounds/weapons/gunblade_fire.ogg',  // TODO: custom blade swing sound
+    },
+};

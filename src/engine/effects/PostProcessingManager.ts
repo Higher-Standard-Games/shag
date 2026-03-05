@@ -558,11 +558,11 @@ export class PostProcessingManager {
       onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineEnabled(!!value)),
     });
 
-    Cvar.register('r_cel_weapon_width', 15, {
+    Cvar.register('r_cel_weapon_width', 25, {
       type: 'float',
       min: 0.1,
       max: 100,
-      description: 'Weapon outline width (0-100 scale, default 2)',
+      description: 'Weapon outline width (0-100 scale, default 25)',
       onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineWidth(value as number)),
     });
 

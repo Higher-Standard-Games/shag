@@ -10,11 +10,13 @@ import { getEntityRegistry } from './EntityRegistry';
 import {
     GUNBLADE, MACHINEGUN, RIOTGUN, GRENADE_LAUNCHER,
     ROCKET_LAUNCHER, PLASMAGUN, LASERGUN, ELECTROBOLT, INSTAGUN,
+    BLADE,
 } from './definitions/weapons';
 
 // Projectiles
 import {
     PLASMA_BOLT, GUNBLADE_BLAST, GRENADE, ROCKET,
+    BLADE_BLAST,
 } from './definitions/projectiles';
 
 // Ammo
@@ -42,12 +44,14 @@ export function initializeEntityDefs(): void {
     registry.register(LASERGUN);
     registry.register(ELECTROBOLT);
     registry.register(INSTAGUN);
+    registry.register(BLADE);
 
     // Projectiles
     registry.register(PLASMA_BOLT);
     registry.register(GUNBLADE_BLAST);
     registry.register(GRENADE);
     registry.register(ROCKET);
+    registry.register(BLADE_BLAST);
 
     // Ammo
     registry.register(PLASMA_AMMO);
