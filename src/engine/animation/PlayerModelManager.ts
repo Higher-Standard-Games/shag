@@ -54,6 +54,7 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
     { name: 'jump', file: 'rifle jump.glb' },
     { name: 'walk', file: 'walking.glb' },
     { name: 'reload', file: 'reloading.glb' },
+    { name: 'blade_slash', file: 'blade_slash.glb' },
 ];
 
 // ─── Manager ─────────────────────────────────────────────────────
@@ -298,6 +299,52 @@ export class PlayerModelManager {
         }
         instance.masterGroup.play(true);
         instance.currentAnim = name;
+        return true;
+    }
+
+    /**
+     * Play a one-shot animation on an instance (e.g. attack, hit reaction).
+     * After the animation completes, reverts to the previous looping anim.
+     * Does NOT change instance.currentAnim so movement derivation continues.
+     */
+    playOnce(instance: PlayerModelInstance, name: string): boolean {
+        const animData = instance.anims.find(a => a.name === name);
+        if (!animData) return false;
+
+        const prevAnim = instance.currentAnim;
+
+        // Tear down current animation
+        if (instance.masterGroup) {
+            instance.masterGroup.stop();
+            instance.masterGroup.dispose();
+        }
+
+        // Build one-shot group
+        const group = new AnimationGroup(
+            `anim_${instance.id}_${name}_once`, this.scene,
+        );
+        for (const item of animData.animations) {
+            if (item.target) {
+                group.addTargetedAnimation(item.animation, item.target);
+            }
+        }
+
+        // Play once (loop = false), then revert to previous anim on end
+        group.play(false);
+        instance.masterGroup = group;
+        // Force currentAnim to empty so movement derivation can override after completion
+        instance.currentAnim = '';
+
+        group.onAnimationEndObservable.addOnce(() => {
+            group.dispose();
+            // Revert to previous animation if instance is still alive
+            if (instance.masterGroup === group) {
+                instance.masterGroup = null;
+                instance.currentAnim = ''; // Force re-play of movement anim
+                this.playAnimation(instance, prevAnim || 'idle');
+            }
+        });
+
         return true;
     }
 
