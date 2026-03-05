@@ -217,21 +217,24 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         });
     });
 
-    // ─── PHASE 2: Force-compile ALL BSP materials with PointLight variant ────
-    // The dummy warmup above only compiles shaders for the DUMMY materials.
-    // Each real BSP material has its own StandardMaterial instance that needs
-    // its own "with dynamic light" shader variant. Without this, the first
-    // projectile PointLight entering range of BSP surfaces triggers synchronous
-    // shader recompilation → visible wall flicker / disappearing geometry.
+    // ─── PHASE 2: Force-compile ALL scene materials with PointLight variant ────
+    // Each StandardMaterial instance needs its own "with dynamic light" shader
+    // variant pre-compiled. Without this, the first PointLight (projectile,
+    // explosion) entering range triggers synchronous shader recompilation →
+    // visible wall flicker / disappearing geometry for 1-2 frames.
     //
-    // Fix: create a temporary PointLight at origin, iterate every BSP
-    // StandardMaterial, and call forceCompilationAsync() to pre-compile
-    // the dynamic-light shader variant before gameplay starts.
+    // We target ALL StandardMaterials, not just BSP — pickup models, weapon
+    // models, and other geometry also need the dynamic-light variant cached.
+    //
+    // CRITICAL: After compilation, we must wait one render frame BEFORE
+    // disposing the PointLight. This ensures the GPU actually processes the
+    // compiled shaders. Disposing immediately can cause the GPU to discard
+    // the pending compilation work.
     {
-        // Build mapping: material → first mesh that uses it
+        // Build mapping: material → first mesh that uses it (deduplicated)
         const matMeshMap = new Map<StandardMaterial, Mesh>();
         for (const mesh of scene.meshes) {
-            if (mesh.material instanceof StandardMaterial && mesh.material.name.startsWith('bsp_')) {
+            if (mesh.material instanceof StandardMaterial) {
                 if (!matMeshMap.has(mesh.material)) {
                     matMeshMap.set(mesh.material, mesh as Mesh);
                 }
@@ -245,9 +248,9 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
             tmpLight.range = 999999; // Ensure it affects ALL materials
             tmpLight.diffuse = new Color3(1, 1, 1);
 
-            console.log(`[EffectPreloader] Force-compiling ${matMeshMap.size} BSP materials with PointLight variant...`);
+            console.log(`[EffectPreloader] Force-compiling ${matMeshMap.size} scene materials with PointLight variant...`);
 
-            // Force-compile all BSP materials with the light active, using their actual meshes
+            // Force-compile all materials with the light active, using their actual meshes
             const compilations: Promise<void>[] = [];
             for (const [mat, mesh] of matMeshMap) {
                 compilations.push(new Promise<void>((resolve) => {
@@ -257,9 +260,23 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
 
             await Promise.all(compilations);
 
+            // Wait one render frame WITH the light still active so the GPU
+            // fully processes all compiled shaders before we remove the light
+            await new Promise<void>((resolve) => {
+                scene.onAfterRenderObservable.addOnce(() => resolve());
+            });
+
             // Dispose temporary light
             tmpLight.dispose();
-            console.log(`[EffectPreloader] BSP material force-compilation complete — ${matMeshMap.size} materials`);
+            console.log(`[EffectPreloader] Material force-compilation complete — ${matMeshMap.size} materials`);
+
+            // Phase 3: Wait one more render frame for the "without light" variant
+            // to settle. This prevents any dirty-flag cascade from the light removal
+            // causing recompilation flicker during the first gameplay frame.
+            await new Promise<void>((resolve) => {
+                scene.onAfterRenderObservable.addOnce(() => resolve());
+            });
+            console.log(`[EffectPreloader] Shader settling complete`);
         }
     }
 }
