@@ -121,16 +121,40 @@ export class AssetPreloader {
             onProgress?.({ current: loaded, total, modelPath });
 
             try {
-                const result = await loader.loadModel(modelPath, {
-                    position: new Vector3(0, -10000, 0), // Load offscreen
-                    scale: 1.0,
-                    hasCollision: false,
-                });
+                let result: ModelLoadResult | null = null;
+
+                // GLB models use SceneLoader instead of PK3+MD3 ModelLoader
+                if (modelPath.endsWith('.glb') || modelPath.endsWith('.gltf')) {
+                    const { SceneLoader } = await import('@babylonjs/core/Loading/sceneLoader');
+                    await import('@babylonjs/loaders/glTF');
+
+                    const lastSlash = modelPath.lastIndexOf('/');
+                    const dir = modelPath.substring(0, lastSlash + 1);
+                    const file = modelPath.substring(lastSlash + 1);
+
+                    const glbResult = await SceneLoader.ImportMeshAsync('', dir, file, scene);
+                    const root = glbResult.meshes[0] as any;
+                    const meshes = glbResult.meshes.filter(m => m.getTotalVertices() > 0) as Mesh[];
+
+                    result = {
+                        root,
+                        meshes,
+                        animationGroups: glbResult.animationGroups || [],
+                        skeletons: glbResult.skeletons || [],
+                        lights: [],
+                    };
+                } else {
+                    result = await loader.loadModel(modelPath, {
+                        position: new Vector3(0, -10000, 0), // Load offscreen
+                        scale: 1.0,
+                        hasCollision: false,
+                    });
+                }
 
                 if (result) {
                     // Wait for all textures to finish loading
-                    if (result.textureLoadPromises && result.textureLoadPromises.length > 0) {
-                        await Promise.all(result.textureLoadPromises);
+                    if ((result as any).textureLoadPromises && (result as any).textureLoadPromises.length > 0) {
+                        await Promise.all((result as any).textureLoadPromises);
                     }
 
                     // Hide the preloaded model (it's just for caching)
