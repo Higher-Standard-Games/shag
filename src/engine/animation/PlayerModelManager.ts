@@ -285,6 +285,24 @@ export class PlayerModelManager {
         clonedMesh.isVisible = true;
         clonedMesh.getChildMeshes().forEach(m => m.isVisible = true);
 
+        // CRITICAL: Clear ALL .animations on cloned nodes.
+        // mesh.clone() / skeleton.clone() copies residual .animations arrays
+        // from source nodes. Babylon's scene animation system auto-evaluates
+        // these independently of our AnimationGroups, causing root-motion drift
+        // (model slides away from hitbox). Our AnimationGroups hold their own
+        // channel references and are NOT affected by this clear.
+        clonedMesh.animations = [];
+        for (const node of clonedMesh.getChildTransformNodes(true)) {
+            node.animations = [];
+        }
+        for (const child of clonedMesh.getChildMeshes()) {
+            child.animations = [];
+        }
+        for (const bone of clonedSkeleton.bones) {
+            const node = bone.getTransformNode();
+            if (node) node.animations = [];
+        }
+
         // Clone animations retargeted to clone's bones
         const clonedAnims: StoredAnim[] = [];
         for (const srcAnim of this.sourceAnims) {
