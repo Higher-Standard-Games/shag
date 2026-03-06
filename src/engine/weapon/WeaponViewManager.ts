@@ -409,12 +409,17 @@ export class WeaponViewManager {
                 glbRoot.parent = weaponNode;
                 if (glbRoot.rotationQuaternion) glbRoot.rotationQuaternion = null;
 
-                // Flip barrel rotation in model's local space (child rotation is independent
-                // of parent's Euler angles, avoiding gimbal lock coupling issues)
-                glbRoot.rotation.x = Math.PI;
-                // Tilt blade tip upward ~52° for natural melee carry
-                glbRoot.rotation.y = 0.9;
-                // NOTE: GLB root has scl:(1,1,-1) from Blender export — keep it,
+                // Apply weapon-specific GLB model orientation
+                if (weaponName === 'blade') {
+                    // Blade: flip barrel + tilt upward for melee carry
+                    glbRoot.rotation.x = Math.PI;
+                    glbRoot.rotation.y = 0.9;
+                } else {
+                    // Gun-type weapons: no extra rotation needed,
+                    // viewModel hipRotation handles orientation
+                    glbRoot.rotation.set(0, 0, 0);
+                }
+                // NOTE: GLB root may have scl:(1,1,-1) from Blender export — keep it,
                 // the negative Z is needed for correct orientation. Use backFaceCulling=false
                 // on materials to handle the flipped winding order.
 
@@ -435,11 +440,14 @@ export class WeaponViewManager {
                             stdMat.disableLighting = true;
                             stdMat.diffuseColor = new Color3(1, 1, 1);
 
-                            // Load external BaseColor texture — PBR albedo is near-black
-                            // for metallic surfaces (color comes from specular reflections)
-                            const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
-                            const baseColorTex = new Texture(baseColorPath, this.scene!);
-                            stdMat.diffuseTexture = baseColorTex;
+                            // Try PBR's embedded albedo texture first, then external BaseColor
+                            if (pbr.albedoTexture) {
+                                stdMat.diffuseTexture = pbr.albedoTexture;
+                            } else {
+                                const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
+                                const baseColorTex = new Texture(baseColorPath, this.scene!);
+                                stdMat.diffuseTexture = baseColorTex;
+                            }
 
                             if (pbr.emissiveTexture) {
                                 stdMat.emissiveTexture = pbr.emissiveTexture;
@@ -448,7 +456,7 @@ export class WeaponViewManager {
                             stdMat.backFaceCulling = false;
                             convertedMaterials.set(matId, stdMat);
 
-                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", baseColor: ${baseColorPath}, emissive: ${!!stdMat.emissiveTexture}`);
+                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", albedo: ${!!stdMat.diffuseTexture}, emissive: ${!!stdMat.emissiveTexture}`);
                         }
                         mesh.material = convertedMaterials.get(matId)!;
                     }

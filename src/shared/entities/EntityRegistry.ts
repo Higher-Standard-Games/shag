@@ -84,6 +84,10 @@ export class EntityRegistry {
             if (def.classname === classname) {
                 return def as T;
             }
+            // Check aliases for backward compatibility
+            if (def.classnameAliases?.includes(classname)) {
+                return def as T;
+            }
         }
         return undefined;
     }

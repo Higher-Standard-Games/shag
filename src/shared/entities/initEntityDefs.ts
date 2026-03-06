@@ -9,8 +9,8 @@ import { getEntityRegistry } from './EntityRegistry';
 // Weapons
 import {
     GUNBLADE, MACHINEGUN, RIOTGUN, GRENADE_LAUNCHER,
-    ROCKET_LAUNCHER, PLASMAGUN, LASERGUN, ELECTROBOLT, INSTAGUN,
-    BLADE,
+    ROCKET_LAUNCHER, PLASMAGUN, ELECTROBOLT, INSTAGUN,
+    BLADE, VOLTAIC,
 } from './definitions/weapons';
 
 // Projectiles
@@ -23,6 +23,7 @@ import {
 import {
     PLASMA_AMMO, GUNBLADE_AMMO, BULLET_AMMO, SHELL_AMMO,
     GRENADE_AMMO, ROCKET_AMMO, LASER_AMMO, BOLT_AMMO, INSTA_AMMO,
+    VOLTAIC_AMMO,
 } from './definitions/ammo';
 
 /**
@@ -41,7 +42,7 @@ export function initializeEntityDefs(): void {
     registry.register(GRENADE_LAUNCHER);
     registry.register(ROCKET_LAUNCHER);
     registry.register(PLASMAGUN);
-    registry.register(LASERGUN);
+    registry.register(VOLTAIC);         // Replaces lasergun (aliases: weapon_lasergun)
     registry.register(ELECTROBOLT);
     registry.register(INSTAGUN);
     registry.register(BLADE);
@@ -61,6 +62,7 @@ export function initializeEntityDefs(): void {
     registry.register(GRENADE_AMMO);
     registry.register(ROCKET_AMMO);
     registry.register(LASER_AMMO);
+    registry.register(VOLTAIC_AMMO);    // Replaces laser ammo (aliases: ammo_lasers)
     registry.register(BOLT_AMMO);
     registry.register(INSTA_AMMO);
 

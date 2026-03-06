@@ -7,3 +7,4 @@ export * from './rlauncher';
 export * from './lasergun';
 export * from './electrobolt';
 export * from './instagun';
+export * from './voltaic';

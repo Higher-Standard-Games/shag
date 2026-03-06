@@ -24,6 +24,9 @@ export interface EntityDef {
     /** BSP/MAP classname for spawning (e.g., "weapon_plasmagun", "item_health") */
     classname?: string;
 
+    /** Additional classnames that resolve to this entity (backward compatibility) */
+    classnameAliases?: string[];
+
     // === VISUALS ===
     /** Primary 3D model path (MD3/GLB in PK3) */
     modelPath?: string;
