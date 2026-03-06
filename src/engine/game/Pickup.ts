@@ -134,8 +134,6 @@ export class Pickup extends TransformNode {
                 if (physics.isInitialized()) {
                     if (this.mesh instanceof Mesh) {
                         physics.createDynamicBody(this.mesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
-                        // Fallback or Force Cast if satisfied
-                        physics.createDynamicBody(this.mesh as Mesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
                     }
 
                     // Add random rotation tumble
