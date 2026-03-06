@@ -185,23 +185,18 @@ export class PlayerModelManager {
                         // Stop again after dispose
                         for (const g of this.scene.animationGroups) g.stop();
 
-                        // CRITICAL: Clear any .animations injected onto source bones by the import.
-                        // Without this, FBX-converted GLBs (like blade_slash) can leave auto-playing
-                        // animation data on skeleton nodes, causing exaggerated idle on clones.
+                        // CRITICAL: Clear any .animations injected onto nodes by the import.
+                        // ImportAnimationsAsync retargets to existing skeleton, injecting
+                        // .animations on TransformNodes that may not be mesh children.
+                        // Iterate ALL scene transform nodes to catch everything.
                         if (this.sourceMesh) {
                             this.sourceMesh.animations = [];
-                            for (const node of this.sourceMesh.getChildTransformNodes(true)) {
-                                node.animations = [];
-                            }
-                            for (const child of this.sourceMesh.getChildMeshes()) {
-                                child.animations = [];
-                            }
                         }
-                        if (this.sourceSkeleton) {
-                            for (const bone of this.sourceSkeleton.bones) {
-                                const node = bone.getTransformNode();
-                                if (node) node.animations = [];
-                            }
+                        for (const node of this.scene.transformNodes) {
+                            node.animations = [];
+                        }
+                        for (const mesh of this.scene.meshes) {
+                            mesh.animations = [];
                         }
                     }
                 } catch (err) {
@@ -209,24 +204,13 @@ export class PlayerModelManager {
                 }
             }
 
-            // FINAL CLEANUP: After all animations loaded, aggressively clear any
-            // residual .animations left on nodes by FBX-converted GLB imports.
-            // This prevents the scene's animation system from auto-playing stray data.
+            // FINAL CLEANUP: Same broad sweep over ALL scene transform nodes.
             for (const g of this.scene.animationGroups) g.stop();
-            if (this.sourceMesh) {
-                this.sourceMesh.animations = [];
-                for (const node of this.sourceMesh.getChildTransformNodes(true)) {
-                    node.animations = [];
-                }
-                for (const child of this.sourceMesh.getChildMeshes()) {
-                    child.animations = [];
-                }
+            for (const node of this.scene.transformNodes) {
+                node.animations = [];
             }
-            if (this.sourceSkeleton) {
-                for (const bone of this.sourceSkeleton.bones) {
-                    const node = bone.getTransformNode();
-                    if (node) node.animations = [];
-                }
+            for (const mesh of this.scene.meshes) {
+                mesh.animations = [];
             }
 
             // NUCLEAR: Stop ALL scene-level Animatables.
@@ -541,15 +525,10 @@ export class PlayerModelManager {
             const targetName = (ta.target as TransformNode).name;
             const prop = ta.animation.targetProperty;
 
-            // Skip root motion on any root-level bone (Hips, Armature, Root, RootNode)
-            const nameLower = targetName.toLowerCase();
-            const isRootBone = nameLower.includes('hips') ||
-                nameLower.includes('armature') ||
-                nameLower.includes('rootnode') ||
-                nameLower === 'root' ||
-                nameLower.includes('mixamorig:hips');
-            if (prop === 'position' && isRootBone) {
-                console.log(`[PlayerModelManager] Filtering root motion: ${targetName}.${prop}`);
+            // Strip ALL position tracks — every Mixamo animation has exactly one
+            // position track (mixamorig:Hips) which is always root-motion data.
+            // Headless inspection confirmed: no animation has useful position data.
+            if (prop === 'position') {
                 continue;
             }
 
