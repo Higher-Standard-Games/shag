@@ -229,7 +229,17 @@ export class PlayerModelManager {
                 }
             }
 
+            // NUCLEAR: Stop ALL scene-level Animatables.
+            // ImportAnimationsAsync can create scene.beginAnimation() calls
+            // that survive AnimationGroup disposal and .animations[] cleanup.
+            this.scene.stopAllAnimations();
+
             console.log(`[PlayerModelManager] Ready: ${this.sourceAnims.length} animations`);
+            // Debug: log what channels each animation has
+            for (const anim of this.sourceAnims) {
+                const posChannels = anim.animations.filter(a => a.animation.targetProperty === 'position');
+                console.log(`  ${anim.name}: ${anim.animations.length} channels (${posChannels.length} position tracks: ${posChannels.map(p => p.target.name).join(', ')})`);
+            }
             this.loaded = true;
         } catch (err) {
             console.error('[PlayerModelManager] Load error:', err);
@@ -301,6 +311,15 @@ export class PlayerModelManager {
         for (const bone of clonedSkeleton.bones) {
             const node = bone.getTransformNode();
             if (node) node.animations = [];
+        }
+        // Also stop any scene-level Animatables targeting cloned nodes
+        this.scene.stopAnimation(clonedMesh);
+        for (const node of clonedMesh.getChildTransformNodes(true)) {
+            this.scene.stopAnimation(node);
+        }
+        for (const bone of clonedSkeleton.bones) {
+            const node = bone.getTransformNode();
+            if (node) this.scene.stopAnimation(node);
         }
 
         // Clone animations retargeted to clone's bones
