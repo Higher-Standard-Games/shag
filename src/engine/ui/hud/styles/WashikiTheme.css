@@ -1432,12 +1432,14 @@
     flex-direction: column;
     align-items: center;
     gap: calc(8px * var(--ui-scale, 1));
-    padding: calc(32px * var(--ui-scale, 1)) calc(56px * var(--ui-scale, 1));
+    padding: calc(32px * var(--ui-scale, 1)) calc(72px * var(--ui-scale, 1));
+    min-width: calc(400px * var(--ui-scale, 1));
     background: hsla(240, 20%, 8%, 0.85);
     border: 1px solid hsla(0, 80%, 50%, 0.3);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     animation: fps-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    white-space: nowrap;
 }
 
 .fps-death-title {
@@ -1454,12 +1456,10 @@
 .fps-death-separator {
     width: calc(80px * var(--ui-scale, 1));
     height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        hsla(0, 80%, 50%, 0.5),
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            hsla(0, 80%, 50%, 0.5),
+            transparent);
     margin: calc(4px * var(--ui-scale, 1)) 0;
 }
 
