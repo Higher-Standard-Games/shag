@@ -19,7 +19,7 @@ export const VOLTAIC: WeaponDef = {
 
     // Model (world/pickup) — GLB
     modelPath: '/data/models/weapons/voltaic/voltaic.glb',
-    scale: 1.0,
+    scale: 30.0,
 
     // Pickup glow — electric cyan
     glowColor: { r: 0.2, g: 0.8, b: 1.0 },

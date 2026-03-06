@@ -133,6 +133,45 @@ export class WeaponViewManager {
     public get isReady(): boolean {
         return this.scene !== null && this.weaponRoot !== null;
     }
+
+    /**
+     * Get the world-space position of the gun barrel/muzzle (for beam origin etc.)
+     * 
+     * The weapon is rendered in a separate camera layer (weaponCamera).
+     * weaponRoot.position is in weapon-camera-local space, which mirrors
+     * mainCamera orientation. Transform through mainCamera's world matrix
+     * to get main-scene world-space coordinates.
+     */
+    public getMuzzleWorldPosition(): Vector3 | null {
+        if (!this.mainCamera) return null;
+
+        // Use camera direction offsets to approximate barrel position.
+        // Lerp between hip (gun on right side) and ADS (centered) using adsProgress.
+        const ads = this.adsProgress;  // 0 = hip, 1 = full ADS
+        const forward = this.mainCamera.getDirection(Vector3.Forward());
+        const right = this.mainCamera.getDirection(Vector3.Right());
+        const up = this.mainCamera.getDirection(Vector3.Up());
+
+        // Hip offsets: right 1.5, down 1.2, forward 5
+        // ADS offsets: centered, down 0.8, forward 4
+        const rightOff = 1.5 * (1 - ads);
+        const downOff = 1.2 - 0.4 * ads;
+        const fwdOff = 5 - 1 * ads;
+
+        // Add dynamic weapon movement (bob, landing, recoil)
+        // Suppress bob during beam charge/active for stability
+        const chargeOrBeam = Math.max(this.beamChargeProgress, this.beamActive ? 1 : 0);
+        const scale = 0.05 * (1 - chargeOrBeam * 0.8);  // lerp from 0.05 → 0.01
+        const bobX = this.currentBobOffsetX * scale;
+        const bobY = (this.currentBobOffsetY + this.jumpLandBobCurrent) * scale;
+        const recoilZ = -this.recoilOffset * scale;
+
+        const origin = this.mainCamera.position.clone();
+        origin.addInPlace(forward.scale(fwdOff + recoilZ));
+        origin.addInPlace(right.scale(rightOff + bobX));
+        origin.addInPlace(up.scale(-downOff + bobY));
+        return origin;
+    }
     private weaponCamera: FreeCamera | null = null;
     private mainCamera: FreeCamera | null = null;  // Main player camera for aim direction
     private weaponRoot: TransformNode | null = null;
@@ -182,6 +221,11 @@ export class WeaponViewManager {
     private static readonly MUZZLE_FLASH_DECAY = 150.0;  // How fast it fades (higher = faster)
     private static readonly MUZZLE_FLASH_OPACITY = 0.75; // Max opacity (0.75 = 75% visible)
     private static readonly MUZZLE_FLASH_RANGE = 30;  // Light range in units
+
+    // Beam state (set by FPSPlayer, rendered here after position is finalized)
+    private beamActive: boolean = false;
+    private beamColor: Color3 = new Color3(1.0, 0.7, 0.1);
+    private beamChargeProgress: number = 0;  // 0 = not charging, 1 = fully charged
     // Weapon recoil
     private recoilOffset: number = 0;  // Current recoil (kicks back then returns)
     private static readonly RECOIL_KICK = 1.5;  // Max recoil distance
@@ -1627,6 +1671,37 @@ export class WeaponViewManager {
             this.recoilOffset -= WeaponViewManager.RECOIL_RECOVER * deltaTime;
             if (this.recoilOffset < 0) this.recoilOffset = 0;
         }
+
+        // Beam rendering — runs AFTER position finalization so barrel position is current-frame
+        if (this.beamActive && this.mainCamera) {
+            const forward = this.mainCamera.getDirection(Vector3.Forward());
+            const muzzlePos = this.getMuzzleWorldPosition();
+            if (muzzlePos) {
+                getHitscanEffects().updateBeam({
+                    origin: muzzlePos,
+                    direction: forward,
+                    maxRange: this.currentWeaponDef?.range ?? 850,
+                    color: this.beamColor,
+                });
+            }
+        }
+    }
+
+    /** Called by FPSPlayer to start/stop beam rendering */
+    public setBeamActive(active: boolean, color?: Color3): void {
+        this.beamActive = active;
+        if (color) this.beamColor = color;
+        if (!active) {
+            getHitscanEffects().stopBeam();
+            this.beamChargeProgress = 0;
+        } else {
+            this.beamChargeProgress = 1;  // fully charged when beam is active
+        }
+    }
+
+    /** Called by FPSPlayer during beam charge-up (0→1 progress) */
+    public setBeamCharging(progress: number): void {
+        this.beamChargeProgress = progress;
     }
 
     // ==================== WEAPON SWITCH ANIMATION ====================

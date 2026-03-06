@@ -201,8 +201,8 @@ export class HitscanEffects {
         if (!this.scene) return null;
         const range = cfg.maxRange ?? 850;
         const color = cfg.color ?? new Color3(1.0, 0.7, 0.1); // orange/yellow
-        const dStart = cfg.diameterStart ?? 0.8;
-        const dEnd = cfg.diameterEnd ?? 0.2;
+        const dStart = cfg.diameterStart ?? 0.4;
+        const dEnd = cfg.diameterEnd ?? 0.15;
 
         const hit = this.traceRay(cfg.origin, cfg.direction, range);
         const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
