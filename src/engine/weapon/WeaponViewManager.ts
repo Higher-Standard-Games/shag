@@ -1549,7 +1549,8 @@ export class WeaponViewManager {
                         break;
                     }
                     case 'beam':
-                        fx.updateBeam({ origin, direction: forward, maxRange: range, color });
+                        // Beam rendering is handled per-frame by FPSPlayer.updateFiring()
+                        // Fire event only triggers muzzle flash (handled below)
                         break;
                     case 'bolt':
                         fx.fireBolt({ origin, direction: forward, maxRange: range, color });
