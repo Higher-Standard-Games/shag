@@ -42,12 +42,12 @@ export interface TracerConfig extends HitscanFireConfig {
     duration?: number;
 }
 
-/** Continuous beam (lasergun-style held beam) */
+/** Continuous beam (lightning-gun-style held beam) */
 export interface BeamConfig extends HitscanFireConfig {
-    /** Width of the beam. Default 0.15 */
-    width?: number;
-    /** If supplied, this mesh is reused instead of creating a new one */
-    existingBeam?: Mesh;
+    /** Diameter at the barrel (start). Default 0.8 */
+    diameterStart?: number;
+    /** Diameter at the endpoint (end). Default 0.2 */
+    diameterEnd?: number;
 }
 
 /** Pellet spread (riotgun-style multi-ray) */
@@ -108,10 +108,21 @@ export class HitscanEffects {
     private travelingPellets: TravelingPellet[] = [];
     private nextId = 0;
 
-    /** Reusable beam mesh for lasergun (updated every frame, not created/destroyed) */
-    private activeBeam: Mesh | null = null;
-    private activeBeamMat: StandardMaterial | null = null;
+    /** Reusable beam meshes for local player (updated every frame, not created/destroyed) */
+    private activeBeamCore: Mesh | null = null;
+    private activeBeamGlow: Mesh | null = null;
+    private activeBeamCoreMat: StandardMaterial | null = null;
+    private activeBeamGlowMat: StandardMaterial | null = null;
     private activeBeamLight: PointLight | null = null;
+
+    /** Remote player beams — keyed by entity ID */
+    private remoteBeams: Map<number, {
+        core: Mesh; glow: Mesh;
+        coreMat: StandardMaterial; glowMat: StandardMaterial;
+        light: PointLight;
+        lastUpdate: number;
+    }> = new Map();
+    private static readonly REMOTE_BEAM_TIMEOUT = 0.15; // seconds
 
     /** Pooled wall marks (bullet holes / scorch marks) */
     private wallMarks: { mesh: Mesh; material: StandardMaterial; spawnTime: number }[] = [];
@@ -182,51 +193,78 @@ export class HitscanEffects {
     }
 
     /**
-     * Continuous beam  (lasergun, held-down)
+     * Continuous beam  (lightning-gun style, held-down)
+     * Dual tapered beam: wider at barrel, thinner at distance.
      * Update every frame while firing. Call `stopBeam()` when fire ends.
      */
     updateBeam(cfg: BeamConfig): Vector3 | null {
         if (!this.scene) return null;
         const range = cfg.maxRange ?? 850;
-        const color = cfg.color ?? new Color3(1.0, 0.2, 0.2); // red
-        const width = cfg.width ?? 0.15;
+        const color = cfg.color ?? new Color3(1.0, 0.7, 0.1); // orange/yellow
+        const dStart = cfg.diameterStart ?? 0.8;
+        const dEnd = cfg.diameterEnd ?? 0.2;
 
         const hit = this.traceRay(cfg.origin, cfg.direction, range);
         const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
 
-        // Create or update beam cylinder
-        if (!this.activeBeam) {
+        // Create or update core beam (tapered cylinder)
+        if (!this.activeBeamCore) {
             const id = `beam_${this.nextId++}`;
-            this.activeBeam = MeshBuilder.CreateCylinder(id, {
+            this.activeBeamCore = MeshBuilder.CreateCylinder(`${id}_core`, {
                 height: 1,
-                diameterTop: width,
-                diameterBottom: width,
-                tessellation: 6,
+                diameterTop: dEnd,      // thin at endpoint
+                diameterBottom: dStart,  // wide at barrel
+                tessellation: 8,
             }, this.scene);
-            this.activeBeam.isPickable = false;
+            this.activeBeamCore.isPickable = false;
 
-            this.activeBeamMat = new StandardMaterial(`${id}_mat`, this.scene);
-            this.activeBeamMat.emissiveColor = color;
-            this.activeBeamMat.disableLighting = true;
-            this.activeBeamMat.alpha = 0.8;
-            this.activeBeamMat.backFaceCulling = false;
-            this.activeBeam.material = this.activeBeamMat;
+            this.activeBeamCoreMat = new StandardMaterial(`${id}_core_mat`, this.scene);
+            this.activeBeamCoreMat.emissiveColor = color;
+            this.activeBeamCoreMat.disableLighting = true;
+            this.activeBeamCoreMat.alpha = 0.75;
+            this.activeBeamCoreMat.backFaceCulling = false;
+            this.activeBeamCore.material = this.activeBeamCoreMat;
+
+            // Outer glow beam (wider, semi-transparent)
+            this.activeBeamGlow = MeshBuilder.CreateCylinder(`${id}_glow`, {
+                height: 1,
+                diameterTop: dEnd * 2.5,
+                diameterBottom: dStart * 2.5,
+                tessellation: 8,
+            }, this.scene);
+            this.activeBeamGlow.isPickable = false;
+
+            this.activeBeamGlowMat = new StandardMaterial(`${id}_glow_mat`, this.scene);
+            this.activeBeamGlowMat.emissiveColor = new Color3(
+                Math.min(1, color.r * 1.3),
+                Math.min(1, color.g * 1.3),
+                Math.min(1, color.b * 1.3)
+            );
+            this.activeBeamGlowMat.disableLighting = true;
+            this.activeBeamGlowMat.alpha = 0.2;
+            this.activeBeamGlowMat.backFaceCulling = false;
+            this.activeBeamGlow.material = this.activeBeamGlowMat;
         } else {
-            // Update color
-            if (this.activeBeamMat) {
-                this.activeBeamMat.emissiveColor = color;
+            if (this.activeBeamCoreMat) this.activeBeamCoreMat.emissiveColor = color;
+            if (this.activeBeamGlowMat) {
+                this.activeBeamGlowMat.emissiveColor = new Color3(
+                    Math.min(1, color.r * 1.3),
+                    Math.min(1, color.g * 1.3),
+                    Math.min(1, color.b * 1.3)
+                );
             }
         }
 
-        // Position and orient the cylinder between origin and endpoint
-        this.orientCylinder(this.activeBeam, cfg.origin, endpoint);
+        // Orient both beams between origin and endpoint
+        this.orientCylinder(this.activeBeamCore!, cfg.origin, endpoint);
+        this.orientCylinder(this.activeBeamGlow!, cfg.origin, endpoint);
 
-        // Small endpoint glow light
+        // Endpoint glow light
         if (!this.activeBeamLight) {
             this.activeBeamLight = new PointLight('beam_end_light', endpoint, this.scene);
             this.activeBeamLight.diffuse = color;
-            this.activeBeamLight.intensity = 3;
-            this.activeBeamLight.range = 8;
+            this.activeBeamLight.intensity = 8;
+            this.activeBeamLight.range = 15;
         } else {
             this.activeBeamLight.position = endpoint;
             this.activeBeamLight.diffuse = color;
@@ -235,14 +273,95 @@ export class HitscanEffects {
         return hit?.point ?? null;
     }
 
-    /** Stop the continuous beam effect */
+    /** Stop the local player's continuous beam effect */
     stopBeam(): void {
-        this.activeBeam?.dispose();
-        this.activeBeam = null;
-        this.activeBeamMat?.dispose();
-        this.activeBeamMat = null;
+        this.activeBeamCore?.dispose();
+        this.activeBeamCore = null;
+        this.activeBeamGlow?.dispose();
+        this.activeBeamGlow = null;
+        this.activeBeamCoreMat?.dispose();
+        this.activeBeamCoreMat = null;
+        this.activeBeamGlowMat?.dispose();
+        this.activeBeamGlowMat = null;
         this.activeBeamLight?.dispose();
         this.activeBeamLight = null;
+    }
+
+    /**
+     * Update a remote (third-person) player's beam.
+     * Called from FPSGameManager when a fire event arrives for a beam weapon.
+     * Automatically cleaned up after REMOTE_BEAM_TIMEOUT if no updates arrive.
+     */
+    updateRemoteBeam(entityId: number, cfg: BeamConfig): void {
+        if (!this.scene) return;
+        const range = cfg.maxRange ?? 850;
+        const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
+        const dStart = cfg.diameterStart ?? 0.6;
+        const dEnd = cfg.diameterEnd ?? 0.15;
+        const endpoint = cfg.origin.add(cfg.direction.scale(range));
+        // Note: no raytrace for remote beams (origin+dir from server is enough)
+
+        let beam = this.remoteBeams.get(entityId);
+        if (!beam) {
+            const id = `rbeam_${entityId}_${this.nextId++}`;
+            const core = MeshBuilder.CreateCylinder(`${id}_core`, {
+                height: 1, diameterTop: dEnd, diameterBottom: dStart, tessellation: 8,
+            }, this.scene);
+            core.isPickable = false;
+            const coreMat = new StandardMaterial(`${id}_core_mat`, this.scene);
+            coreMat.emissiveColor = color;
+            coreMat.disableLighting = true;
+            coreMat.alpha = 0.7;
+            coreMat.backFaceCulling = false;
+            core.material = coreMat;
+
+            const glow = MeshBuilder.CreateCylinder(`${id}_glow`, {
+                height: 1, diameterTop: dEnd * 2.5, diameterBottom: dStart * 2.5, tessellation: 8,
+            }, this.scene);
+            glow.isPickable = false;
+            const glowMat = new StandardMaterial(`${id}_glow_mat`, this.scene);
+            glowMat.emissiveColor = new Color3(
+                Math.min(1, color.r * 1.3), Math.min(1, color.g * 1.3), Math.min(1, color.b * 1.3)
+            );
+            glowMat.disableLighting = true;
+            glowMat.alpha = 0.15;
+            glowMat.backFaceCulling = false;
+            glow.material = glowMat;
+
+            const light = new PointLight(`${id}_light`, endpoint, this.scene);
+            light.diffuse = color;
+            light.intensity = 6;
+            light.range = 12;
+
+            beam = { core, glow, coreMat, glowMat, light, lastUpdate: performance.now() / 1000 };
+            this.remoteBeams.set(entityId, beam);
+        } else {
+            beam.coreMat.emissiveColor = color;
+            beam.light.diffuse = color;
+            beam.lastUpdate = performance.now() / 1000;
+        }
+
+        this.orientCylinder(beam.core, cfg.origin, endpoint);
+        this.orientCylinder(beam.glow, cfg.origin, endpoint);
+        beam.light.position = endpoint;
+    }
+
+    /** Stop a specific remote player's beam */
+    stopRemoteBeam(entityId: number): void {
+        const beam = this.remoteBeams.get(entityId);
+        if (beam) {
+            beam.core.dispose();
+            beam.glow.dispose();
+            beam.coreMat.dispose();
+            beam.glowMat.dispose();
+            beam.light.dispose();
+            this.remoteBeams.delete(entityId);
+        }
+    }
+
+    /** Stop all remote beams */
+    stopAllRemoteBeams(): void {
+        for (const [id] of this.remoteBeams) this.stopRemoteBeam(id);
     }
 
     /**
@@ -505,6 +624,13 @@ export class HitscanEffects {
                 this.effects.splice(idx, 1);
             }
         }
+
+        // Auto-cleanup remote beams that haven't received updates
+        for (const [entityId, beam] of this.remoteBeams) {
+            if (now - beam.lastUpdate > HitscanEffects.REMOTE_BEAM_TIMEOUT) {
+                this.stopRemoteBeam(entityId);
+            }
+        }
     }
 
     /** Cleanup everything */
@@ -521,6 +647,7 @@ export class HitscanEffects {
         }
         this.travelingPellets = [];
         this.stopBeam();
+        this.stopAllRemoteBeams();
     }
 
     // ── Private helpers ──────────────────────────────────────────────
@@ -536,6 +663,7 @@ export class HitscanEffects {
             if (mesh.name.startsWith('pellet_')) return false;
             if (mesh.name.startsWith('bolt_')) return false;
             if (mesh.name.startsWith('beam_')) return false;
+            if (mesh.name.startsWith('rbeam_')) return false;
             if (mesh.name.startsWith('proj_')) return false;
             if (mesh.name.startsWith('impact_')) return false;
             if (mesh.name.startsWith('wallmark_')) return false;

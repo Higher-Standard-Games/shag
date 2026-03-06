@@ -64,9 +64,9 @@ export const VOLTAIC: WeaponDef = {
         movementPenalty: 0.5,
     },
 
-    // Muzzle Flash — electric cyan
+    // Muzzle Flash — warm orange (matches beam)
     muzzleFlash: {
-        color: { r: 0.2, g: 0.7, b: 1.0 },
+        color: { r: 1.0, g: 0.7, b: 0.1 },
         intensity: 12,
         range: 25,
         duration: 0.03,
