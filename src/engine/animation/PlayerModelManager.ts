@@ -209,6 +209,26 @@ export class PlayerModelManager {
                 }
             }
 
+            // FINAL CLEANUP: After all animations loaded, aggressively clear any
+            // residual .animations left on nodes by FBX-converted GLB imports.
+            // This prevents the scene's animation system from auto-playing stray data.
+            for (const g of this.scene.animationGroups) g.stop();
+            if (this.sourceMesh) {
+                this.sourceMesh.animations = [];
+                for (const node of this.sourceMesh.getChildTransformNodes(true)) {
+                    node.animations = [];
+                }
+                for (const child of this.sourceMesh.getChildMeshes()) {
+                    child.animations = [];
+                }
+            }
+            if (this.sourceSkeleton) {
+                for (const bone of this.sourceSkeleton.bones) {
+                    const node = bone.getTransformNode();
+                    if (node) node.animations = [];
+                }
+            }
+
             console.log(`[PlayerModelManager] Ready: ${this.sourceAnims.length} animations`);
             this.loaded = true;
         } catch (err) {
@@ -484,10 +504,15 @@ export class PlayerModelManager {
             const targetName = (ta.target as TransformNode).name;
             const prop = ta.animation.targetProperty;
 
-            // Skip root motion on Hips
-            const isHipsBone = targetName.toLowerCase().includes('hips');
-            if (prop === 'position' && isHipsBone) {
-                console.log(`[PlayerModelManager] Filtering root motion: ${targetName}`);
+            // Skip root motion on any root-level bone (Hips, Armature, Root, RootNode)
+            const nameLower = targetName.toLowerCase();
+            const isRootBone = nameLower.includes('hips') ||
+                nameLower.includes('armature') ||
+                nameLower.includes('rootnode') ||
+                nameLower === 'root' ||
+                nameLower.includes('mixamorig:hips');
+            if (prop === 'position' && isRootBone) {
+                console.log(`[PlayerModelManager] Filtering root motion: ${targetName}.${prop}`);
                 continue;
             }
 
