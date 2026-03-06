@@ -230,6 +230,17 @@ export class MessageCodec {
     return encoder.getData();
   }
 
+  /**
+   * Encode a RequestSpawn message (Client → Server)
+   * Sent when dead player wants to respawn (after cooldown).
+   * Simple 1-byte message — server identifies sender by connection.
+   */
+  static encodeRequestSpawn(): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.RequestSpawn);
+    return encoder.getData();
+  }
+
   // ── ClockSync: Ping / Pong ───────────────────────────────
 
   /**

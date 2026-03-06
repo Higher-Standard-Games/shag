@@ -499,6 +499,7 @@ export enum MessageType {
   Ping = 0x85,
   JoinGame = 0x86,    // Spectator → Player: request to join the game
   Spectate = 0x87,    // Player → Spectator: request to leave game and spectate
+  RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

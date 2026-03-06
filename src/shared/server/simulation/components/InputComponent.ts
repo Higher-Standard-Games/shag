@@ -41,6 +41,9 @@ export interface InputComponent {
 
     /** Queued inputs waiting to be processed (newest at end) */
     inputQueue: QueuedInput[];
+
+    /** Set by server when client sends RequestSpawn (cleared on actual respawn) */
+    wantsRespawn: boolean;
 }
 
 /** Create default input */
@@ -59,6 +62,7 @@ export function createInput(): InputComponent {
         weaponSlot: 1,
         sequence: 0,
         inputQueue: [],
+        wantsRespawn: false,
     };
 }
 
