@@ -231,6 +231,18 @@ export class SnapshotBuffer {
         return this.buffer.length;
     }
 
+    /**
+     * Flush stale buffer entries, keeping only the latest snapshot as baseline.
+     * Called on tab-return to prevent interpolation through stale data.
+     */
+    flush(): void {
+        if (this.buffer.length > 1) {
+            this.buffer = [this.buffer[this.buffer.length - 1]];
+        }
+        this.jitterSamples = [];
+        this.lastReceiveTime = 0;
+    }
+
     // ── Internal ─────────────────────────────────────────────
 
     /**
