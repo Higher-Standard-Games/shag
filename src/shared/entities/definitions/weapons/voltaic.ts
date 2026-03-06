@@ -45,13 +45,14 @@ export const VOLTAIC: WeaponDef = {
         modelPath: '/data/models/weapons/voltaic/voltaic.glb',
         viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -22, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        // Gun position — zero rotation baseline to find natural model orientation
+        hipOffset: { x: 8, y: -20, z: 22 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -17, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: 8, z: 35 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
-        scale: 8.0,
+        scale: 65.0,
     },
 
     // ADS

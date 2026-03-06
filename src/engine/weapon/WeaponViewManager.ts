@@ -11,6 +11,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
+import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -294,6 +295,13 @@ export class WeaponViewManager {
         // Args: (groupId, autoClear, depth, stencil)
         scene.setRenderingAutoClearDepthStencil(1, true, true, false);
 
+        // Add dedicated weapon light for PBR GLB models
+        // Only affects rendering group 1 (weapons), not the world
+        const weaponLight = new HemisphericLight('weaponLight', new Vector3(0.3, 1, 0.5), scene);
+        weaponLight.intensity = 1.2;
+        weaponLight.diffuse = new Color3(1.0, 0.95, 0.9);    // Slightly warm white
+        weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
+
         // Initialize hitscan effects system
         getHitscanEffects().init(scene);
 
@@ -431,46 +439,52 @@ export class WeaponViewManager {
                 for (const mesh of result.meshes) {
                     if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
-                    // Convert PBR → StandardMaterial (self-lit, same as MD3 weapons)
+                    // For blade: convert PBR → StandardMaterial (hand-tuned emissive textures)
+                    // For guns: keep PBR material as-is, just boost environment for self-lit look
                     if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
                         const pbr = mesh.material as any;
-                        const matId = pbr.uniqueId || pbr.name;
 
-                        if (!convertedMaterials.has(matId)) {
-                            const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
-                            stdMat.disableLighting = true;
-                            stdMat.diffuseColor = new Color3(1, 1, 1);
+                        if (weaponName === 'blade') {
+                            // Blade uses StandardMaterial with custom emissive
+                            const matId = pbr.uniqueId || pbr.name;
+                            if (!convertedMaterials.has(matId)) {
+                                const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
+                                stdMat.disableLighting = true;
+                                stdMat.diffuseColor = new Color3(1, 1, 1);
 
-                            // Try PBR's embedded albedo texture first, then external BaseColor
-                            if (pbr.albedoTexture) {
-                                stdMat.diffuseTexture = pbr.albedoTexture;
-                            } else {
-                                const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
-                                const baseColorTex = new Texture(baseColorPath, this.scene!);
-                                stdMat.diffuseTexture = baseColorTex;
-                            }
-
-                            if (pbr.emissiveTexture) {
-                                stdMat.emissiveTexture = pbr.emissiveTexture;
+                                let albedoTex = pbr.albedoTexture;
+                                if (!albedoTex) {
+                                    const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
+                                    albedoTex = new Texture(baseColorPath, this.scene!);
+                                }
+                                stdMat.diffuseTexture = albedoTex;
+                                stdMat.emissiveTexture = pbr.emissiveTexture || albedoTex;
                                 stdMat.emissiveColor = new Color3(1, 1, 1);
+                                stdMat.backFaceCulling = false;
+                                convertedMaterials.set(matId, stdMat);
+
+                                // Null out PBR texture refs before disposal
+                                pbr.albedoTexture = null;
+                                pbr.emissiveTexture = null;
+                                pbr.metallicTexture = null;
+                                pbr.reflectivityTexture = null;
+                                pbr.microSurfaceTexture = null;
+                                pbr.bumpTexture = null;
+                                pbr.ambientTexture = null;
+                                pbrMaterialsToDispose.push(pbr);
+
+                                console.log(`[WeaponViewManager] Blade: converted PBR "${pbr.name}" → StandardMaterial`);
                             }
-                            stdMat.backFaceCulling = false;
-                            convertedMaterials.set(matId, stdMat);
-
-                            // Queue PBR for disposal — null out texture refs first so
-                            // dispose() won't destroy textures shared with the StandardMaterial
-                            pbr.albedoTexture = null;
-                            pbr.emissiveTexture = null;
-                            pbr.metallicTexture = null;
-                            pbr.reflectivityTexture = null;
-                            pbr.microSurfaceTexture = null;
-                            pbr.bumpTexture = null;
-                            pbr.ambientTexture = null;
-                            pbrMaterialsToDispose.push(pbr);
-
-                            console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", albedo: ${!!stdMat.diffuseTexture}, emissive: ${!!stdMat.emissiveTexture}`);
+                            mesh.material = convertedMaterials.get(matId)!;
+                        } else {
+                            // Gun-type weapons: keep PBR material for proper metallic/roughness
+                            // The albedo texture looks red without PBR shading — metallic/roughness
+                            // interaction is what makes it look orange/metallic on Sketchfab
+                            pbr.environmentIntensity = 2.0;
+                            pbr.directIntensity = 1.0;
+                            pbr.backFaceCulling = false;
+                            console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
                         }
-                        mesh.material = convertedMaterials.get(matId)!;
                     }
 
                     // Ensure ALL meshes have weapon layer mask
@@ -480,9 +494,9 @@ export class WeaponViewManager {
                     if (mesh !== glbRoot) glbMeshes.push(mesh);
                 }
 
-                // Dispose old PBR materials (texture refs already nulled)
+                // Dispose old PBR materials for blade (texture refs already nulled)
                 for (const pbr of pbrMaterialsToDispose) {
-                    pbr.dispose(false, false);  // don't dispose textures or submaterials
+                    pbr.dispose(false, false);
                 }
 
                 // Set currentWeapon to match MD3LoadResult shape, then fall through
