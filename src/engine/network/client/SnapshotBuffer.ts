@@ -27,6 +27,7 @@ export interface EntitySnapshot {
     vz: number;
     grounded: boolean;
     crouching: boolean;
+    sliding: boolean;
 }
 
 /** A timestamped snapshot for the entire frame */
@@ -52,6 +53,7 @@ export interface InterpolatedEntity {
     vz: number;
     grounded: boolean;
     crouching: boolean;
+    sliding: boolean;
 }
 
 /** Server gravity constant (must match server physics) */
@@ -195,6 +197,7 @@ export class SnapshotBuffer {
                 vz: entity.vz,
                 grounded: entity.grounded,
                 crouching: entity.crouching,
+                sliding: entity.sliding,
             };
         }
 
@@ -281,7 +284,7 @@ export class SnapshotBuffer {
         const vy = a.vy + (b.vy - a.vy) * clampedT;
         const vz = a.vz + (b.vz - a.vz) * clampedT;
 
-        return { x, y, z, yaw, vx, vy, vz, grounded: clampedT < 0.5 ? a.grounded : b.grounded, crouching: clampedT < 0.5 ? a.crouching : b.crouching };
+        return { x, y, z, yaw, vx, vy, vz, grounded: clampedT < 0.5 ? a.grounded : b.grounded, crouching: clampedT < 0.5 ? a.crouching : b.crouching, sliding: clampedT < 0.5 ? a.sliding : b.sliding };
     }
 
     /**

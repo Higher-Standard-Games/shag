@@ -55,6 +55,7 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
     { name: 'walk', file: 'walking.glb' },
     { name: 'reload', file: 'reloading.glb' },
     { name: 'blade_slash', file: 'blade_slash.glb' },
+    { name: 'slide', file: 'slide.fbx' },
 ];
 
 // ─── Manager ─────────────────────────────────────────────────────
