@@ -55,7 +55,11 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
     { name: 'walk', file: 'walking.glb' },
     { name: 'reload', file: 'reloading.glb' },
     { name: 'blade_slash', file: 'blade_slash.glb' },
-    { name: 'slide', file: 'slide.fbx' },
+    { name: 'slide', file: 'slide.glb' },
+    { name: 'crouch_walk', file: 'crouch_walk_forward.glb' },
+    { name: 'crouch_walk_back', file: 'crouch_walk_backward.glb' },
+    { name: 'crouch_strafe_l', file: 'crouch_walk_left.glb' },
+    { name: 'crouch_strafe_r', file: 'crouch_walk_right.glb' },
 ];
 
 // ─── Manager ─────────────────────────────────────────────────────
