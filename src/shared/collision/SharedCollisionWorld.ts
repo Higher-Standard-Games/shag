@@ -77,14 +77,21 @@ export class SharedCollisionWorld implements CollisionWorld {
      * ONE implementation for both client and server — guarantees
      * identical ground detection and velocity clipping.
      */
-    stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, _bounds: AABB): StepSlideMoveResult {
+    stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult {
         const startPos = toBabylon(start);
         // Backend expects MOVEMENT (units), not velocity (units/sec)
         const movement = toBabylon(velocity).scale(deltaTime);
 
+        // Derive collision dimensions from bounds.
+        // For player-sized or larger objects, keep hardcoded PLAYER constants
+        // (player bounds pass height=56 but PLAYER_HEIGHT=64 was the working value).
+        // Only override for significantly smaller objects (items, weapons).
+        const boundsRadius = (bounds.max.x - bounds.min.x) / 2;
+        const boundsHeight = bounds.max.y - bounds.min.y;
+        const isSmallObject = boundsRadius > 0 && boundsRadius < SharedCollisionWorld.PLAYER_RADIUS * 0.75;
         const traceOpts = {
-            radius: SharedCollisionWorld.PLAYER_RADIUS,
-            height: SharedCollisionWorld.PLAYER_HEIGHT
+            radius: isSmallObject ? boundsRadius : SharedCollisionWorld.PLAYER_RADIUS,
+            height: isSmallObject ? boundsHeight : SharedCollisionWorld.PLAYER_HEIGHT
         };
 
         const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
