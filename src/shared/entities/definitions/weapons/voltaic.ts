@@ -39,6 +39,7 @@ export const VOLTAIC: WeaponDef = {
     knockbackScale: 1.5,
     useLagCompensation: true,
     crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 3 },
+    recoilScale: 0.1,  // Energy gun — very stable, minimal recoil
 
     // View Model — GLB format
     viewModel: {
@@ -49,7 +50,7 @@ export const VOLTAIC: WeaponDef = {
         hipOffset: { x: 8, y: -20, z: 22 },
         hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: 8, z: 35 },
+        adsOffset: { x: 0, y: -15, z: -2 },
         adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 65.0,

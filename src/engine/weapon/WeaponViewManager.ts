@@ -866,24 +866,42 @@ export class WeaponViewManager {
             handOffset = hand === 0 ? HAND_OFFSETS.left
                 : hand === 2 ? HAND_OFFSETS.center
                     : HAND_OFFSETS.right;
+
+            // Debug CVar overrides (non-zero = override weapon def)
+            const hipX = mv.get('cl_wep_hip_x');
+            const hipY = mv.get('cl_wep_hip_y');
+            const hipZ = mv.get('cl_wep_hip_z');
+            const wepScale = mv.get('cl_wep_scale');
+
+            const effectiveY = hipY !== 0 ? hipY : pos.offset.y;
+            const effectiveZ = hipZ !== 0 ? hipZ : pos.offset.z;
+            const effectiveScale = wepScale !== 0 ? wepScale : pos.scale;
+
+            // Apply position with dynamic handedness (hipX overrides handedness if set)
+            root.position.set(
+                hipX !== 0 ? hipX : handOffset,
+                effectiveY,
+                effectiveZ
+            );
+            root.rotation.copyFrom(pos.rotation);
+            root.scaling.setAll(effectiveScale);
+
+            // Store effective base position for bob to use
+            this.effectiveBasePosition.set(
+                hipX !== 0 ? hipX : handOffset,
+                effectiveY,
+                effectiveZ
+            );
         } catch {
-            // Use default if MovementVars not available
+            // Fallback if MovementVars not available
+            root.position.set(handOffset, pos.offset.y, pos.offset.z);
+            root.rotation.copyFrom(pos.rotation);
+            root.scaling.setAll(pos.scale);
+            this.effectiveBasePosition.set(handOffset, pos.offset.y, pos.offset.z);
         }
 
-        // Apply position with dynamic handedness
-        root.position.set(
-            handOffset,           // X from handedness
-            pos.offset.y,         // Y from preset
-            pos.offset.z          // Z from preset
-        );
-        root.rotation.copyFrom(pos.rotation);
-        root.scaling.setAll(pos.scale);
-
-        // Store effective base position for bob to use
-        this.effectiveBasePosition.set(handOffset, pos.offset.y, pos.offset.z);
-
         if (this.debugEnabled) {
-            console.log(`[WeaponViewManager] Position: (${root.position.x.toFixed(3)}, ${root.position.y.toFixed(3)}, ${root.position.z.toFixed(3)}) scale=${pos.scale}`);
+            console.log(`[WeaponViewManager] Position: (${root.position.x.toFixed(3)}, ${root.position.y.toFixed(3)}, ${root.position.z.toFixed(3)}) scale=${root.scaling.x}`);
         }
     }
 
@@ -1051,8 +1069,7 @@ export class WeaponViewManager {
         const basePos = this.effectiveBasePosition;
 
         // === ADS (Aiming Down Sights) ===
-        const adsTime = mv.get('cl_ads_time');
-        const adsOffsetY = mv.get('cl_ads_offset_y');
+        const adsTime = this.currentWeaponDef?.ads?.time || mv.get('cl_ads_time');
 
         // Lerp ADS progress based on aim state
         // Force ADS off during reload
@@ -1061,11 +1078,20 @@ export class WeaponViewManager {
         const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
         this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
 
-        // Calculate ADS position (lerp toward center)
-        // X: lerp from hip position toward center (0)
-        // Y: add upward offset
-        const adsX = basePos.x * (1.0 - this.adsProgress);  // Lerp toward 0 (center)
-        const adsY = adsOffsetY * this.adsProgress;          // Move up
+        // Get ADS target position from weapon def (or use CVar fallback)
+        const defAdsOffset = this.currentWeaponDef?.viewModel?.adsOffset;
+        // Debug CVar overrides for ADS (non-zero = override)
+        const adsOverX = mv.get('cl_wep_ads_x');
+        const adsOverY = mv.get('cl_wep_ads_y');
+        const adsOverZ = mv.get('cl_wep_ads_z');
+        const adsTargetX = adsOverX !== 0 ? adsOverX : (defAdsOffset ? defAdsOffset.x : 0);
+        const adsTargetY = adsOverY !== 0 ? adsOverY : (defAdsOffset ? defAdsOffset.y : (basePos.y + mv.get('cl_ads_offset_y')));
+        const adsTargetZ = adsOverZ !== 0 ? adsOverZ : (defAdsOffset ? defAdsOffset.z : basePos.z);
+
+        // Lerp all axes from hip position toward ADS target
+        const adsX = basePos.x + (adsTargetX - basePos.x) * this.adsProgress;
+        const adsY = (adsTargetY - basePos.y) * this.adsProgress;  // Delta from base
+        const adsZ = (adsTargetZ - basePos.z) * this.adsProgress;  // Delta from base
 
         // === Blade charge effects ===
         const isBladeCharging = state.isAiming && this.currentWeaponDef?.meleeRadius;
@@ -1129,7 +1155,7 @@ export class WeaponViewManager {
         root.position.set(
             adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
             basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY + slashOffsets.yOffset,
-            basePos.z + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset + slashOffsets.zOffset
+            basePos.z + adsZ + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset + slashOffsets.zOffset
         );
 
         // Apply rotation (base + sprint: pitch X, yaw Y, roll Z + reload roll)
@@ -1473,8 +1499,9 @@ export class WeaponViewManager {
             }
         }
 
-        // Trigger recoil
-        this.recoilOffset = WeaponViewManager.RECOIL_KICK;
+        // Trigger recoil (scaled per weapon — energy guns have very low recoil)
+        const recoilScale = this.currentWeaponDef?.recoilScale ?? 1.0;
+        this.recoilOffset = WeaponViewManager.RECOIL_KICK * recoilScale;
 
         // Trigger slash animation for melee weapons (skip for charged projectile fire)
         if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {

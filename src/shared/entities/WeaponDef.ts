@@ -167,6 +167,9 @@ export interface WeaponDef extends EntityDef {
     /** Bonus movement speed while this weapon is equipped (e.g., +25 for blade) */
     speedBonus?: number;
 
+    /** Recoil scale (1.0 = normal, 0.1 = minimal for energy weapons) */
+    recoilScale?: number;
+
     /** Crosshair visual config */
     crosshair?: CrosshairConfig;
 
