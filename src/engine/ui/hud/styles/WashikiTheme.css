@@ -1431,20 +1431,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: calc(8px * var(--ui-scale, 1));
-    padding: calc(32px * var(--ui-scale, 1)) calc(72px * var(--ui-scale, 1));
-    min-width: calc(400px * var(--ui-scale, 1));
-    background: hsla(240, 20%, 8%, 0.85);
-    border: 1px solid hsla(0, 80%, 50%, 0.3);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    gap: calc(12px * var(--ui-scale, 1));
+    padding: calc(48px * var(--ui-scale, 1)) calc(96px * var(--ui-scale, 1));
     animation: fps-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     white-space: nowrap;
 }
 
 .fps-death-title {
     font-family: var(--w-font-display);
-    font-size: calc(36px * var(--ui-scale, 1));
+    font-size: calc(52px * var(--ui-scale, 1));
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -1454,18 +1449,18 @@
 }
 
 .fps-death-separator {
-    width: calc(80px * var(--ui-scale, 1));
+    width: calc(160px * var(--ui-scale, 1));
     height: 1px;
     background: linear-gradient(90deg,
             transparent,
             hsla(0, 80%, 50%, 0.5),
             transparent);
-    margin: calc(4px * var(--ui-scale, 1)) 0;
+    margin: calc(8px * var(--ui-scale, 1)) 0;
 }
 
 .fps-death-killer {
     font-family: var(--w-font-body);
-    font-size: calc(16px * var(--ui-scale, 1));
+    font-size: calc(20px * var(--ui-scale, 1));
     font-weight: 600;
     color: var(--w-text-muted);
     white-space: nowrap;
@@ -1491,13 +1486,13 @@
 
 .fps-death-respawn {
     font-family: var(--w-font-display);
-    font-size: calc(14px * var(--ui-scale, 1));
+    font-size: calc(18px * var(--ui-scale, 1));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.15em;
     color: var(--w-cyan);
     text-shadow: var(--w-glow-cyan-sm);
-    margin-top: calc(12px * var(--ui-scale, 1));
+    margin-top: calc(16px * var(--ui-scale, 1));
     animation: fps-pulse-neon 1.5s ease-in-out infinite;
 }
 
