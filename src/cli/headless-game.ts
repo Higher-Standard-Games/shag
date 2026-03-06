@@ -572,6 +572,263 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     ].join('\n');
   });
 
+  // ============================================================================
+  // Animation Inspection (built-in — no scratch scripts needed!)
+  // ============================================================================
+
+  registry.register("anim", async (args: string[]) => {
+    const sub = args[0]?.toLowerCase();
+
+    if (sub === "inspect") {
+      const fileName = args[1];
+      const animDir = path.join(process.cwd(), "public/games/default/animations");
+
+      // Determine files to inspect
+      let files: string[];
+      if (!fileName || fileName === "all") {
+        if (!fs.existsSync(animDir)) {
+          return `Animation directory not found: ${animDir}`;
+        }
+        files = fs.readdirSync(animDir)
+          .filter(f => f.endsWith(".glb"))
+          .map(f => path.join(animDir, f));
+      } else {
+        const fullPath = fileName.includes("/") || fileName.includes("\\")
+          ? fileName
+          : path.join(animDir, fileName);
+        if (!fs.existsSync(fullPath)) {
+          return `File not found: ${fullPath}`;
+        }
+        files = [fullPath];
+      }
+
+      if (files.length === 0) return "No .glb files found.";
+
+      // We need a fresh scene for inspection (don't pollute main scene)
+      const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");
+      const { Scene } = await import("@babylonjs/core/scene");
+      const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+      await import("@babylonjs/loaders/glTF");
+
+      const inspectEngine = new NullEngine();
+      const inspectScene = new Scene(inspectEngine);
+
+      // Try loading the model first for bone names
+      const modelPath = path.join(animDir, "vanguard.glb");
+      if (fs.existsSync(modelPath)) {
+        try {
+          const modelBuf = fs.readFileSync(modelPath);
+          const modelB64 = Buffer.from(modelBuf).toString("base64");
+          await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
+          // Stop embedded animations
+          for (const g of inspectScene.animationGroups) g.stop();
+          inspectScene.animationGroups.slice().forEach(g => g.dispose());
+        } catch {
+          // Continue without model — targets will show as 'unknown'
+        }
+      }
+
+      const results: string[] = [];
+      results.push(`\n=== Animation Inspector (${files.length} files) ===\n`);
+
+      for (const file of files) {
+        try {
+          const buf = fs.readFileSync(file);
+          const b64 = Buffer.from(buf).toString("base64");
+          const result = await SceneLoader.ImportAnimationsAsync(
+            "", `data:;base64,${b64}`, inspectScene, false
+          );
+
+          for (const group of result.animationGroups) {
+            const total = group.targetedAnimations.length;
+            const positionTracks: string[] = [];
+
+            for (const ta of group.targetedAnimations) {
+              const targetName = (ta.target as any)?.name ?? "unknown";
+              const prop = ta.animation.targetProperty;
+              if (prop === "position") {
+                const keys = ta.animation.getKeys();
+                const first = keys[0]?.value;
+                const last = keys[keys.length - 1]?.value;
+                const drift = Math.sqrt(
+                  Math.pow((last?.x ?? 0) - (first?.x ?? 0), 2) +
+                  Math.pow((last?.y ?? 0) - (first?.y ?? 0), 2) +
+                  Math.pow((last?.z ?? 0) - (first?.z ?? 0), 2)
+                );
+                positionTracks.push(
+                  `    "${targetName}".position (${keys.length} keys, drift=${drift.toFixed(3)})`
+                );
+              }
+            }
+
+            const marker = positionTracks.length > 0 ? "⚠️" : "✅";
+            results.push(`${marker} ${path.basename(file)} (${total} channels, ${positionTracks.length} position tracks)`);
+            for (const pt of positionTracks) {
+              results.push(pt);
+            }
+
+            group.stop();
+            group.dispose();
+          }
+        } catch (err) {
+          results.push(`❌ ${path.basename(file)}: ${(err as Error).message}`);
+        }
+      }
+
+      // Cleanup
+      inspectScene.dispose();
+      inspectEngine.dispose();
+
+      return results.join("\n");
+    }
+
+    if (sub === "bones") {
+      // List skeleton bones from model
+      const animDir = path.join(process.cwd(), "public/games/default/animations");
+      const modelPath = path.join(animDir, "vanguard.glb");
+      if (!fs.existsSync(modelPath)) {
+        return "Model not found: vanguard.glb";
+      }
+
+      const { NullEngine } = await import("@babylonjs/core/Engines/nullEngine");
+      const { Scene } = await import("@babylonjs/core/scene");
+      const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+      await import("@babylonjs/loaders/glTF");
+
+      const inspectEngine = new NullEngine();
+      const inspectScene = new Scene(inspectEngine);
+
+      const modelBuf = fs.readFileSync(modelPath);
+      const modelB64 = Buffer.from(modelBuf).toString("base64");
+      const result = await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
+
+      const lines: string[] = [`\nSkeleton Bones (${result.skeletons[0]?.bones.length ?? 0}):\n`];
+      if (result.skeletons[0]) {
+        for (const bone of result.skeletons[0].bones) {
+          const depth = bone.getParent() ? "  " : "";
+          lines.push(`${depth}${bone.name}`);
+        }
+      }
+
+      inspectScene.dispose();
+      inspectEngine.dispose();
+      return lines.join("\n");
+    }
+
+    return [
+      "Animation tools:",
+      "  anim inspect [file|all]    Inspect animation channels (flags position/root-motion tracks)",
+      "  anim bones                 List skeleton bones from model",
+    ].join("\n");
+  });
+
+  // ============================================================================
+  // Physics Simulation Replay
+  // ============================================================================
+
+  registry.register("sim", async (args: string[]) => {
+    const sub = args[0]?.toLowerCase();
+
+    if (sub === "replay") {
+      // Parse input sequence: "W+CROUCH 60; JUMP 1; W 30"
+      const inputStr = args.slice(1).join(" ");
+      if (!inputStr) {
+        return [
+          "Usage: sim replay <input-sequence>",
+          "",
+          "Input format: KEY[+KEY...] TICKS[; KEY TICKS; ...]",
+          "Keys: W, A, S, D, JUMP, CROUCH",
+          "",
+          "Examples:",
+          '  sim replay W 60                        Run forward 60 ticks',
+          '  sim replay W+CROUCH 60; JUMP 1; W 30   Crouch-run, jump, continue',
+          '  sim replay W+JUMP 120                  Bunny hop for 2 seconds',
+        ].join("\n");
+      }
+
+      try {
+        const { Simulation } = await import("../engine/server/core/Simulation");
+        const { createPlayerEntity } = await import("../engine/server/ecs/Entity");
+        const { entityId, playerId } = await import("../engine/server/ecs/types");
+        const { CharacterPhysicsSystem } = await import("../games/fps/server/systems/CharacterPhysicsSystem");
+
+        const sim = new Simulation({ tickMs: 8 }); // 125Hz
+        sim.addSubsystem(new CharacterPhysicsSystem());
+        sim.initialize();
+
+        const state = sim.getStateMut();
+        const player = createPlayerEntity(entityId(1), playerId(1), { x: 0, y: 100, z: 0 });
+        state.addEntity(player);
+
+        // Parse sequences
+        const sequences = inputStr.split(";").map(s => s.trim()).filter(Boolean);
+        const lines: string[] = [`\n=== Simulation Replay (125Hz) ===\n`];
+        lines.push(`Input: ${inputStr}\n`);
+        lines.push("Tick   Position (x, y, z)                 Velocity (x, y, z)                 Grounded  State");
+        lines.push("─".repeat(120));
+
+        let totalTick = 0;
+
+        for (const seq of sequences) {
+          const parts = seq.trim().split(/\s+/);
+          const keyStr = parts[0].toUpperCase();
+          const ticks = parseInt(parts[1]) || 1;
+          const keys = keyStr.split("+");
+
+          for (let t = 0; t < ticks; t++) {
+            // Set input
+            const p = state.getEntityMut(player.id);
+            if (p?.input) {
+              p.input.forward = keys.includes("W") ? 1 : keys.includes("S") ? -1 : 0;
+              p.input.right = keys.includes("D") ? 1 : keys.includes("A") ? -1 : 0;
+              p.input.jump = keys.includes("JUMP");
+              p.input.crouch = keys.includes("CROUCH");
+            }
+
+            sim.tick();
+            totalTick++;
+
+            // Print state at intervals or first/last tick of each sequence
+            const finalState = sim.getState();
+            const fp = finalState.getEntity(player.id);
+            if (fp?.transform && fp?.physics) {
+              const pos = fp.transform.position;
+              const vel = fp.physics.velocity;
+              const grounded = fp.physics.grounded ? "✓" : " ";
+              const crouching = fp.physics.isCrouching ? "C" : " ";
+              const sliding = fp.physics.isSliding ? "S" : " ";
+
+              // Print every 10 ticks, plus first and last
+              if (t === 0 || t === ticks - 1 || totalTick % 10 === 0) {
+                lines.push(
+                  `${totalTick.toString().padStart(5)}  ` +
+                  `(${pos.x.toFixed(2).padStart(8)}, ${pos.y.toFixed(2).padStart(8)}, ${pos.z.toFixed(2).padStart(8)})  ` +
+                  `(${vel.x.toFixed(2).padStart(8)}, ${vel.y.toFixed(2).padStart(8)}, ${vel.z.toFixed(2).padStart(8)})  ` +
+                  `${grounded.padStart(8)}  ${crouching}${sliding}`
+                );
+              }
+            }
+          }
+        }
+
+        lines.push("");
+        lines.push(`Total: ${totalTick} ticks (${(totalTick * 8 / 1000).toFixed(2)}s)`);
+        return lines.join("\n");
+
+      } catch (err) {
+        return `Simulation error: ${(err as Error).message}`;
+      }
+    }
+
+    return [
+      "Simulation tools:",
+      '  sim replay <input-sequence>   Run physics simulation with specified inputs',
+      "",
+      "Input format: KEY[+KEY...] TICKS[; KEY TICKS; ...]",
+      "Keys: W, A, S, D, JUMP, CROUCH",
+    ].join("\n");
+  });
+
   // Help command for headless mode
   registry.register("help", (args: string[]) => {
     const cmdName = args[0]?.toLowerCase();

@@ -19,6 +19,7 @@
 ## Project Overview
 
 **SHAG Engine** is a Babylon.js game engine for Quake 3 / Warsow style games:
+
 - BSP map loading (Q3, FBSP/Warsow)
 - PK3 virtual filesystem
 - Q3 shader system
@@ -152,6 +153,7 @@ const pos = input.getMousePosition(); // { x, y }
 ```
 
 ### Key Names
+
 `w`, `a`, `s`, `d`, `space`, `shift`, `control`, `escape`, `tab`, `enter`, `1`-`9`
 
 ---
@@ -370,22 +372,116 @@ unsub(); // IMPORTANT: call in dispose()
 
 ---
 
-## 🛠️ Headless Testing
+## 🛠️ Headless Mode & CLI Tools
 
-**Always test with headless mode before asking user to test in browser!**
+> **HEADLESS FIRST!** Always try headless mode before asking user to test in browser. Headless tests are instant, repeatable, and scriptable — no browser/lobby/match setup needed. This is the engine's **superpower**.
+
+### Quick Start
 
 ```bash
-# Interactive REPL
-npm run cli:game
+npm run cli:game                                           # Interactive REPL
+npm run cli:game -- --exec "anim inspect all; quit"        # Batch mode
+```
 
-# Run command
-npm run cli:game -- --command "map wdm7; bsp info; quit"
+### All CLI Commands by Purpose
 
-# Memory leak test
-npm run cli:game -- --command "leaktest maprenderer 5"
+#### 🎮 Engine REPL (`cli:`)
 
-# Dedicated server
-npm run net:server -- --map wdm2
+| Command | Description |
+|---------|-------------|
+| `npm run cli:game` | Full headless game REPL — BSP loading, commands, leak testing |
+| `npm run cli:bsp` | BSP file inspector |
+
+**Built-in REPL commands** (inside `cli:game`):
+
+| Command | Description |
+|---------|-------------|
+| `map <name>` | Load BSP map |
+| `bsp info` | Show BSP statistics |
+| `anim inspect [file\|all]` | Inspect animation channels, flag root-motion position tracks |
+| `anim bones` | List skeleton bones |
+| `sim replay <input>` | Run physics simulation with input sequence (e.g. `W+CROUCH 60; JUMP 1`) |
+| `leaktest maprenderer <N>` | Memory leak test: load/unload map N times |
+| `leaktest mapcycle <N> <A> [B]` | Map cycle leak test |
+| `trace_test point\|box\|spawn` | Collision trace testing |
+| `scene info\|clear` | Scene statistics / cleanup |
+
+#### 🌐 Networking (`net:`, `lobby:`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run net:server -- --map wdm2` | Dedicated game server |
+| `npm run net:client` | Headless network client |
+| `npm run lobby:server` | Lobby + match orchestrator |
+
+#### 🔬 Server Testing (`server:`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run server:tick` | Tick-by-tick determinism test |
+| `npm run server:bench` | Performance benchmark (1-64 players) |
+| `npm run server:fuzz -- --ticks 1000` | Random input fuzzing |
+| `npm run server:protocol` | Protocol serialization test |
+| `npm run server:integration` | Integration test suite |
+| `npm run server:replay` | Replay playback |
+| `npm run server:game` | Standalone game server |
+
+#### 🐛 Debugging (`debug:`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run debug:textures -- wdm2` | Audit BSP texture coverage |
+| `npm run debug:compare` | Compare local vs server state |
+| `npm run debug:collision` | Collision + gravity testing |
+| `npm run debug:pickup` | Pickup system debugging |
+| `npm run debug:spawn` | Spawn point testing |
+
+#### 🧪 Tests (`test:`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run test:simulation` | FPS simulation initialization test |
+| `npm run test:physics` | Server physics test |
+| `npm test` | Vitest unit tests |
+
+#### 🔧 Asset Tools (`tools:`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run tools:convert -- slide.fbx` | Convert FBX → GLB (auto-installs tool) |
+| `npm run tools:convert -- --all` | Convert all FBX in animations folder |
+| `npm run tools:fbx2gltf` | Download FBX2glTF converter |
+| `npm run tools:textures` | Convert textures to KTX2 |
+| `npm run tools:optimize` | Optimize GLB files |
+| `npm run tools:manifest` | Generate PK3 manifest |
+| `npm run tools:map` | Generate test map |
+
+### Common Debugging Workflows
+
+```bash
+# 🎬 Animation debugging (root-motion, missing channels)
+npm run cli:game -- --exec "anim inspect all; quit"
+
+# 🗺️ Map leak testing
+npm run cli:game -- --exec "leaktest mapcycle 10 wdm2 wdm7; quit"
+
+# 💀 Texture coverage audit
+npm run debug:textures -- wdm11
+
+# 🏃 Physics verification (no browser needed!)
+npm run cli:game -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+
+# ⚡ Server performance check
+npm run server:bench
+
+# 🎯 Determinism verification
+npm run server:tick
+
+# 🔀 Fuzz testing for physics crashes
+npm run server:fuzz -- --ticks 5000 --players 4
+
+# 🔧 Convert new animations
+npm run tools:convert -- crouchwalk.fbx
 ```
 
 ---
