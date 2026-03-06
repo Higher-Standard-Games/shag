@@ -426,6 +426,7 @@ export class WeaponViewManager {
                 const glbMeshes: any[] = [];
                 // Convert shared PBR materials to StandardMaterial ONCE per material
                 const convertedMaterials = new Map<string, StandardMaterial>();
+                const pbrMaterialsToDispose: any[] = [];
 
                 for (const mesh of result.meshes) {
                     if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
@@ -456,6 +457,17 @@ export class WeaponViewManager {
                             stdMat.backFaceCulling = false;
                             convertedMaterials.set(matId, stdMat);
 
+                            // Queue PBR for disposal — null out texture refs first so
+                            // dispose() won't destroy textures shared with the StandardMaterial
+                            pbr.albedoTexture = null;
+                            pbr.emissiveTexture = null;
+                            pbr.metallicTexture = null;
+                            pbr.reflectivityTexture = null;
+                            pbr.microSurfaceTexture = null;
+                            pbr.bumpTexture = null;
+                            pbr.ambientTexture = null;
+                            pbrMaterialsToDispose.push(pbr);
+
                             console.log(`[WeaponViewManager] Created StandardMaterial from PBR "${pbr.name}", albedo: ${!!stdMat.diffuseTexture}, emissive: ${!!stdMat.emissiveTexture}`);
                         }
                         mesh.material = convertedMaterials.get(matId)!;
@@ -466,6 +478,11 @@ export class WeaponViewManager {
                     mesh.layerMask = WEAPON_LAYER_MASK;
 
                     if (mesh !== glbRoot) glbMeshes.push(mesh);
+                }
+
+                // Dispose old PBR materials (texture refs already nulled)
+                for (const pbr of pbrMaterialsToDispose) {
+                    pbr.dispose(false, false);  // don't dispose textures or submaterials
                 }
 
                 // Set currentWeapon to match MD3LoadResult shape, then fall through
