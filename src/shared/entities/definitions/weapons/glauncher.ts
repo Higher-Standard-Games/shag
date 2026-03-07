@@ -32,6 +32,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     range: 10000,
     hitscan: false,
     fireMode: 'semi',
+    hipfireBlocked: true,
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'grenade',
     projectileSpeed: 2434,
@@ -56,6 +57,11 @@ export const GRENADE_LAUNCHER: WeaponDef = {
 
         scale: 2.0,
     },
+
+    // Barrel sub-models (spinning chamber)
+    barrels: [
+        { modelPath: '/data/models/weapons/glauncher/glauncher_barrel.glb', spinSpeed: 6.28, spinDirection: 1 },
+    ],
 
     // ADS
     ads: {

@@ -232,27 +232,39 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     // the pending compilation work.
     {
         // Build mapping: material → first mesh that uses it (deduplicated)
+        // Covers BOTH StandardMaterial (BSP/MD3) and PBRMaterial (GLB weapons)
         const matMeshMap = new Map<StandardMaterial, Mesh>();
+        const pbrMatMeshMap = new Map<any, Mesh>();
         for (const mesh of scene.meshes) {
             if (mesh.material instanceof StandardMaterial) {
                 if (!matMeshMap.has(mesh.material)) {
                     matMeshMap.set(mesh.material, mesh as Mesh);
                 }
+            } else if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+                if (!pbrMatMeshMap.has(mesh.material)) {
+                    pbrMatMeshMap.set(mesh.material, mesh as Mesh);
+                }
             }
         }
 
-        if (matMeshMap.size > 0) {
+        if (matMeshMap.size > 0 || pbrMatMeshMap.size > 0) {
             // Create temporary light so materials compile with the "has lights" variant
             const tmpLight = new PointLight('_warmup_bsp_light2', new Vector3(0, 0, 0), scene);
             tmpLight.intensity = 1;
             tmpLight.range = 999999; // Ensure it affects ALL materials
             tmpLight.diffuse = new Color3(1, 1, 1);
 
-            console.log(`[EffectPreloader] Force-compiling ${matMeshMap.size} scene materials with PointLight variant...`);
+            console.log(`[EffectPreloader] Force-compiling ${matMeshMap.size} StandardMaterials + ${pbrMatMeshMap.size} PBRMaterials with PointLight variant...`);
 
             // Force-compile all materials with the light active, using their actual meshes
             const compilations: Promise<void>[] = [];
             for (const [mat, mesh] of matMeshMap) {
+                compilations.push(new Promise<void>((resolve) => {
+                    mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
+                }));
+            }
+            // PBR materials (GLB weapons) — same pattern
+            for (const [mat, mesh] of pbrMatMeshMap) {
                 compilations.push(new Promise<void>((resolve) => {
                     mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
                 }));
@@ -268,7 +280,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
 
             // Dispose temporary light
             tmpLight.dispose();
-            console.log(`[EffectPreloader] Material force-compilation complete — ${matMeshMap.size} materials`);
+            console.log(`[EffectPreloader] Material force-compilation complete — ${matMeshMap.size + pbrMatMeshMap.size} materials`);
 
             // Phase 3: Wait one more render frame for the "without light" variant
             // to settle. This prevents any dirty-flag cascade from the light removal
@@ -343,17 +355,22 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
     scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
     console.log(`[EffectPreloader] Marked all materials dirty for revalidation`);
 
-    // 4. Force-compile all StandardMaterials with PointLight variant (same as Phase 2)
+    // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
     const matMeshMap = new Map<StandardMaterial, Mesh>();
+    const pbrMatMeshMap = new Map<any, Mesh>();
     for (const mesh of scene.meshes) {
         if (mesh.material instanceof StandardMaterial) {
             if (!matMeshMap.has(mesh.material)) {
                 matMeshMap.set(mesh.material, mesh as Mesh);
             }
+        } else if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+            if (!pbrMatMeshMap.has(mesh.material)) {
+                pbrMatMeshMap.set(mesh.material, mesh as Mesh);
+            }
         }
     }
 
-    if (matMeshMap.size > 0) {
+    if (matMeshMap.size > 0 || pbrMatMeshMap.size > 0) {
         const tmpLight = new PointLight('_revalidation_light', new Vector3(0, 0, 0), scene);
         tmpLight.intensity = 1;
         tmpLight.range = 999999;
@@ -361,6 +378,11 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
 
         const compilations: Promise<void>[] = [];
         for (const [mat, mesh] of matMeshMap) {
+            compilations.push(new Promise<void>((resolve) => {
+                mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
+            }));
+        }
+        for (const [mat, mesh] of pbrMatMeshMap) {
             compilations.push(new Promise<void>((resolve) => {
                 mat.forceCompilation(mesh, () => resolve(), { clipPlane: false });
             }));

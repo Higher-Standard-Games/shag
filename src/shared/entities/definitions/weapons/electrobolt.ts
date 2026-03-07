@@ -48,7 +48,7 @@ export const ELECTROBOLT: WeaponDef = {
         hipOffset: { x: 0, y: -25, z: -1 },
         hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -20, z: -5 },
+        adsOffset: { x: 0, y: -21, z: -5 },
         adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,

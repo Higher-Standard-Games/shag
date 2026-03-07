@@ -33,10 +33,12 @@ export const LASERGUN: WeaponDef = {
     hitscan: true,
     hitscanType: 'beam',
     fireMode: 'auto',
+    hipfireBlocked: true,
     pickupBounds: { x: 32, y: 32, z: 32 },
     knockbackScale: 1.5,
     useLagCompensation: true,
     crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 3 },
+    recoilScale: 0.1,  // Energy beam — very stable, minimal recoil
 
     // View Model — GLB format
     viewModel: {

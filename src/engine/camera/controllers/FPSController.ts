@@ -773,6 +773,24 @@ export class FPSController implements ICameraController {
     } else {
       // Sync key state from InputSystem (replaces hardcoded switch/case handlers)
       this.syncKeysFromInput();
+
+      // hipfireBlocked: auto-inject ADS when fire is pressed on a blocked weapon
+      if (this.keys.fire && !this.keys.aim && this.gameManager) {
+        // Ensure weapons map is loaded (lazy init, same as crosshair section)
+        if (!(this as any)._weaponsMap) {
+          import('../../../games/fps/server/weapons/WeaponDef').then(m => {
+            (this as any)._weaponsMap = m.WEAPONS;
+          });
+        }
+        const weapons = (this as any)._weaponsMap;
+        if (weapons) {
+          const weaponId = this.gameManager.getCurrentWeaponId();
+          const wDef = weapons[weaponId];
+          if (wDef?.hipfireBlocked) {
+            this.keys.aim = true; // Forces ADS visual + server ALT_FIRE
+          }
+        }
+      }
     }
 
     const mv = MovementVars.getInstance();

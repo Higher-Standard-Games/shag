@@ -31,6 +31,9 @@ export const PLASMAGUN: WeaponDef = {
     range: 1500,
     hitscan: false,
     fireMode: 'auto',
+    hipfireBlocked: true,
+    spread: 3,            // 3° random spread when hip-firing
+    adsSpread: 0,         // Perfectly accurate when ADS
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'plasma_bolt',
     projectileSpeed: 2500,
@@ -54,6 +57,12 @@ export const PLASMAGUN: WeaponDef = {
 
         scale: 2.0,
     },
+
+    // Barrel sub-models (dual counter-rotating chambers)
+    barrels: [
+        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: 1 },
+        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: -1 },
+    ],
 
     // ADS
     ads: {

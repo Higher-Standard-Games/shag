@@ -119,6 +119,9 @@ export interface WeaponDef extends EntityDef {
 
     /** Firing mode */
     fireMode: 'auto' | 'semi' | 'burst';
+    /** When true, firing from hip forces ADS transition before shot.
+     *  Server delays fire by ads.time; client auto-enters ADS on fire press. */
+    hipfireBlocked?: boolean;
     /** Shots per burst (if fireMode is 'burst') */
     burstCount?: number;
 
@@ -184,6 +187,16 @@ export interface WeaponDef extends EntityDef {
 
     /** ADS configuration */
     ads: ADSDef;
+
+    /** Barrel sub-model attachments (spinning chambers, rolling clips) */
+    barrels?: {
+        /** Path to barrel GLB model (relative to public/) */
+        modelPath: string;
+        /** Continuous spin speed (radians per second, 0 = no spin) */
+        spinSpeed: number;
+        /** Spin direction multiplier (1 or -1 for counter-rotation) */
+        spinDirection?: number;
+    }[];
 
     // === SOUNDS ===
     sounds: {

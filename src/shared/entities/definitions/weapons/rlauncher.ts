@@ -32,6 +32,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     range: 10000,
     hitscan: false,
     fireMode: 'semi',
+    hipfireBlocked: true,
     pickupBounds: { x: 32, y: 32, z: 32 },
     projectileId: 'rocket',
     projectileSpeed: 2592,
@@ -39,6 +40,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     splashDamage: 80,
     minSplashDamage: 15,
     knockbackScale: 10.0,
+    recoilScale: 3.0,          // Strong rocket recoil (similar to shotgun feel)
     pickupAmmo: 10,
     useLagCompensation: false,
     crosshair: { style: 'cross_dot', baseGap: 6, lineLength: 6, lineWidth: 2 },

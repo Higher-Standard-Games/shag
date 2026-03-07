@@ -25,6 +25,7 @@ import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
 import { getHitscanEffects } from './HitscanEffects';
+import { WeaponBarrels } from './WeaponBarrels';
 
 
 // Weapon position presets
@@ -226,10 +227,20 @@ export class WeaponViewManager {
     private beamActive: boolean = false;
     private beamColor: Color3 = new Color3(1.0, 0.7, 0.1);
     private beamChargeProgress: number = 0;  // 0 = not charging, 1 = fully charged
-    // Weapon recoil
-    private recoilOffset: number = 0;  // Current recoil (kicks back then returns)
-    private static readonly RECOIL_KICK = 1.5;  // Max recoil distance
-    private static readonly RECOIL_RECOVER = 20.0;  // How fast recoil recovers
+    // Weapon recoil (target/current system for smooth ramp-up)
+    private recoilOffset: number = 0;       // Current backward kick
+    private recoilTarget: number = 0;       // Target backward kick (ramps toward this)
+    private recoilPitchOffset: number = 0;  // Current upward pitch kick
+    private recoilPitchTarget: number = 0;  // Target pitch kick
+    private static readonly RECOIL_KICK = 1.5;       // Max backward distance per 1.0 recoilScale
+    private static readonly RECOIL_PITCH_KICK = 0.12; // Max upward pitch (radians, ~7°)
+    private static readonly RECOIL_RAMP_SPEED = 15.0; // How fast kick ramps up (higher = snappier)
+    private static readonly RECOIL_RECOVER = 8.0;     // Backward recovery speed
+    private static readonly RECOIL_PITCH_RECOVER = 0.6; // Pitch recovery speed
+    private static readonly RECOIL_ADS_MULT = 0.2;    // ADS reduces recoil to 20%
+
+    // Barrel sub-models (spinning chambers)
+    private weaponBarrels = new WeaponBarrels();
 
     // Blade charge state (client-side visual tracking)
     private chargeActive: boolean = false;
@@ -425,6 +436,8 @@ export class WeaponViewManager {
                 this.currentWeapon.root.dispose();
                 this.currentWeapon = null;
             }
+            // Clear previous barrel sub-models
+            this.weaponBarrels.dispose();
 
             try {
                 const lastSlash = modelPath.lastIndexOf('/');
@@ -563,6 +576,19 @@ export class WeaponViewManager {
 
                 isGlbWeapon = true;
                 console.log(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
+
+                // Load barrel sub-models if defined
+                if (this.currentWeaponDef?.barrels?.length) {
+                    this.weaponBarrels.load(
+                        this.currentWeaponDef.barrels,
+                        glbRoot,
+                        weaponName,
+                        this.scene!,
+                        loadGen,
+                        () => this._loadGeneration
+                    );
+                }
+
                 // FALL THROUGH to shared weapon setup below ↓
             } catch (e) {
                 console.error(`[WeaponViewManager] Failed to load GLB: ${modelPath}`, e);
@@ -1078,6 +1104,14 @@ export class WeaponViewManager {
             targetInward = 0;
         }
 
+        // Dampen bob when ADS (stable aim)
+        const adsBobDamp = 1.0 - this.adsProgress * 0.85;  // 85% reduction at full ADS
+        targetBobX *= adsBobDamp;
+        targetBobY *= adsBobDamp;
+        targetTilt *= adsBobDamp;
+        targetRoll *= adsBobDamp;
+        targetInward *= adsBobDamp;
+
         // Smooth lerp to targets
         const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.BOB_LERP_SPEED);
         this.currentBobOffsetX += (targetBobX - this.currentBobOffsetX) * lerpFactor;
@@ -1224,7 +1258,7 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch,
+            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch - this.recoilPitchOffset,
             baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180) + slashOffsets.yaw,
             baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06 + slashOffsets.roll
         );
@@ -1568,8 +1602,11 @@ export class WeaponViewManager {
         }
 
         // Trigger recoil (scaled per weapon — energy guns have very low recoil)
+        // ADS reduces recoil significantly (steadier aim)
         const recoilScale = this.currentWeaponDef?.recoilScale ?? 1.0;
-        this.recoilOffset = WeaponViewManager.RECOIL_KICK * recoilScale;
+        const adsMult = 1.0 - this.adsProgress * (1.0 - WeaponViewManager.RECOIL_ADS_MULT);
+        this.recoilTarget = WeaponViewManager.RECOIL_KICK * recoilScale * adsMult;
+        this.recoilPitchTarget = WeaponViewManager.RECOIL_PITCH_KICK * recoilScale * adsMult;
 
         // Trigger slash animation for melee weapons (skip for charged projectile fire)
         if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
@@ -1690,11 +1727,31 @@ export class WeaponViewManager {
             }
         }
 
-        // Recover recoil
-        if (this.recoilOffset > 0) {
-            this.recoilOffset -= WeaponViewManager.RECOIL_RECOVER * deltaTime;
-            if (this.recoilOffset < 0) this.recoilOffset = 0;
+        // Ramp recoil toward target (smooth kick buildup instead of instant snap)
+        if (this.recoilTarget > 0) {
+            const rampLerp = Math.min(1.0, deltaTime * WeaponViewManager.RECOIL_RAMP_SPEED);
+            this.recoilOffset += (this.recoilTarget - this.recoilOffset) * rampLerp;
+            this.recoilPitchOffset += (this.recoilPitchTarget - this.recoilPitchOffset) * rampLerp;
+            // Once close to target, clear target and begin recovery
+            if (Math.abs(this.recoilTarget - this.recoilOffset) < 0.01) {
+                this.recoilTarget = 0;
+                this.recoilPitchTarget = 0;
+            }
+        } else {
+            // Recover recoil
+            if (this.recoilOffset > 0) {
+                this.recoilOffset -= WeaponViewManager.RECOIL_RECOVER * deltaTime;
+                if (this.recoilOffset < 0) this.recoilOffset = 0;
+            }
+            // Recover pitch recoil (slower for weighty feel)
+            if (this.recoilPitchOffset > 0) {
+                this.recoilPitchOffset -= WeaponViewManager.RECOIL_PITCH_RECOVER * deltaTime;
+                if (this.recoilPitchOffset < 0) this.recoilPitchOffset = 0;
+            }
         }
+
+        // Spin barrel sub-models
+        this.weaponBarrels.update(deltaTime);
 
         // Beam rendering — runs AFTER position finalization so barrel position is current-frame
         if (this.beamActive && this.mainCamera) {
