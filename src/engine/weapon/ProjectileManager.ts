@@ -357,6 +357,7 @@ export class ProjectileManager {
             mat.emissiveColor = new Color3(color.r, color.g, color.b);
             mat.disableLighting = true;
             mat.backFaceCulling = false;
+            mat.maxSimultaneousLights = 4;
             mesh.material = mat;
         } else if (cachedModel) {
             // Clone the cached model meshes
@@ -382,6 +383,7 @@ export class ProjectileManager {
                         mat.emissiveColor = new Color3(color.r, color.g, color.b);
                         mat.disableLighting = true;
                         mat.backFaceCulling = false;
+                        mat.maxSimultaneousLights = 4;
                         clone.material = mat;
                     }
                 }
@@ -709,6 +711,7 @@ export class ProjectileManager {
         mat.emissiveColor = new Color3(0.4, 0.6, 1.0);  // blue spark
         mat.diffuseColor = Color3.Black();
         mat.disableLighting = true;
+        mat.maxSimultaneousLights = 4;
         mesh.material = mat;
 
         // Small flash light
@@ -785,6 +788,7 @@ export class ProjectileManager {
                 mat.emissiveColor = new Color3(color.r, color.g, color.b);
                 mat.disableLighting = true;
                 mat.backFaceCulling = false;
+                mat.maxSimultaneousLights = 4;
                 mesh.material = mat;
 
                 // Scale
@@ -816,6 +820,7 @@ export class ProjectileManager {
             mat.diffuseColor = Color3.Black();
             mat.alpha = 1.0;
             mat.disableLighting = true;
+            mat.maxSimultaneousLights = 4;
             mesh.material = mat;
         }
 
