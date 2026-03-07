@@ -26,6 +26,8 @@ import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
 import { getHitscanEffects } from './HitscanEffects';
 import { WeaponBarrels } from './WeaponBarrels';
+import { WeaponSwitchAnim } from './WeaponSwitchAnim';
+import { WeaponReloadAnim } from './WeaponReloadAnim';
 
 
 // Weapon position presets
@@ -260,29 +262,11 @@ export class WeaponViewManager {
 
 
 
-    // Reload animation state
-    private reloadState = {
-        active: false,
-        startTime: 0,
-        duration: 1.0,  // Will be set from weapon def
-    };
+    // Reload animation (extracted)
+    private reloadAnim = new WeaponReloadAnim();
 
-    // Weapon switch animation state
-    private switchState: {
-        phase: 'idle' | 'down' | 'load' | 'up';
-        startTime: number;
-        pendingWeaponId: string | null;
-        pendingPk3Path?: string;
-    } = {
-            phase: 'idle',
-            startTime: 0,
-            pendingWeaponId: null,
-        };
-    // Switch animation tuning (ms)
-    private static readonly SWITCH_DOWN_DURATION = 120;  // Slide current weapon down
-    private static readonly SWITCH_UP_DURATION = 140;    // Slide new weapon up
-    private static readonly SWITCH_Y_DROP = -45;         // How far down (Quake units)
-    private static readonly SWITCH_ROLL = Math.PI / 6;   // Slight roll during switch
+    // Weapon switch animation (extracted)
+    private switchAnim = new WeaponSwitchAnim();
 
     // Debug
     private debugEnabled: boolean = false;
@@ -1096,7 +1080,7 @@ export class WeaponViewManager {
         }
 
         // Dampen entirely if reloading
-        if (this.reloadState.active) {
+        if (this.reloadAnim.isReloading) {
             targetBobX = 0;
             targetBobY = 0;
             targetTilt = 0;
@@ -1165,7 +1149,7 @@ export class WeaponViewManager {
         // Lerp ADS progress based on aim state
         // Force ADS off during reload
         const adsSpeed = 1.0 / Math.max(0.05, adsTime);  // Inverse of time = speed
-        const targetAds = (state.isAiming && !this.reloadState.active) ? 1.0 : 0.0;
+        const targetAds = (state.isAiming && !this.reloadAnim.isReloading) ? 1.0 : 0.0;
         const adsLerp = Math.min(1.0, deltaTime * adsSpeed);
         this.adsProgress += (targetAds - this.adsProgress) * adsLerp;
 
@@ -1793,20 +1777,9 @@ export class WeaponViewManager {
      */
     public async switchWeaponAnimated(weaponId: string, pk3Path?: string): Promise<void> {
         // Cancel reload
-        this.cancelReload();
+        this.reloadAnim.cancel();
 
-        // If already switching to the same weapon, ignore
-        if (this.switchState.phase !== 'idle' && this.switchState.pendingWeaponId === weaponId) {
-            return;
-        }
-
-        // Start (or restart) the switch-down phase
-        this.switchState = {
-            phase: 'down',
-            startTime: performance.now(),
-            pendingWeaponId: weaponId,
-            pendingPk3Path: pk3Path,
-        };
+        this.switchAnim.start(weaponId, pk3Path);
     }
 
     /**
@@ -1814,242 +1787,61 @@ export class WeaponViewManager {
      * Called every frame from update().
      */
     private updateSwitchAnimation(): void {
-        const state = this.switchState;
-        if (state.phase === 'idle') return;
-
-        const now = performance.now();
-        const elapsed = now - state.startTime;
-
-        if (state.phase === 'down') {
-            // Wait for slide-down to complete
-            if (elapsed >= WeaponViewManager.SWITCH_DOWN_DURATION) {
-                // Transition to load phase — swap the model at the bottom
-                state.phase = 'load';
-                state.startTime = now;
-
-                if (state.pendingWeaponId) {
-                    // Load the new weapon model (async, but we start slide-up immediately)
-                    this.loadWeapon(state.pendingWeaponId, state.pendingPk3Path).then(() => {
-                        // Model loaded — if still in 'load' or 'up' phase, we're good
-                        if (this.switchState.pendingWeaponId === state.pendingWeaponId) {
-                            // Ensure we transition to 'up' if still in 'load'
-                            if (this.switchState.phase === 'load') {
-                                this.switchState.phase = 'up';
-                                this.switchState.startTime = performance.now();
-                            }
-                        }
-                    });
-                }
-            }
-        } else if (state.phase === 'load') {
-            // If loadWeapon is fast (cached), it may have already transitioned to 'up'
-            // Otherwise, give it a max wait of 200ms before starting slide-up anyway
-            if (elapsed >= 200) {
-                state.phase = 'up';
-                state.startTime = now;
-            }
-        } else if (state.phase === 'up') {
-            // Wait for slide-up to complete
-            if (elapsed >= WeaponViewManager.SWITCH_UP_DURATION) {
-                state.phase = 'idle';
-                state.pendingWeaponId = null;
-            }
-        }
+        this.switchAnim.update(async (id, pk3) => {
+            await this.loadWeapon(id, pk3);
+        });
     }
 
     /**
      * Calculate switch animation offsets based on current phase.
-     * Returns { yOffset, roll, xOffset, zOffset }
      */
     private getSwitchAnimationOffsets(): { yOffset: number; roll: number; xOffset: number; zOffset: number } {
-        const state = this.switchState;
-        if (state.phase === 'idle') {
-            return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
-        }
-
-        const now = performance.now();
-        const elapsed = now - state.startTime;
-
-        if (state.phase === 'down') {
-            // Ease-out-cubic: fast start, smooth settle at bottom
-            const t = Math.min(1.0, elapsed / WeaponViewManager.SWITCH_DOWN_DURATION);
-            const eased = 1 - Math.pow(1 - t, 3);
-            return {
-                yOffset: eased * WeaponViewManager.SWITCH_Y_DROP,
-                roll: eased * WeaponViewManager.SWITCH_ROLL,
-                xOffset: 0,
-                zOffset: 0,
-            };
-        }
-
-        if (state.phase === 'load') {
-            // Hold at bottom while model loads
-            return {
-                yOffset: WeaponViewManager.SWITCH_Y_DROP,
-                roll: WeaponViewManager.SWITCH_ROLL,
-                xOffset: 0,
-                zOffset: 0,
-            };
-        }
-
-        if (state.phase === 'up') {
-            // Ease-out-cubic: slides up from bottom to rest position
-            const t = Math.min(1.0, elapsed / WeaponViewManager.SWITCH_UP_DURATION);
-            const eased = 1 - Math.pow(1 - t, 3);
-            return {
-                yOffset: WeaponViewManager.SWITCH_Y_DROP * (1 - eased),
-                roll: WeaponViewManager.SWITCH_ROLL * (1 - eased),
-                xOffset: 0,
-                zOffset: 0,
-            };
-        }
-
-        return { yOffset: 0, roll: 0, xOffset: 0, zOffset: 0 };
+        return this.switchAnim.getOffsets();
     }
 
     /**
      * Check if currently in a weapon switch animation (blocks firing)
      */
     public isSwitching(): boolean {
-        return this.switchState.phase !== 'idle';
+        return this.switchAnim.isSwitching;
     }
 
     // ==================== RELOAD ANIMATION ====================
 
     /**
      * Start reload animation
-     * @param _duration - Reload time from weapon def (ignored, using fixed 600ms animation)
+     * @param _duration - Reload time from weapon def
      */
     public startReload(_duration: number): void {
-        // Use provided duration (from weapon def)
-        this.reloadState = {
-            active: true,
-            startTime: performance.now() / 1000,
-            duration: _duration,
-        };
-        console.log(`[WeaponViewManager] Starting reload animation (${_duration.toFixed(2)}s)`);
+        this.reloadAnim.start(_duration);
     }
 
     /**
      * Cancel reload animation (e.g., weapon switch)
      */
     public cancelReload(): void {
-        if (this.reloadState.active) {
-            this.reloadState.active = false;
-            console.log(`[WeaponViewManager] Reload animation cancelled`);
-        }
+        this.reloadAnim.cancel();
     }
 
     /**
      * Check if currently reloading
      */
     public isReloading(): boolean {
-        return this.reloadState.active;
+        return this.reloadAnim.isReloading;
     }
 
     /**
      * Get reload progress (0-1)
      */
     public getReloadProgress(): number {
-        if (!this.reloadState.active) return 0;
-        const now = performance.now() / 1000;
-        const elapsed = now - this.reloadState.startTime;
-        return Math.min(1.0, elapsed / this.reloadState.duration);
+        return this.reloadAnim.progress;
     }
 
     /**
      * Calculate reload animation offsets based on progress
-     * Returns { roll, yOffset, zOffset }
-     * 
-     * Animation sequence (1s):
-     * Phase 1 (0-30%): Slow move UP + roll
-     * Phase 2 (30-40%): Fast pump DOWN
-     * Phase 3 (40-50%): Fast pump UP  
-     * Phase 4 (50-100%): Slow roll back + return to normal
      */
     private getReloadAnimationOffsets(): { roll: number; pitch: number; xOffset: number; yOffset: number; zOffset: number } {
-        if (!this.reloadState.active) {
-            return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
-        }
-
-        const progress = this.getReloadProgress();
-
-        // Check if reload is complete
-        if (progress >= 1.0) {
-            this.reloadState.active = false;
-            return { roll: 0, pitch: 0, xOffset: 0, yOffset: 0, zOffset: 0 };
-        }
-
-        // Animation: fast_tilt -> pump_aligned
-        const MAX_ROLL = Math.PI / 4;   // 45 degrees
-        const MAX_PITCH = Math.PI / 8;  // 22.5 degrees up (increased)
-        const DIP_Y = -4;
-        const SLIDE_DIST = -9;          // Slide back amount
-
-        let roll = 0;
-        let pitch = 0;
-        let xOffset = 0;
-        let yOffset = 0;
-        let zOffset = 0;
-
-        let tilt = 0;
-
-        // 1. Snappy Tilt (0.0 to 0.25)
-        // User wants: "FAST and slow to the right tilt"
-        if (progress < 0.25) {
-            const t = progress / 0.25;
-            // Cubic Ease Out (Fast start, smooth settle)
-            tilt = 1 - Math.pow(1 - t, 3);
-        } else if (progress > 0.75) {
-            // Untilt (Smooth step)
-            const t = (1.0 - progress) / 0.25;
-            tilt = t * t * (3 - 2 * t);
-        } else {
-            tilt = 1.0;
-        }
-
-        roll = tilt * MAX_ROLL;
-        pitch = tilt * MAX_PITCH;
-        yOffset = tilt * DIP_Y;
-
-        // 2. Pump Action (0.3 to 0.7) - Aligned with Barrel
-        let pump = 0;
-        if (progress > 0.3 && progress < 0.7) {
-            if (progress < 0.45) {
-                // Slide Back (Ease Out)
-                const t = (progress - 0.3) / 0.15;
-                pump = Math.sin(t * Math.PI / 2) * SLIDE_DIST;
-            } else if (progress < 0.55) {
-                // Hold
-                pump = SLIDE_DIST;
-            } else {
-                // Slam Forward (Linear + Bounce)
-                const t = (progress - 0.55) / 0.15;
-                pump = (1 - t) * SLIDE_DIST;
-
-                // Add Impact Jitter
-                if (t < 0.3) {
-                    const shake = (1 - t / 0.3) * 0.5;
-                    xOffset += (Math.random() - 0.5) * shake;
-                    yOffset += (Math.random() - 0.5) * shake;
-                }
-            }
-        }
-
-        // Apply Pump Vector - Screen Space Y (Down/Up)
-        // User request: "lower on the screen and up", not "back and forth"
-
-        // Pump (0 -> -9 -> 0)
-        // Map directly to Y offset (Down then Up)
-        yOffset += pump;
-
-        // Add slight X movement to follow the tilt (Diagonal dip)
-        xOffset += pump * -0.5;
-
-        // Slight Z kick just for impact (much smaller)
-        zOffset += pump * 0.2;
-
-        return { roll, pitch, xOffset, yOffset, zOffset };
+        return this.reloadAnim.getOffsets();
     }
 }
 
