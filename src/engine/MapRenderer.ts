@@ -447,6 +447,7 @@ export class MapRenderer {
               material.diffuseColor = new Color3(0.8, 0.8, 0.8);
               material.specularColor = new Color3(0, 0, 0);
               material.backFaceCulling = false;
+              material.maxSimultaneousLights = 4;
               mesh.material = material;
             }
           }

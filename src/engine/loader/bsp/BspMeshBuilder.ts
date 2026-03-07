@@ -1361,7 +1361,7 @@ export class BspMeshBuilder {
 
         // Pre-allocate light slots so dynamic PointLights (projectiles, explosions)
         // work without shader recompilation (which frozen materials can't do)
-        mat.maxSimultaneousLights = 8;
+        mat.maxSimultaneousLights = 4;
 
         // Ensure diffuse is white so lightmap modulates at full range
         mat.diffuseColor = new Color3(1, 1, 1);
@@ -1526,6 +1526,9 @@ export class BspMeshBuilder {
 
     // Depth write
     mat.disableDepthWrite = !props.depthWrite;
+
+    // Cap light slots to avoid shader uniform block overflow (WebGL2 limit)
+    mat.maxSimultaneousLights = 4;
 
     // Polygon offset for decals
     // NOTE: polygonOffset with multiply blend (decals) still has z-fighting issues
@@ -2056,6 +2059,7 @@ export async function buildBrushModel(
     // Create material and try to load texture
     const mat = new StandardMaterial(`${childName}_mat`, scene);
     mat.backFaceCulling = true;
+    mat.maxSimultaneousLights = 4;
 
     // Try to load texture (use same path resolution as main BSP)
     if (group.textureName && !group.textureName.toLowerCase().includes('common/')) {

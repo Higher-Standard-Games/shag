@@ -68,7 +68,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         matA.lightmapTexture.coordinatesIndex = 1;
         matA.lightmapTexture.level = 2.0;
         matA.useLightmapAsShadowmap = true;
-        matA.maxSimultaneousLights = 8;
+        matA.maxSimultaneousLights = 4;
         matA.emissiveColor = new Color3(0, 0, 0);
         warmupDisposables.push(matA);
 
@@ -85,7 +85,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         matB.lightmapTexture.coordinatesIndex = 1;
         matB.lightmapTexture.level = 2.0;
         matB.useLightmapAsShadowmap = true;
-        matB.maxSimultaneousLights = 8;
+        matB.maxSimultaneousLights = 4;
         matB.emissiveColor = new Color3(0, 0, 0);
         warmupDisposables.push(matB);
 
