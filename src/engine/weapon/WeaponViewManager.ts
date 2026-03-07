@@ -28,6 +28,7 @@ import { WeaponBarrels } from './WeaponBarrels';
 import { WeaponSwitchAnim } from './WeaponSwitchAnim';
 import { WeaponReloadAnim } from './WeaponReloadAnim';
 import { WeaponSlash } from './WeaponSlash';
+import { WeaponBob } from './WeaponBob';
 
 
 // Weapon position presets
@@ -110,8 +111,9 @@ export class WeaponViewManager {
         // Suppress bob during beam charge/active for stability
         const chargeOrBeam = Math.max(this.beamChargeProgress, this.beamActive ? 1 : 0);
         const scale = 0.05 * (1 - chargeOrBeam * 0.8);  // lerp from 0.05 → 0.01
-        const bobX = this.currentBobOffsetX * scale;
-        const bobY = (this.currentBobOffsetY + this.jumpLandBobCurrent) * scale;
+        const bs = this.weaponBob.state;
+        const bobX = bs.bobX * scale;
+        const bobY = (bs.bobY + bs.jumpLandBob) * scale;
         const recoilZ = -this.recoilOffset * scale;
 
         const origin = this.mainCamera.position.clone();
@@ -140,23 +142,9 @@ export class WeaponViewManager {
     private static readonly LIGHT_LERP_SPEED = 5.0;  // How fast to interpolate (higher = faster)
     private static readonly LIGHT_INFLUENCE = 0.6;   // 0-1, how much lightgrid affects weapon (0.6 = 60%)
 
-    // Weapon bob state
-    private currentBobOffsetX: number = 0;
-    private currentBobOffsetY: number = 0;
-    private currentSprintTilt: number = 0;    // X-axis pitch up
-    private currentSprintRoll: number = 0;    // Z-axis roll sideways
-    private currentSprintYaw: number = 0;     // Y-axis yaw (barrel points inward)
+    // Weapon bob (extracted)
+    private weaponBob = new WeaponBob();
     private effectiveBasePosition: Vector3 = Vector3.Zero();  // Base position with handedness
-    private static readonly BOB_LERP_SPEED = 8.0;  // Smooth bob transitions
-
-    // Jump/land bob state (time-based animation)
-    private jumpLandBobTarget: number = 0;     // Target bob value
-    private jumpLandBobCurrent: number = 0;    // Smoothed current value
-    private jumpLandCooldown: number = 0;      // Cooldown to prevent rapid triggers
-    private wasGroundedLastFrame: boolean = true;
-    private static readonly JUMP_LAND_LERP = 12.0;   // How fast to reach target
-    private static readonly JUMP_LAND_RECOVER = 4.0; // How fast to recover to 0
-    private static readonly JUMP_LAND_COOLDOWN = 0.15; // Minimum seconds between triggers
 
     // ADS (Aiming Down Sights) state
     private adsProgress: number = 0;  // 0 = hip, 1 = fully ADS
@@ -957,133 +945,30 @@ export class WeaponViewManager {
     private updateWeaponBob(deltaTime: number): void {
         if (!this.currentWeapon || !this.weaponRoot) return;
 
-        const mv = MovementVars.getInstance();
-        const bobEnabled = mv.get('cl_gunbob') > 0;
-
         // Get player state from viewport manager
         const viewportManager = ViewportEffectsManager.getInstance();
         const state = viewportManager.getCurrentState();
 
-        // Calculate target bob offsets
-        let targetBobX = 0;
-        let targetBobY = 0;
-        let targetTilt = 0;
-        let targetRoll = 0;
-        let targetInward = 0;
-
-        const amplitude = mv.get('cl_gunbob_amplitude');
-        const speedMult = mv.get('cl_gunbob_speed');
-        const sprintTilt = mv.get('cl_gunbob_sprint_tilt');
-        const sprintInward = mv.get('cl_gunbob_sprint_inward');
-
-        // Use shared bobCycle from view bob (synced!)
-        const bobCycle = (state.bobCycle ?? 0) * speedMult;
-
-        // Speed factor for intensity
-        const speedFactor = Math.min(state.horizontalSpeed / 320, 2.0);
-
-        // === WALK BOB (grounded only) ===
-        // Vertical and horizontal sway - only when feet on ground
-        if (bobEnabled && state.isGrounded && state.horizontalSpeed > 10) {
-            // Vertical bob (up/down)
-            targetBobY = Math.sin(bobCycle * 2) * amplitude * speedFactor;
-
-            // Horizontal sway (left/right) - 90° offset
-            targetBobX = Math.sin(bobCycle) * amplitude * 0.5 * speedFactor;
-        }
-
-        // === SPRINT TILT (speed-based, NOT grounded check) ===
-        // Maintains sprint pose even while jumping/bunnyhopping
-        // Two-phase scaling:
-        //   Phase 1: 320-420 (sprint speed) = 0% to 100% of CVar value
-        //   Phase 2: 420+ (strafe bunny) = 100% to 120% max (slower growth)
-        const baseSpeed = 320;
-        const sprintSpeed = 420;  // 100% point
-        const maxExtraSpeed = 800;  // 120% point (beyond this, capped)
-
-        let sprintRatio: number;
-        if (state.horizontalSpeed <= sprintSpeed) {
-            // Phase 1: linear scale to 100%
-            sprintRatio = Math.max(0, (state.horizontalSpeed - baseSpeed) / (sprintSpeed - baseSpeed));
-        } else {
-            // Phase 2: slower growth from 100% to 120%
-            const extraRatio = (state.horizontalSpeed - sprintSpeed) / (maxExtraSpeed - sprintSpeed);
-            sprintRatio = 1.0 + Math.min(0.2, extraRatio * 0.2);  // Max 120%
-        }
-
-        if (bobEnabled && state.horizontalSpeed > baseSpeed * 0.8) {  // Above 80% of base speed
-            targetTilt = -sprintTilt * sprintRatio;    // Negative = tilt up
-            targetRoll = sprintTilt * 1.5 * sprintRatio;  // Roll to the side
-            // Yaw: rotate barrel toward chest
-            const handSign = this.effectiveBasePosition.x > 0 ? -1 : 1;
-            targetInward = handSign * sprintInward * sprintRatio;  // Yaw degrees
-        }
-
-        // Dampen entirely if reloading
-        if (this.reloadAnim.isReloading) {
-            targetBobX = 0;
-            targetBobY = 0;
-            targetTilt = 0;
-            targetRoll = 0;
-            targetInward = 0;
-        }
-
-        // Dampen bob when ADS (stable aim)
-        const adsBobDamp = 1.0 - this.adsProgress * 0.85;  // 85% reduction at full ADS
-        targetBobX *= adsBobDamp;
-        targetBobY *= adsBobDamp;
-        targetTilt *= adsBobDamp;
-        targetRoll *= adsBobDamp;
-        targetInward *= adsBobDamp;
-
-        // Smooth lerp to targets
-        const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.BOB_LERP_SPEED);
-        this.currentBobOffsetX += (targetBobX - this.currentBobOffsetX) * lerpFactor;
-        this.currentBobOffsetY += (targetBobY - this.currentBobOffsetY) * lerpFactor;
-        this.currentSprintTilt += (targetTilt - this.currentSprintTilt) * lerpFactor;
-        this.currentSprintRoll += (targetRoll - this.currentSprintRoll) * lerpFactor;
-        this.currentSprintYaw += (targetInward - this.currentSprintYaw) * lerpFactor;
-
-        // === JUMP/LAND BOB (time-based triggered animation) ===
-        const jumpBobIntensity = mv.get('cl_gunbob_jump');
-        const landBobIntensity = mv.get('cl_gunbob_land');
-
-        // Decrease cooldown
-        if (this.jumpLandCooldown > 0) {
-            this.jumpLandCooldown -= deltaTime;
-        }
-
-        // Detect jump (leaving ground) - only if not on cooldown
-        if (this.jumpLandCooldown <= 0 && this.wasGroundedLastFrame && !state.isGrounded && state.velocity.y > 50) {
-            // Trigger jump animation - bob down then recover
-            this.jumpLandBobTarget = -jumpBobIntensity;
-            this.jumpLandCooldown = WeaponViewManager.JUMP_LAND_COOLDOWN;
-        }
-
-        // Detect landing (hitting ground) - only if not on cooldown
-        if (this.jumpLandCooldown <= 0 && !this.wasGroundedLastFrame && state.isGrounded) {
-            // Trigger land animation - bob down based on impact
-            const impactStrength = Math.min(1.0, Math.abs(state.landingVelocity ?? 0) / 500);
-            this.jumpLandBobTarget = -landBobIntensity * (0.5 + impactStrength * 0.5);
-            this.jumpLandCooldown = WeaponViewManager.JUMP_LAND_COOLDOWN;
-        }
-
-        // Smoothly move current toward target
-        const jumpLerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.JUMP_LAND_LERP);
-        this.jumpLandBobCurrent += (this.jumpLandBobTarget - this.jumpLandBobCurrent) * jumpLerpFactor;
-
-        // Recover target back to 0 (slower than the initial movement)
-        const recoverFactor = Math.min(1.0, deltaTime * WeaponViewManager.JUMP_LAND_RECOVER);
-        this.jumpLandBobTarget *= (1.0 - recoverFactor);
-
-        // Track grounded state for next frame
-        this.wasGroundedLastFrame = state.isGrounded;
+        // Delegate walk bob, sprint tilt, jump/land to WeaponBob
+        this.weaponBob.update(
+            deltaTime,
+            state.isGrounded,
+            state.horizontalSpeed,
+            state.velocity.y,
+            state.landingVelocity ?? 0,
+            state.bobCycle ?? 0,
+            this.reloadAnim.isReloading,
+            this.adsProgress,
+            this.effectiveBasePosition.x,
+        );
+        const bob = this.weaponBob.state;
 
         // Apply to weapon root (on top of base position with handedness)
         const root = this.currentWeapon.root;
         const basePos = this.effectiveBasePosition;
 
         // === ADS (Aiming Down Sights) ===
+        const mv = MovementVars.getInstance();
         const adsTime = this.currentWeaponDef?.ads?.time || mv.get('cl_ads_time');
 
         // Lerp ADS progress based on aim state
@@ -1168,8 +1053,8 @@ export class WeaponViewManager {
 
         // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake + slash)
         root.position.set(
-            adsX + this.currentBobOffsetX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
-            basePos.y + this.currentBobOffsetY + this.jumpLandBobCurrent + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY + slashOffsets.yOffset,
+            adsX + bob.bobX + reloadOffsets.xOffset + switchOffsets.xOffset + chargeShakeX + slashOffsets.xOffset,
+            basePos.y + bob.bobY + bob.jumpLandBob + adsY + reloadOffsets.yOffset + switchOffsets.yOffset + chargeShakeY + slashOffsets.yOffset,
             basePos.z + adsZ + reloadOffsets.zOffset - this.recoilOffset + switchOffsets.zOffset + slashOffsets.zOffset
         );
 
@@ -1182,9 +1067,9 @@ export class WeaponViewManager {
         const sprintFactor = 1.0 - this.adsProgress * 0.8;  // 80% reduction when fully ADS
         const baseRot = this.currentPosition.rotation;
         root.rotation.set(
-            baseRot.x + (this.currentSprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch - this.recoilPitchOffset,
-            baseRot.y + (this.currentSprintYaw * sprintFactor * Math.PI / 180) + slashOffsets.yaw,
-            baseRot.z + (this.currentSprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06 + slashOffsets.roll
+            baseRot.x + (bob.sprintTilt * sprintFactor * Math.PI / 180) + reloadOffsets.pitch + slashOffsets.pitch - this.recoilPitchOffset,
+            baseRot.y + (bob.sprintYaw * sprintFactor * Math.PI / 180) + slashOffsets.yaw,
+            baseRot.z + (bob.sprintRoll * sprintFactor * Math.PI / 180) + reloadOffsets.roll + switchOffsets.roll + this.recoilOffset * 0.06 + slashOffsets.roll
         );
     }
 
