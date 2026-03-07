@@ -2,10 +2,13 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Ray } from "@babylonjs/core/Culling/ray";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { ModelLoader } from "../loader/model/ModelLoader";
 import { InventoryManager } from "./InventoryManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { getCollisionManager } from "../physics";
+import { PhysicsSystem } from "../physics/PhysicsSystem";
+import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 
 import { AudioManager } from "../AudioManager";
@@ -96,51 +99,81 @@ export class Pickup extends TransformNode {
             }
 
             if (result && result.root) {
+                const pickupScale = this.options.scale || 1.5;
 
-                // Direct Parenting Strategy: Bypass potential issues with the loader's root node
-                // Parent meshes directly to the Pickup entity (like the Green Sphere test which worked)
-                result.meshes.forEach(m => {
-                    m.parent = this;
-                    m.position.setAll(0);
-                    m.rotationQuaternion = null; // Reset any quats
-                    m.rotation.setAll(0);
-                    m.isVisible = true;
-                    m.scaling.setAll(1.5);
-                    m.refreshBoundingInfo(true);
-                });
-
-                // Dispose the empty root from loader if it exists/is different
-                if (result.root && result.root !== (result.meshes[0] as any)) {
-                    result.root.dispose();
+                // Flatten hierarchy: re-parent all renderable meshes directly
+                // under this Pickup node, matching how MD3 worked natively.
+                const renderableMeshes: Mesh[] = [];
+                for (const m of result.meshes) {
+                    if (m instanceof Mesh && m.getTotalVertices() > 0) {
+                        m.parent = this;
+                        m.position.setAll(0);
+                        m.rotationQuaternion = null;
+                        m.rotation.setAll(0);
+                        m.isVisible = true;
+                        m.scaling.setAll(pickupScale);
+                        renderableMeshes.push(m);
+                    }
                 }
 
-                this.mesh = result.meshes[0]; // Keep reference to one mesh for bobbing
+                // Dispose the loader's root (and any orphaned __root__ / TransformNodes)
+                if (result.root) {
+                    result.root.dispose(false, false);
+                }
+
+                // Merge all renderable meshes into a single Mesh so Havok can
+                // move the entire weapon as one body (GLB models have multiple
+                // sub-meshes; MD3 was always a single mesh).
+                let primaryMesh: Mesh | null = null;
+                if (renderableMeshes.length > 1) {
+                    const merged = Mesh.MergeMeshes(
+                        renderableMeshes,
+                        true,   // disposeSource
+                        true,   // allow32BitsIndices
+                        undefined,
+                        false,  // subdivideWithSubMeshes
+                        true,   // multiMultiMaterial (preserve per-submesh materials)
+                    );
+                    if (merged) {
+                        merged.parent = this;
+                        merged.position.setAll(0);
+                        merged.rotationQuaternion = null;
+                        merged.rotation.setAll(0);
+                        merged.name = `pickup_${this.options.id}_merged`;
+                        primaryMesh = merged;
+                    }
+                } else if (renderableMeshes.length === 1) {
+                    primaryMesh = renderableMeshes[0];
+                }
+
+                this.mesh = primaryMesh;
 
                 // Create glow light if glowColor is defined
                 if (this.options.glowColor) {
                     // this.createGlowLight(); // Disabled for testing
                 }
 
-                // Map spawn pickups: drop to floor + bob/rotate (classic Quake-style).
-                // Havok tumble physics caused floating due to hierarchy issues and is only
-                // appropriate for DroppedWeaponRenderer (weapon drops from kills).
-                if (this.options.gravity) {
-                    this.dropToGround();
-                }
+                // PHYSICS: Use Havok to drop items to ground with tumble
+                const physics = PhysicsSystem.getInstance();
+                if (physics.isInitialized() && primaryMesh) {
+                    physics.createDynamicBody(primaryMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
 
-                // Bobbing + rotation animation (always-on for map pickups)
-                this.getScene().onBeforeRenderObservable.add(() => {
-                    if (this.isActive && this.mesh) {
-                        const dt = this.getScene().getEngine().getDeltaTime() / 1000;
-                        const enableBob = this.options.bobbing !== false;
-
-                        if (enableBob) {
-                            this.mesh.rotation.y += this.rotationSpeed * dt;
-                            const time = Date.now() / 1000;
-                            this.mesh.position.y = Math.sin(time * this.bobSpeed) * this.bobHeight;
-                        }
+                    // Add random rotation tumble for visual appeal
+                    if (primaryMesh.physicsBody) {
+                        const randomRot = new Vector3(
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 10
+                        );
+                        primaryMesh.physicsBody.setAngularVelocity(randomRot);
                     }
-                });
+                } else {
+                    // Fallback if physics unavailable
+                    console.warn(`[Pickup] Physics NOT initialized — using dropToGround fallback`);
+                    if (this.options.gravity) {
+                        this.dropToGround();
+                    }
+                }
 
                 // Setup collision check and glow light pulse
                 this.getScene().onBeforeRenderObservable.add(() => {
@@ -532,8 +565,13 @@ export class Pickup extends TransformNode {
 
         // Defer visual changes to next frame to avoid render state conflicts
         requestAnimationFrame(() => {
-            // Disable entire Pickup node (cascades to ALL child meshes — GLB has multiple)
+            // Disable entire Pickup node (cascades to ALL child meshes)
             this.setEnabled(false);
+
+            // Freeze physics body to stop simulation
+            if (this.mesh && (this.mesh as any).physicsBody) {
+                (this.mesh as any).physicsBody.setMotionType(2); // STATIC
+            }
 
             // Disable glow light to prevent visual artifacts
             if (this.glowLight) this.glowLight.setEnabled(false);
@@ -550,6 +588,20 @@ export class Pickup extends TransformNode {
         this.isActive = true;
         // Re-enable entire Pickup node (cascades to ALL child meshes)
         this.setEnabled(true);
+
+        // Re-enable physics body for respawn drop
+        if (this.mesh && (this.mesh as any).physicsBody) {
+            (this.mesh as any).physicsBody.setMotionType(1); // DYNAMIC
+            // Give a small upward velocity + tumble for visual feedback
+            (this.mesh as any).physicsBody.setLinearVelocity(new Vector3(0, 5, 0));
+            const randomRot = new Vector3(
+                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 8
+            );
+            (this.mesh as any).physicsBody.setAngularVelocity(randomRot);
+        }
+
         // Re-enable glow light
         if (this.glowLight) this.glowLight.setEnabled(true);
         // Play respawn sound?
