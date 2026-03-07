@@ -15,7 +15,7 @@ export const PLASMAGUN: WeaponDef = {
     classname: 'weapon_plasmagun',  // BSP entity classname
 
     // Model
-    modelPath: 'models/weapons/plasmagun/plasmagun.md3',
+    modelPath: '/data/models/weapons/plasmagun/plasmagun.glb',
     scale: 2.0,
 
     // Pickup glow light (green plasma color)
@@ -41,17 +41,16 @@ export const PLASMAGUN: WeaponDef = {
     useLagCompensation: false,
     crosshair: { style: 'cross_dot', baseGap: 4, lineLength: 5, lineWidth: 2 },
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/plasmagun/plasmagun.md3',
-        handModelPath: 'models/weapons/plasmagun/plasmagun_hand.md3',
-        flashModelPath: 'models/weapons/plasmagun/plasmagun_flash.md3',
+        modelPath: '/data/models/weapons/plasmagun/plasmagun.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -23, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

@@ -57,10 +57,10 @@ export const BLADE: WeaponDef = {
         viewModelFormat: 'glb',
 
         // Blade has no ADS — hip and ads positions are identical
-        hipOffset: { x: 10, y: -28, z: 19 },
+        hipOffset: { x: 10, y: -28, z: 10 },
         hipRotation: { x: Math.PI / 2, y: Math.PI / 2, z: Math.PI / 6 + Math.PI },
 
-        adsOffset: { x: 10, y: -28, z: 19 },
+        adsOffset: { x: 10, y: -28, z: 10 },
         adsRotation: { x: Math.PI / 2, y: Math.PI / 2, z: Math.PI / 6 + Math.PI },
 
         scale: 30.0,

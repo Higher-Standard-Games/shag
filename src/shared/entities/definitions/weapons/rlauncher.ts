@@ -16,7 +16,7 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     classname: 'weapon_rocketlauncher',
 
     // Model
-    modelPath: 'models/weapons/rlauncher/rlauncher.md3',
+    modelPath: '/data/models/weapons/rlauncher/rlauncher.glb',
     scale: 2.0,
 
     // Pickup glow (red-orange)
@@ -44,17 +44,16 @@ export const ROCKET_LAUNCHER: WeaponDef = {
     crosshair: { style: 'cross_dot', baseGap: 6, lineLength: 6, lineWidth: 2 },
     speedBonus: -25,           // Heavy weapon: -25 speed (375 run)
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/rlauncher/rlauncher.md3',
-        handModelPath: 'models/weapons/rlauncher/rlauncher_hand.md3',
-        flashModelPath: 'models/weapons/rlauncher/rlauncher_flash.md3',
+        modelPath: '/data/models/weapons/rlauncher/rlauncher.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -20, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

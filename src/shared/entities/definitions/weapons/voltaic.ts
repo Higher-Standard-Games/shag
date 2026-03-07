@@ -1,9 +1,8 @@
 /**
  * Voltaic - Weapon Definition
  * 
- * Continuous beam hitscan weapon. Replaces lasergun with new GLB model.
- * Electric blue/cyan beam with fast fire rate.
- * Responds to both 'weapon_voltaic' and legacy 'weapon_lasergun' classnames.
+ * Continuous beam hitscan weapon with custom GLB model.
+ * Orange/yellow beam with charge-up mechanic.
  */
 
 import { WeaponDef } from '../../WeaponDef';
@@ -15,7 +14,6 @@ export const VOLTAIC: WeaponDef = {
     name: 'Voltaic',
     type: EntityType.WEAPON,
     classname: 'weapon_voltaic',
-    classnameAliases: ['weapon_lasergun'],  // Backward compat with Q3/Warsow maps
 
     // Model (world/pickup) — GLB
     modelPath: '/data/models/weapons/voltaic/voltaic.glb',
@@ -24,7 +22,7 @@ export const VOLTAIC: WeaponDef = {
     // Pickup glow — electric cyan
     glowColor: { r: 0.2, g: 0.8, b: 1.0 },
 
-    // Gameplay (server-authoritative) — same beam stats as old lasergun
+    // Gameplay (server-authoritative)
     damage: 7,
     fireRate: 20,         // 50ms reload = 20 shots/sec (beam)
     clipSize: 150,

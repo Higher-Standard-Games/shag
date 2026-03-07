@@ -16,7 +16,7 @@ export const MACHINEGUN: WeaponDef = {
     classname: 'weapon_machinegun',
 
     // Model
-    modelPath: 'models/weapons/machinegun/machinegun.md3',
+    modelPath: '/data/models/weapons/machinegun/machinegun.glb',
     scale: 2.0,
 
     // Pickup glow (yellow-orange)
@@ -40,17 +40,16 @@ export const MACHINEGUN: WeaponDef = {
     useLagCompensation: true,
     crosshair: { style: 'cross', baseGap: 4, lineLength: 6, lineWidth: 2 },
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/machinegun/machinegun.md3',
-        handModelPath: 'models/weapons/machinegun/machinegun_hand.md3',
-        flashModelPath: 'models/weapons/machinegun/machinegun_flash.md3',
+        modelPath: '/data/models/weapons/machinegun/machinegun.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -20, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

@@ -264,6 +264,18 @@ export class MapLoader {
           }
         }
       }
+
+      // Load override PK3 (z_weapons.pk3) if it exists — ensures custom models
+      // take priority over base data PK3s via alphabetical filename ordering
+      if (!loadedPk3s.has('z_weapons.pk3')) {
+        try {
+          await this.pk3Loader.loadPK3FromUrl('data/z_weapons.pk3');
+          loadedPk3s.add('z_weapons.pk3');
+          console.log('[MapLoader] Loaded weapon override PK3: z_weapons.pk3');
+        } catch (e) {
+          console.warn('[MapLoader] z_weapons.pk3 not loaded:', e);
+        }
+      }
     }
 
     // Phase 4: Load shaders

@@ -16,7 +16,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     classname: 'weapon_grenadelauncher',
 
     // Model
-    modelPath: 'models/weapons/glauncher/glauncher.md3',
+    modelPath: '/data/models/weapons/glauncher/glauncher.glb',
     scale: 2.0,
 
     // Pickup glow (green)
@@ -43,17 +43,16 @@ export const GRENADE_LAUNCHER: WeaponDef = {
     useLagCompensation: false,
     crosshair: { style: 'cross_dot', baseGap: 6, lineLength: 6, lineWidth: 2 },
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/glauncher/glauncher.md3',
-        handModelPath: 'models/weapons/glauncher/glauncher_hand.md3',
-        flashModelPath: 'models/weapons/glauncher/glauncher_flash.md3',
+        modelPath: '/data/models/weapons/glauncher/glauncher.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -20, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

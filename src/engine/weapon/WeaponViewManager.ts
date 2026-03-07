@@ -466,10 +466,14 @@ export class WeaponViewManager {
                     // Blade: flip barrel + tilt upward for melee carry
                     glbRoot.rotation.x = Math.PI;
                     glbRoot.rotation.y = 0.9;
-                } else {
-                    // Gun-type weapons: no extra rotation needed,
-                    // viewModel hipRotation handles orientation
+                } else if (weaponName === 'voltaic') {
+                    // Voltaic: Blender/Sketchfab export, already Y-up
                     glbRoot.rotation.set(0, 0, 0);
+                } else {
+                    // IQM→GLB weapons need TWO coordinate fixes:
+                    // 1. z_up_to_y_up in converter: Z-up → Y-up (scope on top)
+                    // 2. Y rotation here: barrel from +X → -Z (pointing forward)
+                    glbRoot.rotation.set(0, -Math.PI / 2, 0);
                 }
                 // NOTE: GLB root may have scl:(1,1,-1) from Blender export — keep it,
                 // the negative Z is needed for correct orientation. Use backFaceCulling=false
@@ -535,7 +539,12 @@ export class WeaponViewManager {
                     mesh.renderingGroupId = 1;
                     mesh.layerMask = WEAPON_LAYER_MASK;
 
-                    if (mesh !== glbRoot) glbMeshes.push(mesh);
+                    // Include all meshes with geometry; only skip the root if it's
+                    // a bare TransformNode (Blender/Sketchfab-style GLBs). IQM-converted
+                    // GLBs may have the geometry on meshes[0] itself.
+                    if (mesh !== glbRoot || (mesh.getTotalVertices && mesh.getTotalVertices() > 0)) {
+                        glbMeshes.push(mesh);
+                    }
                 }
 
                 // Dispose old PBR materials for blade (texture refs already nulled)
@@ -575,6 +584,10 @@ export class WeaponViewManager {
                 console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
                 return false;
             }
+
+            // Debug: show which PK3 this model is actually loading from
+            const sourcePk3 = (pk3 as any).fileIndex?.get(modelPath.toLowerCase().replace(/\\/g, '/'));
+            console.log(`[WeaponViewManager] Loading model ${modelPath} from PK3: ${sourcePk3 || 'unknown'}`);
 
             // Load model data
             const modelBuffer = await pk3.getFile(modelPath);
@@ -1506,6 +1519,17 @@ export class WeaponViewManager {
                 this.lastHandedness = currentHand;
                 this.applyPosition(this.currentPosition);
                 console.log(`[WeaponViewManager] Handedness changed to ${currentHand}`);
+            }
+
+            // Check weapon position override CVars — re-apply if any changed
+            const hipX = mv.get('cl_wep_hip_x');
+            const hipY = mv.get('cl_wep_hip_y');
+            const hipZ = mv.get('cl_wep_hip_z');
+            const wepScale = mv.get('cl_wep_scale');
+            const wepKey = `${hipX},${hipY},${hipZ},${wepScale}`;
+            if (wepKey !== (this as any)._lastWepKey) {
+                (this as any)._lastWepKey = wepKey;
+                this.applyPosition(this.currentPosition);
             }
 
             // Check weapon FOV

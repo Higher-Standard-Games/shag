@@ -16,7 +16,7 @@ export const ELECTROBOLT: WeaponDef = {
     classname: 'weapon_electrobolt',
 
     // Model
-    modelPath: 'models/weapons/electrobolt/electrobolt.md3',
+    modelPath: '/data/models/weapons/electrobolt/electrobolt.glb',
     scale: 2.0,
 
     // Pickup glow (electric blue)
@@ -40,17 +40,16 @@ export const ELECTROBOLT: WeaponDef = {
     crosshair: { style: 'cross_dot', baseGap: 2, lineLength: 5, lineWidth: 1 },
     speedBonus: -25,           // Heavy sniper: -25 speed (375 run)
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/electrobolt/electrobolt.md3',
-        handModelPath: 'models/weapons/electrobolt/electrobolt_hand.md3',
-        flashModelPath: 'models/weapons/electrobolt/electrobolt_flash.md3',
+        modelPath: '/data/models/weapons/electrobolt/electrobolt.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -20, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

@@ -235,16 +235,21 @@ export class PK3Loader {
 
   /**
    * Rebuild the file index based on priority
-   * Higher priority packages override lower priority ones.
+   * PK3s are sorted alphabetically by filename (Quake 3 convention),
+   * with _NNN suffix as tiebreaker within same-prefix packages.
+   * Later files override earlier ones (z_weapons.pk3 overrides data0.pk3).
    * Also builds O(1) zip entry index to avoid forEach scans in getFile().
    */
   private rebuildFileIndex(): void {
     this.fileIndex.clear();
     this.zipFileIndex.clear();
 
-    // Sort packages by priority (ascending)
+    // Sort packages alphabetically by filename (later = higher priority)
+    // This matches Quake 3/Warsow: z_*.pk3 overrides data*.pk3
     const sortedPackages = Array.from(this.packages.values())
-      .sort((a, b) => a.priority - b.priority);
+      .sort((a, b) => a.filename.localeCompare(b.filename));
+
+    console.log(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map(p => p.filename).join(', ')}`);
 
     // Add files from each package (later packages override)
     for (const pkg of sortedPackages) {

@@ -16,7 +16,7 @@ export const RIOTGUN: WeaponDef = {
     classname: 'weapon_riotgun',
 
     // Model
-    modelPath: 'models/weapons/riotgun/riotgun.md3',
+    modelPath: '/data/models/weapons/riotgun/riotgun.glb',
     scale: 2.0,
 
     // Pickup glow (warm orange)
@@ -45,17 +45,16 @@ export const RIOTGUN: WeaponDef = {
     crosshair: { style: 'cross', baseGap: 12, lineLength: 8, lineWidth: 2 },
     speedBonus: 5,             // Light shotgun: +5 speed (405 run)
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/riotgun/riotgun.md3',
-        handModelPath: 'models/weapons/riotgun/riotgun_hand.md3',
-        flashModelPath: 'models/weapons/riotgun/riotgun_flash.md3',
+        modelPath: '/data/models/weapons/riotgun/riotgun.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -21, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },

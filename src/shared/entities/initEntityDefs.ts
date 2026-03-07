@@ -10,7 +10,7 @@ import { getEntityRegistry } from './EntityRegistry';
 import {
     GUNBLADE, MACHINEGUN, RIOTGUN, GRENADE_LAUNCHER,
     ROCKET_LAUNCHER, PLASMAGUN, ELECTROBOLT, INSTAGUN,
-    BLADE, VOLTAIC,
+    BLADE, VOLTAIC, LASERGUN,
 } from './definitions/weapons';
 
 // Projectiles
@@ -42,7 +42,8 @@ export function initializeEntityDefs(): void {
     registry.register(GRENADE_LAUNCHER);
     registry.register(ROCKET_LAUNCHER);
     registry.register(PLASMAGUN);
-    registry.register(VOLTAIC);         // Replaces lasergun (aliases: weapon_lasergun)
+    registry.register(VOLTAIC);         // New beam weapon (weapon_voltaic)
+    registry.register(LASERGUN);        // Legacy Warsow LG (weapon_lasergun in maps)
     registry.register(ELECTROBOLT);
     registry.register(INSTAGUN);
     registry.register(BLADE);

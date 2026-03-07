@@ -16,7 +16,7 @@ export const LASERGUN: WeaponDef = {
     classname: 'weapon_lasergun',
 
     // Model
-    modelPath: 'models/weapons/lasergun/lasergun.md3',
+    modelPath: '/data/models/weapons/lasergun/lasergun.glb',
     scale: 2.0,
 
     // Pickup glow (red laser)
@@ -38,17 +38,16 @@ export const LASERGUN: WeaponDef = {
     useLagCompensation: true,
     crosshair: { style: 'dot', baseGap: 0, lineLength: 0, lineWidth: 3 },
 
-    // View Model
+    // View Model — GLB format
     viewModel: {
-        modelPath: 'models/weapons/lasergun/lasergun.md3',
-        handModelPath: 'models/weapons/lasergun/lasergun_hand.md3',
-        flashModelPath: 'models/weapons/lasergun/lasergun_flash.md3',
+        modelPath: '/data/models/weapons/lasergun/lasergun.glb',
+        viewModelFormat: 'glb',
 
-        hipOffset: { x: 10, y: -19, z: 25 },
-        hipRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        hipOffset: { x: 0, y: -25, z: -1 },
+        hipRotation: { x: 0, y: 0, z: 0 },
 
-        adsOffset: { x: 0, y: -15, z: 25 },
-        adsRotation: { x: 0, y: -Math.PI / 2, z: 0 },
+        adsOffset: { x: 0, y: -20, z: -5 },
+        adsRotation: { x: 0, y: 0, z: 0 },
 
         scale: 2.0,
     },
