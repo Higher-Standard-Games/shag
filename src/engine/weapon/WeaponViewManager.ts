@@ -19,7 +19,6 @@ import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loade
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { PK3TextureLoader } from '../loader/pk3/PK3TextureLoader';
 import { MovementVars } from '../movement/MovementVars';
-import { BspManager } from '../loader/bsp/BspManager';
 import { ViewportEffectsManager } from '../viewport/ViewportEffectsManager';
 import { getEntityRegistry, WeaponDef } from '../../shared/entities';
 import { getProjectileManager } from './ProjectileManager';
@@ -29,6 +28,8 @@ import { WeaponSwitchAnim } from './WeaponSwitchAnim';
 import { WeaponReloadAnim } from './WeaponReloadAnim';
 import { WeaponSlash } from './WeaponSlash';
 import { WeaponBob } from './WeaponBob';
+import { WeaponCharge } from './WeaponCharge';
+import { WeaponLighting } from './WeaponLighting';
 
 
 // Weapon position presets
@@ -135,12 +136,8 @@ export class WeaponViewManager {
     private cvarCheckTimer: number = 0;
     private static readonly CVAR_CHECK_INTERVAL = 0.1; // Check 10x/sec, not every frame
 
-    // Lighting smoothing
-    private currentLightR: number = 1.0;
-    private currentLightG: number = 1.0;
-    private currentLightB: number = 1.0;
-    private static readonly LIGHT_LERP_SPEED = 5.0;  // How fast to interpolate (higher = faster)
-    private static readonly LIGHT_INFLUENCE = 0.6;   // 0-1, how much lightgrid affects weapon (0.6 = 60%)
+    // Weapon lighting (extracted)
+    private weaponLighting = new WeaponLighting();
 
     // Weapon bob (extracted)
     private weaponBob = new WeaponBob();
@@ -177,13 +174,8 @@ export class WeaponViewManager {
     // Barrel sub-models (spinning chambers)
     private weaponBarrels = new WeaponBarrels();
 
-    // Blade charge state (client-side visual tracking)
-    private chargeActive: boolean = false;
-    private chargeStartTime: number = 0;  // performance.now() when charge started
-    private chargeProgress: number = 0;   // 0-1 charge level (0=just started, 1=fully charged)
-    private savedOutlineWidth: number = 0;
-    private savedOutlineColor: Color3 = new Color3(0, 0, 0);
-    private savedOutlineEnabled: boolean = false;
+    // Blade charge (extracted)
+    private weaponCharge = new WeaponCharge();
 
     // Slash animation (extracted)
     private weaponSlash = new WeaponSlash();
@@ -993,52 +985,24 @@ export class WeaponViewManager {
         const adsY = (adsTargetY - basePos.y) * this.adsProgress;  // Delta from base
         const adsZ = (adsTargetZ - basePos.z) * this.adsProgress;  // Delta from base
 
-        // === Blade charge effects ===
-        const isBladeCharging = state.isAiming && this.currentWeaponDef?.meleeRadius;
-        let chargeShakeX = 0, chargeShakeY = 0;
+        // === Blade charge effects (delegated) ===
+        const isBladeCharging = !!(state.isAiming && this.currentWeaponDef?.meleeRadius);
+        const chargeResult = this.weaponCharge.update(
+            isBladeCharging,
+            this.currentWeaponDef?.chargeTime || 1.0,
+            this.currentWeapon.meshes,
+            this.currentWeapon.root.scaling.x,
+            this._weaponOutlineWidth,
+            this._weaponOutlineColor,
+            this._weaponOutlineEnabled,
+        );
+        const chargeShakeX = chargeResult.shake.x;
+        const chargeShakeY = chargeResult.shake.y;
 
-        if (isBladeCharging) {
-            const now = performance.now();
-            if (!this.chargeActive) {
-                // Just started charging — save current outline state
-                this.chargeActive = true;
-                this.chargeStartTime = now;
-                this.savedOutlineWidth = this._weaponOutlineWidth;
-                this.savedOutlineColor = this._weaponOutlineColor.clone();
-                this.savedOutlineEnabled = this._weaponOutlineEnabled;
-            }
-
-            // Calculate charge progress (0-1 over chargeTime)
-            const chargeTime = (this.currentWeaponDef?.chargeTime || 1.0) * 1000; // ms
-            const elapsed = now - this.chargeStartTime;
-            this.chargeProgress = Math.min(1.0, elapsed / chargeTime);
-
-            // Shake: sinusoidal noise, intensity scales with charge
-            const shakeIntensity = this.chargeProgress * 2.5; // max 2.5 units at full charge
-            const shakeFreq = 20 + this.chargeProgress * 30; // faster shake as charge builds
-            chargeShakeX = Math.sin(now * 0.001 * shakeFreq) * shakeIntensity;
-            chargeShakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
-
-            // Red pulsing outline
-            const outlineMin = 0.3, outlineMax = 0.8;
-            const scaledWidth = outlineMin + this.chargeProgress * (outlineMax - outlineMin);
-            const rootScale = this.currentWeapon.root.scaling.x || 1;
-            const pulseRate = 4 + this.chargeProgress * 8; // faster pulse at higher charge
-            const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
-            const red = new Color3(1.0 * pulse, 0.1 * pulse, 0.05 * pulse);
-
-            for (const mesh of this.currentWeapon.meshes) {
-                mesh.renderOutline = true;
-                mesh.outlineWidth = scaledWidth / rootScale;
-                mesh.outlineColor = red;
-            }
-        } else if (this.chargeActive) {
-            // Charge released — restore original outline state
-            this.chargeActive = false;
-            this.chargeProgress = 0;
-            this._weaponOutlineWidth = this.savedOutlineWidth;
-            this._weaponOutlineColor = this.savedOutlineColor;
-            this._weaponOutlineEnabled = this.savedOutlineEnabled;
+        if (chargeResult.needsOutlineRestore) {
+            this._weaponOutlineWidth = chargeResult.savedWidth;
+            this._weaponOutlineColor = chargeResult.savedColor;
+            this._weaponOutlineEnabled = chargeResult.savedEnabled;
             this.applyWeaponOutlines();
         }
 
@@ -1076,64 +1040,7 @@ export class WeaponViewManager {
 
     private updateLightingFromBsp(deltaTime: number): void {
         if (!this.currentWeapon || !this.scene) return;
-
-        try {
-            // Get main camera position (first in activeCameras array)
-            const cameras = this.scene.activeCameras;
-            if (!cameras || cameras.length === 0) return;
-
-            const mainCamera = cameras[0];
-            const worldPos = mainCamera.globalPosition;
-
-            // Sample lighting from BSP lightgrid
-            const bspManager = BspManager.getInstance();
-            const lighting = bspManager.getLightingAt(worldPos);
-
-            // Calculate target brightness from lightgrid
-            let targetR = 1.0, targetG = 1.0, targetB = 1.0;
-
-            if (lighting) {
-                // Combine ambient + directional for total light level
-                const rawR = (lighting.ambient[0] + lighting.directional[0]) / 255;
-                const rawG = (lighting.ambient[1] + lighting.directional[1]) / 255;
-                const rawB = (lighting.ambient[2] + lighting.directional[2]) / 255;
-
-                // Calculate overall brightness (0-1)
-                const brightness = (rawR + rawG + rawB) / 3;
-
-                // Clamp brightness to range (0.15 - 1.0) - lower allows blacker weapon
-                const minLight = 0.15;
-                const clampedBrightness = Math.min(1.0, Math.max(minLight, brightness));
-
-                // Apply brightness scaling to colors while preserving color tint
-                const colorScale = clampedBrightness / Math.max(0.01, brightness);
-                const scaledR = Math.min(1.0, Math.max(minLight, rawR * colorScale));
-                const scaledG = Math.min(1.0, Math.max(minLight, rawG * colorScale));
-                const scaledB = Math.min(1.0, Math.max(minLight, rawB * colorScale));
-
-                // Blend with white based on influence (0.7 = 70% lightgrid, 30% base)
-                const influence = WeaponViewManager.LIGHT_INFLUENCE;
-                targetR = 1.0 * (1 - influence) + scaledR * influence;
-                targetG = 1.0 * (1 - influence) + scaledG * influence;
-                targetB = 1.0 * (1 - influence) + scaledB * influence;
-            }
-
-            // Smooth lerp toward target
-            const lerpFactor = Math.min(1.0, deltaTime * WeaponViewManager.LIGHT_LERP_SPEED);
-            this.currentLightR += (targetR - this.currentLightR) * lerpFactor;
-            this.currentLightG += (targetG - this.currentLightG) * lerpFactor;
-            this.currentLightB += (targetB - this.currentLightB) * lerpFactor;
-
-            // Apply smoothed lighting to weapon materials (all use StandardMaterial now)
-            for (const mesh of this.currentWeapon.meshes) {
-                const mat = mesh.material as StandardMaterial;
-                if (mat?.diffuseColor) {
-                    mat.diffuseColor.set(this.currentLightR, this.currentLightG, this.currentLightB);
-                }
-            }
-        } catch {
-            // BspManager not available - use default lighting
-        }
+        this.weaponLighting.update(deltaTime, this.scene, this.currentWeapon.meshes);
     }
 
     private checkCVarChanges(): void {
