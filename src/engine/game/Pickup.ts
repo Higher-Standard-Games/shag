@@ -532,9 +532,8 @@ export class Pickup extends TransformNode {
 
         // Defer visual changes to next frame to avoid render state conflicts
         requestAnimationFrame(() => {
-            if (this.mesh) {
-                this.mesh.setEnabled(false);
-            }
+            // Disable entire Pickup node (cascades to ALL child meshes — GLB has multiple)
+            this.setEnabled(false);
 
             // Disable glow light to prevent visual artifacts
             if (this.glowLight) this.glowLight.setEnabled(false);
@@ -549,9 +548,8 @@ export class Pickup extends TransformNode {
 
     private respawn() {
         this.isActive = true;
-        if (this.mesh) {
-            this.mesh.setEnabled(true);
-        }
+        // Re-enable entire Pickup node (cascades to ALL child meshes)
+        this.setEnabled(true);
         // Re-enable glow light
         if (this.glowLight) this.glowLight.setEnabled(true);
         // Play respawn sound?

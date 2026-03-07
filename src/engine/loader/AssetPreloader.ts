@@ -55,9 +55,13 @@ export class AssetPreloader {
      * Clear the cache (call when unloading map)
      */
     clearCache(): void {
-        // Dispose all cached model roots
+        // Dispose all cached model roots and meshes
         for (const [path, result] of this.modelCache) {
             console.log(`[AssetPreloader] Disposing cached model: ${path}`);
+            // Dispose individual meshes (GLB meshes may not be children of root)
+            for (const mesh of result.meshes) {
+                mesh.dispose();
+            }
             result.root.dispose();
         }
         this.modelCache.clear();
@@ -157,8 +161,15 @@ export class AssetPreloader {
                         await Promise.all((result as any).textureLoadPromises);
                     }
 
-                    // Hide the preloaded model (it's just for caching)
+                    // Hide the preloaded model (it's just for caching).
+                    // For GLB models, setEnabled(false) on the root __root__ mesh does NOT
+                    // cascade to real weapon meshes (they're children of TransformNodes,
+                    // not children of the __root__ mesh). Explicitly disable every mesh.
                     result.root.setEnabled(false);
+                    for (const mesh of result.meshes) {
+                        mesh.setEnabled(false);
+                        mesh.isVisible = false;
+                    }
                     this.modelCache.set(modelPath, result);
                 }
             } catch (e) {
