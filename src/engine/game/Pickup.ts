@@ -6,9 +6,6 @@ import { ModelLoader } from "../loader/model/ModelLoader";
 import { InventoryManager } from "./InventoryManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { getCollisionManager } from "../physics";
-import { PhysicsSystem } from "../physics/PhysicsSystem";
-import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 
 import { AudioManager } from "../AudioManager";
@@ -119,55 +116,31 @@ export class Pickup extends TransformNode {
 
                 this.mesh = result.meshes[0]; // Keep reference to one mesh for bobbing
 
-
                 // Create glow light if glowColor is defined
-
                 if (this.options.glowColor) {
                     // this.createGlowLight(); // Disabled for testing
-                } else {
-
                 }
 
-                // PHYSICS IMPLEMENTATION (Havok)
-                const physics = PhysicsSystem.getInstance();
+                // Map spawn pickups: drop to floor + bob/rotate (classic Quake-style).
+                // Havok tumble physics caused floating due to hierarchy issues and is only
+                // appropriate for DroppedWeaponRenderer (weapon drops from kills).
+                if (this.options.gravity) {
+                    this.dropToGround();
+                }
 
-                if (physics.isInitialized()) {
-                    if (this.mesh instanceof Mesh) {
-                        physics.createDynamicBody(this.mesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
-                    }
+                // Bobbing + rotation animation (always-on for map pickups)
+                this.getScene().onBeforeRenderObservable.add(() => {
+                    if (this.isActive && this.mesh) {
+                        const dt = this.getScene().getEngine().getDeltaTime() / 1000;
+                        const enableBob = this.options.bobbing !== false;
 
-                    // Add random rotation tumble
-                    if (this.mesh && this.mesh.physicsBody) {
-                        const randomRot = new Vector3(
-                            (Math.random() - 0.5) * 10,
-                            (Math.random() - 0.5) * 10,
-                            (Math.random() - 0.5) * 10
-                        );
-                        this.mesh.physicsBody.setAngularVelocity(randomRot);
-                    }
-
-                } else {
-                    console.warn(`[Pickup] Physics NOT initialized - falling back to bobbing`);
-                    // Fallback to legacy logic if physics unavailable (shouldn't happen now)
-                    if (this.options.gravity) {
-                        this.dropToGround();
-                    }
-
-                    // Only enable bobbing if physics is OFF
-                    this.getScene().onBeforeRenderObservable.add(() => {
-                        if (this.isActive && this.mesh) {
-                            const dt = this.getScene().getEngine().getDeltaTime() / 1000;
-                            // Default to true unless explicitly false
-                            const enableBob = this.options.bobbing !== false;
-
-                            if (enableBob) {
-                                this.mesh.rotation.y += this.rotationSpeed * dt;
-                                const time = Date.now() / 1000;
-                                this.mesh.position.y = Math.sin(time * this.bobSpeed) * this.bobHeight;
-                            }
+                        if (enableBob) {
+                            this.mesh.rotation.y += this.rotationSpeed * dt;
+                            const time = Date.now() / 1000;
+                            this.mesh.position.y = Math.sin(time * this.bobSpeed) * this.bobHeight;
                         }
-                    });
-                }
+                    }
+                });
 
                 // Setup collision check and glow light pulse
                 this.getScene().onBeforeRenderObservable.add(() => {
@@ -561,10 +534,6 @@ export class Pickup extends TransformNode {
         requestAnimationFrame(() => {
             if (this.mesh) {
                 this.mesh.setEnabled(false);
-                // Disable physics body to prevent simulation artifacts
-                if (this.mesh.physicsBody) {
-                    this.mesh.physicsBody.setMotionType(2); // STATIC - stops simulation
-                }
             }
 
             // Disable glow light to prevent visual artifacts
@@ -582,10 +551,6 @@ export class Pickup extends TransformNode {
         this.isActive = true;
         if (this.mesh) {
             this.mesh.setEnabled(true);
-            // Re-enable physics body
-            if (this.mesh.physicsBody) {
-                this.mesh.physicsBody.setMotionType(1); // DYNAMIC - resumes simulation
-            }
         }
         // Re-enable glow light
         if (this.glowLight) this.glowLight.setEnabled(true);
