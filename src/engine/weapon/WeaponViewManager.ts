@@ -14,8 +14,7 @@ import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
+
 import { getMD3Loader, MD3LoadResult, MD3Coords } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { PK3TextureLoader } from '../loader/pk3/PK3TextureLoader';
@@ -28,6 +27,7 @@ import { getHitscanEffects } from './HitscanEffects';
 import { WeaponBarrels } from './WeaponBarrels';
 import { WeaponSwitchAnim } from './WeaponSwitchAnim';
 import { WeaponReloadAnim } from './WeaponReloadAnim';
+import { WeaponSlash } from './WeaponSlash';
 
 
 // Weapon position presets
@@ -71,61 +71,6 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
 
-// === Slash Animation Definitions ===
-
-/** Parameters for a single slash animation swing */
-interface SlashParams {
-    // Rotation offsets (radians) at swing start and end
-    startPitch: number;   // X rotation at swing start
-    startRoll: number;    // Z rotation at swing start
-    endPitch: number;     // X rotation at swing end
-    endRoll: number;      // Z rotation at swing end
-    startYaw: number;     // Y rotation at start (0 for most slashes)
-    endYaw: number;       // Y rotation at end
-
-    // Position offsets at swing start and end
-    startOffset: { x: number; y: number; z: number };
-    endOffset: { x: number; y: number; z: number };
-
-    // Timing (ms)
-    windupDuration: number;   // move to start pose
-    swingDuration: number;    // the actual slash (fast)
-    returnDuration: number;   // ease back to idle
-}
-
-/** Slash animation presets — cycled/randomized on each fire */
-const SLASH_PRESETS: SlashParams[] = [
-    // Slash 1: Big vertical down — raised high, sweeps down with lunge
-    {
-        startPitch: 0, startRoll: -2.0, startYaw: 0,
-        endPitch: 0, endRoll: 1.4, endYaw: 0,
-        startOffset: { x: 5, y: 30, z: -15 },    // raised way up, pulled back
-        endOffset: { x: -5, y: -25, z: 18 },    // swept down, lunged forward hard
-        windupDuration: 60,
-        swingDuration: 160,
-        returnDuration: 230,
-    },
-    // Slash 2: Diagonal upper-right to lower-left
-    {
-        startPitch: 0.7, startRoll: -1.8, startYaw: -0.4,
-        endPitch: -0.7, endRoll: 1.2, endYaw: 0.4,
-        startOffset: { x: -12, y: 28, z: -12 },
-        endOffset: { x: 12, y: -22, z: 15 },
-        windupDuration: 55,
-        swingDuration: 165,
-        returnDuration: 230,
-    },
-    // Slash 3: Diagonal upper-left to lower-right
-    {
-        startPitch: -0.7, startRoll: -1.8, startYaw: 0.4,
-        endPitch: 0.7, endRoll: 1.2, endYaw: -0.4,
-        startOffset: { x: 12, y: 28, z: -12 },
-        endOffset: { x: -12, y: -22, z: 15 },
-        windupDuration: 55,
-        swingDuration: 165,
-        returnDuration: 230,
-    },
-];
 
 export class WeaponViewManager {
     private static instance: WeaponViewManager;
@@ -252,13 +197,8 @@ export class WeaponViewManager {
     private savedOutlineColor: Color3 = new Color3(0, 0, 0);
     private savedOutlineEnabled: boolean = false;
 
-    // === Slash Animation System ===
-    private slashState: {
-        active: boolean;
-        startTime: number;       // performance.now() when triggered
-        params: SlashParams;     // current animation parameters
-    } = { active: false, startTime: 0, params: SLASH_PRESETS[0] };
-    private slashPresetIndex: number = 0;  // cycles through presets
+    // Slash animation (extracted)
+    private weaponSlash = new WeaponSlash();
 
 
 
@@ -1008,7 +948,7 @@ export class WeaponViewManager {
         getHitscanEffects().update(deltaTime);
 
         // Update slash trail effect
-        this.updateSlashTrail();
+        this.weaponSlash.updateTrail(this.scene, this.mainCamera);
     }
 
     /**
@@ -1224,7 +1164,7 @@ export class WeaponViewManager {
         const switchOffsets = this.getSwitchAnimationOffsets();
 
         // Get slash animation offsets (melee weapons)
-        const slashOffsets = this.getSlashAnimationOffsets();
+        const slashOffsets = this.weaponSlash.getOffsets();
 
         // Apply position offset (bob + jump/land + ADS + recoil + reload + switch + charge shake + slash)
         root.position.set(
@@ -1248,223 +1188,7 @@ export class WeaponViewManager {
         );
     }
 
-    /**
-     * Get slash animation offsets for melee weapons.
-     * 3-phase animation: windup → swing → return to idle.
-     * Uses easeOut for swing (fast start, decel), easeInOut for return.
-     */
-    private getSlashAnimationOffsets(): {
-        xOffset: number; yOffset: number; zOffset: number;
-        pitch: number; yaw: number; roll: number;
-    } {
-        const zero = { xOffset: 0, yOffset: 0, zOffset: 0, pitch: 0, yaw: 0, roll: 0 };
-        if (!this.slashState.active) return zero;
 
-        const now = performance.now();
-        const elapsed = now - this.slashState.startTime;
-        const p = this.slashState.params;
-        const totalDuration = p.windupDuration + p.swingDuration + p.returnDuration;
-
-        if (elapsed >= totalDuration) {
-            this.slashState.active = false;
-            return zero;
-        }
-
-        let t: number; // 0-1 interpolation
-        let fromPitch: number, fromRoll: number, fromYaw: number;
-        let toPitch: number, toRoll: number, toYaw: number;
-        let fromX: number, fromY: number, fromZ: number;
-        let toX: number, toY: number, toZ: number;
-
-        if (elapsed < p.windupDuration) {
-            // Phase 1: Windup — idle to start pose
-            t = p.windupDuration > 0 ? elapsed / p.windupDuration : 1;
-            t = t * t; // easeIn (accelerate into start)
-            fromPitch = 0; fromRoll = 0; fromYaw = 0;
-            toPitch = p.startPitch; toRoll = p.startRoll; toYaw = p.startYaw;
-            fromX = 0; fromY = 0; fromZ = 0;
-            toX = p.startOffset.x; toY = p.startOffset.y; toZ = p.startOffset.z;
-        } else if (elapsed < p.windupDuration + p.swingDuration) {
-            // Phase 2: Swing — start pose to end pose (fast, easeOut)
-            t = (elapsed - p.windupDuration) / p.swingDuration;
-            t = 1 - (1 - t) * (1 - t); // easeOut (fast start, decel)
-            fromPitch = p.startPitch; fromRoll = p.startRoll; fromYaw = p.startYaw;
-            toPitch = p.endPitch; toRoll = p.endRoll; toYaw = p.endYaw;
-            fromX = p.startOffset.x; fromY = p.startOffset.y; fromZ = p.startOffset.z;
-            toX = p.endOffset.x; toY = p.endOffset.y; toZ = p.endOffset.z;
-        } else {
-            // Phase 3: Return — end pose back to idle (smooth, easeInOut)
-            t = (elapsed - p.windupDuration - p.swingDuration) / p.returnDuration;
-            t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOut
-            fromPitch = p.endPitch; fromRoll = p.endRoll; fromYaw = p.endYaw;
-            toPitch = 0; toRoll = 0; toYaw = 0;
-            fromX = p.endOffset.x; fromY = p.endOffset.y; fromZ = p.endOffset.z;
-            toX = 0; toY = 0; toZ = 0;
-        }
-
-        return {
-            xOffset: fromX + (toX - fromX) * t,
-            yOffset: fromY + (toY - fromY) * t,
-            zOffset: fromZ + (toZ - fromZ) * t,
-            pitch: fromPitch + (toPitch - fromPitch) * t,
-            yaw: fromYaw + (toYaw - fromYaw) * t,
-            roll: fromRoll + (toRoll - fromRoll) * t,
-        };
-    }
-
-    // === Slash Trail Effect ===
-    private slashTrails: {
-        tipPoints: Vector3[];
-        handlePoints: Vector3[];
-        mesh: Mesh | null;
-        material: StandardMaterial | null;
-        fadeStart: number;         // 0 = still active, >0 = fading
-        active: boolean;           // true = collecting points from current slash
-    }[] = [];
-    private slashTrailWasActive: boolean = false;
-    private static readonly SLASH_TRAIL_FADE_MS = 800;
-
-    /**
-     * Update slash trail effect — supports multiple concurrent trail instances.
-     * Each slash creates a new trail that collects points during animation,
-     * then fades independently.
-     */
-    private updateSlashTrail(): void {
-        if (!this.scene || !this.currentWeapon || !this.mainCamera) return;
-
-        const now = performance.now();
-        const isSlashing = this.slashState.active;
-
-        // Edge detect: new slash started → create fresh trail instance
-        if (isSlashing && !this.slashTrailWasActive) {
-            // Finalize any previous active trail (start its fade)
-            for (const trail of this.slashTrails) {
-                if (trail.active) {
-                    trail.active = false;
-                    trail.fadeStart = now;
-                }
-            }
-            // Create new trail instance
-            this.slashTrails.push({
-                tipPoints: [],
-                handlePoints: [],
-                mesh: null,
-                material: null,
-                fadeStart: 0,
-                active: true,
-            });
-        }
-        this.slashTrailWasActive = isSlashing;
-
-        // Collect points for the active trail
-        const activeTrail = this.slashTrails.find(t => t.active);
-        if (activeTrail && isSlashing) {
-            const cam = this.mainCamera;
-            const forward = cam.getDirection(Vector3.Forward());
-            const up = cam.getDirection(Vector3.Up());
-            const right = cam.getDirection(Vector3.Right());
-
-            const slashOff = this.getSlashAnimationOffsets();
-
-            // Handle (pivot) — barely moves
-            const handle = cam.position.clone()
-                .addInPlace(forward.scale(15))
-                .addInPlace(up.scale(-4))
-                .addInPlace(right.scale(2))
-                .addInPlace(up.scale(slashOff.yOffset * 0.04))
-                .addInPlace(right.scale(slashOff.xOffset * 0.04));
-
-            // Tip — sweeps wide
-            const tip = cam.position.clone()
-                .addInPlace(forward.scale(28))
-                .addInPlace(up.scale(5))
-                .addInPlace(right.scale(-2))
-                .addInPlace(up.scale(slashOff.yOffset * 0.25))
-                .addInPlace(right.scale(slashOff.xOffset * 0.25))
-                .addInPlace(forward.scale(slashOff.zOffset * 0.1));
-
-            activeTrail.tipPoints.push(tip);
-            activeTrail.handlePoints.push(handle);
-
-            // Build ribbon mesh during animation (visible immediately!)
-            if (activeTrail.tipPoints.length >= 2) {
-                this.buildTrailMesh(activeTrail);
-            }
-        }
-
-        // When slash ends, start fading the active trail
-        if (!isSlashing && activeTrail) {
-            activeTrail.active = false;
-            activeTrail.fadeStart = now;
-        }
-
-        // Update fading trails + clean up finished ones
-        for (let i = this.slashTrails.length - 1; i >= 0; i--) {
-            const trail = this.slashTrails[i];
-            if (trail.active) continue; // Still collecting points
-
-            if (trail.fadeStart > 0) {
-                const fadeProgress = (now - trail.fadeStart) / WeaponViewManager.SLASH_TRAIL_FADE_MS;
-                if (fadeProgress >= 1.0) {
-                    // Fully faded — dispose and remove
-                    if (trail.mesh) trail.mesh.dispose();
-                    if (trail.material) trail.material.dispose();
-                    this.slashTrails.splice(i, 1);
-                } else {
-                    // Fade alpha
-                    if (trail.material) {
-                        trail.material.alpha = 0.7 * (1.0 - fadeProgress);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Build/rebuild ribbon mesh for a specific trail instance.
-     */
-    private buildTrailMesh(trail: typeof this.slashTrails[0]): void {
-        if (!this.scene || trail.tipPoints.length < 2) return;
-
-        if (trail.mesh) {
-            trail.mesh.dispose();
-            trail.mesh = null;
-        }
-
-        trail.mesh = MeshBuilder.CreateRibbon('slashTrail', {
-            pathArray: [trail.tipPoints, trail.handlePoints],
-            updatable: false,
-            sideOrientation: Mesh.DOUBLESIDE,
-        }, this.scene);
-        trail.mesh.isPickable = false;
-
-        if (!trail.material) {
-            const mat = new StandardMaterial('slashTrailMat', this.scene);
-            mat.emissiveColor = new Color3(1.0, 0.15, 0.05);
-            mat.diffuseColor = Color3.Black();
-            mat.disableLighting = true;
-            mat.backFaceCulling = false;
-            mat.alpha = 0.7;
-            trail.material = mat;
-        }
-        trail.material.alpha = 0.7;
-        trail.mesh.material = trail.material;
-    }
-
-    /**
-     * Clean up all slash trails.
-     */
-    private disposeSlashTrail(): void {
-        for (const trail of this.slashTrails) {
-            if (trail.mesh) trail.mesh.dispose();
-            if (trail.material) trail.material.dispose();
-        }
-        this.slashTrails = [];
-    }
-
-    /**
-     * Sample BSP lightgrid at camera position and apply to weapon materials (smoothed)
-     */
     private updateLightingFromBsp(deltaTime: number): void {
         if (!this.currentWeapon || !this.scene) return;
 
@@ -1594,13 +1318,7 @@ export class WeaponViewManager {
 
         // Trigger slash animation for melee weapons (skip for charged projectile fire)
         if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
-            const preset = SLASH_PRESETS[this.slashPresetIndex % SLASH_PRESETS.length];
-            this.slashPresetIndex++;
-            this.slashState = {
-                active: true,
-                startTime: performance.now(),
-                params: preset,
-            };
+            this.weaponSlash.trigger();
         }
 
         // Spawn projectile OR hitscan effect
