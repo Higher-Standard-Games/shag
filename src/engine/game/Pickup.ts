@@ -111,6 +111,10 @@ export class Pickup extends TransformNode {
                         m.rotation.setAll(0);
                         m.isVisible = true;
                         m.scaling.setAll(pickupScale);
+                        // Cap lights to prevent shader uniform block overflow
+                        if (m.material && 'maxSimultaneousLights' in m.material) {
+                            (m.material as any).maxSimultaneousLights = 4;
+                        }
                     }
                 }
 

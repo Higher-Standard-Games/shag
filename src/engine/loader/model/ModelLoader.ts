@@ -257,6 +257,7 @@ export class ModelLoader {
           if (mesh.material) {
             if (mesh.material instanceof PBRMaterial) {
               mesh.material.usePhysicalLightFalloff = false;
+              mesh.material.maxSimultaneousLights = 4;
               // NOTE: Don't freeze here - will be frozen after applyBspLighting to avoid flicker
             }
             // StandardMaterial works with clustered lights by default

@@ -140,6 +140,13 @@ export class AssetPreloader {
                     const root = glbResult.meshes[0] as any;
                     const meshes = glbResult.meshes.filter(m => m.getTotalVertices() > 0) as Mesh[];
 
+                    // Cap maxSimultaneousLights on PBR materials to prevent shader overflow
+                    for (const m of glbResult.meshes) {
+                        if (m.material && 'maxSimultaneousLights' in m.material) {
+                            (m.material as any).maxSimultaneousLights = 4;
+                        }
+                    }
+
                     result = {
                         root,
                         meshes,
