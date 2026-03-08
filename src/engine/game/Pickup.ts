@@ -161,37 +161,29 @@ export class Pickup extends TransformNode {
 
                 if (leaderMesh) {
                     console.log(`[Pickup] leaderMesh found: ${leaderMesh.name}, vertices=${leaderMesh.getTotalVertices()}, others=${otherMeshes.length}`);
-                    // CRITICAL: Do NOT parent leader mesh to this Pickup node.
-                    // Havok physics bodies require root-level meshes (no parent).
-                    // Parenting causes world/local transform desync on respawn.
-                    leaderMesh.parent = null;
-                    // Place at Pickup's world position directly
-                    leaderMesh.position.copyFrom(this.getAbsolutePosition());
-                    leaderMesh.rotationQuaternion = null;
-                    leaderMesh.rotation.setAll(0);
+                    // Position the root container at the Pickup's world position.
+                    // Keep the GLB hierarchy intact — detaching meshes can break
+                    // material/texture references in cloned GLBs.
+                    if (result.root) {
+                        result.root.parent = null;
+                        result.root.position.copyFrom(this.getAbsolutePosition());
+                        if ((result.root as any).rotationQuaternion !== undefined) {
+                            (result.root as any).rotationQuaternion = null;
+                        }
+                        (result.root as any).rotation = Vector3.Zero();
+                        result.root.setEnabled(true);
+                    }
+
+                    // Ensure leader mesh is visible and properly scaled
                     leaderMesh.isVisible = true;
                     leaderMesh.scaling.setAll(pickupScale);
 
-                    // Parent all other meshes under the LEADER (not `this`)
-                    // so they follow when Havok moves the leader
+                    // Make all other meshes visible
                     for (const m of otherMeshes) {
-                        m.parent = leaderMesh;
-                        m.position.setAll(0);
-                        m.rotationQuaternion = null;
-                        m.rotation.setAll(0);
                         m.isVisible = true;
-                        // Don't scale again — they inherit leader's scale
                     }
 
                     this.mesh = leaderMesh;
-                }
-
-                // Detach loader root from scene hierarchy without disposing children.
-                // GLB __root__ may contain intermediate TransformNodes (armatures, bones)
-                // that still parent our re-parented meshes. dispose() would cascade-kill them.
-                if (result.root) {
-                    result.root.parent = null;
-                    result.root.setEnabled(false);
                 }
 
                 // Create glow light if glowColor is defined
