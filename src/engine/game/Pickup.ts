@@ -94,7 +94,8 @@ export class Pickup extends TransformNode {
                 result = await loader.loadModel(this.options.modelPath, {
                     position: Vector3.Zero(), // Relative to this node
                     scale: this.options.scale || 1.0,
-                    hasCollision: false
+                    hasCollision: false,
+                    applyLighting: false, // Pickups don't need per-model lights (prevents shader overflow)
                 });
             }
 

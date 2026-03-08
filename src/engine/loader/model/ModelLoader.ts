@@ -38,6 +38,9 @@ export interface ModelLoadOptions {
   visible?: boolean;
   /** Rendering group ID for layer ordering (default: 0) */
   renderingGroupId?: number;
+  /** Apply BSP lighting (creates DirectionalLight per model). Default: true.
+   *  Set false for small items (pickups) to avoid exceeding GL_MAX_VERTEX_UNIFORM_BUFFERS */
+  applyLighting?: boolean;
 }
 
 /**
@@ -138,6 +141,7 @@ export class ModelLoader {
       shadowGenerator = null,
       visible = true,
       renderingGroupId = 0,
+      applyLighting = true,
     } = options;
 
     try {
@@ -187,10 +191,10 @@ export class ModelLoader {
               }
             }
 
-            // Apply lighting
-            const lights = this.applyBspLighting(root.position, meshes);
+            // Apply lighting (skip for small items to avoid exceeding light limits)
+            const lights = applyLighting ? this.applyBspLighting(root.position, meshes) : [];
 
-            console.log(`Loaded MD3 model: ${modelPath} (${meshes.length} meshes)`);
+            console.log(`Loaded MD3 model: ${modelPath} (${meshes.length} meshes, lights=${lights.length})`);
 
             return {
               root,
@@ -275,8 +279,8 @@ export class ModelLoader {
       const animationGroups: AnimationGroup[] = result.animationGroups || [];
       const skeletons: Skeleton[] = result.skeletons || [];
 
-      // Apply BSP LightGrid lighting (Advanced: Ambient + Directional)
-      const lights = this.applyBspLighting(root.position, meshes);
+      // Apply BSP LightGrid lighting (skip for small items to avoid exceeding light limits)
+      const lights = applyLighting ? this.applyBspLighting(root.position, meshes) : [];
 
       // Debug: Log mesh bounds
       for (const mesh of meshes) {

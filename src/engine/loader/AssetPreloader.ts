@@ -159,6 +159,7 @@ export class AssetPreloader {
                         position: new Vector3(0, -10000, 0), // Load offscreen
                         scale: 1.0,
                         hasCollision: false,
+                        applyLighting: false, // Preloaded models don't need per-model lights
                     });
                 }
 
