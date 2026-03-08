@@ -68,11 +68,13 @@ export class Pickup extends TransformNode {
         this.options = options;
         this.position = position;
 
-        // Register for server-driven deactivation
-        Pickup.allPickups.push(this);
-
-        // Check deferred deactivation queue — if server already picked this up before we existed
-        Pickup.checkDeferredDeactivation(this);
+        // Only register map-spawn pickups (no entityId) for server-driven deactivation.
+        // Dropped weapons (with entityId) are managed by DroppedWeaponRenderer.
+        if (!options.entityId) {
+            Pickup.allPickups.push(this);
+            // Check deferred deactivation queue — if server already picked this up before we existed
+            Pickup.checkDeferredDeactivation(this);
+        }
 
         this.loadModel();
     }
@@ -606,11 +608,13 @@ export class Pickup extends TransformNode {
             if (this.glowLight) this.glowLight.setEnabled(false);
         });
 
-        // Respawn
-        const respawnTime = (this.options.respawnTime || 30) * 1000;
-        this.respawnTimer = window.setTimeout(() => {
-            this.respawn();
-        }, respawnTime);
+        // Respawn only for map spawns with respawnTime > 0
+        const respawnTime = this.options.respawnTime;
+        if (respawnTime && respawnTime > 0) {
+            this.respawnTimer = window.setTimeout(() => {
+                this.respawn();
+            }, respawnTime * 1000);
+        }
     }
 
     private respawn() {
@@ -620,8 +624,10 @@ export class Pickup extends TransformNode {
 
         // Re-enable physics body for respawn drop
         if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
-            // Reset mesh to original spawn position
+            // Reset mesh to Pickup's world position — Havok needs world-space transform
             this.mesh.position.setAll(0);
+            // Let Babylon sync the mesh transform to Havok before next step
+            (this.mesh as Mesh).physicsBody!.disablePreStep = false;
             (this.mesh as Mesh).physicsBody!.setMotionType(1); // DYNAMIC
             // Give a small upward velocity + tumble for visual feedback
             (this.mesh as Mesh).physicsBody!.setLinearVelocity(new Vector3(0, 5, 0));
