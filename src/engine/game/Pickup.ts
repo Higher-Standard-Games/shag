@@ -3,7 +3,6 @@ import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Ray } from "@babylonjs/core/Culling/ray";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { ModelLoader } from "../loader/model/ModelLoader";
 import { InventoryManager } from "./InventoryManager";
 import { CameraSystem } from "../camera/CameraSystem";
@@ -35,9 +34,7 @@ export interface PickupOptions {
 
 export class Pickup extends TransformNode {
     private options: PickupOptions;
-    private mesh: TransformNode | null = null;
-    /** Invisible proxy box for Havok physics (unparented, world-space) */
-    private physicsProxy: Mesh | null = null;
+    private mesh: Mesh | null = null;
     private isActive: boolean = true;
     private respawnTimer: number | null = null;
     private glowLight: PointLight | null = null;
@@ -102,24 +99,49 @@ export class Pickup extends TransformNode {
             if (result && result.root) {
                 const pickupScale = this.options.scale || 1.5;
 
-                // Parent all renderable meshes directly under this Pickup node.
-                // Works for both MD3 (single mesh) and GLB (multiple meshes).
+                // Find the leader mesh (first renderable) and parent ALL other
+                // meshes under it. Havok CONVEX_HULL is applied directly to the
+                // leader — child meshes follow via parenting. This is identical
+                // to how MD3 (single mesh) always worked.
+                let leaderMesh: Mesh | null = null;
+                const otherMeshes: Mesh[] = [];
+
                 for (const m of result.meshes) {
                     if (m instanceof Mesh) {
-                        m.parent = this;
-                        m.position.setAll(0);
-                        m.rotationQuaternion = null;
-                        m.rotation.setAll(0);
-                        m.isVisible = true;
-                        m.scaling.setAll(pickupScale);
                         // Cap lights to prevent shader uniform block overflow
                         if (m.material && 'maxSimultaneousLights' in m.material) {
                             (m.material as any).maxSimultaneousLights = 4;
                         }
+                        if (!leaderMesh) {
+                            leaderMesh = m;
+                        } else {
+                            otherMeshes.push(m);
+                        }
                     }
                 }
 
-                this.mesh = result.meshes[0] || null;
+                if (leaderMesh) {
+                    // Leader mesh parented to this Pickup node
+                    leaderMesh.parent = this;
+                    leaderMesh.position.setAll(0);
+                    leaderMesh.rotationQuaternion = null;
+                    leaderMesh.rotation.setAll(0);
+                    leaderMesh.isVisible = true;
+                    leaderMesh.scaling.setAll(pickupScale);
+
+                    // Parent all other meshes under the LEADER (not `this`)
+                    // so they follow when Havok moves the leader
+                    for (const m of otherMeshes) {
+                        m.parent = leaderMesh;
+                        m.position.setAll(0);
+                        m.rotationQuaternion = null;
+                        m.rotation.setAll(0);
+                        m.isVisible = true;
+                        // Don't scale again — they inherit leader's scale
+                    }
+
+                    this.mesh = leaderMesh;
+                }
 
                 // Dispose the loader's root (and any orphaned __root__ / TransformNodes)
                 if (result.root) {
@@ -131,44 +153,22 @@ export class Pickup extends TransformNode {
                     // this.createGlowLight(); // Disabled for testing
                 }
 
-                // PHYSICS: Create invisible proxy box for Havok.
-                // Havok moves meshes in world-space, ignoring Babylon parent hierarchy.
-                // The proxy is NOT parented — Havok controls it directly.
-                // Each frame we sync proxy position+rotation → this Pickup node,
-                // and child meshes follow naturally via parenting.
+                // PHYSICS: Apply Havok CONVEX_HULL directly to the leader mesh.
+                // Same approach as original MD3 — Havok controls the visual mesh
+                // directly. No proxy box, no position sync needed.
                 const physics = PhysicsSystem.getInstance();
-                if (physics.isInitialized()) {
-                    const proxy = MeshBuilder.CreateBox(
-                        `pickup_${this.options.id}_physics`,
-                        { width: 16 * pickupScale, height: 8 * pickupScale, depth: 32 * pickupScale },
-                        this.getScene(),
-                    );
-                    proxy.position = this.position.clone();
-                    proxy.isVisible = false;
-                    proxy.isPickable = false;
-                    this.physicsProxy = proxy;
+                if (physics.isInitialized() && leaderMesh) {
+                    physics.createDynamicBody(leaderMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
 
-                    physics.createDynamicBody(proxy, PhysicsShapeType.BOX, 10, 0.3);
-
-                    // Add random rotation tumble for visual appeal
-                    if (proxy.physicsBody) {
+                    // Random tumble for visual appeal
+                    if (leaderMesh.physicsBody) {
                         const randomRot = new Vector3(
                             (Math.random() - 0.5) * 10,
                             (Math.random() - 0.5) * 10,
                             (Math.random() - 0.5) * 10
                         );
-                        proxy.physicsBody.setAngularVelocity(randomRot);
+                        leaderMesh.physicsBody.setAngularVelocity(randomRot);
                     }
-
-                    // Per-frame sync: proxy world-space → Pickup node
-                    this.getScene().onBeforeRenderObservable.add(() => {
-                        if (this.physicsProxy && this.isActive) {
-                            this.position.copyFrom(this.physicsProxy.position);
-                            if (this.physicsProxy.rotationQuaternion) {
-                                this.rotationQuaternion = this.physicsProxy.rotationQuaternion.clone();
-                            }
-                        }
-                    });
                 } else {
                     // Fallback if physics unavailable
                     console.warn(`[Pickup] Physics NOT initialized — using dropToGround fallback`);
@@ -570,9 +570,9 @@ export class Pickup extends TransformNode {
             // Disable entire Pickup node (cascades to ALL child meshes)
             this.setEnabled(false);
 
-            // Freeze physics proxy to stop simulation
-            if (this.physicsProxy?.physicsBody) {
-                this.physicsProxy.physicsBody.setMotionType(2); // STATIC
+            // Freeze physics body on the mesh to stop simulation
+            if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
+                (this.mesh as Mesh).physicsBody!.setMotionType(2); // STATIC
             }
 
             // Disable glow light to prevent visual artifacts
@@ -591,19 +591,19 @@ export class Pickup extends TransformNode {
         // Re-enable entire Pickup node (cascades to ALL child meshes)
         this.setEnabled(true);
 
-        // Re-enable physics proxy for respawn drop
-        if (this.physicsProxy?.physicsBody) {
-            // Reset proxy to Pickup's current position before reactivating
-            this.physicsProxy.position.copyFrom(this.position);
-            this.physicsProxy.physicsBody.setMotionType(1); // DYNAMIC
+        // Re-enable physics body for respawn drop
+        if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
+            // Reset mesh to original spawn position
+            this.mesh.position.setAll(0);
+            (this.mesh as Mesh).physicsBody!.setMotionType(1); // DYNAMIC
             // Give a small upward velocity + tumble for visual feedback
-            this.physicsProxy.physicsBody.setLinearVelocity(new Vector3(0, 5, 0));
+            (this.mesh as Mesh).physicsBody!.setLinearVelocity(new Vector3(0, 5, 0));
             const randomRot = new Vector3(
                 (Math.random() - 0.5) * 8,
                 (Math.random() - 0.5) * 8,
                 (Math.random() - 0.5) * 8
             );
-            this.physicsProxy.physicsBody.setAngularVelocity(randomRot);
+            (this.mesh as Mesh).physicsBody!.setAngularVelocity(randomRot);
         }
 
         // Re-enable glow light
