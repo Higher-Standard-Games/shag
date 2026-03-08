@@ -24,12 +24,18 @@ export interface PickupOptions {
     modelPath: string; // e.g. models/items/ammo/ammobox/ammobox.md3
     type: 'weapon' | 'ammo' | 'health' | 'armor';
     value: string | number; // weaponId (string) or amount (number)
-    respawnTime?: number; // seconds, default 30
+    respawnTime?: number; // seconds, default 30. Use 0 for no respawn (dropped items).
     scale?: number;
     amount?: number; // For ammo
     gravity?: boolean; // Attempt to drop to floor
     bobbing?: boolean; // Enable/disable bobbing/rotation (default true)
     glowColor?: { r: number; g: number; b: number }; // Optional glow light color (RGB 0-1)
+    /** Initial velocity for toss arc. If set, item is thrown (weapon drop). If not set, item drops in place (map spawn). */
+    velocity?: Vector3;
+    /** Network entity ID (e.g. 'item_50001') for server sync. */
+    entityId?: string;
+    /** Ammo count for dropped weapons. If set, pickup gives this amount instead of default. */
+    ammoCount?: number;
 }
 
 export class Pickup extends TransformNode {
@@ -38,8 +44,13 @@ export class Pickup extends TransformNode {
     private isActive: boolean = true;
     private respawnTimer: number | null = null;
     private glowLight: PointLight | null = null;
-
     private glowPulseTime: number = 0;
+
+    /** Whether physics has settled (velocity near zero). Used for server position sync. */
+    public settled: boolean = false;
+
+    /** Whether this pickup has a physics body attached */
+    public hasPhysics: boolean = false;
 
 
     // ═══════════════════════════════════════════════════════════════════
@@ -159,19 +170,35 @@ export class Pickup extends TransformNode {
                 const physics = PhysicsSystem.getInstance();
                 if (physics.isInitialized() && leaderMesh) {
                     physics.createDynamicBody(leaderMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
+                    this.hasPhysics = true;
 
-                    // Random tumble for visual appeal
                     if (leaderMesh.physicsBody) {
-                        const randomRot = new Vector3(
-                            (Math.random() - 0.5) * 10,
-                            (Math.random() - 0.5) * 10,
-                            (Math.random() - 0.5) * 10
-                        );
-                        leaderMesh.physicsBody.setAngularVelocity(randomRot);
+                        if (this.options.velocity) {
+                            // Dropped weapon: apply toss velocity + random tumble
+                            leaderMesh.physicsBody.setLinearVelocity(this.options.velocity);
+                            const randomRot = new Vector3(
+                                (Math.random() - 0.5) * 12,
+                                (Math.random() - 0.5) * 12,
+                                (Math.random() - 0.5) * 12,
+                            );
+                            leaderMesh.physicsBody.setAngularVelocity(randomRot);
+                        } else {
+                            // Map spawn: just random tumble (drops in place)
+                            const randomRot = new Vector3(
+                                (Math.random() - 0.5) * 10,
+                                (Math.random() - 0.5) * 10,
+                                (Math.random() - 0.5) * 10
+                            );
+                            leaderMesh.physicsBody.setAngularVelocity(randomRot);
+                        }
+
+                        // Settle detection: check velocity every 500ms, freeze when < 2
+                        this._scheduleSettleCheck(leaderMesh);
                     }
                 } else {
                     // Fallback if physics unavailable
                     console.warn(`[Pickup] Physics NOT initialized — using dropToGround fallback`);
+                    this.settled = true;
                     if (this.options.gravity) {
                         this.dropToGround();
                     }
@@ -608,15 +635,80 @@ export class Pickup extends TransformNode {
 
         // Re-enable glow light
         if (this.glowLight) this.glowLight.setEnabled(true);
-        // Play respawn sound?
+
+        // Re-enable settle detection
+        this.settled = false;
+        if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
+            this._scheduleSettleCheck(this.mesh as Mesh);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Settle detection + server sync
+    // ═══════════════════════════════════════════════════════════════════
+
+    /** Schedule velocity checks — when speed < 2, mark as settled and freeze physics */
+    private _scheduleSettleCheck(mesh: Mesh): void {
+        const SETTLE_TIMEOUT = 3000; // Force-settle after 3s
+        const spawnTime = Date.now();
+
+        const checkSettle = () => {
+            if (!this.isActive) return;
+            if (this.settled) return;
+
+            // Force-settle after timeout
+            if (Date.now() - spawnTime > SETTLE_TIMEOUT) {
+                this._freezePhysics(mesh);
+                return;
+            }
+
+            if (mesh.physicsBody) {
+                const vel = mesh.physicsBody.getLinearVelocity();
+                if (vel.length() < 2) {
+                    this._freezePhysics(mesh);
+                    return;
+                }
+            }
+
+            setTimeout(checkSettle, 500);
+        };
+        setTimeout(checkSettle, 800);
+    }
+
+    /** Freeze physics body and mark as settled */
+    private _freezePhysics(mesh: Mesh): void {
+        this.settled = true;
+        if (mesh.physicsBody) {
+            mesh.physicsBody.setLinearVelocity(Vector3.Zero());
+            mesh.physicsBody.setAngularVelocity(Vector3.Zero());
+        }
+    }
+
+    /** Lerp this pickup's position toward a target (used for server position convergence after settle) */
+    public lerpToPosition(target: Vector3, factor: number = 0.15): void {
+        if (!this.settled) return; // Don't fight physics during simulation
+        this.position = Vector3.Lerp(this.position, target, factor);
+    }
+
+    /** Remove Havok physics body from this pickup (for cleanup) */
+    public removePhysics(): void {
+        if (this.mesh instanceof Mesh && this.hasPhysics) {
+            PhysicsSystem.getInstance().removeBody(this.mesh.name);
+            this.hasPhysics = false;
+        }
     }
 
     public dispose() {
+        // Unregister from static pickup list
+        const idx = Pickup.allPickups.indexOf(this);
+        if (idx >= 0) Pickup.allPickups.splice(idx, 1);
+
         if (this.respawnTimer) clearTimeout(this.respawnTimer);
         if (this.glowLight) {
             this.glowLight.dispose();
             this.glowLight = null;
         }
+        this.removePhysics();
         super.dispose();
     }
 }
