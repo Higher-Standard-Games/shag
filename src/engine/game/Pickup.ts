@@ -52,12 +52,6 @@ export class Pickup extends TransformNode {
     /** Whether this pickup has a physics body attached */
     public hasPhysics: boolean = false;
 
-    /** Whether dispose() was called — guards against async loadModel completing after disposal */
-    private _disposed: boolean = false;
-
-    /** GLB root container node — kept intact for material/texture references */
-    private _modelRoot: TransformNode | null = null;
-
 
     // ═══════════════════════════════════════════════════════════════════
     // STATIC: Server-driven pickup registry
@@ -87,15 +81,12 @@ export class Pickup extends TransformNode {
 
     private async loadModel() {
         try {
-            console.log(`[Pickup] loadModel START for ${this.name} (${this.options.modelPath}), _disposed=${this._disposed}`);
 
 
             // Check AssetPreloader cache first for instant spawn
             let result = null;
             try {
                 const { AssetPreloader } = await import('../loader/AssetPreloader');
-                // Abort if disposed during await
-                if (this._disposed) return;
                 const preloader = AssetPreloader.getInstance();
                 if (preloader.hasModel(this.options.modelPath)) {
 
@@ -103,12 +94,6 @@ export class Pickup extends TransformNode {
                 }
             } catch {
                 // Preloader not available, continue with fresh load
-            }
-
-            // Abort if disposed during await
-            if (this._disposed) {
-                if (result?.root) result.root.dispose(false, false);
-                return;
             }
 
             // Fall back to fresh loading if not cached
@@ -123,18 +108,6 @@ export class Pickup extends TransformNode {
                     applyLighting: false, // Pickups don't need per-model lights (prevents shader overflow)
                 });
             }
-
-            // CRITICAL: Abort if disposed during async load — prevents orphaned meshes
-            if (this._disposed) {
-                if (result?.root) {
-                    // Clean up ALL loaded meshes before they become orphans
-                    for (const m of (result.meshes || [])) m.dispose(false, false);
-                    result.root.dispose(false, false);
-                }
-                return;
-            }
-
-            console.log(`[Pickup] loadModel result: root=${!!result?.root}, meshes=${result?.meshes?.length}, _disposed=${this._disposed}`);
 
             if (result && result.root) {
                 const pickupScale = this.options.scale || 1.5;
@@ -163,33 +136,37 @@ export class Pickup extends TransformNode {
                 }
 
                 if (leaderMesh) {
-                    console.log(`[Pickup] leaderMesh found: ${leaderMesh.name}, vertices=${leaderMesh.getTotalVertices()}, others=${otherMeshes.length}`);
-                    // Position the root container at the Pickup's world position.
-                    // Keep the GLB hierarchy intact — detaching meshes can break
-                    // material/texture references in cloned GLBs.
-                    if (result.root) {
-                        result.root.parent = null;
-                        result.root.position.copyFrom(this.getAbsolutePosition());
-                        if ((result.root as any).rotationQuaternion !== undefined) {
-                            (result.root as any).rotationQuaternion = null;
-                        }
-                        (result.root as any).rotation = Vector3.Zero();
-                        result.root.setEnabled(true);
-                    }
-
-                    // Ensure leader mesh is visible and properly scaled
+                    // CRITICAL: Do NOT parent leader mesh to this Pickup node.
+                    // Havok physics bodies require root-level meshes (no parent).
+                    // Parenting causes world/local transform desync on respawn.
+                    leaderMesh.parent = null;
+                    // Place at Pickup's world position directly
+                    leaderMesh.position.copyFrom(this.getAbsolutePosition());
+                    leaderMesh.rotationQuaternion = null;
+                    leaderMesh.rotation.setAll(0);
                     leaderMesh.isVisible = true;
                     leaderMesh.scaling.setAll(pickupScale);
 
-                    // Make all other meshes visible
+                    // Parent all other meshes under the LEADER (not `this`)
+                    // so they follow when Havok moves the leader
                     for (const m of otherMeshes) {
+                        m.parent = leaderMesh;
+                        m.position.setAll(0);
+                        m.rotationQuaternion = null;
+                        m.rotation.setAll(0);
                         m.isVisible = true;
+                        // Don't scale again — they inherit leader's scale
                     }
 
                     this.mesh = leaderMesh;
+                }
 
-                    // Store root reference for lifecycle management
-                    this._modelRoot = result.root || null;
+                // Detach loader root from scene hierarchy without disposing children.
+                // GLB __root__ may contain intermediate TransformNodes (armatures, bones)
+                // that still parent our re-parented meshes. dispose() would cascade-kill them.
+                if (result.root) {
+                    result.root.parent = null;
+                    result.root.setEnabled(false);
                 }
 
                 // Create glow light if glowColor is defined
@@ -243,18 +220,19 @@ export class Pickup extends TransformNode {
                     this.updateGlowLight();
                 });
             } else {
-                // No model loaded — just drop to ground
                 if (this.options.gravity) {
                     this.dropToGround();
                 }
             }
-        } catch (e: any) {
+        } catch (e) {
             console.error(`[Pickup] CRITICAL ERROR in loadModel for ${this.name}:`, e);
             if (this.options.gravity) {
                 this.dropToGround();
             }
         }
     }
+
+
 
     /**
      * Update the glow light pulse effect
@@ -552,8 +530,6 @@ export class Pickup extends TransformNode {
 
                     // Use full Vector3 assignment to trigger Babylon.js dirty flags
                     this.position = new Vector3(this.position.x, newY, this.position.z);
-                    // Sync GLB root container position
-                    if (this._modelRoot) (this._modelRoot as any).position?.copyFrom(this.position);
                     // Force world matrix recalculation for parent and ALL children (recursive)
                     this.computeWorldMatrix(true);
                     const updateChildren = (node: any) => {
@@ -602,8 +578,6 @@ export class Pickup extends TransformNode {
 
             // Use full Vector3 assignment to trigger Babylon.js dirty flags
             this.position = new Vector3(this.position.x, newY, this.position.z);
-            // Sync GLB root container position
-            if (this._modelRoot) (this._modelRoot as any).position?.copyFrom(this.position);
             // Force world matrix recalculation for parent and ALL children (recursive)
             this.computeWorldMatrix(true);
             const updateChildren = (node: any) => {
@@ -620,6 +594,7 @@ export class Pickup extends TransformNode {
 
 
     private onPickedUp() {
+
         // Play sound (use static import to avoid async hiccups)
         const soundKey = this.options.type === 'weapon' ? 'weapon_pickup' : 'ammo_pickup';
         AudioManager.getInstance().playSfx(soundKey, 0.5);
@@ -632,13 +607,9 @@ export class Pickup extends TransformNode {
             // Disable Pickup node
             this.setEnabled(false);
 
-            // Hide the leader mesh
+            // Also hide the leader mesh (root-level, not a child of Pickup)
             if (this.mesh) {
                 this.mesh.setEnabled(false);
-            }
-            // Hide the GLB root container (hides all child meshes)
-            if (this._modelRoot) {
-                this._modelRoot.setEnabled(false);
             }
 
             // Freeze physics body on the mesh to stop simulation
@@ -664,15 +635,10 @@ export class Pickup extends TransformNode {
         // Re-enable Pickup node
         this.setEnabled(true);
 
-        // Re-enable and reposition the leader mesh
+        // Re-enable and reposition the leader mesh (root-level, not a child of Pickup)
         if (this.mesh) {
             this.mesh.setEnabled(true);
             this.mesh.isVisible = true;
-        }
-        // Re-enable and reposition the GLB root container
-        if (this._modelRoot) {
-            this._modelRoot.setEnabled(true);
-            (this._modelRoot as any).position?.copyFrom(this.getAbsolutePosition());
         }
 
         // Re-enable physics body for respawn drop
@@ -749,7 +715,6 @@ export class Pickup extends TransformNode {
     public lerpToPosition(target: Vector3, factor: number = 0.15): void {
         if (!this.settled) return; // Don't fight physics during simulation
         this.position = Vector3.Lerp(this.position, target, factor);
-        if (this._modelRoot) (this._modelRoot as any).position?.copyFrom(this.position);
     }
 
     /** Remove Havok physics body from this pickup (for cleanup) */
@@ -761,9 +726,6 @@ export class Pickup extends TransformNode {
     }
 
     public dispose() {
-        // Set disposed flag FIRST — prevents async loadModel from creating orphan meshes
-        this._disposed = true;
-
         // Unregister from static pickup list
         const idx = Pickup.allPickups.indexOf(this);
         if (idx >= 0) Pickup.allPickups.splice(idx, 1);
@@ -775,21 +737,10 @@ export class Pickup extends TransformNode {
         }
         this.removePhysics();
 
-        // Dispose leader mesh
-        // IMPORTANT: do NOT dispose materials (false) — AssetPreloader may share them across clones
+        // Dispose root-level mesh (not a child of this TransformNode since Havok fix)
         if (this.mesh) {
-            const children = this.mesh.getChildMeshes();
-            for (const child of children) {
-                child.dispose(false, false);
-            }
-            this.mesh.dispose(false, false);
+            this.mesh.dispose(false, true); // dispose geometry + materials
             this.mesh = null as any;
-        }
-
-        // Dispose the GLB root container
-        if (this._modelRoot) {
-            this._modelRoot.dispose(false, false);
-            this._modelRoot = null;
         }
 
         super.dispose();
