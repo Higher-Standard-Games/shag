@@ -156,9 +156,12 @@ export class Pickup extends TransformNode {
                     this.mesh = leaderMesh;
                 }
 
-                // Dispose the loader's root (and any orphaned __root__ / TransformNodes)
+                // Detach loader root from scene hierarchy without disposing children.
+                // GLB __root__ may contain intermediate TransformNodes (armatures, bones)
+                // that still parent our re-parented meshes. dispose() would cascade-kill them.
                 if (result.root) {
-                    result.root.dispose(false, false);
+                    result.root.parent = null;
+                    result.root.setEnabled(false);
                 }
 
                 // Create glow light if glowColor is defined

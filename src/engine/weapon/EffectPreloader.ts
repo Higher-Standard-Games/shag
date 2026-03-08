@@ -237,10 +237,13 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
         const pbrMatMeshMap = new Map<any, Mesh>();
         for (const mesh of scene.meshes) {
             if (mesh.material instanceof StandardMaterial) {
+                // Cap ALL StandardMaterials to prevent shader overflow from dynamic PointLights
+                mesh.material.maxSimultaneousLights = 4;
                 if (!matMeshMap.has(mesh.material)) {
                     matMeshMap.set(mesh.material, mesh as Mesh);
                 }
             } else if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+                (mesh.material as any).maxSimultaneousLights = 4;
                 if (!pbrMatMeshMap.has(mesh.material)) {
                     pbrMatMeshMap.set(mesh.material, mesh as Mesh);
                 }
@@ -360,10 +363,12 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
     const pbrMatMeshMap = new Map<any, Mesh>();
     for (const mesh of scene.meshes) {
         if (mesh.material instanceof StandardMaterial) {
+            mesh.material.maxSimultaneousLights = 4;
             if (!matMeshMap.has(mesh.material)) {
                 matMeshMap.set(mesh.material, mesh as Mesh);
             }
         } else if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+            (mesh.material as any).maxSimultaneousLights = 4;
             if (!pbrMatMeshMap.has(mesh.material)) {
                 pbrMatMeshMap.set(mesh.material, mesh as Mesh);
             }
