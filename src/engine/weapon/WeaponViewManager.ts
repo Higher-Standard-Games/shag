@@ -441,6 +441,7 @@ export class WeaponViewManager {
                             pbr.environmentIntensity = 2.0;
                             pbr.directIntensity = 1.0;
                             pbr.backFaceCulling = false;
+                            pbr.maxSimultaneousLights = 4; // Prevent shader overflow from projectile PointLights
                             console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
                         }
                     }

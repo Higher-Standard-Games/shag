@@ -104,6 +104,7 @@ export class WeaponBarrels {
                         pbr.environmentIntensity = 2.0;
                         pbr.directIntensity = 1.0;
                         pbr.backFaceCulling = false;
+                        pbr.maxSimultaneousLights = 4; // Prevent shader overflow from projectile PointLights
                     }
                 }
 
