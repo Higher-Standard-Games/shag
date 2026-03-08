@@ -199,24 +199,13 @@ export class Pickup extends TransformNode {
                     // this.createGlowLight(); // Disabled for testing
                 }
 
-                // PHYSICS: Apply Havok directly to the leader mesh.
-                // Force world matrix update so Havok gets the correct transform/scale.
+                // PHYSICS: Apply Havok CONVEX_HULL directly to the leader mesh.
+                // Same approach as original MD3 — Havok controls the visual mesh
+                // directly. No proxy box, no position sync needed.
                 const physics = PhysicsSystem.getInstance();
                 if (physics.isInitialized() && leaderMesh) {
-                    // Normalize negative scaling from GLB exports (Blender uses z=-1)
-                    // Havok can't handle negative scale on CONVEX_HULL.
-                    const s = leaderMesh.scaling;
-                    leaderMesh.scaling.set(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z));
-                    leaderMesh.computeWorldMatrix(true);
-
-                    // Try CONVEX_HULL first, fall back to BOX if it fails
                     physics.createDynamicBody(leaderMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
-                    if (!leaderMesh.physicsBody) {
-                        console.warn(`[Pickup] CONVEX_HULL failed for ${this.options.modelPath}, falling back to BOX`);
-                        physics.createDynamicBody(leaderMesh, PhysicsShapeType.BOX, 10, 0.3);
-                    }
-
-                    this.hasPhysics = !!leaderMesh.physicsBody;
+                    this.hasPhysics = true;
 
                     if (leaderMesh.physicsBody) {
                         if (this.options.velocity) {
@@ -240,10 +229,6 @@ export class Pickup extends TransformNode {
 
                         // Settle detection: check velocity every 500ms, freeze when < 2
                         this._scheduleSettleCheck(leaderMesh);
-                    } else {
-                        console.error(`[Pickup] Physics body FAILED for ${this.options.modelPath} — will use dropToGround fallback`);
-                        this.settled = true;
-                        if (this.options.gravity) this.dropToGround();
                     }
                 } else {
                     // Fallback if physics unavailable
