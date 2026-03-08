@@ -736,6 +736,13 @@ export class Pickup extends TransformNode {
             this.glowLight = null;
         }
         this.removePhysics();
+
+        // Dispose root-level mesh (not a child of this TransformNode since Havok fix)
+        if (this.mesh) {
+            this.mesh.dispose(false, true); // dispose geometry + materials
+            this.mesh = null as any;
+        }
+
         super.dispose();
     }
 }
