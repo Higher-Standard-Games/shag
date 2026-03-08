@@ -52,6 +52,9 @@ export class Pickup extends TransformNode {
     /** Whether this pickup has a physics body attached */
     public hasPhysics: boolean = false;
 
+    /** Whether dispose() was called — guards against async loadModel completing after disposal */
+    private _disposed: boolean = false;
+
 
     // ═══════════════════════════════════════════════════════════════════
     // STATIC: Server-driven pickup registry
@@ -87,6 +90,8 @@ export class Pickup extends TransformNode {
             let result = null;
             try {
                 const { AssetPreloader } = await import('../loader/AssetPreloader');
+                // Abort if disposed during await
+                if (this._disposed) return;
                 const preloader = AssetPreloader.getInstance();
                 if (preloader.hasModel(this.options.modelPath)) {
 
@@ -94,6 +99,12 @@ export class Pickup extends TransformNode {
                 }
             } catch {
                 // Preloader not available, continue with fresh load
+            }
+
+            // Abort if disposed during await
+            if (this._disposed) {
+                if (result?.root) result.root.dispose(false, true);
+                return;
             }
 
             // Fall back to fresh loading if not cached
@@ -107,6 +118,16 @@ export class Pickup extends TransformNode {
                     hasCollision: false,
                     applyLighting: false, // Pickups don't need per-model lights (prevents shader overflow)
                 });
+            }
+
+            // CRITICAL: Abort if disposed during async load — prevents orphaned meshes
+            if (this._disposed) {
+                if (result?.root) {
+                    // Clean up ALL loaded meshes before they become orphans
+                    for (const m of (result.meshes || [])) m.dispose(false, true);
+                    result.root.dispose(false, true);
+                }
+                return;
             }
 
             if (result && result.root) {
@@ -726,6 +747,9 @@ export class Pickup extends TransformNode {
     }
 
     public dispose() {
+        // Set disposed flag FIRST — prevents async loadModel from creating orphan meshes
+        this._disposed = true;
+
         // Unregister from static pickup list
         const idx = Pickup.allPickups.indexOf(this);
         if (idx >= 0) Pickup.allPickups.splice(idx, 1);
