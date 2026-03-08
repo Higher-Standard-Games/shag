@@ -125,6 +125,8 @@ export class Pickup extends TransformNode {
                         if (m.material && 'maxSimultaneousLights' in m.material) {
                             (m.material as any).maxSimultaneousLights = 4;
                         }
+                        // Skip empty meshes (__root__, armature nodes) — must have geometry
+                        if (m.getTotalVertices() === 0) continue;
                         if (!leaderMesh) {
                             leaderMesh = m;
                         } else {
@@ -134,9 +136,12 @@ export class Pickup extends TransformNode {
                 }
 
                 if (leaderMesh) {
-                    // Leader mesh parented to this Pickup node
-                    leaderMesh.parent = this;
-                    leaderMesh.position.setAll(0);
+                    // CRITICAL: Do NOT parent leader mesh to this Pickup node.
+                    // Havok physics bodies require root-level meshes (no parent).
+                    // Parenting causes world/local transform desync on respawn.
+                    leaderMesh.parent = null;
+                    // Place at Pickup's world position directly
+                    leaderMesh.position.copyFrom(this.getAbsolutePosition());
                     leaderMesh.rotationQuaternion = null;
                     leaderMesh.rotation.setAll(0);
                     leaderMesh.isVisible = true;
@@ -599,8 +604,13 @@ export class Pickup extends TransformNode {
 
         // Defer visual changes to next frame to avoid render state conflicts
         requestAnimationFrame(() => {
-            // Disable entire Pickup node (cascades to ALL child meshes)
+            // Disable Pickup node
             this.setEnabled(false);
+
+            // Also hide the leader mesh (root-level, not a child of Pickup)
+            if (this.mesh) {
+                this.mesh.setEnabled(false);
+            }
 
             // Freeze physics body on the mesh to stop simulation
             if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
@@ -622,14 +632,22 @@ export class Pickup extends TransformNode {
 
     private respawn() {
         this.isActive = true;
-        // Re-enable entire Pickup node (cascades to ALL child meshes)
+        // Re-enable Pickup node
         this.setEnabled(true);
+
+        // Re-enable and reposition the leader mesh (root-level, not a child of Pickup)
+        if (this.mesh) {
+            this.mesh.setEnabled(true);
+            this.mesh.isVisible = true;
+        }
 
         // Re-enable physics body for respawn drop
         if (this.mesh instanceof Mesh && (this.mesh as Mesh).physicsBody) {
-            // Reset mesh to Pickup's world position — Havok needs world-space transform
-            this.mesh.position.setAll(0);
-            // Let Babylon sync the mesh transform to Havok before next step
+            // Reset mesh to Pickup's world position (mesh is root-level, no parent)
+            this.mesh.position.copyFrom(this.getAbsolutePosition());
+            this.mesh.rotationQuaternion = null;
+            this.mesh.rotation.setAll(0);
+            // Sync Babylon → Havok transform before activating
             (this.mesh as Mesh).physicsBody!.disablePreStep = false;
             (this.mesh as Mesh).physicsBody!.setMotionType(1); // DYNAMIC
             // Give a small upward velocity + tumble for visual feedback
