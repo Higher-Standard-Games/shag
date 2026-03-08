@@ -84,6 +84,7 @@ export class Pickup extends TransformNode {
 
     private async loadModel() {
         try {
+            console.log(`[Pickup] loadModel START for ${this.name} (${this.options.modelPath}), _disposed=${this._disposed}`);
 
 
             // Check AssetPreloader cache first for instant spawn
@@ -103,7 +104,7 @@ export class Pickup extends TransformNode {
 
             // Abort if disposed during await
             if (this._disposed) {
-                if (result?.root) result.root.dispose(false, true);
+                if (result?.root) result.root.dispose(false, false);
                 return;
             }
 
@@ -124,11 +125,13 @@ export class Pickup extends TransformNode {
             if (this._disposed) {
                 if (result?.root) {
                     // Clean up ALL loaded meshes before they become orphans
-                    for (const m of (result.meshes || [])) m.dispose(false, true);
-                    result.root.dispose(false, true);
+                    for (const m of (result.meshes || [])) m.dispose(false, false);
+                    result.root.dispose(false, false);
                 }
                 return;
             }
+
+            console.log(`[Pickup] loadModel result: root=${!!result?.root}, meshes=${result?.meshes?.length}, _disposed=${this._disposed}`);
 
             if (result && result.root) {
                 const pickupScale = this.options.scale || 1.5;
@@ -157,6 +160,7 @@ export class Pickup extends TransformNode {
                 }
 
                 if (leaderMesh) {
+                    console.log(`[Pickup] leaderMesh found: ${leaderMesh.name}, vertices=${leaderMesh.getTotalVertices()}, others=${otherMeshes.length}`);
                     // CRITICAL: Do NOT parent leader mesh to this Pickup node.
                     // Havok physics bodies require root-level meshes (no parent).
                     // Parenting causes world/local transform desync on respawn.
@@ -776,8 +780,14 @@ export class Pickup extends TransformNode {
         this.removePhysics();
 
         // Dispose root-level mesh (not a child of this TransformNode since Havok fix)
+        // IMPORTANT: do NOT dispose materials (false) — AssetPreloader may share them across clones
         if (this.mesh) {
-            this.mesh.dispose(false, true); // dispose geometry + materials
+            // Dispose child meshes first (they were parented to leader in loadModel)
+            const children = this.mesh.getChildMeshes();
+            for (const child of children) {
+                child.dispose(false, false);
+            }
+            this.mesh.dispose(false, false);
             this.mesh = null as any;
         }
 
