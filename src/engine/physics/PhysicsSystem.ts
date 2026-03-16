@@ -258,7 +258,7 @@ export class PhysicsSystem {
 
       try {
         // Make mesh non-pickable so it doesn't interfere with game raycasts
-        // (BSP collision for gameplay uses BspCollision system, not Havok)
+        // (BSP collision for gameplay uses CollisionManager, not Havok)
         const wasPickable = child.isPickable;
 
         const aggregate = new PhysicsAggregate(

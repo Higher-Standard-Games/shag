@@ -27,6 +27,15 @@
 import { GameState } from '../core/GameState';
 import { Entity } from '../core/Entity';
 
+// Module-level reusable encoder — avoids 16KB allocation per encode call.
+// getData() copies to a fresh Uint8Array, so previously returned data is safe.
+let _sharedEncoder: BinaryEncoder | null = null;
+function getEncoder(): BinaryEncoder {
+  if (!_sharedEncoder) _sharedEncoder = new BinaryEncoder();
+  _sharedEncoder.reset();
+  return _sharedEncoder;
+}
+
 /**
  * Binary protocol for network messages.
  * Handles encoding/decoding of game state with delta compression.
@@ -36,7 +45,7 @@ export class BinaryProtocol {
    * Encode a snapshot with delta compression
    */
   static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = getEncoder();
 
     // Write header
     encoder.writeUint32(state.tick);
@@ -88,7 +97,7 @@ export class BinaryProtocol {
    * Encode a command
    */
   static encodeCommand(playerId: string, sequence: number, command: any): Uint8Array {
-    const encoder = new BinaryEncoder();
+    const encoder = getEncoder();
 
     encoder.writeString(playerId);
     encoder.writeUint32(sequence);
@@ -587,7 +596,7 @@ export class BinaryEncoder {
   }
 
   getData(): Uint8Array {
-    return new Uint8Array(this.buffer, 0, this.offset);
+    return new Uint8Array(this.buffer.slice(0, this.offset));
   }
 
   /** Alias for getData() for compatibility */
@@ -597,6 +606,14 @@ export class BinaryEncoder {
 
   getOffset(): number {
     return this.offset;
+  }
+
+  /**
+   * Reset encoder for reuse — avoids re-allocating the buffer.
+   * getData() copies to a new Uint8Array so previously returned data is safe.
+   */
+  reset(): void {
+    this.offset = 0;
   }
 
   private ensureSpace(bytes: number): void {

@@ -451,9 +451,8 @@ export class BspCommand extends Command {
           return 'No BSP loaded';
         }
 
-        const bsp = manager.getBsp()!;
-        const { BspCollision } = await import('../../physics');
-        const collision = new BspCollision(bsp);
+        const { getCollisionManager } = await import('../../physics');
+        const cm = getCollisionManager();
 
         const traceSubcmd = args[1]?.toLowerCase();
 
@@ -462,7 +461,7 @@ export class BspCommand extends Command {
           const cam = scene.activeCamera;
           const pos = cam.position;
 
-          const contents = collision.pointContents(pos);
+          const contents = cm.pointContents(pos);
           const inSolid = (contents & 0x1) !== 0;
           const inWater = (contents & 0x20) !== 0;
           const inPlayerClip = (contents & 0x10000) !== 0;

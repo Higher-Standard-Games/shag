@@ -5,16 +5,10 @@
  *
  * @example
  * ```typescript
- * import { NetworkManager, MessageType } from './engine/network';
+ * import { MessageCodec, NetworkGameHost } from './engine/network';
  *
- * // Connect to server
- * const nm = NetworkManager.getInstance();
- * await nm.connect('ws://localhost:7777');
- *
- * // Subscribe to state updates
- * nm.onStateUpdate((state) => {
- *   console.log(`Tick ${state.tick}: ${state.entities.size} entities`);
- * });
+ * // Connect to server via NetworkGameHost (used by FPSGameManager)
+ * const host = new NetworkGameHost(simulation, transport);
  * ```
  */
 
@@ -41,12 +35,6 @@ export { TransportFactory } from './client/transport/Transport';
 export { WebSocketTransport } from './client/transport/WebSocketTransport';
 export { LocalGameHost } from './client/hosts/LocalGameHost';
 export { NetworkGameHost } from './client/hosts/NetworkGameHost';
-
-// Server-side code moved to src/engine/server/network
-// Client-side code remains here
-
-// Manager
-export { NetworkManager } from './NetworkManager';
 
 // Types
 export type {

@@ -5,7 +5,21 @@
  * Format is simple: tick-by-tick list of all inputs.
  */
 
-import type { InputCommand } from '../network/protocol/InputProtocol';
+/** Input command shape for replay recording (mirrors the game's input format) */
+export interface InputCommand {
+    sequence: number;
+    clientTime: number;
+    forward: number;
+    right: number;
+    pitch: number;
+    yaw: number;
+    jump: boolean;
+    crouch: boolean;
+    attack: boolean;
+    altAttack: boolean;
+    use: boolean;
+    weaponSlot: number;
+}
 import type { PlayerId, TickNumber } from '../ecs/types';
 
 // ═══════════════════════════════════════════════════════════════════

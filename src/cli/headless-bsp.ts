@@ -427,12 +427,13 @@ async function buildMeshes(bsp: BspFile): Promise<void> {
 }
 
 async function testCollision(bsp: BspFile): Promise<void> {
-  console.log("\n=== BSP Collision Test ===");
+  console.log("\n=== BSP Collision Test (SweepCollisionBackend) ===");
   console.log(`Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}\n`);
 
-  // Import BspCollision
-  const { BspCollision } = await import("../engine/physics/BspCollision");
-  const collision = new BspCollision(bsp);
+  // Use the same collision backend as the actual game
+  const { SweepCollisionBackend } = await import("../engine/physics/SweepCollisionBackend");
+  const backend = new SweepCollisionBackend();
+  await backend.init(bsp);
 
   // Find spawn points for test positions
   const spawns = bsp.entities.filter(e =>
@@ -482,67 +483,30 @@ async function testCollision(bsp: BspFile): Promise<void> {
     }
   }
 
-  // Test traces at spawn points
+  // Test traces at spawn points using SweepCollisionBackend
   console.log("\n=== Spawn Point Collision Tests ===");
   for (let i = 0; i < Math.min(3, spawns.length); i++) {
     const spawn = spawns[i];
     const originStr = spawn.properties.origin || "0 0 0";
     const origin = originStr.split(' ').map(Number);
-    // Entity origin is in Q3 coords: [x, y, z] where z=up
 
     console.log(`\nSpawn ${i + 1}: Q3 origin = (${origin[0]}, ${origin[1]}, ${origin[2]})`);
 
-    // Convert to Babylon coords for the trace API
-    // Q3 (x, y, z) -> Babylon (x, z, y)
+    // Convert to Babylon coords: Q3 (x, y, z) -> Babylon (x, z, y)
     const babylonPos = new Vector3(origin[0], origin[2], origin[1]);
     console.log(`  Babylon pos = (${babylonPos.x}, ${babylonPos.y}, ${babylonPos.z})`);
 
     // Trace DOWN in Babylon coords (negative Y)
     const downEnd = babylonPos.add(new Vector3(0, -500, 0));
-    const downTrace = collision.traceBox(
-      babylonPos,
-      downEnd,
-      new Vector3(-16, -24, -16),
-      new Vector3(16, 32, 16),
-      true // debug
-    );
+    const downTrace = backend.trace(babylonPos, downEnd, { radius: 16, height: 56 });
     console.log(`  Trace DOWN: frac=${downTrace.fraction.toFixed(3)}, startSolid=${downTrace.startSolid}`);
-    if (downTrace.fraction < 1.0 && downTrace.plane) {
-      console.log(`    Hit plane: n=(${downTrace.plane.normal[0].toFixed(2)}, ${downTrace.plane.normal[1].toFixed(2)}, ${downTrace.plane.normal[2].toFixed(2)}), d=${downTrace.plane.dist.toFixed(1)}`);
+    if (downTrace.fraction < 1.0 && downTrace.normal) {
+      console.log(`    Hit normal: (${downTrace.normal.x.toFixed(2)}, ${downTrace.normal.y.toFixed(2)}, ${downTrace.normal.z.toFixed(2)})`);
     }
 
-    // Also test with point trace for comparison
-    const pointTrace = collision.tracePoint(babylonPos, downEnd, true);
+    // Point trace for comparison
+    const pointTrace = backend.trace(babylonPos, downEnd);
     console.log(`  Point trace DOWN: frac=${pointTrace.fraction.toFixed(3)}, startSolid=${pointTrace.startSolid}`);
-  }
-
-  console.log("\n=== Direct Q3 Coordinate Test ===");
-  // Test tracing in raw Q3 coordinates (bypass the Babylon conversion)
-  // Pick a point we know should be above ground
-  if (spawns.length > 0) {
-    const spawn = spawns[0];
-    const originStr = spawn.properties.origin || "0 0 0";
-    const q3Origin = originStr.split(' ').map(Number);
-
-    // Trace directly in Q3 coords (z=up, so trace -z for down)
-    // But the API expects Babylon coords, so we need to pass through conversion
-    // Let's check what the internal trace sees
-    console.log(`Testing raw Q3 origin: (${q3Origin[0]}, ${q3Origin[1]}, ${q3Origin[2]})`);
-
-    // The issue might be: when we pass Babylon coords, it converts to Q3
-    // But if spawn origins are already in Q3, we're double-converting!
-
-    // Test 1: Pass Q3 coords directly as if they were Babylon (wrong, but let's see)
-    const wrongPos = new Vector3(q3Origin[0], q3Origin[1], q3Origin[2]);
-    const wrongEnd = wrongPos.add(new Vector3(0, -500, 0));
-    const wrongTrace = collision.tracePoint(wrongPos, wrongEnd, false);
-    console.log(`  If Q3 passed as Babylon: frac=${wrongTrace.fraction.toFixed(3)}, startSolid=${wrongTrace.startSolid}`);
-
-    // Test 2: Pass correctly converted coords
-    const rightPos = new Vector3(q3Origin[0], q3Origin[2], q3Origin[1]); // Babylon = (q3.x, q3.z, q3.y)
-    const rightEnd = rightPos.add(new Vector3(0, -500, 0));
-    const rightTrace = collision.tracePoint(rightPos, rightEnd, false);
-    console.log(`  If Q3->Babylon converted: frac=${rightTrace.fraction.toFixed(3)}, startSolid=${rightTrace.startSolid}`);
   }
 
   console.log("\n[Collision] Test complete");

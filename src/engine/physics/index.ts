@@ -4,10 +4,8 @@
  * Active collision backends:
  * - SweepCollisionBackend (q3): Primary Q3-style swept AABB collision
  * - BabylonPhysicsBackend: Babylon.js mesh raycasting for simpler games
- * - BspCollision: Low-level BSP trace (used by CLI debug tools)
  */
 
-export { BspCollision } from './BspCollision';
 export { ContentFlags, SurfaceFlags } from './ContentFlags';
 export { PhysicsSystem } from './PhysicsSystem';
 

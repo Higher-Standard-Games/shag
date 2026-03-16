@@ -45,43 +45,19 @@ export { FPS_TICK_CONFIG, RTS_TICK_CONFIG } from './tick/TickConfig';
 export type { TickConfig } from './tick/TickConfig';
 
 // ═══════════════════════════════════════════════════════════════════
-// NETWORK PROTOCOL
+// NETWORK TRANSPORT
 // ═══════════════════════════════════════════════════════════════════
 
 export {
-    // Binary encoding
-    BinaryEncoder,
-    BinaryDecoder,
-    // Snapshots
-    SnapshotEncoder,
-    SnapshotDecoder,
-    snapshotEncoder,
-    snapshotDecoder,
-    // Input
-    InputEncoder,
-    InputDecoder,
-    inputEncoder,
-    inputDecoder,
-    applyInputCommand,
-    // Message types
-    MessageType,
     // Transport
     WebSocketServerTransport,
-    // Client management
-    ClientManager,
 } from './network';
 
 export type {
-    InputCommand,
-    DecodedInputBatch,
-    DecodedSnapshot,
-    DecodedEntity,
     Transport,
     TransportConfig,
     TransportEvents,
     ClientConnection,
-    ClientInfo,
-    ClientManagerEvents,
 } from './network';
 
 // ═══════════════════════════════════════════════════════════════════
