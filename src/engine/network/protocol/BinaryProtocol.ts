@@ -36,6 +36,25 @@ function getEncoder(): BinaryEncoder {
   return _sharedEncoder;
 }
 
+// ── Shared component stubs (hoisted to avoid per-entity closure allocations) ──
+// These are referenced by every decoded entity/player. Defining once at module
+// scope eliminates ~600+ function object allocations per second during gameplay.
+function _noopSerialize() { return {}; }
+function _noopDeserialize() { }
+function _shallowClone(this: any) { return { ...this }; }
+function _transformClone(this: any) {
+  return {
+    position: { ...this.position },
+    rotation: { ...this.rotation },
+    serialize: _noopSerialize,
+    deserialize: _noopDeserialize,
+    clone: _transformClone,
+  };
+}
+function _velocityClone(this: any) {
+  return { ...this, linear: { ...this.linear }, angular: { ...this.angular } };
+}
+
 /**
  * Binary protocol for network messages.
  * Handles encoding/decoding of game state with delta compression.
@@ -101,7 +120,18 @@ export class BinaryProtocol {
 
     encoder.writeString(playerId);
     encoder.writeUint32(sequence);
-    encoder.writeString(JSON.stringify(command));
+
+    // Binary-encode the command fields instead of JSON.stringify.
+    // MoveCommand shape: type, playerId, tick, seq, direction{x,y,z}, pitch, yaw, buttons, weaponSlot
+    const dir = command.direction || { x: 0, y: 0, z: 0 };
+    encoder.writeFloat32(dir.x);
+    encoder.writeFloat32(dir.y);
+    encoder.writeFloat32(dir.z);
+    encoder.writeFloat32(command.pitch ?? 0);
+    encoder.writeFloat32(command.yaw ?? 0);
+    encoder.writeUint16(command.buttons ?? 0);
+    encoder.writeUint32(command.tick ?? 0);
+    encoder.writeUint8(command.weaponSlot ?? 0);
 
     return encoder.getData();
   }
@@ -112,11 +142,27 @@ export class BinaryProtocol {
   static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: any } {
     const decoder = new BinaryDecoder(data);
 
-    return {
-      playerId: decoder.readString(),
-      sequence: decoder.readUint32(),
-      command: JSON.parse(decoder.readString())
+    const playerId = decoder.readString();
+    const sequence = decoder.readUint32();
+
+    // Binary-decode matching the encode layout above
+    const command = {
+      type: 'move' as const,
+      playerId,
+      seq: sequence,
+      direction: {
+        x: decoder.readFloat32(),
+        y: decoder.readFloat32(),
+        z: decoder.readFloat32(),
+      },
+      pitch: decoder.readFloat32(),
+      yaw: decoder.readFloat32(),
+      buttons: decoder.readUint16(),
+      tick: decoder.readUint32(),
+      weaponSlot: decoder.readUint8(),
     };
+
+    return { playerId, sequence, command };
   }
 
   /**
@@ -247,9 +293,9 @@ export class BinaryProtocol {
         // Legacy position component
         const pos = {
           x, y, z,
-          serialize() { return {}; },
-          deserialize() { },
-          clone() { return { ...this }; }
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
         };
         entity.addComponent('position', pos);
 
@@ -263,9 +309,9 @@ export class BinaryProtocol {
         const transform = {
           position: { x, y, z },
           rotation: { ...existingRot },
-          serialize() { return {}; },
-          deserialize() { },
-          clone() { return { position: { ...this.position }, rotation: { ...this.rotation }, serialize: this.serialize, deserialize: this.deserialize, clone: this.clone }; }
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _transformClone,
         };
         entity.addComponent('transform', transform);
       } else if (baselineEntity) {
@@ -330,9 +376,9 @@ export class BinaryProtocol {
           transform = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: rotX, y: rotY, z: 0, w: 1 },
-            serialize() { return {}; },
-            deserialize() { },
-            clone() { return { position: { ...this.position }, rotation: { ...this.rotation }, serialize: this.serialize, deserialize: this.deserialize, clone: this.clone }; }
+            serialize: _noopSerialize,
+            deserialize: _noopDeserialize,
+            clone: _transformClone,
           };
           entity.addComponent('transform', transform);
         }
@@ -361,9 +407,9 @@ export class BinaryProtocol {
           grounded, // Now properly transmitted!
           isCrouching,
           isSliding,
-          serialize() { return {}; },
-          deserialize() { },
-          clone() { return { ...this, linear: { ...this.linear }, angular: { ...this.angular } }; }
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _velocityClone,
         };
         entity.addComponent('velocity', vel);
       }
@@ -416,9 +462,9 @@ export class BinaryProtocol {
           score: 0,
           deaths: 0,
           ping: 0,
-          serialize() { return {}; },
-          deserialize() { },
-          clone() { return { ...this }; }
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
         };
         state.players.set(playerId, newPlayer);
         player = newPlayer;
@@ -459,12 +505,132 @@ export class BinaryProtocol {
     }
   }
 
+  // ── Event type codes for binary encoding ──
+  // All event types are known — no JSON fallback needed.
+  private static readonly EVT_TYPE_MAP: Record<string, number> = {
+    'combat_state': 1, 'match_state': 2, 'weapon_state': 3,
+    'weapon_fire': 4, 'weapon_charge': 5, 'projectile_spawn': 6,
+    'projectile_impact': 7, 'item_pickup': 8, 'weapon_drop': 9,
+    'damage': 10, 'death': 11,
+  };
+
+  private static readonly EVT_NAME_MAP: string[] = [
+    '', 'combat_state', 'match_state', 'weapon_state',
+    'weapon_fire', 'weapon_charge', 'projectile_spawn',
+    'projectile_impact', 'item_pickup', 'weapon_drop',
+    'damage', 'death',
+  ];
+
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
     encoder.writeUint16(state.events.length);
 
     for (const event of state.events) {
-      encoder.writeString(event.type);
-      encoder.writeString(JSON.stringify(event));
+      const typeCode = this.EVT_TYPE_MAP[event.type];
+      encoder.writeUint8(typeCode);
+
+      switch (typeCode) {
+        case 1: // combat_state: entityId, health, armor, dead
+          encoder.writeString(event.entityId);
+          encoder.writeUint16(event.health ?? 0);
+          encoder.writeUint16(event.armor ?? 0);
+          encoder.writeUint8(event.dead ? 1 : 0);
+          break;
+
+        case 2: // match_state — variable shape, use JSON (sent once per snapshot)
+          encoder.writeString(JSON.stringify(event));
+          break;
+
+        case 3: // weapon_state: entityId, currentWeapon, weapons[], ammo{}, reloading, lastFireTick
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.currentWeapon ?? '');
+          // weapons array as JSON (variable-length array of strings)
+          encoder.writeString(JSON.stringify(event.weapons ?? []));
+          // ammo as JSON (variable-length object)
+          encoder.writeString(JSON.stringify(event.ammo ?? {}));
+          encoder.writeUint8(event.reloading ? 1 : 0);
+          encoder.writeUint32(event.lastFireTick ?? 0);
+          break;
+
+        case 4: // weapon_fire: entityId, weaponId, origin xyz, dir xyz
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeFloat32(event.originX ?? 0);
+          encoder.writeFloat32(event.originY ?? 0);
+          encoder.writeFloat32(event.originZ ?? 0);
+          encoder.writeFloat32(event.dirX ?? 0);
+          encoder.writeFloat32(event.dirY ?? 0);
+          encoder.writeFloat32(event.dirZ ?? 0);
+          break;
+
+        case 5: // weapon_charge: entityId, weaponId, charging
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeUint8(event.charging ? 1 : 0);
+          break;
+
+        case 6: // projectile_spawn: entityId, defId
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.defId ?? '');
+          break;
+
+        case 7: // projectile_impact: defId, xyz, normal xyz
+          encoder.writeString(event.defId ?? '');
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          encoder.writeFloat32(event.normalX ?? 0);
+          encoder.writeFloat32(event.normalY ?? 0);
+          encoder.writeFloat32(event.normalZ ?? 0);
+          break;
+
+        case 8: // item_pickup: pickupId, weaponId, entityId, droppedWeaponId, xyz
+          encoder.writeString(event.pickupId ?? '');
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.entityId ?? '');
+          encoder.writeString(event.droppedWeaponId ?? '');
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          break;
+
+        case 9: // weapon_drop: entityId, weaponId, xyz, vel xyz
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          encoder.writeFloat32(event.velX ?? 0);
+          encoder.writeFloat32(event.velY ?? 0);
+          encoder.writeFloat32(event.velZ ?? 0);
+          break;
+
+        case 10: // damage: entityId, attackerId, damage, weaponId, xyz
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.attackerId ?? '');
+          encoder.writeUint16(event.damage ?? 0);
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          break;
+
+        case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
+          encoder.writeString(event.entityId);
+          encoder.writeString(event.killerId ?? '');
+          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.damageType ?? '');
+          encoder.writeUint16(event.finalDamage ?? 0);
+          encoder.writeFloat32(event.x ?? 0);
+          encoder.writeFloat32(event.y ?? 0);
+          encoder.writeFloat32(event.z ?? 0);
+          encoder.writeFloat32(event.velX ?? 0);
+          encoder.writeFloat32(event.velY ?? 0);
+          encoder.writeFloat32(event.velZ ?? 0);
+          encoder.writeFloat32(event.kbDirX ?? 0);
+          encoder.writeFloat32(event.kbDirY ?? 0);
+          encoder.writeFloat32(event.kbDirZ ?? 0);
+          break;
+      }
     }
   }
 
@@ -472,13 +638,140 @@ export class BinaryProtocol {
     const eventCount = decoder.readUint16();
 
     for (let i = 0; i < eventCount; i++) {
-      const eventType = decoder.readString();
-      const eventData = JSON.parse(decoder.readString());
+      const typeCode = decoder.readUint8();
+      const type = this.EVT_NAME_MAP[typeCode];
 
-      state.events.push({
-        type: eventType,
-        ...eventData
-      });
+      switch (typeCode) {
+        case 1: // combat_state
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            health: decoder.readUint16(),
+            armor: decoder.readUint16(),
+            dead: decoder.readUint8() !== 0,
+          });
+          break;
+
+        case 2: // match_state — JSON
+          state.events.push({ type, ...JSON.parse(decoder.readString()) });
+          break;
+
+        case 3: // weapon_state
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            currentWeapon: decoder.readString(),
+            weapons: JSON.parse(decoder.readString()),
+            ammo: JSON.parse(decoder.readString()),
+            reloading: decoder.readUint8() !== 0,
+            lastFireTick: decoder.readUint32(),
+          });
+          break;
+
+        case 4: // weapon_fire
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            weaponId: decoder.readString(),
+            originX: decoder.readFloat32(),
+            originY: decoder.readFloat32(),
+            originZ: decoder.readFloat32(),
+            dirX: decoder.readFloat32(),
+            dirY: decoder.readFloat32(),
+            dirZ: decoder.readFloat32(),
+          });
+          break;
+
+        case 5: // weapon_charge
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            weaponId: decoder.readString(),
+            charging: decoder.readUint8() !== 0,
+          });
+          break;
+
+        case 6: // projectile_spawn
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            defId: decoder.readString(),
+          });
+          break;
+
+        case 7: // projectile_impact
+          state.events.push({
+            type,
+            defId: decoder.readString(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+            normalX: decoder.readFloat32(),
+            normalY: decoder.readFloat32(),
+            normalZ: decoder.readFloat32(),
+          });
+          break;
+
+        case 8: // item_pickup
+          state.events.push({
+            type,
+            pickupId: decoder.readString(),
+            weaponId: decoder.readString(),
+            entityId: decoder.readString(),
+            droppedWeaponId: decoder.readString(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+          });
+          break;
+
+        case 9: // weapon_drop
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            weaponId: decoder.readString(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+            velX: decoder.readFloat32(),
+            velY: decoder.readFloat32(),
+            velZ: decoder.readFloat32(),
+          });
+          break;
+
+        case 10: // damage
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            attackerId: decoder.readString(),
+            damage: decoder.readUint16(),
+            weaponId: decoder.readString(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+          });
+          break;
+
+        case 11: // death
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            killerId: decoder.readString(),
+            weaponId: decoder.readString(),
+            damageType: decoder.readString(),
+            finalDamage: decoder.readUint16(),
+            x: decoder.readFloat32(),
+            y: decoder.readFloat32(),
+            z: decoder.readFloat32(),
+            velX: decoder.readFloat32(),
+            velY: decoder.readFloat32(),
+            velZ: decoder.readFloat32(),
+            kbDirX: decoder.readFloat32(),
+            kbDirY: decoder.readFloat32(),
+            kbDirZ: decoder.readFloat32(),
+          });
+          break;
+      }
     }
   }
 }

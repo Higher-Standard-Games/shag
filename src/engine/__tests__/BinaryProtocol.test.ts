@@ -146,15 +146,27 @@ describe('BinaryProtocol', () => {
 
     describe('Command roundtrip', () => {
         it('should encode and decode command data', () => {
-            const command = { forward: 1, right: 0, jump: true, pitch: 0.5, yaw: 1.2 };
+            const command = {
+                type: 'move' as const,
+                playerId: 'player1',
+                tick: 100,
+                seq: 42,
+                direction: { x: 0.707, y: 0, z: -0.707 },
+                pitch: 0.5,
+                yaw: 1.2,
+                buttons: 0b0101, // fire + jump
+            };
             const encoded = BinaryProtocol.encodeCommand('player1', 42, command);
             const decoded = BinaryProtocol.decodeCommand(encoded);
 
             expect(decoded.playerId).toBe('player1');
             expect(decoded.sequence).toBe(42);
-            expect(decoded.command.forward).toBe(1);
-            expect(decoded.command.jump).toBe(true);
+            expect(decoded.command.direction.x).toBeCloseTo(0.707, 2);
+            expect(decoded.command.direction.z).toBeCloseTo(-0.707, 2);
             expect(decoded.command.pitch).toBeCloseTo(0.5);
+            expect(decoded.command.yaw).toBeCloseTo(1.2);
+            expect(decoded.command.buttons).toBe(0b0101);
+            expect(decoded.command.tick).toBe(100);
         });
     });
 });
@@ -171,14 +183,24 @@ describe('MessageCodec', () => {
     });
 
     it('should roundtrip command via MessageCodec wrapper', () => {
-        const command = { forward: 1, right: -1 };
+        const command = {
+            type: 'move' as const,
+            playerId: 'p1',
+            tick: 50,
+            seq: 99,
+            direction: { x: 1, y: 0, z: -1 },
+            pitch: 0,
+            yaw: 3.14,
+            buttons: 0,
+        };
         const encoded = MessageCodec.encodeCommand('p1', 99, command);
         const decoded = MessageCodec.decodeCommand(encoded);
 
         expect(decoded.playerId).toBe('p1');
         expect(decoded.sequence).toBe(99);
-        expect(decoded.command.forward).toBe(1);
-        expect(decoded.command.right).toBe(-1);
+        expect(decoded.command.direction.x).toBeCloseTo(1);
+        expect(decoded.command.direction.z).toBeCloseTo(-1);
+        expect(decoded.command.yaw).toBeCloseTo(3.14, 2);
     });
 
     it('should roundtrip welcome message', () => {
