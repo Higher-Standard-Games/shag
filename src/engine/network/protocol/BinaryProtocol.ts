@@ -22,6 +22,7 @@
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
  * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding)
+ * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
  */
 
 import { GameState } from '../core/GameState';
@@ -228,6 +229,13 @@ export class BinaryProtocol {
         flags |= 0x10;
       }
 
+      // Check weaponMeta (item_ entities carry weaponId for model spawning)
+      const weaponMeta = entity.getComponent('weaponMeta') as any;
+      const baselineWeaponMeta = baselineEntity?.getComponent('weaponMeta') as any;
+      if (weaponMeta?.weaponId && (!baselineWeaponMeta || weaponMeta.weaponId !== baselineWeaponMeta.weaponId || weaponMeta.settled !== baselineWeaponMeta.settled)) {
+        flags |= 0x20;
+      }
+
       encoder.writeUint8(flags);
 
       // Encode changed components
@@ -262,6 +270,12 @@ export class BinaryProtocol {
         if (isCrouching) movFlags |= 1;
         if (isSliding) movFlags |= 2;
         encoder.writeUint8(movFlags);
+      }
+
+      // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
+      if (flags & 0x20) {
+        encoder.writeString(weaponMeta.weaponId);
+        encoder.writeUint8(weaponMeta.settled ? 1 : 0);
       }
     }
   }
@@ -412,6 +426,25 @@ export class BinaryProtocol {
           clone: _velocityClone,
         };
         entity.addComponent('velocity', vel);
+      }
+
+      // Flag 0x20: WeaponMeta (weaponId + settled) for item_ entities
+      if (flags & 0x20) {
+        const weaponId = decoder.readString();
+        const settled = decoder.readUint8() !== 0;
+        entity.addComponent('weaponMeta', {
+          weaponId,
+          settled,
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
+        });
+      } else if (baselineEntity) {
+        // Carry forward from baseline
+        const baselineMeta = baselineEntity.getComponent('weaponMeta');
+        if (baselineMeta) {
+          entity.addComponent('weaponMeta', baselineMeta);
+        }
       }
     }
   }
@@ -584,7 +617,7 @@ export class BinaryProtocol {
           break;
 
         case 8: // item_pickup: pickupId, weaponId, entityId, droppedWeaponId, xyz
-          encoder.writeString(event.pickupId ?? '');
+          encoder.writeInt16(typeof event.pickupId === 'number' ? event.pickupId : -1);
           encoder.writeString(event.weaponId ?? '');
           encoder.writeString(event.entityId ?? '');
           encoder.writeString(event.droppedWeaponId ?? '');
@@ -715,7 +748,7 @@ export class BinaryProtocol {
         case 8: // item_pickup
           state.events.push({
             type,
-            pickupId: decoder.readString(),
+            pickupId: decoder.readInt16(),
             weaponId: decoder.readString(),
             entityId: decoder.readString(),
             droppedWeaponId: decoder.readString(),
