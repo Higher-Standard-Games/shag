@@ -22,6 +22,7 @@ import { InputSystem } from "../../input/InputSystem";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { Game } from "../../../games/fps/Game";
+import { CameraInputHandler } from "../CameraInputHandler";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -41,7 +42,6 @@ export class FreeflyController implements ICameraController {
 
   // State
   private enabled: boolean = true;
-  private isPointerLocked: boolean = false;
 
   // Viewport smoothing for stairs
   private physicsY: number = 0;
@@ -129,12 +129,8 @@ export class FreeflyController implements ICameraController {
   // Observers
   private renderObserver: Observer<Scene> | null = null;
 
-  // Event handlers (bound for removal)
-  private onCanvasClick: ((e: MouseEvent) => void) | null = null;
-  private onMouseMove: ((e: MouseEvent) => void) | null = null;
-  private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
-  private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
-  private onPointerLockChange: (() => void) | null = null;
+  // Shared input handler (pointer lock, mouse look, key prevention)
+  private inputHandler = new CameraInputHandler();
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     // Register FPS actions with InputSystem (idempotent)
@@ -183,8 +179,17 @@ export class FreeflyController implements ICameraController {
     // Clear default inputs - we handle everything
     this.camera.inputs.clear();
 
-    // Set up input handlers
-    this.setupInputHandlers();
+    // Set up shared input handlers (pointer lock, mouse look, key prevention)
+    this.inputHandler.setup(canvas, this.camera, this.config, 'FreeflyController', {
+      onUnlocked: () => {
+        this.keys.forward = false;
+        this.keys.backward = false;
+        this.keys.left = false;
+        this.keys.right = false;
+        this.keys.up = false;
+        this.keys.down = false;
+      },
+    });
 
     // Set up render observer for movement
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
@@ -195,111 +200,17 @@ export class FreeflyController implements ICameraController {
     console.log("[FreeflyController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
-  private setupInputHandlers(): void {
-    if (!this.canvas) return;
-
-    // Click to capture mouse - use document click and check target
-    this.onCanvasClick = (e: MouseEvent) => {
-      // Only respond to clicks on the canvas itself
-      if (e.target !== this.canvas) return;
-
-      console.log('[FreeflyController] Canvas clicked, requesting pointer lock');
-      if (!this.isPointerLocked && this.canvas) {
-        this.canvas.requestPointerLock();
-      }
-    };
-
-    // Handle pointer lock change
-    this.onPointerLockChange = () => {
-      this.isPointerLocked = document.pointerLockElement === this.canvas;
-      if (this.isPointerLocked) {
-        console.log('[FreeflyController] Mouse captured - WASD to move, ESC to release');
-      } else {
-        console.log('[FreeflyController] Mouse released - Click to capture');
-        // Reset movement keys when releasing
-        this.keys.forward = false;
-        this.keys.backward = false;
-        this.keys.left = false;
-        this.keys.right = false;
-        this.keys.up = false;
-        this.keys.down = false;
-      }
-    };
-
-    // Mouse look (only when pointer is locked)
-    this.onMouseMove = (e: MouseEvent) => {
-      if (!this.enabled || !this.camera || !this.isPointerLocked) return;
-
-      const baseSensitivity = this.config.mouseSensitivity || 0.002;
-      const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') ?? 2.0;
-      const sensitivity = baseSensitivity * sensitivityMultiplier;
-      const invertYCvar = Cvar.getBool('m_invertY');
-      const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
-
-      // Apply freelook
-      this.camera.rotation.y += e.movementX * sensitivity;
-      this.camera.rotation.x += e.movementY * sensitivity * invertY;
-
-      // Clamp vertical rotation
-      this.camera.rotation.x = Math.max(
-        -Math.PI / 2 + 0.1,
-        Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x)
-      );
-    };
-
-    // Keyboard input — only handles preventDefault; key state comes from InputSystem
-    this.onKeyDown = (e: KeyboardEvent) => {
-      if (!this.isPointerLocked) return;
-      if (e.code === 'Space') e.preventDefault();
-    };
-
-    this.onKeyUp = (_e: KeyboardEvent) => {
-      // No-op: key state is driven by InputSystem in syncKeysFromInput()
-    };
-
-    // Add event listeners - use document for click to ensure we catch it
-    document.addEventListener('click', this.onCanvasClick);
-    document.addEventListener('pointerlockchange', this.onPointerLockChange);
-    document.addEventListener('mousemove', this.onMouseMove);
-    document.addEventListener('keydown', this.onKeyDown);
-    document.addEventListener('keyup', this.onKeyUp);
-  }
-
-  private removeInputHandlers(): void {
-    // Exit pointer lock if active
-    if (this.isPointerLocked) {
-      document.exitPointerLock();
-    }
-
-    if (this.onCanvasClick) {
-      document.removeEventListener('click', this.onCanvasClick);
-    }
-    if (this.onPointerLockChange) {
-      document.removeEventListener('pointerlockchange', this.onPointerLockChange);
-    }
-    if (this.onMouseMove) {
-      document.removeEventListener('mousemove', this.onMouseMove);
-    }
-    if (this.onKeyDown) {
-      document.removeEventListener('keydown', this.onKeyDown);
-    }
-    if (this.onKeyUp) {
-      document.removeEventListener('keyup', this.onKeyUp);
-    }
-  }
-
   detach(): void {
     if (this.renderObserver && this.scene) {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
 
-    this.removeInputHandlers();
+    this.inputHandler.teardown();
 
     this.camera = null;
     this.scene = null;
     this.canvas = null;
-    this.isPointerLocked = false;
 
     console.log("[FreeflyController] Detached");
   }
@@ -333,7 +244,7 @@ export class FreeflyController implements ICameraController {
       // Ignore if not initialized yet
     }
 
-    if (!this.isPointerLocked) {
+    if (!this.inputHandler.isPointerLocked) {
       this.keys.forward = false;
       this.keys.backward = false;
       this.keys.left = false;
@@ -869,7 +780,7 @@ export class FreeflyController implements ICameraController {
       this.keys.right = false;
       this.keys.up = false;
       this.keys.down = false;
-      if (this.isPointerLocked) {
+      if (this.inputHandler.isPointerLocked) {
         document.exitPointerLock();
       }
     }

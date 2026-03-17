@@ -311,372 +311,437 @@ export class WeaponViewManager {
             ?? `models/weapons/${weaponName}/${weaponName}.md3`;
         const weaponDir = `models/weapons/${weaponName}`;
 
-        // === GLB MODEL LOADING ===
-        // GLB models use Babylon's SceneLoader instead of PK3+MD3 parser.
-        // We load the meshes, clean up SceneLoader side effects, then fall
-        // through to the SAME weapon setup code that MD3 uses below.
+        // Load the weapon model (GLB or MD3)
         let isGlbWeapon = false;
         if (weaponDef?.viewModel?.viewModelFormat === 'glb') {
-            console.log(`[WeaponViewManager] GLB path — loading ${weaponName}, modelPath: ${modelPath}`);
-
-            const { SceneLoader } = await import('@babylonjs/core/Loading/sceneLoader');
-            await import('@babylonjs/loaders/glTF');
-
-            // Check if a newer load started while we were importing modules
-            if (this._loadGeneration !== loadGen) {
-                console.log(`[WeaponViewManager] GLB load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
-                return false;
-            }
-
-            // Remove previous weapon before loading new one
-            if (this.currentWeapon) {
-                this.currentWeapon.root.dispose();
-                this.currentWeapon = null;
-            }
-            // Clear previous barrel sub-models
-            this.weaponBarrels.dispose();
-
-            try {
-                const lastSlash = modelPath.lastIndexOf('/');
-                const dir = modelPath.substring(0, lastSlash + 1);
-                const file = modelPath.substring(lastSlash + 1);
-
-                // Save scene state — SceneLoader can add cameras/lights and set
-                // scene.activeCamera, which breaks our dual-camera weapon rendering.
-                const savedActiveCameras = this.scene!.activeCameras ? [...this.scene!.activeCameras] : null;
-                const cameraCountBefore = this.scene!.cameras.length;
-
-                const result = await SceneLoader.ImportMeshAsync('', dir, file, this.scene!);
-
-                // Check if superseded during async import
-                if (this._loadGeneration !== loadGen) {
-                    for (const mesh of result.meshes) mesh.dispose();
-                    return false;
-                }
-
-                // Restore scene camera state — GLB importer may have corrupted it
-                if (savedActiveCameras) {
-                    this.scene!.activeCameras = savedActiveCameras;
-                }
-                if (this.scene!.cameras.length > cameraCountBefore) {
-                    const added = this.scene!.cameras.slice(cameraCountBefore);
-                    for (const cam of added) cam.dispose();
-                }
-                (this.scene! as any).activeCamera = null;
-
-                // Build weapon structure matching MD3 output:
-                // root TransformNode + flat meshes array
-                const weaponNode = new TransformNode(`weapon_${weaponName}`, this.scene!);
-                const glbRoot = result.meshes[0];
-                glbRoot.parent = weaponNode;
-                if (glbRoot.rotationQuaternion) glbRoot.rotationQuaternion = null;
-
-                // Apply weapon-specific GLB model orientation
-                if (weaponName === 'blade') {
-                    // Blade: flip barrel + tilt upward for melee carry
-                    glbRoot.rotation.x = Math.PI;
-                    glbRoot.rotation.y = 0.9;
-                } else if (weaponName === 'voltaic') {
-                    // Voltaic: Blender/Sketchfab export, already Y-up
-                    glbRoot.rotation.set(0, 0, 0);
-                } else {
-                    // IQM→GLB weapons need TWO coordinate fixes:
-                    // 1. z_up_to_y_up in converter: Z-up → Y-up (scope on top)
-                    // 2. Y rotation here: barrel from +X → -Z (pointing forward)
-                    glbRoot.rotation.set(0, -Math.PI / 2, 0);
-                }
-                // NOTE: GLB root may have scl:(1,1,-1) from Blender export — keep it,
-                // the negative Z is needed for correct orientation. Use backFaceCulling=false
-                // on materials to handle the flipped winding order.
-
-                const glbMeshes: any[] = [];
-                // Convert shared PBR materials to StandardMaterial ONCE per material
-                const convertedMaterials = new Map<string, StandardMaterial>();
-                const pbrMaterialsToDispose: any[] = [];
-
-                for (const mesh of result.meshes) {
-                    if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
-
-                    // For blade: convert PBR → StandardMaterial (hand-tuned emissive textures)
-                    // For guns: keep PBR material as-is, just boost environment for self-lit look
-                    if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
-                        const pbr = mesh.material as any;
-
-                        if (weaponName === 'blade') {
-                            // Blade uses StandardMaterial with custom emissive
-                            const matId = pbr.uniqueId || pbr.name;
-                            if (!convertedMaterials.has(matId)) {
-                                const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
-                                stdMat.disableLighting = true;
-                                stdMat.diffuseColor = new Color3(1, 1, 1);
-
-                                let albedoTex = pbr.albedoTexture;
-                                if (!albedoTex) {
-                                    const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
-                                    albedoTex = new Texture(baseColorPath, this.scene!);
-                                }
-                                stdMat.diffuseTexture = albedoTex;
-                                stdMat.emissiveTexture = pbr.emissiveTexture || albedoTex;
-                                stdMat.emissiveColor = new Color3(1, 1, 1);
-                                stdMat.backFaceCulling = false;
-                                convertedMaterials.set(matId, stdMat);
-
-                                // Null out PBR texture refs before disposal
-                                pbr.albedoTexture = null;
-                                pbr.emissiveTexture = null;
-                                pbr.metallicTexture = null;
-                                pbr.reflectivityTexture = null;
-                                pbr.microSurfaceTexture = null;
-                                pbr.bumpTexture = null;
-                                pbr.ambientTexture = null;
-                                pbrMaterialsToDispose.push(pbr);
-
-                                console.log(`[WeaponViewManager] Blade: converted PBR "${pbr.name}" → StandardMaterial`);
-                            }
-                            mesh.material = convertedMaterials.get(matId)!;
-                        } else {
-                            // Gun-type weapons: keep PBR material for proper metallic/roughness
-                            // The albedo texture looks red without PBR shading — metallic/roughness
-                            // interaction is what makes it look orange/metallic on Sketchfab
-                            pbr.environmentIntensity = 2.0;
-                            pbr.directIntensity = 1.0;
-                            pbr.backFaceCulling = false;
-                            pbr.maxSimultaneousLights = 4; // Prevent shader overflow from projectile PointLights
-                            console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
-                        }
-                    }
-
-                    // Ensure ALL meshes have weapon layer mask
-                    mesh.renderingGroupId = 1;
-                    mesh.layerMask = WEAPON_LAYER_MASK;
-
-                    // Include all meshes with geometry; only skip the root if it's
-                    // a bare TransformNode (Blender/Sketchfab-style GLBs). IQM-converted
-                    // GLBs may have the geometry on meshes[0] itself.
-                    if (mesh !== glbRoot || (mesh.getTotalVertices && mesh.getTotalVertices() > 0)) {
-                        glbMeshes.push(mesh);
-                    }
-                }
-
-                // Dispose old PBR materials for blade (texture refs already nulled)
-                for (const pbr of pbrMaterialsToDispose) {
-                    pbr.dispose(false, false);
-                }
-
-                // Set currentWeapon to match MD3LoadResult shape, then fall through
-                // to the shared setup code below (parenting, layerMask, position, etc.)
-                this.currentWeapon = {
-                    root: weaponNode,
-                    meshes: glbMeshes,
-                    model: { header: { name: weaponName, numSurfaces: glbMeshes.length, numFrames: 1, numTags: 0, numSkins: 0, filesize: 0, ident: 0, version: 0, framesOffset: 0, tagsOffset: 0, surfacesOffset: 0, eofOffset: 0 }, frames: [], tags: [], surfaces: [] },
-                    getTag: () => null,
-                } as any;
-
-                isGlbWeapon = true;
-                console.log(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
-
-                // Load barrel sub-models if defined
-                if (this.currentWeaponDef?.barrels?.length) {
-                    this.weaponBarrels.load(
-                        this.currentWeaponDef.barrels,
-                        glbRoot,
-                        weaponName,
-                        this.scene!,
-                        loadGen,
-                        () => this._loadGeneration
-                    );
-                }
-
-                // FALL THROUGH to shared weapon setup below ↓
-            } catch (e) {
-                console.error(`[WeaponViewManager] Failed to load GLB: ${modelPath}`, e);
-                return false;
-            }
+            const ok = await this.loadGlbWeapon(weaponName, modelPath, loadGen);
+            if (!ok) return false;
+            isGlbWeapon = true;
+        } else {
+            const ok = await this.loadMd3Weapon(weaponName, modelPath, weaponDir, weaponDef, pk3, loadGen);
+            if (!ok) return false;
         }
 
-        // === MD3 MODEL LOADING (only when not loaded via GLB above) ===
-        if (!isGlbWeapon) {
-            // Check if a newer load started while we were loading PK3/model data
+        // Shared final setup (parenting, layer mask, position, outlines)
+        return this.setupWeapon(weaponName, isGlbWeapon, weaponDef);
+    }
+
+    // ==================== GLB Weapon Loading ====================
+
+    /**
+     * Load a GLB weapon model via Babylon SceneLoader.
+     * Sets this.currentWeapon on success.
+     */
+    private async loadGlbWeapon(
+        weaponName: string,
+        modelPath: string,
+        loadGen: number
+    ): Promise<boolean> {
+        console.log(`[WeaponViewManager] GLB path — loading ${weaponName}, modelPath: ${modelPath}`);
+
+        const { SceneLoader } = await import('@babylonjs/core/Loading/sceneLoader');
+        await import('@babylonjs/loaders/glTF');
+
+        // Check if a newer load started while we were importing modules
+        if (this._loadGeneration !== loadGen) {
+            console.log(`[WeaponViewManager] GLB load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
+            return false;
+        }
+
+        // Remove previous weapon before loading new one
+        if (this.currentWeapon) {
+            this.currentWeapon.root.dispose();
+            this.currentWeapon = null;
+        }
+        // Clear previous barrel sub-models
+        this.weaponBarrels.dispose();
+
+        try {
+            const lastSlash = modelPath.lastIndexOf('/');
+            const dir = modelPath.substring(0, lastSlash + 1);
+            const file = modelPath.substring(lastSlash + 1);
+
+            // Save scene state — SceneLoader can add cameras/lights and set
+            // scene.activeCamera, which breaks our dual-camera weapon rendering.
+            const savedActiveCameras = this.scene!.activeCameras ? [...this.scene!.activeCameras] : null;
+            const cameraCountBefore = this.scene!.cameras.length;
+
+            const result = await SceneLoader.ImportMeshAsync('', dir, file, this.scene!);
+
+            // Check if superseded during async import
             if (this._loadGeneration !== loadGen) {
-                console.log(`[WeaponViewManager] MD3 load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
+                for (const mesh of result.meshes) mesh.dispose();
                 return false;
             }
 
-            // Check if model exists
-            if (!pk3.hasFile(modelPath)) {
-                console.error(`[WeaponViewManager] Model not found: ${modelPath}`);
-                console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
-                return false;
+            // Restore scene camera state — GLB importer may have corrupted it
+            if (savedActiveCameras) {
+                this.scene!.activeCameras = savedActiveCameras;
             }
-
-            // Debug: show which PK3 this model is actually loading from
-            const sourcePk3 = (pk3 as any).fileIndex?.get(modelPath.toLowerCase().replace(/\\/g, '/'));
-            console.log(`[WeaponViewManager] Loading model ${modelPath} from PK3: ${sourcePk3 || 'unknown'}`);
-
-            // Load model data
-            const modelBuffer = await pk3.getFile(modelPath);
-            if (!modelBuffer) {
-                console.error(`[WeaponViewManager] Failed to load model: ${modelPath}`);
-                return false;
+            if (this.scene!.cameras.length > cameraCountBefore) {
+                const added = this.scene!.cameras.slice(cameraCountBefore);
+                for (const cam of added) cam.dispose();
             }
+            (this.scene! as any).activeCamera = null;
 
-            // Parse MD3
-            const md3 = getMD3Loader();
-            const model = md3.parseMD3(modelBuffer);
+            // Build weapon structure matching MD3 output:
+            // root TransformNode + flat meshes array
+            const weaponNode = new TransformNode(`weapon_${weaponName}`, this.scene!);
+            const glbRoot = result.meshes[0];
+            glbRoot.parent = weaponNode;
+            if (glbRoot.rotationQuaternion) glbRoot.rotationQuaternion = null;
 
-            // Remove previous weapon
-            if (this.currentWeapon) {
-                this.currentWeapon.root.dispose();
-                this.currentWeapon = null;
-            }
-
-            // Create meshes
-            this.currentWeapon = md3.createMeshes(model, weaponName);
-            if (!this.currentWeapon) {
-                console.error('[WeaponViewManager] Failed to create meshes');
-                return false;
-            }
-
-            // Load texture — route through PK3TextureLoader for unified KTX/TGA/PNG/JPG
-            // handling with caching. Same texture instance is shared with pickup models.
-            let textureLoaded = false;
-            const texLoader = PK3TextureLoader.getInstance();
-
-            // Try weapon-specific texture path first
-            const weaponTexPath = `${weaponDir}/${weaponName}`;
-            const diffuseTex = await texLoader.resolveAndLoadTexture(weaponTexPath);
-
-            if (diffuseTex) {
-                for (const mesh of this.currentWeapon.meshes) {
-                    const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
-                    mat.specularColor.set(0.2, 0.2, 0.2);
-                    mat.backFaceCulling = true;
-                    mat.diffuseTexture = diffuseTex;
-                    mesh.material = mat;
-                }
-                console.log(`[WeaponViewManager] Loaded texture via PK3TextureLoader: ${weaponTexPath}`);
-                textureLoaded = true;
+            // Apply weapon-specific GLB model orientation
+            if (weaponName === 'blade') {
+                // Blade: flip barrel + tilt upward for melee carry
+                glbRoot.rotation.x = Math.PI;
+                glbRoot.rotation.y = 0.9;
+            } else if (weaponName === 'voltaic') {
+                // Voltaic: Blender/Sketchfab export, already Y-up
+                glbRoot.rotation.set(0, 0, 0);
             } else {
-                // Fallback: scan directory for any suitable image
-                const pk3 = PK3Loader.getInstance();
-                const dirFiles = pk3.listDirectory(weaponDir);
-                const imageFile = dirFiles.find(f => {
-                    const lower = f.toLowerCase();
-                    return (lower.endsWith('.ktx') || lower.endsWith('.jpg') || lower.endsWith('.tga') ||
-                        lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
-                        !lower.includes('_flash') && !lower.includes('_hand') &&
-                        !lower.includes('_norm') && !lower.includes('_gloss');
-                });
-                if (imageFile) {
-                    const fullPath = `${weaponDir}/${imageFile}`;
-                    const fallbackTex = await texLoader.resolveAndLoadTexture(fullPath);
-                    if (fallbackTex) {
-                        for (const mesh of this.currentWeapon.meshes) {
-                            const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
-                            mat.specularColor.set(0.2, 0.2, 0.2);
-                            mat.backFaceCulling = true;
-                            mat.diffuseTexture = fallbackTex;
-                            mesh.material = mat;
-                        }
-                        console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
-                        textureLoaded = true;
-                    }
-                }
+                // IQM→GLB weapons need TWO coordinate fixes:
+                // 1. z_up_to_y_up in converter: Z-up → Y-up (scope on top)
+                // 2. Y rotation here: barrel from +X → -Z (pointing forward)
+                glbRoot.rotation.set(0, -Math.PI / 2, 0);
             }
+            // NOTE: GLB root may have scl:(1,1,-1) from Blender export — keep it,
+            // the negative Z is needed for correct orientation. Use backFaceCulling=false
+            // on materials to handle the flipped winding order.
 
-            // --- Load normal map (_norm) and gloss map (_gloss) ---
-            if (textureLoaded) {
-                const normTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_norm`);
-                if (normTex) {
-                    for (const mesh of this.currentWeapon.meshes) {
-                        const mat = mesh.material as StandardMaterial;
-                        if (mat) {
-                            mat.bumpTexture = normTex;
-                            // MD3 UVs are V-flipped (1.0 - v) to convert from Quake's
-                            // bottom-left origin. The normal map texture was authored for
-                            // the original (non-flipped) UV space, so we need to:
-                            // 1. Flip bump texture V sampling to match the flipped mesh UVs
-                            // 2. Invert tangent space axes to correct the bump direction
-                            (normTex as Texture).vScale = -1;
-                            (normTex as Texture).vOffset = 1;
-                            mat.invertNormalMapX = true;
-                            mat.invertNormalMapY = true;
-                        }
-                    }
-                    console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
-                }
+            const glbMeshes: any[] = [];
+            // Convert shared PBR materials to StandardMaterial ONCE per material
+            const convertedMaterials = new Map<string, StandardMaterial>();
+            const pbrMaterialsToDispose: any[] = [];
 
-                const glossTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_gloss`);
-                if (glossTex) {
-                    for (const mesh of this.currentWeapon.meshes) {
-                        const mat = mesh.material as StandardMaterial;
-                        if (mat) {
-                            mat.specularTexture = glossTex;
-                            mat.specularColor.set(0.6, 0.6, 0.6);
-                        }
-                    }
-                    console.log(`[WeaponViewManager] Loaded gloss map for ${weaponName}`);
-                }
-            }
+            for (const mesh of result.meshes) {
+                if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
-            if (!textureLoaded) {
-                console.warn(`[WeaponViewManager] No texture found for weapon: ${weaponName}`);
-                console.log(`[WeaponViewManager] Searched in: ${weaponDir}`, pk3.listDirectory(weaponDir));
-            }
+                // For blade: convert PBR → StandardMaterial (hand-tuned emissive textures)
+                // For guns: keep PBR material as-is, just boost environment for self-lit look
+                if (mesh.material && mesh.material.getClassName() === 'PBRMaterial') {
+                    const pbr = mesh.material as any;
 
-            // Load muzzle flash model (e.g., plasmagun_flash.md3)
-            const flashModelPath = weaponDef?.viewModel?.flashModelPath
-                ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
-            if (pk3.hasFile(flashModelPath)) {
-                const flashData = await pk3.getFile(flashModelPath);
-                if (flashData) {
-                    try {
-                        const flashMd3 = md3.parseMD3(flashData);
-                        const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
-                        if (flashResult) {
-                            // Parent flash to weapon root
-                            flashResult.root.parent = this.currentWeapon.root;
-                            this.muzzleFlashModel = flashResult.root;
+                    if (weaponName === 'blade') {
+                        // Blade uses StandardMaterial with custom emissive
+                        const matId = pbr.uniqueId || pbr.name;
+                        if (!convertedMaterials.has(matId)) {
+                            const stdMat = new StandardMaterial(`${pbr.name}_std`, this.scene!);
+                            stdMat.disableLighting = true;
+                            stdMat.diffuseColor = new Color3(1, 1, 1);
 
-                            // Scale the flash model appropriately
-                            flashResult.root.scaling.setAll(1.5);
-
-                            // Set up flash meshes
-                            for (const mesh of flashResult.meshes) {
-                                mesh.renderingGroupId = 1;
-                                mesh.layerMask = WEAPON_LAYER_MASK;
-                                mesh.isPickable = false;
-
-                                // Ensure lighting is disabled for flash
-                                const mat = mesh.material as StandardMaterial;
-                                if (mat) {
-                                    mat.disableLighting = true;
-                                    mat.backFaceCulling = false;
-                                }
+                            let albedoTex = pbr.albedoTexture;
+                            if (!albedoTex) {
+                                const baseColorPath = `data/models/weapons/${weaponName}/textures/${weaponName}_BaseColor.png`;
+                                albedoTex = new Texture(baseColorPath, this.scene!);
                             }
+                            stdMat.diffuseTexture = albedoTex;
+                            stdMat.emissiveTexture = pbr.emissiveTexture || albedoTex;
+                            stdMat.emissiveColor = new Color3(1, 1, 1);
+                            stdMat.backFaceCulling = false;
+                            convertedMaterials.set(matId, stdMat);
 
-                            // Position at tag_flash and align rotation
-                            const flashTag = this.currentWeapon.getTag('tag_flash');
-                            if (flashTag) {
-                                flashResult.root.position = flashTag.origin.clone();
+                            // Null out PBR texture refs before disposal
+                            pbr.albedoTexture = null;
+                            pbr.emissiveTexture = null;
+                            pbr.metallicTexture = null;
+                            pbr.reflectivityTexture = null;
+                            pbr.microSurfaceTexture = null;
+                            pbr.bumpTexture = null;
+                            pbr.ambientTexture = null;
+                            pbrMaterialsToDispose.push(pbr);
 
-                                // Apply rotation from tag properties
-                                if (!flashResult.root.rotationQuaternion) {
-                                    flashResult.root.rotationQuaternion = new Quaternion();
-                                }
-                                Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
-                            }
-                            flashResult.root.setEnabled(false);
-                            console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
+                            console.log(`[WeaponViewManager] Blade: converted PBR "${pbr.name}" → StandardMaterial`);
                         }
-                    } catch (e) {
-                        console.warn(`[WeaponViewManager] Failed to load flash model: ${flashModelPath}`, e);
+                        mesh.material = convertedMaterials.get(matId)!;
+                    } else {
+                        // Gun-type weapons: keep PBR material for proper metallic/roughness
+                        // The albedo texture looks red without PBR shading — metallic/roughness
+                        // interaction is what makes it look orange/metallic on Sketchfab
+                        pbr.environmentIntensity = 2.0;
+                        pbr.directIntensity = 1.0;
+                        pbr.backFaceCulling = false;
+                        pbr.maxSimultaneousLights = 4; // Prevent shader overflow from projectile PointLights
+                        console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
                     }
+                }
+
+                // Ensure ALL meshes have weapon layer mask
+                mesh.renderingGroupId = 1;
+                mesh.layerMask = WEAPON_LAYER_MASK;
+
+                // Include all meshes with geometry; only skip the root if it's
+                // a bare TransformNode (Blender/Sketchfab-style GLBs). IQM-converted
+                // GLBs may have the geometry on meshes[0] itself.
+                if (mesh !== glbRoot || (mesh.getTotalVertices && mesh.getTotalVertices() > 0)) {
+                    glbMeshes.push(mesh);
+                }
+            }
+
+            // Dispose old PBR materials for blade (texture refs already nulled)
+            for (const pbr of pbrMaterialsToDispose) {
+                pbr.dispose(false, false);
+            }
+
+            // Set currentWeapon to match MD3LoadResult shape
+            this.currentWeapon = {
+                root: weaponNode,
+                meshes: glbMeshes,
+                model: { header: { name: weaponName, numSurfaces: glbMeshes.length, numFrames: 1, numTags: 0, numSkins: 0, filesize: 0, ident: 0, version: 0, framesOffset: 0, tagsOffset: 0, surfacesOffset: 0, eofOffset: 0 }, frames: [], tags: [], surfaces: [] },
+                getTag: () => null,
+            } as any;
+
+            console.log(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
+
+            // Load barrel sub-models if defined
+            if (this.currentWeaponDef?.barrels?.length) {
+                this.weaponBarrels.load(
+                    this.currentWeaponDef.barrels,
+                    glbRoot,
+                    weaponName,
+                    this.scene!,
+                    loadGen,
+                    () => this._loadGeneration
+                );
+            }
+
+            return true;
+        } catch (e) {
+            console.error(`[WeaponViewManager] Failed to load GLB: ${modelPath}`, e);
+            return false;
+        }
+    }
+
+    // ==================== MD3 Weapon Loading ====================
+
+    /**
+     * Load an MD3 weapon model from PK3 archives.
+     * Handles textures (diffuse/normal/gloss) and muzzle flash model.
+     * Sets this.currentWeapon on success.
+     */
+    private async loadMd3Weapon(
+        weaponName: string,
+        modelPath: string,
+        weaponDir: string,
+        weaponDef: WeaponDef | null | undefined,
+        pk3: PK3Loader,
+        loadGen: number
+    ): Promise<boolean> {
+        // Check if a newer load started while we were loading PK3/model data
+        if (this._loadGeneration !== loadGen) {
+            console.log(`[WeaponViewManager] MD3 load for '${weaponName}' superseded (gen ${loadGen} < ${this._loadGeneration})`);
+            return false;
+        }
+
+        // Check if model exists
+        if (!pk3.hasFile(modelPath)) {
+            console.error(`[WeaponViewManager] Model not found: ${modelPath}`);
+            console.log('[WeaponViewManager] Available files:', pk3.listDirectory(weaponDir));
+            return false;
+        }
+
+        // Debug: show which PK3 this model is actually loading from
+        const sourcePk3 = (pk3 as any).fileIndex?.get(modelPath.toLowerCase().replace(/\\/g, '/'));
+        console.log(`[WeaponViewManager] Loading model ${modelPath} from PK3: ${sourcePk3 || 'unknown'}`);
+
+        // Load model data
+        const modelBuffer = await pk3.getFile(modelPath);
+        if (!modelBuffer) {
+            console.error(`[WeaponViewManager] Failed to load model: ${modelPath}`);
+            return false;
+        }
+
+        // Parse MD3
+        const md3 = getMD3Loader();
+        const model = md3.parseMD3(modelBuffer);
+
+        // Remove previous weapon
+        if (this.currentWeapon) {
+            this.currentWeapon.root.dispose();
+            this.currentWeapon = null;
+        }
+
+        // Create meshes
+        this.currentWeapon = md3.createMeshes(model, weaponName);
+        if (!this.currentWeapon) {
+            console.error('[WeaponViewManager] Failed to create meshes');
+            return false;
+        }
+
+        // Load textures
+        await this.loadMd3Textures(weaponName, weaponDir);
+
+        // Load muzzle flash model (e.g., plasmagun_flash.md3)
+        await this.loadMuzzleFlashModel(weaponName, weaponDef, pk3, md3);
+
+        return true;
+    }
+
+    /**
+     * Load diffuse, normal, and gloss textures for an MD3 weapon.
+     */
+    private async loadMd3Textures(weaponName: string, weaponDir: string): Promise<void> {
+        if (!this.currentWeapon) return;
+
+        let textureLoaded = false;
+        const texLoader = PK3TextureLoader.getInstance();
+
+        // Try weapon-specific texture path first
+        const weaponTexPath = `${weaponDir}/${weaponName}`;
+        const diffuseTex = await texLoader.resolveAndLoadTexture(weaponTexPath);
+
+        if (diffuseTex) {
+            for (const mesh of this.currentWeapon.meshes) {
+                const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
+                mat.specularColor.set(0.2, 0.2, 0.2);
+                mat.backFaceCulling = true;
+                mat.diffuseTexture = diffuseTex;
+                mesh.material = mat;
+            }
+            console.log(`[WeaponViewManager] Loaded texture via PK3TextureLoader: ${weaponTexPath}`);
+            textureLoaded = true;
+        } else {
+            // Fallback: scan directory for any suitable image
+            const pk3 = PK3Loader.getInstance();
+            const dirFiles = pk3.listDirectory(weaponDir);
+            const imageFile = dirFiles.find(f => {
+                const lower = f.toLowerCase();
+                return (lower.endsWith('.ktx') || lower.endsWith('.jpg') || lower.endsWith('.tga') ||
+                    lower.endsWith('.png') || lower.endsWith('.jpeg')) &&
+                    !lower.includes('_flash') && !lower.includes('_hand') &&
+                    !lower.includes('_norm') && !lower.includes('_gloss');
+            });
+            if (imageFile) {
+                const fullPath = `${weaponDir}/${imageFile}`;
+                const fallbackTex = await texLoader.resolveAndLoadTexture(fullPath);
+                if (fallbackTex) {
+                    for (const mesh of this.currentWeapon.meshes) {
+                        const mat = new StandardMaterial(`${weaponName}_mat`, this.scene!);
+                        mat.specularColor.set(0.2, 0.2, 0.2);
+                        mat.backFaceCulling = true;
+                        mat.diffuseTexture = fallbackTex;
+                        mesh.material = mat;
+                    }
+                    console.log(`[WeaponViewManager] Loaded texture (fallback scan): ${fullPath}`);
+                    textureLoaded = true;
                 }
             }
         }
 
-        // === SHARED SETUP (runs for both MD3 and GLB weapons) ===
+        // Load normal map (_norm) and gloss map (_gloss)
+        if (textureLoaded) {
+            const normTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_norm`);
+            if (normTex) {
+                for (const mesh of this.currentWeapon.meshes) {
+                    const mat = mesh.material as StandardMaterial;
+                    if (mat) {
+                        mat.bumpTexture = normTex;
+                        // MD3 UVs are V-flipped (1.0 - v) to convert from Quake's
+                        // bottom-left origin. The normal map texture was authored for
+                        // the original (non-flipped) UV space, so we need to:
+                        // 1. Flip bump texture V sampling to match the flipped mesh UVs
+                        // 2. Invert tangent space axes to correct the bump direction
+                        (normTex as Texture).vScale = -1;
+                        (normTex as Texture).vOffset = 1;
+                        mat.invertNormalMapX = true;
+                        mat.invertNormalMapY = true;
+                    }
+                }
+                console.log(`[WeaponViewManager] Loaded normal map for ${weaponName}`);
+            }
+
+            const glossTex = await texLoader.resolveAndLoadTexture(`${weaponDir}/${weaponName}_gloss`);
+            if (glossTex) {
+                for (const mesh of this.currentWeapon.meshes) {
+                    const mat = mesh.material as StandardMaterial;
+                    if (mat) {
+                        mat.specularTexture = glossTex;
+                        mat.specularColor.set(0.6, 0.6, 0.6);
+                    }
+                }
+                console.log(`[WeaponViewManager] Loaded gloss map for ${weaponName}`);
+            }
+        }
+
+        if (!textureLoaded) {
+            console.warn(`[WeaponViewManager] No texture found for weapon: ${weaponName}`);
+            console.log(`[WeaponViewManager] Searched in: ${weaponDir}`, PK3Loader.getInstance().listDirectory(weaponDir));
+        }
+    }
+
+    /**
+     * Load the muzzle flash MD3 model and position it at tag_flash.
+     */
+    private async loadMuzzleFlashModel(
+        weaponName: string,
+        weaponDef: WeaponDef | null | undefined,
+        pk3: PK3Loader,
+        md3: ReturnType<typeof getMD3Loader>
+    ): Promise<void> {
+        if (!this.currentWeapon) return;
+
+        const flashModelPath = weaponDef?.viewModel?.flashModelPath
+            ?? `models/weapons/${weaponName}/${weaponName}_flash.md3`;
+        if (!pk3.hasFile(flashModelPath)) return;
+
+        const flashData = await pk3.getFile(flashModelPath);
+        if (!flashData) return;
+
+        try {
+            const flashMd3 = md3.parseMD3(flashData);
+            const flashResult = md3.createMeshes(flashMd3, `${weaponName}_flash`);
+            if (!flashResult) return;
+
+            // Parent flash to weapon root
+            flashResult.root.parent = this.currentWeapon.root;
+            this.muzzleFlashModel = flashResult.root;
+
+            // Scale the flash model appropriately
+            flashResult.root.scaling.setAll(1.5);
+
+            // Set up flash meshes
+            for (const mesh of flashResult.meshes) {
+                mesh.renderingGroupId = 1;
+                mesh.layerMask = WEAPON_LAYER_MASK;
+                mesh.isPickable = false;
+
+                // Ensure lighting is disabled for flash
+                const mat = mesh.material as StandardMaterial;
+                if (mat) {
+                    mat.disableLighting = true;
+                    mat.backFaceCulling = false;
+                }
+            }
+
+            // Position at tag_flash and align rotation
+            const flashTag = this.currentWeapon.getTag('tag_flash');
+            if (flashTag) {
+                flashResult.root.position = flashTag.origin.clone();
+
+                // Apply rotation from tag properties
+                if (!flashResult.root.rotationQuaternion) {
+                    flashResult.root.rotationQuaternion = new Quaternion();
+                }
+                Quaternion.FromRotationMatrixToRef(flashTag.axis, flashResult.root.rotationQuaternion);
+            }
+            flashResult.root.setEnabled(false);
+            console.log(`[WeaponViewManager] Loaded flash model: ${flashModelPath}`);
+        } catch (e) {
+            console.warn(`[WeaponViewManager] Failed to load flash model: ${flashModelPath}`, e);
+        }
+    }
+
+    // ==================== Shared Weapon Setup ====================
+
+    /**
+     * Final setup after loading a weapon (GLB or MD3):
+     * parenting, layer mask, position, and outlines.
+     */
+    private setupWeapon(
+        weaponName: string,
+        isGlbWeapon: boolean,
+        weaponDef: WeaponDef | null | undefined
+    ): boolean {
         if (!this.currentWeapon) {
             console.error('[WeaponViewManager] No weapon loaded');
             return false;

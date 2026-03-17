@@ -33,6 +33,7 @@ import { Cvar } from "../../core/Cvar";
 import { InputSystem } from "../../input/InputSystem";
 import { MovementVars } from "../../movement/MovementVars";
 import { DeveloperBar } from "../../debug/DeveloperBar";
+import { CameraInputHandler } from "../CameraInputHandler";
 import {
   PLAYER_RADIUS,
   PLAYER_HEIGHT,
@@ -298,7 +299,6 @@ export class FPSController implements ICameraController {
 
   // State
   private enabled: boolean = true;
-  private isPointerLocked: boolean = false;
 
   // Movement keys state
   private keys = {
@@ -444,14 +444,13 @@ export class FPSController implements ICameraController {
 
   // Input state accessors
   public isAiming(): boolean { return this.keys.aim; }
-  private onCanvasClick: ((e: MouseEvent) => void) | null = null;
-  private onMouseMove: ((e: MouseEvent) => void) | null = null;
-  private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
-  private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
-  private onPointerLockChange: (() => void) | null = null;
+
+  // Shared input handler (pointer lock, mouse look, key prevention)
+  private inputHandler = new CameraInputHandler();
+
+  // FPS-specific mouse button handlers (fire/aim)
   private onMouseDown: ((e: MouseEvent) => void) | null = null;
   private onMouseUp: ((e: MouseEvent) => void) | null = null;
-  private onContextMenu: ((e: Event) => void) | null = null;
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     // Register FPS actions with InputSystem (idempotent, safe to call multiple times)
@@ -496,8 +495,50 @@ export class FPSController implements ICameraController {
     // Clear default inputs - we handle everything
     this.camera.inputs.clear();
 
-    // Set up input handlers
-    this.setupInputHandlers();
+    // Set up shared input handlers (pointer lock, mouse look, key prevention)
+    this.inputHandler.setup(canvas, this.camera, this.config, 'FPSController', {
+      onUnlocked: () => {
+        this.keys.forward = false;
+        this.keys.backward = false;
+        this.keys.left = false;
+        this.keys.right = false;
+        this.keys.up = false;
+        this.keys.sprint = false;
+        this.keys.fire = false;
+        this.keys.aim = false;
+      },
+    }, {
+      // ADS sensitivity reduction (lerped with ADS progress)
+      mouseLookModifier: (sensitivity: number) => {
+        const mv = MovementVars.getInstance();
+        const adsSensitivity = mv.get('cl_ads_sensitivity');
+        const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
+        return sensitivity * adsMultiplier;
+      },
+      // FPS stores rotation separately from camera for slide/ledge pitch offsets
+      rotationApplier: (rotX: number, rotY: number) => {
+        this.mouseRotationX = rotX;
+        this.mouseRotationY = rotY;
+        if (this.camera) {
+          this.camera.rotation.y = this.mouseRotationY;
+          this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
+        }
+      },
+      extraPreventDefaultKeys: ['Ctrl', 'Tab', 'F4'],
+    });
+
+    // FPS-specific mouse button handlers (fire/aim)
+    this.onMouseDown = (e: MouseEvent) => {
+      if (!this.inputHandler.isPointerLocked) return;
+      if (e.button === 0) this.keys.fire = true;   // Left click = fire
+      if (e.button === 2) this.keys.aim = true;    // Right click = ADS
+    };
+    this.onMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) this.keys.fire = false;
+      if (e.button === 2) this.keys.aim = false;
+    };
+    if (this.onMouseDown && canvas) canvas.addEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.addEventListener('mouseup', this.onMouseUp);
 
     // Set up render observer for movement
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
@@ -526,147 +567,17 @@ export class FPSController implements ICameraController {
     console.log("[FPSController] Attached - Click to capture mouse, WASD to move, ESC to release");
   }
 
-  private setupInputHandlers(): void {
-    if (!this.canvas) return;
-
-    // Click to capture mouse - use document click and check target
-    this.onCanvasClick = (e: MouseEvent) => {
-      // Only respond to clicks on the canvas itself
-      if (e.target !== this.canvas) return;
-
-      if (!this.isPointerLocked && this.canvas) {
-        console.log('[FPSController] Canvas clicked, requesting pointer lock');
-        this.canvas.requestPointerLock();
-      }
-    };
-
-    // Handle pointer lock change
-    this.onPointerLockChange = () => {
-      this.isPointerLocked = document.pointerLockElement === this.canvas;
-      if (this.isPointerLocked) {
-        console.log('[FPSController] Mouse captured - WASD to move, ESC to release');
-      } else {
-        console.log('[FPSController] Mouse released - Click to capture');
-        // Reset movement keys when releasing
-        this.keys.forward = false;
-        this.keys.backward = false;
-        this.keys.left = false;
-        this.keys.right = false;
-        this.keys.up = false;
-        this.keys.sprint = false;
-        this.keys.fire = false;
-        this.keys.aim = false;
-      }
-    };
-
-    // Mouse look (only when pointer is locked)
-    this.onMouseMove = (e: MouseEvent) => {
-      if (!this.enabled || !this.camera || !this.isPointerLocked) return;
-
-      const baseSensitivity = this.config.mouseSensitivity || 0.002;
-      const sensitivityMultiplier = Cvar.getNumber('m_sensitivity') ?? 2.0;
-
-      // ADS sensitivity reduction (lerped with ADS progress)
-      const mv = MovementVars.getInstance();
-      const adsSensitivity = mv.get('cl_ads_sensitivity');
-      // Lerp: 1.0 when hip, adsSensitivity when fully ADS
-      const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
-
-      const sensitivity = baseSensitivity * sensitivityMultiplier * adsMultiplier;
-      const invertYCvar = Cvar.getBool('m_invertY');
-      const invertY = (this.config.invertY || invertYCvar) ? -1 : 1;
-
-      // Update mouse-controlled rotation (stored separately from camera)
-      this.mouseRotationY += e.movementX * sensitivity;
-      this.mouseRotationX += e.movementY * sensitivity * invertY;
-
-      // Clamp vertical rotation
-      this.mouseRotationX = Math.max(
-        -Math.PI / 2 + 0.1,
-        Math.min(Math.PI / 2 - 0.1, this.mouseRotationX)
-      );
-
-      // Apply to camera (slide/ledge offsets are applied here too so async events don't overwrite them)
-      this.camera.rotation.y = this.mouseRotationY;
-      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
-    };
-
-    // Keyboard input — only handles preventDefault; key state comes from InputSystem
-    this.onKeyDown = (e: KeyboardEvent) => {
-      if (!this.isPointerLocked) return;
-
-      // Block ALL Ctrl+key browser shortcuts when pointer locked
-      if (e.ctrlKey) e.preventDefault();
-
-      // Prevent default for keys that would interfere with the browser
-      if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
-      if (e.code === 'F4') e.preventDefault();
-    };
-
-    this.onKeyUp = (_e: KeyboardEvent) => {
-      // No-op: key state is driven by InputSystem in syncKeysFromInput()
-    };
-
-    // Mouse button handlers for fire and ADS
-    this.onMouseDown = (e: MouseEvent) => {
-      if (!this.isPointerLocked) {
-        // console.log("MouseDown ignored - not locked");
-        return;
-      }
-
-      if (e.button === 0) this.keys.fire = true;   // Left click = fire
-      if (e.button === 2) this.keys.aim = true;    // Right click = ADS
-    };
-
-    this.onMouseUp = (e: MouseEvent) => {
-      if (e.button === 0) this.keys.fire = false;
-      if (e.button === 2) this.keys.aim = false;
-    };
-
-    // Prevent context menu on right click
-    this.onContextMenu = (e: Event) => {
-      if (this.isPointerLocked) e.preventDefault();
-    };
-
-
-    // Mouse events scoped to canvas; keyboard + pointerlockchange stay on document.
-    // mousemove stays on document because Pointer Lock dispatches there.
-    const canvas = this.canvas;
-    if (this.onCanvasClick && canvas) canvas.addEventListener('click', this.onCanvasClick);
-    if (this.onPointerLockChange) document.addEventListener('pointerlockchange', this.onPointerLockChange);
-    if (this.onMouseMove) document.addEventListener('mousemove', this.onMouseMove);
-    if (this.onKeyDown) document.addEventListener('keydown', this.onKeyDown);
-    if (this.onKeyUp) document.addEventListener('keyup', this.onKeyUp);
-    if (this.onMouseDown && canvas) canvas.addEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp && canvas) canvas.addEventListener('mouseup', this.onMouseUp);
-    if (this.onContextMenu && canvas) canvas.addEventListener('contextmenu', this.onContextMenu);
-
-  }
-
-  private removeInputHandlers(): void {
-    // Exit pointer lock if active
-    if (this.isPointerLocked) {
-      document.exitPointerLock();
-    }
-
-    const canvas = this.canvas;
-    if (this.onCanvasClick && canvas) canvas.removeEventListener('click', this.onCanvasClick);
-    if (this.onPointerLockChange) document.removeEventListener('pointerlockchange', this.onPointerLockChange);
-    if (this.onMouseMove) document.removeEventListener('mousemove', this.onMouseMove);
-    if (this.onKeyDown) document.removeEventListener('keydown', this.onKeyDown);
-    if (this.onKeyUp) document.removeEventListener('keyup', this.onKeyUp);
-    if (this.onMouseDown && canvas) canvas.removeEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp && canvas) canvas.removeEventListener('mouseup', this.onMouseUp);
-    if (this.onContextMenu && canvas) canvas.removeEventListener('contextmenu', this.onContextMenu);
-  }
-
   detach(): void {
     if (this.renderObserver && this.scene) {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
 
-    this.removeInputHandlers();
+    // Tear down shared input handler + FPS-specific mouse handlers
+    this.inputHandler.teardown();
+    const canvas = this.canvas;
+    if (this.onMouseDown && canvas) canvas.removeEventListener('mousedown', this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.removeEventListener('mouseup', this.onMouseUp);
 
     // Clean up network state subscription
     if (this.stateUnsubscribe) {
@@ -684,7 +595,6 @@ export class FPSController implements ICameraController {
     this.camera = null;
     this.scene = null;
     this.canvas = null;
-    this.isPointerLocked = false;
 
     console.log("[FPSController] Detached (state reset)");
   }
@@ -708,8 +618,8 @@ export class FPSController implements ICameraController {
     this.keys.use = input.isActive(FPS.USE);
 
     // Fire/Aim: only when pointer locked (InputSystem tracks globally)
-    this.keys.fire = this.isPointerLocked && input.isActive(FPS.FIRE);
-    this.keys.aim = this.isPointerLocked && input.isActive(FPS.AIM);
+    this.keys.fire = this.inputHandler.isPointerLocked && input.isActive(FPS.FIRE);
+    this.keys.aim = this.inputHandler.isPointerLocked && input.isActive(FPS.AIM);
 
     // One-shot callbacks via wasPressed()
     if (input.wasPressed(FPS.RELOAD) && this.onReload) this.onReload();
@@ -758,7 +668,7 @@ export class FPSController implements ICameraController {
 
     // When pointer lock is lost (e.g. pause menu), zero out inputs to prevent moving
     // but DO NOT return early so we still process networking and render remote players.
-    if (!this.isPointerLocked) {
+    if (!this.inputHandler.isPointerLocked) {
       this.keys.forward = false;
       this.keys.backward = false;
       this.keys.left = false;
@@ -1412,7 +1322,7 @@ export class FPSController implements ICameraController {
       this.keys.right = false;
       this.keys.up = false;
       this.keys.sprint = false;
-      if (this.isPointerLocked) {
+      if (this.inputHandler.isPointerLocked) {
         document.exitPointerLock();
       }
     }
