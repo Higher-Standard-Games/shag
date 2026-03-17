@@ -183,15 +183,17 @@ export abstract class EngineScene {
     // ═══════════════════════════════════════════════════════════════
     // CRITICAL: Global light cap for ALL materials.
     // WebGL2 has a limit of 12 uniform buffer blocks (UBOs).
-    // Each light requires its own UBO. Without this cap, dynamic
-    // lights from projectiles/impacts/effects push shaders over the
-    // limit and ALL textures break to white.
-    // Cap = 4 means BabylonJS compiles shaders for max 4 lights,
-    // picking the 4 nearest — all effect lights still work fine.
+    // PBR + skeleton bones + scene already use 7+ UBOs. Each light
+    // adds 1 UBO. With 4 lights, complex materials (skeletal PBR)
+    // hit the 12-UBO ceiling — riotgun multi-pellet impacts with
+    // many simultaneous PointLights push shaders over the limit,
+    // breaking ALL textures to white.
+    // Cap = 2 means BabylonJS picks the 2 nearest lights — still
+    // provides dynamic lighting while staying safely under 12 UBOs.
     // ═══════════════════════════════════════════════════════════════
     this.scene.onNewMaterialAddedObservable.add((material) => {
       if ('maxSimultaneousLights' in material) {
-        (material as any).maxSimultaneousLights = 4;
+        (material as any).maxSimultaneousLights = 2;
       }
     });
 
