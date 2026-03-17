@@ -469,13 +469,23 @@ export class PlayerModelManager {
     /**
      * Zero out root-motion bone positions each frame.
      * Call this every frame to prevent animation drift.
+     *
+     * IMPORTANT: Only zero X and Z on the Hips bone — preserve Y.
+     * Hips Y determines the character's natural height above the mesh root.
+     * Zeroing it collapses the entire skeleton to mesh origin (feet level),
+     * causing legs to extend ~35 units below the floor.
      */
     resetRootMotion(instance: PlayerModelInstance): void {
         instance.mesh.position.set(0, 0, 0);
         for (const child of instance.mesh.getChildTransformNodes(true)) {
             const name = child.name.toLowerCase();
-            if (name.includes('armature') || name.includes('root') || name.includes('hips')) {
+            if (name.includes('armature') || name.includes('root')) {
+                // Armature/root nodes should always be at mesh origin
                 child.position.set(0, 0, 0);
+            } else if (name.includes('hips')) {
+                // Hips: only zero horizontal drift, keep natural Y height
+                child.position.x = 0;
+                child.position.z = 0;
             }
         }
     }

@@ -214,7 +214,8 @@ export class PlayerVisuals {
             initialPos.addInPlace(forward.scale(100));
 
             const CONST_PLAYER_MINS_Z = -24;
-            initialPos.y = myPos.y + CONST_PLAYER_MINS_Z;
+            const MODEL_Y_OFFSET = 12;
+            initialPos.y = myPos.y + CONST_PLAYER_MINS_Z + MODEL_Y_OFFSET;
 
             this.debugPlayerSmoothedPos.copyFrom(initialPos);
             this.debugPlayerSmoothedYaw = yaw;
@@ -270,7 +271,8 @@ export class PlayerVisuals {
         targetPos.addInPlace(forward.scale(offset));
 
         const CONST_PLAYER_MINS_Z = -24;
-        targetPos.y = myPos.y + CONST_PLAYER_MINS_Z;
+        const MODEL_Y_OFFSET = 12;
+        targetPos.y = myPos.y + CONST_PLAYER_MINS_Z + MODEL_Y_OFFSET;
 
         // Smooth position
         const velocity = this.controller.getVelocity();
