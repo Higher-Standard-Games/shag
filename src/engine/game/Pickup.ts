@@ -479,11 +479,12 @@ export class Pickup extends TransformNode {
      */
     public dropToGround() {
         // Visual Raycast against rendered BSP meshes — most reliable for floor finding.
-        // Start well above entity position to avoid starting inside brush geometry.
+        // Start from entity position (Q3 BSP entities are always in valid free space).
+        // Do NOT offset upward — rooms with ceilings would put the ray above the ceiling,
+        // hitting the ceiling exterior and placing the weapon out of view.
         const rayOrigin = this.position.clone();
-        rayOrigin.y += 200; // Start 200 units above to clear any nearby ceilings
         const rayDir = new Vector3(0, -1, 0);
-        const ray = new Ray(rayOrigin, rayDir, 4000); // Cast far down
+        const ray = new Ray(rayOrigin, rayDir, 2000); // Cast down from entity position
 
         const hit = this.getScene().pickWithRay(ray, (mesh) => {
             // Skip own mesh and children
