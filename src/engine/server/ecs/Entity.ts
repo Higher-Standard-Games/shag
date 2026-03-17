@@ -50,6 +50,9 @@ export class Entity {
     /** Health and armor */
     health?: HealthComponent;
 
+    /** Optional metadata for item entities (weaponId, ammo count) */
+    metadata?: { weaponId: string; ammo?: number };
+
     /**
      * Tick when this entity was spawned/respawned.
      * Physics is frozen for SPAWN_FREEZE_TICKS after this tick to
@@ -83,6 +86,7 @@ export class Entity {
         const cloned = new Entity(this.id, this.type);
         cloned.ownerId = this.ownerId;
         cloned.spawnTick = this.spawnTick;
+        if (this.metadata) cloned.metadata = { ...this.metadata };
 
         // Clone each component if present
         if (this.transform) cloned.transform = cloneTransform(this.transform);
@@ -175,9 +179,11 @@ export function createDroppedWeaponEntity(
     id: EntityId,
     position: { x: number; y: number; z: number },
     velocity?: { x: number; y: number; z: number },
+    weaponId?: string,
 ): Entity {
     const entity = new Entity(id, EntityType.Item);
     entity.transform = createTransform(position);
+    if (weaponId) entity.metadata = { weaponId };
     if (velocity) {
         entity.physics = {
             velocity,

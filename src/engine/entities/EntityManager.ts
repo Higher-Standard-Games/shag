@@ -14,6 +14,8 @@ import { InventoryManager } from '../game/InventoryManager';
 export class EntityManager {
     private static instance: EntityManager;
     private entities: any[] = []; // TODO: ActiveEntity interface
+    /** Sequential counter for BSP weapon pickup IDs — must match server's PickupSystem.setPickupItems() ordering */
+    private nextPickupId: number = 0;
 
     private constructor() { }
 
@@ -136,7 +138,9 @@ export class EntityManager {
             value: value,
             respawnTime: 30, // Default 30s
             scale: def.scale || 1.0,
-            glowColor: def.glowColor // Pass glow color from definition
+            glowColor: def.glowColor, // Pass glow color from definition
+            // Assign sequential pickup ID for weapons (must match server PickupSystem ordering)
+            pickupId: type === 'weapon' ? this.nextPickupId++ : undefined,
         });
 
         // Register this pickup in local tracking (optional, Pickup handles its own logic now)

@@ -36,6 +36,8 @@ export interface PickupOptions {
     entityId?: string;
     /** Ammo count for dropped weapons. If set, pickup gives this amount instead of default. */
     ammoCount?: number;
+    /** Server-assigned sequential pickup ID for deterministic deactivation. */
+    pickupId?: number;
 }
 
 export class Pickup extends TransformNode {
@@ -59,8 +61,11 @@ export class Pickup extends TransformNode {
     /** Registry of all Pickup instances for server-driven deactivation */
     private static allPickups: Pickup[] = [];
 
+    /** ID-based lookup map for deterministic deactivation (server pickupId → Pickup) */
+    private static pickupById: Map<number, Pickup> = new Map();
+
     /** Deferred deactivation queue — for item_pickup events that arrive before client Pickup is created */
-    private static pendingDeactivations: { weaponId: string; x: number; y: number; z: number; timestamp: number }[] = [];
+    private static pendingDeactivations: { weaponId: string; x: number; y: number; z: number; pickupId?: number; timestamp: number }[] = [];
 
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
@@ -72,6 +77,10 @@ export class Pickup extends TransformNode {
         // Dropped weapons (with entityId) are managed by DroppedWeaponRenderer.
         if (!options.entityId) {
             Pickup.allPickups.push(this);
+            // Register by server pickup ID for O(1) deactivation
+            if (options.pickupId !== undefined) {
+                Pickup.pickupById.set(options.pickupId, this);
+            }
             // Check deferred deactivation queue — if server already picked this up before we existed
             Pickup.checkDeferredDeactivation(this);
         }
@@ -424,6 +433,21 @@ export class Pickup extends TransformNode {
      */
     public deactivateFromServer(): void {
         this.onPickedUp();
+    }
+
+    /**
+     * Deactivate a pickup by server-assigned ID (O(1) deterministic lookup).
+     * Falls back to position-based matching if pickupId is not registered.
+     */
+    public static deactivateById(pickupId: number, weaponId: string, x: number, y: number, z: number): void {
+        const pickup = Pickup.pickupById.get(pickupId);
+        if (pickup && pickup.isActive) {
+            pickup.deactivateFromServer();
+            return;
+        }
+
+        // Fallback to position match (for pickups created before ID system)
+        Pickup.deactivateByPosition(weaponId, x, y, z);
     }
 
     /**
