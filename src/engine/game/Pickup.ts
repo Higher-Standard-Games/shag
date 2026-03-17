@@ -475,93 +475,67 @@ export class Pickup extends TransformNode {
 
     /**
      * Raycast down to find the floor and snap the entity to it.
+     * Uses Babylon visual raycast (picks against rendered BSP meshes).
      */
     public dropToGround() {
-
-
-        // Method 1: Try BSP Collision System (Most accurate for map geometry)
-        try {
-            const cm = getCollisionManager();
-
-
-            if (cm.isInitialized()) {
-
-                // Use a tiny radius (raycast-like) to avoid getting stuck on walls or invisible clip brushes
-                // contentMask: 1 = SOLID only (ignores PLAYERCLIP 0x10000)
-                const ground = cm.findGround(this.position, 2000, {
-                    radius: 0.1,
-                    contentMask: 1,
-                    debug: false
-                });
-
-
-                if (ground) {
-                    const groundY = ground.position.y;
-                    const offset = 2; // Almost flush with floor (was 16)
-                    const newY = groundY + offset;
-
-                    // Use full Vector3 assignment to trigger Babylon.js dirty flags
-                    this.position = new Vector3(this.position.x, newY, this.position.z);
-                    // Force world matrix recalculation for parent and ALL children (recursive)
-                    this.computeWorldMatrix(true);
-                    const updateChildren = (node: any) => {
-                        if (node.computeWorldMatrix) node.computeWorldMatrix(true);
-                        if (node.getChildren) node.getChildren().forEach(updateChildren);
-                    };
-                    this.getChildren().forEach(updateChildren);
-
-
-
-
-
-
-                    return;
-                } else {
-
-                }
-            } else {
-
-            }
-        } catch (e) {
-            console.error("[Pickup:dropToGround] BSP collision EXCEPTION:", e);
-        }
-
-        // Method 2: Visual Raycast (Fallback for non-BSP maps or bugs)
-
+        // Visual Raycast against rendered BSP meshes — most reliable for floor finding.
+        // Start well above entity position to avoid starting inside brush geometry.
         const rayOrigin = this.position.clone();
-        rayOrigin.y += 50;
+        rayOrigin.y += 200; // Start 200 units above to clear any nearby ceilings
         const rayDir = new Vector3(0, -1, 0);
-        const ray = new Ray(rayOrigin, rayDir, 2000);
-
-
+        const ray = new Ray(rayOrigin, rayDir, 4000); // Cast far down
 
         const hit = this.getScene().pickWithRay(ray, (mesh) => {
+            // Skip own mesh and children
             if (mesh === this.mesh || mesh.isDescendantOf(this)) return false;
+            // Skip player models
             if (mesh.name.startsWith("player")) return false;
+            // Skip debug/skybox
             if (mesh.name.includes("debug")) return false;
             if (mesh.name === "skybox") return false;
+            // Skip transparent/sprite meshes (not solid floor)
+            if (mesh.metadata?.autosprite || mesh.metadata?.autosprite2) return false;
+            // Only pick BSP world meshes and solid geometry
             return true;
         });
 
-
-
         if (hit && hit.hit && hit.pickedPoint) {
-            const newY = hit.pickedPoint.y + (this.options.scale || 1.0) * 8;
+            // Place weapon slightly above the floor (offset for visual clearance)
+            const floorOffset = 12; // Units above floor surface
+            const newY = hit.pickedPoint.y + floorOffset;
 
-            // Use full Vector3 assignment to trigger Babylon.js dirty flags
+            console.log(`[Pickup:dropToGround] ${this.name}: ${this.position.y.toFixed(1)} → ${newY.toFixed(1)} (floor=${hit.pickedPoint.y.toFixed(1)}, hit=${hit.pickedMesh?.name})`);
+
             this.position = new Vector3(this.position.x, newY, this.position.z);
-            // Force world matrix recalculation for parent and ALL children (recursive)
             this.computeWorldMatrix(true);
             const updateChildren = (node: any) => {
                 if (node.computeWorldMatrix) node.computeWorldMatrix(true);
                 if (node.getChildren) node.getChildren().forEach(updateChildren);
             };
             this.getChildren().forEach(updateChildren);
-
         } else {
-            console.error(`[Pickup:dropToGround] BOTH METHODS FAILED - item will float!`);
+            // Fallback: try BSP collision system
+            try {
+                const cm = getCollisionManager();
+                if (cm.isInitialized()) {
+                    const ground = cm.findGround(this.position, 2000, {
+                        radius: 0.1,
+                        contentMask: 1,
+                        debug: false
+                    });
+                    if (ground) {
+                        const newY = ground.position.y + 12;
+                        console.log(`[Pickup:dropToGround] ${this.name}: BSP fallback ${this.position.y.toFixed(1)} → ${newY.toFixed(1)}`);
+                        this.position = new Vector3(this.position.x, newY, this.position.z);
+                        this.computeWorldMatrix(true);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error("[Pickup:dropToGround] BSP collision EXCEPTION:", e);
+            }
+            console.error(`[Pickup:dropToGround] ALL METHODS FAILED for ${this.name} — item will float at y=${this.position.y.toFixed(1)}`);
         }
-
     }
 
 
