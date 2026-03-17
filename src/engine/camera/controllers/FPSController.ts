@@ -961,8 +961,8 @@ export class FPSController implements ICameraController {
           fire: this.keys.fire,
           altFire: this.keys.aim,
           use: this.keys.use,
-          pitch: this.mouseRotationX,
-          yaw: this.mouseRotationY,
+          pitch: this.camera!.rotation.x,
+          yaw: this.camera!.rotation.y,
           weaponSlot,
         });
 
