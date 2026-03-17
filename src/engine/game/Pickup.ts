@@ -10,6 +10,7 @@ import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { showPickupPrompt, hidePickupPrompt } from "./PickupPrompt";
 
 import { AudioManager } from "../AudioManager";
 
@@ -63,9 +64,6 @@ export class Pickup extends TransformNode {
 
     /** ID-based lookup map for deterministic deactivation (server pickupId → Pickup) */
     private static pickupById: Map<number, Pickup> = new Map();
-
-    /** Deferred deactivation queue — for item_pickup events that arrive before client Pickup is created */
-    private static pendingDeactivations: { weaponId: string; x: number; y: number; z: number; pickupId?: number; timestamp: number }[] = [];
 
     constructor(name: string, scene: Scene, position: Vector3, options: PickupOptions) {
         super(name, scene);
@@ -183,17 +181,17 @@ export class Pickup extends TransformNode {
                     // this.createGlowLight(); // Disabled for testing
                 }
 
-                // PHYSICS: Apply Havok CONVEX_HULL directly to the leader mesh.
-                // Same approach as original MD3 — Havok controls the visual mesh
-                // directly. No proxy box, no position sync needed.
-                const physics = PhysicsSystem.getInstance();
-                if (physics.isInitialized() && leaderMesh) {
-                    physics.createDynamicBody(leaderMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
-                    this.hasPhysics = true;
+                // PHYSICS: Only apply Havok for dropped weapons (toss arc).
+                // Map-spawn pickups sit at their BSP entity position — no physics needed.
+                // Havok CONVEX_HULL was unreliable with BSP MESH static bodies,
+                // causing weapons to float/spin until settle timer froze them mid-air.
+                if (this.options.velocity && leaderMesh) {
+                    const physics = PhysicsSystem.getInstance();
+                    if (physics.isInitialized()) {
+                        physics.createDynamicBody(leaderMesh, PhysicsShapeType.CONVEX_HULL, 10, 0.3);
+                        this.hasPhysics = true;
 
-                    if (leaderMesh.physicsBody) {
-                        if (this.options.velocity) {
-                            // Dropped weapon: apply toss velocity + random tumble
+                        if (leaderMesh.physicsBody) {
                             leaderMesh.physicsBody.setLinearVelocity(this.options.velocity);
                             const randomRot = new Vector3(
                                 (Math.random() - 0.5) * 12,
@@ -201,25 +199,16 @@ export class Pickup extends TransformNode {
                                 (Math.random() - 0.5) * 12,
                             );
                             leaderMesh.physicsBody.setAngularVelocity(randomRot);
-                        } else {
-                            // Map spawn: just random tumble (drops in place)
-                            const randomRot = new Vector3(
-                                (Math.random() - 0.5) * 10,
-                                (Math.random() - 0.5) * 10,
-                                (Math.random() - 0.5) * 10
-                            );
-                            leaderMesh.physicsBody.setAngularVelocity(randomRot);
+                            this._scheduleSettleCheck(leaderMesh);
                         }
-
-                        // Settle detection: check velocity every 500ms, freeze when < 2
-                        this._scheduleSettleCheck(leaderMesh);
                     }
                 } else {
-                    // Fallback if physics unavailable
-                    console.warn(`[Pickup] Physics NOT initialized — using dropToGround fallback`);
+                    // Map spawn: raycast down to BSP floor, then place mesh there
+                    this.dropToGround();
                     this.settled = true;
-                    if (this.options.gravity) {
-                        this.dropToGround();
+                    // Sync detached mesh position (parent=null for Havok compat)
+                    if (leaderMesh) {
+                        leaderMesh.position.copyFrom(this.getAbsolutePosition());
                     }
                 }
 
@@ -345,7 +334,9 @@ export class Pickup extends TransformNode {
     // ═══════════════════════════════════════════════════════════════════
 
     private static nearbyWeaponPickup: Pickup | null = null;
-    private static hudPromptElement: HTMLDivElement | null = null;
+
+    /** Deferred deactivation queue — for item_pickup events that arrive before client Pickup is created */
+    private static pendingDeactivations: { weaponId: string; x: number; y: number; z: number; pickupId?: number; timestamp: number }[] = [];
 
     /** Called by FPSController.onUse (F key) — now only clears prompt.
      *  The USE key is sent to server as a button flag; server handles the swap. */
@@ -374,58 +365,15 @@ export class Pickup extends TransformNode {
             promptText = `PRESS [F] TO PICKUP ${weaponName}`;
         }
 
-        Pickup.showHudPrompt(promptText);
+        showPickupPrompt('pickup', promptText);
     }
 
     private static clearNearbyWeapon(): void {
         Pickup.nearbyWeaponPickup = null;
-        Pickup.hideHudPrompt();
+        hidePickupPrompt('pickup');
     }
 
-    private static showHudPrompt(text: string): void {
-        if (!Pickup.hudPromptElement) {
-            const el = document.createElement('div');
-            el.id = 'pickup-hud-prompt';
-            el.style.cssText = `
-                position: fixed;
-                bottom: 25%;
-                left: 50%;
-                transform: translateX(-50%);
-                background: linear-gradient(180deg, rgba(10,8,16,0.9) 0%, rgba(6,4,12,0.85) 100%);
-                color: rgba(255, 160, 80, 1);
-                font-family: 'Orbitron', 'Rajdhani', 'Inter', system-ui, sans-serif;
-                font-size: 24px;
-                font-weight: 700;
-                letter-spacing: 0.12em;
-                padding: 14px 32px;
-                border: 1px solid rgba(255, 100, 0, 0.45);
-                border-radius: 3px;
-                pointer-events: none;
-                z-index: 900;
-                text-shadow: 0 0 12px rgba(255, 100, 0, 0.4), 0 0 24px rgba(255, 80, 0, 0.12);
-                box-shadow: 0 0 20px rgba(255, 80, 0, 0.1), inset 0 1px 0 rgba(255, 140, 0, 0.08);
-                backdrop-filter: blur(6px);
-                transition: opacity 0.15s ease;
-            `;
-            document.body.appendChild(el);
-            Pickup.hudPromptElement = el;
-        }
-        Pickup.hudPromptElement.textContent = text;
-        Pickup.hudPromptElement.style.opacity = '1';
-        Pickup.hudPromptElement.style.display = 'block';
-    }
-
-    private static hideHudPrompt(): void {
-        if (Pickup.hudPromptElement) {
-            Pickup.hudPromptElement.style.opacity = '0';
-            // Hide after fade
-            setTimeout(() => {
-                if (Pickup.hudPromptElement) {
-                    Pickup.hudPromptElement.style.display = 'none';
-                }
-            }, 150);
-        }
-    }
+    // HUD prompt is now shared via PickupPrompt.ts
 
     /**
      * Deactivate this pickup from a server event (item_pickup).

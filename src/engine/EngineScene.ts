@@ -179,7 +179,21 @@ export abstract class EngineScene {
     this.scene.autoClear = true;
     this.scene.skipPointerMovePicking = true;
     this.scene.blockMaterialDirtyMechanism = false;
-    this.scene.blockMaterialDirtyMechanism = false;
+
+    // ═══════════════════════════════════════════════════════════════
+    // CRITICAL: Global light cap for ALL materials.
+    // WebGL2 has a limit of 12 uniform buffer blocks (UBOs).
+    // Each light requires its own UBO. Without this cap, dynamic
+    // lights from projectiles/impacts/effects push shaders over the
+    // limit and ALL textures break to white.
+    // Cap = 4 means BabylonJS compiles shaders for max 4 lights,
+    // picking the 4 nearest — all effect lights still work fine.
+    // ═══════════════════════════════════════════════════════════════
+    this.scene.onNewMaterialAddedObservable.add((material) => {
+      if ('maxSimultaneousLights' in material) {
+        (material as any).maxSimultaneousLights = 4;
+      }
+    });
 
     // Initialize Physics System
     try {
