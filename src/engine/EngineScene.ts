@@ -212,7 +212,7 @@ export abstract class EngineScene {
     await ServiceLocator.getInstance().initScene(this.scene);
     console.log('[EngineScene] Scene services initialized');
 
-    // Networking is initialized by game-specific code (e.g., FPSGameManager → NetworkGameHost)
+    // Networking is initialized by game-specific code (e.g., Game → NetworkGameHost)
 
     // Load camera settings
     const engineSettings = EngineSettings.getInstance();

@@ -7,7 +7,7 @@
  * ```typescript
  * import { MessageCodec, NetworkGameHost } from './engine/network';
  *
- * // Connect to server via NetworkGameHost (used by FPSGameManager)
+ * // Connect to server via NetworkGameHost (used by Game)
  * const host = new NetworkGameHost(simulation, transport);
  * ```
  */

@@ -141,7 +141,7 @@ class InterpolationBuffer {
     result.tick = state1.tick;
     result.events = []; // Events aren't interpolated
 
-    // Copy players from state2 (needed for FPSGameManager to find local player)
+    // Copy players from state2 (needed for Game to find local player)
     for (const [id, player] of state2.players) {
       result.players.set(id, player);
     }
@@ -170,7 +170,7 @@ class InterpolationBuffer {
         }
       }
 
-      // Interpolate transform.position (for FPSGameManager compatibility)
+      // Interpolate transform.position (for Game compatibility)
       const transform1 = entity1.getComponent('transform') as any;
       const transform2 = entity2.getComponent('transform') as any;
 
@@ -529,7 +529,7 @@ export class NetworkGameHost implements IGameHost {
 
   getInterpolatedEntity(entityId: string): any {
     // Use Client Prediction if possible (requires collision data)
-    // Now that BSP collision is wired up in FPSGameManager, we can safely use this.
+    // Now that BSP collision is wired up in Game, we can safely use this.
     const USE_CLIENT_PREDICTION = true;
 
     if (USE_CLIENT_PREDICTION) {
@@ -749,7 +749,7 @@ export class NetworkGameHost implements IGameHost {
     // In legacy mode (no V2 client), callbacks are fired by predictLocally() only.
     // This prevents flickering from alternating predicted vs interpolated positions.
     // In V2 mode, predictLocally() is skipped, so we MUST fire callbacks here
-    // so FPSGameManager.onServerStateUpdate() can feed snapshots to V2NetworkClient.
+    // so Game.onServerStateUpdate() can feed snapshots to V2NetworkClient.
     if (this.useExternalPrediction) {
       this.stateUpdateCallbacks.forEach(cb => cb(snapshot));
     }

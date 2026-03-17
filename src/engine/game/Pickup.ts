@@ -427,7 +427,7 @@ export class Pickup extends TransformNode {
     }
 
     /**
-     * Deactivate a pickup by position match (called from FPSGameManager on item_pickup event).
+     * Deactivate a pickup by position match (called from Game on item_pickup event).
      * Uses position proximity since server numeric IDs don't map to client string IDs.
      */
     public static deactivateByPosition(weaponId: string, x: number, y: number, z: number): void {

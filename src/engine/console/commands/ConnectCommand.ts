@@ -1,5 +1,5 @@
 import { Command } from '../Command';
-import { FPSGameManager } from '../../../games/fps/FPSGameManager';
+import { Game } from '../../../games/fps/Game';
 
 /**
  * Connect command - connects to a multiplayer game server
@@ -30,7 +30,7 @@ export default class ConnectCommand extends Command {
     }
 
     try {
-      const gameManager = FPSGameManager.getInstance();
+      const gameManager = Game.getInstance();
 
       // Check if already connected
       if (gameManager.isConnectedToServer()) {
@@ -39,7 +39,7 @@ export default class ConnectCommand extends Command {
       }
 
       await gameManager.initializeNetwork(url);
-      // Note: FPS controller setup is now done in FPSGameManager.onServerInfo callback
+      // Note: FPS controller setup is now done in Game.onServerInfo callback
       // AFTER the map loads, to prevent race conditions with scene setup
       return `Connecting to ${url}... Map will load shortly.`;
     } catch (error) {

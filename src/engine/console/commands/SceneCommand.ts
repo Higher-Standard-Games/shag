@@ -189,8 +189,8 @@ export default class SceneCommand extends Command {
     cameraSystem.setCamera(emptySceneCamera);
 
     // Create fresh freefly controller (unless we're in network mode)
-    const { FPSGameManager } = await import('../../../games/fps/FPSGameManager');
-    const isNetworkMode = FPSGameManager.getInstance().isConnectedToServer();
+    const { Game } = await import('../../../games/fps/Game');
+    const isNetworkMode = Game.getInstance().isConnectedToServer();
 
     if (!isNetworkMode) {
       const { FreeflyController } = await import('../../camera/controllers/FreeflyController');

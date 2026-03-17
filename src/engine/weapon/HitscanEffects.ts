@@ -291,7 +291,7 @@ export class HitscanEffects {
 
     /**
      * Update a remote (third-person) player's beam.
-     * Called from FPSGameManager when a fire event arrives for a beam weapon.
+     * Called from Game when a fire event arrives for a beam weapon.
      * Automatically cleaned up after REMOTE_BEAM_TIMEOUT if no updates arrive.
      */
     updateRemoteBeam(entityId: number, cfg: BeamConfig): void {

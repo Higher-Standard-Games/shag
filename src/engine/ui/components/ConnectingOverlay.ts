@@ -4,7 +4,7 @@
  * Shown when all players are ready and the match server is starting.
  * Displays a connecting animation, then triggers the actual server connection.
  */
-import { FPSGameManager } from '../../../games/fps/FPSGameManager';
+import { Game } from '../../../games/fps/Game';
 
 // Import CSS
 import './styles/ConnectingOverlay.css';
@@ -42,7 +42,7 @@ export class ConnectingOverlay {
         await this.delay(600);
 
         try {
-            const gameManager = FPSGameManager.getInstance();
+            const gameManager = Game.getInstance();
 
             // Check if already connected
             if (gameManager.isConnectedToServer()) {

@@ -19,8 +19,8 @@ export default class JoinCommand extends Command {
     // Check if we're in network mode
     let isNetworkMode = false;
     try {
-      const { FPSGameManager } = await import('../../../games/fps/FPSGameManager');
-      const gameManager = FPSGameManager.getInstance();
+      const { Game } = await import('../../../games/fps/Game');
+      const gameManager = Game.getInstance();
       isNetworkMode = gameManager.isConnectedToServer();
     } catch {
       // Not in network mode

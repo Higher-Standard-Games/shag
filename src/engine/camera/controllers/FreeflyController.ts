@@ -21,7 +21,7 @@ import { Cvar } from "../../core/Cvar";
 import { InputSystem } from "../../input/InputSystem";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
-import { FPSGameManager } from "../../../games/fps/FPSGameManager";
+import { Game } from "../../../games/fps/Game";
 
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
@@ -324,7 +324,7 @@ export class FreeflyController implements ICameraController {
 
     // Tick the network and render remote players even when paused or spectating
     try {
-      const gameManager = FPSGameManager.getInstance();
+      const gameManager = Game.getInstance();
       if (gameManager.isGameRunning()) {
         gameManager.processSnapshots();
         gameManager.renderRemotePlayers();

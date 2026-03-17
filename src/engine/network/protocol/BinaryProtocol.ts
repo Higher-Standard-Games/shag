@@ -284,7 +284,7 @@ export class BinaryProtocol {
 
       // Decode components
       // Note: We add BOTH 'position' and 'transform' components for compatibility
-      // Some code looks for 'position', other code (FPSGameManager) looks for 'transform.position'
+      // Some code looks for 'position', other code (Game) looks for 'transform.position'
       if (flags & 0x01) {
         const x = decoder.readFloat32();
         const y = decoder.readFloat32();
@@ -305,7 +305,7 @@ export class BinaryProtocol {
         const baselineTransform = baselineEntity?.getComponent('transform') as any;
         const existingRot = existingTransform?.rotation || baselineTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
 
-        // TransformComponent-style for FPSGameManager compatibility
+        // TransformComponent-style for Game compatibility
         const transform = {
           position: { x, y, z },
           rotation: { ...existingRot },
@@ -402,7 +402,7 @@ export class BinaryProtocol {
       if (hasVelocityData || (flags & 0x04) || (flags & 0x10)) {
         const vel = {
           x: velX, y: velY, z: velZ, // Legacy direct access
-          linear: { x: velX, y: velY, z: velZ }, // FPSGameManager expects velocity.linear
+          linear: { x: velX, y: velY, z: velZ }, // Game expects velocity.linear
           angular: { x: 0, y: 0, z: 0 },
           grounded, // Now properly transmitted!
           isCrouching,

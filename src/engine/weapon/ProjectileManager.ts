@@ -87,7 +87,7 @@ export class ProjectileManager {
 
     /**
      * Check if a predicted explosion was recently shown near the given position.
-     * Used by FPSGameManager to deduplicate server-authoritative explosions
+     * Used by Game to deduplicate server-authoritative explosions
      * against client-predicted ones.
      */
     public hasRecentPrediction(pos: Vector3, defId: string, tolerance = 50, maxAgeMs = 500): boolean {
@@ -144,7 +144,7 @@ export class ProjectileManager {
 
     /**
      * Update a server-driven projectile's position from interpolated snapshot data.
-     * Called every frame by FPSGameManager.renderServerProjectiles() with
+     * Called every frame by Game.renderServerProjectiles() with
      * SnapshotBuffer-interpolated positions (Q3-style lerp between snapshots).
      */
     public updateServerPosition(
@@ -553,7 +553,7 @@ export class ProjectileManager {
             const moveDist = moveAmount.length();
 
             // Server-driven projectiles: position is set externally by
-            // FPSGameManager.renderServerProjectiles() using SnapshotBuffer interpolation.
+            // Game.renderServerProjectiles() using SnapshotBuffer interpolation.
             // No client-side movement or collision needed — but still update visual effects.
             if (proj.isServerDriven) {
                 // Re-orient model to face direction of travel (gravity arcs)

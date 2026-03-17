@@ -14,7 +14,7 @@ import { FPSSimulation, FPSInputCommand } from '../../../games/fps/simulation/FP
 import { TransformComponent } from '../../network/components/TransformComponent';
 import { VelocityComponent } from '../../network/components/VelocityComponent';
 import { InputButtons } from '../../network/components/InputComponent';
-import { FPSGameManager } from '../../../games/fps/FPSGameManager';
+import { Game } from '../../../games/fps/Game';
 
 export default class NetTestCommand extends Command {
   readonly definition: CommandDef = {
@@ -58,7 +58,7 @@ export default class NetTestCommand extends Command {
   netsim state             - Show current game state
   netsim input <buttons>   - Send input command (forward|back|left|right|jump)
   netsim move <dir> [ticks]- Test movement (forward|back|left|right) for N ticks
-  netsim gamehost          - Test FPSGameManager with LocalGameHost`;
+  netsim gamehost          - Test Game with LocalGameHost`;
   }
 
   private runTest(): string {
@@ -339,13 +339,13 @@ export default class NetTestCommand extends Command {
   }
 
   private async testGameHost(): Promise<string> {
-    const lines: string[] = ['=== FPSGameManager + LocalGameHost Test ==='];
+    const lines: string[] = ['=== Game + LocalGameHost Test ==='];
 
     try {
       // Initialize game manager
-      const gameManager = FPSGameManager.getInstance();
+      const gameManager = Game.getInstance();
       await gameManager.initializeLocal({ tickRate: 20 });
-      lines.push('Initialized FPSGameManager with LocalGameHost');
+      lines.push('Initialized Game with LocalGameHost');
 
       // Try to set up BSP collision if available
       try {
@@ -378,7 +378,7 @@ export default class NetTestCommand extends Command {
       }
 
       // Subscribe to state updates
-      let lastUpdate: import('../../../games/fps/FPSGameManager').PlayerStateUpdate | null = null;
+      let lastUpdate: import('../../../games/fps/Game').PlayerStateUpdate | null = null;
       gameManager.onPlayerStateUpdate((state) => {
         lastUpdate = state;
       });
@@ -420,7 +420,7 @@ export default class NetTestCommand extends Command {
       lines.push('Shutdown complete');
 
       lines.push('');
-      lines.push('Test passed! FPSGameManager works with LocalGameHost.');
+      lines.push('Test passed! Game works with LocalGameHost.');
 
     } catch (error) {
       lines.push(`Error: ${error}`);

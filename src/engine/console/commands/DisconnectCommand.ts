@@ -1,5 +1,5 @@
 import { Command } from '../Command';
-import { FPSGameManager } from '../../../games/fps/FPSGameManager';
+import { Game } from '../../../games/fps/Game';
 
 /**
  * Disconnect command - disconnects from current game server
@@ -14,7 +14,7 @@ export default class DisconnectCommand extends Command {
 
   async execute(_args: string[]): Promise<string> {
     try {
-      const gameManager = FPSGameManager.getInstance();
+      const gameManager = Game.getInstance();
       const serverUrl = gameManager.getServerUrl();
 
       if (!gameManager.isConnectedToServer()) {

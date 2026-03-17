@@ -61,7 +61,7 @@ import { InventoryManager } from "../../game/InventoryManager";
 // import { WeaponDef } from "../../../shared/entities";
 
 import { PlayerVisuals } from "./components/PlayerVisuals";
-import { FPSGameManager } from "../../../games/fps/FPSGameManager";
+import { Game } from "../../../games/fps/Game";
 import { FPS, getWeaponSlotPressed, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
@@ -70,7 +70,7 @@ import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 export class FPSController implements ICameraController {
   public readonly type = "fps";
 
-  private gameManager: FPSGameManager | null = null;
+  private gameManager: Game | null = null;
   private useNetworkMovement: boolean = false;
   private networkReady: boolean = false;  // True only after async init completes
   private stateUnsubscribe: (() => void) | null = null;  // For cleanup
@@ -166,7 +166,7 @@ export class FPSController implements ICameraController {
 
   /**
    * Enable network movement mode after connection is established.
-   * Call this from FPSGameManager when connecting to a server.
+   * Call this from Game when connecting to a server.
    * This allows switching from local mode to network mode dynamically.
    */
   public enableNetworkMode(): void {
@@ -175,7 +175,7 @@ export class FPSController implements ICameraController {
       return;
     }
 
-    this.gameManager = FPSGameManager.getInstance();
+    this.gameManager = Game.getInstance();
 
     if (!this.gameManager.isConnectedToServer()) {
       console.warn(`[FPS] Cannot enable network mode - not connected to server`);
@@ -749,7 +749,7 @@ export class FPSController implements ICameraController {
       }
     }
 
-    // NOTE: HUD actions (scoreboard, chat) moved to FPSGameManager
+    // NOTE: HUD actions (scoreboard, chat) moved to Game
     // to avoid circular dependency and browser `require` crashes
   }
 
@@ -829,7 +829,7 @@ export class FPSController implements ICameraController {
     // NOTE: Spawn system should call setPositionFromFeet() or setPosition() before first frame
     if (!this.smoothingInitialized) {
       // Get the game manager instance first to check if we're connected
-      this.gameManager = FPSGameManager.getInstance();
+      this.gameManager = Game.getInstance();
       const isConnected = this.gameManager.isConnectedToServer();
 
       // If connected to a server, use server-provided position (NOT stale camera position)
@@ -865,7 +865,7 @@ export class FPSController implements ICameraController {
       // Skip if network mode was already enabled by enableNetworkMode() to avoid duplicate subscriptions
       if (isConnected && !this.networkReady) {
         // === SERVER CONNECTION MODE ===
-        // FPSGameManager was already initialized by 'connect' command
+        // Game was already initialized by 'connect' command
         // Just subscribe to state updates - don't spawn or init locally
         console.log(`[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`);
         this.useNetworkMovement = true;
@@ -914,7 +914,7 @@ export class FPSController implements ICameraController {
       } else {
         // === LOCAL SIMULATION MODE ===
         // Using local FPSMovementProfile simulation (same physics as server)
-        console.log(`[FPS] Initializing local simulation via FPSGameManager`);
+        console.log(`[FPS] Initializing local simulation via Game`);
         this.useNetworkMovement = true;
 
         this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
@@ -1032,7 +1032,7 @@ export class FPSController implements ICameraController {
       if (this.commandAccumulator > 0.1) this.commandAccumulator = 0.1;
 
       while (this.commandAccumulator >= TICK_DURATION) {
-        // Send input to FPSGameManager -> FPSSimulation
+        // Send input to Game -> FPSSimulation
         // Consume pending weapon slot (fire-and-forget: sent once, then cleared)
         const weaponSlot = this._pendingWeaponSlot;
         this._pendingWeaponSlot = 0;
