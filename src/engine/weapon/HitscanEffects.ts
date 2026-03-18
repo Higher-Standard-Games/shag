@@ -19,6 +19,7 @@ import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { mulberry32 } from '../../shared/SpreadUtils';
+import { getPointLightPool } from './PointLightPool';
 
 // ── Config types ─────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export class HitscanEffects {
     private remoteBeams: Map<number, {
         core: Mesh; glow: Mesh;
         coreMat: StandardMaterial; glowMat: StandardMaterial;
-        light: PointLight;
+        light: PointLight | null;
         lastUpdate: number;
     }> = new Map();
     private static readonly REMOTE_BEAM_TIMEOUT = 0.15; // seconds
@@ -263,10 +264,7 @@ export class HitscanEffects {
 
         // Endpoint glow light
         if (!this.activeBeamLight) {
-            this.activeBeamLight = new PointLight('beam_end_light', endpoint, this.scene);
-            this.activeBeamLight.diffuse = color;
-            this.activeBeamLight.intensity = 8;
-            this.activeBeamLight.range = 15;
+            this.activeBeamLight = getPointLightPool().acquire(endpoint, color, 8, 15);
         } else {
             this.activeBeamLight.position = endpoint;
             this.activeBeamLight.diffuse = color;
@@ -285,7 +283,7 @@ export class HitscanEffects {
         this.activeBeamCoreMat = null;
         this.activeBeamGlowMat?.dispose();
         this.activeBeamGlowMat = null;
-        this.activeBeamLight?.dispose();
+        getPointLightPool().release(this.activeBeamLight);
         this.activeBeamLight = null;
     }
 
@@ -332,22 +330,19 @@ export class HitscanEffects {
             glowMat.maxSimultaneousLights = 4;
             glow.material = glowMat;
 
-            const light = new PointLight(`${id}_light`, endpoint, this.scene);
-            light.diffuse = color;
-            light.intensity = 6;
-            light.range = 12;
+            const light = getPointLightPool().acquire(endpoint, color, 6, 12);
 
             beam = { core, glow, coreMat, glowMat, light, lastUpdate: performance.now() / 1000 };
             this.remoteBeams.set(entityId, beam);
         } else {
             beam.coreMat.emissiveColor = color;
-            beam.light.diffuse = color;
+            if (beam.light) beam.light.diffuse = color;
             beam.lastUpdate = performance.now() / 1000;
         }
 
-        this.orientCylinder(beam.core, cfg.origin, endpoint);
-        this.orientCylinder(beam.glow, cfg.origin, endpoint);
-        beam.light.position = endpoint;
+        this.orientCylinder(beam!.core, cfg.origin, endpoint);
+        this.orientCylinder(beam!.glow, cfg.origin, endpoint);
+        if (beam!.light) beam!.light.position = endpoint;
     }
 
     /** Stop a specific remote player's beam */
@@ -358,7 +353,7 @@ export class HitscanEffects {
             beam.glow.dispose();
             beam.coreMat.dispose();
             beam.glowMat.dispose();
-            beam.light.dispose();
+            getPointLightPool().release(beam.light);
             this.remoteBeams.delete(entityId);
         }
     }
@@ -646,7 +641,7 @@ export class HitscanEffects {
                 const fx = this.effects[idx];
                 for (const m of fx.meshes) m.dispose();
                 for (const mat of fx.materials) mat.dispose();
-                fx.light?.dispose();
+                getPointLightPool().release(fx.light);
                 this.effects.splice(idx, 1);
             }
         }
@@ -664,7 +659,7 @@ export class HitscanEffects {
         for (const fx of this.effects) {
             for (const m of fx.meshes) m.dispose();
             for (const mat of fx.materials) mat.dispose();
-            fx.light?.dispose();
+            getPointLightPool().release(fx.light ?? null);
         }
         this.effects = [];
         for (const tp of this.travelingPellets) {
@@ -785,10 +780,12 @@ export class HitscanEffects {
         // Offset slightly along normal to prevent Z-fighting
         const offset = normal ? normal.scale(0.05) : Vector3.Zero();
 
-        const light = new PointLight(`impact_flash_${this.nextId++}`, pos.add(offset), this.scene);
-        light.diffuse = color;
-        light.intensity = 25;
-        light.range = 60;
+        const light = getPointLightPool().acquire(
+            pos.add(offset),
+            color,
+            25,
+            60,
+        );
 
         // Impact light is cleaned up by the effect that owns it
         return light;

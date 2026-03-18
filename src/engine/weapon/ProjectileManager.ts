@@ -20,6 +20,7 @@ import { getEntityRegistry, ProjectileDef } from '../../shared/entities';
 import { getMD3Loader, MD3LoadResult } from '../loader/model/MD3Loader';
 import { PK3Loader } from '../loader/pk3/PK3Loader';
 import { getExplosionEffect, ROCKET_EXPLOSION, GRENADE_EXPLOSION, PLASMA_EXPLOSION, BLADE_EXPLOSION } from './ExplosionEffect';
+import { getPointLightPool } from './PointLightPool';
 
 interface ActiveProjectile {
     id: string;
@@ -47,7 +48,7 @@ interface ActiveImpact {
     id: string;
     mesh: Mesh;
     material: StandardMaterial;
-    light: PointLight;
+    light: PointLight | null;
     spawnTime: number;
     duration: number;
 }
@@ -107,6 +108,7 @@ export class ProjectileManager {
 
     public init(scene: Scene): void {
         this.scene = scene;
+        getPointLightPool().init(scene);
         getExplosionEffect().init(scene);
         console.log('[ProjectileManager] Initialized');
     }
@@ -437,15 +439,16 @@ export class ProjectileManager {
             node.rotationQuaternion = node.rotationQuaternion.multiply(yRotation);
         }
 
-        // Create dynamic light
+        // Acquire dynamic light from pool
         let light: PointLight | null = null;
         if (def.lightIntensity && def.lightIntensity > 0) {
-            light = new PointLight(`${id}_light`, origin.clone(), this.scene);
-            light.diffuse = new Color3(color.r, color.g, color.b);
-            light.specular = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
-            light.intensity = def.lightIntensity;
-            light.range = def.lightRange ?? 20;
-            light.parent = node;
+            light = getPointLightPool().acquire(
+                origin.clone(),
+                new Color3(color.r, color.g, color.b),
+                def.lightIntensity,
+                def.lightRange ?? 20,
+            );
+            if (light) light.parent = node;
         }
 
         // Collect all materials from child meshes for fade-in effect
@@ -714,11 +717,13 @@ export class ProjectileManager {
         mat.maxSimultaneousLights = 4;
         mesh.material = mat;
 
-        // Small flash light
-        const light = new PointLight(`${id}_light`, position, this.scene);
-        light.diffuse = new Color3(0.4, 0.6, 1.0);
-        light.intensity = 4;
-        light.range = 15;
+        // Small flash light from pool
+        const light = getPointLightPool().acquire(
+            position,
+            new Color3(0.4, 0.6, 1.0),
+            4,
+            15,
+        );
 
         this.impacts.push({
             id,
@@ -824,11 +829,13 @@ export class ProjectileManager {
             mesh.material = mat;
         }
 
-        // Create bright flash light
-        const light = new PointLight(`${id}_light`, position, this.scene);
-        light.diffuse = new Color3(color.r, color.g, color.b);
-        light.intensity = 10;
-        light.range = 30;
+        // Acquire bright flash light from pool
+        const light = getPointLightPool().acquire(
+            position,
+            new Color3(color.r, color.g, color.b),
+            10,
+            30,
+        );
 
         // Store for fade out
         this.impacts.push({
@@ -860,7 +867,7 @@ export class ProjectileManager {
             // Fade out
             const fade = 1 - progress;
             impact.material.alpha = fade;
-            impact.light.intensity = 10 * fade;
+            if (impact.light) impact.light.intensity = 10 * fade;
 
             // Scale up slightly for explosion feel
             const scale = 1 + progress * 0.5;
@@ -874,7 +881,7 @@ export class ProjectileManager {
                 const impact = this.impacts[index];
                 impact.mesh.dispose();
                 impact.material.dispose();
-                impact.light.dispose();
+                getPointLightPool().release(impact.light);
                 this.impacts.splice(index, 1);
             }
         }
@@ -890,7 +897,7 @@ export class ProjectileManager {
         const proj = this.projectiles[index];
 
         // Cleanup
-        proj.light?.dispose();
+        getPointLightPool().release(proj.light);
         proj.trailMesh?.dispose();
         proj.trailMaterial?.dispose();
         proj.node.dispose();
@@ -911,7 +918,7 @@ export class ProjectileManager {
      */
     public clear(): void {
         for (const proj of this.projectiles) {
-            proj.light?.dispose();
+            getPointLightPool().release(proj.light);
             proj.trailMesh?.dispose();
             proj.trailMaterial?.dispose();
             proj.node.dispose();
