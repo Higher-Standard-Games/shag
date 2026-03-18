@@ -21,7 +21,7 @@
  * - 0x02 = velocity changed (12 bytes: 3 floats)
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
- * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding)
+ * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
  * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
  */
 
@@ -218,14 +218,15 @@ export class BinaryProtocol {
         flags |= 0x08;
       }
 
-      // Check movement state (crouch/slide) for hitbox sync
+      // Always send movement state (crouch/slide/walljump) — no delta compression.
+      // Only 1 byte per entity. Delta compression here is fragile because
+      // server/client baseline ACK mismatches can cause flags to get "stuck".
       const movState = entity.getComponent('movementState') as any;
-      const baselineMovState = baselineEntity?.getComponent('movementState') as any;
       const isCrouching = movState?.isCrouching ?? false;
       const isSliding = movState?.isSliding ?? false;
-      const baselineCrouching = baselineMovState?.isCrouching ?? false;
-      const baselineSliding = baselineMovState?.isSliding ?? false;
-      if (isCrouching !== baselineCrouching || isSliding !== baselineSliding) {
+      const wallJumpState = movState?.wallJumpState ?? 'none';
+      const isWallJumping = wallJumpState === 'charging';
+      if (movState) {
         flags |= 0x10;
       }
 
@@ -264,11 +265,12 @@ export class BinaryProtocol {
         encoder.writeFloat32(rot.x); // pitch
       }
 
-      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding)
+      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
       if (flags & 0x10) {
         let movFlags = 0;
         if (isCrouching) movFlags |= 1;
         if (isSliding) movFlags |= 2;
+        if (isWallJumping) movFlags |= 4;
         encoder.writeUint8(movFlags);
       }
 
@@ -398,18 +400,21 @@ export class BinaryProtocol {
         }
       }
 
-      // Flag 0x10: Movement state (crouch/slide)
+      // Flag 0x10: Movement state (crouch/slide/walljump)
       let isCrouching = false;
       let isSliding = false;
+      let isWallJumping = false;
       if (flags & 0x10) {
         const movFlags = decoder.readUint8();
         isCrouching = (movFlags & 1) !== 0;
         isSliding = (movFlags & 2) !== 0;
+        isWallJumping = (movFlags & 4) !== 0;
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineVel = baselineEntity.getComponent('velocity') as any;
-        isCrouching = baselineVel?.isCrouching ?? false;
-        isSliding = baselineVel?.isSliding ?? false;
+        const baselineMovState = baselineEntity.getComponent('movementState') as any;
+        isCrouching = baselineMovState?.isCrouching ?? false;
+        isSliding = baselineMovState?.isSliding ?? false;
+        isWallJumping = (baselineMovState?.wallJumpState === 'charging');
       }
 
       // Create velocity component if we have data
@@ -426,6 +431,18 @@ export class BinaryProtocol {
           clone: _velocityClone,
         };
         entity.addComponent('velocity', vel);
+
+        // Also create a movementState component so RemotePlayerRenderer.pushSnapshot()
+        // can find isCrouching/isSliding via entity.getComponent('movementState').
+        // The encoder reads from 'movementState' on the server, so we reconstruct it here.
+        entity.addComponent('movementState', {
+          isCrouching,
+          isSliding,
+          wallJumpState: isWallJumping ? 'charging' : 'none',
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
+        });
       }
 
       // Flag 0x20: WeaponMeta (weaponId + settled) for item_ entities

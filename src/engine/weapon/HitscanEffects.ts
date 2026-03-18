@@ -410,13 +410,32 @@ export class HitscanEffects {
                 this.spawnWallMark(hit.point, hit.normal, color, 2.0);
             }
 
-            // Traveling tracer only for selected representative pellets
+            // Traveling tracer only for selected representative pellets (no per-pellet lights)
             if (tracerIndices.has(i)) {
                 this.spawnTravelingPellet(cfg.origin, endpoint, color, duration, now);
-                // Impact flash light only for visible tracers (5 lights, not 20)
-                if (hit?.point) {
-                    this.spawnImpactFlash(hit.point, color, hit.normal, duration * 2);
-                }
+            }
+        }
+
+        // Single consolidated impact light at the centroid of all hit points.
+        // Much cheaper than N separate PointLights — all pellets land in
+        // roughly the same area anyway. Boosted intensity + range to compensate.
+        if (hitPoints.length > 0) {
+            const centroid = hitPoints.reduce((acc, p) => acc.addInPlace(p), Vector3.Zero())
+                .scaleInPlace(1 / hitPoints.length);
+            const impactLight = this.spawnImpactFlash(centroid, color, undefined, duration * 2);
+            if (impactLight) {
+                impactLight.intensity = 40;  // boosted (was 25 per pellet)
+                impactLight.range = 80;      // wider to cover spread area
+
+                // Track for cleanup via a lightweight effect entry
+                this.effects.push({
+                    id: `pellet_flash_${this.nextId++}`,
+                    meshes: [],
+                    materials: [],
+                    light: impactLight,
+                    spawnTime: now,
+                    duration: duration * 2,
+                });
             }
         }
 
