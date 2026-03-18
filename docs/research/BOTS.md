@@ -209,13 +209,91 @@ interface BotGameState {
     owner: string;
   }>;
   
-  // Map knowledge (built up over time or preloaded)
+  // Map knowledge (built from experience + BSP vision)
   mapData: {
-    spawnPoints: Vec3[];
-    navMesh?: NavMesh;  // Phase 3
+    spawnPoints: Vec3[];              // Learned from respawn positions
+    knownPickupLocations: Vec3[];     // Learned from snapshot pickup entities
+    dangerZones: Vec3[];              // Where bot dies frequently
+    playerTraffic: Map<string, number>; // Region → enemy frequency
   };
 }
 ```
+
+### 4.3 BotVision — Spatial Awareness via BSP Raytracing
+
+> [!IMPORTANT]
+> **Key design decision:** Bots do NOT need a precomputed navmesh. They load the same BSP collision data the server uses and raytrace against it to "see" the world — exactly like a human player uses their eyes, but mathematically.
+
+The bot has access to the same BSP file as the server. Instead of rendering it visually, it casts rays to perceive geometry:
+
+```typescript
+class BotVision {
+  private bsp: CollisionWorld;  // Same BSP the server loads
+  
+  constructor(mapName: string) {
+    // Load BSP collision data (headless, no rendering)
+    this.bsp = HeadlessBSPCollisionWorld.load(mapName);
+  }
+  
+  // "Can I see this enemy?" — line-of-sight trace
+  canSee(from: Vec3, target: Vec3): boolean {
+    return !this.bsp.traceLine(from, target).hit;
+  }
+  
+  // "What's around me?" — radial scan for spatial awareness
+  scanSurroundings(position: Vec3, heading: number): SpatialScan {
+    const rays = 16;  // Cast 16 rays in a circle
+    const distances: number[] = [];
+    for (let i = 0; i < rays; i++) {
+      const angle = heading + (i / rays) * Math.PI * 2;
+      const dir = { x: Math.sin(angle), y: 0, z: Math.cos(angle) };
+      const end = { x: position.x + dir.x * 2000, y: position.y, z: position.z + dir.z * 2000 };
+      const trace = this.bsp.traceLine(position, end);
+      distances.push(trace.hit ? trace.distance : 2000);
+    }
+    // Bot now knows: corridor? open room? near wall? ledge ahead?
+    return { distances, isOpenArea: distances.every(d => d > 500) };
+  }
+  
+  // "Can I walk there?" — path clearance check
+  isPathClear(from: Vec3, to: Vec3): boolean {
+    // Trace at feet height + player width offset
+    return !this.bsp.traceLine(from, to).hit;
+  }
+  
+  // "Where can I go?" — find open movement directions
+  findOpenDirections(position: Vec3): Vec3[] {
+    const directions: Vec3[] = [];
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+      const dir = { x: Math.sin(angle), y: 0, z: Math.cos(angle) };
+      const target = { x: position.x + dir.x * 200, y: position.y, z: position.z + dir.z * 200 };
+      if (!this.bsp.traceLine(position, target).hit) {
+        directions.push(dir);
+      }
+    }
+    return directions;
+  }
+  
+  // "Is there a drop here?" — edge/gap detection
+  checkDrop(position: Vec3, direction: Vec3): boolean {
+    const ahead = { x: position.x + direction.x * 100, y: position.y, z: position.z + direction.z * 100 };
+    const below = { x: ahead.x, y: ahead.y - 500, z: ahead.z };
+    const trace = this.bsp.traceLine(ahead, below);
+    return !trace.hit || trace.distance > 200; // Gap or big drop
+  }
+}
+```
+
+**What this enables (no navmesh needed):**
+
+- ✅ Line-of-sight checks for enemies
+- ✅ Pathfinding by raytracing — scan ahead, if blocked try diagonal
+- ✅ Jump gap detection — trace downward ahead
+- ✅ Cover evaluation — "am I exposed to enemy position?"
+- ✅ Room classification — open area vs corridor vs tight space
+- ✅ **Works on ANY map automatically** — just load the BSP
+
+**Existing code we reuse:** `HeadlessBSPCollisionWorld` already exists at `src/cli/HeadlessBSPCollisionWorld.ts` for server-side BSP collision. The BIS loads the same BSP data.
 
 ---
 
@@ -713,11 +791,12 @@ interface BotPersonality {
 
 ### Phase 4: Advanced Features (Future)
 
-- [ ] Navigation mesh from BSP (pathfinding)
 - [ ] Team coordination (for team gametypes)
 - [ ] Voice/text chat timing (human-like comms)
-- [ ] Bot vs Bot training (self-play improvement)
+- [ ] Bot vs Bot self-play training loop (automatic improvement cycle)
 - [ ] Online learning (adjust during match based on opponent)
+- [ ] Spatial memory persistence (save map knowledge between sessions)
+- [ ] Advanced BSP analysis (detect jump pads, teleporters, water)
 
 ---
 
@@ -750,14 +829,17 @@ interface BotPersonality {
 
 ### 10.4 Limitations & Challenges
 
-> [!WARNING]
-> **No navigation mesh yet.** Phase 1 bots won't pathfind — they'll move in straight lines toward targets. BSP-based navmesh generation is Phase 4 work.
+> [!TIP]
+> **No navmesh needed!** Bots use BSP raytracing for spatial awareness — same collision data the server already loads. Works on any map automatically without preprocessing.
 
 > [!NOTE]
 > **brain.js is CPU-only.** For serious ML training, we'd eventually want TensorFlow.js or ONNX runtime. But brain.js is perfect for starting: simple API, small models, fast inference, pure JS.
 
 > [!IMPORTANT]
-> **Bots need the same information as players.** Server snapshots are PVS-culled — bots only see what a player at their position would see. This is a **feature**, not a bug — it prevents wall-hacking.
+> **Bots play by human rules.** Same PVS-culled snapshots (can't see through walls), same input rate limits, artificial network latency (50-100ms), and same weapon/reload timing. This is what makes them feel human.
+
+> [!NOTE]
+> **Bootstrapping without human data.** Phase 1 state machine bots can play against each other immediately. Record those games → train brain.js → better bots → record again → iterate. Human demos refine later, but self-play gets us started with zero manual data collection.
 
 ---
 
@@ -776,19 +858,185 @@ interface BotPersonality {
 
 ## 12. Open Questions
 
-1. **NavMesh generation** — Can we extract walkable surfaces from BSP for pathfinding? Warsow/Q3 used `.aas` (Area Awareness System) files precompiled from BSP. Could we auto-generate or port existing AAS?
+### Resolved
 
-2. **Demo format compatibility** — Should we try to be compatible with Warsow's demo format, or design our own from scratch? Our own is simpler but Warsow demos exist as free training data.
+1. ~~**NavMesh generation**~~ → **Resolved: BSP raytracing.** Bots use `CollisionWorld` (same BSP the server loads) to raytrace their surroundings. No navmesh files needed. They learn map layout through experience + line-of-sight traces, just like a human player explores a new map.
 
-3. **brain.js model size** — How many hidden layers/neurons give good results without slowing inference? Start small (32x16) and scale up based on results.
+2. ~~**Demo format compatibility**~~ → **Resolved: Own format.** Warsow demos won't work — different maps, different gameplay. We'll create our own efficient `.bdm` format optimized for our entity/component system, reusing `BinaryProtocol` encoding.
 
-4. **Bot visual representation** — Do bots need unique player models or skins? Could they show a "[BOT]" tag in the scoreboard?
+3. ~~**brain.js model size**~~ → **Resolved: Start tiny, grow.** Begin with `hiddenLayers: [16, 8]` (fast training, < 1 min). Scale to `[32, 16]` then `[64, 32]` as more demo data accumulates. Iterate quickly.
 
-5. **Training data volume** — How many hours of demo data do we need for reasonable brain.js models? Initial estimate: 5-10 hours of gameplay per personality.
+4. ~~**Bot visual representation**~~ → **Resolved: Keep simple.** Bots are regular players, no special treatment. No `[BOT]` tags or unique skins needed.
+
+5. ~~**Training data volume**~~ → **Resolved: Self-play bootstrap.** Phase 1 state machine bots generate training data by playing against each other — no human demos needed to start. 15-30 minutes of human gameplay can refine aim models later. The cycle: `bots play → record → train → better bots → repeat`.
+
+### Resolved (from codebase review)
+
+1. ~~**BSP loading in BIS process**~~ → **Resolved: Reuse `loadBspCollision()`.** The headless server at `headless-netserver-v2.ts` already has a fully headless `loadBspCollision(mapName, gamePath)` function that returns `{collision, spawnPoints, pickupItems, pvs}`. BIS can import and call this directly. **Dependency note:** `HeadlessBSPCollisionWorld` imports `@babylonjs/core/Maths/math.vector` (Vector3) — BIS will need `@babylonjs/core` as a dependency, but only the math module (no rendering).
+
+2. ~~**Snapshot decode on Node.js**~~ → **Resolved: Works natively.** `MessageCodec.decodeSnapshot()` → `BinaryProtocol.decodeSnapshot()` uses only `BinaryDecoder`, `GameState`, `Entity` — pure data classes with zero Babylon.js or browser dependencies. Safe for Node.js.
+
+3. ~~**Weapon switching inputs**~~ → **Resolved: `weaponSlot` field in command.** `BinaryProtocol.encodeCommand()` encodes `{direction, pitch, yaw, buttons, weaponSlot, tick}`. `weaponSlot` is a `uint8` (1-indexed slot number). `WeaponSystem.ts` detects slot changes via edge detection. Bot sends `weaponSlot: N` in its input command.
+
+4. ~~**Death and respawn flow**~~ → **Resolved: `RequestSpawn` message.** Bot detects death via `combat_state` event (`dead: true`). Sends `MessageCodec.encodeRequestSpawn()` (1-byte message). Server sets `entity.input.wantsRespawn = true`, and `GametypeController.processRespawns()` handles respawn with its own timing. Bot should add a human-like delay (1-3 sec) before sending.
+
+5. ~~**Scoring and game state**~~ → **Resolved: Multiple data sources.** Player scores via `decodePlayers()` (`{entityId, name, team, score, deaths, ping}`). Match state via `match_state` event (JSON). Combat state via `combat_state` event (`{health, armor, dead}`). Weapon state via `weapon_state` event (`{currentWeapon, weapons[], ammo{}, reloading}`).
+
+6. ~~**Sound as information**~~ → **Partially resolved: Events as hearing.** Bot receives: `weapon_fire` (origin + direction), `projectile_spawn/impact`, `item_pickup` (position), `weapon_drop` (position), `damage` (attacker + direction). All PVS-filtered — same hearing range constraint as humans.
+
+### Still Open
+
+1. **Bot input timing and human-feel** — How to simulate network latency? Random 30-80ms delay + ±10ms jitter? Reaction time per-decision or per-frame?
+
+2. **Multiple bots, one BSP** — Share one `CollisionWorld` per active map? `BotServer` owns map cache?
+
+3. **Item respawn timing** — Can bots derive pickup respawn timing from snapshot data? Server uses 25-second respawn — can bots count ticks since `item_pickup` event?
+
+4. **brain.js alternatives** — Evaluate ONNX.js or TensorFlow.js Lite for later phases?
+
+5. **Strafe-jumping** — Hard-code or learn from demos? Very specific timing pattern.
+
+6. **Self-play config** — Optimal map/gametype for bot-vs-bot training? Short FFA rounds vs 1v1 duels?
+
+7. **Model versioning** — How to version brain.js models and benchmark generations?
+
+8. **Cheating prevention** — Server-side BIS connection authorization?
+
+9. **Buttons bitfield mapping** — Need exact bit flags for fire, jump, crouch, use, etc.
+
+10. **Bot entity identification in snapshots** — How to find self-entity from `JoinAccept.entityId` in snapshot entities map?
+
+11. **Delta compression baseline** — Bot must maintain `GameState` baseline for `decodeSnapshot(data, baseline)`. What if a snapshot is missed?
+
+12. **Lobby integration** — How does game server request bots from BIS? Direct WebSocket? Lobby relay?
+
+13. **Concurrent snapshot processing** — 60Hz × 4 bots = 240 snapshots/sec. Should bots use worker threads?
+
+14. **Babylon.js Vector3 dependency** — `HeadlessBSPCollisionWorld` pulls in `@babylonjs/core`. Can we replace with lightweight vec3 for BIS?
 
 ---
 
-## 13. Summary
+## 13. Implementation Deep-Dive (Codebase Review)
+
+Findings from reviewing the actual codebase to validate implementation assumptions.
+
+### 13.1 Exact Input Command Format
+
+From `BinaryProtocol.encodeCommand()`:
+
+```typescript
+// What the bot sends every tick:
+{
+  direction: { x: float32, y: float32, z: float32 },  // Movement direction
+  pitch: float32,      // Look up/down (radians)
+  yaw: float32,        // Look left/right (radians)
+  buttons: uint16,     // Bitfield: fire, jump, crouch, etc.
+  weaponSlot: uint8,   // 1-indexed weapon slot (0 = no change)
+  tick: uint32,        // Client tick for server reconciliation
+}
+```
+
+The bot constructs this identical structure per snapshot and sends via `MessageCodec.encodeCommand(playerId, sequence, command)`.
+
+### 13.2 What Bots Receive from Snapshots
+
+**Entities** (per entity — position, velocity, rotation, movement state):
+
+- Flag `0x01`: position `{x, y, z}` + transform
+- Flag `0x02`: velocity `{x, y, z}` + grounded state
+- Flag `0x04`: grounded boolean
+- Flag `0x08`: rotation `{yaw, pitch}`
+- Flag `0x10`: movementState `{crouch, slide, wallJump}`
+- Flag `0x20`: weaponMeta (for item entities)
+
+**Players** (per player — scores and identity):
+
+- `entityId`, `name`, `team`, `score`, `deaths`, `ping`
+
+**Events** (game events broadcast in snapshot):
+
+| Event | Code | Data | Bot Use |
+| --- | --- | --- | --- |
+| `combat_state` | 1 | health, armor, dead | Self-awareness |
+| `match_state` | 2 | JSON gametype data | Strategy |
+| `weapon_state` | 3 | currentWeapon, weapons[], ammo{} | Weapon management |
+| `weapon_fire` | 4 | entityId, origin, direction | Enemy detection |
+| `weapon_charge` | 5 | entityId, charging | Dodge timing |
+| `projectile_spawn` | 6 | entityId, defId | Dodge incoming |
+| `projectile_impact` | 7 | position, normal | Area denial |
+| `item_pickup` | 8 | pickupId, who, position | Item timing |
+| `weapon_drop` | 9 | weaponId, position, velocity | Pickup opportunity |
+| `damage` | 10 | attacker, damage, weapon, position | React to threat |
+| `death` | 11 | killer, weapon, position, knockback | Target eliminated |
+
+### 13.3 Bot Connection Flow (Exact Protocol)
+
+```
+BotClient                          GameServer
+   │                                    │
+   │──── WebSocket connect ────────────►│
+   │                                    │ handleConnect(conn)
+   │◄──── (connection established) ─────│
+   │                                    │
+   │──── encodeJoin("BotName") ────────►│ handleJoin(conn, data)
+   │                                    │   → creates ClientInfo (spectator)
+   │◄──── encodeWelcome(serverInfo) ────│   → sendWelcome(client)
+   │◄──── encodeJoinAccept(ids) ────────│   → sendJoinAccept(client)
+   │                                    │
+   │  [Bot stores clientId, playerId,   │
+   │   entityId from JoinAccept]        │
+   │                                    │
+   │──── encodeJoinGame() ─────────────►│ handleJoinGame(conn)
+   │                                    │   → createPlayerEntity()
+   │                                    │   → gametypeController.onPlayerJoin()
+   │◄──── encodeJoinAccept(ids) ────────│   → re-sends with entity confirmation
+   │                                    │
+   │  === GAME LOOP ===                 │
+   │                                    │
+   │◄──── encodeSnapshot(state) ────────│ tick() → broadcastSnapshot()
+   │  [decode → BotBrain.decide()]      │
+   │──── encodeCommand(input) ─────────►│ handleDatagram() → handleInput()
+   │──── encodeAck(tick) ──────────────►│ handleDatagram() → update baseline
+   │                                    │
+   │  === DEATH ===                     │
+   │                                    │
+   │◄──── combat_state(dead=true) ──────│
+   │  [wait 1-3 sec]                    │
+   │──── encodeRequestSpawn() ─────────►│ handleRequestSpawn()
+   │                                    │   → entity.input.wantsRespawn = true
+   │                                    │   → gametype handles actual respawn
+```
+
+### 13.4 BSP Loading for BotVision
+
+`loadBspCollision()` in `headless-netserver-v2.ts` is the reference implementation:
+
+1. Finds BSP file (`.pk3` or `.bsp`) in `public/data/` paths
+2. Parses via `BspLoader.load(buffer)` → `BspFile`
+3. Creates collision via `createHeadlessCollisionWorld(bsp)` → `CollisionWorld`
+4. Extracts spawn points + pickup items from BSP entities
+
+**For BIS:** Extract `loadBspCollision()` into a shared module (e.g., `src/shared/bsp/BspDataLoader.ts`). BIS calls it on first bot connect to a map. Result is cached per map name.
+
+### 13.5 Key Code Dependencies for BotClient
+
+```
+Bot needs to import:
+  @engine/network/protocol/MessageCodec   ← encode/decode all messages
+  @engine/network/protocol/BinaryProtocol ← encodeCommand, decodeSnapshot
+  @engine/network/core/GameState          ← snapshot baseline management
+  @engine/network/core/Entity             ← entity data access
+  ws (npm)                                ← WebSocket client
+  @babylonjs/core/Maths/math.vector       ← Vector3 for BSP raytracing
+  jszip                                   ← PK3 extraction for BSP loading
+```
+
+> [!WARNING]
+> The `@babylonjs/core` dependency is pulled in by `HeadlessBSPCollisionWorld` for `Vector3`. This is a large package. We should investigate whether we can replace it with a lightweight vec3 implementation for the BIS context.
+
+---
+
+## 14. Summary
 
 The Bot Intelligence Server is a **separate Node.js process** that spawns **headless bot clients** connecting to game servers via the standard WebSocket protocol. Bots are indistinguishable from human players from the server's perspective.
 
