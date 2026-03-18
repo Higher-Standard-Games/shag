@@ -21,7 +21,7 @@
  * - 0x02 = velocity changed (12 bytes: 3 floats)
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
- * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding)
+ * - 0x10 = movement state changed (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
  * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
  */
 
@@ -223,9 +223,12 @@ export class BinaryProtocol {
       const baselineMovState = baselineEntity?.getComponent('movementState') as any;
       const isCrouching = movState?.isCrouching ?? false;
       const isSliding = movState?.isSliding ?? false;
+      const wallJumpState = movState?.wallJumpState ?? 'none';
+      const isWallJumping = wallJumpState === 'charging';
       const baselineCrouching = baselineMovState?.isCrouching ?? false;
       const baselineSliding = baselineMovState?.isSliding ?? false;
-      if (isCrouching !== baselineCrouching || isSliding !== baselineSliding) {
+      const baselineWallJumping = (baselineMovState?.wallJumpState ?? 'none') === 'charging';
+      if (isCrouching !== baselineCrouching || isSliding !== baselineSliding || isWallJumping !== baselineWallJumping) {
         flags |= 0x10;
       }
 
@@ -264,11 +267,12 @@ export class BinaryProtocol {
         encoder.writeFloat32(rot.x); // pitch
       }
 
-      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding)
+      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
       if (flags & 0x10) {
         let movFlags = 0;
         if (isCrouching) movFlags |= 1;
         if (isSliding) movFlags |= 2;
+        if (isWallJumping) movFlags |= 4;
         encoder.writeUint8(movFlags);
       }
 
@@ -398,18 +402,21 @@ export class BinaryProtocol {
         }
       }
 
-      // Flag 0x10: Movement state (crouch/slide)
+      // Flag 0x10: Movement state (crouch/slide/walljump)
       let isCrouching = false;
       let isSliding = false;
+      let isWallJumping = false;
       if (flags & 0x10) {
         const movFlags = decoder.readUint8();
         isCrouching = (movFlags & 1) !== 0;
         isSliding = (movFlags & 2) !== 0;
+        isWallJumping = (movFlags & 4) !== 0;
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineVel = baselineEntity.getComponent('velocity') as any;
-        isCrouching = baselineVel?.isCrouching ?? false;
-        isSliding = baselineVel?.isSliding ?? false;
+        const baselineMovState = baselineEntity.getComponent('movementState') as any;
+        isCrouching = baselineMovState?.isCrouching ?? false;
+        isSliding = baselineMovState?.isSliding ?? false;
+        isWallJumping = (baselineMovState?.wallJumpState === 'charging');
       }
 
       // Create velocity component if we have data
@@ -433,6 +440,7 @@ export class BinaryProtocol {
         entity.addComponent('movementState', {
           isCrouching,
           isSliding,
+          wallJumpState: isWallJumping ? 'charging' : 'none',
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,
           clone: _shallowClone,

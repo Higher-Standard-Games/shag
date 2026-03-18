@@ -62,6 +62,7 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
     { name: 'crouch_walk_back', file: 'crouch_walk_backward.glb' },
     { name: 'crouch_strafe_l', file: 'crouch_walk_left.glb' },
     { name: 'crouch_strafe_r', file: 'crouch_walk_right.glb' },
+    { name: 'walljump', file: 'wallrun.glb' },
 ];
 
 // ─── Manager ─────────────────────────────────────────────────────
