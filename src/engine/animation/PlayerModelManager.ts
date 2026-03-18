@@ -36,6 +36,8 @@ export interface PlayerModelInstance {
     anims: StoredAnim[];
     masterGroup: AnimationGroup | null;
     currentAnim: string;
+    /** Timestamp (performance.now) until which a one-shot anim has priority over locomotion */
+    oneshotUntil: number;
 }
 
 /** Animation file descriptor */
@@ -329,6 +331,7 @@ export class PlayerModelManager {
             anims: clonedAnims,
             masterGroup: null,
             currentAnim: '',
+            oneshotUntil: 0,
         };
 
         console.log(`[PlayerModelManager] Created instance: ${id}`);
@@ -390,12 +393,34 @@ export class PlayerModelManager {
         // Apply speed ratio (higher = faster animation)
         group.speedRatio = speedRatio;
 
+        // Stop the locomotion masterGroup while the one-shot plays.
+        // This prevents both groups writing to the same bones simultaneously.
+        if (instance.masterGroup) {
+            instance.masterGroup.stop();
+        }
+
+        // Calculate one-shot duration from the longest animation channel
+        let maxFrames = 0;
+        for (const item of animData.animations) {
+            const keys = item.animation.getKeys();
+            if (keys.length > 0) {
+                maxFrames = Math.max(maxFrames, keys[keys.length - 1].frame);
+            }
+        }
+        // Convert frames to ms (Mixamo default 30fps) and apply speed ratio
+        const durationMs = (maxFrames / 30) * 1000 / speedRatio;
+        instance.oneshotUntil = performance.now() + durationMs;
+
         // Play once (loop = false), auto-dispose when complete
         group.play(false);
 
         group.onAnimationEndObservable.addOnce(() => {
             group.stop();
             group.dispose();
+            // Resume locomotion masterGroup after one-shot completes
+            if (instance.masterGroup) {
+                instance.masterGroup.play(true);
+            }
         });
 
         return true;
