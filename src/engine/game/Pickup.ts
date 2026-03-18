@@ -217,6 +217,12 @@ export class Pickup extends TransformNode {
                     this.checkPickup();
                     this.updateGlowLight();
                 });
+
+                // === BARREL SUB-MODELS (fire-and-forget) ===
+                // Load barrel GLBs AFTER physics/position setup to avoid blocking dropToGround
+                if (this.options.type === 'weapon' && this.options.value && leaderMesh) {
+                    this._loadBarrels(leaderMesh, this.options.value as string).catch(() => { });
+                }
             } else {
                 if (this.options.gravity) {
                     this.dropToGround();
@@ -228,6 +234,81 @@ export class Pickup extends TransformNode {
                 this.dropToGround();
             }
         }
+    }
+
+    /** Load barrel sub-model GLBs and parent to the weapon's leader mesh (fire-and-forget). */
+    private async _loadBarrels(leaderMesh: Mesh, weaponId: string): Promise<void> {
+        try {
+            const { EntityRegistry } = await import('../../shared/entities/EntityRegistry');
+            const wdef = EntityRegistry.getInstance().get(weaponId) as any;
+            const barrelDefs = wdef?.barrels as Array<{ modelPath: string; offset?: { x: number; y: number; z: number } }> | undefined;
+            if (!barrelDefs?.length) return;
+
+            // Derive model dir from first barrel path for tags.txt
+            const firstPath = barrelDefs[0].modelPath;
+            const modelDir = firstPath.substring(0, firstPath.lastIndexOf('/') + 1);
+
+            // Load tags.txt for bone-based positioning (same as WeaponBarrels.load)
+            const { loadTags, findTag } = await import('../loader/model/TagsLoader');
+            const tags = await loadTags(modelDir);
+            const barrelTag = findTag(tags, 'tag_barrel');
+
+            // Find bone position if tag references a bone
+            let boneOffX = 0, boneOffY = 0, boneOffZ = 0;
+            if (barrelTag?.boneName) {
+                for (const skeleton of this.getScene().skeletons) {
+                    const bone = skeleton.bones.find(b => b.name === barrelTag.boneName);
+                    if (bone) {
+                        const boneNode = bone.getTransformNode();
+                        if (boneNode) {
+                            boneOffX = boneNode.position.x;
+                            boneOffY = boneNode.position.y;
+                            boneOffZ = boneNode.position.z;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const { SceneLoader } = await import('@babylonjs/core/Loading/sceneLoader');
+            for (const barrelDef of barrelDefs) {
+                try {
+                    const lastSlash = barrelDef.modelPath.lastIndexOf('/');
+                    const dir = barrelDef.modelPath.substring(0, lastSlash + 1);
+                    const file = barrelDef.modelPath.substring(lastSlash + 1);
+                    const barrelResult = await SceneLoader.ImportMeshAsync('', dir, file, this.getScene());
+                    const barrelRoot = barrelResult.meshes[0];
+                    if (barrelRoot) {
+                        barrelRoot.parent = leaderMesh;
+                        if (barrelRoot.rotationQuaternion) barrelRoot.rotationQuaternion = null;
+                        // Apply: bone position + tag offset + per-barrel def offset
+                        const tagOff = barrelTag?.offset;
+                        const defOff = barrelDef.offset;
+                        barrelRoot.position.set(
+                            boneOffX + (tagOff?.x ?? 0) + (defOff?.x ?? 0),
+                            boneOffY + (tagOff?.y ?? 0) + (defOff?.y ?? 0),
+                            boneOffZ + (tagOff?.z ?? 0) + (defOff?.z ?? 0)
+                        );
+                        if (tagOff) {
+                            barrelRoot.rotation.set(
+                                barrelTag!.rotation.x,
+                                barrelTag!.rotation.y,
+                                barrelTag!.rotation.z
+                            );
+                        } else {
+                            barrelRoot.rotation.setAll(0);
+                        }
+                        for (const bm of barrelResult.meshes) {
+                            if (bm.material && 'maxSimultaneousLights' in bm.material) {
+                                (bm.material as any).maxSimultaneousLights = 4;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[Pickup] Barrel load failed:`, e);
+                }
+            }
+        } catch { /* EntityRegistry or TagsLoader not available */ }
     }
 
 
