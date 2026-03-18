@@ -60,9 +60,11 @@ export const PLASMAGUN: WeaponDef = {
     },
 
     // Barrel sub-models (dual counter-rotating chambers)
+    // cfg: barrel 850 0.5 0.5 / barrel 850 0.5 -0.5
+    // Barrels side by side, Z axis = left/right in weapon space
     barrels: [
-        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: 1 },
-        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: -1, offset: { x: 0, y: -4, z: 0 } },
+        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: 1, offset: { x: 0, y: 0, z: -4 } },
+        { modelPath: '/data/models/weapons/plasmagun/plasmagun_barrel.glb', spinSpeed: 4.0, spinDirection: -1, offset: { x: 0, y: 0, z: 0 } },
     ],
 
     // ADS
