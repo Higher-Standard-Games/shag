@@ -218,17 +218,15 @@ export class BinaryProtocol {
         flags |= 0x08;
       }
 
-      // Check movement state (crouch/slide) for hitbox sync
+      // Always send movement state (crouch/slide/walljump) — no delta compression.
+      // Only 1 byte per entity. Delta compression here is fragile because
+      // server/client baseline ACK mismatches can cause flags to get "stuck".
       const movState = entity.getComponent('movementState') as any;
-      const baselineMovState = baselineEntity?.getComponent('movementState') as any;
       const isCrouching = movState?.isCrouching ?? false;
       const isSliding = movState?.isSliding ?? false;
       const wallJumpState = movState?.wallJumpState ?? 'none';
       const isWallJumping = wallJumpState === 'charging';
-      const baselineCrouching = baselineMovState?.isCrouching ?? false;
-      const baselineSliding = baselineMovState?.isSliding ?? false;
-      const baselineWallJumping = (baselineMovState?.wallJumpState ?? 'none') === 'charging';
-      if (isCrouching !== baselineCrouching || isSliding !== baselineSliding || isWallJumping !== baselineWallJumping) {
+      if (movState) {
         flags |= 0x10;
       }
 
