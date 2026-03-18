@@ -41,7 +41,7 @@ export const PLASMAGUN: WeaponDef = {
     splashDamage: 15,
     minSplashDamage: 5,
     knockbackScale: 4.5,
-    recoilScale: 0.15,  // Fast-firing energy gun — very fast recovery, subtle kick
+    recoilScale: 0.4,   // Fast-firing energy gun — visible kick, fast recovery
     useLagCompensation: false,
     crosshair: { style: 'cross_dot', baseGap: 4, lineLength: 5, lineWidth: 2 },
 
