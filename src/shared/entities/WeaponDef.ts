@@ -196,6 +196,10 @@ export interface WeaponDef extends EntityDef {
         spinSpeed: number;
         /** Spin direction multiplier (1 or -1 for counter-rotation) */
         spinDirection?: number;
+        /** Offset from weapon origin (x, y, z in model space) */
+        offset?: { x: number; y: number; z: number };
+        /** Spin axis: 'x' (default), 'y', or 'z' */
+        spinAxis?: 'x' | 'y' | 'z';
     }[];
 
     // === SOUNDS ===
