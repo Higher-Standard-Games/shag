@@ -21,6 +21,7 @@ import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { getPointLightPool } from './PointLightPool';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -115,7 +116,7 @@ interface ActiveExplosion {
     shockwave: Mesh;
     shockwaveMat: StandardMaterial;
 
-    light: PointLight;
+    light: PointLight | null;
 
     particles: ParticleSystem;
 
@@ -186,11 +187,12 @@ export class ExplosionEffect {
         const particles = this.createParticles(id, position, s, config);
 
         // ─── Layer 5: Flash Light ──────────────────────────────
-        const light = new PointLight(`${id}_light`, position.clone(), this.scene);
-        light.diffuse = config.outerColor.clone();  // Orange/red glow
-        light.specular = config.outerColor.scale(0.2);
-        light.intensity = 5 * s;
-        light.range = 40 * s;
+        const light = getPointLightPool().acquire(
+            position.clone(),
+            config.outerColor.clone(),
+            5 * s,
+            40 * s,
+        );
 
         // ─── Layer 6 & 7: Directional Sparks & Debris (REMOVED) ──
         // These didn't look good and had a first-hit-only rendering bug.
@@ -763,10 +765,10 @@ export class ExplosionEffect {
      */
     private updateLight(exp: ActiveExplosion, t: number): void {
         // Fade over the full effect duration
-        exp.light.intensity = 5 * exp.config.scale * (1.0 - easeInQuad(t));
-
-        // Shrink range as it fades
-        exp.light.range = 40 * exp.config.scale * (1.0 - t * 0.5);
+        if (exp.light) {
+            exp.light.intensity = 5 * exp.config.scale * (1.0 - easeInQuad(t));
+            exp.light.range = 40 * exp.config.scale * (1.0 - t * 0.5);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -790,7 +792,7 @@ export class ExplosionEffect {
         exp.shockwave.dispose();
         exp.shockwaveMat.dispose();
 
-        exp.light.dispose();
+        getPointLightPool().release(exp.light);
 
         exp.particles.stop();
         exp.particles.dispose();
@@ -817,7 +819,7 @@ export class ExplosionEffect {
             }
             exp.shockwave.dispose();
             exp.shockwaveMat.dispose();
-            exp.light.dispose();
+            getPointLightPool().release(exp.light);
             exp.particles.stop();
             exp.particles.dispose();
             exp.debris.stop();
