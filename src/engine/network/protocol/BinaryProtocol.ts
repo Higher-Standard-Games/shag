@@ -426,6 +426,17 @@ export class BinaryProtocol {
           clone: _velocityClone,
         };
         entity.addComponent('velocity', vel);
+
+        // Also create a movementState component so RemotePlayerRenderer.pushSnapshot()
+        // can find isCrouching/isSliding via entity.getComponent('movementState').
+        // The encoder reads from 'movementState' on the server, so we reconstruct it here.
+        entity.addComponent('movementState', {
+          isCrouching,
+          isSliding,
+          serialize: _noopSerialize,
+          deserialize: _noopDeserialize,
+          clone: _shallowClone,
+        });
       }
 
       // Flag 0x20: WeaponMeta (weaponId + settled) for item_ entities
