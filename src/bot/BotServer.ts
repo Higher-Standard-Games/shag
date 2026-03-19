@@ -113,6 +113,7 @@ export class BotServer {
             name: options?.name || getNextBotName(),
             difficulty: options?.difficulty || 'medium',
             team: options?.team,
+            modelDir: options?.modelDir,
         };
 
         const bot = new BotClient(botOptions);

@@ -5,7 +5,7 @@
  * The brain receives game state each tick and returns input commands.
  *
  * Phase 1: StateMachineBrain (rule-based)
- * Phase 3: NeuralBrain (brain.js ML — future)
+ * Phase 3: HybridBrain (TensorFlow.js ML — future)
  */
 
 import type { BotGameState } from './BotGameState';

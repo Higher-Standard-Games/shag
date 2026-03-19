@@ -29,6 +29,7 @@ interface BotServerArgs {
     difficulty: string;
     lobbyUrl?: string;
     gametype: string;
+    modelDir?: string;
 }
 
 function parseArgs(): BotServerArgs {
@@ -62,6 +63,9 @@ function parseArgs(): BotServerArgs {
             case '-g':
                 config.gametype = args[++i];
                 break;
+            case '--models':
+                config.modelDir = args[++i];
+                break;
             case '--help':
             case '-h':
                 printHelp();
@@ -85,6 +89,7 @@ Options:
   --gametype <id>     Gametype for lobby queue: duel, tdm, ffa (default: duel)
   --count <n>         Number of bots to auto-spawn (default: 3)
   --difficulty <lvl>  Bot difficulty: easy, medium, hard, insane (default: medium)
+  --models <dir>       Path to TF.js model directory for HybridBrain AI
   --help, -h          Show this help
 
 Examples:
@@ -127,6 +132,7 @@ async function main(): Promise<void> {
                 }
                 await server.addLobbyBot(config.lobbyUrl, config.gametype, {
                     difficulty: config.difficulty,
+                    modelDir: config.modelDir,
                 });
             } catch (err: any) {
                 console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err.message}`);
@@ -150,6 +156,7 @@ async function main(): Promise<void> {
                 }
                 await server.addBot(config.autoConnect, {
                     difficulty: config.difficulty,
+                    modelDir: config.modelDir,
                 });
             } catch (err: any) {
                 console.error(`[BIS] Failed to spawn bot ${i + 1}: ${err.message}`);

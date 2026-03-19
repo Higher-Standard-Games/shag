@@ -46,6 +46,7 @@ export class BotLobbyClient {
             name: this.name,
             difficulty: this._difficulty,
             team: options?.team,
+            modelDir: options?.modelDir,
         };
     }
 

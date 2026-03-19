@@ -19,6 +19,7 @@ import { GameState } from '../engine/network/core/GameState';
 import { BotGameState } from './BotGameState';
 import { BotBrain, type BotInput } from './BotBrain';
 import { StateMachineBrain } from './StateMachineBrain';
+import { HybridBrain } from './HybridBrain';
 import { type BotOptions, type BotDifficulty, resolveDifficulty } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
 import { EventEmitter } from 'events';
@@ -100,8 +101,17 @@ export class BotClient extends EventEmitter {
         // Resolve difficulty
         this._difficulty = resolveDifficulty(options.difficulty);
 
-        // Create AI brain
-        this._brain = new StateMachineBrain(this._difficulty);
+        // Create AI brain — HybridBrain if model path provided, else pure StateMachine
+        if (options.modelDir) {
+            const hybrid = new HybridBrain(this._difficulty);
+            this._brain = hybrid;
+            // Load models async — bot works with state machine while loading
+            hybrid.loadModels(options.modelDir).catch(e => {
+                console.error(`${this._logPrefix} Failed to load models:`, e);
+            });
+        } else {
+            this._brain = new StateMachineBrain(this._difficulty);
+        }
 
         // Create game state tracker
         this._gameState = new BotGameState();

@@ -91,6 +91,8 @@ export interface BotOptions {
     difficulty: string | BotDifficulty;
     /** Team to join (undefined = auto-balance) */
     team?: string;
+    /** Path to TF.js model directory for HybridBrain (undefined = pure state machine) */
+    modelDir?: string;
 }
 
 // ── Bot Names ──────────────────────────────────────────────────────────────
