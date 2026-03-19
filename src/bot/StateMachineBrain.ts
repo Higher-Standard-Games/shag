@@ -41,10 +41,6 @@ export class StateMachineBrain extends BotBrain {
     private _huntYaw: number = 0;
     private _huntTimer: number = 0;
     private _stateTimer: number = 0;
-    // Reserved for future reaction delay system
-    private _lastDecisionTick = 0; // eslint-disable-line
-    private _reactionDelay = 0; // eslint-disable-line
-    private _pendingReaction: { target: VisiblePlayer; startTick: number } | null = null; // eslint-disable-line
 
     // Movement variety
     private _strafeDirection: number = 1; // 1 or -1
@@ -57,7 +53,6 @@ export class StateMachineBrain extends BotBrain {
     constructor(difficulty: BotDifficulty) {
         super(difficulty);
         this._huntYaw = Math.random() * Math.PI * 2;
-        this._reactionDelay = this.difficulty.reactionTimeMs;
     }
 
     // ── Main Decision Loop ────────────────────────────────────────────

@@ -10,8 +10,17 @@
  */
 
 import { BinaryProtocol } from '../../engine/network/protocol/BinaryProtocol';
-import * as zlib from 'zlib';
 import type { GameState } from '../../engine/network/core/GameState';
+
+// zlib is Node-only. Lazy-loaded to avoid crashes when this module is
+// imported in a browser context (future demo viewer will use DecompressionStream).
+let zlib: typeof import('zlib') | null = null;
+try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    zlib = require('zlib');
+} catch {
+    // Running in browser — zlib unavailable
+}
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -72,6 +81,9 @@ export class DemoReader {
 
         // Auto-detect gzip: magic bytes 0x1f 0x8b
         if (raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b) {
+            if (!zlib) {
+                throw new Error('DemoReader: gzip-compressed demo cannot be read in browser (zlib unavailable). Use DecompressionStream API instead.');
+            }
             raw = new Uint8Array(zlib.gunzipSync(raw));
         }
 

@@ -54,10 +54,8 @@ export class BotClient extends EventEmitter {
     // Connection state
     private _state: BotClientState = 'disconnected';
     private _ws: WebSocket | null = null;
-    private _serverUrl = '';
 
     // Protocol state
-    private _clientId = '';
     private _playerId: string = '';
     private _entityId: string = '';
     private _serverInfo: ServerInfo | null = null;
@@ -73,9 +71,8 @@ export class BotClient extends EventEmitter {
     private _difficulty: BotDifficulty;
 
     // Human-feel timing
-    private _inputDelayMs: number;
     private _lastInputTime: number = 0;
-    private _minInputIntervalMs: number = 16; // ~60Hz max input rate
+    private _minInputIntervalMs: number; // Per-bot randomized input rate
 
     // Death/respawn
     private _isDead: boolean = false;
@@ -108,8 +105,8 @@ export class BotClient extends EventEmitter {
         // Create game state tracker
         this._gameState = new BotGameState();
 
-        // Human-feel: randomize input delay around reaction time
-        this._inputDelayMs = 30 + Math.random() * 50; // 30-80ms base delay
+        // Human-feel: randomize input interval per bot (30-80ms = ~12-33Hz)
+        this._minInputIntervalMs = 30 + Math.random() * 50;
         this._respawnDelayMs = 1500 + Math.random() * 2000; // 1.5-3.5 sec respawn delay
 
         this._logPrefix = `[Bot:${this.name}]`;
@@ -141,7 +138,6 @@ export class BotClient extends EventEmitter {
             throw new Error(`${this._logPrefix} Already connected (state: ${this._state})`);
         }
 
-        this._serverUrl = serverUrl;
         this._state = 'connecting';
         console.log(`${this._logPrefix} Connecting to ${serverUrl}...`);
 
@@ -280,7 +276,6 @@ export class BotClient extends EventEmitter {
 
     private _handleJoinAccept(data: Uint8Array): boolean {
         const accept = MessageCodec.decodeJoinAccept(data);
-        this._clientId = accept.clientId;
         this._playerId = accept.playerId;
         this._entityId = accept.entityId;
 

@@ -106,6 +106,11 @@ const BOT_NAMES = [
 
 let _botNameIndex = 0;
 
+/** Reset the name counter (call when all bots are removed) */
+export function resetBotNameIndex(): void {
+    _botNameIndex = 0;
+}
+
 /** Get a unique bot name, cycling through the list with suffixes */
 export function getNextBotName(): string {
     const name = BOT_NAMES[_botNameIndex % BOT_NAMES.length];

@@ -711,13 +711,9 @@ export class BotVision {
     private _matchesItemType(classname: string, type: string): boolean {
         switch (type) {
             case 'health':
-                return classname.includes('health') || classname === 'item_health_small'
-                    || classname === 'item_health_medium' || classname === 'item_health_large'
-                    || classname === 'item_health_mega';
+                return classname.includes('health');
             case 'armor':
-                return classname.includes('armor') || classname === 'item_armor_shard'
-                    || classname === 'item_armor_green' || classname === 'item_armor_yellow'
-                    || classname === 'item_armor_red';
+                return classname.includes('armor');
             case 'weapon':
                 return classname.startsWith('weapon_');
             default:
