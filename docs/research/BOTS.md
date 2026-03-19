@@ -143,7 +143,11 @@ class BotClient {
     this.ws = new WebSocket(serverUrl);
     this.ws.on('message', (data) => this.handleMessage(data));
     // After Welcome → send Join → after JoinAccept → send JoinGame
+    // For team gametypes: pick the team with fewer players (auto-balance)
+    // Players data from snapshot has team field — count per team, join the smaller one
+    // MessageCodec.encodeJoinGame(teamId?) already supports team selection
   }
+
   
   private handleMessage(data: Uint8Array) {
     const type = MessageCodec.peekMessageType(data);
