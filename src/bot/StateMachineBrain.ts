@@ -236,8 +236,9 @@ export class StateMachineBrain extends BotBrain {
         }
         buttons |= InputButtons.FORWARD;
 
-        // Try to aim at nearest enemy while dodging
-        const enemy = state.getNearestEnemy();
+        // Try to aim at nearest visible enemy while dodging
+        const enemy = this._lastVision?.visibleEnemies[0]?.player
+            ?? state.getNearestEnemy();
         let pitch = state.self.pitch;
         let yaw = state.self.yaw;
 
@@ -245,7 +246,10 @@ export class StateMachineBrain extends BotBrain {
             const aim = this._aimAtTarget(state, enemy);
             pitch = aim.pitch;
             yaw = aim.yaw;
-            buttons |= InputButtons.FIRE;
+            // Only fire if we have vision-confirmed LOS
+            if (this._lastVision?.visibleEnemies.some(e => e.player.entityId === enemy.entityId)) {
+                buttons |= InputButtons.FIRE;
+            }
         }
 
         return {
@@ -269,8 +273,11 @@ export class StateMachineBrain extends BotBrain {
         // Move toward predicted (extrapolated) position
         const input = this._moveToward(state, target.predictedPosition, false);
 
-        // Keep weapon ready — we might re-acquire LOS at any moment
-        input.buttons |= InputButtons.FIRE; // Pre-fire around corners
+        // Only pre-fire when very close to predicted position (near corners)
+        const distToTarget = vec3Length(vec3Subtract(target.predictedPosition, state.self.position));
+        if (distToTarget < 200 && target.confidence > 0.7) {
+            input.buttons |= InputButtons.FIRE;
+        }
 
         // Select appropriate weapon (use last known distance)
         const weaponSlot = this._selectWeaponForDistance(state, target.lastDistance);

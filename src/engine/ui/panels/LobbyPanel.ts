@@ -162,13 +162,10 @@ export class LobbyPanel extends GamePanel {
                 this.livePlayers = msg.onlinePlayers || [];
                 this.refreshPlayerList();
 
-                // Load live matches
+                // Load live matches + recent demos, then render once
                 this.liveMatches = msg.liveMatches || [];
-                this.refreshMatchList();
-
-                // Load recent demos
                 this.recentDemos = msg.recentDemos || [];
-                this.refreshMatchList(); // re-render with demos
+                this.refreshMatchList();
 
                 // Load chat history
                 if (msg.chatHistory && this.chatMessagesEl) {

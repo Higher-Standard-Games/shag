@@ -933,7 +933,7 @@ export class LobbyServer {
                         const lastFrame = index.entries[index.frameCount - 1];
                         const firstFrame = index.entries[0];
                         const tickSpan = lastFrame.tick - firstFrame.tick;
-                        durationMs = Math.round((tickSpan / header.snapshotRate) * 1000);
+                        durationMs = Math.round((tickSpan / header.tickRate) * 1000);
                     }
 
                     if (header) {

@@ -171,8 +171,6 @@ export class BotGameState {
     // Last known enemy positions (persists across ticks for hunting)
     lastKnownEnemyPositions: Map<string, { position: Vec3; tick: number }> = new Map();
 
-    // ── Snapshot baseline for delta decompression ────────────────────────
-    private _baseline: GameState | undefined;
 
     /**
      * Update game state from a new server snapshot.
@@ -185,8 +183,13 @@ export class BotGameState {
         this.players = [];
         this.pickups = [];
         this.projectiles = [];
-        this.recentDamage = [];
         this.recentKills = [];
+
+        // Prune old damage events (keep last 300 ticks for wasRecentlyDamaged)
+        this.recentDamage = this.recentDamage.filter(d => snapshot.tick - d.tick <= 300);
+        if (this.recentDamage.length > 50) {
+            this.recentDamage = this.recentDamage.slice(-50);
+        }
 
         // ── Process entities ─────────────────────────────────────────────
         for (const [entityId, entity] of snapshot.entities) {
@@ -366,14 +369,6 @@ export class BotGameState {
         // ── Sort by distance ─────────────────────────────────────────────
         this.players.sort((a, b) => a.distance - b.distance);
         this.pickups.sort((a, b) => a.distance - b.distance);
-
-        // ── Update baseline for next delta decode ────────────────────────
-        this._baseline = snapshot;
-    }
-
-    /** Get the baseline for delta-compressed snapshot decoding */
-    getBaseline(): GameState | undefined {
-        return this._baseline;
     }
 
     /** Get the nearest alive enemy */
