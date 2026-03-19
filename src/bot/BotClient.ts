@@ -61,6 +61,7 @@ export class BotClient extends EventEmitter {
     private _serverInfo: ServerInfo | null = null;
     private _sequence: number = 0;
     private _tickCount: number = 0;
+    private _lastSnapshotTick: number = 0;
 
     // Snapshot baseline for delta decompression
     private _baseline: GameState | undefined;
@@ -317,6 +318,12 @@ export class BotClient extends EventEmitter {
 
             // Store as baseline for next decode
             this._baseline = snapshot;
+            this._lastSnapshotTick = snapshot.tick;
+
+            // Only run game logic if we're actually in the game
+            if (this._state !== 'playing' && this._state !== 'dead') {
+                return;
+            }
 
             // Handle death/respawn
             if (this._gameState.self.isDead && !this._isDead) {
@@ -420,7 +427,7 @@ export class BotClient extends EventEmitter {
             yaw: input.yaw,
             buttons: input.buttons,
             weaponSlot: input.weaponSlot,
-            tick: this._tickCount,
+            tick: this._lastSnapshotTick,
         };
 
         const encoded = MessageCodec.encodeCommand(

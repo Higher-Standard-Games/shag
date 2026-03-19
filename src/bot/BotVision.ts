@@ -513,8 +513,8 @@ export class BotVision {
         // Update tracks for audible-only enemies (lower confidence)
         for (const ae of audibleEnemies) {
             const existing = this._enemyTracks.get(ae.player.playerId);
-            // Only update if we don't have a recent visual track
-            if (!existing || existing.confidence < SOUND_CONFIDENCE || existing.source !== 'visual') {
+            // Only update if we don't have a RECENT visual track
+            if (!existing || existing.source !== 'visual' || state.tick - existing.lastSeenTick > 30) {
                 this._enemyTracks.set(ae.player.playerId, {
                     playerId: ae.player.playerId,
                     entityId: ae.player.entityId,
