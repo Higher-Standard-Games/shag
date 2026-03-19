@@ -27,6 +27,8 @@ interface BotServerArgs {
     autoConnect?: string;
     autoCount: number;
     difficulty: string;
+    lobbyUrl?: string;
+    gametype: string;
 }
 
 function parseArgs(): BotServerArgs {
@@ -35,6 +37,7 @@ function parseArgs(): BotServerArgs {
         port: 9100,
         autoCount: 3,
         difficulty: 'medium',
+        gametype: 'duel',
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -51,6 +54,13 @@ function parseArgs(): BotServerArgs {
             case '--difficulty':
             case '-d':
                 config.difficulty = args[++i];
+                break;
+            case '--lobby':
+                config.lobbyUrl = args[++i];
+                break;
+            case '--gametype':
+            case '-g':
+                config.gametype = args[++i];
                 break;
             case '--help':
             case '-h':
@@ -70,15 +80,20 @@ Usage: npx vite-node src/cli/bot-server.ts [options]
 
 Options:
   --port <n>          Control API port (default: 9100)
-  --auto <url>        Auto-connect bots to a game server URL
+  --auto <url>        Auto-connect bots to a game server URL (direct)
+  --lobby <url>       Auto-connect bots through lobby server (lobby flow)
+  --gametype <id>     Gametype for lobby queue: duel, tdm, ffa (default: duel)
   --count <n>         Number of bots to auto-spawn (default: 3)
   --difficulty <lvl>  Bot difficulty: easy, medium, hard, insane (default: medium)
   --help, -h          Show this help
 
 Examples:
-  npx vite-node src/cli/bot-server.ts
-  npx vite-node src/cli/bot-server.ts --auto ws://localhost:7777 --count 4
-  npx vite-node src/cli/bot-server.ts --auto ws://localhost:7777 --difficulty hard
+  # Direct connect to game server (game must already be running)
+  npx vite-node src/cli/bot-server.ts -- --auto ws://localhost:7777 --count 4
+
+  # Through lobby (bot joins lobby, readies up, transitions to game)
+  npx vite-node src/cli/bot-server.ts -- --lobby ws://localhost:9000 --gametype duel
+  npx vite-node src/cli/bot-server.ts -- --lobby ws://localhost:9000 --gametype duel --count 1
 `);
 }
 
@@ -100,7 +115,29 @@ async function main(): Promise<void> {
     const server = new BotServer(config.port);
     await server.start();
 
-    // Auto-connect bots if --auto flag
+    // Auto-connect through lobby if --lobby flag
+    if (config.lobbyUrl) {
+        console.log(`[BIS] Lobby mode: connecting ${config.autoCount} bot(s) through ${config.lobbyUrl} (${config.gametype})...`);
+        console.log('');
+
+        for (let i = 0; i < config.autoCount; i++) {
+            try {
+                if (i > 0) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                await server.addLobbyBot(config.lobbyUrl, config.gametype, {
+                    difficulty: config.difficulty,
+                });
+            } catch (err: any) {
+                console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err.message}`);
+            }
+        }
+
+        console.log('');
+        console.log(`[BIS] Lobby auto-connect complete. ${server.getStatus().length} bots active.`);
+    }
+
+    // Auto-connect bots directly if --auto flag
     if (config.autoConnect) {
         console.log(`[BIS] Auto-connecting ${config.autoCount} bots to ${config.autoConnect}...`);
         console.log('');
@@ -148,6 +185,19 @@ async function main(): Promise<void> {
                 break;
             }
 
+            case 'lobby': {
+                const url = parts[1] || config.lobbyUrl || 'ws://localhost:9000';
+                const gametype = parts[2] || config.gametype;
+                const diff = parts[3] || config.difficulty;
+                try {
+                    const lb = await server.addLobbyBot(url, gametype, { difficulty: diff });
+                    console.log(`[BIS] Lobby bot: ${lb.name} → ${url} (${gametype})`);
+                } catch (err: any) {
+                    console.error(`[BIS] Failed: ${err.message}`);
+                }
+                break;
+            }
+
             case 'remove': {
                 if (parts[1] === 'all') {
                     const count = await server.removeAllBots();
@@ -175,10 +225,11 @@ async function main(): Promise<void> {
 
             case 'help': {
                 console.log('[BIS] Commands:');
-                console.log('  add [url] [difficulty]  - Add a bot');
-                console.log('  remove <botId|all>      - Remove bot(s)');
-                console.log('  status                  - Show bot status');
-                console.log('  help                    - Show this help');
+                console.log('  add [url] [difficulty]          - Add bot directly to game server');
+                console.log('  lobby [url] [gametype] [diff]   - Add bot through lobby');
+                console.log('  remove <botId|all>              - Remove bot(s)');
+                console.log('  status                          - Show bot status');
+                console.log('  help                            - Show this help');
                 break;
             }
 
@@ -187,7 +238,7 @@ async function main(): Promise<void> {
         }
     });
 
-    console.log('[BIS] Commands: add, remove, status, help');
+    console.log('[BIS] Commands: add, lobby, remove, status, help');
     console.log('[BIS] Press Ctrl+C to stop');
     console.log('');
 

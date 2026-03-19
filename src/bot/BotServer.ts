@@ -29,6 +29,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { BotClient } from './BotClient';
+import { BotLobbyClient } from './BotLobbyClient';
 import { type BotOptions, getNextBotName } from './BotConfig';
 import { createBotVision, type BotVision } from './BotVision';
 
@@ -44,6 +45,7 @@ interface ControlMessage {
 export class BotServer {
     private _wss: WebSocketServer | null = null;
     private _bots: Map<string, BotClient> = new Map();
+    private _lobbyBots: Map<string, BotLobbyClient> = new Map();
     private _port: number;
 
     // Vision cache: mapName → BotVision (shared across all bots on same map)
@@ -136,6 +138,46 @@ export class BotServer {
     }
 
     /**
+     * Spawn a bot that joins through the lobby server.
+     * Bot authenticates, joins queue, readies up, and auto-transitions to game.
+     */
+    async addLobbyBot(lobbyUrl: string, gametype: string, options?: Partial<BotOptions>): Promise<BotLobbyClient> {
+        const lobbyBot = new BotLobbyClient({
+            name: options?.name || getNextBotName(),
+            difficulty: options?.difficulty || 'medium',
+            team: options?.team,
+        });
+
+        // When lobby bot transitions to game, track the game BotClient
+        lobbyBot.onGameBotCreated = (bot: BotClient) => {
+            this._bots.set(bot.id, bot);
+            console.log(`[BotServer] Lobby bot ${lobbyBot.name} transitioned to game as ${bot.id}`);
+
+            // Load vision asynchronously
+            this._loadVisionForBot(bot);
+
+            // Track game bot disconnection
+            bot.on('disconnected', () => {
+                this._bots.delete(bot.id);
+            });
+        };
+
+        lobbyBot.onDisconnected = () => {
+            this._lobbyBots.delete(lobbyBot.id);
+        };
+
+        try {
+            await lobbyBot.connect(lobbyUrl, gametype);
+            this._lobbyBots.set(lobbyBot.id, lobbyBot);
+            console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) queued for ${gametype}`);
+            return lobbyBot;
+        } catch (err: any) {
+            console.error(`[BotServer] Failed to spawn lobby bot:`, err.message);
+            throw err;
+        }
+    }
+
+    /**
      * Load BotVision for a bot based on its connected server's map.
      * Caches per map name so multiple bots share the same collision world.
      */
@@ -203,32 +245,54 @@ export class BotServer {
     }
 
     /**
-     * Remove all bots.
+     * Remove all bots (direct + lobby).
      */
     async removeAllBots(): Promise<number> {
-        const count = this._bots.size;
         const promises: Promise<void>[] = [];
+
+        // Disconnect direct bots
         for (const [, bot] of this._bots) {
             promises.push(bot.disconnect());
         }
+
+        // Disconnect lobby bots (also disconnects their game bots)
+        for (const [, lobbyBot] of this._lobbyBots) {
+            promises.push(lobbyBot.disconnect());
+        }
+
         await Promise.all(promises);
+        const count = this._bots.size + this._lobbyBots.size;
         this._bots.clear();
+        this._lobbyBots.clear();
         console.log(`[BotServer] Removed all ${count} bots`);
         return count;
     }
 
     /**
-     * Get status of all bots.
+     * Get status of all bots (direct + lobby).
      */
     getStatus(): any[] {
-        return Array.from(this._bots.values()).map(bot => ({
+        const direct = Array.from(this._bots.values()).map(bot => ({
             id: bot.id,
             name: bot.name,
             state: bot.state,
             brainState: bot.brainState,
             playerId: bot.playerId,
             server: bot.serverInfo?.serverName || 'unknown',
+            source: 'direct' as const,
         }));
+
+        const lobby = Array.from(this._lobbyBots.values()).map(lb => ({
+            id: lb.id,
+            name: lb.name,
+            state: lb.state,
+            brainState: lb.botClient?.brainState || 'n/a',
+            playerId: lb.botClient?.playerId || '',
+            server: lb.botClient?.serverInfo?.serverName || 'lobby',
+            source: 'lobby' as const,
+        }));
+
+        return [...direct, ...lobby];
     }
 
     // ── Control API ───────────────────────────────────────────────────
