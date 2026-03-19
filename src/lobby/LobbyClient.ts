@@ -131,6 +131,12 @@ export class LobbyClient {
         this.send({ type: 'queue:leave' });
     }
 
+    // ── Demo Archive ────────────────────────────────────────────
+
+    requestDemoList(limit: number = 64): void {
+        this.send({ type: 'demos:list', limit });
+    }
+
     // ── Event Handling ──────────────────────────────────────────
 
     /**

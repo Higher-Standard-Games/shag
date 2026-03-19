@@ -103,6 +103,21 @@ export interface LiveMatchInfo {
 }
 
 // ============================================================================
+// Demo Info (recorded match playback)
+// ============================================================================
+
+export interface DemoInfo {
+    filename: string;        // "wdm14_duel_20260319_092800.shagdemo"
+    map: string;             // "wdm14"
+    mapDisplayName: string;  // "Aerowalk"
+    gametype: string;        // "duel"
+    players: string[];       // ["player1", "player2"]
+    durationMs: number;      // match duration
+    date: number;            // unix timestamp ms
+    sizeMB: number;          // file size in MB
+}
+
+// ============================================================================
 // Client → Server Messages
 // ============================================================================
 
@@ -168,6 +183,7 @@ export interface WelcomeMessage extends LobbyMessage {
     onlinePlayers: PlayerInfo[];
     chatHistory: ChatMessage[];
     liveMatches: LiveMatchInfo[];
+    recentDemos: DemoInfo[];
 }
 
 export interface ChatBroadcastMessage extends LobbyMessage {
@@ -245,4 +261,18 @@ export interface LobbyErrorMessage extends LobbyMessage {
 export interface MatchesUpdateMessage extends LobbyMessage {
     type: 'matches:update';
     matches: LiveMatchInfo[];
+}
+
+// ============================================================================
+// Demo List Messages
+// ============================================================================
+
+export interface DemosListRequest extends LobbyMessage {
+    type: 'demos:list';
+    limit?: number;         // max demos to return (default 64)
+}
+
+export interface DemosListResponse extends LobbyMessage {
+    type: 'demos:list_response';
+    demos: DemoInfo[];
 }

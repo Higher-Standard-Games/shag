@@ -9,11 +9,14 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { GameServerSpawner } from './GameServerSpawner';
+import { DemoReader } from '../shared/demo/DemoReader';
 import type {
     LobbyMessage, GametypeInfo, PlayerInfo, PlayerStatus,
     ChatMessage as ChatMsg, MatchLobbyInfo, LobbyPlayerInfo, MapOption,
-    LiveMatchInfo,
+    LiveMatchInfo, DemoInfo,
 } from './types';
 
 // ============================================================================
@@ -221,6 +224,12 @@ export class LobbyServer {
 
     private readonly MAX_CHAT_HISTORY = 50;
 
+    // Demo listing cache
+    private _demoCache: DemoInfo[] = [];
+    private _demoCacheTimer: ReturnType<typeof setInterval> | null = null;
+    private readonly DEMO_DIR = path.join(process.cwd(), 'public', 'data', 'demos');
+    private readonly DEMO_CACHE_INTERVAL = 60_000; // 60s refresh
+
     constructor(port: number = 9000) {
         this.port = port;
         this.spawner = new GameServerSpawner();
@@ -245,6 +254,11 @@ export class LobbyServer {
             this.wss.on('listening', () => {
                 console.log(`[LobbyServer] Ready on ws://localhost:${this.port}`);
                 console.log(`[LobbyServer] ${GAMETYPES.length} gametypes loaded: ${GAMETYPES.map(g => g.id).join(', ')}`);
+
+                // Initial demo scan + periodic refresh
+                this._scanDemos();
+                this._demoCacheTimer = setInterval(() => this._scanDemos(), this.DEMO_CACHE_INTERVAL);
+
                 resolve();
             });
         });
@@ -252,6 +266,12 @@ export class LobbyServer {
 
     async stop(): Promise<void> {
         if (!this.wss) return;
+
+        // Stop demo scan timer
+        if (this._demoCacheTimer) {
+            clearInterval(this._demoCacheTimer);
+            this._demoCacheTimer = null;
+        }
 
         // Shutdown all game servers
         await this.spawner.shutdownAll();
@@ -367,6 +387,9 @@ export class LobbyServer {
                 }
                 this.send(player, { type: 'queue:left' });
                 break;
+            case 'demos:list':
+                this.handleDemosList(player, msg.limit ?? 64);
+                break;
             default:
                 console.log(`[LobbyServer] Unknown message type: ${msg.type}`);
         }
@@ -387,6 +410,7 @@ export class LobbyServer {
             onlinePlayers: this.getOnlinePlayers(),
             chatHistory: this.chatHistory,
             liveMatches: this.getLiveMatches(),
+            recentDemos: this._demoCache.slice(0, 10),
         };
         this.send(player, welcome);
 
@@ -867,6 +891,78 @@ export class LobbyServer {
             }
         }
     }
+
+    // ── Demo Scanning ────────────────────────────────────────────
+
+    private handleDemosList(player: ConnectedPlayer, limit: number): void {
+        const demos = this._demoCache.slice(0, Math.min(limit, 64));
+        this.send(player, { type: 'demos:list_response', demos });
+    }
+
+    /**
+     * Scan public/data/demos/ for .shagdemo files and parse their headers.
+     * Results are cached and sorted newest-first.
+     */
+    private _scanDemos(): void {
+        try {
+            if (!fs.existsSync(this.DEMO_DIR)) {
+                this._demoCache = [];
+                return;
+            }
+
+            const files = fs.readdirSync(this.DEMO_DIR)
+                .filter(f => f.endsWith('.shagdemo'))
+                .sort()
+                .reverse(); // newest first by filename (contains date)
+
+            const demos: DemoInfo[] = [];
+
+            for (const filename of files) {
+                try {
+                    const filepath = path.join(this.DEMO_DIR, filename);
+                    const stat = fs.statSync(filepath);
+                    const data = fs.readFileSync(filepath);
+
+                    const reader = new DemoReader(data);
+                    const header = reader.readHeader();
+                    const index = reader.readIndex();
+
+                    // Calculate duration from index (last tick - first tick) / snapshot rate
+                    let durationMs = 0;
+                    if (index && index.frameCount > 0 && header) {
+                        const lastFrame = index.entries[index.frameCount - 1];
+                        const firstFrame = index.entries[0];
+                        const tickSpan = lastFrame.tick - firstFrame.tick;
+                        durationMs = Math.round((tickSpan / header.snapshotRate) * 1000);
+                    }
+
+                    if (header) {
+                        demos.push({
+                            filename,
+                            map: header.map,
+                            mapDisplayName: MAP_NAMES[header.map] || header.map,
+                            gametype: header.gametype,
+                            players: header.players.map(p => p.name),
+                            durationMs,
+                            date: header.startTime,
+                            sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`[LobbyServer] Failed to parse demo: ${filename}`, (err as Error).message);
+                }
+            }
+
+            this._demoCache = demos;
+            if (demos.length > 0) {
+                console.log(`[LobbyServer] Demo scan: ${demos.length} demos found`);
+            }
+        } catch (err) {
+            console.error('[LobbyServer] Demo scan failed:', err);
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
 
     private getOnlinePlayers(): PlayerInfo[] {
         return [...this.players.values()]

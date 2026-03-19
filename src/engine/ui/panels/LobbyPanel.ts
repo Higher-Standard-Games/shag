@@ -12,7 +12,7 @@ import { UIStyles } from '../UIStyles';
 import { MatchLobbyView } from '../components/MatchLobbyView';
 import { LobbyClient } from '../../../lobby/LobbyClient';
 import { DebugConsole } from '../../debug/DebugConsole';
-import type { PlayerInfo, MatchLobbyInfo, LiveMatchInfo } from '../../../lobby/types';
+import type { PlayerInfo, MatchLobbyInfo, LiveMatchInfo, DemoInfo } from '../../../lobby/types';
 import lobbyCSSRaw from './styles/LobbyPanel.css?raw';
 import matchLobbyCSSRaw from '../components/styles/MatchLobbyView.css?raw';
 
@@ -106,6 +106,11 @@ export class LobbyPanel extends GamePanel {
     private liveMatches: LiveMatchInfo[] = [];
     private matchListEl: HTMLElement | null = null;
 
+    // Demos
+    private recentDemos: DemoInfo[] = [];
+    private demosArchive: DemoInfo[] = [];
+    private demosGridEl: HTMLElement | null = null;
+
     constructor() {
         super('PLAY');
         this.closable = false; // Main menu cannot be closed via ESC
@@ -121,6 +126,7 @@ export class LobbyPanel extends GamePanel {
 
         // Tabs — Settings is now a tab alongside the others
         this.addTab('matchmaking', 'Matchmaking', this.buildMatchmakingTab());
+        this.addTab('demos', 'Demos', this.buildDemosTab());
         this.addTab('leaderboard', 'Leaderboard', this.buildLeaderboardTab());
         this.addTab('profile', 'My Profile', this.buildProfileTab());
         this.addTab('settings', '⚙ Settings', this.buildSettingsTab());
@@ -159,6 +165,10 @@ export class LobbyPanel extends GamePanel {
                 // Load live matches
                 this.liveMatches = msg.liveMatches || [];
                 this.refreshMatchList();
+
+                // Load recent demos
+                this.recentDemos = msg.recentDemos || [];
+                this.refreshMatchList(); // re-render with demos
 
                 // Load chat history
                 if (msg.chatHistory && this.chatMessagesEl) {
@@ -213,6 +223,12 @@ export class LobbyPanel extends GamePanel {
                 if (this.matchLobbyView) {
                     this.showGametypeCards();
                 }
+            }));
+
+            // Demo archive list response
+            this.unsubscribers.push(this.lobbyClient.on('demos:list_response', (msg) => {
+                this.demosArchive = msg.demos || [];
+                this.refreshDemosGrid();
             }));
 
         } catch (err) {
@@ -512,6 +528,68 @@ export class LobbyPanel extends GamePanel {
             match.appendChild(footer);
             this.matchListEl.appendChild(match);
         }
+
+        // ── Append recent demos below live matches ──
+        if (this.recentDemos.length > 0) {
+            const demoHeader = document.createElement('div');
+            demoHeader.className = 'lobby__chat-msg lobby__chat-msg--system';
+            demoHeader.textContent = 'RECENT DEMOS';
+            demoHeader.style.padding = '10px 10px 4px';
+            demoHeader.style.fontSize = '10px';
+            demoHeader.style.letterSpacing = '0.1em';
+            demoHeader.style.opacity = '0.5';
+            this.matchListEl.appendChild(demoHeader);
+
+            for (const d of this.recentDemos.slice(0, 10)) {
+                const demo = document.createElement('div');
+                demo.className = 'lobby__match lobby__match--demo';
+
+                // Duration
+                const totalSecs = Math.floor(d.durationMs / 1000);
+                const mins = Math.floor(totalSecs / 60);
+                const secs = totalSecs % 60;
+                const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+                const header = document.createElement('div');
+                header.className = 'lobby__match-header';
+                header.innerHTML = `
+                    <span class="lobby__match-demo-label">▶ DEMO</span>
+                    <span class="lobby__match-type">${d.gametype.toUpperCase()}</span>
+                    <span class="lobby__match-time">${durationStr}</span>
+                `;
+                demo.appendChild(header);
+
+                const players = document.createElement('div');
+                players.className = 'lobby__match-players';
+                players.textContent = d.players.length > 0 ? d.players.join(' vs ') : 'Unknown';
+                demo.appendChild(players);
+
+                const footer = document.createElement('div');
+                footer.className = 'lobby__match-footer';
+
+                // Date string
+                const dateStr = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                footer.innerHTML = `
+                    <span class="lobby__match-map">${d.mapDisplayName}</span>
+                    <span class="lobby__match-score">${dateStr}</span>
+                `;
+
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'lobby__watch-btn lobby__watch-btn--demo';
+                viewBtn.textContent = 'VIEW DEMO';
+                viewBtn.addEventListener('click', () => {
+                    // Phase 1: download demo file
+                    const link = document.createElement('a');
+                    link.href = `/data/demos/${d.filename}`;
+                    link.download = d.filename;
+                    link.click();
+                });
+                footer.appendChild(viewBtn);
+
+                demo.appendChild(footer);
+                this.matchListEl.appendChild(demo);
+            }
+        }
     }
 
     // ── Chat column ──
@@ -550,6 +628,180 @@ export class LobbyPanel extends GamePanel {
         col.appendChild(inputWrap);
 
         return col;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TAB: DEMOS
+    // ═══════════════════════════════════════════════════════════════════
+
+    private buildDemosTab(): HTMLElement {
+        // Inject demo-specific CSS
+        UIStyles.injectCSS('demo-tab', `
+            .lobby__demos { padding: 16px; overflow-y: auto; max-height: 100%; }
+            .lobby__demos-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+            .lobby__demos-title { font-family: var(--w-font-display, 'Orbitron', sans-serif); font-size: 18px; color: #fff; letter-spacing: 0.08em; }
+            .lobby__demos-count { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; }
+            .lobby__demos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+            @media (max-width: 1200px) { .lobby__demos-grid { grid-template-columns: repeat(3, 1fr); } }
+            @media (max-width: 900px) { .lobby__demos-grid { grid-template-columns: repeat(2, 1fr); } }
+            .lobby__demo-card {
+                background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px; overflow: hidden; cursor: pointer;
+                transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+            }
+            .lobby__demo-card:hover {
+                border-color: rgba(255,180,60,0.4); transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            }
+            .lobby__demo-card-banner {
+                height: 80px; background: linear-gradient(135deg, rgba(255,180,60,0.15), rgba(255,100,50,0.08));
+                display: flex; align-items: center; justify-content: center; position: relative;
+            }
+            .lobby__demo-card-map {
+                font-family: var(--w-font-display, 'Orbitron', sans-serif);
+                font-size: 16px; color: #fff; letter-spacing: 0.1em; text-transform: uppercase;
+            }
+            .lobby__demo-card-gametype {
+                position: absolute; top: 6px; right: 8px; font-size: 9px;
+                color: rgba(255,180,60,0.8); letter-spacing: 0.1em; font-weight: 700;
+            }
+            .lobby__demo-card-body { padding: 10px 12px; }
+            .lobby__demo-card-players {
+                font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            }
+            .lobby__demo-card-meta {
+                display: flex; justify-content: space-between; font-size: 10px;
+                color: rgba(255,255,255,0.35); letter-spacing: 0.04em;
+            }
+            .lobby__demo-card-btn {
+                display: block; width: 100%; padding: 8px;
+                background: rgba(255,180,60,0.12); border: none; border-top: 1px solid rgba(255,255,255,0.06);
+                color: rgba(255,180,60,0.9); font-size: 10px; font-weight: 700;
+                letter-spacing: 0.12em; cursor: pointer; transition: background 0.2s;
+                font-family: var(--w-font-display, 'Orbitron', sans-serif);
+            }
+            .lobby__demo-card-btn:hover { background: rgba(255,180,60,0.25); }
+            .lobby__match--demo { border-left: 2px solid rgba(255,180,60,0.3); }
+            .lobby__match-demo-label { color: rgba(255,180,60,0.9); font-weight: 700; font-size: 10px; letter-spacing: 0.05em; }
+            .lobby__watch-btn--demo { background: rgba(255,180,60,0.15) !important; color: rgba(255,180,60,0.9) !important; }
+            .lobby__watch-btn--demo:hover { background: rgba(255,180,60,0.3) !important; }
+            .lobby__demos-empty { text-align: center; padding: 40px; color: rgba(255,255,255,0.3); font-size: 14px; }
+        `);
+
+        const container = document.createElement('div');
+        container.className = 'lobby__demos';
+
+        const header = document.createElement('div');
+        header.className = 'lobby__demos-header';
+        header.innerHTML = `
+            <span class="lobby__demos-title">DEMO ARCHIVE</span>
+            <span class="lobby__demos-count"></span>
+        `;
+        container.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'lobby__demos-grid';
+        this.demosGridEl = grid;
+        container.appendChild(grid);
+
+        // Request demo list when tab is activated
+        const origSwitchTab = this.switchTab.bind(this);
+        this.switchTab = (tabId: string) => {
+            origSwitchTab(tabId);
+            if (tabId === 'demos') {
+                this.lobbyClient.requestDemoList(64);
+            }
+        };
+
+        return container;
+    }
+
+    private refreshDemosGrid(): void {
+        if (!this.demosGridEl) return;
+        this.demosGridEl.innerHTML = '';
+
+        // Update count badge
+        const countEl = this.demosGridEl.parentElement?.querySelector('.lobby__demos-count');
+        if (countEl) countEl.textContent = `${this.demosArchive.length} demos`;
+
+        if (this.demosArchive.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'lobby__demos-empty';
+            empty.textContent = 'No recorded demos yet. Play some matches!';
+            empty.style.gridColumn = '1 / -1';
+            this.demosGridEl.appendChild(empty);
+            return;
+        }
+
+        // Map gametype → hue for card color
+        const gametypeHues: Record<string, string> = {
+            duel: '180', deathmatch: '45', tdm: '320', team: '320', ffa: '45',
+        };
+
+        for (const d of this.demosArchive) {
+            const card = document.createElement('div');
+            card.className = 'lobby__demo-card';
+
+            // Banner with map name
+            const hue = gametypeHues[d.gametype] || '200';
+            const banner = document.createElement('div');
+            banner.className = 'lobby__demo-card-banner';
+            banner.style.background = `linear-gradient(135deg, hsla(${hue},60%,40%,0.2), hsla(${hue},40%,20%,0.1))`;
+
+            const mapName = document.createElement('span');
+            mapName.className = 'lobby__demo-card-map';
+            mapName.textContent = d.mapDisplayName;
+            banner.appendChild(mapName);
+
+            const gametypeLabel = document.createElement('span');
+            gametypeLabel.className = 'lobby__demo-card-gametype';
+            gametypeLabel.textContent = d.gametype.toUpperCase();
+            banner.appendChild(gametypeLabel);
+
+            card.appendChild(banner);
+
+            // Body
+            const body = document.createElement('div');
+            body.className = 'lobby__demo-card-body';
+
+            const players = document.createElement('div');
+            players.className = 'lobby__demo-card-players';
+            players.textContent = d.players.length > 0 ? d.players.join(' vs ') : 'Unknown';
+            body.appendChild(players);
+
+            // Duration
+            const totalSecs = Math.floor(d.durationMs / 1000);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            const dateStr = new Date(d.date).toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
+
+            const meta = document.createElement('div');
+            meta.className = 'lobby__demo-card-meta';
+            meta.innerHTML = `<span>${durationStr}</span><span>${dateStr}</span><span>${d.sizeMB} MB</span>`;
+            body.appendChild(meta);
+
+            card.appendChild(body);
+
+            // View button
+            const btn = document.createElement('button');
+            btn.className = 'lobby__demo-card-btn';
+            btn.textContent = '▶ VIEW DEMO';
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const link = document.createElement('a');
+                link.href = `/data/demos/${d.filename}`;
+                link.download = d.filename;
+                link.click();
+            });
+            card.appendChild(btn);
+
+            this.demosGridEl.appendChild(card);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
