@@ -51,8 +51,35 @@ export interface VisionResult {
     pickups: VisionPickup[];
     /** Nearest cover position from the primary threat */
     nearestCover: Vec3 | null;
+    /** Enemies we lost sight of but are tracking mentally ("phantoms") */
+    trackedEnemies: EnemyTrack[];
+    /** Highest-priority chase target (recently visible, now behind cover) */
+    chaseTarget: EnemyTrack | null;
     /** Number of LOS traces performed this tick */
     tracesPerformed: number;
+}
+
+// ── Enemy Memory / Phantom Tracking ─────────────────────────────────────
+
+export interface EnemyTrack {
+    /** Player ID being tracked */
+    playerId: string;
+    /** Entity ID (for matching with snapshot data) */
+    entityId: string;
+    /** Last confirmed position (where we actually saw/heard them) */
+    lastSeenPosition: Vec3;
+    /** Their velocity at last observation */
+    lastSeenVelocity: Vec3;
+    /** Tick when we last had confirmed data */
+    lastSeenTick: number;
+    /** Extrapolated current position (predicted) */
+    predictedPosition: Vec3;
+    /** Confidence: 1.0 = just seen, decays toward 0.0 */
+    confidence: number;
+    /** How we know about them */
+    source: 'visual' | 'sound' | 'damage';
+    /** Distance from bot at last observation */
+    lastDistance: number;
 }
 
 // ── Map Knowledge ───────────────────────────────────────────────────────
@@ -98,6 +125,29 @@ const PLAYER_BOUNDS: AABB = {
 /** Ticks to consider weapon fire as "audible" */
 const AUDIBLE_FIRE_TICKS = 120; // ~2 seconds at 60Hz
 
+// ── Enemy Memory Constants ──────────────────────────────────────────────
+
+/** Max ticks to extrapolate enemy position (3 seconds at 60Hz) */
+const MAX_EXTRAPOLATION_TICKS = 180;
+
+/** Ticks until visual track confidence reaches 0 (~4 seconds at 60Hz) */
+const VISUAL_TRACK_DECAY_TICKS = 240;
+
+/** Ticks until sound track confidence reaches 0 (~2.5 seconds) */
+const SOUND_TRACK_DECAY_TICKS = 150;
+
+/** Initial confidence for sound-based tracks (less certain than visual) */
+const SOUND_CONFIDENCE = 0.6;
+
+/** Initial confidence for damage-based tracks (we KNOW they hit us) */
+const DAMAGE_CONFIDENCE = 0.8;
+
+/** Minimum confidence to consider a track actionable for chasing */
+const CHASE_CONFIDENCE_THRESHOLD = 0.3;
+
+/** Max number of enemy tracks to maintain */
+const MAX_ENEMY_TRACKS = 8;
+
 // ── BotVision Class ─────────────────────────────────────────────────────
 
 export class BotVision {
@@ -107,6 +157,9 @@ export class BotVision {
     // LOS cache: entityId → { visible: boolean, tick: number }
     private _losCache: Map<string, { visible: boolean; tick: number }> = new Map();
     private _losCacheTTL: number = 3; // Cache LOS results for 3 ticks
+
+    // Enemy memory: playerId → EnemyTrack (persists across ticks)
+    private _enemyTracks: Map<string, EnemyTrack> = new Map();
 
     constructor(collisionWorld: CollisionWorld, mapKnowledge: MapKnowledgeData) {
         this._collisionWorld = collisionWorld;
@@ -261,6 +314,15 @@ export class BotVision {
             tracesPerformed += coverResult.traces;
         }
 
+        // ── Update enemy memory tracks ─────────────────────────────────
+        this._updateEnemyTracks(state, visibleEnemies, audibleEnemies);
+
+        // ── Get current tracked enemies (phantoms behind cover) ───────
+        const trackedEnemies = this._getActiveTrackedEnemies(state, visibleEnemies);
+
+        // ── Determine chase target ────────────────────────────────────
+        const chaseTarget = this._selectChaseTarget(trackedEnemies);
+
         // ── Combine and sort ──────────────────────────────────────────
         const allKnownEnemies = [...visibleEnemies, ...audibleEnemies];
 
@@ -270,6 +332,8 @@ export class BotVision {
             allKnownEnemies,
             pickups,
             nearestCover,
+            trackedEnemies,
+            chaseTarget,
             tracesPerformed,
         };
     }
@@ -356,13 +420,202 @@ export class BotVision {
     // ── Cache Management ────────────────────────────────────────────────
 
     /**
-     * Clear LOS cache (call when bot dies/respawns).
+     * Clear LOS cache and enemy memory (call when bot dies/respawns).
      */
     clearCache(): void {
         this._losCache.clear();
+        this._enemyTracks.clear();
     }
 
-    // ── Private Helpers ─────────────────────────────────────────────────
+    // ── Sound & Damage Event Registration ────────────────────────────────
+
+    /**
+     * Register a sound event (weapon fire) — creates or refreshes a track.
+     * Called by BotClient when processing game events.
+     */
+    registerSoundEvent(playerId: string, entityId: string, position: Vec3, tick: number): void {
+        const existing = this._enemyTracks.get(playerId);
+        if (existing && existing.source === 'visual' && existing.confidence > SOUND_CONFIDENCE) {
+            // Don't overwrite a better visual track with worse sound data
+            return;
+        }
+
+        this._enemyTracks.set(playerId, {
+            playerId,
+            entityId,
+            lastSeenPosition: { ...position },
+            lastSeenVelocity: { x: 0, y: 0, z: 0 }, // Unknown velocity from sound
+            lastSeenTick: tick,
+            predictedPosition: { ...position },
+            confidence: SOUND_CONFIDENCE,
+            source: 'sound',
+            lastDistance: 0,
+        });
+    }
+
+    /**
+     * Register a damage event — we KNOW someone hit us from a direction.
+     */
+    registerDamageEvent(playerId: string, entityId: string, position: Vec3, tick: number): void {
+        const existing = this._enemyTracks.get(playerId);
+        if (existing && existing.source === 'visual' && existing.confidence > DAMAGE_CONFIDENCE) {
+            return;
+        }
+
+        this._enemyTracks.set(playerId, {
+            playerId,
+            entityId,
+            lastSeenPosition: { ...position },
+            lastSeenVelocity: { x: 0, y: 0, z: 0 },
+            lastSeenTick: tick,
+            predictedPosition: { ...position },
+            confidence: DAMAGE_CONFIDENCE,
+            source: 'damage',
+            lastDistance: 0,
+        });
+    }
+
+    /**
+     * Get a read-only snapshot of all active enemy tracks (for debugging).
+     */
+    getEnemyTracks(): ReadonlyMap<string, EnemyTrack> {
+        return this._enemyTracks;
+    }
+
+    // ── Enemy Memory — Private Methods ──────────────────────────────────
+
+    /**
+     * Update enemy tracks based on current visibility.
+     * - Visible enemies: refresh/create track at confidence 1.0
+     * - Audible enemies (not visible): create/refresh sound track
+     * - Previously tracked enemies now invisible: their tracks persist & decay
+     */
+    private _updateEnemyTracks(
+        state: BotGameState,
+        visibleEnemies: VisionEnemy[],
+        audibleEnemies: VisionEnemy[],
+    ): void {
+        // Update tracks for currently visible enemies (full confidence)
+        for (const ve of visibleEnemies) {
+            this._enemyTracks.set(ve.player.playerId, {
+                playerId: ve.player.playerId,
+                entityId: ve.player.entityId,
+                lastSeenPosition: { ...ve.player.position },
+                lastSeenVelocity: { ...ve.player.velocity },
+                lastSeenTick: state.tick,
+                predictedPosition: { ...ve.player.position },
+                confidence: 1.0,
+                source: 'visual',
+                lastDistance: ve.player.distance,
+            });
+        }
+
+        // Update tracks for audible-only enemies (lower confidence)
+        for (const ae of audibleEnemies) {
+            const existing = this._enemyTracks.get(ae.player.playerId);
+            // Only update if we don't have a recent visual track
+            if (!existing || existing.confidence < SOUND_CONFIDENCE || existing.source !== 'visual') {
+                this._enemyTracks.set(ae.player.playerId, {
+                    playerId: ae.player.playerId,
+                    entityId: ae.player.entityId,
+                    lastSeenPosition: { ...ae.player.position },
+                    lastSeenVelocity: { ...ae.player.velocity },
+                    lastSeenTick: state.tick,
+                    predictedPosition: { ...ae.player.position },
+                    confidence: SOUND_CONFIDENCE,
+                    source: 'sound',
+                    lastDistance: ae.player.distance,
+                });
+            }
+        }
+
+        // Prune dead tracks and enforce max count
+        if (this._enemyTracks.size > MAX_ENEMY_TRACKS) {
+            // Remove oldest/lowest confidence tracks
+            const sorted = [...this._enemyTracks.entries()]
+                .sort((a, b) => a[1].confidence - b[1].confidence);
+            while (this._enemyTracks.size > MAX_ENEMY_TRACKS && sorted.length > 0) {
+                const [key] = sorted.shift()!;
+                this._enemyTracks.delete(key);
+            }
+        }
+    }
+
+    /**
+     * Get active tracked enemies that are NOT currently visible.
+     * Extrapolates positions and applies confidence decay.
+     * Returns only tracks above the chase confidence threshold.
+     */
+    private _getActiveTrackedEnemies(
+        state: BotGameState,
+        visibleEnemies: VisionEnemy[],
+    ): EnemyTrack[] {
+        const visibleIds = new Set(visibleEnemies.map(ve => ve.player.playerId));
+        const tracked: EnemyTrack[] = [];
+
+        for (const [playerId, track] of this._enemyTracks) {
+            // Skip currently visible enemies — not "tracked", they're "seen"
+            if (visibleIds.has(playerId)) continue;
+
+            const elapsed = state.tick - track.lastSeenTick;
+            if (elapsed <= 0) continue;
+
+            // Determine decay rate based on source
+            const decayTicks = track.source === 'visual'
+                ? VISUAL_TRACK_DECAY_TICKS
+                : SOUND_TRACK_DECAY_TICKS;
+
+            // Calculate decayed confidence
+            const initialConfidence = track.source === 'visual' ? 1.0
+                : track.source === 'damage' ? DAMAGE_CONFIDENCE
+                    : SOUND_CONFIDENCE;
+            const confidence = Math.max(0, initialConfidence - (elapsed / decayTicks));
+
+            // Remove dead tracks
+            if (confidence <= 0) {
+                this._enemyTracks.delete(playerId);
+                continue;
+            }
+
+            // Extrapolate position (capped at MAX_EXTRAPOLATION_TICKS)
+            const extrapolationTicks = Math.min(elapsed, MAX_EXTRAPOLATION_TICKS);
+            const tickDuration = 1 / 60; // ~60Hz ticks
+            const predictedPosition = vec3Add(
+                track.lastSeenPosition,
+                vec3Scale(track.lastSeenVelocity, extrapolationTicks * tickDuration),
+            );
+
+            // Update the track in-place
+            track.predictedPosition = predictedPosition;
+            track.confidence = confidence;
+
+            if (confidence >= CHASE_CONFIDENCE_THRESHOLD) {
+                tracked.push(track);
+            }
+        }
+
+        // Sort by confidence (highest first)
+        tracked.sort((a, b) => b.confidence - a.confidence);
+        return tracked;
+    }
+
+    /**
+     * Select the best chase target from tracked enemies.
+     * Prefers: high confidence → recent visual → closest distance.
+     */
+    private _selectChaseTarget(trackedEnemies: EnemyTrack[]): EnemyTrack | null {
+        if (trackedEnemies.length === 0) return null;
+
+        // Strongly prefer recently-visible enemies over sound-tracked ones
+        const visualTracks = trackedEnemies.filter(t => t.source === 'visual');
+        if (visualTracks.length > 0) {
+            return visualTracks[0]; // Already sorted by confidence
+        }
+
+        // Otherwise pick the highest confidence track
+        return trackedEnemies[0];
+    }
+
 
     /**
      * Calculate the angle from bot's forward direction to a target position.

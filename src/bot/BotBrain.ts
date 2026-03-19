@@ -32,6 +32,7 @@ export interface BotInput {
 export enum BotState {
     SPAWN = 'SPAWN',
     FIGHT = 'FIGHT',
+    CHASE = 'CHASE',
     HUNT = 'HUNT',
     ITEM_RUN = 'ITEM_RUN',
     DODGE = 'DODGE',

@@ -90,6 +90,8 @@ export class StateMachineBrain extends BotBrain {
         switch (this.currentState) {
             case BotState.FIGHT:
                 return this._executeFight(state);
+            case BotState.CHASE:
+                return this._executeChase(state);
             case BotState.DODGE:
                 return this._executeDodge(state);
             case BotState.RETREAT:
@@ -142,6 +144,11 @@ export class StateMachineBrain extends BotBrain {
         // Priority 2: Enemy visible → fight
         if (hasVisibleEnemy && nearestVisibleEnemy && nearestVisibleEnemy.distance < FIGHT_RANGE) {
             return BotState.FIGHT;
+        }
+
+        // Priority 2.5: Lost sight of enemy but tracking them → chase!
+        if (this._lastVision?.chaseTarget) {
+            return BotState.CHASE;
         }
 
         // Priority 3: Low health → retreat to find health
@@ -250,7 +257,32 @@ export class StateMachineBrain extends BotBrain {
         };
     }
 
+    // ── CHASE State — Pursuit after LOS break ──────────────────────────
+
+    private _executeChase(state: BotGameState): BotInput {
+        const target = this._lastVision?.chaseTarget;
+        if (!target) {
+            // No target to chase — fall back to hunt
+            return this._executeHunt(state);
+        }
+
+        // Move toward predicted (extrapolated) position
+        const input = this._moveToward(state, target.predictedPosition, false);
+
+        // Keep weapon ready — we might re-acquire LOS at any moment
+        input.buttons |= InputButtons.FIRE; // Pre-fire around corners
+
+        // Select appropriate weapon (use last known distance)
+        const weaponSlot = this._selectWeaponForDistance(state, target.lastDistance);
+        if (weaponSlot > 0) {
+            input.weaponSlot = weaponSlot;
+        }
+
+        return input;
+    }
+
     // ── RETREAT State ─────────────────────────────────────────────────
+
 
     private _executeRetreat(state: BotGameState): BotInput {
         // Try vision's cover finding first
