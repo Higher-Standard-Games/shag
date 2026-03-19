@@ -18,6 +18,7 @@ import type { BotGameState, VisiblePlayer, Vec3 } from './BotGameState';
 import { vec3Subtract, vec3Normalize, vec3Length } from './BotGameState';
 import { InputButtons, type BotDifficulty } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
+import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from './BotWeaponProfile';
 
 // ── Constants ───────────────────────────────────────────────────────────
 
@@ -28,13 +29,8 @@ const PICKUP_SEEK_RANGE = 1500;
 const DODGE_REACT_TICKS = 30; // React to damage within last 30 ticks
 const HUNT_DIRECTION_CHANGE_INTERVAL = 180; // Change hunt direction every ~3 sec at 60Hz
 
-// Weapon slot preferences by distance range
-// Slot indices are 1-based as sent in weaponSlot field
-const WEAPON_PREFERENCE = {
-    close: ['riotgun', 'plasmagun', 'rocketlauncher'],
-    medium: ['plasmagun', 'rocketlauncher', 'riotgun'],
-    long: ['electrobolt', 'rocketlauncher', 'plasmagun'],
-};
+const MELEE_RANGE = 150;
+const CLOSE_RANGE = 400;
 
 export class StateMachineBrain extends BotBrain {
     // ── Internal state ────────────────────────────────────────────────
@@ -166,18 +162,25 @@ export class StateMachineBrain extends BotBrain {
     // ── FIGHT State ───────────────────────────────────────────────────
 
     private _executeFight(state: BotGameState): BotInput {
-        // Prefer vision-verified visible enemy, fall back to raw state
+        // Find strongest enemy (from vision or fallback)
         const enemy = this._lastVision?.visibleEnemies[0]?.player
             ?? state.getNearestEnemy();
         if (!enemy) {
             return this._executeHunt(state);
         }
 
-        // Aim at enemy with prediction
-        const aim = this._aimAtTarget(state, enemy);
+        // Select best weapon for distance (profile-based)
+        const { slot: weaponSlot } = selectBestWeapon(
+            state.self.weapons, state.self.ammo, state.self.currentWeapon, enemy.distance,
+        );
 
-        // Select best weapon for distance
-        const weaponSlot = this._selectWeaponForDistance(state, enemy.distance);
+        // Get current weapon profile for ADS/behavior decisions
+        const currentProfile = getWeaponProfile(state.self.currentWeapon);
+
+        // Aim at enemy — use projectile prediction if needed
+        const aim = currentProfile.isProjectile && currentProfile.projectileSpeed > 0
+            ? this._aimAtTargetWithLead(state, enemy, currentProfile)
+            : this._aimAtTarget(state, enemy);
 
         // Strafe while fighting
         this._updateStrafe();
@@ -185,22 +188,52 @@ export class StateMachineBrain extends BotBrain {
 
         // Build buttons
         let buttons = 0;
+        let wantsFire = false;
 
         // Only fire if we have ammo for current weapon
         const currentAmmo = state.self.ammo[state.self.currentWeapon];
         if (currentAmmo === undefined || currentAmmo > 0) {
-            buttons |= InputButtons.FIRE;
+            wantsFire = true;
         }
 
-        // Add movement
-        if (enemy.distance > 300) {
-            buttons |= InputButtons.FORWARD; // Close distance
-        }
-        if (enemy.distance < 150) {
-            buttons |= InputButtons.BACK; // Too close, back up
+        // ── Weapon-aware combat behavior ───────────────────────────
+
+        if (currentProfile.isMelee) {
+            // MELEE: Rush forward, swing, no ADS
+            if (enemy.distance < MELEE_RANGE && wantsFire) {
+                buttons |= InputButtons.FIRE;
+            }
+            // Always rush toward enemy with melee
+            buttons |= InputButtons.FORWARD;
+            buttons |= InputButtons.SPRINT;
+        } else {
+            // RANGED COMBAT
+
+            // ADS: Only when weapon needs it AND we're firing
+            if (currentProfile.needsADS && wantsFire) {
+                buttons |= InputButtons.ALT_FIRE; // ADS
+            }
+
+            // Fire
+            if (wantsFire) {
+                buttons |= InputButtons.FIRE;
+            }
+
+            // Movement based on range
+            if (enemy.distance > CLOSE_RANGE) {
+                buttons |= InputButtons.FORWARD; // Close distance
+            } else if (enemy.distance < MELEE_RANGE && !currentProfile.isMelee) {
+                buttons |= InputButtons.BACK; // Too close for ranged, back up
+            }
+
+            // Back up from splash weapons at close range (avoid self-damage)
+            if (currentProfile.hasSplash && enemy.distance < 250) {
+                buttons |= InputButtons.BACK;
+                buttons &= ~InputButtons.FORWARD;
+            }
         }
 
-        // Strafe
+        // Strafe (universal)
         if (strafeInput > 0) {
             buttons |= InputButtons.LEFT;
         } else {
@@ -212,8 +245,18 @@ export class StateMachineBrain extends BotBrain {
             buttons |= InputButtons.JUMP;
         }
 
+        // Movement direction
+        let forwardZ = 0;
+        if (currentProfile.isMelee) {
+            forwardZ = 1; // Always rush forward with melee
+        } else if (enemy.distance > CLOSE_RANGE) {
+            forwardZ = 1;
+        } else if (enemy.distance < MELEE_RANGE || (currentProfile.hasSplash && enemy.distance < 250)) {
+            forwardZ = -1;
+        }
+
         return {
-            direction: { x: strafeInput * 0.5, y: 0, z: enemy.distance > 300 ? 1 : (enemy.distance < 150 ? -1 : 0) },
+            direction: { x: strafeInput * 0.5, y: 0, z: forwardZ },
             pitch: aim.pitch,
             yaw: aim.yaw,
             buttons,
@@ -281,9 +324,11 @@ export class StateMachineBrain extends BotBrain {
         }
 
         // Select appropriate weapon (use last known distance)
-        const weaponSlot = this._selectWeaponForDistance(state, target.lastDistance);
-        if (weaponSlot > 0) {
-            input.weaponSlot = weaponSlot;
+        const { slot: chaseSlot } = selectBestWeapon(
+            state.self.weapons, state.self.ammo, state.self.currentWeapon, target.lastDistance,
+        );
+        if (chaseSlot > 0) {
+            input.weaponSlot = chaseSlot;
         }
 
         return input;
@@ -468,35 +513,62 @@ export class StateMachineBrain extends BotBrain {
 
     // ── Weapon Selection ──────────────────────────────────────────────
 
-    private _selectWeaponForDistance(state: BotGameState, distance: number): number {
-        // Determine range category
-        let prefs: string[];
-        if (distance < 300) {
-            prefs = WEAPON_PREFERENCE.close;
-        } else if (distance < 800) {
-            prefs = WEAPON_PREFERENCE.medium;
-        } else {
-            prefs = WEAPON_PREFERENCE.long;
+    /**
+     * Aim at target with projectile lead prediction.
+     * Uses the weapon's projectile speed to predict where the target will be.
+     */
+    private _aimAtTargetWithLead(state: BotGameState, target: VisiblePlayer, profile: WeaponProfile): { pitch: number; yaw: number } {
+        // Estimate travel time: distance / projectileSpeed
+        const travelTime = target.distance / (profile.projectileSpeed || 2500);
+
+        // Predicted position = current position + velocity * travelTime
+        const predicted: Vec3 = {
+            x: target.position.x + (target.velocity?.x ?? 0) * travelTime,
+            y: target.position.y + (target.velocity?.y ?? 0) * travelTime,
+            z: target.position.z + (target.velocity?.z ?? 0) * travelTime,
+        };
+
+        // Splash weapons: aim slightly lower (toward feet)
+        if (profile.hasSplash) {
+            predicted.y -= 20;
         }
 
-        // Find best available weapon
-        for (const weaponName of prefs) {
-            const slotIndex = state.self.weapons.indexOf(weaponName);
-            if (slotIndex >= 0) {
-                // Check if we have ammo
-                const ammo = state.self.ammo[weaponName];
-                if (ammo === undefined || ammo > 0) {
-                    const slot = slotIndex + 1; // 1-indexed
-                    // Only switch if not already on this weapon
-                    if (state.self.currentWeapon !== weaponName) {
-                        return slot;
-                    }
-                    return 0; // Already on best weapon
-                }
-            }
+        // Calculate angles to predicted position
+        const diff = vec3Subtract(predicted, state.self.position);
+        const dist2D = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
+
+        const yaw = Math.atan2(diff.x, diff.z);
+        const pitch = -Math.atan2(diff.y, dist2D);
+
+        // Apply difficulty-based inaccuracy (matching _aimAtTarget)
+        const inaccuracy = (1 - this.difficulty.aimAccuracy) * 0.15;
+        const yawNoise = (Math.random() - 0.5) * inaccuracy;
+        const pitchNoise = (Math.random() - 0.5) * inaccuracy;
+
+        // Smooth aiming — tracking speed
+        const maxTurnRate = this.difficulty.trackingSpeed * (1 / 60);
+        const currentYaw = state.self.yaw;
+        const currentPitch = state.self.pitch;
+
+        let targetYaw = yaw + yawNoise;
+        let targetPitch = pitch + pitchNoise;
+
+        let yawDiff = targetYaw - currentYaw;
+        while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+        while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+        if (Math.abs(yawDiff) > maxTurnRate) {
+            yawDiff = Math.sign(yawDiff) * maxTurnRate;
         }
 
-        return 0; // Keep current weapon
+        let pitchDiff = targetPitch - currentPitch;
+        if (Math.abs(pitchDiff) > maxTurnRate) {
+            pitchDiff = Math.sign(pitchDiff) * maxTurnRate;
+        }
+
+        return {
+            yaw: currentYaw + yawDiff,
+            pitch: currentPitch + pitchDiff,
+        };
     }
 
     // ── Movement Helpers ──────────────────────────────────────────────
