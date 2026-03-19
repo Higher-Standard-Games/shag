@@ -184,7 +184,13 @@ export class StateMachineBrain extends BotBrain {
         const strafeInput = this._strafeDirection;
 
         // Build buttons
-        let buttons = InputButtons.FIRE; // Always shoot when fighting
+        let buttons = 0;
+
+        // Only fire if we have ammo for current weapon
+        const currentAmmo = state.self.ammo[state.self.currentWeapon];
+        if (currentAmmo === undefined || currentAmmo > 0) {
+            buttons |= InputButtons.FIRE;
+        }
 
         // Add movement
         if (enemy.distance > 300) {
@@ -407,8 +413,8 @@ export class StateMachineBrain extends BotBrain {
         // Calculate aim angles
         const delta = vec3Subtract(targetPos, state.self.position);
         const horizontalDist = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-        const perfectYaw = Math.atan2(delta.x, delta.z);
-        const perfectPitch = Math.atan2(delta.y, horizontalDist);
+        const perfectYaw = horizontalDist > 0.01 ? Math.atan2(delta.x, delta.z) : state.self.yaw;
+        const perfectPitch = horizontalDist > 0.01 ? Math.atan2(delta.y, horizontalDist) : (delta.y > 0 ? Math.PI / 2 : -Math.PI / 2);
 
         // Add inaccuracy based on difficulty
         const inaccuracy = (1 - this.difficulty.aimAccuracy) * 0.15;
@@ -550,12 +556,12 @@ export class StateMachineBrain extends BotBrain {
         // - Missing key weapons
         // - Health below 80
         // - No armor
-        if (state.self.health < 80) return true;
-        if (state.self.armor < 50) return true;
+        if (state.self.health < 50) return true;
+        if (state.self.armor < 25) return true;
 
         // Check ammo
         const currentAmmo = state.self.ammo[state.self.currentWeapon];
-        if (currentAmmo !== undefined && currentAmmo < 5) return true;
+        if (currentAmmo !== undefined && currentAmmo < 3) return true;
 
         return false;
     }

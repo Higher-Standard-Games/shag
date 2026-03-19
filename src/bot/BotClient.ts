@@ -326,20 +326,22 @@ export class BotClient extends EventEmitter {
                 console.log(`${this._logPrefix} Died! Waiting ${(this._respawnDelayMs / 1000).toFixed(1)}s to respawn...`);
             }
 
+            // Server confirmed we're alive again after being dead
+            if (this._isDead && !this._gameState.self.isDead) {
+                this._isDead = false;
+                this._state = 'playing';
+                console.log(`${this._logPrefix} Respawned!`);
+            }
+
             if (this._isDead) {
                 // Check if respawn delay has passed
                 if (Date.now() - this._deathTime > this._respawnDelayMs) {
                     this._sendRequestSpawn();
-                    this._isDead = false;
-                    this._state = 'playing';
+                    // Don't clear _isDead here — wait for server confirmation
+                    // Reset deathTime to avoid spamming (retry every respawnDelay)
+                    this._deathTime = Date.now();
                 }
                 return; // Don't send input while dead
-            }
-
-            // Check if it's the bot's entity that's alive and we got its state
-            if (!this._gameState.self.isDead && this._state === 'dead') {
-                this._state = 'playing';
-                console.log(`${this._logPrefix} Respawned!`);
             }
 
             // ── AI Decision ─────────────────────────────────────────────
