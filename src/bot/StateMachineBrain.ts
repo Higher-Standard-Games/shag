@@ -17,6 +17,7 @@ import { BotBrain, BotState, type BotInput } from './BotBrain';
 import type { BotGameState, VisiblePlayer, Vec3 } from './BotGameState';
 import { vec3Subtract, vec3Normalize, vec3Length } from './BotGameState';
 import { InputButtons, type BotDifficulty } from './BotConfig';
+import type { BotVision, VisionResult } from './BotVision';
 
 // ── Constants ───────────────────────────────────────────────────────────
 
@@ -40,9 +41,10 @@ export class StateMachineBrain extends BotBrain {
     private _huntYaw: number = 0;
     private _huntTimer: number = 0;
     private _stateTimer: number = 0;
-    private _lastDecisionTick: number = 0;
-    private _reactionDelay: number = 0;
-    private _pendingReaction: { target: VisiblePlayer; startTick: number } | null = null;
+    // Reserved for future reaction delay system
+    private _lastDecisionTick = 0; // eslint-disable-line
+    private _reactionDelay = 0; // eslint-disable-line
+    private _pendingReaction: { target: VisiblePlayer; startTick: number } | null = null; // eslint-disable-line
 
     // Movement variety
     private _strafeDirection: number = 1; // 1 or -1
@@ -60,12 +62,20 @@ export class StateMachineBrain extends BotBrain {
 
     // ── Main Decision Loop ────────────────────────────────────────────
 
-    decide(state: BotGameState): BotInput {
+    // Store last vision result for use across state methods
+    private _lastVision: VisionResult | null = null;
+    private _lastBotVision: BotVision | null = null;
+
+    decide(state: BotGameState, vision?: BotVision | null, visionResult?: VisionResult | null): BotInput {
         this._stateTimer++;
+        this._lastVision = visionResult ?? null;
+        this._lastBotVision = vision ?? null;
 
         // Dead → just wait (BotClient handles RequestSpawn)
         if (state.self.isDead) {
             this.currentState = BotState.SPAWN;
+            // Clear vision cache on death
+            if (vision) vision.clearCache();
             return this._noInput(state);
         }
 
@@ -96,20 +106,31 @@ export class StateMachineBrain extends BotBrain {
     // ── State Evaluation ──────────────────────────────────────────────
 
     private _evaluateState(state: BotGameState): BotState {
-        const nearestEnemy = state.getNearestEnemy();
         const recentlyDamaged = state.wasRecentlyDamaged(DODGE_REACT_TICKS);
+
+        // Use vision data if available, otherwise fall back to raw state
+        const hasVisibleEnemy = this._lastVision
+            ? this._lastVision.visibleEnemies.length > 0
+            : (state.getNearestEnemy() !== null);
+
+        const nearestVisibleEnemy = this._lastVision
+            ? this._lastVision.visibleEnemies[0]?.player ?? null
+            : state.getNearestEnemy();
 
         // Priority 1: Being shot at → engage or dodge
         if (recentlyDamaged) {
             const attacker = state.getLastAttacker();
-            if (attacker && nearestEnemy) {
-                // Can we see the attacker?
-                const attackerVisible = state.players.find(
-                    p => p.entityId === attacker && !p.isDead
+            if (attacker && this._lastVision) {
+                // Can we actually SEE the attacker? (LOS check via vision)
+                const attackerVisible = this._lastVision.visibleEnemies.find(
+                    e => e.player.entityId === attacker
                 );
                 if (attackerVisible) {
                     return BotState.FIGHT;
                 }
+            } else if (attacker && nearestVisibleEnemy) {
+                // No vision → fallback: assume nearest enemy is attacker
+                return BotState.FIGHT;
             }
             // Can't see attacker → dodge/retreat
             if (state.self.health < RETREAT_HEALTH_THRESHOLD) {
@@ -119,7 +140,7 @@ export class StateMachineBrain extends BotBrain {
         }
 
         // Priority 2: Enemy visible → fight
-        if (nearestEnemy && nearestEnemy.distance < FIGHT_RANGE) {
+        if (hasVisibleEnemy && nearestVisibleEnemy && nearestVisibleEnemy.distance < FIGHT_RANGE) {
             return BotState.FIGHT;
         }
 
@@ -143,7 +164,9 @@ export class StateMachineBrain extends BotBrain {
     // ── FIGHT State ───────────────────────────────────────────────────
 
     private _executeFight(state: BotGameState): BotInput {
-        const enemy = state.getNearestEnemy();
+        // Prefer vision-verified visible enemy, fall back to raw state
+        const enemy = this._lastVision?.visibleEnemies[0]?.player
+            ?? state.getNearestEnemy();
         if (!enemy) {
             return this._executeHunt(state);
         }
@@ -230,9 +253,21 @@ export class StateMachineBrain extends BotBrain {
     // ── RETREAT State ─────────────────────────────────────────────────
 
     private _executeRetreat(state: BotGameState): BotInput {
+        // Try vision's cover finding first
+        if (this._lastVision?.nearestCover) {
+            return this._moveToward(state, this._lastVision.nearestCover, true);
+        }
+
+        // Try nearest health item from BSP knowledge
+        if (this._lastBotVision) {
+            const healthPos = this._lastBotVision.findNearestItem(state.self.position, 'health');
+            if (healthPos) {
+                return this._moveToward(state, healthPos, true);
+            }
+        }
+
         // Find nearest pickup (prefer health)
         const pickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
-
         if (pickup) {
             return this._moveToward(state, pickup.position, true);
         }
@@ -260,8 +295,24 @@ export class StateMachineBrain extends BotBrain {
     // ── ITEM_RUN State ────────────────────────────────────────────────
 
     private _executeItemRun(state: BotGameState): BotInput {
-        const pickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
+        // Prefer vision-verified reachable pickups
+        if (this._lastVision) {
+            const reachable = this._lastVision.pickups.find(p => p.isReachable);
+            if (reachable) {
+                return this._moveToward(state, reachable.pickup.position, false);
+            }
+        }
 
+        // Try BSP-known item positions
+        if (this._lastBotVision) {
+            const weaponPos = this._lastBotVision.findNearestItem(state.self.position, 'weapon');
+            if (weaponPos) {
+                return this._moveToward(state, weaponPos, false);
+            }
+        }
+
+        // Fallback to raw state pickups
+        const pickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
         if (pickup) {
             return this._moveToward(state, pickup.position, false);
         }
@@ -357,7 +408,7 @@ export class StateMachineBrain extends BotBrain {
         };
     }
 
-    private _predictTargetPosition(state: BotGameState, target: VisiblePlayer): Vec3 {
+    private _predictTargetPosition(_state: BotGameState, target: VisiblePlayer): Vec3 {
         // Estimate projectile travel time
         const distance = target.distance;
         const estimatedProjectileSpeed = 1400; // rough average projectile speed

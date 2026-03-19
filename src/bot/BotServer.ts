@@ -30,6 +30,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { BotClient } from './BotClient';
 import { type BotOptions, getNextBotName } from './BotConfig';
+import { createBotVision, type BotVision } from './BotVision';
 
 // ── Control API Message Types ───────────────────────────────────────────
 
@@ -44,6 +45,11 @@ export class BotServer {
     private _wss: WebSocketServer | null = null;
     private _bots: Map<string, BotClient> = new Map();
     private _port: number;
+
+    // Vision cache: mapName → BotVision (shared across all bots on same map)
+    private _visionCache: Map<string, BotVision> = new Map();
+    // Pending vision loads to avoid duplicate BSP loading
+    private _visionLoading: Map<string, Promise<BotVision | null>> = new Map();
 
     constructor(port: number = 9100) {
         this._port = port;
@@ -118,10 +124,65 @@ export class BotServer {
             await bot.connect(gameServerUrl);
             this._bots.set(bot.id, bot);
             console.log(`[BotServer] Bot ${bot.name} (${bot.id}) spawned → ${gameServerUrl}`);
+
+            // Load vision asynchronously (don't block bot from playing)
+            this._loadVisionForBot(bot);
+
             return bot;
         } catch (err: any) {
             console.error(`[BotServer] Failed to spawn bot ${bot.name}:`, err.message);
             throw err;
+        }
+    }
+
+    /**
+     * Load BotVision for a bot based on its connected server's map.
+     * Caches per map name so multiple bots share the same collision world.
+     */
+    private async _loadVisionForBot(bot: BotClient): Promise<void> {
+        const mapName = bot.serverInfo?.map;
+        if (!mapName) {
+            console.log(`[BotServer] No map info for ${bot.name}, vision disabled`);
+            return;
+        }
+
+        // Check cache first
+        const cached = this._visionCache.get(mapName);
+        if (cached) {
+            bot.setVision(cached);
+            console.log(`[BotServer] Vision (cached) → ${bot.name} on map "${mapName}"`);
+            return;
+        }
+
+        // Check if already loading
+        let loadPromise = this._visionLoading.get(mapName);
+        if (!loadPromise) {
+            console.log(`[BotServer] Loading BotVision for map "${mapName}"...`);
+            loadPromise = createBotVision(mapName);
+            this._visionLoading.set(mapName, loadPromise);
+        }
+
+        try {
+            const vision = await loadPromise;
+            this._visionLoading.delete(mapName);
+
+            if (vision) {
+                this._visionCache.set(mapName, vision);
+                bot.setVision(vision);
+                console.log(`[BotServer] Vision loaded → ${bot.name} on map "${mapName}"`);
+
+                // Also set vision for any other bots on the same map
+                for (const [, otherBot] of this._bots) {
+                    if (otherBot !== bot && otherBot.serverInfo?.map === mapName) {
+                        otherBot.setVision(vision);
+                    }
+                }
+            } else {
+                console.warn(`[BotServer] Vision unavailable for map "${mapName}"`);
+            }
+        } catch (err: any) {
+            this._visionLoading.delete(mapName);
+            console.error(`[BotServer] Vision load failed for map "${mapName}":`, err.message);
         }
     }
 

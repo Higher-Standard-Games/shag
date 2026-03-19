@@ -20,6 +20,7 @@ import { BotGameState } from './BotGameState';
 import { BotBrain, type BotInput } from './BotBrain';
 import { StateMachineBrain } from './StateMachineBrain';
 import { type BotOptions, type BotDifficulty, resolveDifficulty } from './BotConfig';
+import type { BotVision, VisionResult } from './BotVision';
 import { EventEmitter } from 'events';
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -84,6 +85,10 @@ export class BotClient extends EventEmitter {
     // Options
     private _team: string | undefined;
 
+    // Vision (shared across bots on same map)
+    private _vision: BotVision | null = null;
+    private _lastVisionResult: VisionResult | null = null;
+
     // Logging
     private _logPrefix: string;
 
@@ -117,6 +122,14 @@ export class BotClient extends EventEmitter {
     get playerId(): string { return this._playerId; }
     get entityId(): string { return this._entityId; }
     get brainState(): string { return this._brain.getState(); }
+
+    /**
+     * Set the vision system (shared per map).
+     * Call after construction, before connect.
+     */
+    setVision(vision: BotVision | null): void {
+        this._vision = vision;
+    }
 
     /**
      * Connect to a game server.
@@ -327,7 +340,12 @@ export class BotClient extends EventEmitter {
                 return; // Rate limit input
             }
 
-            const input = this._brain.decide(this._gameState);
+            // Run vision query if available
+            if (this._vision) {
+                this._lastVisionResult = this._vision.getVisibleState(this._gameState);
+            }
+
+            const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult);
             this._sendInput(input);
             this._lastInputTime = now;
 
@@ -336,7 +354,10 @@ export class BotClient extends EventEmitter {
                 const brain = this._brain.getState();
                 const hp = this._gameState.self.health;
                 const enemies = this._gameState.players.filter(p => !p.isDead).length;
-                console.log(`${this._logPrefix} [${brain}] HP:${hp} Enemies:${enemies} Tick:${snapshot.tick}`);
+                const visionInfo = this._lastVisionResult
+                    ? ` Vis:${this._lastVisionResult.visibleEnemies.length}/${this._lastVisionResult.tracesPerformed}t`
+                    : ' (no vision)';
+                console.log(`${this._logPrefix} [${brain}] HP:${hp} Enemies:${enemies}${visionInfo} Tick:${snapshot.tick}`);
             }
 
         } catch (err) {

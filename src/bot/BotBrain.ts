@@ -10,6 +10,7 @@
 
 import type { BotGameState } from './BotGameState';
 import type { BotDifficulty } from './BotConfig';
+import type { BotVision, VisionResult } from './BotVision';
 
 // ── Bot Input (what the brain outputs) ──────────────────────────────────
 
@@ -48,8 +49,14 @@ export abstract class BotBrain {
         this.difficulty = difficulty;
     }
 
-    /** Make a decision based on current game state. Returns input to send. */
-    abstract decide(state: BotGameState): BotInput;
+    /**
+     * Make a decision based on current game state and optional vision data.
+     *
+     * @param state - Raw game state from snapshot
+     * @param vision - Optional spatial awareness (null if BSP not loaded)
+     * @param visionResult - Optional pre-computed vision query result
+     */
+    abstract decide(state: BotGameState, vision?: BotVision | null, visionResult?: VisionResult | null): BotInput;
 
     /** Get current AI state (for debugging/logging) */
     getState(): BotState {
