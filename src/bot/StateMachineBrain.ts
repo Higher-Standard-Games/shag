@@ -125,7 +125,7 @@ export class StateMachineBrain extends BotBrain {
             if (attacker && this._lastVision) {
                 // Can we actually SEE the attacker? (LOS check via vision)
                 const attackerVisible = this._lastVision.visibleEnemies.find(
-                    e => e.player.entityId === attacker
+                    e => e.player.playerId === attacker
                 );
                 if (attackerVisible) {
                     return BotState.FIGHT;
@@ -247,7 +247,7 @@ export class StateMachineBrain extends BotBrain {
             pitch = aim.pitch;
             yaw = aim.yaw;
             // Only fire if we have vision-confirmed LOS
-            if (this._lastVision?.visibleEnemies.some(e => e.player.entityId === enemy.entityId)) {
+            if (this._lastVision?.visibleEnemies.some(e => e.player.playerId === enemy.playerId)) {
                 buttons |= InputButtons.FIRE;
             }
         }
