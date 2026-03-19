@@ -1,8 +1,8 @@
 # Bot Intelligence Server (BIS) — Research Document
 
-**Date:** 2026-03-18  
+**Date:** 2026-03-19  
 **Branch:** `feature/bot-ai`  
-**Status:** Research / Brainstorming
+**Status:** ✅ Phase 1 Complete (State Machine AI) — 9 rounds of code review, 39 fixes
 
 ---
 
@@ -759,28 +759,32 @@ interface BotPersonality {
 
 ## 9. Implementation Phases
 
-### Phase 1: Foundation (MVP Bot Server)
+### Phase 1: Foundation (MVP Bot Server) ✅ COMPLETE
 
-- [ ] `BotServer` with control WebSocket API
-- [ ] `BotClient` based on `headless-netclient.ts`
-- [ ] `BotGameState` parsing from snapshots
-- [ ] `StateMachineBrain` — basic fight/hunt/retreat
-- [ ] Basic aiming (direct aim, no prediction)
-- [ ] Basic movement (move toward target, strafe randomly)
-- [ ] "addbot" console command
-- [ ] `npm run bot:server` CLI entry point
+- [x] `BotServer` with control WebSocket API
+- [x] `BotClient` based on `headless-netclient.ts`
+- [x] `BotGameState` parsing from snapshots
+- [x] `StateMachineBrain` — fight/hunt/retreat/chase/dodge/item_run
+- [x] Aiming with prediction, difficulty-based inaccuracy, and smooth tracking
+- [x] Movement: strafe fighting, obstacle jumping, cover seeking (BSP raytracing)
+- [x] `BotVision` — BSP raytracing for LOS, cover finding, item location
+- [x] `BotConfig` — 4 difficulty presets (easy/medium/hard/insane) with themed bot names
+- [x] `npm run bot:server` CLI entry point with interactive commands
+- [x] Human-feel timing (randomized input rate, reaction delay, respawn delay)
+- [x] 9 rounds of code review: 39 bugs fixed, ~4,700 lines reviewed
 
-**Result:** Bots that can connect, move around, acquire targets, and shoot. Not smart, but functional.
+**Result:** Bots connect as real clients, fight with BSP vision, seek items, retreat when hurt, and chase enemies around corners.
 
-### Phase 2: Server Demo Recording
+### Phase 2: Server Demo Recording ✅ PARTIALLY COMPLETE
 
-- [ ] `DemoRecorder` in `GameServer.tick()`
-- [ ] Binary demo format (.bdm)
-- [ ] Demo start/stop commands
-- [ ] `DemoParser` for reading demos
-- [ ] Training data extraction pipeline
+- [x] `DemoRecorder` in `GameServer.tick()` — auto-records on match start
+- [x] Binary demo format (`.shagdemo` — custom format, not .bdm)
+- [x] Demo start/stop via match phase transitions
+- [x] `DemoReader` for parsing demos (shared module, works in browser + Node.js)
+- [x] `LobbyServer` demo scanning and listing API
+- [ ] Training data extraction pipeline (pending Phase 3)
 
-**Result:** Can record human gameplay and extract training features.
+**Result:** Matches auto-record to `.shagdemo` files. Lobby lists available demos. DemoReader parses headers and frame data.
 
 ### Phase 3: brain.js AI Enhancement
 
@@ -888,35 +892,37 @@ interface BotPersonality {
 
 6. ~~**Sound as information**~~ → **Partially resolved: Events as hearing.** Bot receives: `weapon_fire` (origin + direction), `projectile_spawn/impact`, `item_pickup` (position), `weapon_drop` (position), `damage` (attacker + direction). All PVS-filtered — same hearing range constraint as humans.
 
+### Resolved (from implementation)
+
+1. ~~**Bot input timing and human-feel**~~ → **Resolved: Implemented.** Each bot has randomized `_minInputIntervalMs` (30-80ms) and randomized respawn delay (1.5-3.5s). Input is rate-limited per-frame, not per-decision.
+
+2. ~~**Multiple bots, one BSP**~~ → **Resolved: BotServer cache.** `BotServer._visionCache` shares one `CollisionWorld` per map. `_visionLoading` prevents duplicate concurrent BSP loads.
+
+3. ~~**Item respawn timing**~~ → **Resolved: Ticks.** `BotGameState.mapKnowledge.itemPickupTimes` tracks `item_pickup` event ticks per pickup ID.
+
+4. ~~**Buttons bitfield mapping**~~ → **Resolved: `InputButtons` enum.** `BotConfig.ts` defines FIRE=1, JUMP=2, CROUCH=4, FORWARD=8, BACK=16, LEFT=32, RIGHT=64, SPRINT=128.
+
+5. ~~**Bot entity identification**~~ → **Resolved: `player_` prefix.** `JoinAccept` sends `player_${entityId}`, matching snapshot entity keys exactly.
+
+6. ~~**Delta compression baseline**~~ → **Resolved: Maintained in BotClient.** `_baseline` is stored after each successful decode and passed to next `decodeSnapshot()`. Missing snapshots cause no crash — delta decode falls back gracefully.
+
+7. ~~**Lobby integration**~~ → **Resolved: BIS is standalone.** BotServer runs independently with its own control WebSocket API. Admin/lobby connects to BIS control port (9100) to manage bots.
+
+8. ~~**Concurrent snapshot processing**~~ → **Resolved: Single thread is fine.** AI decision + vision raycast takes <1ms per bot. 10 bots × 30Hz = 300 snapshots/sec — trivial for Node.js single thread.
+
+9. ~~**Babylon.js Vector3 dependency**~~ → **Resolved: Accepted.** BIS imports `@babylonjs/core` for BSP collision via HeadlessBSPCollisionWorld. Only math module is used — no rendering overhead.
+
 ### Still Open
 
-1. **Bot input timing and human-feel** — How to simulate network latency? Random 30-80ms delay + ±10ms jitter? Reaction time per-decision or per-frame?
+1. **brain.js alternatives** — Evaluate ONNX.js or TensorFlow.js Lite for later phases?
 
-2. **Multiple bots, one BSP** — Share one `CollisionWorld` per active map? `BotServer` owns map cache?
+2. **Strafe-jumping** — Hard-code or learn from demos? Very specific timing pattern.
 
-3. **Item respawn timing** — Can bots derive pickup respawn timing from snapshot data? Server uses 25-second respawn — can bots count ticks since `item_pickup` event?
+3. **Self-play config** — Optimal map/gametype for bot-vs-bot training?
 
-4. **brain.js alternatives** — Evaluate ONNX.js or TensorFlow.js Lite for later phases?
+4. **Model versioning** — How to version brain.js models and benchmark generations?
 
-5. **Strafe-jumping** — Hard-code or learn from demos? Very specific timing pattern.
-
-6. **Self-play config** — Optimal map/gametype for bot-vs-bot training? Short FFA rounds vs 1v1 duels?
-
-7. **Model versioning** — How to version brain.js models and benchmark generations?
-
-8. **Cheating prevention** — Server-side BIS connection authorization?
-
-9. **Buttons bitfield mapping** — Need exact bit flags for fire, jump, crouch, use, etc.
-
-10. **Bot entity identification in snapshots** — How to find self-entity from `JoinAccept.entityId` in snapshot entities map?
-
-11. **Delta compression baseline** — Bot must maintain `GameState` baseline for `decodeSnapshot(data, baseline)`. What if a snapshot is missed?
-
-12. **Lobby integration** — How does game server request bots from BIS? Direct WebSocket? Lobby relay?
-
-13. **Concurrent snapshot processing** — 60Hz × 4 bots = 240 snapshots/sec. Should bots use worker threads?
-
-14. **Babylon.js Vector3 dependency** — `HeadlessBSPCollisionWorld` pulls in `@babylonjs/core`. Can we replace with lightweight vec3 for BIS?
+5. **Cheating prevention** — Server-side BIS connection authorization?
 
 ---
 

@@ -32,6 +32,8 @@ With **headless mode** and an **AI-agent friendly** architecture, SHAG Engine su
 - **PK3 Virtual Filesystem** - Priority-based archive loading for mod support
 - **Multiple Camera Modes** - Freefly, isometric, sidescroll, follow controllers
 - **Console Command System** - Q3-style command syntax with extensible registry
+- **Bot AI System** - Standalone Bot Intelligence Server with state-machine AI, BSP vision, and human-feel timing
+- **Demo Recording** - Server-side match recording (`.shagdemo`) for playback and future ML training
 
 ## Quick Start
 
@@ -39,7 +41,7 @@ With **headless mode** and an **AI-agent friendly** architecture, SHAG Engine su
 # Install dependencies
 npm install
 
-# Start dev server
+# Start dev server (client)
 npm run dev
 
 # Build for production
@@ -47,6 +49,70 @@ npm run build
 
 # Generate API documentation
 npm run docs:api
+```
+
+## Server Architecture
+
+SHAG Engine includes a complete dedicated server stack for multiplayer FPS gameplay.
+
+### Game Server
+
+Headless authoritative game server with physics, weapons, combat, and gametype systems.
+
+```bash
+# Start a standalone game server (for development/testing)
+npm run net:server
+```
+
+The lobby server spawns game servers automatically for production use.
+
+### Lobby Server
+
+Central matchmaking and server management. Spawns game server processes, manages match listings, and serves demo file metadata.
+
+```bash
+# Start the lobby server (default port: 9000)
+npm run lobby:server
+
+# Custom port
+npm run lobby:server -- --port 9001
+```
+
+### Bot Intelligence Server (BIS)
+
+Separate Node.js process that spawns AI bot clients. Bots connect to game servers as real WebSocket clients — indistinguishable from human players.
+
+```bash
+# Start BIS with control API (default port: 9100)
+npm run bot:server
+
+# Auto-connect 3 medium bots to a game server
+npm run bot:server -- --auto ws://localhost:7777 --count 3
+
+# 5 hard bots
+npm run bot:server -- --auto ws://localhost:7777 --count 5 --difficulty hard
+```
+
+BIS provides an interactive CLI for managing bots at runtime:
+
+| Command | Description |
+|---------|-------------|
+| `add [url] [difficulty]` | Add a bot to a game server |
+| `remove <botId\|all>` | Remove bot(s) |
+| `status` | Show all active bots and their AI state |
+| `help` | List commands |
+
+### Full Stack Launch Order
+
+```bash
+# Terminal 1: Lobby server (matchmaking + server spawner)
+npm run lobby:server
+
+# Terminal 2: Client (browser)
+npm run dev
+
+# Terminal 3 (optional): Bot server
+npm run bot:server -- --auto ws://localhost:7777 --count 3
 ```
 
 ## Documentation
@@ -57,6 +123,7 @@ npm run docs:api
 | [Reference](docs/reference/) | Technical reference for engine systems |
 | [Changelog](docs/changelog/) | Version history |
 | [Research](docs/research/) | Design documents and planning notes |
+| [Bot AI Research](docs/research/BOTS.md) | Bot Intelligence Server design and architecture |
 
 ## License
 
