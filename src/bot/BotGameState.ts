@@ -369,6 +369,18 @@ export class BotGameState {
         // ── Sort by distance ─────────────────────────────────────────────
         this.players.sort((a, b) => a.distance - b.distance);
         this.pickups.sort((a, b) => a.distance - b.distance);
+
+        // Prune stale enemy positions (older than 600 ticks)
+        for (const [key, data] of this.lastKnownEnemyPositions) {
+            if (this.tick - data.tick > 600) {
+                this.lastKnownEnemyPositions.delete(key);
+            }
+        }
+
+        // Cap death positions to last 100
+        if (this.mapKnowledge.deathPositions.length > 100) {
+            this.mapKnowledge.deathPositions = this.mapKnowledge.deathPositions.slice(-100);
+        }
     }
 
     /** Get the nearest alive enemy */

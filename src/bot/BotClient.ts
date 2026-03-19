@@ -212,6 +212,17 @@ export class BotClient extends EventEmitter {
         }
         this._state = 'disconnected';
         this._baseline = undefined;
+
+        // Reset all mutable state for potential reuse
+        this._playerId = '';
+        this._entityId = '';
+        this._sequence = 0;
+        this._tickCount = 0;
+        this._lastSnapshotTick = 0;
+        this._isDead = false;
+        this._deathTime = 0;
+        this._lastInputTime = 0;
+        this._lastVisionResult = null;
     }
 
     /** Update difficulty settings */

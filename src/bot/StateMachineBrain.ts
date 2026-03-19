@@ -554,8 +554,8 @@ export class StateMachineBrain extends BotBrain {
         // Seek items if:
         // - Low on ammo for current weapon
         // - Missing key weapons
-        // - Health below 80
-        // - No armor
+        // - Health below 50
+        // - Low armor
         if (state.self.health < 50) return true;
         if (state.self.armor < 25) return true;
 
