@@ -29,7 +29,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { BotClient } from './BotClient';
-import { type BotOptions, getNextBotName, resolveDifficulty } from './BotConfig';
+import { type BotOptions, getNextBotName } from './BotConfig';
 
 // ── Control API Message Types ───────────────────────────────────────────
 

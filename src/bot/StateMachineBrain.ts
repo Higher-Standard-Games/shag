@@ -14,8 +14,8 @@
  */
 
 import { BotBrain, BotState, type BotInput } from './BotBrain';
-import type { BotGameState, VisiblePlayer, VisiblePickup, Vec3 } from './BotGameState';
-import { vec3Distance, vec3Subtract, vec3Normalize, vec3Length } from './BotGameState';
+import type { BotGameState, VisiblePlayer, Vec3 } from './BotGameState';
+import { vec3Subtract, vec3Normalize, vec3Length } from './BotGameState';
 import { InputButtons, type BotDifficulty } from './BotConfig';
 
 // ── Constants ───────────────────────────────────────────────────────────
@@ -488,11 +488,11 @@ export class StateMachineBrain extends BotBrain {
         return bestTarget;
     }
 
-    private _noInput(state: BotGameState): BotInput {
+    private _noInput(_state: BotGameState): BotInput {
         return {
             direction: { x: 0, y: 0, z: 0 },
-            pitch: state.self.pitch,
-            yaw: state.self.yaw,
+            pitch: _state.self.pitch,
+            yaw: _state.self.yaw,
             buttons: 0,
             weaponSlot: 0,
         };

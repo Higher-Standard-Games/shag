@@ -15,7 +15,6 @@
 
 import { WebSocket } from 'ws';
 import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
-import { BinaryProtocol, BinaryEncoder } from '../engine/network/protocol/BinaryProtocol';
 import { GameState } from '../engine/network/core/GameState';
 import { BotGameState } from './BotGameState';
 import { BotBrain, type BotInput } from './BotBrain';
@@ -54,10 +53,10 @@ export class BotClient extends EventEmitter {
     // Connection state
     private _state: BotClientState = 'disconnected';
     private _ws: WebSocket | null = null;
-    private _serverUrl: string = '';
+    private _serverUrl = '';
 
     // Protocol state
-    private _clientId: string = '';
+    private _clientId = '';
     private _playerId: string = '';
     private _entityId: string = '';
     private _serverInfo: ServerInfo | null = null;
@@ -161,7 +160,7 @@ export class BotClient extends EventEmitter {
                     }
                 });
 
-                this._ws.on('close', (code, reason) => {
+                this._ws.on('close', (code, _reason) => {
                     console.log(`${this._logPrefix} Disconnected: ${code}`);
                     this._state = 'disconnected';
                     this.emit('disconnected', code);
