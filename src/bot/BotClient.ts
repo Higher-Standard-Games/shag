@@ -157,8 +157,10 @@ export class BotClient extends EventEmitter {
                 }, 10000);
 
                 this._ws.on('open', () => {
-                    console.log(`${this._logPrefix} WebSocket connected, waiting for Welcome...`);
+                    console.log(`${this._logPrefix} WebSocket connected, sending Join...`);
                     this._state = 'connected';
+                    // Send Join immediately — server expects it before sending Welcome
+                    this._sendJoin();
                 });
 
                 this._ws.on('message', (data: Buffer) => {
@@ -281,8 +283,7 @@ export class BotClient extends EventEmitter {
 
         console.log(`${this._logPrefix} Welcome from "${welcome.serverName}" (map: ${welcome.map}, ${welcome.currentPlayers}/${welcome.maxPlayers})`);
 
-        // Send Join request
-        this._sendJoin();
+        // Join was already sent on connect — just store server info
         return false;
     }
 

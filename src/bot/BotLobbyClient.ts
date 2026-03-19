@@ -174,24 +174,41 @@ export class BotLobbyClient {
 
     /**
      * Create a BotClient and connect to the game server.
+     * Includes retry logic because the game server process needs time to start listening.
      */
     private async _connectToGameServer(serverUrl: string): Promise<void> {
-        try {
-            const bot = new BotClient(this._botOptions);
+        const MAX_RETRIES = 5;
+        const INITIAL_DELAY_MS = 2000;  // Wait for game server to start
+        const RETRY_DELAY_MS = 1500;
 
-            bot.on('disconnected', () => {
-                console.log(`[LobbyBot:${this.name}] Game bot disconnected`);
-                this._botClient = null;
-            });
+        // Wait for game server to finish starting up
+        console.log(`[LobbyBot:${this.name}] Waiting ${INITIAL_DELAY_MS}ms for game server to start...`);
+        await new Promise(r => setTimeout(r, INITIAL_DELAY_MS));
 
-            await bot.connect(serverUrl);
-            this._botClient = bot;
-            console.log(`[LobbyBot:${this.name}] Game bot connected as ${bot.playerId}`);
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const bot = new BotClient(this._botOptions);
 
-            // Notify BotServer so it can track and load vision
-            this.onGameBotCreated?.(bot);
-        } catch (err: any) {
-            console.error(`[LobbyBot:${this.name}] Failed to connect to game server:`, err.message);
+                bot.on('disconnected', () => {
+                    console.log(`[LobbyBot:${this.name}] Game bot disconnected`);
+                    this._botClient = null;
+                });
+
+                await bot.connect(serverUrl);
+                this._botClient = bot;
+                console.log(`[LobbyBot:${this.name}] Game bot connected as ${bot.playerId}`);
+
+                // Notify BotServer so it can track and load vision
+                this.onGameBotCreated?.(bot);
+                return;
+            } catch (err: any) {
+                if (attempt < MAX_RETRIES) {
+                    console.log(`[LobbyBot:${this.name}] Connection attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${RETRY_DELAY_MS}ms...`);
+                    await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+                } else {
+                    console.error(`[LobbyBot:${this.name}] Failed to connect after ${MAX_RETRIES} attempts:`, err.message);
+                }
+            }
         }
     }
 
