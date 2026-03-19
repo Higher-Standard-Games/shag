@@ -130,3 +130,44 @@ export function resolveDifficulty(difficulty: string | BotDifficulty): BotDiffic
     }
     return difficulty;
 }
+
+// ── Difficulty Tier → Model Directory Mapping ───────────────────────────────
+
+/**
+ * How many training rounds each difficulty tier needs.
+ * Used by BotTrainer to save checkpoints at tier boundaries.
+ *
+ *   easy:   0 rounds   (fresh untrained models — pure state machine + noise)
+ *   medium: 100 rounds (basic pattern recognition)
+ *   hard:   500 rounds (strong tactical awareness)
+ *   insane: 2000 rounds (near-optimal play)
+ */
+export const DIFFICULTY_TRAINING_ROUNDS: Record<string, number> = {
+    easy: 0,
+    medium: 100,
+    hard: 500,
+    insane: 2000,
+};
+
+/**
+ * Get the model directory for a specific difficulty tier.
+ * Appends the difficulty name to the base model directory.
+ *
+ * @param baseModelDir Base model directory (e.g. './models')
+ * @param difficulty Difficulty level name ('easy', 'medium', 'hard', 'insane')
+ * @returns Tier-specific directory (e.g. './models/hard')
+ */
+export function getDifficultyModelDir(baseModelDir: string, difficulty: string): string {
+    const tier = typeof difficulty === 'string' ? difficulty : 'medium';
+    return `${baseModelDir}/${tier}`;
+}
+
+/**
+ * Get all difficulty tiers in order of training progression.
+ * Used by the trainer to save checkpoints at tier boundaries.
+ */
+export function getDifficultyTiers(): Array<{ name: string; rounds: number }> {
+    return Object.entries(DIFFICULTY_TRAINING_ROUNDS)
+        .map(([name, rounds]) => ({ name, rounds }))
+        .sort((a, b) => a.rounds - b.rounds);
+}

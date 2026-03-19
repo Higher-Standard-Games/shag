@@ -35,7 +35,7 @@ import {
     TACTICAL_INPUT_SIZE,
     COMBAT_INPUT_SIZE,
 } from './BotInputNormalizer';
-import { getNextBotName, resetBotNameIndex } from './BotConfig';
+import { getNextBotName, resetBotNameIndex, getDifficultyTiers } from './BotConfig';
 
 // ── Training Configuration ──────────────────────────────────────────
 
@@ -396,13 +396,27 @@ export class BotTrainer {
         const dir = path.resolve(this._config.modelDir);
         fs.mkdirSync(dir, { recursive: true });
 
-        // Save current models
+        // Save current models (latest)
         await this._brain.saveModels(dir);
 
         // Save checkpoint copy
         const checkpointDir = path.join(dir, 'checkpoints', `round_${round}`);
         fs.mkdirSync(checkpointDir, { recursive: true });
         await this._brain.saveModels(checkpointDir);
+
+        // ── Difficulty Tier Snapshots ────────────────────────────────
+        // When training reaches a tier boundary, save models to the
+        // tier-specific directory. Running --rounds 2000 automatically
+        // produces all 4 tiers (easy/medium/hard/insane).
+        const tiers = getDifficultyTiers();
+        for (const tier of tiers) {
+            if (tier.rounds > 0 && round === tier.rounds) {
+                const tierDir = path.join(dir, tier.name);
+                fs.mkdirSync(tierDir, { recursive: true });
+                await this._brain.saveModels(tierDir);
+                console.log(`[Trainer] 🏆 Difficulty tier "${tier.name}" saved (round ${round}) → ${tierDir}`);
+            }
+        }
 
         // Save training stats
         const statsPath = path.join(dir, 'training_stats.json');
@@ -411,6 +425,10 @@ export class BotTrainer {
             rounds: this._roundStats,
             lastRound: round,
             timestamp: new Date().toISOString(),
+            // Record which tiers have been reached
+            completedTiers: tiers
+                .filter(t => round >= t.rounds)
+                .map(t => t.name),
         }, null, 2));
 
         console.log(`[Trainer] 💾 Checkpoint saved: round ${round} → ${dir}`);

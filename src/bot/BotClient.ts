@@ -20,7 +20,7 @@ import { BotGameState } from './BotGameState';
 import { BotBrain, type BotInput } from './BotBrain';
 import { StateMachineBrain } from './StateMachineBrain';
 import { HybridBrain } from './HybridBrain';
-import { type BotOptions, type BotDifficulty, resolveDifficulty } from './BotConfig';
+import { type BotOptions, type BotDifficulty, resolveDifficulty, getDifficultyModelDir } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
 import { EventEmitter } from 'events';
 
@@ -105,9 +105,15 @@ export class BotClient extends EventEmitter {
         if (options.modelDir) {
             const hybrid = new HybridBrain(this._difficulty);
             this._brain = hybrid;
-            // Load models async — bot works with state machine while loading
-            hybrid.loadModels(options.modelDir).catch(e => {
-                console.error(`${this._logPrefix} Failed to load models:`, e);
+            // Resolve difficulty-specific model dir (e.g. ./models/hard/)
+            const diffName = typeof options.difficulty === 'string' ? options.difficulty : 'medium';
+            const tierDir = getDifficultyModelDir(options.modelDir, diffName);
+            // Try tier-specific dir first, fall back to base dir
+            hybrid.loadModels(tierDir).catch(() => {
+                console.log(`${this._logPrefix} No tier "${diffName}" models, trying base dir`);
+                hybrid.loadModels(options.modelDir!).catch(e => {
+                    console.error(`${this._logPrefix} Failed to load models:`, e);
+                });
             });
         } else {
             this._brain = new StateMachineBrain(this._difficulty);
