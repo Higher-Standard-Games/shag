@@ -150,9 +150,13 @@ export class BotClient extends EventEmitter {
                 this._ws = new WebSocket(serverUrl);
                 this._ws.binaryType = 'arraybuffer';
 
+                let settled = false;
                 const connectTimeout = setTimeout(() => {
-                    reject(new Error(`${this._logPrefix} Connection timeout`));
-                    this.disconnect();
+                    if (!settled) {
+                        settled = true;
+                        reject(new Error(`${this._logPrefix} Connection timeout`));
+                        this.disconnect();
+                    }
                 }, 10000);
 
                 this._ws.on('open', () => {
@@ -164,7 +168,8 @@ export class BotClient extends EventEmitter {
                     try {
                         const uint8 = new Uint8Array(data);
                         const resolved = this._handleMessage(uint8);
-                        if (resolved) {
+                        if (resolved && !settled) {
+                            settled = true;
                             clearTimeout(connectTimeout);
                             resolve();
                         }
@@ -174,15 +179,24 @@ export class BotClient extends EventEmitter {
                 });
 
                 this._ws.on('close', (code, _reason) => {
+                    clearTimeout(connectTimeout);
                     console.log(`${this._logPrefix} Disconnected: ${code}`);
                     this._state = 'disconnected';
                     this.emit('disconnected', code);
+                    if (!settled) {
+                        settled = true;
+                        reject(new Error(`${this._logPrefix} Connection closed before ready: ${code}`));
+                    }
                 });
 
                 this._ws.on('error', (err) => {
+                    clearTimeout(connectTimeout);
                     console.error(`${this._logPrefix} Connection error:`, err.message);
                     this._state = 'disconnected';
-                    reject(err);
+                    if (!settled) {
+                        settled = true;
+                        reject(err);
+                    }
                 });
 
             } catch (err) {

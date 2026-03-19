@@ -314,8 +314,10 @@ export class StateMachineBrain extends BotBrain {
         // No pickup found → run away from nearest enemy
         const enemy = state.getNearestEnemy();
         if (enemy) {
-            // Move away from enemy
-            const awayDir = vec3Normalize(vec3Subtract(state.self.position, enemy.position));
+            // Move away from enemy (guard against same-position producing zero-length vector)
+            const rawDir = vec3Subtract(state.self.position, enemy.position);
+            const len = vec3Length(rawDir);
+            const awayDir = len > 0.01 ? vec3Normalize(rawDir) : { x: Math.random() - 0.5, y: 0, z: Math.random() - 0.5 };
             const targetYaw = Math.atan2(awayDir.x, awayDir.z);
 
             return {

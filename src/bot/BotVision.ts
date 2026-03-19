@@ -16,7 +16,7 @@
 import type { CollisionWorld, AABB } from '../engine/network/systems/collision/CollisionWorld';
 import type { Vec3 } from '../shared/bsp/BspDataLoader';
 import type { BotGameState, VisiblePlayer, VisiblePickup } from './BotGameState';
-import { vec3Subtract, vec3Normalize, vec3Add, vec3Scale, vec3Distance } from './BotGameState';
+import { vec3Subtract, vec3Normalize, vec3Add, vec3Scale, vec3Distance, vec3Length } from './BotGameState';
 
 // ── Vision Result Types ─────────────────────────────────────────────────
 
@@ -640,7 +640,13 @@ export class BotVision {
         threatPos: Vec3,
         maxTraces: number,
     ): { position: Vec3 | null; traces: number } {
-        const threatDir = vec3Normalize(vec3Subtract(threatPos, from));
+        const rawThreatDir = vec3Subtract(threatPos, from);
+        const threatDirLen = vec3Length(rawThreatDir);
+        // Guard: if at exact same position as threat, can't determine cover direction
+        if (threatDirLen < 0.01) {
+            return { position: null, traces: 0 };
+        }
+        const threatDir = vec3Normalize(rawThreatDir);
         let traces = 0;
         let bestCover: Vec3 | null = null;
         let bestDist = Infinity;
@@ -678,11 +684,17 @@ export class BotVision {
                     const reachablePos = pathToCandidate.hitPoint || candidatePos;
                     const dist = vec3Distance(from, reachablePos);
 
-                    if (dist < bestDist) {
+                    if (dist < bestDist && dist > 0.01) {
                         bestDist = dist;
-                        // Pull back slightly from the wall
-                        const pullback = vec3Scale(vec3Normalize(vec3Subtract(from, reachablePos)), COVER_OFFSET);
-                        bestCover = vec3Add(reachablePos, pullback);
+                        // Pull back slightly from the wall (guard against zero-length)
+                        const pullbackDir = vec3Subtract(from, reachablePos);
+                        const pullbackLen = vec3Length(pullbackDir);
+                        if (pullbackLen > 0.01) {
+                            const pullback = vec3Scale(vec3Normalize(pullbackDir), COVER_OFFSET);
+                            bestCover = vec3Add(reachablePos, pullback);
+                        } else {
+                            bestCover = reachablePos;
+                        }
                     }
                 }
 
