@@ -170,6 +170,11 @@ export class DemoReader {
         const indexOffset = view.getUint32(fileLen - 4);
         const durationMs = view.getUint32(fileLen - 8);
 
+        // Validate indexOffset is within file bounds
+        if (indexOffset >= fileLen - 8 || indexOffset < 0) {
+            throw new Error(`Invalid demo index offset: ${indexOffset} (file length: ${fileLen})`);
+        }
+
         // Read index table at indexOffset
         let offset = indexOffset;
         const frameCount = view.getUint32(offset); offset += 4;
@@ -253,6 +258,12 @@ export class DemoReader {
      * Read a frame at a specific byte offset in the file.
      */
     private _readFrameAt(byteOffset: number): DemoFrame | null {
+        // Bounds check: need at least 8 bytes for tick + frameLen
+        if (byteOffset < 0 || byteOffset + 8 > this._data.byteLength) {
+            console.warn(`[DemoReader] Frame offset ${byteOffset} out of bounds (file: ${this._data.byteLength} bytes)`);
+            return null;
+        }
+
         const view = new DataView(this._data.buffer, this._data.byteOffset, this._data.byteLength);
         let offset = byteOffset;
 

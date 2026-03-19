@@ -164,10 +164,11 @@ export class BotServer {
 
         try {
             const vision = await loadPromise;
-            this._visionLoading.delete(mapName);
 
             if (vision) {
                 this._visionCache.set(mapName, vision);
+                // Delete from loading AFTER setting cache to prevent duplicate loads
+                this._visionLoading.delete(mapName);
                 bot.setVision(vision);
                 console.log(`[BotServer] Vision loaded → ${bot.name} on map "${mapName}"`);
 
@@ -178,6 +179,7 @@ export class BotServer {
                     }
                 }
             } else {
+                this._visionLoading.delete(mapName);
                 console.warn(`[BotServer] Vision unavailable for map "${mapName}"`);
             }
         } catch (err: any) {
@@ -193,8 +195,9 @@ export class BotServer {
         const bot = this._bots.get(botId);
         if (!bot) return false;
 
-        await bot.disconnect();
+        // Remove from map first to prevent the 'disconnected' handler from also deleting
         this._bots.delete(botId);
+        await bot.disconnect();
         console.log(`[BotServer] Bot ${bot.name} (${botId}) removed`);
         return true;
     }
