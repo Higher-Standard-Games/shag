@@ -11,6 +11,7 @@
 import type { BotGameState } from './BotGameState';
 import type { BotDifficulty } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
+import type { BotNavGraph } from './BotNavGraph';
 
 // ── Bot Input (what the brain outputs) ──────────────────────────────────
 
@@ -56,8 +57,14 @@ export abstract class BotBrain {
      * @param state - Raw game state from snapshot
      * @param vision - Optional spatial awareness (null if BSP not loaded)
      * @param visionResult - Optional pre-computed vision query result
+     * @param navGraph - Optional navigation graph for pathfinding
      */
-    abstract decide(state: BotGameState, vision?: BotVision | null, visionResult?: VisionResult | null): BotInput;
+    abstract decide(
+        state: BotGameState,
+        vision?: BotVision | null,
+        visionResult?: VisionResult | null,
+        navGraph?: BotNavGraph | null,
+    ): BotInput;
 
     /** Get current AI state (for debugging/logging) */
     getState(): BotState {

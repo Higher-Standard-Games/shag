@@ -90,6 +90,9 @@ export class BotClient extends EventEmitter {
     private _vision: BotVision | null = null;
     private _lastVisionResult: VisionResult | null = null;
 
+    // Navigation graph (shared across bots on same map)
+    private _navGraph: import('./BotNavGraph').BotNavGraph | null = null;
+
     // Optional episode recorder for training data collection
     private _recorder: BotEpisodeRecorder | null = null;
 
@@ -164,6 +167,13 @@ export class BotClient extends EventEmitter {
      */
     setVision(vision: BotVision | null): void {
         this._vision = vision ?? null;
+    }
+
+    /**
+     * Set the navigation graph (shared per map).
+     */
+    setNavGraph(navGraph: import('./BotNavGraph').BotNavGraph | null): void {
+        this._navGraph = navGraph ?? null;
     }
 
     /**
@@ -437,7 +447,7 @@ export class BotClient extends EventEmitter {
                 this._lastVisionResult = this._vision.getVisibleState(this._gameState);
             }
 
-            const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult);
+            const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult, this._navGraph);
             this._sendInput(input);
             this._lastInputTime = now;
 

@@ -32,6 +32,7 @@ import { BotClient } from './BotClient';
 import { BotLobbyClient } from './BotLobbyClient';
 import { type BotOptions, getNextBotName } from './BotConfig';
 import { createBotVision, type BotVision } from './BotVision';
+import { BotNavGraph } from './BotNavGraph';
 
 // ── Control API Message Types ───────────────────────────────────────────
 
@@ -50,6 +51,8 @@ export class BotServer {
 
     // Vision cache: mapName → BotVision (shared across all bots on same map)
     private _visionCache: Map<string, BotVision> = new Map();
+    // NavGraph cache: mapName → BotNavGraph (shared across all bots on same map)
+    private _navGraphCache: Map<string, BotNavGraph> = new Map();
     // Pending vision loads to avoid duplicate BSP loading
     private _visionLoading: Map<string, Promise<BotVision | null>> = new Map();
 
@@ -215,10 +218,21 @@ export class BotServer {
                 bot.setVision(vision);
                 console.log(`[BotServer] Vision loaded → ${bot.name} on map "${mapName}"`);
 
-                // Also set vision for any other bots on the same map
+                // Build NavGraph from vision (if not already cached)
+                let navGraph = this._navGraphCache.get(mapName);
+                if (!navGraph) {
+                    navGraph = new BotNavGraph(mapName);
+                    navGraph.buildFromVision(vision);
+                    this._navGraphCache.set(mapName, navGraph);
+                    console.log(`[BotServer] NavGraph built → ${navGraph.nodeCount} nodes, ${navGraph.edgeCount} edges`);
+                }
+                bot.setNavGraph(navGraph);
+
+                // Also set vision + navGraph for any other bots on the same map
                 for (const [, otherBot] of this._bots) {
                     if (otherBot !== bot && otherBot.serverInfo?.map === mapName) {
                         otherBot.setVision(vision);
+                        otherBot.setNavGraph(navGraph);
                     }
                 }
             } else {

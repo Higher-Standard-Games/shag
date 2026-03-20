@@ -19,6 +19,7 @@ import { vec3Subtract, vec3Normalize, vec3Length } from './BotGameState';
 import { InputButtons, type BotDifficulty } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from './BotWeaponProfile';
+import type { BotNavGraph, NavPath } from './BotNavGraph';
 
 // ── Constants ───────────────────────────────────────────────────────────
 
@@ -31,6 +32,16 @@ const HUNT_DIRECTION_CHANGE_INTERVAL = 180; // Change hunt direction every ~3 se
 
 const MELEE_RANGE = 150;
 const CLOSE_RANGE = 400;
+
+// Feeler ray constants
+const FEELER_FORWARD_DIST = 300;  // Forward ray distance
+const FEELER_SIDE_DIST = 200;     // Side ray distance
+const FEELER_SIDE_ANGLE = Math.PI / 6; // 30° offset for side rays
+const FEELER_STEER_THRESHOLD = 0.6; // fraction below which we steer away
+
+// Path following
+const PATH_ARRIVED_THRESHOLD = 100; // Distance to consider "arrived" at a waypoint
+const PATH_RECALC_INTERVAL = 120;   // Recalculate path every ~2 seconds
 
 export class StateMachineBrain extends BotBrain {
     // ── Internal state ────────────────────────────────────────────────
@@ -46,6 +57,12 @@ export class StateMachineBrain extends BotBrain {
     private _lookAroundTimer: number = 0;
     private _lookAroundYaw: number = 0;
 
+    // NavGraph pathfinding
+    private _navGraph: BotNavGraph | null = null;
+    private _currentPath: NavPath | null = null;
+    private _pathTarget: Vec3 | null = null;
+    private _pathRecalcTimer: number = 0;
+
     constructor(difficulty: BotDifficulty) {
         super(difficulty);
         this._huntYaw = Math.random() * Math.PI * 2;
@@ -57,14 +74,22 @@ export class StateMachineBrain extends BotBrain {
     private _lastVision: VisionResult | null = null;
     private _lastBotVision: BotVision | null = null;
 
-    decide(state: BotGameState, vision?: BotVision | null, visionResult?: VisionResult | null): BotInput {
+    decide(
+        state: BotGameState,
+        vision?: BotVision | null,
+        visionResult?: VisionResult | null,
+        navGraph?: BotNavGraph | null,
+    ): BotInput {
         this._stateTimer++;
+        this._pathRecalcTimer++;
         this._lastVision = visionResult ?? null;
         this._lastBotVision = vision ?? null;
+        this._navGraph = navGraph ?? null;
 
         // Dead → just wait (BotClient handles RequestSpawn)
         if (state.self.isDead) {
             this.currentState = BotState.SPAWN;
+            this._currentPath = null; // Clear path on death
             // Clear vision cache on death
             if (vision) vision.clearCache();
             return this._noInput(state);
@@ -75,25 +100,41 @@ export class StateMachineBrain extends BotBrain {
         if (newState !== this.currentState) {
             this.currentState = newState;
             this._stateTimer = 0;
+            this._currentPath = null; // Clear path on state change
         }
 
         // Execute current state
+        let input: BotInput;
         switch (this.currentState) {
             case BotState.FIGHT:
-                return this._executeFight(state);
+                input = this._executeFight(state);
+                break;
             case BotState.CHASE:
-                return this._executeChase(state);
+                input = this._executeChase(state);
+                break;
             case BotState.DODGE:
-                return this._executeDodge(state);
+                input = this._executeDodge(state);
+                break;
             case BotState.RETREAT:
-                return this._executeRetreat(state);
+                input = this._executeRetreat(state);
+                break;
             case BotState.ITEM_RUN:
-                return this._executeItemRun(state);
+                input = this._executeItemRun(state);
+                break;
             case BotState.HUNT:
-                return this._executeHunt(state);
+                input = this._executeHunt(state);
+                break;
             default:
-                return this._executeHunt(state);
+                input = this._executeHunt(state);
+                break;
         }
+
+        // Apply feeler raycasts for wall avoidance (navigation states only)
+        if (vision && this.currentState !== BotState.FIGHT && this.currentState !== BotState.DODGE) {
+            input = this._applyFeelers(input, state, vision);
+        }
+
+        return input;
     }
 
     // ── State Evaluation ──────────────────────────────────────────────
@@ -317,8 +358,8 @@ export class StateMachineBrain extends BotBrain {
             return this._executeHunt(state);
         }
 
-        // Move toward predicted (extrapolated) position
-        const input = this._moveToward(state, target.predictedPosition, false);
+        // Move toward predicted (extrapolated) position using navGraph if available
+        const input = this._navigateTo(state, target.predictedPosition, false);
 
         // Only pre-fire when very close to predicted position (near corners)
         const distToTarget = vec3Length(vec3Subtract(target.predictedPosition, state.self.position));
@@ -341,23 +382,34 @@ export class StateMachineBrain extends BotBrain {
 
 
     private _executeRetreat(state: BotGameState): BotInput {
-        // Try vision's cover finding first
+        // Try NavGraph path to nearest health
+        if (this._navGraph) {
+            const healthPath = this._navGraph.findPathToItem(state.self.position, 'health');
+            if (healthPath) {
+                const waypoint = this._navGraph.getNextWaypoint(state.self.position, healthPath, PATH_ARRIVED_THRESHOLD);
+                if (waypoint) {
+                    return this._moveToward(state, waypoint.position, true);
+                }
+            }
+        }
+
+        // Try vision's cover finding
         if (this._lastVision?.nearestCover) {
-            return this._moveToward(state, this._lastVision.nearestCover, true);
+            return this._navigateTo(state, this._lastVision.nearestCover, true);
         }
 
         // Try nearest health item from BSP knowledge
         if (this._lastBotVision) {
             const healthPos = this._lastBotVision.findNearestItem(state.self.position, 'health');
             if (healthPos) {
-                return this._moveToward(state, healthPos, true);
+                return this._navigateTo(state, healthPos, true);
             }
         }
 
         // Find nearest pickup (prefer health)
         const pickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
         if (pickup) {
-            return this._moveToward(state, pickup.position, true);
+            return this._navigateTo(state, pickup.position, true);
         }
 
         // No pickup found → run away from nearest enemy
@@ -385,11 +437,24 @@ export class StateMachineBrain extends BotBrain {
     // ── ITEM_RUN State ────────────────────────────────────────────────
 
     private _executeItemRun(state: BotGameState): BotInput {
+        // Try NavGraph path to nearest item (weapon > health > armor > ammo)
+        if (this._navGraph) {
+            for (const itemType of ['weapon', 'health', 'armor', 'ammo']) {
+                const itemPath = this._navGraph.findPathToItem(state.self.position, itemType);
+                if (itemPath) {
+                    const waypoint = this._navGraph.getNextWaypoint(state.self.position, itemPath, PATH_ARRIVED_THRESHOLD);
+                    if (waypoint) {
+                        return this._moveToward(state, waypoint.position, false);
+                    }
+                }
+            }
+        }
+
         // Prefer vision-verified reachable pickups
         if (this._lastVision) {
             const reachable = this._lastVision.pickups.find(p => p.isReachable);
             if (reachable) {
-                return this._moveToward(state, reachable.pickup.position, false);
+                return this._navigateTo(state, reachable.pickup.position, false);
             }
         }
 
@@ -397,14 +462,14 @@ export class StateMachineBrain extends BotBrain {
         if (this._lastBotVision) {
             const weaponPos = this._lastBotVision.findNearestItem(state.self.position, 'weapon');
             if (weaponPos) {
-                return this._moveToward(state, weaponPos, false);
+                return this._navigateTo(state, weaponPos, false);
             }
         }
 
         // Fallback to raw state pickups
         const pickup = state.getNearestPickup(PICKUP_SEEK_RANGE);
         if (pickup) {
-            return this._moveToward(state, pickup.position, false);
+            return this._navigateTo(state, pickup.position, false);
         }
 
         // No pickups found → hunt
@@ -419,10 +484,30 @@ export class StateMachineBrain extends BotBrain {
         // Check if we know a last enemy position to investigate
         const huntTarget = this._getHuntTarget(state);
         if (huntTarget) {
-            return this._moveToward(state, huntTarget, false);
+            return this._navigateTo(state, huntTarget, false);
         }
 
-        // Random patrol — change direction periodically
+        // NavGraph patrol: pick a random nav node to walk toward
+        if (this._navGraph) {
+            const nodes = this._navGraph.nodes;
+            if (nodes.length > 0 && (!this._pathTarget || this._pathRecalcTimer > PATH_RECALC_INTERVAL * 2)) {
+                const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+                this._pathTarget = randomNode.position;
+                this._pathRecalcTimer = 0;
+            }
+            if (this._pathTarget) {
+                // Check if we've arrived at patrol target
+                const distToPatrol = vec3Length(vec3Subtract(this._pathTarget, state.self.position));
+                if (distToPatrol < PATH_ARRIVED_THRESHOLD) {
+                    this._pathTarget = null; // Pick new target next tick
+                    this._currentPath = null;
+                } else {
+                    return this._navigateTo(state, this._pathTarget, false);
+                }
+            }
+        }
+
+        // Fallback: random patrol — change direction periodically
         if (this._huntTimer > HUNT_DIRECTION_CHANGE_INTERVAL) {
             this._huntYaw += (Math.random() - 0.5) * Math.PI;
             this._huntTimer = 0;
@@ -576,7 +661,46 @@ export class StateMachineBrain extends BotBrain {
 
     // ── Movement Helpers ──────────────────────────────────────────────
 
-    private _moveToward(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
+    /**
+     * Navigate to a target position using NavGraph pathfinding when available.
+     * Falls back to direct movement when no graph exists.
+     */
+    private _navigateTo(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
+        if (!this._navGraph) {
+            return this._moveToward(state, target, urgent);
+        }
+
+        // Recalculate path periodically or if target changed significantly
+        const targetChanged = !this._pathTarget ||
+            vec3Length(vec3Subtract(target, this._pathTarget)) > 200;
+
+        if (targetChanged || !this._currentPath || this._pathRecalcTimer > PATH_RECALC_INTERVAL) {
+            this._currentPath = this._navGraph.findPath(state.self.position, target);
+            this._pathTarget = target;
+            this._pathRecalcTimer = 0;
+        }
+
+        // If path found, follow waypoints
+        if (this._currentPath) {
+            const waypoint = this._navGraph.getNextWaypoint(
+                state.self.position, this._currentPath, PATH_ARRIVED_THRESHOLD,
+            );
+            if (waypoint) {
+                return this._moveToward(state, waypoint.position, urgent);
+            }
+            // Path complete — clear it
+            this._currentPath = null;
+        }
+
+        // No path found — fall back to direct movement
+        return this._moveToward(state, target, urgent);
+    }
+
+    /**
+     * Direct movement toward a target position.
+     * Low-level: walk/sprint/jump toward point.
+     */
+    private _moveToward(state: BotGameState, target: Vec3, _urgent: boolean): BotInput {
         const delta = vec3Subtract(target, state.self.position);
         const distance = vec3Length(delta);
         const targetYaw = Math.atan2(delta.x, delta.z);
@@ -601,6 +725,86 @@ export class StateMachineBrain extends BotBrain {
             buttons,
             weaponSlot: 0,
         };
+    }
+
+    // ── Feeler Raycasts (Wall Avoidance) ──────────────────────────────
+
+    /**
+     * Cast 3 rays from bot position to detect nearby walls.
+     * If a wall is detected, steer the bot away from it.
+     * Runs after brain decision — adjusts heading, doesn't override state.
+     */
+    private _applyFeelers(input: BotInput, state: BotGameState, vision: BotVision): BotInput {
+        const pos = state.self.position;
+        const yaw = input.yaw;
+        const cw = vision.collisionWorld;
+
+        // Eye height offset
+        const eyePos = { x: pos.x, y: pos.y + 36, z: pos.z };
+
+        // Forward ray
+        const fwdEnd = {
+            x: eyePos.x + Math.sin(yaw) * FEELER_FORWARD_DIST,
+            y: eyePos.y,
+            z: eyePos.z + Math.cos(yaw) * FEELER_FORWARD_DIST,
+        };
+        const fwdResult = cw.trace(eyePos, fwdEnd);
+
+        // Forward-left ray (yaw - 30°)
+        const leftYaw = yaw - FEELER_SIDE_ANGLE;
+        const leftEnd = {
+            x: eyePos.x + Math.sin(leftYaw) * FEELER_SIDE_DIST,
+            y: eyePos.y,
+            z: eyePos.z + Math.cos(leftYaw) * FEELER_SIDE_DIST,
+        };
+        const leftResult = cw.trace(eyePos, leftEnd);
+
+        // Forward-right ray (yaw + 30°)
+        const rightYaw = yaw + FEELER_SIDE_ANGLE;
+        const rightEnd = {
+            x: eyePos.x + Math.sin(rightYaw) * FEELER_SIDE_DIST,
+            y: eyePos.y,
+            z: eyePos.z + Math.cos(rightYaw) * FEELER_SIDE_DIST,
+        };
+        const rightResult = cw.trace(eyePos, rightEnd);
+
+        // Determine steering adjustment
+        let yawAdjust = 0;
+        const fwdBlocked = fwdResult.hit && fwdResult.fraction < FEELER_STEER_THRESHOLD;
+        const leftBlocked = leftResult.hit && leftResult.fraction < FEELER_STEER_THRESHOLD;
+        const rightBlocked = rightResult.hit && rightResult.fraction < FEELER_STEER_THRESHOLD;
+
+        if (fwdBlocked) {
+            // Wall directly ahead — steer toward open side
+            if (leftBlocked && !rightBlocked) {
+                yawAdjust = 0.5; // Turn right
+            } else if (rightBlocked && !leftBlocked) {
+                yawAdjust = -0.5; // Turn left
+            } else if (leftBlocked && rightBlocked) {
+                // Walled in on all sides — turn hard (pick random side)
+                yawAdjust = this._strafeDirection > 0 ? 1.2 : -1.2;
+            } else {
+                // Forward blocked but sides open — steer toward more open side
+                const leftDist = leftResult.fraction;
+                const rightDist = rightResult.fraction;
+                yawAdjust = leftDist > rightDist ? -0.4 : 0.4;
+            }
+
+            // Jump to get over short obstacles
+            if (state.self.isGrounded) {
+                input.buttons |= InputButtons.JUMP;
+            }
+        } else if (leftBlocked && !rightBlocked) {
+            yawAdjust = 0.2; // Gentle right
+        } else if (rightBlocked && !leftBlocked) {
+            yawAdjust = -0.2; // Gentle left
+        }
+
+        if (yawAdjust !== 0) {
+            input.yaw += yawAdjust;
+        }
+
+        return input;
     }
 
     private _updateStrafe(): void {

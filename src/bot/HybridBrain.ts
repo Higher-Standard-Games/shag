@@ -178,9 +178,10 @@ export class HybridBrain extends BotBrain {
         state: BotGameState,
         vision?: BotVision | null,
         visionResult?: VisionResult | null,
+        navGraph?: import('./BotNavGraph').BotNavGraph | null,
     ): BotInput {
         // 1. State machine always runs — gives us the baseline decision
-        const baseInput = this._stateMachine.decide(state, vision, visionResult);
+        const baseInput = this._stateMachine.decide(state, vision, visionResult, navGraph);
         const currentState = this._stateMachine.getState();
 
         // Sync our state for external queries
