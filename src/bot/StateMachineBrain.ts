@@ -737,16 +737,9 @@ export class StateMachineBrain extends BotBrain {
         const distance = vec3Length(delta);
         const targetYaw = Math.atan2(delta.x, delta.z);
 
-        // If close enough, stop
-        if (distance < 50) {
-            return {
-                direction: { x: 0, y: 0, z: 0 },
-                pitch: 0,
-                yaw: targetYaw,
-                buttons: 0,
-                weaponSlot: 0,
-            };
-        }
+        // NEVER send zero direction — it persists on the server for 30-80ms
+        // causing friction to decelerate the bot to 0 across multiple physics ticks.
+        // Even if very close, keep moving forward.
 
         // Always sprint + forward — arena FPS bots strafe-run by default
         let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
