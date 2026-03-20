@@ -62,6 +62,7 @@ export class StateMachineBrain extends BotBrain {
     private _currentPath: NavPath | null = null;
     private _pathTarget: Vec3 | null = null;
     private _pathRecalcTimer: number = 0;
+    private _huntPatrolTarget: Vec3 | null = null; // Separate from _pathTarget to avoid confusion
 
     constructor(difficulty: BotDifficulty) {
         super(difficulty);
@@ -90,6 +91,7 @@ export class StateMachineBrain extends BotBrain {
         if (state.self.isDead) {
             this.currentState = BotState.SPAWN;
             this._currentPath = null; // Clear path on death
+            this._huntPatrolTarget = null;
             // Clear vision cache on death
             if (vision) vision.clearCache();
             return this._noInput(state);
@@ -101,6 +103,7 @@ export class StateMachineBrain extends BotBrain {
             this.currentState = newState;
             this._stateTimer = 0;
             this._currentPath = null; // Clear path on state change
+            this._huntPatrolTarget = null;
         }
 
         // Execute current state
@@ -382,15 +385,10 @@ export class StateMachineBrain extends BotBrain {
 
 
     private _executeRetreat(state: BotGameState): BotInput {
-        // Try NavGraph path to nearest health
+        // Try NavGraph path to nearest health (cached via _navigateToItem)
         if (this._navGraph) {
-            const healthPath = this._navGraph.findPathToItem(state.self.position, 'health');
-            if (healthPath) {
-                const waypoint = this._navGraph.getNextWaypoint(state.self.position, healthPath, PATH_ARRIVED_THRESHOLD);
-                if (waypoint) {
-                    return this._moveToward(state, waypoint.position, true);
-                }
-            }
+            const result = this._navigateToItem(state, 'health', true);
+            if (result) return result;
         }
 
         // Try vision's cover finding
@@ -438,15 +436,11 @@ export class StateMachineBrain extends BotBrain {
 
     private _executeItemRun(state: BotGameState): BotInput {
         // Try NavGraph path to nearest item (weapon > health > armor > ammo)
+        // Uses cached _navigateToItem to avoid A* every tick
         if (this._navGraph) {
             for (const itemType of ['weapon', 'health', 'armor', 'ammo']) {
-                const itemPath = this._navGraph.findPathToItem(state.self.position, itemType);
-                if (itemPath) {
-                    const waypoint = this._navGraph.getNextWaypoint(state.self.position, itemPath, PATH_ARRIVED_THRESHOLD);
-                    if (waypoint) {
-                        return this._moveToward(state, waypoint.position, false);
-                    }
-                }
+                const result = this._navigateToItem(state, itemType, false);
+                if (result) return result;
             }
         }
 
@@ -490,19 +484,19 @@ export class StateMachineBrain extends BotBrain {
         // NavGraph patrol: pick a random nav node to walk toward
         if (this._navGraph) {
             const nodes = this._navGraph.nodes;
-            if (nodes.length > 0 && (!this._pathTarget || this._pathRecalcTimer > PATH_RECALC_INTERVAL * 2)) {
+            if (nodes.length > 0 && (!this._huntPatrolTarget || this._pathRecalcTimer > PATH_RECALC_INTERVAL * 2)) {
                 const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
-                this._pathTarget = randomNode.position;
+                this._huntPatrolTarget = randomNode.position;
                 this._pathRecalcTimer = 0;
             }
-            if (this._pathTarget) {
+            if (this._huntPatrolTarget) {
                 // Check if we've arrived at patrol target
-                const distToPatrol = vec3Length(vec3Subtract(this._pathTarget, state.self.position));
+                const distToPatrol = vec3Length(vec3Subtract(this._huntPatrolTarget, state.self.position));
                 if (distToPatrol < PATH_ARRIVED_THRESHOLD) {
-                    this._pathTarget = null; // Pick new target next tick
+                    this._huntPatrolTarget = null; // Pick new target next tick
                     this._currentPath = null;
                 } else {
-                    return this._navigateTo(state, this._pathTarget, false);
+                    return this._navigateTo(state, this._huntPatrolTarget, false);
                 }
             }
         }
@@ -694,6 +688,37 @@ export class StateMachineBrain extends BotBrain {
 
         // No path found — fall back to direct movement
         return this._moveToward(state, target, urgent);
+    }
+
+    /**
+     * Navigate to nearest item of a given type using NavGraph.
+     * Caches the path to avoid running A* every tick.
+     * Returns null if no path to item found.
+     */
+    private _navigateToItem(state: BotGameState, itemType: string, urgent: boolean): BotInput | null {
+        if (!this._navGraph) return null;
+
+        // Only recalculate item paths periodically
+        if (!this._currentPath || this._pathRecalcTimer > PATH_RECALC_INTERVAL) {
+            const itemPath = this._navGraph.findPathToItem(state.self.position, itemType);
+            if (!itemPath) return null;
+            this._currentPath = itemPath;
+            this._pathTarget = itemPath.nodes[itemPath.nodes.length - 1]?.position ?? null;
+            this._pathRecalcTimer = 0;
+        }
+
+        if (this._currentPath) {
+            const waypoint = this._navGraph.getNextWaypoint(
+                state.self.position, this._currentPath, PATH_ARRIVED_THRESHOLD,
+            );
+            if (waypoint) {
+                return this._moveToward(state, waypoint.position, urgent);
+            }
+            // Arrived at item — clear path
+            this._currentPath = null;
+        }
+
+        return null;
     }
 
     /**
