@@ -510,8 +510,30 @@ export class BotClient extends EventEmitter {
     private _sendInput(input: BotInput): void {
         if (!this._playerId) return;
 
+        // Rotate view-relative direction to world-space
+        // Must match Game.ts sendInput() — Babylon.js LEFT-HANDED Y rotation:
+        //   forward = (sin(yaw), 0, cos(yaw))
+        //   right   = (cos(yaw), 0, -sin(yaw))
+        const cosYaw = Math.cos(input.yaw);
+        const sinYaw = Math.sin(input.yaw);
+        const fwdX = sinYaw;
+        const fwdZ = cosYaw;
+        const rightX = cosYaw;
+        const rightZ = -sinYaw;
+
+        const viewDir = input.direction;
+        let worldX = viewDir.z * fwdX + viewDir.x * rightX;
+        let worldZ = viewDir.z * fwdZ + viewDir.x * rightZ;
+
+        // Normalize
+        const len = Math.sqrt(worldX * worldX + worldZ * worldZ);
+        if (len > 0) {
+            worldX /= len;
+            worldZ /= len;
+        }
+
         const command = {
-            direction: input.direction,
+            direction: { x: worldX, y: 0, z: worldZ },
             pitch: input.pitch,
             yaw: input.yaw,
             buttons: input.buttons,
