@@ -233,6 +233,9 @@ export class StateMachineBrain extends BotBrain {
             }
         }
 
+        // Always sprint — arena FPS players strafe-run by default
+        buttons |= InputButtons.SPRINT;
+
         // Strafe (universal)
         if (strafeInput > 0) {
             buttons |= InputButtons.LEFT;
@@ -270,7 +273,7 @@ export class StateMachineBrain extends BotBrain {
         // Pick a random direction and move quickly
         this._updateStrafe();
 
-        let buttons = InputButtons.JUMP; // Jump to dodge
+        let buttons = InputButtons.JUMP | InputButtons.SPRINT; // Jump + sprint to dodge
 
         // Strafe hard
         if (this._strafeDirection > 0) {
@@ -428,7 +431,7 @@ export class StateMachineBrain extends BotBrain {
         // Look around randomly (human-feel)
         this._updateLookAround();
 
-        let buttons = InputButtons.FORWARD;
+        let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
 
         // Jump occasionally
         if (Math.random() < 0.01 && state.self.isGrounded) {
@@ -578,11 +581,8 @@ export class StateMachineBrain extends BotBrain {
         const distance = vec3Length(delta);
         const targetYaw = Math.atan2(delta.x, delta.z);
 
-        let buttons = InputButtons.FORWARD;
-
-        if (urgent) {
-            buttons |= InputButtons.SPRINT;
-        }
+        // Always sprint — arena FPS bots strafe-run by default
+        let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
 
         // Jump to get over obstacles
         if (Math.random() < 0.015 && state.self.isGrounded) {
