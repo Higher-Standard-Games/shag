@@ -19,7 +19,8 @@ import { GameState } from '../engine/network/core/GameState';
 import { BotGameState } from './BotGameState';
 import { BotBrain, type BotInput } from './BotBrain';
 import { StateMachineBrain } from './StateMachineBrain';
-import { HybridBrain } from './HybridBrain';
+// HybridBrain is imported dynamically — requires @tensorflow/tfjs-node native addon
+// import { HybridBrain } from './HybridBrain';
 import { type BotOptions, type BotDifficulty, resolveDifficulty, getDifficultyModelDir } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
 import { BotEpisodeRecorder } from './BotEpisodeRecorder';
@@ -105,22 +106,12 @@ export class BotClient extends EventEmitter {
         // Resolve difficulty
         this._difficulty = resolveDifficulty(options.difficulty);
 
-        // Create AI brain — HybridBrain if model path provided, else pure StateMachine
+        // Default to StateMachineBrain (no TF.js dependency)
+        this._brain = new StateMachineBrain(this._difficulty);
+
+        // If modelDir is specified, try to load HybridBrain (requires TF.js)
         if (options.modelDir) {
-            const hybrid = new HybridBrain(this._difficulty);
-            this._brain = hybrid;
-            // Resolve difficulty-specific model dir (e.g. ./models/hard/)
-            const diffName = typeof options.difficulty === 'string' ? options.difficulty : 'medium';
-            const tierDir = getDifficultyModelDir(options.modelDir, diffName);
-            // Try tier-specific dir first, fall back to base dir
-            hybrid.loadModels(tierDir).catch(() => {
-                console.log(`${this._logPrefix} No tier "${diffName}" models, trying base dir`);
-                hybrid.loadModels(options.modelDir!).catch(e => {
-                    console.error(`${this._logPrefix} Failed to load models:`, e);
-                });
-            });
-        } else {
-            this._brain = new StateMachineBrain(this._difficulty);
+            this._initHybridBrain(options.modelDir, options.difficulty);
         }
 
         // Create game state tracker
@@ -131,6 +122,32 @@ export class BotClient extends EventEmitter {
         this._respawnDelayMs = 1500 + Math.random() * 2000; // 1.5-3.5 sec respawn delay
 
         this._logPrefix = `[Bot:${this.name}]`;
+    }
+
+    /**
+     * Try to load HybridBrain with TF.js models.
+     * Falls back to StateMachineBrain if @tensorflow/tfjs-node isn't available.
+     */
+    private _initHybridBrain(modelDir: string, difficulty: string | BotDifficulty): void {
+        import('./HybridBrain').then(({ HybridBrain }) => {
+            const hybrid = new HybridBrain(this._difficulty);
+            this._brain = hybrid;
+            // Resolve difficulty-specific model dir (e.g. ./models/hard/)
+            const diffName = typeof difficulty === 'string' ? difficulty : 'medium';
+            const tierDir = getDifficultyModelDir(modelDir, diffName);
+            // Try tier-specific dir first, fall back to base dir
+            hybrid.loadModels(tierDir).catch(() => {
+                console.log(`${this._logPrefix} No tier "${diffName}" models, trying base dir`);
+                hybrid.loadModels(modelDir).catch(e => {
+                    console.error(`${this._logPrefix} Failed to load models:`, e);
+                });
+            });
+        }).catch(() => {
+            console.warn('');
+            console.warn(`${this._logPrefix} ⚠️  @tensorflow/tfjs-node not available — using pure StateMachineBrain`);
+            console.warn(`${this._logPrefix} To enable neural AI, run: pnpm rebuild @tensorflow/tfjs-node --build-addon-from-source`);
+            console.warn('');
+        });
     }
 
     // ── Public API ────────────────────────────────────────────────────

@@ -11,6 +11,9 @@
  *
  * Without loaded models, behaves identically to StateMachineBrain.
  * All tensor operations wrapped in tf.tidy() to prevent memory leaks.
+ *
+ * NOTE: This file requires @tensorflow/tfjs-node native addon.
+ * BotClient handles the case where this import fails gracefully.
  */
 
 import * as tf from '@tensorflow/tfjs-node';
