@@ -2,7 +2,7 @@
 
 > Smart Waypoint Network (SWN) — BSP-derived, physics-probed, ML-ready navigation
 
-## Status: Research / Pre-Implementation
+## Status: Implemented (Phases 1–6) — Live Testing
 
 ---
 
@@ -16,7 +16,7 @@ Arena FPS maps are complex 3D environments with:
 - Item placement at strategic positions requiring specific routes
 - Momentum-based movement (strafe-jumping, bunny-hopping)
 
-Current bot movement: walk in a direction and hope for the best. No pathfinding, no wall avoidance, no understanding of map topology.
+**Current state**: Bot AI is fully implemented with StateMachineBrain (rule-based), HybridBrain (TF.js neural enhancement), BotVision (BSP raycasting), BotNavGraph (Smart Waypoint Network), training pipeline (BotTrainer + BotEpisodeRecorder + BotRewardComputer), and lobby integration (BotLobbyClient). Bots connect through the lobby server, join matches, fight, and can self-train. Navigation (feelers, pathfinding) is the next phase to wire in.
 
 ## 2. Existing Systems We Can Leverage
 
@@ -331,61 +331,57 @@ Damage given/received →      Offensive positions         Movement patterns
 
 ## 5. Build Order (Implementation Phases)
 
-### Phase 1: Immediate — Feelers (Layer 0)
+### Phase 1: Static Profiles ✅ DONE
 
-- Add 3-5 ray feeler casts to `StateMachineBrain`
-- Steer away from walls, slow down near obstacles
-- **Immediate improvement: bot stops face-planting**
-- Estimated: ~50 lines of code
+- `BotMovementProfile.ts` — Static movement mechanics knowledge (sprint, crouchslide, wall-jump, etc.)
+- `BotWeaponProfile.ts` — Static weapon knowledge (DPS, projectile speed, ADS, splash)
+- `BotConfig.ts` — Difficulty presets (easy/medium/hard) with aim accuracy, reaction time, etc.
+- `InputButtons` enum with all button flags bots can send
 
-### Phase 2: Waypoint Extraction (Layer 1)
+### Phase 2: Navigation Graph ✅ DONE (not yet wired to brain)
 
-- New file: `BotNavGraph.ts`
-- Extract waypoints from BSP items + spawns
-- Add floor grid sampling for gap filling
-- Store as `NavNode[]` array
-- Estimated: ~150 lines
+- `BotNavGraph.ts` — Smart Waypoint Network implementation
+- Extracts waypoints from BSP items + spawns + floor grid sampling
+- Walk/jump/fall edge detection via `isPathClear()` and height checks
+- A* pathfinding on the sparse waypoint graph
+- **Not yet wired**: StateMachineBrain doesn't use NavGraph for pathfinding yet
 
-### Phase 3: Edge Building (Layer 2)
+### Phase 3: TensorFlow.js Integration ✅ DONE
 
-- Walk edge detection via `isPathClear()`
-- Jump edge detection via height difference + collision check
-- Fall edge detection (one-way downward drops)
-- Store as adjacency list
-- Save/load graph as JSON per map (cache)
-- Estimated: ~200 lines
+- `HybridBrain.ts` — Wraps StateMachineBrain + TF.js neural enhancement
+- Two-model architecture: TacticalModel + CombatModel
+- All tensor ops wrapped in `tf.tidy()` for memory safety
+- Graceful fallback: `BotClient` dynamically imports HybridBrain — if `@tensorflow/tfjs-node` native addon isn't compiled, prints warning and uses pure StateMachineBrain
+- Model load/save via `tf.loadLayersModel()` / `model.save()`
 
-### Phase 4: Pathfinding (Layer 3)
+### Phase 4: Training Data Collection ✅ DONE
 
-- A* implementation on the NavGraph
-- Integration with StateMachineBrain states (HUNT, ITEM_RUN, RETREAT)
-- Bot follows waypoint-to-waypoint paths
-- Feelers (Layer 0) handle micro-corrections during path following
-- Estimated: ~300 lines
+- `BotInputNormalizer.ts` — Converts BotGameState → normalized Float32Arrays (25 tactical + 18 combat inputs)
+- `BotEpisodeRecorder.ts` — Per-tick frame recording during live gameplay
+- Records death transition frames, kill/damage events, input actions
+- NaN-guarded normalization on every value
 
-### Phase 5: Special Traversal  
+### Phase 5: Training Pipeline ✅ DONE
 
-- Jump pad edge detection from BSP entities
-- Teleporter edge detection from BSP entities
+- `BotRewardComputer.ts` — Delayed reward calculation with temporal credit assignment
+- Kill/death rewards flow backward 20 ticks with exponential decay
+- Survival bonus, damage dealt/taken, item pickup rewards
+- Generates `{input, output}` pairs ready for `model.fit()`
+
+### Phase 6: Autonomous Gym ✅ DONE
+
+- `BotTrainer.ts` — Full training loop: headless server → bot self-play → episode recording → batch training
+- `BotServer.ts` — CLI bot server with interactive console
+- `BotLobbyClient.ts` — Bots connect through lobby server, join queues, auto-ready
+- `src/cli/bot-server.ts` — CLI entry point (`npm run bot:server`)
+- Difficulty tiers via model directory structure (easy/medium/hard checkpoints)
+
+### Phase 7: Nav Integration 🔜 NEXT
+
+- Wire BotNavGraph into StateMachineBrain for HUNT/ITEM_RUN/RETREAT pathfinding
+- Per-tick feeler raycasts for wall avoidance
+- Jump pad / teleporter edge detection from BSP entities
 - Physics-probed jump arcs for elevation changes
-- Estimated: ~200 lines
-
-### Phase 6: Intelligence (Layer 4 — ML)
-
-- Edge cost adjustment from gameplay statistics
-- Item timing route planning
-- Danger avoidance from death heat maps
-- Tactical position awareness
-- This is where ML training complements the graph
-
-### Phase 7: Autonomous Gym (Self-Training)
-
-- `BotTrainer` class for managing multi-bot training sessions
-- Headless server integration (fast simulation, no rendering)
-- Per-match episode recording and brain.js batch training
-- Training dashboard: win rate evolution, navigation efficiency, combat stats
-- Difficulty curve: save checkpoint weights for easy/medium/hard bot tiers
-- Estimated: ~500 lines + training infrastructure
 
 ---
 
@@ -1036,38 +1032,41 @@ class BotTrainer {
 
 Everything builds on what came before:
 
-```
+```text
 Phase 1 ─── Static Profiles (DONE ✅)
-  └─ BotWeaponProfile (done)
-  └─ BotMovementProfile (next) 
+  └─ BotWeaponProfile.ts (done)
+  └─ BotMovementProfile.ts (done)
+  └─ BotConfig.ts — difficulty presets (done)
 
-Phase 2 ─── Navigation (Layer 0-3)
-  └─ Feelers → Waypoints → Edges → A*
-  └─ Bot can navigate maps intelligently
+Phase 2 ─── Navigation Graph (DONE ✅, not yet wired)
+  └─ BotNavGraph.ts — waypoints + edges + A* (done)
+  └─ Needs wiring into StateMachineBrain (TODO)
 
-Phase 3 ─── TensorFlow.js Setup
-  └─ pnpm add @tensorflow/tfjs-node
-  └─ HybridBrain class (wraps StateMachineBrain)
-  └─ Input normalization → tf.tensor2d
-  └─ Output interpretation from prediction tensors
-  └─ model.save() / tf.loadLayersModel() for persistence
-  └─ tf.tidy() wrappers for memory safety
+Phase 3 ─── TensorFlow.js Integration (DONE ✅)
+  └─ HybridBrain.ts — StateMachine + TF.js hybrid (done)
+  └─ BotInputNormalizer.ts — normalized Float32Arrays (done)
+  └─ Graceful TF.js fallback via dynamic import (done)
+  └─ tf.tidy() wrappers for memory safety (done)
 
-Phase 4 ─── Training Data Collection
-  └─ TrainingFrame recording per tick
-  └─ Reward computation (delayed, retrospective)
-  └─ Episode serialization (JSON per match)
+Phase 4 ─── Training Data Collection (DONE ✅)
+  └─ BotEpisodeRecorder.ts — per-tick frame recording (done)
+  └─ Death transition frame capture (done)
+  └─ Kill/damage event tracking (done)
 
-Phase 5 ─── Autonomous Training
-  └─ BotTrainer class
-  └─ Headless server integration
-  └─ Training loop + checkpoint saving
-  └─ npm run bot:train CLI command
+Phase 5 ─── Autonomous Training (DONE ✅)
+  └─ BotRewardComputer.ts — delayed rewards (done)
+  └─ BotTrainer.ts — training loop (done)
+  └─ src/cli/bot-server.ts — CLI entry (done)
 
-Phase 6 ─── Difficulty Tiers
-  └─ Save checkpoints as easy/medium/hard
-  └─ Bot difficulty selection in lobby
-  └─ Fresh untrained = easy, 100 rounds = medium, 1000 = hard
+Phase 6 ─── Lobby Integration (DONE ✅)
+  └─ BotLobbyClient.ts — lobby queue + auto-ready (done)
+  └─ BotServer.ts — interactive console (done)
+  └─ Positional CLI arg fallback for npm (done)
+
+Phase 7 ─── Nav Wiring + Feelers (TODO 🔜)
+  └─ Wire BotNavGraph into brain states
+  └─ Per-tick feeler raycasts for wall avoidance
+  └─ Jump pad / teleporter edges
 ```
 
 ### 10.11 Network Sizes (Performance Budget)
@@ -1101,27 +1100,32 @@ pnpm add @tensorflow/tfjs-node
 - **ESM compatibility**: The project uses `"type": "module"` in package.json and `vite-node` for CLI tools. TF.js supports ESM: `import * as tf from '@tensorflow/tfjs-node'`
 - `vite-node` handles the ESM/CJS bridge for us already (used by `bot:server`, `lobby:server`, etc.)
 
-### 11.2 New File Structure
+### 11.2 File Structure (All Implemented)
 
-```
+```text
 src/bot/
-├── BotBrain.ts              # (existing) Abstract base — add reference to HybridBrain
-├── BotClient.ts             # (existing) modify: support HybridBrain via factory
-├── BotConfig.ts             # (existing) add: model paths config
-├── BotGameState.ts          # (existing) keep as-is
-├── BotVision.ts             # (existing) keep as-is
-├── BotWeaponProfile.ts      # (existing) static weapon knowledge
-├── StateMachineBrain.ts     # (existing) keep as-is — still the backbone
+├── BotBrain.ts              # Abstract base class + BotState enum
+├── BotClient.ts             # Headless WebSocket client — plays the game
+├── BotConfig.ts             # Difficulty presets, InputButtons, model path helpers
+├── BotGameState.ts          # Tracks game state from server snapshots
+├── BotVision.ts             # BSP raycasting — LOS, path checks, item finding
+├── BotWeaponProfile.ts      # Static weapon knowledge (DPS, projectile speed, etc.)
+├── StateMachineBrain.ts     # Rule-based AI (FIGHT/HUNT/RETREAT/DODGE/ITEM_RUN)
 │
-├── BotMovementProfile.ts    # [NEW] Static movement mechanics knowledge
-├── BotInputNormalizer.ts    # [NEW] BotGameState → normalized 0-1 float arrays
-├── HybridBrain.ts           # [NEW] StateMachineBrain + TF.js neural enhancement
-├── BotTrainer.ts            # [NEW] Autonomous training loop
-├── BotEpisodeRecorder.ts    # [NEW] Per-tick frame recording for training data
-├── BotRewardComputer.ts     # [NEW] Delayed reward calculation
-└── BotNavGraph.ts           # [NEW] Smart Waypoint Network (Phase 2)
+├── BotMovementProfile.ts    # Static movement mechanics knowledge
+├── BotInputNormalizer.ts    # BotGameState → normalized Float32Arrays for TF.js
+├── HybridBrain.ts           # StateMachineBrain + TF.js neural enhancement
+├── BotTrainer.ts            # Autonomous training loop (headless self-play)
+├── BotEpisodeRecorder.ts    # Per-tick frame recording for training data
+├── BotRewardComputer.ts     # Delayed reward calculation with temporal credit
+├── BotNavGraph.ts           # Smart Waypoint Network (A* pathfinding)
+├── BotLobbyClient.ts        # Connects bots through lobby server queue
+└── BotServer.ts             # Bot server with interactive console
 
-models/                      # [NEW] TF.js saved model files
+src/cli/
+└── bot-server.ts            # CLI entry point (npm run bot:server)
+
+models/                      # TF.js saved model files (generated by training)
 ├── tactical_wdm7/
 │   ├── model.json
 │   └── weights.bin
@@ -1344,27 +1348,37 @@ export class HybridBrain extends BotBrain {
 }
 ```
 
-### 11.6 BotClient Integration
+### 11.6 BotClient Integration (Actual Implementation)
 
-The only change in `BotClient.ts` — use a brain factory:
+BotClient uses **dynamic import** for HybridBrain to avoid crashing when `@tensorflow/tfjs-node` native addon isn't compiled:
 
 ```typescript
 // In BotClient constructor:
 constructor(options: BotOptions) {
-    // ...existing code...
+    // Default to StateMachineBrain (no TF.js dependency)
+    this._brain = new StateMachineBrain(this._difficulty);
 
-    // Create AI brain — HybridBrain wraps StateMachineBrain
+    // If modelDir is specified, try to load HybridBrain (requires TF.js)
     if (options.modelDir) {
-        this._brain = new HybridBrain(this._difficulty);
-        (this._brain as HybridBrain).loadModels(options.modelDir);
-    } else {
-        this._brain = new StateMachineBrain(this._difficulty);
+        this._initHybridBrain(options.modelDir, options.difficulty);
     }
+}
+
+private _initHybridBrain(modelDir: string, difficulty: string | BotDifficulty): void {
+    import('./HybridBrain').then(({ HybridBrain }) => {
+        const hybrid = new HybridBrain(this._difficulty);
+        this._brain = hybrid;
+        hybrid.loadModels(tierDir).catch(() => {
+            hybrid.loadModels(modelDir); // fallback to base dir
+        });
+    }).catch(() => {
+        console.warn(`⚠️  @tensorflow/tfjs-node not available — using pure StateMachineBrain`);
+        console.warn(`To enable neural AI, run: pnpm rebuild @tensorflow/tfjs-node --build-addon-from-source`);
+    });
 }
 ```
 
-Bot server passes `--models ./models/wdm7` → bots load TF.js models.
-No flag → pure state machine. **Zero breaking changes.**
+**Graceful degradation**: No TF.js → warning + pure StateMachineBrain. With TF.js → HybridBrain with neural enhancement. **Zero breaking changes.**
 
 ### 11.7 Training Data Lifecycle
 
