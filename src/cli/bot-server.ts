@@ -33,7 +33,8 @@ interface BotServerArgs {
 }
 
 function parseArgs(): BotServerArgs {
-    const args = process.argv.slice(2);
+    // Filter out '--' separators injected by npm/pnpm run
+    const args = process.argv.slice(2).filter(a => a !== '--');
     const config: BotServerArgs = {
         port: 9100,
         autoCount: 3,
@@ -41,36 +42,57 @@ function parseArgs(): BotServerArgs {
         gametype: 'duel',
     };
 
+    let namedFlagFound = false;
     for (let i = 0; i < args.length; i++) {
         switch (args[i]) {
             case '--port':
                 config.port = parseInt(args[++i], 10);
+                namedFlagFound = true;
                 break;
             case '--auto':
                 config.autoConnect = args[++i];
+                namedFlagFound = true;
                 break;
             case '--count':
                 config.autoCount = parseInt(args[++i], 10);
+                namedFlagFound = true;
                 break;
             case '--difficulty':
             case '-d':
                 config.difficulty = args[++i];
+                namedFlagFound = true;
                 break;
             case '--lobby':
                 config.lobbyUrl = args[++i];
+                namedFlagFound = true;
                 break;
             case '--gametype':
             case '-g':
                 config.gametype = args[++i];
+                namedFlagFound = true;
                 break;
             case '--models':
                 config.modelDir = args[++i];
+                namedFlagFound = true;
                 break;
             case '--help':
             case '-h':
                 printHelp();
                 process.exit(0);
         }
+    }
+
+    // Positional fallback: npm/pnpm sometimes strips flag names
+    // Treat positional args as: [url] [gametype] [count] [difficulty]
+    if (!namedFlagFound && args.length > 0) {
+        console.log(`[BIS] Note: Using positional arg parsing (flags were stripped by npm)`);
+        console.log(`[BIS] Raw args: ${args.join(' ')}`);
+        if (args[0]?.startsWith('ws://') || args[0]?.startsWith('wss://')) {
+            config.lobbyUrl = args[0];
+        }
+        if (args[1]) config.gametype = args[1];
+        if (args[2]) config.autoCount = parseInt(args[2], 10);
+        if (args[3]) config.difficulty = args[3];
     }
 
     return config;
