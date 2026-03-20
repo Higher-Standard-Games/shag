@@ -376,6 +376,18 @@ export class BotClient extends EventEmitter {
                 this._deathTime = Date.now();
                 this._state = 'dead';
                 console.log(`${this._logPrefix} Died! Waiting ${(this._respawnDelayMs / 1000).toFixed(1)}s to respawn...`);
+
+                // Record the death transition frame (critical training signal!)
+                if (this._recorder) {
+                    const deathInput: BotInput = {
+                        buttons: 0,
+                        direction: { x: 0, y: 0, z: 0 },
+                        yaw: 0,
+                        pitch: 0,
+                        weaponSlot: 0,
+                    };
+                    this._recorder.recordTick(this._gameState, deathInput, this._vision);
+                }
             }
 
             // Server confirmed we're alive again after being dead
