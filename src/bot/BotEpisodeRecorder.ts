@@ -138,7 +138,11 @@ export class BotEpisodeRecorder {
         input: BotInput,
         vision: BotVision | null,
     ): void {
-        if (!this._isRecording || state.self.isDead) return;
+        if (!this._isRecording) return;
+
+        // Record death frames (death is a critical training signal!)
+        // Skip only if we were already dead on the PREVIOUS tick too
+        if (state.self.isDead && this._prevHealth <= 0) return;
 
         const tick = state.tick;
         const self = state.self;
@@ -163,12 +167,9 @@ export class BotEpisodeRecorder {
         let damageDealt = 0;
         let kill = false;
 
-        // Count new damage events that happened THIS tick
-        for (const dmgEvent of state.recentDamage) {
-            if (dmgEvent.tick === tick && dmgEvent.attackerId !== state.selfEntityId) {
-                // This is damage TO us — already counted via healthDelta
-            }
-        }
+        // Note: state.recentDamage contains damage TO us.
+        // Damage dealt BY us is tracked via kill events only for now.
+        // Future: add outgoing damage tracking to BotGameState.
 
         // Detect kills by checking kill events
         for (const killEvent of state.recentKills) {
@@ -181,8 +182,8 @@ export class BotEpisodeRecorder {
             }
         }
 
-        // Detect death
-        const death = self.isDead && this._prevHealth > 0;
+        // Detect death (health just dropped to 0 or below, or isDead flag set)
+        const death = state.self.isDead && this._prevHealth > 0;
         if (death) {
             this._deaths++;
         }

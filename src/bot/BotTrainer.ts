@@ -233,6 +233,9 @@ export class BotTrainer {
                 difficulty: this._config.difficulty,
             });
 
+            // Wire recorder into client so recordTick() is called each snapshot
+            client.setRecorder(recorder);
+
             try {
                 await client.connect(serverUrl);
                 recorder.startRecording(0);

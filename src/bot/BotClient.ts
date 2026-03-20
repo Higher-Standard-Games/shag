@@ -22,6 +22,7 @@ import { StateMachineBrain } from './StateMachineBrain';
 import { HybridBrain } from './HybridBrain';
 import { type BotOptions, type BotDifficulty, resolveDifficulty, getDifficultyModelDir } from './BotConfig';
 import type { BotVision, VisionResult } from './BotVision';
+import { BotEpisodeRecorder } from './BotEpisodeRecorder';
 import { EventEmitter } from 'events';
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -88,6 +89,9 @@ export class BotClient extends EventEmitter {
     private _vision: BotVision | null = null;
     private _lastVisionResult: VisionResult | null = null;
 
+    // Optional episode recorder for training data collection
+    private _recorder: BotEpisodeRecorder | null = null;
+
     // Logging
     private _logPrefix: string;
 
@@ -142,7 +146,20 @@ export class BotClient extends EventEmitter {
      * Call after construction, before connect.
      */
     setVision(vision: BotVision | null): void {
-        this._vision = vision;
+        this._vision = vision ?? null;
+    }
+
+    /**
+     * Set the episode recorder for training data collection.
+     * Call before connect() when using BotTrainer.
+     */
+    setRecorder(recorder: BotEpisodeRecorder | null): void {
+        this._recorder = recorder ?? null;
+    }
+
+    /** Get the current recorder (for BotTrainer access) */
+    get recorder(): BotEpisodeRecorder | null {
+        return this._recorder;
     }
 
     /**
@@ -394,6 +411,11 @@ export class BotClient extends EventEmitter {
             const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult);
             this._sendInput(input);
             this._lastInputTime = now;
+
+            // Record training frame (if recorder is attached)
+            if (this._recorder) {
+                this._recorder.recordTick(this._gameState, input, this._vision);
+            }
 
             // Periodic logging
             if (this._tickCount % 300 === 0) {
