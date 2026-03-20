@@ -288,7 +288,8 @@ export class StateMachineBrain extends BotBrain {
         }
 
         // Jump occasionally (dodge + human feel)
-        if (Math.random() < 0.02 && state.self.isGrounded) {
+        // Low probability — JUMP persists across ~5 server ticks (125Hz/~25Hz input)
+        if (Math.random() < 0.004 && state.self.isGrounded) {
             buttons |= InputButtons.JUMP;
         }
 
@@ -724,27 +725,49 @@ export class StateMachineBrain extends BotBrain {
     /**
      * Direct movement toward a target position.
      * Low-level: walk/sprint/jump toward point.
+     *
+     * NOTE: Server ticks at 125Hz but bot sends input at 12-33Hz.
+     * Last input PERSISTS across ~4-10 server ticks. This means:
+     * - JUMP stays pressed for many physics ticks → autohop triggers on landing
+     * - Button flags like LEFT/RIGHT must be set alongside direction.x
+     *   for the server's strafejump air acceleration to activate
      */
-    private _moveToward(state: BotGameState, target: Vec3, _urgent: boolean): BotInput {
+    private _moveToward(state: BotGameState, target: Vec3, urgent: boolean): BotInput {
         const delta = vec3Subtract(target, state.self.position);
         const distance = vec3Length(delta);
         const targetYaw = Math.atan2(delta.x, delta.z);
 
-        // Always sprint — arena FPS bots strafe-run by default
+        // If close enough, stop
+        if (distance < 50) {
+            return {
+                direction: { x: 0, y: 0, z: 0 },
+                pitch: 0,
+                yaw: targetYaw,
+                buttons: 0,
+                weaponSlot: 0,
+            };
+        }
+
+        // Always sprint + forward — arena FPS bots strafe-run by default
         let buttons = InputButtons.FORWARD | InputButtons.SPRINT;
 
-        // Jump to get over obstacles
-        if (Math.random() < 0.015 && state.self.isGrounded) {
+        // Jump — low probability because JUMP persists across 4-10 server ticks
+        // (each bot input = ~4-10 physics frames). 0.3% × ~7 ticks ≈ 2% effective.
+        if (Math.random() < 0.003 && state.self.isGrounded) {
             buttons |= InputButtons.JUMP;
         }
 
-        // If close enough, stop
-        if (distance < 50) {
-            buttons = 0;
+        // Strafe direction (for dodge/variety). When urgent, add slight strafe
+        let strafeX = 0;
+        if (urgent && distance > 200) {
+            strafeX = this._strafeDirection * 0.3;
+            // Set LEFT/RIGHT button flags — critical for server air-strafe physics
+            if (strafeX < 0) buttons |= InputButtons.LEFT;
+            if (strafeX > 0) buttons |= InputButtons.RIGHT;
         }
 
         return {
-            direction: { x: 0, y: 0, z: distance > 50 ? 1 : 0 },
+            direction: { x: strafeX, y: 0, z: 1 },
             pitch: 0,
             yaw: targetYaw,
             buttons,
@@ -815,9 +838,19 @@ export class StateMachineBrain extends BotBrain {
                 yawAdjust = leftDist > rightDist ? -0.4 : 0.4;
             }
 
-            // Jump to get over short obstacles
-            if (state.self.isGrounded) {
+            // Jump to get over short obstacles (only if not already jumping)
+            if (state.self.isGrounded && !(input.buttons & InputButtons.JUMP)) {
                 input.buttons |= InputButtons.JUMP;
+            }
+
+            // Apply strafe buttons matching the yaw adjustment
+            // so server physics responds to the direction change
+            if (yawAdjust > 0) {
+                input.buttons |= InputButtons.RIGHT;
+                input.buttons &= ~InputButtons.LEFT;
+            } else if (yawAdjust < 0) {
+                input.buttons |= InputButtons.LEFT;
+                input.buttons &= ~InputButtons.RIGHT;
             }
         } else if (leftBlocked && !rightBlocked) {
             yawAdjust = 0.2; // Gentle right
