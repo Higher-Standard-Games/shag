@@ -199,10 +199,34 @@ export class DemoTrainingExtractor {
                 dirX = (vx * cosYaw + vz * sinYaw) / speed;   // strafe (right) component
             }
 
-            // Infer buttons from events
+            // Infer buttons from state + events
+            // Demos store state, not inputs — we reconstruct plausible button presses
+            // from velocity, direction, events, and movement state.
             let buttons = 0;
+
+            // Movement buttons from view-relative direction
+            if (dirZ > 0.3) buttons |= InputButtons.FORWARD;
+            if (dirZ < -0.3) buttons |= InputButtons.BACK;
+            if (dirX < -0.3) buttons |= InputButtons.LEFT;  // Strafe left
+            if (dirX > 0.3) buttons |= InputButtons.RIGHT;  // Strafe right
+
+            // Sprint — infer from horizontal speed (running players are sprinting)
             if (speed > 1) buttons |= InputButtons.SPRINT;
-            // Check for weapon_fire events from this player this tick
+
+            // Jump — infer from upward velocity (positive vy = ascending)
+            const vy = velocity?.linear?.y ?? 0;
+            if (vy > 50) buttons |= InputButtons.JUMP;
+
+            // Crouch — infer from movementState bitmask if available
+            const movementState = entity?.getComponent('movementState') as any;
+            if (movementState) {
+                const msBits = movementState.flags ?? movementState ?? 0;
+                if (typeof msBits === 'number' && (msBits & 1)) { // bit 0 = crouching/sliding
+                    buttons |= InputButtons.CROUCH;
+                }
+            }
+
+            // Fire — check for weapon_fire events from this player this tick
             for (const event of state.events) {
                 if (event.type === 'weapon_fire' && event.entityId === entityId) {
                     buttons |= InputButtons.FIRE;

@@ -222,9 +222,12 @@ export class HybridBrain extends BotBrain {
 
         // 4. Combat model: aim/fire refinement (only during FIGHT)
         if (this._combatModel && currentState === BotState.FIGHT) {
-            const enemy = state.players[0]; // Nearest visible
-            if (enemy) {
-                const combatOutput = this._runCombat(state, enemy);
+            // Use vision's LOS-confirmed enemies, not raw player list
+            // (state.players includes enemies behind walls)
+            const visibleEnemy = visionResult?.visibleEnemies?.[0]?.player
+                ?? state.players[0]; // Fallback if no vision data
+            if (visibleEnemy) {
+                const combatOutput = this._runCombat(state, visibleEnemy);
                 if (combatOutput) {
                     this._applyCombat(combatOutput, baseInput, state);
                 }
@@ -328,10 +331,11 @@ export class HybridBrain extends BotBrain {
         if (output[TACT.MODE_RETREAT] > THRESHOLD.TACTICAL_OVERRIDE
             && state.self.health < 80
             && currentState === BotState.FIGHT) {
-            // Reverse direction to retreat
+            // Reverse direction to retreat — must set BACK and clear FORWARD
+            // so server applies backward movement physics correctly
             input.direction.z = -1;
-            input.buttons |= InputButtons.SPRINT;
-            input.buttons &= ~InputButtons.FIRE;
+            input.buttons |= InputButtons.SPRINT | InputButtons.BACK;
+            input.buttons &= ~(InputButtons.FIRE | InputButtons.FORWARD);
         }
     }
 
@@ -369,11 +373,16 @@ export class HybridBrain extends BotBrain {
         }
 
         // Dodge suggestions (strafe direction override)
+        // Must set LEFT/RIGHT button flags — server strafe physics requires them
         if (output[COMBAT.DODGE_LEFT] > THRESHOLD.MOVEMENT_ACTION
             && output[COMBAT.DODGE_LEFT] > output[COMBAT.DODGE_RIGHT]) {
             input.direction.x = -1;
+            input.buttons |= InputButtons.LEFT;
+            input.buttons &= ~InputButtons.RIGHT;
         } else if (output[COMBAT.DODGE_RIGHT] > THRESHOLD.MOVEMENT_ACTION) {
             input.direction.x = 1;
+            input.buttons |= InputButtons.RIGHT;
+            input.buttons &= ~InputButtons.LEFT;
         }
     }
 
