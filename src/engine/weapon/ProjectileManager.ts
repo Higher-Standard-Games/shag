@@ -77,6 +77,11 @@ export class ProjectileManager {
     private impactModelCache: Map<string, MD3LoadResult> = new Map();
     private impactTextureCache: Map<string, string> = new Map();
 
+    // Pre-allocated temporaries for hot-loop reuse (avoids per-frame GC pressure)
+    private _tmpMoveDir = Vector3.Zero();
+    private _tmpRay = new Ray(Vector3.Zero(), Vector3.Forward(), 1);
+    private static readonly _defaultFwd = new Vector3(0, 0, 1);
+
     private constructor() { }
 
     public static getInstance(): ProjectileManager {
@@ -550,10 +555,9 @@ export class ProjectileManager {
                 proj.velocity.y -= ProjectileManager.GRAVITY * proj.gravity * deltaTime;
             }
 
-            // Calculate move amount from velocity
-            const moveAmount = proj.velocity.scale(deltaTime);
-            const moveDir = proj.velocity.normalizeToNew();
-            const moveDist = moveAmount.length();
+            // Calculate move direction and distance from velocity (reuse pre-allocated temporaries)
+            proj.velocity.normalizeToRef(this._tmpMoveDir);
+            const moveDist = proj.velocity.length() * deltaTime;
 
             // Server-driven projectiles: position is set externally by
             // Game.renderServerProjectiles() using SnapshotBuffer interpolation.
@@ -563,14 +567,13 @@ export class ProjectileManager {
                 if (proj.gravity > 0 && proj.velocity.lengthSquared() > 0.01) {
                     const dir = proj.velocity.normalizeToNew();
                     proj.direction = dir;
-                    const defaultFwd = new Vector3(0, 0, 1);
-                    const dot = Vector3.Dot(defaultFwd, dir);
+                    const dot = Vector3.Dot(ProjectileManager._defaultFwd, dir);
                     if (dot > 0.9999) {
                         proj.node.rotationQuaternion = Quaternion.Identity();
                     } else if (dot < -0.9999) {
                         proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
                     } else {
-                        const axis = Vector3.Cross(defaultFwd, dir).normalize();
+                        const axis = Vector3.Cross(ProjectileManager._defaultFwd, dir).normalize();
                         const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
                         proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
                     }
@@ -589,8 +592,10 @@ export class ProjectileManager {
             }
 
             // Client-side collision check (only for local predictions / non-server projectiles)
-            const ray = new Ray(proj.node.position, moveDir, moveDist + 1);
-            const hit = this.scene.pickWithRay(ray, (mesh) => {
+            this._tmpRay.origin.copyFrom(proj.node.position);
+            this._tmpRay.direction.copyFrom(this._tmpMoveDir);
+            this._tmpRay.length = moveDist + 1;
+            const hit = this.scene.pickWithRay(this._tmpRay, (mesh) => {
                 if (!mesh.isPickable) return false;
                 if (mesh.name.startsWith('proj_')) return false;
                 if (mesh.name.startsWith('impact_')) return false;
@@ -625,7 +630,7 @@ export class ProjectileManager {
             });
 
             if (hit && hit.hit && hit.pickedPoint) {
-                const normal = hit.getNormal(true) ?? moveDir.scale(-1);
+                const normal = hit.getNormal(true) ?? this._tmpMoveDir.scale(-1);
 
                 if (proj.bouncesLeft > 0) {
                     // BOUNCE: reflect velocity off surface normal
@@ -654,20 +659,19 @@ export class ProjectileManager {
             }
 
             // No hit, move projectile
-            proj.node.position.addInPlace(moveAmount);
+            proj.node.position.addInPlace(this._tmpMoveDir.scale(moveDist));
 
             // Update direction for model orientation (gravity changes trajectory)
             if (proj.gravity > 0) {
-                proj.direction = moveDir;
+                proj.direction = this._tmpMoveDir.clone();
                 // Re-orient model to face direction of travel
-                const defaultFwd = new Vector3(0, 0, 1);
-                const dot = Vector3.Dot(defaultFwd, moveDir);
+                const dot = Vector3.Dot(ProjectileManager._defaultFwd, this._tmpMoveDir);
                 if (dot > 0.9999) {
                     proj.node.rotationQuaternion = Quaternion.Identity();
                 } else if (dot < -0.9999) {
                     proj.node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
                 } else {
-                    const axis = Vector3.Cross(defaultFwd, moveDir).normalize();
+                    const axis = Vector3.Cross(ProjectileManager._defaultFwd, this._tmpMoveDir).normalize();
                     const angle = Math.acos(Math.min(1, Math.max(-1, dot)));
                     proj.node.rotationQuaternion = Quaternion.RotationAxis(axis, angle);
                 }
@@ -874,15 +878,16 @@ export class ProjectileManager {
             impact.mesh.scaling.setAll(scale);
         }
 
-        // Remove finished impacts
-        for (const id of toRemove) {
-            const index = this.impacts.findIndex(i => i.id === id);
-            if (index !== -1) {
-                const impact = this.impacts[index];
+        // Remove finished impacts (backwards swap-remove: O(n) instead of O(n²) findIndex+splice)
+        for (let i = this.impacts.length - 1; i >= 0; i--) {
+            if (toRemove.includes(this.impacts[i].id)) {
+                const impact = this.impacts[i];
                 impact.mesh.dispose();
                 impact.material.dispose();
                 getPointLightPool().release(impact.light);
-                this.impacts.splice(index, 1);
+                // Swap with last element and pop (O(1) removal)
+                this.impacts[i] = this.impacts[this.impacts.length - 1];
+                this.impacts.pop();
             }
         }
     }
@@ -929,10 +934,10 @@ export class ProjectileManager {
     /**
      * Update trail ribbon mesh for a projectile (grenades, rockets, etc.)
      *
-     * The ribbon mesh is recreated each frame (point count changes as trail grows),
-     * but the material is created once and reused. Creating a new StandardMaterial
-     * every frame triggered Babylon shader compilations that caused intermittent
-     * jagged triangle artifacts when the compilation wasn't finished before render.
+     * Material is created once and reused. The ribbon is created with updatable=true
+     * so that once the trail reaches max length to update geometry in place.
+     * During the growth phase (< MAX points), we must recreate because
+     * Babylon requires the same vertex count to update in place.
      */
     private updateTrail(proj: ActiveProjectile): void {
         if (!this.scene) return;
@@ -943,19 +948,14 @@ export class ProjectileManager {
         // Record current position
         proj.trailPoints.push(proj.node.position.clone());
 
-        // Trim old points
-        while (proj.trailPoints.length > MAX_TRAIL_POINTS) {
-            proj.trailPoints.shift();
+        // Trim old points — single splice is O(1) amortized vs O(n) per shift() call
+        const overshoot = proj.trailPoints.length - MAX_TRAIL_POINTS;
+        if (overshoot > 0) {
+            proj.trailPoints.splice(0, overshoot);
         }
 
         // Need at least 2 points for a ribbon
         if (proj.trailPoints.length < 2) return;
-
-        // Dispose old trail mesh (but keep material for reuse)
-        if (proj.trailMesh) {
-            proj.trailMesh.dispose();
-            proj.trailMesh = null;
-        }
 
         // Build ribbon path arrays — X-formation: two perpendicular planes for volume
         const pathA: Vector3[] = [];
@@ -996,13 +996,31 @@ export class ProjectileManager {
             pathD.push(p.subtract(perp2.scale(width)));
         }
 
-        // Create ribbon mesh
-        proj.trailMesh = MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
-            pathArray: [pathA, pathB, pathC, pathD],
-            updatable: false,
-            sideOrientation: Mesh.DOUBLESIDE,
-        }, this.scene) as unknown as LinesMesh;
-        proj.trailMesh.isPickable = false;
+        const pathArray = [pathA, pathB, pathC, pathD];
+
+        // At max capacity, the point count is stable — update ribbon in place.
+        // During growth phase, we must dispose + recreate because Babylon requires
+        // the same vertex count to update an existing ribbon.
+        if (proj.trailMesh && proj.trailPoints.length === MAX_TRAIL_POINTS) {
+            MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
+                pathArray,
+                updatable: true,
+                sideOrientation: Mesh.DOUBLESIDE,
+                instance: proj.trailMesh as unknown as Mesh,
+            });
+        } else {
+            // Dispose old mesh if point count changed (growth phase)
+            if (proj.trailMesh) {
+                proj.trailMesh.dispose();
+                proj.trailMesh = null;
+            }
+            proj.trailMesh = MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
+                pathArray,
+                updatable: true,
+                sideOrientation: Mesh.DOUBLESIDE,
+            }, this.scene) as unknown as LinesMesh;
+            proj.trailMesh.isPickable = false;
+        }
 
         // Create material once, reuse on subsequent frames
         if (!proj.trailMaterial) {

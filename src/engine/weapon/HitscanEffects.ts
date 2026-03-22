@@ -126,7 +126,8 @@ export class HitscanEffects {
     private static readonly REMOTE_BEAM_TIMEOUT = 0.15; // seconds
 
     /** Pooled wall marks (bullet holes / scorch marks) */
-    private wallMarks: { mesh: Mesh; material: StandardMaterial; spawnTime: number }[] = [];
+    private wallMarks: { mesh: Mesh; spawnTime: number }[] = [];
+    private wallMarkMaterial: StandardMaterial | null = null; // Shared material for all wall marks
     private static readonly MAX_WALL_MARKS = 50;
     private static readonly WALL_MARK_DURATION = 3.0;  // seconds to full fade
 
@@ -360,7 +361,9 @@ export class HitscanEffects {
 
     /** Stop all remote beams */
     stopAllRemoteBeams(): void {
-        for (const [id] of this.remoteBeams) this.stopRemoteBeam(id);
+        // Collect IDs first to avoid mutating Map during iteration
+        const ids = [...this.remoteBeams.keys()];
+        for (const id of ids) this.stopRemoteBeam(id);
     }
 
     /**
@@ -628,21 +631,22 @@ export class HitscanEffects {
             const age = now - wm.spawnTime;
             if (age >= HitscanEffects.WALL_MARK_DURATION) {
                 wm.mesh.dispose();
-                wm.material.dispose();
                 this.wallMarks.splice(i, 1);
             } else {
-                wm.material.alpha = 1 - (age / HitscanEffects.WALL_MARK_DURATION);
+                wm.mesh.visibility = 1 - (age / HitscanEffects.WALL_MARK_DURATION);
             }
         }
 
-        for (const id of toRemove) {
-            const idx = this.effects.findIndex(e => e.id === id);
-            if (idx !== -1) {
-                const fx = this.effects[idx];
+        // Remove expired effects (backwards swap-remove: O(n) instead of O(n²) findIndex+splice)
+        for (let i = this.effects.length - 1; i >= 0; i--) {
+            if (toRemove.includes(this.effects[i].id)) {
+                const fx = this.effects[i];
                 for (const m of fx.meshes) m.dispose();
                 for (const mat of fx.materials) mat.dispose();
                 getPointLightPool().release(fx.light);
-                this.effects.splice(idx, 1);
+                // Swap with last element and pop (O(1) removal)
+                this.effects[i] = this.effects[this.effects.length - 1];
+                this.effects.pop();
             }
         }
 
@@ -802,7 +806,6 @@ export class HitscanEffects {
         while (this.wallMarks.length >= HitscanEffects.MAX_WALL_MARKS) {
             const oldest = this.wallMarks.shift()!;
             oldest.mesh.dispose();
-            oldest.material.dispose();
         }
 
         const id = `wallmark_${this.nextId++}`;
@@ -816,19 +819,21 @@ export class HitscanEffects {
         const target = position.add(normal);
         mesh.lookAt(target);
 
-        // Dark scorch material
-        const mat = new StandardMaterial(`${id}_mat`, this.scene);
-        mat.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
-        mat.diffuseColor = Color3.Black();
-        mat.alpha = 0.7;
-        mat.disableLighting = true;
-        mat.backFaceCulling = false;
-        mat.maxSimultaneousLights = 4;
-        mesh.material = mat;
+        // Shared wall mark material — created once, reused by all marks
+        // Individual marks control fade via mesh.visibility instead of material.alpha
+        if (!this.wallMarkMaterial) {
+            this.wallMarkMaterial = new StandardMaterial('wallmark_shared_mat', this.scene);
+            this.wallMarkMaterial.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
+            this.wallMarkMaterial.diffuseColor = Color3.Black();
+            this.wallMarkMaterial.alpha = 0.7;
+            this.wallMarkMaterial.disableLighting = true;
+            this.wallMarkMaterial.backFaceCulling = false;
+            this.wallMarkMaterial.maxSimultaneousLights = 4;
+        }
+        mesh.material = this.wallMarkMaterial;
 
         this.wallMarks.push({
             mesh,
-            material: mat,
             spawnTime: performance.now() / 1000,
         });
     }
