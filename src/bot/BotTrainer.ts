@@ -74,7 +74,7 @@ export const DEFAULT_TRAINER_CONFIG: TrainerConfig = {
     botCount: 2,
     matchDurationMs: 180_000,  // 3 minutes
     serverPort: 17777,         // Different from regular server
-    modelDir: './models',
+    modelDir: './src/games/fps/models',
     checkpointInterval: 10,
     epochs: 5,
     batchSize: 32,

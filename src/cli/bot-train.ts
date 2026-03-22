@@ -162,7 +162,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): 
     console.log('╚═══════════════════════════════════════════════╝');
     console.log('');
     console.log(`[Trainer] Demo file: ${demoFile}`);
-    console.log(`[Trainer] Model dir: ${config.modelDir || './models'}`);
+    console.log(`[Trainer] Model dir: ${config.modelDir || './src/games/fps/models'}`);
     console.log('');
 
     // 1. Extract training data from demo
@@ -179,7 +179,7 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): 
     // 2. Create or load models
     const difficulty = resolveDifficulty(config.difficulty || 'medium');
     const brain = new HybridBrain(difficulty);
-    const modelDir = config.modelDir || './models';
+    const modelDir = config.modelDir || './src/games/fps/models';
 
     if (config.resumeTraining) {
         await brain.loadModels(modelDir);
