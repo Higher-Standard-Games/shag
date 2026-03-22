@@ -24,7 +24,7 @@
  *   - 500 rounds ≈ 25-40 minutes total
  */
 
-import * as tf from '@tensorflow/tfjs-node';
+import { getTF } from './TFBackend';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BotClient } from './BotClient';
@@ -35,7 +35,7 @@ import {
     TACTICAL_INPUT_SIZE,
     COMBAT_INPUT_SIZE,
 } from './BotInputNormalizer';
-import { getNextBotName, resetBotNameIndex, getDifficultyTiers } from './BotConfig';
+import { getNextBotName, resetBotNameIndex, getDifficultyTiers, InputButtons } from './BotConfig';
 
 // ── Training Configuration ──────────────────────────────────────────
 
@@ -74,7 +74,7 @@ export const DEFAULT_TRAINER_CONFIG: TrainerConfig = {
     botCount: 2,
     matchDurationMs: 180_000,  // 3 minutes
     serverPort: 17777,         // Different from regular server
-    modelDir: './models',
+    modelDir: './src/games/fps/models',
     checkpointInterval: 10,
     epochs: 5,
     batchSize: 32,
@@ -140,10 +140,10 @@ export class BotTrainer {
             await this._brain.loadModels(this._config.modelDir);
             if (!this._brain.hasModels) {
                 console.log('[Trainer] No existing models found, creating fresh ones');
-                this._brain.createFreshModels();
+                await this._brain.createFreshModels();
             }
         } else {
-            this._brain.createFreshModels();
+            await this._brain.createFreshModels();
         }
 
         // Ensure model directory exists
@@ -320,13 +320,14 @@ export class BotTrainer {
                 const target = new Array(8).fill(0.5); // Start at neutral
                 target[0] = rewardScale; // Fight confidence = reward
                 target[1] = 1 - rewardScale; // Retreat = inverse of reward
-                target[3] = (frame.action.buttons & 0x80) ? rewardScale : 1 - rewardScale; // Sprint
-                target[5] = (frame.action.buttons & 0x04) ? rewardScale : 1 - rewardScale; // Jump
+                target[3] = (frame.action.buttons & InputButtons.SPRINT) ? rewardScale : 1 - rewardScale; // Sprint
+                target[5] = (frame.action.buttons & InputButtons.JUMP) ? rewardScale : 1 - rewardScale; // Jump
 
                 tactTargets.push(target);
             }
 
             if (tactInputs.length > 0) {
+                const tf = getTF();
                 const inputTensor = tf.tensor2d(tactInputs);
                 const targetTensor = tf.tensor2d(tactTargets);
 
@@ -360,8 +361,8 @@ export class BotTrainer {
 
                 // Target from action
                 const target = new Array(6).fill(0.5);
-                target[0] = (frame.action.buttons & 0x01) ? rewardScale : 1 - rewardScale; // Fire
-                target[1] = (frame.action.buttons & 0x02) ? rewardScale : 1 - rewardScale; // ADS
+                target[0] = (frame.action.buttons & InputButtons.FIRE) ? rewardScale : 1 - rewardScale; // Fire
+                target[1] = (frame.action.buttons & InputButtons.ALT_FIRE) ? rewardScale : 1 - rewardScale; // ADS
                 target[2] = 0.5; // Aim yaw (neutral — actual aiming is complex)
                 target[3] = 0.5; // Aim pitch (neutral)
                 target[4] = frame.action.directionX < 0 ? rewardScale : 0.5; // Dodge left
@@ -371,6 +372,7 @@ export class BotTrainer {
             }
 
             if (combatInputs.length > 0) {
+                const tf = getTF();
                 const inputTensor = tf.tensor2d(combatInputs);
                 const targetTensor = tf.tensor2d(combatTargets);
 

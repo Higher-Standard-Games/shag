@@ -4,6 +4,8 @@
 
 ## Status: Implemented (Phases 1–6) — Live Testing
 
+> **Update (2026-03-22):** ML backend is **TensorFlow.js** (`@tensorflow/tfjs-node`), not brain.js. Training data can now be extracted from `.shagdemo` files via `DemoTrainingExtractor.ts`. See `feature/tensorflow-integration` branch.
+
 ---
 
 ## 1. Problem Statement
