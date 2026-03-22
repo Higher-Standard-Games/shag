@@ -2,7 +2,10 @@
 
 **Date:** 2026-03-19  
 **Branch:** `feature/bot-ai`  
-**Status:** ✅ Phase 1 Complete (State Machine AI) — 9 rounds of code review, 39 fixes
+**Status:** ✅ Phase 1 Complete (State Machine AI) — 9 rounds of code review, 39 fixes  
+**Update (2026-03-22):** Phase 3 ML backend is **TensorFlow.js** (not brain.js). All TF.js integration code is implemented: `HybridBrain.ts`, `BotTrainer.ts`, `BotInputNormalizer.ts`, `BotEpisodeRecorder.ts`, `BotRewardComputer.ts`, `DemoTrainingExtractor.ts`. See `feature/tensorflow-integration` branch.
+
+> **NOTE:** References to `brain.js` below are historical — the actual implementation uses `@tensorflow/tfjs-node` with a native C++ backend for training performance.
 
 ---
 

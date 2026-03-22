@@ -12,11 +12,12 @@
  * Without loaded models, behaves identically to StateMachineBrain.
  * All tensor operations wrapped in tf.tidy() to prevent memory leaks.
  *
- * NOTE: This file requires @tensorflow/tfjs-node native addon.
- * BotClient handles the case where this import fails gracefully.
+ * NOTE: Uses TFBackend abstraction — tries native C++ addon first,
+ * falls back to pure JS. BotClient handles the case where TF.js
+ * is entirely unavailable.
  */
 
-import * as tf from '@tensorflow/tfjs-node';
+import { initTF, getTF } from './TFBackend';
 import { BotBrain, BotState } from './BotBrain';
 import type { BotInput } from './BotBrain';
 import { StateMachineBrain } from './StateMachineBrain';
@@ -74,12 +75,19 @@ const THRESHOLD = {
     AIM_DEADZONE: 0.05,       // Ignore tiny aim adjustments (within ±0.05 of 0.5)
 } as const;
 
+// ── Model type aliases (avoid direct tf namespace in class fields) ──
+// We use `any` for the stored model references because the tf types
+// come from the dynamically loaded backend. The actual type safety
+// is enforced at the point of use via getTF().
+
+type TFModel = any;  // tf.LayersModel at runtime
+
 // ── HybridBrain ─────────────────────────────────────────────────────
 
 export class HybridBrain extends BotBrain {
     private _stateMachine: StateMachineBrain;
-    private _tacticalModel: tf.LayersModel | null = null;
-    private _combatModel: tf.LayersModel | null = null;
+    private _tacticalModel: TFModel | null = null;
+    private _combatModel: TFModel | null = null;
     private _warmedUp: boolean = false;
 
     constructor(difficulty: BotDifficulty) {
@@ -89,9 +97,12 @@ export class HybridBrain extends BotBrain {
 
     /**
      * Load pre-trained TF.js models from disk.
+     * Initializes TF.js backend if not already done.
      * Gracefully falls back if models don't exist.
      */
     async loadModels(modelDir: string): Promise<void> {
+        await initTF();
+        const tf = getTF();
 
         try {
             this._tacticalModel = await tf.loadLayersModel(
@@ -117,8 +128,12 @@ export class HybridBrain extends BotBrain {
 
     /**
      * Create fresh untrained models (for training from scratch).
+     * Initializes TF.js backend if not already done.
      */
-    createFreshModels(): void {
+    async createFreshModels(): Promise<void> {
+        await initTF();
+        const tf = getTF();
+
         this._tacticalModel = tf.sequential({
             layers: [
                 tf.layers.dense({ inputShape: [TACTICAL_INPUT_SIZE], units: 16, activation: 'relu' }),
@@ -126,7 +141,7 @@ export class HybridBrain extends BotBrain {
                 tf.layers.dense({ units: TACTICAL_OUTPUT_SIZE, activation: 'sigmoid' }),
             ],
         });
-        (this._tacticalModel as tf.Sequential).compile({
+        this._tacticalModel.compile({
             optimizer: tf.train.adam(0.001),
             loss: 'meanSquaredError',
         });
@@ -138,7 +153,7 @@ export class HybridBrain extends BotBrain {
                 tf.layers.dense({ units: COMBAT_OUTPUT_SIZE, activation: 'sigmoid' }),
             ],
         });
-        (this._combatModel as tf.Sequential).compile({
+        this._combatModel.compile({
             optimizer: tf.train.adam(0.001),
             loss: 'meanSquaredError',
         });
@@ -162,10 +177,10 @@ export class HybridBrain extends BotBrain {
     }
 
     /** Get the tactical model for external training */
-    get tacticalModel(): tf.LayersModel | null { return this._tacticalModel; }
+    get tacticalModel(): TFModel | null { return this._tacticalModel; }
 
     /** Get the combat model for external training */
-    get combatModel(): tf.LayersModel | null { return this._combatModel; }
+    get combatModel(): TFModel | null { return this._combatModel; }
 
     /** Whether any neural models are loaded */
     get hasModels(): boolean {
@@ -229,10 +244,11 @@ export class HybridBrain extends BotBrain {
         vision: BotVision | null | undefined,
     ): Float32Array | null {
         try {
+            const tf = getTF();
             return tf.tidy(() => {
                 const input = buildTacticalInput(state, vision ?? null);
                 const tensor = tf.tensor2d([Array.from(input)]);
-                const prediction = this._tacticalModel!.predict(tensor) as tf.Tensor;
+                const prediction = this._tacticalModel!.predict(tensor);
                 return prediction.dataSync() as Float32Array;
             });
         } catch (e) {
@@ -249,10 +265,11 @@ export class HybridBrain extends BotBrain {
         enemy: VisiblePlayer,
     ): Float32Array | null {
         try {
+            const tf = getTF();
             return tf.tidy(() => {
                 const input = buildCombatInput(state, enemy);
                 const tensor = tf.tensor2d([Array.from(input)]);
-                const prediction = this._combatModel!.predict(tensor) as tf.Tensor;
+                const prediction = this._combatModel!.predict(tensor);
                 return prediction.dataSync() as Float32Array;
             });
         } catch (e) {
@@ -368,16 +385,21 @@ export class HybridBrain extends BotBrain {
     private _warmup(): void {
         if (this._warmedUp) return;
 
-        tf.tidy(() => {
-            if (this._tacticalModel) {
-                const dummyTact = tf.zeros([1, TACTICAL_INPUT_SIZE]);
-                this._tacticalModel.predict(dummyTact);
-            }
-            if (this._combatModel) {
-                const dummyCombat = tf.zeros([1, COMBAT_INPUT_SIZE]);
-                this._combatModel.predict(dummyCombat);
-            }
-        });
+        try {
+            const tf = getTF();
+            tf.tidy(() => {
+                if (this._tacticalModel) {
+                    const dummyTact = tf.zeros([1, TACTICAL_INPUT_SIZE]);
+                    this._tacticalModel.predict(dummyTact);
+                }
+                if (this._combatModel) {
+                    const dummyCombat = tf.zeros([1, COMBAT_INPUT_SIZE]);
+                    this._combatModel.predict(dummyCombat);
+                }
+            });
+        } catch (e) {
+            console.warn('[HybridBrain] Warmup failed:', e);
+        }
 
         this._warmedUp = true;
         console.log('[HybridBrain] Model warmup complete');
