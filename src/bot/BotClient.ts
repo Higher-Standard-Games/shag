@@ -74,9 +74,9 @@ export class BotClient extends EventEmitter {
     private _gameState: BotGameState;
     private _difficulty: BotDifficulty;
 
-    // Human-feel timing
-    private _lastInputTime: number = 0;
-    private _minInputIntervalMs: number; // Per-bot randomized input rate
+    // 125Hz input loop (matches server tick rate)
+    private _inputLoopTimer: ReturnType<typeof setInterval> | null = null;
+    private _lastBotInput: BotInput | null = null; // Cached AI decision, re-sent at 125Hz
 
     // Death/respawn
     private _isDead: boolean = false;
@@ -120,8 +120,8 @@ export class BotClient extends EventEmitter {
         // Create game state tracker
         this._gameState = new BotGameState();
 
-        // Human-feel: randomize input interval per bot (30-80ms = ~12-33Hz)
-        this._minInputIntervalMs = 30 + Math.random() * 50;
+        // Input loop starts when playing (see _startInputLoop)
+        // AI decisions happen on snapshot, but commands send at 125Hz
         this._respawnDelayMs = 1500 + Math.random() * 2000; // 1.5-3.5 sec respawn delay
 
         this._logPrefix = `[Bot:${this.name}]`;
@@ -267,6 +267,7 @@ export class BotClient extends EventEmitter {
 
     /** Disconnect from the server */
     async disconnect(): Promise<void> {
+        this._stopInputLoop();
         if (this._ws) {
             console.log(`${this._logPrefix} Disconnecting...`);
             this._ws.close();
@@ -283,7 +284,7 @@ export class BotClient extends EventEmitter {
         this._lastSnapshotTick = 0;
         this._isDead = false;
         this._deathTime = 0;
-        this._lastInputTime = 0;
+        this._lastBotInput = null;
         this._lastVisionResult = null;
     }
 
@@ -436,11 +437,8 @@ export class BotClient extends EventEmitter {
             }
 
             // ── AI Decision ─────────────────────────────────────────────
-            // Apply human-like input delay
-            const now = Date.now();
-            if (now - this._lastInputTime < this._minInputIntervalMs) {
-                return; // Rate limit input
-            }
+            // AI decides on each snapshot. The decision is cached and re-sent
+            // at 125Hz by the input loop (see _startInputLoop).
 
             // Run vision query if available
             if (this._vision) {
@@ -448,8 +446,12 @@ export class BotClient extends EventEmitter {
             }
 
             const input = this._brain.decide(this._gameState, this._vision, this._lastVisionResult, this._navGraph);
-            this._sendInput(input);
-            this._lastInputTime = now;
+            this._lastBotInput = input;
+
+            // Start 125Hz input loop if not already running
+            if (!this._inputLoopTimer) {
+                this._startInputLoop();
+            }
 
             // Record training frame (if recorder is attached)
             if (this._recorder) {
@@ -469,6 +471,31 @@ export class BotClient extends EventEmitter {
 
         } catch (err) {
             console.error(`${this._logPrefix} Snapshot processing error:`, err);
+        }
+    }
+
+    // ── 125Hz Input Loop ──────────────────────────────────────────────
+    // Sends the last AI decision at server tick rate (125Hz = 8ms).
+    // AI decisions still happen on snapshot receipt (~30Hz), but the LAST
+    // decision is re-sent continuously so the server always has a fresh
+    // command each tick. This matches how human clients send at 125Hz
+    // via FPSController.commandAccumulator.
+
+    private _startInputLoop(): void {
+        if (this._inputLoopTimer) return;
+        const TICK_MS = 8; // 125Hz = 1000/125 = 8ms
+        this._inputLoopTimer = setInterval(() => {
+            if (this._lastBotInput && !this._isDead && this._state === 'playing') {
+                this._sendInput(this._lastBotInput);
+            }
+        }, TICK_MS);
+        console.log(`${this._logPrefix} Started 125Hz input loop`);
+    }
+
+    private _stopInputLoop(): void {
+        if (this._inputLoopTimer) {
+            clearInterval(this._inputLoopTimer);
+            this._inputLoopTimer = null;
         }
     }
 
