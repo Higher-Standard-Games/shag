@@ -561,14 +561,14 @@ export class BinaryProtocol {
     'combat_state': 1, 'match_state': 2, 'weapon_state': 3,
     'weapon_fire': 4, 'weapon_charge': 5, 'projectile_spawn': 6,
     'projectile_impact': 7, 'item_pickup': 8, 'weapon_drop': 9,
-    'damage': 10, 'death': 11,
+    'damage': 10, 'death': 11, 'award': 12,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
     '', 'combat_state', 'match_state', 'weapon_state',
     'weapon_fire', 'weapon_charge', 'projectile_spawn',
     'projectile_impact', 'item_pickup', 'weapon_drop',
-    'damage', 'death',
+    'damage', 'death', 'award',
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -679,6 +679,14 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.kbDirX ?? 0);
           encoder.writeFloat32(event.kbDirY ?? 0);
           encoder.writeFloat32(event.kbDirZ ?? 0);
+          break;
+
+        case 12: // award: awardType, playerId, playerName, targetName, value
+          encoder.writeString(event.awardType ?? '');
+          encoder.writeString(event.playerId ?? '');
+          encoder.writeString(event.playerName ?? '');
+          encoder.writeString(event.targetName ?? '');
+          encoder.writeUint16(event.value ?? 0);
           break;
       }
     }
@@ -819,6 +827,17 @@ export class BinaryProtocol {
             kbDirX: decoder.readFloat32(),
             kbDirY: decoder.readFloat32(),
             kbDirZ: decoder.readFloat32(),
+          });
+          break;
+
+        case 12: // award
+          state.events.push({
+            type,
+            awardType: decoder.readString(),
+            playerId: decoder.readString(),
+            playerName: decoder.readString(),
+            targetName: decoder.readString(),
+            value: decoder.readUint16(),
           });
           break;
       }

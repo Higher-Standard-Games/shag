@@ -210,8 +210,9 @@
 
 /* Middle row */
 .fps-hud-left {
-    top: calc(120px * var(--ui-scale, 1));
+    top: 50%;
     left: calc(20px * var(--ui-scale, 1));
+    transform: translateY(-50%);
     flex-direction: column;
     align-items: flex-start;
 }
