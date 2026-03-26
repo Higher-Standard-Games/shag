@@ -1,11 +1,11 @@
-import { GameSystem } from '../core/Simulation';
-import type { GameState } from '../core/GameState';
-import { TransformComponent } from '../components/TransformComponent';
-import { VelocityComponent } from '../components/VelocityComponent';
-import { InputComponent } from '../components/InputComponent';
-import { MovementStateComponent } from '../components/MovementStateComponent';
-import type { MovementProfile, MovementInput } from './movement/MovementProfile';
-import type { CollisionWorld } from './collision/CollisionWorld';
+import type { InputComponent } from "../components/InputComponent";
+import type { MovementStateComponent } from "../components/MovementStateComponent";
+import type { TransformComponent } from "../components/TransformComponent";
+import type { VelocityComponent } from "../components/VelocityComponent";
+import type { GameState } from "../core/GameState";
+import { GameSystem } from "../core/Simulation";
+import type { CollisionWorld } from "./collision/CollisionWorld";
+import type { MovementInput, MovementProfile } from "./movement/MovementProfile";
 
 /**
  * MovementSystem - Generic movement processing
@@ -37,7 +37,7 @@ export class MovementSystem extends GameSystem {
    */
   setCollisionWorld(collision: CollisionWorld | null): void {
     this.collision = collision;
-    console.log(`[MovementSystem] setCollisionWorld: ${collision ? collision.constructor.name : 'null'}`);
+    console.log(`[MovementSystem] setCollisionWorld: ${collision ? collision.constructor.name : "null"}`);
   }
 
   /**
@@ -57,14 +57,14 @@ export class MovementSystem extends GameSystem {
   update(state: GameState, deltaTime: number): void {
     for (const [_entityId, entity] of state.entities) {
       // Get required components
-      const transform = entity.getComponent<TransformComponent>('transform');
-      const velocity = entity.getComponent<VelocityComponent>('velocity');
+      const transform = entity.getComponent<TransformComponent>("transform");
+      const velocity = entity.getComponent<VelocityComponent>("velocity");
 
       // Skip entities without transform and velocity
       if (!transform || !velocity) continue;
 
       // Get optional input component (for player-controlled entities)
-      const input = entity.getComponent<InputComponent>('input');
+      const input = entity.getComponent<InputComponent>("input");
 
       // Create movement input from InputComponent
       let movementInput: MovementInput | null = null;
@@ -84,7 +84,7 @@ export class MovementSystem extends GameSystem {
         velocity.linear,
         movementInput,
         deltaTime,
-        this.collision
+        this.collision,
       );
 
       // Apply results
@@ -99,14 +99,14 @@ export class MovementSystem extends GameSystem {
 
       // Update advanced movement state if component exists
       // The result may be an extended type (like AdvancedMovementResult) with additional fields
-      const movementState = entity.getComponent<MovementStateComponent>('movementState');
+      const movementState = entity.getComponent<MovementStateComponent>("movementState");
       if (movementState) {
         const advancedResult = result as {
           isSliding?: boolean;
           isCrouching?: boolean;
           crouchViewOffset?: number;
-          wallJumpState?: 'none' | 'available' | 'charging';
-          ledgeGrabState?: 'none' | 'grabbing' | 'pulling';
+          wallJumpState?: "none" | "available" | "charging";
+          ledgeGrabState?: "none" | "grabbing" | "pulling";
           actualHorizSpeed?: number;
         };
         movementState.updateFrom(advancedResult);
@@ -138,7 +138,7 @@ export class MovementSystem extends GameSystem {
     // Snapshot positions (immutable during resolution)
     const entities: { id: string; x: number; y: number; z: number; transform: TransformComponent }[] = [];
     for (const [id, entity] of state.entities) {
-      const t = entity.getComponent<TransformComponent>('transform');
+      const t = entity.getComponent<TransformComponent>("transform");
       if (t) entities.push({ id, x: t.position.x, y: t.position.y, z: t.position.z, transform: t });
     }
 

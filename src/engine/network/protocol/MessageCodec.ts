@@ -1,5 +1,5 @@
-import { BinaryProtocol, BinaryEncoder, BinaryDecoder, MessageType } from './BinaryProtocol';
-import { GameState } from '../core/GameState';
+import type { GameState } from "../core/GameState";
+import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType, type NetworkCommand } from "./BinaryProtocol";
 
 // Re-export MessageType for convenience
 export { MessageType };
@@ -27,7 +27,9 @@ export class MessageCodec {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.Snapshot) {
-      throw new Error(`Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`);
+      throw new Error(
+        `Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`,
+      );
     }
     // Read remaining bytes after message type
     const remaining = data.subarray(decoder.getOffset());
@@ -38,7 +40,7 @@ export class MessageCodec {
    * Encode a command/input message (Client → Server)
    * Format: [MessageType.Input][playerId][sequence][command...]
    */
-  static encodeCommand(playerId: string, sequence: number, command: any): Uint8Array {
+  static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Input);
     encoder.writeBytes(BinaryProtocol.encodeCommand(playerId, sequence, command));
@@ -48,11 +50,13 @@ export class MessageCodec {
   /**
    * Decode a command message
    */
-  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: any } {
+  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.Input) {
-      throw new Error(`Expected Input message (0x${MessageType.Input.toString(16)}), got 0x${messageType.toString(16)}`);
+      throw new Error(
+        `Expected Input message (0x${MessageType.Input.toString(16)}), got 0x${messageType.toString(16)}`,
+      );
     }
     const remaining = data.subarray(decoder.getOffset());
     return BinaryProtocol.decodeCommand(remaining);
@@ -61,7 +65,14 @@ export class MessageCodec {
   /**
    * Encode a welcome message (Server → Client on connect)
    */
-  static encodeWelcome(serverId: string, serverName: string, map: string, tickRate: number, maxPlayers: number, currentPlayers: number): Uint8Array {
+  static encodeWelcome(
+    serverId: string,
+    serverName: string,
+    map: string,
+    tickRate: number,
+    maxPlayers: number,
+    currentPlayers: number,
+  ): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Welcome);
     encoder.writeString(serverId);
@@ -76,7 +87,14 @@ export class MessageCodec {
   /**
    * Decode a welcome message
    */
-  static decodeWelcome(data: Uint8Array): { serverId: string; serverName: string; map: string; tickRate: number; maxPlayers: number; currentPlayers: number } {
+  static decodeWelcome(data: Uint8Array): {
+    serverId: string;
+    serverName: string;
+    map: string;
+    tickRate: number;
+    maxPlayers: number;
+    currentPlayers: number;
+  } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.Welcome) {
@@ -183,7 +201,7 @@ export class MessageCodec {
    */
   static peekMessageType(data: Uint8Array): MessageType {
     if (data.length === 0) {
-      throw new Error('Empty message data');
+      throw new Error("Empty message data");
     }
     return data[0] as MessageType;
   }
@@ -215,7 +233,7 @@ export class MessageCodec {
     }
     const hasTeamId = decoder.readUint8() === 1;
     return {
-      teamId: hasTeamId ? decoder.readString() : undefined
+      teamId: hasTeamId ? decoder.readString() : undefined,
     };
   }
 

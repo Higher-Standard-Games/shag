@@ -1,11 +1,11 @@
 /**
  * UIManager - Central UI lifecycle and z-index management (Engine Component)
- * 
+ *
  * Responsibilities:
  * - Z-index registry to prevent conflicts
  * - Overlay stack management for ESC key routing
  * - Global UI state tracking
- * 
+ *
  * Note: This is separate from src/ui/UIManager.ts which handles game dialogs.
  * This engine-level manager handles core UI infrastructure.
  */
@@ -14,16 +14,16 @@
  * Z-index layers - all UI z-index values should come from here
  */
 export type ZIndexLayer =
-  | "GAME_UI"      // 100 - Side panels, bottom bar, HUD
-  | "TOOLTIP"      // 200 - Tooltips, hover info
-  | "DROPDOWN"     // 300 - Dropdowns, select menus
-  | "MODAL"        // 500 - Modal panels
-  | "OVERLAY"      // 800 - Backdrop overlays
-  | "DIALOG"       // 900 - Dialogs on top of overlay
-  | "PAUSE_MENU"   // 1000 - Pause menu overlay
-  | "SETTINGS"     // 1200 - Settings panel
-  | "CONFIRM"      // 1500 - Confirmation dialogs (topmost)
-  | "LOADING";     // 2000 - Loading screen
+  | "GAME_UI" // 100 - Side panels, bottom bar, HUD
+  | "TOOLTIP" // 200 - Tooltips, hover info
+  | "DROPDOWN" // 300 - Dropdowns, select menus
+  | "MODAL" // 500 - Modal panels
+  | "OVERLAY" // 800 - Backdrop overlays
+  | "DIALOG" // 900 - Dialogs on top of overlay
+  | "PAUSE_MENU" // 1000 - Pause menu overlay
+  | "SETTINGS" // 1200 - Settings panel
+  | "CONFIRM" // 1500 - Confirmation dialogs (topmost)
+  | "LOADING"; // 2000 - Loading screen
 
 const Z_INDEX_MAP: Record<ZIndexLayer, number> = {
   GAME_UI: 100,
@@ -71,7 +71,7 @@ export class UIManager {
    */
   public pushOverlay(id: string, onClose: () => void): void {
     // Remove if already exists (prevent duplicates)
-    this.overlayStack = this.overlayStack.filter(o => o.id !== id);
+    this.overlayStack = this.overlayStack.filter((o) => o.id !== id);
     this.overlayStack.push({ id, onClose });
   }
 
@@ -79,7 +79,7 @@ export class UIManager {
    * Pop a specific overlay from the stack
    */
   public popOverlay(id: string): void {
-    this.overlayStack = this.overlayStack.filter(o => o.id !== id);
+    this.overlayStack = this.overlayStack.filter((o) => o.id !== id);
   }
 
   /**

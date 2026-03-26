@@ -2,8 +2,8 @@
  * HUDPill - Simple icon + value pill component
  */
 
-import { HUDElement } from '../HUDElement';
-import type { HUDPillConfig } from '../HUDTypes';
+import { HUDElement } from "../HUDElement";
+import type { HUDPillConfig } from "../HUDTypes";
 
 export class HUDPill extends HUDElement {
   protected config: HUDPillConfig;
@@ -17,24 +17,24 @@ export class HUDPill extends HUDElement {
   }
 
   protected createElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hud-pill';
+    const el = document.createElement("div");
+    el.className = "hud-pill";
     el.id = `hud-${this.id}`;
 
     // Icon
-    this.iconEl = document.createElement('span');
-    this.iconEl.className = 'hud-pill-icon';
-    this.iconEl.textContent = this.config.icon || '';
+    this.iconEl = document.createElement("span");
+    this.iconEl.className = "hud-pill-icon";
+    this.iconEl.textContent = this.config.icon || "";
     el.appendChild(this.iconEl);
 
     // Value
-    this.valueEl = document.createElement('span');
-    this.valueEl.className = 'hud-pill-value';
+    this.valueEl = document.createElement("span");
+    this.valueEl.className = "hud-pill-value";
     el.appendChild(this.valueEl);
 
     // Clickable styling
     if (this.config.clickable) {
-      el.classList.add('hud-pill-clickable');
+      el.classList.add("hud-pill-clickable");
     }
 
     return el;
@@ -50,7 +50,7 @@ export class HUDPill extends HUDElement {
       displayValue = this.formatValue(value, this.config.format);
     }
 
-    this.valueEl.textContent = String(displayValue ?? '');
+    this.valueEl.textContent = String(displayValue ?? "");
   }
 
   /**
@@ -63,14 +63,14 @@ export class HUDPill extends HUDElement {
     // %f = float
     // %.2f = float with 2 decimals
 
-    if (format.includes('%d')) {
-      return format.replace('%d', String(Math.floor(Number(value))));
+    if (format.includes("%d")) {
+      return format.replace("%d", String(Math.floor(Number(value))));
     }
-    if (format.includes('%s')) {
-      return format.replace('%s', String(value));
+    if (format.includes("%s")) {
+      return format.replace("%s", String(value));
     }
-    if (format.includes('%f')) {
-      return format.replace('%f', String(Number(value)));
+    if (format.includes("%f")) {
+      return format.replace("%f", String(Number(value)));
     }
     // %.Nf format
     const floatMatch = format.match(/%\.(\d+)f/);
@@ -79,7 +79,7 @@ export class HUDPill extends HUDElement {
       return format.replace(floatMatch[0], Number(value).toFixed(decimals));
     }
 
-    return format.replace('%', String(value));
+    return format.replace("%", String(value));
   }
 
   /**

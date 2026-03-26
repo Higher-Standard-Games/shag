@@ -1,6 +1,6 @@
 /**
  * Debug Console Styles - Quake-style dropdown console
- * 
+ *
  * Colors are defined via CSS variables in UIStyles.getConsoleStyles()
  * Games can customize by calling UIStyles.setConsoleColors() before init.
  */
@@ -15,8 +15,8 @@
   max-height: 50vh;
   /* Controlled by JS via con_size */
   background: var(--console-bg, rgba(10, 12, 16, 0.95));
-  border-bottom: 2px solid var(--console-primary, #2EC4B6);
-  font-family: 'Share Tech Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  border-bottom: 2px solid var(--console-primary, #2ec4b6);
+  font-family: "Share Tech Mono", "Consolas", "Monaco", "Courier New", monospace;
   font-size: 13px;
   z-index: 99999;
   display: flex;
@@ -32,7 +32,7 @@
 
 /* Background image placeholder - for future engine branding */
 .debug-console::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -57,7 +57,7 @@
 }
 
 .debug-console-title {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
   font-weight: bold;
   font-size: 11px;
   text-transform: uppercase;
@@ -76,13 +76,15 @@
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   user-select: none;
   margin-left: 8px;
 }
 
 .debug-console-close:hover {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -119,12 +121,12 @@
 }
 
 .console-line.command {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
 }
 
 .console-line.command::before {
-  content: '> ';
-  color: var(--console-primary, #2EC4B6);
+  content: "> ";
+  color: var(--console-primary, #2ec4b6);
 }
 
 .console-line.result {
@@ -137,7 +139,7 @@
 }
 
 .console-line.warn {
-  color: var(--console-warn, #FAC748);
+  color: var(--console-warn, #fac748);
 }
 
 .console-line.info {
@@ -149,7 +151,7 @@
 }
 
 .console-line.system {
-  color: var(--console-success, #4ADE80);
+  color: var(--console-success, #4ade80);
   font-style: italic;
 }
 
@@ -164,7 +166,7 @@
 }
 
 .debug-console-prompt {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
   margin-right: 8px;
   font-weight: bold;
 }
@@ -177,7 +179,7 @@
   color: #ffffff;
   font-family: inherit;
   font-size: inherit;
-  caret-color: var(--console-primary, #2EC4B6);
+  caret-color: var(--console-primary, #2ec4b6);
 }
 
 .debug-console-input::placeholder {
@@ -216,7 +218,7 @@
 }
 
 .autocomplete-item-name {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
 }
 
 .autocomplete-item-desc {
@@ -232,15 +234,15 @@
 }
 
 .hl-label {
-  color: var(--console-yellow, #FAC748);
+  color: var(--console-yellow, #fac748);
 }
 
 .hl-number {
-  color: var(--console-magenta, #E040FB);
+  color: var(--console-magenta, #e040fb);
 }
 
 .hl-string {
-  color: var(--console-green, #4ADE80);
+  color: var(--console-green, #4ade80);
 }
 
 .hl-command {
@@ -250,7 +252,7 @@
 
 /* Help formatting */
 .help-command {
-  color: var(--console-primary, #2EC4B6);
+  color: var(--console-primary, #2ec4b6);
   font-weight: bold;
 }
 

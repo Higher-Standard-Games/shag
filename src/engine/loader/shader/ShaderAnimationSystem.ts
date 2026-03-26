@@ -1,16 +1,16 @@
 /**
  * ShaderAnimationSystem - Manages animated Q3/Warsow shader effects
- * 
+ *
  * Handles tcMod (texture coordinate animation), rgbGen wave, and alphaGen wave
  * for BSP materials. Runs as a centralized system with one render observer.
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import type { Observer } from '@babylonjs/core/Misc/observable';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import type { TcMod, WaveFunc, RgbGen, AlphaGen } from './Q3ShaderTypes';
+import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Scene } from "@babylonjs/core/scene";
+import type { AlphaGen, RgbGen, TcMod, WaveFunc } from "./Q3ShaderTypes";
 
 // ============================================================================
 // Types
@@ -20,7 +20,7 @@ import type { TcMod, WaveFunc, RgbGen, AlphaGen } from './Q3ShaderTypes';
 export interface TcState {
   uOffset: number;
   vOffset: number;
-  rotation: number;  // radians
+  rotation: number; // radians
   uScale: number;
   vScale: number;
 }
@@ -32,7 +32,7 @@ export interface AnimatedStage {
   tcState: TcState;
   rgbGen?: RgbGen;
   alphaGen?: AlphaGen;
-  baseColor?: Color3;  // Original color for wave modulation
+  baseColor?: Color3; // Original color for wave modulation
 }
 
 /** Entry for a material with animation */
@@ -57,23 +57,23 @@ export function evaluateWaveFunc(wave: WaveFunc, time: number): number {
   let value: number;
 
   switch (wave.func) {
-    case 'sin':
+    case "sin":
       value = Math.sin(phase * 2 * Math.PI);
       break;
-    case 'triangle':
+    case "triangle":
       // Triangle wave: -1 to 1 linearly
-      value = Math.abs(((phase % 1) + 1) % 1 * 4 - 2) - 1;
+      value = Math.abs((((phase % 1) + 1) % 1) * 4 - 2) - 1;
       break;
-    case 'square':
-      value = ((phase % 1) < 0.5) ? 1 : -1;
+    case "square":
+      value = phase % 1 < 0.5 ? 1 : -1;
       break;
-    case 'sawtooth':
-      value = ((phase % 1) + 1) % 1 * 2 - 1;
+    case "sawtooth":
+      value = (((phase % 1) + 1) % 1) * 2 - 1;
       break;
-    case 'inversesawtooth':
-      value = 1 - ((phase % 1) + 1) % 1 * 2;
+    case "inversesawtooth":
+      value = 1 - (((phase % 1) + 1) % 1) * 2;
       break;
-    case 'noise':
+    case "noise":
       // Simplified noise - just random per evaluation
       // For proper noise, would need seeded random based on time
       value = Math.random() * 2 - 1;
@@ -101,7 +101,7 @@ export class ShaderAnimationSystem {
   private totalTime: number = 0;
   private lastTime: number = 0;
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): ShaderAnimationSystem {
     if (!ShaderAnimationSystem.instance) {
@@ -137,7 +137,7 @@ export class ShaderAnimationSystem {
       this.update();
     });
 
-    console.log('[ShaderAnimationSystem] Initialized');
+    console.log("[ShaderAnimationSystem] Initialized");
   }
 
   /**
@@ -172,13 +172,10 @@ export class ShaderAnimationSystem {
     texture: Texture,
     tcMods: TcMod[],
     rgbGen?: RgbGen,
-    alphaGen?: AlphaGen
+    alphaGen?: AlphaGen,
   ): void {
     // Check if we actually have anything to animate
-    const hasAnimation =
-      tcMods.length > 0 ||
-      (rgbGen?.type === 'wave') ||
-      (alphaGen?.type === 'wave');
+    const hasAnimation = tcMods.length > 0 || rgbGen?.type === "wave" || alphaGen?.type === "wave";
 
     if (!hasAnimation) {
       return;
@@ -195,7 +192,7 @@ export class ShaderAnimationSystem {
 
     // Apply any static scale from tcMod
     for (const tcMod of tcMods) {
-      if (tcMod.type === 'scale') {
+      if (tcMod.type === "scale") {
         tcState.uScale = tcMod.sScale;
         tcState.vScale = tcMod.tScale;
       }
@@ -222,7 +219,9 @@ export class ShaderAnimationSystem {
       });
     }
 
-    console.log(`[ShaderAnimationSystem] Registered: ${id} (${tcMods.length} tcMods, rgbGen: ${rgbGen?.type || 'none'}, alphaGen: ${alphaGen?.type || 'none'})`);
+    console.log(
+      `[ShaderAnimationSystem] Registered: ${id} (${tcMods.length} tcMods, rgbGen: ${rgbGen?.type || "none"}, alphaGen: ${alphaGen?.type || "none"})`,
+    );
   }
 
   /**
@@ -250,7 +249,7 @@ export class ShaderAnimationSystem {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-    console.log(`[ShaderAnimationSystem] ${enabled ? 'Enabled' : 'Disabled'}`);
+    console.log(`[ShaderAnimationSystem] ${enabled ? "Enabled" : "Disabled"}`);
   }
 
   isEnabled(): boolean {
@@ -284,8 +283,8 @@ export class ShaderAnimationSystem {
         info.push({
           id,
           tcModCount: stage.tcMods.length,
-          hasRgbGen: stage.rgbGen?.type === 'wave',
-          hasAlphaGen: stage.alphaGen?.type === 'wave',
+          hasRgbGen: stage.rgbGen?.type === "wave",
+          hasAlphaGen: stage.alphaGen?.type === "wave",
         });
       }
     }
@@ -317,7 +316,7 @@ export class ShaderAnimationSystem {
       this.applyTcMods(stage, deltaTime);
 
       // Apply rgbGen wave
-      if (stage.rgbGen?.type === 'wave' && stage.rgbGen.wave) {
+      if (stage.rgbGen?.type === "wave" && stage.rgbGen.wave) {
         const waveValue = evaluateWaveFunc(stage.rgbGen.wave, this.totalTime);
         const clampedValue = Math.max(0, Math.min(1, waveValue));
 
@@ -325,7 +324,7 @@ export class ShaderAnimationSystem {
           entry.material.diffuseColor = new Color3(
             stage.baseColor.r * clampedValue,
             stage.baseColor.g * clampedValue,
-            stage.baseColor.b * clampedValue
+            stage.baseColor.b * clampedValue,
           );
         } else {
           entry.material.diffuseColor = new Color3(clampedValue, clampedValue, clampedValue);
@@ -333,7 +332,7 @@ export class ShaderAnimationSystem {
       }
 
       // Apply alphaGen wave
-      if (stage.alphaGen?.type === 'wave' && stage.alphaGen.wave) {
+      if (stage.alphaGen?.type === "wave" && stage.alphaGen.wave) {
         const waveValue = evaluateWaveFunc(stage.alphaGen.wave, this.totalTime);
         entry.material.alpha = Math.max(0, Math.min(1, waveValue));
       }
@@ -345,7 +344,7 @@ export class ShaderAnimationSystem {
 
     for (const tcMod of stage.tcMods) {
       switch (tcMod.type) {
-        case 'scroll':
+        case "scroll":
           state.uOffset += tcMod.sSpeed * deltaTime;
           state.vOffset += tcMod.tSpeed * deltaTime;
           // Wrap to prevent float overflow on long sessions
@@ -353,18 +352,19 @@ export class ShaderAnimationSystem {
           state.vOffset = state.vOffset % 1000;
           break;
 
-        case 'scale':
+        case "scale":
           // Static - already applied at registration
           break;
 
-        case 'rotate':
+        case "rotate": {
           const radPerSec = tcMod.degreesPerSecond * (Math.PI / 180);
           state.rotation += radPerSec * deltaTime;
           // Wrap rotation
           state.rotation = state.rotation % (2 * Math.PI);
           break;
+        }
 
-        case 'stretch':
+        case "stretch":
           if (tcMod.func) {
             const waveValue = evaluateWaveFunc(tcMod.func, this.totalTime);
             state.uScale = waveValue;
@@ -372,7 +372,7 @@ export class ShaderAnimationSystem {
           }
           break;
 
-        case 'turb':
+        case "turb": {
           // Simplified turbulence - oscillate UV offset
           const turbPhase = this.totalTime * tcMod.frequency + tcMod.phase;
           const turbU = Math.sin(turbPhase * 2 * Math.PI) * tcMod.amplitude;
@@ -381,8 +381,9 @@ export class ShaderAnimationSystem {
           state.uOffset += turbU * deltaTime * 10; // Scale for visibility
           state.vOffset += turbV * deltaTime * 10;
           break;
+        }
 
-        case 'transform':
+        case "transform": {
           // 2D affine matrix transform: [u', v'] = [m00 m01; m10 m11] * [u, v] + [t0, t1]
           // Decompose into scale, rotation, and translation that Babylon supports
           // Note: This doesn't handle shear correctly, but covers most Q3 shader use cases
@@ -401,6 +402,7 @@ export class ShaderAnimationSystem {
           state.uOffset = tcMod.t0;
           state.vOffset = tcMod.t1;
           break;
+        }
       }
     }
 

@@ -1,17 +1,17 @@
 /**
  * BspEntityHandlers - Entity handlers for BSP-specific entities
- * 
+ *
  * Registers handlers for Q3/Warsow entities like func_door, func_button, etc.
  * These handlers build brush model meshes and wire up animations.
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Animation } from '@babylonjs/core/Animations/animation';
-import { Scene } from '@babylonjs/core/scene';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { EntityHandlerRegistry, type EntityData, type EntityHandlerResult } from '../../core/EntityHandlerRegistry';
-import { buildBrushModel } from './BspMeshBuilder';
-import type { BspFile } from './BspLoader';
+import { Animation } from "@babylonjs/core/Animations/animation";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Scene } from "@babylonjs/core/scene";
+import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
+import type { BspFile } from "./BspLoader";
+import { buildBrushModel } from "./BspMeshBuilder";
 
 // Store reference to current BSP for entity handlers
 let currentBsp: BspFile | null = null;
@@ -27,7 +27,7 @@ export function setCurrentBspForHandlers(bsp: BspFile | null): void {
  * Parse model index from Q3 model string (e.g., "*5" -> 5)
  */
 function parseModelIndex(modelStr: string): number {
-  if (!modelStr || !modelStr.startsWith('*')) return -1;
+  if (!modelStr || !modelStr.startsWith("*")) return -1;
   return parseInt(modelStr.substring(1), 10);
 }
 
@@ -36,9 +36,9 @@ function parseModelIndex(modelStr: string): number {
  * Q3 angles: -1 = UP, -2 = DOWN, positive = horizontal degrees
  */
 function getDoorDirection(angle: number): Vector3 {
-  if (angle === -1) return new Vector3(0, 1, 0);  // UP
+  if (angle === -1) return new Vector3(0, 1, 0); // UP
   if (angle === -2) return new Vector3(0, -1, 0); // DOWN
-  
+
   // Horizontal angle (degrees) - convert to radians
   const radians = (angle * Math.PI) / 180;
   return new Vector3(Math.cos(radians), 0, Math.sin(radians));
@@ -53,11 +53,11 @@ function getDoorTravelDistance(mesh: Mesh, direction: Vector3, lip: number = 8):
   if (!bounds) return 100; // fallback
 
   const size = bounds.max.subtract(bounds.min);
-  
+
   // Get size along movement direction
   const absDir = new Vector3(Math.abs(direction.x), Math.abs(direction.y), Math.abs(direction.z));
   const travelSize = size.x * absDir.x + size.y * absDir.y + size.z * absDir.z;
-  
+
   return Math.max(travelSize - lip, 0);
 }
 
@@ -69,11 +69,11 @@ function createDoorAnimation(
   direction: Vector3,
   distance: number,
   speed: number,
-  scene: Scene
+  scene: Scene,
 ): { open: () => void; close: () => void; toggle: () => void } {
   const startPos = mesh.position.clone();
   const endPos = startPos.add(direction.scale(distance));
-  
+
   // Calculate duration from speed (units per second)
   const duration = distance / speed;
   const frameRate = 30;
@@ -84,10 +84,10 @@ function createDoorAnimation(
 
   const openAnim = new Animation(
     `${mesh.name}_open`,
-    'position',
+    "position",
     frameRate,
     Animation.ANIMATIONTYPE_VECTOR3,
-    Animation.ANIMATIONLOOPMODE_CONSTANT
+    Animation.ANIMATIONLOOPMODE_CONSTANT,
   );
   openAnim.setKeys([
     { frame: 0, value: startPos },
@@ -96,10 +96,10 @@ function createDoorAnimation(
 
   const closeAnim = new Animation(
     `${mesh.name}_close`,
-    'position',
+    "position",
     frameRate,
     Animation.ANIMATIONTYPE_VECTOR3,
-    Animation.ANIMATIONLOOPMODE_CONSTANT
+    Animation.ANIMATIONLOOPMODE_CONSTANT,
   );
   closeAnim.setKeys([
     { frame: 0, value: endPos },
@@ -186,9 +186,9 @@ function addDoorToGroup(targetname: string, controller: ReturnType<typeof create
   if (!group) {
     group = {
       controllers: [],
-      open: () => group!.controllers.forEach(c => c.open()),
-      close: () => group!.controllers.forEach(c => c.close()),
-      toggle: () => group!.controllers.forEach(c => c.toggle()),
+      open: () => group!.controllers.forEach((c) => c.open()),
+      close: () => group!.controllers.forEach((c) => c.close()),
+      toggle: () => group!.controllers.forEach((c) => c.toggle()),
     };
     doorGroups.set(targetname, group);
   }
@@ -200,13 +200,13 @@ function addDoorToGroup(targetname: string, controller: ReturnType<typeof create
  */
 async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
   if (!currentBsp) {
-    console.warn('[BspEntityHandlers] No BSP loaded for func_door');
+    console.warn("[BspEntityHandlers] No BSP loaded for func_door");
     return { handled: false };
   }
 
   const modelStr = entity.properties.model;
   const modelIndex = parseModelIndex(modelStr);
-  
+
   if (modelIndex < 0) {
     console.warn(`[BspEntityHandlers] func_door has invalid model: ${modelStr}`);
     return { handled: false };
@@ -235,12 +235,14 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
   // Store controller in mesh metadata for easy access
   mesh.metadata = {
     ...mesh.metadata,
-    entityType: 'func_door',
+    entityType: "func_door",
     targetname,
     doorController: controller,
   };
 
-  console.log(`[BspEntityHandlers] Created func_door "${targetname}": model=*${modelIndex}, angle=${angle}, speed=${speed}, distance=${distance.toFixed(0)}`);
+  console.log(
+    `[BspEntityHandlers] Created func_door "${targetname}": model=*${modelIndex}, angle=${angle}, speed=${speed}, distance=${distance.toFixed(0)}`,
+  );
 
   return { handled: true, node: mesh };
 }
@@ -249,14 +251,14 @@ async function handleFuncDoor(entity: EntityData, scene: Scene): Promise<EntityH
  * Register all BSP entity handlers
  */
 export function registerBspEntityHandlers(): void {
-  EntityHandlerRegistry.register('func_door', handleFuncDoor);
-  console.log('[BspEntityHandlers] Registered BSP entity handlers: func_door');
+  EntityHandlerRegistry.register("func_door", handleFuncDoor);
+  console.log("[BspEntityHandlers] Registered BSP entity handlers: func_door");
 }
 
 /**
  * Unregister BSP entity handlers
  */
 export function unregisterBspEntityHandlers(): void {
-  EntityHandlerRegistry.unregister('func_door');
+  EntityHandlerRegistry.unregister("func_door");
   doorGroups.clear();
 }

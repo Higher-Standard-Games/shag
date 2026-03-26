@@ -1,49 +1,49 @@
 /**
  * Rocket - Projectile Definition
- * 
+ *
  * Classic rocket projectile with splash damage.
  * Stats from Warsow gs_weapondefs.c.
  */
 
-import { ProjectileDef } from '../../ProjectileDef';
-import { EntityType } from '../../EntityType';
+import { EntityType } from "../../EntityType";
+import type { ProjectileDef } from "../../ProjectileDef";
 
 export const ROCKET: ProjectileDef = {
-    // Identity
-    id: 'rocket',
-    name: 'Rocket',
-    type: EntityType.PROJECTILE,
-    classname: 'projectile_rocket',
+  // Identity
+  id: "rocket",
+  name: "Rocket",
+  type: EntityType.PROJECTILE,
+  classname: "projectile_rocket",
 
-    // Projectile model
-    modelPath: 'models/objects/projectile/rlauncher/rocket_strong.md3',
-    scale: 1.0,
+  // Projectile model
+  modelPath: "models/objects/projectile/rlauncher/rocket_strong.md3",
+  scale: 1.0,
 
-    // Gameplay (server-authoritative)
-    speed: 1150,
-    damage: 80,
-    splashDamage: 15,
-    splashRadius: 125,
-    lifetime: 10.0,
-    gravity: 0,
-    bounces: 0,
+  // Gameplay (server-authoritative)
+  speed: 1150,
+  damage: 80,
+  splashDamage: 15,
+  splashRadius: 125,
+  lifetime: 10.0,
+  gravity: 0,
+  bounces: 0,
 
-    // Light
-    lightColor: { r: 1.0, g: 0.5, b: 0.1 },
-    lightIntensity: 10,
-    lightRange: 30,
+  // Light
+  lightColor: { r: 1.0, g: 0.5, b: 0.1 },
+  lightIntensity: 10,
+  lightRange: 30,
 
-    // Impact
-    impactModelPath: 'models/weapon_hits/rlauncher/hit_rlauncher.md3',
-    impactScale: 3.0,
-    impactDuration: 0.5,
+  // Impact
+  impactModelPath: "models/weapon_hits/rlauncher/hit_rlauncher.md3",
+  impactScale: 3.0,
+  impactDuration: 0.5,
 
-    trailEffect: 'rocket_trail',
-    impactEffect: 'rocket_impact',
+  trailEffect: "rocket_trail",
+  impactEffect: "rocket_impact",
 
-    // Sounds
-    sounds: {
-        fly: 'sounds/weapons/rocket_fly.ogg',
-        impact: 'sounds/weapons/rocket_impact.ogg',
-    },
+  // Sounds
+  sounds: {
+    fly: "sounds/weapons/rocket_fly.ogg",
+    impact: "sounds/weapons/rocket_impact.ogg",
+  },
 };

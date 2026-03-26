@@ -6,16 +6,16 @@
 // Layout Types
 // ============================================================================
 
-export type HUDPosition = 
-  | 'top-left' 
-  | 'top-center' 
-  | 'top-right'
-  | 'left' 
-  | 'center' 
-  | 'right'
-  | 'bottom-left' 
-  | 'bottom-center' 
-  | 'bottom-right';
+export type HUDPosition =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "left"
+  | "center"
+  | "right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
 
 export interface HUDCustomPosition {
   anchor: HUDPosition;
@@ -27,15 +27,15 @@ export interface HUDCustomPosition {
 // Element Types
 // ============================================================================
 
-export type HUDElementType = 
-  | 'pill'
-  | 'pill-progress'
-  | 'pill-group'
-  | 'button'
-  | 'accordion'
-  | 'list'
-  | 'progress-bar'
-  | 'custom';
+export type HUDElementType =
+  | "pill"
+  | "pill-progress"
+  | "pill-group"
+  | "button"
+  | "accordion"
+  | "list"
+  | "progress-bar"
+  | "custom";
 
 export interface HUDElementConfig {
   type: HUDElementType;
@@ -43,40 +43,40 @@ export interface HUDElementConfig {
   format?: string;
   clickable?: boolean;
   tooltip?: string;
-  platforms?: ('mobile' | 'desktop')[];
+  platforms?: ("mobile" | "desktop")[];
   visible?: boolean;
 }
 
 export interface HUDPillConfig extends HUDElementConfig {
-  type: 'pill';
+  type: "pill";
 }
 
 export interface HUDPillProgressConfig extends HUDElementConfig {
-  type: 'pill-progress';
+  type: "pill-progress";
   progressBinding?: string;
 }
 
 export interface HUDPillGroupConfig extends HUDElementConfig {
-  type: 'pill-group';
+  type: "pill-group";
   children: HUDPillGroupChild[];
 }
 
 export interface HUDPillGroupChild {
   id: string;
-  type?: 'value' | 'icon' | 'button';
+  type?: "value" | "icon" | "button";
   format?: string;
-  style?: 'normal' | 'bold' | 'muted';
+  style?: "normal" | "bold" | "muted";
   icon?: string;
-  platforms?: ('mobile' | 'desktop')[];
+  platforms?: ("mobile" | "desktop")[];
 }
 
 export interface HUDButtonConfig extends HUDElementConfig {
-  type: 'button';
-  variant?: 'default' | 'primary' | 'danger';
+  type: "button";
+  variant?: "default" | "primary" | "danger";
 }
 
 export interface HUDAccordionConfig extends HUDElementConfig {
-  type: 'accordion';
+  type: "accordion";
   title: string;
   badgeBinding?: string;
   collapsed?: boolean;
@@ -84,19 +84,19 @@ export interface HUDAccordionConfig extends HUDElementConfig {
 }
 
 export interface HUDListConfig {
-  type: 'list';
+  type: "list";
   itemTemplate: string;
   emptyText?: string;
   maxVisible?: number;
 }
 
 export interface HUDCustomContentConfig {
-  type: 'custom';
+  type: "custom";
   contentProvider: string;
 }
 
 export interface HUDProgressBarConfig extends HUDElementConfig {
-  type: 'progress-bar';
+  type: "progress-bar";
   label?: string;
   color?: string;
   showValue?: boolean;
@@ -107,7 +107,7 @@ export interface HUDProgressBarConfig extends HUDElementConfig {
 // ============================================================================
 
 export interface HUDItemTemplate {
-  layout: 'row' | 'column';
+  layout: "row" | "column";
   fields: string[];
   clickable?: boolean;
 }
@@ -117,13 +117,13 @@ export interface HUDItemTemplate {
 // ============================================================================
 
 export interface HUDTheme {
-  'pill-bg': string;
-  'pill-border': string;
-  'pill-text': string;
-  'accordion-bg': string;
-  'accordion-header': string;
-  'button-bg'?: string;
-  'button-text'?: string;
+  "pill-bg": string;
+  "pill-border": string;
+  "pill-text": string;
+  "accordion-bg": string;
+  "accordion-header": string;
+  "button-bg"?: string;
+  "button-text"?: string;
 }
 
 // ============================================================================
@@ -202,14 +202,14 @@ export interface HUDBinding {
 // Animation Types
 // ============================================================================
 
-export type HUDFlashType = 'gain' | 'loss' | 'damage' | 'info';
-export type HUDAnimationType = 
-  | 'fadeIn' 
-  | 'fadeOut' 
-  | 'slideIn' 
-  | 'slideOut' 
-  | 'scaleIn' 
-  | 'scaleOut'
-  | 'pulse'
-  | 'shake'
-  | 'bounce';
+export type HUDFlashType = "gain" | "loss" | "damage" | "info";
+export type HUDAnimationType =
+  | "fadeIn"
+  | "fadeOut"
+  | "slideIn"
+  | "slideOut"
+  | "scaleIn"
+  | "scaleOut"
+  | "pulse"
+  | "shake"
+  | "bounce";

@@ -1,21 +1,21 @@
 /**
  * FilterBlendShaderMaterial - Custom shader for Q3 filter/multiply blend
- * 
+ *
  * Q3's blendFunc filter (GL_DST_COLOR, GL_ZERO) multiplies source with destination.
  * White becomes transparent (1 * dst = dst), colored pixels tint the background.
- * 
+ *
  * Since Babylon.js doesn't have a direct equivalent, this shader computes
  * alpha from inverse luminance: white = transparent, dark/colored = opaque.
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Effect } from '@babylonjs/core/Materials/effect';
-import { Constants } from '@babylonjs/core/Engines/constants';
+import { Constants } from "@babylonjs/core/Engines/constants";
+import { Effect } from "@babylonjs/core/Materials/effect";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Scene } from "@babylonjs/core/scene";
 
 // Register the custom shader
-Effect.ShadersStore["filterBlendVertexShader"] = `
+Effect.ShadersStore.filterBlendVertexShader = `
 precision highp float;
 
 // Attributes
@@ -34,7 +34,7 @@ void main() {
 }
 `;
 
-Effect.ShadersStore["filterBlendFragmentShader"] = `
+Effect.ShadersStore.filterBlendFragmentShader = `
 precision highp float;
 
 // Varyings
@@ -91,7 +91,7 @@ export function createFilterBlendMaterial(
   name: string,
   scene: Scene,
   texture: Texture,
-  options: FilterBlendOptions = {}
+  options: FilterBlendOptions = {},
 ): ShaderMaterial {
   const { alphaThreshold = 0.9, alphaPower = 1.5, colorDarken = 0.6, alphaMultiplier = 0.7 } = options;
 
@@ -107,25 +107,25 @@ export function createFilterBlendMaterial(
       uniforms: ["worldViewProjection", "alphaThreshold", "alphaPower", "colorDarken", "alphaMultiplier"],
       samplers: ["diffuseTexture"],
       needAlphaBlending: true,
-    }
+    },
   );
 
   // Set texture
   material.setTexture("diffuseTexture", texture);
-  
+
   // Set uniforms
   material.setFloat("alphaThreshold", alphaThreshold);
   material.setFloat("alphaPower", alphaPower);
   material.setFloat("colorDarken", colorDarken);
   material.setFloat("alphaMultiplier", alphaMultiplier);
-  
+
   // Enable alpha blending
   material.alphaMode = Constants.ALPHA_COMBINE;
   material.backFaceCulling = false;
-  
+
   // Disable depth write for proper overlay
   material.disableDepthWrite = true;
-  
+
   // Z-offset to prevent z-fighting with underlying wall
   material.zOffset = -4;
 
@@ -136,6 +136,7 @@ export function createFilterBlendMaterial(
  * Check if a material is a FilterBlendShaderMaterial
  */
 export function isFilterBlendMaterial(material: unknown): material is ShaderMaterial {
-  return material instanceof ShaderMaterial && 
-         (material.name.includes('filterBlend') || material.name.includes('decal'));
+  return (
+    material instanceof ShaderMaterial && (material.name.includes("filterBlend") || material.name.includes("decal"))
+  );
 }

@@ -2,28 +2,28 @@
  * ShowFpsCommand - Toggle FPS display
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class ShowFpsCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'show_fps',
-    aliases: ['fps'],
-    description: 'Toggle FPS display',
-    usage: 'show_fps [0|1]',
+    name: "show_fps",
+    aliases: ["fps"],
+    description: "Toggle FPS display",
+    usage: "show_fps [0|1]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get scene from camera system
     let scene;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
     } catch {
-      return 'Scene not available';
+      return "Scene not available";
     }
 
     if (!scene) {
-      return 'No active scene';
+      return "No active scene";
     }
 
     const engine = scene.getEngine();
@@ -33,20 +33,20 @@ export default class ShowFpsCommand extends Command {
     const currentState = !!(window as any)._showFpsElement;
 
     if (value === undefined) {
-      return `show_fps is ${currentState ? '1 (on)' : '0 (off)'}`;
+      return `show_fps is ${currentState ? "1 (on)" : "0 (off)"}`;
     }
 
-    const enable = value === '1' || value === 'on' || value === 'true';
-    const disable = value === '0' || value === 'off' || value === 'false';
+    const enable = value === "1" || value === "on" || value === "true";
+    const disable = value === "0" || value === "off" || value === "false";
 
     if (!enable && !disable) {
-      return 'Usage: show_fps [0|1|on|off]';
+      return "Usage: show_fps [0|1|on|off]";
     }
 
     if (enable && !currentState) {
       // Create FPS display
-      const fpsEl = document.createElement('div');
-      fpsEl.id = 'fps-display';
+      const fpsEl = document.createElement("div");
+      fpsEl.id = "fps-display";
       fpsEl.style.cssText = `
         position: fixed;
         top: 8px;
@@ -61,7 +61,7 @@ export default class ShowFpsCommand extends Command {
       `;
       document.body.appendChild(fpsEl);
       (window as any)._showFpsElement = fpsEl;
-      
+
       // Update loop
       const updateFps = () => {
         if ((window as any)._showFpsElement) {
@@ -70,8 +70,8 @@ export default class ShowFpsCommand extends Command {
         }
       };
       updateFps();
-      
-      return 'FPS display enabled';
+
+      return "FPS display enabled";
     } else if (disable && currentState) {
       // Remove FPS display
       const el = (window as any)._showFpsElement;
@@ -79,9 +79,9 @@ export default class ShowFpsCommand extends Command {
         el.remove();
         (window as any)._showFpsElement = null;
       }
-      return 'FPS display disabled';
+      return "FPS display disabled";
     }
-    
-    return `show_fps is ${currentState ? '1 (on)' : '0 (off)'}`;
+
+    return `show_fps is ${currentState ? "1 (on)" : "0 (off)"}`;
   }
 }

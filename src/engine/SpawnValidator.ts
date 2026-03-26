@@ -1,5 +1,5 @@
-import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
 
 /**
  * Context passed to spawn validators
@@ -55,9 +55,7 @@ export class CollisionValidator implements ISpawnValidator {
     const { position, scene, prefabSize } = context;
 
     // Use prefab size or default check radius
-    const checkRadius = prefabSize 
-      ? Math.max(prefabSize.x, prefabSize.z) / 2 
-      : this.minDistance;
+    const checkRadius = prefabSize ? Math.max(prefabSize.x, prefabSize.z) / 2 : this.minDistance;
 
     // Only check against OTHER prefab instances, not world geometry
     for (const mesh of scene.meshes) {
@@ -150,15 +148,12 @@ export class SpawnValidator {
 
   /**
    * Validate a spawn attempt.
-   * 
+   *
    * @param context - Spawn context
    * @param validatorIds - Optional specific validators to run (from trigger properties)
    * @returns Validation result
    */
-  public validate(
-    context: SpawnValidationContext,
-    validatorIds?: string[]
-  ): SpawnValidationResult {
+  public validate(context: SpawnValidationContext, validatorIds?: string[]): SpawnValidationResult {
     // Run global validators first
     for (const validator of this.globalValidators) {
       const result = validator.validate(context);
@@ -247,9 +242,7 @@ export class MaxCountValidator implements ISpawnValidator {
   validate(context: SpawnValidationContext): SpawnValidationResult {
     const { prefabName, scene, triggerProperties } = context;
 
-    const maxCount = triggerProperties.maxCount 
-      ? parseInt(triggerProperties.maxCount) 
-      : Infinity;
+    const maxCount = triggerProperties.maxCount ? parseInt(triggerProperties.maxCount, 10) : Infinity;
 
     // Count existing prefabs of this type
     let count = 0;

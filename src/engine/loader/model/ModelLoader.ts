@@ -1,18 +1,18 @@
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
-import { Scene } from "@babylonjs/core/scene";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
-import { Skeleton } from "@babylonjs/core/Bones/skeleton";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
-import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { BspManager } from "../bsp/BspManager";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { InstancedMeshManager, type InstanceTransform } from "../../rendering/InstancedMeshManager";
+import { BspManager } from "../bsp/BspManager";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { MD3Loader } from "./MD3Loader";
 
@@ -92,7 +92,7 @@ export class ModelLoader {
   // Track all created lights for cleanup
   private createdLights: DirectionalLight[] = [];
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): ModelLoader {
     if (!ModelLoader.instance) {
@@ -118,14 +118,11 @@ export class ModelLoader {
 
   /**
    * Load a GLB/glTF model and place it in the scene
-   * 
+   *
    * @param modelPath - Path to the model file (e.g., "models/barrel.glb")
    * @param options - Position, rotation, scale options
    */
-  public async loadModel(
-    modelPath: string,
-    options: ModelLoadOptions
-  ): Promise<ModelLoadResult | null> {
+  public async loadModel(modelPath: string, options: ModelLoadOptions): Promise<ModelLoadResult | null> {
     if (!this.scene || this.scene.isDisposed) {
       console.error("ModelLoader not initialized or scene disposed");
       return null;
@@ -146,7 +143,7 @@ export class ModelLoader {
 
     try {
       // Ensure path starts with /
-      const fullPath = modelPath.startsWith("/") ? modelPath : "/" + modelPath;
+      const fullPath = modelPath.startsWith("/") ? modelPath : `/${modelPath}`;
 
       // Extract directory and filename
       const lastSlash = fullPath.lastIndexOf("/");
@@ -156,21 +153,21 @@ export class ModelLoader {
       console.log(`ModelLoader: Loading ${fileName} from ${rootUrl}`);
 
       // Special handling for MD3 files (Quake 3 models)
-      if (fileName.toLowerCase().endsWith('.md3')) {
+      if (fileName.toLowerCase().endsWith(".md3")) {
         const pk3 = PK3Loader.getInstance();
         const md3 = MD3Loader.getInstance();
 
         // Ensure loaders are initialized
-        if (!md3['scene']) md3.init(this.scene); // Access private scene or just call init safe
+        if (!md3.scene) md3.init(this.scene); // Access private scene or just call init safe
 
         // Try to get file from PK3
         const buffer = await pk3.getFile(modelPath);
         if (buffer) {
           const model = md3.parseMD3(buffer);
           // Create meshes
-          const md3Result = md3.createMeshes(model, fileName.replace('.md3', ''));
+          const md3Result = md3.createMeshes(model, fileName.replace(".md3", ""));
 
-          if (md3Result && md3Result.root) {
+          if (md3Result?.root) {
             const root = md3Result.root;
 
             // Apply transforms
@@ -202,7 +199,7 @@ export class ModelLoader {
               animationGroups: [], // MD3 anims are vertex-based, handled differently? or via setFrame
               skeletons: [],
               lights,
-              textureLoadPromises: md3Result.textureLoadPromises
+              textureLoadPromises: md3Result.textureLoadPromises,
             };
           }
         } else {
@@ -216,7 +213,7 @@ export class ModelLoader {
         "", // Import all meshes
         rootUrl,
         fileName,
-        this.scene
+        this.scene,
       );
 
       if (!result.meshes || result.meshes.length === 0) {
@@ -285,18 +282,22 @@ export class ModelLoader {
       // Debug: Log mesh bounds
       for (const mesh of meshes) {
         const bounds = mesh.getBoundingInfo();
-        console.log(`  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`);
+        console.log(
+          `  Mesh "${mesh.name}": min=${bounds.boundingBox.minimumWorld}, max=${bounds.boundingBox.maximumWorld}, visible=${mesh.isVisible}`,
+        );
       }
 
       // Log animation info if present
       if (animationGroups.length > 0) {
-        console.log(`  Animations: ${animationGroups.map(a => a.name).join(', ')}`);
+        console.log(`  Animations: ${animationGroups.map((a) => a.name).join(", ")}`);
       }
       if (skeletons.length > 0) {
         console.log(`  Skeletons: ${skeletons.length}`);
       }
 
-      console.log(`Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`);
+      console.log(
+        `Loaded model: ${modelPath} at ${position.toString()} (${meshes.length} meshes, ${animationGroups.length} animations)`,
+      );
 
       return { root, meshes, animationGroups, skeletons, lights };
     } catch (error) {
@@ -320,7 +321,7 @@ export class ModelLoader {
   public playAnimation(
     result: ModelLoadResult,
     name: string | number,
-    options?: AnimationPlayOptions
+    options?: AnimationPlayOptions,
   ): AnimationGroup | null {
     const anim = this.findAnimation(result, name);
     if (!anim) {
@@ -388,7 +389,7 @@ export class ModelLoader {
    * @returns Array of animation names
    */
   public getAnimationNames(result: ModelLoadResult): string[] {
-    return result.animationGroups.map(a => a.name);
+    return result.animationGroups.map((a) => a.name);
   }
 
   /**
@@ -406,7 +407,10 @@ export class ModelLoader {
    * @param result - The ModelLoadResult from loadModel()
    * @param name - Animation name or index
    */
-  public getAnimationInfo(result: ModelLoadResult, name: string | number): {
+  public getAnimationInfo(
+    result: ModelLoadResult,
+    name: string | number,
+  ): {
     name: string;
     from: number;
     to: number;
@@ -429,10 +433,10 @@ export class ModelLoader {
    * Find an animation by name or index
    */
   private findAnimation(result: ModelLoadResult, name: string | number): AnimationGroup | null {
-    if (typeof name === 'number') {
+    if (typeof name === "number") {
       return result.animationGroups[name] || null;
     }
-    return result.animationGroups.find(a => a.name === name) || null;
+    return result.animationGroups.find((a) => a.name === name) || null;
   }
 
   /**
@@ -440,18 +444,13 @@ export class ModelLoader {
    */
   public static isModelFile(path: string): boolean {
     const lower = path.toLowerCase();
-    return (
-      lower.endsWith(".glb") ||
-      lower.endsWith(".gltf") ||
-      lower.endsWith(".obj") ||
-      lower.endsWith(".babylon")
-    );
+    return lower.endsWith(".glb") || lower.endsWith(".gltf") || lower.endsWith(".obj") || lower.endsWith(".babylon");
   }
 
   /**
    * Register a loaded model as an instancing template
    * Use this for models that will be repeated many times (trees, props, etc.)
-   * 
+   *
    * @param templateName Unique name for this template
    * @param modelPath Path to the model file
    * @param maxInstances Maximum number of instances (for buffer sizing)
@@ -459,7 +458,7 @@ export class ModelLoader {
   public async registerInstanceTemplate(
     templateName: string,
     modelPath: string,
-    maxInstances: number = 500
+    maxInstances: number = 500,
   ): Promise<boolean> {
     if (!this.scene) {
       console.error("ModelLoader not initialized");
@@ -489,7 +488,7 @@ export class ModelLoader {
 
     // Register each mesh as a template
     // For multi-mesh models, we register the first visible mesh
-    const primaryMesh = result.meshes.find(m => m.getTotalVertices() > 0);
+    const primaryMesh = result.meshes.find((m) => m.getTotalVertices() > 0);
     if (primaryMesh) {
       instanceManager.registerTemplate(templateName, primaryMesh, maxInstances);
       console.log(`ModelLoader: Registered instance template '${templateName}'`);
@@ -502,13 +501,13 @@ export class ModelLoader {
   /**
    * Create an instance of a registered template
    * Much faster than loadModel for repeated geometry
-   * 
+   *
    * @param templateName Name of the registered template
    * @param transform Position, rotation, scale for the instance
    */
   public createInstance(
     templateName: string,
-    transform: InstanceTransform
+    transform: InstanceTransform,
   ): ReturnType<InstancedMeshManager["createInstance"]> {
     const instanceManager = InstancedMeshManager.getInstance();
     return instanceManager.createInstance(templateName, transform);
@@ -519,7 +518,7 @@ export class ModelLoader {
    */
   public createInstances(
     templateName: string,
-    transforms: InstanceTransform[]
+    transforms: InstanceTransform[],
   ): ReturnType<InstancedMeshManager["createInstances"]> {
     const instanceManager = InstancedMeshManager.getInstance();
     return instanceManager.createInstances(templateName, transforms);
@@ -551,7 +550,7 @@ export class ModelLoader {
       const lighting = bsp.getLightingAt(position);
       if (!lighting) {
         // Fallback lighting for maps without LightGrid or unsupported formats (FBSP)
-        console.log('[ModelLoader] No BSP lighting data. Using fallback.');
+        console.log("[ModelLoader] No BSP lighting data. Using fallback.");
 
         // 1. Ambient Fallback
         const ambient = new Color3(0.3, 0.3, 0.3);
@@ -591,12 +590,12 @@ export class ModelLoader {
       const ambientIntensity = 0.15;
 
       // Gamma correction function (approximate sRGB/Monitor gamma)
-      const toLinear = (v: number) => Math.pow(v / 255, 2.2);
+      const toLinear = (v: number) => (v / 255) ** 2.2;
 
       const ambient = new Color3(
         toLinear(lighting.ambient[0]) * ambientIntensity,
         toLinear(lighting.ambient[1]) * ambientIntensity,
-        toLinear(lighting.ambient[2]) * ambientIntensity
+        toLinear(lighting.ambient[2]) * ambientIntensity,
       );
 
       // Apply ambient to materials and freeze them (deferred from loadModel to avoid flicker)
@@ -649,7 +648,7 @@ export class ModelLoader {
       const dirColor = new Color3(
         toLinear(lighting.directional[0]) * dirIntensity,
         toLinear(lighting.directional[1]) * dirIntensity,
-        toLinear(lighting.directional[2]) * dirIntensity
+        toLinear(lighting.directional[2]) * dirIntensity,
       );
 
       light.diffuse = dirColor;
@@ -661,11 +660,13 @@ export class ModelLoader {
       // Keep track for cleanup
       this.createdLights.push(light);
 
-      console.log(`[ModelLoader] Applied BSP lighting: Amb=${ambient.toString()} Dir=${lightDir.toString()} Color=${dirColor.toString()}`);
+      console.log(
+        `[ModelLoader] Applied BSP lighting: Amb=${ambient.toString()} Dir=${lightDir.toString()} Color=${dirColor.toString()}`,
+      );
 
       return [light];
     } catch (e) {
-      console.warn('[ModelLoader] Failed to apply BSP lighting:', e);
+      console.warn("[ModelLoader] Failed to apply BSP lighting:", e);
       return [];
     }
   }

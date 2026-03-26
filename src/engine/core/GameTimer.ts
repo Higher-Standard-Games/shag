@@ -62,7 +62,7 @@ export class GameTimer {
   private constructor() {
     this.lastRealTime = performance.now();
     this.debugModeEnabled = DEBUG_SPEED_ENABLED;
-    
+
     // Listen for pause/resume events from engine
     EventBus.on("game:paused", () => this.pause());
     EventBus.on("game:resumed", () => this.resume());
@@ -336,7 +336,7 @@ export class GameTimer {
 
   public getTimerProgress(id: string, totalDuration: number): number {
     const remaining = this.getTimerRemaining(id);
-    return 1 - (remaining / totalDuration);
+    return 1 - remaining / totalDuration;
   }
 
   // ==================== Scheduled Tasks (Real Time) ====================
@@ -425,11 +425,11 @@ export class GameTimer {
   }
 
   // ==================== Day/Night Cycle ====================
-  
+
   // Default: 1 real minute = 1 game hour (24 real minutes = 1 game day)
   private dayLengthMs: number = 24 * 60 * 1000; // 24 minutes real time = 1 day
   private startHour: number = 6; // Game starts at 6 AM
-  
+
   /**
    * Set how long a full day cycle takes in real milliseconds
    * Default: 24 minutes (1440000ms)
@@ -437,7 +437,7 @@ export class GameTimer {
   public setDayLength(realTimeMs: number): void {
     this.dayLengthMs = realTimeMs;
   }
-  
+
   /**
    * Get the current game hour (0-23)
    */
@@ -446,7 +446,7 @@ export class GameTimer {
     const totalHours = Math.floor(this.gameTime / msPerHour) + this.startHour;
     return totalHours % 24;
   }
-  
+
   /**
    * Get the current game minute (0-59)
    */
@@ -456,14 +456,14 @@ export class GameTimer {
     const hourProgress = this.gameTime % msPerHour;
     return Math.floor(hourProgress / msPerMinute);
   }
-  
+
   /**
    * Get current day number (starting from 1)
    */
   public getDay(): number {
     return Math.floor(this.gameTime / this.dayLengthMs) + 1;
   }
-  
+
   /**
    * Get formatted time string (e.g., "14:30" or "2:30 PM")
    */
@@ -471,7 +471,7 @@ export class GameTimer {
     const hour = this.getHour();
     const minute = this.getMinute();
     const minStr = minute.toString().padStart(2, "0");
-    
+
     if (use24Hour) {
       return `${hour.toString().padStart(2, "0")}:${minStr}`;
     } else {
@@ -480,7 +480,7 @@ export class GameTimer {
       return `${hour12}:${minStr} ${period}`;
     }
   }
-  
+
   /**
    * Get the current time of day period
    */
@@ -493,7 +493,7 @@ export class GameTimer {
     if (hour >= 18 && hour < 21) return "evening";
     return "night";
   }
-  
+
   /**
    * Check if it's currently daytime (6 AM - 8 PM)
    */
@@ -501,14 +501,14 @@ export class GameTimer {
     const hour = this.getHour();
     return hour >= 6 && hour < 20;
   }
-  
+
   /**
    * Check if it's currently nighttime
    */
   public isNighttime(): boolean {
     return !this.isDaytime();
   }
-  
+
   /**
    * Get sun intensity (0-1) based on time of day
    * Useful for lighting adjustments
@@ -517,24 +517,24 @@ export class GameTimer {
     const hour = this.getHour();
     const minute = this.getMinute();
     const timeDecimal = hour + minute / 60;
-    
+
     // Peak at noon (12:00), dark at midnight
     // Using a sine wave for smooth transitions
     // Shift by 6 hours so peak is at noon
     const radians = ((timeDecimal - 6) / 24) * Math.PI * 2;
     const intensity = (Math.sin(radians) + 1) / 2;
-    
+
     // Clamp to reasonable range (some ambient light at night)
     return Math.max(0.1, intensity);
   }
-  
+
   /**
    * Get sky color based on time of day
    * Returns RGB values 0-1
    */
   public getSkyColor(): { r: number; g: number; b: number } {
     const timeOfDay = this.getTimeOfDay();
-    
+
     switch (timeOfDay) {
       case "dawn":
         return { r: 1.0, g: 0.6, b: 0.4 }; // Orange/pink
@@ -550,7 +550,7 @@ export class GameTimer {
         return { r: 0.1, g: 0.1, b: 0.2 }; // Dark blue
     }
   }
-  
+
   /**
    * Skip time forward by hours
    */
@@ -558,7 +558,7 @@ export class GameTimer {
     const msPerHour = this.dayLengthMs / 24;
     this.gameTime += hours * msPerHour;
   }
-  
+
   /**
    * Skip to a specific hour (0-23)
    * If the hour has passed today, skips to that hour tomorrow
@@ -566,11 +566,11 @@ export class GameTimer {
   public skipToHour(targetHour: number): void {
     const currentHour = this.getHour();
     let hoursToSkip = targetHour - currentHour;
-    
+
     if (hoursToSkip <= 0) {
       hoursToSkip += 24; // Skip to tomorrow
     }
-    
+
     this.skipHours(hoursToSkip);
   }
 
@@ -579,7 +579,7 @@ export class GameTimer {
    */
   public getState(): { gameTime: number; timers: Array<{ id: string; triggerAt: number; repeat: number }> } {
     const timers: Array<{ id: string; triggerAt: number; repeat: number }> = [];
-    
+
     for (const [id, timer] of this.timers) {
       timers.push({
         id,

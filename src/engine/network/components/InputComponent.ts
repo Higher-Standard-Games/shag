@@ -1,32 +1,32 @@
-import type { IComponent } from '../core/Component';
-import { BinaryEncoder, BinaryDecoder } from '../protocol/BinaryProtocol';
-import type { Vec3 } from './TransformComponent';
+import type { IComponent } from "../core/Component";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
+import type { Vec3 } from "./TransformComponent";
 
 /**
  * Input button flags - generic for any game type
  */
 export const InputButtons = {
   // Movement
-  FORWARD:  1 << 0,
-  BACK:     1 << 1,
-  LEFT:     1 << 2,
-  RIGHT:    1 << 3,
-  JUMP:     1 << 4,
-  CROUCH:   1 << 5,
-  SPRINT:   1 << 6,
-  WALK:     1 << 7,
+  FORWARD: 1 << 0,
+  BACK: 1 << 1,
+  LEFT: 1 << 2,
+  RIGHT: 1 << 3,
+  JUMP: 1 << 4,
+  CROUCH: 1 << 5,
+  SPRINT: 1 << 6,
+  WALK: 1 << 7,
 
   // Actions
-  FIRE:     1 << 8,
+  FIRE: 1 << 8,
   ALT_FIRE: 1 << 9,
-  RELOAD:   1 << 10,
-  USE:      1 << 11,
+  RELOAD: 1 << 10,
+  USE: 1 << 11,
 
   // Game-specific can use higher bits
-  ACTION1:  1 << 12,
-  ACTION2:  1 << 13,
-  ACTION3:  1 << 14,
-  ACTION4:  1 << 15,
+  ACTION1: 1 << 12,
+  ACTION2: 1 << 13,
+  ACTION3: 1 << 14,
+  ACTION4: 1 << 15,
 } as const;
 
 /**
@@ -116,9 +116,7 @@ export class InputComponent implements IComponent {
    * Check if any movement button is pressed
    */
   hasMovementInput(): boolean {
-    const movementMask =
-      InputButtons.FORWARD | InputButtons.BACK |
-      InputButtons.LEFT | InputButtons.RIGHT;
+    const movementMask = InputButtons.FORWARD | InputButtons.BACK | InputButtons.LEFT | InputButtons.RIGHT;
     return (this.buttons & movementMask) !== 0;
   }
 

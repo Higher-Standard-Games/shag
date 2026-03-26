@@ -1,17 +1,17 @@
 /**
  * MenuSystem - Centralized menu state management (Engine Component)
- * 
+ *
  * Handles:
  * - Menu state transitions (main menu, in-game, pause menu)
  * - ESC key to toggle pause menu
  * - Blur/darken overlay effect
  * - Settings callback (game provides its own settings UI)
- * 
+ *
  * Uses unified UI components: Overlay, Button, ConfirmDialog
  */
 
-import { Overlay, createButton, ConfirmDialog, UIManager, UIStyles } from "./ui";
 import { EventBus } from "./core/EventBus";
+import { ConfirmDialog, createButton, Overlay, UIManager, UIStyles } from "./ui";
 
 export type MenuState = "main_menu" | "in_game" | "pause_menu" | "settings";
 
@@ -45,7 +45,7 @@ export class MenuSystem {
     }
     return MenuSystem.instance;
   }
-  
+
   /**
    * Check if currently in game (not in main menu)
    */
@@ -118,7 +118,7 @@ export class MenuSystem {
   public enterGame(): void {
     this.state = "in_game";
     this.hidePauseOverlay();
-    
+
     // Note: Game code (MainMenu/GameAudio) handles music transitions
   }
 
@@ -161,12 +161,12 @@ export class MenuSystem {
     }
 
     this.state = "settings";
-    
+
     // Hide pause panel but keep overlay
     if (this.pausePanel) {
       this.pausePanel.style.display = "none";
     }
-    
+
     // Call game's settings UI with a close callback
     this.callbacks.onShowSettings(() => {
       // When settings closes, show pause panel again
@@ -204,7 +204,7 @@ export class MenuSystem {
         closeOnClick: false,
         animate: true,
       },
-      () => this.resume() // Called if overlay is closed externally
+      () => this.resume(), // Called if overlay is closed externally
     );
     this.overlay.show();
 

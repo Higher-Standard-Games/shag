@@ -1,33 +1,33 @@
 /**
  * ThunderEffect - Lightning flash and ambient darkening
- * 
+ *
  * Creates dramatic thunder/lightning effects with:
  * - Random lightning flashes (screen flash)
  * - Ambient color shift to darker blue
  * - Self-fading after duration
- * 
+ *
  * Designed to be triggered on top of rain for storm weather.
  */
 
-import { Scene } from "@babylonjs/core/scene";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { PostProcessingManager } from "./PostProcessingManager";
+import type { Scene } from "@babylonjs/core/scene";
 import { UIStyles } from "../ui/UIStyles";
+import { PostProcessingManager } from "./PostProcessingManager";
 
 export interface ThunderSettings {
-  duration: number;        // How long the storm effect lasts (ms)
-  flashInterval: number;   // Min time between flashes (ms)
-  flashVariance: number;   // Random variance for flash timing (ms)
+  duration: number; // How long the storm effect lasts (ms)
+  flashInterval: number; // Min time between flashes (ms)
+  flashVariance: number; // Random variance for flash timing (ms)
   ambientDarkness: number; // How much to darken ambient (0-1)
-  flashIntensity: number;  // Brightness of lightning flash (0-1)
+  flashIntensity: number; // Brightness of lightning flash (0-1)
 }
 
 const DEFAULT_THUNDER_SETTINGS: ThunderSettings = {
-  duration: 3000,          // 3 seconds
-  flashInterval: 400,      // Flash every 400ms minimum
-  flashVariance: 600,      // Up to 1000ms between flashes
-  ambientDarkness: 0.4,    // 40% darker
-  flashIntensity: 0.8,     // 80% flash brightness
+  duration: 3000, // 3 seconds
+  flashInterval: 400, // Flash every 400ms minimum
+  flashVariance: 600, // Up to 1000ms between flashes
+  ambientDarkness: 0.4, // 40% darker
+  flashIntensity: 0.8, // 80% flash brightness
 };
 
 export class ThunderEffect {
@@ -37,7 +37,7 @@ export class ThunderEffect {
   private flashTimeout: number | null = null;
   private endTimeout: number | null = null;
   private originalAmbient: Color3 | null = null;
-  private stormAmbient: Color3 | null = null;  // Darkened ambient during storm
+  private stormAmbient: Color3 | null = null; // Darkened ambient during storm
   private flashOverlay: HTMLDivElement | null = null;
   private thunderSound: HTMLAudioElement | null = null;
 
@@ -46,7 +46,7 @@ export class ThunderEffect {
     this.createFlashOverlay();
     this.loadThunderSound();
   }
-  
+
   /**
    * Load the thunderstorm sound effect
    */
@@ -54,16 +54,16 @@ export class ThunderEffect {
     this.thunderSound = new Audio("/sounds/thunderstorm.mp3");
     this.thunderSound.volume = 0.6;
   }
-  
+
   /**
    * Play the thunder sound once
    */
   private playThunderSound(): void {
     if (!this.thunderSound) return;
-    
+
     // Reset to start and play
     this.thunderSound.currentTime = 0;
-    this.thunderSound.play().catch(err => {
+    this.thunderSound.play().catch((err) => {
       console.warn("[ThunderEffect] Could not play sound:", err.message);
     });
   }
@@ -74,7 +74,7 @@ export class ThunderEffect {
    */
   private createFlashOverlay(): void {
     UIStyles.injectBase();
-    
+
     this.flashOverlay = document.createElement("div");
     this.flashOverlay.id = "thunder-flash-overlay";
     this.flashOverlay.className = "ui-thunder-flash";
@@ -125,9 +125,9 @@ export class ThunderEffect {
     // Darken the scene ambient
     const darkness = this.settings.ambientDarkness;
     this.stormAmbient = new Color3(
-      this.originalAmbient.r * (1 - darkness) * 0.7,  // Slight blue tint
+      this.originalAmbient.r * (1 - darkness) * 0.7, // Slight blue tint
       this.originalAmbient.g * (1 - darkness) * 0.75,
-      this.originalAmbient.b * (1 - darkness)
+      this.originalAmbient.b * (1 - darkness),
     );
     this.scene.ambientColor = this.stormAmbient;
 
@@ -137,22 +137,22 @@ export class ThunderEffect {
       // Could add contrast/exposure adjustments here
     }
   }
-  
+
   /**
    * Brighten ambient light temporarily for lightning flash
    */
   private brightenAmbient(intensity: number): void {
     if (!this.originalAmbient) return;
-    
+
     // Flash brightens toward white/blue-white
     const flashColor = new Color3(
       Math.min(1, this.originalAmbient.r + intensity * 0.8),
       Math.min(1, this.originalAmbient.g + intensity * 0.85),
-      Math.min(1, this.originalAmbient.b + intensity * 0.9)
+      Math.min(1, this.originalAmbient.b + intensity * 0.9),
     );
     this.scene.ambientColor = flashColor;
   }
-  
+
   /**
    * Restore ambient to storm level after flash
    */
@@ -168,8 +168,7 @@ export class ThunderEffect {
   private scheduleNextFlash(): void {
     if (!this.isActive) return;
 
-    const delay = this.settings.flashInterval + 
-      Math.random() * this.settings.flashVariance;
+    const delay = this.settings.flashInterval + Math.random() * this.settings.flashVariance;
 
     this.flashTimeout = window.setTimeout(() => {
       this.doFlash();
@@ -186,10 +185,10 @@ export class ThunderEffect {
 
     // Random flash intensity variation
     const intensity = this.settings.flashIntensity * (0.6 + Math.random() * 0.4);
-    
+
     // Brighten scene ambient light for realistic lightning effect
     this.brightenAmbient(intensity);
-    
+
     // Subtle overlay flash (much softer than before)
     if (this.flashOverlay) {
       this.flashOverlay.style.opacity = String(Math.min(intensity * 0.5, 0.4));
@@ -197,30 +196,33 @@ export class ThunderEffect {
 
     // Flash off after short delay (with possible double-flash)
     const doDoubleFlash = Math.random() > 0.7;
-    
-    setTimeout(() => {
-      this.restoreAmbientFromFlash();
-      if (this.flashOverlay) {
-        this.flashOverlay.style.opacity = "0";
-      }
-      
-      if (doDoubleFlash && this.isActive) {
-        // Second flash after brief pause (weaker)
-        setTimeout(() => {
-          if (!this.isActive) return;
-          this.brightenAmbient(intensity * 0.5);
-          if (this.flashOverlay) {
-            this.flashOverlay.style.opacity = String(Math.min(intensity * 0.3, 0.25));
-          }
+
+    setTimeout(
+      () => {
+        this.restoreAmbientFromFlash();
+        if (this.flashOverlay) {
+          this.flashOverlay.style.opacity = "0";
+        }
+
+        if (doDoubleFlash && this.isActive) {
+          // Second flash after brief pause (weaker)
           setTimeout(() => {
-            this.restoreAmbientFromFlash();
+            if (!this.isActive) return;
+            this.brightenAmbient(intensity * 0.5);
             if (this.flashOverlay) {
-              this.flashOverlay.style.opacity = "0";
+              this.flashOverlay.style.opacity = String(Math.min(intensity * 0.3, 0.25));
             }
-          }, 60);
-        }, 80);
-      }
-    }, 50 + Math.random() * 50);
+            setTimeout(() => {
+              this.restoreAmbientFromFlash();
+              if (this.flashOverlay) {
+                this.flashOverlay.style.opacity = "0";
+              }
+            }, 60);
+          }, 80);
+        }
+      },
+      50 + Math.random() * 50,
+    );
   }
 
   /**
@@ -239,7 +241,7 @@ export class ThunderEffect {
       const fadeStep = () => {
         const elapsed = Date.now() - startTime;
         const t = Math.min(1, elapsed / fadeDuration);
-        
+
         this.scene.ambientColor = Color3.Lerp(startAmbient, targetAmbient, t);
 
         if (t < 1) {
@@ -262,7 +264,7 @@ export class ThunderEffect {
    */
   public stop(): void {
     this.clearTimeouts();
-    
+
     if (this.flashOverlay) {
       this.flashOverlay.style.opacity = "0";
     }
@@ -309,7 +311,7 @@ export class ThunderEffect {
    */
   public dispose(): void {
     this.stop();
-    if (this.flashOverlay && this.flashOverlay.parentNode) {
+    if (this.flashOverlay?.parentNode) {
       this.flashOverlay.parentNode.removeChild(this.flashOverlay);
       this.flashOverlay = null;
     }

@@ -1,16 +1,16 @@
 /**
  * ProceduralTextureGenerator - Generate procedural textures at runtime
- * 
+ *
  * Engine-level texture generation using Canvas API and noise algorithms.
  * Games can register custom presets for their specific needs.
  */
 
-import { Scene } from "@babylonjs/core/scene";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Scene } from "@babylonjs/core/scene";
 import { ValueNoise } from "../math/Noise";
 
-export type NoiseType = 'value' | 'perlin';
+export type NoiseType = "value" | "perlin";
 
 export interface TexturePreset {
   name: string;
@@ -27,7 +27,7 @@ export interface TexturePreset {
 // Default presets that can be overridden or extended
 const DEFAULT_PRESETS: Record<string, TexturePreset> = {
   grass: {
-    name: 'grass',
+    name: "grass",
     size: 256,
     baseColor: [80, 130, 50],
     noiseAmount: 30,
@@ -36,7 +36,7 @@ const DEFAULT_PRESETS: Record<string, TexturePreset> = {
     noisePersistence: 0.5,
   },
   water: {
-    name: 'water',
+    name: "water",
     size: 256,
     baseColor: [60, 120, 160],
     noiseAmount: 15,
@@ -45,7 +45,7 @@ const DEFAULT_PRESETS: Record<string, TexturePreset> = {
     alpha: 0.85,
   },
   rock: {
-    name: 'rock',
+    name: "rock",
     size: 256,
     baseColor: [90, 85, 80],
     noiseAmount: 40,
@@ -54,7 +54,7 @@ const DEFAULT_PRESETS: Record<string, TexturePreset> = {
     noisePersistence: 0.6,
   },
   dirt: {
-    name: 'dirt',
+    name: "dirt",
     size: 256,
     baseColor: [70, 55, 35],
     noiseAmount: 25,
@@ -62,7 +62,7 @@ const DEFAULT_PRESETS: Record<string, TexturePreset> = {
     noiseOctaves: 3,
   },
   sand: {
-    name: 'sand',
+    name: "sand",
     size: 256,
     baseColor: [95, 80, 55],
     noiseAmount: 20,
@@ -191,16 +191,7 @@ export class ProceduralTextureGenerator {
   private generateTexture(preset: TexturePreset): DynamicTexture | null {
     if (!this.scene) return null;
 
-    const {
-      name,
-      size,
-      baseColor,
-      noiseAmount,
-      noiseScale,
-      noiseOctaves = 3,
-      noisePersistence = 0.5,
-      alpha,
-    } = preset;
+    const { name, size, baseColor, noiseAmount, noiseScale, noiseOctaves = 3, noisePersistence = 0.5, alpha } = preset;
 
     // Create dynamic texture
     const texture = new DynamicTexture(
@@ -208,28 +199,21 @@ export class ProceduralTextureGenerator {
       size,
       this.scene,
       true, // generateMipMaps
-      Texture.TRILINEAR_SAMPLINGMODE
+      Texture.TRILINEAR_SAMPLINGMODE,
     );
 
     const ctx = texture.getContext() as CanvasRenderingContext2D;
-    
+
     // Use consistent seed for each texture type (based on name hash)
-    const seed = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const seed = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
     const noise = new ValueNoise(seed);
-    
+
     // Draw pixel by pixel with tileable noise
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         // Use tileable noise by sampling on a torus
         // This ensures edges wrap seamlessly
-        const noiseValue = this.tileableNoise(
-          noise,
-          x / size,
-          y / size,
-          noiseScale,
-          noiseOctaves,
-          noisePersistence
-        );
+        const noiseValue = this.tileableNoise(noise, x / size, y / size, noiseScale, noiseOctaves, noisePersistence);
 
         // Apply noise to base color
         const variation = (noiseValue - 0.5) * noiseAmount * 2;
@@ -264,26 +248,26 @@ export class ProceduralTextureGenerator {
     y: number,
     scale: number,
     octaves: number,
-    persistence: number
+    persistence: number,
   ): number {
     // Map 2D coordinates to 4D torus for seamless tiling
     const twoPi = Math.PI * 2;
     const s = x * scale;
     const t = y * scale;
-    
+
     // Sample noise in 4D space mapped from 2D torus
     // This creates seamless wrapping in both directions
     const nx = Math.cos(s * twoPi) * scale;
     const ny = Math.sin(s * twoPi) * scale;
     const nz = Math.cos(t * twoPi) * scale;
     const nw = Math.sin(t * twoPi) * scale;
-    
+
     // Use 2D noise with combined coordinates for pseudo-4D effect
     let total = 0;
     let frequency = 1;
     let amplitude = 1;
     let maxValue = 0;
-    
+
     for (let i = 0; i < octaves; i++) {
       // Combine coordinates for varied sampling
       const sample1 = noise.noise(nx * frequency + nz * 0.5, ny * frequency + nw * 0.5);
@@ -293,7 +277,7 @@ export class ProceduralTextureGenerator {
       amplitude *= persistence;
       frequency *= 2;
     }
-    
+
     return total / maxValue;
   }
 

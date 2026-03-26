@@ -1,6 +1,6 @@
 /**
  * SHAG Engine - FPS Mode Entry Point
- * 
+ *
  * Minimal entry point for FPS development.
  * Loads engine, creates scene, and enters FPS mode with default map.
  * Use console (~ key) to load maps: "map wdm1", "map wda1", etc.
@@ -8,33 +8,34 @@
 
 import "./style.css";
 import "./engine/ui/styles/WashikiFonts.css"; // Washiki fonts available at startup (before HUD)
-console.log("ANTIGRAVITY_DEBUG_ACTIVE: " + Date.now());
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
+console.log(`ANTIGRAVITY_DEBUG_ACTIVE: ${Date.now()}`);
+
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Engine } from "@babylonjs/core/Engines/engine";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 // Side-effect import for Babylon native collision (used by FreeflyController)
 import "@babylonjs/core/Collisions/collisionCoordinator";
-import { registerEngineServices, ServiceLocator, QualityDetector } from "./engine/core";
-import { LoadingScreen } from "./engine/ui/LoadingScreen";
-import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
-import { UITheme } from "./engine/ui/UITheme";
-import { UIScale } from "./engine/ui/UIScale";
-import { DebugConsole } from "./engine/debug";
-import { registerEngineCommands } from "./engine/console/commands";
-import { GamePaths } from "./engine/core/GamePaths";
-import { EngineVersion } from "./engine/core/EngineVersion";
-import { PK3Index } from "./engine/loader/pk3/PK3Index";
-import { MapLoader } from "./engine/loader/map/MapLoader";
+import gameJson from "@game/game.json";
 import { CameraSystem } from "./engine/camera";
 import { FPSController } from "./engine/camera/controllers/FPSController";
+import { registerEngineCommands } from "./engine/console/commands";
+import { QualityDetector, registerEngineServices, ServiceLocator } from "./engine/core";
+import { EngineVersion } from "./engine/core/EngineVersion";
+import { GamePaths } from "./engine/core/GamePaths";
+import { DebugConsole } from "./engine/debug";
 import { TextureManager, TextureMemoryManager } from "./engine/loader";
+import { MapLoader } from "./engine/loader/map/MapLoader";
+import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
-import { FPSPlayer } from "./games/fps/FPSPlayer";
+import { LoadingScreen } from "./engine/ui/LoadingScreen";
+import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
 import { LobbyPanel } from "./engine/ui/panels/LobbyPanel";
-import gameJson from "@game/game.json";
+import { UIScale } from "./engine/ui/UIScale";
+import { UITheme } from "./engine/ui/UITheme";
+import { FPSPlayer } from "./games/fps/FPSPlayer";
 
 /**
  * Main application entry point.
@@ -70,7 +71,7 @@ async function main() {
 
   // Build PK3 index
   const pk3Index = PK3Index.getInstance();
-  pk3Index.setSearchPaths(['data/']);
+  pk3Index.setSearchPaths(["data/"]);
   await pk3Index.ensureIndex((msg) => loadingScreen.setStatus(msg));
 
   // Initialize debug console
@@ -89,9 +90,9 @@ async function main() {
   const userReadyPromise = loadingScreen.waitForReady();
 
   // Pipe map loading progress into the splash screen
-  const { EventBus } = await import('./engine/core/EventBus');
-  const unsubProgress = EventBus.on('loading:progress', (data: any) => {
-    if (data?.type === 'map' && data?.phase) {
+  const { EventBus } = await import("./engine/core/EventBus");
+  const unsubProgress = EventBus.on("loading:progress", (data: any) => {
+    if (data?.type === "map" && data?.phase) {
       loadingScreen.setStatus(data.detail || data.phase);
     }
   });
@@ -99,7 +100,7 @@ async function main() {
   // ── Engine initialization (runs while user is looking at splash screen) ──
 
   // Create scene
-  console.log('[Main] Creating scene...');
+  console.log("[Main] Creating scene...");
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1); // Required for BSP lightmaps to render
@@ -130,7 +131,7 @@ async function main() {
   console.log(`[Main] Texture quality: ${quality} (${deviceInfo.type}, GPU tier ${deviceInfo.gpuTier})`);
 
   // Load engine settings
-  loadingScreen.setStatus('Loading engine settings...');
+  loadingScreen.setStatus("Loading engine settings...");
   const { EngineSettings } = await import("./engine/core/EngineSettings");
   await EngineSettings.getInstance().load();
 
@@ -146,38 +147,38 @@ async function main() {
 
   // Initialize InstancedMeshManager
   InstancedMeshManager.getInstance().init(scene);
-  console.log('[InstancedMeshManager] Initialized');
+  console.log("[InstancedMeshManager] Initialized");
 
   // Initialize scene services
-  loadingScreen.setStatus('Initializing services...');
+  loadingScreen.setStatus("Initializing services...");
   await ServiceLocator.getInstance().initScene(scene);
 
   // Initialize Physics System
   try {
-    loadingScreen.setStatus('Initializing physics...');
-    const { PhysicsSystem } = await import('./engine/physics/PhysicsSystem');
+    loadingScreen.setStatus("Initializing physics...");
+    const { PhysicsSystem } = await import("./engine/physics/PhysicsSystem");
     const success = await PhysicsSystem.getInstance().enablePhysics(scene);
     console.log(`[Main] Physics initialized: ${success}`);
   } catch (e) {
-    console.error('[Main] Failed to init physics:', e);
+    console.error("[Main] Failed to init physics:", e);
   }
 
   // Initialize camera system
   const cameraSystem = CameraSystem.getInstance();
   cameraSystem.init(scene, canvas);
   cameraSystem.setCamera(camera); // CRITICAL: Register the camera we created
-  cameraSystem.registerController('fps', new FPSController());
-  cameraSystem.setController('fps');
-  const controller = cameraSystem.getController('fps') as FPSController;
+  cameraSystem.registerController("fps", new FPSController());
+  cameraSystem.setController("fps");
+  const controller = cameraSystem.getController("fps") as FPSController;
 
-  console.log('[Main] FPS controller initialized');
+  console.log("[Main] FPS controller initialized");
 
   // Initialize FPSPlayer (Game Logic)
   const player = new FPSPlayer(controller);
-  console.log('[Main] FPSPlayer initialized');
+  console.log("[Main] FPSPlayer initialized");
 
   // Check if a map was specified via URL param
-  const requestedMap = new URLSearchParams(window.location.search).get('map');
+  const requestedMap = new URLSearchParams(window.location.search).get("map");
 
   if (requestedMap) {
     // Wait for user click before switching to MapLoadingOverlay
@@ -194,8 +195,8 @@ async function main() {
 
     if (result.success && result.playerStartPosition) {
       console.log(`[Main] Map loaded: ${requestedMap}`);
-      const fpsController = cameraSystem.getController('fps');
-      if (fpsController && 'setPosition' in fpsController) {
+      const fpsController = cameraSystem.getController("fps");
+      if (fpsController && "setPosition" in fpsController) {
         (fpsController as FPSController).setPosition(result.playerStartPosition);
       } else {
         camera.position.copyFrom(result.playerStartPosition);
@@ -205,7 +206,7 @@ async function main() {
     }
   } else {
     // ── Lobby (no 3D background — will use background image in future) ──
-    loadingScreen.setStatus('Loading lobby...');
+    loadingScreen.setStatus("Loading lobby...");
     await userReadyPromise;
 
     // Stop piping progress to splash screen
@@ -232,11 +233,11 @@ async function main() {
 
   // Hide lobby when a GAMEPLAY map starts loading (network connect, console map cmd, etc.)
   // Uses loading:start (not map:loaded) so it fires IMMEDIATELY, not after map finishes.
-  import('./engine/core/EventBus').then(({ EventBus }) => {
-    EventBus.on('loading:start', (data: any) => {
-      if (data?.type !== 'map') return;
+  import("./engine/core/EventBus").then(({ EventBus }) => {
+    EventBus.on("loading:start", (data: any) => {
+      if (data?.type !== "map") return;
       // Don't hide for background ui map
-      if (data?.id === 'ui') return;
+      if (data?.id === "ui") return;
 
       const lobby = (window as any).__lobbyPanel as LobbyPanel | undefined;
       if (lobby?.isVisible()) {

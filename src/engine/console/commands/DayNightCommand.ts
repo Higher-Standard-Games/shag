@@ -3,83 +3,83 @@
  * Uses direct SkyLightSystem API (bypasses cvars for empty scene compatibility)
  */
 
-import { Command, CommandDef } from '../Command';
-import { SkyLightSystem } from '../../lighting/SkyLightSystem';
+import { SkyLightSystem } from "../../lighting/SkyLightSystem";
+import { Command, type CommandDef } from "../Command";
 
 export default class DayNightCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'daynight',
-    description: 'Day/night cycle control for BSP maps',
-    usage: 'daynight <on|off|noon|midnight|start|stop|info>',
+    name: "daynight",
+    description: "Day/night cycle control for BSP maps",
+    usage: "daynight <on|off|noon|midnight|start|stop|info>",
     developer: true,
     subcommands: [
-      { name: 'on', description: 'Enable day/night cycle' },
-      { name: 'off', description: 'Disable day/night cycle' },
-      { name: 'noon', description: 'Set to noon (brightest)' },
-      { name: 'midnight', description: 'Set to midnight (darkest)' },
-      { name: 'sunrise', description: 'Set to sunrise' },
-      { name: 'sunset', description: 'Set to sunset' },
-      { name: 'start', description: 'Start time animation' },
-      { name: 'stop', description: 'Stop time animation' },
-      { name: 'time', description: 'Set time (0-1)', args: [{ name: 'value', type: 'number' }] },
-      { name: 'info', description: 'Show current state' },
+      { name: "on", description: "Enable day/night cycle" },
+      { name: "off", description: "Disable day/night cycle" },
+      { name: "noon", description: "Set to noon (brightest)" },
+      { name: "midnight", description: "Set to midnight (darkest)" },
+      { name: "sunrise", description: "Set to sunrise" },
+      { name: "sunset", description: "Set to sunset" },
+      { name: "start", description: "Start time animation" },
+      { name: "stop", description: "Stop time animation" },
+      { name: "time", description: "Set time (0-1)", args: [{ name: "value", type: "number" }] },
+      { name: "info", description: "Show current state" },
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase();
     const sky = SkyLightSystem.getInstance();
 
     switch (subcommand) {
-      case 'on':
+      case "on":
         sky.setBspDayNightEnabled(true);
-        return 'Day/night cycle enabled. Try: daynight noon, daynight midnight, daynight start';
+        return "Day/night cycle enabled. Try: daynight noon, daynight midnight, daynight start";
 
-      case 'off':
+      case "off":
         sky.setBspDayNightEnabled(false);
-        return 'Day/night cycle disabled';
+        return "Day/night cycle disabled";
 
-      case 'noon':
+      case "noon":
         sky.setBspDayNightEnabled(true);
         sky.setBspTimeOfDay(0.5);
-        return 'Time set to noon (brightest)';
+        return "Time set to noon (brightest)";
 
-      case 'midnight':
+      case "midnight":
         sky.setBspDayNightEnabled(true);
         sky.setBspTimeOfDay(0);
-        return 'Time set to midnight (darkest)';
+        return "Time set to midnight (darkest)";
 
-      case 'sunrise':
+      case "sunrise":
         sky.setBspDayNightEnabled(true);
         sky.setBspTimeOfDay(0.25);
-        return 'Time set to sunrise';
+        return "Time set to sunrise";
 
-      case 'sunset':
+      case "sunset":
         sky.setBspDayNightEnabled(true);
         sky.setBspTimeOfDay(0.75);
-        return 'Time set to sunset';
+        return "Time set to sunset";
 
-      case 'start':
+      case "start":
         sky.setBspDayNightEnabled(true);
         sky.setBspAnimating(true);
         return `Day/night animation started (${sky.getBspCycleLength()} min cycle)`;
 
-      case 'stop':
+      case "stop":
         sky.setBspAnimating(false);
-        return 'Day/night animation stopped';
+        return "Day/night animation stopped";
 
-      case 'cycle': {
+      case "cycle": {
         const minutes = parseFloat(args[1]);
-        if (isNaN(minutes)) {
+        if (Number.isNaN(minutes)) {
           return `Current cycle length: ${sky.getBspCycleLength()} minutes`;
         }
         sky.setBspCycleLength(minutes);
         return `Cycle length set to ${minutes} minutes`;
       }
 
-      case 'time': {
+      case "time": {
         const value = parseFloat(args[1]);
-        if (isNaN(value)) {
+        if (Number.isNaN(value)) {
           const time = sky.getBspTimeOfDay();
           return `Current time: ${time.toFixed(2)} (0=midnight, 0.5=noon)`;
         }
@@ -87,8 +87,6 @@ export default class DayNightCommand extends Command {
         sky.setBspTimeOfDay(value);
         return `Time set to ${value.toFixed(2)}`;
       }
-
-      case 'info':
       default: {
         const time = sky.getBspTimeOfDay();
         const sunFactor = Math.max(0, Math.sin(time * Math.PI));
@@ -99,7 +97,7 @@ export default class DayNightCommand extends Command {
   Time: ${time.toFixed(2)} (0=midnight, 0.5=noon)
   Intensity: ${intensity.toFixed(2)}
   Cycle: ${sky.getBspCycleLength()} min
-  Period: ${isNight ? 'NIGHT (lamps on)' : 'DAY'}
+  Period: ${isNight ? "NIGHT (lamps on)" : "DAY"}
 
 Commands:
   daynight on/off       - Enable/disable
@@ -113,7 +111,7 @@ Commands:
 
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['on', 'off', 'noon', 'midnight', 'sunrise', 'sunset', 'start', 'stop', 'cycle', 'time', 'info'];
+      return ["on", "off", "noon", "midnight", "sunrise", "sunset", "start", "stop", "cycle", "time", "info"];
     }
     return [];
   }

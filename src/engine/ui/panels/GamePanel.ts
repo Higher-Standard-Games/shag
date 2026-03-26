@@ -19,310 +19,308 @@
  *   }
  */
 
-import { UIStyles } from '../UIStyles';
-import { spawnParticles, clearParticles } from './effects/FloatingParticles';
-import { createNeonDivider } from './effects/NeonDivider';
-import { createKanjiWatermarks } from './effects/KanjiWatermark';
-import { LogoCanvas } from '../components/LogoCanvas';
-import gamePanelCSS from './styles/GamePanel.css?raw';
+import { LogoCanvas } from "../components/LogoCanvas";
+import { UIStyles } from "../UIStyles";
+import { clearParticles, spawnParticles } from "./effects/FloatingParticles";
+import { createKanjiWatermarks } from "./effects/KanjiWatermark";
+import { createNeonDivider } from "./effects/NeonDivider";
+import gamePanelCSS from "./styles/GamePanel.css?raw";
 
 export class GamePanel {
-    protected root: HTMLElement;
-    protected centerZone: HTMLElement;
-    protected headerArea: HTMLElement;
-    protected contentArea: HTMLElement;
-    protected scrollInner: HTMLElement;
-    protected footerArea: HTMLElement;
-    protected titleEl: HTMLElement;
-    protected titleDeco: HTMLElement;
-    protected tabBar: HTMLElement;
+  protected root: HTMLElement;
+  protected centerZone: HTMLElement;
+  protected headerArea: HTMLElement;
+  protected contentArea: HTMLElement;
+  protected scrollInner: HTMLElement;
+  protected footerArea: HTMLElement;
+  protected titleEl: HTMLElement;
+  protected titleDeco: HTMLElement;
+  protected tabBar: HTMLElement;
 
-    private visible: boolean = false;
-    private particles: HTMLElement[] = [];
-    private kanjiElements: HTMLElement[] = [];
-    private onCloseCallback: (() => void) | null = null;
-    private escHandler: (e: KeyboardEvent) => void;
-    private tabs: { id: string; label: string; content: HTMLElement; btn: HTMLElement }[] = [];
-    private activeTabId: string | null = null;
-    private tabChangeCallback: ((tabId: string) => void) | null = null;
+  private visible: boolean = false;
+  private particles: HTMLElement[] = [];
+  private kanjiElements: HTMLElement[] = [];
+  private onCloseCallback: (() => void) | null = null;
+  private escHandler: (e: KeyboardEvent) => void;
+  private tabs: { id: string; label: string; content: HTMLElement; btn: HTMLElement }[] = [];
 
-    /** If false, ESC key will not close this panel (e.g. main menu) */
-    protected closable: boolean = true;
-    protected logoCanvas: LogoCanvas | null = null;
+  private tabChangeCallback: ((tabId: string) => void) | null = null;
 
-    constructor(title?: string) {
-        // Inject CSS (once)
-        UIStyles.injectCSS('game-panel', gamePanelCSS);
+  /** If false, ESC key will not close this panel (e.g. main menu) */
+  protected closable: boolean = true;
+  protected logoCanvas: LogoCanvas | null = null;
 
-        // Root overlay
-        this.root = document.createElement('div');
-        this.root.className = 'game-panel';
-        this.root.style.display = 'none';
+  constructor(title?: string) {
+    // Inject CSS (once)
+    UIStyles.injectCSS("game-panel", gamePanelCSS);
 
-        // ── Blur zone: top ──
-        const blurTop = document.createElement('div');
-        blurTop.className = 'game-panel__blur-top';
-        this.root.appendChild(blurTop);
+    // Root overlay
+    this.root = document.createElement("div");
+    this.root.className = "game-panel";
+    this.root.style.display = "none";
 
-        // ── Neon divider: top ──
-        this.root.appendChild(createNeonDivider('top'));
+    // ── Blur zone: top ──
+    const blurTop = document.createElement("div");
+    blurTop.className = "game-panel__blur-top";
+    this.root.appendChild(blurTop);
 
-        // ── Center zone ──
-        this.centerZone = document.createElement('div');
-        this.centerZone.className = 'game-panel__center';
+    // ── Neon divider: top ──
+    this.root.appendChild(createNeonDivider("top"));
 
-        // Kanji watermarks
-        this.kanjiElements = createKanjiWatermarks(this.centerZone);
+    // ── Center zone ──
+    this.centerZone = document.createElement("div");
+    this.centerZone.className = "game-panel__center";
 
-        // Particle container
-        const particleContainer = document.createElement('div');
-        particleContainer.className = 'game-panel__particles';
-        this.centerZone.appendChild(particleContainer);
+    // Kanji watermarks
+    this.kanjiElements = createKanjiWatermarks(this.centerZone);
 
-        // Scanline
-        const scan = document.createElement('div');
-        scan.className = 'game-panel__scan';
-        this.centerZone.appendChild(scan);
+    // Particle container
+    const particleContainer = document.createElement("div");
+    particleContainer.className = "game-panel__particles";
+    this.centerZone.appendChild(particleContainer);
 
-        // Header (title + deco + tab bar)
-        this.headerArea = document.createElement('div');
-        this.headerArea.className = 'game-panel__header';
+    // Scanline
+    const scan = document.createElement("div");
+    scan.className = "game-panel__scan";
+    this.centerZone.appendChild(scan);
 
-        this.titleEl = document.createElement('h2');
-        this.titleEl.className = 'game-panel__title';
-        if (title) this.titleEl.textContent = title;
-        this.headerArea.appendChild(this.titleEl);
+    // Header (title + deco + tab bar)
+    this.headerArea = document.createElement("div");
+    this.headerArea.className = "game-panel__header";
 
-        // Decorative dots under title
-        this.titleDeco = document.createElement('div');
-        this.titleDeco.className = 'game-panel__title-deco';
-        for (let i = 0; i < 5; i++) {
-            this.titleDeco.appendChild(document.createElement('span'));
-        }
-        this.headerArea.appendChild(this.titleDeco);
+    this.titleEl = document.createElement("h2");
+    this.titleEl.className = "game-panel__title";
+    if (title) this.titleEl.textContent = title;
+    this.headerArea.appendChild(this.titleEl);
 
-        // Tab bar (empty by default — subclasses populate via addTab)
-        this.tabBar = document.createElement('div');
-        this.tabBar.className = 'game-panel__tabs';
-        this.headerArea.appendChild(this.tabBar);
+    // Decorative dots under title
+    this.titleDeco = document.createElement("div");
+    this.titleDeco.className = "game-panel__title-deco";
+    for (let i = 0; i < 5; i++) {
+      this.titleDeco.appendChild(document.createElement("span"));
+    }
+    this.headerArea.appendChild(this.titleDeco);
 
-        this.centerZone.appendChild(this.headerArea);
+    // Tab bar (empty by default — subclasses populate via addTab)
+    this.tabBar = document.createElement("div");
+    this.tabBar.className = "game-panel__tabs";
+    this.headerArea.appendChild(this.tabBar);
 
-        // Content area (scrollable)
-        this.contentArea = document.createElement('div');
-        this.contentArea.className = 'game-panel__content';
+    this.centerZone.appendChild(this.headerArea);
 
-        this.scrollInner = document.createElement('div');
-        this.scrollInner.className = 'game-panel__scroll';
-        this.contentArea.appendChild(this.scrollInner);
+    // Content area (scrollable)
+    this.contentArea = document.createElement("div");
+    this.contentArea.className = "game-panel__content";
 
-        this.centerZone.appendChild(this.contentArea);
+    this.scrollInner = document.createElement("div");
+    this.scrollInner.className = "game-panel__scroll";
+    this.contentArea.appendChild(this.scrollInner);
 
-        // Footer
-        this.footerArea = document.createElement('div');
-        this.footerArea.className = 'game-panel__footer';
-        this.centerZone.appendChild(this.footerArea);
+    this.centerZone.appendChild(this.contentArea);
 
-        this.root.appendChild(this.centerZone);
+    // Footer
+    this.footerArea = document.createElement("div");
+    this.footerArea.className = "game-panel__footer";
+    this.centerZone.appendChild(this.footerArea);
 
-        // ── Neon divider: bottom ──
-        this.root.appendChild(createNeonDivider('bottom'));
+    this.root.appendChild(this.centerZone);
 
-        // ── Blur zone: bottom ──
-        const blurBot = document.createElement('div');
-        blurBot.className = 'game-panel__blur-bot';
-        this.root.appendChild(blurBot);
+    // ── Neon divider: bottom ──
+    this.root.appendChild(createNeonDivider("bottom"));
 
-        // Append to DOM
-        document.body.appendChild(this.root);
+    // ── Blur zone: bottom ──
+    const blurBot = document.createElement("div");
+    blurBot.className = "game-panel__blur-bot";
+    this.root.appendChild(blurBot);
 
-        // Spawn particles (lazy — only when opened)
-        this.particles = [];
+    // Append to DOM
+    document.body.appendChild(this.root);
 
-        // ESC key handler
-        this.escHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && this.visible && this.closable) {
-                this.close();
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
+    // Spawn particles (lazy — only when opened)
+    this.particles = [];
+
+    // ESC key handler
+    this.escHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && this.visible && this.closable) {
+        this.close();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Public API
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  public open(): void {
+    if (this.visible) return;
+    this.visible = true;
+
+    // Spawn particles if not already present
+    if (this.particles.length === 0) {
+      const container = this.centerZone.querySelector(".game-panel__particles") as HTMLElement;
+      if (container) {
+        this.particles = spawnParticles(container, { count: 22 });
+      }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Public API
-    // ═══════════════════════════════════════════════════════════════════════════
+    this.root.classList.remove("game-panel--closing");
+    this.root.style.display = "";
+    document.body.classList.add("show-ui-bg");
+    document.addEventListener("keydown", this.escHandler, true);
 
-    public open(): void {
-        if (this.visible) return;
-        this.visible = true;
+    // Resume logo rendering
+    this.logoCanvas?.start();
+  }
 
-        // Spawn particles if not already present
-        if (this.particles.length === 0) {
-            const container = this.centerZone.querySelector('.game-panel__particles') as HTMLElement;
-            if (container) {
-                this.particles = spawnParticles(container, { count: 22 });
-            }
-        }
+  public close(): void {
+    if (!this.visible) return;
+    this.visible = false;
+    document.removeEventListener("keydown", this.escHandler, true);
 
-        this.root.classList.remove('game-panel--closing');
-        this.root.style.display = '';
-        document.body.classList.add('show-ui-bg');
-        document.addEventListener('keydown', this.escHandler, true);
+    // Exit animation then hide
+    this.root.classList.add("game-panel--closing");
+    const onEnd = () => {
+      this.root.removeEventListener("animationend", onEnd);
+      this.root.style.display = "none";
+      this.root.classList.remove("game-panel--closing");
+      document.body.classList.remove("show-ui-bg");
 
-        // Resume logo rendering
-        this.logoCanvas?.start();
+      // Cleanup particles
+      clearParticles(this.particles);
+
+      if (this.onCloseCallback) {
+        this.onCloseCallback();
+      }
+    };
+    this.root.addEventListener("animationend", onEnd);
+
+    // Pause logo rendering
+    this.logoCanvas?.pause();
+  }
+
+  public isOpen(): boolean {
+    return this.visible;
+  }
+
+  public setTitle(title: string): void {
+    this.titleEl.textContent = title;
+  }
+
+  public onClose(callback: () => void): void {
+    this.onCloseCallback = callback;
+  }
+
+  public destroy(): void {
+    document.removeEventListener("keydown", this.escHandler, true);
+    clearParticles(this.particles);
+    for (const el of this.kanjiElements) el.remove();
+    this.logoCanvas?.dispose();
+    this.root.remove();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Protected Helpers (for subclasses)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Set content in the scrollable area. Clears existing content.
+   */
+  protected setContent(element: HTMLElement): void {
+    this.scrollInner.innerHTML = "";
+    this.scrollInner.appendChild(element);
+  }
+
+  /**
+   * Get the scrollable inner container (for appending content directly).
+   */
+  protected getScrollContainer(): HTMLElement {
+    return this.scrollInner;
+  }
+
+  /**
+   * Enable the 3D logo floating OVER the panel top edge.
+   * The logo is bigger and centered on the top border line,
+   * overlapping outside the panel for dramatic effect.
+   * Call from subclass constructor after super().
+   */
+  protected enableLogo(opts?: { width?: number; height?: number }): void {
+    this.logoCanvas = new LogoCanvas({
+      width: opts?.width ?? 600,
+      height: opts?.height ?? 200,
+      showGlow: true,
+    });
+
+    // Hide text title + decoration
+    this.titleEl.style.display = "none";
+    this.titleDeco.style.display = "none";
+
+    // Add logo to ROOT (not header) so it can float above the panel
+    const logoEl = this.logoCanvas.getElement();
+    logoEl.classList.add("game-panel__logo-float");
+    this.root.appendChild(logoEl);
+
+    // Init after a tick (needs to be in DOM)
+    requestAnimationFrame(() => {
+      this.logoCanvas?.init();
+    });
+  }
+
+  /**
+   * Create a styled button for the footer.
+   */
+  protected createButton(text: string, variant: string = "", onClick?: () => void): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.className = `fps-btn ${variant}`.trim();
+    btn.textContent = text;
+    if (onClick) btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Tab Management
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Add a tab to the tab bar.
+   */
+  protected addTab(id: string, label: string, content: HTMLElement): void {
+    const btn = document.createElement("button");
+    btn.className = "game-panel__tab";
+    btn.textContent = label;
+    btn.dataset.tabId = id;
+    btn.addEventListener("click", () => this.switchTab(id));
+    this.tabBar.appendChild(btn);
+
+    this.tabs.push({ id, label, content, btn });
+  }
+
+  /**
+   * Switch to a tab by ID.
+   */
+  protected switchTab(tabId: string): void {
+    // Update tab button states
+    for (const tab of this.tabs) {
+      tab.btn.classList.toggle("game-panel__tab--active", tab.id === tabId);
     }
 
-    public close(): void {
-        if (!this.visible) return;
-        this.visible = false;
-        document.removeEventListener('keydown', this.escHandler, true);
-
-        // Exit animation then hide
-        this.root.classList.add('game-panel--closing');
-        const onEnd = () => {
-            this.root.removeEventListener('animationend', onEnd);
-            this.root.style.display = 'none';
-            this.root.classList.remove('game-panel--closing');
-            document.body.classList.remove('show-ui-bg');
-
-            // Cleanup particles
-            clearParticles(this.particles);
-
-            if (this.onCloseCallback) {
-                this.onCloseCallback();
-            }
-        };
-        this.root.addEventListener('animationend', onEnd);
-
-        // Pause logo rendering
-        this.logoCanvas?.pause();
+    // Swap content
+    this.scrollInner.innerHTML = "";
+    const tab = this.tabs.find((t) => t.id === tabId);
+    if (tab) {
+      this.scrollInner.appendChild(tab.content);
     }
 
-    public isOpen(): boolean {
-        return this.visible;
+    if (this.tabChangeCallback) {
+      this.tabChangeCallback(tabId);
     }
+  }
 
-    public setTitle(title: string): void {
-        this.titleEl.textContent = title;
-    }
-
-    public onClose(callback: () => void): void {
-        this.onCloseCallback = callback;
-    }
-
-    public destroy(): void {
-        document.removeEventListener('keydown', this.escHandler, true);
-        clearParticles(this.particles);
-        for (const el of this.kanjiElements) el.remove();
-        this.logoCanvas?.dispose();
-        this.root.remove();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Protected Helpers (for subclasses)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Set content in the scrollable area. Clears existing content.
-     */
-    protected setContent(element: HTMLElement): void {
-        this.scrollInner.innerHTML = '';
-        this.scrollInner.appendChild(element);
-    }
-
-    /**
-     * Get the scrollable inner container (for appending content directly).
-     */
-    protected getScrollContainer(): HTMLElement {
-        return this.scrollInner;
-    }
-
-    /**
-     * Enable the 3D logo floating OVER the panel top edge.
-     * The logo is bigger and centered on the top border line,
-     * overlapping outside the panel for dramatic effect.
-     * Call from subclass constructor after super().
-     */
-    protected enableLogo(opts?: { width?: number; height?: number }): void {
-        this.logoCanvas = new LogoCanvas({
-            width: opts?.width ?? 600,
-            height: opts?.height ?? 200,
-            showGlow: true,
-        });
-
-        // Hide text title + decoration
-        this.titleEl.style.display = 'none';
-        this.titleDeco.style.display = 'none';
-
-        // Add logo to ROOT (not header) so it can float above the panel
-        const logoEl = this.logoCanvas.getElement();
-        logoEl.classList.add('game-panel__logo-float');
-        this.root.appendChild(logoEl);
-
-        // Init after a tick (needs to be in DOM)
-        requestAnimationFrame(() => {
-            this.logoCanvas?.init();
-        });
-    }
-
-    /**
-     * Create a styled button for the footer.
-     */
-    protected createButton(text: string, variant: string = '', onClick?: () => void): HTMLButtonElement {
-        const btn = document.createElement('button');
-        btn.className = `fps-btn ${variant}`.trim();
-        btn.textContent = text;
-        if (onClick) btn.addEventListener('click', onClick);
-        return btn;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Tab Management
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Add a tab to the tab bar.
-     */
-    protected addTab(id: string, label: string, content: HTMLElement): void {
-        const btn = document.createElement('button');
-        btn.className = 'game-panel__tab';
-        btn.textContent = label;
-        btn.dataset.tabId = id;
-        btn.addEventListener('click', () => this.switchTab(id));
-        this.tabBar.appendChild(btn);
-
-        this.tabs.push({ id, label, content, btn });
-    }
-
-    /**
-     * Switch to a tab by ID.
-     */
-    protected switchTab(tabId: string): void {
-        this.activeTabId = tabId;
-
-        // Update tab button states
-        for (const tab of this.tabs) {
-            tab.btn.classList.toggle('game-panel__tab--active', tab.id === tabId);
-        }
-
-        // Swap content
-        this.scrollInner.innerHTML = '';
-        const tab = this.tabs.find(t => t.id === tabId);
-        if (tab) {
-            this.scrollInner.appendChild(tab.content);
-        }
-
-        if (this.tabChangeCallback) {
-            this.tabChangeCallback(tabId);
-        }
-    }
-
-    /**
-     * Register callback when tab changes.
-     */
-    protected onTabChange(callback: (tabId: string) => void): void {
-        this.tabChangeCallback = callback;
-    }
+  /**
+   * Register callback when tab changes.
+   */
+  protected onTabChange(callback: (tabId: string) => void): void {
+    this.tabChangeCallback = callback;
+  }
 }

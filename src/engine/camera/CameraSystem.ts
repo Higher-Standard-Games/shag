@@ -1,6 +1,6 @@
 /**
  * CameraSystem - Central camera management for the engine
- * 
+ *
  * Manages camera controllers, modes, and presets.
  * Allows runtime switching between different camera behaviors.
  */
@@ -8,11 +8,11 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { ICameraController } from "./controllers/ICameraController";
-import { CameraPreset, CameraMode, CAMERA_PRESETS, getCameraPreset } from "./CameraPresets";
+import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
+import { CAMERA_PRESETS, type CameraMode, type CameraPreset, getCameraPreset } from "./CameraPresets";
+import type { ICameraController } from "./controllers/ICameraController";
 
 export interface CameraSystemConfig {
   /** Default camera mode */
@@ -25,21 +25,21 @@ export interface CameraSystemConfig {
 
 export class CameraSystem {
   private static instance: CameraSystem;
-  
+
   private scene: Scene | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private camera: Camera | null = null;
-  
+
   private activeController: ICameraController | null = null;
   private controllers: Map<string, ICameraController> = new Map();
-  
+
   private currentMode: CameraMode = "perspective";
   private currentHeight: number = 800;
   private currentPreset: string | null = null;
-  
+
   // Store original camera for restoration when switching controllers
   private originalCamera: Camera | null = null;
-  
+
   // Camera bounds (optional)
   private minBounds: Vector3 | null = null;
   private maxBounds: Vector3 | null = null;
@@ -64,7 +64,7 @@ export class CameraSystem {
   init(scene: Scene, canvas: HTMLCanvasElement, config?: CameraSystemConfig): void {
     this.scene = scene;
     this.canvas = canvas;
-    
+
     if (config) {
       if (config.defaultMode) this.currentMode = config.defaultMode;
       if (config.defaultHeight) this.currentHeight = config.defaultHeight;
@@ -157,7 +157,7 @@ export class CameraSystem {
     // For controllers that need ArcRotateCamera
     let cameraToUse = this.camera;
     const needsArcRotate = ["isometric", "sidescroll", "follow"].includes(type);
-    
+
     if (needsArcRotate) {
       // Check if we have an ArcRotateCamera to use
       if (this.originalCamera instanceof ArcRotateCamera) {
@@ -173,19 +173,19 @@ export class CameraSystem {
         // Create a new ArcRotateCamera since we don't have one
         const currentPos = this.camera.position.clone();
         const target = currentPos.add(this.camera.getDirection(Vector3.Forward()).scale(100));
-        
+
         const arcCamera = new ArcRotateCamera(
           "isometric_camera",
-          -Math.PI / 4,  // alpha
-          Math.PI / 4,   // beta (45 degrees from top)
-          500,           // radius
+          -Math.PI / 4, // alpha
+          Math.PI / 4, // beta (45 degrees from top)
+          500, // radius
           target,
-          this.scene
+          this.scene,
         );
         arcCamera.inputs.clear();
         arcCamera.minZ = 1;
         arcCamera.maxZ = 10000;
-        
+
         // Dispose old camera and set new one
         if (this.scene.activeCamera) {
           this.scene.activeCamera.dispose();
@@ -200,10 +200,10 @@ export class CameraSystem {
     // Attach new controller
     controller.attach(cameraToUse, this.scene, this.canvas);
     this.activeController = controller;
-    
+
     console.log(`[CameraSystem] Switched to controller: ${type}`);
     EventBus.emit("camera:controller_changed", { type });
-    
+
     return true;
   }
 
@@ -225,16 +225,9 @@ export class CameraSystem {
     switch (mode) {
       case "perspective":
       case "fake_ortho":
-        this.camera = new ArcRotateCamera(
-          "camera",
-          -Math.PI / 4,
-          Math.PI / 4,
-          this.currentHeight,
-          target,
-          this.scene
-        );
+        this.camera = new ArcRotateCamera("camera", -Math.PI / 4, Math.PI / 4, this.currentHeight, target, this.scene);
         break;
-        
+
       case "orthographic":
         this.camera = new ArcRotateCamera(
           "camera",
@@ -242,7 +235,7 @@ export class CameraSystem {
           Math.PI / 4,
           this.currentHeight * 2,
           target,
-          this.scene
+          this.scene,
         );
         (this.camera as ArcRotateCamera).mode = Camera.ORTHOGRAPHIC_CAMERA;
         break;
@@ -250,7 +243,7 @@ export class CameraSystem {
 
     // Clear default inputs - controllers will handle input
     this.camera.inputs.clear();
-    
+
     // Apply mode-specific settings
     this.applyCameraMode(mode);
 
@@ -264,7 +257,7 @@ export class CameraSystem {
     if (!this.camera) return;
 
     const arcCamera = this.camera as ArcRotateCamera;
-    
+
     switch (mode) {
       case "perspective":
         arcCamera.mode = Camera.PERSPECTIVE_CAMERA;
@@ -282,7 +275,7 @@ export class CameraSystem {
         this.updateOrthoSize(this.currentHeight);
         break;
 
-      case "fake_ortho":
+      case "fake_ortho": {
         arcCamera.mode = Camera.PERSPECTIVE_CAMERA;
         const baseFov = 0.3;
         const fovScale = Math.min(0.6, baseFov + (this.currentHeight - 100) / 1000);
@@ -291,6 +284,7 @@ export class CameraSystem {
         arcCamera.minZ = 0.1;
         arcCamera.maxZ = Math.max(5000, this.currentHeight * 4);
         break;
+      }
     }
 
     this.currentMode = mode;
@@ -302,10 +296,10 @@ export class CameraSystem {
    */
   private updateOrthoSize(size: number): void {
     if (!this.camera || !this.canvas) return;
-    
+
     const arcCamera = this.camera as ArcRotateCamera;
     const ratio = this.canvas.width / this.canvas.height;
-    
+
     arcCamera.orthoTop = size;
     arcCamera.orthoBottom = -size;
     arcCamera.orthoLeft = -size * ratio;
@@ -338,10 +332,9 @@ export class CameraSystem {
     this.currentHeight = preset.height;
 
     // Create appropriate camera
-    const target = this.camera instanceof ArcRotateCamera 
-      ? (this.camera as ArcRotateCamera).target.clone()
-      : Vector3.Zero();
-    
+    const target =
+      this.camera instanceof ArcRotateCamera ? (this.camera as ArcRotateCamera).target.clone() : Vector3.Zero();
+
     this.createCamera(preset.cameraMode, target);
 
     // Apply angles
@@ -349,7 +342,7 @@ export class CameraSystem {
     if (arcCamera) {
       arcCamera.alpha = preset.alpha;
       arcCamera.beta = preset.beta;
-      
+
       if (preset.fov !== undefined) {
         arcCamera.fov = preset.fov;
       }
@@ -361,7 +354,7 @@ export class CameraSystem {
     // Switch to appropriate controller
     if (this.controllers.has(preset.controllerType)) {
       this.setController(preset.controllerType);
-      
+
       // Apply controller config
       if (preset.controllerConfig && this.activeController) {
         this.activeController.configure(preset.controllerConfig);
@@ -404,7 +397,7 @@ export class CameraSystem {
     if (this.camera instanceof ArcRotateCamera) {
       this.camera.setTarget(target);
     }
-    
+
     // Also notify controller
     if (this.activeController?.setTarget) {
       this.activeController.setTarget(target);
@@ -458,7 +451,7 @@ export class CameraSystem {
     return new Vector3(
       Math.max(this.minBounds.x, Math.min(this.maxBounds.x, position.x)),
       Math.max(this.minBounds.y, Math.min(this.maxBounds.y, position.y)),
-      Math.max(this.minBounds.z, Math.min(this.maxBounds.z, position.z))
+      Math.max(this.minBounds.z, Math.min(this.maxBounds.z, position.z)),
     );
   }
 

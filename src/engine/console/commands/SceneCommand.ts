@@ -2,13 +2,13 @@
  * SceneCommand - Scene creation, management and debugging
  */
 
-import { Command, CommandDef } from '../Command';
-import { Scene } from '@babylonjs/core/scene';
-import { Engine } from '@babylonjs/core/Engines/engine';
-import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
-import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color4, Color3 } from '@babylonjs/core/Maths/math.color';
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
+import { Command, type CommandDef } from "../Command";
 
 // Module-level state for empty scene management
 let emptyScene: Scene | null = null;
@@ -17,41 +17,41 @@ let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export default class SceneCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'scene',
-    description: 'Scene creation, management and debugging',
-    usage: 'scene [subcommand]',
+    name: "scene",
+    description: "Scene creation, management and debugging",
+    usage: "scene [subcommand]",
     subcommands: [
-      { name: 'empty', description: 'Create empty scene for BSP testing' },
-      { name: 'clear', description: 'Clear all scene objects' },
-      { name: 'dispose', description: 'Dispose empty scene' },
-      { name: 'info', description: 'Show scene statistics' },
-      { name: 'meshes', description: 'List all meshes' },
-      { name: 'materials', description: 'List all materials' },
-      { name: 'lights', description: 'List all lights' },
+      { name: "empty", description: "Create empty scene for BSP testing" },
+      { name: "clear", description: "Clear all scene objects" },
+      { name: "dispose", description: "Dispose empty scene" },
+      { name: "info", description: "Show scene statistics" },
+      { name: "meshes", description: "List all meshes" },
+      { name: "materials", description: "List all materials" },
+      { name: "lights", description: "List all lights" },
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase();
 
     // Handle empty/clear/dispose first (don't require existing scene)
-    if (subcommand === 'empty') {
+    if (subcommand === "empty") {
       return this.createEmptyScene();
     }
-    if (subcommand === 'dispose') {
+    if (subcommand === "dispose") {
       return this.disposeEmptyScene();
     }
-    if (subcommand === 'clear') {
+    if (subcommand === "clear") {
       return this.clearScene();
     }
 
     // Get scene from camera system for other commands
     let scene;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
     } catch {
-      return 'Scene not available';
+      return "Scene not available";
     }
 
     if (!scene) {
@@ -59,42 +59,40 @@ export default class SceneCommand extends Command {
     }
 
     switch (subcommand) {
-      case 'meshes': {
+      case "meshes": {
         const meshes = scene.meshes;
         const lines = [`${meshes.length} meshes:`];
-        const sorted = [...meshes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const sorted = [...meshes].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         for (const mesh of sorted.slice(0, 50)) {
           const tris = mesh.getTotalVertices ? Math.floor(mesh.getTotalVertices() / 3) : 0;
-          lines.push(`  ${mesh.name || '(unnamed)'} - ${tris} tris`);
+          lines.push(`  ${mesh.name || "(unnamed)"} - ${tris} tris`);
         }
         if (meshes.length > 50) {
           lines.push(`  ... and ${meshes.length - 50} more`);
         }
-        return lines.join('\n');
+        return lines.join("\n");
       }
 
-      case 'materials': {
+      case "materials": {
         const materials = scene.materials;
         const lines = [`${materials.length} materials:`];
         for (const mat of materials.slice(0, 30)) {
-          lines.push(`  ${mat.name || '(unnamed)'} - ${mat.getClassName()}`);
+          lines.push(`  ${mat.name || "(unnamed)"} - ${mat.getClassName()}`);
         }
         if (materials.length > 30) {
           lines.push(`  ... and ${materials.length - 30} more`);
         }
-        return lines.join('\n');
+        return lines.join("\n");
       }
 
-      case 'lights': {
+      case "lights": {
         const lights = scene.lights;
         const lines = [`${lights.length} lights:`];
         for (const light of lights) {
-          lines.push(`  ${light.name || '(unnamed)'} - ${light.getClassName()}`);
+          lines.push(`  ${light.name || "(unnamed)"} - ${light.getClassName()}`);
         }
-        return lines.join('\n');
+        return lines.join("\n");
       }
-
-      case 'info':
       default: {
         const meshCount = scene.meshes.length;
         const matCount = scene.materials.length;
@@ -102,34 +100,38 @@ export default class SceneCommand extends Command {
         const lightCount = scene.lights.length;
         const activeMeshes = scene.getActiveMeshes().length;
 
-        return `Scene Statistics:\n` +
+        return (
+          `Scene Statistics:\n` +
           `  Meshes: ${meshCount} (${activeMeshes} active)\n` +
           `  Materials: ${matCount}\n` +
           `  Textures: ${texCount}\n` +
           `  Lights: ${lightCount}\n` +
-          `  FPS: ${scene.getEngine().getFps().toFixed(1)}`;
+          `  FPS: ${scene.getEngine().getFps().toFixed(1)}`
+        );
       }
     }
   }
 
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['empty', 'clear', 'dispose', 'info', 'meshes', 'materials', 'lights'];
+      return ["empty", "clear", "dispose", "info", "meshes", "materials", "lights"];
     }
     return [];
   }
 
   private async createEmptyScene(): Promise<string> {
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const canvas = document.querySelector("canvas") as HTMLCanvasElement;
     if (!canvas) {
-      return 'No canvas found';
+      return "No canvas found";
     }
 
     // Get or create engine
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
     const existingEngine = (window as any).babylonEngine;
     const engine = existingEngine || new Engine(canvas, true);
 
     if (!existingEngine) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
       (window as any).babylonEngine = engine;
     }
 
@@ -146,11 +148,11 @@ export default class SceneCommand extends Command {
 
     // Initialize Physics (Havok)
     try {
-      const { PhysicsSystem } = await import('../../physics/PhysicsSystem');
-      console.warn('[SceneCommand] initializing PhysicsSystem for empty scene...');
+      const { PhysicsSystem } = await import("../../physics/PhysicsSystem");
+      console.warn("[SceneCommand] initializing PhysicsSystem for empty scene...");
       await PhysicsSystem.getInstance().enablePhysics(emptyScene);
     } catch (e) {
-      console.error('[SceneCommand] Failed to init physics:', e);
+      console.error("[SceneCommand] Failed to init physics:", e);
     }
 
     // Create camera at origin
@@ -162,7 +164,7 @@ export default class SceneCommand extends Command {
     emptySceneCamera.inputs.clear();
 
     // Initialize scene services (TextureManager, SkyLightSystem, etc.)
-    const { ServiceLocator } = await import('../../core/ServiceLocator');
+    const { ServiceLocator } = await import("../../core/ServiceLocator");
     await ServiceLocator.getInstance().initScene(emptyScene);
 
     // Add basic lighting (unless already created by SkyLightSystem)
@@ -172,7 +174,7 @@ export default class SceneCommand extends Command {
     }
 
     // Set as active scene with SkyLightSystem update for day/night cycle
-    const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+    const { SkyLightSystem } = await import("../../lighting/SkyLightSystem");
     engine.stopRenderLoop();
     engine.runRenderLoop(() => {
       if (emptyScene) {
@@ -183,76 +185,77 @@ export default class SceneCommand extends Command {
     });
 
     // Initialize camera system with this scene
-    const { CameraSystem } = await import('../../camera/CameraSystem');
+    const { CameraSystem } = await import("../../camera/CameraSystem");
     const cameraSystem = CameraSystem.getInstance();
     cameraSystem.init(emptyScene, canvas);
     cameraSystem.setCamera(emptySceneCamera);
 
     // Create fresh freefly controller (unless we're in network mode)
-    const { Game } = await import('../../../games/fps/Game');
+    const { Game } = await import("../../../games/fps/Game");
     const isNetworkMode = Game.getInstance().isConnectedToServer();
 
     if (!isNetworkMode) {
-      const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
-      const existingFreefly = cameraSystem.getController('freefly');
+      const { FreeflyController } = await import("../../camera/controllers/FreeflyController");
+      const existingFreefly = cameraSystem.getController("freefly");
       if (existingFreefly) {
         existingFreefly.dispose();
       }
       const freeflyController = new FreeflyController();
-      cameraSystem.registerController('freefly', freeflyController);
-      cameraSystem.setController('freefly');
+      cameraSystem.registerController("freefly", freeflyController);
+      cameraSystem.setController("freefly");
     } else {
-      console.log('[SceneCommand] Skipping freefly controller - network mode active');
+      console.log("[SceneCommand] Skipping freefly controller - network mode active");
     }
 
     // Enter "in_game" state
-    const { MenuSystem } = await import('../../MenuSystem');
+    const { MenuSystem } = await import("../../MenuSystem");
     MenuSystem.getInstance().enterGame();
 
     // Hide main menu
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
     const mainMenu = (window as any).mainMenu;
-    if (mainMenu && typeof mainMenu.hide === 'function') {
+    if (mainMenu && typeof mainMenu.hide === "function") {
       mainMenu.hide();
     } else {
-      const mainMenuEl = document.getElementById('main-menu');
+      const mainMenuEl = document.getElementById("main-menu");
       if (mainMenuEl) {
-        mainMenuEl.style.display = 'none';
+        mainMenuEl.style.display = "none";
       }
     }
 
     // Add ESC key handler
     if (emptySceneEscHandler) {
-      window.removeEventListener('keydown', emptySceneEscHandler);
+      window.removeEventListener("keydown", emptySceneEscHandler);
     }
     emptySceneEscHandler = async (e: KeyboardEvent) => {
-      const { DebugConsole } = await import('../../debug/DebugConsole');
+      const { DebugConsole } = await import("../../debug/DebugConsole");
       if (DebugConsole.getInstance().getIsOpen()) {
         return;
       }
-      if (e.key === 'Escape' && emptyScene) {
+      if (e.key === "Escape" && emptyScene) {
         e.preventDefault();
         e.stopPropagation();
         this.disposeEmptyScene();
       }
     };
-    window.addEventListener('keydown', emptySceneEscHandler, { capture: true });
+    window.addEventListener("keydown", emptySceneEscHandler, { capture: true });
 
     return [
-      'Created empty scene for BSP testing',
-      'Camera: freefly mode (LMB forward, RMB backward, freelook)',
-      'Press ESC to exit empty scene',
-      'Now run: map <mapname>',
-    ].join('\n');
+      "Created empty scene for BSP testing",
+      "Camera: freefly mode (LMB forward, RMB backward, freelook)",
+      "Press ESC to exit empty scene",
+      "Now run: map <mapname>",
+    ].join("\n");
   }
 
   private async disposeEmptyScene(): Promise<string> {
     if (!emptyScene) {
-      return 'No empty scene to dispose';
+      return "No empty scene to dispose";
     }
 
     // Remove ESC handler
     if (emptySceneEscHandler) {
-      window.removeEventListener('keydown', emptySceneEscHandler);
+      window.removeEventListener("keydown", emptySceneEscHandler);
       emptySceneEscHandler = null;
     }
 
@@ -266,18 +269,18 @@ export default class SceneCommand extends Command {
     emptySceneCamera = null;
 
     // Return to main menu
-    const { MenuSystem } = await import('../../MenuSystem');
+    const { MenuSystem } = await import("../../MenuSystem");
     MenuSystem.getInstance().returnToMainMenu();
 
-    return 'Empty scene disposed - returned to main menu';
+    return "Empty scene disposed - returned to main menu";
   }
 
   private async clearScene(): Promise<string> {
-    const { CameraSystem } = await import('../../camera/CameraSystem');
+    const { CameraSystem } = await import("../../camera/CameraSystem");
     const scene = CameraSystem.getInstance().getCamera()?.getScene();
 
     if (!scene) {
-      return 'No active scene to clear';
+      return "No active scene to clear";
     }
 
     const stats = { meshes: 0, materials: 0, textures: 0 };
@@ -285,7 +288,7 @@ export default class SceneCommand extends Command {
     // Dispose all meshes except camera
     const meshesToDispose = [...scene.meshes];
     for (const mesh of meshesToDispose) {
-      if (mesh.name !== 'emptySceneCamera') {
+      if (mesh.name !== "emptySceneCamera") {
         mesh.dispose(false, true); // Dispose mesh + children
         stats.meshes++;
       }
@@ -298,26 +301,30 @@ export default class SceneCommand extends Command {
 
     // Clear shader animation system
     try {
-      const { ShaderAnimationSystem } = await import('../../loader/shader/ShaderAnimationSystem');
+      const { ShaderAnimationSystem } = await import("../../loader/shader/ShaderAnimationSystem");
       ShaderAnimationSystem.getInstance().clear();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Clear MapLoader state (this clears texture caches and lightmaps)
     try {
-      const { MapLoader } = await import('../../loader/map/MapLoader');
+      const { MapLoader } = await import("../../loader/map/MapLoader");
       await MapLoader.getInstance().disposeCurrentMap();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Reinitialize SkyLightSystem lights
     try {
-      const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+      const { SkyLightSystem } = await import("../../lighting/SkyLightSystem");
       SkyLightSystem.getInstance().reinitLights();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
-    return [
-      'Scene cleared:',
-      `  Meshes disposed: ${stats.meshes}`,
-      '  Materials/Textures: delegated to loaders',
-    ].join('\n');
+    return ["Scene cleared:", `  Meshes disposed: ${stats.meshes}`, "  Materials/Textures: delegated to loaders"].join(
+      "\n",
+    );
   }
 }

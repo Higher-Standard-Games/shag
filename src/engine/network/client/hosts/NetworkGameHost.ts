@@ -33,260 +33,38 @@
  *   Small errors (< 0.5 units) are ignored. Medium errors are smoothed. Large errors snap.
  */
 
-import type { IGameHost } from '../../core/IGameHost';
-import { GameState } from '../../core/GameState';
-import type { Command } from '../../core/Command';
-import type { Simulation, SimulationConfig } from '../../core/Simulation';
-import type { PlayerId } from '../../core/Entity';
-import type { Transport } from '../transport/Transport';
-import { MessageCodec, MessageType } from '../../protocol/MessageCodec';
-import { ClockSync } from '../ClockSync';
-import { AudioManager } from '../../../AudioManager';
-import { MatchPhase } from '../../../../shared/server/gametype/GametypeTypes';
+import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
+import { AudioManager } from "../../../AudioManager";
+import type { Command } from "../../core/Command";
+import type { PlayerId } from "../../core/Entity";
+import { type GameEvent, type GameState } from "../../core/GameState";
+import type { IGameHost } from "../../core/IGameHost";
+import type { Simulation, SimulationConfig } from "../../core/Simulation";
+import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
+import { ClockSync } from "../ClockSync";
+import { InterpolationBuffer } from "../InterpolationBuffer";
+import { SmoothCorrection } from "../SmoothCorrection";
+import type { Transport } from "../transport/Transport";
 
-// ============================================================================
-// INTERPOLATION BUFFER
-// ============================================================================
-/**
- * Stores recent server snapshots for smooth interpolation.
- *
- * Why interpolate? Server sends snapshots at fixed rate (e.g., 20Hz). If we just render
- * the latest snapshot, movement looks choppy. Instead, we render slightly in the past,
- * interpolating between two known snapshots for buttery-smooth visuals.
- *
- * The trade-off: We're always rendering ~2 ticks behind "real time". But this latency
- * is barely noticeable and the smoothness is worth it.
- */
-class InterpolationBuffer {
-  private snapshots: { state: GameState; timestamp: number }[] = [];
-  private interpolationDelay: number = 50; // 50ms delay - reduced for responsiveness
+// Component shapes for typed access
+interface Vec3 { x: number; y: number; z: number }
+interface TransformShape { position: Vec3; rotation?: { x: number; y: number; z: number; w: number } }
+interface MovementStateShape { ledgeGrabState?: string; isCrouching?: boolean; isSliding?: boolean }
 
-  /** Get interpolation delay in ms */
-  getInterpolationDelay(): number {
-    return this.interpolationDelay;
-  }
-
-  /**
-   * Add a new snapshot to the buffer with timestamp
-   */
-  addSnapshot(snapshot: GameState): void {
-    const now = performance.now();
-    this.snapshots.push({ state: snapshot, timestamp: now });
-
-    // Keep only the last 10 snapshots
-    while (this.snapshots.length > 10) {
-      this.snapshots.shift();
-    }
-  }
-
-  /**
-   * Get interpolated state for rendering
-   * Uses actual time to calculate smooth interpolation between snapshots
-   */
-  getInterpolatedState(renderTime: number): GameState {
-    // We render in the past to ensure we always have two snapshots to interpolate between
-    const targetTime = renderTime - this.interpolationDelay;
-
-    // Need at least 2 snapshots to interpolate
-    if (this.snapshots.length < 2) {
-      // Return latest snapshot if we have one
-      if (this.snapshots.length === 1) {
-        return this.snapshots[0].state;
-      }
-      return new GameState();
-    }
-
-    // Find the two snapshots to interpolate between
-    // We want snapshot1.timestamp <= targetTime <= snapshot2.timestamp
-    let snapshot1 = this.snapshots[0];
-    let snapshot2 = this.snapshots[1];
-
-    for (let i = 0; i < this.snapshots.length - 1; i++) {
-      if (this.snapshots[i].timestamp <= targetTime &&
-        this.snapshots[i + 1].timestamp >= targetTime) {
-        snapshot1 = this.snapshots[i];
-        snapshot2 = this.snapshots[i + 1];
-        break;
-      }
-      // If we've passed the target time, use these two
-      if (this.snapshots[i].timestamp > targetTime) {
-        if (i > 0) {
-          snapshot1 = this.snapshots[i - 1];
-          snapshot2 = this.snapshots[i];
-        }
-        break;
-      }
-      // If we're beyond all snapshots, use the two most recent
-      if (i === this.snapshots.length - 2) {
-        snapshot1 = this.snapshots[i];
-        snapshot2 = this.snapshots[i + 1];
-      }
-    }
-
-    // Calculate interpolation factor t (0 to 1)
-    const timeDiff = snapshot2.timestamp - snapshot1.timestamp;
-    let t: number;
-    if (timeDiff <= 0) {
-      t = 1; // Same timestamp, use snapshot2
-    } else {
-      t = Math.max(0, Math.min(1, (targetTime - snapshot1.timestamp) / timeDiff));
-    }
-
-    // Interpolate between the two snapshots
-    return this.interpolateStates(snapshot1.state, snapshot2.state, t);
-  }
-
-  private interpolateStates(state1: GameState, state2: GameState, t: number): GameState {
-    const result = new GameState();
-    result.tick = state1.tick;
-    result.events = []; // Events aren't interpolated
-
-    // Copy players from state2 (needed for Game to find local player)
-    for (const [id, player] of state2.players) {
-      result.players.set(id, player);
-    }
-
-    // Interpolate entities
-    for (const [id, entity2] of state2.entities) {
-      const entity1 = state1.entities.get(id);
-      if (!entity1) {
-        // New entity, just clone it
-        result.entities.set(id, entity2.clone());
-        continue;
-      }
-
-      const interpolatedEntity = entity2.clone();
-
-      // Interpolate position component
-      const pos1 = entity1.getComponent('position') as any;
-      const pos2 = entity2.getComponent('position') as any;
-
-      if (pos1 && pos2) {
-        const interpolatedPos = interpolatedEntity.getComponent('position') as any;
-        if (interpolatedPos) {
-          interpolatedPos.x = pos1.x + (pos2.x - pos1.x) * t;
-          interpolatedPos.y = pos1.y + (pos2.y - pos1.y) * t;
-          interpolatedPos.z = pos1.z + (pos2.z - pos1.z) * t;
-        }
-      }
-
-      // Interpolate transform.position (for Game compatibility)
-      const transform1 = entity1.getComponent('transform') as any;
-      const transform2 = entity2.getComponent('transform') as any;
-
-      if (transform1?.position && transform2?.position) {
-        const interpolatedTransform = interpolatedEntity.getComponent('transform') as any;
-        if (interpolatedTransform?.position) {
-          interpolatedTransform.position.x = transform1.position.x + (transform2.position.x - transform1.position.x) * t;
-          interpolatedTransform.position.y = transform1.position.y + (transform2.position.y - transform1.position.y) * t;
-          interpolatedTransform.position.z = transform1.position.z + (transform2.position.z - transform1.position.z) * t;
-        }
-      }
-
-      // Interpolate velocity.linear (for smooth movement display)
-      const vel1 = entity1.getComponent('velocity') as any;
-      const vel2 = entity2.getComponent('velocity') as any;
-
-      if (vel1?.linear && vel2?.linear) {
-        const interpolatedVel = interpolatedEntity.getComponent('velocity') as any;
-        if (interpolatedVel?.linear) {
-          interpolatedVel.linear.x = vel1.linear.x + (vel2.linear.x - vel1.linear.x) * t;
-          interpolatedVel.linear.y = vel1.linear.y + (vel2.linear.y - vel1.linear.y) * t;
-          interpolatedVel.linear.z = vel1.linear.z + (vel2.linear.z - vel1.linear.z) * t;
-        }
-      }
-
-      result.entities.set(id, interpolatedEntity);
-    }
-
-    return result;
-  }
+/** Duck-type for simulations that support player spawning */
+interface SpawnableSimulation {
+  spawnPlayer(playerId: string): void;
 }
 
-// ============================================================================
-// SMOOTH CORRECTION
-// ============================================================================
-/**
- * Smoothly corrects prediction errors instead of jarring snaps.
- *
- * HOW IT WORKS:
- *
- *   1. reconcilePrediction() finds error: we predicted (100, 50, 200) but server says (102, 50, 198)
- *   2. Error = (2, 0, -2). Instead of teleporting 2 units, we store this as "correction needed"
- *   3. Each frame, getCorrection() returns 10% of remaining error and decays the stored amount
- *   4. Over ~10-20 frames, we smoothly drift to the correct position
- *
- * The decay factor (0.1) means each frame we apply 10% of the error and keep 90%.
- * After 10 frames: 0.9^10 ≈ 35% remains. After 20: 0.9^20 ≈ 12% remains.
- * This creates a smooth exponential ease-out curve.
- *
- * WHY NOT JUST SNAP?
- *   Snapping causes visible jitter. Players hate it. Smooth correction is invisible
- *   unless the error is large (> 100 units = teleport/death, then we DO snap).
- */
-class SmoothCorrection {
-  private correctionX: number = 0;
-  private correctionY: number = 0;
-  private correctionZ: number = 0;
-  private correctionDecay: number = 0.1; // 10% applied per frame, 90% kept for next
-
-  /**
-   * Add a correction offset (difference between predicted and server position)
-   */
-  addCorrection(dx: number, dy: number, dz: number): void {
-    this.correctionX += dx;
-    this.correctionY += dy;
-    this.correctionZ += dz;
-  }
-
-  /**
-   * Get current correction WITHOUT side effects.
-   * Safe to call multiple times per frame (for camera, rendering, etc.)
-   */
-  getCorrection(): { x: number; y: number; z: number } {
-    return {
-      x: this.correctionX * this.correctionDecay,
-      y: this.correctionY * this.correctionDecay,
-      z: this.correctionZ * this.correctionDecay,
-    };
-  }
-
-  /**
-   * Apply decay to stored correction. Call ONCE per frame in update() loop.
-   * This prevents flickering from multiple getCorrection() calls per frame.
-   */
-  applyDecay(): void {
-    // Decay the stored correction
-    this.correctionX *= (1 - this.correctionDecay);
-    this.correctionY *= (1 - this.correctionDecay);
-    this.correctionZ *= (1 - this.correctionDecay);
-
-    // Zero out small corrections to avoid perpetual micro-corrections
-    const epsilon = 0.01;
-    if (Math.abs(this.correctionX) < epsilon) this.correctionX = 0;
-    if (Math.abs(this.correctionY) < epsilon) this.correctionY = 0;
-    if (Math.abs(this.correctionZ) < epsilon) this.correctionZ = 0;
-  }
-
-  /**
-   * Check if there's significant correction remaining
-   */
-  hasCorrection(): boolean {
-    const epsilon = 0.01;
-    return Math.abs(this.correctionX) > epsilon ||
-      Math.abs(this.correctionY) > epsilon ||
-      Math.abs(this.correctionZ) > epsilon;
-  }
-
-  /**
-   * Reset all corrections (for large teleports)
-   */
-  reset(): void {
-    this.correctionX = 0;
-    this.correctionY = 0;
-    this.correctionZ = 0;
-  }
+/** Duck-type for simulations that support collision worlds */
+interface CollisionCapableSimulation {
+  setCollisionWorld(collision: unknown): void;
 }
+
+
+
+// SmoothCorrection and InterpolationBuffer are extracted into their own modules
+// for testability. See ../SmoothCorrection.ts and ../InterpolationBuffer.ts
 
 /**
  * Server info received on connection
@@ -305,14 +83,14 @@ export interface ServerInfo {
  * Handles client prediction, snapshot interpolation, and smooth correction
  */
 export class NetworkGameHost implements IGameHost {
-  localPlayerId: PlayerId;  // Updated from server JoinAccept
-  localEntityId: string = '';  // Entity ID for local player
+  localPlayerId: PlayerId; // Updated from server JoinAccept
+  localEntityId: string = ""; // Entity ID for local player
   currentTick: number = 0;
 
   private transport: Transport;
   private simulation: Simulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
-  private eventCallbacks: ((event: any) => void)[] = [];
+  private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
 
   private interpolationBuffer = new InterpolationBuffer();
@@ -338,7 +116,7 @@ export class NetworkGameHost implements IGameHost {
   private localState: GameState;
   private _isConnected: boolean = false;
   private _serverInfo: ServerInfo | null = null;
-  private _onJoinAccept: (() => void) | null = null;  // Called when JoinAccept received
+  private _onJoinAccept: (() => void) | null = null; // Called when JoinAccept received
 
   // Correction threshold - beyond this distance, we snap instead of smooth
   private readonly SNAP_THRESHOLD = 100;
@@ -347,12 +125,14 @@ export class NetworkGameHost implements IGameHost {
   constructor(
     transport: Transport,
     config: SimulationConfig,
-    SimulationClass: new (config: SimulationConfig) => Simulation
+    SimulationClass: new (config: SimulationConfig) => Simulation,
   ) {
     this.transport = transport;
-    console.log(`[NetworkGameHost] Creating simulation with config: tickRate=${config.tickRate}, tickDuration=${config.tickDuration}ms`);
+    console.log(
+      `[NetworkGameHost] Creating simulation with config: tickRate=${config.tickRate}, tickDuration=${config.tickDuration}ms`,
+    );
     this.simulation = new SimulationClass(config);
-    this.localPlayerId = 'network-player';
+    this.localPlayerId = "network-player";
     this.localState = this.simulation.state.clone();
 
     // Wire ClockSync to use transport for sending pings
@@ -393,7 +173,7 @@ export class NetworkGameHost implements IGameHost {
   setExternalPrediction(enabled: boolean): void {
     this.useExternalPrediction = enabled;
     if (enabled) {
-      console.log('[NetworkGameHost] External prediction enabled - V2NetworkClient handles physics');
+      console.log("[NetworkGameHost] External prediction enabled - V2NetworkClient handles physics");
     }
   }
 
@@ -401,8 +181,8 @@ export class NetworkGameHost implements IGameHost {
     // Create promise that resolves when JoinAccept is received
     const joinAcceptPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('Timeout waiting for JoinAccept'));
-      }, 10000);  // 10 second timeout
+        reject(new Error("Timeout waiting for JoinAccept"));
+      }, 10000); // 10 second timeout
 
       // Store the resolve function to be called when JoinAccept arrives
       this._onJoinAccept = () => {
@@ -411,7 +191,7 @@ export class NetworkGameHost implements IGameHost {
       };
     });
 
-    await this.transport.connect(url || 'ws://localhost:8080');
+    await this.transport.connect(url || "ws://localhost:8080");
 
     // Send join message using binary protocol
     // Use player profile name if provided, otherwise fall back to localPlayerId
@@ -437,7 +217,7 @@ export class NetworkGameHost implements IGameHost {
     if (!this._isConnected) return;
     const data = MessageCodec.encodeJoinGame(teamId);
     this.transport.send(data, true); // Reliable
-    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ''}`);
+    console.log(`[NetworkGameHost] Sent JoinGame request${teamId ? ` for team ${teamId}` : ""}`);
   }
 
   /**
@@ -448,7 +228,7 @@ export class NetworkGameHost implements IGameHost {
     if (!this._isConnected) return;
     const data = MessageCodec.encodeSpectate();
     this.transport.send(data, true); // Reliable
-    console.log('[NetworkGameHost] Sent Spectate request');
+    console.log("[NetworkGameHost] Sent Spectate request");
   }
 
   // Debug counter
@@ -460,20 +240,24 @@ export class NetworkGameHost implements IGameHost {
     if (!this._isConnected) {
       // Log first call and every 250th
       if (this._sendCommandCalls === 1 || this._sendCommandCalls % 250 === 0) {
-        console.warn(`[NetworkGameHost] sendCommand BLOCKED #${this._sendCommandCalls}: _isConnected=${this._isConnected}`);
+        console.warn(
+          `[NetworkGameHost] sendCommand BLOCKED #${this._sendCommandCalls}: _isConnected=${this._isConnected}`,
+        );
       }
       return;
     }
 
     // Log first successful send
     if (this.commandSequence === 1) {
-      console.log(`[NetworkGameHost] FIRST sendCommand: _isConnected=${this._isConnected}, playerId=${this.localPlayerId}`);
+      console.log(
+        `[NetworkGameHost] FIRST sendCommand: _isConnected=${this._isConnected}, playerId=${this.localPlayerId}`,
+      );
     }
 
     // Add sequence number
     const sequencedCmd = {
       ...cmd,
-      seq: this.commandSequence++
+      seq: this.commandSequence++,
     };
 
     // Send to server using binary protocol
@@ -517,7 +301,7 @@ export class NetworkGameHost implements IGameHost {
     };
   }
 
-  onEvent(callback: (event: any) => void): () => void {
+  onEvent(callback: (event: GameEvent) => void): () => void {
     this.eventCallbacks.push(callback);
     return () => {
       const index = this.eventCallbacks.indexOf(callback);
@@ -527,7 +311,7 @@ export class NetworkGameHost implements IGameHost {
     };
   }
 
-  getInterpolatedEntity(entityId: string): any {
+  getInterpolatedEntity(entityId: string): ReturnType<GameState["entities"]["get"]> {
     // Use Client Prediction if possible (requires collision data)
     // Now that BSP collision is wired up in Game, we can safely use this.
     const USE_CLIENT_PREDICTION = true;
@@ -543,7 +327,7 @@ export class NetworkGameHost implements IGameHost {
         if (predictedEntity) {
           const correctedEntity = predictedEntity.clone();
           const correction = this.smoothCorrection.getCorrection();
-          const transform = correctedEntity.getComponent('transform') as any;
+          const transform = correctedEntity.getComponent("transform") as unknown as TransformShape | undefined;
           if (transform?.position) {
             transform.position.x += correction.x;
             transform.position.y += correction.y;
@@ -559,7 +343,9 @@ export class NetworkGameHost implements IGameHost {
 
     // Use server interpolation (reliable, but 50ms delayed)
     // This is used for OTHER players, not local player
-    console.warn(`[NetworkGameHost] Using interpolation buffer for entity ${entityId} (is local player: ${this.localPlayerId === entityId})`);
+    console.warn(
+      `[NetworkGameHost] Using interpolation buffer for entity ${entityId} (is local player: ${this.localPlayerId === entityId})`,
+    );
     const interpolatedState = this.interpolationBuffer.getInterpolatedState(performance.now());
     return interpolatedState.entities.get(entityId);
   }
@@ -577,15 +363,17 @@ export class NetworkGameHost implements IGameHost {
    * This allows the prediction simulation to use BSP collision data
    * for accurate local physics before server confirmation arrives.
    */
-  setCollisionWorld(collision: any): void {
+  setCollisionWorld(collision: unknown): void {
     // Check if simulation has setCollisionWorld method (FPSSimulation does)
-    const sim = this.simulation as any;
-    console.log(`[NetworkGameHost] setCollisionWorld called, simulation type: ${sim.constructor?.name}, has method: ${typeof sim.setCollisionWorld === 'function'}`);
-    if (typeof sim.setCollisionWorld === 'function') {
+    const sim = this.simulation as unknown as Partial<CollisionCapableSimulation> & { constructor?: { name?: string } };
+    console.log(
+      `[NetworkGameHost] setCollisionWorld called, simulation type: ${sim.constructor?.name}, has method: ${typeof sim.setCollisionWorld === "function"}`,
+    );
+    if (typeof sim.setCollisionWorld === "function") {
       sim.setCollisionWorld(collision);
-      console.log('[NetworkGameHost] Collision world set for client prediction');
+      console.log("[NetworkGameHost] Collision world set for client prediction");
     } else {
-      console.warn('[NetworkGameHost] Simulation does not support setCollisionWorld');
+      console.warn("[NetworkGameHost] Simulation does not support setCollisionWorld");
     }
   }
 
@@ -608,18 +396,18 @@ export class NetworkGameHost implements IGameHost {
     });
 
     this.transport.onConnect(() => {
-      console.log('[NetworkGameHost] Connected to server');
+      console.log("[NetworkGameHost] Connected to server");
     });
 
     this.transport.onDisconnect((reason) => {
-      console.log('[NetworkGameHost] Disconnected:', reason);
+      console.log("[NetworkGameHost] Disconnected:", reason);
       this._isConnected = false;
       this.lastMatchPhase = null;
       AudioManager.getInstance().loadPlaylist("data/menu.playlist.json");
     });
 
     this.transport.onError((error) => {
-      console.error('[NetworkGameHost] Transport error:', error);
+      console.error("[NetworkGameHost] Transport error:", error);
     });
   }
 
@@ -641,7 +429,9 @@ export class NetworkGameHost implements IGameHost {
 
           // Guard against duplicate JoinAccept messages
           if (this._isConnected) {
-            console.log(`[NetworkGameHost] Ignoring duplicate JoinAccept: ${playerId} (already connected as ${this.localPlayerId})`);
+            console.log(
+              `[NetworkGameHost] Ignoring duplicate JoinAccept: ${playerId} (already connected as ${this.localPlayerId})`,
+            );
             break;
           }
 
@@ -668,9 +458,8 @@ export class NetworkGameHost implements IGameHost {
 
           // Spawn local player in client-side prediction simulation
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const sim = this.simulation as any;
-            if (typeof sim.spawnPlayer === 'function') {
+            const sim = this.simulation as unknown as Partial<SpawnableSimulation>;
+            if (typeof sim.spawnPlayer === "function") {
               sim.spawnPlayer(playerId);
               // CRITICAL: Update localState after spawning so getLocalPlayerPosition() works
               this.localState = this.simulation.state.clone();
@@ -690,7 +479,7 @@ export class NetworkGameHost implements IGameHost {
           this._serverInfo = welcome;
 
           // Notify callbacks (for map loading, etc.)
-          this.serverInfoCallbacks.forEach(cb => cb(welcome));
+          this.serverInfoCallbacks.forEach((cb) => cb(welcome));
           break;
         }
         case MessageType.Pong: {
@@ -702,7 +491,7 @@ export class NetworkGameHost implements IGameHost {
           console.warn(`[NetworkGameHost] Unknown message type: 0x${messageType.toString(16)}`);
       }
     } catch (error) {
-      console.error('[NetworkGameHost] Failed to handle message:', error);
+      console.error("[NetworkGameHost] Failed to handle message:", error);
       // Clear baseline to break cascading delta decode failures —
       // next snapshot will decode without delta baseline
       this.lastAckedSnapshot = null;
@@ -751,7 +540,7 @@ export class NetworkGameHost implements IGameHost {
     // In V2 mode, predictLocally() is skipped, so we MUST fire callbacks here
     // so Game.onServerStateUpdate() can feed snapshots to V2NetworkClient.
     if (this.useExternalPrediction) {
-      this.stateUpdateCallbacks.forEach(cb => cb(snapshot));
+      this.stateUpdateCallbacks.forEach((cb) => cb(snapshot));
     }
 
     // Handle Match Phase transitions (for music)
@@ -759,7 +548,7 @@ export class NetworkGameHost implements IGameHost {
       const currentPhase = snapshot.matchSnapshot.phase;
       if (currentPhase !== this.lastMatchPhase) {
         if (currentPhase === MatchPhase.PostGame) {
-          console.log('[NetworkGameHost] Match finished, starting endgame music');
+          console.log("[NetworkGameHost] Match finished, starting endgame music");
           AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json");
         }
         this.lastMatchPhase = currentPhase;
@@ -793,7 +582,7 @@ export class NetworkGameHost implements IGameHost {
     // Notify callbacks with predicted state for animations
     // This is critical: without this, FPSController only gets state at snapshot rate (20Hz)
     // which causes choppy animations. By notifying here, animations update at prediction rate (125Hz).
-    this.stateUpdateCallbacks.forEach(cb => cb(this.localState));
+    this.stateUpdateCallbacks.forEach((cb) => cb(this.localState));
   }
 
   // ============================================================================
@@ -836,18 +625,18 @@ export class NetworkGameHost implements IGameHost {
 
     // Skip reconciliation during ledge grab — client prediction is deterministic
     // (frozen position), server just hasn't confirmed yet. Correcting here causes micro-shake.
-    const movementState = localEntity.getComponent('movementState') as any;
-    if (movementState && movementState.ledgeGrabState && movementState.ledgeGrabState !== 'none') {
+    const movementState = localEntity.getComponent("movementState") as unknown as MovementStateShape | undefined;
+    if (movementState?.ledgeGrabState && movementState.ledgeGrabState !== "none") {
       this.smoothCorrection.reset();
       return;
     }
 
     // Get positions - prefer 'transform' (FPSSimulation) with fallback to 'position' (legacy)
-    const localTransform = localEntity.getComponent('transform') as any;
-    const serverTransform = serverEntity.getComponent('transform') as any;
+    const localTransform = localEntity.getComponent("transform") as unknown as TransformShape | undefined;
+    const serverTransform = serverEntity.getComponent("transform") as unknown as TransformShape | undefined;
 
-    const localPos = localTransform?.position || localEntity.getComponent('position') as any;
-    const serverPos = serverTransform?.position || serverEntity.getComponent('position') as any;
+    const localPos = localTransform?.position || (localEntity.getComponent("position") as unknown as Vec3 | undefined);
+    const serverPos = serverTransform?.position || (serverEntity.getComponent("position") as unknown as Vec3 | undefined);
 
     if (!localPos || !serverPos) return;
 
@@ -859,7 +648,9 @@ export class NetworkGameHost implements IGameHost {
 
     // DEBUG: Log error distance occasionally (was 10%, reduced for performance)
     if (Math.random() < 0.005) {
-      console.log(`[Reconcile] Error: ${distance.toFixed(1)} units | Client: (${localPos.x.toFixed(1)}, ${localPos.y.toFixed(1)}, ${localPos.z.toFixed(1)}) | Server: (${serverPos.x.toFixed(1)}, ${serverPos.y.toFixed(1)}, ${serverPos.z.toFixed(1)})`);
+      console.log(
+        `[Reconcile] Error: ${distance.toFixed(1)} units | Client: (${localPos.x.toFixed(1)}, ${localPos.y.toFixed(1)}, ${localPos.z.toFixed(1)}) | Server: (${serverPos.x.toFixed(1)}, ${serverPos.y.toFixed(1)}, ${serverPos.z.toFixed(1)})`,
+      );
     }
 
     // Decide how to handle the error
@@ -870,7 +661,7 @@ export class NetworkGameHost implements IGameHost {
       localPos.y = serverPos.y;
       localPos.z = serverPos.z;
       this.smoothCorrection.reset(); // Clear any pending smooth corrections
-      console.log('[NetworkGameHost] Snapped to server position (large error)');
+      console.log("[NetworkGameHost] Snapped to server position (large error)");
 
       // CRITICAL: Update localState to match simulation.state
       this.localState = this.simulation.state.clone();
@@ -896,7 +687,7 @@ export class NetworkGameHost implements IGameHost {
 
     // Clean up commands that server has now acknowledged
     // Commands with tick <= serverState.tick have been processed by server
-    this.pendingCommands = this.pendingCommands.filter(cmd => cmd.tick > serverState.tick);
+    this.pendingCommands = this.pendingCommands.filter((cmd) => cmd.tick > serverState.tick);
   }
 
   /**
@@ -912,8 +703,8 @@ export class NetworkGameHost implements IGameHost {
     if (!localEntity) return;
 
     // Use 'transform' component (created by FPSSimulation) with fallback to 'position' (legacy)
-    const localTransform = localEntity.getComponent('transform') as any;
-    const localPos = localTransform?.position || localEntity.getComponent('position') as any;
+    const localTransform = localEntity.getComponent("transform") as unknown as TransformShape | undefined;
+    const localPos = localTransform?.position || (localEntity.getComponent("position") as unknown as Vec3 | undefined);
     if (!localPos) return;
 
     const correction = this.smoothCorrection.getCorrection();
@@ -929,9 +720,8 @@ export class NetworkGameHost implements IGameHost {
     const events = this.localState.events;
     this.localState.events = [];
 
-    events.forEach(event => {
-      this.eventCallbacks.forEach(callback => callback(event));
+    events.forEach((event) => {
+      this.eventCallbacks.forEach((callback) => callback(event));
     });
   }
 }
-

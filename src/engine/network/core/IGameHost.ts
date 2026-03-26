@@ -1,10 +1,10 @@
-import type { GameState } from './GameState';
-import type { Command } from './Command';
-import type { PlayerId } from './Entity';
+import type { Command } from "./Command";
+import type { Entity, PlayerId } from "./Entity";
+import type { GameEvent, GameState } from "./GameState";
 
 /**
  * Main game host interface - abstraction for local vs networked games
- * 
+ *
  * Game code uses this interface without knowing if it's single-player,
  * multiplayer client, or listen server.
  */
@@ -31,13 +31,13 @@ export interface IGameHost {
    * Subscribe to game events
    * Called for sounds, effects, etc.
    */
-  onEvent(callback: (event: any) => void): () => void;
+  onEvent(callback: (event: GameEvent) => void): () => void;
 
   /**
    * Get interpolated entity state for rendering
    * Used for smooth remote player movement
    */
-  getInterpolatedEntity(entityId: string): any;
+  getInterpolatedEntity(entityId: string): Entity | null | undefined;
 
   /**
    * Get local player state for prediction

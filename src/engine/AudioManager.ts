@@ -1,7 +1,7 @@
 import { AssetLoader } from "./AssetLoader";
 import { Cvar } from "./core/Cvar";
-import { PK3Loader } from "./loader/pk3/PK3Loader";
 import { PK3Index } from "./loader/pk3/PK3Index";
+import { PK3Loader } from "./loader/pk3/PK3Loader";
 
 // Playlist types
 export interface PlaylistTrack {
@@ -67,35 +67,35 @@ export class AudioManager {
    * Call after ConsoleCommandRegistry is initialized.
    */
   public registerCvars(): void {
-    Cvar.register('s_volume', this.musicVolume, {
-      type: 'float',
+    Cvar.register("s_volume", this.musicVolume, {
+      type: "float",
       min: 0,
       max: 1,
-      description: 'Music volume (0-1)',
+      description: "Music volume (0-1)",
       onChange: (v) => this.setMusicVolume(v as number),
     });
 
-    Cvar.register('s_musicenabled', this.musicEnabled, {
-      type: 'bool',
-      description: 'Music enabled (0/1)',
+    Cvar.register("s_musicenabled", this.musicEnabled, {
+      type: "bool",
+      description: "Music enabled (0/1)",
       onChange: (v) => this.setMusicEnabled(v as boolean),
     });
 
-    Cvar.register('s_sfxvolume', this.sfxVolume, {
-      type: 'float',
+    Cvar.register("s_sfxvolume", this.sfxVolume, {
+      type: "float",
       min: 0,
       max: 1,
-      description: 'Sound effects volume (0-1)',
+      description: "Sound effects volume (0-1)",
       onChange: (v) => this.setSfxVolume(v as number),
     });
 
-    Cvar.register('s_sfxenabled', this.sfxEnabled, {
-      type: 'bool',
-      description: 'Sound effects enabled (0/1)',
+    Cvar.register("s_sfxenabled", this.sfxEnabled, {
+      type: "bool",
+      description: "Sound effects enabled (0/1)",
       onChange: (v) => this.setSfxEnabled(v as boolean),
     });
 
-    console.log('[AudioManager] Registered 4 cvars');
+    console.log("[AudioManager] Registered 4 cvars");
   }
 
   /**
@@ -109,7 +109,7 @@ export class AudioManager {
     silentAudio.play().catch(() => {
       // Ignore errors - this is just to unlock the context
     });
-    console.log('[AudioManager] Audio context unlocked');
+    console.log("[AudioManager] Audio context unlocked");
   }
 
   public playMusic(key: string, loop = true, fadeIn = true): void {
@@ -319,7 +319,9 @@ export class AudioManager {
       return;
     }
 
-    console.log(`[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`);
+    console.log(
+      `[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`,
+    );
 
     // Invalidate any in-flight async track loads from the previous playlist.
     // playCurrentTrack checks loadingRequestId after each await; bumping it here
@@ -362,7 +364,7 @@ export class AudioManager {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        playlist = await response.json() as Playlist;
+        playlist = (await response.json()) as Playlist;
         console.log(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
       }
 
@@ -396,7 +398,9 @@ export class AudioManager {
       return;
     }
 
-    console.log(`[AudioManager] Playing track ${this.currentTrackIndex + 1}/${this.currentPlaylist.tracks.length}: ${track.title || track.file}`);
+    console.log(
+      `[AudioManager] Playing track ${this.currentTrackIndex + 1}/${this.currentPlaylist.tracks.length}: ${track.title || track.file}`,
+    );
 
     // Stop current music first
     if (this.currentMusic) {
@@ -457,7 +461,7 @@ export class AudioManager {
     // If a newer request was started while we were awaiting PK3, abort this one
     if (requestId !== this.loadingRequestId) {
       console.log(`[AudioManager] Aborting track load for request ${requestId} (now on ${this.loadingRequestId})`);
-      if (audioUrl && audioUrl.startsWith("blob:")) {
+      if (audioUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(audioUrl);
       }
       return;
@@ -477,7 +481,7 @@ export class AudioManager {
     }
 
     this.failedTrackAttempts = 0;
-    if (audioUrl && audioUrl.startsWith("blob:")) {
+    if (audioUrl?.startsWith("blob:")) {
       this.audioBlobUrls.set(audio, audioUrl);
     }
 
@@ -539,7 +543,12 @@ export class AudioManager {
   /**
    * Get current playlist info
    */
-  public getCurrentPlaylistInfo(): { name: string | null; trackIndex: number; trackCount: number; currentTrack: PlaylistTrack | null } | null {
+  public getCurrentPlaylistInfo(): {
+    name: string | null;
+    trackIndex: number;
+    trackCount: number;
+    currentTrack: PlaylistTrack | null;
+  } | null {
     if (!this.currentPlaylist) return null;
 
     return {

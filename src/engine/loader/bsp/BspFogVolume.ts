@@ -5,17 +5,16 @@
  * The Effects lump links fog shaders to brush geometry.
  */
 
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { Plane } from "@babylonjs/core/Maths/math.plane";
-import { Scene } from "@babylonjs/core/scene";
-import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { Effect } from "@babylonjs/core/Materials/effect";
-
-import type { BspFile, BspPlane } from "./BspLoader";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Plane } from "@babylonjs/core/Maths/math.plane";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import type { Scene } from "@babylonjs/core/scene";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import type { BspFile, BspPlane } from "./BspLoader";
 
 // ============================================================================
 // Fog Volume Data Types
@@ -102,8 +101,8 @@ let shaderRegistered = false;
 function ensureFogShaderRegistered(): void {
   if (shaderRegistered) return;
 
-  Effect.ShadersStore[FOG_SHADER_NAME + "VertexShader"] = fogVertexShader;
-  Effect.ShadersStore[FOG_SHADER_NAME + "FragmentShader"] = fogFragmentShader;
+  Effect.ShadersStore[`${FOG_SHADER_NAME}VertexShader`] = fogVertexShader;
+  Effect.ShadersStore[`${FOG_SHADER_NAME}FragmentShader`] = fogFragmentShader;
   shaderRegistered = true;
 }
 
@@ -131,7 +130,9 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
 
     // Validate brush index
     if (effect.brushIndex < 0 || effect.brushIndex >= bspData.brushes.length) {
-      console.warn(`[FogVolume] Effect "${effect.name}" references invalid brush index ${effect.brushIndex} (max: ${bspData.brushes.length})`);
+      console.warn(
+        `[FogVolume] Effect "${effect.name}" references invalid brush index ${effect.brushIndex} (max: ${bspData.brushes.length})`,
+      );
       continue;
     }
 
@@ -141,13 +142,15 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
       console.warn(`[FogVolume] Effect "${effect.name}" references null brush ${effect.brushIndex}`);
       continue;
     }
-    
-    console.log(`[FogVolume] Processing brush ${effect.brushIndex}: firstSide=${brush.firstSide}, numSides=${brush.numSides}`);
+
+    console.log(
+      `[FogVolume] Processing brush ${effect.brushIndex}: firstSide=${brush.firstSide}, numSides=${brush.numSides}`,
+    );
 
     // Collect planes that define the brush
     const planes: BspPlane[] = [];
     let hasInvalidPlane = false;
-    
+
     for (let i = 0; i < brush.numSides; i++) {
       const sideIndex = brush.firstSide + i;
       if (sideIndex < 0 || sideIndex >= bspData.brushSides.length) {
@@ -156,16 +159,18 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
         continue;
       }
       const side = bspData.brushSides[sideIndex];
-      
+
       // Check for invalid plane index (including potential unsigned overflow)
       if (side.planeIndex < 0 || side.planeIndex >= bspData.planes.length) {
-        console.warn(`[FogVolume] BrushSide has invalid plane index ${side.planeIndex} (max: ${bspData.planes.length})`);
+        console.warn(
+          `[FogVolume] BrushSide has invalid plane index ${side.planeIndex} (max: ${bspData.planes.length})`,
+        );
         hasInvalidPlane = true;
         continue;
       }
       planes.push(bspData.planes[side.planeIndex]);
     }
-    
+
     if (hasInvalidPlane) {
       console.warn(`[FogVolume] Skipping fog volume "${effect.name}" due to invalid brush data`);
       continue;
@@ -176,8 +181,10 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
       continue;
     }
 
-    console.log(`[FogVolume] Found fog volume: "${effect.name}" with ${planes.length} planes, ` +
-                `color=(${shader.fogParms.color.join(',')}), depth=${shader.fogParms.depthForOpaque}`);
+    console.log(
+      `[FogVolume] Found fog volume: "${effect.name}" with ${planes.length} planes, ` +
+        `color=(${shader.fogParms.color.join(",")}), depth=${shader.fogParms.depthForOpaque}`,
+    );
 
     fogVolumes.push({
       shaderName: effect.name,
@@ -198,10 +205,10 @@ export function extractFogVolumes(bspData: BspFile): FogVolumeData[] {
 /**
  * Convert BSP planes to Babylon.js planes
  * BSP uses Z-up, Babylon uses Y-up
- * 
+ *
  * BSP plane convention: dot(normal, point) < dist means point is on back/inside side
  * Babylon Plane convention: dot(normal, point) + d < 0 means point is behind plane
- * 
+ *
  * To make BSP planes work with Babylon's convention where we want
  * interior points to satisfy: dot(normal, point) + d < 0
  * We need: d = -dist (so dot(normal, point) - dist < 0, same as dot < dist)
@@ -212,8 +219,8 @@ function convertBspPlane(bspPlane: BspPlane): Plane {
   // So: Babylon.X = Q3.X, Babylon.Y = Q3.Z, Babylon.Z = Q3.Y
   const normal = new Vector3(
     bspPlane.normal[0],
-    bspPlane.normal[2],  // Z -> Y
-    bspPlane.normal[1]   // Y -> Z
+    bspPlane.normal[2], // Z -> Y
+    bspPlane.normal[1], // Y -> Z
   );
 
   // BSP: point inside if dot(normal, point) < dist
@@ -240,16 +247,19 @@ function getPlaneIntersection(p1: Plane, p2: Plane, p3: Plane): Vector3 | null {
   const cross31 = Vector3.Cross(n3, n1).scale(-p2.d);
   const cross12 = Vector3.Cross(n1, n2).scale(-p3.d);
 
-  return cross23.add(cross31).add(cross12).scale(1 / det);
+  return cross23
+    .add(cross31)
+    .add(cross12)
+    .scale(1 / det);
 }
 
 /**
  * Check if a point is inside the convex brush
- * 
+ *
  * BSP plane normals point INTO the brush (toward solid/interior).
  * So a point is INSIDE the brush if it's on the POSITIVE side of all planes
  * (in the direction the normals point).
- * 
+ *
  * After conversion with d = -dist:
  * - Original BSP: inside if dot(normal, point) > dist for all planes
  * - Babylon: dot(normal, point) + d = dot(normal, point) - dist
@@ -274,14 +284,15 @@ function isPointInsideBrush(point: Vector3, planes: Plane[]): boolean {
 function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]; indices: number[] } | null {
   // Convert BSP planes to Babylon planes
   const allPlanes = fogVolume.planes.map(convertBspPlane);
-  
+
   // Deduplicate planes (BSP can have duplicate/bevel planes)
   const planes: Plane[] = [];
   for (const plane of allPlanes) {
-    const isDuplicate = planes.some(p => {
-      const normalMatch = Math.abs(p.normal.x - plane.normal.x) < 0.01 &&
-                          Math.abs(p.normal.y - plane.normal.y) < 0.01 &&
-                          Math.abs(p.normal.z - plane.normal.z) < 0.01;
+    const isDuplicate = planes.some((p) => {
+      const normalMatch =
+        Math.abs(p.normal.x - plane.normal.x) < 0.01 &&
+        Math.abs(p.normal.y - plane.normal.y) < 0.01 &&
+        Math.abs(p.normal.z - plane.normal.z) < 0.01;
       const distMatch = Math.abs(p.d - plane.d) < 0.1;
       return normalMatch && distMatch;
     });
@@ -289,7 +300,7 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
       planes.push(plane);
     }
   }
-  
+
   if (planes.length < 4) {
     console.warn(`[FogVolume] Brush ${fogVolume.brushIndex}: only ${planes.length} unique planes (need 4+)`);
     return null;
@@ -310,17 +321,19 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
         const intersection = getPlaneIntersection(planes[i], planes[j], planes[k]);
         if (intersection) {
           // Filter out vertices at extreme distances (for map-spanning fog brushes)
-          if (Math.abs(intersection.x) > MAX_COORD ||
-              Math.abs(intersection.y) > MAX_COORD ||
-              Math.abs(intersection.z) > MAX_COORD) {
+          if (
+            Math.abs(intersection.x) > MAX_COORD ||
+            Math.abs(intersection.y) > MAX_COORD ||
+            Math.abs(intersection.z) > MAX_COORD
+          ) {
             rejectedBounds++;
             continue;
           }
-          
+
           // Check if point is inside the brush (on correct side of all planes)
           if (isPointInsideBrush(intersection, planes)) {
             // Check for duplicate vertices
-            if (!vertices.some(v => Vector3.DistanceSquared(v, intersection) < 0.01)) {
+            if (!vertices.some((v) => Vector3.DistanceSquared(v, intersection) < 0.01)) {
               vertices.push(intersection);
             } else {
               rejectedDuplicate++;
@@ -333,9 +346,11 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
     }
   }
 
-  console.log(`[FogVolume] Brush ${fogVolume.brushIndex}: ${vertices.length} vertices ` +
-              `(rejected: ${rejectedOutside} outside, ${rejectedBounds} bounds, ${rejectedDuplicate} duplicate)`);
-  
+  console.log(
+    `[FogVolume] Brush ${fogVolume.brushIndex}: ${vertices.length} vertices ` +
+      `(rejected: ${rejectedOutside} outside, ${rejectedBounds} bounds, ${rejectedDuplicate} duplicate)`,
+  );
+
   // Debug: show plane info
   if (vertices.length < 4) {
     console.log(`[FogVolume] Planes:`);
@@ -367,7 +382,8 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
     const faceVertices: Vector3[] = [];
     for (const v of vertices) {
       const dist = Math.abs(Vector3.Dot(planeNormal, v) + plane.d);
-      if (dist < 0.1) {  // Tighter tolerance like BrushGenerator
+      if (dist < 0.1) {
+        // Tighter tolerance like BrushGenerator
         faceVertices.push(v);
       }
     }
@@ -397,9 +413,15 @@ function buildFogVolumeGeometry(fogVolume: FogVolumeData): { positions: number[]
     // Triangulate the face (fan from first vertex)
     for (let j = 1; j < faceVertices.length - 1; j++) {
       positions.push(
-        faceVertices[0].x, faceVertices[0].y, faceVertices[0].z,
-        faceVertices[j].x, faceVertices[j].y, faceVertices[j].z,
-        faceVertices[j + 1].x, faceVertices[j + 1].y, faceVertices[j + 1].z
+        faceVertices[0].x,
+        faceVertices[0].y,
+        faceVertices[0].z,
+        faceVertices[j].x,
+        faceVertices[j].y,
+        faceVertices[j].z,
+        faceVertices[j + 1].x,
+        faceVertices[j + 1].y,
+        faceVertices[j + 1].z,
       );
 
       indices.push(indexOffset, indexOffset + 1, indexOffset + 2);
@@ -460,7 +482,7 @@ export class FogVolumeManager {
   private createFogMesh(
     vol: FogVolumeData,
     geometry: { positions: number[]; indices: number[] },
-    scene: Scene
+    scene: Scene,
   ): Mesh | null {
     const mesh = new Mesh(`fogVolume_${vol.brushIndex}`, scene);
 
@@ -487,7 +509,7 @@ export class FogVolumeManager {
       {
         attributes: ["position"],
         uniforms: ["world", "worldViewProjection", "fogColor", "depthForOpaque", "cameraPosition"],
-      }
+      },
     );
 
     // Set fog parameters
@@ -547,20 +569,21 @@ export class FogVolumeManager {
 
 /**
  * CamFog Manager
- * 
+ *
  * Simpler approach to fog: when camera is inside a fog volume's AABB,
  * enable Babylon's scene fog with the volume's parameters.
- * 
+ *
  * Works well for "atmosphere fog" covering large areas (like wdm11).
  * Does NOT handle "looking into fog from outside" (fog pits).
  */
 export class CamFog {
   private fogVolumes: FogAABB[] = [];
   private scene: Scene | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   private observer: any = null;
   private currentFogVolume: FogAABB | null = null;
   private enabled: boolean = false;
-  
+
   /** Scale factor for fog distances (adjustable for tuning) */
   public fogScale: number = 1.0;
 
@@ -574,9 +597,9 @@ export class CamFog {
 
     const shaderRegistry = Q3ShaderRegistry.getInstance();
     const worldModel = bspData.models[0];
-    
+
     if (!worldModel) {
-      console.warn('[CamFog] No world model found');
+      console.warn("[CamFog] No world model found");
       return;
     }
 
@@ -584,8 +607,10 @@ export class CamFog {
     const worldMin = new Vector3(worldModel.mins[0], worldModel.mins[2], worldModel.mins[1]);
     const worldMax = new Vector3(worldModel.maxs[0], worldModel.maxs[2], worldModel.maxs[1]);
 
-    console.log(`[CamFog] World bounds: (${worldMin.x.toFixed(0)},${worldMin.y.toFixed(0)},${worldMin.z.toFixed(0)}) -> ` +
-                `(${worldMax.x.toFixed(0)},${worldMax.y.toFixed(0)},${worldMax.z.toFixed(0)})`);
+    console.log(
+      `[CamFog] World bounds: (${worldMin.x.toFixed(0)},${worldMin.y.toFixed(0)},${worldMin.z.toFixed(0)}) -> ` +
+        `(${worldMax.x.toFixed(0)},${worldMax.y.toFixed(0)},${worldMax.z.toFixed(0)})`,
+    );
 
     // Extract fog params directly from effects lump (bypass brush geometry issues)
     for (const effect of bspData.effects) {
@@ -602,8 +627,10 @@ export class CamFog {
       };
 
       this.fogVolumes.push(aabb);
-      console.log(`[CamFog] Registered fog "${effect.name}" with world bounds, ` +
-                  `color=(${shader.fogParms.color.join(',')}), depth=${shader.fogParms.depthForOpaque}`);
+      console.log(
+        `[CamFog] Registered fog "${effect.name}" with world bounds, ` +
+          `color=(${shader.fogParms.color.join(",")}), depth=${shader.fogParms.depthForOpaque}`,
+      );
     }
 
     console.log(`[CamFog] Initialized with ${this.fogVolumes.length} fog volumes`);
@@ -620,7 +647,7 @@ export class CamFog {
       this.update();
     });
 
-    console.log('[CamFog] Enabled');
+    console.log("[CamFog] Enabled");
   }
 
   /**
@@ -639,7 +666,7 @@ export class CamFog {
     this.scene.fogMode = 0;
     this.currentFogVolume = null;
 
-    console.log('[CamFog] Disabled');
+    console.log("[CamFog] Disabled");
   }
 
   /**
@@ -668,7 +695,7 @@ export class CamFog {
       // Left fog volume - disable fog
       this.scene.fogMode = 0;
       this.currentFogVolume = null;
-      console.log('[CamFog] Left fog volume');
+      console.log("[CamFog] Left fog volume");
     }
   }
 
@@ -676,17 +703,22 @@ export class CamFog {
    * Check if point is inside AABB
    */
   private isPointInAABB(point: Vector3, aabb: FogAABB): boolean {
-    return point.x >= aabb.min.x && point.x <= aabb.max.x &&
-           point.y >= aabb.min.y && point.y <= aabb.max.y &&
-           point.z >= aabb.min.z && point.z <= aabb.max.z;
+    return (
+      point.x >= aabb.min.x &&
+      point.x <= aabb.max.x &&
+      point.y >= aabb.min.y &&
+      point.y <= aabb.max.y &&
+      point.z >= aabb.min.z &&
+      point.z <= aabb.max.z
+    );
   }
 
   /**
    * Apply fog from volume parameters
-   * 
+   *
    * Q3 fogParms: depthForOpaque = distance at which fog is ~95% opaque
    * Using EXP2 fog: fogFactor = exp(-density² * distance²)
-   * 
+   *
    * Calculate density so that at depthForOpaque, fog is 95% opaque:
    * 0.05 = exp(-d² * depth²) => d = sqrt(-ln(0.05)) / depth ≈ 1.73 / depth
    */
@@ -702,7 +734,9 @@ export class CamFog {
     this.scene.fogColor = new Color3(vol.fogColor[0], vol.fogColor[1], vol.fogColor[2]);
     this.scene.fogDensity = density;
 
-    console.log(`[CamFog] Fog applied: scale=${this.fogScale}, depth=${scaledDepth.toFixed(0)}, density=${density.toFixed(6)}`);
+    console.log(
+      `[CamFog] Fog applied: scale=${this.fogScale}, depth=${scaledDepth.toFixed(0)}, density=${density.toFixed(6)}`,
+    );
   }
 
   /**
@@ -723,16 +757,16 @@ export class CamFog {
    */
   getStatus(): string {
     const lines = [
-      `CamFog: ${this.enabled ? 'ENABLED' : 'DISABLED'}`,
+      `CamFog: ${this.enabled ? "ENABLED" : "DISABLED"}`,
       `Fog volumes: ${this.fogVolumes.length}`,
-      `Current: ${this.currentFogVolume?.shaderName || 'none'}`,
+      `Current: ${this.currentFogVolume?.shaderName || "none"}`,
       `Scale: ${this.fogScale}`,
     ];
     if (this.currentFogVolume) {
       const scaledDepth = this.currentFogVolume.depthForOpaque * this.fogScale;
       lines.push(`Depth: ${this.currentFogVolume.depthForOpaque} (scaled: ${scaledDepth.toFixed(0)})`);
     }
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -755,14 +789,14 @@ export class CamFog {
 export interface WorldspawnFog {
   color: [number, number, number];
   density: number;
-  mode: 'exp' | 'exp2' | 'linear';
-  start?: number;  // For linear fog
-  end?: number;    // For linear fog
+  mode: "exp" | "exp2" | "linear";
+  start?: number; // For linear fog
+  end?: number; // For linear fog
 }
 
 /**
  * Parse fog settings from BSP worldspawn entity
- * 
+ *
  * Supported formats:
  *   "fog" "r g b density"           - EXP2 fog with color and density
  *   "fog" "r g b density mode"      - Fog with explicit mode (exp/exp2/linear)
@@ -773,24 +807,27 @@ export interface WorldspawnFog {
  */
 export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
   // Find worldspawn entity (first entity with classname "worldspawn")
-  const worldspawn = bspData.entities.find(e => e.classname === 'worldspawn');
+  const worldspawn = bspData.entities.find((e) => e.classname === "worldspawn");
   if (!worldspawn) return null;
 
   const props = worldspawn.properties;
 
   // Check for combined "fog" key
   if (props.fog) {
-    const parts = props.fog.trim().split(/\s+/).map(s => s.toLowerCase());
+    const parts = props.fog
+      .trim()
+      .split(/\s+/)
+      .map((s) => s.toLowerCase());
     if (parts.length >= 4) {
       const r = parseFloat(parts[0]) || 0;
       const g = parseFloat(parts[1]) || 0;
       const b = parseFloat(parts[2]) || 0;
       const density = parseFloat(parts[3]) || 0.0001;
-      const modeStr = parts[4] || 'exp2';
-      
-      let mode: 'exp' | 'exp2' | 'linear' = 'exp2';
-      if (modeStr === 'exp') mode = 'exp';
-      else if (modeStr === 'linear') mode = 'linear';
+      const modeStr = parts[4] || "exp2";
+
+      let mode: "exp" | "exp2" | "linear" = "exp2";
+      if (modeStr === "exp") mode = "exp";
+      else if (modeStr === "linear") mode = "linear";
 
       return { color: [r, g, b], density, mode };
     }
@@ -799,7 +836,7 @@ export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
   // Check for separate keys
   let color: [number, number, number] | null = null;
   let density: number | null = null;
-  let mode: 'exp' | 'exp2' | 'linear' = 'exp2';
+  let mode: "exp" | "exp2" | "linear" = "exp2";
   let start: number | undefined;
   let end: number | undefined;
 
@@ -816,8 +853,8 @@ export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
 
   if (props.fog_mode) {
     const m = props.fog_mode.toLowerCase();
-    if (m === 'exp') mode = 'exp';
-    else if (m === 'linear') mode = 'linear';
+    if (m === "exp") mode = "exp";
+    else if (m === "linear") mode = "linear";
   }
 
   if (props.fog_start) start = parseFloat(props.fog_start);
@@ -843,23 +880,27 @@ export function parseWorldspawnFog(bspData: BspFile): WorldspawnFog | null {
 export function applyWorldspawnFog(bspData: BspFile, scene: Scene): boolean {
   const fog = parseWorldspawnFog(bspData);
   if (!fog) {
-    console.log('[WorldspawnFog] No fog settings found in worldspawn');
+    console.log("[WorldspawnFog] No fog settings found in worldspawn");
     return false;
   }
 
   scene.fogColor = new Color3(fog.color[0], fog.color[1], fog.color[2]);
 
-  if (fog.mode === 'linear') {
+  if (fog.mode === "linear") {
     scene.fogMode = 1; // FOGMODE_LINEAR
     scene.fogStart = fog.start ?? 100;
     scene.fogEnd = fog.end ?? 1000;
-    console.log(`[WorldspawnFog] Applied LINEAR fog: color=(${fog.color.join(',')}), ` +
-                `start=${scene.fogStart}, end=${scene.fogEnd}`);
+    console.log(
+      `[WorldspawnFog] Applied LINEAR fog: color=(${fog.color.join(",")}), ` +
+        `start=${scene.fogStart}, end=${scene.fogEnd}`,
+    );
   } else {
-    scene.fogMode = fog.mode === 'exp' ? 2 : 3; // FOGMODE_EXP or FOGMODE_EXP2
+    scene.fogMode = fog.mode === "exp" ? 2 : 3; // FOGMODE_EXP or FOGMODE_EXP2
     scene.fogDensity = fog.density;
-    console.log(`[WorldspawnFog] Applied ${fog.mode.toUpperCase()} fog: color=(${fog.color.join(',')}), ` +
-                `density=${fog.density}`);
+    console.log(
+      `[WorldspawnFog] Applied ${fog.mode.toUpperCase()} fog: color=(${fog.color.join(",")}), ` +
+        `density=${fog.density}`,
+    );
   }
 
   return true;

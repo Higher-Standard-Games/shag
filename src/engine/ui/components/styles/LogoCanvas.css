@@ -6,137 +6,139 @@
  */
 
 .logo-canvas {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 /* The Babylon.js canvas sits on top */
 .logo-canvas__canvas {
-    position: relative;
-    z-index: 2;
-    pointer-events: none;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* Glow container sits behind */
 .logo-canvas__glow {
-    position: absolute;
-    inset: -40%;
-    z-index: 1;
-    pointer-events: none;
+  position: absolute;
+  inset: -40%;
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* Triangle base shape */
 .logo-canvas__tri {
-    position: absolute;
-    width: 0;
-    height: 0;
-    filter: blur(22px);
-    opacity: 0;
-    animation: logo-tri-pulse 6s ease-in-out infinite;
+  position: absolute;
+  width: 0;
+  height: 0;
+  filter: blur(22px);
+  opacity: 0;
+  animation: logo-tri-pulse 6s ease-in-out infinite;
 }
 
 /* ── Teal triangles ── */
 
 .logo-canvas__tri--teal {
-    top: 15%;
-    left: 5%;
-    border-left: 110px solid transparent;
-    border-right: 110px solid transparent;
-    border-bottom: 160px solid hsla(180, 100%, 50%, 0.22);
-    animation-delay: 0s;
+  top: 15%;
+  left: 5%;
+  border-left: 110px solid transparent;
+  border-right: 110px solid transparent;
+  border-bottom: 160px solid hsla(180, 100%, 50%, 0.22);
+  animation-delay: 0s;
 }
 
 .logo-canvas__tri--teal2 {
-    top: 30%;
-    left: 0%;
-    border-left: 70px solid transparent;
-    border-right: 70px solid transparent;
-    border-bottom: 110px solid hsla(175, 100%, 55%, 0.14);
-    animation-delay: 3s;
-    filter: blur(30px);
+  top: 30%;
+  left: 0%;
+  border-left: 70px solid transparent;
+  border-right: 70px solid transparent;
+  border-bottom: 110px solid hsla(175, 100%, 55%, 0.14);
+  animation-delay: 3s;
+  filter: blur(30px);
 }
 
 /* ── Pink triangles ── */
 
 .logo-canvas__tri--pink {
-    top: 10%;
-    right: 5%;
-    border-left: 100px solid transparent;
-    border-right: 100px solid transparent;
-    border-bottom: 150px solid hsla(320, 100%, 55%, 0.20);
-    animation-delay: 1.5s;
+  top: 10%;
+  right: 5%;
+  border-left: 100px solid transparent;
+  border-right: 100px solid transparent;
+  border-bottom: 150px solid hsla(320, 100%, 55%, 0.2);
+  animation-delay: 1.5s;
 }
 
 .logo-canvas__tri--pink2 {
-    top: 35%;
-    right: 10%;
-    border-left: 60px solid transparent;
-    border-right: 60px solid transparent;
-    border-bottom: 90px solid hsla(330, 100%, 60%, 0.12);
-    animation-delay: 4.5s;
-    filter: blur(30px);
+  top: 35%;
+  right: 10%;
+  border-left: 60px solid transparent;
+  border-right: 60px solid transparent;
+  border-bottom: 90px solid hsla(330, 100%, 60%, 0.12);
+  animation-delay: 4.5s;
+  filter: blur(30px);
 }
 
 /* ── Radial glow burst ── */
 .logo-canvas__burst {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 80%;
-    height: 80%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(ellipse at center,
-            hsla(280, 80%, 50%, 0.12) 0%,
-            hsla(180, 100%, 50%, 0.06) 40%,
-            transparent 70%);
-    animation: logo-burst-pulse 8s ease-in-out infinite;
-    filter: blur(15px);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: 80%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    hsla(280, 80%, 50%, 0.12) 0%,
+    hsla(180, 100%, 50%, 0.06) 40%,
+    transparent 70%
+  );
+  animation: logo-burst-pulse 8s ease-in-out infinite;
+  filter: blur(15px);
 }
 
 /* Pulse animation — slow fade in/out with subtle scale */
 @keyframes logo-tri-pulse {
-    0% {
-        opacity: 0;
-        transform: scale(0.85) translateY(6px);
-    }
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(6px);
+  }
 
-    25% {
-        opacity: 1;
-    }
+  25% {
+    opacity: 1;
+  }
 
-    50% {
-        opacity: 1;
-        transform: scale(1.08) translateY(-3px);
-    }
+  50% {
+    opacity: 1;
+    transform: scale(1.08) translateY(-3px);
+  }
 
-    75% {
-        opacity: 1;
-    }
+  75% {
+    opacity: 1;
+  }
 
-    100% {
-        opacity: 0;
-        transform: scale(0.85) translateY(6px);
-    }
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(6px);
+  }
 }
 
 /* Burst pulse — slower, wider */
 @keyframes logo-burst-pulse {
-    0% {
-        opacity: 0.3;
-        transform: translate(-50%, -50%) scale(0.8);
-    }
+  0% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
 
-    50% {
-        opacity: 0.8;
-        transform: translate(-50%, -50%) scale(1.15);
-    }
+  50% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
 
-    100% {
-        opacity: 0.3;
-        transform: translate(-50%, -50%) scale(0.8);
-    }
+  100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
 }

@@ -2,9 +2,9 @@
  * HUDPillGroup - Container for multiple related pills/buttons
  */
 
-import { HUDElement } from '../HUDElement';
-import type { HUDPillGroupConfig, HUDPillGroupChild } from '../HUDTypes';
-import type { HUDManager } from '../HUDManager';
+import { HUDElement } from "../HUDElement";
+import type { HUDManager } from "../HUDManager";
+import type { HUDPillGroupChild, HUDPillGroupConfig } from "../HUDTypes";
 
 export class HUDPillGroup extends HUDElement {
   protected config: HUDPillGroupConfig;
@@ -18,8 +18,8 @@ export class HUDPillGroup extends HUDElement {
   }
 
   protected createElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hud-pill-group';
+    const el = document.createElement("div");
+    el.className = "hud-pill-group";
     el.id = `hud-${this.id}`;
 
     // Create child elements
@@ -39,49 +39,49 @@ export class HUDPillGroup extends HUDElement {
   private createChildElement(child: HUDPillGroupChild): HTMLElement | null {
     // Check platform visibility
     if (child.platforms) {
-      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const platform = isMobile ? 'mobile' : 'desktop';
+      const isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      const platform = isMobile ? "mobile" : "desktop";
       if (!child.platforms.includes(platform)) {
         return null;
       }
     }
 
-    const type = child.type || 'value';
+    const type = child.type || "value";
 
     switch (type) {
-      case 'value': {
-        const span = document.createElement('span');
-        span.className = 'hud-pill-group-value';
+      case "value": {
+        const span = document.createElement("span");
+        span.className = "hud-pill-group-value";
         span.dataset.childId = child.id;
-        if (child.style === 'bold') {
-          span.classList.add('hud-pill-group-bold');
-        } else if (child.style === 'muted') {
-          span.classList.add('hud-pill-group-muted');
+        if (child.style === "bold") {
+          span.classList.add("hud-pill-group-bold");
+        } else if (child.style === "muted") {
+          span.classList.add("hud-pill-group-muted");
         }
         return span;
       }
 
-      case 'icon': {
-        const span = document.createElement('span');
-        span.className = 'hud-pill-group-icon';
+      case "icon": {
+        const span = document.createElement("span");
+        span.className = "hud-pill-group-icon";
         span.dataset.childId = child.id;
-        span.textContent = child.icon || '';
+        span.textContent = child.icon || "";
         return span;
       }
 
-      case 'button': {
-        const btn = document.createElement('button');
-        btn.className = 'hud-pill-group-btn';
+      case "button": {
+        const btn = document.createElement("button");
+        btn.className = "hud-pill-group-btn";
         btn.dataset.childId = child.id;
-        btn.textContent = child.icon || '';
-        
+        btn.textContent = child.icon || "";
+
         // Wire up click handler from manager
         btn.onclick = (e) => {
           e.stopPropagation();
           const handler = this.manager.getClickHandler(child.id);
           if (handler) handler();
         };
-        
+
         return btn;
       }
 
@@ -92,20 +92,20 @@ export class HUDPillGroup extends HUDElement {
 
   public setValue(value: any): void {
     // Value is expected to be an object with child IDs as keys
-    if (typeof value !== 'object' || value === null) return;
+    if (typeof value !== "object" || value === null) return;
 
     for (const [childId, childValue] of Object.entries(value)) {
       const childEl = this.childElements.get(childId);
       if (childEl) {
         // Find child config for formatting
-        const childConfig = this.config.children?.find(c => c.id === childId);
+        const childConfig = this.config.children?.find((c) => c.id === childId);
         let displayValue = childValue;
 
         if (childConfig?.format && childValue != null) {
           displayValue = this.formatValue(childValue, childConfig.format);
         }
 
-        childEl.textContent = String(displayValue ?? '');
+        childEl.textContent = String(displayValue ?? "");
       }
     }
   }
@@ -117,14 +117,14 @@ export class HUDPillGroup extends HUDElement {
     const childEl = this.childElements.get(childId);
     if (!childEl) return;
 
-    const childConfig = this.config.children?.find(c => c.id === childId);
+    const childConfig = this.config.children?.find((c) => c.id === childId);
     let displayValue = value;
 
     if (childConfig?.format && value != null) {
       displayValue = this.formatValue(value, childConfig.format);
     }
 
-    childEl.textContent = String(displayValue ?? '');
+    childEl.textContent = String(displayValue ?? "");
   }
 
   /**
@@ -135,20 +135,20 @@ export class HUDPillGroup extends HUDElement {
     if (!childEl) return;
 
     // Remove existing state classes
-    childEl.classList.remove('hud-btn-active', 'hud-btn-fast', 'hud-btn-debug');
-    
+    childEl.classList.remove("hud-btn-active", "hud-btn-fast", "hud-btn-debug");
+
     if (state) {
       childEl.classList.add(`hud-btn-${state}`);
     }
   }
 
   private formatValue(value: any, format: string): string {
-    if (format.includes('%d')) {
-      return format.replace('%d', String(Math.floor(Number(value))));
+    if (format.includes("%d")) {
+      return format.replace("%d", String(Math.floor(Number(value))));
     }
-    if (format.includes('%s')) {
-      return format.replace('%s', String(value));
+    if (format.includes("%s")) {
+      return format.replace("%s", String(value));
     }
-    return format.replace('%', String(value));
+    return format.replace("%", String(value));
   }
 }

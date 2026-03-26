@@ -11,7 +11,7 @@
  *   animation.destroy();
  */
 
-import { PaletteColor, SHAG_PALETTE } from './LoadingPalettes';
+import { type PaletteColor, SHAG_PALETTE } from "./LoadingPalettes";
 
 export interface LoadingAnimationConfig {
   /** Color palette for the puffs */
@@ -59,8 +59,8 @@ export class LoadingAnimation {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // Create container
-    this.container = document.createElement('div');
-    this.container.className = 'ui-loading-smoke-container';
+    this.container = document.createElement("div");
+    this.container.className = "ui-loading-smoke-container";
 
     // Create puff elements
     for (let i = 0; i < this.config.puffCount; i++) {
@@ -76,8 +76,8 @@ export class LoadingAnimation {
    * Create a single puff element with randomized properties
    */
   private createPuff(index: number): HTMLDivElement {
-    const puff = document.createElement('div');
-    puff.className = 'ui-loading-smoke-puff';
+    const puff = document.createElement("div");
+    puff.className = "ui-loading-smoke-puff";
 
     // Get color from palette (cycle through)
     const color = this.config.colors[index % this.config.colors.length];
@@ -93,8 +93,8 @@ export class LoadingAnimation {
     // Random drift direction and rotation
     const driftX = (Math.random() - 0.5) * 200;
     const rotation = (Math.random() - 0.5) * 360;
-    puff.style.setProperty('--drift-x', `${driftX}px`);
-    puff.style.setProperty('--rotation', `${rotation}deg`);
+    puff.style.setProperty("--drift-x", `${driftX}px`);
+    puff.style.setProperty("--rotation", `${rotation}deg`);
 
     // Random animation timing
     const duration = this.config.minDuration + Math.random() * (this.config.maxDuration - this.config.minDuration);
@@ -117,9 +117,9 @@ export class LoadingAnimation {
   pause(): void {
     if (this.isPaused || !this.container) return;
     this.isPaused = true;
-    this.container.style.animationPlayState = 'paused';
-    this.puffs.forEach(puff => {
-      puff.style.animationPlayState = 'paused';
+    this.container.style.animationPlayState = "paused";
+    this.puffs.forEach((puff) => {
+      puff.style.animationPlayState = "paused";
     });
   }
 
@@ -129,9 +129,9 @@ export class LoadingAnimation {
   play(): void {
     if (!this.isPaused || !this.container) return;
     this.isPaused = false;
-    this.container.style.animationPlayState = 'running';
-    this.puffs.forEach(puff => {
-      puff.style.animationPlayState = 'running';
+    this.container.style.animationPlayState = "running";
+    this.puffs.forEach((puff) => {
+      puff.style.animationPlayState = "running";
     });
   }
 

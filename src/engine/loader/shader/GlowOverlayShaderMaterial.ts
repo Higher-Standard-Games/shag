@@ -8,10 +8,10 @@
  * that still receive lightmap shadows on non-emissive parts.
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Effect } from '@babylonjs/core/Materials/effect';
+import { Effect } from "@babylonjs/core/Materials/effect";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Scene } from "@babylonjs/core/scene";
 
 // ============================================================================
 // GLSL Shaders
@@ -104,8 +104,8 @@ let shaderRegistered = false;
 function ensureShaderRegistered(): void {
   if (shaderRegistered) return;
 
-  Effect.ShadersStore['glowOverlayVertexShader'] = VERTEX_SHADER;
-  Effect.ShadersStore['glowOverlayFragmentShader'] = FRAGMENT_SHADER;
+  Effect.ShadersStore.glowOverlayVertexShader = VERTEX_SHADER;
+  Effect.ShadersStore.glowOverlayFragmentShader = FRAGMENT_SHADER;
 
   shaderRegistered = true;
 }
@@ -135,7 +135,7 @@ export class GlowOverlayShaderMaterial {
     glowTexture: Texture,
     lightmapIntensity: number = 2.0,
     glowIntensity: number = 1.0,
-    useAlphaBlend: boolean = false
+    useAlphaBlend: boolean = false,
   ): ShaderMaterial {
     ensureShaderRegistered();
 
@@ -143,43 +143,43 @@ export class GlowOverlayShaderMaterial {
       name,
       scene,
       {
-        vertex: 'glowOverlay',
-        fragment: 'glowOverlay',
+        vertex: "glowOverlay",
+        fragment: "glowOverlay",
       },
       {
-        attributes: ['position', 'uv', 'uv2'],
+        attributes: ["position", "uv", "uv2"],
         uniforms: [
-          'worldViewProjection',
-          'uvOffset',
-          'glowUvOffset',
-          'lightmapIntensity',
-          'glowIntensity',
-          'hasLightmap',
-          'glowBlendMode',
+          "worldViewProjection",
+          "uvOffset",
+          "glowUvOffset",
+          "lightmapIntensity",
+          "glowIntensity",
+          "hasLightmap",
+          "glowBlendMode",
         ],
-        samplers: ['baseSampler', 'lightmapSampler', 'glowSampler'],
-      }
+        samplers: ["baseSampler", "lightmapSampler", "glowSampler"],
+      },
     );
 
     // Set textures
-    material.setTexture('baseSampler', baseTexture);
-    material.setTexture('glowSampler', glowTexture);
+    material.setTexture("baseSampler", baseTexture);
+    material.setTexture("glowSampler", glowTexture);
 
     if (lightmapTexture) {
-      material.setTexture('lightmapSampler', lightmapTexture);
-      material.setFloat('hasLightmap', 1.0);
+      material.setTexture("lightmapSampler", lightmapTexture);
+      material.setFloat("hasLightmap", 1.0);
     } else {
       // Need a dummy texture for the sampler
-      material.setTexture('lightmapSampler', baseTexture);
-      material.setFloat('hasLightmap', 0.0);
+      material.setTexture("lightmapSampler", baseTexture);
+      material.setFloat("hasLightmap", 0.0);
     }
 
     // Set uniforms
-    material.setFloat('lightmapIntensity', lightmapIntensity);
-    material.setFloat('glowIntensity', glowIntensity);
-    material.setFloat('glowBlendMode', useAlphaBlend ? 1.0 : 0.0);
-    material.setVector2('uvOffset', { x: 0, y: 0 });
-    material.setVector2('glowUvOffset', { x: 0, y: 0 });
+    material.setFloat("lightmapIntensity", lightmapIntensity);
+    material.setFloat("glowIntensity", glowIntensity);
+    material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
+    material.setVector2("uvOffset", { x: 0, y: 0 });
+    material.setVector2("glowUvOffset", { x: 0, y: 0 });
 
     // Default settings
     material.backFaceCulling = true;
@@ -191,34 +191,34 @@ export class GlowOverlayShaderMaterial {
    * Update UV offset for animation (tcMod scroll)
    */
   static setUvOffset(material: ShaderMaterial, u: number, v: number): void {
-    material.setVector2('uvOffset', { x: u, y: v });
+    material.setVector2("uvOffset", { x: u, y: v });
   }
 
   /**
    * Update glow UV offset separately (if glow has different animation)
    */
   static setGlowUvOffset(material: ShaderMaterial, u: number, v: number): void {
-    material.setVector2('glowUvOffset', { x: u, y: v });
+    material.setVector2("glowUvOffset", { x: u, y: v });
   }
 
   /**
    * Update lightmap intensity
    */
   static setLightmapIntensity(material: ShaderMaterial, intensity: number): void {
-    material.setFloat('lightmapIntensity', intensity);
+    material.setFloat("lightmapIntensity", intensity);
   }
 
   /**
    * Update glow intensity
    */
   static setGlowIntensity(material: ShaderMaterial, intensity: number): void {
-    material.setFloat('glowIntensity', intensity);
+    material.setFloat("glowIntensity", intensity);
   }
 
   /**
    * Toggle between additive (0) and alpha blend (1) modes
    */
   static setGlowBlendMode(material: ShaderMaterial, useAlphaBlend: boolean): void {
-    material.setFloat('glowBlendMode', useAlphaBlend ? 1.0 : 0.0);
+    material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
   }
 }

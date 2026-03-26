@@ -6,10 +6,10 @@
  *   await testBspLoading();
  */
 
-import { PK3Loader } from "../pk3/PK3Loader";
-import { BspLoader, type BspFile } from "./BspLoader";
-import { BspMeshBuilder } from "./BspMeshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { PK3Loader } from "../pk3/PK3Loader";
+import { type BspFile, BspLoader } from "./BspLoader";
+import { BspMeshBuilder } from "./BspMeshBuilder";
 
 /**
  * Test loading a BSP file from a PK3
@@ -22,7 +22,7 @@ export async function testBspLoading(mapName: string = "wdm11"): Promise<BspFile
   // Check if map PK3 is loaded
   const pk3Name = `map_${mapName}.pk3`;
   const packages = pk3Loader.getPackageInfo();
-  const isLoaded = packages.some(p => p.filename === pk3Name);
+  const isLoaded = packages.some((p) => p.filename === pk3Name);
 
   if (!isLoaded) {
     console.log(`[BspTest] Loading PK3: ${pk3Name}...`);
@@ -60,7 +60,7 @@ export async function testBspLoading(mapName: string = "wdm11"): Promise<BspFile
  */
 export function printBspStats(bsp: BspFile): void {
   console.log("\n----- BSP Statistics -----");
-  console.log(`Format: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'} v${bsp.header.version}`);
+  console.log(`Format: ${bsp.header.isFBSP ? "FBSP" : "IBSP"} v${bsp.header.version}`);
   console.log(`Lightmap size: ${bsp.lightmapSize}x${bsp.lightmapSize}`);
   console.log("");
   console.log(`Entities: ${bsp.entities.length}`);
@@ -75,20 +75,30 @@ export function printBspStats(bsp: BspFile): void {
   console.log(`MeshVerts: ${bsp.meshVerts.length}`);
   console.log(`Lightmaps: ${bsp.lightmaps.length}`);
   console.log(`LightVols: ${bsp.lightVols.length}`);
-  console.log(`VisData: ${bsp.visData ? `${bsp.visData.numClusters} clusters` : 'none'}`);
+  console.log(`VisData: ${bsp.visData ? `${bsp.visData.numClusters} clusters` : "none"}`);
   console.log("");
 
   // Face type breakdown
   const faceTypes = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
   for (const face of bsp.faces) {
     switch (face.faceType) {
-      case 1: faceTypes.polygon++; break;
-      case 2: faceTypes.patch++; break;
-      case 3: faceTypes.mesh++; break;
-      case 4: faceTypes.billboard++; break;
+      case 1:
+        faceTypes.polygon++;
+        break;
+      case 2:
+        faceTypes.patch++;
+        break;
+      case 3:
+        faceTypes.mesh++;
+        break;
+      case 4:
+        faceTypes.billboard++;
+        break;
     }
   }
-  console.log(`Face types: ${faceTypes.polygon} polygons, ${faceTypes.patch} patches, ${faceTypes.mesh} meshes, ${faceTypes.billboard} billboards`);
+  console.log(
+    `Face types: ${faceTypes.polygon} polygons, ${faceTypes.patch} patches, ${faceTypes.mesh} meshes, ${faceTypes.billboard} billboards`,
+  );
 
   // Texture list (first 20)
   console.log("\n----- Textures (first 20) -----");
@@ -110,7 +120,7 @@ export function printBspStats(bsp: BspFile): void {
   }
 
   // Worldspawn properties
-  const worldspawn = bsp.entities.find(e => e.classname === "worldspawn");
+  const worldspawn = bsp.entities.find((e) => e.classname === "worldspawn");
   if (worldspawn) {
     console.log("\n----- Worldspawn Properties -----");
     for (const [key, value] of Object.entries(worldspawn.properties)) {
@@ -147,7 +157,9 @@ export async function testBspRendering(scene: Scene, mapName: string = "wdm11"):
   console.log("[BspTest] Building meshes...");
   const result = BspMeshBuilder.build(bsp, scene);
 
-  console.log(`[BspTest] Created world mesh with ${result.stats.totalVertices} vertices, ${result.stats.totalTriangles} triangles`);
+  console.log(
+    `[BspTest] Created world mesh with ${result.stats.totalVertices} vertices, ${result.stats.totalTriangles} triangles`,
+  );
   console.log(`[BspTest] Created ${result.lightmapTextures.length} lightmap textures`);
 
   // Position camera to view the map
@@ -173,8 +185,12 @@ export async function quickBspTest(): Promise<void> {
 
 // Export for console access
 if (typeof window !== "undefined") {
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).testBspLoading = testBspLoading;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).printBspStats = printBspStats;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).testBspRendering = testBspRendering;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).quickBspTest = quickBspTest;
 }

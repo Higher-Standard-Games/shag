@@ -1,6 +1,6 @@
 /**
  * DebugConsole - Quake-style dropdown debug console
- * 
+ *
  * Engine-level debugging console that opens with tilde key.
  * Features:
  * - Command history with up/down arrows
@@ -9,15 +9,15 @@
  * - Persists history to localStorage
  */
 
-import { CommandRegistry } from '../console/CommandRegistry';
-import { EngineVersion } from '../core/EngineVersion';
-import { Cvar } from '../core/Cvar';
-import { DeveloperBar } from './DeveloperBar';
-import './debug-console.css';
+import { CommandRegistry } from "../console/CommandRegistry";
+import { Cvar } from "../core/Cvar";
+import { EngineVersion } from "../core/EngineVersion";
+import { DeveloperBar } from "./DeveloperBar";
+import "./debug-console.css";
 
-const HISTORY_KEY = 'debug_console_history';
-const CONSOLE_SIZE_KEY = 'debug_console_size';
-const LOG_HISTORY_SIZE_KEY = 'debug_console_log_history_size';
+const HISTORY_KEY = "debug_console_history";
+const CONSOLE_SIZE_KEY = "debug_console_size";
+const LOG_HISTORY_SIZE_KEY = "debug_console_log_history_size";
 const MAX_HISTORY = 100;
 const MAX_OUTPUT_LINES = 500;
 const DEFAULT_CONSOLE_SIZE = 0.5; // 0.5 = half screen, 1.0 = full screen
@@ -39,7 +39,7 @@ export class DebugConsole {
   // State
   private commandHistory: string[] = [];
   private historyIndex: number = -1;
-  private currentInput: string = '';
+  private currentInput: string = "";
   private logHistory: string[] = []; // Full log history for searching
   private logHistorySize: number = DEFAULT_LOG_HISTORY_SIZE;
   private autocompleteItems: string[] = [];
@@ -47,7 +47,7 @@ export class DebugConsole {
 
   // Tab completion state
   private lastTabTime: number = 0;
-  private lastTabInput: string = '';
+  private lastTabInput: string = "";
   private lastTabMatches: string[] = [];
 
   // Original console methods
@@ -85,7 +85,7 @@ export class DebugConsole {
 
     // Only enable on desktop (check for touch)
     if (this.isMobileDevice()) {
-      this.originalLog('[DebugConsole] Disabled on mobile devices');
+      this.originalLog("[DebugConsole] Disabled on mobile devices");
       return;
     }
 
@@ -95,7 +95,7 @@ export class DebugConsole {
     this.interceptConsoleLogs();
     this.registerBuiltinCommands();
 
-    this.log('system', 'Debug console enabled. Press ~ to toggle.');
+    this.log("system", "Debug console enabled. Press ~ to toggle.");
   }
 
   /**
@@ -114,8 +114,10 @@ export class DebugConsole {
    * Check if running on mobile
    */
   private isMobileDevice(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-      ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      ("ontouchstart" in window && navigator.maxTouchPoints > 0)
+    );
   }
 
   /**
@@ -127,7 +129,7 @@ export class DebugConsole {
     this.isOpen = !this.isOpen;
 
     if (this.container) {
-      this.container.classList.toggle('open', this.isOpen);
+      this.container.classList.toggle("open", this.isOpen);
     }
 
     if (this.isOpen) {
@@ -151,13 +153,15 @@ export class DebugConsole {
 
     // Dismiss loading screen if waiting for ready
     // Use dynamic import to avoid circular dependency
-    import('../ui/LoadingScreen').then(({ LoadingScreen }) => {
-      if (LoadingScreen.isWaitingForReady()) {
-        LoadingScreen.forceDismiss();
-      }
-    }).catch(() => {
-      // Ignore import errors (loading screen may not be available)
-    });
+    import("../ui/LoadingScreen")
+      .then(({ LoadingScreen }) => {
+        if (LoadingScreen.isWaitingForReady()) {
+          LoadingScreen.forceDismiss();
+        }
+      })
+      .catch(() => {
+        // Ignore import errors (loading screen may not be available)
+      });
   }
 
   /**
@@ -189,8 +193,8 @@ export class DebugConsole {
 
   private createDOM(): void {
     // Main container
-    this.container = document.createElement('div');
-    this.container.className = 'debug-console';
+    this.container = document.createElement("div");
+    this.container.className = "debug-console";
     this.container.innerHTML = `
       <div class="debug-console-header">
         <span class="debug-console-title">${EngineVersion.getInstance().getEngineName()} Console</span>
@@ -208,18 +212,18 @@ export class DebugConsole {
     document.body.appendChild(this.container);
 
     // Get references
-    this.outputEl = this.container.querySelector('.debug-console-output');
-    this.inputEl = this.container.querySelector('.debug-console-input');
-    this.autocompleteEl = this.container.querySelector('.debug-console-autocomplete');
+    this.outputEl = this.container.querySelector(".debug-console-output");
+    this.inputEl = this.container.querySelector(".debug-console-input");
+    this.autocompleteEl = this.container.querySelector(".debug-console-autocomplete");
 
     // Setup input handlers
-    this.inputEl?.addEventListener('keydown', (e) => this.handleInputKeydown(e));
-    this.inputEl?.addEventListener('input', () => this.handleInputChange());
+    this.inputEl?.addEventListener("keydown", (e) => this.handleInputKeydown(e));
+    this.inputEl?.addEventListener("input", () => this.handleInputChange());
 
     // Click delegation for clickable commands in output
-    this.outputEl?.addEventListener('click', (e) => {
+    this.outputEl?.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      const cmd = target.getAttribute('data-cmd');
+      const cmd = target.getAttribute("data-cmd");
       if (cmd) {
         e.preventDefault();
         this.executeCommand(cmd);
@@ -230,8 +234,8 @@ export class DebugConsole {
     this.applyConsoleSize();
 
     // Close button handler
-    const closeBtn = this.container.querySelector('.debug-console-close');
-    closeBtn?.addEventListener('click', () => this.toggle());
+    const closeBtn = this.container.querySelector(".debug-console-close");
+    closeBtn?.addEventListener("click", () => this.toggle());
   }
 
   private destroyDOM(): void {
@@ -249,10 +253,10 @@ export class DebugConsole {
   private setupKeyboardHandler(): void {
     this.keyHandler = (e: KeyboardEvent) => {
       // Tilde key (` or ~) - toggle console
-      if (e.key === '`' || e.key === '~' || e.code === 'Backquote') {
+      if (e.key === "`" || e.key === "~" || e.code === "Backquote") {
         // Don't toggle if typing in an input (unless it's our console input)
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
           if (target !== this.inputEl) return;
         }
 
@@ -262,45 +266,45 @@ export class DebugConsole {
       }
 
       // Escape - close console
-      if (e.key === 'Escape' && this.isOpen) {
+      if (e.key === "Escape" && this.isOpen) {
         e.preventDefault();
         this.close();
       }
     };
 
-    document.addEventListener('keydown', this.keyHandler, true);
+    document.addEventListener("keydown", this.keyHandler, true);
   }
 
   private removeKeyboardHandler(): void {
     if (this.keyHandler) {
-      document.removeEventListener('keydown', this.keyHandler, true);
+      document.removeEventListener("keydown", this.keyHandler, true);
       this.keyHandler = null;
     }
   }
 
   private handleInputKeydown(e: KeyboardEvent): void {
     switch (e.key) {
-      case 'Enter':
+      case "Enter":
         e.preventDefault();
         this.executeCurrentInput();
         break;
 
-      case 'ArrowUp':
+      case "ArrowUp":
         e.preventDefault();
-        this.navigateHistory(1);  // Go to older commands
+        this.navigateHistory(1); // Go to older commands
         break;
 
-      case 'ArrowDown':
+      case "ArrowDown":
         e.preventDefault();
-        this.navigateHistory(-1);  // Go to newer commands
+        this.navigateHistory(-1); // Go to newer commands
         break;
 
-      case 'Tab':
+      case "Tab":
         e.preventDefault();
         this.handleTabComplete();
         break;
 
-      case 'Escape':
+      case "Escape":
         if (this.autocompleteItems.length > 0) {
           e.preventDefault();
           this.hideAutocomplete();
@@ -310,7 +314,7 @@ export class DebugConsole {
   }
 
   private handleInputChange(): void {
-    const value = this.inputEl?.value || '';
+    const value = this.inputEl?.value || "";
     this.currentInput = value;
     this.updateAutocomplete(value);
   }
@@ -320,7 +324,7 @@ export class DebugConsole {
   // ============================================================================
 
   private async executeCurrentInput(): Promise<void> {
-    const input = this.inputEl?.value.trim() || '';
+    const input = this.inputEl?.value.trim() || "";
     if (!input) return;
 
     // Add to history
@@ -328,21 +332,21 @@ export class DebugConsole {
 
     // Clear input
     if (this.inputEl) {
-      this.inputEl.value = '';
+      this.inputEl.value = "";
     }
     this.historyIndex = -1;
-    this.currentInput = '';
+    this.currentInput = "";
     this.hideAutocomplete();
 
     // Log the command
-    this.log('command', input);
+    this.log("command", input);
 
     // Execute
     const registry = CommandRegistry.getInstance();
     const result = await registry.execute(input);
 
     if (result) {
-      this.log('result', result);
+      this.log("result", result);
     }
   }
 
@@ -369,7 +373,7 @@ export class DebugConsole {
 
     // Save current input if starting to navigate (going up from fresh input)
     if (this.historyIndex === -1 && direction === 1) {
-      this.currentInput = this.inputEl?.value || '';
+      this.currentInput = this.inputEl?.value || "";
     }
 
     // direction: 1 = up (older), -1 = down (newer)
@@ -422,7 +426,7 @@ export class DebugConsole {
       const saved = localStorage.getItem(CONSOLE_SIZE_KEY);
       if (saved) {
         const size = parseFloat(saved);
-        if (!isNaN(size) && size >= 0.1 && size <= 1.0) {
+        if (!Number.isNaN(size) && size >= 0.1 && size <= 1.0) {
           this.consoleSize = size;
         }
       }
@@ -444,7 +448,7 @@ export class DebugConsole {
       const saved = localStorage.getItem(LOG_HISTORY_SIZE_KEY);
       if (saved) {
         const size = parseInt(saved, 10);
-        if (!isNaN(size) && size >= 100 && size <= 50000) {
+        if (!Number.isNaN(size) && size >= 100 && size <= 50000) {
           this.logHistorySize = size;
         }
       }
@@ -496,11 +500,11 @@ export class DebugConsole {
     // Convert wildcard pattern to regex (case-insensitive)
     // * matches any characters, ? matches single character
     const regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+      .replace(/\*/g, ".*")
+      .replace(/\?/g, ".");
 
-    const regex = new RegExp(regexPattern, 'i');
+    const regex = new RegExp(regexPattern, "i");
     const results: string[] = [];
 
     for (let i = this.logHistory.length - 1; i >= 0 && results.length < maxResults; i--) {
@@ -542,7 +546,7 @@ export class DebugConsole {
 
     const heightPercent = this.consoleSize * 100;
     this.container.style.height = `${heightPercent}%`;
-    this.container.style.maxHeight = this.consoleSize >= 1.0 ? '100%' : `${heightPercent}vh`;
+    this.container.style.maxHeight = this.consoleSize >= 1.0 ? "100%" : `${heightPercent}vh`;
   }
 
   // ============================================================================
@@ -572,28 +576,31 @@ export class DebugConsole {
 
     const registry = CommandRegistry.getInstance();
 
-    this.autocompleteEl.innerHTML = this.autocompleteItems.map((item, i) => {
-      const parts = item.split(' ');
-      const cmdName = parts[0];
-      const def = registry.getDefinition(cmdName);
-      const desc = parts.length > 1
-        ? def?.subcommands?.find(s => s.name === parts[1])?.description || ''
-        : def?.description || '';
+    this.autocompleteEl.innerHTML = this.autocompleteItems
+      .map((item, i) => {
+        const parts = item.split(" ");
+        const cmdName = parts[0];
+        const def = registry.getDefinition(cmdName);
+        const desc =
+          parts.length > 1
+            ? def?.subcommands?.find((s) => s.name === parts[1])?.description || ""
+            : def?.description || "";
 
-      return `
-        <div class="autocomplete-item${i === this.autocompleteIndex ? ' selected' : ''}" data-index="${i}">
+        return `
+        <div class="autocomplete-item${i === this.autocompleteIndex ? " selected" : ""}" data-index="${i}">
           <span class="autocomplete-item-name">${item}</span>
           <span class="autocomplete-item-desc">${desc}</span>
         </div>
       `;
-    }).join('');
+      })
+      .join("");
 
-    this.autocompleteEl.classList.add('visible');
+    this.autocompleteEl.classList.add("visible");
 
     // Add click handlers
-    this.autocompleteEl.querySelectorAll('.autocomplete-item').forEach((el) => {
-      el.addEventListener('click', () => {
-        const index = parseInt(el.getAttribute('data-index') || '0');
+    this.autocompleteEl.querySelectorAll(".autocomplete-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        const index = parseInt(el.getAttribute("data-index") || "0", 10);
         this.selectAutocomplete(index);
       });
     });
@@ -602,11 +609,11 @@ export class DebugConsole {
   private hideAutocomplete(): void {
     this.autocompleteItems = [];
     this.autocompleteIndex = -1;
-    this.autocompleteEl?.classList.remove('visible');
+    this.autocompleteEl?.classList.remove("visible");
   }
 
   private handleTabComplete(): void {
-    const input = this.inputEl?.value || '';
+    const input = this.inputEl?.value || "";
     if (!input) return;
 
     // Ensure suggestions for current input
@@ -632,22 +639,23 @@ export class DebugConsole {
       }
       this.updateAutocomplete(commonPrefix);
       this.lastTabTime = 0;
-      this.lastTabInput = '';
+      this.lastTabInput = "";
       this.lastTabMatches = [];
       return;
     }
 
     // No further completion possible: double-tab prints matches, otherwise cycle
     const isSameInput = this.lastTabInput === input;
-    const isSameMatches = this.lastTabMatches.length === this.autocompleteItems.length &&
+    const isSameMatches =
+      this.lastTabMatches.length === this.autocompleteItems.length &&
       this.lastTabMatches.every((v, i) => v === this.autocompleteItems[i]);
-    const isDoubleTap = isSameInput && isSameMatches && (now - this.lastTabTime) < 600;
+    const isDoubleTap = isSameInput && isSameMatches && now - this.lastTabTime < 600;
 
     if (isDoubleTap) {
-      const lines = ['Matches:', ...this.autocompleteItems.map(s => `  ${s}`)];
-      this.log('system', lines.join('\n'));
+      const lines = ["Matches:", ...this.autocompleteItems.map((s) => `  ${s}`)];
+      this.log("system", lines.join("\n"));
       this.lastTabTime = 0;
-      this.lastTabInput = '';
+      this.lastTabInput = "";
       this.lastTabMatches = [];
       return;
     }
@@ -661,7 +669,7 @@ export class DebugConsole {
   }
 
   private getLongestCommonPrefix(items: string[]): string {
-    if (items.length === 0) return '';
+    if (items.length === 0) return "";
     if (items.length === 1) return items[0];
 
     let prefix = items[0];
@@ -672,7 +680,7 @@ export class DebugConsole {
         j++;
       }
       prefix = prefix.slice(0, j);
-      if (!prefix) return '';
+      if (!prefix) return "";
     }
     return prefix;
   }
@@ -681,7 +689,7 @@ export class DebugConsole {
     if (index < 0 || index >= this.autocompleteItems.length) return;
 
     if (this.inputEl) {
-      this.inputEl.value = this.autocompleteItems[index] + ' ';
+      this.inputEl.value = `${this.autocompleteItems[index]} `;
       this.inputEl.focus();
     }
 
@@ -692,7 +700,7 @@ export class DebugConsole {
   // Logging
   // ============================================================================
 
-  log(type: 'command' | 'result' | 'error' | 'warn' | 'info' | 'log' | 'system', message: string): void {
+  log(type: "command" | "result" | "error" | "warn" | "info" | "log" | "system", message: string): void {
     // Store in log history (before any DOM operations)
     this.logHistory.push(message);
     while (this.logHistory.length > this.logHistorySize) {
@@ -707,7 +715,7 @@ export class DebugConsole {
 
     if (!this.outputEl) return;
 
-    const line = document.createElement('div');
+    const line = document.createElement("div");
     line.className = `console-line ${type}`;
     line.innerHTML = this.formatMessage(message);
 
@@ -723,26 +731,24 @@ export class DebugConsole {
   }
 
   private interceptConsoleLogs(): void {
-    const self = this;
-
-    console.log = function (...args: unknown[]) {
-      self.originalLog.apply(console, args);
-      self.log('log', args.map(a => String(a)).join(' '));
+    console.log = (...args: unknown[]) => {
+      this.originalLog.apply(console, args);
+      this.log("log", args.map((a) => String(a)).join(" "));
     };
 
-    console.warn = function (...args: unknown[]) {
-      self.originalWarn.apply(console, args);
-      self.log('warn', args.map(a => String(a)).join(' '));
+    console.warn = (...args: unknown[]) => {
+      this.originalWarn.apply(console, args);
+      this.log("warn", args.map((a) => String(a)).join(" "));
     };
 
-    console.error = function (...args: unknown[]) {
-      self.originalError.apply(console, args);
-      self.log('error', args.map(a => String(a)).join(' '));
+    console.error = (...args: unknown[]) => {
+      this.originalError.apply(console, args);
+      this.log("error", args.map((a) => String(a)).join(" "));
     };
 
-    console.info = function (...args: unknown[]) {
-      self.originalInfo.apply(console, args);
-      self.log('info', args.map(a => String(a)).join(' '));
+    console.info = (...args: unknown[]) => {
+      this.originalInfo.apply(console, args);
+      this.log("info", args.map((a) => String(a)).join(" "));
     };
   }
 
@@ -765,47 +771,32 @@ export class DebugConsole {
     const containsHtml = /<span\s+class=/.test(message);
 
     // Escape HTML entities first (unless message already has HTML)
-    const escapeHtml = (str: string) => str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    const escapeHtml = (str: string) =>
+      str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
     const escaped = containsHtml ? message : escapeHtml(message);
 
     // Convert newlines to <br> tags
-    let result = escaped.replace(/\n/g, '<br>');
+    let result = escaped.replace(/\n/g, "<br>");
 
     // Build result by finding patterns and wrapping them
     // Process in order of priority to avoid nested replacements
 
     // 1. Highlight [bracketed text] in cyan - most specific
-    result = result.replace(
-      /\[([^\]]+)\]/g,
-      (_, content) => `<span class="hl-bracket">[${content}]</span>`
-    );
+    result = result.replace(/\[([^\]]+)\]/g, (_, content) => `<span class="hl-bracket">[${content}]</span>`);
 
     // 2. Highlight "quoted strings"
-    result = result.replace(
-      /&quot;([^&]+)&quot;/g,
-      (_, content) => `<span class="hl-string">"${content}"</span>`
-    );
+    result = result.replace(/&quot;([^&]+)&quot;/g, (_, content) => `<span class="hl-string">"${content}"</span>`);
 
     // 3. Highlight label: patterns (but not inside already highlighted spans)
-    result = result.replace(
-      /(\b[A-Za-z_]\w*):/g,
-      (match, label) => {
-        // Don't highlight if it's part of a class attribute
-        if (label === 'class' || label === 'span') return match;
-        return `<span class="hl-label">${label}:</span>`;
-      }
-    );
+    result = result.replace(/(\b[A-Za-z_]\w*):/g, (match, label) => {
+      // Don't highlight if it's part of a class attribute
+      if (label === "class" || label === "span") return match;
+      return `<span class="hl-label">${label}:</span>`;
+    });
 
     // 4. Highlight standalone numbers (not inside spans)
-    result = result.replace(
-      /\b(\d+\.?\d*)\b(?![^<]*>)/g,
-      '<span class="hl-number">$1</span>'
-    );
+    result = result.replace(/\b(\d+\.?\d*)\b(?![^<]*>)/g, '<span class="hl-number">$1</span>');
 
     return result;
   }
@@ -818,7 +809,7 @@ export class DebugConsole {
     const registry = CommandRegistry.getInstance();
 
     // Help command
-    registry.register('help', (args) => {
+    registry.register("help", (args) => {
       if (args.length > 0) {
         const name = args[0].toLowerCase();
 
@@ -826,15 +817,15 @@ export class DebugConsole {
         if (registry.isCvar(name)) {
           const cvar = Cvar.getCvar(name);
           if (cvar) {
-            let help = `<span class="hl-command">${cvar.name}</span> - ${cvar.description || 'Console variable'}\n`;
+            let help = `<span class="hl-command">${cvar.name}</span> - ${cvar.description || "Console variable"}\n`;
             help += `<span class="hl-label">Type:</span> <span class="hl-string">${cvar.type}</span>\n`;
             help += `<span class="hl-label">Value:</span> <span class="hl-number">${cvar.value}</span>`;
             if (cvar.value !== cvar.defaultValue) {
               help += ` <span class="hl-label">(default: ${cvar.defaultValue})</span>`;
             }
-            help += '\n';
+            help += "\n";
             if (cvar.min !== undefined || cvar.max !== undefined) {
-              help += `<span class="hl-label">Range:</span> <span class="hl-number">${cvar.min ?? '-∞'}</span> to <span class="hl-number">${cvar.max ?? '∞'}</span>\n`;
+              help += `<span class="hl-label">Range:</span> <span class="hl-number">${cvar.min ?? "-∞"}</span> to <span class="hl-number">${cvar.max ?? "∞"}</span>\n`;
             }
             help += `<span class="hl-label">Usage:</span> <span class="hl-string">${name} [value]</span>`;
             return help;
@@ -866,15 +857,15 @@ export class DebugConsole {
 
       // Group by category (infer from name patterns)
       const categories: Record<string, typeof sortedDefs> = {
-        'System': [],
-        'Cvars': [],
-        'Game': [],
-        'Debug': [],
-        'Other': []
+        System: [],
+        Cvars: [],
+        Game: [],
+        Debug: [],
+        Other: [],
       };
 
       // Cvar management commands
-      const cvarCommands = ['cvarlist', 'toggle', 'reset', 'resetall', 'set', 'cvarexport'];
+      const cvarCommands = ["cvarlist", "toggle", "reset", "resetall", "set", "cvarexport"];
 
       for (const def of sortedDefs) {
         const name = def.name.toLowerCase();
@@ -884,16 +875,41 @@ export class DebugConsole {
           continue;
         }
 
-        if (['help', 'clear', 'version', 'con_size', 'console_debug'].includes(name)) {
-          categories['System'].push(def);
+        if (["help", "clear", "version", "con_size", "console_debug"].includes(name)) {
+          categories.System.push(def);
         } else if (cvarCommands.includes(name)) {
-          categories['Cvars'].push(def);
-        } else if (['debug', 'camera', 'map', 'weather', 'wind', 'audio', 'time', 'export', 'shader', 'bsp', 'pvs', 'fog', 'pk3', 'mem', 'scene', 'ui', 'hud', 'show_fps', 'freefly_speed', 'freefly_collision'].includes(name)) {
-          categories['Debug'].push(def);
-        } else if (['game', 'plant', 'quest', 'spawn', 'give', 'save', 'load', 'teleport', 'unlock', 'custom'].includes(name)) {
-          categories['Game'].push(def);
+          categories.Cvars.push(def);
+        } else if (
+          [
+            "debug",
+            "camera",
+            "map",
+            "weather",
+            "wind",
+            "audio",
+            "time",
+            "export",
+            "shader",
+            "bsp",
+            "pvs",
+            "fog",
+            "pk3",
+            "mem",
+            "scene",
+            "ui",
+            "hud",
+            "show_fps",
+            "freefly_speed",
+            "freefly_collision",
+          ].includes(name)
+        ) {
+          categories.Debug.push(def);
+        } else if (
+          ["game", "plant", "quest", "spawn", "give", "save", "load", "teleport", "unlock", "custom"].includes(name)
+        ) {
+          categories.Game.push(def);
         } else {
-          categories['Other'].push(def);
+          categories.Other.push(def);
         }
       }
 
@@ -908,7 +924,7 @@ export class DebugConsole {
         for (const def of cmds) {
           help += `  <span class="clickable-cmd" data-cmd="${def.name}" style="cursor:pointer;text-decoration:underline;color:#0ff;">${def.name.padEnd(14)}</span> ${def.description}\n`;
         }
-        help += '\n';
+        help += "\n";
       }
 
       // Add cvar hint
@@ -923,26 +939,27 @@ export class DebugConsole {
     });
 
     // Clear command
-    registry.register('clear', () => {
+    registry.register("clear", () => {
       if (this.outputEl) {
-        this.outputEl.innerHTML = '';
+        this.outputEl.innerHTML = "";
       }
+      return undefined;
     });
 
     // Version command
-    registry.register('version', () => {
+    registry.register("version", () => {
       return EngineVersion.getInstance().getFullVersionString();
     });
 
     // Console size command (con_size)
-    registry.register('con_size', (args) => {
+    registry.register("con_size", (args) => {
       if (args.length === 0) {
         const current = this.getSize();
         return `Console size: ${(current * 100).toFixed(0)}% (${current.toFixed(2)})\nUsage: con_size <0.1-1.0>`;
       }
 
       const size = parseFloat(args[0]);
-      if (isNaN(size)) {
+      if (Number.isNaN(size)) {
         return `Invalid size: ${args[0]}. Must be a number between 0.1 and 1.0`;
       }
 
@@ -950,7 +967,7 @@ export class DebugConsole {
     });
 
     // Find command - search log history
-    registry.register('find', (args) => {
+    registry.register("find", (args) => {
       if (args.length === 0) {
         return `Usage: find <pattern> [maxResults]\nSearches log history. Use * as wildcard.\nExamples:\n  find BspMeshBuilder\n  find *Sprite*\n  find *error* 100`;
       }
@@ -958,7 +975,7 @@ export class DebugConsole {
       const pattern = args[0];
       const maxResults = args.length > 1 ? parseInt(args[1], 10) : 50;
 
-      if (isNaN(maxResults) || maxResults < 1) {
+      if (Number.isNaN(maxResults) || maxResults < 1) {
         return `Invalid maxResults: ${args[1]}. Must be a positive number.`;
       }
 
@@ -968,16 +985,16 @@ export class DebugConsole {
         return `No matches found for "${pattern}"`;
       }
 
-      let output = `Found ${results.length} match${results.length === 1 ? '' : 'es'} for "${pattern}":\n`;
+      let output = `Found ${results.length} match${results.length === 1 ? "" : "es"} for "${pattern}":\n`;
       output += '<span class="hl-label">───────────────────────────────────────</span>\n';
       for (const line of results) {
-        output += line + '\n';
+        output += `${line}\n`;
       }
       return output.trim();
     });
 
     // Log history size command
-    registry.register('log_history', (args) => {
+    registry.register("log_history", (args) => {
       if (args.length === 0) {
         const current = this.getLogHistorySize();
         const used = this.logHistory.length;
@@ -985,7 +1002,7 @@ export class DebugConsole {
       }
 
       const size = parseInt(args[0], 10);
-      if (isNaN(size)) {
+      if (Number.isNaN(size)) {
         return `Invalid size: ${args[0]}. Must be a number between 100 and 50000`;
       }
 
@@ -993,9 +1010,9 @@ export class DebugConsole {
     });
 
     // Developer mode cvar
-    Cvar.register('developer', 0, {
-      description: 'Enable developer mode (shows dev bar with FPS/ping/speed)',
-      type: 'int',
+    Cvar.register("developer", 0, {
+      description: "Enable developer mode (shows dev bar with FPS/ping/speed)",
+      type: "int",
       min: 0,
       max: 1,
       persist: true,
@@ -1018,13 +1035,13 @@ export class DebugConsole {
     const def = registry.getDefinition(cmd);
 
     // If command has required args (usage contains < ) or subcommands → show help
-    const needsArgs = def && ((def.usage && def.usage.includes('<')) || (def.subcommands && def.subcommands.length > 0));
+    const needsArgs = def && (def.usage?.includes("<") || (def.subcommands && def.subcommands.length > 0));
 
     const commandStr = needsArgs ? `help ${cmd}` : cmd;
-    this.log('command', commandStr);
+    this.log("command", commandStr);
     const result = await registry.execute(commandStr);
     if (result) {
-      this.log('result', result);
+      this.log("result", result);
     }
   }
 }

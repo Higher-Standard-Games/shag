@@ -1,14 +1,14 @@
 /**
  * EngineSettings - Load and apply engine configuration from JSON
- * 
+ *
  * Reads settings from game directory engine-settings.json and applies them
  * to engine systems (camera, lighting, post-processing, etc.)
  */
 
-import { GamePaths } from './GamePaths';
+import { GamePaths } from "./GamePaths";
 
 export interface CameraSettings {
-  mode: 'perspective' | 'orthographic' | 'fake_ortho';
+  mode: "perspective" | "orthographic" | "fake_ortho";
   height: number;
   alpha: number;
   beta: number;
@@ -67,16 +67,16 @@ export class EngineSettings {
       const settingsPath = GamePaths.getInstance().engineSettingsPath();
       const response = await fetch(settingsPath);
       if (!response.ok) {
-        console.log('[EngineSettings] No engine-settings.json found, using defaults');
+        console.log("[EngineSettings] No engine-settings.json found, using defaults");
         this.loaded = true;
         return;
       }
-      
+
       this.settings = await response.json();
       this.loaded = true;
-      console.log('[EngineSettings] Loaded engine settings:', this.settings);
+      console.log("[EngineSettings] Loaded engine settings:", this.settings);
     } catch (error) {
-      console.warn('[EngineSettings] Failed to load engine-settings.json:', error);
+      console.warn("[EngineSettings] Failed to load engine-settings.json:", error);
       this.loaded = true;
     }
   }
@@ -85,49 +85,57 @@ export class EngineSettings {
    * Get camera settings (or defaults)
    */
   public getCameraSettings(): CameraSettings {
-    return this.settings?.camera ?? {
-      mode: 'fake_ortho',
-      height: 800,
-      alpha: -Math.PI / 4,
-      beta: Math.PI / 4,
-      fov: 0.4,
-      smoothing: 0.15
-    };
+    return (
+      this.settings?.camera ?? {
+        mode: "fake_ortho",
+        height: 800,
+        alpha: -Math.PI / 4,
+        beta: Math.PI / 4,
+        fov: 0.4,
+        smoothing: 0.15,
+      }
+    );
   }
 
   /**
    * Get lighting settings (or defaults)
    */
   public getLightingSettings(): LightingSettings {
-    return this.settings?.lighting ?? {
-      sunIntensity: 0.6,
-      moonIntensity: 0.12,
-      ambientIntensity: 0.25,
-      enableShadows: true
-    };
+    return (
+      this.settings?.lighting ?? {
+        sunIntensity: 0.6,
+        moonIntensity: 0.12,
+        ambientIntensity: 0.25,
+        enableShadows: true,
+      }
+    );
   }
 
   /**
    * Get time settings (or defaults)
    */
   public getTimeSettings(): TimeSettings {
-    return this.settings?.time ?? {
-      dayLengthSeconds: 180,
-      startHour: 8,
-      startDay: 1
-    };
+    return (
+      this.settings?.time ?? {
+        dayLengthSeconds: 180,
+        startHour: 8,
+        startDay: 1,
+      }
+    );
   }
 
   /**
    * Get post-processing settings (or defaults)
    */
   public getPostProcessingSettings(): PostProcessingSettings {
-    return this.settings?.postProcessing ?? {
-      bloom: { enabled: true, intensity: 0.3 },
-      vignette: { enabled: true, weight: 0.3 },
-      ssao: { enabled: false, intensity: 0.5 },
-      chromaticAberration: { enabled: false }
-    };
+    return (
+      this.settings?.postProcessing ?? {
+        bloom: { enabled: true, intensity: 0.3 },
+        vignette: { enabled: true, weight: 0.3 },
+        ssao: { enabled: false, intensity: 0.5 },
+        chromaticAberration: { enabled: false },
+      }
+    );
   }
 
   /**

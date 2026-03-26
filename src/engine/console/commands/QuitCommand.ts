@@ -2,20 +2,20 @@
  * QuitCommand - Exit/reload the application
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class QuitCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'quit',
-    aliases: ['exit', 'q'],
-    description: 'Reload the application',
+    name: "quit",
+    aliases: ["exit", "q"],
+    description: "Reload the application",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     // In browser, we can't truly "quit" - reload instead
     setTimeout(() => {
       window.location.reload();
     }, 100);
-    return 'Reloading...';
+    return "Reloading...";
   }
 }

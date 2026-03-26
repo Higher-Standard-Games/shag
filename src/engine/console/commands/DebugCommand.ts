@@ -2,8 +2,16 @@
  * DebugCommand - Debug overlays and visualization
  */
 
-import { Command, CommandDef } from '../Command';
-import { MeshBuilder, StandardMaterial, Color3, Mesh, Scene, Observer, Vector3 } from '@babylonjs/core';
+import {
+  Color3,
+  type Mesh,
+  MeshBuilder,
+  type Observer,
+  type Scene,
+  StandardMaterial,
+  type Vector3,
+} from "@babylonjs/core";
+import { Command, type CommandDef } from "../Command";
 
 // Static storage for debug visualization
 let playerDebugMesh: Mesh | null = null;
@@ -13,77 +21,77 @@ let debugObserver: Observer<Scene> | null = null;
 
 export default class DebugCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'debug',
-    description: 'Debug overlays and visualization',
-    usage: 'debug <subcommand> [args]',
+    name: "debug",
+    description: "Debug overlays and visualization",
+    usage: "debug <subcommand> [args]",
     developer: true,
     subcommands: [
-      { name: 'collision', description: 'Toggle collision visualization' },
-      { name: 'wireframe', description: 'Toggle wireframe rendering' },
-      { name: 'bounds', description: 'Toggle bounding box display' },
-      { name: 'player', description: 'Toggle player capsule visualization' },
-      { name: 'info', description: 'Show debug info overlay' },
+      { name: "collision", description: "Toggle collision visualization" },
+      { name: "wireframe", description: "Toggle wireframe rendering" },
+      { name: "bounds", description: "Toggle bounding box display" },
+      { name: "player", description: "Toggle player capsule visualization" },
+      { name: "info", description: "Show debug info overlay" },
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene from camera system
     let scene: Scene | undefined;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
     } catch {
-      return 'Scene not available';
+      return "Scene not available";
     }
 
     if (!scene) {
-      return 'No active scene';
+      return "No active scene";
     }
 
     switch (subcommand) {
-      case 'wireframe': {
-        const enabled = args[1] === '1' || args[1] === 'on';
+      case "wireframe": {
+        const enabled = args[1] === "1" || args[1] === "on";
         if (args[1] === undefined) {
           // Toggle
           scene.forceWireframe = !scene.forceWireframe;
         } else {
           scene.forceWireframe = enabled;
         }
-        return `Wireframe: ${scene.forceWireframe ? 'ON' : 'OFF'}`;
+        return `Wireframe: ${scene.forceWireframe ? "ON" : "OFF"}`;
       }
 
-      case 'bounds': {
-        const enabled = args[1] === '1' || args[1] === 'on';
+      case "bounds": {
+        const enabled = args[1] === "1" || args[1] === "on";
         if (args[1] === undefined) {
           scene.forceShowBoundingBoxes = !scene.forceShowBoundingBoxes;
         } else {
           scene.forceShowBoundingBoxes = enabled;
         }
-        return `Bounding boxes: ${scene.forceShowBoundingBoxes ? 'ON' : 'OFF'}`;
+        return `Bounding boxes: ${scene.forceShowBoundingBoxes ? "ON" : "OFF"}`;
       }
 
-      case 'collision': {
+      case "collision": {
         // This would toggle collision mesh visualization
         // Implementation depends on collision system
-        return 'Collision visualization not yet implemented';
+        return "Collision visualization not yet implemented";
       }
 
-      case 'player': {
+      case "player": {
         return await this.togglePlayerDebug(scene);
       }
-
-      case 'info':
       default: {
         const engine = scene.getEngine();
-        return `Debug Info:\n` +
+        return (
+          `Debug Info:\n` +
           `  FPS: ${engine.getFps().toFixed(1)}\n` +
           `  Active meshes: ${scene.getActiveMeshes().length}\n` +
           `  Total meshes: ${scene.meshes.length}\n` +
-          `  Wireframe: ${scene.forceWireframe ? 'ON' : 'OFF'}\n` +
-          `  Bounding boxes: ${scene.forceShowBoundingBoxes ? 'ON' : 'OFF'}\n` +
-          `  Player debug: ${playerDebugMesh ? 'ON' : 'OFF'}`;
+          `  Wireframe: ${scene.forceWireframe ? "ON" : "OFF"}\n` +
+          `  Bounding boxes: ${scene.forceShowBoundingBoxes ? "ON" : "OFF"}\n` +
+          `  Player debug: ${playerDebugMesh ? "ON" : "OFF"}`
+        );
       }
     }
   }
@@ -101,39 +109,39 @@ export default class DebugCommand extends Command {
         scene.onBeforeRenderObservable.remove(debugObserver);
         debugObserver = null;
       }
-      return 'Player debug visualization: OFF';
+      return "Player debug visualization: OFF";
     }
 
     // Get FPS controller from camera system
     let fpsController: any;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       const activeController = CameraSystem.getInstance().getActiveController();
-      if (activeController?.type === 'fps') {
+      if (activeController?.type === "fps") {
         fpsController = activeController;
       }
     } catch {
-      return 'Camera system not available';
+      return "Camera system not available";
     }
 
-    if (!fpsController || typeof fpsController.getPlayerPosition !== 'function') {
-      return 'FPS controller not active or does not support position tracking';
+    if (!fpsController || typeof fpsController.getPlayerPosition !== "function") {
+      return "FPS controller not active or does not support position tracking";
     }
 
     // Create wireframe material (cyan for visibility)
-    const capsuleMat = new StandardMaterial('debug_capsule_mat', scene);
+    const capsuleMat = new StandardMaterial("debug_capsule_mat", scene);
     capsuleMat.wireframe = true;
     capsuleMat.emissiveColor = new Color3(0, 1, 1); // Cyan
     capsuleMat.disableLighting = true;
 
     // Create eye level indicator material (yellow)
-    const eyeMat = new StandardMaterial('debug_eye_mat', scene);
+    const eyeMat = new StandardMaterial("debug_eye_mat", scene);
     eyeMat.wireframe = true;
     eyeMat.emissiveColor = new Color3(1, 1, 0); // Yellow
     eyeMat.disableLighting = true;
 
     // Create waist level indicator material (orange)
-    const waistMat = new StandardMaterial('debug_waist_mat', scene);
+    const waistMat = new StandardMaterial("debug_waist_mat", scene);
     waistMat.wireframe = true;
     waistMat.emissiveColor = new Color3(1, 0.5, 0); // Orange
     waistMat.disableLighting = true;
@@ -145,47 +153,67 @@ export default class DebugCommand extends Command {
 
     // Create capsule visualization using cylinder + two spheres
     // Main body cylinder
-    const cylinder = MeshBuilder.CreateCylinder('debug_player_body', {
-      height: playerHeight - playerRadius * 2, // Cylinder height minus sphere caps
-      diameter: playerRadius * 2,
-      tessellation: 16,
-    }, scene);
+    const cylinder = MeshBuilder.CreateCylinder(
+      "debug_player_body",
+      {
+        height: playerHeight - playerRadius * 2, // Cylinder height minus sphere caps
+        diameter: playerRadius * 2,
+        tessellation: 16,
+      },
+      scene,
+    );
     cylinder.material = capsuleMat;
 
     // Top sphere cap
-    const topSphere = MeshBuilder.CreateSphere('debug_player_top', {
-      diameter: playerRadius * 2,
-      segments: 8,
-    }, scene);
+    const topSphere = MeshBuilder.CreateSphere(
+      "debug_player_top",
+      {
+        diameter: playerRadius * 2,
+        segments: 8,
+      },
+      scene,
+    );
     topSphere.material = capsuleMat;
     topSphere.parent = cylinder;
     topSphere.position.y = (playerHeight - playerRadius * 2) / 2;
 
     // Bottom sphere cap
-    const bottomSphere = MeshBuilder.CreateSphere('debug_player_bottom', {
-      diameter: playerRadius * 2,
-      segments: 8,
-    }, scene);
+    const bottomSphere = MeshBuilder.CreateSphere(
+      "debug_player_bottom",
+      {
+        diameter: playerRadius * 2,
+        segments: 8,
+      },
+      scene,
+    );
     bottomSphere.material = capsuleMat;
     bottomSphere.parent = cylinder;
     bottomSphere.position.y = -(playerHeight - playerRadius * 2) / 2;
 
     // Create eye level ring (at +24 from feet, which is origin in Quake coords)
     // Origin is at center of capsule, so eye level ring shows where "eyes" are
-    const eyeRing = MeshBuilder.CreateTorus('debug_eye_level', {
-      diameter: playerRadius * 2,
-      thickness: 1,
-      tessellation: 16,
-    }, scene);
+    const eyeRing = MeshBuilder.CreateTorus(
+      "debug_eye_level",
+      {
+        diameter: playerRadius * 2,
+        thickness: 1,
+        tessellation: 16,
+      },
+      scene,
+    );
     eyeRing.material = eyeMat;
     eyeRing.rotation.x = Math.PI / 2; // Lay flat
 
     // Create waist level ring (8 units below eye level)
-    const waistRing = MeshBuilder.CreateTorus('debug_waist_level', {
-      diameter: playerRadius * 2,
-      thickness: 1,
-      tessellation: 16,
-    }, scene);
+    const waistRing = MeshBuilder.CreateTorus(
+      "debug_waist_level",
+      {
+        diameter: playerRadius * 2,
+        thickness: 1,
+        tessellation: 16,
+      },
+      scene,
+    );
     waistRing.material = waistMat;
     waistRing.rotation.x = Math.PI / 2;
 
@@ -225,10 +253,10 @@ export default class DebugCommand extends Command {
 
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['collision', 'wireframe', 'bounds', 'player', 'info'];
+      return ["collision", "wireframe", "bounds", "player", "info"];
     }
     if (args.length === 1) {
-      return ['0', '1', 'on', 'off'];
+      return ["0", "1", "on", "off"];
     }
     return [];
   }

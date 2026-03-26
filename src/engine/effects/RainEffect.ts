@@ -1,39 +1,39 @@
 /**
  * PrecipitationEffect - Particle-based rain/snow system
- * 
+ *
  * Creates rain drops or snowflakes that fall from above the camera down to the ground.
  * Uses Babylon.js ParticleSystem for efficient GPU-accelerated rendering.
  */
 
-import { Scene } from "@babylonjs/core/scene";
-import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
-import { WindSystem, WindState } from "./WindSystem";
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import type { Scene } from "@babylonjs/core/scene";
+import { type WindState, WindSystem } from "./WindSystem";
 
-export type PrecipitationType = 'rain' | 'snow';
+export type PrecipitationType = "rain" | "snow";
 
 export interface PrecipitationSettings {
   type: PrecipitationType; // Rain or snow
-  intensity: number;       // 0-1, affects particle count
-  speed: number;           // Fall speed multiplier
-  windAngle: number;       // Wind direction in radians (0 = no wind)
-  windStrength: number;    // How much wind affects precipitation (0-1)
-  particleSize: number;    // Size of particles
-  opacity: number;         // Visibility (0-1)
+  intensity: number; // 0-1, affects particle count
+  speed: number; // Fall speed multiplier
+  windAngle: number; // Wind direction in radians (0 = no wind)
+  windStrength: number; // How much wind affects precipitation (0-1)
+  particleSize: number; // Size of particles
+  opacity: number; // Visibility (0-1)
 }
 
 // Legacy alias for backwards compatibility
 export type RainSettings = PrecipitationSettings;
 
 const DEFAULT_RAIN_SETTINGS: PrecipitationSettings = {
-  type: 'rain',
+  type: "rain",
   intensity: 0.5,
-  speed: 9.0,         // Tuned for natural look
+  speed: 9.0, // Tuned for natural look
   windAngle: 0,
   windStrength: 0,
   particleSize: 1.5,
@@ -41,11 +41,11 @@ const DEFAULT_RAIN_SETTINGS: PrecipitationSettings = {
 };
 
 const DEFAULT_SNOW_SETTINGS: PrecipitationSettings = {
-  type: 'snow',
+  type: "snow",
   intensity: 0.6,
-  speed: 1.5,         // Snow falls slower
+  speed: 1.5, // Snow falls slower
   windAngle: 0,
-  windStrength: 0.2,  // Light drift
+  windStrength: 0.2, // Light drift
   particleSize: 1.0,
   opacity: 0.9,
 };
@@ -57,48 +57,48 @@ export class PrecipitationEffect {
   private settings: PrecipitationSettings = { ...DEFAULT_RAIN_SETTINGS };
   private isActive: boolean = false;
   private renderObserver: Observer<Scene> | null = null;
-  private currentType: PrecipitationType = 'rain';
-  
+  private currentType: PrecipitationType = "rain";
+
   // Precipitation area dimensions - dynamically calculated based on camera view
   private emitWidth: number = 200;
   private emitDepth: number = 200;
-  private readonly EMIT_HEIGHT = 100;  // Height above camera target where precipitation spawns
-  private readonly COVERAGE = 0.9;     // Cover 90% of visible area
-  
+  private readonly EMIT_HEIGHT = 100; // Height above camera target where precipitation spawns
+  private readonly COVERAGE = 0.9; // Cover 90% of visible area
+
   // Ambient sounds
   private rainSound: HTMLAudioElement | null = null;
-  private readonly RAIN_FADE_DURATION = 1000;  // ms to fade in/out
-  
+  private readonly RAIN_FADE_DURATION = 1000; // ms to fade in/out
+
   // Wind integration
   private windListener: ((state: WindState) => void) | null = null;
-  private useGlobalWind: boolean = true;  // Auto-sync with WindSystem
+  private useGlobalWind: boolean = true; // Auto-sync with WindSystem
 
   constructor(scene: Scene) {
     this.scene = scene;
     this.loadSounds();
   }
-  
+
   /**
    * Load ambient weather sounds
    */
   private loadSounds(): void {
     this.rainSound = new Audio("/sounds/rain.mp3");
     this.rainSound.loop = true;
-    this.rainSound.volume = 0;  // Start silent, fade in
+    this.rainSound.volume = 0; // Start silent, fade in
   }
-  
+
   /**
    * Start rain effect
    */
   public startRain(settings?: Partial<PrecipitationSettings>): void {
-    this.start({ ...DEFAULT_RAIN_SETTINGS, ...settings, type: 'rain' });
+    this.start({ ...DEFAULT_RAIN_SETTINGS, ...settings, type: "rain" });
   }
-  
+
   /**
    * Start snow effect
    */
   public startSnow(settings?: Partial<PrecipitationSettings>): void {
-    this.start({ ...DEFAULT_SNOW_SETTINGS, ...settings, type: 'snow' });
+    this.start({ ...DEFAULT_SNOW_SETTINGS, ...settings, type: "snow" });
   }
 
   /**
@@ -111,7 +111,7 @@ export class PrecipitationEffect {
       setTimeout(() => this.start(settings), 100);
       return;
     }
-    
+
     if (this.isActive) {
       this.updateSettings(settings || {});
       return;
@@ -120,42 +120,42 @@ export class PrecipitationEffect {
     if (settings) {
       this.settings = { ...this.settings, ...settings };
     }
-    
+
     this.currentType = this.settings.type;
     this.createParticleSystem();
     this.isActive = true;
-    
+
     // Subscribe to global wind if enabled
     if (this.useGlobalWind) {
       this.subscribeToWind();
     }
-    
+
     // Start rain ambient sound (only for rain, not snow)
-    if (this.currentType === 'rain') {
+    if (this.currentType === "rain") {
       this.fadeInRainSound();
     }
-    
+
     console.log(`[PrecipitationEffect] Started ${this.currentType} with intensity:`, this.settings.intensity);
   }
-  
+
   /**
    * Subscribe to WindSystem for automatic wind sync
    */
   private subscribeToWind(): void {
     if (!WindSystem.hasInstance()) return;
-    
+
     const windSystem = WindSystem.getInstance();
     this.windListener = (state: WindState) => {
       // Apply wind to precipitation settings
       this.settings.windAngle = state.angle;
-      this.settings.windStrength = state.strength * 0.5;  // Scale down for precipitation
+      this.settings.windStrength = state.strength * 0.5; // Scale down for precipitation
       if (this.particleSystem) {
         this.applySettings();
       }
     };
     windSystem.addListener(this.windListener);
   }
-  
+
   /**
    * Unsubscribe from WindSystem
    */
@@ -175,7 +175,7 @@ export class PrecipitationEffect {
 
     // Unsubscribe from wind
     this.unsubscribeFromWind();
-    
+
     // Fade out rain sound
     this.fadeOutRainSound();
 
@@ -187,7 +187,7 @@ export class PrecipitationEffect {
 
     if (this.particleSystem) {
       this.particleSystem.stop();
-      
+
       if (immediate) {
         // Immediate disposal for map transitions
         this.particleSystem.dispose();
@@ -206,28 +206,28 @@ export class PrecipitationEffect {
     }
 
     this.isActive = false;
-    console.log(`[PrecipitationEffect] Stopped ${this.currentType}${immediate ? ' (immediate)' : ''}`);
+    console.log(`[PrecipitationEffect] Stopped ${this.currentType}${immediate ? " (immediate)" : ""}`);
   }
-  
+
   /**
    * Fade in rain ambient sound
    */
   private fadeInRainSound(): void {
     if (!this.rainSound) return;
-    
+
     this.rainSound.currentTime = 0;
     this.rainSound.volume = 0;
-    this.rainSound.play().catch(err => {
+    this.rainSound.play().catch((err) => {
       console.warn("[PrecipitationEffect] Could not play rain sound:", err.message);
     });
-    
+
     // Fade in over duration
     const targetVolume = 0.4;
     const steps = 20;
     const stepTime = this.RAIN_FADE_DURATION / steps;
     const volumeStep = targetVolume / steps;
     let currentStep = 0;
-    
+
     const fadeInterval = setInterval(() => {
       currentStep++;
       if (this.rainSound) {
@@ -238,19 +238,19 @@ export class PrecipitationEffect {
       }
     }, stepTime);
   }
-  
+
   /**
    * Fade out rain ambient sound
    */
   private fadeOutRainSound(): void {
     if (!this.rainSound || this.rainSound.paused) return;
-    
+
     const startVolume = this.rainSound.volume;
     const steps = 20;
     const stepTime = this.RAIN_FADE_DURATION / steps;
     const volumeStep = startVolume / steps;
     let currentStep = 0;
-    
+
     const fadeInterval = setInterval(() => {
       currentStep++;
       if (this.rainSound) {
@@ -268,7 +268,7 @@ export class PrecipitationEffect {
    */
   public updateSettings(settings: Partial<RainSettings>): void {
     this.settings = { ...this.settings, ...settings };
-    
+
     if (this.particleSystem) {
       this.applySettings();
     }
@@ -281,7 +281,7 @@ export class PrecipitationEffect {
     // Create invisible emitter mesh that will follow camera
     this.emitter = MeshBuilder.CreateBox("precipEmitter", { size: 1 }, this.scene);
     this.emitter.isVisible = false;
-    
+
     // Initial position at camera target
     this.updateEmitterPosition();
 
@@ -290,20 +290,19 @@ export class PrecipitationEffect {
     this.particleSystem = new ParticleSystem("precipitation", capacity, this.scene);
 
     // Use appropriate texture based on type
-    this.particleSystem.particleTexture = this.currentType === 'snow' 
-      ? this.createSnowTexture() 
-      : this.createRainTexture();
+    this.particleSystem.particleTexture =
+      this.currentType === "snow" ? this.createSnowTexture() : this.createRainTexture();
 
     // Emitter configuration - box emitter for area around camera
     this.particleSystem.emitter = this.emitter;
-    
+
     // Calculate initial emit area based on viewport
     this.calculateEmitArea();
     this.updateEmitBox();
 
     // Apply all settings
     this.applySettings();
-    
+
     // Register render observer to follow camera and update area
     this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
       this.updateEmitterPosition();
@@ -312,62 +311,62 @@ export class PrecipitationEffect {
     // Start emitting
     this.particleSystem.start();
   }
-  
+
   /**
    * Update emitter position to follow camera target
    */
   private updateEmitterPosition(): void {
     if (!this.emitter || !this.scene.activeCamera) return;
-    
+
     const camera = this.scene.activeCamera;
-    
+
     // For ArcRotateCamera, use the target position
     // For other cameras, use camera position
     let targetPos: Vector3;
-    if ('target' in camera && camera.target instanceof Vector3) {
+    if ("target" in camera && camera.target instanceof Vector3) {
       targetPos = camera.target;
     } else {
       targetPos = camera.position;
     }
-    
+
     // Position emitter above the camera's target/focus point
     this.emitter.position.x = targetPos.x;
     this.emitter.position.y = targetPos.y + this.EMIT_HEIGHT;
     this.emitter.position.z = targetPos.z;
   }
-  
+
   /**
    * Calculate emit area based on camera's visible ground area
    */
   private calculateEmitArea(): void {
     const camera = this.scene.activeCamera;
     if (!camera) return;
-    
+
     const engine = this.scene.getEngine();
     const canvas = engine.getRenderingCanvas();
     if (!canvas) return;
-    
+
     // Get viewport dimensions
     const viewportWidth = canvas.width;
     const viewportHeight = canvas.height;
-    
+
     // For isometric/ortho cameras, calculate visible ground area
     // Based on camera height and angle, estimate ground coverage
     let groundWidth: number;
     let groundDepth: number;
-    
-    if ('orthoTop' in camera && camera.orthoTop !== null) {
+
+    if ("orthoTop" in camera && camera.orthoTop !== null) {
       // Orthographic camera - use ortho bounds directly
       const orthoHeight = (camera.orthoTop as number) - (camera.orthoBottom as number);
       const orthoWidth = (camera.orthoRight as number) - (camera.orthoLeft as number);
       groundWidth = orthoWidth * this.COVERAGE;
       groundDepth = orthoHeight * this.COVERAGE;
-    } else if ('radius' in camera) {
+    } else if ("radius" in camera) {
       // ArcRotateCamera - estimate based on radius and viewport
       const radius = (camera as any).radius as number;
       const fov = (camera as any).fov || 0.8;
       const aspectRatio = viewportWidth / viewportHeight;
-      
+
       // Approximate visible ground area based on camera distance
       groundWidth = radius * Math.tan(fov / 2) * 2 * aspectRatio * this.COVERAGE;
       groundDepth = radius * Math.tan(fov / 2) * 2 * this.COVERAGE;
@@ -376,30 +375,22 @@ export class PrecipitationEffect {
       groundWidth = viewportWidth * 0.5;
       groundDepth = viewportHeight * 0.5;
     }
-    
+
     // Clamp to reasonable values
     this.emitWidth = Math.max(100, Math.min(800, groundWidth));
     this.emitDepth = Math.max(100, Math.min(800, groundDepth));
-    
+
     console.log(`[RainEffect] Emit area: ${this.emitWidth.toFixed(0)} x ${this.emitDepth.toFixed(0)}`);
   }
-  
+
   /**
    * Update particle system emit box dimensions
    */
   private updateEmitBox(): void {
     if (!this.particleSystem) return;
-    
-    this.particleSystem.minEmitBox = new Vector3(
-      -this.emitWidth / 2,
-      0,
-      -this.emitDepth / 2
-    );
-    this.particleSystem.maxEmitBox = new Vector3(
-      this.emitWidth / 2,
-      0,
-      this.emitDepth / 2
-    );
+
+    this.particleSystem.minEmitBox = new Vector3(-this.emitWidth / 2, 0, -this.emitDepth / 2);
+    this.particleSystem.maxEmitBox = new Vector3(this.emitWidth / 2, 0, this.emitDepth / 2);
   }
 
   /**
@@ -409,7 +400,7 @@ export class PrecipitationEffect {
     if (!this.particleSystem) return;
 
     const s = this.settings;
-    const isSnow = this.currentType === 'snow';
+    const isSnow = this.currentType === "snow";
     const baseSpeed = 80 * s.speed;
 
     // Emission rate based on intensity
@@ -424,7 +415,7 @@ export class PrecipitationEffect {
     // Size
     this.particleSystem.minSize = s.particleSize * 0.8;
     this.particleSystem.maxSize = s.particleSize * 1.2;
-    
+
     if (isSnow) {
       // Snow: round flakes, no elongation
       this.particleSystem.minScaleX = 0.8;
@@ -447,7 +438,7 @@ export class PrecipitationEffect {
     // Direction - mostly down with optional wind
     const windX = Math.sin(s.windAngle) * s.windStrength * 20;
     const windZ = Math.cos(s.windAngle) * s.windStrength * 20;
-    
+
     this.particleSystem.direction1 = new Vector3(windX - 2, -baseSpeed, windZ - 2);
     this.particleSystem.direction2 = new Vector3(windX + 2, -baseSpeed, windZ + 2);
 
@@ -518,10 +509,7 @@ export class PrecipitationEffect {
     const ctx = canvas.getContext("2d")!;
 
     // Create radial gradient for soft round snowflake
-    const gradient = ctx.createRadialGradient(
-      size / 2, size / 2, 0,
-      size / 2, size / 2, size / 2
-    );
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
     gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
     gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.9)");
     gradient.addColorStop(0.7, "rgba(255, 255, 255, 0.3)");
@@ -541,21 +529,21 @@ export class PrecipitationEffect {
   public isActive_(): boolean {
     return this.isActive;
   }
-  
+
   /**
    * Check if rain is currently active
    */
   public isRaining(): boolean {
-    return this.isActive && this.currentType === 'rain';
+    return this.isActive && this.currentType === "rain";
   }
-  
+
   /**
    * Check if snow is currently active
    */
   public isSnowing(): boolean {
-    return this.isActive && this.currentType === 'snow';
+    return this.isActive && this.currentType === "snow";
   }
-  
+
   /**
    * Get current precipitation type
    */

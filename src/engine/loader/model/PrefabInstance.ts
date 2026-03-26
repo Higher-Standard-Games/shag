@@ -1,12 +1,12 @@
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Ray } from "@babylonjs/core/Culling/ray";
-import { Scene } from "@babylonjs/core/scene";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Scene } from "@babylonjs/core/scene";
 import { BrushGenerator } from "../map/BrushGenerator";
 import { type PatchDefinition, PatchGenerator } from "../map/PatchGenerator";
-import { PrefabLoader } from "./PrefabLoader";
 import { TextureManager } from "../texture/TextureManager";
+import { PrefabLoader } from "./PrefabLoader";
 
 export interface PrefabInstanceOptions {
   /** Position in world space (Babylon coords: X, Y, Z where Y is up) */
@@ -38,7 +38,7 @@ export interface PrefabInstanceResult {
 export class PrefabInstance {
   /**
    * Instantiate a prefab into the scene.
-   * 
+   *
    * @param prefabName - Name of the prefab (without .map extension)
    * @param scene - Babylon scene to add meshes to
    * @param options - Position, rotation, scale, and drop settings
@@ -46,7 +46,7 @@ export class PrefabInstance {
   public static async create(
     prefabName: string,
     scene: Scene,
-    options: PrefabInstanceOptions
+    options: PrefabInstanceOptions,
   ): Promise<PrefabInstanceResult | null> {
     const prefab = PrefabLoader.getInstance().getPrefab(prefabName);
 
@@ -57,28 +57,21 @@ export class PrefabInstance {
         console.error(`Prefab not found: ${prefabName}`);
         return null;
       }
-      return this.create(prefabName, scene, options);
+      return PrefabInstance.create(prefabName, scene, options);
     }
 
-    const {
-      position,
-      angle = 0,
-      scale = 1,
-      dropToGround = false,
-      dropOffset = 0,
-      hasCollision = true,
-    } = options;
+    const { position, angle = 0, scale = 1, dropToGround = false, dropOffset = 0, hasCollision = true } = options;
 
     // Create root transform node for this instance
     const root = new TransformNode(`prefab_${prefabName}_${Date.now()}`, scene);
     const meshes: Mesh[] = [];
 
     // Calculate final position
-    let finalPosition = position.clone();
+    const finalPosition = position.clone();
 
     // Drop to ground if requested
     if (dropToGround) {
-      const groundY = this.findGroundLevel(position, scene);
+      const groundY = PrefabInstance.findGroundLevel(position, scene);
       if (groundY !== null) {
         finalPosition.y = groundY + dropOffset;
       }
@@ -133,7 +126,7 @@ export class PrefabInstance {
               position: new Vector3(cp.x, cp.z, cp.y),
               u: cp.u,
               v: cp.v,
-            }))
+            })),
           ),
         };
 
@@ -182,10 +175,7 @@ export class PrefabInstance {
       // Ignore prefab meshes (they start with "prefab_")
       // and other non-world geometry
       return (
-        mesh.isPickable &&
-        mesh.checkCollisions &&
-        !mesh.name.startsWith("prefab_") &&
-        mesh.name !== "ground" // Avoid picking ground plane if we have one
+        mesh.isPickable && mesh.checkCollisions && !mesh.name.startsWith("prefab_") && mesh.name !== "ground" // Avoid picking ground plane if we have one
       );
     });
 
@@ -202,14 +192,14 @@ export class PrefabInstance {
   public static async createMultiple(
     prefabName: string,
     scene: Scene,
-    instances: PrefabInstanceOptions[]
+    instances: PrefabInstanceOptions[],
   ): Promise<PrefabInstanceResult[]> {
     // Ensure prefab is loaded once
     await PrefabLoader.getInstance().loadPrefab(prefabName);
 
     const results: PrefabInstanceResult[] = [];
     for (const options of instances) {
-      const result = await this.create(prefabName, scene, options);
+      const result = await PrefabInstance.create(prefabName, scene, options);
       if (result) {
         results.push(result);
       }

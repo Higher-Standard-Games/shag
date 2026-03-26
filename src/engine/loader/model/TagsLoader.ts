@@ -16,56 +16,52 @@
  * Comments start with // and blank lines are ignored.
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 export interface TagDef {
-    /** Bone name in the skeleton (empty string = model root) */
-    boneName: string;
-    /** Tag identifier (e.g. "tag_barrel", "tag_weapon") */
-    tagName: string;
-    /** Position offset: forward, right, up */
-    offset: Vector3;
-    /** Rotation offset: pitch, yaw, roll (degrees) */
-    rotation: Vector3;
+  /** Bone name in the skeleton (empty string = model root) */
+  boneName: string;
+  /** Tag identifier (e.g. "tag_barrel", "tag_weapon") */
+  tagName: string;
+  /** Position offset: forward, right, up */
+  offset: Vector3;
+  /** Rotation offset: pitch, yaw, roll (degrees) */
+  rotation: Vector3;
 }
 
 /**
  * Parse a tags.txt file content into TagDef entries.
  */
 export function parseTags(content: string): TagDef[] {
-    const tags: TagDef[] = [];
+  const tags: TagDef[] = [];
 
-    for (const rawLine of content.split('\n')) {
-        const line = rawLine.trim();
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
 
-        // Skip blanks and comments
-        if (!line || line.startsWith('//')) continue;
+    // Skip blanks and comments
+    if (!line || line.startsWith("//")) continue;
 
-        // Match: tag "<bone>" "<tagname>" <6 numbers>
-        const match = line.match(
-            /^tag\s+"([^"]*)"\s+"([^"]+)"\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/
-        );
-        if (!match) continue;
+    // Match: tag "<bone>" "<tagname>" <6 numbers>
+    const match = line.match(
+      /^tag\s+"([^"]*)"\s+"([^"]+)"\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/,
+    );
+    if (!match) continue;
 
-        const [, boneName, tagName, fwd, right, up, pitch, yaw, roll] = match;
+    const [, boneName, tagName, fwd, right, up, pitch, yaw, roll] = match;
 
-        tags.push({
-            boneName,
-            tagName,
-            offset: new Vector3(
-                parseFloat(fwd),
-                parseFloat(right),
-                parseFloat(up)
-            ),
-            rotation: new Vector3(
-                parseFloat(pitch) * Math.PI / 180,
-                parseFloat(yaw) * Math.PI / 180,
-                parseFloat(roll) * Math.PI / 180
-            ),
-        });
-    }
+    tags.push({
+      boneName,
+      tagName,
+      offset: new Vector3(parseFloat(fwd), parseFloat(right), parseFloat(up)),
+      rotation: new Vector3(
+        (parseFloat(pitch) * Math.PI) / 180,
+        (parseFloat(yaw) * Math.PI) / 180,
+        (parseFloat(roll) * Math.PI) / 180,
+      ),
+    });
+  }
 
-    return tags;
+  return tags;
 }
 
 /**
@@ -73,24 +69,24 @@ export function parseTags(content: string): TagDef[] {
  * Returns empty array if file doesn't exist (no error).
  */
 export async function loadTags(dirPath: string): Promise<TagDef[]> {
-    const url = `${dirPath}tags.txt`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return [];
-        const content = await response.text();
-        const tags = parseTags(content);
-        if (tags.length > 0) {
-            console.log(`[TagsLoader] Loaded ${tags.length} tags from ${url}`);
-        }
-        return tags;
-    } catch {
-        return [];
+  const url = `${dirPath}tags.txt`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const content = await response.text();
+    const tags = parseTags(content);
+    if (tags.length > 0) {
+      console.log(`[TagsLoader] Loaded ${tags.length} tags from ${url}`);
     }
+    return tags;
+  } catch {
+    return [];
+  }
 }
 
 /**
  * Find a specific tag by name from a tag list.
  */
 export function findTag(tags: TagDef[], tagName: string): TagDef | undefined {
-    return tags.find(t => t.tagName === tagName);
+  return tags.find((t) => t.tagName === tagName);
 }

@@ -1,4 +1,4 @@
-import type { Transport } from './Transport';
+import type { Transport } from "./Transport";
 
 /**
  * WebSocket transport implementation
@@ -13,46 +13,46 @@ export class WebSocketTransport implements Transport {
   async connect(url: string): Promise<void> {
     // Already connected - return immediately (idempotent)
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('[WebSocketTransport] Already connected, skipping reconnect');
+      console.log("[WebSocketTransport] Already connected, skipping reconnect");
       return;
     }
 
     // Connection in progress
     if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-      console.log('[WebSocketTransport] Connection in progress, waiting...');
+      console.log("[WebSocketTransport] Connection in progress, waiting...");
       return new Promise((resolve, reject) => {
         this.ws!.onopen = () => resolve();
-        this.ws!.onerror = () => reject(new Error('Connection failed'));
+        this.ws!.onerror = () => reject(new Error("Connection failed"));
       });
     }
 
     // Convert http/ws to websocket URL
-    const wsUrl = url.replace(/^http/, 'ws');
+    const wsUrl = url.replace(/^http/, "ws");
 
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
         // IMPORTANT: Set binary type to arraybuffer for proper Uint8Array handling
-        this.ws.binaryType = 'arraybuffer';
+        this.ws.binaryType = "arraybuffer";
 
         this.ws.onopen = () => {
-          this.connectCallbacks.forEach(cb => cb());
+          this.connectCallbacks.forEach((cb) => cb());
           resolve();
         };
 
         this.ws.onmessage = (event) => {
           // event.data is ArrayBuffer when binaryType is 'arraybuffer'
           const data = new Uint8Array(event.data as ArrayBuffer);
-          this.messageCallbacks.forEach(cb => cb(data));
+          this.messageCallbacks.forEach((cb) => cb(data));
         };
 
         this.ws.onclose = (event) => {
-          this.disconnectCallbacks.forEach(cb => cb(event.reason));
+          this.disconnectCallbacks.forEach((cb) => cb(event.reason));
         };
 
         this.ws.onerror = (_event) => {
-          const error = new Error('WebSocket connection error');
-          this.errorCallbacks.forEach(cb => cb(error));
+          const error = new Error("WebSocket connection error");
+          this.errorCallbacks.forEach((cb) => cb(error));
           reject(error);
         };
       } catch (error) {
@@ -74,7 +74,9 @@ export class WebSocketTransport implements Transport {
     } else {
       // Log once in a while to avoid spam
       if (Math.random() < 0.01) {
-        console.warn(`[WebSocketTransport] send failed - ws: ${this.ws ? 'exists' : 'null'}, readyState: ${this.ws?.readyState}`);
+        console.warn(
+          `[WebSocketTransport] send failed - ws: ${this.ws ? "exists" : "null"}, readyState: ${this.ws?.readyState}`,
+        );
       }
     }
   }

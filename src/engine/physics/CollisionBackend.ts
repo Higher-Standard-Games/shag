@@ -1,14 +1,14 @@
 /**
  * CollisionBackend - Abstract interface for swappable collision systems
- * 
+ *
  * Active implementations:
  * - SweepCollisionBackend (q3): Q3-style swept AABB collision — primary for FPS
  * - BabylonPhysicsBackend (babylon): Babylon.js mesh raycasting — for simpler games
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Scene } from '@babylonjs/core/scene';
-import type { BspFile } from '../loader/bsp/BspLoader';
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
+import type { BspFile } from "../loader/bsp/BspLoader";
 
 /**
  * Result of a collision trace
@@ -53,7 +53,7 @@ export interface TraceOptions {
 /**
  * Backend type identifier
  */
-export type CollisionBackendType = 'babylon' | 'q3';
+export type CollisionBackendType = "babylon" | "q3";
 
 /**
  * Abstract collision backend interface
@@ -79,7 +79,11 @@ export interface CollisionBackend {
    * Perform a slide move (collision resolution)
    * Handles multi-plane sliding, corners, and wall clipping
    */
-  slideMove(start: Vector3, velocity: Vector3, options?: TraceOptions): { endPos: Vector3; velocity: Vector3; hitCount: number };
+  slideMove(
+    start: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions,
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number };
 
   /**
    * Get content flags at a point
@@ -94,7 +98,11 @@ export interface CollisionBackend {
   /**
    * Find ground position below a point
    */
-  findGround(point: Vector3, maxDistance?: number, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null;
+  findGround(
+    point: Vector3,
+    maxDistance?: number,
+    options?: TraceOptions,
+  ): { position: Vector3; normal: Vector3 } | null;
 
   /**
    * Get debug statistics

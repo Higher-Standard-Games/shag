@@ -7,16 +7,18 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #FAFAFA;
-  border: 1px solid #E0E0E0;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
   border-radius: var(--ui-radius-xl, 16px);
   padding: var(--ui-space-xl, 32px) var(--ui-space-2xl, 40px);
   max-width: calc(400px * var(--ui-scale, 1));
   width: 90%;
   text-align: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.1);
   animation: uiScaleInCentered 0.2s ease;
-  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
 }
 
 .ui-confirm-title {

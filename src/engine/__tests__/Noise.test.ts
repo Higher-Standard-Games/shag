@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PerlinNoise, ValueNoise } from "../math/Noise";
 
 describe("PerlinNoise", () => {
@@ -55,7 +55,7 @@ describe("PerlinNoise", () => {
       // More octaves = more detail, but still bounded
       const val1 = noise.octaveNoise(5, 5, 1);
       const val4 = noise.octaveNoise(5, 5, 4);
-      
+
       expect(typeof val1).toBe("number");
       expect(typeof val4).toBe("number");
     });

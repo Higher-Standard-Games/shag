@@ -1,6 +1,6 @@
 /**
  * Overlay - Reusable backdrop component with optional blur effect
- * 
+ *
  * Part of the unified UI system. Use this for any modal/dialog backdrop.
  * Manages its own show/hide animations and click-to-close behavior.
  */
@@ -19,12 +19,12 @@ function injectOverlayStyles(): void {
 
 export interface OverlayConfig {
   id: string;
-  blur?: number;           // Blur amount in px (default: 0)
-  opacity?: number;        // Background opacity 0-1 (default: 0.6)
-  color?: string;          // Background color (default: '#000000')
-  zIndex?: number;         // Z-index (default: from UIManager)
-  closeOnClick?: boolean;  // Close when clicking overlay (default: true)
-  animate?: boolean;       // Fade in/out animation (default: true)
+  blur?: number; // Blur amount in px (default: 0)
+  opacity?: number; // Background opacity 0-1 (default: 0.6)
+  color?: string; // Background color (default: '#000000')
+  zIndex?: number; // Z-index (default: from UIManager)
+  closeOnClick?: boolean; // Close when clicking overlay (default: true)
+  animate?: boolean; // Fade in/out animation (default: true)
 }
 
 export class Overlay {
@@ -56,7 +56,7 @@ export class Overlay {
     this.element = document.createElement("div");
     this.element.id = `overlay-${this.config.id}`;
     this.element.className = `ui-overlay${this.config.animate ? " animate-in" : ""}`;
-    
+
     // Build background with opacity
     const r = parseInt(this.config.color.slice(1, 3), 16) || 0;
     const g = parseInt(this.config.color.slice(3, 5), 16) || 0;
@@ -65,7 +65,7 @@ export class Overlay {
 
     this.element.style.background = bgColor;
     this.element.style.zIndex = String(this.config.zIndex);
-    
+
     if (this.config.blur > 0) {
       this.element.style.backdropFilter = `blur(${this.config.blur}px)`;
       (this.element.style as unknown as Record<string, string>).webkitBackdropFilter = `blur(${this.config.blur}px)`;

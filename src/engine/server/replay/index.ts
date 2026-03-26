@@ -1,4 +1,11 @@
 /**
  * Replay module
  */
-export { ReplayRecorder, ReplayPlayer, type ReplayData, type ReplayFrame, type ReplayHeader, type ReplayEvent } from './Replay';
+export {
+  type ReplayData,
+  type ReplayEvent,
+  type ReplayFrame,
+  type ReplayHeader,
+  ReplayPlayer,
+  ReplayRecorder,
+} from "./Replay";

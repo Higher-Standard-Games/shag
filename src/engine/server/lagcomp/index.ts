@@ -1,11 +1,12 @@
 /**
  * Lag Compensation module
  */
-export { LagCompensation, type Ray, type Capsule, type HitResult } from './LagCompensation';
-export { HistoryBuffer, type HistoryEntry } from './HistoryBuffer';
+
 export {
-    type LagCompensationConfig,
-    CASUAL_CONFIG,
-    COMPETITIVE_CONFIG,
-    TOURNAMENT_CONFIG,
-} from './config';
+  CASUAL_CONFIG,
+  COMPETITIVE_CONFIG,
+  type LagCompensationConfig,
+  TOURNAMENT_CONFIG,
+} from "./config";
+export { HistoryBuffer, type HistoryEntry } from "./HistoryBuffer";
+export { type Capsule, type HitResult, LagCompensation, type Ray } from "./LagCompensation";

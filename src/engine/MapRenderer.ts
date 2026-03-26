@@ -1,29 +1,32 @@
 import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
 import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { BrushGenerator } from "./loader";
-import { type Entity } from "./loader";
-import { ModelLoader } from "./loader";
-import { type PatchDefinition, PatchGenerator } from "./loader";
-import { PrefabInstance } from "./loader";
-import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
-import { TextureManager } from "./loader";
-import { PK3TextureLoader } from "./loader/pk3/PK3TextureLoader";
-import { AssetPreloader } from "./loader/AssetPreloader";
-import { type BillboardSprite } from "./sprites/BillboardSprite";
-import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
-import { SpriteManager } from "./sprites/SpriteManager";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+import type { Scene } from "@babylonjs/core/scene";
+import { type EntityData, EntityHandlerRegistry } from "./core/EntityHandlerRegistry";
+import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
-import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
-import { EntityHandlerRegistry, type EntityData } from "./core/EntityHandlerRegistry";
+import {
+  BrushGenerator,
+  type Entity,
+  ModelLoader,
+  type PatchDefinition,
+  PatchGenerator,
+  PrefabInstance,
+  TextureManager,
+} from "./loader";
+import { AssetPreloader } from "./loader/AssetPreloader";
+import { PK3TextureLoader } from "./loader/pk3/PK3TextureLoader";
 import { PhysicsSystem } from "./physics/PhysicsSystem";
-import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
+import type { BillboardSprite } from "./sprites/BillboardSprite";
+import { SpriteBuildingManager } from "./sprites/SpriteBuilding";
+import { SpriteManager } from "./sprites/SpriteManager";
 
 export interface MapRenderResult {
   playerStartPosition: Vector3;
@@ -52,7 +55,7 @@ export interface MapRenderResult {
   } | null;
   /** Weather settings from worldspawn */
   weather: {
-    type?: 'rain' | 'snow' | 'clear';
+    type?: "rain" | "snow" | "clear";
     intensity?: number;
     fog?: boolean;
     fogDensity?: number;
@@ -69,14 +72,11 @@ export class MapRenderer {
    * Renders parsed map entities into a Babylon scene.
    * Returns the player start position if found.
    */
-  public static async renderEntities(
-    entities: Entity[],
-    scene: Scene,
-    mapName?: string
-  ): Promise<MapRenderResult> {
+  public static async renderEntities(entities: Entity[], scene: Scene, mapName?: string): Promise<MapRenderResult> {
     const textureManager = TextureManager.getInstance();
 
     const resolvedMapName = mapName ?? "unknown";
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
     const tagMapOwned = (obj: { metadata?: any } | null | undefined): void => {
       if (!obj) return;
       if (!obj.metadata) obj.metadata = {};
@@ -90,7 +90,7 @@ export class MapRenderer {
     }
 
     // Convert entities to EntityData for hooks
-    const entityDataList: EntityData[] = entities.map(e => ({
+    const entityDataList: EntityData[] = entities.map((e) => ({
       classname: e.classname,
       properties: e.properties,
       brushes: e.brushes,
@@ -129,7 +129,7 @@ export class MapRenderer {
         const registered = await modelLoader.registerInstanceTemplate(
           modelPath,
           modelPath,
-          Math.max(100, modelEntities.length * 2)
+          Math.max(100, modelEntities.length * 2),
         );
         if (registered) {
           instancedModels.add(modelPath);
@@ -148,9 +148,9 @@ export class MapRenderer {
     let cameraController: "isometric" | "fps" | "sidescroll" | "follow" | null = null;
     let playlist: string | null = null;
     let indoor: boolean = false;
-    let lighting: MapRenderResult['lighting'] = null;
-    let weather: MapRenderResult['weather'] = null;
-    let time: MapRenderResult['time'] = null;
+    let lighting: MapRenderResult["lighting"] = null;
+    let weather: MapRenderResult["weather"] = null;
+    let time: MapRenderResult["time"] = null;
 
     // Collect static point lights for clustered rendering
     const staticLights: PointLight[] = [];
@@ -172,7 +172,7 @@ export class MapRenderer {
         // Parse camera_height if specified (controls zoom/distance)
         if (entity.properties.camera_height) {
           const height = parseFloat(entity.properties.camera_height);
-          if (!isNaN(height) && height > 0) {
+          if (!Number.isNaN(height) && height > 0) {
             cameraHeight = height;
             console.log(`Map specifies camera_height: ${cameraHeight}`);
           }
@@ -181,7 +181,7 @@ export class MapRenderer {
         // Parse camera_alpha if specified (horizontal rotation)
         if (entity.properties.camera_alpha) {
           const alpha = parseFloat(entity.properties.camera_alpha);
-          if (!isNaN(alpha)) {
+          if (!Number.isNaN(alpha)) {
             cameraAlpha = alpha;
             console.log(`Map specifies camera_alpha: ${cameraAlpha}`);
           }
@@ -190,7 +190,7 @@ export class MapRenderer {
         // Parse camera_beta if specified (vertical angle)
         if (entity.properties.camera_beta) {
           const beta = parseFloat(entity.properties.camera_beta);
-          if (!isNaN(beta)) {
+          if (!Number.isNaN(beta)) {
             cameraBeta = beta;
             console.log(`Map specifies camera_beta: ${cameraBeta}`);
           }
@@ -199,7 +199,12 @@ export class MapRenderer {
         // Parse camera_controller if specified (controller type for this map)
         if (entity.properties.camera_controller) {
           const controller = entity.properties.camera_controller.toLowerCase();
-          if (controller === "isometric" || controller === "fps" || controller === "sidescroll" || controller === "follow") {
+          if (
+            controller === "isometric" ||
+            controller === "fps" ||
+            controller === "sidescroll" ||
+            controller === "follow"
+          ) {
             cameraController = controller;
             console.log(`Map specifies camera_controller: ${cameraController}`);
           } else {
@@ -220,8 +225,12 @@ export class MapRenderer {
         }
 
         // Parse lighting overrides
-        if (entity.properties.sun_intensity || entity.properties.moon_intensity ||
-          entity.properties.ambient_intensity || entity.properties.shadows) {
+        if (
+          entity.properties.sun_intensity ||
+          entity.properties.moon_intensity ||
+          entity.properties.ambient_intensity ||
+          entity.properties.shadows
+        ) {
           lighting = {};
           if (entity.properties.sun_intensity) {
             lighting.sunIntensity = parseFloat(entity.properties.sun_intensity);
@@ -243,7 +252,7 @@ export class MapRenderer {
           weather = {};
           if (entity.properties.weather) {
             const w = entity.properties.weather.toLowerCase();
-            if (w === 'rain' || w === 'snow' || w === 'clear') {
+            if (w === "rain" || w === "snow" || w === "clear") {
               weather.type = w;
             }
           }
@@ -283,13 +292,12 @@ export class MapRenderer {
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const lightPos = new Vector3(parts[0], parts[2], parts[1]);
 
-        const light = new PointLight("light_" + Math.random(), lightPos, scene);
+        const light = new PointLight(`light_${Math.random()}`, lightPos, scene);
+        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
         tagMapOwned(light as any);
 
         // Parse intensity from Quake light value (default 300)
-        const quakeIntensity = entity.properties.light
-          ? parseFloat(entity.properties.light)
-          : 300;
+        const quakeIntensity = entity.properties.light ? parseFloat(entity.properties.light) : 300;
 
         // Convert to Babylon intensity and set range
         // Quake light values are roughly: 200-300 = normal, 500+ = bright
@@ -297,19 +305,13 @@ export class MapRenderer {
 
         // Set range based on intensity - Quake lights have infinite range but we need to limit
         // Use the light value as a rough guide for range
-        light.range = entity.properties.range
-          ? parseFloat(entity.properties.range)
-          : quakeIntensity; // Range roughly equals light value in world units
+        light.range = entity.properties.range ? parseFloat(entity.properties.range) : quakeIntensity; // Range roughly equals light value in world units
 
         // Parse color
         if (entity.properties._color) {
           const colors = entity.properties._color.split(" ").map(parseFloat);
           if (colors.some((c) => c > 1.0)) {
-            light.diffuse = new Color3(
-              colors[0] / 255,
-              colors[1] / 255,
-              colors[2] / 255
-            );
+            light.diffuse = new Color3(colors[0] / 255, colors[1] / 255, colors[2] / 255);
           } else {
             light.diffuse = new Color3(colors[0], colors[1], colors[2]);
           }
@@ -335,7 +337,11 @@ export class MapRenderer {
         const hasShadow = entity.properties.shadow !== "0"; // Default true
         const shadowOpacity = parseFloat(entity.properties.shadowOpacity || "0.3");
         const isBillboard = entity.properties.billboard !== "0"; // Default true
-        const anchor = (entity.properties.anchor || "bottom-center") as "bottom-center" | "center" | "bottom-left" | "bottom-right";
+        const anchor = (entity.properties.anchor || "bottom-center") as
+          | "bottom-center"
+          | "center"
+          | "bottom-left"
+          | "bottom-right";
 
         if (spritePath) {
           const spriteManager = SpriteManager.getInstance();
@@ -351,10 +357,12 @@ export class MapRenderer {
               shadowOpacity,
             },
             position,
-            scale
+            scale,
           );
           if (sprite) {
+            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
             tagMapOwned(sprite.mesh as any);
+            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
             tagMapOwned((sprite.shadowMesh ?? null) as any);
             console.log(`Created sprite at ${position.toString()}: ${spritePath}`);
           }
@@ -385,26 +393,14 @@ export class MapRenderer {
         }
 
         // Parse other properties
-        const intensity = entity.properties.light
-          ? parseFloat(entity.properties.light) / 200.0
-          : 1.0;
-        const range = entity.properties.range
-          ? parseFloat(entity.properties.range)
-          : 100;
-        const fadeTime = entity.properties.fadeTime
-          ? parseFloat(entity.properties.fadeTime)
-          : 2;
-        const turnOnHour = entity.properties.turnOnHour
-          ? parseFloat(entity.properties.turnOnHour)
-          : 18;
-        const turnOffHour = entity.properties.turnOffHour
-          ? parseFloat(entity.properties.turnOffHour)
-          : 6;
+        const intensity = entity.properties.light ? parseFloat(entity.properties.light) / 200.0 : 1.0;
+        const range = entity.properties.range ? parseFloat(entity.properties.range) : 100;
+        const fadeTime = entity.properties.fadeTime ? parseFloat(entity.properties.fadeTime) : 2;
+        const turnOnHour = entity.properties.turnOnHour ? parseFloat(entity.properties.turnOnHour) : 18;
+        const turnOffHour = entity.properties.turnOffHour ? parseFloat(entity.properties.turnOffHour) : 6;
         const flickerEnabled = entity.properties.flicker === "1";
         const showBulb = entity.properties.showBulb !== "0";
-        const bulbSize = entity.properties.bulbSize
-          ? parseFloat(entity.properties.bulbSize)
-          : 3;
+        const bulbSize = entity.properties.bulbSize ? parseFloat(entity.properties.bulbSize) : 3;
 
         const lampId = entity.properties.targetname || `lamp_${Date.now()}_${Math.random()}`;
 
@@ -427,6 +423,7 @@ export class MapRenderer {
       for (const brush of entity.brushes) {
         const mesh = BrushGenerator.buildMesh(brush, scene);
         if (mesh) {
+          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
           tagMapOwned(mesh as any);
           if (!mesh.material) {
             const textureName = brush.planes[0]?.texture;
@@ -478,12 +475,13 @@ export class MapRenderer {
               position: new Vector3(cp.x, cp.z, cp.y),
               u: cp.u,
               v: cp.v,
-            }))
+            })),
           ),
         };
 
         const mesh = PatchGenerator.buildMesh(patchDef, scene);
         if (mesh) {
+          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
           tagMapOwned(mesh as any);
           const material = await textureManager.getMaterial({
             path: patch.texture,
@@ -519,14 +517,10 @@ export class MapRenderer {
         }
 
         // Parse angle (Y rotation in degrees)
-        const angle = entity.properties.angle
-          ? parseFloat(entity.properties.angle)
-          : 0;
+        const angle = entity.properties.angle ? parseFloat(entity.properties.angle) : 0;
 
         // Parse scale
-        const scale = entity.properties.scale
-          ? parseFloat(entity.properties.scale)
-          : 1;
+        const scale = entity.properties.scale ? parseFloat(entity.properties.scale) : 1;
 
         // Check if this is a 3D model file (GLB/glTF/OBJ) or a .map prefab
         if (ModelLoader.isModelFile(modelPath)) {
@@ -540,6 +534,7 @@ export class MapRenderer {
             });
 
             if (instanceData) {
+              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
               tagMapOwned(instanceData.mesh as any);
               if (!instanceData.mesh.metadata) instanceData.mesh.metadata = {};
               instanceData.mesh.metadata.instanceId = instanceData.id;
@@ -555,7 +550,7 @@ export class MapRenderer {
             const castShadows = entity.properties.castShadows === "1";
             const visible = entity.properties.visible !== "0";
             const renderingGroupId = entity.properties.renderingGroup
-              ? parseInt(entity.properties.renderingGroup)
+              ? parseInt(entity.properties.renderingGroup, 10)
               : 0;
 
             // Get shadow generator if casting shadows
@@ -575,7 +570,9 @@ export class MapRenderer {
             });
 
             if (result) {
+              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
               tagMapOwned(result.root as any);
+              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
               for (const m of result.meshes) tagMapOwned(m as any);
               prefabInstances.push(result.root);
             }
@@ -583,9 +580,7 @@ export class MapRenderer {
         } else {
           // Load as .map prefab (existing behavior)
           const dropToGround = entity.properties.dropToGround === "1";
-          const dropOffset = entity.properties.dropOffset
-            ? parseFloat(entity.properties.dropOffset)
-            : 0;
+          const dropOffset = entity.properties.dropOffset ? parseFloat(entity.properties.dropOffset) : 0;
 
           const result = await PrefabInstance.create(modelPath, scene, {
             position,
@@ -596,7 +591,9 @@ export class MapRenderer {
           });
 
           if (result) {
+            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
             tagMapOwned(result.root as any);
+            // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
             for (const m of result.meshes) tagMapOwned(m as any);
             prefabInstances.push(result.root);
           }
@@ -608,7 +605,7 @@ export class MapRenderer {
         const spriteBuildingManager = SpriteBuildingManager.getInstance();
 
         // Initialize if needed
-        if (!spriteBuildingManager["scene"]) {
+        if (!spriteBuildingManager.scene) {
           spriteBuildingManager.init(scene);
         }
 
@@ -628,17 +625,13 @@ export class MapRenderer {
         const height = entity.properties.height ? parseFloat(entity.properties.height) : 100;
 
         // Parse rotation (for fixed isometric angle)
-        const rotation = entity.properties.angle
-          ? (parseFloat(entity.properties.angle) * Math.PI / 180)
-          : 0;
+        const rotation = entity.properties.angle ? (parseFloat(entity.properties.angle) * Math.PI) / 180 : 0;
 
         // Billboard mode (face camera)
         const billboard = entity.properties.billboard === "1";
 
         // Emissive for glowing effects
-        const emissiveIntensity = entity.properties.emissive
-          ? parseFloat(entity.properties.emissive)
-          : 0;
+        const emissiveIntensity = entity.properties.emissive ? parseFloat(entity.properties.emissive) : 0;
 
         // Trigger properties
         let trigger = undefined;
@@ -647,7 +640,7 @@ export class MapRenderer {
             size: new Vector3(
               entity.properties.triggerWidth ? parseFloat(entity.properties.triggerWidth) : width,
               entity.properties.triggerHeight ? parseFloat(entity.properties.triggerHeight) : height,
-              entity.properties.triggerDepth ? parseFloat(entity.properties.triggerDepth) : 20
+              entity.properties.triggerDepth ? parseFloat(entity.properties.triggerDepth) : 20,
             ),
             properties: {
               windowTarget: entity.properties.windowTarget,
@@ -663,7 +656,7 @@ export class MapRenderer {
             size: new Vector3(
               parseFloat(entity.properties.collisionWidth),
               entity.properties.collisionHeight ? parseFloat(entity.properties.collisionHeight) : height,
-              entity.properties.collisionDepth ? parseFloat(entity.properties.collisionDepth) : 20
+              entity.properties.collisionDepth ? parseFloat(entity.properties.collisionDepth) : 20,
             ),
           };
         }
@@ -683,6 +676,7 @@ export class MapRenderer {
         });
 
         if (building) {
+          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
           tagMapOwned(building.getMesh() as any);
           console.log(`Created sprite building: ${building.getId()} at ${position.toString()}`);
         }
@@ -711,20 +705,21 @@ export class MapRenderer {
         // Parse sprite sheet config
         const config = {
           path: spritePath,
-          frameWidth: entity.properties.frameWidth ? parseInt(entity.properties.frameWidth) : 32,
-          frameHeight: entity.properties.frameHeight ? parseInt(entity.properties.frameHeight) : 32,
-          framesPerDirection: entity.properties.frames ? parseInt(entity.properties.frames) : 4,
-          directions: entity.properties.directions ? parseInt(entity.properties.directions) : 8,
-          frameRate: entity.properties.frameRate ? parseInt(entity.properties.frameRate) : 8,
+          frameWidth: entity.properties.frameWidth ? parseInt(entity.properties.frameWidth, 10) : 32,
+          frameHeight: entity.properties.frameHeight ? parseInt(entity.properties.frameHeight, 10) : 32,
+          framesPerDirection: entity.properties.frames ? parseInt(entity.properties.frames, 10) : 4,
+          directions: entity.properties.directions ? parseInt(entity.properties.directions, 10) : 8,
+          frameRate: entity.properties.frameRate ? parseInt(entity.properties.frameRate, 10) : 8,
           hasAlpha: true,
         };
 
         // Create sprite
         const sprite = spriteManager.createSpriteWithSheet(
           `sprite_${entity.properties.targetname || Date.now()}`,
-          config
+          config,
         );
 
+        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
         tagMapOwned(sprite.mesh as any);
 
         // Set position and scale (default bigger size)
@@ -777,6 +772,7 @@ export class MapRenderer {
         };
         const result = await entityHandler(entityData, scene);
         if (result.handled && result.node) {
+          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
           tagMapOwned(result.node as any);
           prefabInstances.push(result.node);
         }
@@ -818,11 +814,13 @@ export class MapRenderer {
     // This allows many lights without hitting WebGL uniform buffer limits
     if (staticLights.length > 0) {
       if (!scene.metadata) scene.metadata = {};
+      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
       const existing = (scene.metadata as any).clusteredLightContainer;
       if (existing && typeof existing.dispose === "function") {
         existing.dispose();
       }
       const clusteredLights = new ClusteredLightContainer("mapLightsCluster", staticLights, scene);
+      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
       (scene.metadata as any).clusteredLightContainer = clusteredLights;
       // Configure for orthographic camera compatibility
       // Very few depth slices and coarse tiles minimize artifacts
@@ -847,7 +845,7 @@ export class MapRenderer {
       indoor,
       lighting,
       weather,
-      time
+      time,
     };
   }
 
@@ -862,12 +860,13 @@ export class MapRenderer {
     // CRITICAL: Dispose BSP materials BEFORE mesh disposal to prevent stale shader uniforms
     // When textures are disposed but materials persist, their shader uniform locations become
     // invalid, causing WebGL INVALID_OPERATION errors on subsequent map loads
-    const bspMaterials = scene.materials.filter(mat =>
-      mat.name.startsWith('bsp_') ||
-      mat.name.startsWith('lightmap_') ||
-      mat.name.startsWith('filterBlend_') ||
-      mat.name.startsWith('glow_overlay_') ||
-      mat.name.startsWith('q3mat_')
+    const bspMaterials = scene.materials.filter(
+      (mat) =>
+        mat.name.startsWith("bsp_") ||
+        mat.name.startsWith("lightmap_") ||
+        mat.name.startsWith("filterBlend_") ||
+        mat.name.startsWith("glow_overlay_") ||
+        mat.name.startsWith("q3mat_"),
     );
     for (const mat of bspMaterials) {
       mat.dispose(true, true); // forceDisposeEffect=true, forceDisposeTextures=true
@@ -876,6 +875,7 @@ export class MapRenderer {
       console.log(`[MapRenderer] Disposed ${bspMaterials.length} BSP materials`);
     }
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
     const matchesMap = (metadata: any): boolean => {
       if (!metadata?.mapOwned) return false;
       if (!mapName) return true;
@@ -883,20 +883,21 @@ export class MapRenderer {
     };
 
     // Collect meshes to dispose first (avoid modifying array during iteration)
-    const meshesToDispose = scene.meshes.filter((mesh) =>
-      matchesMap(mesh.metadata) ||
-      mesh.name === "brush" ||
-      mesh.name === "patch" ||
-      mesh.name.startsWith("bsp_") ||  // BSP meshes (bsp_tex_*, bsp_sprite_*, etc.)
-      mesh.name.startsWith("light_") ||
-      mesh.name.startsWith("prefab_") ||
-      mesh.name.startsWith("sprite_") ||
-      mesh.name.startsWith("buildZone_") ||
-      mesh.name.startsWith("npc_") ||
-      mesh.name.startsWith("character_") ||
-      mesh.name.startsWith("trigger_") ||
-      // Also catch any mesh with map-related metadata
-      mesh.metadata?.properties?.classname
+    const meshesToDispose = scene.meshes.filter(
+      (mesh) =>
+        matchesMap(mesh.metadata) ||
+        mesh.name === "brush" ||
+        mesh.name === "patch" ||
+        mesh.name.startsWith("bsp_") || // BSP meshes (bsp_tex_*, bsp_sprite_*, etc.)
+        mesh.name.startsWith("light_") ||
+        mesh.name.startsWith("prefab_") ||
+        mesh.name.startsWith("sprite_") ||
+        mesh.name.startsWith("buildZone_") ||
+        mesh.name.startsWith("npc_") ||
+        mesh.name.startsWith("character_") ||
+        mesh.name.startsWith("trigger_") ||
+        // Also catch any mesh with map-related metadata
+        mesh.metadata?.properties?.classname,
     );
 
     const instanceManager = InstancedMeshManager.getInstance();
@@ -910,13 +911,14 @@ export class MapRenderer {
     }
 
     // Dispose transform nodes (NPCs, prefabs, etc.)
-    const nodesToDispose = scene.transformNodes.filter((node) =>
-      matchesMap(node.metadata) ||
-      node.name.startsWith("prefab_") ||
-      node.name.startsWith("npc_") ||
-      node.name.startsWith("character_") ||
-      // Also catch any node with NPC metadata
-      node.metadata?.npcId
+    const nodesToDispose = scene.transformNodes.filter(
+      (node) =>
+        matchesMap(node.metadata) ||
+        node.name.startsWith("prefab_") ||
+        node.name.startsWith("npc_") ||
+        node.name.startsWith("character_") ||
+        // Also catch any node with NPC metadata
+        node.metadata?.npcId,
     );
 
     for (const node of nodesToDispose) {
@@ -924,9 +926,9 @@ export class MapRenderer {
     }
 
     // Dispose map lights
-    const lightsToDispose = scene.lights.filter((light) =>
-      matchesMap((light as any).metadata) ||
-      light.name.startsWith("light_")
+    const lightsToDispose = scene.lights.filter(
+      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
+      (light) => matchesMap((light as any).metadata) || light.name.startsWith("light_"),
     );
 
     for (const light of lightsToDispose) {
@@ -946,9 +948,11 @@ export class MapRenderer {
     // Clear debris zones
     LocalDebrisManager.getInstance().clear();
 
+    // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
     const clustered = (scene.metadata as any)?.clusteredLightContainer;
     if (clustered && typeof clustered.dispose === "function") {
       clustered.dispose();
+      // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
       (scene.metadata as any).clusteredLightContainer = null;
     }
 
@@ -959,11 +963,13 @@ export class MapRenderer {
 
     // Dispose pickup entities BEFORE clearing model cache
     // Pickup clones share materials with cached source - disposing cache first leaves clones with dead materials
-    const pickupsToDispose = scene.transformNodes.filter(n =>
-      n.name.startsWith('pickup_') ||
-      n.name.startsWith('ammo_') ||
-      n.name.startsWith('weapon_') ||
-      (n.metadata as any)?.isPickup
+    const pickupsToDispose = scene.transformNodes.filter(
+      (n) =>
+        n.name.startsWith("pickup_") ||
+        n.name.startsWith("ammo_") ||
+        n.name.startsWith("weapon_") ||
+        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata tagging via Babylon metadata API
+        (n.metadata as any)?.isPickup,
     );
     for (const pickup of pickupsToDispose) {
       pickup.dispose();

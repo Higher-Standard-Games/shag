@@ -1,4 +1,4 @@
 /**
  * Weapon System Exports
  */
-export * from './WeaponViewManager';
+export * from "./WeaponViewManager";

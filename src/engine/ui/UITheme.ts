@@ -1,20 +1,20 @@
 /**
  * UITheme - Centralized UI styling (Engine Component)
- * 
+ *
  * Provides consistent colors, fonts, and styles across all UI components.
  * Supports light/dark theme switching with CSS variables.
  * Game can customize by calling UITheme.setTheme() before UI init.
  */
 
-import { GamePaths } from '../core/GamePaths';
+import { GamePaths } from "../core/GamePaths";
 
 export type ThemeMode = "light" | "dark";
 
 export interface UIThemeConfig {
   // Colors
   primaryColor: string;
-  primaryColorDark: string;    // Darker shade for borders/shadows
-  primaryColorLight: string;   // Lighter shade for hover
+  primaryColorDark: string; // Darker shade for borders/shadows
+  primaryColorLight: string; // Lighter shade for hover
   secondaryColor: string;
   successColor: string;
   warningColor: string;
@@ -22,15 +22,15 @@ export interface UIThemeConfig {
 
   // Backgrounds
   panelBg: string;
-  panelBgAlt: string;          // Alternate/header background
-  cardBg: string;              // Card/item background
-  inputBg: string;             // Input field background
+  panelBgAlt: string; // Alternate/header background
+  cardBg: string; // Card/item background
+  inputBg: string; // Input field background
 
   // Text
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
-  textOnPrimary: string;       // Text on primary color buttons
+  textOnPrimary: string; // Text on primary color buttons
 
   // Borders
   borderColor: string;
@@ -174,7 +174,12 @@ export class UITheme {
    * Load a custom font from URL
    * Supports WOFF2, WOFF, TTF, OTF formats
    */
-  public async loadFont(fontName: string, fontUrl: string, weight: string = "400", silent: boolean = false): Promise<boolean> {
+  public async loadFont(
+    fontName: string,
+    fontUrl: string,
+    weight: string = "400",
+    silent: boolean = false,
+  ): Promise<boolean> {
     const font = new FontFace(fontName, `url(${fontUrl})`, {
       weight,
       style: "normal",
@@ -242,7 +247,7 @@ export class UITheme {
     this.injectStyles();
 
     // Notify listeners
-    this.listeners.forEach(fn => fn(mode));
+    this.listeners.forEach((fn) => fn(mode));
 
     console.log(`[UITheme] Switched to ${mode} mode`);
   }
@@ -262,7 +267,7 @@ export class UITheme {
   public onModeChange(callback: (mode: ThemeMode) => void): () => void {
     this.listeners.push(callback);
     return () => {
-      this.listeners = this.listeners.filter(fn => fn !== callback);
+      this.listeners = this.listeners.filter((fn) => fn !== callback);
     };
   }
 
@@ -313,8 +318,8 @@ export class UITheme {
   public async loadShareTechMonoFont(): Promise<void> {
     // Use engine fonts directly (these are engine assets)
     const gamePaths = GamePaths.getInstance();
-    const fontPath = gamePaths.engine('fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf');
-    const success = await this.loadFont('Share Tech Mono', fontPath, '400', true);
+    const fontPath = gamePaths.engine("fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf");
+    const success = await this.loadFont("Share Tech Mono", fontPath, "400", true);
     if (success) {
       console.log("[UITheme] Share Tech Mono font loaded (debug console)");
     } else {

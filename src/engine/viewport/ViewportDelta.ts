@@ -5,7 +5,7 @@
  * Effects produce deltas, applicators interpret them for specific camera types.
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 export interface ViewportDelta {
   /** Camera position adjustment in world units */

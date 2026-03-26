@@ -1,6 +1,6 @@
 /**
  * EngineScene - Base scene class for the SHAG Engine
- * 
+ *
  * Provides core scene functionality that any game can use:
  * - Scene creation and camera setup
  * - Camera modes (perspective, orthographic, fake_ortho)
@@ -10,7 +10,7 @@
  * - Input system initialization
  * - Screen transitions
  * - Performance mode (FPS throttling)
- * 
+ *
  * Games should extend this class and override the hook methods:
  * - onSceneCreated() - Initialize game-specific systems
  * - onMapLoaded() - Handle map load events
@@ -20,35 +20,34 @@
  */
 
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import type { Engine } from "@babylonjs/core/Engines/engine";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 
-import { TextureManager } from "./loader";
-import { MapLoader } from "./loader/map/MapLoader";
-import { CameraSystem, IsometricController } from "./camera";
-import { InputSystem } from "./input";
-import { SpriteManager } from "./sprites/SpriteManager";
 import { AssetLoader } from "./AssetLoader";
-import { MapRenderer } from "./MapRenderer";
-import { SkyLightSystem } from "./lighting/SkyLightSystem";
-import { StreetLampSystem } from "./lighting/StreetLampSystem";
-import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { BuildableSystem } from "./BuildableSystem";
-import { ScreenTransition } from "./effects/ScreenTransition";
+import { CameraSystem, IsometricController } from "./camera";
+import { EngineSettings } from "./core/EngineSettings";
+import { EventBus } from "./core/EventBus";
+import { QualityDetector } from "./core/QualityDetector";
+import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
+import { DebrisEffect } from "./effects/DebrisEffect";
+import { FogEffect } from "./effects/FogEffect";
 import { PostProcessingManager } from "./effects/PostProcessingManager";
 import { PrecipitationEffect } from "./effects/RainEffect";
+import { ScreenTransition } from "./effects/ScreenTransition";
 import { ThunderEffect } from "./effects/ThunderEffect";
-import { FogEffect } from "./effects/FogEffect";
 import { WindSystem } from "./effects/WindSystem";
-import { DebrisEffect } from "./effects/DebrisEffect";
-import { EventBus } from "./core/EventBus";
-import { EngineSettings } from "./core/EngineSettings";
-import { QualityDetector } from "./core/QualityDetector";
-import { TextureMemoryManager } from "./loader";
+import { InputSystem } from "./input";
+import { SkyLightSystem } from "./lighting/SkyLightSystem";
+import { StreetLampSystem } from "./lighting/StreetLampSystem";
+import { TextureManager, TextureMemoryManager } from "./loader";
+import { MapLoader } from "./loader/map/MapLoader";
+import { MapRenderer } from "./MapRenderer";
 import { InstancedMeshManager } from "./rendering/InstancedMeshManager";
+import { SpriteManager } from "./sprites/SpriteManager";
 
 /**
  * Camera rendering modes:
@@ -146,7 +145,7 @@ export abstract class EngineScene {
     // Listen for map loaded events (e.g. from MapCommand)
     EventBus.on<{ result: MapLoadResult }>("map:loaded", (data) => {
       console.log(`[EngineScene] Received map:loaded event`);
-      this.onMapLoaded(data.result).catch(e => console.error("Error in onMapLoaded:", e));
+      this.onMapLoaded(data.result).catch((e) => console.error("Error in onMapLoaded:", e));
     });
   }
 
@@ -192,18 +191,19 @@ export abstract class EngineScene {
     // provides dynamic lighting while staying safely under 12 UBOs.
     // ═══════════════════════════════════════════════════════════════
     this.scene.onNewMaterialAddedObservable.add((material) => {
-      if ('maxSimultaneousLights' in material) {
+      if ("maxSimultaneousLights" in material) {
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
         (material as any).maxSimultaneousLights = 2;
       }
     });
 
     // Initialize Physics System
     try {
-      const { PhysicsSystem } = await import('./physics/PhysicsSystem');
+      const { PhysicsSystem } = await import("./physics/PhysicsSystem");
       const success = await PhysicsSystem.getInstance().enablePhysics(this.scene);
       console.log(`[EngineScene] PhysicsSystem init result: ${success}`);
     } catch (e) {
-      console.error('[EngineScene] CRITICAL: PhysicsSystem failed to load/init', e);
+      console.error("[EngineScene] CRITICAL: PhysicsSystem failed to load/init", e);
     }
 
     TextureManager.getInstance().init(this.scene);
@@ -223,10 +223,10 @@ export abstract class EngineScene {
     InstancedMeshManager.getInstance().init(this.scene);
 
     // Initialize all scene-dependent services via ServiceLocator
-    console.log('[EngineScene] Initializing scene services...');
-    const { ServiceLocator } = await import('./core/ServiceLocator');
+    console.log("[EngineScene] Initializing scene services...");
+    const { ServiceLocator } = await import("./core/ServiceLocator");
     await ServiceLocator.getInstance().initScene(this.scene);
-    console.log('[EngineScene] Scene services initialized');
+    console.log("[EngineScene] Scene services initialized");
 
     // Networking is initialized by game-specific code (e.g., Game → NetworkGameHost)
 
@@ -241,7 +241,7 @@ export abstract class EngineScene {
       cameraSettings.beta,
       200,
       Vector3.Zero(),
-      this.scene
+      this.scene,
     );
 
     // Apply camera mode from settings
@@ -294,9 +294,11 @@ export abstract class EngineScene {
     SpriteManager.getInstance().init(this.scene, this.camera);
 
     // Load sprite manifest
-    SpriteManager.getInstance().loadManifest('game/sprites.json').catch(err => {
-      console.warn('Failed to load sprite manifest:', err);
-    });
+    SpriteManager.getInstance()
+      .loadManifest("game/sprites.json")
+      .catch((err) => {
+        console.warn("Failed to load sprite manifest:", err);
+      });
 
     // Initialize post-processing effects
     PostProcessingManager.getInstance().init(this.scene, this.camera);
@@ -347,7 +349,7 @@ export abstract class EngineScene {
         console.log(`Camera mode: ORTHOGRAPHIC (orthoSize: ${height}, radius: ${this.camera.radius})`);
         break;
 
-      case "fake_ortho":
+      case "fake_ortho": {
         this.camera.mode = ArcRotateCamera.PERSPECTIVE_CAMERA;
         const baseFov = 0.3;
         const fovScale = Math.min(0.6, baseFov + (height - 100) / 1000);
@@ -355,8 +357,11 @@ export abstract class EngineScene {
         this.camera.radius = height * 2;
         this.camera.minZ = 0.1;
         this.camera.maxZ = Math.max(5000, height * 4);
-        console.log(`Camera mode: FAKE_ORTHO (height: ${height}, fov: ${fovScale.toFixed(2)}, radius: ${this.camera.radius})`);
+        console.log(
+          `Camera mode: FAKE_ORTHO (height: ${height}, fov: ${fovScale.toFixed(2)}, radius: ${this.camera.radius})`,
+        );
         break;
+      }
     }
 
     this.cameraMode = mode;
@@ -386,8 +391,8 @@ export abstract class EngineScene {
   }
 
   public setCameraHeight(height: number | string): void {
-    const numHeight = typeof height === 'string' ? parseFloat(height) : height;
-    if (isNaN(numHeight) || numHeight <= 0) {
+    const numHeight = typeof height === "string" ? parseFloat(height) : height;
+    if (Number.isNaN(numHeight) || numHeight <= 0) {
       console.error(`Invalid camera height: ${height}`);
       return;
     }
@@ -413,7 +418,7 @@ export abstract class EngineScene {
 
     this.mapEntryTriggers.set(destinationMap, {
       sourceMap: this.currentMap,
-      triggerPosition: triggerPosition.clone()
+      triggerPosition: triggerPosition.clone(),
     });
     console.log(`[EngineScene] Recorded entry trigger for ${destinationMap}`);
   }
@@ -430,7 +435,7 @@ export abstract class EngineScene {
         async () => {
           await this.loadMapInternal(mapName);
         },
-        { duration: transitionDuration }
+        { duration: transitionDuration },
       );
     } else {
       await this.loadMapInternal(mapName);
@@ -462,7 +467,7 @@ export abstract class EngineScene {
     let resultIndoor = false;
     let resultPlaylist: string | null = null;
 
-    if (bspResult.success && bspResult.mapType === 'bsp') {
+    if (bspResult.success && bspResult.mapType === "bsp") {
       // BSP Loaded successfully
       console.log(`[EngineScene] Loaded BSP map: ${mapName}`);
       resultPlayerStart = bspResult.playerStartPosition || new Vector3(0, 50, 0);
@@ -501,18 +506,10 @@ export abstract class EngineScene {
     // Determine camera target position
     const entryInfo = this.mapEntryTriggers.get(previousMap || "");
     if (entryInfo && entryInfo.sourceMap === mapName) {
-      this.mapCenterPosition = new Vector3(
-        entryInfo.triggerPosition.x,
-        0,
-        entryInfo.triggerPosition.z
-      );
+      this.mapCenterPosition = new Vector3(entryInfo.triggerPosition.x, 0, entryInfo.triggerPosition.z);
       console.log(`[EngineScene] Returning from ${previousMap}: centering on entry trigger`);
     } else {
-      this.mapCenterPosition = new Vector3(
-        resultPlayerStart.x,
-        0,
-        resultPlayerStart.z
-      );
+      this.mapCenterPosition = new Vector3(resultPlayerStart.x, 0, resultPlayerStart.z);
     }
 
     // Apply camera height from map
@@ -647,18 +644,25 @@ export abstract class EngineScene {
   }
 
   protected exposeDebugFunctions(): void {
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).loadMap = (mapName: string) => this.loadMap(mapName);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setZoom = (newSize: number) => {
       this.orthoSize = newSize;
       this.updateCameraOrtho();
       console.log(`Zoom set to ${this.orthoSize}`);
     };
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setCameraMode = (mode: CameraMode) => this.setCameraMode(mode);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).getCameraMode = () => this.getCameraMode();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setCameraHeight = (height: number) => this.setCameraHeight(height);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).getCameraHeight = () => this.getCameraHeight();
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).camera = {
       get: () => this.camera,
       getMode: () => this.getCameraMode(),
@@ -667,6 +671,7 @@ export abstract class EngineScene {
 
     // Post-processing debug commands
     const pp = PostProcessingManager.getInstance();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).fx = {
       enabled: (on: boolean) => pp.setEnabled(on),
       bloom: (on: boolean) => pp.setBloomEnabled(on),
@@ -682,6 +687,7 @@ export abstract class EngineScene {
     };
 
     // Weather debug commands
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).weather = {
       rain: (on: boolean) => {
         if (on && this.isIndoorMap) {
@@ -693,7 +699,8 @@ export abstract class EngineScene {
       rainIntensity: (v: number) => this.precipitationEffect?.setIntensity(v),
       rainSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
       rainSpeed: (v: number) => this.precipitationEffect?.updateSettings({ speed: v }),
-      rainWind: (angle: number, strength: number) => this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
+      rainWind: (angle: number, strength: number) =>
+        this.precipitationEffect?.updateSettings({ windAngle: angle, windStrength: strength }),
       snow: (on: boolean) => {
         if (on && this.isIndoorMap) {
           console.log("[Weather] Cannot start snow - indoor map");
@@ -701,11 +708,13 @@ export abstract class EngineScene {
         }
         on ? this.precipitationEffect?.startSnow() : this.precipitationEffect?.stop();
       },
-      snowIntensity: (v: number) => { this.precipitationEffect?.updateSettings({ intensity: v }); },
+      snowIntensity: (v: number) => {
+        this.precipitationEffect?.updateSettings({ intensity: v });
+      },
       snowSize: (v: number) => this.precipitationEffect?.updateSettings({ particleSize: v }),
       thunder: (duration?: number) => this.thunderEffect?.trigger(duration ? { duration } : undefined),
       thunderStop: () => this.thunderEffect?.stop(),
-      fog: (on: boolean) => on ? this.fogEffect?.start() : this.fogEffect?.stop(),
+      fog: (on: boolean) => (on ? this.fogEffect?.start() : this.fogEffect?.stop()),
       fogDensity: (v: number) => this.fogEffect?.setDensity(v),
       fogColor: (r: number, g: number, b: number) => this.fogEffect?.setColor(r, g, b),
       lightMist: () => this.fogEffect?.lightMist(),
@@ -725,7 +734,7 @@ export abstract class EngineScene {
       calmBreeze: () => this.windSystem?.calmBreeze(),
       moderateWind: () => this.windSystem?.moderateWind(),
       stormWind: () => this.windSystem?.stormWind(),
-      debris: (type: 'leaves' | 'trash' | 'dust' | 'mixed' | false) => {
+      debris: (type: "leaves" | "trash" | "dust" | "mixed" | false) => {
         if (type && this.isIndoorMap) {
           console.log("[Weather] Cannot start debris - indoor map");
           return;
@@ -734,16 +743,25 @@ export abstract class EngineScene {
           this.debrisEffect?.stop();
         } else {
           switch (type) {
-            case 'leaves': this.debrisEffect?.startLeaves(); break;
-            case 'trash': this.debrisEffect?.startTrash(); break;
-            case 'dust': this.debrisEffect?.startDust(); break;
-            case 'mixed': this.debrisEffect?.startMixed(); break;
+            case "leaves":
+              this.debrisEffect?.startLeaves();
+              break;
+            case "trash":
+              this.debrisEffect?.startTrash();
+              break;
+            case "dust":
+              this.debrisEffect?.startDust();
+              break;
+            case "mixed":
+              this.debrisEffect?.startMixed();
+              break;
           }
         }
       },
       debrisDensity: (v: number) => this.debrisEffect?.updateSettings({ density: v }),
       debrisSize: (v: number) => this.debrisEffect?.updateSettings({ size: v }),
-      debrisSpeed: (min: number, max: number) => this.debrisEffect?.updateSettings({ emitPowerMin: min, emitPowerMax: max }),
+      debrisSpeed: (min: number, max: number) =>
+        this.debrisEffect?.updateSettings({ emitPowerMin: min, emitPowerMax: max }),
       debrisGravity: (v: number) => this.debrisEffect?.updateSettings({ gravity: v }),
       debrisSpin: (v: number) => this.debrisEffect?.updateSettings({ spinSpeed: v }),
       debrisLifetime: (v: number) => this.debrisEffect?.updateSettings({ lifetime: v }),
@@ -767,7 +785,9 @@ export abstract class EngineScene {
 
     console.log("Debug: Use 'loadMap(name)', 'setZoom(value)' in console.");
     console.log("FX commands: fx.bloom(true), fx.bloomIntensity(0.5), fx.vignette(true), fx.ssao(true)");
-    console.log("Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.wind(true)");
+    console.log(
+      "Weather: weather.rain(true), weather.snow(true), weather.thunder(), weather.fog(true), weather.wind(true)",
+    );
   }
 
   public getScene(): Scene | null {

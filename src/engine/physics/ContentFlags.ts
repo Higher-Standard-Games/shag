@@ -1,65 +1,65 @@
 /**
  * Q3/Warsow BSP Content and Surface Flags
- * 
+ *
  * These flags determine collision behavior for brushes.
  * Stored in texture.contentFlags for each brush.
  */
 
 /** Content flags - what type of volume this brush represents */
-export const enum ContentFlags {
-  SOLID       = 0x1,        // Completely solid - blocks everything
-  LAVA        = 0x8,        // Lava volume (damage + blocks)
-  SLIME       = 0x10,       // Slime volume (damage + blocks)
-  WATER       = 0x20,       // Water volume (swimming)
-  FOG         = 0x40,       // Fog volume (visual only)
-  AREAPORTAL  = 0x8000,     // Area portal
-  PLAYERCLIP  = 0x10000,    // Blocks players only (invisible)
-  MONSTERCLIP = 0x20000,    // Blocks monsters/NPCs only
-  ORIGIN      = 0x1000000,  // Origin brush (removed at compile)
-  DETAIL      = 0x8000000,  // Detail brush - NO collision
-  STRUCTURAL  = 0x10000000, // Structural brush
+export enum ContentFlags {
+  SOLID = 0x1, // Completely solid - blocks everything
+  LAVA = 0x8, // Lava volume (damage + blocks)
+  SLIME = 0x10, // Slime volume (damage + blocks)
+  WATER = 0x20, // Water volume (swimming)
+  FOG = 0x40, // Fog volume (visual only)
+  AREAPORTAL = 0x8000, // Area portal
+  PLAYERCLIP = 0x10000, // Blocks players only (invisible)
+  MONSTERCLIP = 0x20000, // Blocks monsters/NPCs only
+  ORIGIN = 0x1000000, // Origin brush (removed at compile)
+  DETAIL = 0x8000000, // Detail brush - NO collision
+  STRUCTURAL = 0x10000000, // Structural brush
   TRANSLUCENT = 0x20000000, // Translucent (doesn't block vis)
-  TRIGGER     = 0x40000000, // Trigger volume
-  NODROP      = 0x80000000, // Don't drop items here
+  TRIGGER = 0x40000000, // Trigger volume
+  NODROP = 0x80000000, // Don't drop items here
 }
 
 /** Surface flags - properties of brush faces */
-export const enum SurfaceFlags {
-  NODAMAGE    = 0x1,        // No fall damage
-  SLICK       = 0x2,        // Slippery surface
-  SKY         = 0x4,        // Sky surface
-  LADDER      = 0x8,        // Climbable
-  NOIMPACT    = 0x10,       // No impact effects
-  NOMARKS     = 0x20,       // No decals/marks
-  FLESH       = 0x40,       // Flesh sounds
-  NODRAW      = 0x80,       // Don't draw (invisible)
-  HINT        = 0x100,      // Hint brush
-  SKIP        = 0x200,      // Skip brush
-  NOLIGHTMAP  = 0x400,      // No lightmap
-  POINTLIGHT  = 0x800,      // Point light
-  METALSTEPS  = 0x1000,     // Metal footsteps
-  NOSTEPS     = 0x2000,     // No footsteps
-  NONSOLID    = 0x4000,     // Not solid (explicitly)
-  LIGHTFILTER = 0x8000,     // Light filter
-  ALPHASHADOW = 0x10000,    // Alpha shadow
-  NODLIGHT    = 0x20000,    // No dynamic light
-  DUST        = 0x40000,    // Dust particles on impact
+export enum SurfaceFlags {
+  NODAMAGE = 0x1, // No fall damage
+  SLICK = 0x2, // Slippery surface
+  SKY = 0x4, // Sky surface
+  LADDER = 0x8, // Climbable
+  NOIMPACT = 0x10, // No impact effects
+  NOMARKS = 0x20, // No decals/marks
+  FLESH = 0x40, // Flesh sounds
+  NODRAW = 0x80, // Don't draw (invisible)
+  HINT = 0x100, // Hint brush
+  SKIP = 0x200, // Skip brush
+  NOLIGHTMAP = 0x400, // No lightmap
+  POINTLIGHT = 0x800, // Point light
+  METALSTEPS = 0x1000, // Metal footsteps
+  NOSTEPS = 0x2000, // No footsteps
+  NONSOLID = 0x4000, // Not solid (explicitly)
+  LIGHTFILTER = 0x8000, // Light filter
+  ALPHASHADOW = 0x10000, // Alpha shadow
+  NODLIGHT = 0x20000, // No dynamic light
+  DUST = 0x40000, // Dust particles on impact
 }
 
 /** Collision masks - combinations of content flags */
 export const CollisionMasks = {
   /** What blocks player movement */
   PLAYERSOLID: ContentFlags.SOLID | ContentFlags.PLAYERCLIP,
-  
+
   /** What blocks all entities */
   ALL: ContentFlags.SOLID | ContentFlags.PLAYERCLIP | ContentFlags.MONSTERCLIP,
-  
+
   /** What blocks shots/projectiles */
   SHOT: ContentFlags.SOLID,
-  
+
   /** Water volumes */
   WATER: ContentFlags.WATER | ContentFlags.LAVA | ContentFlags.SLIME,
-  
+
   /** Opaque to visibility */
   OPAQUE: ContentFlags.SOLID,
 } as const;

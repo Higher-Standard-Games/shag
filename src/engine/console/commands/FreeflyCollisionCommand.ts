@@ -2,14 +2,14 @@
  * FreeflyCollisionCommand - Freefly camera collision control and debugging
  */
 
-import { Command, CommandDef } from '../Command';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import type { Scene } from '@babylonjs/core/scene';
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Scene } from "@babylonjs/core/scene";
+import { Command, type CommandDef } from "../Command";
 
 // Visualization state
 let collisionVizMeshes: Mesh[] = [];
@@ -17,16 +17,16 @@ let clipBrushVizMeshes: Mesh[] = [];
 
 export class FreeflyCollisionCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'freefly_collision',
-    description: 'Freefly camera collision control',
-    usage: 'freefly_collision <0|1|mode|test|draw|clear|clipviz|clipdump|cliptrace>',
+    name: "freefly_collision",
+    description: "Freefly camera collision control",
+    usage: "freefly_collision <0|1|mode|test|draw|clear|clipviz|clipdump|cliptrace>",
   };
 
   async execute(args: string[]): Promise<string> {
-    const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
-    const { getCollisionManager } = await import('../../physics');
-    const { CameraSystem } = await import('../../camera/CameraSystem');
-    
+    const { FreeflyController } = await import("../../camera/controllers/FreeflyController");
+    const { getCollisionManager } = await import("../../physics");
+    const { CameraSystem } = await import("../../camera/CameraSystem");
+
     const cm = getCollisionManager();
     const isInit = cm.isInitialized();
     const stats = isInit ? cm.getStats() : null;
@@ -38,18 +38,19 @@ export class FreeflyCollisionCommand extends Command {
     if (value === undefined) {
       const enabled = FreeflyController.isCollisionEnabled();
       const mode = FreeflyController.getCollisionMode();
-      const status = mode === 'native' 
-        ? 'Mode: native (Babylon mesh collision)'
-        : (isInit 
-          ? `Mode: bsp, Backend: ${cm.getBackendType()} (${planeCount} planes)` 
-          : 'Mode: bsp, WARNING: Collision not initialized (load a map first)');
-      return `freefly_collision = ${enabled ? '1' : '0'}\n${status}`;
+      const status =
+        mode === "native"
+          ? "Mode: native (Babylon mesh collision)"
+          : isInit
+            ? `Mode: bsp, Backend: ${cm.getBackendType()} (${planeCount} planes)`
+            : "Mode: bsp, WARNING: Collision not initialized (load a map first)";
+      return `freefly_collision = ${enabled ? "1" : "0"}\n${status}`;
     }
 
     // Mode subcommand
-    if (value === 'mode') {
+    if (value === "mode") {
       const newMode = args[1]?.toLowerCase();
-      if (newMode === 'native' || newMode === 'bsp') {
+      if (newMode === "native" || newMode === "bsp") {
         FreeflyController.setCollisionMode(newMode);
         return `Collision mode set to: ${newMode}`;
       }
@@ -58,56 +59,68 @@ export class FreeflyCollisionCommand extends Command {
     }
 
     // Test subcommand
-    if (value === 'test') {
+    if (value === "test") {
       const cameraSystem = CameraSystem.getInstance();
       const camera = cameraSystem.getCamera();
-      if (!camera) return 'No camera available';
-      
+      if (!camera) return "No camera available";
+
       const pos = camera.position;
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = pos.add(forward.scale(100));
-      
+
       const result = cm.trace(pos as never, end as never, { debug: true });
-      
+
       return [
         `=== Collision Test from Camera ===`,
         `Instance: ${cm.getInstanceId()}`,
         `Backend: ${cm.getBackendType()}`,
         `Camera: (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`,
         `Forward 100 units: fraction=${result.fraction.toFixed(3)}`,
-        result.fraction < 1.0 ? `HIT at ${(result.fraction * 100).toFixed(1)} units` : 'NO HIT',
-        result.normal ? `Normal: (${result.normal.x.toFixed(2)}, ${result.normal.y.toFixed(2)}, ${result.normal.z.toFixed(2)})` : '',
-      ].filter(Boolean).join('\n');
+        result.fraction < 1.0 ? `HIT at ${(result.fraction * 100).toFixed(1)} units` : "NO HIT",
+        result.normal
+          ? `Normal: (${result.normal.x.toFixed(2)}, ${result.normal.y.toFixed(2)}, ${result.normal.z.toFixed(2)})`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
     }
 
     // Clear subcommand
-    if (value === 'clear') {
+    if (value === "clear") {
       const disposed = collisionVizMeshes.length + clipBrushVizMeshes.length;
       for (const m of collisionVizMeshes) {
-        try { m.dispose(false, true); } catch { /* ignore */ }
+        try {
+          m.dispose(false, true);
+        } catch {
+          /* ignore */
+        }
       }
       collisionVizMeshes = [];
       for (const m of clipBrushVizMeshes) {
-        try { m.dispose(false, true); } catch { /* ignore */ }
+        try {
+          m.dispose(false, true);
+        } catch {
+          /* ignore */
+        }
       }
       clipBrushVizMeshes = [];
       return `Collision viz cleared (${disposed} meshes)`;
     }
 
     // Draw subcommand
-    if (value === 'draw') {
+    if (value === "draw") {
       const cameraSystem = CameraSystem.getInstance();
       const camera = cameraSystem.getCamera();
       const scene = camera?.getScene?.();
-      if (!camera || !scene) return 'No active camera/scene available';
-      if (!cm.isInitialized()) return 'Collision not initialized (load a map first)';
+      if (!camera || !scene) return "No active camera/scene available";
+      if (!cm.isInitialized()) return "Collision not initialized (load a map first)";
 
-      const dist = Number(args[1] ?? '200');
-      const normalLen = Number(args[2] ?? '32');
-      const radius = Number(args[3] ?? '16');
-      const height = Number(args[4] ?? '56');
+      const dist = Number(args[1] ?? "200");
+      const normalLen = Number(args[2] ?? "32");
+      const radius = Number(args[3] ?? "16");
+      const height = Number(args[4] ?? "56");
       if (!Number.isFinite(dist) || dist <= 0) {
-        return 'Usage: freefly_collision draw [dist] [normalLen] [radius] [height]';
+        return "Usage: freefly_collision draw [dist] [normalLen] [radius] [height]";
       }
 
       const start = camera.position.clone();
@@ -123,14 +136,22 @@ export class FreeflyCollisionCommand extends Command {
 
       // Trace segment
       const segColor = hit ? Color3.Yellow() : Color3.Green();
-      const traceLine = MeshBuilder.CreateLines('collision_trace', { points: [start, hitPos], updatable: false }, scene);
+      const traceLine = MeshBuilder.CreateLines(
+        "collision_trace",
+        { points: [start, hitPos], updatable: false },
+        scene,
+      );
       traceLine.color = segColor;
       traceLine.isPickable = false;
       collisionVizMeshes.push(traceLine);
 
       // Remaining segment
       if (hit) {
-        const restLine = MeshBuilder.CreateLines('collision_trace_rest', { points: [hitPos, end], updatable: false }, scene);
+        const restLine = MeshBuilder.CreateLines(
+          "collision_trace_rest",
+          { points: [hitPos, end], updatable: false },
+          scene,
+        );
         restLine.color = Color3.Red();
         restLine.isPickable = false;
         collisionVizMeshes.push(restLine);
@@ -141,38 +162,44 @@ export class FreeflyCollisionCommand extends Command {
         const n = trace.normal as any;
         const normal = new Vector3(n.x, n.y, n.z);
         const normalEnd = hitPos.add(normal.scale(normalLen));
-        const normalLine = MeshBuilder.CreateLines('collision_normal', { points: [hitPos, normalEnd], updatable: false }, scene);
+        const normalLine = MeshBuilder.CreateLines(
+          "collision_normal",
+          { points: [hitPos, normalEnd], updatable: false },
+          scene,
+        );
         normalLine.color = new Color3(0, 1, 1);
         normalLine.isPickable = false;
         collisionVizMeshes.push(normalLine);
       }
 
       return [
-        '=== Collision Viz ===',
+        "=== Collision Viz ===",
         `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
         `End:   (${end.x.toFixed(1)}, ${end.y.toFixed(1)}, ${end.z.toFixed(1)})`,
         `Hull: radius=${Number.isFinite(radius) ? radius : 16}, height=${Number.isFinite(height) ? height : 56}`,
-        `Hit: ${hit ? 'YES' : 'NO'} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
+        `Hit: ${hit ? "YES" : "NO"} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
         hit && trace.normal
           ? `Normal: (${(trace.normal as any).x.toFixed(3)}, ${(trace.normal as any).y.toFixed(3)}, ${(trace.normal as any).z.toFixed(3)})`
-          : '',
-        'Use: freefly_collision clear',
-      ].filter(Boolean).join('\n');
+          : "",
+        "Use: freefly_collision clear",
+      ]
+        .filter(Boolean)
+        .join("\n");
     }
 
     // Cliptrace subcommand
-    if (value === 'cliptrace') {
+    if (value === "cliptrace") {
       const cameraSystem = CameraSystem.getInstance();
       const camera = cameraSystem.getCamera();
-      if (!camera) return 'No camera available';
-      if (!cm.isInitialized()) return 'Collision not initialized (load a map first)';
+      if (!camera) return "No camera available";
+      if (!cm.isInitialized()) return "Collision not initialized (load a map first)";
 
-      const dist = Number(args[1] ?? '200');
-      const radius = Number(args[2] ?? '16');
-      const height = Number(args[3] ?? '56');
-      const debug = (args[4] ?? '').toLowerCase() === 'debug';
+      const dist = Number(args[1] ?? "200");
+      const radius = Number(args[2] ?? "16");
+      const height = Number(args[3] ?? "56");
+      const debug = (args[4] ?? "").toLowerCase() === "debug";
       if (!Number.isFinite(dist) || dist <= 0) {
-        return 'Usage: freefly_collision cliptrace [dist] [radius] [height] [debug]';
+        return "Usage: freefly_collision cliptrace [dist] [radius] [height] [debug]";
       }
 
       const ellipsoidOffset = (camera as any).ellipsoidOffset ? (camera as any).ellipsoidOffset : Vector3.Zero();
@@ -180,72 +207,78 @@ export class FreeflyCollisionCommand extends Command {
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       const end = start.add(forward.scale(dist));
 
-      const trace = cm.trace(start as never, end as never, {
-        radius: Number.isFinite(radius) ? radius : 16,
-        height: Number.isFinite(height) ? height : 56,
-        clipTexturesOnly: true,
-        contentMask: 0x1 | 0x10000,
-        debug,
-      } as any);
+      const trace = cm.trace(
+        start as never,
+        end as never,
+        {
+          radius: Number.isFinite(radius) ? radius : 16,
+          height: Number.isFinite(height) ? height : 56,
+          clipTexturesOnly: true,
+          contentMask: 0x1 | 0x10000,
+          debug,
+        } as any,
+      );
 
       const hit = trace.fraction < 1.0;
       const hitBrushIndex = (trace as any).hitBrushIndex;
       const hitTextureName = (trace as any).hitTextureName;
       return [
-        '=== Clip Trace ===',
+        "=== Clip Trace ===",
         `Start: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)})`,
         `End:   (${end.x.toFixed(1)}, ${end.y.toFixed(1)}, ${end.z.toFixed(1)})`,
         `Hull: radius=${Number.isFinite(radius) ? radius : 16}, height=${Number.isFinite(height) ? height : 56}`,
-        `Hit: ${hit ? 'YES' : 'NO'} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
-        hit ? `Brush: ${hitBrushIndex} Tex: ${hitTextureName}` : '',
-      ].filter(Boolean).join('\n');
+        `Hit: ${hit ? "YES" : "NO"} frac=${trace.fraction.toFixed(4)} startSolid=${trace.startSolid}`,
+        hit ? `Brush: ${hitBrushIndex} Tex: ${hitTextureName}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
     }
 
     // Clipdump subcommand
-    if (value === 'clipdump') {
+    if (value === "clipdump") {
       return this.handleClipdump(args);
     }
 
     // Clipviz subcommand
-    if (value === 'clipviz') {
+    if (value === "clipviz") {
       return this.handleClipviz(args);
     }
 
     // Parse value as boolean
-    const enabled = value === '1' || value === 'true' || value === 'on';
+    const enabled = value === "1" || value === "true" || value === "on";
     FreeflyController.setCollisionEnabled(enabled);
     (FreeflyController as any)._loggedState = false;
 
-    const backendInfo = isInit 
-      ? `Backend: ${cm.getBackendType()} (${planeCount} planes), Instance: ${cm.getInstanceId()}` 
-      : 'WARNING: Collision not initialized (load a map first)';
+    const backendInfo = isInit
+      ? `Backend: ${cm.getBackendType()} (${planeCount} planes), Instance: ${cm.getInstanceId()}`
+      : "WARNING: Collision not initialized (load a map first)";
 
-    return `freefly_collision = ${enabled ? '1' : '0'}\n${backendInfo}`;
+    return `freefly_collision = ${enabled ? "1" : "0"}\n${backendInfo}`;
   }
 
   private async handleClipdump(args: string[]): Promise<string> {
-    const { MapLoader } = await import('../../loader/map/MapLoader');
-    const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
-    
+    const { MapLoader } = await import("../../loader/map/MapLoader");
+    const { FreeflyController } = await import("../../camera/controllers/FreeflyController");
+
     const mapLoader = MapLoader.getInstance();
     const bsp = mapLoader.getCurrentBsp();
-    if (!bsp) return 'No BSP loaded (load a map first)';
+    if (!bsp) return "No BSP loaded (load a map first)";
 
     const mode = args[1]?.toLowerCase();
     let brushIndex: number | null = null;
-    if (mode === 'last') {
+    if (mode === "last") {
       brushIndex = FreeflyController.getLastClipHitBrushIndex();
-      if (brushIndex === null) return 'No last clip hit recorded yet';
-    } else if (mode === 'brush') {
+      if (brushIndex === null) return "No last clip hit recorded yet";
+    } else if (mode === "brush") {
       const idx = Number(args[2]);
-      if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipdump brush <index>';
+      if (!Number.isFinite(idx)) return "Usage: freefly_collision clipdump brush <index>";
       brushIndex = idx;
     } else if (args[1] !== undefined) {
       const idx = Number(args[1]);
-      if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipdump <index> | last | brush <index>';
+      if (!Number.isFinite(idx)) return "Usage: freefly_collision clipdump <index> | last | brush <index>";
       brushIndex = idx;
     } else {
-      return 'Usage: freefly_collision clipdump <index> | last | brush <index>';
+      return "Usage: freefly_collision clipdump <index> | last | brush <index>";
     }
 
     const brush = bsp.brushes[brushIndex];
@@ -254,22 +287,22 @@ export class FreeflyCollisionCommand extends Command {
     const texByBrush = bsp.textures[brush.shaderIndex];
     const texBySide = side0 ? bsp.textures[side0.shaderIndex] : undefined;
     const tex = texByBrush ?? texBySide;
-    const texName = tex?.name ?? '<none>';
+    const texName = tex?.name ?? "<none>";
     const contentFlags = tex?.contentFlags ?? 0;
     const surfaceFlags = tex?.surfaceFlags ?? 0;
 
     const lines: string[] = [];
-    lines.push('=== Clip Brush Dump ===');
+    lines.push("=== Clip Brush Dump ===");
     lines.push(`Brush: ${brushIndex}`);
     lines.push(`Texture: ${texName}`);
     lines.push(`contentFlags: 0x${contentFlags.toString(16)}`);
     lines.push(`surfaceFlags: 0x${surfaceFlags.toString(16)}`);
     lines.push(`shaderIndex: brush=${brush.shaderIndex} side0=${side0?.shaderIndex ?? -1}`);
     lines.push(`firstSide: ${brush.firstSide} numSides: ${brush.numSides}`);
-    lines.push(`Format: ${bsp.header.isFBSP ? 'FBSP' : 'IBSP'}`);
+    lines.push(`Format: ${bsp.header.isFBSP ? "FBSP" : "IBSP"}`);
 
     if (brush.numSides < 4) {
-      lines.push('WARNING: numSides < 4 => not a closed convex volume');
+      lines.push("WARNING: numSides < 4 => not a closed convex volume");
     }
 
     const dupPlanes = new Map<number, number>();
@@ -286,39 +319,51 @@ export class FreeflyCollisionCommand extends Command {
         continue;
       }
       const n = plane.normal;
-      lines.push(`Side ${si}: plane=${side.planeIndex} n=(${n[0].toFixed(4)}, ${n[1].toFixed(4)}, ${n[2].toFixed(4)}) dist=${plane.dist.toFixed(4)}`);
+      lines.push(
+        `Side ${si}: plane=${side.planeIndex} n=(${n[0].toFixed(4)}, ${n[1].toFixed(4)}, ${n[2].toFixed(4)}) dist=${plane.dist.toFixed(4)}`,
+      );
     }
 
     const dupList = Array.from(dupPlanes.entries()).filter(([, c]) => c > 1);
     if (dupList.length > 0) {
-      lines.push('Duplicate plane indices:');
+      lines.push("Duplicate plane indices:");
       for (const [pi, c] of dupList) {
         lines.push(`  plane ${pi}: ${c}x`);
       }
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private async handleClipviz(args: string[]): Promise<string> {
-    const { CameraSystem } = await import('../../camera/CameraSystem');
-    const { MapLoader } = await import('../../loader/map/MapLoader');
-    const { FreeflyController } = await import('../../camera/controllers/FreeflyController');
-    
+    const { CameraSystem } = await import("../../camera/CameraSystem");
+    const { MapLoader } = await import("../../loader/map/MapLoader");
+    const { FreeflyController } = await import("../../camera/controllers/FreeflyController");
+
     const cameraSystem = CameraSystem.getInstance();
     const camera = cameraSystem.getCamera();
     const scene = camera?.getScene?.() as Scene | undefined;
-    if (!camera || !scene) return 'No active camera/scene available';
+    if (!camera || !scene) return "No active camera/scene available";
 
     const rawMode = args[1]?.toLowerCase();
     const numericModeVal = Number(args[1]);
-    const numericMode = args[1] !== undefined && Number.isFinite(numericModeVal) && rawMode !== 'off' && rawMode !== 'clear' && rawMode !== 'last' && rawMode !== 'brush';
+    const numericMode =
+      args[1] !== undefined &&
+      Number.isFinite(numericModeVal) &&
+      rawMode !== "off" &&
+      rawMode !== "clear" &&
+      rawMode !== "last" &&
+      rawMode !== "brush";
     const mode = numericMode ? undefined : rawMode;
-    
-    if (mode === 'off' || mode === 'clear') {
+
+    if (mode === "off" || mode === "clear") {
       const disposed = clipBrushVizMeshes.length;
       for (const m of clipBrushVizMeshes) {
-        try { m.dispose(false, true); } catch { /* ignore */ }
+        try {
+          m.dispose(false, true);
+        } catch {
+          /* ignore */
+        }
       }
       clipBrushVizMeshes = [];
       return `Clip viz cleared (${disposed} meshes)`;
@@ -326,25 +371,29 @@ export class FreeflyCollisionCommand extends Command {
 
     const mapLoader = MapLoader.getInstance();
     const bsp = mapLoader.getCurrentBsp();
-    if (!bsp) return 'No BSP loaded (load a map first)';
+    if (!bsp) return "No BSP loaded (load a map first)";
 
     // Clear existing viz
     for (const m of clipBrushVizMeshes) {
-      try { m.dispose(false, true); } catch { /* ignore */ }
+      try {
+        m.dispose(false, true);
+      } catch {
+        /* ignore */
+      }
     }
     clipBrushVizMeshes = [];
 
     let targetBrushIndex: number | null = null;
-    if (mode === 'last') {
+    if (mode === "last") {
       targetBrushIndex = FreeflyController.getLastClipHitBrushIndex();
-      if (targetBrushIndex === null) return 'No last clip hit recorded yet';
-    } else if (mode === 'brush') {
+      if (targetBrushIndex === null) return "No last clip hit recorded yet";
+    } else if (mode === "brush") {
       const idx = Number(args[2]);
-      if (!Number.isFinite(idx)) return 'Usage: freefly_collision clipviz brush <index>';
+      if (!Number.isFinite(idx)) return "Usage: freefly_collision clipviz brush <index>";
       targetBrushIndex = idx;
     }
 
-    const max = targetBrushIndex !== null ? 1 : (numericMode ? numericModeVal : Infinity);
+    const max = targetBrushIndex !== null ? 1 : numericMode ? numericModeVal : Infinity;
     let created = 0;
     let skipped = 0;
 
@@ -370,22 +419,24 @@ export class FreeflyCollisionCommand extends Command {
       const firstSide = bsp.brushSides[brush.firstSide];
       const texBySide = firstSide ? bsp.textures[firstSide.shaderIndex] : undefined;
       const tex = texByBrush ?? texBySide;
-      const texName = tex?.name?.toLowerCase() || '';
-      
+      const texName = tex?.name?.toLowerCase() || "";
+
       // Debug: log any texture containing 'clip' or 'caulk'
-      if (clipLikeCount < 10 && (texName.includes('clip') || texName.includes('caulk'))) {
+      if (clipLikeCount < 10 && (texName.includes("clip") || texName.includes("caulk"))) {
         console.log(`[clipviz] Found clip-like brush ${bi}: "${texName}"`);
         clipLikeCount++;
       }
-      
-      const isFullclip = texName === 'textures/common/fullclip' || texName === 'common/fullclip';
-      const isPlayerclip = texName === 'textures/common/playerclip' || texName === 'common/playerclip';
-      
+
+      const isFullclip = texName === "textures/common/fullclip" || texName === "common/fullclip";
+      const isPlayerclip = texName === "textures/common/playerclip" || texName === "common/playerclip";
+
       if (debugCount < 3 && (isFullclip || isPlayerclip)) {
-        console.log(`[clipviz] Matched brush ${bi}: tex="${texName}" fullclip=${isFullclip} playerclip=${isPlayerclip}`);
+        console.log(
+          `[clipviz] Matched brush ${bi}: tex="${texName}" fullclip=${isFullclip} playerclip=${isPlayerclip}`,
+        );
         debugCount++;
       }
-      
+
       if (!isFullclip && !isPlayerclip) continue;
 
       const meshData = this.buildClipBrushMesh(bsp, brush, oobMin, oobMax);
@@ -396,12 +447,12 @@ export class FreeflyCollisionCommand extends Command {
         skipped++;
         continue;
       }
-      
+
       if (debugCount <= 3) {
         console.log(`[clipviz] Brush ${bi}: creating mesh with ${meshData.positions.length / 3} vertices`);
       }
 
-      const mesh = new Mesh(`clipviz_${isFullclip ? 'fullclip' : 'playerclip'}_${bi}`, scene);
+      const mesh = new Mesh(`clipviz_${isFullclip ? "fullclip" : "playerclip"}_${bi}`, scene);
       const vd = new VertexData();
       vd.positions = meshData.positions;
       vd.indices = meshData.indices;
@@ -426,15 +477,22 @@ export class FreeflyCollisionCommand extends Command {
     }
 
     return [
-      '=== Clip Brush Viz ===',
-      targetBrushIndex !== null ? `Brush: ${targetBrushIndex}` : '',
+      "=== Clip Brush Viz ===",
+      targetBrushIndex !== null ? `Brush: ${targetBrushIndex}` : "",
       `Meshes: ${created} (skipped: ${skipped})`,
-      'Colors: fullclip=red, playerclip=green',
-      'Use: freefly_collision clipviz clear',
-    ].filter(Boolean).join('\n');
+      "Colors: fullclip=red, playerclip=green",
+      "Use: freefly_collision clipviz clear",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
-  private buildClipBrushMesh(bsp: any, brush: any, oobMin: Vector3, oobMax: Vector3): { positions: number[]; indices: number[]; normals: number[] } | null {
+  private buildClipBrushMesh(
+    bsp: any,
+    brush: any,
+    oobMin: Vector3,
+    oobMax: Vector3,
+  ): { positions: number[]; indices: number[]; normals: number[] } | null {
     type PlaneEq = { n: Vector3; d: number; dist: number };
     const planes: PlaneEq[] = [];
 
@@ -465,7 +523,10 @@ export class FreeflyCollisionCommand extends Command {
       const c23 = Vector3.Cross(p2.n, p3.n).scale(-p1.d);
       const c31 = Vector3.Cross(p3.n, p1.n).scale(-p2.d);
       const c12 = Vector3.Cross(p1.n, p2.n).scale(-p3.d);
-      return c23.add(c31).add(c12).scale(1 / det);
+      return c23
+        .add(c31)
+        .add(c12)
+        .scale(1 / det);
     };
 
     const outsideMetric = (pl: PlaneEq, p: Vector3): number => {
@@ -480,9 +541,9 @@ export class FreeflyCollisionCommand extends Command {
     };
 
     const isWithinWorld = (p: Vector3): boolean => {
-      return p.x >= oobMin.x && p.x <= oobMax.x &&
-             p.y >= oobMin.y && p.y <= oobMax.y &&
-             p.z >= oobMin.z && p.z <= oobMax.z;
+      return (
+        p.x >= oobMin.x && p.x <= oobMax.x && p.y >= oobMin.y && p.y <= oobMax.y && p.z >= oobMin.z && p.z <= oobMax.z
+      );
     };
 
     const uniqueVerts: Vector3[] = [];
@@ -492,7 +553,7 @@ export class FreeflyCollisionCommand extends Command {
           const p = intersect3(planes[i], planes[j], planes[k]);
           if (!p) continue;
           if (!isInside(p)) continue;
-          if (!uniqueVerts.some(v => Vector3.DistanceSquared(v, p) < epsDedupSq)) {
+          if (!uniqueVerts.some((v) => Vector3.DistanceSquared(v, p) < epsDedupSq)) {
             uniqueVerts.push(p);
           }
         }
@@ -503,9 +564,11 @@ export class FreeflyCollisionCommand extends Command {
       console.log(`[clipviz] Brush mesh build failed: only ${uniqueVerts.length} vertices (need 4+)`);
       return null;
     }
-    const oobVerts = uniqueVerts.filter(v => !isWithinWorld(v));
+    const oobVerts = uniqueVerts.filter((v) => !isWithinWorld(v));
     if (oobVerts.length > 0) {
-      console.log(`[clipviz] Brush mesh build failed: ${oobVerts.length}/${uniqueVerts.length} vertices OOB. World bounds: (${oobMin.x.toFixed(0)},${oobMin.y.toFixed(0)},${oobMin.z.toFixed(0)}) to (${oobMax.x.toFixed(0)},${oobMax.y.toFixed(0)},${oobMax.z.toFixed(0)}). First OOB vert: (${oobVerts[0].x.toFixed(0)},${oobVerts[0].y.toFixed(0)},${oobVerts[0].z.toFixed(0)})`);
+      console.log(
+        `[clipviz] Brush mesh build failed: ${oobVerts.length}/${uniqueVerts.length} vertices OOB. World bounds: (${oobMin.x.toFixed(0)},${oobMin.y.toFixed(0)},${oobMin.z.toFixed(0)}) to (${oobMax.x.toFixed(0)},${oobMax.y.toFixed(0)},${oobMax.z.toFixed(0)}). First OOB vert: (${oobVerts[0].x.toFixed(0)},${oobVerts[0].y.toFixed(0)},${oobVerts[0].z.toFixed(0)})`,
+      );
       return null;
     }
 

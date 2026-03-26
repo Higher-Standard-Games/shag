@@ -1,27 +1,27 @@
 /**
  * CollisionManager - Manages swappable collision backends
- * 
+ *
  * Provides a unified API for collision detection that can switch
  * between different backend implementations at runtime.
- * 
+ *
  * Active backends:
  * - q3 (SweepCollisionBackend): Q3-style swept AABB collision — primary for FPS games
  * - babylon (BabylonPhysicsBackend): Babylon.js mesh raycasting — for simpler games
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Scene } from '@babylonjs/core/scene';
-import type { BspFile } from '../loader/bsp/BspLoader';
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
+import type { BspFile } from "../loader/bsp/BspLoader";
+import { BabylonPhysicsBackend } from "./BabylonPhysicsBackend";
 import {
-  CollisionBackend,
-  CollisionBackendType,
-  TraceResult,
-  TraceOptions,
-  CollisionStats,
+  type CollisionBackend,
+  type CollisionBackendType,
+  type CollisionStats,
   createDefaultTraceResult,
-} from './CollisionBackend';
-import { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
-import { SweepCollisionBackend } from './SweepCollisionBackend';
+  type TraceOptions,
+  type TraceResult,
+} from "./CollisionBackend";
+import { SweepCollisionBackend } from "./SweepCollisionBackend";
 
 /**
  * Singleton collision manager
@@ -40,9 +40,8 @@ export class CollisionManager {
 
   private constructor() {
     // Register available backends (q3 is primary for FPS, babylon for simpler games)
-    this.backends.set('q3', new SweepCollisionBackend());
-    this.backends.set('babylon', new BabylonPhysicsBackend());
-
+    this.backends.set("q3", new SweepCollisionBackend());
+    this.backends.set("babylon", new BabylonPhysicsBackend());
   }
 
   static getInstance(): CollisionManager {
@@ -56,7 +55,6 @@ export class CollisionManager {
    * Initialize collision with BSP data
    */
   async init(bsp: BspFile, scene?: Scene, preferredBackend?: CollisionBackendType): Promise<void> {
-
     this.bsp = bsp;
     this.scene = scene ?? null;
 
@@ -64,7 +62,6 @@ export class CollisionManager {
     for (const [type, backend] of this.backends) {
       try {
         await backend.init(bsp, scene);
-
       } catch (err) {
         console.warn(`[CollisionManager:${this.instanceId}] Failed to init ${type}:`, err);
       }
@@ -72,11 +69,10 @@ export class CollisionManager {
 
     // Set active backend - default to q3 sweep collision since AdvancedCharacterController
     // requires stepSlideMove which is only available in SweepCollisionBackend
-    const backendType = preferredBackend ?? 'q3';
+    const backendType = preferredBackend ?? "q3";
     this.setBackend(backendType);
 
     this.initialized = true;
-
   }
 
   /**
@@ -124,7 +120,11 @@ export class CollisionManager {
   /**
    * Perform a slide move
    */
-  slideMove(start: Vector3, velocity: Vector3, options?: TraceOptions): { endPos: Vector3; velocity: Vector3; hitCount: number } {
+  slideMove(
+    start: Vector3,
+    velocity: Vector3,
+    options?: TraceOptions,
+  ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
     if (!this.activeBackend) {
       return { endPos: start.add(velocity), velocity, hitCount: 0 };
     }
@@ -148,7 +148,11 @@ export class CollisionManager {
   /**
    * Find ground position below a point
    */
-  findGround(point: Vector3, maxDistance?: number, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
+  findGround(
+    point: Vector3,
+    maxDistance?: number,
+    options?: TraceOptions,
+  ): { position: Vector3; normal: Vector3 } | null {
     return this.activeBackend?.findGround(point, maxDistance, options) ?? null;
   }
 

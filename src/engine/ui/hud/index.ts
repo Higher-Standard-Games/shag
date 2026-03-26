@@ -2,32 +2,32 @@
  * HUD System - Public exports
  */
 
-export { HUDManager, HUD } from './HUDManager';
-export { HUDElement } from './HUDElement';
-export { HUDPill } from './components/HUDPill';
-export { HUDPillProgress } from './components/HUDPillProgress';
-export { HUDPillGroup } from './components/HUDPillGroup';
-export { HUDButton } from './components/HUDButton';
-export { HUDAccordion } from './components/HUDAccordion';
+export { HUDAccordion } from "./components/HUDAccordion";
+export { HUDButton } from "./components/HUDButton";
+export { HUDPill } from "./components/HUDPill";
+export { HUDPillGroup } from "./components/HUDPillGroup";
+export { HUDPillProgress } from "./components/HUDPillProgress";
+export { HUDElement } from "./HUDElement";
+export { HUD, HUDManager } from "./HUDManager";
 
 export type {
-  HUDConfig,
-  HUDSettings,
-  HUDLayoutConfig,
-  HUDPosition,
-  HUDElementConfig,
-  HUDPillConfig,
-  HUDPillProgressConfig,
-  HUDPillGroupConfig,
-  HUDButtonConfig,
   HUDAccordionConfig,
-  HUDListConfig,
+  HUDAnimationType,
+  HUDButtonConfig,
+  HUDClickHandler,
+  HUDConfig,
+  HUDElementConfig,
+  HUDFlashType,
   HUDItemTemplate,
+  HUDLayoutConfig,
+  HUDListBinding,
+  HUDListConfig,
+  HUDPillConfig,
+  HUDPillGroupConfig,
+  HUDPillProgressConfig,
+  HUDPosition,
+  HUDSettings,
   HUDTheme,
   HUDUserPrefs,
   HUDValueGetter,
-  HUDClickHandler,
-  HUDListBinding,
-  HUDFlashType,
-  HUDAnimationType,
-} from './HUDTypes';
+} from "./HUDTypes";

@@ -1,16 +1,16 @@
 /**
  * SpriteBuilding - Renders 2D sprite graphics as buildings/objects in the 3D world
- * 
+ *
  * Supports two rendering modes:
  * - Billboard mode: Sprite always faces the camera (ideal for 2D-style buildings)
  * - Fixed mode: Sprite has fixed rotation in world space (for geometric/decorative elements)
- * 
+ *
  * Features:
  * - Transparent PNG support with alpha
  * - Emissive glow for neon/light effects
  * - Optional trigger boxes for click interaction
  * - Optional collision boxes for physics/pathfinding
- * 
+ *
  * Usage in map files:
  * ```
  * {
@@ -28,7 +28,7 @@
  * "triggerDepth" "30"
  * }
  * ```
- * 
+ *
  * Day/Night Cycle:
  * - Sprites respond to scene lighting (sun, ambient)
  * - Use "emissive" to control how much the sprite glows in darkness
@@ -36,13 +36,13 @@
  * - High emissive (0.5+): Neon signs, lit windows stay bright
  */
 
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Scene } from "@babylonjs/core/scene";
 
 export interface SpriteBuildingConfig {
   /** Unique identifier */
@@ -72,7 +72,7 @@ export interface SpriteBuildingConfig {
   collision?: {
     size: Vector3;
   };
-  /** 
+  /**
    * Emissive intensity (0-1). Controls self-illumination/glow.
    * - 0 = fully affected by day/night cycle (dark at night)
    * - 0.2 = default, slight glow so visible at night
@@ -100,7 +100,7 @@ export class SpriteBuilding {
     this.mesh = MeshBuilder.CreatePlane(
       `sprite_building_${config.id}`,
       { width: config.width, height: config.height },
-      scene
+      scene,
     );
 
     // Position the sprite
@@ -120,19 +120,22 @@ export class SpriteBuilding {
 
     // Create material with texture
     this.material = new StandardMaterial(`sprite_mat_${config.id}`, scene);
-    
+
     // Ensure texture path starts with /
-    const texPath = config.texturePath.startsWith("/") 
-      ? config.texturePath 
-      : "/" + config.texturePath;
-    
+    const texPath = config.texturePath.startsWith("/") ? config.texturePath : `/${config.texturePath}`;
+
     // Load texture with alpha support
-    const texture = new Texture(texPath, scene, false, true, Texture.BILINEAR_SAMPLINGMODE, 
+    const texture = new Texture(
+      texPath,
+      scene,
+      false,
+      true,
+      Texture.BILINEAR_SAMPLINGMODE,
       () => this.material.markDirty(true), // Force update when loaded
-      (_msg, ex) => console.error(`SpriteBuilding: Failed to load texture ${texPath}`, ex)
+      (_msg, ex) => console.error(`SpriteBuilding: Failed to load texture ${texPath}`, ex),
     );
     texture.hasAlpha = true;
-    
+
     // Configure material for 2D sprite rendering
     // Use diffuse texture - the hemispheric light will tint it
     this.material.diffuseTexture = texture;
@@ -143,10 +146,9 @@ export class SpriteBuilding {
     this.material.backFaceCulling = false;
     this.material.transparencyMode = 1; // ALPHA_BLEND for smooth edges
     this.material.alpha = 1;
-    
+
     // No emissive - let scene lighting control the color
     this.material.emissiveColor = new Color3(0, 0, 0);
-    
 
     this.mesh.material = this.material;
 
@@ -181,7 +183,7 @@ export class SpriteBuilding {
         height: trigger.size.y,
         depth: trigger.size.z,
       },
-      this.scene
+      this.scene,
     );
 
     this.triggerMesh.position = this.config.position.clone();
@@ -208,7 +210,7 @@ export class SpriteBuilding {
         height: collision.size.y,
         depth: collision.size.z,
       },
-      this.scene
+      this.scene,
     );
 
     this.collisionMesh.position = this.config.position.clone();
@@ -341,7 +343,7 @@ export class SpriteBuildingManager {
       height: number;
       trigger?: SpriteBuildingConfig["trigger"];
       collision?: SpriteBuildingConfig["collision"];
-    }>
+    }>,
   ): SpriteBuilding[] {
     // For sprite sheets, we'd need custom UV mapping
     // For now, recommend cutting sprites into individual files

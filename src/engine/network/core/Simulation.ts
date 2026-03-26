@@ -25,8 +25,8 @@
  *    applies the player's input to their entity's components.
  */
 
-import type { GameState } from './GameState';
-import type { Command, CommandHandler } from './Command';
+import type { Command, CommandHandler } from "./Command";
+import type { GameState } from "./GameState";
 
 /**
  * Configuration for simulation
@@ -34,15 +34,15 @@ import type { Command, CommandHandler } from './Command';
 export interface SimulationConfig {
   /** Tick rate in Hz */
   tickRate: number;
-  
+
   /** Duration of each tick in milliseconds */
   tickDuration: number;
-  
+
   /** Maximum number of players */
   maxPlayers: number;
-  
+
   /** Game-specific rules */
-  gameRules: any;
+  gameRules: Record<string, unknown>;
 }
 
 /**
@@ -57,10 +57,7 @@ export abstract class GameSystem {
  * Abstract simulation base class.
  * Games extend this to create their game-specific simulation.
  */
-export abstract class Simulation<
-  TState extends GameState = GameState,
-  TCommand extends Command = Command
-> {
+export abstract class Simulation<TState extends GameState = GameState, TCommand extends Command = Command> {
   state: TState;
   currentTick: number = 0;
   protected config: SimulationConfig;

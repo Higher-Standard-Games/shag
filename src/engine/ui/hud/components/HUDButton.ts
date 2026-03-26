@@ -2,8 +2,8 @@
  * HUDButton - Icon button component
  */
 
-import { HUDElement } from '../HUDElement';
-import type { HUDButtonConfig } from '../HUDTypes';
+import { HUDElement } from "../HUDElement";
+import type { HUDButtonConfig } from "../HUDTypes";
 
 export class HUDButton extends HUDElement {
   protected config: HUDButtonConfig;
@@ -16,8 +16,8 @@ export class HUDButton extends HUDElement {
   }
 
   protected createElement(): HTMLElement {
-    const el = document.createElement('button');
-    el.className = 'hud-button';
+    const el = document.createElement("button");
+    el.className = "hud-button";
     el.id = `hud-${this.id}`;
 
     // Apply variant
@@ -26,9 +26,9 @@ export class HUDButton extends HUDElement {
     }
 
     // Icon
-    this.iconEl = document.createElement('span');
-    this.iconEl.className = 'hud-button-icon';
-    this.iconEl.textContent = this.config.icon || '';
+    this.iconEl = document.createElement("span");
+    this.iconEl.className = "hud-button-icon";
+    this.iconEl.textContent = this.config.icon || "";
     el.appendChild(this.iconEl);
 
     // Tooltip
@@ -41,11 +41,11 @@ export class HUDButton extends HUDElement {
 
   public setValue(value: any): void {
     // For buttons, value can be the icon or active state
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       this.iconEl.textContent = value;
-    } else if (typeof value === 'boolean') {
+    } else if (typeof value === "boolean") {
       this.setActive(value);
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (typeof value === "object" && value !== null) {
       if (value.icon) this.iconEl.textContent = value.icon;
       if (value.active !== undefined) this.setActive(value.active);
       if (value.state) this.setState(value.state);
@@ -57,7 +57,7 @@ export class HUDButton extends HUDElement {
    */
   public setActive(active: boolean): void {
     this.active = active;
-    this.element.classList.toggle('hud-button-active', active);
+    this.element.classList.toggle("hud-button-active", active);
   }
 
   /**
@@ -72,8 +72,8 @@ export class HUDButton extends HUDElement {
    */
   public setState(state: string): void {
     // Remove existing state classes
-    this.element.classList.remove('hud-button-fast', 'hud-button-debug', 'hud-button-active');
-    
+    this.element.classList.remove("hud-button-fast", "hud-button-debug", "hud-button-active");
+
     if (state) {
       this.element.classList.add(`hud-button-${state}`);
     }

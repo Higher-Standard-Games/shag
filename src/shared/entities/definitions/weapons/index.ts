@@ -2,14 +2,14 @@
  * Weapon Definitions - Barrel export
  */
 
-export { PLASMAGUN } from './plasmagun';
-export { GUNBLADE } from './gunblade';
-export { MACHINEGUN } from './machinegun';
-export { RIOTGUN } from './riotgun';
-export { GRENADE_LAUNCHER } from './glauncher';
-export { ROCKET_LAUNCHER } from './rlauncher';
-export { LASERGUN } from './lasergun';
-export { ELECTROBOLT } from './electrobolt';
-export { INSTAGUN } from './instagun';
-export { BLADE } from './blade';
-export { VOLTAIC } from './voltaic';
+export { BLADE } from "./blade";
+export { ELECTROBOLT } from "./electrobolt";
+export { GRENADE_LAUNCHER } from "./glauncher";
+export { GUNBLADE } from "./gunblade";
+export { INSTAGUN } from "./instagun";
+export { LASERGUN } from "./lasergun";
+export { MACHINEGUN } from "./machinegun";
+export { PLASMAGUN } from "./plasmagun";
+export { RIOTGUN } from "./riotgun";
+export { ROCKET_LAUNCHER } from "./rlauncher";
+export { VOLTAIC } from "./voltaic";

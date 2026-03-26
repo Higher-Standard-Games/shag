@@ -1,4 +1,4 @@
 /**
  * Shared Gametype Types
  */
-export * from './GametypeTypes';
+export * from "./GametypeTypes";

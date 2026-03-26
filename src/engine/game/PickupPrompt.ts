@@ -1,7 +1,7 @@
 /**
  * PickupPrompt — Shared HUD prompt for weapon pickup/swap.
  * Used by both Pickup (map-spawn) and DroppedWeaponRenderer (dropped weapons).
- * 
+ *
  * Only one prompt can be visible at a time (singleton element).
  * Callers set/clear via show()/hide() and track their own "isShowing" state.
  */
@@ -10,10 +10,10 @@ let promptElement: HTMLDivElement | null = null;
 let currentOwner: string | null = null; // Track which system owns the prompt
 
 function getOrCreateElement(): HTMLDivElement {
-    if (!promptElement) {
-        const el = document.createElement('div');
-        el.id = 'pickup-hud-prompt';
-        el.style.cssText = `
+  if (!promptElement) {
+    const el = document.createElement("div");
+    el.id = "pickup-hud-prompt";
+    el.style.cssText = `
             position: fixed;
             bottom: 25%;
             left: 50%;
@@ -35,10 +35,10 @@ function getOrCreateElement(): HTMLDivElement {
             transition: opacity 0.15s ease;
             display: none;
         `;
-        document.body.appendChild(el);
-        promptElement = el;
-    }
-    return promptElement;
+    document.body.appendChild(el);
+    promptElement = el;
+  }
+  return promptElement;
 }
 
 /**
@@ -47,11 +47,11 @@ function getOrCreateElement(): HTMLDivElement {
  * @param text - Prompt text to display
  */
 export function showPickupPrompt(owner: string, text: string): void {
-    const el = getOrCreateElement();
-    currentOwner = owner;
-    el.textContent = text;
-    el.style.opacity = '1';
-    el.style.display = 'block';
+  const el = getOrCreateElement();
+  currentOwner = owner;
+  el.textContent = text;
+  el.style.opacity = "1";
+  el.style.display = "block";
 }
 
 /**
@@ -59,14 +59,14 @@ export function showPickupPrompt(owner: string, text: string): void {
  * @param owner - Must match the owner that called show()
  */
 export function hidePickupPrompt(owner: string): void {
-    if (currentOwner !== owner) return; // Don't hide another system's prompt
-    currentOwner = null;
-    if (promptElement) {
-        promptElement.style.opacity = '0';
-        setTimeout(() => {
-            if (promptElement && !currentOwner) {
-                promptElement.style.display = 'none';
-            }
-        }, 150);
-    }
+  if (currentOwner !== owner) return; // Don't hide another system's prompt
+  currentOwner = null;
+  if (promptElement) {
+    promptElement.style.opacity = "0";
+    setTimeout(() => {
+      if (promptElement && !currentOwner) {
+        promptElement.style.display = "none";
+      }
+    }, 150);
+  }
 }

@@ -2,35 +2,35 @@
  * StatsCommand - Performance statistics
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class StatsCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'stats',
-    description: 'Performance statistics',
-    usage: 'stats [detailed]',
+    name: "stats",
+    description: "Performance statistics",
+    usage: "stats [detailed]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
-    const detailed = args[0] === 'detailed' || args[0] === 'full';
+  async execute(args: string[]): Promise<string | undefined> {
+    const detailed = args[0] === "detailed" || args[0] === "full";
 
     // Get scene
     let scene;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
     } catch {
-      return 'Scene not available';
+      return "Scene not available";
     }
 
     if (!scene) {
-      return 'No active scene';
+      return "No active scene";
     }
 
     const engine = scene.getEngine();
-    const perf = (performance as any);
+    const perf = performance as any;
 
-    const lines = ['Performance Stats:'];
+    const lines = ["Performance Stats:"];
     lines.push(`  FPS: ${engine.getFps().toFixed(1)}`);
     lines.push(`  Frame time: ${engine.getDeltaTime().toFixed(1)}ms`);
     lines.push(`  Meshes: ${scene.meshes.length} (${scene.getActiveMeshes().length} active)`);
@@ -39,11 +39,11 @@ export default class StatsCommand extends Command {
     lines.push(`  Lights: ${scene.lights.length}`);
 
     if (detailed) {
-      lines.push('');
-      lines.push('Detailed:');
-      lines.push(`  Draw calls: ${engine._drawCalls?.current || 'N/A'}`);
-      lines.push(`  Triangles: ${scene.getActiveIndices() / 3 | 0}`);
-      
+      lines.push("");
+      lines.push("Detailed:");
+      lines.push(`  Draw calls: ${engine._drawCalls?.current || "N/A"}`);
+      lines.push(`  Triangles: ${(scene.getActiveIndices() / 3) | 0}`);
+
       if (perf.memory) {
         const used = perf.memory.usedJSHeapSize / 1024 / 1024;
         const total = perf.memory.totalJSHeapSize / 1024 / 1024;
@@ -51,6 +51,6 @@ export default class StatsCommand extends Command {
       }
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

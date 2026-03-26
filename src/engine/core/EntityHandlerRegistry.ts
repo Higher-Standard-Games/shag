@@ -1,18 +1,18 @@
 /**
  * EntityHandlerRegistry - Extension point for custom entity handling
- * 
+ *
  * Allows game code to register handlers for entity types without
  * the engine needing to import game-specific systems.
- * 
+ *
  * Usage (in game code):
  *   EntityHandlerRegistry.register('build_zone', (entity, scene) => {
  *     BuildingSystem.getInstance().registerZone(entity);
  *   });
- * 
+ *
  *   EntityHandlerRegistry.register('npc_sprite', (entity, scene, options) => {
  *     return CharacterGenerator.createFromEntity(entity, scene);
  *   });
- * 
+ *
  * Usage (in engine MapRenderer):
  *   const handler = EntityHandlerRegistry.getHandler('build_zone');
  *   if (handler) {
@@ -20,8 +20,8 @@
  *   }
  */
 
-import type { Scene } from "@babylonjs/core/scene";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Scene } from "@babylonjs/core/scene";
 
 /**
  * Entity data passed to handlers (matches MapParser Entity structure)
@@ -65,16 +65,13 @@ export interface EntityHandlerResult {
 export type EntityHandler = (
   entity: EntityData,
   scene: Scene,
-  options?: EntityHandlerOptions
+  options?: EntityHandlerOptions,
 ) => EntityHandlerResult | Promise<EntityHandlerResult>;
 
 /**
  * Pre-render hook - called before MapRenderer processes entities
  */
-export type PreRenderHook = (
-  entities: EntityData[],
-  scene: Scene
-) => void | Promise<void>;
+export type PreRenderHook = (entities: EntityData[], scene: Scene) => void | Promise<void>;
 
 /**
  * Post-render hook - called after MapRenderer finishes
@@ -82,7 +79,7 @@ export type PreRenderHook = (
 export type PostRenderHook = (
   entities: EntityData[],
   scene: Scene,
-  results: Map<string, EntityHandlerResult[]>
+  results: Map<string, EntityHandlerResult[]>,
 ) => void | Promise<void>;
 
 /**
@@ -93,7 +90,7 @@ export class EntityHandlerRegistry {
   private static handlers: Map<string, EntityHandler> = new Map();
   private static preRenderHooks: PreRenderHook[] = [];
   private static postRenderHooks: PostRenderHook[] = [];
-  
+
   /**
    * Register a handler for an entity classname
    * @param classname Entity classname (e.g., 'build_zone', 'npc_sprite')
@@ -106,7 +103,7 @@ export class EntityHandlerRegistry {
     EntityHandlerRegistry.handlers.set(classname, handler);
     console.log(`[EntityHandlerRegistry] Registered handler for '${classname}'`);
   }
-  
+
   /**
    * Register multiple handlers at once
    */
@@ -115,49 +112,49 @@ export class EntityHandlerRegistry {
       EntityHandlerRegistry.register(classname, handler);
     }
   }
-  
+
   /**
    * Unregister a handler
    */
   public static unregister(classname: string): void {
     EntityHandlerRegistry.handlers.delete(classname);
   }
-  
+
   /**
    * Get a handler for a classname
    */
   public static getHandler(classname: string): EntityHandler | undefined {
     return EntityHandlerRegistry.handlers.get(classname);
   }
-  
+
   /**
    * Check if a handler exists for a classname
    */
   public static hasHandler(classname: string): boolean {
     return EntityHandlerRegistry.handlers.has(classname);
   }
-  
+
   /**
    * Get all registered classnames
    */
   public static getRegisteredClassnames(): string[] {
     return Array.from(EntityHandlerRegistry.handlers.keys());
   }
-  
+
   /**
    * Add a pre-render hook
    */
   public static addPreRenderHook(hook: PreRenderHook): void {
     EntityHandlerRegistry.preRenderHooks.push(hook);
   }
-  
+
   /**
    * Add a post-render hook
    */
   public static addPostRenderHook(hook: PostRenderHook): void {
     EntityHandlerRegistry.postRenderHooks.push(hook);
   }
-  
+
   /**
    * Run all pre-render hooks
    */
@@ -166,20 +163,20 @@ export class EntityHandlerRegistry {
       await hook(entities, scene);
     }
   }
-  
+
   /**
    * Run all post-render hooks
    */
   public static async runPostRenderHooks(
     entities: EntityData[],
     scene: Scene,
-    results: Map<string, EntityHandlerResult[]>
+    results: Map<string, EntityHandlerResult[]>,
   ): Promise<void> {
     for (const hook of EntityHandlerRegistry.postRenderHooks) {
       await hook(entities, scene, results);
     }
   }
-  
+
   /**
    * Clear all handlers and hooks (for testing)
    */
@@ -188,7 +185,7 @@ export class EntityHandlerRegistry {
     EntityHandlerRegistry.preRenderHooks = [];
     EntityHandlerRegistry.postRenderHooks = [];
   }
-  
+
   /**
    * Get debug info
    */

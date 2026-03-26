@@ -1,6 +1,6 @@
 /**
  * Engine Loader Module
- * 
+ *
  * Exports all loader functionality from sub-modules:
  * - bsp: Quake 3 / Warsow BSP map loading
  * - pk3: Asset package management
@@ -11,8 +11,8 @@
  */
 
 export * from "./bsp";
+export * from "./map";
+export * from "./model";
 export * from "./pk3";
 export * from "./shader";
 export * from "./texture";
-export * from "./map";
-export * from "./model";

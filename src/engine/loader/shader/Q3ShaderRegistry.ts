@@ -1,13 +1,13 @@
 /**
  * Q3ShaderRegistry - Central registry for parsed Q3/Warsow shaders
- * 
+ *
  * Provides O(1) lookup of shaders by texture name and handles
  * loading shaders from PK3 archives.
  */
 
-import { PK3Loader } from '../pk3/PK3Loader';
-import { parseShaderFile } from './Q3ShaderParser';
-import type { Q3Shader, ResolvedMaterialProps } from './Q3ShaderTypes';
+import { PK3Loader } from "../pk3/PK3Loader";
+import { parseShaderFile } from "./Q3ShaderParser";
+import type { Q3Shader, ResolvedMaterialProps } from "./Q3ShaderTypes";
 
 export class Q3ShaderRegistry {
   private static instance: Q3ShaderRegistry;
@@ -18,7 +18,7 @@ export class Q3ShaderRegistry {
   /** Whether shaders have been loaded */
   private loaded = false;
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): Q3ShaderRegistry {
     if (!Q3ShaderRegistry.instance) {
@@ -47,10 +47,10 @@ export class Q3ShaderRegistry {
     let newShaderCount = 0;
 
     // Find all .shader files in scripts/ folder from ALL loaded PK3s
-    const shaderFiles = pk3Loader.listFiles('scripts/*.shader');
+    const shaderFiles = pk3Loader.listFiles("scripts/*.shader");
 
     // Filter to only new shader files
-    const newShaderFiles = shaderFiles.filter(f => !this.processedShaderFiles.has(f));
+    const newShaderFiles = shaderFiles.filter((f) => !this.processedShaderFiles.has(f));
 
     if (newShaderFiles.length === 0) {
       console.log(`[Q3ShaderRegistry] No new shader files (${this.shaders.size} total)`);
@@ -66,12 +66,12 @@ export class Q3ShaderRegistry {
         const data = await pk3Loader.getFile(shaderFile);
         if (!data) continue;
 
-        const content = new TextDecoder('utf-8').decode(data);
+        const content = new TextDecoder("utf-8").decode(data);
         const parsedShaders = parseShaderFile(content);
 
         for (const shader of parsedShaders) {
           // Store by normalized name (lowercase, no extension)
-          const name = shader.name.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
+          const name = shader.name.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, "");
           this.shaders.set(name, shader);
           newShaderCount++;
         }
@@ -92,7 +92,7 @@ export class Q3ShaderRegistry {
    */
   getShader(textureName: string): Q3Shader | undefined {
     // Normalize: lowercase, no extension
-    const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, '');
+    const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, "");
 
     // Try exact match first
     let shader = this.shaders.get(name);
@@ -100,21 +100,21 @@ export class Q3ShaderRegistry {
 
     // If name has underscores but no slashes, try converting underscores to slashes
     // BSP texture names like "models_mapobjects_lamp_lamp_halo" -> "models/mapobjects/lamp/lamp_halo"
-    if (name.includes('_') && !name.includes('/')) {
-      const parts = name.split('_');
+    if (name.includes("_") && !name.includes("/")) {
+      const parts = name.split("_");
 
       // Try progressively more path segments
       // e.g., models/mapobjects/lamp/lamp_halo, models/mapobjects/lamp_lamp_halo, etc.
       for (let pathSegments = parts.length - 1; pathSegments >= 1; pathSegments--) {
-        const pathPart = parts.slice(0, pathSegments).join('/');
-        const namePart = parts.slice(pathSegments).join('_');
+        const pathPart = parts.slice(0, pathSegments).join("/");
+        const namePart = parts.slice(pathSegments).join("_");
         const candidate = `${pathPart}/${namePart}`;
         shader = this.shaders.get(candidate);
         if (shader) return shader;
       }
 
       // Also try all underscores as slashes
-      shader = this.shaders.get(parts.join('/'));
+      shader = this.shaders.get(parts.join("/"));
       if (shader) return shader;
     }
 
@@ -142,7 +142,7 @@ export class Q3ShaderRegistry {
     // Default opaque material
     const defaults: ResolvedMaterialProps = {
       useLightmap: true,
-      alphaMode: 'opaque',
+      alphaMode: "opaque",
       backFaceCulling: true,
       twoSidedLighting: false,
       depthWrite: true,
@@ -163,7 +163,7 @@ export class Q3ShaderRegistry {
     const props: ResolvedMaterialProps = { ...defaults };
 
     // Sky detection - surfaceparm sky or has skyparms
-    if (shader.surfaceParms.has('sky') || shader.skyParms) {
+    if (shader.surfaceParms.has("sky") || shader.skyParms) {
       props.isSky = true;
       props.useLightmap = false;
       if (shader.skyParms) {
@@ -172,11 +172,11 @@ export class Q3ShaderRegistry {
     }
 
     // Cull mode
-    if (shader.cull === 'none' || shader.cull === 'disable') {
+    if (shader.cull === "none" || shader.cull === "disable") {
       props.backFaceCulling = false;
       props.twoSidedLighting = true;
-    } else if (shader.cull === 'front') {
-      // Babylon doesn't have front-face culling directly, 
+    } else if (shader.cull === "front") {
+      // Babylon doesn't have front-face culling directly,
       // we'd need to flip normals or use a custom shader
       props.backFaceCulling = true;
     }
@@ -187,13 +187,13 @@ export class Q3ShaderRegistry {
     }
 
     // Surface params
-    if (shader.surfaceParms.has('trans') || shader.surfaceParms.has('alphashadow')) {
+    if (shader.surfaceParms.has("trans") || shader.surfaceParms.has("alphashadow")) {
       props.isTransparent = true;
     }
 
     // Fullbright detection - lamp/light surfaces that don't use lightmap
     // These surfaces should appear at full brightness regardless of surrounding darkness
-    if (shader.surfaceParms.has('nolightmap')) {
+    if (shader.surfaceParms.has("nolightmap")) {
       props.isFullbright = true;
       props.useLightmap = false;
     }
@@ -203,55 +203,55 @@ export class Q3ShaderRegistry {
       const firstStage = shader.stages[0];
 
       // Get diffuse texture from first stage
-      if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
+      if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
         props.diffuseTexture = firstStage.map;
       }
 
       // Check for lightmap stage
-      props.useLightmap = shader.stages.some(s => s.map === '$lightmap');
+      props.useLightmap = shader.stages.some((s) => s.map === "$lightmap");
 
       // Determine alpha mode from blend function
       if (firstStage.blendFunc) {
         const [src, dst] = firstStage.blendFunc;
 
         // Additive: GL_ONE, GL_ONE
-        if (src === 'GL_ONE' && dst === 'GL_ONE') {
-          props.alphaMode = 'add';
+        if (src === "GL_ONE" && dst === "GL_ONE") {
+          props.alphaMode = "add";
           props.isTransparent = true;
           props.depthWrite = false;
         }
         // Standard alpha blend: GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
-        else if (src === 'GL_SRC_ALPHA' && dst === 'GL_ONE_MINUS_SRC_ALPHA') {
-          props.alphaMode = 'blend';
+        else if (src === "GL_SRC_ALPHA" && dst === "GL_ONE_MINUS_SRC_ALPHA") {
+          props.alphaMode = "blend";
           props.isTransparent = true;
         }
         // Filter/multiply: GL_DST_COLOR, GL_ZERO (used for decals)
-        else if (src === 'GL_DST_COLOR' && dst === 'GL_ZERO') {
-          props.alphaMode = 'multiply';
+        else if (src === "GL_DST_COLOR" && dst === "GL_ZERO") {
+          props.alphaMode = "multiply";
           props.isTransparent = true;
           props.depthWrite = false;
         }
         // Additive with alpha: GL_SRC_ALPHA, GL_ONE
-        else if (src === 'GL_SRC_ALPHA' && dst === 'GL_ONE') {
-          props.alphaMode = 'add';
+        else if (src === "GL_SRC_ALPHA" && dst === "GL_ONE") {
+          props.alphaMode = "add";
           props.isTransparent = true;
           props.depthWrite = false;
         }
         // Soft additive / screen: GL_ONE, GL_ONE_MINUS_SRC_COLOR
         // Used for flares, glows - adds light but caps at white
-        else if (src === 'GL_ONE' && dst === 'GL_ONE_MINUS_SRC_COLOR') {
-          props.alphaMode = 'add';
+        else if (src === "GL_ONE" && dst === "GL_ONE_MINUS_SRC_COLOR") {
+          props.alphaMode = "add";
           props.isTransparent = true;
           props.depthWrite = false;
         }
-        // Inverse multiply: GL_ZERO, GL_ONE_MINUS_SRC_COLOR  
-        else if (src === 'GL_ZERO' && dst === 'GL_ONE_MINUS_SRC_COLOR') {
-          props.alphaMode = 'multiply';
+        // Inverse multiply: GL_ZERO, GL_ONE_MINUS_SRC_COLOR
+        else if (src === "GL_ZERO" && dst === "GL_ONE_MINUS_SRC_COLOR") {
+          props.alphaMode = "multiply";
           props.isTransparent = true;
         }
         // Any other blend with GL_ONE as source is likely additive-ish
-        else if (src === 'GL_ONE' && dst !== 'GL_ZERO') {
-          props.alphaMode = 'add';
+        else if (src === "GL_ONE" && dst !== "GL_ZERO") {
+          props.alphaMode = "add";
           props.isTransparent = true;
           props.depthWrite = false;
         }
@@ -261,13 +261,13 @@ export class Q3ShaderRegistry {
       if (firstStage.alphaFunc) {
         props.isTransparent = true;
         switch (firstStage.alphaFunc) {
-          case 'GT0':
+          case "GT0":
             props.alphaCutoff = 0.01;
             break;
-          case 'GE128':
+          case "GE128":
             props.alphaCutoff = 0.5;
             break;
-          case 'LT128':
+          case "LT128":
             props.alphaCutoff = 0.5;
             // This is inverted - would need special handling
             break;
@@ -297,9 +297,9 @@ export class Q3ShaderRegistry {
     // Autosprite detection from deformVertexes
     if (shader.deformVertexes) {
       for (const deform of shader.deformVertexes) {
-        if (deform.type === 'autosprite') {
+        if (deform.type === "autosprite") {
           props.autosprite = true;
-        } else if (deform.type === 'autosprite2') {
+        } else if (deform.type === "autosprite2") {
           props.autosprite2 = true;
         }
       }
@@ -345,14 +345,14 @@ export class Q3ShaderRegistry {
 
     console.log(`[Q3ShaderRegistry] Shader: ${shader.name}`);
     console.log(`  Cull: ${shader.cull}`);
-    console.log(`  Surface parms: ${Array.from(shader.surfaceParms).join(', ')}`);
+    console.log(`  Surface parms: ${Array.from(shader.surfaceParms).join(", ")}`);
     console.log(`  Stages: ${shader.stages.length}`);
 
     shader.stages.forEach((stage, i) => {
       console.log(`  Stage ${i}:`);
       console.log(`    Map: ${stage.map}`);
       if (stage.blendFunc) {
-        console.log(`    BlendFunc: ${stage.blendFunc.join(', ')}`);
+        console.log(`    BlendFunc: ${stage.blendFunc.join(", ")}`);
       }
       if (stage.alphaFunc) {
         console.log(`    AlphaFunc: ${stage.alphaFunc}`);

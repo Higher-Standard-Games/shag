@@ -1,6 +1,6 @@
 /**
  * BspCommand - BSP map loading and inspection
- * 
+ *
  * Provides console commands for:
  * - Loading BSP maps
  * - Inspecting BSP data (entities, textures, faces, etc.)
@@ -9,39 +9,39 @@
  * - Sky and fog control
  */
 
-import { Command, CommandDef } from '../Command';
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Command, type CommandDef } from "../Command";
 
 export class BspCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'bsp',
-    description: 'BSP map loading and inspection',
-    usage: 'bsp <subcommand> [args]',
+    name: "bsp",
+    description: "BSP map loading and inspection",
+    usage: "bsp <subcommand> [args]",
   };
 
   async execute(args: string[]): Promise<string> {
-    const { BspManager } = await import('../../loader/bsp/BspManager');
+    const { BspManager } = await import("../../loader/bsp/BspManager");
     const manager = BspManager.getInstance();
 
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene from camera system
-    const { CameraSystem } = await import('../../camera/CameraSystem');
+    const { CameraSystem } = await import("../../camera/CameraSystem");
     const cameraSystem = CameraSystem.getInstance();
     const scene = cameraSystem.getCamera()?.getScene();
 
     switch (subcommand) {
-      case 'load': {
+      case "load": {
         const mapName = args[1];
         if (!mapName) {
-          return 'Usage: bsp load <mapname>\nExample: bsp load wdm11';
+          return "Usage: bsp load <mapname>\nExample: bsp load wdm11";
         }
 
         // Ensure RenderVars is instantiated (registers r_* cvars for BSP rendering)
-        const { RenderVars } = await import('../../rendering/RenderVars');
+        const { RenderVars } = await import("../../rendering/RenderVars");
         RenderVars.getInstance();
 
         try {
@@ -52,39 +52,39 @@ export class BspCommand extends Command {
         }
       }
 
-      case 'info':
+      case "info":
         return manager.getInfo();
 
-      case 'faces':
+      case "faces":
         return manager.getFaceStats();
 
-      case 'entities': {
+      case "entities": {
         const filter = args[1]?.toLowerCase();
-        const showDetails = args[2] === 'details' || args[2] === 'd';
+        const showDetails = args[2] === "details" || args[2] === "d";
         return manager.getEntities(filter, showDetails);
       }
 
-      case 'textures': {
+      case "textures": {
         const filter = args[1]?.toLowerCase();
         return manager.getTextures(filter);
       }
 
-      case 'worldspawn':
+      case "worldspawn":
         return manager.getWorldspawn();
 
-      case 'clusters':
+      case "clusters":
         return manager.getClusterInfo();
 
-      case 'lightmaps':
+      case "lightmaps":
         return manager.getLightmapInfo();
 
-      case 'required': {
+      case "required": {
         if (!manager.isLoaded()) {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
-        const { getBspUsedTextures } = await import('../../loader');
-        const { PK3Index } = await import('../../loader');
+        const { getBspUsedTextures } = await import("../../loader");
+        const { PK3Index } = await import("../../loader");
 
         const bsp = manager.getBsp()!;
         const usedTextures = getBspUsedTextures(bsp);
@@ -93,11 +93,13 @@ export class BspCommand extends Command {
         if (!index.hasIndex()) {
           return [
             `=== Used Textures (${usedTextures.length}) ===`,
-            usedTextures.slice(0, 20).join('\n'),
-            usedTextures.length > 20 ? `... and ${usedTextures.length - 20} more` : '',
-            '',
+            usedTextures.slice(0, 20).join("\n"),
+            usedTextures.length > 20 ? `... and ${usedTextures.length - 20} more` : "",
+            "",
             'Note: Run "pk3 index build" first to see which PK3s are needed.',
-          ].filter(Boolean).join('\n');
+          ]
+            .filter(Boolean)
+            .join("\n");
         }
 
         // Find which PK3s are needed
@@ -105,7 +107,8 @@ export class BspCommand extends Command {
         const notFound: string[] = [];
 
         for (const tex of usedTextures) {
-          const pk3 = index.findFile(`textures/${tex}.tga`) ||
+          const pk3 =
+            index.findFile(`textures/${tex}.tga`) ||
             index.findFile(`textures/${tex}.jpg`) ||
             index.findFile(`textures/${tex}.ktx`) ||
             index.findFile(`${tex}.tga`) ||
@@ -123,31 +126,31 @@ export class BspCommand extends Command {
         ];
 
         if (requiredPK3s.size > 0) {
-          lines.push('', 'PK3s to load:');
+          lines.push("", "PK3s to load:");
           for (const pk3 of requiredPK3s) {
             lines.push(`  ${pk3}`);
           }
         }
 
         if (notFound.length > 0) {
-          lines.push('', `Not found in index: ${notFound.length}`);
-          lines.push(...notFound.slice(0, 10).map(t => `  ${t}`));
+          lines.push("", `Not found in index: ${notFound.length}`);
+          lines.push(...notFound.slice(0, 10).map((t) => `  ${t}`));
           if (notFound.length > 10) {
             lines.push(`  ... and ${notFound.length - 10} more`);
           }
         }
 
-        return lines.join('\n');
+        return lines.join("\n");
       }
 
-      case 'loadrequired':
-      case 'preload': {
+      case "loadrequired":
+      case "preload": {
         if (!manager.isLoaded()) {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
-        const { getBspUsedTextures: getTextures } = await import('../../loader');
-        const { PK3Index, PK3Loader } = await import('../../loader');
+        const { getBspUsedTextures: getTextures } = await import("../../loader");
+        const { PK3Index, PK3Loader } = await import("../../loader");
 
         const bsp = manager.getBsp()!;
         const usedTextures = getTextures(bsp);
@@ -161,13 +164,13 @@ export class BspCommand extends Command {
         const requiredPK3s = index.findPK3sForTextures(usedTextures);
 
         if (requiredPK3s.size === 0) {
-          return 'No additional PK3s needed (or textures not found in index)';
+          return "No additional PK3s needed (or textures not found in index)";
         }
 
         // Check which are already loaded
         const pk3Loader = PK3Loader.getInstance();
-        const loadedPackages = pk3Loader.getPackageInfo().map(p => p.filename);
-        const toLoad = Array.from(requiredPK3s).filter(pk3 => !loadedPackages.includes(pk3));
+        const loadedPackages = pk3Loader.getPackageInfo().map((p) => p.filename);
+        const toLoad = Array.from(requiredPK3s).filter((pk3) => !loadedPackages.includes(pk3));
 
         if (toLoad.length === 0) {
           return `All ${requiredPK3s.size} required PK3s already loaded`;
@@ -194,40 +197,43 @@ export class BspCommand extends Command {
           }
         }
 
-        lines.push('');
+        lines.push("");
         lines.push(`Loaded: ${loaded}, Failed: ${failed}`);
 
         if (loaded > 0) {
-          lines.push('');
+          lines.push("");
           lines.push('Tip: Run "shader load" to load shaders from these PK3s');
         }
 
-        return lines.join('\n');
+        return lines.join("\n");
       }
 
-      case 'render': {
+      case "render": {
         if (!manager.isLoaded()) {
           return 'No BSP loaded. Use "bsp load <mapname>" first.';
         }
 
         if (!scene) {
-          return 'No scene available';
+          return "No scene available";
         }
 
         // Parse optional face type filter
         let faceTypes: number[] | undefined;
         if (args[1]) {
           const typeArg = args[1].toLowerCase();
-          if (typeArg === 'poly' || typeArg === 'polygon') {
+          if (typeArg === "poly" || typeArg === "polygon") {
             faceTypes = [1];
-          } else if (typeArg === 'patch') {
+          } else if (typeArg === "patch") {
             faceTypes = [2];
-          } else if (typeArg === 'mesh') {
+          } else if (typeArg === "mesh") {
             faceTypes = [3];
-          } else if (typeArg === 'all') {
+          } else if (typeArg === "all") {
             faceTypes = undefined;
           } else {
-            faceTypes = args.slice(1).map(Number).filter(n => n >= 1 && n <= 4);
+            faceTypes = args
+              .slice(1)
+              .map(Number)
+              .filter((n) => n >= 1 && n <= 4);
             if (faceTypes.length === 0) faceTypes = undefined;
           }
         }
@@ -236,15 +242,16 @@ export class BspCommand extends Command {
           const result = manager.render(scene, { faceTypes, filterTextures: true });
 
           // Initialize collision system
-          let collisionInfo = '';
+          let collisionInfo = "";
           try {
-            const { getCollisionManager } = await import('../../physics');
+            const { getCollisionManager } = await import("../../physics");
             const cm = getCollisionManager();
             await cm.init(manager.getBsp()!, scene as never);
             const stats = cm.getStats();
-            collisionInfo = `\nCollision: ${cm.getBackendType()} (${((stats?.backendStats as any)?.collisionPlanes ?? 0)} planes)`;
+            // biome-ignore lint/suspicious/noExplicitAny: BSP debug command internals
+            collisionInfo = `\nCollision: ${cm.getBackendType()} (${(stats?.backendStats as any)?.collisionPlanes ?? 0} planes)`;
           } catch (e) {
-            console.warn('[bsp render] Failed to init collision:', e);
+            console.warn("[bsp render] Failed to init collision:", e);
           }
 
           return result + collisionInfo;
@@ -253,22 +260,22 @@ export class BspCommand extends Command {
         }
       }
 
-      case 'clear': {
+      case "clear": {
         if (manager.isRendered()) {
           manager.clearRender();
-          return 'BSP geometry cleared';
+          return "BSP geometry cleared";
         }
-        return 'No BSP geometry to clear';
+        return "No BSP geometry to clear";
       }
 
-      case 'applytextures':
-      case 'loadtextures': {
+      case "applytextures":
+      case "loadtextures": {
         if (!manager.isRendered()) {
           return 'No BSP rendered. Use "bsp load <map>" then "bsp render" first.';
         }
 
         if (!scene) {
-          return 'Scene not available';
+          return "Scene not available";
         }
 
         try {
@@ -281,8 +288,8 @@ export class BspCommand extends Command {
         }
       }
 
-      case 'applylightmaps':
-      case 'lightmap': {
+      case "applylightmaps":
+      case "lightmap": {
         if (!manager.isRendered()) {
           return 'No BSP rendered. Use "bsp render" first.';
         }
@@ -291,99 +298,99 @@ export class BspCommand extends Command {
         const intensity = intensityArg ? parseFloat(intensityArg) : 2.0;
 
         try {
-          const count = manager.applyLightmaps(isNaN(intensity) ? 2.0 : intensity);
+          const count = manager.applyLightmaps(Number.isNaN(intensity) ? 2.0 : intensity);
           return `Applied ${count} lightmaps (intensity: ${intensity.toFixed(1)})`;
         } catch (e) {
           return `Failed to apply lightmaps: ${e}`;
         }
       }
 
-      case 'sky': {
+      case "sky": {
         const skySubcommand = args[1]?.toLowerCase();
 
-        if (!skySubcommand || skySubcommand === 'info') {
+        if (!skySubcommand || skySubcommand === "info") {
           return manager.getSkyInfo();
         }
 
-        if (skySubcommand === 'apply') {
+        if (skySubcommand === "apply") {
           if (!manager.isRendered() || !scene) {
             return 'No BSP rendered. Use "bsp render" first.';
           }
 
           const result = await manager.applySkybox(scene);
-          return result.success ? 'Skybox created successfully.' : `Failed to create skybox: ${result.error}`;
+          return result.success ? "Skybox created successfully." : `Failed to create skybox: ${result.error}`;
         }
 
-        if (skySubcommand === 'toggle') {
+        if (skySubcommand === "toggle") {
           if (!scene) {
-            return 'No scene available.';
+            return "No scene available.";
           }
 
-          const skybox = scene.getMeshByName('skybox');
+          const skybox = scene.getMeshByName("skybox");
           if (!skybox) {
             return 'No skybox found. Use "bsp sky apply" first.';
           }
 
           skybox.isVisible = !skybox.isVisible;
-          return `Skybox visibility: ${skybox.isVisible ? 'ON' : 'OFF'}`;
+          return `Skybox visibility: ${skybox.isVisible ? "ON" : "OFF"}`;
         }
 
-        if (skySubcommand === 'remove') {
+        if (skySubcommand === "remove") {
           if (!scene) {
-            return 'No scene available.';
+            return "No scene available.";
           }
 
-          const skybox = scene.getMeshByName('skybox');
+          const skybox = scene.getMeshByName("skybox");
           if (!skybox) {
-            return 'No skybox found.';
+            return "No skybox found.";
           }
 
           skybox.dispose();
-          return 'Skybox removed.';
+          return "Skybox removed.";
         }
 
-        if (skySubcommand === 'debug') {
+        if (skySubcommand === "debug") {
           if (!scene) {
-            return 'No scene available.';
+            return "No scene available.";
           }
 
-          const existingSkybox = scene.getMeshByName('skybox');
+          const existingSkybox = scene.getMeshByName("skybox");
           if (existingSkybox) {
             existingSkybox.dispose();
           }
 
-          const { SkyboxLoader } = await import('../../loader');
+          const { SkyboxLoader } = await import("../../loader");
           const skyboxLoader = SkyboxLoader.getInstance();
           skyboxLoader.init(scene);
           const result = skyboxLoader.createDebugSkybox();
 
           if (result.success) {
             return [
-              'Debug skybox created with colored/labeled faces.',
-              'Look around to verify face positions:',
-              '  RT (red) = RIGHT (+X)',
-              '  LF (blue) = LEFT (-X)',
-              '  FT (yellow) = FRONT (+Z in Babylon)',
-              '  BK (green) = BACK (-Z in Babylon)',
-              '  UP (magenta) = UP (+Y in Babylon)',
-              '  DN (cyan) = DOWN (-Y in Babylon)',
-            ].join('\n');
+              "Debug skybox created with colored/labeled faces.",
+              "Look around to verify face positions:",
+              "  RT (red) = RIGHT (+X)",
+              "  LF (blue) = LEFT (-X)",
+              "  FT (yellow) = FRONT (+Z in Babylon)",
+              "  BK (green) = BACK (-Z in Babylon)",
+              "  UP (magenta) = UP (+Y in Babylon)",
+              "  DN (cyan) = DOWN (-Y in Babylon)",
+            ].join("\n");
           } else {
             return `Failed to create debug skybox: ${result.error}`;
           }
         }
 
-        return 'Sky subcommands: info, apply, toggle, remove, debug';
+        return "Sky subcommands: info, apply, toggle, remove, debug";
       }
 
-      case 'fog': {
+      case "fog": {
         const fogSubcommand = args[1]?.toLowerCase();
 
-        if (!fogSubcommand || fogSubcommand === 'info') {
+        if (!fogSubcommand || fogSubcommand === "info") {
           return manager.getFogInfo();
         }
 
-        if (fogSubcommand === 'apply') {
+        if (fogSubcommand === "apply") {
           if (!manager.isRendered() || !scene) {
             return 'No BSP rendered. Use "bsp render" first.';
           }
@@ -391,45 +398,45 @@ export class BspCommand extends Command {
           const result = await manager.applyFogVolumes(scene);
           return result.success
             ? `Created ${result.count} fog volume mesh(es).`
-            : `No fog volumes created: ${result.error || 'No fog volumes found in BSP'}`;
+            : `No fog volumes created: ${result.error || "No fog volumes found in BSP"}`;
         }
 
-        if (fogSubcommand === 'clear') {
+        if (fogSubcommand === "clear") {
           manager.clearFogVolumes();
-          return 'Fog volumes cleared.';
+          return "Fog volumes cleared.";
         }
 
-        return 'Fog subcommands: info, apply, clear';
+        return "Fog subcommands: info, apply, clear";
       }
 
-      case 'door': {
-        const { getDoorController, getDoorNames } = await import('../../loader/bsp/BspEntityHandlers');
+      case "door": {
+        const { getDoorController, getDoorNames } = await import("../../loader/bsp/BspEntityHandlers");
         const doorSubcmd = args[1]?.toLowerCase();
         const doorName = args[2];
 
-        if (doorSubcmd === 'list') {
+        if (doorSubcmd === "list") {
           const names = getDoorNames();
           if (names.length === 0) {
-            return 'No doors registered. Load a BSP map with func_door entities.';
+            return "No doors registered. Load a BSP map with func_door entities.";
           }
-          return `Doors (${names.length}):\n  ${names.join('\n  ')}`;
+          return `Doors (${names.length}):\n  ${names.join("\n  ")}`;
         }
 
-        if (doorSubcmd === 'open' && doorName) {
+        if (doorSubcmd === "open" && doorName) {
           const controller = getDoorController(doorName);
           if (!controller) return `Door "${doorName}" not found`;
           controller.open();
           return `Opening door: ${doorName}`;
         }
 
-        if (doorSubcmd === 'close' && doorName) {
+        if (doorSubcmd === "close" && doorName) {
           const controller = getDoorController(doorName);
           if (!controller) return `Door "${doorName}" not found`;
           controller.close();
           return `Closing door: ${doorName}`;
         }
 
-        if (doorSubcmd === 'toggle' && doorName) {
+        if (doorSubcmd === "toggle" && doorName) {
           const controller = getDoorController(doorName);
           if (!controller) return `Door "${doorName}" not found`;
           controller.toggle();
@@ -437,27 +444,27 @@ export class BspCommand extends Command {
         }
 
         return [
-          'Door Commands:',
-          '  bsp door list              - List all doors',
-          '  bsp door open <name>       - Open a door',
-          '  bsp door close <name>      - Close a door',
-          '  bsp door toggle <name>     - Toggle a door',
-        ].join('\n');
+          "Door Commands:",
+          "  bsp door list              - List all doors",
+          "  bsp door open <name>       - Open a door",
+          "  bsp door close <name>      - Close a door",
+          "  bsp door toggle <name>     - Toggle a door",
+        ].join("\n");
       }
 
-      case 'collision':
-      case 'trace': {
+      case "collision":
+      case "trace": {
         if (!manager.isLoaded()) {
-          return 'No BSP loaded';
+          return "No BSP loaded";
         }
 
-        const { getCollisionManager } = await import('../../physics');
+        const { getCollisionManager } = await import("../../physics");
         const cm = getCollisionManager();
 
         const traceSubcmd = args[1]?.toLowerCase();
 
-        if (traceSubcmd === 'point') {
-          if (!scene?.activeCamera) return 'No active camera';
+        if (traceSubcmd === "point") {
+          if (!scene?.activeCamera) return "No active camera";
           const cam = scene.activeCamera;
           const pos = cam.position;
 
@@ -472,15 +479,15 @@ export class BspCommand extends Command {
             `  Solid: ${inSolid}`,
             `  Water: ${inWater}`,
             `  PlayerClip: ${inPlayerClip}`,
-          ].join('\n');
+          ].join("\n");
         }
 
-        return 'Collision subcommands: point';
+        return "Collision subcommands: point";
       }
 
-      case 'lightgrid': {
-        if (!manager.isLoaded()) return 'No BSP loaded';
-        if (!scene?.activeCamera) return 'No active camera';
+      case "lightgrid": {
+        if (!manager.isLoaded()) return "No BSP loaded";
+        if (!scene?.activeCamera) return "No active camera";
 
         const pos = scene.activeCamera.globalPosition;
         const lighting = manager.getLightingAt(pos);
@@ -497,13 +504,13 @@ export class BspCommand extends Command {
           `Grid Index: [Calculated internally]`,
           `Ambient: [${amb[0].toFixed(1)}, ${amb[1].toFixed(1)}, ${amb[2].toFixed(1)}]`,
           `Directional: [${dir[0].toFixed(1)}, ${dir[1].toFixed(1)}, ${dir[2].toFixed(1)}]`,
-          `Direction: [${lighting.direction[0]}, ${lighting.direction[1]}]`
-        ].join('\n');
+          `Direction: [${lighting.direction[0]}, ${lighting.direction[1]}]`,
+        ].join("\n");
       }
 
-      case 'debug_grid': {
-        if (!manager.isLoaded()) return 'No BSP loaded';
-        if (!scene?.activeCamera) return 'No active camera';
+      case "debug_grid": {
+        if (!manager.isLoaded()) return "No BSP loaded";
+        if (!scene?.activeCamera) return "No active camera";
 
         const range = 2; // +/- grid points to show
         const spacing = 64; // Approximate step size (visual only)
@@ -516,7 +523,7 @@ export class BspCommand extends Command {
         const existing = scene.getMeshesByTags("debug_lightgrid");
         for (const m of existing) m.dispose();
 
-        if (args[1] === 'clear') return 'Cleared debug grid';
+        if (args[1] === "clear") return "Cleared debug grid";
 
         for (let x = -range; x <= range; x++) {
           for (let y = -range; y <= range; y++) {
@@ -531,17 +538,22 @@ export class BspCommand extends Command {
                 const mat = new StandardMaterial(`lg_mat_${x}_${y}_${z}`, scene);
                 // Simple visualization: Emissive = Ambient
                 mat.emissiveColor = new Color3(
-                  Math.pow(lighting.ambient[0] / 255, 2.2),
-                  Math.pow(lighting.ambient[1] / 255, 2.2),
-                  Math.pow(lighting.ambient[2] / 255, 2.2)
+                  (lighting.ambient[0] / 255) ** 2.2,
+                  (lighting.ambient[1] / 255) ** 2.2,
+                  (lighting.ambient[2] / 255) ** 2.2,
                 );
                 mat.disableLighting = true;
                 sphere.material = mat;
-                MeshBuilder.CreateLines(`lg_line_${x}_${y}_${z}`, {
-                  points: [pos, pos.add(new Vector3(0, 10, 0))]
-                }, scene);
+                MeshBuilder.CreateLines(
+                  `lg_line_${x}_${y}_${z}`,
+                  {
+                    points: [pos, pos.add(new Vector3(0, 10, 0))],
+                  },
+                  scene,
+                );
 
                 sphere.metadata = { mapOwned: true }; // Cleanup with map
+                // biome-ignore lint/suspicious/noExplicitAny: BSP debug command internals
                 (sphere as any).tags = "debug_lightgrid"; // For clearing
 
                 count++;
@@ -554,33 +566,33 @@ export class BspCommand extends Command {
         return `Spawned ${count} debug spheres around player. Use 'bsp debug_grid clear' to remove.`;
       }
 
-      case 'unload':
+      case "unload":
         manager.unload();
-        return 'BSP unloaded';
+        return "BSP unloaded";
 
       default:
         return [
-          'BSP Commands:',
-          '  load <map>      - Load BSP map',
-          '  info            - Show BSP info',
-          '  faces           - Show face type counts',
-          '  entities [filter] [details] - List entities',
-          '  textures [filter] - List textures',
-          '  worldspawn      - Show worldspawn properties',
-          '  clusters        - Show PVS cluster info',
-          '  lightmaps       - Show lightmap info',
-          '  required        - Show required PK3s',
-          '  loadrequired    - Load required PK3s',
-          '  render [type]   - Render BSP geometry',
-          '  clear           - Clear rendered geometry',
-          '  applytextures   - Apply textures',
-          '  applylightmaps  - Apply lightmaps',
-          '  sky <cmd>       - Sky commands (info/apply/toggle/remove/debug)',
-          '  fog <cmd>       - Fog commands (info/apply/clear)',
-          '  door <cmd>      - Door commands (list/open/close/toggle)',
-          '  collision <cmd> - Collision commands (point)',
-          '  unload          - Unload BSP',
-        ].join('\n');
+          "BSP Commands:",
+          "  load <map>      - Load BSP map",
+          "  info            - Show BSP info",
+          "  faces           - Show face type counts",
+          "  entities [filter] [details] - List entities",
+          "  textures [filter] - List textures",
+          "  worldspawn      - Show worldspawn properties",
+          "  clusters        - Show PVS cluster info",
+          "  lightmaps       - Show lightmap info",
+          "  required        - Show required PK3s",
+          "  loadrequired    - Load required PK3s",
+          "  render [type]   - Render BSP geometry",
+          "  clear           - Clear rendered geometry",
+          "  applytextures   - Apply textures",
+          "  applylightmaps  - Apply lightmaps",
+          "  sky <cmd>       - Sky commands (info/apply/toggle/remove/debug)",
+          "  fog <cmd>       - Fog commands (info/apply/clear)",
+          "  door <cmd>      - Door commands (list/open/close/toggle)",
+          "  collision <cmd> - Collision commands (point)",
+          "  unload          - Unload BSP",
+        ].join("\n");
     }
   }
 }

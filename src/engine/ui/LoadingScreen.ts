@@ -1,19 +1,19 @@
 /**
  * LoadingScreen - Engine-level loading and ready screen
- * 
+ *
  * Handles:
  * 1. Asset loading progress display
  * 2. "Tap to start" ready screen (unlocks browser audio)
- * 
+ *
  * This is an engine component - game-agnostic.
  */
 
-import type { LoadProgress } from '../AssetLoader';
-import { AudioManager } from '../AudioManager';
-import { EngineVersion } from '../core/EngineVersion';
-import { UIStyles } from './UIStyles';
-import { LoadingAnimation } from './LoadingAnimation';
-import { SHAG_PALETTE } from './LoadingPalettes';
+import type { LoadProgress } from "../AssetLoader";
+import { AudioManager } from "../AudioManager";
+import { EngineVersion } from "../core/EngineVersion";
+import { LoadingAnimation } from "./LoadingAnimation";
+import { SHAG_PALETTE } from "./LoadingPalettes";
+import { UIStyles } from "./UIStyles";
 
 export class LoadingScreen {
   private static instance: LoadingScreen | null = null;
@@ -132,7 +132,7 @@ export class LoadingScreen {
     instance.readyResolver = null;
     resolver();
 
-    console.log('[LoadingScreen] Force dismissed by console');
+    console.log("[LoadingScreen] Force dismissed by console");
   }
 
   public updateProgress(progress: LoadProgress): void {
@@ -168,14 +168,14 @@ export class LoadingScreen {
       this.readyResolver = resolve;
 
       // Hide progress bar, show ready state
-      this.progressBar.style.display = 'none';
-      this.container.classList.add('ui-loading-screen--ready');
+      this.progressBar.style.display = "none";
+      this.container.classList.add("ui-loading-screen--ready");
 
       // Show "ready" status and fade it out after 2 seconds
-      this.statusText.textContent = 'ready';
-      this.statusText.classList.add('ui-loading-status--ready');
+      this.statusText.textContent = "ready";
+      this.statusText.classList.add("ui-loading-status--ready");
       setTimeout(() => {
-        this.statusText.classList.add('ui-loading-status--fade');
+        this.statusText.classList.add("ui-loading-status--fade");
       }, 2000);
 
       // Smoke effect - colored puffs rising and fading (using shared component)
@@ -198,18 +198,21 @@ export class LoadingScreen {
       rippleContainer.appendChild(centerDot);
 
       // Random color rotation interval using logo palette
-      this.colorInterval = setInterval(() => {
-        const colorIndex = Math.floor(Math.random() * SHAG_PALETTE.length);
-        const color = SHAG_PALETTE[colorIndex];
-        centerDot.style.background = color.bg;
-        centerDot.style.boxShadow = `0 0 25px ${color.glow}`;
-      }, 800 + Math.random() * 400);
+      this.colorInterval = setInterval(
+        () => {
+          const colorIndex = Math.floor(Math.random() * SHAG_PALETTE.length);
+          const color = SHAG_PALETTE[colorIndex];
+          centerDot.style.background = color.bg;
+          centerDot.style.boxShadow = `0 0 25px ${color.glow}`;
+        },
+        800 + Math.random() * 400,
+      );
 
       // Create 3 ripple rings with staggered animations (using logo palette)
       const rippleColors = [
-        SHAG_PALETTE[0].glow,  // Orange
-        SHAG_PALETTE[1].glow,  // Yellow
-        SHAG_PALETTE[2].glow,  // Teal
+        SHAG_PALETTE[0].glow, // Orange
+        SHAG_PALETTE[1].glow, // Yellow
+        SHAG_PALETTE[2].glow, // Teal
       ];
 
       for (let i = 0; i < 3; i++) {
@@ -250,7 +253,7 @@ export class LoadingScreen {
       this.smokeAnimation = null;
     }
 
-    this.container.classList.add('ui-loading-screen--hiding');
+    this.container.classList.add("ui-loading-screen--hiding");
     setTimeout(() => {
       this.container.remove();
     }, 500);

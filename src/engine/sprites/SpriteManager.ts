@@ -1,15 +1,16 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
-import { Scene } from "@babylonjs/core/scene";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Scene } from "@babylonjs/core/scene";
 import { BillboardSprite } from "./BillboardSprite";
 import { SpriteSheet, type SpriteSheetConfig } from "./SpriteSheet";
-import type { SpriteManifest, SpriteDefinition, SpriteCategory, AnchorPoint } from "./SpriteTypes";
-export type { SpriteManifest, SpriteDefinition, SpriteCategory, AnchorPoint } from "./SpriteTypes";
+import type { AnchorPoint, SpriteCategory, SpriteDefinition, SpriteManifest } from "./SpriteTypes";
+
+export type { AnchorPoint, SpriteCategory, SpriteDefinition, SpriteManifest } from "./SpriteTypes";
 
 /**
  * A simple static sprite (single image, no animation)
@@ -24,7 +25,7 @@ export interface StaticSprite {
 /**
  * SpriteManager handles loading and caching sprite sheets,
  * and provides factory methods for creating sprites.
- * 
+ *
  * Supports both animated sprites (via SpriteSheet) and static sprites (via manifest).
  */
 export class SpriteManager {
@@ -34,7 +35,7 @@ export class SpriteManager {
   private camera: Camera | null = null;
   private spriteSheets: Map<string, SpriteSheet> = new Map();
   private sprites: BillboardSprite[] = [];
-  
+
   // Manifest-based sprites
   private manifest: SpriteManifest | null = null;
   private staticSprites: StaticSprite[] = [];
@@ -178,7 +179,7 @@ export class SpriteManager {
     if (!this.manifest) return undefined;
     const cat = this.manifest.categories[category];
     if (!cat) return undefined;
-    return cat.sprites.find(s => s.id === id);
+    return cat.sprites.find((s) => s.id === id);
   }
 
   /**
@@ -194,20 +195,16 @@ export class SpriteManager {
   public getSpritesByBiome(category: string, biome: string): SpriteDefinition[] {
     const cat = this.manifest?.categories[category];
     if (!cat) return [];
-    return cat.sprites.filter(s => {
-      const biomes = s.biomes ?? ['all'];
-      return biomes.includes('all') || biomes.includes(biome);
+    return cat.sprites.filter((s) => {
+      const biomes = s.biomes ?? ["all"];
+      return biomes.includes("all") || biomes.includes(biome);
     });
   }
 
   /**
    * Create a static sprite from a definition
    */
-  public createStaticSprite(
-    definition: SpriteDefinition,
-    position: Vector3,
-    scale: number = 1
-  ): StaticSprite | null {
+  public createStaticSprite(definition: SpriteDefinition, position: Vector3, scale: number = 1): StaticSprite | null {
     if (!this.scene) {
       console.warn("SpriteManager: Cannot create static sprite - not initialized");
       return null;
@@ -215,18 +212,18 @@ export class SpriteManager {
 
     // If file already has a path (contains /), use it directly
     // Otherwise, prepend manifest basePath if available
-    const hasPath = definition.file.includes('/');
-    const basePath = hasPath ? '' : (this.manifest?.basePath || '');
+    const hasPath = definition.file.includes("/");
+    const basePath = hasPath ? "" : this.manifest?.basePath || "";
     const texturePath = basePath + definition.file;
-    
+
     console.log(`SpriteManager: Creating sprite from ${texturePath} at ${position.toString()}`);
-    
+
     // Get or create material (cached per texture)
     let material = this.materialCache.get(texturePath);
     if (!material) {
       const texture = new Texture(texturePath, this.scene, false, true);
       texture.hasAlpha = true;
-      
+
       material = new StandardMaterial(`mat_${definition.id}`, this.scene);
       material.diffuseTexture = texture;
       material.diffuseColor = new Color3(1, 1, 1);
@@ -234,7 +231,7 @@ export class SpriteManager {
       material.emissiveColor = new Color3(0, 0, 0); // No self-illumination - affected by scene lighting
       material.useAlphaFromDiffuseTexture = true;
       material.backFaceCulling = false;
-      
+
       this.materialCache.set(texturePath, material);
       this.textureCache.set(texturePath, texture);
     }
@@ -242,16 +239,11 @@ export class SpriteManager {
     // Calculate dimensions
     const width = definition.width * scale;
     const height = definition.height * scale;
-    const anchor = definition.anchor ?? 'bottom-center';
+    const anchor = definition.anchor ?? "bottom-center";
     const isBillboard = definition.billboard !== false; // default true
 
     // Create quad mesh
-    const mesh = this.createQuadMesh(
-      `sprite_${definition.id}_${Date.now()}`,
-      width,
-      height,
-      anchor
-    );
+    const mesh = this.createQuadMesh(`sprite_${definition.id}_${Date.now()}`, width, height, anchor);
     mesh.material = material;
     mesh.position.copyFrom(position);
 
@@ -263,10 +255,10 @@ export class SpriteManager {
     let shadowMesh: Mesh | null = null;
     if (definition.shadow) {
       shadowMesh = this.createShadowMesh(
-        mesh.name + "_shadow",
+        `${mesh.name}_shadow`,
         width * 0.8,
         height * 0.4,
-        definition.shadowOpacity ?? 0.3
+        definition.shadowOpacity ?? 0.3,
       );
       shadowMesh.position.set(position.x, position.y + 0.1, position.z);
     }
@@ -280,7 +272,7 @@ export class SpriteManager {
         if (shadowMesh) shadowMesh.dispose();
         const idx = this.staticSprites.indexOf(staticSprite);
         if (idx !== -1) this.staticSprites.splice(idx, 1);
-      }
+      },
     };
 
     this.staticSprites.push(staticSprite);
@@ -290,42 +282,45 @@ export class SpriteManager {
   /**
    * Create a quad mesh for a static sprite
    */
-  private createQuadMesh(
-    name: string,
-    width: number,
-    height: number,
-    anchor: AnchorPoint
-  ): Mesh {
+  private createQuadMesh(name: string, width: number, height: number, anchor: AnchorPoint): Mesh {
     const mesh = new Mesh(name, this.scene!);
 
     // Calculate vertex positions based on anchor
     let yOffset = 0;
     let xOffset = 0;
-    
+
     switch (anchor) {
-      case 'bottom-center':
+      case "bottom-center":
         yOffset = 0;
         xOffset = -width / 2;
         break;
-      case 'center':
+      case "center":
         yOffset = -height / 2;
         xOffset = -width / 2;
         break;
-      case 'bottom-left':
+      case "bottom-left":
         yOffset = 0;
         xOffset = 0;
         break;
-      case 'bottom-right':
+      case "bottom-right":
         yOffset = 0;
         xOffset = -width;
         break;
     }
 
     const positions = [
-      xOffset, yOffset, 0,                    // bottom-left
-      xOffset + width, yOffset, 0,            // bottom-right
-      xOffset + width, yOffset + height, 0,   // top-right
-      xOffset, yOffset + height, 0,           // top-left
+      xOffset,
+      yOffset,
+      0, // bottom-left
+      xOffset + width,
+      yOffset,
+      0, // bottom-right
+      xOffset + width,
+      yOffset + height,
+      0, // top-right
+      xOffset,
+      yOffset + height,
+      0, // top-left
     ];
 
     const indices = [0, 1, 2, 0, 2, 3];
@@ -343,23 +338,18 @@ export class SpriteManager {
   /**
    * Create a shadow mesh (ellipse on ground)
    */
-  private createShadowMesh(
-    name: string,
-    width: number,
-    depth: number,
-    opacity: number
-  ): Mesh {
+  private createShadowMesh(name: string, width: number, depth: number, opacity: number): Mesh {
     const mesh = MeshBuilder.CreateDisc(name, { radius: 0.5, tessellation: 12 }, this.scene!);
     mesh.rotation.x = Math.PI / 2;
     mesh.scaling.set(width, depth, 1);
 
-    const material = new StandardMaterial(name + "_mat", this.scene!);
+    const material = new StandardMaterial(`${name}_mat`, this.scene!);
     material.diffuseColor = new Color3(0, 0, 0);
     material.specularColor = new Color3(0, 0, 0);
     material.emissiveColor = new Color3(0, 0, 0);
     material.alpha = opacity;
     material.backFaceCulling = false;
-    
+
     mesh.material = material;
     return mesh;
   }
@@ -386,12 +376,12 @@ export class SpriteManager {
    */
   public clearCaches(): void {
     this.clearStaticSprites();
-    
+
     for (const texture of this.textureCache.values()) {
       texture.dispose();
     }
     this.textureCache.clear();
-    
+
     for (const material of this.materialCache.values()) {
       material.dispose();
     }

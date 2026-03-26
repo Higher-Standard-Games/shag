@@ -1,4 +1,3 @@
-
 /**
  * Transport layer interface for network communication
  */
@@ -37,19 +36,19 @@ export class TransportFactory {
    */
   static async create(url: string): Promise<Transport> {
     // Try WebTransport first (if available)
-    if ('WebTransport' in globalThis) {
+    if ("WebTransport" in globalThis) {
       try {
-        const { WebTransportTransport } = await import('./WebTransportTransport');
+        const { WebTransportTransport } = await import("./WebTransportTransport");
         const transport = new WebTransportTransport();
         await transport.connect(url);
         return transport;
       } catch (error) {
-        console.warn('WebTransport failed, falling back to WebSocket:', error);
+        console.warn("WebTransport failed, falling back to WebSocket:", error);
       }
     }
 
     // Fallback to WebSocket
-    const { WebSocketTransport } = await import('./WebSocketTransport');
+    const { WebSocketTransport } = await import("./WebSocketTransport");
     const transport = new WebSocketTransport();
     await transport.connect(url);
     return transport;

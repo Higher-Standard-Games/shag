@@ -1,18 +1,18 @@
 /**
  * CommandRegistry - Command registration and execution system
- * 
+ *
  * Manages registered commands and provides autocomplete functionality.
  * Integrates with Cvar system for console variables.
- * 
+ *
  * Commands are auto-discovered from:
  * - src/engine/console/commands/ (engine commands)
  * - src/games/{game}/console/commands/ (game commands)
  */
 
-import { Command, CommandDef } from './Command';
-import { Cvar } from '../core/Cvar';
+import { Cvar } from "../core/Cvar";
+import { Command, type CommandDef } from "./Command";
 
-export type CommandHandler = (args: string[]) => string | void | Promise<string | void>;
+export type CommandHandler = (args: string[]) => string | undefined | Promise<string | undefined>;
 
 interface RegisteredCommand {
   command: Command;
@@ -25,36 +25,36 @@ interface RegisteredCommand {
 class LegacyCommand extends Command {
   readonly definition: CommandDef;
   private handler: CommandHandler;
-  
-  constructor(name: string, handler: CommandHandler, description: string = 'No description') {
+
+  constructor(name: string, handler: CommandHandler, description: string = "No description") {
     super();
     this.definition = { name, description };
     this.handler = handler;
   }
-  
-  async execute(args: string[]): Promise<string | void> {
+
+  async execute(args: string[]): Promise<string | undefined> {
     return this.handler(args);
   }
 }
 
 export class CommandRegistry {
   private static instance: CommandRegistry;
-  
+
   private commands: Map<string, RegisteredCommand> = new Map();
   private aliases: Map<string, string> = new Map(); // alias -> primary name
   private cvarNames: Set<string> = new Set();
-  
+
   private constructor() {
     this.setupCvarIntegration();
   }
-  
+
   static getInstance(): CommandRegistry {
     if (!CommandRegistry.instance) {
       CommandRegistry.instance = new CommandRegistry();
     }
     return CommandRegistry.instance;
   }
-  
+
   /**
    * Register a command instance
    */
@@ -64,7 +64,7 @@ export class CommandRegistry {
    */
   register(name: string, handler: CommandHandler, description?: string): void;
   register(commandOrName: Command | string, handler?: CommandHandler, description?: string): void {
-    if (typeof commandOrName === 'string') {
+    if (typeof commandOrName === "string") {
       // Legacy handler-based registration
       const command = new LegacyCommand(commandOrName, handler!, description);
       this.registerCommand(command);
@@ -72,36 +72,38 @@ export class CommandRegistry {
     }
     this.registerCommand(commandOrName);
   }
-  
+
   private registerCommand(command: Command): void {
     const def = command.definition;
     const key = def.name.toLowerCase();
-    
+
     // Check developer mode for developer-only commands
-    if (def.developer && !Cvar.getBool('developer')) {
+    if (def.developer && !Cvar.getBool("developer")) {
       // Still register but mark as developer-only
       // Will be filtered in autocomplete and rejected on execute
     }
-    
+
     this.commands.set(key, { command, definition: def });
-    
+
     // Register aliases
     if (def.aliases) {
       for (const alias of def.aliases) {
         this.aliases.set(alias.toLowerCase(), key);
       }
     }
-    
-    console.log(`[CommandRegistry] Registered: ${def.name}${def.aliases ? ` (aliases: ${def.aliases.join(', ')})` : ''}`);
+
+    console.log(
+      `[CommandRegistry] Registered: ${def.name}${def.aliases ? ` (aliases: ${def.aliases.join(", ")})` : ""}`,
+    );
   }
-  
+
   /**
    * Unregister a command by name
    */
   unregister(name: string): void {
     const key = name.toLowerCase();
     const registered = this.commands.get(key);
-    
+
     if (registered) {
       // Remove aliases
       if (registered.definition.aliases) {
@@ -112,54 +114,54 @@ export class CommandRegistry {
       this.commands.delete(key);
     }
   }
-  
+
   /**
    * Execute a command string
    */
-  async execute(input: string): Promise<string | void> {
+  async execute(input: string): Promise<string | undefined> {
     const trimmed = input.trim();
     if (!trimmed) return;
-    
+
     // Parse command and arguments
     const parts = this.parseInput(trimmed);
     if (parts.length === 0) return;
-    
+
     const [commandName, ...args] = parts;
     const key = commandName.toLowerCase();
-    
+
     // Check for alias
     const primaryKey = this.aliases.get(key) || key;
-    
+
     // Try as command first
     const registered = this.commands.get(primaryKey);
     if (registered) {
       // Check developer mode
-      if (registered.definition.developer && !Cvar.getBool('developer')) {
+      if (registered.definition.developer && !Cvar.getBool("developer")) {
         return `Command '${commandName}' requires developer mode`;
       }
-      
+
       try {
         return await registered.command.execute(args);
       } catch (error) {
         return `Error executing '${commandName}': ${error}`;
       }
     }
-    
+
     // Try as cvar
     if (this.cvarNames.has(key)) {
       return this.handleCvar(key, args);
     }
-    
+
     // Check if it's a cvar we haven't tracked yet
     const cvarValue = Cvar.get(key);
     if (cvarValue !== undefined) {
       this.cvarNames.add(key);
       return this.handleCvar(key, args);
     }
-    
+
     return `Unknown command: ${commandName}`;
   }
-  
+
   /**
    * Handle cvar get/set
    */
@@ -169,7 +171,7 @@ export class CommandRegistry {
       return Cvar.formatInfo(name);
     } else {
       // Set value
-      const value = args.join(' ');
+      const value = args.join(" ");
       const success = Cvar.set(name, value);
       if (success) {
         return `${name} = ${JSON.stringify(Cvar.get(name))}`;
@@ -178,7 +180,7 @@ export class CommandRegistry {
       }
     }
   }
-  
+
   /**
    * Get autocomplete suggestions for input
    */
@@ -186,34 +188,34 @@ export class CommandRegistry {
     const trimmed = input.trim().toLowerCase();
     const parts = this.parseInput(trimmed);
     const suggestions: string[] = [];
-    
+
     if (parts.length <= 1) {
       // Complete command name
-      const prefix = parts[0] || '';
-      
+      const prefix = parts[0] || "";
+
       // Add matching commands
       for (const [name, registered] of this.commands) {
         // Skip developer commands in non-developer mode
-        if (registered.definition.developer && !Cvar.getBool('developer')) {
+        if (registered.definition.developer && !Cvar.getBool("developer")) {
           continue;
         }
         if (name.startsWith(prefix)) {
           suggestions.push(name);
         }
       }
-      
+
       // Add matching aliases
       for (const alias of this.aliases.keys()) {
         const primary = this.aliases.get(alias)!;
         const registered = this.commands.get(primary);
-        if (registered?.definition.developer && !Cvar.getBool('developer')) {
+        if (registered?.definition.developer && !Cvar.getBool("developer")) {
           continue;
         }
         if (alias.startsWith(prefix)) {
           suggestions.push(alias);
         }
       }
-      
+
       // Add matching cvars
       for (const cvarName of Cvar.getNames()) {
         if (cvarName.startsWith(prefix)) {
@@ -225,16 +227,16 @@ export class CommandRegistry {
       const commandName = parts[0];
       const primaryKey = this.aliases.get(commandName) || commandName;
       const registered = this.commands.get(primaryKey);
-      
+
       if (registered) {
         // Check for custom completions
         if (registered.command.getCompletions) {
           return registered.command.getCompletions(input, parts.slice(1));
         }
-        
+
         // Use subcommand definitions
         if (registered.definition.subcommands && parts.length === 2) {
-          const subPrefix = parts[1] || '';
+          const subPrefix = parts[1] || "";
           for (const sub of registered.definition.subcommands) {
             if (sub.name.startsWith(subPrefix)) {
               suggestions.push(sub.name);
@@ -243,10 +245,10 @@ export class CommandRegistry {
         }
       }
     }
-    
+
     return suggestions.sort();
   }
-  
+
   /**
    * Get all registered commands
    */
@@ -254,14 +256,14 @@ export class CommandRegistry {
     const result = new Map<string, CommandDef>();
     for (const [name, registered] of this.commands) {
       // Filter developer commands in non-developer mode
-      if (registered.definition.developer && !Cvar.getBool('developer')) {
+      if (registered.definition.developer && !Cvar.getBool("developer")) {
         continue;
       }
       result.set(name, registered.definition);
     }
     return result;
   }
-  
+
   /**
    * Check if a name is a cvar (not a command)
    */
@@ -269,7 +271,7 @@ export class CommandRegistry {
     const key = name.toLowerCase();
     return !this.commands.has(key) && Cvar.exists(key);
   }
-  
+
   /**
    * Get all command definitions (for help listing)
    */
@@ -277,14 +279,14 @@ export class CommandRegistry {
     const result: CommandDef[] = [];
     for (const [_, registered] of this.commands) {
       // Filter developer commands in non-developer mode
-      if (registered.definition.developer && !Cvar.getBool('developer')) {
+      if (registered.definition.developer && !Cvar.getBool("developer")) {
         continue;
       }
       result.push(registered.definition);
     }
     return result;
   }
-  
+
   /**
    * Get command definition (for autocomplete display)
    */
@@ -293,14 +295,14 @@ export class CommandRegistry {
     const primaryKey = this.aliases.get(key) || key;
     return this.commands.get(primaryKey)?.definition;
   }
-  
+
   /**
    * Get autocomplete suggestions for input (compatibility with DebugConsole)
    */
   getAutocompleteSuggestions(input: string): string[] {
     return this.getCompletions(input);
   }
-  
+
   /**
    * Get help for a command
    */
@@ -308,48 +310,48 @@ export class CommandRegistry {
     const key = commandName.toLowerCase();
     const primaryKey = this.aliases.get(key) || key;
     const registered = this.commands.get(primaryKey);
-    
+
     if (registered) {
       return registered.command.getHelp();
     }
-    
+
     // Check if it's a cvar
     const cvar = Cvar.getCvar(key);
     if (cvar) {
-      return `${key} - ${cvar.description || 'Console variable'}\nCurrent value: ${Cvar.get(key)}`;
+      return `${key} - ${cvar.description || "Console variable"}\nCurrent value: ${Cvar.get(key)}`;
     }
-    
+
     return null;
   }
-  
+
   /**
    * Parse input string into parts, respecting quotes
    */
   private parseInput(input: string): string[] {
     const parts: string[] = [];
-    let current = '';
+    let current = "";
     let inQuotes = false;
-    
+
     for (const char of input) {
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ' ' && !inQuotes) {
+      } else if (char === " " && !inQuotes) {
         if (current) {
           parts.push(current);
-          current = '';
+          current = "";
         }
       } else {
         current += char;
       }
     }
-    
+
     if (current) {
       parts.push(current);
     }
-    
+
     return parts;
   }
-  
+
   /**
    * Set up integration with Cvar system
    */
@@ -358,11 +360,11 @@ export class CommandRegistry {
     for (const name of Cvar.getNames()) {
       this.cvarNames.add(name.toLowerCase());
     }
-    
+
     // Register built-in cvar commands
     this.registerCvarCommands();
   }
-  
+
   /**
    * Register built-in cvar management commands
    */

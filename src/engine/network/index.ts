@@ -12,39 +12,36 @@
  * ```
  */
 
-// Core types and interfaces
-export type { PlayerId, EntityId } from './core/Entity';
-export type { SimulationConfig } from './core/Simulation';
-export type { IGameHost } from './core/IGameHost';
-
-// Core classes
-export { Entity } from './core/Entity';
-export { GameState, PlayerState } from './core/GameState';
-export type { GameEvent } from './core/GameState';
-export { Simulation, GameSystem } from './core/Simulation';
-export { MoveCommand } from './core/Command';
-export type { Command, CommandHandler } from './core/Command';
-
-// Protocol
-export { BinaryProtocol, BinaryEncoder, BinaryDecoder, MessageType } from './protocol/BinaryProtocol';
-export { MessageCodec } from './protocol/MessageCodec';
-
+export { LocalGameHost } from "./client/hosts/LocalGameHost";
+export { NetworkGameHost } from "./client/hosts/NetworkGameHost";
 // Client
-export type { Transport } from './client/transport/Transport';
-export { TransportFactory } from './client/transport/Transport';
-export { WebSocketTransport } from './client/transport/WebSocketTransport';
-export { LocalGameHost } from './client/hosts/LocalGameHost';
-export { NetworkGameHost } from './client/hosts/NetworkGameHost';
+export type { Transport } from "./client/transport/Transport";
+export { TransportFactory } from "./client/transport/Transport";
+export { WebSocketTransport } from "./client/transport/WebSocketTransport";
+export type { Command, CommandHandler } from "./core/Command";
+export { MoveCommand } from "./core/Command";
+// Core types and interfaces
+export type { EntityId, PlayerId } from "./core/Entity";
+// Core classes
+export { Entity } from "./core/Entity";
+export type { GameEvent } from "./core/GameState";
+export { GameState, PlayerState } from "./core/GameState";
+export type { IGameHost } from "./core/IGameHost";
+export type { SimulationConfig } from "./core/Simulation";
+export { GameSystem, Simulation } from "./core/Simulation";
+// Protocol
+export { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "./protocol/BinaryProtocol";
+export { MessageCodec } from "./protocol/MessageCodec";
 
 // Types
 export type {
   ClientId,
+  PlayerInfo,
   RoomId,
-  Tick,
-  Vector3,
   Rotation,
   ServerInfo,
-  PlayerInfo,
   SpawnInfo,
-} from './types';
-export { PROTOCOL_VERSION } from './types';
+  Tick,
+  Vector3,
+} from "./types";
+export { PROTOCOL_VERSION } from "./types";

@@ -1,30 +1,30 @@
 /**
  * BabylonPhysicsBackend - Uses Babylon.js ray casting against rendered meshes
- * 
+ *
  * This backend leverages Babylon's built-in ray casting to detect collisions
  * against the actual rendered BSP geometry.
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Scene } from '@babylonjs/core/scene';
-import { Ray } from '@babylonjs/core/Culling/ray';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import type { BspFile } from '../loader/bsp/BspLoader';
+import { Ray } from "@babylonjs/core/Culling/ray";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Scene } from "@babylonjs/core/scene";
+import type { BspFile } from "../loader/bsp/BspLoader";
 import {
-  CollisionBackend,
-  CollisionBackendType,
-  TraceResult,
-  TraceOptions,
-  CollisionStats,
-  createDefaultTraceResult,
+  type CollisionBackend,
+  type CollisionBackendType,
+  type CollisionStats,
   Contents,
-} from './CollisionBackend';
-import { ContentFlags, SurfaceFlags } from './ContentFlags';
+  createDefaultTraceResult,
+  type TraceOptions,
+  type TraceResult,
+} from "./CollisionBackend";
+import { ContentFlags, SurfaceFlags } from "./ContentFlags";
 
 export class BabylonPhysicsBackend implements CollisionBackend {
-  readonly type: CollisionBackendType = 'babylon';
-  readonly name = 'Babylon.js Ray Casting';
+  readonly type: CollisionBackendType = "babylon";
+  readonly name = "Babylon.js Ray Casting";
 
   private scene: Scene | null = null;
   private collisionMeshes: AbstractMesh[] = [];
@@ -37,7 +37,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
 
   async init(_bsp: BspFile, scene?: Scene): Promise<void> {
     if (!scene) {
-      console.warn('[BabylonPhysicsBackend] No scene provided, collision will not work');
+      console.warn("[BabylonPhysicsBackend] No scene provided, collision will not work");
       return;
     }
 
@@ -47,13 +47,17 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     // Find all BSP meshes in the scene
     for (const mesh of scene.meshes) {
       // Look for meshes that are part of BSP geometry
-      if (mesh.name.startsWith('bsp_') ||
-        mesh.name.includes('polygon') ||
-        mesh.name.includes('patch') ||
-        mesh.name.includes('mesh')) {
+      if (
+        mesh.name.startsWith("bsp_") ||
+        mesh.name.includes("polygon") ||
+        mesh.name.includes("patch") ||
+        mesh.name.includes("mesh")
+      ) {
         if (mesh instanceof Mesh) {
-          const contentFlags = typeof (mesh as any).metadata?.contentFlags === 'number' ? (mesh as any).metadata.contentFlags : 0;
-          const surfaceFlags = typeof (mesh as any).metadata?.surfaceFlags === 'number' ? (mesh as any).metadata.surfaceFlags : 0;
+          const contentFlags =
+            typeof (mesh as any).metadata?.contentFlags === "number" ? (mesh as any).metadata.contentFlags : 0;
+          const surfaceFlags =
+            typeof (mesh as any).metadata?.surfaceFlags === "number" ? (mesh as any).metadata.surfaceFlags : 0;
           if ((contentFlags & ContentFlags.DETAIL) !== 0) continue;
           if ((surfaceFlags & SurfaceFlags.NONSOLID) !== 0) continue;
           if ((surfaceFlags & SurfaceFlags.HINT) !== 0) continue;
@@ -65,7 +69,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
 
     // If no BSP-specific meshes found, use all pickable meshes
     if (this.collisionMeshes.length === 0) {
-      this.collisionMeshes = scene.meshes.filter(m => m.isPickable && m instanceof Mesh);
+      this.collisionMeshes = scene.meshes.filter((m) => m.isPickable && m instanceof Mesh);
     }
 
     this.stats.backendStats.meshCount = this.collisionMeshes.length;
@@ -80,7 +84,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     const debug = options?.debug ?? false;
 
     if (!this.scene) {
-      if (debug) console.log('[BabylonPhysics] No scene available');
+      if (debug) console.log("[BabylonPhysics] No scene available");
       return result;
     }
 
@@ -96,7 +100,9 @@ export class BabylonPhysicsBackend implements CollisionBackend {
     const ray = new Ray(start, normalizedDir, length);
 
     if (debug) {
-      console.log(`[BabylonPhysics] Ray: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)}) dir=(${normalizedDir.x.toFixed(2)}, ${normalizedDir.y.toFixed(2)}, ${normalizedDir.z.toFixed(2)}) len=${length.toFixed(1)}`);
+      console.log(
+        `[BabylonPhysics] Ray: (${start.x.toFixed(1)}, ${start.y.toFixed(1)}, ${start.z.toFixed(1)}) dir=(${normalizedDir.x.toFixed(2)}, ${normalizedDir.y.toFixed(2)}, ${normalizedDir.z.toFixed(2)}) len=${length.toFixed(1)}`,
+      );
     }
 
     // Pick against scene meshes
@@ -119,14 +125,17 @@ export class BabylonPhysicsBackend implements CollisionBackend {
       this.stats.hitCount++;
 
       if (debug) {
-        console.log(`[BabylonPhysics] HIT at fraction ${result.fraction.toFixed(4)}, mesh: ${pickResult.pickedMesh?.name}`);
+        console.log(
+          `[BabylonPhysics] HIT at fraction ${result.fraction.toFixed(4)}, mesh: ${pickResult.pickedMesh?.name}`,
+        );
       }
     } else if (debug) {
       console.log(`[BabylonPhysics] No hit`);
     }
 
     const elapsed = performance.now() - startTime;
-    this.stats.avgTraceTimeMs = (this.stats.avgTraceTimeMs * (this.stats.traceCount - 1) + elapsed) / this.stats.traceCount;
+    this.stats.avgTraceTimeMs =
+      (this.stats.avgTraceTimeMs * (this.stats.traceCount - 1) + elapsed) / this.stats.traceCount;
 
     return result;
   }
@@ -155,20 +164,12 @@ export class BabylonPhysicsBackend implements CollisionBackend {
   }
 
   isOnGround(point: Vector3, options?: TraceOptions): boolean {
-    const groundCheck = this.trace(
-      point,
-      point.add(new Vector3(0, -2, 0)),
-      options
-    );
+    const groundCheck = this.trace(point, point.add(new Vector3(0, -2, 0)), options);
     return groundCheck.fraction < 1.0;
   }
 
   findGround(point: Vector3, maxDistance = 500, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
-    const result = this.trace(
-      point,
-      point.add(new Vector3(0, -maxDistance, 0)),
-      options
-    );
+    const result = this.trace(point, point.add(new Vector3(0, -maxDistance, 0)), options);
 
     if (result.fraction < 1.0 && result.normal) {
       return {
@@ -190,7 +191,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
   slideMove(
     startPos: Vector3,
     velocity: Vector3,
-    options?: TraceOptions
+    options?: TraceOptions,
   ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
     // Babylon physics handles its own resolution, but we can implement a basic slide
     // using the trace method for consistency.
@@ -205,7 +206,7 @@ export class BabylonPhysicsBackend implements CollisionBackend {
       return {
         endPos: trace.endPos,
         velocity: Vector3.Zero(), // Stop on hit
-        hitCount: 1
+        hitCount: 1,
       };
     }
 

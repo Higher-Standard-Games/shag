@@ -1,5 +1,5 @@
-import { type Entity, MapParser } from "../map/MapParser";
 import { GamePaths } from "../../core/GamePaths";
+import { type Entity, MapParser } from "../map/MapParser";
 
 export interface PrefabDefinition {
   name: string;
@@ -9,7 +9,7 @@ export interface PrefabDefinition {
 
 /**
  * PrefabLoader handles loading and caching .map files used as prefabs/models.
- * 
+ *
  * Convention: Prefab origin (0,0,0) is the floor/anchor point.
  * When modeling in TrenchBroom, place the bottom center of your model at origin.
  */
@@ -18,7 +18,7 @@ export class PrefabLoader {
   private prefabCache: Map<string, PrefabDefinition> = new Map();
   private basePath: string | null = null;
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): PrefabLoader {
     if (!PrefabLoader.instance) {

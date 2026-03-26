@@ -1,5 +1,5 @@
-import type { IComponent } from '../core/Component';
-import { BinaryEncoder, BinaryDecoder } from '../protocol/BinaryProtocol';
+import type { IComponent } from "../core/Component";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 
 /**
  * Simple 3D vector for position/rotation without Babylon dependency

@@ -1,7 +1,7 @@
-import type { Vec3 } from '../../components/TransformComponent';
-import type { CollisionWorld } from '../collision/CollisionWorld';
-import type { MovementProfile, MovementInput, MovementResult } from './MovementProfile';
-import { InputButtons } from '../../components/InputComponent';
+import { InputButtons } from "../../components/InputComponent";
+import type { Vec3 } from "../../components/TransformComponent";
+import type { CollisionWorld } from "../collision/CollisionWorld";
+import type { MovementInput, MovementProfile, MovementResult } from "./MovementProfile";
 
 /**
  * Configuration for SimpleMovement
@@ -43,7 +43,7 @@ export class SimpleMovement implements MovementProfile {
   }
 
   getName(): string {
-    return 'SimpleMovement';
+    return "SimpleMovement";
   }
 
   getDefaults() {
@@ -55,7 +55,7 @@ export class SimpleMovement implements MovementProfile {
     velocity: Vec3,
     input: MovementInput | null,
     deltaTime: number,
-    collision: CollisionWorld | null
+    collision: CollisionWorld | null,
   ): MovementResult {
     // Clone to avoid mutating input
     const newPos: Vec3 = { ...position };
@@ -66,10 +66,7 @@ export class SimpleMovement implements MovementProfile {
     // Simple ground check: if Y velocity is ~0 and we're at a reasonable height
     // In production, use collision.trace() for proper ground detection
     if (collision) {
-      const groundTrace = collision.trace(
-        position,
-        { x: position.x, y: position.y - 0.1, z: position.z }
-      );
+      const groundTrace = collision.trace(position, { x: position.x, y: position.y - 0.1, z: position.z });
       grounded = groundTrace.hit && groundTrace.fraction < 1;
     } else {
       // Fallback: assume grounded if Y velocity is small and position is low
@@ -146,10 +143,7 @@ export class SimpleMovement implements MovementProfile {
 
         // Clip velocity against hit normal
         if (trace.normal) {
-          const dot =
-            newVel.x * trace.normal.x +
-            newVel.y * trace.normal.y +
-            newVel.z * trace.normal.z;
+          const dot = newVel.x * trace.normal.x + newVel.y * trace.normal.y + newVel.z * trace.normal.z;
 
           newVel.x -= trace.normal.x * dot;
           newVel.y -= trace.normal.y * dot;
@@ -207,12 +201,7 @@ export class SimpleMovement implements MovementProfile {
   /**
    * Accelerate in a direction
    */
-  private accelerate(
-    velocity: Vec3,
-    wishDir: Vec3,
-    maxSpeed: number,
-    deltaTime: number
-  ): void {
+  private accelerate(velocity: Vec3, wishDir: Vec3, maxSpeed: number, deltaTime: number): void {
     // Current speed in wish direction
     const currentSpeed = velocity.x * wishDir.x + velocity.z * wishDir.z;
 

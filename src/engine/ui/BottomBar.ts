@@ -1,9 +1,9 @@
 /**
  * BottomBar - Unified bottom UI panel (Engine Component)
- * 
+ *
  * This is a GENERIC engine component. Game-specific customization
  * (icons, colors, item rendering) is provided via callbacks.
- * 
+ *
  * Features:
  * - Tabbed build menu with categories from JSON config
  * - Integrated inventory bar
@@ -12,15 +12,15 @@
  * - Customizable via callbacks (game provides icons, styling)
  */
 
-import { UIConfig, type BuildMenuCategory, type BuildMenuItem } from "./UIConfig";
-import { UIStyles } from "./UIStyles";
 import bottomBarCSS from "./styles/BottomBar.css?raw";
+import { type BuildMenuCategory, type BuildMenuItem, UIConfig } from "./UIConfig";
+import { UIStyles } from "./UIStyles";
 
 export interface InventorySlot {
   itemId: string | null;
   icon: string | null;
   count: number;
-  name?: string;  // Display name for the item
+  name?: string; // Display name for the item
 }
 
 /**
@@ -31,18 +31,18 @@ export interface BottomBarCallbacks {
   // Actions
   onItemSelect: (item: BuildMenuItem) => void;
   onInventorySlotClick: (slotIndex: number) => void;
-  onCategoryChange?: (categoryId: string) => void;  // Called when category tab changes
-  onCollapse?: () => void;  // Called when bar is minimized
-  
+  onCategoryChange?: (categoryId: string) => void; // Called when category tab changes
+  onCollapse?: () => void; // Called when bar is minimized
+
   // Data providers
   getPlayerLevel: () => number;
   getPlayerMoney: () => number;
   getInventory: () => InventorySlot[];
-  
+
   // Customization (optional - engine provides defaults)
-  renderItemIcon?: (item: BuildMenuItem) => string;  // Returns HTML/emoji for item icon
-  renderInventoryIcon?: (itemId: string) => string;  // Returns HTML/emoji for inventory
-  getItemTooltip?: (item: BuildMenuItem) => string;  // Custom tooltip text
+  renderItemIcon?: (item: BuildMenuItem) => string; // Returns HTML/emoji for item icon
+  renderInventoryIcon?: (itemId: string) => string; // Returns HTML/emoji for inventory
+  getItemTooltip?: (item: BuildMenuItem) => string; // Custom tooltip text
   getCategoryStyle?: (category: BuildMenuCategory) => { color?: string; icon?: string };
 }
 
@@ -59,15 +59,15 @@ export class BottomBar {
 
   constructor(callbacks: BottomBarCallbacks) {
     this.callbacks = callbacks;
-    
+
     // Inject styles once
     UIStyles.injectCSS("bottom-bar", bottomBarCSS);
-    
+
     this.container = this.createContainer();
     this.tabsContainer = this.createTabsContainer();
     this.itemsContainer = this.createItemsContainer();
     this.inventoryContainer = this.createInventoryContainer();
-    
+
     this.container.appendChild(this.tabsContainer);
     this.container.appendChild(this.itemsContainer);
     // Note: Inventory is now shown in a separate dialog via GameHUD
@@ -140,10 +140,10 @@ export class BottomBar {
   private createTab(category: BuildMenuCategory): HTMLButtonElement {
     const tab = document.createElement("button");
     const isSelected = this.selectedCategory === category.id;
-    
+
     tab.className = `bottom-bar-tab${isSelected ? " active" : ""}`;
     tab.innerHTML = `${category.icon} <strong>${category.name}</strong>`;
-    
+
     // Set dynamic color via CSS variables for active state
     if (isSelected) {
       tab.style.setProperty("--tab-color", category.color);
@@ -157,16 +157,16 @@ export class BottomBar {
   private selectCategory(categoryId: string): void {
     this.selectedCategory = categoryId;
     this.selectedItem = null;
-    
+
     // Auto-expand if minimized when clicking a tab
     if (!this.isExpanded) {
       this.isExpanded = true;
       this.itemsContainer.classList.remove("collapsed");
     }
-    
+
     // Notify game of category change (e.g., to exit build mode)
     this.callbacks.onCategoryChange?.(categoryId);
-    
+
     this.renderTabs();
     this.renderItems();
   }
@@ -176,7 +176,7 @@ export class BottomBar {
 
     if (!this.selectedCategory) return;
 
-    const category = this.categories.find(c => c.id === this.selectedCategory);
+    const category = this.categories.find((c) => c.id === this.selectedCategory);
     if (!category) return;
 
     const playerMoney = this.callbacks.getPlayerMoney();
@@ -350,19 +350,19 @@ export class BottomBar {
    */
   private darkenColor(hex: string, percent: number): string {
     // Remove # if present
-    hex = hex.replace(/^#/, '');
-    
+    hex = hex.replace(/^#/, "");
+
     // Parse RGB
     let r = parseInt(hex.substring(0, 2), 16);
     let g = parseInt(hex.substring(2, 4), 16);
     let b = parseInt(hex.substring(4, 6), 16);
-    
+
     // Darken
     r = Math.max(0, Math.floor(r * (1 - percent / 100)));
     g = Math.max(0, Math.floor(g * (1 - percent / 100)));
     b = Math.max(0, Math.floor(b * (1 - percent / 100)));
-    
+
     // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
   }
 }

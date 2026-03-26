@@ -1,6 +1,6 @@
 /**
  * GameClock - Virtual 24-hour day/night cycle
- * 
+ *
  * Features:
  * - Configurable day length (default: 3 minutes real time = 24 hours game time)
  * - Day counting
@@ -11,26 +11,26 @@
 // ==================== Types ====================
 
 export interface TimeOfDay {
-  hour: number;      // 0-23
-  minute: number;    // 0-59
+  hour: number; // 0-23
+  minute: number; // 0-59
   totalMinutes: number; // 0-1439 (total minutes in day)
-  normalized: number;   // 0-1 (0 = midnight, 0.5 = noon)
+  normalized: number; // 0-1 (0 = midnight, 0.5 = noon)
   period: TimePeriod;
   periodProgress: number; // 0-1 progress through current period
 }
 
-export type TimePeriod = 
-  | "night"       // 0:00 - 5:00
-  | "dawn"        // 5:00 - 7:00
-  | "morning"     // 7:00 - 12:00
-  | "afternoon"   // 12:00 - 17:00
-  | "dusk"        // 17:00 - 19:00
-  | "evening";    // 19:00 - 24:00
+export type TimePeriod =
+  | "night" // 0:00 - 5:00
+  | "dawn" // 5:00 - 7:00
+  | "morning" // 7:00 - 12:00
+  | "afternoon" // 12:00 - 17:00
+  | "dusk" // 17:00 - 19:00
+  | "evening"; // 19:00 - 24:00
 
 export interface GameClockConfig {
-  dayLengthSeconds: number;  // Real seconds for one full day cycle
-  startHour?: number;        // Starting hour (0-23), default 8 (8 AM)
-  startDay?: number;         // Starting day number, default 1
+  dayLengthSeconds: number; // Real seconds for one full day cycle
+  startHour?: number; // Starting hour (0-23), default 8 (8 AM)
+  startDay?: number; // Starting day number, default 1
 }
 
 export interface ScheduledEvent {
@@ -86,19 +86,21 @@ export class GameClock {
    */
   public init(config: GameClockConfig, preserveTime: boolean = false): void {
     this.dayLengthSeconds = config.dayLengthSeconds;
-    
+
     if (!preserveTime) {
       // Only reset time/day on new game, not when loading
       this.currentDay = config.startDay ?? 1;
-      
+
       // Convert start hour to normalized time
       const startHour = config.startHour ?? 8;
       this.currentTimeNormalized = startHour / 24;
     }
-    
+
     this.lastPeriod = this.getTimeOfDay().period;
-    
-    console.log(`GameClock initialized: Day ${this.currentDay}, ${this.formatTime()}${preserveTime ? ' (time preserved)' : ''}`);
+
+    console.log(
+      `GameClock initialized: Day ${this.currentDay}, ${this.formatTime()}${preserveTime ? " (time preserved)" : ""}`,
+    );
   }
 
   /**
@@ -111,9 +113,9 @@ export class GameClock {
     // deltaTime is in seconds, dayLengthSeconds is full day
     const dayProgress = deltaTime / this.dayLengthSeconds;
     const previousTime = this.currentTimeNormalized;
-    
+
     this.currentTimeNormalized += dayProgress;
-    
+
     // Check for day rollover
     if (this.currentTimeNormalized >= 1) {
       this.currentTimeNormalized -= 1;
@@ -125,8 +127,8 @@ export class GameClock {
     // Check for period changes
     const currentPeriod = this.getTimeOfDay().period;
     if (currentPeriod !== this.lastPeriod) {
-      this.emit("period_changed", { 
-        from: this.lastPeriod, 
+      this.emit("period_changed", {
+        from: this.lastPeriod,
         to: currentPeriod,
         time: this.getTimeOfDay(),
       });
@@ -147,11 +149,11 @@ export class GameClock {
     const totalMinutes = Math.floor(this.currentTimeNormalized * 1440);
     const hour = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
-    
+
     // Determine period
     let period: TimePeriod = "night";
     let periodProgress = 0;
-    
+
     for (const p of TIME_PERIODS) {
       if (hour >= p.startHour && hour < p.endHour) {
         period = p.period;
@@ -232,7 +234,7 @@ export class GameClock {
   public getMoonPosition(): number {
     const hour = this.getTimeOfDay().hour + this.getTimeOfDay().minute / 60;
     if (hour >= 6 && hour < 18) return -1;
-    
+
     // Moon rises at 6 PM, sets at 6 AM
     if (hour >= 18) {
       return (hour - 18) / 12;
@@ -277,22 +279,21 @@ export class GameClock {
    */
   private checkScheduledEvents(previousTime: number): void {
     const currentTime = this.currentTimeNormalized;
-    
+
     for (const event of this.scheduledEvents.values()) {
       const eventTime = (event.hour + (event.minute ?? 0) / 60) / 24;
-      
+
       // Check if we crossed this event time
       const crossed = previousTime < eventTime && currentTime >= eventTime;
-      const crossedMidnight = previousTime > currentTime && 
-        (previousTime < eventTime || currentTime >= eventTime);
-      
+      const crossedMidnight = previousTime > currentTime && (previousTime < eventTime || currentTime >= eventTime);
+
       if (crossed || crossedMidnight) {
         // Check if already triggered today
         if (event.lastTriggeredDay === this.currentDay) continue;
-        
+
         event.callback();
         event.lastTriggeredDay = this.currentDay;
-        
+
         if (!event.recurring) {
           this.scheduledEvents.delete(event.id);
         }
@@ -371,11 +372,7 @@ export class GameClock {
   /**
    * Load save data
    */
-  public loadSaveData(data: { 
-    currentTimeNormalized: number; 
-    currentDay: number;
-    dayLengthSeconds?: number;
-  }): void {
+  public loadSaveData(data: { currentTimeNormalized: number; currentDay: number; dayLengthSeconds?: number }): void {
     this.currentTimeNormalized = data.currentTimeNormalized;
     this.currentDay = data.currentDay;
     if (data.dayLengthSeconds) {

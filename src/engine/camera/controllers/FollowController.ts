@@ -1,17 +1,17 @@
 /**
  * FollowController - Camera controller that follows a target node
- * 
+ *
  * Engine-level camera controller for following players, NPCs, vehicles, etc.
  * Supports configurable offset, smoothing, and look-at behavior.
  */
 
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import { Camera } from "@babylonjs/core/Cameras/camera";
-import type { Observer } from "@babylonjs/core/Misc/observable";
-import { Scene } from "@babylonjs/core/scene";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { ICameraController, CameraControllerConfig } from "./ICameraController";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Scene } from "@babylonjs/core/scene";
+import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 export interface FollowConfig extends CameraControllerConfig {
   /** Offset from target position */
@@ -24,16 +24,16 @@ export interface FollowConfig extends CameraControllerConfig {
 
 export class FollowController implements ICameraController {
   readonly type = "follow";
-  
+
   private camera: ArcRotateCamera | null = null;
   private scene: Scene | null = null;
-  
+
   // State
   private enabled: boolean = true;
   private followTarget: TransformNode | null = null;
   private lastTargetPosition: Vector3 = Vector3.Zero();
   private targetVelocity: Vector3 = Vector3.Zero();
-  
+
   // Configuration
   private config: FollowConfig = {
     smoothing: 0.1,
@@ -42,7 +42,7 @@ export class FollowController implements ICameraController {
     lookAhead: 0,
     rotateWithTarget: false,
   };
-  
+
   // Observers
   private renderObserver: Observer<Scene> | null = null;
 
@@ -51,10 +51,10 @@ export class FollowController implements ICameraController {
       console.error("[FollowController] Requires ArcRotateCamera");
       return;
     }
-    
+
     this.camera = camera;
     this.scene = scene;
-    
+
     this.setupRenderLoop();
     console.log("[FollowController] Attached");
   }
@@ -147,35 +147,28 @@ export class FollowController implements ICameraController {
 
     const targetPos = this.followTarget.position;
     const smoothing = this.config.smoothing ?? 0.1;
-    
+
     // Calculate velocity for look-ahead
     this.targetVelocity = targetPos.subtract(this.lastTargetPosition);
     this.lastTargetPosition = targetPos.clone();
-    
+
     // Calculate desired camera target with look-ahead
-    let desiredTarget = targetPos.clone();
+    const desiredTarget = targetPos.clone();
     if (this.config.lookAhead && this.config.lookAhead > 0) {
       desiredTarget.addInPlace(this.targetVelocity.scale(this.config.lookAhead));
     }
-    
+
     // Apply offset
     const offset = this.config.offset ?? new Vector3(0, 50, -100);
-    
+
     if (this.config.rotateWithTarget && this.followTarget.rotationQuaternion) {
       // Rotate offset by target's rotation
       const rotatedOffset = offset.clone();
-      rotatedOffset.rotateByQuaternionToRef(
-        this.followTarget.rotationQuaternion,
-        rotatedOffset
-      );
+      rotatedOffset.rotateByQuaternionToRef(this.followTarget.rotationQuaternion, rotatedOffset);
       desiredTarget.addInPlace(rotatedOffset);
     }
-    
+
     // Smoothly interpolate camera target
-    this.camera.target = Vector3.Lerp(
-      this.camera.target,
-      desiredTarget,
-      smoothing
-    );
+    this.camera.target = Vector3.Lerp(this.camera.target, desiredTarget, smoothing);
   }
 }

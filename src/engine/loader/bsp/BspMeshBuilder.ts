@@ -8,27 +8,27 @@
  * - Billboard faces (type 4) - flares/sprites
  */
 
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { Scene } from '@babylonjs/core/scene';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Constants } from '@babylonjs/core/Engines/constants';
-import { Engine } from '@babylonjs/core/Engines/engine';
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
+import { Constants } from "@babylonjs/core/Engines/constants";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import type { Scene } from "@babylonjs/core/scene";
+import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
+import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import type {
-  BspFile,
   BspFace,
+  BspFile,
   BspVertex,
   BspVertexIBSP,
   // BspVertexFBSP, // Currently unused
 } from "./BspLoader";
-import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
-import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 
 // ============================================================================
 // Types
@@ -166,10 +166,10 @@ function createRadialGradientTexture(scene: Scene, size: number = 64): RawTextur
     scene,
     false, // generateMipMaps
     false, // invertY
-    Texture.BILINEAR_SAMPLINGMODE
+    Texture.BILINEAR_SAMPLINGMODE,
   );
   texture.hasAlpha = true;
-  texture.name = 'fallback_radial_gradient';
+  texture.name = "fallback_radial_gradient";
 
   fallbackTextureCache.set(cacheKey, texture);
   console.log(`[BspMeshBuilder] Created fallback radial gradient texture`);
@@ -202,7 +202,7 @@ function createSolidColorTexture(scene: Scene, r: number, g: number, b: number, 
     scene,
     false,
     false,
-    Texture.NEAREST_SAMPLINGMODE
+    Texture.NEAREST_SAMPLINGMODE,
   );
   texture.hasAlpha = a < 255;
   texture.name = `fallback_solid_${r}_${g}_${b}`;
@@ -216,7 +216,7 @@ function createSolidColorTexture(scene: Scene, r: number, g: number, b: number, 
 // ============================================================================
 
 function isIBSPVertex(v: BspVertex): v is BspVertexIBSP {
-  return 'lightmapCoord' in v;
+  return "lightmapCoord" in v;
 }
 
 function getVertexPosition(v: BspVertex): [number, number, number] {
@@ -253,20 +253,20 @@ function getVertexColor(v: BspVertex): [number, number, number, number] {
 
 // Textures that should not be rendered (tool textures)
 const NON_DRAWABLE_TEXTURES = [
-  'common/nodraw',
-  'common/clip',
-  'common/caulk',
-  'common/trigger',
-  'common/hint',
-  'common/skip',
-  'common/areaportal',
-  'common/clusterportal',
-  'common/donotenter',
-  'common/origin',
-  'common/noimpact',
-  'common/invisible',
-  'textures/common/',
-  'noshader',
+  "common/nodraw",
+  "common/clip",
+  "common/caulk",
+  "common/trigger",
+  "common/hint",
+  "common/skip",
+  "common/areaportal",
+  "common/clusterportal",
+  "common/donotenter",
+  "common/origin",
+  "common/noimpact",
+  "common/invisible",
+  "textures/common/",
+  "noshader",
 ];
 
 export interface BuildOptions {
@@ -369,16 +369,16 @@ export class BspMeshBuilder {
     const autospriteFaces: AutospriteFace[] = [];
 
     // Track fog effects found
-    let fogFacesCount = 0;
+    let _fogFacesCount = 0;
 
     // Track sky shaders found
-    const skyShaders: BspMeshBuildResult['skyShaders'] = [];
+    const skyShaders: BspMeshBuildResult["skyShaders"] = [];
     const foundSkyTextures = new Set<number>();
 
     // Build first model only (model 0 = world geometry)
     const worldModel = this.bsp.models[0];
     if (!worldModel) {
-      throw new Error('[BspMeshBuilder] No world model found');
+      throw new Error("[BspMeshBuilder] No world model found");
     }
 
     let skippedTextures = 0;
@@ -396,7 +396,9 @@ export class BspMeshBuilder {
       if (isDetail) {
         detailFaceCount++;
         if (detailFaceCount <= 3) {
-          console.log(`[BspMeshBuilder] Detail face ${i}: tex="${faceTexture.name}" texIdx=${face.textureIndex} contentFlags=0x${faceTexture.contentFlags.toString(16)} surfaceFlags=0x${faceTexture.surfaceFlags.toString(16)}`);
+          console.log(
+            `[BspMeshBuilder] Detail face ${i}: tex="${faceTexture.name}" texIdx=${face.textureIndex} contentFlags=0x${faceTexture.contentFlags.toString(16)} surfaceFlags=0x${faceTexture.surfaceFlags.toString(16)}`,
+          );
         }
       }
 
@@ -415,7 +417,7 @@ export class BspMeshBuilder {
 
       // Sky shader detection - track for skybox creation
       // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
-      const textureName = this.bsp.textures[face.textureIndex]?.name || '';
+      const textureName = this.bsp.textures[face.textureIndex]?.name || "";
       const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
       const bspSurfaceFlags = this.bsp.textures[face.textureIndex]?.surfaceFlags ?? 0;
       const isSkyFace = shaderProps.isSky || (bspSurfaceFlags & 0x4) !== 0;
@@ -426,7 +428,7 @@ export class BspMeshBuilder {
           const shader = shaderRegistry.getShader(textureName);
           const stageTextures = shader?.stages
             ?.map((s: { map?: string }) => s.map)
-            .filter((m: string | undefined): m is string => !!m && m !== '$lightmap');
+            .filter((m: string | undefined): m is string => !!m && m !== "$lightmap");
           skyShaders.push({
             textureName,
             skyParms: shaderProps.skyParms,
@@ -448,17 +450,32 @@ export class BspMeshBuilder {
       // Autosprite faces need to be individual meshes (not merged)
       // Each sprite must rotate around its own center
       if (shaderProps.autosprite || shaderProps.autosprite2) {
-        let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
+        let faceData: {
+          positions: number[];
+          normals: number[];
+          uvs: number[];
+          uv2s: number[];
+          colors: number[];
+          indices: number[];
+        } | null = null;
 
         switch (face.faceType) {
-          case 1: faceData = this.buildPolygonFace(face); break;
-          case 2: faceData = this.buildPatchFace(face); break;
-          case 3: faceData = this.buildMeshFace(face); break;
+          case 1:
+            faceData = this.buildPolygonFace(face);
+            break;
+          case 2:
+            faceData = this.buildPatchFace(face);
+            break;
+          case 3:
+            faceData = this.buildMeshFace(face);
+            break;
         }
 
         if (faceData && faceData.positions.length > 0) {
           // Calculate center of this sprite face
-          let cx = 0, cy = 0, cz = 0;
+          let cx = 0,
+            cy = 0,
+            cz = 0;
           const numVerts = faceData.positions.length / 3;
           for (let v = 0; v < numVerts; v++) {
             cx += faceData.positions[v * 3];
@@ -493,7 +510,7 @@ export class BspMeshBuilder {
       // Patch faces get their own group with two-sided rendering (Q3 patches are always two-sided)
       const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
       const isPatch = face.faceType === 2;
-      const groupKey = `${face.textureIndex}_${lmIdx}${isPatch ? '_patch' : ''}`;
+      const groupKey = `${face.textureIndex}_${lmIdx}${isPatch ? "_patch" : ""}`;
       let group = textureGroups.get(groupKey);
       if (!group) {
         // For patches, force two-sided rendering: bezier normals can face inward at edges
@@ -502,8 +519,10 @@ export class BspMeshBuilder {
           : shaderProps;
 
         // Debug: log transparent/special shaders (only once per texture)
-        if ((shaderProps.isTransparent || shaderProps.alphaMode !== 'opaque') && lmIdx === -1) {
-          console.log(`[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`);
+        if ((shaderProps.isTransparent || shaderProps.alphaMode !== "opaque") && lmIdx === -1) {
+          console.log(
+            `[BspMeshBuilder] Transparent texture: ${textureName} -> alphaMode=${shaderProps.alphaMode}, backFaceCulling=${shaderProps.backFaceCulling}`,
+          );
         }
 
         group = {
@@ -531,12 +550,21 @@ export class BspMeshBuilder {
             color: fogShader.fogParms.color,
             depthForOpaque: fogShader.fogParms.depthForOpaque,
           };
-          fogFacesCount++;
-          console.log(`[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(',')}), depth=${fogShader.fogParms.depthForOpaque}`);
+          _fogFacesCount++;
+          console.log(
+            `[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(",")}), depth=${fogShader.fogParms.depthForOpaque}`,
+          );
         }
       }
 
-      let faceData: { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } | null = null;
+      let faceData: {
+        positions: number[];
+        normals: number[];
+        uvs: number[];
+        uv2s: number[];
+        colors: number[];
+        indices: number[];
+      } | null = null;
 
       switch (face.faceType) {
         case 1: // Polygon
@@ -580,7 +608,9 @@ export class BspMeshBuilder {
 
     // Log detail face statistics
     if (detailFaceCount > 0) {
-      console.log(`[BspMeshBuilder] Detail faces: ${detailFaceCount} total, ${detailFaceSkipped} skipped (non-drawable), ${detailFaceCount - detailFaceSkipped} rendered`);
+      console.log(
+        `[BspMeshBuilder] Detail faces: ${detailFaceCount} total, ${detailFaceSkipped} skipped (non-drawable), ${detailFaceCount - detailFaceSkipped} rendered`,
+      );
     }
 
     // Separate opaque and transparent groups
@@ -597,7 +627,9 @@ export class BspMeshBuilder {
       }
     }
 
-    console.log(`[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`);
+    console.log(
+      `[BspMeshBuilder] Texture groups: ${opaqueGroups.length} opaque, ${transparentGroups.length} transparent`,
+    );
 
     // Create a parent mesh to hold all texture group meshes
     const worldMesh = new Mesh("bsp_world", this.scene);
@@ -636,7 +668,7 @@ export class BspMeshBuilder {
       const meshMaterial = this.createMaterialFromShaderProps(
         `bsp_mat_${group.textureIndex}`,
         group.shaderProps,
-        group.textureName
+        group.textureName,
       );
       mesh.material = meshMaterial;
 
@@ -665,7 +697,7 @@ export class BspMeshBuilder {
       // Handle transparency sorting
       if (group.shaderProps.isTransparent) {
         // Additive blending (halos, lights) should render last
-        if (group.shaderProps.alphaMode === 'add') {
+        if (group.shaderProps.alphaMode === "add") {
           mesh.alphaIndex = 1000 + alphaIndex;
         } else {
           mesh.alphaIndex = alphaIndex;
@@ -684,8 +716,8 @@ export class BspMeshBuilder {
       // Only for opaque meshes that aren't specifically non-solid (we assume visible = solid for now)
       // TODO: Check surface flags for non-solid surfaces (noimpact, nomarks etc might still be solid)
       if (!group.shaderProps.isTransparent) {
-        import('../../physics/PhysicsSystem').then(({ PhysicsSystem }) => {
-          import('@babylonjs/core/Physics/v2/IPhysicsEnginePlugin').then(({ PhysicsShapeType }) => {
+        import("../../physics/PhysicsSystem").then(({ PhysicsSystem }) => {
+          import("@babylonjs/core/Physics/v2/IPhysicsEnginePlugin").then(({ PhysicsShapeType }) => {
             PhysicsSystem.getInstance().createStaticBody(mesh, PhysicsShapeType.MESH);
           });
         });
@@ -695,7 +727,7 @@ export class BspMeshBuilder {
     console.log(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
     // Create individual meshes for autosprite faces with per-frame billboard updates
-    const autospriteMeshData: BspMeshBuildResult['autospriteMeshes'] = [];
+    const autospriteMeshData: BspMeshBuildResult["autospriteMeshes"] = [];
 
     for (let si = 0; si < autospriteFaces.length; si++) {
       const sprite = autospriteFaces[si];
@@ -704,17 +736,23 @@ export class BspMeshBuilder {
 
       // Calculate sprite dimensions from original geometry
       // Find bounding box to get width/height
-      let minX = Infinity, maxX = -Infinity;
-      let minY = Infinity, maxY = -Infinity;
-      let minZ = Infinity, maxZ = -Infinity;
+      let minX = Infinity,
+        maxX = -Infinity;
+      let minY = Infinity,
+        maxY = -Infinity;
+      let minZ = Infinity,
+        maxZ = -Infinity;
       const numVerts = sprite.positions.length / 3;
       for (let v = 0; v < numVerts; v++) {
         const x = sprite.positions[v * 3];
         const y = sprite.positions[v * 3 + 1];
         const z = sprite.positions[v * 3 + 2];
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-        minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
       }
 
       // Calculate half-dimensions (sprite is a quad, find largest extent)
@@ -744,7 +782,7 @@ export class BspMeshBuilder {
       const spriteMaterial = this.createMaterialFromShaderProps(
         `bsp_sprite_mat_${sprite.textureIndex}_${si}`,
         sprite.shaderProps,
-        sprite.textureName
+        sprite.textureName,
       );
       spriteMesh.material = spriteMaterial;
 
@@ -759,7 +797,7 @@ export class BspMeshBuilder {
 
       // Transparency handling
       if (sprite.shaderProps.isTransparent) {
-        if (sprite.shaderProps.alphaMode === 'add') {
+        if (sprite.shaderProps.alphaMode === "add") {
           spriteMesh.alphaIndex = 2000 + si; // After regular transparent meshes
         } else {
           spriteMesh.alphaIndex = 1500 + si;
@@ -784,7 +822,9 @@ export class BspMeshBuilder {
       }
 
       // Find max extent on each axis to determine sprite orientation
-      let maxExtentX = 0, maxExtentY = 0, maxExtentZ = 0;
+      let maxExtentX = 0,
+        maxExtentY = 0,
+        maxExtentZ = 0;
       for (const [ox, oy, oz] of offsets) {
         maxExtentX = Math.max(maxExtentX, Math.abs(ox));
         maxExtentY = Math.max(maxExtentY, Math.abs(oy));
@@ -835,24 +875,31 @@ export class BspMeshBuilder {
 
         // Recalculate extents for logging
         const [cx, cy, cz] = spriteData.center;
-        let maxX = 0, maxY = 0, maxZ = 0;
+        let maxX = 0,
+          maxY = 0,
+          maxZ = 0;
         for (let v = 0; v < numVerts; v++) {
           maxX = Math.max(maxX, Math.abs(sprite.positions[v * 3] - cx));
           maxY = Math.max(maxY, Math.abs(sprite.positions[v * 3 + 1] - cy));
           maxZ = Math.max(maxZ, Math.abs(sprite.positions[v * 3 + 2] - cz));
         }
-        const orient = maxY < maxX && maxY < maxZ ? 'XZ(horiz)' :
-          maxX < maxY && maxX < maxZ ? 'YZ' : 'XY(vert)';
+        const orient = maxY < maxX && maxY < maxZ ? "XZ(horiz)" : maxX < maxY && maxX < maxZ ? "YZ" : "XY(vert)";
 
-        console.log(`[BspMeshBuilder] Sprite "${spriteData.mesh.name}": ${numVerts}v, extents=[${maxX.toFixed(1)},${maxY.toFixed(1)},${maxZ.toFixed(1)}], orient=${orient}, hw=${spriteData.halfWidth.toFixed(1)}, hh=${spriteData.halfHeight.toFixed(1)}, as2=${spriteData.isAutosprite2}`);
+        console.log(
+          `[BspMeshBuilder] Sprite "${spriteData.mesh.name}": ${numVerts}v, extents=[${maxX.toFixed(1)},${maxY.toFixed(1)},${maxZ.toFixed(1)}], orient=${orient}, hw=${spriteData.halfWidth.toFixed(1)}, hh=${spriteData.halfHeight.toFixed(1)}, as2=${spriteData.isAutosprite2}`,
+        );
       }
     }
 
     // Create lightmap textures
     const lightmapTextures = this.buildLightmapTextures();
 
-    console.log(`[BspMeshBuilder] Built world mesh: ${stats.totalVertices} vertices, ${stats.totalTriangles} triangles`);
-    console.log(`[BspMeshBuilder] Face breakdown: ${stats.polygonFaces} polygons, ${stats.patchFaces} patches, ${stats.meshFaces} meshes, ${stats.billboardFaces} billboards`);
+    console.log(
+      `[BspMeshBuilder] Built world mesh: ${stats.totalVertices} vertices, ${stats.totalTriangles} triangles`,
+    );
+    console.log(
+      `[BspMeshBuilder] Face breakdown: ${stats.polygonFaces} polygons, ${stats.patchFaces} patches, ${stats.meshFaces} meshes, ${stats.billboardFaces} billboards`,
+    );
     if (skippedTextures > 0) {
       console.log(`[BspMeshBuilder] Skipped ${skippedTextures} faces with non-drawable textures`);
     }
@@ -862,11 +909,11 @@ export class BspMeshBuilder {
 
     // Collect texture group info for later loading (including autosprite textures)
     const allTextureGroups = [...opaqueGroups, ...transparentGroups]
-      .filter(g => g.indices.length > 0)
-      .map(g => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
+      .filter((g) => g.indices.length > 0)
+      .map((g) => ({ textureIndex: g.textureIndex, textureName: g.textureName }));
 
     // Add autosprite textures (deduplicated)
-    const seenTextureIndices = new Set(allTextureGroups.map(g => g.textureIndex));
+    const seenTextureIndices = new Set(allTextureGroups.map((g) => g.textureIndex));
     for (const sprite of autospriteFaces) {
       if (!seenTextureIndices.has(sprite.textureIndex)) {
         seenTextureIndices.add(sprite.textureIndex);
@@ -875,12 +922,16 @@ export class BspMeshBuilder {
     }
 
     if (skyShaders.length > 0) {
-      const hasCubemap = skyShaders.some(s => s.skyParms?.farbox);
-      const hasTextured = skyShaders.some(s => !s.skyParms?.farbox && s.stageTextures?.length);
+      const hasCubemap = skyShaders.some((s) => s.skyParms?.farbox);
+      const hasTextured = skyShaders.some((s) => !s.skyParms?.farbox && s.stageTextures?.length);
       if (hasCubemap) {
-        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for cubemap skybox`);
+        console.log(
+          `[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for cubemap skybox`,
+        );
       } else if (hasTextured) {
-        console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for textured skybox`);
+        console.log(
+          `[BspMeshBuilder] Found ${skyShaders.length} sky shader(s), skipped ${stats.skippedSkyFaces} sky faces for textured skybox`,
+        );
       } else {
         console.log(`[BspMeshBuilder] Found ${skyShaders.length} sky shader(s) with no skybox textures`);
       }
@@ -906,17 +957,16 @@ export class BspMeshBuilder {
    * Q3 autosprite: full billboard, always faces camera
    * Q3 autosprite2: cylindrical billboard, rotates around Y axis only
    */
-  public static updateAutosprites(
-    result: BspMeshBuildResult,
-    cameraPosition: Vector3
-  ): void {
+  public static updateAutosprites(result: BspMeshBuildResult, cameraPosition: Vector3): void {
     if (!result.autospriteMeshes || result.autospriteMeshes.length === 0) return;
 
     for (const sprite of result.autospriteMeshes) {
       const { mesh, center, halfWidth, halfHeight, isAutosprite2 } = sprite;
 
       // Calculate direction from sprite center to camera
-      const cx = center[0], cy = center[1], cz = center[2];
+      const cx = center[0],
+        cy = center[1],
+        cz = center[2];
       let dx = cameraPosition.x - cx;
       let dy = cameraPosition.y - cy;
       let dz = cameraPosition.z - cz;
@@ -924,7 +974,9 @@ export class BspMeshBuilder {
       // Normalize direction
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist < 0.001) continue; // Camera at sprite center, skip
-      dx /= dist; dy /= dist; dz /= dist;
+      dx /= dist;
+      dy /= dist;
+      dz /= dist;
 
       // Calculate right and up vectors for the sprite quad
       let rightX: number, rightY: number, rightZ: number;
@@ -936,7 +988,9 @@ export class BspMeshBuilder {
         const horizDist = Math.sqrt(dx * dx + dz * dz);
         if (horizDist < 0.001) {
           // Looking straight up/down, use default right
-          rightX = 1; rightY = 0; rightZ = 0;
+          rightX = 1;
+          rightY = 0;
+          rightZ = 0;
         } else {
           // Right = cross(up, forward) where up = (0,1,0)
           rightX = -dz / horizDist;
@@ -944,12 +998,16 @@ export class BspMeshBuilder {
           rightZ = dx / horizDist;
         }
         // Up is always world up for autosprite2
-        upX = 0; upY = 1; upZ = 0;
+        upX = 0;
+        upY = 1;
+        upZ = 0;
       } else {
         // Autosprite: full billboard (face camera on all axes)
         // Up vector: world up projected onto plane perpendicular to view direction
         // Right = cross(worldUp, viewDir), then Up = cross(viewDir, right)
-        const worldUpX = 0, worldUpY = 1, worldUpZ = 0;
+        const worldUpX = 0,
+          worldUpY = 1,
+          worldUpZ = 0;
 
         // Right = cross(worldUp, forward)
         rightX = worldUpY * dz - worldUpZ * dy;
@@ -960,10 +1018,16 @@ export class BspMeshBuilder {
         const rightLen = Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
         if (rightLen < 0.001) {
           // Looking straight up/down, use default
-          rightX = 1; rightY = 0; rightZ = 0;
-          upX = 0; upY = 0; upZ = -1;
+          rightX = 1;
+          rightY = 0;
+          rightZ = 0;
+          upX = 0;
+          upY = 0;
+          upZ = -1;
         } else {
-          rightX /= rightLen; rightY /= rightLen; rightZ /= rightLen;
+          rightX /= rightLen;
+          rightY /= rightLen;
+          rightZ /= rightLen;
 
           // Up = cross(forward, right)
           upX = dy * rightZ - dz * rightY;
@@ -978,7 +1042,8 @@ export class BspMeshBuilder {
       if (!positions || positions.length < 12) continue;
 
       const numVerts = positions.length / 3;
-      const hw = halfWidth, hh = halfHeight;
+      const hw = halfWidth,
+        hh = halfHeight;
 
       // Use normalized offsets to position each vertex on the billboard
       for (let v = 0; v < numVerts; v++) {
@@ -1002,17 +1067,18 @@ export class BspMeshBuilder {
     result: BspMeshBuildResult,
     _bsp: BspFile, // Reserved for future use
     scene: Scene,
-    progressCallback?: (loaded: number, total: number, name: string) => void
+    progressCallback?: (loaded: number, total: number, name: string) => void,
   ): Promise<number> {
-    const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
+    const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
     const texLoader = PK3TextureLoader.getInstance();
     const engine = scene.getEngine();
 
     // Initialize texture loader if needed
+    // biome-ignore lint/suspicious/noExplicitAny: BSP mesh builder internals
     texLoader.init(engine as any, scene);
 
     if (!result.textureGroups || result.textureGroups.length === 0) {
-      console.log('[BspMeshBuilder] No texture groups to load');
+      console.log("[BspMeshBuilder] No texture groups to load");
       return 0;
     }
 
@@ -1023,12 +1089,12 @@ export class BspMeshBuilder {
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
 
     // Get shader registry for looking up actual texture paths
-    const { Q3ShaderRegistry } = await import('../shader/Q3ShaderRegistry');
+    const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
     const shaderRegistry = Q3ShaderRegistry.getInstance();
 
     for (const group of result.textureGroups) {
       const texName = group.textureName;
-      if (!texName || texName.toLowerCase().includes('common/')) continue;
+      if (!texName || texName.toLowerCase().includes("common/")) continue;
 
       progressCallback?.(loadedCount, total, texName);
 
@@ -1039,7 +1105,7 @@ export class BspMeshBuilder {
       const shader = shaderRegistry.getShader(texName);
       if (shader && shader.stages.length > 0) {
         const firstStage = shader.stages[0];
-        if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
+        if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
           pathsToTry.push(firstStage.map);
           console.log(`[BspMeshBuilder] Shader override: ${texName} -> ${firstStage.map}`);
         }
@@ -1049,21 +1115,21 @@ export class BspMeshBuilder {
       pathsToTry.push(texName);
 
       // 3. If name has underscores but no slashes, try converting underscores to slashes
-      if (texName.includes('_') && !texName.includes('/')) {
+      if (texName.includes("_") && !texName.includes("/")) {
         // models_mapobjects_lamp_lamp_halo -> models/mapobjects/lamp/lamp_halo
         // But we need to be smart - not all underscores are path separators
         // Try progressively: first underscore, then second, etc.
-        const parts = texName.split('_');
+        const parts = texName.split("_");
         if (parts.length >= 2) {
           // Try common patterns
-          pathsToTry.push(parts.join('/')); // all underscores to slashes
+          pathsToTry.push(parts.join("/")); // all underscores to slashes
           if (parts.length >= 3) {
             // First two segments as path: models/mapobjects/rest
-            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join('_')}`);
+            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join("_")}`);
           }
           if (parts.length >= 4) {
             // First three segments as path
-            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join('_')}`);
+            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join("_")}`);
           }
         }
       }
@@ -1072,21 +1138,22 @@ export class BspMeshBuilder {
       const allPaths: string[] = [];
       for (const p of pathsToTry) {
         allPaths.push(p);
-        if (!p.toLowerCase().startsWith('textures/') && !p.toLowerCase().startsWith('models/')) {
+        if (!p.toLowerCase().startsWith("textures/") && !p.toLowerCase().startsWith("models/")) {
           allPaths.push(`textures/${p}`);
         }
       }
 
       // Try to load texture with various extensions
-      const extensions = ['.jpg', '.png', '.tga', '.ktx'];
+      const extensions = [".jpg", ".png", ".tga", ".ktx"];
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
       let texture: any = null;
-      let foundCleanPath: string = ''; // Track which path succeeded for normal map loading
+      let foundCleanPath: string = ""; // Track which path succeeded for normal map loading
 
       for (const basePath of allPaths) {
         if (texture) break;
 
         // Strip any existing extension to avoid .tga.tga bug
-        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
 
         for (const ext of extensions) {
           texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
@@ -1101,14 +1168,14 @@ export class BspMeshBuilder {
       const shaderProps = shaderRegistry.resolveMaterialProps(texName);
 
       // If no texture found, check if we should generate a fallback
-      if (!texture && shaderProps.alphaMode === 'add') {
+      if (!texture && shaderProps.alphaMode === "add") {
         // Additive shader with missing texture = generate radial gradient for halo effect
         texture = createRadialGradientTexture(scene);
         console.log(`[BspMeshBuilder] Using fallback radial gradient for: ${texName}`);
-      } else if (!texture && shaderProps.diffuseTexture?.includes('$whiteimage')) {
+      } else if (!texture && shaderProps.diffuseTexture?.includes("$whiteimage")) {
         texture = createSolidColorTexture(scene, 255, 255, 255);
         console.log(`[BspMeshBuilder] Using fallback $whiteimage for: ${texName}`);
-      } else if (!texture && shaderProps.diffuseTexture?.includes('$blackimage')) {
+      } else if (!texture && shaderProps.diffuseTexture?.includes("$blackimage")) {
         texture = createSolidColorTexture(scene, 0, 0, 0);
         console.log(`[BspMeshBuilder] Using fallback $blackimage for: ${texName}`);
       }
@@ -1118,25 +1185,25 @@ export class BspMeshBuilder {
         // Also include sprite meshes which have names like bsp_sprite_${textureIndex}_*
         const meshName = `bsp_tex_${group.textureIndex}`;
         const spritePrefix = `bsp_sprite_${group.textureIndex}_`;
-        const matchingMeshes = meshes.filter(m =>
-          m.name === meshName || m.name.startsWith(spritePrefix)
-        );
+        const matchingMeshes = meshes.filter((m) => m.name === meshName || m.name.startsWith(spritePrefix));
 
         if (matchingMeshes.length === 0) continue;
 
         // Apply texture to all matching meshes
         for (const mesh of matchingMeshes) {
           if (loadedCount < 5) {
-            console.log(`[BspMeshBuilder] Processing texture ${texName} for mesh ${mesh.name} (Material: ${mesh.material?.getClassName()})`);
+            console.log(
+              `[BspMeshBuilder] Processing texture ${texName} for mesh ${mesh.name} (Material: ${mesh.material?.getClassName()})`,
+            );
             if (shader) console.log(`[BspMeshBuilder] Shader props: ${JSON.stringify(shaderProps)}`);
           }
 
           // Check if this shader needs special material (glow overlay, etc.)
           if (shader) {
-            const { analyzeShaderPattern, createQ3Material } = await import('../shader/Q3ShaderMaterialFactory');
+            const { analyzeShaderPattern, createQ3Material } = await import("../shader/Q3ShaderMaterialFactory");
             const analysis = analyzeShaderPattern(shader);
 
-            if (analysis.pattern === 'glow_overlay') {
+            if (analysis.pattern === "glow_overlay") {
               // Load all required textures for glow overlay
               const stages = shader.stages;
               const baseStage = stages[analysis.baseStageIndex];
@@ -1144,13 +1211,13 @@ export class BspMeshBuilder {
 
               // Load glow texture
               let glowTexture: Texture | null = null;
-              if (glowStage && glowStage.map) {
-                const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+              if (glowStage?.map) {
+                const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
                 for (const ext of extensions) {
                   glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);
                   if (glowTexture) break;
                   // Try with textures/ prefix
-                  if (!glowPath.startsWith('textures/')) {
+                  if (!glowPath.startsWith("textures/")) {
                     glowTexture = await texLoader.loadTexture(`textures/${glowPath}${ext}`);
                     if (glowTexture) break;
                   }
@@ -1192,7 +1259,7 @@ export class BspMeshBuilder {
             mat.diffuseTexture = texture;
 
             // Try to load normal map companion texture (_norm, _normal, _bump)
-            const normalSuffixes = ['_norm', '_normal', '_bump'];
+            const normalSuffixes = ["_norm", "_normal", "_bump"];
             for (const suffix of normalSuffixes) {
               let normalTexFound = false;
               for (const ext of extensions) {
@@ -1215,12 +1282,12 @@ export class BspMeshBuilder {
               mat.useAlphaFromDiffuseTexture = true;
               // Force material to recognize the new texture's alpha
               texture.hasAlpha = true;
-            } else if (shaderProps.alphaMode === 'blend') {
+            } else if (shaderProps.alphaMode === "blend") {
               mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
               mat.alphaMode = Constants.ALPHA_COMBINE;
               mat.useAlphaFromDiffuseTexture = true;
               texture.hasAlpha = true;
-            } else if (shaderProps.alphaMode === 'add') {
+            } else if (shaderProps.alphaMode === "add") {
               // Additive blending for glow effects (halos, flares, glass)
               mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
               mat.alphaMode = Constants.ALPHA_ADD;
@@ -1229,16 +1296,16 @@ export class BspMeshBuilder {
               // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
               mat.emissiveColor = new Color3(1, 1, 1);
               mat.diffuseColor = new Color3(0, 0, 0);
-            } else if (shaderProps.alphaMode === 'multiply') {
+            } else if (shaderProps.alphaMode === "multiply") {
               // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
               // Use custom shader that computes alpha from luminance (white = transparent)
-              const { createFilterBlendMaterial } = await import('../shader/FilterBlendShaderMaterial');
-              const filterMat = createFilterBlendMaterial(
-                `filterBlend_${texName}`,
-                scene,
-                texture,
-                { alphaThreshold: 0.85, alphaPower: 1.2, colorDarken: 0.5, alphaMultiplier: 0.6 }
-              );
+              const { createFilterBlendMaterial } = await import("../shader/FilterBlendShaderMaterial");
+              const filterMat = createFilterBlendMaterial(`filterBlend_${texName}`, scene, texture, {
+                alphaThreshold: 0.85,
+                alphaPower: 1.2,
+                colorDarken: 0.5,
+                alphaMultiplier: 0.6,
+              });
               mesh.material = filterMat;
               // Skip the rest of the texture application for this mesh
               loadedCount++;
@@ -1272,7 +1339,7 @@ export class BspMeshBuilder {
             }
 
             // tcGen environment - spherical environment mapping for reflective surfaces
-            if (shaderProps.tcGen?.mode === 'environment') {
+            if (shaderProps.tcGen?.mode === "environment") {
               // Use texture as reflection texture with spherical coordinates
               mat.reflectionTexture = texture;
               texture.coordinatesMode = Texture.SPHERICAL_MODE;
@@ -1285,7 +1352,7 @@ export class BspMeshBuilder {
 
             // Register for shader animation if needed (tcMod, rgbGen wave, alphaGen wave)
             if (shaderProps.needsAnimation && shader) {
-              const { ShaderAnimationSystem } = await import('../shader/ShaderAnimationSystem');
+              const { ShaderAnimationSystem } = await import("../shader/ShaderAnimationSystem");
               const animSystem = ShaderAnimationSystem.getInstance();
               animSystem.init(scene);
 
@@ -1298,7 +1365,7 @@ export class BspMeshBuilder {
                   texture,
                   firstStage.tcMod || [],
                   firstStage.rgbGen,
-                  firstStage.alphaGen
+                  firstStage.alphaGen,
                 );
               }
             }
@@ -1323,15 +1390,12 @@ export class BspMeshBuilder {
    * flicker, the EffectPreloader pre-compiles the lightmap shader variant during
    * map load, and scene.whenReadyAsync() gates the loading screen until ready.
    */
-  public static applyLightmaps(
-    result: BspMeshBuildResult,
-    options?: { intensity?: number }
-  ): number {
+  public static applyLightmaps(result: BspMeshBuildResult, options?: { intensity?: number }): number {
     const { intensity = 2.0 } = options || {};
     const lightmaps = result.lightmapTextures;
 
     if (lightmaps.length === 0) {
-      console.log('[BspMeshBuilder] No lightmaps to apply');
+      console.log("[BspMeshBuilder] No lightmaps to apply");
       return 0;
     }
 
@@ -1378,9 +1442,9 @@ export class BspMeshBuilder {
       } else if (mesh.metadata?.isGlowOverlay) {
         // Glow overlay ShaderMaterial - update lightmap texture
         if (mat instanceof ShaderMaterial) {
-          mat.setTexture('lightmapSampler', lightmapTex);
-          mat.setFloat('hasLightmap', 1.0);
-          mat.setFloat('lightmapIntensity', intensity);
+          mat.setTexture("lightmapSampler", lightmapTex);
+          mat.setFloat("hasLightmap", 1.0);
+          mat.setFloat("lightmapIntensity", intensity);
           console.log(`[BspMeshBuilder] Applied lightmap to glow overlay: ${mesh.name}`);
           appliedCount++;
         }
@@ -1398,13 +1462,13 @@ export class BspMeshBuilder {
    */
   public static async applySkybox(
     result: BspMeshBuildResult,
-    scene: Scene
+    scene: Scene,
   ): Promise<{ success: boolean; skybox?: Mesh; error?: string }> {
     if (result.skyShaders.length === 0) {
-      return { success: false, error: 'No sky shaders found in BSP' };
+      return { success: false, error: "No sky shaders found in BSP" };
     }
 
-    const { SkyboxLoader } = await import('../texture/SkyboxLoader');
+    const { SkyboxLoader } = await import("../texture/SkyboxLoader");
     const skyboxLoader = SkyboxLoader.getInstance();
     skyboxLoader.init(scene);
 
@@ -1412,7 +1476,7 @@ export class BspMeshBuilder {
     skyboxLoader.disposeSkybox();
 
     // Try cubemap skybox first (skyparms farbox)
-    const cubemapShader = result.skyShaders.find(s => s.skyParms?.farbox);
+    const cubemapShader = result.skyShaders.find((s) => s.skyParms?.farbox);
     if (cubemapShader?.skyParms?.farbox) {
       const loadResult = await skyboxLoader.loadSkybox(cubemapShader.skyParms.farbox);
       if (loadResult.success) {
@@ -1422,7 +1486,7 @@ export class BspMeshBuilder {
     }
 
     // Fallback: textured skybox from shader stage textures
-    const texturedShader = result.skyShaders.find(s => s.stageTextures?.length);
+    const texturedShader = result.skyShaders.find((s) => s.stageTextures?.length);
     if (texturedShader?.stageTextures?.length) {
       const skyTexture = texturedShader.stageTextures[0];
       const loadResult = await skyboxLoader.loadSkyboxFromTexture(skyTexture);
@@ -1459,7 +1523,10 @@ export class BspMeshBuilder {
       }
     }
 
-    return { success: false, error: `No skybox textures found for ${result.skyShaders.length} sky shader(s): ${result.skyShaders.map(s => s.textureName).join(', ')}` };
+    return {
+      success: false,
+      error: `No skybox textures found for ${result.skyShaders.length} sky shader(s): ${result.skyShaders.map((s) => s.textureName).join(", ")}`,
+    };
   }
 
   /**
@@ -1468,7 +1535,7 @@ export class BspMeshBuilder {
   private createMaterialFromShaderProps(
     name: string,
     props: ResolvedMaterialProps,
-    _textureName: string // Will be used for texture loading later
+    _textureName: string, // Will be used for texture loading later
   ): StandardMaterial {
     const mat = new StandardMaterial(name, this.scene);
 
@@ -1491,7 +1558,7 @@ export class BspMeshBuilder {
     } else {
       // Alpha blending modes
       switch (props.alphaMode) {
-        case 'add':
+        case "add":
           // Additive blending (GL_ONE, GL_ONE)
           mat.transparencyMode = 2; // MATERIAL_ALPHABLEND — enables alpha pipeline
           mat.alphaMode = Constants.ALPHA_ADD;
@@ -1501,14 +1568,14 @@ export class BspMeshBuilder {
           mat.diffuseColor = new Color3(0, 0, 0);
           mat.useAlphaFromDiffuseTexture = true;
           break;
-        case 'blend':
+        case "blend":
           // Standard alpha blending
           mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
           mat.alphaMode = Constants.ALPHA_COMBINE;
           mat.alpha = 1;
           mat.useAlphaFromDiffuseTexture = true;
           break;
-        case 'multiply':
+        case "multiply":
           // Multiply/filter blending (GL_DST_COLOR, GL_ZERO) - for decals
           // Use alpha blend - decal textures should have alpha for transparency
           mat.transparencyMode = 2; // MATERIAL_ALPHABLEND
@@ -1548,7 +1615,14 @@ export class BspMeshBuilder {
    * Build polygon face (type 1)
    * Vertices are referenced directly, meshverts provide triangle indices
    */
-  private buildPolygonFace(face: BspFace): { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } {
+  private buildPolygonFace(face: BspFace): {
+    positions: number[];
+    normals: number[];
+    uvs: number[];
+    uv2s: number[];
+    colors: number[];
+    indices: number[];
+  } {
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
@@ -1590,7 +1664,14 @@ export class BspMeshBuilder {
    * Build mesh face (type 3)
    * Same as polygon, vertices + meshverts define triangles
    */
-  private buildMeshFace(face: BspFace): { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } {
+  private buildMeshFace(face: BspFace): {
+    positions: number[];
+    normals: number[];
+    uvs: number[];
+    uv2s: number[];
+    colors: number[];
+    indices: number[];
+  } {
     // Type 3 is identical to type 1 in terms of data layout
     return this.buildPolygonFace(face);
   }
@@ -1605,7 +1686,14 @@ export class BspMeshBuilder {
    *
    * This matches Q3/Warsow rendering where curved surfaces are seamless.
    */
-  private buildPatchFace(face: BspFace): { positions: number[]; normals: number[]; uvs: number[]; uv2s: number[]; colors: number[]; indices: number[] } {
+  private buildPatchFace(face: BspFace): {
+    positions: number[];
+    normals: number[];
+    uvs: number[];
+    uv2s: number[];
+    colors: number[];
+    indices: number[];
+  } {
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
@@ -1649,7 +1737,13 @@ export class BspMeshBuilder {
     const gridH = numPatchesY * tessLevel + 1;
 
     // Build shared vertex grid
-    type TessVert = { pos: [number, number, number]; normal: [number, number, number]; uv: [number, number]; uv2: [number, number]; color: [number, number, number, number] };
+    type TessVert = {
+      pos: [number, number, number];
+      normal: [number, number, number];
+      uv: [number, number];
+      uv2: [number, number];
+      color: [number, number, number, number];
+    };
     const grid: TessVert[] = new Array(gridW * gridH);
 
     for (let py = 0; py < numPatchesY; py++) {
@@ -1666,8 +1760,8 @@ export class BspMeshBuilder {
 
         // Tessellate this sub-patch into the shared grid
         // Only write interior + right/bottom edges; left/top edges come from adjacent sub-patch
-        const uStart = (px === 0) ? 0 : 1; // skip left edge if not first column
-        const vStart = (py === 0) ? 0 : 1; // skip top edge if not first row
+        const uStart = px === 0 ? 0 : 1; // skip left edge if not first column
+        const vStart = py === 0 ? 0 : 1; // skip top edge if not first row
 
         for (let v = vStart; v <= tessLevel; v++) {
           for (let u = uStart; u <= tessLevel; u++) {
@@ -1720,8 +1814,14 @@ export class BspMeshBuilder {
   private evaluateBezierPatch(
     ctrl: BspVertex[][],
     s: number,
-    t: number
-  ): { pos: [number, number, number]; normal: [number, number, number]; uv: [number, number]; uv2: [number, number]; color: [number, number, number, number] } {
+    t: number,
+  ): {
+    pos: [number, number, number];
+    normal: [number, number, number];
+    uv: [number, number];
+    uv2: [number, number];
+    color: [number, number, number, number];
+  } {
     // Quadratic bezier basis functions
     const b0s = (1 - s) * (1 - s);
     const b1s = 2 * s * (1 - s);
@@ -1732,11 +1832,20 @@ export class BspMeshBuilder {
     const b2t = t * t;
 
     // Initialize outputs
-    let px = 0, py = 0, pz = 0;
-    let nx = 0, ny = 0, nz = 0;
-    let u = 0, v = 0;
-    let lu = 0, lv = 0;
-    let cr = 0, cg = 0, cb = 0, ca = 0;
+    let px = 0,
+      py = 0,
+      pz = 0;
+    let nx = 0,
+      ny = 0,
+      nz = 0;
+    let u = 0,
+      v = 0;
+    let lu = 0,
+      lv = 0;
+    let cr = 0,
+      cg = 0,
+      cb = 0,
+      ca = 0;
 
     const bs = [b0s, b1s, b2s];
     const bt = [b0t, b1t, b2t];
@@ -1782,7 +1891,9 @@ export class BspMeshBuilder {
       nz /= len;
     } else {
       // Degenerate — fall back to up vector
-      nx = 0; ny = 1; nz = 0;
+      nx = 0;
+      ny = 1;
+      nz = 0;
     }
 
     return {
@@ -1812,9 +1923,9 @@ export class BspMeshBuilder {
       const rgba = new Uint8Array(size * size * 4);
       for (let j = 0; j < size * size; j++) {
         // Apply gamma correction (Q3 lightmaps are in linear space)
-        rgba[j * 4 + 0] = Math.min(255, Math.pow(rgb[j * 3 + 0] / 255, 0.7) * 255 * 2);
-        rgba[j * 4 + 1] = Math.min(255, Math.pow(rgb[j * 3 + 1] / 255, 0.7) * 255 * 2);
-        rgba[j * 4 + 2] = Math.min(255, Math.pow(rgb[j * 3 + 2] / 255, 0.7) * 255 * 2);
+        rgba[j * 4 + 0] = Math.min(255, (rgb[j * 3 + 0] / 255) ** 0.7 * 255 * 2);
+        rgba[j * 4 + 1] = Math.min(255, (rgb[j * 3 + 1] / 255) ** 0.7 * 255 * 2);
+        rgba[j * 4 + 2] = Math.min(255, (rgb[j * 3 + 2] / 255) ** 0.7 * 255 * 2);
         rgba[j * 4 + 3] = 255;
       }
 
@@ -1825,7 +1936,7 @@ export class BspMeshBuilder {
         this.scene,
         false, // generateMipMaps
         false, // invertY
-        Texture.BILINEAR_SAMPLINGMODE
+        Texture.BILINEAR_SAMPLINGMODE,
       );
       texture.name = `lightmap_${i}`;
 
@@ -1843,10 +1954,10 @@ export class BspMeshBuilder {
    */
   public static async applyFogVolumes(
     result: BspMeshBuildResult,
-    scene: Scene
+    scene: Scene,
   ): Promise<{ success: boolean; fogMeshes: Mesh[]; error?: string }> {
     try {
-      const { FogVolumeManager } = await import('./BspFogVolume');
+      const { FogVolumeManager } = await import("./BspFogVolume");
       const fogManager = new FogVolumeManager();
       const fogResult = await fogManager.buildFogVolumes(result.bspData, scene);
 
@@ -1854,10 +1965,10 @@ export class BspMeshBuilder {
         result.fogVolumes = fogResult.meshes;
         return { success: true, fogMeshes: fogResult.meshes };
       } else {
-        return { success: false, fogMeshes: [], error: 'No fog volumes found in BSP' };
+        return { success: false, fogMeshes: [], error: "No fog volumes found in BSP" };
       }
     } catch (error) {
-      console.error('[BspMeshBuilder] Failed to apply fog volumes:', error);
+      console.error("[BspMeshBuilder] Failed to apply fog volumes:", error);
       return { success: false, fogMeshes: [], error: String(error) };
     }
   }
@@ -1870,7 +1981,7 @@ export class BspMeshBuilder {
 export function getVisibleFaces(
   bsp: BspFile,
   cameraPosition: Vector3,
-  leafFinder: (pos: [number, number, number]) => number // Returns cluster
+  leafFinder: (pos: [number, number, number]) => number, // Returns cluster
 ): number[] {
   if (!bsp.visData) {
     // No PVS, return all faces
@@ -1924,14 +2035,14 @@ export function getVisibleFaces(
 /**
  * Build a mesh for a specific brush model (inline model like *5, *6, etc.)
  * Used for func_door, func_button, func_rotating, etc.
- * 
+ *
  * Creates a parent mesh with child meshes per texture group for proper texturing.
  */
 export async function buildBrushModel(
   bsp: BspFile,
   modelIndex: number,
   scene: Scene,
-  name: string
+  name: string,
 ): Promise<Mesh | null> {
   if (modelIndex < 0 || modelIndex >= bsp.models.length) {
     console.warn(`[BspMeshBuilder] Invalid model index: ${modelIndex}`);
@@ -1945,17 +2056,20 @@ export async function buildBrushModel(
   }
 
   // Group faces by texture (like main builder)
-  const textureGroups = new Map<number, {
-    textureIndex: number;
-    textureName: string;
-    positions: number[];
-    normals: number[];
-    uvs: number[];
-    uv2s: number[]; // Lightmap UVs
-    indices: number[];
-    vertexOffset: number;
-    lightmapIndex: number; // Primary lightmap for this group
-  }>();
+  const textureGroups = new Map<
+    number,
+    {
+      textureIndex: number;
+      textureName: string;
+      positions: number[];
+      normals: number[];
+      uvs: number[];
+      uv2s: number[]; // Lightmap UVs
+      indices: number[];
+      vertexOffset: number;
+      lightmapIndex: number; // Primary lightmap for this group
+    }
+  >();
 
   for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) {
     const face = bsp.faces[i];
@@ -1967,7 +2081,7 @@ export async function buildBrushModel(
     // Get or create texture group
     let group = textureGroups.get(face.textureIndex);
     if (!group) {
-      const textureName = bsp.textures[face.textureIndex]?.name || '';
+      const textureName = bsp.textures[face.textureIndex]?.name || "";
       group = {
         textureIndex: face.textureIndex,
         textureName,
@@ -2023,7 +2137,7 @@ export async function buildBrushModel(
   const centerZ = (model.mins[1] + model.maxs[1]) / 2; // Y->Z
 
   // Get texture loader
-  const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
+  const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
   const texLoader = PK3TextureLoader.getInstance();
 
   let totalVertices = 0;
@@ -2062,9 +2176,9 @@ export async function buildBrushModel(
     mat.maxSimultaneousLights = 4;
 
     // Try to load texture (use same path resolution as main BSP)
-    if (group.textureName && !group.textureName.toLowerCase().includes('common/')) {
+    if (group.textureName && !group.textureName.toLowerCase().includes("common/")) {
       const texName = group.textureName;
-      const { Q3ShaderRegistry } = await import('../shader/Q3ShaderRegistry');
+      const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
       const shaderRegistry = Q3ShaderRegistry.getInstance();
 
       // Build paths to try
@@ -2074,7 +2188,7 @@ export async function buildBrushModel(
       const shader = shaderRegistry.getShader(texName);
       if (shader && shader.stages.length > 0) {
         const firstStage = shader.stages[0];
-        if (firstStage.map && firstStage.map !== '$lightmap' && firstStage.map !== '$whiteimage') {
+        if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
           pathsToTry.push(firstStage.map);
         }
       }
@@ -2086,18 +2200,18 @@ export async function buildBrushModel(
       const allPaths: string[] = [];
       for (const p of pathsToTry) {
         allPaths.push(p);
-        if (!p.toLowerCase().startsWith('textures/') && !p.toLowerCase().startsWith('models/')) {
+        if (!p.toLowerCase().startsWith("textures/") && !p.toLowerCase().startsWith("models/")) {
           allPaths.push(`textures/${p}`);
         }
       }
 
       // Try loading with various extensions
-      const extensions = ['.jpg', '.png', '.tga', '.ktx'];
+      const extensions = [".jpg", ".png", ".tga", ".ktx"];
       let texture: Texture | null = null;
 
       for (const basePath of allPaths) {
         if (texture) break;
-        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, '');
+        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
         for (const ext of extensions) {
           texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
           if (texture) break;
@@ -2119,7 +2233,7 @@ export async function buildBrushModel(
               scene,
               false, // generateMipMaps
               false, // invertY
-              Texture.BILINEAR_SAMPLINGMODE
+              Texture.BILINEAR_SAMPLINGMODE,
             );
             lmTex.name = `${childName}_lightmap`;
             mat.lightmapTexture = lmTex;
@@ -2157,7 +2271,9 @@ export async function buildBrushModel(
     },
   };
 
-  console.log(`[BspMeshBuilder] Built brush model *${modelIndex}: ${totalVertices} vertices, ${totalTriangles} triangles, ${textureGroups.size} textures`);
+  console.log(
+    `[BspMeshBuilder] Built brush model *${modelIndex}: ${totalVertices} vertices, ${totalTriangles} triangles, ${textureGroups.size} textures`,
+  );
 
   return parentMesh;
 }

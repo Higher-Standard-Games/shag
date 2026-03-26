@@ -1,5 +1,5 @@
-import type { IComponent } from '../core/Component';
-import { BinaryEncoder, BinaryDecoder } from '../protocol/BinaryProtocol';
+import type { IComponent } from "../core/Component";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 
 /**
  * MovementStateComponent - Stores advanced movement state
@@ -20,10 +20,10 @@ export class MovementStateComponent implements IComponent {
   crouchViewOffset: number = 0;
 
   // Wall jump state
-  wallJumpState: 'none' | 'available' | 'charging' = 'none';
+  wallJumpState: "none" | "available" | "charging" = "none";
 
   // Ledge grab state
-  ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
+  ledgeGrabState: "none" | "grabbing" | "pulling" = "none";
 
   // Speed (for UI)
   actualHorizSpeed: number = 0;
@@ -40,11 +40,11 @@ export class MovementStateComponent implements IComponent {
     if (this.isSliding) flags |= 1;
     if (this.isCrouching) flags |= 2;
     // wallJumpState: 0=none, 1=available, 2=charging (2 bits)
-    const wallJumpBits = this.wallJumpState === 'none' ? 0 : this.wallJumpState === 'available' ? 1 : 2;
-    flags |= (wallJumpBits << 2);
+    const wallJumpBits = this.wallJumpState === "none" ? 0 : this.wallJumpState === "available" ? 1 : 2;
+    flags |= wallJumpBits << 2;
     // ledgeGrabState: 0=none, 1=grabbing, 2=pulling (2 bits)
-    const ledgeBits = this.ledgeGrabState === 'none' ? 0 : this.ledgeGrabState === 'grabbing' ? 1 : 2;
-    flags |= (ledgeBits << 4);
+    const ledgeBits = this.ledgeGrabState === "none" ? 0 : this.ledgeGrabState === "grabbing" ? 1 : 2;
+    flags |= ledgeBits << 4;
 
     encoder.writeUint8(flags);
     encoder.writeFloat32(this.crouchViewOffset);
@@ -57,10 +57,10 @@ export class MovementStateComponent implements IComponent {
     this.isCrouching = (flags & 2) !== 0;
 
     const wallJumpBits = (flags >> 2) & 3;
-    this.wallJumpState = wallJumpBits === 0 ? 'none' : wallJumpBits === 1 ? 'available' : 'charging';
+    this.wallJumpState = wallJumpBits === 0 ? "none" : wallJumpBits === 1 ? "available" : "charging";
 
     const ledgeBits = (flags >> 4) & 3;
-    this.ledgeGrabState = ledgeBits === 0 ? 'none' : ledgeBits === 1 ? 'grabbing' : 'pulling';
+    this.ledgeGrabState = ledgeBits === 0 ? "none" : ledgeBits === 1 ? "grabbing" : "pulling";
 
     this.crouchViewOffset = decoder.readFloat32();
     this.actualHorizSpeed = decoder.readFloat32();
@@ -84,8 +84,8 @@ export class MovementStateComponent implements IComponent {
     isSliding?: boolean;
     isCrouching?: boolean;
     crouchViewOffset?: number;
-    wallJumpState?: 'none' | 'available' | 'charging';
-    ledgeGrabState?: 'none' | 'grabbing' | 'pulling';
+    wallJumpState?: "none" | "available" | "charging";
+    ledgeGrabState?: "none" | "grabbing" | "pulling";
     actualHorizSpeed?: number;
   }): void {
     if (result.isSliding !== undefined) this.isSliding = result.isSliding;

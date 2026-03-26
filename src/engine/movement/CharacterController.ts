@@ -1,14 +1,14 @@
 /**
  * CharacterController - FPS character movement with BSP collision
- * 
+ *
  * Uses BSP collision for world collision detection
  * Simulates gravity, jumping, and velocity internally
  * Can be attached to FreeflyController for non-spectator mode
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { getCollisionManager } from '../physics';
-import { MovementVars } from './MovementVars';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { getCollisionManager } from "../physics";
+import { MovementVars } from "./MovementVars";
 
 // ==================== Types ====================
 
@@ -21,10 +21,10 @@ export interface CharacterState {
 }
 
 export interface CharacterConfig {
-  radius: number;      // Collision radius (default: 16)
-  height: number;      // Standing height (default: 56)
+  radius: number; // Collision radius (default: 16)
+  height: number; // Standing height (default: 56)
   crouchHeight: number; // Crouching height (default: 32)
-  eyeOffset: number;   // Eye position from feet (default: 48)
+  eyeOffset: number; // Eye position from feet (default: 48)
 }
 
 // ==================== CharacterController Class ====================
@@ -64,9 +64,7 @@ export class CharacterController {
   }
 
   getEyePosition(): Vector3 {
-    const eyeHeight = this.state.isCrouching
-      ? this.config.crouchHeight - 8
-      : this.config.eyeOffset;
+    const eyeHeight = this.state.isCrouching ? this.config.crouchHeight - 8 : this.config.eyeOffset;
     return this.state.position.add(new Vector3(0, eyeHeight, 0));
   }
 
@@ -95,15 +93,10 @@ export class CharacterController {
    * @param forwardDir Camera forward direction (normalized)
    * @param rightDir Camera right direction (normalized)
    */
-  applyMovementInput(
-    forward: number,
-    strafe: number,
-    forwardDir: Vector3,
-    rightDir: Vector3
-  ): void {
+  applyMovementInput(forward: number, strafe: number, forwardDir: Vector3, rightDir: Vector3): void {
     const mv = MovementVars.getInstance();
-    const speed = mv.get('cl_speed');
-    const airControl = mv.get('sv_aircontrol');
+    const speed = mv.get("cl_speed");
+    const airControl = mv.get("sv_aircontrol");
 
     // Project directions to horizontal plane
     const flatForward = new Vector3(forwardDir.x, 0, forwardDir.z);
@@ -133,7 +126,7 @@ export class CharacterController {
     }
 
     const mv = MovementVars.getInstance();
-    const jumpHeight = mv.get('sv_jumpheight');
+    const jumpHeight = mv.get("sv_jumpheight");
 
     this.state.velocity.y = jumpHeight;
     this.state.isJumping = true;
@@ -159,7 +152,7 @@ export class CharacterController {
    */
   update(deltaTime: number): void {
     const mv = MovementVars.getInstance();
-    const gravity = mv.get('sv_gravity');
+    const gravity = mv.get("sv_gravity");
 
     // Apply gravity if not grounded
     if (!this.state.isGrounded) {
@@ -197,9 +190,7 @@ export class CharacterController {
       return;
     }
 
-    const height = this.state.isCrouching
-      ? this.config.crouchHeight
-      : this.config.height;
+    const height = this.state.isCrouching ? this.config.crouchHeight : this.config.height;
 
     // Standard trace options
     const traceOpts = {
@@ -237,9 +228,7 @@ export class CharacterController {
       return;
     }
 
-    const height = this.state.isCrouching
-      ? this.config.crouchHeight
-      : this.config.height;
+    const height = this.state.isCrouching ? this.config.crouchHeight : this.config.height;
 
     // Trace down from current position
     const start = this.state.position.clone();
@@ -279,6 +268,6 @@ export class CharacterController {
       `Grounded: ${this.state.isGrounded}`,
       `Jumping: ${this.state.isJumping}`,
       `Crouching: ${this.state.isCrouching}`,
-    ].join('\n');
+    ].join("\n");
   }
 }

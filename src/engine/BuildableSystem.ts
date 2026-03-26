@@ -1,18 +1,18 @@
 /**
  * BuildableSystem - Engine-level generic buildable object system
- * 
+ *
  * Provides a data-driven framework for objects that:
  * - Progress through visual stages over time
  * - Can produce resources
  * - Can consume resources
  * - Can decay/spoil
  * - Can respond to map triggers
- * 
+ *
  * Games configure behavior via templates. Mappers reference templates
  * by ID in trigger_buildzone entities.
  */
 
-import { EventBus } from './core/EventBus';
+import { EventBus } from "./core/EventBus";
 
 // ==================== Stage Definitions ====================
 
@@ -61,7 +61,7 @@ export interface ConsumerBehavior {
   /** Current level (0-100) */
   level?: number;
   /** Action when resource depleted: "pause" | "damage" | "destroy" */
-  onEmpty: 'pause' | 'damage' | 'destroy';
+  onEmpty: "pause" | "damage" | "destroy";
   /** Damage per minute when empty (if onEmpty === "damage") */
   damageRate?: number;
 }
@@ -203,11 +203,11 @@ export interface BuildableInstance {
   isComplete: boolean;
   /** Health (0-100, for damage behavior) */
   health: number;
-  
+
   // Consumer state
   /** Current resource levels (keyed by resource type) */
   resourceLevels?: Record<string, number>;
-  
+
   // Decay state
   /** Current phase name (for decayable) */
   currentPhase?: string;
@@ -217,13 +217,13 @@ export interface BuildableInstance {
   phaseStartedAt?: number;
   /** Quality percentage (degrades over phases) */
   quality?: number;
-  
+
   // Producer state
   /** Stored production amount (awaiting collection) */
   storedProduction?: number;
   /** Last production time */
   lastProductionAt?: number;
-  
+
   // Upgrade state
   /** Whether currently upgrading */
   isUpgrading?: boolean;
@@ -231,14 +231,14 @@ export interface BuildableInstance {
   upgradeProgress?: number;
   /** Upgrade started at */
   upgradeStartedAt?: number;
-  
+
   /** Custom data for game-specific state */
   customData?: Record<string, unknown>;
-  
+
   // Zone support
   /** Zone ID where placed (game-specific) */
   zoneId?: string;
-  
+
   // Parent-child relationships (multi-child support)
   /** Parent instance ID (if this is a child) */
   parentId?: string;
@@ -260,25 +260,25 @@ export interface ChildState {
 
 // ==================== Events ====================
 
-export type BuildableEventType = 
-  | 'created'
-  | 'progress'
-  | 'stage_change'
-  | 'complete'
-  | 'phase_change'
-  | 'child_added'
-  | 'child_removed'
-  | 'child_progress'
-  | 'light_enabled'
-  | 'light_disabled'
-  | 'resource_low'
-  | 'resource_empty'
-  | 'production_ready'
-  | 'collected'
-  | 'damaged'
-  | 'destroyed'
-  | 'upgrade_start'
-  | 'upgrade_complete';
+export type BuildableEventType =
+  | "created"
+  | "progress"
+  | "stage_change"
+  | "complete"
+  | "phase_change"
+  | "child_added"
+  | "child_removed"
+  | "child_progress"
+  | "light_enabled"
+  | "light_disabled"
+  | "resource_low"
+  | "resource_empty"
+  | "production_ready"
+  | "collected"
+  | "damaged"
+  | "destroyed"
+  | "upgrade_start"
+  | "upgrade_complete";
 
 export interface BuildableEvent {
   type: BuildableEventType;
@@ -344,7 +344,7 @@ export function createCustomStages(basePath: string, thresholds: number[], scale
 
 /**
  * BuildableSystem - Manages all buildable objects
- * 
+ *
  * Usage:
  * 1. Register templates: buildableSystem.registerTemplate(template)
  * 2. Create instances: buildableSystem.create(templateId, position, mapId)
@@ -353,17 +353,17 @@ export function createCustomStages(basePath: string, thresholds: number[], scale
  */
 export class BuildableSystem {
   private static instance: BuildableSystem;
-  
+
   private templates: Map<string, BuildableTemplate> = new Map();
   private instances: Map<string, BuildableInstance> = new Map();
   private eventListeners: BuildableEventCallback[] = [];
-  
+
   // Time provider (injected by game)
   private getGameTime: () => number = () => Date.now();
-  
+
   // Visual update callback (injected by game for rendering)
   private onVisualUpdate?: (instance: BuildableInstance, stage: BuildableStage) => void;
-  
+
   // Trigger callback (injected by game for map trigger integration)
   private onTrigger?: (triggerName: string, instanceId: string) => void;
 
@@ -421,7 +421,7 @@ export class BuildableSystem {
   }
 
   public getTemplatesByCategory(category: string): BuildableTemplate[] {
-    return this.getAllTemplates().filter(t => t.category === category);
+    return this.getAllTemplates().filter((t) => t.category === category);
   }
 
   // ==================== Instance Management ====================
@@ -436,7 +436,7 @@ export class BuildableSystem {
     options?: {
       zoneId?: string;
       customData?: Record<string, unknown>;
-    }
+    },
   ): BuildableInstance | null {
     const template = this.templates.get(templateId);
     if (!template) {
@@ -494,7 +494,7 @@ export class BuildableSystem {
     }
 
     this.emit({
-      type: 'created',
+      type: "created",
       instanceId: id,
       templateId,
       data: { position, mapId },
@@ -503,7 +503,7 @@ export class BuildableSystem {
     // For instant builds (buildTime === 0), emit complete event immediately
     if (template.buildTime === 0) {
       this.emit({
-        type: 'complete',
+        type: "complete",
         instanceId: id,
         templateId,
       });
@@ -518,7 +518,7 @@ export class BuildableSystem {
   }
 
   public getInstancesInMap(mapId: string): BuildableInstance[] {
-    return Array.from(this.instances.values()).filter(i => i.mapId === mapId);
+    return Array.from(this.instances.values()).filter((i) => i.mapId === mapId);
   }
 
   public getAllInstances(): BuildableInstance[] {
@@ -526,11 +526,11 @@ export class BuildableSystem {
   }
 
   public getInstancesInZone(zoneId: string): BuildableInstance[] {
-    return Array.from(this.instances.values()).filter(i => i.zoneId === zoneId);
+    return Array.from(this.instances.values()).filter((i) => i.zoneId === zoneId);
   }
 
   public getInstancesByTemplate(templateId: string): BuildableInstance[] {
-    return Array.from(this.instances.values()).filter(i => i.templateId === templateId);
+    return Array.from(this.instances.values()).filter((i) => i.templateId === templateId);
   }
 
   // ==================== Child Management ====================
@@ -545,7 +545,7 @@ export class BuildableSystem {
 
     const template = this.templates.get(parent.templateId);
     const container = template?.behaviors?.container;
-    
+
     // Check if parent is a container
     if (!container) {
       console.warn(`[BuildableSystem] ${parentId} is not a container`);
@@ -576,7 +576,7 @@ export class BuildableSystem {
     child.parentId = parentId;
 
     this.emit({
-      type: 'child_added',
+      type: "child_added",
       instanceId: parentId,
       templateId: parent.templateId,
       data: { childId, childTemplateId: child.templateId },
@@ -606,7 +606,7 @@ export class BuildableSystem {
     parent.childProgress = undefined;
 
     this.emit({
-      type: 'child_removed',
+      type: "child_removed",
       instanceId: parentId,
       templateId: parent.templateId,
       data: { childId },
@@ -642,7 +642,7 @@ export class BuildableSystem {
     // Calculate average progress of all children
     let totalProgress = progress;
     let count = 1;
-    
+
     for (const cid of parent.childIds) {
       if (cid !== childId) {
         const child = this.instances.get(cid);
@@ -659,14 +659,14 @@ export class BuildableSystem {
     if (container?.syncVisualWithChildren) {
       const oldStage = parent.currentStage;
       parent.currentStage = this.getStageIndex(template!, parent.childProgress);
-      
+
       if (parent.currentStage !== oldStage) {
         this.updateVisual(parent);
       }
     }
 
     this.emit({
-      type: 'child_progress',
+      type: "child_progress",
       instanceId: parentId,
       templateId: parent.templateId,
       data: { childId, progress, aggregateProgress: parent.childProgress },
@@ -680,9 +680,7 @@ export class BuildableSystem {
     const parent = this.instances.get(parentId);
     if (!parent || !parent.childIds) return [];
 
-    return parent.childIds
-      .map(id => this.instances.get(id))
-      .filter((c): c is BuildableInstance => c !== undefined);
+    return parent.childIds.map((id) => this.instances.get(id)).filter((c): c is BuildableInstance => c !== undefined);
   }
 
   /**
@@ -715,7 +713,7 @@ export class BuildableSystem {
     }
 
     this.emit({
-      type: 'destroyed',
+      type: "destroyed",
       instanceId: id,
       templateId: instance.templateId,
     });
@@ -773,7 +771,7 @@ export class BuildableSystem {
 
     const elapsed = now - instance.startedAt;
     const newProgress = Math.min(100, (elapsed / template.buildTime) * 100);
-    
+
     if (newProgress !== instance.progress) {
       const oldStage = instance.currentStage;
       instance.progress = newProgress;
@@ -782,7 +780,7 @@ export class BuildableSystem {
       if (instance.currentStage !== oldStage) {
         this.updateVisual(instance);
         this.emit({
-          type: 'stage_change',
+          type: "stage_change",
           instanceId: instance.id,
           templateId: template.id,
           data: { oldStage, newStage: instance.currentStage, progress: newProgress },
@@ -790,7 +788,7 @@ export class BuildableSystem {
       }
 
       this.emit({
-        type: 'progress',
+        type: "progress",
         instanceId: instance.id,
         templateId: template.id,
         data: { progress: newProgress },
@@ -807,7 +805,7 @@ export class BuildableSystem {
       }
 
       this.emit({
-        type: 'complete',
+        type: "complete",
         instanceId: instance.id,
         templateId: template.id,
       });
@@ -817,13 +815,13 @@ export class BuildableSystem {
   private updateConsumer(instance: BuildableInstance, template: BuildableTemplate, _now: number): void {
     const consumer = template.behaviors!.consumer!;
     const resource = consumer.resource;
-    
+
     if (!instance.resourceLevels) {
       instance.resourceLevels = { [resource]: 100 };
     }
 
     const currentLevel = instance.resourceLevels[resource] ?? 100;
-    
+
     // Drain resource (rate per minute, update assumes ~500ms intervals)
     const drainPerUpdate = consumer.ratePerMinute / 120; // 120 updates per minute
     const newLevel = Math.max(0, currentLevel - drainPerUpdate);
@@ -832,7 +830,7 @@ export class BuildableSystem {
     // Low warning at 30%
     if (newLevel <= 30 && currentLevel > 30) {
       this.emit({
-        type: 'resource_low',
+        type: "resource_low",
         instanceId: instance.id,
         templateId: template.id,
         data: { resource, level: newLevel },
@@ -842,28 +840,28 @@ export class BuildableSystem {
     // Empty handling
     if (newLevel <= 0 && currentLevel > 0) {
       this.emit({
-        type: 'resource_empty',
+        type: "resource_empty",
         instanceId: instance.id,
         templateId: template.id,
         data: { resource },
       });
 
-      if (consumer.onEmpty === 'destroy') {
+      if (consumer.onEmpty === "destroy") {
         this.destroy(instance.id);
       }
     }
 
     // Damage when empty
-    if (newLevel <= 0 && consumer.onEmpty === 'damage' && consumer.damageRate) {
+    if (newLevel <= 0 && consumer.onEmpty === "damage" && consumer.damageRate) {
       const damagePerUpdate = consumer.damageRate / 120;
       instance.health = Math.max(0, instance.health - damagePerUpdate);
 
       if (instance.health <= 0) {
         this.emit({
-          type: 'damaged',
+          type: "damaged",
           instanceId: instance.id,
           templateId: template.id,
-          data: { health: 0, cause: 'resource_empty' },
+          data: { health: 0, cause: "resource_empty" },
         });
         this.destroy(instance.id);
       }
@@ -872,7 +870,7 @@ export class BuildableSystem {
 
   private updateDecay(instance: BuildableInstance, template: BuildableTemplate, now: number): void {
     const decay = template.behaviors!.decay!;
-    
+
     if (instance.currentPhaseIndex === undefined) {
       instance.currentPhaseIndex = 0;
       instance.currentPhase = decay.phases[0];
@@ -900,12 +898,12 @@ export class BuildableSystem {
       }
 
       this.emit({
-        type: 'phase_change',
+        type: "phase_change",
         instanceId: instance.id,
         templateId: template.id,
-        data: { 
-          oldPhase, 
-          newPhase: instance.currentPhase, 
+        data: {
+          oldPhase,
+          newPhase: instance.currentPhase,
           quality: instance.quality,
           phaseIndex: instance.currentPhaseIndex,
         },
@@ -925,7 +923,7 @@ export class BuildableSystem {
     if (template.behaviors?.consumer) {
       const resource = template.behaviors.consumer.resource;
       const level = instance.resourceLevels?.[resource] ?? 0;
-      if (level <= 0 && template.behaviors.consumer.onEmpty === 'pause') {
+      if (level <= 0 && template.behaviors.consumer.onEmpty === "pause") {
         return;
       }
     }
@@ -936,17 +934,17 @@ export class BuildableSystem {
     if (elapsed >= producer.interval) {
       const stored = instance.storedProduction ?? 0;
       const maxStored = producer.maxStored ?? Infinity;
-      
+
       if (stored < maxStored) {
         instance.storedProduction = Math.min(maxStored, stored + producer.amount);
         instance.lastProductionAt = now;
 
         this.emit({
-          type: 'production_ready',
+          type: "production_ready",
           instanceId: instance.id,
           templateId: template.id,
-          data: { 
-            item: producer.outputItem, 
+          data: {
+            item: producer.outputItem,
             amount: producer.amount,
             stored: instance.storedProduction,
           },
@@ -972,11 +970,11 @@ export class BuildableSystem {
         instance.upgradeStartedAt = undefined;
         instance.currentStage = 0;
         instance.progress = 100;
-        
+
         this.updateVisual(instance);
 
         this.emit({
-          type: 'upgrade_complete',
+          type: "upgrade_complete",
           instanceId: instance.id,
           templateId: upgrade.upgradeTo,
           data: { previousTemplate: template.id },
@@ -1023,7 +1021,7 @@ export class BuildableSystem {
     }
 
     this.emit({
-      type: 'collected',
+      type: "collected",
       instanceId,
       templateId: template.id,
       data: { item: template.behaviors.producer.outputItem, amount },
@@ -1047,7 +1045,7 @@ export class BuildableSystem {
     instance.upgradeStartedAt = this.getGameTime();
 
     this.emit({
-      type: 'upgrade_start',
+      type: "upgrade_start",
       instanceId,
       templateId: template.id,
       data: { upgradeTo: template.behaviors.upgrade.upgradeTo },
@@ -1101,7 +1099,7 @@ export class BuildableSystem {
     for (const listener of this.eventListeners) {
       listener(event);
     }
-    
+
     // Also emit to global EventBus
     EventBus.emit(`buildable:${event.type}`, event);
   }

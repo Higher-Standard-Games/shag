@@ -1,9 +1,9 @@
 /**
  * GamePaths - Configurable game directory system
- * 
+ *
  * Provides centralized path management for loading game assets.
  * Supports multiple games with engine fallback for shared assets.
- * 
+ *
  * Directory structure:
  * ```
  * public/
@@ -16,7 +16,7 @@
  * │       └── ...
  * └── engine.json       # Root config (defaultGame, engineAssetsPath)
  * ```
- * 
+ *
  * @example
  * ```typescript
  * await GamePaths.getInstance().init();
@@ -32,12 +32,12 @@ export interface EngineConfig {
 export class GamePaths {
   private static instance: GamePaths;
 
-  private gameName: string = 'default';
-  private gameTitle: string | null = null;  // Optional title from config
-  private enginePath: string = '/engine';
+  private gameName: string = "default";
+  private gameTitle: string | null = null; // Optional title from config
+  private enginePath: string = "/engine";
   private initialized: boolean = false;
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): GamePaths {
     if (!GamePaths.instance) {
@@ -63,11 +63,11 @@ export class GamePaths {
     // Load engine.json (required)
     let config: EngineConfig | null = null;
     try {
-      const response = await fetch('/engine.json');
+      const response = await fetch("/engine.json");
       if (response.ok) {
         config = await response.json();
       }
-    } catch (error) {
+    } catch (_error) {
       // Fetch failed
     }
 
@@ -80,11 +80,13 @@ export class GamePaths {
     }
 
     this.gameName = config.defaultGame;
-    this.enginePath = config.engineAssetsPath || '/engine';
+    this.enginePath = config.engineAssetsPath || "/engine";
     this.gameTitle = gameTitle || null;
 
     this.initialized = true;
-    console.log(`[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}${this.gameTitle ? `, title=${this.gameTitle}` : ''}`);
+    console.log(
+      `[GamePaths] Initialized: game=${this.gameName}, engine=${this.enginePath}${this.gameTitle ? `, title=${this.gameTitle}` : ""}`,
+    );
   }
 
   /**
@@ -136,7 +138,7 @@ export class GamePaths {
   public game(relativePath?: string): string {
     const base = `/games/${this.gameName}`;
     if (!relativePath) return base;
-    return `${base}/${relativePath.replace(/^\//, '')}`;
+    return `${base}/${relativePath.replace(/^\//, "")}`;
   }
 
   /**
@@ -145,7 +147,7 @@ export class GamePaths {
    */
   public engine(relativePath?: string): string {
     if (!relativePath) return this.enginePath;
-    return `${this.enginePath}/${relativePath.replace(/^\//, '')}`;
+    return `${this.enginePath}/${relativePath.replace(/^\//, "")}`;
   }
 
   // ============================================================================
@@ -156,42 +158,42 @@ export class GamePaths {
    * Get maps directory path or specific map file
    */
   public maps(file?: string): string {
-    return this.game(file ? `maps/${file}` : 'maps');
+    return this.game(file ? `maps/${file}` : "maps");
   }
 
   /**
    * Get textures directory path or specific texture file
    */
   public textures(file?: string): string {
-    return this.game(file ? `textures/${file}` : 'textures');
+    return this.game(file ? `textures/${file}` : "textures");
   }
 
   /**
    * Get prefabs directory path or specific prefab file
    */
   public prefabs(file?: string): string {
-    return this.game(file ? `prefabs/${file}` : 'prefabs');
+    return this.game(file ? `prefabs/${file}` : "prefabs");
   }
 
   /**
    * Get data directory path or specific data file
    */
   public data(file?: string): string {
-    return this.game(file ? `data/${file}` : 'data');
+    return this.game(file ? `data/${file}` : "data");
   }
 
   /**
    * Get music directory path or specific music file
    */
   public music(file?: string): string {
-    return this.game(file ? `music/${file}` : 'music');
+    return this.game(file ? `music/${file}` : "music");
   }
 
   /**
    * Get fonts directory path or specific font file
    */
   public fonts(file?: string): string {
-    return this.game(file ? `fonts/${file}` : 'fonts');
+    return this.game(file ? `fonts/${file}` : "fonts");
   }
 
   // ============================================================================
@@ -202,28 +204,28 @@ export class GamePaths {
    * Get game config.json path
    */
   public configPath(): string {
-    return this.game('config.json');
+    return this.game("config.json");
   }
 
   /**
    * Get engine-settings.json path
    */
   public engineSettingsPath(): string {
-    return this.game('engine-settings.json');
+    return this.game("engine-settings.json");
   }
 
   /**
    * Get UI config path
    */
   public uiConfigPath(): string {
-    return this.data('ui-config.json');
+    return this.data("ui-config.json");
   }
 
   /**
    * Get HUD config path
    */
   public hudConfigPath(): string {
-    return this.data('hud-config.json');
+    return this.data("hud-config.json");
   }
 
   // ============================================================================
@@ -239,7 +241,7 @@ export class GamePaths {
     // Try game path first
     const gamePath = this.game(relativePath);
     try {
-      const response = await fetch(gamePath, { method: 'HEAD' });
+      const response = await fetch(gamePath, { method: "HEAD" });
       if (response.ok) {
         return gamePath;
       }
@@ -250,7 +252,7 @@ export class GamePaths {
     // Try engine path
     const enginePath = this.engine(relativePath);
     try {
-      const response = await fetch(enginePath, { method: 'HEAD' });
+      const response = await fetch(enginePath, { method: "HEAD" });
       if (response.ok) {
         return enginePath;
       }
@@ -268,7 +270,7 @@ export class GamePaths {
    */
   public async existsInGame(relativePath: string): Promise<boolean> {
     try {
-      const response = await fetch(this.game(relativePath), { method: 'HEAD' });
+      const response = await fetch(this.game(relativePath), { method: "HEAD" });
       return response.ok;
     } catch {
       return false;
@@ -280,7 +282,7 @@ export class GamePaths {
    */
   public async existsInEngine(relativePath: string): Promise<boolean> {
     try {
-      const response = await fetch(this.engine(relativePath), { method: 'HEAD' });
+      const response = await fetch(this.engine(relativePath), { method: "HEAD" });
       return response.ok;
     } catch {
       return false;
@@ -296,19 +298,19 @@ export class GamePaths {
    */
   public getDebugInfo(): string {
     return [
-      'GamePaths',
-      '──────────────────',
+      "GamePaths",
+      "──────────────────",
       `Game: ${this.gameName}`,
       `Engine: ${this.enginePath}`,
       `Initialized: ${this.initialized}`,
-      '',
-      'Paths:',
+      "",
+      "Paths:",
       `  config: ${this.configPath()}`,
       `  maps: ${this.maps()}`,
       `  textures: ${this.textures()}`,
       `  prefabs: ${this.prefabs()}`,
       `  data: ${this.data()}`,
       `  music: ${this.music()}`,
-    ].join('\n');
+    ].join("\n");
   }
 }

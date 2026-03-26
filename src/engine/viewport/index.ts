@@ -21,28 +21,21 @@
  *   applicator.apply(delta, camera, baseFOV);
  */
 
-// Core types
-export type { ViewportDelta } from './ViewportDelta';
-export { createNeutralDelta, combineDelta, isDeltaNeutral } from './ViewportDelta';
-
-export type { PlayerState } from './PlayerState';
-export { createNeutralPlayerState } from './PlayerState';
-
-export type { ViewportEffect } from './ViewportEffect';
-export { BaseViewportEffect } from './ViewportEffect';
-
-// Manager
-export { ViewportEffectsManager } from './ViewportEffectsManager';
-
-// Easing utilities
-export { Easing, getEasing, ease } from './Easing';
-export type { EasingFunction } from './Easing';
-
-// Speed constants (shared across effects)
-export { BASE_SPEED, MAX_SPEED, getSpeedRatio } from './SpeedConstants';
-
 // Applicators
-export * from './applicators';
-
+export * from "./applicators";
+export type { EasingFunction } from "./Easing";
+// Easing utilities
+export { Easing, ease, getEasing } from "./Easing";
 // Effects
-export * from './effects';
+export * from "./effects";
+export type { PlayerState } from "./PlayerState";
+export { createNeutralPlayerState } from "./PlayerState";
+// Speed constants (shared across effects)
+export { BASE_SPEED, getSpeedRatio, MAX_SPEED } from "./SpeedConstants";
+// Core types
+export type { ViewportDelta } from "./ViewportDelta";
+export { combineDelta, createNeutralDelta, isDeltaNeutral } from "./ViewportDelta";
+export type { ViewportEffect } from "./ViewportEffect";
+export { BaseViewportEffect } from "./ViewportEffect";
+// Manager
+export { ViewportEffectsManager } from "./ViewportEffectsManager";

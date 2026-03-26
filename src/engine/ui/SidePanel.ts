@@ -1,9 +1,9 @@
 /**
  * SidePanel - Generic collapsible side panel (Engine Component)
- * 
+ *
  * A reusable panel that can be positioned on left or right side.
  * Game code provides content via callbacks.
- * 
+ *
  * Features:
  * - Collapsible with header click
  * - Auto-stacking with other panels
@@ -11,12 +11,12 @@
  * - No overlap with BottomBar
  */
 
-import { UIStyles } from "./UIStyles";
 import sidePanelCSS from "./styles/SidePanel.css?raw";
+import { UIStyles } from "./UIStyles";
 
 export interface SidePanelItem {
   id: string;
-  content: string;      // HTML content for the item
+  content: string; // HTML content for the item
   onClick?: () => void; // Optional click handler
 }
 
@@ -25,7 +25,7 @@ export interface SidePanelConfig {
   title: string;
   icon: string;
   side: "left" | "right";
-  order: number;        // Stack order (lower = higher on screen)
+  order: number; // Stack order (lower = higher on screen)
   minHeight?: number;
   maxHeight?: number;
   collapsedByDefault?: boolean;
@@ -34,8 +34,8 @@ export interface SidePanelConfig {
 export interface SidePanelCallbacks {
   getItems: () => SidePanelItem[];
   onItemClick?: (itemId: string) => void;
-  renderItem?: (item: SidePanelItem) => string;  // Custom item rendering
-  getHeaderExtra?: () => string;  // Extra content for header (e.g., count badge)
+  renderItem?: (item: SidePanelItem) => string; // Custom item rendering
+  getHeaderExtra?: () => string; // Extra content for header (e.g., count badge)
 }
 
 export class SidePanel {
@@ -52,24 +52,24 @@ export class SidePanel {
     this.config = config;
     this.callbacks = callbacks;
     this.isCollapsed = config.collapsedByDefault ?? false;
-    
+
     // Inject styles once
     UIStyles.injectCSS("side-panel", sidePanelCSS);
-    
+
     this.container = this.createContainer();
     this.headerEl = this.createHeader();
     this.contentEl = this.createContent();
-    
+
     this.container.appendChild(this.headerEl);
     this.container.appendChild(this.contentEl);
-    
+
     // Register panel for stacking
     SidePanel.panels.set(config.id, this);
-    
+
     // Add resize listener once to update positions when window/scale changes
     if (!SidePanel.resizeListenerAdded) {
       SidePanel.resizeListenerAdded = true;
-      window.addEventListener('resize', () => SidePanel.updatePositions());
+      window.addEventListener("resize", () => SidePanel.updatePositions());
     }
   }
 
@@ -111,24 +111,26 @@ export class SidePanel {
       this.contentEl.classList.add("collapsed");
       return;
     }
-    
+
     this.contentEl.classList.remove("collapsed");
     const items = this.callbacks.getItems();
-    
+
     if (items.length === 0) {
       this.contentEl.innerHTML = `<div class="side-panel-empty">No items</div>`;
       return;
     }
-    
-    this.contentEl.innerHTML = items.map(item => {
-      if (this.callbacks.renderItem) {
-        return this.callbacks.renderItem(item);
-      }
-      return this.defaultRenderItem(item);
-    }).join("");
-    
+
+    this.contentEl.innerHTML = items
+      .map((item) => {
+        if (this.callbacks.renderItem) {
+          return this.callbacks.renderItem(item);
+        }
+        return this.defaultRenderItem(item);
+      })
+      .join("");
+
     // Add click handlers
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.onClick || this.callbacks.onItemClick) {
         const el = this.contentEl.querySelector(`[data-item-id="${item.id}"]`);
         if (el) {
@@ -156,13 +158,13 @@ export class SidePanel {
     this.isCollapsed = !this.isCollapsed;
     this.render();
     SidePanel.updatePositions();
-    
+
     // Accordion behavior: collapse other panels when this one expands
     if (wasCollapsed && !this.isCollapsed) {
       SidePanel.collapseOthers(this.config.id);
     }
   }
-  
+
   /**
    * Collapse all other panels (accordion behavior)
    */
@@ -220,7 +222,7 @@ export class SidePanel {
     requestAnimationFrame(() => {
       const leftPanels: SidePanel[] = [];
       const rightPanels: SidePanel[] = [];
-      
+
       for (const panel of SidePanel.panels.values()) {
         if (panel.isVisible()) {
           if (panel.config.side === "left") {
@@ -230,25 +232,25 @@ export class SidePanel {
           }
         }
       }
-      
+
       // Sort by order
       leftPanels.sort((a, b) => a.config.order - b.config.order);
       rightPanels.sort((a, b) => a.config.order - b.config.order);
-      
+
       // Calculate available height (viewport height minus top bar and bottom bar)
       // Use UIScale for proper scaling
-      const uiScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale') || '1');
+      const uiScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale") || "1");
       const viewportHeight = window.innerHeight;
       const topBarHeight = Math.round(80 * uiScale); // Space below top bar pills (scaled)
       const bottomBarHeight = Math.round(140 * uiScale); // Approximate height of build bar (scaled)
       const maxBottomY = viewportHeight - bottomBarHeight;
-      
+
       // Position left panels
       const panelGap = Math.round(10 * uiScale); // Gap between panels (scaled)
       let topOffset = topBarHeight;
       for (const panel of leftPanels) {
         panel.container.style.top = `${topOffset}px`;
-        
+
         // Calculate remaining space for this panel
         const remainingSpace = maxBottomY - topOffset - panelGap;
         if (remainingSpace > 0) {
@@ -257,27 +259,26 @@ export class SidePanel {
           const maxContentHeight = Math.max(50, remainingSpace - headerHeight);
           panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
         }
-        
+
         topOffset += panel.container.offsetHeight + panelGap;
       }
-      
+
       // Position right panels
       topOffset = topBarHeight;
       for (const panel of rightPanels) {
         panel.container.style.top = `${topOffset}px`;
-        
+
         const remainingSpace = maxBottomY - topOffset - panelGap;
         if (remainingSpace > 0) {
           const headerHeight = panel.headerEl.offsetHeight;
           const maxContentHeight = Math.max(50, remainingSpace - headerHeight);
           panel.contentEl.style.maxHeight = `${Math.min(panel.config.maxHeight ?? 300, maxContentHeight)}px`;
         }
-        
+
         topOffset += panel.container.offsetHeight + panelGap;
       }
     });
   }
-
 
   // Static method to refresh all panels
   public static refreshAll(): void {

@@ -1,6 +1,6 @@
-import type { IComponent } from '../core/Component';
-import { BinaryEncoder, BinaryDecoder } from '../protocol/BinaryProtocol';
-import type { Vec3 } from './TransformComponent';
+import type { IComponent } from "../core/Component";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
+import type { Vec3 } from "./TransformComponent";
 
 /**
  * VelocityComponent - Linear and angular velocity
@@ -101,11 +101,7 @@ export class VelocityComponent implements IComponent {
    * Get total speed
    */
   getSpeed(): number {
-    return Math.sqrt(
-      this.linear.x * this.linear.x +
-      this.linear.y * this.linear.y +
-      this.linear.z * this.linear.z
-    );
+    return Math.sqrt(this.linear.x * this.linear.x + this.linear.y * this.linear.y + this.linear.z * this.linear.z);
   }
 
   /**
