@@ -104,8 +104,8 @@ let shaderRegistered = false;
 function ensureShaderRegistered(): void {
   if (shaderRegistered) return;
 
-  Effect.ShadersStore["glowOverlayVertexShader"] = VERTEX_SHADER;
-  Effect.ShadersStore["glowOverlayFragmentShader"] = FRAGMENT_SHADER;
+  Effect.ShadersStore.glowOverlayVertexShader = VERTEX_SHADER;
+  Effect.ShadersStore.glowOverlayFragmentShader = FRAGMENT_SHADER;
 
   shaderRegistered = true;
 }

@@ -101,8 +101,8 @@ let shaderRegistered = false;
 function ensureFogShaderRegistered(): void {
   if (shaderRegistered) return;
 
-  Effect.ShadersStore[FOG_SHADER_NAME + "VertexShader"] = fogVertexShader;
-  Effect.ShadersStore[FOG_SHADER_NAME + "FragmentShader"] = fogFragmentShader;
+  Effect.ShadersStore[`${FOG_SHADER_NAME}VertexShader`] = fogVertexShader;
+  Effect.ShadersStore[`${FOG_SHADER_NAME}FragmentShader`] = fogFragmentShader;
   shaderRegistered = true;
 }
 

@@ -15,7 +15,7 @@ export default class GiveWeaponCommand extends Command {
     }
 
     const itemId = args[0].toLowerCase();
-    const amount = args.length > 1 ? parseInt(args[1]) : 100;
+    const amount = args.length > 1 ? parseInt(args[1], 10) : 100;
 
     const cameraSystem = CameraSystem.getInstance();
     const controller = cameraSystem.getActiveController();

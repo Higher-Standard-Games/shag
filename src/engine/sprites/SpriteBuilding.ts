@@ -122,7 +122,7 @@ export class SpriteBuilding {
     this.material = new StandardMaterial(`sprite_mat_${config.id}`, scene);
 
     // Ensure texture path starts with /
-    const texPath = config.texturePath.startsWith("/") ? config.texturePath : "/" + config.texturePath;
+    const texPath = config.texturePath.startsWith("/") ? config.texturePath : `/${config.texturePath}`;
 
     // Load texture with alpha support
     const texture = new Texture(

@@ -5,8 +5,8 @@
  * by MapGenerator for terrain elevation.
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { PNG } from "pngjs";
 import { PerlinNoise } from "../engine/math/Noise";
 

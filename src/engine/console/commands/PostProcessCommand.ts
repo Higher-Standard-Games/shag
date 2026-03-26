@@ -41,7 +41,7 @@ export default class PostProcessCommand extends Command {
         const cvarName = cvarMap[subcommand];
         const value = parseFloat(args[1]);
 
-        if (isNaN(value)) {
+        if (Number.isNaN(value)) {
           const current = Cvar.get(cvarName);
           return current !== undefined ? `${subcommand} = ${current}` : `${subcommand} cvar not registered`;
         }
@@ -52,8 +52,6 @@ export default class PostProcessCommand extends Command {
         }
         return `${subcommand} cvar not registered`;
       }
-
-      case "info":
       default: {
         const effects = ["bloom", "exposure", "contrast", "saturation", "vignette"];
         const lines = ["Post-Process Effects:"];

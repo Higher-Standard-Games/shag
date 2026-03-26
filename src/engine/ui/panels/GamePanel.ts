@@ -300,8 +300,6 @@ export class GamePanel {
    * Switch to a tab by ID.
    */
   protected switchTab(tabId: string): void {
-
-
     // Update tab button states
     for (const tab of this.tabs) {
       tab.btn.classList.toggle("game-panel__tab--active", tab.id === tabId);

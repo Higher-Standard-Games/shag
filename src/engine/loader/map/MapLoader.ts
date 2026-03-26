@@ -98,7 +98,7 @@ export class MapLoader {
 
     const progress = (phase: string, detail?: string, percent?: number) => {
       onProgress?.({ phase, detail, progress: percent });
-      console.log(`[MapLoader] ${phase}${detail ? ": " + detail : ""}`);
+      console.log(`[MapLoader] ${phase}${detail ? `: ${detail}` : ""}`);
 
       // Emit loading:progress event
       const progressEvent: LoadingProgressEvent = {
@@ -477,9 +477,9 @@ export class MapLoader {
     if (!playerStart) {
       playerStart = bsp.entities.find((e) => e.classname === "info_player_deathmatch");
     }
-    if (playerStart && playerStart.properties.origin) {
+    if (playerStart?.properties.origin) {
       const parts = playerStart.properties.origin.split(" ").map(parseFloat);
-      if (parts.length === 3 && !parts.some(isNaN)) {
+      if (parts.length === 3 && !parts.some(Number.isNaN)) {
         playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
       }
     }

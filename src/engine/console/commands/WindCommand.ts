@@ -45,7 +45,7 @@ export default class WindCommand extends Command {
 
       case "strength": {
         const strength = parseFloat(args[1]);
-        if (isNaN(strength)) {
+        if (Number.isNaN(strength)) {
           return "Usage: wind strength <0-1>";
         }
         weather.windStrength(strength);
@@ -56,7 +56,7 @@ export default class WindCommand extends Command {
         const x = parseFloat(args[1]);
         const y = parseFloat(args[2]);
         const z = parseFloat(args[3]);
-        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+        if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
           return "Usage: wind direction <x> <y> <z>";
         }
         weather.windDirection?.(x, y, z);

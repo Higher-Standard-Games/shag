@@ -13,7 +13,7 @@
  * - Team auto-balance on join
  */
 
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
 import type { GameState } from "../engine/network/core/GameState";
 import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";

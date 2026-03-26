@@ -171,7 +171,7 @@ export class MapRenderer {
         // Parse camera_height if specified (controls zoom/distance)
         if (entity.properties.camera_height) {
           const height = parseFloat(entity.properties.camera_height);
-          if (!isNaN(height) && height > 0) {
+          if (!Number.isNaN(height) && height > 0) {
             cameraHeight = height;
             console.log(`Map specifies camera_height: ${cameraHeight}`);
           }
@@ -180,7 +180,7 @@ export class MapRenderer {
         // Parse camera_alpha if specified (horizontal rotation)
         if (entity.properties.camera_alpha) {
           const alpha = parseFloat(entity.properties.camera_alpha);
-          if (!isNaN(alpha)) {
+          if (!Number.isNaN(alpha)) {
             cameraAlpha = alpha;
             console.log(`Map specifies camera_alpha: ${cameraAlpha}`);
           }
@@ -189,7 +189,7 @@ export class MapRenderer {
         // Parse camera_beta if specified (vertical angle)
         if (entity.properties.camera_beta) {
           const beta = parseFloat(entity.properties.camera_beta);
-          if (!isNaN(beta)) {
+          if (!Number.isNaN(beta)) {
             cameraBeta = beta;
             console.log(`Map specifies camera_beta: ${cameraBeta}`);
           }
@@ -291,7 +291,7 @@ export class MapRenderer {
         const parts = entity.properties.origin.split(" ").map(parseFloat);
         const lightPos = new Vector3(parts[0], parts[2], parts[1]);
 
-        const light = new PointLight("light_" + Math.random(), lightPos, scene);
+        const light = new PointLight(`light_${Math.random()}`, lightPos, scene);
         tagMapOwned(light as any);
 
         // Parse intensity from Quake light value (default 300)
@@ -542,7 +542,9 @@ export class MapRenderer {
             const receiveShadows = entity.properties.receiveShadows !== "0";
             const castShadows = entity.properties.castShadows === "1";
             const visible = entity.properties.visible !== "0";
-            const renderingGroupId = entity.properties.renderingGroup ? parseInt(entity.properties.renderingGroup) : 0;
+            const renderingGroupId = entity.properties.renderingGroup
+              ? parseInt(entity.properties.renderingGroup, 10)
+              : 0;
 
             // Get shadow generator if casting shadows
             const skyLight = SkyLightSystem.getInstance();
@@ -691,11 +693,11 @@ export class MapRenderer {
         // Parse sprite sheet config
         const config = {
           path: spritePath,
-          frameWidth: entity.properties.frameWidth ? parseInt(entity.properties.frameWidth) : 32,
-          frameHeight: entity.properties.frameHeight ? parseInt(entity.properties.frameHeight) : 32,
-          framesPerDirection: entity.properties.frames ? parseInt(entity.properties.frames) : 4,
-          directions: entity.properties.directions ? parseInt(entity.properties.directions) : 8,
-          frameRate: entity.properties.frameRate ? parseInt(entity.properties.frameRate) : 8,
+          frameWidth: entity.properties.frameWidth ? parseInt(entity.properties.frameWidth, 10) : 32,
+          frameHeight: entity.properties.frameHeight ? parseInt(entity.properties.frameHeight, 10) : 32,
+          framesPerDirection: entity.properties.frames ? parseInt(entity.properties.frames, 10) : 4,
+          directions: entity.properties.directions ? parseInt(entity.properties.directions, 10) : 8,
+          frameRate: entity.properties.frameRate ? parseInt(entity.properties.frameRate, 10) : 8,
           hasAlpha: true,
         };
 

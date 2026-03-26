@@ -272,7 +272,7 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
           const sortVal = tokens[pos + 1].toLowerCase();
           // Can be a number or preset name
           const sortNum = parseFloat(sortVal);
-          shader.sort = isNaN(sortNum) ? sortVal : sortNum;
+          shader.sort = Number.isNaN(sortNum) ? sortVal : sortNum;
         }
         pos += 2;
         break;

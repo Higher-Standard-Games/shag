@@ -10,7 +10,7 @@
  *   - Stdout monitoring for ready signal
  */
 
-import { type ChildProcess, spawn } from "child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 
 // ============================================================================
 // Types

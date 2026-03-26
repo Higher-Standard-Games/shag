@@ -75,7 +75,7 @@ export class EntityManager {
 
     try {
       // DIRECT PICKUP CREATION for manual spawn is safer/cleaner:
-      new (await import("../game/Pickup")).Pickup(id + "_" + Date.now(), scene, position, {
+      new (await import("../game/Pickup")).Pickup(`${id}_${Date.now()}`, scene, position, {
         id: def.id,
         modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
         type: def.type === EntityType.WEAPON ? "weapon" : "ammo",

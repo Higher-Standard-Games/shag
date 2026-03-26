@@ -461,7 +461,7 @@ export class AudioManager {
     // If a newer request was started while we were awaiting PK3, abort this one
     if (requestId !== this.loadingRequestId) {
       console.log(`[AudioManager] Aborting track load for request ${requestId} (now on ${this.loadingRequestId})`);
-      if (audioUrl && audioUrl.startsWith("blob:")) {
+      if (audioUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(audioUrl);
       }
       return;
@@ -481,7 +481,7 @@ export class AudioManager {
     }
 
     this.failedTrackAttempts = 0;
-    if (audioUrl && audioUrl.startsWith("blob:")) {
+    if (audioUrl?.startsWith("blob:")) {
       this.audioBlobUrls.set(audio, audioUrl);
     }
 

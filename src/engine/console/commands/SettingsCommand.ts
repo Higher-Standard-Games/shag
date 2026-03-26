@@ -50,8 +50,6 @@ export default class SettingsCommand extends Command {
           return `Failed to read clipboard: ${e}`;
         }
       }
-
-      case "list":
       default: {
         const cvars = Cvar.list();
         const modified = cvars.filter((c) => c.value !== c.defaultValue);

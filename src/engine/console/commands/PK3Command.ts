@@ -59,8 +59,6 @@ export default class PK3Command extends Command {
         }
         return `Found "${pattern}" in ${pk3}`;
       }
-
-      case "stats":
       default: {
         const stats = pk3Index.getStats();
         return (

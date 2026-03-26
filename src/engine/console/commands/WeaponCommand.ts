@@ -184,7 +184,7 @@ Usage: weapon pos <x> <y> <z>`;
     const y = parseFloat(args[1]);
     const z = parseFloat(args[2]);
 
-    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
       return "Invalid coordinates";
     }
 
@@ -201,7 +201,7 @@ Usage: weapon pos <x> <y> <z>`;
     }
 
     const scale = parseFloat(args[0]);
-    if (isNaN(scale) || scale <= 0) {
+    if (Number.isNaN(scale) || scale <= 0) {
       return "Invalid scale value";
     }
 

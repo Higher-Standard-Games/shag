@@ -297,7 +297,7 @@ export class BspCommand extends Command {
         const intensity = intensityArg ? parseFloat(intensityArg) : 2.0;
 
         try {
-          const count = manager.applyLightmaps(isNaN(intensity) ? 2.0 : intensity);
+          const count = manager.applyLightmaps(Number.isNaN(intensity) ? 2.0 : intensity);
           return `Applied ${count} lightmaps (intensity: ${intensity.toFixed(1)})`;
         } catch (e) {
           return `Failed to apply lightmaps: ${e}`;

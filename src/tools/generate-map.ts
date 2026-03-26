@@ -26,8 +26,8 @@
  *   npm run generate:map -- --terrainOnly --heightmap multiHill --water
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { createHeightmapData } from "./HeightmapGenerator";
 import { MapGenerator, type MapGeneratorConfig } from "./MapGenerator";
 

@@ -31,7 +31,7 @@ export default class TimeCommand extends Command {
     switch (subcommand) {
       case "set": {
         const hour = parseFloat(args[1]);
-        if (isNaN(hour) || hour < 0 || hour > 24) {
+        if (Number.isNaN(hour) || hour < 0 || hour > 24) {
           return "Usage: time set <0-24>";
         }
         clock.setTime(hour);

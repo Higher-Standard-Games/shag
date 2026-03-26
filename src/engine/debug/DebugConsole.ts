@@ -426,7 +426,7 @@ export class DebugConsole {
       const saved = localStorage.getItem(CONSOLE_SIZE_KEY);
       if (saved) {
         const size = parseFloat(saved);
-        if (!isNaN(size) && size >= 0.1 && size <= 1.0) {
+        if (!Number.isNaN(size) && size >= 0.1 && size <= 1.0) {
           this.consoleSize = size;
         }
       }
@@ -448,7 +448,7 @@ export class DebugConsole {
       const saved = localStorage.getItem(LOG_HISTORY_SIZE_KEY);
       if (saved) {
         const size = parseInt(saved, 10);
-        if (!isNaN(size) && size >= 100 && size <= 50000) {
+        if (!Number.isNaN(size) && size >= 100 && size <= 50000) {
           this.logHistorySize = size;
         }
       }
@@ -600,7 +600,7 @@ export class DebugConsole {
     // Add click handlers
     this.autocompleteEl.querySelectorAll(".autocomplete-item").forEach((el) => {
       el.addEventListener("click", () => {
-        const index = parseInt(el.getAttribute("data-index") || "0");
+        const index = parseInt(el.getAttribute("data-index") || "0", 10);
         this.selectAutocomplete(index);
       });
     });
@@ -689,7 +689,7 @@ export class DebugConsole {
     if (index < 0 || index >= this.autocompleteItems.length) return;
 
     if (this.inputEl) {
-      this.inputEl.value = this.autocompleteItems[index] + " ";
+      this.inputEl.value = `${this.autocompleteItems[index]} `;
       this.inputEl.focus();
     }
 
@@ -876,9 +876,9 @@ export class DebugConsole {
         }
 
         if (["help", "clear", "version", "con_size", "console_debug"].includes(name)) {
-          categories["System"].push(def);
+          categories.System.push(def);
         } else if (cvarCommands.includes(name)) {
-          categories["Cvars"].push(def);
+          categories.Cvars.push(def);
         } else if (
           [
             "debug",
@@ -903,13 +903,13 @@ export class DebugConsole {
             "freefly_collision",
           ].includes(name)
         ) {
-          categories["Debug"].push(def);
+          categories.Debug.push(def);
         } else if (
           ["game", "plant", "quest", "spawn", "give", "save", "load", "teleport", "unlock", "custom"].includes(name)
         ) {
-          categories["Game"].push(def);
+          categories.Game.push(def);
         } else {
-          categories["Other"].push(def);
+          categories.Other.push(def);
         }
       }
 
@@ -958,7 +958,7 @@ export class DebugConsole {
       }
 
       const size = parseFloat(args[0]);
-      if (isNaN(size)) {
+      if (Number.isNaN(size)) {
         return `Invalid size: ${args[0]}. Must be a number between 0.1 and 1.0`;
       }
 
@@ -974,7 +974,7 @@ export class DebugConsole {
       const pattern = args[0];
       const maxResults = args.length > 1 ? parseInt(args[1], 10) : 50;
 
-      if (isNaN(maxResults) || maxResults < 1) {
+      if (Number.isNaN(maxResults) || maxResults < 1) {
         return `Invalid maxResults: ${args[1]}. Must be a positive number.`;
       }
 
@@ -987,7 +987,7 @@ export class DebugConsole {
       let output = `Found ${results.length} match${results.length === 1 ? "" : "es"} for "${pattern}":\n`;
       output += '<span class="hl-label">───────────────────────────────────────</span>\n';
       for (const line of results) {
-        output += line + "\n";
+        output += `${line}\n`;
       }
       return output.trim();
     });
@@ -1001,7 +1001,7 @@ export class DebugConsole {
       }
 
       const size = parseInt(args[0], 10);
-      if (isNaN(size)) {
+      if (Number.isNaN(size)) {
         return `Invalid size: ${args[0]}. Must be a number between 100 and 50000`;
       }
 
@@ -1034,8 +1034,7 @@ export class DebugConsole {
     const def = registry.getDefinition(cmd);
 
     // If command has required args (usage contains < ) or subcommands → show help
-    const needsArgs =
-      def && ((def.usage && def.usage.includes("<")) || (def.subcommands && def.subcommands.length > 0));
+    const needsArgs = def && (def.usage?.includes("<") || (def.subcommands && def.subcommands.length > 0));
 
     const commandStr = needsArgs ? `help ${cmd}` : cmd;
     this.log("command", commandStr);

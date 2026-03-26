@@ -24,8 +24,8 @@
  *   - 500 rounds ≈ 25-40 minutes total
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { BotClient } from "./BotClient";
 import { getDifficultyTiers, getNextBotName, InputButtons, resetBotNameIndex } from "./BotConfig";
 import { BotEpisodeRecorder, type TrainingFrame } from "./BotEpisodeRecorder";

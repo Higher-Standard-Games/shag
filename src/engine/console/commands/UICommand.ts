@@ -37,8 +37,6 @@ export default class UICommand extends Command {
       case "theme": {
         return "Theme control: Use settings menu or UITheme.setTheme() in code";
       }
-
-      case "info":
       default: {
         const lines = ["UI Settings:"];
 

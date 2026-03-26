@@ -100,7 +100,7 @@ export class DeveloperBar {
     if (!this.visible || !this.logEl) return;
     // Strip HTML tags and truncate
     const clean = message.replace(/<[^>]*>/g, "").replace(/\n/g, " ");
-    const truncated = clean.length > 120 ? clean.substring(0, 117) + "..." : clean;
+    const truncated = clean.length > 120 ? `${clean.substring(0, 117)}...` : clean;
     this.logEl.textContent = truncated;
   }
 

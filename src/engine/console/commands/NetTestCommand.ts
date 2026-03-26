@@ -36,7 +36,7 @@ export default class NetTestCommand extends Command {
       case "spawn":
         return this.spawnPlayer();
       case "tick":
-        return this.runTicks(parseInt(args[1]) || 1);
+        return this.runTicks(parseInt(args[1], 10) || 1);
       case "state":
         return this.showState();
       case "input":
@@ -278,7 +278,7 @@ export default class NetTestCommand extends Command {
     }
 
     const dir = args[0]?.toLowerCase() || "forward";
-    const ticks = parseInt(args[1]) || 20;
+    const ticks = parseInt(args[1], 10) || 20;
 
     let buttons = 0;
     const direction = { x: 0, y: 0, z: 0 };

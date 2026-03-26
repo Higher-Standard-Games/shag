@@ -27,7 +27,7 @@ export default class FreeflyCommand extends Command {
     }
 
     const value = parseFloat(args[0]);
-    if (isNaN(value) || value < 0) {
+    if (Number.isNaN(value) || value < 0) {
       return "Usage: freefly_speed <value> (positive number)";
     }
 

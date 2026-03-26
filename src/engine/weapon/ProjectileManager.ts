@@ -646,7 +646,7 @@ export class ProjectileManager {
         return true;
       });
 
-      if (hit && hit.hit && hit.pickedPoint) {
+      if (hit?.hit && hit.pickedPoint) {
         const normal = hit.getNormal(true) ?? this._tmpMoveDir.scale(-1);
 
         if (proj.bouncesLeft > 0) {

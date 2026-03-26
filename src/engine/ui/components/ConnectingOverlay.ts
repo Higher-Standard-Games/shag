@@ -78,7 +78,6 @@ export class ConnectingOverlay {
       this.el.remove();
       this.el = null;
       this.statusEl = null;
-
     }
   }
 
@@ -127,7 +126,6 @@ export class ConnectingOverlay {
     const server = document.createElement("div");
     server.className = "connecting-overlay__server";
     server.textContent = serverUrl;
-
 
     // Second deco
     const deco2 = document.createElement("div");

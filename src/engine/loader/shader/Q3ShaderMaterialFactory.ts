@@ -275,11 +275,6 @@ export function createQ3Material(
         needsAnimation: analysis.hasTcMod,
       };
     }
-
-    case "base_only":
-    case "base_lightmap":
-    case "alpha_blend":
-    case "scrolling":
     default: {
       // Use standard material (fallback)
       return createFallbackMaterial(shader, scene, options, analysis);

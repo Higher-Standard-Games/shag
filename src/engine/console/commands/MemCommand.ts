@@ -43,8 +43,6 @@ export default class MemCommand extends Command {
           return "TextureMemoryManager not available";
         }
       }
-
-      case "info":
       default: {
         const perf = performance as any;
         if (perf.memory) {

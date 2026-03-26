@@ -37,7 +37,7 @@ export function extractSpawnPoints(entities: BspEntity[]): SpawnPoint[] {
     if (!entity.properties?.origin) continue;
 
     const parts = entity.properties.origin.split(" ").map(Number);
-    if (parts.length < 3 || parts.some(isNaN)) continue;
+    if (parts.length < 3 || parts.some(Number.isNaN)) continue;
 
     // Convert Quake coords (x, y, z where Z is up) to engine coords (x, y, z where Y is up)
     // Quake: X=right, Y=forward, Z=up

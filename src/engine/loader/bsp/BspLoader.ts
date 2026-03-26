@@ -334,7 +334,7 @@ export class BspLoader {
     let gridsize: [number, number, number] = [64, 64, 128];
     if (worldspawn?.properties.gridsize) {
       const parts = worldspawn.properties.gridsize.split(/\s+/).map(parseFloat);
-      if (parts.length === 3 && !parts.some(isNaN)) {
+      if (parts.length === 3 && !parts.some(Number.isNaN)) {
         gridsize = [parts[0], parts[1], parts[2]];
       }
     }

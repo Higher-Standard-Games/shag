@@ -149,7 +149,7 @@ export default class MapCommand extends Command {
     console.log("[MapCommand] Applied scene settings for BSP rendering");
 
     const result = await mapLoader.loadMap(mapName, scene, (progress: any) => {
-      console.log(`[Map] ${progress.phase}${progress.detail ? ": " + progress.detail : ""}`);
+      console.log(`[Map] ${progress.phase}${progress.detail ? `: ${progress.detail}` : ""}`);
     });
 
     if (result.success) {
@@ -174,7 +174,7 @@ export default class MapCommand extends Command {
 
         // Calculate rotation from spawn entity if available
         let initialYaw = 0;
-        if (result.bsp && result.bsp.entities) {
+        if (result.bsp?.entities) {
           const spawnExp = result.bsp.entities.find(
             (e: any) => e.classname === "info_player_deathmatch" || e.classname === "info_player_start",
           );

@@ -13,9 +13,9 @@
  *   - PK3 files must be in public/games/default/
  */
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import JSZip from "jszip";
-import * as path from "path";
+import * as path from "node:path";
 import { type BspFile, BspLoader, getBspUsedTextures } from "../engine/loader/bsp/BspLoader";
 
 // ============================================================================
@@ -202,7 +202,7 @@ function findTexture(
   // Try with textures/ prefix
   if (!baseName.startsWith("textures/")) {
     for (const ext of TEXTURE_EXTENSIONS) {
-      const prefixed = "textures/" + baseName + ext;
+      const prefixed = `textures/${baseName}${ext}`;
       const entry = fileIndex.get(prefixed);
       if (entry) {
         return { found: true, foundAs: prefixed, inPk3: entry.pk3 };

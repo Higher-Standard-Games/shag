@@ -543,7 +543,7 @@ export class RenderVars {
       if (match) {
         const [, name, valueStr] = match;
         const value = parseFloat(valueStr);
-        if (!isNaN(value) && this.set(name, value)) {
+        if (!Number.isNaN(value) && this.set(name, value)) {
           applied++;
         } else {
           errors.push(`Unknown or invalid: ${trimmed}`);

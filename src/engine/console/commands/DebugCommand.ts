@@ -81,8 +81,6 @@ export default class DebugCommand extends Command {
       case "player": {
         return await this.togglePlayerDebug(scene);
       }
-
-      case "info":
       default: {
         const engine = scene.getEngine();
         return (

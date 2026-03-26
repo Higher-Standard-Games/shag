@@ -22,7 +22,7 @@ export default class TeleportCommand extends Command {
     const y = parseFloat(args[1]);
     const z = parseFloat(args[2]);
 
-    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
       return "Invalid coordinates. Usage: teleport <x> <y> <z>";
     }
 

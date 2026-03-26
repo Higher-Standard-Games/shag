@@ -33,7 +33,7 @@ export default class AudioCommand extends Command {
     switch (subcommand) {
       case "volume": {
         const vol = parseFloat(args[1]);
-        if (isNaN(vol) || vol < 0 || vol > 1) {
+        if (Number.isNaN(vol) || vol < 0 || vol > 1) {
           return "Usage: audio volume <0-1>";
         }
         audio.setMusicVolume(vol);

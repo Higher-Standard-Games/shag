@@ -13,9 +13,9 @@
  *   - @fails-components/webtransport or @aspect-build/webtransport
  */
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import JSZip from "jszip";
-import * as path from "path";
+import * as path from "node:path";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
@@ -337,8 +337,6 @@ async function main(): Promise<void> {
     case "1v1":
       gametypeInstance = new Duel();
       break;
-    case "dm":
-    case "deathmatch":
     default:
       gametypeInstance = new Deathmatch();
       break;
@@ -369,7 +367,7 @@ async function main(): Promise<void> {
   console.log("");
 
   // ── stdin command handler ──────────────────────────────────────
-  const readline = await import("readline");
+  const readline = await import("node:readline");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   rl.on("line", (line: string) => {
@@ -383,7 +381,7 @@ async function main(): Promise<void> {
       case "spawn_bots":
       case "bots": {
         const count = parseInt(parts[1] || "3", 10);
-        if (isNaN(count) || count < 1 || count > 32) {
+        if (Number.isNaN(count) || count < 1 || count > 32) {
           console.log("[Server] Usage: spawn_bots <1-32>");
           break;
         }

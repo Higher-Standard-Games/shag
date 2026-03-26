@@ -162,7 +162,7 @@ export class WebTransportServerTransport implements Transport {
   }
 
   private async createRealServer(WebTransportServer: any): Promise<any> {
-    const fs = await import("fs").then((m) => m.promises);
+    const fs = await import("node:fs").then((m) => m.promises);
 
     // Load TLS certificates
     const cert = this.config.certPath ? await fs.readFile(this.config.certPath) : undefined;

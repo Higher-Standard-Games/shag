@@ -172,7 +172,7 @@ export class BrushGenerator {
     customMesh.metadata = { ...customMesh.metadata, faces };
 
     // Check for "trigger" texture
-    const isTrigger = brush.planes.some((p) => p.texture && p.texture.toLowerCase().includes("trigger"));
+    const isTrigger = brush.planes.some((p) => p.texture?.toLowerCase().includes("trigger"));
     if (isTrigger) {
       const mat = new StandardMaterial("triggerMat", scene);
       mat.diffuseColor = new Color3(1, 0, 0); // Red

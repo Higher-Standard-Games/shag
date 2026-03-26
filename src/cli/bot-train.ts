@@ -152,8 +152,8 @@ async function trainFromDemo(demoFile: string, config: Partial<TrainerConfig>): 
   const { getTF } = await import("../bot/TFBackend");
   const { resolveDifficulty, InputButtons } = await import("../bot/BotConfig");
   const { TACTICAL_INPUT_SIZE, COMBAT_INPUT_SIZE } = await import("../bot/BotInputNormalizer");
-  const fs = await import("fs");
-  const path = await import("path");
+  const fs = await import("node:fs");
+  const path = await import("node:path");
 
   console.log("");
   console.log("╔═══════════════════════════════════════════════╗");

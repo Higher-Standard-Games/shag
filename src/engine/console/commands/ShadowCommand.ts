@@ -48,8 +48,8 @@ export default class ShadowCommand extends Command {
         return "Shadows disabled";
 
       case "quality": {
-        const quality = parseInt(args[1]);
-        if (isNaN(quality) || quality < 256 || quality > 4096) {
+        const quality = parseInt(args[1], 10);
+        if (Number.isNaN(quality) || quality < 256 || quality > 4096) {
           return "Usage: shadow quality <256-4096>";
         }
         for (const sg of shadowGenerators) {
@@ -59,8 +59,6 @@ export default class ShadowCommand extends Command {
         }
         return `Shadow map size set to ${quality}`;
       }
-
-      case "info":
       default: {
         return (
           `Shadows:\n` +

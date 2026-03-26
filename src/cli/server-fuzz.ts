@@ -129,10 +129,14 @@ function validateState(sim: Simulation): ValidationResult {
     if (!transform || !physics) continue;
 
     // Check for NaN
-    if (isNaN(transform.position.x) || isNaN(transform.position.y) || isNaN(transform.position.z)) {
+    if (
+      Number.isNaN(transform.position.x) ||
+      Number.isNaN(transform.position.y) ||
+      Number.isNaN(transform.position.z)
+    ) {
       errors.push(`Entity ${entity.id}: Position is NaN`);
     }
-    if (isNaN(physics.velocity.x) || isNaN(physics.velocity.y) || isNaN(physics.velocity.z)) {
+    if (Number.isNaN(physics.velocity.x) || Number.isNaN(physics.velocity.y) || Number.isNaN(physics.velocity.z)) {
       errors.push(`Entity ${entity.id}: Velocity is NaN`);
     }
 

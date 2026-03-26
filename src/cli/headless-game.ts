@@ -17,9 +17,9 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
-import * as fs from "fs";
-import * as path from "path";
-import * as readline from "readline";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as readline from "node:readline";
 
 // Static imports for command system
 import { registerEngineCommands } from "../engine/console/commands";
@@ -40,12 +40,12 @@ function captureConsole(): void {
     originalConsoleLog.apply(console, args);
   };
   console.warn = (...args: unknown[]) => {
-    const line = "[WARN] " + args.map((a) => String(a)).join(" ");
+    const line = `[WARN] ${args.map((a) => String(a)).join(" ")}`;
     consoleHistory.push(line);
     originalConsoleWarn.apply(console, args);
   };
   console.error = (...args: unknown[]) => {
-    const line = "[ERROR] " + args.map((a) => String(a)).join(" ");
+    const line = `[ERROR] ${args.map((a) => String(a)).join(" ")}`;
     consoleHistory.push(line);
     originalConsoleError.apply(console, args);
   };
@@ -71,7 +71,7 @@ async function initializeEngine(): Promise<HeadlessContext> {
   const scene = new Scene(engine);
   const camera = new FreeCamera("camera", new Vector3(0, 100, -200), scene);
 
-  console.log("[Init] Engine created: " + engine.description);
+  console.log(`[Init] Engine created: ${engine.description}`);
 
   // Initialize CameraSystem so commands can find the scene
   try {
@@ -239,7 +239,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
           `  Console history: ${consoleHistory.length} lines`,
         ].join("\n");
       case "history": {
-        const count = parseInt(args[1]) || 20;
+        const count = parseInt(args[1], 10) || 20;
         return consoleHistory.slice(-count).join("\n");
       }
       default:
@@ -251,8 +251,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
   registry.register("version", () => {
     return [
       "SHAG Engine - Headless Mode",
-      "Babylon.js: " + context?.engine.description,
-      "Node.js: " + process.version,
+      `Babylon.js: ${context?.engine.description}`,
+      `Node.js: ${process.version}`,
     ].join("\n");
   });
 
@@ -789,7 +789,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         for (const seq of sequences) {
           const parts = seq.trim().split(/\s+/);
           const keyStr = parts[0].toUpperCase();
-          const ticks = parseInt(parts[1]) || 1;
+          const ticks = parseInt(parts[1], 10) || 1;
           const keys = keyStr.split("+");
 
           for (let t = 0; t < ticks; t++) {
@@ -883,7 +883,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     return lines.join("\n");
   });
 
-  console.log("[Init] Commands registered: " + registry.getCommands().size);
+  console.log(`[Init] Commands registered: ${registry.getCommands().size}`);
 }
 
 // ============================================================================

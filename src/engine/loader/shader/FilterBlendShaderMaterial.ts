@@ -15,7 +15,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
 
 // Register the custom shader
-Effect.ShadersStore["filterBlendVertexShader"] = `
+Effect.ShadersStore.filterBlendVertexShader = `
 precision highp float;
 
 // Attributes
@@ -34,7 +34,7 @@ void main() {
 }
 `;
 
-Effect.ShadersStore["filterBlendFragmentShader"] = `
+Effect.ShadersStore.filterBlendFragmentShader = `
 precision highp float;
 
 // Varyings

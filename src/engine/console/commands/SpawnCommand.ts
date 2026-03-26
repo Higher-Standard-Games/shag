@@ -49,8 +49,8 @@ export default class SpawnCommand extends Command {
     }
 
     // Select spawn point
-    const index = parseInt(args[0] || "0");
-    const spawnIndex = isNaN(index) ? 0 : Math.min(Math.max(0, index), spawns.length - 1);
+    const index = parseInt(args[0] || "0", 10);
+    const spawnIndex = Number.isNaN(index) ? 0 : Math.min(Math.max(0, index), spawns.length - 1);
     const spawn = spawns[spawnIndex];
 
     if (!spawn.properties?.origin) {

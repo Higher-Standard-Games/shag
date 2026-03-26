@@ -224,7 +224,6 @@ export class Q3NodeMaterialBuilder {
             currentColor = lerpBlend.output;
             break;
           }
-          case "replace":
           default:
             currentColor = texBlock.rgb;
             break;

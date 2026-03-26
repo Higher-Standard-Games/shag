@@ -70,7 +70,7 @@ export default class CameraCommand extends Command {
 
       case "fov": {
         const fov = parseFloat(args[1]);
-        if (isNaN(fov)) {
+        if (Number.isNaN(fov)) {
           return `Current FOV: ${((camera.fov * 180) / Math.PI).toFixed(1)}°`;
         }
         if (fov < 10 || fov > 170) {
@@ -84,8 +84,6 @@ export default class CameraCommand extends Command {
         const pos = camera.position;
         return `Camera position: ${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`;
       }
-
-      case "info":
       default: {
         const pos = camera.position;
         const controller = cameraSystem.getActiveController();

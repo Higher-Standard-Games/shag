@@ -6,7 +6,7 @@
  */
 
 import { app, BrowserWindow, Menu, shell } from "electron";
-import * as path from "path";
+import * as path from "node:path";
 
 // Load game configuration
 // eslint-disable-next-line @typescript-eslint/no-var-requires

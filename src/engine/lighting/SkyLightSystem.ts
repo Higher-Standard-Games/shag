@@ -659,7 +659,7 @@ export class SkyLightSystem {
       const time = bsp.getWorldspawnProperty("daynight_time");
       if (time) {
         const t = parseFloat(time);
-        if (!isNaN(t)) {
+        if (!Number.isNaN(t)) {
           this._bspTimeOfDay = Math.max(0, Math.min(1, t));
           loaded = true;
         }
@@ -669,7 +669,7 @@ export class SkyLightSystem {
       const cycle = bsp.getWorldspawnProperty("daynight_cycle");
       if (cycle) {
         const c = parseFloat(cycle);
-        if (!isNaN(c) && c > 0) {
+        if (!Number.isNaN(c) && c > 0) {
           this._bspCycleLength = c;
           loaded = true;
         }

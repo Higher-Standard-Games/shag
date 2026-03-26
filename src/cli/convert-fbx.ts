@@ -10,9 +10,9 @@
  *   npm run tools:convert -- *.fbx                             # glob
  */
 
-import { execSync } from "child_process";
-import { existsSync, readdirSync, statSync } from "fs";
-import { basename, dirname, extname, join } from "path";
+import { execSync } from "node:child_process";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
 
 const TOOL_DIR = join(process.cwd(), "tools");
 const FBX2GLTF_EXE = join(TOOL_DIR, "FBX2glTF-windows-x86_64", "FBX2glTF-windows-x86_64.exe");
@@ -46,7 +46,7 @@ function convertFile(fbxPath: string): boolean {
     execSync(`"${FBX2GLTF_EXE}" --binary --input "${fbxPath}" --output "${outPath}"`, {
       stdio: "pipe",
     });
-    const glbPath = outPath + ".glb";
+    const glbPath = `${outPath}.glb`;
     if (existsSync(glbPath)) {
       const size = statSync(glbPath).size;
       console.log(`  ✅ ${basename(fbxPath)} → ${basename(glbPath)} (${(size / 1024).toFixed(1)} KB)`);

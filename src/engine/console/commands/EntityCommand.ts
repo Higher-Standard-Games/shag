@@ -68,8 +68,6 @@ export default class EntityCommand extends Command {
           `  Metadata: ${JSON.stringify(mesh.metadata || {}).slice(0, 100)}`
         );
       }
-
-      case "count":
       default: {
         const total = scene.meshes.length;
         const entities = scene.meshes.filter((m) => m.metadata?.entity).length;

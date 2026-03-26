@@ -255,7 +255,7 @@ export class SpriteManager {
     let shadowMesh: Mesh | null = null;
     if (definition.shadow) {
       shadowMesh = this.createShadowMesh(
-        mesh.name + "_shadow",
+        `${mesh.name}_shadow`,
         width * 0.8,
         height * 0.4,
         definition.shadowOpacity ?? 0.3,
@@ -343,7 +343,7 @@ export class SpriteManager {
     mesh.rotation.x = Math.PI / 2;
     mesh.scaling.set(width, depth, 1);
 
-    const material = new StandardMaterial(name + "_mat", this.scene!);
+    const material = new StandardMaterial(`${name}_mat`, this.scene!);
     material.diffuseColor = new Color3(0, 0, 0);
     material.specularColor = new Color3(0, 0, 0);
     material.emissiveColor = new Color3(0, 0, 0);

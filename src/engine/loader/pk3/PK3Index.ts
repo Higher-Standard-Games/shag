@@ -101,14 +101,14 @@ export class PK3Index {
    * Set search paths for PK3 discovery
    */
   setSearchPaths(paths: string[]): void {
-    this.searchPaths = paths.map((p) => (p.endsWith("/") ? p : p + "/"));
+    this.searchPaths = paths.map((p) => (p.endsWith("/") ? p : `${p}/`));
   }
 
   /**
    * Add a search path
    */
   addSearchPath(path: string): void {
-    const normalized = path.endsWith("/") ? path : path + "/";
+    const normalized = path.endsWith("/") ? path : `${path}/`;
     if (!this.searchPaths.includes(normalized)) {
       this.searchPaths.push(normalized);
     }
@@ -511,7 +511,7 @@ export class PK3Index {
   findByPattern(pattern: string): { file: string; pk3: string }[] {
     if (!this.index) return [];
 
-    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");
+    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
 
     const results: { file: string; pk3: string }[] = [];
     for (const [file, pk3] of Object.entries(this.index.files)) {
@@ -544,7 +544,7 @@ export class PK3Index {
           break;
         }
         // Also check textures/ prefix
-        const withPrefix = "textures/" + basePath + ext;
+        const withPrefix = `textures/${basePath}${ext}`;
         const pk3WithPrefix = this.findFile(withPrefix);
         if (pk3WithPrefix) {
           pk3s.add(pk3WithPrefix);

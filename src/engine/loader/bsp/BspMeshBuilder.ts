@@ -1209,7 +1209,7 @@ export class BspMeshBuilder {
 
               // Load glow texture
               let glowTexture: Texture | null = null;
-              if (glowStage && glowStage.map) {
+              if (glowStage?.map) {
                 const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
                 for (const ext of extensions) {
                   glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);

@@ -111,7 +111,7 @@ export class Pickup extends TransformNode {
         });
       }
 
-      if (result && result.root) {
+      if (result?.root) {
         const pickupScale = this.options.scale || 1.5;
 
         // Find the leader mesh (first renderable) and parent ALL other
@@ -474,7 +474,7 @@ export class Pickup extends TransformNode {
    */
   public static deactivateById(pickupId: number, weaponId: string, x: number, y: number, z: number): void {
     const pickup = Pickup.pickupById.get(pickupId);
-    if (pickup && pickup.isActive) {
+    if (pickup?.isActive) {
       pickup.deactivateFromServer();
       return;
     }
@@ -593,7 +593,7 @@ export class Pickup extends TransformNode {
       return true;
     });
 
-    if (hit && hit.hit && hit.pickedPoint) {
+    if (hit?.hit && hit.pickedPoint) {
       // Place weapon slightly above the floor (offset for visual clearance)
       const floorOffset = 12; // Units above floor surface
       const newY = hit.pickedPoint.y + floorOffset;

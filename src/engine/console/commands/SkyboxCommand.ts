@@ -51,8 +51,6 @@ export default class SkyboxCommand extends Command {
         }
         return `Cleared ${skyboxMeshes.length} skybox meshes`;
       }
-
-      case "info":
       default: {
         const skyboxMeshes = scene.meshes.filter((m) => m.name.includes("skyBox") || m.name.includes("skybox"));
         if (skyboxMeshes.length === 0) {

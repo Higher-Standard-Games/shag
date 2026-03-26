@@ -303,7 +303,6 @@ export class DamageOverlay {
           x = tri.edgePos * w;
           y = h - tri.depthPos * borderH;
           break;
-        case 3: // left
         default:
           x = tri.depthPos * borderW;
           y = tri.edgePos * h;

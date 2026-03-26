@@ -44,7 +44,7 @@ export default class SpectatorCommand extends Command {
       }
     }
 
-    const val = parseInt(args[0]);
+    const val = parseInt(args[0], 10);
     if (val === 0) {
       cameraSystem.setController("fps");
       return "FPS mode (gravity, physics)";

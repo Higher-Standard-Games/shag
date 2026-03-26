@@ -154,9 +154,9 @@ describe("HybridBrain", () => {
     it("should save and reload models", async () => {
       if (!isTFAvailable()) return;
 
-      const fs = await import("fs");
-      const os = await import("os");
-      const path = await import("path");
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "shag-brain-test-"));
 
       try {

@@ -837,7 +837,7 @@ export class FPSController implements ICameraController {
             try {
               const { MapLoader } = await import("../../loader/map/MapLoader");
               const bsp = MapLoader.getInstance().getCurrentBsp();
-              if (bsp && bsp.entities) {
+              if (bsp?.entities) {
                 const spawns = extractSpawnPoints(bsp.entities);
                 if (spawns.length > 0) {
                   this.gameManager!.setSpawnPoints(spawns.map((s) => s.position));

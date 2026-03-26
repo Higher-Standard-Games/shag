@@ -391,7 +391,7 @@ export abstract class EngineScene {
 
   public setCameraHeight(height: number | string): void {
     const numHeight = typeof height === "string" ? parseFloat(height) : height;
-    if (isNaN(numHeight) || numHeight <= 0) {
+    if (Number.isNaN(numHeight) || numHeight <= 0) {
       console.error(`Invalid camera height: ${height}`);
       return;
     }

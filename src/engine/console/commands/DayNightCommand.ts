@@ -70,7 +70,7 @@ export default class DayNightCommand extends Command {
 
       case "cycle": {
         const minutes = parseFloat(args[1]);
-        if (isNaN(minutes)) {
+        if (Number.isNaN(minutes)) {
           return `Current cycle length: ${sky.getBspCycleLength()} minutes`;
         }
         sky.setBspCycleLength(minutes);
@@ -79,7 +79,7 @@ export default class DayNightCommand extends Command {
 
       case "time": {
         const value = parseFloat(args[1]);
-        if (isNaN(value)) {
+        if (Number.isNaN(value)) {
           const time = sky.getBspTimeOfDay();
           return `Current time: ${time.toFixed(2)} (0=midnight, 0.5=noon)`;
         }
@@ -87,8 +87,6 @@ export default class DayNightCommand extends Command {
         sky.setBspTimeOfDay(value);
         return `Time set to ${value.toFixed(2)}`;
       }
-
-      case "info":
       default: {
         const time = sky.getBspTimeOfDay();
         const sunFactor = Math.max(0, Math.sin(time * Math.PI));

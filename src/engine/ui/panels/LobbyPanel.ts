@@ -219,7 +219,6 @@ const MOCK_LEADERBOARD = [
 // ═══════════════════════════════════════════════════════════════════
 
 export class LobbyPanel extends GamePanel {
-
   private settingsChangeCallback: ((key: string, value: any) => void) | null = null;
   private modesContainer: HTMLElement | null = null;
   private matchLobbyView: MatchLobbyView | null = null;
@@ -491,9 +490,7 @@ export class LobbyPanel extends GamePanel {
   isVisible(): boolean {
     return this.isOpen();
   }
-  setOnPlay(_cb: (mode: string) => void): void {
-
-  }
+  setOnPlay(_cb: (mode: string) => void): void {}
   onSettingsChange(cb: (key: string, value: any) => void): void {
     this.settingsChangeCallback = cb;
   }
@@ -1023,7 +1020,7 @@ export class LobbyPanel extends GamePanel {
                 <span class="lobby__lb-cell lobby__lb-cell--weapon">${p.weapon}</span>
                 <span class="lobby__lb-cell lobby__lb-cell--acc">${p.acc}</span>
                 <span class="lobby__lb-cell lobby__lb-cell--speed">${p.topSpeed}</span>
-                <span class="lobby__lb-cell lobby__lb-cell--streak">${p.streak > 1 ? "🔥 " + p.streak : p.streak}</span>
+                <span class="lobby__lb-cell lobby__lb-cell--streak">${p.streak > 1 ? `🔥 ${p.streak}` : p.streak}</span>
             `;
       table.appendChild(row);
     }

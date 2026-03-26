@@ -219,7 +219,7 @@ export class ScreenTransition {
    * Dispose the overlay
    */
   public dispose(): void {
-    if (this.overlay && this.overlay.parentNode) {
+    if (this.overlay?.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
     this.overlay = null;

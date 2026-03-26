@@ -56,7 +56,7 @@ export default class FogCommand extends Command {
         }
         try {
           const { Color3 } = await import("@babylonjs/core/Maths/math.color");
-          scene.fogColor = Color3.FromHexString(hex.startsWith("#") ? hex : "#" + hex);
+          scene.fogColor = Color3.FromHexString(hex.startsWith("#") ? hex : `#${hex}`);
           return `Fog color set to ${hex}`;
         } catch {
           return "Invalid hex color";
@@ -65,15 +65,13 @@ export default class FogCommand extends Command {
 
       case "density": {
         const value = parseFloat(args[1]);
-        if (isNaN(value)) {
+        if (Number.isNaN(value)) {
           return `Current fog density: ${scene.fogDensity}`;
         }
         scene.fogDensity = value;
         scene.fogMode = 3; // Exponential2
         return `Fog density set to ${value}`;
       }
-
-      case "info":
       default: {
         return (
           `Fog Info:\n` +

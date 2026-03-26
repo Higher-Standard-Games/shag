@@ -67,7 +67,7 @@ export default class PhysicsCommand extends Command {
 
       case "gravity": {
         const value = parseFloat(args[1]);
-        if (isNaN(value)) {
+        if (Number.isNaN(value)) {
           const mv = MovementVars.getInstance();
           const current = mv.get("sv_gravity");
           return `Current gravity: ${current} (use: physics gravity <value>)`;
@@ -102,8 +102,6 @@ export default class PhysicsCommand extends Command {
           }
         }
       }
-
-      case "info":
       default: {
         const mv = MovementVars.getInstance();
         const lines = [

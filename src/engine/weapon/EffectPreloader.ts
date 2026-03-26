@@ -379,7 +379,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   //    forces Babylon to re-bind and re-upload the texture data.
   let texCount = 0;
   for (const tex of scene.textures) {
-    if (tex && tex.isReady()) {
+    if (tex?.isReady()) {
       try {
         // Force the texture to re-initialize its WebGL sampler
         // This triggers an internal _rebuild-like path

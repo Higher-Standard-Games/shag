@@ -58,7 +58,7 @@ export class PK3Loader {
    * Add a search path
    */
   public addSearchPath(path: string): void {
-    const normalizedPath = path.replace(/\\/g, "/").replace(/\/$/, "") + "/";
+    const normalizedPath = `${path.replace(/\\/g, "/").replace(/\/$/, "")}/`;
     if (!this.config.additionalPaths) {
       this.config.additionalPaths = [];
     }
@@ -319,7 +319,7 @@ export class PK3Loader {
     }
 
     // Simple glob matching (only supports * wildcard)
-    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");
+    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
 
     return files.filter((f) => regex.test(f));
   }
@@ -329,7 +329,7 @@ export class PK3Loader {
    * @param directory - Directory path (e.g., "textures/exwsw")
    */
   public listDirectory(directory: string): string[] {
-    const normalizedDir = directory.toLowerCase().replace(/\\/g, "/").replace(/\/$/, "") + "/";
+    const normalizedDir = `${directory.toLowerCase().replace(/\\/g, "/").replace(/\/$/, "")}/`;
 
     return Array.from(this.fileIndex.keys())
       .filter((f) => f.startsWith(normalizedDir))

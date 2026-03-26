@@ -192,7 +192,7 @@ async function main(): Promise<void> {
   }
 
   // ── stdin command handler ───────────────────────────────────────
-  const readline = await import("readline");
+  const readline = await import("node:readline");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   rl.on("line", async (line: string) => {

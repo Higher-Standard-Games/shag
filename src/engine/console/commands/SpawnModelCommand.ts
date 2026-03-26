@@ -76,7 +76,7 @@ export default class SpawnModelCommand extends Command {
       const x = parseFloat(args[2]);
       const y = parseFloat(args[3]);
       const z = parseFloat(args[4]);
-      if (isNaN(x) || isNaN(y) || isNaN(z)) {
+      if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
         return "Position must be 3 numbers: x y z";
       }
       position = new Vector3(x, y, z);
@@ -185,7 +185,7 @@ export default class SpawnModelCommand extends Command {
     }
 
     // Default: try .glb extension in game root
-    return paths.game(modelName + ".glb");
+    return paths.game(`${modelName}.glb`);
   }
 
   // ============================================================================
@@ -227,7 +227,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel info <index>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -264,7 +264,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel anim <index> <animation|stop> [loop|once]";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -285,7 +285,7 @@ export default class SpawnModelCommand extends Command {
 
     // Check if animation exists
     const animNames = loader.getAnimationNames(spawned.result);
-    if (!animNames.includes(animName) && isNaN(parseInt(animName))) {
+    if (!animNames.includes(animName) && Number.isNaN(parseInt(animName, 10))) {
       return `Animation '${animName}' not found. Available: ${animNames.join(", ")}`;
     }
 
@@ -311,7 +311,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel rotate <index> <angle>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -331,7 +331,7 @@ export default class SpawnModelCommand extends Command {
       angle = parseFloat(angleStr);
     }
 
-    if (isNaN(angle)) {
+    if (Number.isNaN(angle)) {
       return "Invalid angle";
     }
 
@@ -344,7 +344,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel move <index> <x> <y> <z>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -367,7 +367,7 @@ export default class SpawnModelCommand extends Command {
     const y = parseCoord(yStr, pos.y);
     const z = parseCoord(zStr, pos.z);
 
-    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
       return "Invalid coordinates";
     }
 
@@ -380,7 +380,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel scale <index> <scale>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -388,7 +388,7 @@ export default class SpawnModelCommand extends Command {
     }
 
     const scale = parseFloat(args[1]);
-    if (isNaN(scale) || scale < 0.01 || scale > 1000) {
+    if (Number.isNaN(scale) || scale < 0.01 || scale > 1000) {
       return "Scale must be a number between 0.01 and 1000";
     }
 
@@ -401,7 +401,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel remove <index>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawnedIndex = this.spawnedModels.findIndex((s) => s.spawnIndex === index);
 
     if (spawnedIndex === -1) {
@@ -420,7 +420,7 @@ export default class SpawnModelCommand extends Command {
       return "Usage: spawnmodel lighting <index>";
     }
 
-    const index = parseInt(args[0]);
+    const index = parseInt(args[0], 10);
     const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
 
     if (!spawned) {
@@ -460,7 +460,7 @@ export default class SpawnModelCommand extends Command {
 
     // For anim subcommand, suggest animation names
     if (sub === "anim" && args.length === 3) {
-      const index = parseInt(args[1]);
+      const index = parseInt(args[1], 10);
       const spawned = this.spawnedModels.find((s) => s.spawnIndex === index);
       if (spawned) {
         return spawned.result.animationGroups.map((a) => a.name);

@@ -242,7 +242,7 @@ export class MaxCountValidator implements ISpawnValidator {
   validate(context: SpawnValidationContext): SpawnValidationResult {
     const { prefabName, scene, triggerProperties } = context;
 
-    const maxCount = triggerProperties.maxCount ? parseInt(triggerProperties.maxCount) : Infinity;
+    const maxCount = triggerProperties.maxCount ? parseInt(triggerProperties.maxCount, 10) : Infinity;
 
     // Count existing prefabs of this type
     let count = 0;

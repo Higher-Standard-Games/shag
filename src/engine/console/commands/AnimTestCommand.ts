@@ -141,7 +141,7 @@ export default class AnimTestCommand extends Command {
 
           const animResult = await SceneLoader.ImportAnimationsAsync(
             "",
-            "games/default/animations/" + anim.file,
+            `games/default/animations/${anim.file}`,
             this.scene,
             false,
           );
@@ -205,8 +205,8 @@ export default class AnimTestCommand extends Command {
 
     // Find the animation
     let target: StoredAnimation | undefined;
-    const idx = parseInt(nameOrIndex);
-    if (!isNaN(idx) && idx >= 0 && idx < this.storedAnims.length) {
+    const idx = parseInt(nameOrIndex, 10);
+    if (!Number.isNaN(idx) && idx >= 0 && idx < this.storedAnims.length) {
       target = this.storedAnims[idx];
     } else {
       target = this.storedAnims.find((a) => a.name.toLowerCase().includes(nameOrIndex.toLowerCase()));

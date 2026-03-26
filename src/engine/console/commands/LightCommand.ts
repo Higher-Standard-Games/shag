@@ -36,7 +36,7 @@ export default class LightCommand extends Command {
     switch (subcommand) {
       case "ambient": {
         const intensity = parseFloat(args[1]);
-        if (isNaN(intensity)) {
+        if (Number.isNaN(intensity)) {
           return `Ambient intensity: ${scene.ambientColor.r.toFixed(2)}`;
         }
         const { Color3 } = await import("@babylonjs/core/Maths/math.color");
@@ -55,8 +55,6 @@ export default class LightCommand extends Command {
         }
         return lines.join("\n");
       }
-
-      case "info":
       default: {
         return (
           `Lighting Info:\n` +

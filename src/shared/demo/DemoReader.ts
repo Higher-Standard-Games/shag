@@ -17,7 +17,7 @@ import { BinaryProtocol } from "../../engine/network/protocol/BinaryProtocol";
 let zlib: typeof import("zlib") | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  zlib = require("zlib");
+  zlib = require("node:zlib");
 } catch {
   // Running in browser — zlib unavailable
 }

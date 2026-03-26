@@ -93,8 +93,6 @@ export default class SceneCommand extends Command {
         }
         return lines.join("\n");
       }
-
-      case "info":
       default: {
         const meshCount = scene.meshes.length;
         const matCount = scene.materials.length;

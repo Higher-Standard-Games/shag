@@ -305,7 +305,7 @@ export class StreetLampSystem {
    */
   public turnOff(id: string): void {
     const lamp = this.lamps.get(id);
-    if (lamp && lamp.isOn) {
+    if (lamp?.isOn) {
       lamp.isOn = false;
       lamp.targetIntensity = 0;
     }

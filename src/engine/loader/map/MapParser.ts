@@ -292,8 +292,8 @@ export class MapParser {
           // Parse ( width height 0 0 0 )
           const dimMatch = trimmed.match(/\(\s*(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s*\)/);
           if (dimMatch) {
-            width = parseInt(dimMatch[1]);
-            height = parseInt(dimMatch[2]);
+            width = parseInt(dimMatch[1], 10);
+            height = parseInt(dimMatch[2], 10);
             state = "points";
           }
           continue;

@@ -21,7 +21,6 @@ export class LobbyClient {
   private handlers: Map<string, MessageHandler[]> = new Map();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-
   private _connected: boolean = false;
 
   /** Whether the client is connected to the lobby server */
@@ -32,8 +31,6 @@ export class LobbyClient {
   // ── Connection ───────────────────────────────────────────────
 
   async connect(url: string): Promise<void> {
-
-
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(url);
@@ -87,7 +84,6 @@ export class LobbyClient {
   // ── Auth ─────────────────────────────────────────────────────
 
   auth(name: string): void {
-
     this.send({ type: "auth", name });
   }
 

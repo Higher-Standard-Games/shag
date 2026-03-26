@@ -339,7 +339,7 @@ export class Cvar {
       const data = JSON.parse(stored) as Record<string, CvarValue>;
       for (const [name, value] of Object.entries(data)) {
         const cvar = Cvar.cvars.get(name);
-        if (cvar && cvar.flags.persist) {
+        if (cvar?.flags.persist) {
           cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
         } else if (!cvar) {
           // Pre-load value for cvars not yet registered
@@ -432,8 +432,6 @@ export class Cvar {
         if (min !== undefined) result = Math.max(min, result as number);
         if (max !== undefined) result = Math.min(max, result as number);
         break;
-
-      case "string":
       default:
         result = String(value);
         break;

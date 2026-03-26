@@ -39,7 +39,6 @@ export class FreeflyController implements ICameraController {
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
 
-
   // State
   private enabled: boolean = true;
 
@@ -143,7 +142,6 @@ export class FreeflyController implements ICameraController {
 
     this.scene = scene;
 
-
     // Get starting position from existing camera
     let startPos = camera.position.clone();
 
@@ -212,7 +210,6 @@ export class FreeflyController implements ICameraController {
 
     this.camera = null;
     this.scene = null;
-
 
     console.log("[FreeflyController] Detached");
   }

@@ -60,14 +60,14 @@ export default class DebrisCommand extends Command {
 
       case "density": {
         const v = parseFloat(args[1]);
-        if (isNaN(v)) return "Usage: debris density <0-1>";
+        if (Number.isNaN(v)) return "Usage: debris density <0-1>";
         weather.debrisDensity(v);
         return `Debris density: ${v}`;
       }
 
       case "size": {
         const v = parseFloat(args[1]);
-        if (isNaN(v)) return "Usage: debris size <number>";
+        if (Number.isNaN(v)) return "Usage: debris size <number>";
         weather.debrisSize(v);
         return `Debris size: ${v}`;
       }
@@ -75,7 +75,7 @@ export default class DebrisCommand extends Command {
       case "speed": {
         const min = parseFloat(args[1]);
         const max = parseFloat(args[2]) || min * 2;
-        if (isNaN(min)) return "Usage: debris speed <min> [max]";
+        if (Number.isNaN(min)) return "Usage: debris speed <min> [max]";
         weather.debrisSpeed?.(min, max);
         return `Debris speed: ${min} - ${max}`;
       }

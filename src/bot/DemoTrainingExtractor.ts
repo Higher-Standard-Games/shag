@@ -21,7 +21,7 @@
  *   // dataset.players[0].frames → TrainingFrame[]
  */
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import { type DemoFrame, type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { InputButtons } from "./BotConfig";
 import type { TrainingFrame } from "./BotEpisodeRecorder";

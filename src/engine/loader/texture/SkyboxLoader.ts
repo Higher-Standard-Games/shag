@@ -240,9 +240,9 @@ export class SkyboxLoader {
         }
         // Also try with textures/ prefix
         if (!texturePath.startsWith("textures/")) {
-          fileData = await pk3.getFile("textures/" + texturePath + ext);
+          fileData = await pk3.getFile(`textures/${texturePath}${ext}`);
           if (fileData) {
-            actualPath = "textures/" + texturePath + ext;
+            actualPath = `textures/${texturePath}${ext}`;
             break;
           }
         }

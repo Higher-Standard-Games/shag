@@ -29,7 +29,7 @@ export default class TimescaleCommand extends Command {
     const engine = scene.getEngine();
     const value = parseFloat(args[0]);
 
-    if (isNaN(value)) {
+    if (Number.isNaN(value)) {
       // Get current time scale from engine
       const current = (engine as any)._timeScale ?? 1.0;
       return `Timescale: ${current}`;

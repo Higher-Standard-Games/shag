@@ -162,7 +162,7 @@ export class CelOutlinePostProcess {
     this.camera = camera;
 
     // Register the custom shader in Babylon's shader store
-    Effect.ShadersStore["celOutlineFragmentShader"] = CEL_OUTLINE_FRAGMENT;
+    Effect.ShadersStore.celOutlineFragmentShader = CEL_OUTLINE_FRAGMENT;
 
     if (this._enabled) {
       this.createPostProcess();
@@ -212,7 +212,7 @@ export class CelOutlinePostProcess {
       if (mesh.metadata?.celOutlineExclude) return false;
       // Skip alpha-blended materials (particles, explosions, sprites)
       const mat = mesh.material;
-      if (mat && mat.needAlphaBlendingForMesh(mesh)) return false;
+      if (mat?.needAlphaBlendingForMesh(mesh)) return false;
       // Skip meshes with very low visibility (fading effects)
       if (mesh.visibility < 0.5) return false;
       return true;
@@ -316,7 +316,7 @@ export class CelOutlinePostProcess {
    */
   public setColorFromString(colorStr: string): void {
     const parts = colorStr.trim().split(/\s+/).map(Number);
-    if (parts.length >= 3 && parts.every((n) => !isNaN(n))) {
+    if (parts.length >= 3 && parts.every((n) => !Number.isNaN(n))) {
       this.setColor(parts[0], parts[1], parts[2]);
     }
   }

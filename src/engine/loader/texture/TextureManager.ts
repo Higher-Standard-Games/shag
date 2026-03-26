@@ -112,7 +112,7 @@ export class TextureManager {
 
     try {
       const parts = textureName.replace("color_", "").split("_").map(parseFloat);
-      if (parts.length === 3 && parts.every((p) => !isNaN(p))) {
+      if (parts.length === 3 && parts.every((p) => !Number.isNaN(p))) {
         return new Color3(parts[0] / 255, parts[1] / 255, parts[2] / 255);
       }
     } catch {

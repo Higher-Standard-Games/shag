@@ -143,7 +143,7 @@ export class ModelLoader {
 
     try {
       // Ensure path starts with /
-      const fullPath = modelPath.startsWith("/") ? modelPath : "/" + modelPath;
+      const fullPath = modelPath.startsWith("/") ? modelPath : `/${modelPath}`;
 
       // Extract directory and filename
       const lastSlash = fullPath.lastIndexOf("/");
@@ -167,7 +167,7 @@ export class ModelLoader {
           // Create meshes
           const md3Result = md3.createMeshes(model, fileName.replace(".md3", ""));
 
-          if (md3Result && md3Result.root) {
+          if (md3Result?.root) {
             const root = md3Result.root;
 
             // Apply transforms

@@ -24,7 +24,7 @@ export class HudCommand extends Command {
         if (!args[1]) {
           return `Current interval: ${HUD.getInterval()}ms`;
         }
-        if (isNaN(ms) || ms < 16) {
+        if (Number.isNaN(ms) || ms < 16) {
           return `Usage: hud interval <ms>\nCurrent: ${HUD.getInterval()}ms\nMinimum: 16ms`;
         }
         HUD.setInterval(ms);

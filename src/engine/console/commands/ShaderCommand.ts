@@ -209,7 +209,7 @@ export class ShaderCommand extends Command {
 
       case "glow": {
         const intensity = parseFloat(args[1]);
-        if (isNaN(intensity)) {
+        if (Number.isNaN(intensity)) {
           return "Usage: shader glow <intensity>\nDefault: 1.0, try 0.5-3.0";
         }
 
@@ -233,7 +233,7 @@ export class ShaderCommand extends Command {
 
       case "lightmap": {
         const intensity = parseFloat(args[1]);
-        if (isNaN(intensity)) {
+        if (Number.isNaN(intensity)) {
           return "Usage: shader lightmap <intensity>\nDefault: 2.0, try 1.0-4.0";
         }
 
@@ -325,7 +325,7 @@ export class ShaderCommand extends Command {
 
           case "speed": {
             const speed = parseFloat(args[2]);
-            if (isNaN(speed)) {
+            if (Number.isNaN(speed)) {
               return `Current speed: ${animSystem.getTimeScale()}x\nUsage: shader anim speed <multiplier>`;
             }
             animSystem.setTimeScale(speed);

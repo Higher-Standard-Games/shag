@@ -148,7 +148,7 @@ export class DebugOverlay {
 
     // Truncate long lines
     const maxLen = 100;
-    element.textContent = text.length > maxLen ? text.substring(0, maxLen) + "..." : text;
+    element.textContent = text.length > maxLen ? `${text.substring(0, maxLen)}...` : text;
     element.title = text; // Full text on hover
 
     // Add to container

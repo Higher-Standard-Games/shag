@@ -6,9 +6,9 @@
  * Run with: npx vite-node src/cli/compare-local-vs-server.ts --map wdm14
  */
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import JSZip from "jszip";
-import * as path from "path";
+import * as path from "node:path";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
 import { InputButtons } from "../engine/network/components/InputComponent";
 import type { Vec3 } from "../engine/network/components/TransformComponent";

@@ -18,7 +18,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 // Import BSP loader
 import { type BspFile, BspLoader } from "../engine/loader/bsp/BspLoader";

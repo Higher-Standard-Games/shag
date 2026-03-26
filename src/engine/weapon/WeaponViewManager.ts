@@ -906,7 +906,7 @@ export class WeaponViewManager {
 
   public setWeaponOutlineColorFromString(colorStr: string): void {
     const parts = colorStr.trim().split(/\s+/).map(Number);
-    if (parts.length >= 3 && parts.every((n) => !isNaN(n))) {
+    if (parts.length >= 3 && parts.every((n) => !Number.isNaN(n))) {
       this.setWeaponOutlineColor(parts[0], parts[1], parts[2]);
     }
   }
@@ -1276,7 +1276,7 @@ export class WeaponViewManager {
       const normalizedIntensity = this.muzzleFlashIntensity / max;
 
       // Update model visibility (fade out)
-      if (this.muzzleFlashModel && this.muzzleFlashModel.isEnabled()) {
+      if (this.muzzleFlashModel?.isEnabled()) {
         const opacity = normalizedIntensity * WeaponViewManager.MUZZLE_FLASH_OPACITY;
         if (this.muzzleFlashModel instanceof TransformNode) {
           this.muzzleFlashModel.getChildMeshes().forEach((m) => (m.visibility = opacity));

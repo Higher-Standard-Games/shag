@@ -516,7 +516,7 @@ export class MatchLobbyView {
         if (this.lobbyClient) {
           this.lobbyClient.voteShuffle(this.lobbyId);
         }
-        shuffleBtn.textContent = "🔀 VOTED (1/" + Math.ceil(this.players.length / 2) + ")";
+        shuffleBtn.textContent = `🔀 VOTED (1/${Math.ceil(this.players.length / 2)})`;
         shuffleBtn.classList.add("match-lobby__btn--voted");
       });
       actions.appendChild(shuffleBtn);

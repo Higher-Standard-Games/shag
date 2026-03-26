@@ -311,7 +311,7 @@ export class ThunderEffect {
    */
   public dispose(): void {
     this.stop();
-    if (this.flashOverlay && this.flashOverlay.parentNode) {
+    if (this.flashOverlay?.parentNode) {
       this.flashOverlay.parentNode.removeChild(this.flashOverlay);
       this.flashOverlay = null;
     }

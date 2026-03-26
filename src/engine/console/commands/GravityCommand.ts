@@ -34,7 +34,7 @@ export default class GravityCommand extends Command {
 
     const value = parseFloat(args[0]);
 
-    if (isNaN(value)) {
+    if (Number.isNaN(value)) {
       const gravity = physicsEngine.gravity;
       return `Gravity: (${gravity.x}, ${gravity.y}, ${gravity.z})`;
     }
