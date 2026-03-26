@@ -98,6 +98,7 @@ export class WebTransportServerTransport implements Transport {
   private events: TransportEvents;
   private clients: Map<string, WebTransportClientConnection> = new Map();
   private running: boolean = false;
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport server instance from optional dynamic import
   private server: any = null; // WebTransportServer instance
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private nextClientId: number = 1;
@@ -143,6 +144,7 @@ export class WebTransportServerTransport implements Transport {
     console.log(`[WebTransport] Server ready on ${this.config.host}:${this.config.port}`);
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransportServer class from optional dynamic import
   private async loadWebTransportModule(): Promise<{ WebTransportServer: any }> {
     try {
       // Dynamic import for optional dependency
@@ -161,6 +163,7 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransportServer class and return from optional dynamic import
   private async createRealServer(WebTransportServer: any): Promise<any> {
     const fs = await import("node:fs").then((m) => m.promises);
 
@@ -180,6 +183,7 @@ export class WebTransportServerTransport implements Transport {
     });
 
     // Handle incoming sessions
+    // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from @fails-components/webtransport
     server.on("session", async (session: any) => {
       const clientId = `wt-${this.nextClientId++}`;
 
@@ -212,6 +216,7 @@ export class WebTransportServerTransport implements Transport {
     return server;
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session API from optional dependency
   private async handleSessionDatagrams(session: any, client: WebTransportClientConnection): Promise<void> {
     try {
       const reader = session.datagrams.readable.getReader();
@@ -230,6 +235,7 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session API from optional dependency
   private async handleSessionStreams(session: any, client: WebTransportClientConnection): Promise<void> {
     try {
       const reader = session.incomingBidirectionalStreams.getReader();
@@ -246,6 +252,7 @@ export class WebTransportServerTransport implements Transport {
     }
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport stream API from optional dependency
   private async handleStream(stream: any, client: WebTransportClientConnection): Promise<void> {
     try {
       const reader = stream.readable.getReader();
@@ -367,7 +374,7 @@ export class WebTransportServerTransport implements Transport {
         this.events.onDisconnect?.(this.clients.get(clientId)!, "Client closed");
       }
     });
-    this.clients.set(id, client as any);
+    this.clients.set(id, client as unknown as WebTransportClientConnection);
     this.events.onConnect?.(client);
     return client;
   }
@@ -430,10 +437,12 @@ class WebTransportClientConnection implements ClientConnection {
   lastMessageAt: number;
   latency: number = 0;
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from optional dependency
   private session: any;
 
   private onClose: (id: string) => void;
 
+  // biome-ignore lint/suspicious/noExplicitAny: WebTransport session from optional dependency
   constructor(id: string, address: string, session: any, onClose: (id: string) => void) {
     this.id = id;
     this.address = address;

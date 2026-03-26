@@ -7,6 +7,7 @@ import { Entity, type EntityId, type PlayerId } from "./Entity";
  */
 export interface GameEvent {
   type: string;
+  // biome-ignore lint/suspicious/noExplicitAny: events carry heterogeneous payloads (health, damage, position, weaponId, etc.)
   [key: string]: any;
 }
 

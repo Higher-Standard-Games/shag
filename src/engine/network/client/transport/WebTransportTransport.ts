@@ -5,8 +5,11 @@ import type { Transport } from "./Transport";
  * Note: WebTransport is still experimental and not widely supported
  */
 export class WebTransportTransport implements Transport {
+  // biome-ignore lint/suspicious/noExplicitAny: browser WebTransport API (experimental, not in TS dom lib)
   private transport: any = null;
+  // biome-ignore lint/suspicious/noExplicitAny: browser WritableStreamDefaultWriter for WebTransport datagrams
   private writer: any = null;
+  // biome-ignore lint/suspicious/noExplicitAny: browser ReadableStreamDefaultReader for WebTransport datagrams
   private reader: any = null;
   private messageCallbacks: ((data: Uint8Array) => void)[] = [];
   private connectCallbacks: (() => void)[] = [];
@@ -21,6 +24,7 @@ export class WebTransportTransport implements Transport {
     try {
       // Convert http to https for WebTransport
       const httpsUrl = url.replace(/^http/, "https");
+      // biome-ignore lint/suspicious/noExplicitAny: WebTransport constructor not in TS dom lib
       this.transport = new (globalThis as any).WebTransport(httpsUrl);
 
       await this.transport.ready;
@@ -54,7 +58,7 @@ export class WebTransportTransport implements Transport {
       // Reliable: use a unidirectional stream for guaranteed, ordered delivery
       this.transport
         .createUnidirectionalStream()
-        .then((stream: any) => {
+        .then((stream: WritableStream) => {
           const writer = stream.getWriter();
           writer.write(data);
           writer.close();

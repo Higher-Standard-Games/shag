@@ -142,7 +142,7 @@ export class WebSocketServerTransport implements Transport {
     });
   }
 
-  private handleConnection(ws: WebSocket, req: any): void {
+  private handleConnection(ws: WebSocket, req: import("http").IncomingMessage): void {
     console.log(`[WebSocket] New connection from ${req.socket.remoteAddress}`);
 
     // Check max clients

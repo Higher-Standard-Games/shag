@@ -1,5 +1,6 @@
 import type { MoveCommand } from "../core/Command";
 import type { IComponent } from "../core/Component";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 import { Entity } from "../core/Entity";
 import { GameState } from "../core/GameState";
 import { GameSystem, Simulation, type SimulationConfig } from "../core/Simulation";
@@ -10,13 +11,13 @@ class PositionComponent implements IComponent {
   y: number = 0;
   z: number = 0;
 
-  serialize(encoder: any): void {
+  serialize(encoder: BinaryEncoder): void {
     encoder.writeFloat32(this.x);
     encoder.writeFloat32(this.y);
     encoder.writeFloat32(this.z);
   }
 
-  deserialize(decoder: any): void {
+  deserialize(decoder: BinaryDecoder): void {
     this.x = decoder.readFloat32();
     this.y = decoder.readFloat32();
     this.z = decoder.readFloat32();
@@ -37,13 +38,13 @@ class VelocityComponent implements IComponent {
   y: number = 0;
   z: number = 0;
 
-  serialize(encoder: any): void {
+  serialize(encoder: BinaryEncoder): void {
     encoder.writeFloat32(this.x);
     encoder.writeFloat32(this.y);
     encoder.writeFloat32(this.z);
   }
 
-  deserialize(decoder: any): void {
+  deserialize(decoder: BinaryDecoder): void {
     this.x = decoder.readFloat32();
     this.y = decoder.readFloat32();
     this.z = decoder.readFloat32();

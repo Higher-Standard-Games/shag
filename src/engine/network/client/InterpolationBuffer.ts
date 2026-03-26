@@ -13,6 +13,12 @@
 
 import { GameState } from "../core/GameState";
 
+// Component shapes for typed access (same as BinaryProtocol)
+interface Vec3 { x: number; y: number; z: number }
+interface PositionShape extends Vec3 {}
+interface TransformShape { position: Vec3; rotation?: { x: number; y: number; z: number; w: number } }
+interface VelocityShape { linear: Vec3; x: number; y: number; z: number; grounded?: boolean }
+
 export class InterpolationBuffer {
   private snapshots: { state: GameState; timestamp: number }[] = [];
   private interpolationDelay: number = 50; // 50ms delay - reduced for responsiveness
@@ -119,11 +125,11 @@ export class InterpolationBuffer {
       const interpolatedEntity = entity2.clone();
 
       // Interpolate position component
-      const pos1 = entity1.getComponent("position") as any;
-      const pos2 = entity2.getComponent("position") as any;
+      const pos1 = entity1.getComponent("position") as unknown as PositionShape | undefined;
+      const pos2 = entity2.getComponent("position") as unknown as PositionShape | undefined;
 
       if (pos1 && pos2) {
-        const interpolatedPos = interpolatedEntity.getComponent("position") as any;
+        const interpolatedPos = interpolatedEntity.getComponent("position") as unknown as PositionShape | undefined;
         if (interpolatedPos) {
           interpolatedPos.x = pos1.x + (pos2.x - pos1.x) * t;
           interpolatedPos.y = pos1.y + (pos2.y - pos1.y) * t;
@@ -132,11 +138,11 @@ export class InterpolationBuffer {
       }
 
       // Interpolate transform.position (for Game compatibility)
-      const transform1 = entity1.getComponent("transform") as any;
-      const transform2 = entity2.getComponent("transform") as any;
+      const transform1 = entity1.getComponent("transform") as unknown as TransformShape | undefined;
+      const transform2 = entity2.getComponent("transform") as unknown as TransformShape | undefined;
 
       if (transform1?.position && transform2?.position) {
-        const interpolatedTransform = interpolatedEntity.getComponent("transform") as any;
+        const interpolatedTransform = interpolatedEntity.getComponent("transform") as unknown as TransformShape | undefined;
         if (interpolatedTransform?.position) {
           interpolatedTransform.position.x =
             transform1.position.x + (transform2.position.x - transform1.position.x) * t;
@@ -148,11 +154,11 @@ export class InterpolationBuffer {
       }
 
       // Interpolate velocity.linear (for smooth movement display)
-      const vel1 = entity1.getComponent("velocity") as any;
-      const vel2 = entity2.getComponent("velocity") as any;
+      const vel1 = entity1.getComponent("velocity") as unknown as VelocityShape | undefined;
+      const vel2 = entity2.getComponent("velocity") as unknown as VelocityShape | undefined;
 
       if (vel1?.linear && vel2?.linear) {
-        const interpolatedVel = interpolatedEntity.getComponent("velocity") as any;
+        const interpolatedVel = interpolatedEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
         if (interpolatedVel?.linear) {
           interpolatedVel.linear.x = vel1.linear.x + (vel2.linear.x - vel1.linear.x) * t;
           interpolatedVel.linear.y = vel1.linear.y + (vel2.linear.y - vel1.linear.y) * t;

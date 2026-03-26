@@ -2,7 +2,7 @@ import type { TransformComponent, Vec3 } from "../../components/TransformCompone
 import type { VelocityComponent } from "../../components/VelocityComponent";
 import type { Command } from "../../core/Command";
 import type { Entity, PlayerId } from "../../core/Entity";
-import type { GameState } from "../../core/GameState";
+import { type GameEvent, type GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 
@@ -14,9 +14,10 @@ export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   readonly currentTick: number = 0;
 
+  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters for game-specific state/input
   private simulation: Simulation<any, any>;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
-  private eventCallbacks: ((event: any) => void)[] = [];
+  private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private isRunning: boolean = false;
 
   // Fixed timestep accumulator
@@ -29,7 +30,7 @@ export class LocalGameHost implements IGameHost {
   private previousPositions: Map<string, Vec3> = new Map(); // entityId -> previous pos
   private previousVelocities: Map<string, Vec3> = new Map(); // entityId -> previous vel
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters for game-specific state/input
   constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
     this.simulation = new SimulationClass(config);
     this.localPlayerId = "local-player";
@@ -40,6 +41,7 @@ export class LocalGameHost implements IGameHost {
   /**
    * Get the simulation instance (for setting collision world, spawn points, etc.)
    */
+  // biome-ignore lint/suspicious/noExplicitAny: game-specific simulation types vary
   getSimulation<T extends Simulation<any, any>>(): T {
     return this.simulation as T;
   }
@@ -71,7 +73,7 @@ export class LocalGameHost implements IGameHost {
   /**
    * Subscribe to game events
    */
-  onEvent(callback: (event: any) => void): () => void {
+  onEvent(callback: (event: GameEvent) => void): () => void {
     this.eventCallbacks.push(callback);
     return () => {
       const index = this.eventCallbacks.indexOf(callback);
@@ -242,7 +244,7 @@ export class LocalGameHost implements IGameHost {
     const events = this.simulation.state.events;
     this.simulation.state.events = []; // Clear events
 
-    events.forEach((event: any) => {
+    events.forEach((event: GameEvent) => {
       this.eventCallbacks.forEach((callback) => callback(event));
     });
   }

@@ -37,7 +37,7 @@ import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
 import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
-import type { GameState } from "../../core/GameState";
+import { type GameEvent, type GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
@@ -45,6 +45,23 @@ import { ClockSync } from "../ClockSync";
 import { InterpolationBuffer } from "../InterpolationBuffer";
 import { SmoothCorrection } from "../SmoothCorrection";
 import type { Transport } from "../transport/Transport";
+
+// Component shapes for typed access
+interface Vec3 { x: number; y: number; z: number }
+interface TransformShape { position: Vec3; rotation?: { x: number; y: number; z: number; w: number } }
+interface MovementStateShape { ledgeGrabState?: string; isCrouching?: boolean; isSliding?: boolean }
+
+/** Duck-type for simulations that support player spawning */
+interface SpawnableSimulation {
+  spawnPlayer(playerId: string): void;
+}
+
+/** Duck-type for simulations that support collision worlds */
+interface CollisionCapableSimulation {
+  setCollisionWorld(collision: unknown): void;
+}
+
+
 
 // SmoothCorrection and InterpolationBuffer are extracted into their own modules
 // for testability. See ../SmoothCorrection.ts and ../InterpolationBuffer.ts
@@ -73,7 +90,7 @@ export class NetworkGameHost implements IGameHost {
   private transport: Transport;
   private simulation: Simulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
-  private eventCallbacks: ((event: any) => void)[] = [];
+  private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
 
   private interpolationBuffer = new InterpolationBuffer();
@@ -284,7 +301,7 @@ export class NetworkGameHost implements IGameHost {
     };
   }
 
-  onEvent(callback: (event: any) => void): () => void {
+  onEvent(callback: (event: GameEvent) => void): () => void {
     this.eventCallbacks.push(callback);
     return () => {
       const index = this.eventCallbacks.indexOf(callback);
@@ -294,7 +311,7 @@ export class NetworkGameHost implements IGameHost {
     };
   }
 
-  getInterpolatedEntity(entityId: string): any {
+  getInterpolatedEntity(entityId: string): ReturnType<GameState["entities"]["get"]> {
     // Use Client Prediction if possible (requires collision data)
     // Now that BSP collision is wired up in Game, we can safely use this.
     const USE_CLIENT_PREDICTION = true;
@@ -310,7 +327,7 @@ export class NetworkGameHost implements IGameHost {
         if (predictedEntity) {
           const correctedEntity = predictedEntity.clone();
           const correction = this.smoothCorrection.getCorrection();
-          const transform = correctedEntity.getComponent("transform") as any;
+          const transform = correctedEntity.getComponent("transform") as unknown as TransformShape | undefined;
           if (transform?.position) {
             transform.position.x += correction.x;
             transform.position.y += correction.y;
@@ -346,9 +363,9 @@ export class NetworkGameHost implements IGameHost {
    * This allows the prediction simulation to use BSP collision data
    * for accurate local physics before server confirmation arrives.
    */
-  setCollisionWorld(collision: any): void {
+  setCollisionWorld(collision: unknown): void {
     // Check if simulation has setCollisionWorld method (FPSSimulation does)
-    const sim = this.simulation as any;
+    const sim = this.simulation as unknown as Partial<CollisionCapableSimulation> & { constructor?: { name?: string } };
     console.log(
       `[NetworkGameHost] setCollisionWorld called, simulation type: ${sim.constructor?.name}, has method: ${typeof sim.setCollisionWorld === "function"}`,
     );
@@ -441,8 +458,7 @@ export class NetworkGameHost implements IGameHost {
 
           // Spawn local player in client-side prediction simulation
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const sim = this.simulation as any;
+            const sim = this.simulation as unknown as Partial<SpawnableSimulation>;
             if (typeof sim.spawnPlayer === "function") {
               sim.spawnPlayer(playerId);
               // CRITICAL: Update localState after spawning so getLocalPlayerPosition() works
@@ -609,18 +625,18 @@ export class NetworkGameHost implements IGameHost {
 
     // Skip reconciliation during ledge grab — client prediction is deterministic
     // (frozen position), server just hasn't confirmed yet. Correcting here causes micro-shake.
-    const movementState = localEntity.getComponent("movementState") as any;
+    const movementState = localEntity.getComponent("movementState") as unknown as MovementStateShape | undefined;
     if (movementState?.ledgeGrabState && movementState.ledgeGrabState !== "none") {
       this.smoothCorrection.reset();
       return;
     }
 
     // Get positions - prefer 'transform' (FPSSimulation) with fallback to 'position' (legacy)
-    const localTransform = localEntity.getComponent("transform") as any;
-    const serverTransform = serverEntity.getComponent("transform") as any;
+    const localTransform = localEntity.getComponent("transform") as unknown as TransformShape | undefined;
+    const serverTransform = serverEntity.getComponent("transform") as unknown as TransformShape | undefined;
 
-    const localPos = localTransform?.position || (localEntity.getComponent("position") as any);
-    const serverPos = serverTransform?.position || (serverEntity.getComponent("position") as any);
+    const localPos = localTransform?.position || (localEntity.getComponent("position") as unknown as Vec3 | undefined);
+    const serverPos = serverTransform?.position || (serverEntity.getComponent("position") as unknown as Vec3 | undefined);
 
     if (!localPos || !serverPos) return;
 
@@ -687,8 +703,8 @@ export class NetworkGameHost implements IGameHost {
     if (!localEntity) return;
 
     // Use 'transform' component (created by FPSSimulation) with fallback to 'position' (legacy)
-    const localTransform = localEntity.getComponent("transform") as any;
-    const localPos = localTransform?.position || (localEntity.getComponent("position") as any);
+    const localTransform = localEntity.getComponent("transform") as unknown as TransformShape | undefined;
+    const localPos = localTransform?.position || (localEntity.getComponent("position") as unknown as Vec3 | undefined);
     if (!localPos) return;
 
     const correction = this.smoothCorrection.getCorrection();

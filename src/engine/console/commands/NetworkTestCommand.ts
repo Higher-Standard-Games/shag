@@ -1,8 +1,13 @@
 import { LocalGameHost } from "../../network/client/hosts/LocalGameHost";
 import { MoveCommand } from "../../network/core/Command";
+import type { GameEvent, GameState } from "../../network/core/GameState";
 import type { IGameHost } from "../../network/core/IGameHost";
+import type { Simulation, SimulationConfig } from "../../network/core/Simulation";
 import { TestSimulation, testConfig } from "../../network/test/TestSimulation";
 import { Command } from "../Command";
+
+// Component shapes for typed access in test
+interface Vec3 { x: number; y: number; z: number }
 // Note: Old WebSocketServer was deleted. Use headless-netserver-v2.ts for server testing
 
 /**
@@ -52,7 +57,7 @@ export default class NetworkTestCommand extends Command {
 
       const state = host.getLocalState();
       const entity = state.entities.get("test-entity");
-      const pos = entity?.getComponent("position") as any;
+      const pos = entity?.getComponent("position") as unknown as Vec3 | undefined;
 
       host.stop();
 
@@ -82,7 +87,7 @@ export default class NetworkTestCommand extends Command {
 
       const localState = mockHost.getLocalState();
       const entity = localState.entities.get("test-entity");
-      const pos = entity?.getComponent("position") as any;
+      const pos = entity?.getComponent("position") as unknown as Vec3 | undefined;
 
       mockHost.stop();
 
@@ -134,17 +139,19 @@ class MockNetworkHost implements IGameHost {
   readonly localPlayerId = "network-player";
   currentTick = 0;
 
-  private simulation: any;
-  private pendingCommands: any[] = [];
-  private localState: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Simulation uses generic type parameters
+  private simulation: Simulation<any, any>;
+  private pendingCommands: MoveCommand[] = [];
+  private localState: GameState;
   private isRunning = false;
 
-  constructor(config: any, SimulationClass: any) {
+  // biome-ignore lint/suspicious/noExplicitAny: accepts any Simulation subclass
+  constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
     this.simulation = new SimulationClass(config);
     this.localState = this.simulation.state.clone();
   }
 
-  sendCommand(cmd: any): void {
+  sendCommand(cmd: MoveCommand): void {
     // Add to pending for prediction
     this.pendingCommands.push(cmd);
 
@@ -153,21 +160,21 @@ class MockNetworkHost implements IGameHost {
     this.localState = this.simulation.state.clone();
   }
 
-  onStateUpdate(_callback: (state: any) => void): () => void {
+  onStateUpdate(_callback: (state: GameState) => void): () => void {
     // Mock implementation
     return () => {};
   }
 
-  onEvent(_callback: (event: any) => void): () => void {
+  onEvent(_callback: (event: GameEvent) => void): () => void {
     // Mock implementation
     return () => {};
   }
 
-  getInterpolatedEntity(entityId: string): any {
+  getInterpolatedEntity(entityId: string): ReturnType<GameState["entities"]["get"]> {
     return this.localState.entities.get(entityId);
   }
 
-  getLocalState(): any {
+  getLocalState(): GameState {
     return this.localState;
   }
 
@@ -195,7 +202,7 @@ class MockNetworkHost implements IGameHost {
     // Reconcile if needed (simplified)
     const serverPos = { x: 2.5, y: 0, z: 0 }; // Where server thinks we are
     const localEntity = this.localState.entities.get("test-entity");
-    const localPos = localEntity?.getComponent("position") as any;
+    const localPos = localEntity?.getComponent("position") as unknown as Vec3 | undefined;
 
     if (localPos && Math.abs(localPos.x - serverPos.x) > 1) {
       // Snap to server position
