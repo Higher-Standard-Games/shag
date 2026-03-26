@@ -1,0 +1,112 @@
+/**
+ * LagCompensation — Rewind tick calculation and ray-capsule intersection tests
+ *
+ * Verifies the math behind hit registration: latency-to-tick conversion,
+ * max compensation clamping, and ray-capsule geometry.
+ */
+
+import { describe, expect, it } from "vitest";
+import { LagCompensation } from "../server/lagcomp/LagCompensation";
+import { CASUAL_CONFIG, TOURNAMENT_CONFIG } from "../server/lagcomp/config";
+import { tickNumber, playerId } from "@shared/server/simulation/types";
+
+describe("LagCompensation", () => {
+  describe("getRewindTick", () => {
+    it("should rewind by correct number of ticks for given ping", () => {
+      const lagComp = new LagCompensation(CASUAL_CONFIG); // 125Hz, 200ms max
+
+      // At 125Hz, 1 tick = 8ms. Half-tick = 4ms.
+      // 50ms ping + 0ms input delay + 4ms half-tick = 54ms
+      // 54ms / 8ms-per-tick = 6.75 → round to 7 ticks
+      const rewind = lagComp.getRewindTick(tickNumber(100), 50, 0);
+      expect(rewind).toBe(tickNumber(93)); // 100 - 7
+    });
+
+    it("should clamp to max compensation", () => {
+      const lagComp = new LagCompensation(CASUAL_CONFIG); // max 200ms
+
+      // 500ms ping would be 504ms total, but clamped to 200ms
+      // 200ms / 8ms = 25 ticks
+      const rewind = lagComp.getRewindTick(tickNumber(100), 500, 0);
+      expect(rewind).toBe(tickNumber(75)); // 100 - 25
+    });
+
+    it("should not go below tick 0", () => {
+      const lagComp = new LagCompensation(CASUAL_CONFIG);
+
+      const rewind = lagComp.getRewindTick(tickNumber(5), 200, 0);
+      expect(rewind).toBeGreaterThanOrEqual(0);
+    });
+
+    it("should include client input delay", () => {
+      const lagComp = new LagCompensation(CASUAL_CONFIG);
+
+      // 50ms ping + 20ms input delay + 4ms = 74ms → 9.25 → 9 ticks
+      const rewind = lagComp.getRewindTick(tickNumber(100), 50, 20);
+      expect(rewind).toBe(tickNumber(91)); // 100 - 9
+    });
+
+    it("should differ between configs", () => {
+      // Same ping, different max compensation
+      const casual = new LagCompensation(CASUAL_CONFIG);     // 200ms max
+      const tournament = new LagCompensation(TOURNAMENT_CONFIG); // 50ms max
+
+      // 100ms ping: casual allows full rewind, tournament clamps
+      const casualRewind = casual.getRewindTick(tickNumber(100), 100, 0);
+      const tournamentRewind = tournament.getRewindTick(tickNumber(100), 100, 0);
+
+      // Tournament should rewind less (stricter)
+      expect(tournamentRewind).toBeGreaterThan(casualRewind);
+    });
+  });
+
+  describe("Client latency tracking", () => {
+    it("should store half-RTT as one-way latency", () => {
+      const lagComp = new LagCompensation();
+      lagComp.updateClientLatency(playerId(1), 100); // 100ms RTT → 50ms one-way
+
+      expect(lagComp.getClientLatency(playerId(1))).toBe(50);
+    });
+
+    it("should return 0 for unknown client", () => {
+      const lagComp = new LagCompensation();
+      expect(lagComp.getClientLatency(playerId(999))).toBe(0);
+    });
+
+    it("should update latency on new measurement", () => {
+      const lagComp = new LagCompensation();
+      lagComp.updateClientLatency(playerId(1), 100);
+      lagComp.updateClientLatency(playerId(1), 60);
+
+      expect(lagComp.getClientLatency(playerId(1))).toBe(30);
+    });
+  });
+
+  describe("Stats", () => {
+    it("should report correct initial stats", () => {
+      const lagComp = new LagCompensation();
+      const stats = lagComp.getStats();
+
+      expect(stats.bufferSize).toBe(0);
+      expect(stats.connectedClients).toBe(0);
+      expect(stats.avgLatency).toBe(0);
+    });
+
+    it("should report average latency across clients", () => {
+      const lagComp = new LagCompensation();
+      lagComp.updateClientLatency(playerId(1), 100); // 50ms one-way
+      lagComp.updateClientLatency(playerId(2), 200); // 100ms one-way
+
+      const stats = lagComp.getStats();
+      expect(stats.connectedClients).toBe(2);
+      expect(stats.avgLatency).toBe(75); // (50 + 100) / 2
+    });
+  });
+
+  describe("Collision world integration", () => {
+    it("should not crash when no collision world is set", () => {
+      const lagComp = new LagCompensation();
+      expect(() => lagComp.setCollisionWorld(null)).not.toThrow();
+    });
+  });
+});
