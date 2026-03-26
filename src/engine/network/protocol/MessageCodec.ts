@@ -1,5 +1,5 @@
 import type { GameState } from "../core/GameState";
-import { type NetworkCommand, BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "./BinaryProtocol";
+import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType, type NetworkCommand } from "./BinaryProtocol";
 
 // Re-export MessageType for convenience
 export { MessageType };

@@ -23,7 +23,7 @@ export default class RenderCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get RenderVars
-    let renderVars;
+    let renderVars = undefined;
     try {
       const { RenderVars } = await import("../../rendering/RenderVars");
       renderVars = RenderVars.getInstance();

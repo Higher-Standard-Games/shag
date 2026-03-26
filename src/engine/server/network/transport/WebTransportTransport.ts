@@ -146,13 +146,13 @@ export class WebTransportServerTransport implements Transport {
   private async loadWebTransportModule(): Promise<{ WebTransportServer: any }> {
     try {
       // Dynamic import for optional dependency
-      // @ts-ignore - Optional dependency, may not be installed
+      // @ts-expect-error - Optional dependency, may not be installed
       const module = await import("@aspect-build/webtransport");
       return { WebTransportServer: module.WebTransportServer };
     } catch {
       try {
         // Try @fails-components/webtransport as fallback
-        // @ts-ignore - Optional dependency, may not be installed
+        // @ts-expect-error - Optional dependency, may not be installed
         const module = await import("@fails-components/webtransport");
         return { WebTransportServer: module.Http3Server };
       } catch {

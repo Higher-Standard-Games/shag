@@ -948,8 +948,8 @@
 
 /* Critical health — red pulsing border glow */
 .fps-value-bar--critical {
-  border-color: hsla(0, 80%, 50%, 0.6) !important;
-  animation: fps-critical-pulse 0.8s ease-in-out infinite !important;
+  border-color: hsla(0, 80%, 50%, 0.6);
+  animation: fps-critical-pulse 0.8s ease-in-out infinite;
 }
 
 @keyframes fps-critical-pulse {

@@ -13,7 +13,7 @@ export default class ConsoleDebugCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let overlay;
+    let overlay = undefined;
     try {
       const { getDebugOverlay } = await import("../../debug/DebugOverlay");
       overlay = getDebugOverlay();

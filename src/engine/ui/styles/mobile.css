@@ -16,7 +16,7 @@
 
 /* Hide fullscreen button on native (always fullscreen) */
 .capacitor-native .hud-fullscreen-btn {
-  display: none !important;
+  display: none;
 }
 
 /* ==========================================================================
@@ -149,7 +149,7 @@
 
 .touch-device .side-panel-content,
 .capacitor-native .side-panel-content {
-  max-height: calc(100vh - 300px) !important;
+  max-height: calc(100vh - 300px);
 }
 
 /* Legacy panels (QuestPanel, OrderPanel) - if still used */
@@ -229,85 +229,85 @@
 /* Build menu - ultra compact on mobile (half height) */
 body.touch-device #build-menu,
 body.capacitor-native #build-menu {
-  bottom: 8px !important;
-  left: 8px !important;
-  right: 8px !important;
-  transform: none !important;
-  max-width: none !important;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  transform: none;
+  max-width: none;
 }
 
 body.touch-device .build-menu-container,
 body.capacitor-native .build-menu-container {
-  padding: 6px !important;
-  border-radius: 8px !important;
+  padding: 6px;
+  border-radius: 8px;
 }
 
 /* Inline category tabs - smaller */
 body.touch-device .build-categories,
 body.capacitor-native .build-categories {
-  gap: 3px !important;
-  margin-bottom: 4px !important;
-  padding-bottom: 4px !important;
-  flex-wrap: nowrap !important;
-  overflow-x: auto !important;
+  gap: 3px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 body.touch-device .build-category,
 body.capacitor-native .build-category {
-  padding: 4px 8px !important;
-  font-size: 11px !important;
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  border-bottom-width: 2px !important;
-  border-radius: 6px !important;
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-bottom-width: 2px;
+  border-radius: 6px;
 }
 
 /* Horizontal scrolling items - single compact row */
 body.touch-device .build-items,
 body.capacitor-native .build-items {
-  min-width: unset !important;
-  max-width: none !important;
-  gap: 4px !important;
-  padding: 2px 0 !important;
-  max-height: 55px !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  flex-wrap: nowrap !important;
+  min-width: unset;
+  max-width: none;
+  gap: 4px;
+  padding: 2px 0;
+  max-height: 55px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
 }
 
 /* Much smaller build item cards - inline style */
 body.touch-device .build-item,
 body.capacitor-native .build-item {
-  padding: 4px 6px !important;
-  min-width: 50px !important;
-  flex-shrink: 0 !important;
-  border-width: 1px !important;
-  border-radius: 6px !important;
+  padding: 4px 6px;
+  min-width: 50px;
+  flex-shrink: 0;
+  border-width: 1px;
+  border-radius: 6px;
 }
 
 body.touch-device .build-item-icon,
 body.capacitor-native .build-item-icon {
-  font-size: 16px !important;
-  margin-bottom: 1px !important;
+  font-size: 16px;
+  margin-bottom: 1px;
 }
 
 body.touch-device .build-item-name,
 body.capacitor-native .build-item-name {
-  font-size: 8px !important;
+  font-size: 8px;
 }
 
 body.touch-device .build-item-cost,
 body.capacitor-native .build-item-cost {
-  font-size: 9px !important;
-  margin-top: 1px !important;
-  padding: 1px 4px !important;
-  border-radius: 3px !important;
+  font-size: 9px;
+  margin-top: 1px;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 /* Hide status bar on mobile to save space */
 body.touch-device .build-status,
 body.capacitor-native .build-status {
-  display: none !important;
+  display: none;
 }
 
 /* Larger bottom bar buttons */
@@ -358,24 +358,24 @@ body.capacitor-native .build-status {
 
 @media (max-width: 768px) and (pointer: coarse) {
   #settings-panel {
-    min-width: 85vw !important;
-    max-width: 92vw !important;
-    max-height: 85vh !important;
-    padding: 20px 24px !important;
-    overflow-y: auto !important;
+    min-width: 85vw;
+    max-width: 92vw;
+    max-height: 85vh;
+    padding: 20px 24px;
+    overflow-y: auto;
   }
 
   .settings-title {
-    font-size: 1.5rem !important;
+    font-size: 1.5rem;
   }
 
   .modal-panel {
-    max-width: 90vw !important;
+    max-width: 90vw;
   }
 
   .side-panel {
-    width: 85vw !important;
-    max-width: 400px !important;
+    width: 85vw;
+    max-width: 400px;
   }
 }
 

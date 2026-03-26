@@ -7,8 +7,8 @@
  */
 
 import * as fs from "node:fs";
-import JSZip from "jszip";
 import * as path from "node:path";
+import JSZip from "jszip";
 import { BspLoader } from "../engine/loader/bsp/BspLoader";
 import { InputButtons } from "../engine/network/components/InputComponent";
 import type { Vec3 } from "../engine/network/components/TransformComponent";

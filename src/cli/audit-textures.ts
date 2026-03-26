@@ -14,8 +14,8 @@
  */
 
 import * as fs from "node:fs";
-import JSZip from "jszip";
 import * as path from "node:path";
+import JSZip from "jszip";
 import { type BspFile, BspLoader, getBspUsedTextures } from "../engine/loader/bsp/BspLoader";
 
 // ============================================================================

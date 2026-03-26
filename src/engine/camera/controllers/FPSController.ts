@@ -1221,7 +1221,7 @@ export class FPSController implements ICameraController {
       // Try to get singleton if a death event has already initialized it
       import("../../../games/fps/client/GibSystem").then((m) => {
         const gs = m.GibSystem.getInstance();
-        if (gs["scene"]) {
+        if (gs.scene) {
           // Only cache reference if already initialized
           (this as any)._gibSystem = gs;
         }
@@ -1235,7 +1235,7 @@ export class FPSController implements ICameraController {
     } else if (this.gameManager) {
       import("../../../games/fps/client/DamageNumbers").then((m) => {
         const dn = m.DamageNumbers.getInstance();
-        if (dn["scene"]) {
+        if (dn.scene) {
           (this as any)._damageNumbers = dn;
         }
       });

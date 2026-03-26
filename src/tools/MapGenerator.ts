@@ -670,7 +670,7 @@ export class MapGenerator {
 
     // Pick a random pile preset (weighted towards simpler ones)
     const presetRoll = this.rng.next();
-    let preset;
+    let preset = undefined;
     if (presetRoll < 0.4) {
       preset = this.ROCK_PILE_PRESETS[0]; // single (40%)
     } else if (presetRoll < 0.65) {

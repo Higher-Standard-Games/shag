@@ -37,7 +37,7 @@ import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
 import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
-import { GameState } from "../../core/GameState";
+import type { GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 import { MessageCodec, MessageType } from "../../protocol/MessageCodec";

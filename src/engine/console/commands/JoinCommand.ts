@@ -27,10 +27,10 @@ export default class JoinCommand extends Command {
     }
 
     // Get required systems
-    let cameraSystem;
-    let mapLoader;
-    let FPSController;
-    let FreeflyController;
+    let cameraSystem = undefined;
+    let mapLoader = undefined;
+    let FPSController = undefined;
+    let FreeflyController = undefined;
 
     try {
       const cameraModule = await import("../../camera/CameraSystem");

@@ -28,7 +28,7 @@ export default class PhysicsCommand extends Command {
     const physics = PhysicsSystem.getInstance();
 
     // Get scene
-    let scene;
+    let scene = undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

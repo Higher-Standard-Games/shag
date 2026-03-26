@@ -6,10 +6,10 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { IComponent } from "../network/core/Component";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 import { BinaryProtocol } from "../network/protocol/BinaryProtocol";
-import type { IComponent } from "../network/core/Component";
 
 interface Vec3 {
   x: number;

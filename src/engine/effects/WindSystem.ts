@@ -48,9 +48,6 @@ export class WindSystem {
   private isActive: boolean = false;
   private renderObserver: Observer<Scene> | null = null;
   private listeners: Set<WindListener> = new Set();
-
-  // Gust simulation
-  private gustTimer: number = 0;
   private currentGust: number = 0;
   private targetGust: number = 0;
   private gustLerpSpeed: number = 2;

@@ -47,7 +47,6 @@ export class StateMachineBrain extends BotBrain {
   // ── Internal state ────────────────────────────────────────────────
   private _huntYaw: number = 0;
   private _huntTimer: number = 0;
-  private _stateTimer: number = 0;
 
   // Movement variety
   private _strafeDirection: number = 1; // 1 or -1

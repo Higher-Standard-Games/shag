@@ -5,8 +5,8 @@
  * Handles native desktop features like window controls, menus, etc.
  */
 
-import { app, BrowserWindow, Menu, shell } from "electron";
 import * as path from "node:path";
+import { app, BrowserWindow, Menu, shell } from "electron";
 
 // Load game configuration
 // eslint-disable-next-line @typescript-eslint/no-var-requires

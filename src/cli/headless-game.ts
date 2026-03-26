@@ -13,13 +13,13 @@
  *   npx vite-node src/cli/headless-game.ts --exec "map wdm11; bsp info"
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as readline from "node:readline";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as readline from "node:readline";
 
 // Static imports for command system
 import { registerEngineCommands } from "../engine/console/commands";

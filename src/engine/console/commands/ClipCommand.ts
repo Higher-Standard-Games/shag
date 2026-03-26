@@ -13,7 +13,7 @@ export default class ClipCommand extends Command {
 
   async execute(): Promise<string | undefined> {
     // Get camera controller
-    let cameraSystem;
+    let cameraSystem = undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

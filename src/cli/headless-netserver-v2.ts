@@ -14,8 +14,8 @@
  */
 
 import * as fs from "node:fs";
-import JSZip from "jszip";
 import * as path from "node:path";
+import JSZip from "jszip";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
@@ -94,6 +94,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
       case "-h":
         printHelp();
         process.exit(0);
+        break; // unreachable but satisfies lint
       default:
         if (!arg.startsWith("-")) {
           const prev = i > 0 ? args[i - 1] : "";

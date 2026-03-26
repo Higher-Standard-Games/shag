@@ -6,11 +6,11 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { IComponent } from "../network/core/Component";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "../network/protocol/BinaryProtocol";
 import { MessageCodec } from "../network/protocol/MessageCodec";
-import type { IComponent } from "../network/core/Component";
 
 // biome-ignore lint/suspicious/noExplicitAny: test stub components need flexible shape for BinaryProtocol
 type ComponentStub = IComponent & Record<string, any>;

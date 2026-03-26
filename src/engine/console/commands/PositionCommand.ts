@@ -14,7 +14,7 @@ export default class PositionCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get camera
-    let camera;
+    let camera = undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       camera = CameraSystem.getInstance().getCamera();

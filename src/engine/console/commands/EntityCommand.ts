@@ -22,7 +22,7 @@ export default class EntityCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene
-    let scene;
+    let scene = undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
