@@ -10,6 +10,19 @@ Spectator mode is partially implemented (freefly camera only — no player-follo
 
 ---
 
+## Ground Rules
+
+> [!IMPORTANT]
+> These rules apply to ALL changes in this branch.
+
+1. **Additive only** — all changes must be new files or additions to existing files. No refactoring, renaming, or restructuring of existing engine code.
+2. **Do not break the engine** — the existing 677 tests must continue to pass at all times. Run `npx vitest run` before every commit.
+3. **Bug fixes allowed for demo recording only** — if `DemoRecorder` or `DemoReader` have bugs discovered during implementation, fixes are permitted. All other engine files are read-only unless adding new exports/methods.
+4. **Tests required for all new features** — every new file (`SpectatorController`, `DemoViewer`, browser gzip) must have a corresponding test file. Target: ≥80% branch coverage on new code.
+5. **No server-side changes** — the server already works correctly for spectators. All work is client-side.
+
+---
+
 ## 1. Current State Audit
 
 ### 1.1 Spectator Mode
@@ -419,9 +432,49 @@ This is the cleanest approach because:
 
 ## 6. Testing & Verification Plan
 
-### Automated
-- Unit tests for `SpectatorController`: target tracking, interpolation, edge cases
-- Unit tests for player cycling: list building, wrapping, empty list
+### Required Test Files
+
+#### [NEW] `src/engine/__tests__/SpectatorController.test.ts`
+Target: ~20 tests
+
+| Category | Tests |
+|----------|-------|
+| **Target tracking** | set target, clear target, get current target, null target returns null position |
+| **Position update** | reads from provider, applies eye offset (+40 Y), handles missing entity gracefully |
+| **Smoothing** | exponential lerp between positions, no lerp on first frame (snap), configurable smoothing factor |
+| **Rotation** | yaw/pitch from provider, no mouse input processing |
+| **Edge cases** | provider returns null (entity gone), provider throws, zero dt, extremely large dt |
+
+#### [NEW] `src/engine/__tests__/SpectatorCycling.test.ts`
+Target: ~15 tests
+
+| Category | Tests |
+|----------|-------|
+| **Entity list** | builds sorted list from GameState entities, filters dead players, filters non-player entities |
+| **Cycling** | next wraps around, prev wraps around, single player stays on same, empty list → no-op |
+| **Auto-cycle** | target disappears → next player selected, all disappear → returns null |
+| **Name lookup** | resolves entity ID to player name from GameState.players |
+
+#### [NEW] `src/engine/__tests__/DemoReaderBrowser.test.ts`
+Target: ~10 tests
+
+| Category | Tests |
+|----------|-------|
+| **Browser decompression** | DecompressionStream gzip roundtrip, handles uncompressed data, detects gzip magic bytes |
+| **Async factory** | `DemoReader.fromFile()` returns DemoReader instance, rejects on invalid data |
+| **Compatibility** | Node zlib path still works, browser path works when zlib unavailable |
+
+#### [NEW] `src/engine/__tests__/DemoViewer.test.ts`
+Target: ~15 tests
+
+| Category | Tests |
+|----------|-------|
+| **Playback** | advances frame index at snapshot rate, pauses at end, speed multiplier works (0.5x, 2x, 4x) |
+| **Seeking** | seek to frame by index, seek by tick (binary search), seek to start/end |
+| **Controls** | play, pause, toggle, speed change |
+| **Frame delivery** | calls pushSnapshot with correct GameState, no local player ID, handles missing frames |
+
+**Total new tests: ~60** (bringing engine total from 677 to ~737)
 
 ### Manual (Browser)
 1. Connect 2 clients → one spectates → chase-cam follows player 1
@@ -435,3 +488,7 @@ This is the cleanest approach because:
 
 ### Headless CLI
 - `npm run cli:game -- --exec "map wdm2; quit"` — verify no crashes with new imports
+
+### Regression Gate
+- `npx vitest run` must pass 677+ tests before every commit
+- No changes to existing test files
