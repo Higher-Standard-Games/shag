@@ -10,7 +10,7 @@ export default class SpawnPickupCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length === 0) {
       return "Usage: spawn_pickable_entity <entity_id>";
     }

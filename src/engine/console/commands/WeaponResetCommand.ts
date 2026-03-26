@@ -25,7 +25,7 @@ export default class WeaponResetCommand extends Command {
     usage: "cl_wep_reset",
   };
 
-  async execute(_args: string[]): Promise<string | void> {
+  async execute(_args: string[]): Promise<string | undefined> {
     const reset: string[] = [];
     for (const name of WEP_CVARS) {
       if (Cvar.exists(name)) {

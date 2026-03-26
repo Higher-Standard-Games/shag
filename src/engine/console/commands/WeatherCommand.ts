@@ -19,7 +19,7 @@ export default class WeatherCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Weather API is exposed on window.weather by GameScene
     const weather = (window as any).weather;
 

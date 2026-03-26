@@ -12,7 +12,7 @@ export default class TimescaleCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get scene
     let scene;
     try {

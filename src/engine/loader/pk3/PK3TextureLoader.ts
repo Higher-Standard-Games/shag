@@ -209,7 +209,7 @@ export class PK3TextureLoader {
             data = await response.arrayBuffer();
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore fetch errors, file just doesn't exist
       }
     }

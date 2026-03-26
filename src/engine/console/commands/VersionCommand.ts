@@ -12,7 +12,7 @@ export default class VersionCommand extends Command {
     description: "Display engine version",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     const version = EngineVersion.getInstance();
     return `${version.getEngineName()} v${version.getVersion()}`;
   }

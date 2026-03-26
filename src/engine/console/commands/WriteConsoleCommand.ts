@@ -11,7 +11,7 @@ export default class WriteConsoleCommand extends Command {
     description: "Copy console output to clipboard",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     try {
       // Get visible console output from DOM
       const outputEl = document.querySelector(".debug-console-output");

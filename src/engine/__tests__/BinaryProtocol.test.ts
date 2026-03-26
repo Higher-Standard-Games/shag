@@ -170,7 +170,7 @@ describe("BinaryProtocol", () => {
         playerId: "player1",
         tick: 100,
         seq: 42,
-        direction: { x: 0.707, y: 0, z: -0.707 },
+        direction: { x: Math.SQRT1_2, y: 0, z: -Math.SQRT1_2 },
         pitch: 0.5,
         yaw: 1.2,
         buttons: 0b0101, // fire + jump
@@ -180,8 +180,8 @@ describe("BinaryProtocol", () => {
 
       expect(decoded.playerId).toBe("player1");
       expect(decoded.sequence).toBe(42);
-      expect(decoded.command.direction!.x).toBeCloseTo(0.707, 2);
-      expect(decoded.command.direction!.z).toBeCloseTo(-0.707, 2);
+      expect(decoded.command.direction!.x).toBeCloseTo(Math.SQRT1_2, 2);
+      expect(decoded.command.direction!.z).toBeCloseTo(-Math.SQRT1_2, 2);
       expect(decoded.command.pitch).toBeCloseTo(0.5);
       expect(decoded.command.yaw).toBeCloseTo(1.2);
       expect(decoded.command.buttons).toBe(0b0101);

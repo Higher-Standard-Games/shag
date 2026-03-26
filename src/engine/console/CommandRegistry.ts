@@ -12,7 +12,7 @@
 import { Cvar } from "../core/Cvar";
 import { Command, type CommandDef } from "./Command";
 
-export type CommandHandler = (args: string[]) => string | void | Promise<string | void>;
+export type CommandHandler = (args: string[]) => string | undefined | Promise<string | undefined>;
 
 interface RegisteredCommand {
   command: Command;
@@ -32,7 +32,7 @@ class LegacyCommand extends Command {
     this.handler = handler;
   }
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     return this.handler(args);
   }
 }
@@ -118,7 +118,7 @@ export class CommandRegistry {
   /**
    * Execute a command string
    */
-  async execute(input: string): Promise<string | void> {
+  async execute(input: string): Promise<string | undefined> {
     const trimmed = input.trim();
     if (!trimmed) return;
 

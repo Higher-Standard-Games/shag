@@ -68,7 +68,7 @@ export abstract class Command {
    * @param args Command arguments (already split by spaces)
    * @returns Output string to display, or void for no output
    */
-  abstract execute(args: string[]): Promise<string | void>;
+  abstract execute(args: string[]): Promise<string | undefined>;
 
   /**
    * Optional: Custom autocomplete logic beyond definition

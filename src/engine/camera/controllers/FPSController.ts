@@ -713,7 +713,7 @@ export class FPSController implements ICameraController {
     const canRun = !this.keys.aim && !this.keys.crouch; // No sprinting while ADS or crouching
     const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
     const forwardOnly = this.keys.forward && !this.keys.backward && !this.keys.left && !this.keys.right;
-    let wishspeed = isRunning && forwardOnly ? mv.get("sv_runSpeed") : mv.get("sv_movementSpeed");
+    let _wishspeed = isRunning && forwardOnly ? mv.get("sv_runSpeed") : mv.get("sv_movementSpeed");
 
     // Apply crouch walk speed (reduced when crouching but not sliding)
     if (this.keys.crouch && !this.isSliding) {
@@ -722,7 +722,7 @@ export class FPSController implements ICameraController {
 
       // Simple logic: if moving slow, reduce speed
       if (horizSpeed < slideMinSpeed) {
-        wishspeed *= mv.get("cl_crouchmult"); // 0.5x by default
+        _wishspeed *= mv.get("cl_crouchmult"); // 0.5x by default
       }
     }
 

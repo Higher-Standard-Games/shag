@@ -19,7 +19,7 @@ export default class FogCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene

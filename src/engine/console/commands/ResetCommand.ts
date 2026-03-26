@@ -12,7 +12,7 @@ export default class ResetCommand extends Command {
     usage: "reset <cvar>",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length === 0) {
       return "Usage: reset <cvar>";
     }

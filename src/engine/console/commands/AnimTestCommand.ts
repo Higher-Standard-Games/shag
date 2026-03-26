@@ -43,7 +43,7 @@ export default class AnimTestCommand extends Command {
   private masterGroup: AnimationGroup | null = null;
   private currentAnimName: string = "";
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase() || "help";
 
     switch (subcommand) {

@@ -469,7 +469,7 @@ export class BspManager {
 
     // BSP materials are on child meshes, not the parent worldMesh
     const childMeshes = this.meshResult.worldMesh.getChildMeshes();
-    let count = 0;
+    let _count = 0;
 
     for (const mesh of childMeshes) {
       const mat = mesh.material as any;
@@ -488,7 +488,7 @@ export class BspManager {
         mat.diffuseColor.r = mat._origDiffuse.r * intensity;
         mat.diffuseColor.g = mat._origDiffuse.g * intensity;
         mat.diffuseColor.b = mat._origDiffuse.b * intensity;
-        count++;
+        _count++;
       }
 
       // Also try lightmap level as backup

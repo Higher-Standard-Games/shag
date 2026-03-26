@@ -369,7 +369,7 @@ export class BspMeshBuilder {
     const autospriteFaces: AutospriteFace[] = [];
 
     // Track fog effects found
-    let fogFacesCount = 0;
+    let _fogFacesCount = 0;
 
     // Track sky shaders found
     const skyShaders: BspMeshBuildResult["skyShaders"] = [];
@@ -550,7 +550,7 @@ export class BspMeshBuilder {
             color: fogShader.fogParms.color,
             depthForOpaque: fogShader.fogParms.depthForOpaque,
           };
-          fogFacesCount++;
+          _fogFacesCount++;
           console.log(
             `[BspMeshBuilder] Face ${i} has fog effect: ${effect.name} -> color=(${fogShader.fogParms.color.join(",")}), depth=${fogShader.fogParms.depthForOpaque}`,
           );

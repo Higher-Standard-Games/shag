@@ -12,7 +12,7 @@ export default class ShowFpsCommand extends Command {
     usage: "show_fps [0|1]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get scene from camera system
     let scene;
     try {

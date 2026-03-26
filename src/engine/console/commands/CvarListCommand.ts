@@ -12,7 +12,7 @@ export default class CvarListCommand extends Command {
     usage: "cvarlist [filter]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const filter = args[0];
     const cvars = Cvar.list(filter);
 

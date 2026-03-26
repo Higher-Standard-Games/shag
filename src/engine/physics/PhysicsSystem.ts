@@ -256,7 +256,7 @@ export class PhysicsSystem {
 
         // Restore pickable state (game raycasts need pickable BSP)
         child.isPickable = wasPickable;
-      } catch (e) {
+      } catch (_e) {
         // Some meshes may fail (degenerate geometry, etc.) — skip silently
       }
     }

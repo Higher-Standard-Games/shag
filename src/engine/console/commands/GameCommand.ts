@@ -17,7 +17,7 @@ export default class GameCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     let gamePaths;
     try {
       const { GamePaths } = await import("../../core/GamePaths");

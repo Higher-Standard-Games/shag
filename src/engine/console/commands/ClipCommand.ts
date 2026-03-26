@@ -11,7 +11,7 @@ export default class ClipCommand extends Command {
     developer: true,
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     // Get camera controller
     let cameraSystem;
     try {

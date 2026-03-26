@@ -12,7 +12,7 @@ export default class ExecCommand extends Command {
     usage: "exec <filename>",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const file = args[0];
     if (!file) {
       return "Usage: exec <filename>";

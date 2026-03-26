@@ -11,7 +11,7 @@ export default class QuitCommand extends Command {
     description: "Reload the application",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     // In browser, we can't truly "quit" - reload instead
     setTimeout(() => {
       window.location.reload();

@@ -122,7 +122,7 @@ export class WebTransportTransport implements Transport {
           this.messageCallbacks.forEach((cb) => cb(merged));
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Transport closed — expected during disconnect
     }
   }

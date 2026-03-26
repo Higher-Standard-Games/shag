@@ -141,10 +141,18 @@ function validateState(sim: Simulation): ValidationResult {
     }
 
     // Check for Infinity
-    if (!isFinite(transform.position.x) || !isFinite(transform.position.y) || !isFinite(transform.position.z)) {
+    if (
+      !Number.isFinite(transform.position.x) ||
+      !Number.isFinite(transform.position.y) ||
+      !Number.isFinite(transform.position.z)
+    ) {
       errors.push(`Entity ${entity.id}: Position is Infinite`);
     }
-    if (!isFinite(physics.velocity.x) || !isFinite(physics.velocity.y) || !isFinite(physics.velocity.z)) {
+    if (
+      !Number.isFinite(physics.velocity.x) ||
+      !Number.isFinite(physics.velocity.y) ||
+      !Number.isFinite(physics.velocity.z)
+    ) {
       errors.push(`Entity ${entity.id}: Velocity is Infinite`);
     }
 

@@ -12,7 +12,7 @@ export default class GodCommand extends Command {
     developer: true,
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     const cvarName = "g_godmode";
 
     // Toggle or create the cvar

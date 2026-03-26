@@ -16,7 +16,7 @@ export default class TimeCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Lazy import GameClock
     let clock;
     try {

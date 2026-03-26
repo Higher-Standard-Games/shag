@@ -19,7 +19,7 @@ export default class SpectatorCommand extends Command {
     usage: "spectator [0|1]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const cameraSystem = CameraSystem.getInstance();
     const activeController = cameraSystem.getActiveController();
     const isSpectator = activeController?.type === "freefly";

@@ -11,7 +11,7 @@ export default class EchoCommand extends Command {
     usage: "echo <text>",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     return args.join(" ");
   }
 }

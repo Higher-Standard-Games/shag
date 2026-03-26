@@ -11,7 +11,7 @@ export default class StatsCommand extends Command {
     usage: "stats [detailed]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const detailed = args[0] === "detailed" || args[0] === "full";
 
     // Get scene

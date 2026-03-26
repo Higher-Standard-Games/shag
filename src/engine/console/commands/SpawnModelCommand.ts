@@ -27,7 +27,7 @@ export default class SpawnModelCommand extends Command {
   private spawnedModels: SpawnedModel[] = [];
   private nextIndex = 0;
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {

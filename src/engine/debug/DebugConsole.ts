@@ -943,6 +943,7 @@ export class DebugConsole {
       if (this.outputEl) {
         this.outputEl.innerHTML = "";
       }
+      return undefined;
     });
 
     // Version command

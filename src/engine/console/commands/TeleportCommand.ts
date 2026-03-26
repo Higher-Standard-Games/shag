@@ -13,7 +13,7 @@ export default class TeleportCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length < 3) {
       return "Usage: teleport <x> <y> <z>";
     }

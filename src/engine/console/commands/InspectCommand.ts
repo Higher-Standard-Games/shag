@@ -12,7 +12,7 @@ export default class InspectCommand extends Command {
     developer: true,
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     // Get scene and camera
     let scene;
     let camera;

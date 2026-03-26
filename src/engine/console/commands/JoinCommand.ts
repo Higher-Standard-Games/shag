@@ -15,7 +15,7 @@ export default class JoinCommand extends Command {
     developer: false, // Available to everyone!
   };
 
-  async execute(_args: string[]): Promise<string | void> {
+  async execute(_args: string[]): Promise<string | undefined> {
     // Check if we're in network mode
     let isNetworkMode = false;
     try {

@@ -11,7 +11,7 @@ export default class BindCommand extends Command {
     usage: "bind <key> <command>",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length < 2) {
       return "Usage: bind <key> <command>\nNote: Key binding is planned for a future update.";
     }

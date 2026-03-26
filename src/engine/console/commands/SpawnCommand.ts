@@ -12,7 +12,7 @@ export default class SpawnCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get camera system and MapLoader
     let cameraSystem;
     let mapLoader;

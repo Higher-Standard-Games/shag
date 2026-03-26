@@ -16,7 +16,7 @@ export default class NameCommand extends Command {
     usage: "name [newname]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const profile = PlayerProfile.load();
 
     if (args.length === 0) {

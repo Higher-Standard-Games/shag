@@ -28,7 +28,7 @@ export default class DebrisCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const weather = (window as any).weather;
 
     if (!weather) {

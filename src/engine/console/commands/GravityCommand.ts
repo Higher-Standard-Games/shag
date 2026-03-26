@@ -12,7 +12,7 @@ export default class GravityCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get scene physics
     let scene;
     try {

@@ -9,8 +9,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { BotDifficulty } from "../../bot/BotConfig";
 // @ts-ignore - Used inside describe.skipIf block; tsc flags as unused
 import { BotGameState } from "../../bot/BotGameState";
-// @ts-ignore - Used inside describe.skipIf block; tsc flags as unused
-import { COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "../../bot/BotInputNormalizer";
 import { HybridBrain } from "../../bot/HybridBrain";
 import { getTF, initTF, isTFAvailable } from "../../bot/TFBackend";
 

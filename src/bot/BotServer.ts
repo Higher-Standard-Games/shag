@@ -72,7 +72,7 @@ export class BotServer {
         try {
           const msg = JSON.parse(data.toString()) as ControlMessage;
           this._handleControlMessage(ws, msg);
-        } catch (err) {
+        } catch (_err) {
           this._sendResponse(ws, { type: "error", error: "Invalid JSON" });
         }
       });

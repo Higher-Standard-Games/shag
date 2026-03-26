@@ -12,7 +12,7 @@ export default class SetCommand extends Command {
     usage: "set <cvar> <value>",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length < 2) {
       return "Usage: set <cvar> <value>";
     }

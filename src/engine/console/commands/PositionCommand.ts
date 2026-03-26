@@ -12,7 +12,7 @@ export default class PositionCommand extends Command {
     usage: "pos [copy]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get camera
     let camera;
     try {

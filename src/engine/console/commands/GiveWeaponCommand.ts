@@ -9,7 +9,7 @@ export default class GiveWeaponCommand extends Command {
     usage: "giveweapon <weapon_id|all> [amount]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     if (args.length < 1) {
       return this.getHelp();
     }

@@ -13,7 +13,7 @@ export default class HelpCommand extends Command {
     usage: "help [command]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const registry = CommandRegistry.getInstance();
 
     if (args.length === 0) {

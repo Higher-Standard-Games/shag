@@ -225,7 +225,7 @@ export class WebTransportServerTransport implements Transport {
           this.events.onDatagram?.(client, value);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Session closed or error
     }
   }
@@ -241,7 +241,7 @@ export class WebTransportServerTransport implements Transport {
         // Handle stream in background
         this.handleStream(stream, client);
       }
-    } catch (e) {
+    } catch (_e) {
       // Session closed or error
     }
   }
@@ -259,7 +259,7 @@ export class WebTransportServerTransport implements Transport {
           this.events.onReliable?.(client, value);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Stream error
     }
   }

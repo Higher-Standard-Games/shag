@@ -11,7 +11,7 @@ export default class CvarExportCommand extends Command {
     description: "Export modified cvars to clipboard",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     const config = Cvar.exportConfig();
 
     if (!config.trim()) {

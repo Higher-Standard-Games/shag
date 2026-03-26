@@ -11,7 +11,7 @@ export default class ResetAllCommand extends Command {
     description: "Reset all cvars to default values",
   };
 
-  async execute(): Promise<string | void> {
+  async execute(): Promise<string | undefined> {
     Cvar.resetAll();
     return "All cvars reset to default values";
   }

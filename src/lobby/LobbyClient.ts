@@ -193,7 +193,7 @@ export class LobbyClient {
       for (const handler of wildcardHandlers) {
         try {
           handler(msg);
-        } catch (err) {
+        } catch (_err) {
           // ignore
         }
       }

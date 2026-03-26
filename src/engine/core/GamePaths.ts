@@ -67,7 +67,7 @@ export class GamePaths {
       if (response.ok) {
         config = await response.json();
       }
-    } catch (error) {
+    } catch (_error) {
       // Fetch failed
     }
 

@@ -239,7 +239,7 @@ export class FreeflyController implements ICameraController {
         gameManager.processSnapshots();
         gameManager.renderRemotePlayers();
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore if not initialized yet
     }
 

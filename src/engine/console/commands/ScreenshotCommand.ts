@@ -14,7 +14,7 @@ export default class ScreenshotCommand extends Command {
     usage: "screenshot [filename]",
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     // Get scene
     let scene;
     try {

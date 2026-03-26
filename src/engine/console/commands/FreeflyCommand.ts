@@ -15,7 +15,7 @@ export default class FreeflyCommand extends Command {
     developer: true,
   };
 
-  async execute(args: string[]): Promise<string | void> {
+  async execute(args: string[]): Promise<string | undefined> {
     const cvarName = "cam_freefly_speed";
 
     if (args.length === 0) {
