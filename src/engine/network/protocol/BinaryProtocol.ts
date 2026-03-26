@@ -28,6 +28,22 @@
 import { Entity } from "../core/Entity";
 import { GameState } from "../core/GameState";
 
+/**
+ * Wire-format command shape for binary encode/decode.
+ * Matches MoveCommand fields used over the network.
+ */
+export interface NetworkCommand {
+  type?: string;
+  playerId?: string;
+  tick?: number;
+  seq?: number;
+  direction?: { x: number; y: number; z: number };
+  pitch?: number;
+  yaw?: number;
+  buttons?: number;
+  weaponSlot?: number;
+}
+
 // Module-level reusable encoder — avoids 16KB allocation per encode call.
 // getData() copies to a fresh Uint8Array, so previously returned data is safe.
 let _sharedEncoder: BinaryEncoder | null = null;
@@ -120,7 +136,7 @@ export class BinaryProtocol {
   /**
    * Encode a command
    */
-  static encodeCommand(playerId: string, sequence: number, command: any): Uint8Array {
+  static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
     const encoder = getEncoder();
 
     encoder.writeString(playerId);
@@ -144,7 +160,7 @@ export class BinaryProtocol {
   /**
    * Decode a command
    */
-  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: any } {
+  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
     const decoder = new BinaryDecoder(data);
 
     const playerId = decoder.readString();

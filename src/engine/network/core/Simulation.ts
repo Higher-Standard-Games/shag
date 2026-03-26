@@ -42,7 +42,7 @@ export interface SimulationConfig {
   maxPlayers: number;
 
   /** Game-specific rules */
-  gameRules: any;
+  gameRules: Record<string, unknown>;
 }
 
 /**

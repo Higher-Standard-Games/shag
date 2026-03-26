@@ -1,4 +1,5 @@
 import type { MatchStateSnapshot } from "../../../shared/server/gametype";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 import { Entity, type EntityId, type PlayerId } from "./Entity";
 
 /**
@@ -37,7 +38,7 @@ export class GameState {
   /**
    * Serialize state to binary
    */
-  serialize(encoder: any): void {
+  serialize(encoder: BinaryEncoder): void {
     encoder.writeUint32(this.tick);
     encoder.writeUint32(this.ackedInputSeq);
 
@@ -75,7 +76,7 @@ export class GameState {
   /**
    * Deserialize state from binary
    */
-  deserialize(decoder: any): void {
+  deserialize(decoder: BinaryDecoder): void {
     this.tick = decoder.readUint32();
     this.ackedInputSeq = decoder.readUint32();
 
@@ -162,7 +163,7 @@ export class GameState {
     return cloned;
   }
 
-  private serializeEvent(encoder: any, event: GameEvent): void {
+  private serializeEvent(encoder: BinaryEncoder, event: GameEvent): void {
     // Basic serialization - can be extended by games
     switch (event.type) {
       case "damage":
@@ -238,7 +239,7 @@ export class GameState {
     }
   }
 
-  private deserializeEvent(decoder: any, type: string): GameEvent {
+  private deserializeEvent(decoder: BinaryDecoder, type: string): GameEvent {
     switch (type) {
       case "damage":
         return {
@@ -355,7 +356,7 @@ export class PlayerState {
   /**
    * Serialize player state
    */
-  serialize(encoder: any): void {
+  serialize(encoder: BinaryEncoder): void {
     encoder.writeString(this.entityId);
     encoder.writeString(this.name);
     encoder.writeString(this.team);
@@ -367,7 +368,7 @@ export class PlayerState {
   /**
    * Deserialize player state
    */
-  deserialize(decoder: any): void {
+  deserialize(decoder: BinaryDecoder): void {
     this.entityId = decoder.readString();
     this.name = decoder.readString();
     this.team = decoder.readString();

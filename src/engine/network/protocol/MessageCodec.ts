@@ -1,5 +1,5 @@
 import type { GameState } from "../core/GameState";
-import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "./BinaryProtocol";
+import { type NetworkCommand, BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "./BinaryProtocol";
 
 // Re-export MessageType for convenience
 export { MessageType };
@@ -40,7 +40,7 @@ export class MessageCodec {
    * Encode a command/input message (Client → Server)
    * Format: [MessageType.Input][playerId][sequence][command...]
    */
-  static encodeCommand(playerId: string, sequence: number, command: any): Uint8Array {
+  static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Input);
     encoder.writeBytes(BinaryProtocol.encodeCommand(playerId, sequence, command));
@@ -50,7 +50,7 @@ export class MessageCodec {
   /**
    * Decode a command message
    */
-  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: any } {
+  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.Input) {

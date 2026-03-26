@@ -1,5 +1,6 @@
 import { StateDecoder, StateEncoder } from "./Component";
 import type { PlayerId } from "./Entity";
+import type { GameState } from "./GameState";
 
 /**
  * Base command interface for all player input
@@ -95,4 +96,4 @@ export class MoveCommand implements Command {
 /**
  * Command handler function type
  */
-export type CommandHandler<T extends Command = Command> = (state: any, command: T) => void;
+export type CommandHandler<T extends Command = Command> = (state: GameState, command: T) => void;

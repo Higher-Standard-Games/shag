@@ -180,8 +180,8 @@ describe("BinaryProtocol", () => {
 
       expect(decoded.playerId).toBe("player1");
       expect(decoded.sequence).toBe(42);
-      expect(decoded.command.direction.x).toBeCloseTo(0.707, 2);
-      expect(decoded.command.direction.z).toBeCloseTo(-0.707, 2);
+      expect(decoded.command.direction!.x).toBeCloseTo(0.707, 2);
+      expect(decoded.command.direction!.z).toBeCloseTo(-0.707, 2);
       expect(decoded.command.pitch).toBeCloseTo(0.5);
       expect(decoded.command.yaw).toBeCloseTo(1.2);
       expect(decoded.command.buttons).toBe(0b0101);
@@ -217,8 +217,8 @@ describe("MessageCodec", () => {
 
     expect(decoded.playerId).toBe("p1");
     expect(decoded.sequence).toBe(99);
-    expect(decoded.command.direction.x).toBeCloseTo(1);
-    expect(decoded.command.direction.z).toBeCloseTo(-1);
+    expect(decoded.command.direction!.x).toBeCloseTo(1);
+    expect(decoded.command.direction!.z).toBeCloseTo(-1);
     expect(decoded.command.yaw).toBeCloseTo(3.14, 2);
   });
 
