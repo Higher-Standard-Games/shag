@@ -28,6 +28,51 @@
 import { Entity } from "../core/Entity";
 import { GameState } from "../core/GameState";
 
+// ── Component shape types for binary serialization ──
+// These describe the shapes that getComponent() returns.
+// The component system is untyped (string keys → IComponent), so we define
+// the structural shapes used during encode/decode.
+
+interface Vec3 { x: number; y: number; z: number }
+interface Vec4 { x: number; y: number; z: number; w: number }
+
+interface PositionShape extends Vec3 {
+  serialize?(): void;
+  deserialize?(): void;
+  clone?(): PositionShape;
+}
+
+interface TransformShape {
+  position: Vec3;
+  rotation: Vec4;
+  serialize?(): void;
+  deserialize?(): void;
+  clone?(): TransformShape;
+}
+
+interface VelocityShape {
+  x: number; y: number; z: number;
+  linear: Vec3;
+  angular: Vec3;
+  grounded: boolean;
+  isCrouching?: boolean;
+  isSliding?: boolean;
+  serialize?(): void;
+  deserialize?(): void;
+  clone?(): VelocityShape;
+}
+
+interface MovementStateShape {
+  isCrouching: boolean;
+  isSliding: boolean;
+  wallJumpState: string;
+}
+
+interface WeaponMetaShape {
+  weaponId: string;
+  settled: boolean;
+}
+
 /**
  * Wire-format command shape for binary encode/decode.
  * Matches MoveCommand fields used over the network.
@@ -60,9 +105,11 @@ function _noopSerialize() {
   return {};
 }
 function _noopDeserialize() {}
+// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for shallow copy of arbitrary component shapes
 function _shallowClone(this: any) {
   return { ...this };
 }
+// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for deep copy of transform shape
 function _transformClone(this: any) {
   return {
     position: { ...this.position },
@@ -72,6 +119,7 @@ function _transformClone(this: any) {
     clone: _transformClone,
   };
 }
+// biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for deep copy of velocity shape
 function _velocityClone(this: any) {
   return { ...this, linear: { ...this.linear }, angular: { ...this.angular } };
 }
@@ -204,17 +252,17 @@ export class BinaryProtocol {
       let flags = 0;
 
       // Check for transform component (FPS style) or position component (legacy)
-      const transform = entity.getComponent("transform") as any;
-      const pos = transform?.position || (entity.getComponent("position") as any);
-      const baselineTransform = baselineEntity?.getComponent("transform") as any;
-      const baselinePos = baselineTransform?.position || (baselineEntity?.getComponent("position") as any);
+      const transform = entity.getComponent("transform") as unknown as TransformShape | undefined;
+      const pos = transform?.position || (entity.getComponent("position") as unknown as PositionShape | undefined);
+      const baselineTransform = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
+      const baselinePos = baselineTransform?.position || (baselineEntity?.getComponent("position") as unknown as PositionShape | undefined);
       // Only set flag if pos EXISTS and differs from baseline (or no baseline)
       if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
         flags |= 0x01;
       }
 
-      const vel = entity.getComponent("velocity") as any;
-      const baselineVel = baselineEntity?.getComponent("velocity") as any;
+      const vel = entity.getComponent("velocity") as unknown as VelocityShape | undefined;
+      const baselineVel = baselineEntity?.getComponent("velocity") as unknown as VelocityShape | undefined;
       // Check velocity.linear for VelocityComponent or direct x/y/z for basic
       const velData = vel?.linear || vel;
       const baselineVelData = baselineVel?.linear || baselineVel;
@@ -247,7 +295,7 @@ export class BinaryProtocol {
       // Always send movement state (crouch/slide/walljump) — no delta compression.
       // Only 1 byte per entity. Delta compression here is fragile because
       // server/client baseline ACK mismatches can cause flags to get "stuck".
-      const movState = entity.getComponent("movementState") as any;
+      const movState = entity.getComponent("movementState") as unknown as MovementStateShape | undefined;
       const isCrouching = movState?.isCrouching ?? false;
       const isSliding = movState?.isSliding ?? false;
       const wallJumpState = movState?.wallJumpState ?? "none";
@@ -257,8 +305,8 @@ export class BinaryProtocol {
       }
 
       // Check weaponMeta (item_ entities carry weaponId for model spawning)
-      const weaponMeta = entity.getComponent("weaponMeta") as any;
-      const baselineWeaponMeta = baselineEntity?.getComponent("weaponMeta") as any;
+      const weaponMeta = entity.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
+      const baselineWeaponMeta = baselineEntity?.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
       if (
         weaponMeta?.weaponId &&
         (!baselineWeaponMeta ||
@@ -350,9 +398,9 @@ export class BinaryProtocol {
 
         // Preserve existing rotation if transform already exists (rotation may arrive independently)
         // Fall back to baseline rotation if entity was just created fresh
-        const existingTransform = entity.getComponent("transform") as any;
-        const baselineTransform = baselineEntity?.getComponent("transform") as any;
-        const existingRot = existingTransform?.rotation || baselineTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+        const existingTransform = entity.getComponent("transform") as unknown as TransformShape | undefined;
+        const baselineTransformRot = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
+        const existingRot = existingTransform?.rotation || baselineTransformRot?.rotation || { x: 0, y: 0, z: 0, w: 1 };
 
         // TransformComponent-style for Game compatibility
         const transform = {
@@ -384,7 +432,7 @@ export class BinaryProtocol {
 
       // Always preserve baseline grounded (overridden below if flag 0x04 is set)
       if (baselineEntity) {
-        const baselineVel = baselineEntity.getComponent("velocity") as any;
+        const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
         if (baselineVel) {
           grounded = baselineVel.grounded ?? false;
         }
@@ -398,7 +446,7 @@ export class BinaryProtocol {
         hasVelocityData = true;
       } else if (baselineEntity) {
         // Velocity unchanged - use baseline
-        const baselineVel = baselineEntity.getComponent("velocity") as any;
+        const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
         if (baselineVel?.linear) {
           velX = baselineVel.linear.x;
           velY = baselineVel.linear.y;
@@ -419,7 +467,7 @@ export class BinaryProtocol {
         const rotX = decoder.readFloat32(); // pitch
 
         // Update transform rotation (create transform if it doesn't exist)
-        let transform = entity.getComponent("transform") as any;
+        let transform = entity.getComponent("transform") as unknown as (TransformShape & Record<string, unknown>) | undefined;
         if (transform) {
           transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
         } else {
@@ -446,7 +494,7 @@ export class BinaryProtocol {
         isWallJumping = (movFlags & 4) !== 0;
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineMovState = baselineEntity.getComponent("movementState") as any;
+        const baselineMovState = baselineEntity.getComponent("movementState") as unknown as MovementStateShape | undefined;
         isCrouching = baselineMovState?.isCrouching ?? false;
         isSliding = baselineMovState?.isSliding ?? false;
         isWallJumping = baselineMovState?.wallJumpState === "charging";
