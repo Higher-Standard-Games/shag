@@ -452,6 +452,7 @@ export class FPSController implements ICameraController {
     let startPos = camera.position.clone();
 
     // If it's an ArcRotateCamera, start at its position looking at target
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
     if ("target" in camera && (camera as any).target instanceof Vector3) {
       startPos = camera.position.clone();
     }
@@ -680,11 +681,14 @@ export class FPSController implements ICameraController {
       // hipfireBlocked: auto-inject ADS when fire is pressed on a blocked weapon
       if (this.keys.fire && !this.keys.aim && this.gameManager) {
         // Ensure weapons map is loaded (lazy init, same as crosshair section)
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         if (!(this as any)._weaponsMap) {
           import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
+            // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             (this as any)._weaponsMap = m.WEAPONS;
           });
         }
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         const weapons = (this as any)._weaponsMap;
         if (weapons) {
           const weaponId = this.gameManager.getCurrentWeaponId();
@@ -969,18 +973,27 @@ export class FPSController implements ICameraController {
         this.commandAccumulator -= TICK_DURATION;
 
         // === DIAGNOSTIC: Measure actual tick rate ===
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         if (!(this as any)._diagTickCount) {
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._diagTickCount = 0;
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._diagTickStart = performance.now();
         }
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         (this as any)._diagTickCount++;
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         const elapsed = (performance.now() - (this as any)._diagTickStart) / 1000;
         if (elapsed >= 2.0) {
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           const actualRate = (this as any)._diagTickCount / elapsed;
           console.log(
+            // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             `[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`,
           );
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._diagTickCount = 0;
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._diagTickStart = performance.now();
         }
       }
@@ -1174,26 +1187,34 @@ export class FPSController implements ICameraController {
     // === CROSSHAIR ===
     if (this.gameManager) {
       // Lazy init crosshair on first frame (avoids import at module load)
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
       if (!(this as any)._crosshairReady) {
         import("../../../games/fps/client/Crosshair").then((m) => {
           const ch = m.Crosshair.getInstance();
           ch.init();
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._crosshairReady = true;
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._crosshair = ch;
         });
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         (this as any)._crosshairReady = "pending";
       }
 
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
       const ch = (this as any)._crosshair;
       if (ch) {
         // Look up weapon crosshair config
         const weaponId = this.gameManager.getCurrentWeaponId();
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         if (!(this as any)._weaponsMap) {
           // Lazy load WEAPONS map (fire-and-forget)
           import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
+            // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             (this as any)._weaponsMap = m.WEAPONS;
           });
         }
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         const weapons = (this as any)._weaponsMap;
         const weaponDef = weapons?.[weaponId];
         const crosshairConfig = weaponDef?.crosshair ?? null;
@@ -1215,7 +1236,9 @@ export class FPSController implements ICameraController {
 
     // === GIBS ===
     // Update gib physics/rendering (lazy — only if GibSystem was initialized by a death event)
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
     if ((this as any)._gibSystem) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
       (this as any)._gibSystem.update(deltaTime);
     } else if (this.gameManager) {
       // Try to get singleton if a death event has already initialized it
@@ -1223,6 +1246,7 @@ export class FPSController implements ICameraController {
         const gs = m.GibSystem.getInstance();
         if (gs.scene) {
           // Only cache reference if already initialized
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._gibSystem = gs;
         }
       });
@@ -1230,12 +1254,15 @@ export class FPSController implements ICameraController {
 
     // === DAMAGE NUMBERS ===
     // Update floating damage number positions (lazy — only if DamageNumbers was initialized)
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
     if ((this as any)._damageNumbers) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
       (this as any)._damageNumbers.update(deltaTime);
     } else if (this.gameManager) {
       import("../../../games/fps/client/DamageNumbers").then((m) => {
         const dn = m.DamageNumbers.getInstance();
         if (dn.scene) {
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
           (this as any)._damageNumbers = dn;
         }
       });

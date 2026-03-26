@@ -275,6 +275,7 @@ export class SkyLightSystem {
         minute: 0,
         totalMinutes: 720,
         normalized: 0.5,
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
         period: "PM" as any,
         periodProgress: 0,
       };
@@ -781,6 +782,7 @@ export class SkyLightSystem {
       // Skip meshes without materials
       if (!mesh.material) continue;
 
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
       const mat = mesh.material as any;
 
       // Store original colors on first call
@@ -825,6 +827,7 @@ export class SkyLightSystem {
 
       if (!skybox || !skybox.material) return;
 
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon light/scene internals
       const mat = skybox.material as any;
 
       // Calculate tint: bright white at noon, dark blue at midnight

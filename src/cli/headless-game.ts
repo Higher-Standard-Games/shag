@@ -638,7 +638,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
           await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
           // Stop embedded animations
           for (const g of inspectScene.animationGroups) g.stop();
-          inspectScene.animationGroups.slice().forEach((g) => g.dispose());
+          inspectScene.animationGroups.slice().forEach((g) => { g.dispose(); });
         } catch {
           // Continue without model — targets will show as 'unknown'
         }

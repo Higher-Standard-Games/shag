@@ -311,6 +311,7 @@ export class MapLoader {
 
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
     const engineAny = scene.getEngine() as any;
     const engineClass = engineAny?.getClassName?.();
     const engineCtorName = engineAny?.constructor?.name;
@@ -448,6 +449,7 @@ export class MapLoader {
       let skippedCount = 0;
       const frozenMats = new Set<number>();
       for (const mesh of scene.meshes) {
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
         const mat = mesh.material as any;
         if (mat && !frozenMats.has(mat.uniqueId)) {
           frozenMats.add(mat.uniqueId);
@@ -773,6 +775,7 @@ export class MapLoader {
       // Only resolve weapons and ammo
       if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
 
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
       const modelPath = (def as any).modelPath as string | undefined;
       if (!modelPath || seenModels.has(modelPath)) continue;
       seenModels.add(modelPath);

@@ -116,10 +116,10 @@ export class PlayerModelManager {
 
       // Hide source — used only for cloning
       this.sourceMesh.isVisible = false;
-      this.sourceMesh.getChildMeshes().forEach((m) => (m.isVisible = false));
+      this.sourceMesh.getChildMeshes().forEach((m) => { m.isVisible = false; });
 
       // Stop embedded anims immediately
-      result.animationGroups.forEach((g) => g.stop());
+      result.animationGroups.forEach((g) => { g.stop(); });
 
       // Build bone map
       if (this.sourceSkeleton) {
@@ -278,7 +278,7 @@ export class PlayerModelManager {
 
     // Visible
     clonedMesh.isVisible = true;
-    clonedMesh.getChildMeshes().forEach((m) => (m.isVisible = true));
+    clonedMesh.getChildMeshes().forEach((m) => { m.isVisible = true; });
 
     // CRITICAL: Clear ALL .animations on cloned nodes.
     // mesh.clone() / skeleton.clone() copies residual .animations arrays

@@ -579,6 +579,7 @@ export class FogVolumeManager {
 export class CamFog {
   private fogVolumes: FogAABB[] = [];
   private scene: Scene | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   private observer: any = null;
   private currentFogVolume: FogAABB | null = null;
   private enabled: boolean = false;

@@ -182,6 +182,7 @@ function getFormatName(glInternalFormat: number): string {
  * Check if WebGL supports a given compressed format
  */
 export function isFormatSupported(engine: AbstractEngine, glInternalFormat: number): boolean {
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
   const gl = (engine as any)._gl as WebGL2RenderingContext;
   if (!gl) return false;
 
@@ -578,6 +579,7 @@ export function createTextureFromKTX1(
   }
 
   const fmt = ktx.header.glInternalFormat;
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
   const gl = (engine as any)._gl as WebGL2RenderingContext;
 
   // ── Path 1: GPU supports compressed format → upload directly ───
@@ -594,6 +596,7 @@ export function createTextureFromKTX1(
       Constants.TEXTURETYPE_UNSIGNED_BYTE,
     );
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
     gl.bindTexture(gl.TEXTURE_2D, (internalTexture as any)._webGLTexture);
     for (let level = 0; level < ktx.mipLevels.length; level++) {
       const mip = ktx.mipLevels[level];

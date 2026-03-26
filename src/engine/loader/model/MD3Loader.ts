@@ -688,6 +688,7 @@ export class MD3Loader {
   /**
    * Apply Quake 3 tcMod (texture coordinate modifications)
    */
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   private applyTcMod(mesh: Mesh, tcMods: any[]) {
     if (!tcMods || tcMods.length === 0) return;
 

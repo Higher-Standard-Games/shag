@@ -59,6 +59,7 @@ export class BspManager {
   /**
    * Get current mesh result
    */
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   getMeshResult(): any {
     return this.meshResult;
   }
@@ -66,6 +67,7 @@ export class BspManager {
   /**
    * Set mesh result (used by MapLoader)
    */
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   setMeshResult(result: any): void {
     this.meshResult = result;
   }
@@ -472,6 +474,7 @@ export class BspManager {
     let _count = 0;
 
     for (const mesh of childMeshes) {
+      // biome-ignore lint/suspicious/noExplicitAny: BSP loader internals
       const mat = mesh.material as any;
       if (!mat) continue;
 
@@ -746,6 +749,7 @@ export class BspManager {
   // ============================================================================
 
   private pvsCuller: import("./PVSCuller").PVSCuller | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   private pvsObserver: any = null;
 
   /**

@@ -266,6 +266,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     // Build mapping: material → first mesh that uses it (deduplicated)
     // Covers BOTH StandardMaterial (BSP/MD3) and PBRMaterial (GLB weapons)
     const matMeshMap = new Map<StandardMaterial, Mesh>();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
     const pbrMatMeshMap = new Map<any, Mesh>();
     for (const mesh of scene.meshes) {
       if (mesh.material instanceof StandardMaterial) {
@@ -275,6 +276,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
           matMeshMap.set(mesh.material, mesh as Mesh);
         }
       } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
         (mesh.material as any).maxSimultaneousLights = 4;
         if (!pbrMatMeshMap.has(mesh.material)) {
           pbrMatMeshMap.set(mesh.material, mesh as Mesh);
@@ -370,6 +372,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
 
   // 1. Reset the engine's internal texture cache — forces all textures
   //    to be re-bound to WebGL texture units on the next render pass
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
   (engine as any).resetTextureCache?.();
   console.log(`[EffectPreloader] Reset engine texture cache`);
 
@@ -400,6 +403,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
 
   // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
   const matMeshMap = new Map<StandardMaterial, Mesh>();
+  // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
   const pbrMatMeshMap = new Map<any, Mesh>();
   for (const mesh of scene.meshes) {
     if (mesh.material instanceof StandardMaterial) {
@@ -408,6 +412,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
         matMeshMap.set(mesh.material, mesh as Mesh);
       }
     } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
       (mesh.material as any).maxSimultaneousLights = 4;
       if (!pbrMatMeshMap.has(mesh.material)) {
         pbrMatMeshMap.set(mesh.material, mesh as Mesh);
@@ -460,6 +465,7 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   let refrozenCount = 0;
   for (const mat of scene.materials) {
     if (mat instanceof StandardMaterial && !mat.isFrozen) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
       const matAny = mat as any;
       if (matAny.lightmapTexture) continue; // Skip lightmapped
       if (mat.name === "skybox") continue;

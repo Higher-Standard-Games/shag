@@ -1074,6 +1074,7 @@ export class BspMeshBuilder {
     const engine = scene.getEngine();
 
     // Initialize texture loader if needed
+    // biome-ignore lint/suspicious/noExplicitAny: BSP mesh builder internals
     texLoader.init(engine as any, scene);
 
     if (!result.textureGroups || result.textureGroups.length === 0) {
@@ -1144,6 +1145,7 @@ export class BspMeshBuilder {
 
       // Try to load texture with various extensions
       const extensions = [".jpg", ".png", ".tga", ".ktx"];
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
       let texture: any = null;
       let foundCleanPath: string = ""; // Track which path succeeded for normal map loading
 

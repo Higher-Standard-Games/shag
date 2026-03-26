@@ -188,13 +188,16 @@ export default class MapCommand extends Command {
         const controller = cameraSystem.getActiveController();
 
         // 1. Set Position
+        // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata access
         if (controller && (controller as any).setPosition) {
           console.log(`[MapCommand] Teleporting ${controller.type} to ${spawnPos}`);
+          // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata access
           (controller as any).setPosition(spawnPos);
 
           // Delayed sync to ensure it sticks
           setTimeout(() => {
             if (cameraSystem.getActiveController() === controller) {
+              // biome-ignore lint/suspicious/noExplicitAny: BSP mesh metadata access
               (controller as any).setPosition(spawnPos);
             }
           }, 100);

@@ -192,6 +192,7 @@ export abstract class EngineScene {
     // ═══════════════════════════════════════════════════════════════
     this.scene.onNewMaterialAddedObservable.add((material) => {
       if ("maxSimultaneousLights" in material) {
+        // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
         (material as any).maxSimultaneousLights = 2;
       }
     });
@@ -643,18 +644,25 @@ export abstract class EngineScene {
   }
 
   protected exposeDebugFunctions(): void {
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).loadMap = (mapName: string) => this.loadMap(mapName);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setZoom = (newSize: number) => {
       this.orthoSize = newSize;
       this.updateCameraOrtho();
       console.log(`Zoom set to ${this.orthoSize}`);
     };
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setCameraMode = (mode: CameraMode) => this.setCameraMode(mode);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).getCameraMode = () => this.getCameraMode();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).setCameraHeight = (height: number) => this.setCameraHeight(height);
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).getCameraHeight = () => this.getCameraHeight();
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).camera = {
       get: () => this.camera,
       getMode: () => this.getCameraMode(),
@@ -663,6 +671,7 @@ export abstract class EngineScene {
 
     // Post-processing debug commands
     const pp = PostProcessingManager.getInstance();
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).fx = {
       enabled: (on: boolean) => pp.setEnabled(on),
       bloom: (on: boolean) => pp.setBloomEnabled(on),
@@ -678,6 +687,7 @@ export abstract class EngineScene {
     };
 
     // Weather debug commands
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
     (window as any).weather = {
       rain: (on: boolean) => {
         if (on && this.isIndoorMap) {

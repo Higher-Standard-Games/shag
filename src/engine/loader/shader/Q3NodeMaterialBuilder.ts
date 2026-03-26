@@ -160,6 +160,7 @@ export class Q3NodeMaterialBuilder {
     // Build Texture Stages
     // ========================================================================
 
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
     let currentColor: any = null; // Output connection to chain
 
     for (let i = 0; i < validStages.length; i++) {

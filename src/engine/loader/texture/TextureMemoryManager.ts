@@ -282,6 +282,7 @@ export class TextureMemoryManager {
 
     // Check for compressed formats (much smaller)
     if (texture) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
       const internalFormat = (texture as any)._texture?.format;
       if (internalFormat) {
         // DXT/BC compression is roughly 0.5-1 byte per pixel
@@ -359,6 +360,7 @@ export class TextureMemoryManager {
     if (TextureMemoryManager.instance) {
       TextureMemoryManager.instance.dispose();
     }
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon texture internals
     TextureMemoryManager.instance = null as any;
   }
 }

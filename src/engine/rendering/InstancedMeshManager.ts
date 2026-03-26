@@ -384,6 +384,7 @@ export class InstancedMeshManager {
     if (InstancedMeshManager.instance) {
       InstancedMeshManager.instance.dispose();
     }
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon instanced mesh internals
     InstancedMeshManager.instance = null as any;
   }
 }

@@ -88,6 +88,7 @@ export class AssetPreloader {
       if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
 
       // Get model path
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
       const modelPath = (def as any).modelPath;
       if (modelPath) {
         modelPaths.add(modelPath);
@@ -133,12 +134,14 @@ export class AssetPreloader {
           const file = modelPath.substring(lastSlash + 1);
 
           const glbResult = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
           const root = glbResult.meshes[0] as any;
           const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
 
           // Cap maxSimultaneousLights on PBR materials to prevent shader overflow
           for (const m of glbResult.meshes) {
             if (m.material && "maxSimultaneousLights" in m.material) {
+              // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
               (m.material as any).maxSimultaneousLights = 4;
             }
           }
@@ -161,7 +164,9 @@ export class AssetPreloader {
 
         if (result) {
           // Wait for all textures to finish loading
+          // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
           if ((result as any).textureLoadPromises && (result as any).textureLoadPromises.length > 0) {
+            // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
             await Promise.all((result as any).textureLoadPromises);
           }
 

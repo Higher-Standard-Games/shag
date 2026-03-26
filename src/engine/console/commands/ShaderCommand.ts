@@ -105,10 +105,12 @@ export class ShaderCommand extends Command {
 
         const value = args[1]?.toLowerCase();
         if (value === undefined) {
+          // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
           return `shader aim = ${(window as any)._shaderAimEnabled ? "1" : "0"}`;
         }
 
         const enable = value === "1" || value === "true" || value === "on";
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
         (window as any)._shaderAimEnabled = enable;
 
         if (!enable) {
@@ -227,6 +229,7 @@ export class ShaderCommand extends Command {
             count++;
           }
         }
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
         (window as any)._glowIntensity = intensity;
         return `Glow intensity set to ${intensity} on ${count} materials`;
       }
@@ -251,6 +254,7 @@ export class ShaderCommand extends Command {
             count++;
           }
         }
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
         (window as any)._lightmapIntensity = intensity;
         return `Lightmap intensity set to ${intensity} on ${count} materials`;
       }
@@ -380,6 +384,7 @@ export class ShaderCommand extends Command {
     const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
       if (!m) return false;
       if (m.isPickable === false) return false;
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
       if ((m as any).metadata?.isLightGizmo) return false;
       if (m.name?.startsWith("collision_")) return false;
       if (m.name?.startsWith("clipbrush_")) return false;
@@ -390,6 +395,7 @@ export class ShaderCommand extends Command {
   }
 
   private buildMeshShaderInfo(mesh: AbstractMesh): string {
+    // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
     const mat = mesh.material as any;
     const lines = [`=== Aimed Surface ===`, `Mesh: ${mesh.name}`, `Material: ${mat?.name || "(none)"}`];
 
@@ -419,6 +425,7 @@ export class ShaderCommand extends Command {
     if (!aimObserver) {
       aimObserver = scene.onBeforeRenderObservable.add(() => {
         try {
+          // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
           if (!(window as any)._shaderAimEnabled) return;
 
           // Synchronous aim detection (imports pre-loaded above)
@@ -428,6 +435,7 @@ export class ShaderCommand extends Command {
           const pick = scene.pickWithRay(ray, (m: AbstractMesh) => {
             if (!m) return false;
             if (m.isPickable === false) return false;
+            // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
             if ((m as any).metadata?.isLightGizmo) return false;
             if (m.name?.startsWith("collision_")) return false;
             if (m.name?.startsWith("clipbrush_")) return false;
@@ -450,7 +458,9 @@ export class ShaderCommand extends Command {
           if (mesh) {
             try {
               mesh.enableEdgesRendering();
+              // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
               (mesh as any).edgesWidth = 6;
+              // biome-ignore lint/suspicious/noExplicitAny: Dynamic shader property inspection
               (mesh as any).edgesColor = new Color4(1, 1, 1, 1);
             } catch {
               /* ignore */

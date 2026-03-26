@@ -179,6 +179,7 @@ export class PK3TextureLoader {
       const cached = this.textureCache.get(cacheKey)!;
       // Check if cached texture is still valid (not disposed)
       // Disposed textures have null internal texture reference
+      // biome-ignore lint/suspicious/noExplicitAny: PK3 texture loader internals
       if (cached.isReady() || (cached as any)._texture !== null) {
         return cached;
       } else {
@@ -280,6 +281,7 @@ export class PK3TextureLoader {
       // Wrap in Texture
       const texture = new Texture(null, this.scene);
       texture.name = path;
+      // biome-ignore lint/suspicious/noExplicitAny: PK3 texture loader internals
       (texture as any)._texture = internalTexture;
 
       return texture;

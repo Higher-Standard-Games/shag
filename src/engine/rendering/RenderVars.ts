@@ -15,6 +15,40 @@ import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
 import { PostProcessingManager } from "../effects/PostProcessingManager";
 
+// ==================== Babylon Property Helpers ====================
+// Babylon.js objects don't expose all properties in their public TypeScript API.
+// These helpers provide a single, centralized `any` cast for:
+// 1. Stashing/restoring original values (e.g. `_originalBumpLevel`) on Babylon objects
+// 2. Accessing runtime properties missing from type definitions (e.g. `wireframe`, `diffuseTexture`)
+
+// biome-ignore lint/suspicious/noExplicitAny: Babylon objects used as generic property bags for stashing originals
+type AnyRecord = Record<string, any>;
+
+/** Get a stashed property from a Babylon object */
+function getStashed<T>(obj: object, key: string): T | undefined {
+  return (obj as AnyRecord)[key] as T | undefined;
+}
+
+/** Set a stashed property on a Babylon object */
+function setStashed(obj: object, key: string, value: unknown): void {
+  (obj as AnyRecord)[key] = value;
+}
+
+/** Delete a stashed property from a Babylon object */
+function deleteStashed(obj: object, key: string): void {
+  delete (obj as AnyRecord)[key];
+}
+
+/** Get a runtime property from a Babylon object (for untyped API access) */
+function getProp<T>(obj: object, key: string): T | undefined {
+  return (obj as AnyRecord)[key] as T | undefined;
+}
+
+/** Set a runtime property on a Babylon object (for untyped API access) */
+function setProp(obj: object, key: string, value: unknown): void {
+  (obj as AnyRecord)[key] = value;
+}
+
 // ==================== Types ====================
 
 export interface RenderVar {
@@ -331,7 +365,7 @@ export class RenderVars {
       const anyOverride = bloomMul !== 1.0 || exposureMul !== 1.0 || contrastMul !== 1.0;
       const baseKey = "_renderVarPostProcessBaseline";
 
-      const currentBase = (pp as any)[baseKey] as RenderVarPostProcessBaseline | undefined;
+      const currentBase = getStashed<RenderVarPostProcessBaseline>(pp, baseKey);
       if (!anyOverride) {
         // Restore baseline when returning to defaults
         if (currentBase) {
@@ -346,7 +380,7 @@ export class RenderVars {
               contrast: currentBase.contrast,
             },
           });
-          delete (pp as any)[baseKey];
+          deleteStashed(pp, baseKey);
         }
         return;
       }
@@ -357,7 +391,7 @@ export class RenderVars {
         exposure: s.colorGrading.exposure,
         contrast: s.colorGrading.contrast,
       };
-      (pp as any)[baseKey] = base;
+      setStashed(pp, baseKey, base);
 
       const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
       const nextBloomWeight = clamp01(base.bloomWeight * bloomMul);
@@ -620,11 +654,11 @@ export class RenderVars {
     // Update ambient color
     if (this.scene.ambientColor) {
       // Store original if not stored
-      const original = (this.scene as any)._originalAmbientColor;
+      const original = getStashed<{ r: number; g: number; b: number }>(this.scene, "_originalAmbientColor");
       if (!original) {
-        (this.scene as any)._originalAmbientColor = this.scene.ambientColor.clone();
+        setStashed(this.scene, "_originalAmbientColor", this.scene.ambientColor.clone());
       }
-      const baseAmbient = (this.scene as any)._originalAmbientColor;
+      const baseAmbient = getStashed<{ r: number; g: number; b: number }>(this.scene, "_originalAmbientColor");
       if (baseAmbient) {
         this.scene.ambientColor.r = baseAmbient.r * ambientIntensity;
         this.scene.ambientColor.g = baseAmbient.g * ambientIntensity;
@@ -635,15 +669,15 @@ export class RenderVars {
     // Light intensity multiplier
     const lightIntensity = this.get("r_lightintensity") ?? 1.0;
     for (const light of this.scene.lights) {
-      const hasOriginal = (light as any)._originalIntensity !== undefined;
+      const hasOriginal = getStashed<number>(light, "_originalIntensity") !== undefined;
       if (lightIntensity !== 1.0) {
         if (!hasOriginal) {
-          (light as any)._originalIntensity = light.intensity;
+          setStashed(light, "_originalIntensity", light.intensity);
         }
-        light.intensity = (light as any)._originalIntensity * lightIntensity;
+        light.intensity = getStashed<number>(light, "_originalIntensity")! * lightIntensity;
       } else if (hasOriginal) {
-        light.intensity = (light as any)._originalIntensity;
-        delete (light as any)._originalIntensity;
+        light.intensity = getStashed<number>(light, "_originalIntensity")!;
+        deleteStashed(light, "_originalIntensity");
       }
     }
 
@@ -665,7 +699,7 @@ export class RenderVars {
     if (!mat) return;
 
     if (mat instanceof StandardMaterial) {
-      (mat as any).wireframe = wireframe;
+      setProp(mat, "wireframe", wireframe);
 
       const shouldApplyNormal = normalIntensity !== 1.0;
       const shouldApplyGloss = glossIntensity !== 1.0;
@@ -674,80 +708,80 @@ export class RenderVars {
 
       // Normal map intensity
       if (mat.bumpTexture) {
-        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        const hasOriginal = getStashed<number>(mat, "_originalBumpLevel") !== undefined;
         if (shouldApplyNormal) {
           if (!hasOriginal) {
-            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+            setStashed(mat, "_originalBumpLevel", mat.bumpTexture.level);
           }
-          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+          mat.bumpTexture.level = getStashed<number>(mat, "_originalBumpLevel")! * normalIntensity;
         } else if (hasOriginal) {
-          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
-          delete (mat as any)._originalBumpLevel;
+          mat.bumpTexture.level = getStashed<number>(mat, "_originalBumpLevel")!;
+          deleteStashed(mat, "_originalBumpLevel");
         }
       }
 
       // Specular intensity (gloss)
       // Store original specular power if not stored
-      if ((mat as any)._originalSpecularPower === undefined && mat.specularPower !== undefined) {
-        (mat as any)._originalSpecularPower = mat.specularPower;
+      if (getStashed<number>(mat, "_originalSpecularPower") === undefined && mat.specularPower !== undefined) {
+        setStashed(mat, "_originalSpecularPower", mat.specularPower);
       }
-      const baseSpecPower = (mat as any)._originalSpecularPower ?? 64;
+      const baseSpecPower = getStashed<number>(mat, "_originalSpecularPower") ?? 64;
       if (shouldApplyGloss) {
         mat.specularPower = baseSpecPower * glossIntensity;
-      } else if ((mat as any)._originalSpecularPower !== undefined) {
-        mat.specularPower = (mat as any)._originalSpecularPower;
-        delete (mat as any)._originalSpecularPower;
+      } else if (getStashed<number>(mat, "_originalSpecularPower") !== undefined) {
+        mat.specularPower = getStashed<number>(mat, "_originalSpecularPower")!;
+        deleteStashed(mat, "_originalSpecularPower");
       }
 
       // Lightmap intensity (via emissive or lightmapTexture level)
       if (mat.lightmapTexture) {
-        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        const hasOriginal = getStashed<number>(mat, "_originalLightmapLevel") !== undefined;
         if (shouldApplyLightmap) {
           if (!hasOriginal) {
-            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+            setStashed(mat, "_originalLightmapLevel", mat.lightmapTexture.level);
           }
-          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+          mat.lightmapTexture.level = getStashed<number>(mat, "_originalLightmapLevel")! * lightmapIntensity;
         } else if (hasOriginal) {
-          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
-          delete (mat as any)._originalLightmapLevel;
+          mat.lightmapTexture.level = getStashed<number>(mat, "_originalLightmapLevel")!;
+          deleteStashed(mat, "_originalLightmapLevel");
         }
       }
 
-      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      const hasOriginalEmissive = getStashed(mat, "_originalEmissiveColor") !== undefined;
       if (shouldApplyEmissive) {
         if (!hasOriginalEmissive && mat.emissiveColor) {
-          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+          setStashed(mat, "_originalEmissiveColor", mat.emissiveColor.clone());
         }
-        const baseEmissive = (mat as any)._originalEmissiveColor;
+        const baseEmissive = getStashed<{ r: number; g: number; b: number }>(mat, "_originalEmissiveColor");
         if (baseEmissive) {
           mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
           mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
           mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
         }
       } else if (hasOriginalEmissive) {
-        const baseEmissive = (mat as any)._originalEmissiveColor;
+        const baseEmissive = getStashed<{ r: number; g: number; b: number }>(mat, "_originalEmissiveColor");
         if (baseEmissive && mat.emissiveColor) {
           mat.emissiveColor.r = baseEmissive.r;
           mat.emissiveColor.g = baseEmissive.g;
           mat.emissiveColor.b = baseEmissive.b;
         }
-        delete (mat as any)._originalEmissiveColor;
+        deleteStashed(mat, "_originalEmissiveColor");
       }
 
-      const setAniso = (tex: any) => {
+      const setAniso = (tex: object | null | undefined) => {
         if (tex && typeof tex === "object") {
-          (tex as any).anisotropicFilteringLevel = anisotropy;
+          setProp(tex!, "anisotropicFilteringLevel", anisotropy);
         }
       };
-      setAniso((mat as any).diffuseTexture);
-      setAniso((mat as any).albedoTexture);
-      setAniso((mat as any).bumpTexture);
-      setAniso((mat as any).specularTexture);
-      setAniso((mat as any).reflectivityTexture);
-      setAniso((mat as any).lightmapTexture);
-      setAniso((mat as any).emissiveTexture);
+      setAniso(getProp(mat, "diffuseTexture"));
+      setAniso(getProp(mat, "albedoTexture"));
+      setAniso(getProp(mat, "bumpTexture"));
+      setAniso(getProp(mat, "specularTexture"));
+      setAniso(getProp(mat, "reflectivityTexture"));
+      setAniso(getProp(mat, "lightmapTexture"));
+      setAniso(getProp(mat, "emissiveTexture"));
     } else if (mat instanceof PBRMaterial) {
-      (mat as any).wireframe = wireframe;
+      setProp(mat, "wireframe", wireframe);
 
       const shouldApplyNormal = normalIntensity !== 1.0;
       const shouldApplyGloss = glossIntensity !== 1.0;
@@ -756,77 +790,77 @@ export class RenderVars {
 
       // PBR normal map
       if (mat.bumpTexture) {
-        const hasOriginal = (mat as any)._originalBumpLevel !== undefined;
+        const hasOriginal = getStashed<number>(mat, "_originalBumpLevel") !== undefined;
         if (shouldApplyNormal) {
           if (!hasOriginal) {
-            (mat as any)._originalBumpLevel = mat.bumpTexture.level;
+            setStashed(mat, "_originalBumpLevel", mat.bumpTexture.level);
           }
-          mat.bumpTexture.level = (mat as any)._originalBumpLevel * normalIntensity;
+          mat.bumpTexture.level = getStashed<number>(mat, "_originalBumpLevel")! * normalIntensity;
         } else if (hasOriginal) {
-          mat.bumpTexture.level = (mat as any)._originalBumpLevel;
-          delete (mat as any)._originalBumpLevel;
+          mat.bumpTexture.level = getStashed<number>(mat, "_originalBumpLevel")!;
+          deleteStashed(mat, "_originalBumpLevel");
         }
       }
 
       // PBR roughness/metallic (inverse of gloss)
       if (mat.reflectivityTexture) {
-        const hasOriginal = (mat as any)._originalReflectivityLevel !== undefined;
+        const hasOriginal = getStashed<number>(mat, "_originalReflectivityLevel") !== undefined;
         if (shouldApplyGloss) {
           if (!hasOriginal) {
-            (mat as any)._originalReflectivityLevel = mat.reflectivityTexture.level;
+            setStashed(mat, "_originalReflectivityLevel", mat.reflectivityTexture.level);
           }
-          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel * glossIntensity;
+          mat.reflectivityTexture.level = getStashed<number>(mat, "_originalReflectivityLevel")! * glossIntensity;
         } else if (hasOriginal) {
-          mat.reflectivityTexture.level = (mat as any)._originalReflectivityLevel;
-          delete (mat as any)._originalReflectivityLevel;
+          mat.reflectivityTexture.level = getStashed<number>(mat, "_originalReflectivityLevel")!;
+          deleteStashed(mat, "_originalReflectivityLevel");
         }
       }
 
       // Lightmap
       if (mat.lightmapTexture) {
-        const hasOriginal = (mat as any)._originalLightmapLevel !== undefined;
+        const hasOriginal = getStashed<number>(mat, "_originalLightmapLevel") !== undefined;
         if (shouldApplyLightmap) {
           if (!hasOriginal) {
-            (mat as any)._originalLightmapLevel = mat.lightmapTexture.level;
+            setStashed(mat, "_originalLightmapLevel", mat.lightmapTexture.level);
           }
-          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel * lightmapIntensity;
+          mat.lightmapTexture.level = getStashed<number>(mat, "_originalLightmapLevel")! * lightmapIntensity;
         } else if (hasOriginal) {
-          mat.lightmapTexture.level = (mat as any)._originalLightmapLevel;
-          delete (mat as any)._originalLightmapLevel;
+          mat.lightmapTexture.level = getStashed<number>(mat, "_originalLightmapLevel")!;
+          deleteStashed(mat, "_originalLightmapLevel");
         }
       }
 
-      const hasOriginalEmissive = (mat as any)._originalEmissiveColor !== undefined;
+      const hasOriginalEmissive = getStashed(mat, "_originalEmissiveColor") !== undefined;
       if (shouldApplyEmissive) {
         if (!hasOriginalEmissive && mat.emissiveColor) {
-          (mat as any)._originalEmissiveColor = mat.emissiveColor.clone();
+          setStashed(mat, "_originalEmissiveColor", mat.emissiveColor.clone());
         }
-        const baseEmissive = (mat as any)._originalEmissiveColor;
+        const baseEmissive = getStashed<{ r: number; g: number; b: number }>(mat, "_originalEmissiveColor");
         if (baseEmissive) {
           mat.emissiveColor.r = baseEmissive.r * emissiveIntensity;
           mat.emissiveColor.g = baseEmissive.g * emissiveIntensity;
           mat.emissiveColor.b = baseEmissive.b * emissiveIntensity;
         }
       } else if (hasOriginalEmissive) {
-        const baseEmissive = (mat as any)._originalEmissiveColor;
+        const baseEmissive = getStashed<{ r: number; g: number; b: number }>(mat, "_originalEmissiveColor");
         if (baseEmissive && mat.emissiveColor) {
           mat.emissiveColor.r = baseEmissive.r;
           mat.emissiveColor.g = baseEmissive.g;
           mat.emissiveColor.b = baseEmissive.b;
         }
-        delete (mat as any)._originalEmissiveColor;
+        deleteStashed(mat, "_originalEmissiveColor");
       }
 
-      const setAniso = (tex: any) => {
+      const setAniso = (tex: object | null | undefined) => {
         if (tex && typeof tex === "object") {
-          (tex as any).anisotropicFilteringLevel = anisotropy;
+          setProp(tex!, "anisotropicFilteringLevel", anisotropy);
         }
       };
-      setAniso((mat as any).albedoTexture);
-      setAniso((mat as any).bumpTexture);
-      setAniso((mat as any).reflectivityTexture);
-      setAniso((mat as any).lightmapTexture);
-      setAniso((mat as any).emissiveTexture);
+      setAniso(getProp(mat, "albedoTexture"));
+      setAniso(getProp(mat, "bumpTexture"));
+      setAniso(getProp(mat, "reflectivityTexture"));
+      setAniso(getProp(mat, "lightmapTexture"));
+      setAniso(getProp(mat, "emissiveTexture"));
     }
   }
 

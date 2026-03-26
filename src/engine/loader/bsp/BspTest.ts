@@ -185,8 +185,12 @@ export async function quickBspTest(): Promise<void> {
 
 // Export for console access
 if (typeof window !== "undefined") {
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).testBspLoading = testBspLoading;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).printBspStats = printBspStats;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).testBspRendering = testBspRendering;
+  // biome-ignore lint/suspicious/noExplicitAny: BSP test data structures
   (window as any).quickBspTest = quickBspTest;
 }

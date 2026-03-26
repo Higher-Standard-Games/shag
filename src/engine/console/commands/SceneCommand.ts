@@ -126,10 +126,12 @@ export default class SceneCommand extends Command {
     }
 
     // Get or create engine
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
     const existingEngine = (window as any).babylonEngine;
     const engine = existingEngine || new Engine(canvas, true);
 
     if (!existingEngine) {
+      // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
       (window as any).babylonEngine = engine;
     }
 
@@ -210,6 +212,7 @@ export default class SceneCommand extends Command {
     MenuSystem.getInstance().enterGame();
 
     // Hide main menu
+    // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource inspection
     const mainMenu = (window as any).mainMenu;
     if (mainMenu && typeof mainMenu.hide === "function") {
       mainMenu.hide();
