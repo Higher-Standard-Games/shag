@@ -1,16 +1,16 @@
 /**
  * UIConfig - JSON-driven UI configuration system (Engine Component)
- * 
+ *
  * This is a GENERIC engine component for loading UI configuration from JSON.
  * The JSON defines WHAT items exist (structure), while game code defines
  * HOW they look (icons, styling) via callbacks.
- * 
+ *
  * Separation of concerns:
  * - Engine: Layout, behavior, JSON loading, event handling
  * - Game: Icons, colors, custom rendering, game-specific logic
  */
 
-import { GamePaths } from '../core/GamePaths';
+import { GamePaths } from "../core/GamePaths";
 
 export interface BuildMenuItem {
   id: string;
@@ -96,12 +96,12 @@ export class UIConfig {
   }
 
   public getCategory(categoryId: string): BuildMenuCategory | null {
-    return this.config?.buildMenu.categories.find(c => c.id === categoryId) ?? null;
+    return this.config?.buildMenu.categories.find((c) => c.id === categoryId) ?? null;
   }
 
   public getItem(itemId: string): BuildMenuItem | null {
     for (const category of this.config?.buildMenu.categories ?? []) {
-      const item = category.items.find(i => i.id === itemId);
+      const item = category.items.find((i) => i.id === itemId);
       if (item) return item;
     }
     return null;
@@ -110,16 +110,18 @@ export class UIConfig {
   public getItemsForLevel(level: number): BuildMenuItem[] {
     const items: BuildMenuItem[] = [];
     for (const category of this.config?.buildMenu.categories ?? []) {
-      items.push(...category.items.filter(i => i.levelRequired <= level));
+      items.push(...category.items.filter((i) => i.levelRequired <= level));
     }
     return items;
   }
 
   public getCategoriesForLevel(level: number): BuildMenuCategory[] {
-    return (this.config?.buildMenu.categories ?? []).map(category => ({
-      ...category,
-      items: category.items.filter(i => i.levelRequired <= level)
-    })).filter(c => c.items.length > 0);
+    return (this.config?.buildMenu.categories ?? [])
+      .map((category) => ({
+        ...category,
+        items: category.items.filter((i) => i.levelRequired <= level),
+      }))
+      .filter((c) => c.items.length > 0);
   }
 
   private getDefaultConfig(): UIConfigData {
@@ -140,21 +142,21 @@ export class UIConfig {
                 icon: "icons/pot_basic.png",
                 levelRequired: 1,
                 prefab: "pot_basic",
-                zoneType: "plant"
-              }
-            ]
-          }
-        ]
+                zoneType: "plant",
+              },
+            ],
+          },
+        ],
       },
       inventory: {
         slots: 8,
-        defaultItems: []
+        defaultItems: [],
       },
       bottomBar: {
         height: 200,
         collapsedHeight: 60,
-        animationDuration: 200
-      }
+        animationDuration: 200,
+      },
     };
   }
 }

@@ -1,24 +1,24 @@
 /**
  * PostProcessingManager - Manages global graphics effects
- * 
+ *
  * Uses Babylon.js DefaultRenderingPipeline for:
  * - Bloom (glow on bright objects like grow lights)
  * - Color Grading (mood/atmosphere tied to day/night)
  * - Vignette (subtle darkening at edges)
  * - SSAO (ambient occlusion for grounded feel)
  * - Chromatic Aberration (optional lens effect)
- * 
+ *
  * Designed to be extensible for future weather effects.
  */
 
-import { Scene } from "@babylonjs/core/scene";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
-import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
+import type { Scene } from "@babylonjs/core/scene";
+import { Cvar } from "../core/Cvar";
 import { EventBus } from "../core/EventBus";
 import { CelOutlinePostProcess } from "./CelOutlinePostProcess";
-import { Cvar } from "../core/Cvar";
 
 export interface PostProcessingSettings {
   // Master toggle
@@ -27,40 +27,40 @@ export interface PostProcessingSettings {
   // Bloom settings
   bloom: {
     enabled: boolean;
-    threshold: number;    // Brightness threshold (0-1)
-    weight: number;       // Intensity (0-1)
-    kernel: number;       // Blur kernel size (default 64)
-    scale: number;        // Resolution scale (0.5 = half res for performance)
+    threshold: number; // Brightness threshold (0-1)
+    weight: number; // Intensity (0-1)
+    kernel: number; // Blur kernel size (default 64)
+    scale: number; // Resolution scale (0.5 = half res for performance)
   };
 
   // Color grading
   colorGrading: {
     enabled: boolean;
-    contrast: number;     // 1.0 = normal
-    exposure: number;     // 1.0 = normal
-    saturation: number;   // 1.0 = normal
+    contrast: number; // 1.0 = normal
+    exposure: number; // 1.0 = normal
+    saturation: number; // 1.0 = normal
   };
 
   // Vignette
   vignette: {
     enabled: boolean;
-    weight: number;       // Intensity (0-1)
+    weight: number; // Intensity (0-1)
     color: { r: number; g: number; b: number };
-    stretch: number;      // How much to stretch (0-1)
+    stretch: number; // How much to stretch (0-1)
   };
 
   // SSAO (Screen Space Ambient Occlusion)
   ssao: {
     enabled: boolean;
-    radius: number;       // Sample radius
-    samples: number;      // Quality (8-32)
-    intensity: number;    // Darkness intensity
+    radius: number; // Sample radius
+    samples: number; // Quality (8-32)
+    intensity: number; // Darkness intensity
   };
 
   // Chromatic Aberration (subtle lens effect)
   chromaticAberration: {
     enabled: boolean;
-    amount: number;       // Intensity (0-1)
+    amount: number; // Intensity (0-1)
   };
 }
 
@@ -70,35 +70,35 @@ const DEFAULT_SETTINGS: PostProcessingSettings = {
 
   bloom: {
     enabled: true,
-    threshold: 0.8,      // Only bright things glow
-    weight: 0.3,         // Subtle glow
+    threshold: 0.8, // Only bright things glow
+    weight: 0.3, // Subtle glow
     kernel: 64,
-    scale: 0.5,          // Half resolution for performance
+    scale: 0.5, // Half resolution for performance
   },
 
   colorGrading: {
     enabled: true,
-    contrast: 1.05,      // Slightly more contrast
+    contrast: 1.05, // Slightly more contrast
     exposure: 1.0,
-    saturation: 1.1,     // Slightly more vibrant
+    saturation: 1.1, // Slightly more vibrant
   },
 
   vignette: {
     enabled: true,
-    weight: 0.3,         // Subtle darkening
+    weight: 0.3, // Subtle darkening
     color: { r: 0, g: 0, b: 0 },
     stretch: 0.5,
   },
 
   ssao: {
-    enabled: false,      // Disabled by default (performance heavy)
+    enabled: false, // Disabled by default (performance heavy)
     radius: 2,
     samples: 16,
     intensity: 1.0,
   },
 
   chromaticAberration: {
-    enabled: false,      // Disabled by default
+    enabled: false, // Disabled by default
     amount: 0.5,
   },
 };
@@ -116,7 +116,7 @@ export class PostProcessingManager {
 
   private _cameraChangeUnsub: (() => void) | null = null;
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): PostProcessingManager {
     if (!PostProcessingManager.instance) {
@@ -181,9 +181,9 @@ export class PostProcessingManager {
     // Create DefaultRenderingPipeline
     this.pipeline = new DefaultRenderingPipeline(
       "defaultPipeline",
-      true,  // HDR
+      true, // HDR
       this.scene,
-      [this.camera]
+      [this.camera],
     );
 
     // Apply all settings
@@ -231,7 +231,7 @@ export class PostProcessingManager {
           s.vignette.color.r,
           s.vignette.color.g,
           s.vignette.color.b,
-          1
+          1,
         );
         this.pipeline.imageProcessing.vignetteStretch = s.vignette.stretch;
       }
@@ -261,10 +261,10 @@ export class PostProcessingManager {
         "ssao",
         this.scene,
         {
-          ssaoRatio: 0.5,      // Half resolution for performance
+          ssaoRatio: 0.5, // Half resolution for performance
           blurRatio: 0.5,
         },
-        [this.camera]
+        [this.camera],
       );
       this.ssaoPipeline.radius = s.radius;
       this.ssaoPipeline.totalStrength = s.intensity;
@@ -490,88 +490,88 @@ export class PostProcessingManager {
     cel.init(scene, camera);
 
     // Register cvars with onChange callbacks
-    Cvar.register('r_cel_outlines', 0, {
-      type: 'int',
+    Cvar.register("r_cel_outlines", 0, {
+      type: "int",
       min: 0,
       max: 1,
-      description: 'Enable cel-shading outlines (0/1)',
+      description: "Enable cel-shading outlines (0/1)",
       onChange: (value) => cel.setEnabled(!!value),
     });
 
-    Cvar.register('r_cel_thickness', 1.5, {
-      type: 'float',
+    Cvar.register("r_cel_thickness", 1.5, {
+      type: "float",
       min: 0.1,
       max: 8.0,
-      description: 'Cel outline thickness in pixels',
+      description: "Cel outline thickness in pixels",
       onChange: (value) => cel.setThickness(value as number),
     });
 
-    Cvar.register('r_cel_depth_threshold', 0.1, {
-      type: 'float',
+    Cvar.register("r_cel_depth_threshold", 0.1, {
+      type: "float",
       min: 0.001,
       max: 1.0,
-      description: 'Cel outline depth edge sensitivity (lower = more edges)',
+      description: "Cel outline depth edge sensitivity (lower = more edges)",
       onChange: (value) => cel.setDepthThreshold(value as number),
     });
 
-    Cvar.register('r_cel_normal_threshold', 0.3, {
-      type: 'float',
+    Cvar.register("r_cel_normal_threshold", 0.3, {
+      type: "float",
       min: 0.01,
       max: 2.0,
-      description: 'Cel outline normal edge sensitivity (lower = more edges)',
+      description: "Cel outline normal edge sensitivity (lower = more edges)",
       onChange: (value) => cel.setNormalThreshold(value as number),
     });
 
-    Cvar.register('r_cel_opacity', 1.0, {
-      type: 'float',
+    Cvar.register("r_cel_opacity", 1.0, {
+      type: "float",
       min: 0.0,
       max: 1.0,
-      description: 'Cel outline opacity',
+      description: "Cel outline opacity",
       onChange: (value) => cel.setOpacity(value as number),
     });
 
-    Cvar.register('r_cel_color', '0 0 0', {
-      type: 'string',
+    Cvar.register("r_cel_color", "0 0 0", {
+      type: "string",
       description: 'Cel outline RGB color ("r g b", 0-1 range)',
       onChange: (value) => cel.setColorFromString(value as string),
     });
 
     // Apply initial cvar values (in case they were loaded from storage)
-    cel.setEnabled(Cvar.getBool('r_cel_outlines'));
-    cel.setThickness(Cvar.getNumber('r_cel_thickness'));
-    cel.setDepthThreshold(Cvar.getNumber('r_cel_depth_threshold'));
-    cel.setNormalThreshold(Cvar.getNumber('r_cel_normal_threshold'));
-    cel.setOpacity(Cvar.getNumber('r_cel_opacity'));
-    cel.setColorFromString(Cvar.getString('r_cel_color'));
+    cel.setEnabled(Cvar.getBool("r_cel_outlines"));
+    cel.setThickness(Cvar.getNumber("r_cel_thickness"));
+    cel.setDepthThreshold(Cvar.getNumber("r_cel_depth_threshold"));
+    cel.setNormalThreshold(Cvar.getNumber("r_cel_normal_threshold"));
+    cel.setOpacity(Cvar.getNumber("r_cel_opacity"));
+    cel.setColorFromString(Cvar.getString("r_cel_color"));
 
-    console.log('[PostProcessingManager] Cel outline cvars registered');
+    console.log("[PostProcessingManager] Cel outline cvars registered");
 
     // ── Weapon viewmodel outlines (r_cel_weapon_*) ──
     // Uses Babylon's built-in mesh.renderOutline (inverted hull)
-    const getWVM = () => import('../weapon/WeaponViewManager').then(m => m.getWeaponViewManager());
+    const getWVM = () => import("../weapon/WeaponViewManager").then((m) => m.getWeaponViewManager());
 
-    Cvar.register('r_cel_weapon_outlines', 1, {
-      type: 'int',
+    Cvar.register("r_cel_weapon_outlines", 1, {
+      type: "int",
       min: 0,
       max: 1,
-      description: 'Enable cel outlines on first-person weapon (0/1)',
-      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineEnabled(!!value)),
+      description: "Enable cel outlines on first-person weapon (0/1)",
+      onChange: (value) => getWVM().then((wvm) => wvm.setWeaponOutlineEnabled(!!value)),
     });
 
-    Cvar.register('r_cel_weapon_width', 25, {
-      type: 'float',
+    Cvar.register("r_cel_weapon_width", 25, {
+      type: "float",
       min: 0.1,
       max: 100,
-      description: 'Weapon outline width (0-100 scale, default 25)',
-      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineWidth(value as number)),
+      description: "Weapon outline width (0-100 scale, default 25)",
+      onChange: (value) => getWVM().then((wvm) => wvm.setWeaponOutlineWidth(value as number)),
     });
 
-    Cvar.register('r_cel_weapon_color', '0 0 0', {
-      type: 'string',
+    Cvar.register("r_cel_weapon_color", "0 0 0", {
+      type: "string",
       description: 'Weapon outline RGB color ("r g b", 0-1 range)',
-      onChange: (value) => getWVM().then(wvm => wvm.setWeaponOutlineColorFromString(value as string)),
+      onChange: (value) => getWVM().then((wvm) => wvm.setWeaponOutlineColorFromString(value as string)),
     });
 
-    console.log('[PostProcessingManager] Weapon outline cvars registered');
+    console.log("[PostProcessingManager] Weapon outline cvars registered");
   }
 }

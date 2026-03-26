@@ -1,6 +1,6 @@
 /**
  * SkyLightSystem - Dynamic day/night lighting
- * 
+ *
  * Features:
  * - Sun light that moves across the sky
  * - Moon light for nighttime
@@ -9,29 +9,29 @@
  * - Scene clear color (sky) changes
  */
 
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { Scene } from "@babylonjs/core/scene";
-import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import { GameClock, type TimeOfDay } from "../core/GameClock";
-import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
+import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
+import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { BspManager } from "../loader/bsp/BspManager";
+import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 
 // ==================== Types ====================
 
 export interface SkyLightConfig {
-  sunIntensity?: number;      // Max sun intensity (default: 1.0)
-  moonIntensity?: number;     // Max moon intensity (default: 0.3)
-  ambientIntensity?: number;  // Base ambient intensity (default: 0.4)
-  enableShadows?: boolean;    // Enable shadow casting (default: true)
+  sunIntensity?: number; // Max sun intensity (default: 1.0)
+  moonIntensity?: number; // Max moon intensity (default: 0.3)
+  ambientIntensity?: number; // Base ambient intensity (default: 0.4)
+  enableShadows?: boolean; // Enable shadow casting (default: true)
 }
 
 interface ColorStop {
-  time: number;  // 0-24 hour
+  time: number; // 0-24 hour
   sky: Color4;
   sun: Color3;
   ambient: Color3;
@@ -172,13 +172,13 @@ export class SkyLightSystem {
   private shadowGenerator: ShadowGenerator | null = null;
 
   private config: Required<SkyLightConfig> = {
-    sunIntensity: 1.0,      // Full sun intensity
-    moonIntensity: 0.4,     // Increased for visible blue moonlight
-    ambientIntensity: 0.5,  // Increased for better visibility
+    sunIntensity: 1.0, // Full sun intensity
+    moonIntensity: 0.4, // Increased for visible blue moonlight
+    ambientIntensity: 0.5, // Increased for better visibility
     enableShadows: true,
   };
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): SkyLightSystem {
     if (!SkyLightSystem.instance) {
@@ -203,7 +203,7 @@ export class SkyLightSystem {
   public init(scene: Scene, config?: SkyLightConfig): void {
     // If we are re-initializing on the same scene or a new scene, clean up old lights first
     if (this.scene || this.sunLight) {
-      console.log('[SkyLightSystem] Re-initializing lights for scene...');
+      console.log("[SkyLightSystem] Re-initializing lights for scene...");
       this.reinitLights();
     }
 
@@ -216,11 +216,7 @@ export class SkyLightSystem {
     // Ensure we start fresh if reinitLights didn't catch everything or if this is the first run
     // Create sun light (directional) - softer specular for less harsh highlights
     if (!this.sunLight || this.sunLight.isDisposed()) {
-      this.sunLight = new DirectionalLight(
-        "sunLight",
-        new Vector3(-0.5, -1, -0.5).normalize(),
-        scene
-      );
+      this.sunLight = new DirectionalLight("sunLight", new Vector3(-0.5, -1, -0.5).normalize(), scene);
       this.sunLight.position = new Vector3(500, 500, 500);
       this.sunLight.intensity = 0;
       this.sunLight.diffuse = new Color3(1, 1, 1);
@@ -232,11 +228,7 @@ export class SkyLightSystem {
 
     // Create moon light (directional, opposite direction)
     if (!this.moonLight || this.moonLight.isDisposed()) {
-      this.moonLight = new DirectionalLight(
-        "moonLight",
-        new Vector3(0.5, -1, 0.5).normalize(),
-        scene
-      );
+      this.moonLight = new DirectionalLight("moonLight", new Vector3(0.5, -1, 0.5).normalize(), scene);
       this.moonLight.intensity = 0;
       this.moonLight.diffuse = MOON_COLOR;
       this.moonLight.specular = new Color3(0.05, 0.05, 0.08); // Very soft specular
@@ -244,13 +236,9 @@ export class SkyLightSystem {
 
     // Create ambient/hemisphere light - provides base illumination
     if (!this.ambientLight || this.ambientLight.isDisposed()) {
-      this.ambientLight = new HemisphericLight(
-        "ambientLight",
-        new Vector3(0, 1, 0),
-        scene
-      );
+      this.ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
       this.ambientLight.intensity = this.config.ambientIntensity;
-      this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55);  // Slightly blue-ish
+      this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55); // Slightly blue-ish
       this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25); // Darker ground bounce
       this.ambientLight.specular = Color3.Black(); // No specular from ambient
     }
@@ -258,7 +246,7 @@ export class SkyLightSystem {
     // Subscribe to clock updates
     const clock = GameClock.getInstance();
     // Remove existing listener to avoid duplicates if re-init
-    // (Note: GameClock.on doesn't easily support removal without function ref, 
+    // (Note: GameClock.on doesn't easily support removal without function ref,
     // but assuming single listener per system instance is fine if instance is singleton)
 
     // Initial update
@@ -287,14 +275,14 @@ export class SkyLightSystem {
         minute: 0,
         totalMinutes: 720,
         normalized: 0.5,
-        period: 'PM' as any,
-        periodProgress: 0
+        period: "PM" as any,
+        periodProgress: 0,
       };
       this.updateLighting(noon);
 
-      console.log('[SkyLightSystem] BSP Mode enabled: Lighting locked for BSP map');
+      console.log("[SkyLightSystem] BSP Mode enabled: Lighting locked for BSP map");
     } else {
-      console.log('[SkyLightSystem] BSP Mode disabled: Resuming day/night cycle');
+      console.log("[SkyLightSystem] BSP Mode disabled: Resuming day/night cycle");
     }
   }
 
@@ -304,7 +292,7 @@ export class SkyLightSystem {
    */
   public reinitLights(): void {
     if (!this.scene) {
-      console.warn('[SkyLightSystem] Cannot reinit lights: no scene');
+      console.warn("[SkyLightSystem] Cannot reinit lights: no scene");
       return;
     }
 
@@ -324,32 +312,20 @@ export class SkyLightSystem {
     }
 
     // Recreate sun light
-    this.sunLight = new DirectionalLight(
-      "sunLight",
-      new Vector3(-0.5, -1, -0.5).normalize(),
-      this.scene
-    );
+    this.sunLight = new DirectionalLight("sunLight", new Vector3(-0.5, -1, -0.5).normalize(), this.scene);
     this.sunLight.intensity = 0;
     this.sunLight.diffuse = new Color3(1, 1, 1);
     this.sunLight.specular = new Color3(0.2, 0.2, 0.2);
     this.sunLight.position = new Vector3(500, 500, 500);
 
     // Recreate moon light
-    this.moonLight = new DirectionalLight(
-      "moonLight",
-      new Vector3(0.5, -1, 0.5).normalize(),
-      this.scene
-    );
+    this.moonLight = new DirectionalLight("moonLight", new Vector3(0.5, -1, 0.5).normalize(), this.scene);
     this.moonLight.intensity = 0;
     this.moonLight.diffuse = MOON_COLOR;
     this.moonLight.specular = new Color3(0.05, 0.05, 0.08);
 
     // Recreate ambient light
-    this.ambientLight = new HemisphericLight(
-      "ambientLight",
-      new Vector3(0, 1, 0),
-      this.scene
-    );
+    this.ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), this.scene);
     this.ambientLight.intensity = this.config.ambientIntensity;
     this.ambientLight.diffuse = new Color3(0.5, 0.5, 0.55);
     this.ambientLight.groundColor = new Color3(0.2, 0.2, 0.25);
@@ -359,7 +335,7 @@ export class SkyLightSystem {
     const clock = GameClock.getInstance();
     this.updateLighting(clock.getTimeOfDay());
 
-    console.log('[SkyLightSystem] Lights reinitialized');
+    console.log("[SkyLightSystem] Lights reinitialized");
   }
 
   /**
@@ -513,23 +489,14 @@ export class SkyLightSystem {
    * Interpolate Color3
    */
   private lerpColor3(a: Color3, b: Color3, t: number): Color3 {
-    return new Color3(
-      this.lerp(a.r, b.r, t),
-      this.lerp(a.g, b.g, t),
-      this.lerp(a.b, b.b, t)
-    );
+    return new Color3(this.lerp(a.r, b.r, t), this.lerp(a.g, b.g, t), this.lerp(a.b, b.b, t));
   }
 
   /**
    * Interpolate Color4
    */
   private lerpColor4(a: Color4, b: Color4, t: number): Color4 {
-    return new Color4(
-      this.lerp(a.r, b.r, t),
-      this.lerp(a.g, b.g, t),
-      this.lerp(a.b, b.b, t),
-      this.lerp(a.a, b.a, t)
-    );
+    return new Color4(this.lerp(a.r, b.r, t), this.lerp(a.g, b.g, t), this.lerp(a.b, b.b, t), this.lerp(a.a, b.a, t));
   }
 
   /**
@@ -662,7 +629,7 @@ export class SkyLightSystem {
   /**
    * Load day/night settings from BSP worldspawn entity
    * Only loads once per map - subsequent calls are ignored unless reset
-   * 
+   *
    * Supported worldspawn keys:
    *   daynight_enabled: "1" or "0"
    *   daynight_time: "0.0" to "1.0" (0=midnight, 0.5=noon)
@@ -682,14 +649,14 @@ export class SkyLightSystem {
       let loaded = false;
 
       // Check for daynight_enabled
-      const enabled = bsp.getWorldspawnProperty('daynight_enabled');
-      if (enabled === '1') {
+      const enabled = bsp.getWorldspawnProperty("daynight_enabled");
+      if (enabled === "1") {
         this._bspDayNightEnabled = true;
         loaded = true;
       }
 
       // Check for daynight_time (starting time)
-      const time = bsp.getWorldspawnProperty('daynight_time');
+      const time = bsp.getWorldspawnProperty("daynight_time");
       if (time) {
         const t = parseFloat(time);
         if (!isNaN(t)) {
@@ -699,7 +666,7 @@ export class SkyLightSystem {
       }
 
       // Check for daynight_cycle (cycle length in minutes)
-      const cycle = bsp.getWorldspawnProperty('daynight_cycle');
+      const cycle = bsp.getWorldspawnProperty("daynight_cycle");
       if (cycle) {
         const c = parseFloat(cycle);
         if (!isNaN(c) && c > 0) {
@@ -709,15 +676,17 @@ export class SkyLightSystem {
       }
 
       // Check for daynight_animate (auto-start animation)
-      const animate = bsp.getWorldspawnProperty('daynight_animate');
-      if (animate === '1') {
+      const animate = bsp.getWorldspawnProperty("daynight_animate");
+      if (animate === "1") {
         this._bspAnimating = true;
         loaded = true;
       }
 
       if (loaded) {
         this._worldspawnLoaded = true;
-        console.log(`[SkyLightSystem] Loaded day/night from worldspawn: enabled=${this._bspDayNightEnabled}, time=${this._bspTimeOfDay}, cycle=${this._bspCycleLength}min, animate=${this._bspAnimating}`);
+        console.log(
+          `[SkyLightSystem] Loaded day/night from worldspawn: enabled=${this._bspDayNightEnabled}, time=${this._bspTimeOfDay}, cycle=${this._bspCycleLength}min, animate=${this._bspAnimating}`,
+        );
         if (this._bspDayNightEnabled) {
           this.applyBspLightmaps();
         }
@@ -782,7 +751,7 @@ export class SkyLightSystem {
    */
   private setStreetLampsEnabled(enabled: boolean): void {
     try {
-      const { StreetLampSystem } = require('./StreetLampSystem');
+      const { StreetLampSystem } = require("./StreetLampSystem");
       const lampSystem = StreetLampSystem.getInstance();
       if (lampSystem.isInitialized()) {
         for (const [id] of lampSystem.getLamps()) {
@@ -806,9 +775,9 @@ export class SkyLightSystem {
 
     for (const mesh of scene.meshes) {
       // Skip BSP world meshes (already handled)
-      if (mesh.name.startsWith('bsp_') || mesh.name === 'bsp_world') continue;
+      if (mesh.name.startsWith("bsp_") || mesh.name === "bsp_world") continue;
       // Skip skybox
-      if (mesh.name.includes('sky') || mesh.name.includes('Sky')) continue;
+      if (mesh.name.includes("sky") || mesh.name.includes("Sky")) continue;
       // Skip meshes without materials
       if (!mesh.material) continue;
 
@@ -848,18 +817,23 @@ export class SkyLightSystem {
       if (!scene) return;
 
       // Find skybox mesh (could be named various things)
-      const skybox = scene.getMeshByName('skyBox') ||
-        scene.getMeshByName('skybox') ||
-        scene.getMeshByName('skySphere') ||
-        scene.getMeshByName('q3_skybox');
+      const skybox =
+        scene.getMeshByName("skyBox") ||
+        scene.getMeshByName("skybox") ||
+        scene.getMeshByName("skySphere") ||
+        scene.getMeshByName("q3_skybox");
 
       if (!skybox || !skybox.material) return;
 
       const mat = skybox.material as any;
 
       // Calculate tint: bright white at noon, dark blue at midnight
-      const nightR = 0.15, nightG = 0.15, nightB = 0.25;
-      const dayR = 1.0, dayG = 1.0, dayB = 1.0;
+      const nightR = 0.15,
+        nightG = 0.15,
+        nightB = 0.25;
+      const dayR = 1.0,
+        dayG = 1.0,
+        dayB = 1.0;
 
       const r = nightR + (dayR - nightR) * sunFactor;
       const g = nightG + (dayG - nightG) * sunFactor;
@@ -902,29 +876,29 @@ export class SkyLightSystem {
     }
 
     // Check if cvar-driven day/night system is enabled
-    const enabled = Number(Cvar.get('r_daynight') ?? 0);
+    const enabled = Number(Cvar.get("r_daynight") ?? 0);
 
     if (enabled < 0.5) {
       return;
     }
 
     // Animate time if enabled
-    const animate = Number(Cvar.get('r_daynight_animate') ?? 0);
+    const animate = Number(Cvar.get("r_daynight_animate") ?? 0);
     if (animate >= 0.5) {
-      const cycleLength = Number(Cvar.get('r_daynight_length') ?? 1440);
-      const speed = Number(Cvar.get('r_daynight_speed') ?? 1.0);
+      const cycleLength = Number(Cvar.get("r_daynight_length") ?? 1440);
+      const speed = Number(Cvar.get("r_daynight_speed") ?? 1.0);
 
-      let time = Number(Cvar.get('r_daynight_time') ?? 0.5);
+      let time = Number(Cvar.get("r_daynight_time") ?? 0.5);
       // deltaTime is in ms, convert to seconds
       time += (deltaTime / 1000 / cycleLength) * speed;
       time = time % 1.0;
       if (time < 0) time += 1.0;
 
-      Cvar.set('r_daynight_time', time);
+      Cvar.set("r_daynight_time", time);
     }
 
     // Get current time from cvar
-    const normalizedTime = Number(Cvar.get('r_daynight_time') ?? 0.5);
+    const normalizedTime = Number(Cvar.get("r_daynight_time") ?? 0.5);
 
     // Only update lighting if time changed significantly
     const timeDiff = Math.abs(normalizedTime - this.lastCvarTime);
@@ -951,26 +925,26 @@ export class SkyLightSystem {
     const minute = totalMinutes % 60;
 
     // Determine period
-    let period: 'night' | 'dawn' | 'morning' | 'afternoon' | 'dusk' | 'evening' = 'night';
+    let period: "night" | "dawn" | "morning" | "afternoon" | "dusk" | "evening" = "night";
     let periodProgress = 0;
 
     if (hour >= 0 && hour < 5) {
-      period = 'night';
+      period = "night";
       periodProgress = hour / 5;
     } else if (hour >= 5 && hour < 7) {
-      period = 'dawn';
+      period = "dawn";
       periodProgress = (hour - 5) / 2;
     } else if (hour >= 7 && hour < 12) {
-      period = 'morning';
+      period = "morning";
       periodProgress = (hour - 7) / 5;
     } else if (hour >= 12 && hour < 17) {
-      period = 'afternoon';
+      period = "afternoon";
       periodProgress = (hour - 12) / 5;
     } else if (hour >= 17 && hour < 19) {
-      period = 'dusk';
+      period = "dusk";
       periodProgress = (hour - 17) / 2;
     } else {
-      period = 'evening';
+      period = "evening";
       periodProgress = (hour - 19) / 5;
     }
 

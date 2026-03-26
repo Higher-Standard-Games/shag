@@ -2,12 +2,11 @@
  * Rendering utilities for the engine
  */
 
-export { InstancedMeshManager } from "./InstancedMeshManager";
-export type { 
-  InstanceData, 
-  TemplateData, 
-  InstanceTransform 
+export type {
+  InstanceData,
+  InstanceTransform,
+  TemplateData,
 } from "./InstancedMeshManager";
-
-export { RenderVars } from "./RenderVars";
+export { InstancedMeshManager } from "./InstancedMeshManager";
 export type { RenderVar, RenderVarName } from "./RenderVars";
+export { RenderVars } from "./RenderVars";

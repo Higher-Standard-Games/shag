@@ -1,11 +1,11 @@
 /**
  * MovementVars - Movement-related console variables
- * 
+ *
  * Provides cl_* and sv_* variables for tuning player movement,
  * physics, and camera behavior. Most are developer-protected.
  */
 
-import { Cvar } from '../core/Cvar';
+import { Cvar } from "../core/Cvar";
 
 // ==================== Types ====================
 
@@ -16,24 +16,24 @@ export interface MovementVar {
   min: number;
   max: number;
   description: string;
-  category: 'movement' | 'physics' | 'camera' | 'debug';
+  category: "movement" | "physics" | "camera" | "debug";
   developerOnly: boolean;
-  type?: 'int' | 'float';  // Force cvar type (default: auto-detect)
+  type?: "int" | "float"; // Force cvar type (default: auto-detect)
 }
 
 // ==================== Constants ====================
 
-const STORAGE_KEY = 'engine.movementVars';
+const STORAGE_KEY = "engine.movementVars";
 
-const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
+const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
   // ==================== Movement ====================
   cl_speed: {
     value: 320,
     defaultValue: 320,
     min: 50,
     max: 2000,
-    description: 'Player movement speed (units/sec)',
-    category: 'movement',
+    description: "Player movement speed (units/sec)",
+    category: "movement",
     developerOnly: false,
   },
   cl_sprintmult: {
@@ -41,8 +41,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.5,
     min: 1.0,
     max: 3.0,
-    description: 'Sprint speed multiplier',
-    category: 'movement',
+    description: "Sprint speed multiplier",
+    category: "movement",
     developerOnly: false,
   },
   cl_crouchmult: {
@@ -50,8 +50,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.5,
     min: 0.1,
     max: 1.0,
-    description: 'Crouch speed multiplier',
-    category: 'movement',
+    description: "Crouch speed multiplier",
+    category: "movement",
     developerOnly: false,
   },
   sv_movementSpeed: {
@@ -59,8 +59,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 280,
     min: 50,
     max: 2000,
-    description: 'Base player movement speed (units/sec)',
-    category: 'movement',
+    description: "Base player movement speed (units/sec)",
+    category: "movement",
     developerOnly: true,
   },
   sv_runSpeed: {
@@ -68,8 +68,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 400,
     min: 100,
     max: 3000,
-    description: 'Sprint/run movement speed (units/sec)',
-    category: 'movement',
+    description: "Sprint/run movement speed (units/sec)",
+    category: "movement",
     developerOnly: true,
   },
 
@@ -79,8 +79,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1000,
     min: 0,
     max: 2000,
-    description: 'Gravity strength (units/sec²)',
-    category: 'physics',
+    description: "Gravity strength (units/sec²)",
+    category: "physics",
     developerOnly: true,
   },
   sv_jumpheight: {
@@ -88,8 +88,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 320,
     min: 0,
     max: 1000,
-    description: 'Jump velocity (Quake-style units)',
-    category: 'physics',
+    description: "Jump velocity (Quake-style units)",
+    category: "physics",
     developerOnly: true,
   },
   sv_friction: {
@@ -97,8 +97,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 6.0,
     min: 0,
     max: 20,
-    description: 'Ground friction coefficient',
-    category: 'physics',
+    description: "Ground friction coefficient",
+    category: "physics",
     developerOnly: true,
   },
   sv_accelerate: {
@@ -106,8 +106,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 10.0,
     min: 1,
     max: 50,
-    description: 'Ground acceleration rate (Q3 default: 10)',
-    category: 'physics',
+    description: "Ground acceleration rate (Q3 default: 10)",
+    category: "physics",
     developerOnly: true,
   },
   sv_stopspeed: {
@@ -115,8 +115,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 100,
     min: 10,
     max: 500,
-    description: 'Speed below which friction uses stopspeed',
-    category: 'physics',
+    description: "Speed below which friction uses stopspeed",
+    category: "physics",
     developerOnly: true,
   },
   sv_maxairspeed: {
@@ -124,8 +124,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 30,
     min: 0,
     max: 500,
-    description: 'Max speed for air input (strafe jumping)',
-    category: 'physics',
+    description: "Max speed for air input (strafe jumping)",
+    category: "physics",
     developerOnly: true,
   },
   sv_airaccelerate: {
@@ -133,8 +133,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0,
     max: 20,
-    description: 'Air acceleration rate (Q3 default: 1)',
-    category: 'physics',
+    description: "Air acceleration rate (Q3 default: 1)",
+    category: "physics",
     developerOnly: true,
   },
   sv_topspeed: {
@@ -142,8 +142,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1000,
     min: 500,
     max: 2000,
-    description: 'Hard speed cap for bunny hopping - acceleration falls off approaching this',
-    category: 'physics',
+    description: "Hard speed cap for bunny hopping - acceleration falls off approaching this",
+    category: "physics",
     developerOnly: true,
   },
   sv_aircontrol: {
@@ -151,8 +151,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 150,
     min: 0,
     max: 500,
-    description: 'Air control multiplier (Warsow default: 150) - turning with +forward only',
-    category: 'physics',
+    description: "Air control multiplier (Warsow default: 150) - turning with +forward only",
+    category: "physics",
     developerOnly: true,
   },
   sv_autohop: {
@@ -160,8 +160,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Auto bunny-hop when holding jump (Warsow-style)',
-    category: 'physics',
+    description: "Auto bunny-hop when holding jump (Warsow-style)",
+    category: "physics",
     developerOnly: false,
   },
   sv_aircontrol_power: {
@@ -169,8 +169,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 50,
     min: 0,
     max: 500,
-    description: 'Air control turning speed when holding +forward (Warsow-style)',
-    category: 'physics',
+    description: "Air control turning speed when holding +forward (Warsow-style)",
+    category: "physics",
     developerOnly: true,
   },
   sv_stepheight: {
@@ -178,8 +178,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 18,
     min: 0,
     max: 48,
-    description: 'Max step height for auto-climb',
-    category: 'physics',
+    description: "Max step height for auto-climb",
+    category: "physics",
     developerOnly: true,
   },
   sv_playerheight: {
@@ -187,8 +187,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 64,
     min: 32,
     max: 96,
-    description: 'Player collision height',
-    category: 'physics',
+    description: "Player collision height",
+    category: "physics",
     developerOnly: true,
   },
   sv_eyeoffset: {
@@ -196,8 +196,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 58,
     min: 24,
     max: 72,
-    description: 'Eye position above feet (camera height)',
-    category: 'physics',
+    description: "Eye position above feet (camera height)",
+    category: "physics",
     developerOnly: true,
   },
 
@@ -207,8 +207,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable ledge grabbing (0/1)',
-    category: 'physics',
+    description: "Enable ledge grabbing (0/1)",
+    category: "physics",
     developerOnly: false,
   },
   sv_ledge_reach: {
@@ -216,8 +216,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 32,
     min: 8,
     max: 48,
-    description: 'Forward trace distance for ledge detection',
-    category: 'physics',
+    description: "Forward trace distance for ledge detection",
+    category: "physics",
     developerOnly: true,
   },
   sv_ledge_height: {
@@ -225,8 +225,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 64,
     min: 32,
     max: 96,
-    description: 'Max height above feet to detect ledges',
-    category: 'physics',
+    description: "Max height above feet to detect ledges",
+    category: "physics",
     developerOnly: true,
   },
   sv_ledge_minfall: {
@@ -234,8 +234,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: -50,
     min: -200,
     max: 0,
-    description: 'Min downward velocity to trigger ledge grab',
-    category: 'physics',
+    description: "Min downward velocity to trigger ledge grab",
+    category: "physics",
     developerOnly: true,
   },
   sv_ledge_timeout: {
@@ -243,8 +243,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 2.0,
     min: 0.5,
     max: 5.0,
-    description: 'Max hang time before auto-drop (seconds)',
-    category: 'physics',
+    description: "Max hang time before auto-drop (seconds)",
+    category: "physics",
     developerOnly: true,
   },
   sv_ledge_pulltime: {
@@ -252,8 +252,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.35,
     min: 0.1,
     max: 1.0,
-    description: 'Pull-up animation duration (seconds)',
-    category: 'physics',
+    description: "Pull-up animation duration (seconds)",
+    category: "physics",
     developerOnly: true,
   },
 
@@ -263,8 +263,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable wall jumping (0/1)',
-    category: 'physics',
+    description: "Enable wall jumping (0/1)",
+    category: "physics",
     developerOnly: false,
   },
   sv_walljump_height: {
@@ -272,8 +272,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 280,
     min: 100,
     max: 500,
-    description: 'Upward velocity on wall jump',
-    category: 'physics',
+    description: "Upward velocity on wall jump",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_bounce: {
@@ -281,8 +281,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.8,
     min: 0.3,
     max: 1.5,
-    description: 'Horizontal velocity preservation on wall jump',
-    category: 'physics',
+    description: "Horizontal velocity preservation on wall jump",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_reach: {
@@ -290,8 +290,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 20,
     min: 8,
     max: 48,
-    description: 'Wall detection distance for wall jump',
-    category: 'physics',
+    description: "Wall detection distance for wall jump",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_cooldown: {
@@ -299,8 +299,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0.1,
     max: 2.0,
-    description: 'Cooldown between wall jumps (seconds)',
-    category: 'physics',
+    description: "Cooldown between wall jumps (seconds)",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_minheight: {
@@ -308,8 +308,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 32,
     min: 8,
     max: 64,
-    description: 'Minimum height above ground for wall jump',
-    category: 'physics',
+    description: "Minimum height above ground for wall jump",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_chargetime: {
@@ -317,8 +317,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.2,
     min: 0,
     max: 0.5,
-    description: 'Wall jump charge/pause time (0 = instant bounce)',
-    category: 'physics',
+    description: "Wall jump charge/pause time (0 = instant bounce)",
+    category: "physics",
     developerOnly: true,
   },
   sv_walljump_boost: {
@@ -326,8 +326,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.2,
     min: 1.0,
     max: 2.0,
-    description: 'Velocity multiplier after charged wall jump',
-    category: 'physics',
+    description: "Velocity multiplier after charged wall jump",
+    category: "physics",
     developerOnly: true,
   },
 
@@ -337,8 +337,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 2.0,
     min: 0.1,
     max: 10.0,
-    description: 'Mouse sensitivity multiplier',
-    category: 'camera',
+    description: "Mouse sensitivity multiplier",
+    category: "camera",
     developerOnly: false,
   },
   cl_smoothstairs: {
@@ -346,8 +346,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable viewport smoothing for stairs',
-    category: 'camera',
+    description: "Enable viewport smoothing for stairs",
+    category: "camera",
     developerOnly: false,
   },
   cl_smoothfactor: {
@@ -355,8 +355,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.15,
     min: 0.01,
     max: 1.0,
-    description: 'Viewport smoothing interpolation factor',
-    category: 'camera',
+    description: "Viewport smoothing interpolation factor",
+    category: "camera",
     developerOnly: true,
   },
   cl_bobbing: {
@@ -364,8 +364,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Enable view bobbing while walking',
-    category: 'camera',
+    description: "Enable view bobbing while walking",
+    category: "camera",
     developerOnly: false,
   },
   cl_showspeed: {
@@ -373,8 +373,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Show player speed on screen',
-    category: 'camera',
+    description: "Show player speed on screen",
+    category: "camera",
     developerOnly: false,
   },
   cl_autorun: {
@@ -382,8 +382,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Invert run/walk - run by default, walk when holding shift',
-    category: 'movement',
+    description: "Invert run/walk - run by default, walk when holding shift",
+    category: "movement",
     developerOnly: false,
   },
 
@@ -393,8 +393,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Spectator/noclip mode (0=physics, 1=fly)',
-    category: 'movement',
+    description: "Spectator/noclip mode (0=physics, 1=fly)",
+    category: "movement",
     developerOnly: true,
   },
   cl_flyspeed: {
@@ -402,8 +402,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 400,
     min: 50,
     max: 5000,
-    description: 'Spectator fly speed (units/sec)',
-    category: 'movement',
+    description: "Spectator fly speed (units/sec)",
+    category: "movement",
     developerOnly: true,
   },
 
@@ -413,18 +413,18 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 2,
-    description: 'Weapon hand position (0=left, 1=right, 2=center)',
-    category: 'camera',
+    description: "Weapon hand position (0=left, 1=right, 2=center)",
+    category: "camera",
     developerOnly: false,
-    type: 'int',
+    type: "int",
   },
   cg_weaponfov: {
     value: 60,
     defaultValue: 60,
     min: 50,
     max: 120,
-    description: 'Weapon view model FOV',
-    category: 'camera',
+    description: "Weapon view model FOV",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob: {
@@ -432,18 +432,18 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable weapon bobbing while walking',
-    category: 'camera',
+    description: "Enable weapon bobbing while walking",
+    category: "camera",
     developerOnly: false,
-    type: 'int',
+    type: "int",
   },
   cl_gunbob_amplitude: {
     value: 1.5,
     defaultValue: 1.5,
     min: 0,
     max: 5,
-    description: 'Weapon bob amplitude (units)',
-    category: 'camera',
+    description: "Weapon bob amplitude (units)",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob_speed: {
@@ -451,8 +451,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0.5,
     max: 2.0,
-    description: 'Weapon bob speed multiplier',
-    category: 'camera',
+    description: "Weapon bob speed multiplier",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob_sprint_tilt: {
@@ -460,8 +460,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 10,
     min: 0,
     max: 100,
-    description: 'Weapon tilt upward when sprinting (degrees)',
-    category: 'camera',
+    description: "Weapon tilt upward when sprinting (degrees)",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob_sprint_inward: {
@@ -469,8 +469,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 30,
     min: 0,
     max: 100,
-    description: 'Weapon yaw toward chest when sprinting (degrees)',
-    category: 'camera',
+    description: "Weapon yaw toward chest when sprinting (degrees)",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob_jump: {
@@ -478,8 +478,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 2.0,
     min: 0,
     max: 10,
-    description: 'Weapon bob intensity when jumping (units)',
-    category: 'camera',
+    description: "Weapon bob intensity when jumping (units)",
+    category: "camera",
     developerOnly: false,
   },
   cl_gunbob_land: {
@@ -487,8 +487,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 3.0,
     min: 0,
     max: 10,
-    description: 'Weapon bob intensity when landing (units)',
-    category: 'camera',
+    description: "Weapon bob intensity when landing (units)",
+    category: "camera",
     developerOnly: false,
   },
 
@@ -498,8 +498,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.08,
     min: 0.05,
     max: 1.0,
-    description: 'Time to transition to ADS (seconds, visual only)',
-    category: 'camera',
+    description: "Time to transition to ADS (seconds, visual only)",
+    category: "camera",
     developerOnly: false,
   },
   cl_ads_offset_y: {
@@ -507,8 +507,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 2.0,
     min: -5.0,
     max: 10.0,
-    description: 'Weapon Y offset when ADS (upward)',
-    category: 'camera',
+    description: "Weapon Y offset when ADS (upward)",
+    category: "camera",
     developerOnly: false,
   },
   cl_ads_fov_reduction: {
@@ -516,8 +516,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 15,
     min: 0,
     max: 60,
-    description: 'FOV reduction when ADS (percentage, 15 = 15% zoom)',
-    category: 'camera',
+    description: "FOV reduction when ADS (percentage, 15 = 15% zoom)",
+    category: "camera",
     developerOnly: false,
   },
   cl_ads_sensitivity: {
@@ -525,8 +525,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.5,
     min: 0.1,
     max: 1.0,
-    description: 'Mouse sensitivity when ADS (0.5 = half normal sensitivity)',
-    category: 'camera',
+    description: "Mouse sensitivity when ADS (0.5 = half normal sensitivity)",
+    category: "camera",
     developerOnly: false,
   },
 
@@ -536,8 +536,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 50,
-    description: 'Override weapon hip X offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon hip X offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_hip_y: {
@@ -545,8 +545,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 50,
-    description: 'Override weapon hip Y offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon hip Y offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_hip_z: {
@@ -554,8 +554,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 80,
-    description: 'Override weapon hip Z offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon hip Z offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_ads_x: {
@@ -563,8 +563,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 50,
-    description: 'Override weapon ADS X offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon ADS X offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_ads_y: {
@@ -572,8 +572,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 50,
-    description: 'Override weapon ADS Y offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon ADS Y offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_ads_z: {
@@ -581,8 +581,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: -50,
     max: 80,
-    description: 'Override weapon ADS Z offset (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon ADS Z offset (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
   cl_wep_scale: {
@@ -590,8 +590,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 200,
-    description: 'Override weapon scale (0=use weapon def)',
-    category: 'debug',
+    description: "Override weapon scale (0=use weapon def)",
+    category: "debug",
     developerOnly: true,
   },
 
@@ -601,18 +601,18 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable crouchslide (0/1)',
-    category: 'movement',
+    description: "Enable crouchslide (0/1)",
+    category: "movement",
     developerOnly: false,
-    type: 'int',
+    type: "int",
   },
   sv_slideDuration: {
     value: 800,
     defaultValue: 800,
     min: 200,
     max: 3000,
-    description: 'Max slide duration (milliseconds)',
-    category: 'movement',
+    description: "Max slide duration (milliseconds)",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideSpeedMultiplier: {
@@ -620,8 +620,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.2,
     min: 1.0,
     max: 2.0,
-    description: 'Initial speed boost when entering slide',
-    category: 'movement',
+    description: "Initial speed boost when entering slide",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideDecay: {
@@ -629,8 +629,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.5,
     min: 0.1,
     max: 2.0,
-    description: 'Speed decay per second during slide',
-    category: 'movement',
+    description: "Speed decay per second during slide",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideJumpBoost: {
@@ -638,8 +638,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.3,
     min: 1.0,
     max: 2.0,
-    description: 'Velocity multiplier when jump-cancelling slide (hold jump)',
-    category: 'movement',
+    description: "Velocity multiplier when jump-cancelling slide (hold jump)",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideMinSpeed: {
@@ -647,8 +647,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 375,
     min: 100,
     max: 600,
-    description: 'Minimum speed required to initiate slide',
-    category: 'movement',
+    description: "Minimum speed required to initiate slide",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideFriction: {
@@ -656,8 +656,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0.1,
     min: 0,
     max: 1.0,
-    description: 'Ground friction during slide (lower = further)',
-    category: 'movement',
+    description: "Ground friction during slide (lower = further)",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideCooldown: {
@@ -665,8 +665,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1500,
     min: 0,
     max: 3000,
-    description: 'Cooldown before next slide (milliseconds)',
-    category: 'movement',
+    description: "Cooldown before next slide (milliseconds)",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideSlopeBoost: {
@@ -674,8 +674,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0,
     max: 3.0,
-    description: 'Slope acceleration multiplier (scales with gravity)',
-    category: 'movement',
+    description: "Slope acceleration multiplier (scales with gravity)",
+    category: "movement",
     developerOnly: true,
   },
   sv_slideCameraTilt: {
@@ -683,8 +683,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 5.0,
     min: 0,
     max: 15,
-    description: 'Camera roll angle during slide (degrees)',
-    category: 'camera',
+    description: "Camera roll angle during slide (degrees)",
+    category: "camera",
     developerOnly: false,
   },
 
@@ -694,10 +694,10 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Use network simulation for movement (0=local physics, 1=server-authoritative)',
-    category: 'movement',
+    description: "Use network simulation for movement (0=local physics, 1=server-authoritative)",
+    category: "movement",
     developerOnly: true,
-    type: 'int',
+    type: "int",
   },
 };
 
@@ -740,7 +740,7 @@ export class MovementVars {
       // Create onChange handler for this var
       const onChange = (newValue: number | boolean | string) => {
         const v = this.vars.get(name);
-        if (v && typeof newValue === 'number') {
+        if (v && typeof newValue === "number") {
           v.value = newValue;
           this.saveToStorage();
         }
@@ -749,7 +749,7 @@ export class MovementVars {
       // Register cvar with developer flag if needed
       // Always use 'float' type since all movement vars are numeric with potential decimal values
       Cvar.register(name, varConfig.value, {
-        type: 'float',
+        type: "float",
         min: varConfig.min,
         max: varConfig.max,
         description: varConfig.description,
@@ -797,8 +797,8 @@ export class MovementVars {
     return Array.from(this.vars.values());
   }
 
-  getByCategory(category: MovementVar['category']): MovementVar[] {
-    return this.getAllVars().filter(v => v.category === category);
+  getByCategory(category: MovementVar["category"]): MovementVar[] {
+    return this.getAllVars().filter((v) => v.category === category);
   }
 
   // ==================== Storage ====================
@@ -829,21 +829,21 @@ export class MovementVars {
   // ==================== Debug ====================
 
   getInfo(): string {
-    const lines = ['=== Movement Variables ==='];
+    const lines = ["=== Movement Variables ==="];
 
-    const categories = ['movement', 'physics', 'camera', 'debug'] as const;
+    const categories = ["movement", "physics", "camera", "debug"] as const;
     for (const cat of categories) {
       const catVars = this.getByCategory(cat);
       if (catVars.length === 0) continue;
 
       lines.push(`\n[${cat.toUpperCase()}]`);
       for (const v of catVars) {
-        const devFlag = v.developerOnly ? ' [DEV]' : '';
-        const modified = v.value !== v.defaultValue ? '*' : ' ';
+        const devFlag = v.developerOnly ? " [DEV]" : "";
+        const modified = v.value !== v.defaultValue ? "*" : " ";
         lines.push(`${modified} ${v.name}: ${v.value} (${v.min}-${v.max})${devFlag}`);
       }
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

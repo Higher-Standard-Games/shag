@@ -12,16 +12,16 @@
  *   npx vite-node src/cli/headless-bsp.ts build <bspfile>
  */
 
-import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
-import { Scene } from "@babylonjs/core/scene";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Scene } from "@babylonjs/core/scene";
 import * as fs from "fs";
 
 // Import BSP loader
-import { BspLoader, type BspFile } from "../engine/loader/bsp/BspLoader";
+import { type BspFile, BspLoader } from "../engine/loader/bsp/BspLoader";
 
 // ============================================================================
 // CLI Entry Point
@@ -103,7 +103,6 @@ async function main(): Promise<void> {
       default:
         printInfo(bsp);
     }
-
   } catch (error) {
     console.error("[HeadlessBSP] Error:", error);
     process.exit(1);
@@ -145,10 +144,18 @@ function printInfo(bsp: BspFile): void {
   const faceTypes = { polygon: 0, patch: 0, mesh: 0, billboard: 0 };
   for (const face of bsp.faces) {
     switch (face.faceType) {
-      case 1: faceTypes.polygon++; break;
-      case 2: faceTypes.patch++; break;
-      case 3: faceTypes.mesh++; break;
-      case 4: faceTypes.billboard++; break;
+      case 1:
+        faceTypes.polygon++;
+        break;
+      case 2:
+        faceTypes.patch++;
+        break;
+      case 3:
+        faceTypes.mesh++;
+        break;
+      case 4:
+        faceTypes.billboard++;
+        break;
     }
   }
   console.log("");
@@ -216,19 +223,20 @@ function analyzeClipBrushes(bsp: BspFile): void {
     if (!texture) continue;
 
     const contentFlags = texture.contentFlags;
-    const texName = texture.name?.toLowerCase() || '';
+    const texName = texture.name?.toLowerCase() || "";
 
     // Skip detail
     if (contentFlags & DETAIL) continue;
 
     const isPlayerClipByFlag = (contentFlags & PLAYERCLIP) !== 0;
     const isSolid = (contentFlags & SOLID) !== 0;
-    const isClipByName = texName.includes('clip') ||
-      texName.includes('fullclip') ||
-      texName.includes('playerclip') ||
-      texName.includes('common/clip') ||
-      texName.includes('system/clip') ||
-      texName === 'nodraw';
+    const isClipByName =
+      texName.includes("clip") ||
+      texName.includes("fullclip") ||
+      texName.includes("playerclip") ||
+      texName.includes("common/clip") ||
+      texName.includes("system/clip") ||
+      texName === "nodraw";
 
     if (isPlayerClipByFlag || isClipByName) {
       totalBrushes++;
@@ -272,8 +280,8 @@ function analyzeClipBrushes(bsp: BspFile): void {
     const texture = bsp.textures[brush.shaderIndex];
     if (!texture) continue;
 
-    const texName = texture.name?.toLowerCase() || '';
-    const isClip = texName.includes('clip');
+    const texName = texture.name?.toLowerCase() || "";
+    const isClip = texName.includes("clip");
     if (!isClip) continue;
 
     // Test bounds computation using plane intersection
@@ -310,7 +318,7 @@ function analyzeClipBrushes(bsp: BspFile): void {
 function intersect3Planes(
   p1: { nx: number; ny: number; nz: number; d: number },
   p2: { nx: number; ny: number; nz: number; d: number },
-  p3: { nx: number; ny: number; nz: number; d: number }
+  p3: { nx: number; ny: number; nz: number; d: number },
 ): [number, number, number] | null {
   const n2xn3_x = p2.ny * p3.nz - p2.nz * p3.ny;
   const n2xn3_y = p2.nz * p3.nx - p2.nx * p3.nz;
@@ -327,11 +335,14 @@ function intersect3Planes(
   return [
     (p1.d * n2xn3_x + p2.d * n3xn1_x + p3.d * n1xn2_x) * invD,
     (p1.d * n2xn3_y + p2.d * n3xn1_y + p3.d * n1xn2_y) * invD,
-    (p1.d * n2xn3_z + p2.d * n3xn1_z + p3.d * n1xn2_z) * invD
+    (p1.d * n2xn3_z + p2.d * n3xn1_z + p3.d * n1xn2_z) * invD,
   ];
 }
 
-function isInsidePlanes(pt: [number, number, number], planes: { nx: number; ny: number; nz: number; d: number }[]): boolean {
+function isInsidePlanes(
+  pt: [number, number, number],
+  planes: { nx: number; ny: number; nz: number; d: number }[],
+): boolean {
   for (const p of planes) {
     const dist = pt[0] * p.nx + pt[1] * p.ny + pt[2] * p.nz - p.d;
     if (Math.abs(dist) > 10000) return false; // Reject obviously invalid points
@@ -436,9 +447,8 @@ async function testCollision(bsp: BspFile): Promise<void> {
   await backend.init(bsp);
 
   // Find spawn points for test positions
-  const spawns = bsp.entities.filter(e =>
-    e.classname === 'info_player_deathmatch' ||
-    e.classname === 'info_player_start'
+  const spawns = bsp.entities.filter(
+    (e) => e.classname === "info_player_deathmatch" || e.classname === "info_player_start",
   );
 
   console.log(`Found ${spawns.length} spawn points\n`);
@@ -447,9 +457,12 @@ async function testCollision(bsp: BspFile): Promise<void> {
   console.log("=== Coordinate Analysis ===");
 
   // Get vertex bounds (Q3 coords as stored in BSP)
-  let vMinX = Infinity, vMaxX = -Infinity;
-  let vMinY = Infinity, vMaxY = -Infinity;
-  let vMinZ = Infinity, vMaxZ = -Infinity;
+  let vMinX = Infinity,
+    vMaxX = -Infinity;
+  let vMinY = Infinity,
+    vMaxY = -Infinity;
+  let vMinZ = Infinity,
+    vMaxZ = -Infinity;
   for (const v of bsp.vertices) {
     vMinX = Math.min(vMinX, v.position[0]);
     vMaxX = Math.max(vMaxX, v.position[0]);
@@ -479,7 +492,9 @@ async function testCollision(bsp: BspFile): Promise<void> {
     for (let si = 0; si < Math.min(3, brush.numSides); si++) {
       const side = bsp.brushSides[brush.firstSide + si];
       const plane = bsp.planes[side.planeIndex];
-      console.log(`    Plane: n=(${plane.normal[0].toFixed(2)}, ${plane.normal[1].toFixed(2)}, ${plane.normal[2].toFixed(2)}), d=${plane.dist.toFixed(1)}`);
+      console.log(
+        `    Plane: n=(${plane.normal[0].toFixed(2)}, ${plane.normal[1].toFixed(2)}, ${plane.normal[2].toFixed(2)}), d=${plane.dist.toFixed(1)}`,
+      );
     }
   }
 
@@ -488,7 +503,7 @@ async function testCollision(bsp: BspFile): Promise<void> {
   for (let i = 0; i < Math.min(3, spawns.length); i++) {
     const spawn = spawns[i];
     const originStr = spawn.properties.origin || "0 0 0";
-    const origin = originStr.split(' ').map(Number);
+    const origin = originStr.split(" ").map(Number);
 
     console.log(`\nSpawn ${i + 1}: Q3 origin = (${origin[0]}, ${origin[1]}, ${origin[2]})`);
 
@@ -501,7 +516,9 @@ async function testCollision(bsp: BspFile): Promise<void> {
     const downTrace = backend.trace(babylonPos, downEnd, { radius: 16, height: 56 });
     console.log(`  Trace DOWN: frac=${downTrace.fraction.toFixed(3)}, startSolid=${downTrace.startSolid}`);
     if (downTrace.fraction < 1.0 && downTrace.normal) {
-      console.log(`    Hit normal: (${downTrace.normal.x.toFixed(2)}, ${downTrace.normal.y.toFixed(2)}, ${downTrace.normal.z.toFixed(2)})`);
+      console.log(
+        `    Hit normal: (${downTrace.normal.x.toFixed(2)}, ${downTrace.normal.y.toFixed(2)}, ${downTrace.normal.z.toFixed(2)})`,
+      );
     }
 
     // Point trace for comparison

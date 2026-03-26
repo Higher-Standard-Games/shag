@@ -1,25 +1,25 @@
 /**
  * FPSController - First-person camera controller with gravity and physics
-  * 
+ *
  * Based on FPSController but with:
  * - Gravity(player falls when not on ground)
-  * - Ground detection via BSP collision
-    * - Jump with Space(when grounded)
-    * - Horizontal movement only(no fly up / down)
-      * 
+ * - Ground detection via BSP collision
+ * - Jump with Space(when grounded)
+ * - Horizontal movement only(no fly up / down)
+ *
  * Controls:
  * - Click canvas to capture mouse(pointer lock)
-  * - ESC to release mouse
-    * - WASD to move horizontally
-      * - Space to jump(when grounded)
-        * - Mouse movement: freelook
-          */
+ * - ESC to release mouse
+ * - WASD to move horizontally
+ * - Space to jump(when grounded)
+ * - Mouse movement: freelook
+ */
 
-import { Camera } from "@babylonjs/core/Cameras/camera";
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import type { Observer } from "@babylonjs/core/Misc/observable";
-import { Scene } from "@babylonjs/core/scene";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Scene } from "@babylonjs/core/scene";
 // import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 // import type { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
 // import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -28,53 +28,51 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 // import { Animation } from "@babylonjs/core/Animations/animation";
 // import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import "@babylonjs/loaders";
-import { ICameraController, CameraControllerConfig } from "./ICameraController";
 import { Cvar } from "../../core/Cvar";
+import { DeveloperBar } from "../../debug/DeveloperBar";
+import type { InventoryManager } from "../../game/InventoryManager";
 import { InputSystem } from "../../input/InputSystem";
 import { MovementVars } from "../../movement/MovementVars";
-import { DeveloperBar } from "../../debug/DeveloperBar";
-import { CameraInputHandler } from "../CameraInputHandler";
 import {
-  PLAYER_RADIUS,
-  PLAYER_HEIGHT,
   CROUCH_HEIGHT,
   DEFAULT_VIEWHEIGHT,
-
   feetToOrigin,
   originToFeet,
+  PLAYER_HEIGHT,
+  PLAYER_RADIUS,
 } from "../../physics/PlayerPhysicsConstants";
-
 // Viewport effects system imports
 import {
-  ViewportEffectsManager,
   FPSApplicator,
-  WalkBobEffect,
-  LandingImpactEffect,
-  StrafeLeanEffect,
-  SpeedFOVEffect,
   IdleBreathingEffect,
+  LandingImpactEffect,
   type PlayerState,
+  SpeedFOVEffect,
+  StrafeLeanEffect,
+  ViewportEffectsManager,
+  WalkBobEffect,
 } from "../../viewport";
+import { CameraInputHandler } from "../CameraInputHandler";
+import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
-import { InventoryManager } from "../../game/InventoryManager";
 // import { EntityManager } from "../../entities/EntityManager";
 // import { WeaponViewManager } from "../../weapon/WeaponViewManager";
 // import { WeaponDef } from "../../../shared/entities";
 
-import { PlayerVisuals } from "./components/PlayerVisuals";
-import { Game } from "../../../games/fps/Game";
 import { FPS, getWeaponSlotPressed, registerFPSActions } from "../../../games/fps/client/FPSActions";
+import { Game } from "../../../games/fps/Game";
 import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
 import { getCollisionManager } from "../../physics/CollisionManager";
 import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
+import { PlayerVisuals } from "./components/PlayerVisuals";
 
 export class FPSController implements ICameraController {
   public readonly type = "fps";
 
   private gameManager: Game | null = null;
   private useNetworkMovement: boolean = false;
-  private networkReady: boolean = false;  // True only after async init completes
-  private stateUnsubscribe: (() => void) | null = null;  // For cleanup
+  private networkReady: boolean = false; // True only after async init completes
+  private stateUnsubscribe: (() => void) | null = null; // For cleanup
 
   // Inventory reference (delegated from FPSPlayer)
   private _inventory: InventoryManager | null = null;
@@ -138,11 +136,7 @@ export class FPSController implements ICameraController {
    * @param feetPosition Position at feet level
    */
   public setPositionFromFeet(feetPosition: Vector3): void {
-    this.setPosition(new Vector3(
-      feetPosition.x,
-      feetToOrigin(feetPosition.y),
-      feetPosition.z
-    ));
+    this.setPosition(new Vector3(feetPosition.x, feetToOrigin(feetPosition.y), feetPosition.z));
   }
 
   /**
@@ -150,7 +144,7 @@ export class FPSController implements ICameraController {
    * @returns CROUCH_HEIGHT (36) when crouching/sliding, PLAYER_HEIGHT (56) otherwise
    */
   public getCurrentHeight(): number {
-    return (this.isCrouching || this.isSliding) ? CROUCH_HEIGHT : PLAYER_HEIGHT;
+    return this.isCrouching || this.isSliding ? CROUCH_HEIGHT : PLAYER_HEIGHT;
   }
 
   /**
@@ -185,7 +179,6 @@ export class FPSController implements ICameraController {
 
     console.log(`[FPS] Switching to network movement mode (server: ${this.gameManager.getServerUrl()})`);
     this.useNetworkMovement = true;
-
 
     // Subscribe to state updates from server
     this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
@@ -222,38 +215,33 @@ export class FPSController implements ICameraController {
   // Static default speed that persists between controller changes
   private static defaultSpeed: number = 200;
 
-
-
-
   // Q3 physics constants are now imported from PlayerPhysicsConstants
 
   // Q3-style physics state
-  private velocity: Vector3 = Vector3.Zero();  // Persistent velocity
+  private velocity: Vector3 = Vector3.Zero(); // Persistent velocity
   private isGrounded: boolean = false;
 
   // Wall jump state
-  private wallJumpState: 'none' | 'available' | 'charging' = 'none';
+  private wallJumpState: "none" | "available" | "charging" = "none";
 
   // Ledge grab state
-  private ledgeGrabState: 'none' | 'grabbing' | 'pulling' = 'none';
-
+  private ledgeGrabState: "none" | "grabbing" | "pulling" = "none";
 
   // Physics position at ORIGIN level (Q3 style: 24 units above feet)
   // MUST be kept separate from camera.position which includes viewheight offset
   // Viewport effects modify camera.position for visuals, but physics uses these values
   private physicsX: number = 0;
-  private physicsY: number = 0;  // This is ORIGIN height, not feet!
+  private physicsY: number = 0; // This is ORIGIN height, not feet!
   private physicsZ: number = 0;
   // Last frame position for actual speed calculation
 
-  private actualHorizSpeed: number = 0;  // Real speed based on position delta
+  private actualHorizSpeed: number = 0; // Real speed based on position delta
   // Smoothed Y for viewport only (never feeds back to physics)
   private smoothedY: number = 0;
-  private ledgeGrabSnapFrames: number = 0;  // Post-grab grace period for smoothedY snap
+  private ledgeGrabSnapFrames: number = 0; // Post-grab grace period for smoothedY snap
   private smoothingInitialized: boolean = false;
   // Jump state for auto-bunny hop
   private wasGroundedLastFrame: boolean = false;
-
 
   // Viewport effects system
   private viewportEffectsManager: ViewportEffectsManager | null = null;
@@ -265,29 +253,29 @@ export class FPSController implements ICameraController {
   private commandAccumulator: number = 0;
 
   // Mouse-controlled rotation (stored separately to avoid effect accumulation)
-  private mouseRotationX: number = 0;  // Pitch
-  private mouseRotationY: number = 0;  // Yaw
+  private mouseRotationX: number = 0; // Pitch
+  private mouseRotationY: number = 0; // Yaw
 
   // Crouchslide state
   public isSliding: boolean = false;
 
   // Crouch state (separate from slide)
   private isCrouching: boolean = false;
-  private crouchViewOffset: number = 0;  // Current crouch offset (0 = standing, -20 = crouched)
-  private slidePhase: number = 0;  // 0-1 intensity for slide camera tilt (from FPSMovementProfile)
-  private ledgeGrabPhase: number = 0;  // 0-1 intensity for ledge grab camera tilt (from FPSMovementProfile)
-  private slidePitchOffset: number = 0;  // Computed absolute pitch offset during slide
-  private ledgePitchOffset: number = 0;  // Computed absolute pitch offset during ledge grab
+  private crouchViewOffset: number = 0; // Current crouch offset (0 = standing, -20 = crouched)
+  private slidePhase: number = 0; // 0-1 intensity for slide camera tilt (from FPSMovementProfile)
+  private ledgeGrabPhase: number = 0; // 0-1 intensity for ledge grab camera tilt (from FPSMovementProfile)
+  private slidePitchOffset: number = 0; // Computed absolute pitch offset during slide
+  private ledgePitchOffset: number = 0; // Computed absolute pitch offset during ledge grab
 
   // Camera shake (from explosions, etc.)
   private shakeIntensity: number = 0;
   private shakePitchOffset: number = 0;
   private shakeYawOffset: number = 0;
-  private shakeDecayRate: number = 6;  // How fast shake decays (higher = faster)
+  private shakeDecayRate: number = 6; // How fast shake decays (higher = faster)
 
   // Death camera (Warsow-style: tilt sideways + drop to ground)
-  private deathCamPhase: number = 0;    // 0 = alive, 1 = fully dead effect
-  private deathCamRoll: number = 0;     // Current roll angle (radians)
+  private deathCamPhase: number = 0; // 0 = alive, 1 = fully dead effect
+  private deathCamRoll: number = 0; // Current roll angle (radians)
   private deathCamHeightDrop: number = 0; // Y offset to lower view toward feet
 
   // Player Visuals Component (Debug model, animations)
@@ -302,17 +290,17 @@ export class FPSController implements ICameraController {
 
   // Movement keys state
   private keys = {
-    forward: false,  // W
+    forward: false, // W
     backward: false, // S
-    left: false,     // A
-    right: false,    // D
-    up: false,       // Space (jump)
-    sprint: false,   // Shift (run)
-    crouch: false,   // Ctrl/C (crouch/slide)
-    fire: false,     // Mouse1 (fire)
-    aim: false,      // Mouse2 (ADS)
-    reload: false,   // R (reload)
-    use: false,      // F (interact/pickup)
+    left: false, // A
+    right: false, // D
+    up: false, // Space (jump)
+    sprint: false, // Shift (run)
+    crouch: false, // Ctrl/C (crouch/slide)
+    fire: false, // Mouse1 (fire)
+    aim: false, // Mouse2 (ADS)
+    reload: false, // R (reload)
+    use: false, // F (interact/pickup)
   };
 
   // ADS sensitivity lerp (matches ADS animation timing)
@@ -325,10 +313,6 @@ export class FPSController implements ICameraController {
     invertY: false,
     fov: 1.0, // Wider FOV for debugging
   };
-
-
-
-
 
   /**
    * Get the current default speed
@@ -343,8 +327,6 @@ export class FPSController implements ICameraController {
   static setDefaultSpeed(speed: number): void {
     FPSController.defaultSpeed = speed;
   }
-
-
 
   // ==================== Animation State Methods ====================
 
@@ -386,7 +368,7 @@ export class FPSController implements ICameraController {
     return {
       state: this.wallJumpState,
       normal: Vector3.Zero(), // Normal not available in current sync
-      phase: 0
+      phase: 0,
     };
   }
 
@@ -397,7 +379,7 @@ export class FPSController implements ICameraController {
    * Get ledge grab state for animation
    */
   getLedgeGrabState(): string {
-    return this.ledgeGrabState !== 'none' ? "active" : "none";
+    return this.ledgeGrabState !== "none" ? "active" : "none";
   }
 
   /**
@@ -406,7 +388,7 @@ export class FPSController implements ICameraController {
   getRotation(): { x: number; y: number } {
     return {
       x: this.mouseRotationX,
-      y: this.mouseRotationY
+      y: this.mouseRotationY,
     };
   }
 
@@ -440,10 +422,14 @@ export class FPSController implements ICameraController {
   private _isWeaponSwitchBlocked: (() => boolean) | null = null; // Dynamic check for animation state
 
   /** Set a callback that returns true when weapon switching should be blocked (e.g., during animation) */
-  public setWeaponSwitchBlockedCheck(check: (() => boolean) | null): void { this._isWeaponSwitchBlocked = check; }
+  public setWeaponSwitchBlockedCheck(check: (() => boolean) | null): void {
+    this._isWeaponSwitchBlocked = check;
+  }
 
   // Input state accessors
-  public isAiming(): boolean { return this.keys.aim; }
+  public isAiming(): boolean {
+    return this.keys.aim;
+  }
 
   // Shared input handler (pointer lock, mouse look, key prevention)
   private inputHandler = new CameraInputHandler();
@@ -496,49 +482,56 @@ export class FPSController implements ICameraController {
     this.camera.inputs.clear();
 
     // Set up shared input handlers (pointer lock, mouse look, key prevention)
-    this.inputHandler.setup(canvas, this.camera, this.config, 'FPSController', {
-      onUnlocked: () => {
-        this.keys.forward = false;
-        this.keys.backward = false;
-        this.keys.left = false;
-        this.keys.right = false;
-        this.keys.up = false;
-        this.keys.sprint = false;
-        this.keys.fire = false;
-        this.keys.aim = false;
+    this.inputHandler.setup(
+      canvas,
+      this.camera,
+      this.config,
+      "FPSController",
+      {
+        onUnlocked: () => {
+          this.keys.forward = false;
+          this.keys.backward = false;
+          this.keys.left = false;
+          this.keys.right = false;
+          this.keys.up = false;
+          this.keys.sprint = false;
+          this.keys.fire = false;
+          this.keys.aim = false;
+        },
       },
-    }, {
-      // ADS sensitivity reduction (lerped with ADS progress)
-      mouseLookModifier: (sensitivity: number) => {
-        const mv = MovementVars.getInstance();
-        const adsSensitivity = mv.get('cl_ads_sensitivity');
-        const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
-        return sensitivity * adsMultiplier;
+      {
+        // ADS sensitivity reduction (lerped with ADS progress)
+        mouseLookModifier: (sensitivity: number) => {
+          const mv = MovementVars.getInstance();
+          const adsSensitivity = mv.get("cl_ads_sensitivity");
+          const adsMultiplier = 1.0 - (1.0 - adsSensitivity) * this.adsSensitivityProgress;
+          return sensitivity * adsMultiplier;
+        },
+        // FPS stores rotation separately from camera for slide/ledge pitch offsets
+        rotationApplier: (rotX: number, rotY: number) => {
+          this.mouseRotationX = rotX;
+          this.mouseRotationY = rotY;
+          if (this.camera) {
+            this.camera.rotation.y = this.mouseRotationY;
+            this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
+          }
+        },
+        extraPreventDefaultKeys: ["Ctrl", "Tab", "F4"],
       },
-      // FPS stores rotation separately from camera for slide/ledge pitch offsets
-      rotationApplier: (rotX: number, rotY: number) => {
-        this.mouseRotationX = rotX;
-        this.mouseRotationY = rotY;
-        if (this.camera) {
-          this.camera.rotation.y = this.mouseRotationY;
-          this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset;
-        }
-      },
-      extraPreventDefaultKeys: ['Ctrl', 'Tab', 'F4'],
-    });
+    );
 
     // FPS-specific mouse button handlers (fire/aim)
     this.onMouseDown = (e: MouseEvent) => {
       if (!this.inputHandler.isPointerLocked) return;
-      if (e.button === 0) this.keys.fire = true;   // Left click = fire
-      if (e.button === 2) this.keys.aim = true;    // Right click = ADS
+      if (e.button === 0) this.keys.fire = true; // Left click = fire
+      if (e.button === 2) this.keys.aim = true; // Right click = ADS
     };
     this.onMouseUp = (e: MouseEvent) => {
       if (e.button === 0) this.keys.fire = false;
       if (e.button === 2) this.keys.aim = false;
     };
-    if (this.onMouseDown && canvas) canvas.addEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp && canvas) canvas.addEventListener('mouseup', this.onMouseUp);
+    if (this.onMouseDown && canvas) canvas.addEventListener("mousedown", this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.addEventListener("mouseup", this.onMouseUp);
 
     // Set up render observer for movement
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
@@ -559,7 +552,7 @@ export class FPSController implements ICameraController {
     this.viewportEffectsManager.registerEffect(new IdleBreathingEffect());
 
     this.viewportApplicator = new FPSApplicator();
-    console.log('[FPSController] Viewport effects initialized');
+    console.log("[FPSController] Viewport effects initialized");
 
     // Initialize player visuals
     this.playerVisuals = new PlayerVisuals(this, scene);
@@ -576,8 +569,8 @@ export class FPSController implements ICameraController {
     // Tear down shared input handler + FPS-specific mouse handlers
     this.inputHandler.teardown();
     const canvas = this.canvas;
-    if (this.onMouseDown && canvas) canvas.removeEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseUp && canvas) canvas.removeEventListener('mouseup', this.onMouseUp);
+    if (this.onMouseDown && canvas) canvas.removeEventListener("mousedown", this.onMouseDown);
+    if (this.onMouseUp && canvas) canvas.removeEventListener("mouseup", this.onMouseUp);
 
     // Clean up network state subscription
     if (this.stateUnsubscribe) {
@@ -643,8 +636,8 @@ export class FPSController implements ICameraController {
 
           if (input.wasPressed(FPS.WEAPON_NEXT)) {
             next = this.currentWeaponSlot + 1;
-            if (next >= weaponCount) next = 1;   // wrap to first non-gunblade
-            if (next === 0) next = 1;             // skip gunblade
+            if (next >= weaponCount) next = 1; // wrap to first non-gunblade
+            if (next === 0) next = 1; // skip gunblade
           } else if (input.wasPressed(FPS.WEAPON_PREV)) {
             next = this.currentWeaponSlot - 1;
             if (next <= 0) next = weaponCount - 1; // wrap to last slot, skip gunblade
@@ -688,7 +681,7 @@ export class FPSController implements ICameraController {
       if (this.keys.fire && !this.keys.aim && this.gameManager) {
         // Ensure weapons map is loaded (lazy init, same as crosshair section)
         if (!(this as any)._weaponsMap) {
-          import('../../../games/fps/server/weapons/WeaponDef').then(m => {
+          import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
             (this as any)._weaponsMap = m.WEAPONS;
           });
         }
@@ -705,10 +698,10 @@ export class FPSController implements ICameraController {
 
     const mv = MovementVars.getInstance();
 
-    const autorun = mv.get('cl_autorun') > 0;
+    const autorun = mv.get("cl_autorun") > 0;
 
     // ADS sensitivity lerp (matches ADS animation timing)
-    const adsTime = mv.get('cl_ads_time');
+    const adsTime = mv.get("cl_ads_time");
     const adsSpeed = 1.0 / Math.max(0.05, adsTime);
     const targetAdsSens = this.keys.aim ? 1.0 : 0.0;
     const adsSensLerp = Math.min(1.0, deltaTime * adsSpeed);
@@ -717,23 +710,21 @@ export class FPSController implements ICameraController {
     // cl_autorun inverts run/walk: run by default, walk when holding shift
     // ADS and CROUCH both force walk mode (cannot sprint while aiming or crouching)
     // Sprint only applies to pure forward movement (no strafe, no back)
-    const canRun = !this.keys.aim && !this.keys.crouch;  // No sprinting while ADS or crouching
+    const canRun = !this.keys.aim && !this.keys.crouch; // No sprinting while ADS or crouching
     const isRunning = canRun && (autorun ? !this.keys.sprint : this.keys.sprint);
     const forwardOnly = this.keys.forward && !this.keys.backward && !this.keys.left && !this.keys.right;
-    let wishspeed = (isRunning && forwardOnly) ? mv.get('sv_runSpeed') : mv.get('sv_movementSpeed');
+    let wishspeed = isRunning && forwardOnly ? mv.get("sv_runSpeed") : mv.get("sv_movementSpeed");
 
     // Apply crouch walk speed (reduced when crouching but not sliding)
     if (this.keys.crouch && !this.isSliding) {
       const horizSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-      const slideMinSpeed = mv.get('sv_slideMinSpeed');
+      const slideMinSpeed = mv.get("sv_slideMinSpeed");
 
       // Simple logic: if moving slow, reduce speed
       if (horizSpeed < slideMinSpeed) {
-        wishspeed *= mv.get('cl_crouchmult'); // 0.5x by default
+        wishspeed *= mv.get("cl_crouchmult"); // 0.5x by default
       }
     }
-
-
 
     // Initialize physics position on first frame
     // NOTE: Spawn system should call setPositionFromFeet() or setPosition() before first frame
@@ -759,7 +750,9 @@ export class FPSController implements ICameraController {
         this.physicsY = serverPos.y;
         this.physicsZ = serverPos.z;
         this.smoothedY = this.physicsY;
-        console.log(`[FPS] Using server position for init: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)})`);
+        console.log(
+          `[FPS] Using server position for init: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)})`,
+        );
       } else {
         // Local mode: assume camera was placed at eye level by spawn system
         // Convert to origin level by subtracting viewheight
@@ -777,7 +770,9 @@ export class FPSController implements ICameraController {
         // === SERVER CONNECTION MODE ===
         // Game was already initialized by 'connect' command
         // Just subscribe to state updates - don't spawn or init locally
-        console.log(`[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`);
+        console.log(
+          `[FPS] Connected to server ${this.gameManager.getServerUrl()} - using server-authoritative movement`,
+        );
         this.useNetworkMovement = true;
 
         // Track whether we've logged the first server position
@@ -787,7 +782,9 @@ export class FPSController implements ICameraController {
         this.stateUnsubscribe = this.gameManager.onPlayerStateUpdate((state) => {
           // Log first server position (this is where we actually spawn)
           if (!loggedFirstServerPosition) {
-            console.log(`[FPS] Server spawn position: (${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)})`);
+            console.log(
+              `[FPS] Server spawn position: (${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)})`,
+            );
             loggedFirstServerPosition = true;
           }
 
@@ -816,85 +813,88 @@ export class FPSController implements ICameraController {
 
         this.networkReady = true;
         console.log(`[FPS] Server movement ready - inputs will be sent to server`);
-
       } else if (isConnected && this.networkReady) {
         // Network mode already enabled by enableNetworkMode() - skip initialization
         console.log(`[FPS] Network mode already enabled, skipping initialization`);
-
       } else {
         // === LOCAL SIMULATION MODE ===
         // Using local FPSMovementProfile simulation (same physics as server)
         console.log(`[FPS] Initializing local simulation via Game`);
         this.useNetworkMovement = true;
 
-        this.gameManager.initializeLocal({ tickRate: 60 }).then(async () => {
-          // Set up BSP collision if available
-          const cm = getCollisionManager();
-          if (cm.isInitialized()) {
-            const collisionWorld = createBSPCollisionWorld();
-            this.gameManager!.setCollisionWorld(collisionWorld);
-            console.log(`[FPS] BSP collision injected into simulation`);
-          }
+        this.gameManager
+          .initializeLocal({ tickRate: 60 })
+          .then(async () => {
+            // Set up BSP collision if available
+            const cm = getCollisionManager();
+            if (cm.isInitialized()) {
+              const collisionWorld = createBSPCollisionWorld();
+              this.gameManager!.setCollisionWorld(collisionWorld);
+              console.log(`[FPS] BSP collision injected into simulation`);
+            }
 
-          // Extract spawn points from loaded BSP
-          try {
-            const { MapLoader } = await import("../../loader/map/MapLoader");
-            const bsp = MapLoader.getInstance().getCurrentBsp();
-            if (bsp && bsp.entities) {
-              const spawns = extractSpawnPoints(bsp.entities);
-              if (spawns.length > 0) {
-                this.gameManager!.setSpawnPoints(spawns.map(s => s.position));
-                console.log(`[FPS] Extracted ${spawns.length} spawn points from BSP`);
+            // Extract spawn points from loaded BSP
+            try {
+              const { MapLoader } = await import("../../loader/map/MapLoader");
+              const bsp = MapLoader.getInstance().getCurrentBsp();
+              if (bsp && bsp.entities) {
+                const spawns = extractSpawnPoints(bsp.entities);
+                if (spawns.length > 0) {
+                  this.gameManager!.setSpawnPoints(spawns.map((s) => s.position));
+                  console.log(`[FPS] Extracted ${spawns.length} spawn points from BSP`);
+                }
               }
+            } catch (e) {
+              console.warn(`[FPS] Could not extract spawn points:`, e);
             }
-          } catch (e) {
-            console.warn(`[FPS] Could not extract spawn points:`, e);
-          }
 
-          // Spawn player at current position
-          this.gameManager!.spawnLocalPlayer({
-            x: this.physicsX,
-            y: this.physicsY,
-            z: this.physicsZ
+            // Spawn player at current position
+            this.gameManager!.spawnLocalPlayer({
+              x: this.physicsX,
+              y: this.physicsY,
+              z: this.physicsZ,
+            });
+
+            // Subscribe to state updates for visual effects
+            this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
+              // Track previous grounded state for landing detection
+              this.wasGroundedLastFrame = this.isGrounded;
+
+              // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
+              // reads V2Client's predicted state directly. Setting position here
+              // causes jitter (one-frame snaps between reconciled and predicted state).
+              this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+
+              // Update movement state for visual effects
+              this.isGrounded = state.grounded;
+              this.isSliding = state.isSliding;
+              this.isCrouching = state.isCrouching;
+              this.crouchViewOffset = state.crouchViewOffset;
+              this.wallJumpState = state.wallJumpState;
+              this.ledgeGrabState = state.ledgeGrabState;
+              this.actualHorizSpeed = state.actualHorizSpeed;
+              this.slidePhase = state.slidePhase;
+              this.ledgeGrabPhase = state.ledgeGrabPhase;
+
+              // Capture landing velocity for impact effect
+              if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
+                this.landingVelocityCapture = Math.abs(state.velocity.y);
+              }
+            });
+
+            this.networkReady = true;
+            console.log(`[FPS] Local network simulation initialized - player spawned`);
+          })
+          .catch((err: Error) => {
+            console.error(`[FPS] Failed to initialize network movement:`, err);
+            this.useNetworkMovement = false;
+            this.networkReady = false;
           });
-
-          // Subscribe to state updates for visual effects
-          this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
-            // Track previous grounded state for landing detection
-            this.wasGroundedLastFrame = this.isGrounded;
-
-            // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
-            // reads V2Client's predicted state directly. Setting position here
-            // causes jitter (one-frame snaps between reconciled and predicted state).
-            this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
-
-            // Update movement state for visual effects
-            this.isGrounded = state.grounded;
-            this.isSliding = state.isSliding;
-            this.isCrouching = state.isCrouching;
-            this.crouchViewOffset = state.crouchViewOffset;
-            this.wallJumpState = state.wallJumpState;
-            this.ledgeGrabState = state.ledgeGrabState;
-            this.actualHorizSpeed = state.actualHorizSpeed;
-            this.slidePhase = state.slidePhase;
-            this.ledgeGrabPhase = state.ledgeGrabPhase;
-
-            // Capture landing velocity for impact effect
-            if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
-              this.landingVelocityCapture = Math.abs(state.velocity.y);
-            }
-          });
-
-          this.networkReady = true;
-          console.log(`[FPS] Local network simulation initialized - player spawned`);
-        }).catch((err: Error) => {
-          console.error(`[FPS] Failed to initialize network movement:`, err);
-          this.useNetworkMovement = false;
-          this.networkReady = false;
-        });
       }
 
-      console.log(`[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`);
+      console.log(
+        `[FPS] Initialized at origin: (${this.physicsX.toFixed(1)}, ${this.physicsY.toFixed(1)}, ${this.physicsZ.toFixed(1)}), feet at Y=${originToFeet(this.physicsY).toFixed(1)}`,
+      );
     }
 
     // Restore physics position (ORIGIN level) at start of frame
@@ -912,7 +912,7 @@ export class FPSController implements ICameraController {
     if (flatRight.length() > 0.001) flatRight.normalize();
 
     // Build wishdir from input
-    let wishdir = Vector3.Zero();
+    const wishdir = Vector3.Zero();
     if (this.keys.forward) wishdir.addInPlace(flatForward);
     if (this.keys.backward) wishdir.subtractInPlace(flatForward);
     if (this.keys.left) wishdir.subtractInPlace(flatRight);
@@ -969,12 +969,17 @@ export class FPSController implements ICameraController {
         this.commandAccumulator -= TICK_DURATION;
 
         // === DIAGNOSTIC: Measure actual tick rate ===
-        if (!(this as any)._diagTickCount) { (this as any)._diagTickCount = 0; (this as any)._diagTickStart = performance.now(); }
+        if (!(this as any)._diagTickCount) {
+          (this as any)._diagTickCount = 0;
+          (this as any)._diagTickStart = performance.now();
+        }
         (this as any)._diagTickCount++;
         const elapsed = (performance.now() - (this as any)._diagTickStart) / 1000;
         if (elapsed >= 2.0) {
           const actualRate = (this as any)._diagTickCount / elapsed;
-          console.log(`[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`);
+          console.log(
+            `[FPS] Client tick rate: ${actualRate.toFixed(1)} Hz (expected ${TICK_RATE}), ticks=${(this as any)._diagTickCount} in ${elapsed.toFixed(2)}s`,
+          );
           (this as any)._diagTickCount = 0;
           (this as any)._diagTickStart = performance.now();
         }
@@ -994,13 +999,13 @@ export class FPSController implements ICameraController {
         // behind physics, making collision appear shifted (camera 40-80u above
         // actual physics position). Then when lag exceeded stepHeight*2 it snapped,
         // creating the jerky warping pattern during falls.
-        const stepHeight = mv.get('sv_stepheight');
-        const smoothFactor = mv.get('cl_smoothfactor');
+        const stepHeight = mv.get("sv_stepheight");
+        const smoothFactor = mv.get("cl_smoothfactor");
         const yDelta = pos.y - this.smoothedY; // positive = going up, negative = going down
 
         // Track post-grab grace period: keep snapping smoothedY for a few frames
         // after grab ends so the post-grab boost (vel.y=50) doesn't cause a lerp warp
-        const inGrab = this.ledgeGrabState && this.ledgeGrabState !== 'none';
+        const inGrab = this.ledgeGrabState && this.ledgeGrabState !== "none";
         if (inGrab) {
           this.ledgeGrabSnapFrames = 15; // ~250ms at 60fps
         } else if (this.ledgeGrabSnapFrames > 0) {
@@ -1010,7 +1015,8 @@ export class FPSController implements ICameraController {
         // Determine if we should smooth or snap
         const shouldSnap =
           Math.abs(yDelta) > stepHeight * 2 || // Large height change / teleport
-          inGrab || this.ledgeGrabSnapFrames > 0 || // Ledge grab (+grace)
+          inGrab ||
+          this.ledgeGrabSnapFrames > 0 || // Ledge grab (+grace)
           yDelta < -0.5; // Falling — camera must track physics exactly
 
         // Only lerp for small UPWARD movement (actual stair climbing)
@@ -1057,7 +1063,7 @@ export class FPSController implements ICameraController {
       }
 
       // Update UI
-      const showSpeed = mv.get('cl_showspeed') > 0;
+      const showSpeed = mv.get("cl_showspeed") > 0;
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
       // Update developer bar (if visible)
@@ -1065,12 +1071,11 @@ export class FPSController implements ICameraController {
       if (devBar.isVisible()) {
         const engine = this.camera.getScene().getEngine();
         const ping = this.gameManager?.getPing() ?? -1;
-        devBar.setStats(
-          engine.getFps(),
-          ping,
-          this.actualHorizSpeed,
-          { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
-        );
+        devBar.setStats(engine.getFps(), ping, this.actualHorizSpeed, {
+          x: this.camera.position.x,
+          y: this.camera.position.y,
+          z: this.camera.position.z,
+        });
       }
 
       // === NETWORK CAMERA EFFECTS ===
@@ -1082,7 +1087,6 @@ export class FPSController implements ICameraController {
       const lerpSpeed = 8; // decay speed (higher = faster return to normal)
       this.ledgePitchOffset += (targetLedgePitch - this.ledgePitchOffset) * Math.min(1, deltaTime * lerpSpeed);
       // (debug log removed — was firing every frame during crouchslide, causing 60fps drop)
-
     }
 
     // === PICKUP CHECK ===
@@ -1096,9 +1100,10 @@ export class FPSController implements ICameraController {
     // === VIEWPORT EFFECTS ===
     if (this.viewportEffectsManager && this.viewportApplicator) {
       // Reset camera rotation to mouse-controlled values + slide/ledge offsets
-      this.camera.rotation.x = this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset + this.shakePitchOffset;
+      this.camera.rotation.x =
+        this.mouseRotationX + this.slidePitchOffset + this.ledgePitchOffset + this.shakePitchOffset;
       this.camera.rotation.y = this.mouseRotationY + this.shakeYawOffset;
-      this.camera.rotation.z = 0;  // Roll is never user-controlled in FPS
+      this.camera.rotation.z = 0; // Roll is never user-controlled in FPS
 
       // === DEATH CAMERA ===
       // Warsow-style: smoothly tilt camera sideways and drop view to ground when dead
@@ -1130,7 +1135,7 @@ export class FPSController implements ICameraController {
       // Update camera shake (decaying random offsets)
       if (this.shakeIntensity > 0.001) {
         // Generate new random offsets each frame, scaled by intensity
-        const maxAngle = 0.10;  // ~5.7 degrees max shake at full intensity
+        const maxAngle = 0.1; // ~5.7 degrees max shake at full intensity
         this.shakePitchOffset = (Math.random() * 2 - 1) * maxAngle * this.shakeIntensity;
         this.shakeYawOffset = (Math.random() * 2 - 1) * maxAngle * this.shakeIntensity;
 
@@ -1170,13 +1175,13 @@ export class FPSController implements ICameraController {
     if (this.gameManager) {
       // Lazy init crosshair on first frame (avoids import at module load)
       if (!(this as any)._crosshairReady) {
-        import('../../../games/fps/client/Crosshair').then(m => {
+        import("../../../games/fps/client/Crosshair").then((m) => {
           const ch = m.Crosshair.getInstance();
           ch.init();
           (this as any)._crosshairReady = true;
           (this as any)._crosshair = ch;
         });
-        (this as any)._crosshairReady = 'pending';
+        (this as any)._crosshairReady = "pending";
       }
 
       const ch = (this as any)._crosshair;
@@ -1185,7 +1190,7 @@ export class FPSController implements ICameraController {
         const weaponId = this.gameManager.getCurrentWeaponId();
         if (!(this as any)._weaponsMap) {
           // Lazy load WEAPONS map (fire-and-forget)
-          import('../../../games/fps/server/weapons/WeaponDef').then(m => {
+          import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
             (this as any)._weaponsMap = m.WEAPONS;
           });
         }
@@ -1214,9 +1219,10 @@ export class FPSController implements ICameraController {
       (this as any)._gibSystem.update(deltaTime);
     } else if (this.gameManager) {
       // Try to get singleton if a death event has already initialized it
-      import('../../../games/fps/client/GibSystem').then(m => {
+      import("../../../games/fps/client/GibSystem").then((m) => {
         const gs = m.GibSystem.getInstance();
-        if (gs['scene']) { // Only cache reference if already initialized
+        if (gs["scene"]) {
+          // Only cache reference if already initialized
           (this as any)._gibSystem = gs;
         }
       });
@@ -1227,9 +1233,9 @@ export class FPSController implements ICameraController {
     if ((this as any)._damageNumbers) {
       (this as any)._damageNumbers.update(deltaTime);
     } else if (this.gameManager) {
-      import('../../../games/fps/client/DamageNumbers').then(m => {
+      import("../../../games/fps/client/DamageNumbers").then((m) => {
         const dn = m.DamageNumbers.getInstance();
-        if (dn['scene']) {
+        if (dn["scene"]) {
           (this as any)._damageNumbers = dn;
         }
       });
@@ -1263,29 +1269,29 @@ export class FPSController implements ICameraController {
 
       if (!FPSController.speedDisplayEl) {
         // Only create when HUD container is ready — don't fall back to body
-        const bottomCenter = document.querySelector('.fps-hud-bottom-center');
+        const bottomCenter = document.querySelector(".fps-hud-bottom-center");
         if (!bottomCenter) return; // HUD not ready yet, try again next frame
 
         // Create speed display widget
-        const el = document.createElement('div');
-        el.id = 'fps-speed-display';
-        el.className = 'fps-speedometer manga-panel';
+        const el = document.createElement("div");
+        el.id = "fps-speed-display";
+        el.className = "fps-speedometer manga-panel";
 
         // Corner brackets
-        const corners = document.createElement('div');
-        corners.className = 'manga-panel-corners';
+        const corners = document.createElement("div");
+        corners.className = "manga-panel-corners";
         el.appendChild(corners);
 
         // Number
-        const num = document.createElement('span');
-        num.className = 'fps-speedometer-number';
-        num.textContent = '0';
+        const num = document.createElement("span");
+        num.className = "fps-speedometer-number";
+        num.textContent = "0";
         el.appendChild(num);
 
         // Label
-        const label = document.createElement('span');
-        label.className = 'fps-speedometer-label';
-        label.textContent = 'u/s';
+        const label = document.createElement("span");
+        label.className = "fps-speedometer-label";
+        label.textContent = "u/s";
         el.appendChild(label);
 
         bottomCenter.appendChild(el);
@@ -1293,13 +1299,11 @@ export class FPSController implements ICameraController {
         FPSController.speedNumberEl = num;
       }
       FPSController.speedNumberEl!.textContent = String(Math.round(speed));
-      FPSController.speedDisplayEl.style.display = '';
+      FPSController.speedDisplayEl.style.display = "";
     } else if (FPSController.speedDisplayEl) {
-      FPSController.speedDisplayEl.style.display = 'none';
+      FPSController.speedDisplayEl.style.display = "none";
     }
   }
-
-
 
   configure(config: Partial<CameraControllerConfig>): void {
     this.config = { ...this.config, ...config };
@@ -1348,63 +1352,63 @@ export class FPSController implements ICameraController {
 }
 
 // Register freefly camera cvars at module load (after class definition)
-Cvar.register('cam_freefly_speed', FPSController.getDefaultSpeed(), {
-  type: 'float',
+Cvar.register("cam_freefly_speed", FPSController.getDefaultSpeed(), {
+  type: "float",
   min: 10,
   max: 10000,
-  description: 'Freefly camera movement speed',
+  description: "Freefly camera movement speed",
   onChange: (value) => {
     FPSController.setDefaultSpeed(value as number);
   },
 });
 
 // Debug bbox visualization cvar
-Cvar.register('cl_debugbbox', 0, {
-  type: 'int',
+Cvar.register("cl_debugbbox", 0, {
+  type: "int",
   min: 0,
   max: 1,
-  description: 'Show player bounding box ahead (developer)',
+  description: "Show player bounding box ahead (developer)",
 });
 
-Cvar.register('cl_debugbbox_offset', 100, {
-  type: 'float',
+Cvar.register("cl_debugbbox_offset", 100, {
+  type: "float",
   min: 0,
   max: 500,
-  description: 'Distance to show debug bbox ahead of player (units)',
+  description: "Distance to show debug bbox ahead of player (units)",
 });
 
 // Debug player model visualization cvars
-Cvar.register('cl_debugplayer', 0, {
-  type: 'int',
+Cvar.register("cl_debugplayer", 0, {
+  type: "int",
   min: 0,
   max: 1,
-  description: 'Show player model ahead with animations (developer)',
+  description: "Show player model ahead with animations (developer)",
 });
 
-Cvar.register('cl_debugplayer_offset', 100, {
-  type: 'float',
+Cvar.register("cl_debugplayer_offset", 100, {
+  type: "float",
   min: 0,
   max: 500,
-  description: 'Distance to show debug player model ahead (units)',
+  description: "Distance to show debug player model ahead (units)",
 });
 
-Cvar.register('cl_debugplayer_scale', 36, {
-  type: 'float',
+Cvar.register("cl_debugplayer_scale", 36, {
+  type: "float",
   min: 1,
   max: 200,
-  description: 'Scale of debug player model (Mixamo to BSP units)',
+  description: "Scale of debug player model (Mixamo to BSP units)",
 });
 
-Cvar.register('cl_debugplayer_walk_speed', 50, {
-  type: 'float',
+Cvar.register("cl_debugplayer_walk_speed", 50, {
+  type: "float",
   min: 10,
   max: 1000,
-  description: 'Natural speed for walk animation (units/sec). Increase if feet slide, decrease if they skip.',
+  description: "Natural speed for walk animation (units/sec). Increase if feet slide, decrease if they skip.",
 });
 
-Cvar.register('cl_debugplayer_run_speed', 400, {
-  type: 'float',
+Cvar.register("cl_debugplayer_run_speed", 400, {
+  type: "float",
   min: 10,
   max: 1000,
-  description: 'Natural speed for run animation (units/sec). Increase if feet slide, decrease if they skip.',
+  description: "Natural speed for run animation (units/sec). Increase if feet slide, decrease if they skip.",
 });

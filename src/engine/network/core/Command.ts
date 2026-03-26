@@ -1,5 +1,5 @@
-import { StateEncoder, StateDecoder } from './Component';
-import type { PlayerId } from './Entity';
+import { StateDecoder, StateEncoder } from "./Component";
+import type { PlayerId } from "./Entity";
 
 /**
  * Base command interface for all player input
@@ -25,7 +25,7 @@ export interface Command {
  * Movement command for player input
  */
 export class MoveCommand implements Command {
-  readonly type = 'move';
+  readonly type = "move";
   readonly playerId: PlayerId;
   readonly tick: number;
   readonly seq: number;
@@ -47,7 +47,7 @@ export class MoveCommand implements Command {
     direction: { x: number; y: number; z: number },
     pitch: number,
     yaw: number,
-    buttons: number
+    buttons: number,
   ) {
     this.playerId = playerId;
     this.tick = tick;
@@ -87,7 +87,7 @@ export class MoveCommand implements Command {
       },
       decoder.readFloat32(),
       decoder.readFloat32(),
-      decoder.readUint16()
+      decoder.readUint16(),
     );
   }
 }
@@ -95,7 +95,4 @@ export class MoveCommand implements Command {
 /**
  * Command handler function type
  */
-export type CommandHandler<T extends Command = Command> = (
-  state: any,
-  command: T
-) => void;
+export type CommandHandler<T extends Command = Command> = (state: any, command: T) => void;

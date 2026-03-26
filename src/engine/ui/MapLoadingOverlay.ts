@@ -25,20 +25,20 @@
  *   MapLoadingOverlay.disable();
  */
 
-import { EventBus } from '../core/EventBus';
+import { EngineVersion } from "../core/EngineVersion";
+import { EventBus } from "../core/EventBus";
 import {
   LOADING_EVENTS,
-  type LoadingStartEvent,
-  type LoadingProgressEvent,
   type LoadingCompleteEvent,
-} from '../core/LoadingEvents';
-import { EngineVersion } from '../core/EngineVersion';
-import { UIStyles } from './UIStyles';
-import { LoadingAnimation } from './LoadingAnimation';
-import { SHAG_PALETTE, type PaletteColor } from './LoadingPalettes';
+  type LoadingProgressEvent,
+  type LoadingStartEvent,
+} from "../core/LoadingEvents";
+import { LoadingAnimation } from "./LoadingAnimation";
+import { type PaletteColor, SHAG_PALETTE } from "./LoadingPalettes";
+import { UIStyles } from "./UIStyles";
 
 /** Overlay states */
-type OverlayState = 'idle' | 'showing' | 'loading' | 'completing' | 'fading';
+type OverlayState = "idle" | "showing" | "loading" | "completing" | "fading";
 
 /** Configuration options */
 export interface MapLoadingOverlayConfig {
@@ -77,14 +77,14 @@ const DEFAULT_CONFIG: MapLoadingOverlayConfig = {
   showBranding: true,
   animationEnabled: true,
   animationColors: null,
-  loadingTypes: ['map'],
+  loadingTypes: ["map"],
 };
 
 export class MapLoadingOverlay {
   private static instance: MapLoadingOverlay;
 
   // State
-  private state: OverlayState = 'idle';
+  private state: OverlayState = "idle";
   private showTime: number = 0;
   private config: MapLoadingOverlayConfig = { ...DEFAULT_CONFIG };
   private enabled: boolean = false;
@@ -132,8 +132,8 @@ export class MapLoadingOverlay {
     if (instance.enabled) return;
 
     // No-op in headless mode
-    if (typeof document === 'undefined') {
-      console.log('[MapLoadingOverlay] Headless mode - disabled');
+    if (typeof document === "undefined") {
+      console.log("[MapLoadingOverlay] Headless mode - disabled");
       return;
     }
 
@@ -145,7 +145,7 @@ export class MapLoadingOverlay {
         if (instance.config.loadingTypes.includes(event.type)) {
           instance.onLoadingStart(event);
         }
-      })
+      }),
     );
 
     instance.unsubscribers.push(
@@ -153,7 +153,7 @@ export class MapLoadingOverlay {
         if (instance.config.loadingTypes.includes(event.type)) {
           instance.onLoadingProgress(event);
         }
-      })
+      }),
     );
 
     instance.unsubscribers.push(
@@ -161,10 +161,10 @@ export class MapLoadingOverlay {
         if (instance.config.loadingTypes.includes(event.type)) {
           instance.onLoadingComplete(event);
         }
-      })
+      }),
     );
 
-    console.log('[MapLoadingOverlay] Enabled');
+    console.log("[MapLoadingOverlay] Enabled");
   }
 
   /**
@@ -183,11 +183,11 @@ export class MapLoadingOverlay {
     instance.unsubscribers = [];
 
     // Hide if currently showing
-    if (instance.state !== 'idle') {
+    if (instance.state !== "idle") {
       instance.hide();
     }
 
-    console.log('[MapLoadingOverlay] Disabled');
+    console.log("[MapLoadingOverlay] Disabled");
   }
 
   /**
@@ -201,7 +201,7 @@ export class MapLoadingOverlay {
 
   private onLoadingStart(event: LoadingStartEvent): void {
     // If already showing (rapid map switches), reset instead of re-creating
-    if (this.state !== 'idle') {
+    if (this.state !== "idle") {
       this.messages = [];
       this.showTime = Date.now();
       this.addMessage(`loading ${event.meta?.displayName || event.id}...`);
@@ -212,25 +212,23 @@ export class MapLoadingOverlay {
   }
 
   private onLoadingProgress(event: LoadingProgressEvent): void {
-    if (this.state === 'idle' || this.state === 'fading') return;
+    if (this.state === "idle" || this.state === "fading") return;
 
-    const message = event.detail
-      ? `${event.phase}: ${event.detail}`
-      : event.phase;
+    const message = event.detail ? `${event.phase}: ${event.detail}` : event.phase;
     this.addMessage(message.toLowerCase());
   }
 
   private onLoadingComplete(event: LoadingCompleteEvent): void {
-    if (this.state === 'idle' || this.state === 'fading') return;
+    if (this.state === "idle" || this.state === "fading") return;
 
     // Add completion message
     if (event.success) {
       this.addMessage(`complete (${event.duration}ms)`);
     } else {
-      this.addMessage(`error: ${event.error || 'unknown error'}`);
+      this.addMessage(`error: ${event.error || "unknown error"}`);
     }
 
-    this.state = 'completing';
+    this.state = "completing";
 
     // Calculate delay before fade
     const elapsed = Date.now() - this.showTime;
@@ -252,13 +250,13 @@ export class MapLoadingOverlay {
   // ==================== UI Methods ====================
 
   private show(mapName: string): void {
-    this.state = 'showing';
+    this.state = "showing";
     this.showTime = Date.now();
     this.messages = [];
 
     // Create container
-    this.container = document.createElement('div');
-    this.container.className = 'ui-map-loading-overlay';
+    this.container = document.createElement("div");
+    this.container.className = "ui-map-loading-overlay";
 
     // Smoke animation
     if (this.config.animationEnabled) {
@@ -271,24 +269,24 @@ export class MapLoadingOverlay {
 
     // Logo
     if (this.config.showLogo) {
-      const logo = document.createElement('img');
-      logo.src = this.config.logoUrl ?? 'engine.png';
-      logo.alt = 'Loading';
-      logo.className = 'ui-map-loading-overlay__logo';
+      const logo = document.createElement("img");
+      logo.src = this.config.logoUrl ?? "engine.png";
+      logo.alt = "Loading";
+      logo.className = "ui-map-loading-overlay__logo";
       this.container.appendChild(logo);
     }
 
     // Message area
     if (this.config.showMessages) {
-      this.messageArea = document.createElement('div');
-      this.messageArea.className = 'ui-map-loading-overlay__messages';
+      this.messageArea = document.createElement("div");
+      this.messageArea.className = "ui-map-loading-overlay__messages";
       this.container.appendChild(this.messageArea);
     }
 
     // Branding
     if (this.config.showBranding) {
-      const branding = document.createElement('div');
-      branding.className = 'ui-map-loading-overlay__branding';
+      const branding = document.createElement("div");
+      branding.className = "ui-map-loading-overlay__branding";
       branding.innerHTML = `
         <div class="ui-map-loading-overlay__branding-name">${EngineVersion.getInstance().getEngineName()}</div>
         <div class="ui-map-loading-overlay__branding-version">${EngineVersion.getInstance().getVersionString()}</div>
@@ -304,8 +302,8 @@ export class MapLoadingOverlay {
 
     // Transition to loading state after fade-in
     requestAnimationFrame(() => {
-      this.container?.classList.add('ui-map-loading-overlay--visible');
-      this.state = 'loading';
+      this.container?.classList.add("ui-map-loading-overlay--visible");
+      this.state = "loading";
     });
   }
 
@@ -320,16 +318,16 @@ export class MapLoadingOverlay {
     // Update UI
     if (this.messageArea) {
       this.messageArea.innerHTML = this.messages
-        .map(m => `<div class="ui-map-loading-overlay__message">${m}</div>`)
-        .join('');
+        .map((m) => `<div class="ui-map-loading-overlay__message">${m}</div>`)
+        .join("");
     }
   }
 
   private startFadeOut(): void {
-    if (this.state === 'fading' || this.state === 'idle') return;
+    if (this.state === "fading" || this.state === "idle") return;
 
-    this.state = 'fading';
-    this.container?.classList.add('ui-map-loading-overlay--fading');
+    this.state = "fading";
+    this.container?.classList.add("ui-map-loading-overlay--fading");
 
     // Remove after animation
     setTimeout(() => {
@@ -358,7 +356,7 @@ export class MapLoadingOverlay {
 
     this.messageArea = null;
     this.messages = [];
-    this.state = 'idle';
+    this.state = "idle";
   }
 
   /**
@@ -436,7 +434,7 @@ export class MapLoadingOverlay {
 }
 `;
 
-    UIStyles.injectCSS('map-loading-overlay', css);
+    UIStyles.injectCSS("map-loading-overlay", css);
   }
 
   /**

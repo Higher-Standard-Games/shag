@@ -2,22 +2,29 @@
  * DebrisCommand - Debris particle control (uses game's weather system)
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class DebrisCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'debris',
-    description: 'Debris particle control',
-    usage: 'debris <leaves|trash|dust|mixed|off|density|size|speed>',
+    name: "debris",
+    description: "Debris particle control",
+    usage: "debris <leaves|trash|dust|mixed|off|density|size|speed>",
     subcommands: [
-      { name: 'leaves', description: 'Start leaves debris' },
-      { name: 'trash', description: 'Start trash debris' },
-      { name: 'dust', description: 'Start dust debris' },
-      { name: 'mixed', description: 'Start mixed debris' },
-      { name: 'off', description: 'Stop debris' },
-      { name: 'density', description: 'Set debris density', args: [{ name: 'value', type: 'number' }] },
-      { name: 'size', description: 'Set debris size', args: [{ name: 'value', type: 'number' }] },
-      { name: 'speed', description: 'Set debris speed', args: [{ name: 'min', type: 'number' }, { name: 'max', type: 'number' }] },
+      { name: "leaves", description: "Start leaves debris" },
+      { name: "trash", description: "Start trash debris" },
+      { name: "dust", description: "Start dust debris" },
+      { name: "mixed", description: "Start mixed debris" },
+      { name: "off", description: "Stop debris" },
+      { name: "density", description: "Set debris density", args: [{ name: "value", type: "number" }] },
+      { name: "size", description: "Set debris size", args: [{ name: "value", type: "number" }] },
+      {
+        name: "speed",
+        description: "Set debris speed",
+        args: [
+          { name: "min", type: "number" },
+          { name: "max", type: "number" },
+        ],
+      },
     ],
   };
 
@@ -25,62 +32,62 @@ export default class DebrisCommand extends Command {
     const weather = (window as any).weather;
 
     if (!weather) {
-      return 'Weather system not available (game not started)';
+      return "Weather system not available (game not started)";
     }
 
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
-      case 'leaves':
-        weather.debris('leaves');
-        return 'Leaves debris started';
+      case "leaves":
+        weather.debris("leaves");
+        return "Leaves debris started";
 
-      case 'trash':
-        weather.debris('trash');
-        return 'Trash debris started';
+      case "trash":
+        weather.debris("trash");
+        return "Trash debris started";
 
-      case 'dust':
-        weather.debris('dust');
-        return 'Dust debris started';
+      case "dust":
+        weather.debris("dust");
+        return "Dust debris started";
 
-      case 'mixed':
-        weather.debris('mixed');
-        return 'Mixed debris started';
+      case "mixed":
+        weather.debris("mixed");
+        return "Mixed debris started";
 
-      case 'off':
+      case "off":
         weather.debris(false);
-        return 'Debris stopped';
+        return "Debris stopped";
 
-      case 'density': {
+      case "density": {
         const v = parseFloat(args[1]);
-        if (isNaN(v)) return 'Usage: debris density <0-1>';
+        if (isNaN(v)) return "Usage: debris density <0-1>";
         weather.debrisDensity(v);
         return `Debris density: ${v}`;
       }
 
-      case 'size': {
+      case "size": {
         const v = parseFloat(args[1]);
-        if (isNaN(v)) return 'Usage: debris size <number>';
+        if (isNaN(v)) return "Usage: debris size <number>";
         weather.debrisSize(v);
         return `Debris size: ${v}`;
       }
 
-      case 'speed': {
+      case "speed": {
         const min = parseFloat(args[1]);
         const max = parseFloat(args[2]) || min * 2;
-        if (isNaN(min)) return 'Usage: debris speed <min> [max]';
+        if (isNaN(min)) return "Usage: debris speed <min> [max]";
         weather.debrisSpeed?.(min, max);
         return `Debris speed: ${min} - ${max}`;
       }
 
       default:
-        return 'Subcommands: leaves, trash, dust, mixed, off, density <0-1>, size <n>, speed <min> [max]';
+        return "Subcommands: leaves, trash, dust, mixed, off, density <0-1>, size <n>, speed <min> [max]";
     }
   }
-  
+
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['leaves', 'trash', 'dust', 'mixed', 'off', 'density', 'size', 'speed'];
+      return ["leaves", "trash", "dust", "mixed", "off", "density", "size", "speed"];
     }
     return [];
   }

@@ -7,27 +7,27 @@
  * - Q3NodeMaterialBuilder for complex multi-stage shaders
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { Material } from '@babylonjs/core/Materials/material';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Constants } from '@babylonjs/core/Engines/constants';
-import type { Q3Shader, Q3ShaderStage } from './Q3ShaderTypes';
-import { GlowOverlayShaderMaterial } from './GlowOverlayShaderMaterial';
+import { Constants } from "@babylonjs/core/Engines/constants";
+import type { Material } from "@babylonjs/core/Materials/material";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { Scene } from "@babylonjs/core/scene";
+import { GlowOverlayShaderMaterial } from "./GlowOverlayShaderMaterial";
+import type { Q3Shader, Q3ShaderStage } from "./Q3ShaderTypes";
 
 // ============================================================================
 // Pattern Types
 // ============================================================================
 
 export type ShaderPattern =
-  | 'base_only'           // Single texture, no lightmap
-  | 'base_lightmap'       // Base + lightmap (standard)
-  | 'glow_overlay'        // Base + lightmap + additive glow
-  | 'nolightmap_emissive' // surfaceparm nolightmap with emissive look
-  | 'alpha_blend'         // Transparent with alpha blending
-  | 'additive'            // Fully additive (no lightmap)
-  | 'scrolling'           // Has tcMod scroll animation
-  | 'complex';            // Needs full NodeMaterial
+  | "base_only" // Single texture, no lightmap
+  | "base_lightmap" // Base + lightmap (standard)
+  | "glow_overlay" // Base + lightmap + additive glow
+  | "nolightmap_emissive" // surfaceparm nolightmap with emissive look
+  | "alpha_blend" // Transparent with alpha blending
+  | "additive" // Fully additive (no lightmap)
+  | "scrolling" // Has tcMod scroll animation
+  | "complex"; // Needs full NodeMaterial
 
 export interface PatternAnalysis {
   pattern: ShaderPattern;
@@ -51,8 +51,7 @@ export interface PatternAnalysis {
 function isAdditiveBlend(stage: Q3ShaderStage): boolean {
   if (!stage.blendFunc) return false;
   const [src, dst] = stage.blendFunc;
-  return (src === 'GL_ONE' && dst === 'GL_ONE') ||
-         (src === 'GL_SRC_ALPHA' && dst === 'GL_ONE');
+  return (src === "GL_ONE" && dst === "GL_ONE") || (src === "GL_SRC_ALPHA" && dst === "GL_ONE");
 }
 
 /**
@@ -61,10 +60,7 @@ function isAdditiveBlend(stage: Q3ShaderStage): boolean {
  */
 function isGlowTextureName(map: string): boolean {
   const lower = map.toLowerCase();
-  return lower.includes('_glow') ||
-         lower.includes('_add') ||
-         lower.includes('_bloom') ||
-         lower.endsWith('glow');
+  return lower.includes("_glow") || lower.includes("_add") || lower.includes("_bloom") || lower.endsWith("glow");
 }
 
 /**
@@ -73,7 +69,7 @@ function isGlowTextureName(map: string): boolean {
 function isAlphaBlend(stage: Q3ShaderStage): boolean {
   if (!stage.blendFunc) return false;
   const [src, dst] = stage.blendFunc;
-  return src === 'GL_SRC_ALPHA' && dst === 'GL_ONE_MINUS_SRC_ALPHA';
+  return src === "GL_SRC_ALPHA" && dst === "GL_ONE_MINUS_SRC_ALPHA";
 }
 
 /**
@@ -83,7 +79,7 @@ export function analyzeShaderPattern(shader: Q3Shader): PatternAnalysis {
   const stages = shader.stages;
 
   const result: PatternAnalysis = {
-    pattern: 'base_only',
+    pattern: "base_only",
     baseStageIndex: -1,
     lightmapStageIndex: -1,
     glowStageIndex: -1,
@@ -98,13 +94,13 @@ export function analyzeShaderPattern(shader: Q3Shader): PatternAnalysis {
     const stage = stages[i];
 
     // Lightmap stage
-    if (stage.map === '$lightmap') {
+    if (stage.map === "$lightmap") {
       result.lightmapStageIndex = i;
       continue;
     }
 
     // Skip whiteimage
-    if (stage.map === '$whiteimage') continue;
+    if (stage.map === "$whiteimage") continue;
 
     // Check for tcMod
     if (stage.tcMod && stage.tcMod.length > 0) {
@@ -134,32 +130,30 @@ export function analyzeShaderPattern(shader: Q3Shader): PatternAnalysis {
   const hasLightmap = result.lightmapStageIndex !== -1;
   const hasGlow = result.glowStageIndex !== -1;
   const hasBase = result.baseStageIndex !== -1;
-  const isNoLightmap = shader.surfaceParms.has('nolightmap');
+  const isNoLightmap = shader.surfaceParms.has("nolightmap");
 
   // Count real texture stages (excluding lightmap/whiteimage)
-  const textureStageCount = stages.filter(s =>
-    s.map && s.map !== '$lightmap' && s.map !== '$whiteimage'
-  ).length;
+  const textureStageCount = stages.filter((s) => s.map && s.map !== "$lightmap" && s.map !== "$whiteimage").length;
 
   if (!hasBase) {
-    result.pattern = 'base_only';
+    result.pattern = "base_only";
   } else if (isNoLightmap && textureStageCount === 1) {
-    result.pattern = 'nolightmap_emissive';
+    result.pattern = "nolightmap_emissive";
   } else if (hasLightmap && hasGlow && textureStageCount <= 3) {
     // Classic glow overlay: base + lightmap + glow
-    result.pattern = 'glow_overlay';
+    result.pattern = "glow_overlay";
   } else if (hasLightmap && textureStageCount === 1) {
-    result.pattern = 'base_lightmap';
+    result.pattern = "base_lightmap";
   } else if (!hasLightmap && isAdditiveBlend(stages[result.baseStageIndex])) {
-    result.pattern = 'additive';
+    result.pattern = "additive";
   } else if (result.hasAlpha) {
-    result.pattern = 'alpha_blend';
+    result.pattern = "alpha_blend";
   } else if (result.hasTcMod && textureStageCount === 1) {
-    result.pattern = 'scrolling';
+    result.pattern = "scrolling";
   } else if (textureStageCount > 2) {
-    result.pattern = 'complex';
+    result.pattern = "complex";
   } else {
-    result.pattern = 'base_lightmap';
+    result.pattern = "base_lightmap";
   }
 
   return result;
@@ -193,20 +187,21 @@ export interface MaterialFactoryResult {
 export function createQ3Material(
   shader: Q3Shader,
   scene: Scene,
-  options: MaterialFactoryOptions
+  options: MaterialFactoryOptions,
 ): MaterialFactoryResult | null {
-
   const analysis = analyzeShaderPattern(shader);
 
   if (options.debug) {
     console.log(`[Q3ShaderMaterialFactory] ${shader.name} -> pattern: ${analysis.pattern}`);
-    console.log(`  baseStage: ${analysis.baseStageIndex}, lightmapStage: ${analysis.lightmapStageIndex}, glowStage: ${analysis.glowStageIndex}`);
+    console.log(
+      `  baseStage: ${analysis.baseStageIndex}, lightmapStage: ${analysis.lightmapStageIndex}, glowStage: ${analysis.glowStageIndex}`,
+    );
   }
 
   const stages = shader.stages;
 
   switch (analysis.pattern) {
-    case 'glow_overlay': {
+    case "glow_overlay": {
       // Get textures
       const baseStage = stages[analysis.baseStageIndex];
       const glowStage = stages[analysis.glowStageIndex];
@@ -233,11 +228,11 @@ export function createQ3Material(
         glowTexture,
         options.lightmapIntensity || 2.0,
         1.0, // glowIntensity
-        analysis.glowIsAlphaBlend
+        analysis.glowIsAlphaBlend,
       );
 
       // Handle culling
-      if (shader.cull === 'none' || shader.cull === 'disable') {
+      if (shader.cull === "none" || shader.cull === "disable") {
         material.backFaceCulling = false;
       }
 
@@ -247,13 +242,13 @@ export function createQ3Material(
 
       return {
         material,
-        pattern: 'glow_overlay',
+        pattern: "glow_overlay",
         needsAnimation: analysis.hasTcMod,
       };
     }
 
-    case 'nolightmap_emissive':
-    case 'additive': {
+    case "nolightmap_emissive":
+    case "additive": {
       // Simple emissive material
       const baseStage = stages[analysis.baseStageIndex];
       const baseTexture = options.textures.get(baseStage.map);
@@ -266,11 +261,11 @@ export function createQ3Material(
       mat.emissiveTexture = baseTexture;
       mat.disableLighting = true;
 
-      if (analysis.pattern === 'additive') {
+      if (analysis.pattern === "additive") {
         mat.alphaMode = Constants.ALPHA_ADD;
       }
 
-      if (shader.cull === 'none' || shader.cull === 'disable') {
+      if (shader.cull === "none" || shader.cull === "disable") {
         mat.backFaceCulling = false;
       }
 
@@ -281,10 +276,10 @@ export function createQ3Material(
       };
     }
 
-    case 'base_only':
-    case 'base_lightmap':
-    case 'alpha_blend':
-    case 'scrolling':
+    case "base_only":
+    case "base_lightmap":
+    case "alpha_blend":
+    case "scrolling":
     default: {
       // Use standard material (fallback)
       return createFallbackMaterial(shader, scene, options, analysis);
@@ -299,9 +294,8 @@ function createFallbackMaterial(
   shader: Q3Shader,
   scene: Scene,
   options: MaterialFactoryOptions,
-  analysis: PatternAnalysis
+  analysis: PatternAnalysis,
 ): MaterialFactoryResult | null {
-
   const stages = shader.stages;
 
   if (analysis.baseStageIndex === -1) {
@@ -327,7 +321,7 @@ function createFallbackMaterial(
   // Handle alpha
   if (analysis.hasAlpha) {
     mat.useAlphaFromDiffuseTexture = true;
-    if (baseStage.alphaFunc === 'GE128' || baseStage.alphaFunc === 'GT0') {
+    if (baseStage.alphaFunc === "GE128" || baseStage.alphaFunc === "GT0") {
       mat.alphaMode = Constants.ALPHA_COMBINE;
     } else {
       mat.alphaMode = Constants.ALPHA_COMBINE;
@@ -335,7 +329,7 @@ function createFallbackMaterial(
   }
 
   // Handle culling
-  if (shader.cull === 'none' || shader.cull === 'disable') {
+  if (shader.cull === "none" || shader.cull === "disable") {
     mat.backFaceCulling = false;
   }
 
@@ -351,7 +345,7 @@ function createFallbackMaterial(
  */
 export function isGlowOverlayShader(shader: Q3Shader): boolean {
   const analysis = analyzeShaderPattern(shader);
-  return analysis.pattern === 'glow_overlay';
+  return analysis.pattern === "glow_overlay";
 }
 
 /**
@@ -365,29 +359,29 @@ export function debugShaderPattern(shader: Q3Shader): string {
     `Base stage: ${analysis.baseStageIndex}`,
     `Lightmap stage: ${analysis.lightmapStageIndex}`,
     `Glow stage: ${analysis.glowStageIndex}`,
-    `Glow blend mode: ${analysis.glowIsAlphaBlend ? 'alpha' : 'additive'}`,
+    `Glow blend mode: ${analysis.glowIsAlphaBlend ? "alpha" : "additive"}`,
     `Has alpha: ${analysis.hasAlpha}`,
     `Has tcMod: ${analysis.hasTcMod}`,
-    `tcMod stages: [${analysis.tcModStages.join(', ')}]`,
-    `Surface parms: ${Array.from(shader.surfaceParms).join(', ') || 'none'}`,
-    '',
-    'Stages:',
+    `tcMod stages: [${analysis.tcModStages.join(", ")}]`,
+    `Surface parms: ${Array.from(shader.surfaceParms).join(", ") || "none"}`,
+    "",
+    "Stages:",
   ];
 
   shader.stages.forEach((stage, i) => {
-    const blend = stage.blendFunc ? `[${stage.blendFunc.join(', ')}]` : '[none]';
+    const blend = stage.blendFunc ? `[${stage.blendFunc.join(", ")}]` : "[none]";
     const flags: string[] = [];
-    if (isAdditiveBlend(stage)) flags.push('ADDITIVE');
-    if (isGlowTextureName(stage.map)) flags.push('GLOW_NAME');
+    if (isAdditiveBlend(stage)) flags.push("ADDITIVE");
+    if (isGlowTextureName(stage.map)) flags.push("GLOW_NAME");
     if (stage.rgbGen) flags.push(`rgbGen:${stage.rgbGen.type}`);
     if (stage.alphaGen) flags.push(`alphaGen:${stage.alphaGen.type}`);
     if (stage.alphaFunc) flags.push(`alphaFunc:${stage.alphaFunc}`);
     if (stage.tcMod?.length) flags.push(`tcMod:${stage.tcMod.length}`);
 
-    const flagStr = flags.length > 0 ? ` (${flags.join(', ')})` : '';
+    const flagStr = flags.length > 0 ? ` (${flags.join(", ")})` : "";
     lines.push(`  ${i}: ${stage.map}`);
     lines.push(`     blend=${blend}${flagStr}`);
   });
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

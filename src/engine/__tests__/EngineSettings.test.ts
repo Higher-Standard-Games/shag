@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EngineSettings } from "../core/EngineSettings";
 
 describe("EngineSettings", () => {
@@ -58,7 +58,7 @@ describe("EngineSettings", () => {
       // Mock fetch to return 404
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
-        status: 404
+        status: 404,
       });
 
       const settings = EngineSettings.getInstance();
@@ -75,7 +75,7 @@ describe("EngineSettings", () => {
       // If no file was loaded, raw settings might be null
       const raw = settings.getRawSettings();
       // This could be null or an object depending on test order
-      expect(raw === null || typeof raw === 'object').toBe(true);
+      expect(raw === null || typeof raw === "object").toBe(true);
     });
   });
 

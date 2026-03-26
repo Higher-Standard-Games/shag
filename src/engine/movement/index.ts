@@ -2,6 +2,6 @@
  * Movement module exports
  */
 
-export { MovementVars } from './MovementVars';
-export { CharacterController } from './CharacterController';
-export type { CharacterState, CharacterConfig } from './CharacterController';
+export type { CharacterConfig, CharacterState } from "./CharacterController";
+export { CharacterController } from "./CharacterController";
+export { MovementVars } from "./MovementVars";

@@ -1,6 +1,6 @@
 /**
  * PhysicsSystem - Havok Physics integration for Babylon.js
- * 
+ *
  * Manages physics simulation including:
  * - Havok engine initialization
  * - Scene physics enablement
@@ -9,14 +9,14 @@
  * - Projectile physics
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate';
-import { PhysicsShapeType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
-import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin';
-import '@babylonjs/core/Physics/v2/physicsEngineComponent';
-import { MovementVars } from '../movement/MovementVars';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
+import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
+import type { Scene } from "@babylonjs/core/scene";
+import "@babylonjs/core/Physics/v2/physicsEngineComponent";
+import { MovementVars } from "../movement/MovementVars";
 
 // ==================== Types ====================
 
@@ -28,7 +28,7 @@ export interface PhysicsSystemConfig {
 export interface PhysicsBodyHandle {
   mesh: Mesh;
   aggregate: PhysicsAggregate;
-  type: 'static' | 'dynamic' | 'kinematic';
+  type: "static" | "dynamic" | "kinematic";
 }
 
 // ==================== PhysicsSystem Class ====================
@@ -48,7 +48,7 @@ export class PhysicsSystem {
   // Note: World collision is handled by BSP collision system, not Havok
   // Havok is used for gravity, velocity, and impulse simulation only
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): PhysicsSystem {
     if (!PhysicsSystem.instance) {
@@ -71,7 +71,7 @@ export class PhysicsSystem {
     if (this.initializing) {
       // Wait for existing initialization
       while (this.initializing) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
       return this.havokInstance !== null;
     }
@@ -79,32 +79,27 @@ export class PhysicsSystem {
     this.initializing = true;
     this.initializing = true;
 
-
     try {
       // Dynamic import to allow tree-shaking if not used
-      const HavokPhysics = (await import('@babylonjs/havok')).default;
-
+      const HavokPhysics = (await import("@babylonjs/havok")).default;
 
       // Explicitly locate the WASM file properly served from public/wasm
       // Note: We use manual path instead of Vite specific imports to ensure compatibility
       // with both browser (Vite dev server) and headless (vite-node) environments.
       this.havokInstance = await HavokPhysics({
         locateFile: (_path) => {
-
-          return '/wasm/HavokPhysics.wasm';
-        }
+          return "/wasm/HavokPhysics.wasm";
+        },
       });
 
-
       this.havokPlugin = new HavokPlugin(true, this.havokInstance);
-
 
       this.initializing = false;
       return true;
     } catch (error) {
-      console.error('[PhysicsSystem] Failed to initialize Havok:', error);
-      console.error('[PhysicsSystem] STACK:', (error as Error).stack);
-      console.error('[PhysicsSystem] Ensure /wasm/HavokPhysics.wasm exists and is accessible.');
+      console.error("[PhysicsSystem] Failed to initialize Havok:", error);
+      console.error("[PhysicsSystem] STACK:", (error as Error).stack);
+      console.error("[PhysicsSystem] Ensure /wasm/HavokPhysics.wasm exists and is accessible.");
       this.initializing = false;
       return false;
     }
@@ -117,14 +112,14 @@ export class PhysicsSystem {
     if (!this.havokInstance) {
       const success = await this.initHavok();
       if (!success) {
-        console.error('[PhysicsSystem] Cannot enable physics - Havok not initialized');
+        console.error("[PhysicsSystem] Cannot enable physics - Havok not initialized");
         return false;
       }
     }
 
     // Get gravity from config or MovementVars
     const mv = MovementVars.getInstance();
-    const gravityStrength = config?.gravity?.y ?? -mv.get('sv_gravity');
+    const gravityStrength = config?.gravity?.y ?? -mv.get("sv_gravity");
     const gravity = config?.gravity ?? new Vector3(0, gravityStrength, 0);
 
     try {
@@ -137,10 +132,9 @@ export class PhysicsSystem {
       this.scene = scene;
       this.initialized = true;
 
-
       return true;
     } catch (error) {
-      console.error('[PhysicsSystem] Failed to enable physics:', error);
+      console.error("[PhysicsSystem] Failed to enable physics:", error);
       return false;
     }
   }
@@ -170,30 +164,25 @@ export class PhysicsSystem {
     mesh: Mesh,
     shapeType: PhysicsShapeType,
     mass: number = 1,
-    restitution: number = 0.5
+    restitution: number = 0.5,
   ): PhysicsBodyHandle | null {
     if (!this.isInitialized() || !this.scene) {
       return null;
     }
 
     try {
-      const aggregate = new PhysicsAggregate(
-        mesh,
-        shapeType,
-        { mass, restitution },
-        this.scene
-      );
+      const aggregate = new PhysicsAggregate(mesh, shapeType, { mass, restitution }, this.scene);
 
       const handle: PhysicsBodyHandle = {
         mesh,
         aggregate,
-        type: 'dynamic',
+        type: "dynamic",
       };
 
       this.bodies.set(mesh.name, handle);
       return handle;
     } catch (error) {
-      console.error('[PhysicsSystem] Failed to create dynamic body:', error);
+      console.error("[PhysicsSystem] Failed to create dynamic body:", error);
       return null;
     }
   }
@@ -207,23 +196,18 @@ export class PhysicsSystem {
     }
 
     try {
-      const aggregate = new PhysicsAggregate(
-        mesh,
-        shapeType,
-        { mass: 0 },
-        this.scene
-      );
+      const aggregate = new PhysicsAggregate(mesh, shapeType, { mass: 0 }, this.scene);
 
       const handle: PhysicsBodyHandle = {
         mesh,
         aggregate,
-        type: 'static',
+        type: "static",
       };
 
       this.bodies.set(mesh.name, handle);
       return handle;
     } catch (error) {
-      console.error('[PhysicsSystem] Failed to create static body:', error);
+      console.error("[PhysicsSystem] Failed to create static body:", error);
       return null;
     }
   }
@@ -241,7 +225,7 @@ export class PhysicsSystem {
    */
   createBspCollision(worldMesh: Mesh): number {
     if (!this.isInitialized() || !this.scene) {
-      console.warn('[PhysicsSystem] Cannot create BSP collision — not initialized');
+      console.warn("[PhysicsSystem] Cannot create BSP collision — not initialized");
       return 0;
     }
 
@@ -265,7 +249,7 @@ export class PhysicsSystem {
           child,
           PhysicsShapeType.MESH, // trimesh — exact surface collision
           { mass: 0 }, // static (immovable)
-          this.scene!
+          this.scene!,
         );
         this.bspCollisionBodies.push(aggregate);
         count++;
@@ -277,7 +261,9 @@ export class PhysicsSystem {
       }
     }
 
-    console.log(`[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`);
+    console.log(
+      `[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`,
+    );
     return count;
   }
 
@@ -293,7 +279,11 @@ export class PhysicsSystem {
    */
   disposeBspCollision(): void {
     for (const agg of this.bspCollisionBodies) {
-      try { agg.dispose(); } catch (_) { /* noop */ }
+      try {
+        agg.dispose();
+      } catch (_) {
+        /* noop */
+      }
     }
     this.bspCollisionBodies = [];
   }
@@ -348,7 +338,7 @@ export class PhysicsSystem {
 
     // Fallback to MovementVars
     const mv = MovementVars.getInstance();
-    return new Vector3(0, -mv.get('sv_gravity'), 0);
+    return new Vector3(0, -mv.get("sv_gravity"), 0);
   }
 
   // ==================== Cleanup ====================
@@ -382,7 +372,7 @@ export class PhysicsSystem {
   // ==================== Debug ====================
 
   getInfo(): string {
-    const lines = ['=== Physics System ==='];
+    const lines = ["=== Physics System ==="];
     lines.push(`Havok loaded: ${this.isHavokLoaded()}`);
     lines.push(`Initialized: ${this.isInitialized()}`);
 
@@ -393,6 +383,6 @@ export class PhysicsSystem {
       lines.push(`World collision: BSP (CollisionManager)`);
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

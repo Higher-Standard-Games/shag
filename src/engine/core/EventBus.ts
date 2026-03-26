@@ -1,21 +1,21 @@
 /**
  * EventBus - Global event system for decoupled communication between systems
- * 
+ *
  * Provides a publish-subscribe pattern for loose coupling between engine
  * and game systems. Supports priority ordering, one-time subscriptions,
  * and optional event history for debugging.
- * 
+ *
  * @example
  * ```typescript
  * // Subscribe to an event
  * EventBus.on("entity:spawned", (data) => console.log(data.id));
- * 
+ *
  * // Emit an event
  * EventBus.emit("entity:spawned", { id: "player1", type: "character" });
- * 
+ *
  * // One-time subscription
  * EventBus.once("scene:ready", () => startGame());
- * 
+ *
  * // Unsubscribe
  * const unsubscribe = EventBus.on("update", handler);
  * unsubscribe();
@@ -43,13 +43,9 @@ export class EventBus {
    * @param priority Higher priority handlers run first (default: 0)
    * @returns Unsubscribe function
    */
-  public static on<T = unknown>(
-    event: string,
-    callback: EventCallback<T>,
-    priority: number = 0
-  ): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+  public static on<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
+    if (!EventBus.listeners.has(event)) {
+      EventBus.listeners.set(event, []);
     }
 
     const subscription: EventSubscription = {
@@ -58,25 +54,21 @@ export class EventBus {
       priority,
     };
 
-    const subs = this.listeners.get(event)!;
+    const subs = EventBus.listeners.get(event)!;
     subs.push(subscription);
     // Sort by priority (higher first)
     subs.sort((a, b) => b.priority - a.priority);
 
     // Return unsubscribe function
-    return () => this.off(event, callback);
+    return () => EventBus.off(event, callback);
   }
 
   /**
    * Subscribe to an event once (auto-unsubscribes after first call)
    */
-  public static once<T = unknown>(
-    event: string,
-    callback: EventCallback<T>,
-    priority: number = 0
-  ): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+  public static once<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
+    if (!EventBus.listeners.has(event)) {
+      EventBus.listeners.set(event, []);
     }
 
     const subscription: EventSubscription = {
@@ -85,21 +77,21 @@ export class EventBus {
       priority,
     };
 
-    const subs = this.listeners.get(event)!;
+    const subs = EventBus.listeners.get(event)!;
     subs.push(subscription);
     subs.sort((a, b) => b.priority - a.priority);
 
-    return () => this.off(event, callback);
+    return () => EventBus.off(event, callback);
   }
 
   /**
    * Unsubscribe from an event
    */
   public static off<T = unknown>(event: string, callback: EventCallback<T>): void {
-    const subs = this.listeners.get(event);
+    const subs = EventBus.listeners.get(event);
     if (!subs) return;
 
-    const index = subs.findIndex(s => s.callback === callback);
+    const index = subs.findIndex((s) => s.callback === callback);
     if (index !== -1) {
       subs.splice(index, 1);
     }
@@ -112,19 +104,19 @@ export class EventBus {
    */
   public static emit<T = unknown>(event: string, data?: T): void {
     // Record in history if enabled
-    if (this.historyEnabled) {
-      this.eventHistory.push({
+    if (EventBus.historyEnabled) {
+      EventBus.eventHistory.push({
         event,
         data,
         timestamp: Date.now(),
       });
       // Trim history if too large
-      if (this.eventHistory.length > this.maxHistorySize) {
-        this.eventHistory.shift();
+      if (EventBus.eventHistory.length > EventBus.maxHistorySize) {
+        EventBus.eventHistory.shift();
       }
     }
 
-    const subs = this.listeners.get(event);
+    const subs = EventBus.listeners.get(event);
     if (!subs || subs.length === 0) return;
 
     // Create a copy to avoid issues if handlers modify the list
@@ -155,7 +147,7 @@ export class EventBus {
    * Emit an event and wait for async handlers
    */
   public static async emitAsync<T = unknown>(event: string, data?: T): Promise<void> {
-    const subs = this.listeners.get(event);
+    const subs = EventBus.listeners.get(event);
     if (!subs || subs.length === 0) return;
 
     const toCall = [...subs];
@@ -184,7 +176,7 @@ export class EventBus {
    * Check if an event has any listeners
    */
   public static hasListeners(event: string): boolean {
-    const subs = this.listeners.get(event);
+    const subs = EventBus.listeners.get(event);
     return subs !== undefined && subs.length > 0;
   }
 
@@ -192,7 +184,7 @@ export class EventBus {
    * Get count of listeners for an event
    */
   public static listenerCount(event: string): number {
-    return this.listeners.get(event)?.length ?? 0;
+    return EventBus.listeners.get(event)?.length ?? 0;
   }
 
   /**
@@ -200,9 +192,9 @@ export class EventBus {
    */
   public static clear(event?: string): void {
     if (event) {
-      this.listeners.delete(event);
+      EventBus.listeners.delete(event);
     } else {
-      this.listeners.clear();
+      EventBus.listeners.clear();
     }
   }
 
@@ -210,10 +202,10 @@ export class EventBus {
    * Enable/disable event history recording (useful for debugging)
    */
   public static setHistoryEnabled(enabled: boolean, maxSize: number = 100): void {
-    this.historyEnabled = enabled;
-    this.maxHistorySize = maxSize;
+    EventBus.historyEnabled = enabled;
+    EventBus.maxHistorySize = maxSize;
     if (!enabled) {
-      this.eventHistory = [];
+      EventBus.eventHistory = [];
     }
   }
 
@@ -221,14 +213,14 @@ export class EventBus {
    * Get event history (if enabled)
    */
   public static getHistory(): Array<{ event: string; data: unknown; timestamp: number }> {
-    return [...this.eventHistory];
+    return [...EventBus.eventHistory];
   }
 
   /**
    * Get all registered event names
    */
   public static getEventNames(): string[] {
-    return Array.from(this.listeners.keys());
+    return Array.from(EventBus.listeners.keys());
   }
 }
 

@@ -11,26 +11,26 @@
  * - Skybox textures
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { PK3Index } from '../pk3/PK3Index';
-import { PK3Loader } from '../pk3/PK3Loader';
-import { BspLoader, type BspFile } from '../bsp/BspLoader';
-import { BspMeshBuilder, type BspMeshBuildResult } from '../bsp/BspMeshBuilder';
-import { Q3ShaderRegistry } from '../shader/Q3ShaderRegistry';
-import { EntityHandlerRegistry, type EntityData } from '../../core/EntityHandlerRegistry';
-import { registerBspEntityHandlers, setCurrentBspForHandlers } from '../bsp/BspEntityHandlers';
-import { EntityManager } from '../../entities/EntityManager';
-import { EntityRegistry } from '../../../shared/entities/EntityRegistry';
-import { EntityType } from '../../../shared/entities/EntityType';
-import { initializeEntityDefs } from '../../../shared/entities';
-import { EventBus } from '../../core/EventBus';
-import { LOADING_EVENTS, type LoadingProgressEvent, type LoadingCompleteEvent } from '../../core/LoadingEvents';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
+import { initializeEntityDefs } from "../../../shared/entities";
+import { EntityRegistry } from "../../../shared/entities/EntityRegistry";
+import { EntityType } from "../../../shared/entities/EntityType";
+import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandlerRegistry";
+import { EventBus } from "../../core/EventBus";
+import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
+import { EntityManager } from "../../entities/EntityManager";
+import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
+import { type BspFile, BspLoader } from "../bsp/BspLoader";
+import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
+import { PK3Index } from "../pk3/PK3Index";
+import { PK3Loader } from "../pk3/PK3Loader";
+import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 
 export interface MapLoadResult {
   success: boolean;
   mapName: string;
-  mapType: 'local' | 'bsp';
+  mapType: "local" | "bsp";
   error?: string;
   /** BSP-specific results */
   bsp?: BspFile;
@@ -85,24 +85,24 @@ export class MapLoader {
     mapName: string,
     scene: Scene,
     onProgress?: ProgressCallback,
-    opts?: { backgroundOnly?: boolean }
+    opts?: { backgroundOnly?: boolean },
   ): Promise<MapLoadResult> {
     const startTime = Date.now();
 
     // Emit loading:start event
     EventBus.emit(LOADING_EVENTS.START, {
-      type: 'map',
+      type: "map",
       id: mapName,
       meta: { displayName: mapName },
     });
 
     const progress = (phase: string, detail?: string, percent?: number) => {
       onProgress?.({ phase, detail, progress: percent });
-      console.log(`[MapLoader] ${phase}${detail ? ': ' + detail : ''}`);
+      console.log(`[MapLoader] ${phase}${detail ? ": " + detail : ""}`);
 
       // Emit loading:progress event
       const progressEvent: LoadingProgressEvent = {
-        type: 'map',
+        type: "map",
         phase,
         detail,
         percent,
@@ -113,7 +113,7 @@ export class MapLoader {
     try {
       // Clean up previous map
       if (this.currentMeshResult) {
-        progress('cleanup', 'disposing previous map');
+        progress("cleanup", "disposing previous map");
         await this.disposeCurrentMap();
       }
 
@@ -124,7 +124,7 @@ export class MapLoader {
 
         // Emit loading:complete event
         EventBus.emit(LOADING_EVENTS.COMPLETE, {
-          type: 'map',
+          type: "map",
           success: result.success,
           error: result.error,
           duration: Date.now() - startTime,
@@ -139,7 +139,7 @@ export class MapLoader {
 
       // Emit loading:complete event (failure)
       EventBus.emit(LOADING_EVENTS.COMPLETE, {
-        type: 'map',
+        type: "map",
         success: false,
         error,
         duration: Date.now() - startTime,
@@ -148,7 +148,7 @@ export class MapLoader {
       return {
         success: false,
         mapName,
-        mapType: 'local',
+        mapType: "local",
         error,
       };
     } catch (e) {
@@ -157,7 +157,7 @@ export class MapLoader {
 
       // Emit loading:complete event (failure)
       EventBus.emit(LOADING_EVENTS.COMPLETE, {
-        type: 'map',
+        type: "map",
         success: false,
         error,
         duration: Date.now() - startTime,
@@ -166,7 +166,7 @@ export class MapLoader {
       return {
         success: false,
         mapName,
-        mapType: 'bsp',
+        mapType: "bsp",
         error,
       };
     }
@@ -181,7 +181,7 @@ export class MapLoader {
     mapPk3: string,
     scene: Scene,
     progress: (phase: string, detail?: string, pct?: number) => void,
-    backgroundOnly?: boolean
+    backgroundOnly?: boolean,
   ): Promise<MapLoadResult> {
     // ── Tab visibility tracking ──────────────────────────────────────────
     // When the browser tab is backgrounded, WebGL texture uploads and shader
@@ -192,15 +192,15 @@ export class MapLoader {
     const onVisibilityChange = () => {
       if (document.hidden && this.isLoadingMap) {
         this.wasBackgroundedDuringLoad = true;
-        console.warn('[MapLoader] ⚠ Tab backgrounded during map load — will revalidate textures on return');
+        console.warn("[MapLoader] ⚠ Tab backgrounded during map load — will revalidate textures on return");
       }
     };
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const loadedPk3s = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
     // Phase 1: Ensure map PK3 is loaded
-    progress('Loading', `Map PK3: ${mapPk3}`);
+    progress("Loading", `Map PK3: ${mapPk3}`);
     if (!loadedPk3s.has(mapPk3)) {
       const mapPk3Path = this.pk3Index.getPK3Path(mapPk3);
       if (mapPk3Path) {
@@ -211,26 +211,26 @@ export class MapLoader {
     }
 
     // Phase 2: Load BSP
-    progress('Loading', 'BSP data');
+    progress("Loading", "BSP data");
     const bspPath = `maps/${mapName}.bsp`;
     const bsp = await BspLoader.loadFromPK3(this.pk3Loader, bspPath);
     if (!bsp) {
       return {
         success: false,
         mapName,
-        mapType: 'bsp',
+        mapType: "bsp",
         error: `Failed to load BSP: ${bspPath}`,
       };
     }
     this.currentBsp = bsp;
 
     // Phase 3: Resolve and load texture dependencies
-    progress('Dependencies', 'Resolving required PK3s');
+    progress("Dependencies", "Resolving required PK3s");
     const requiredPk3s = await this.resolveMapDependencies(bsp);
 
     let loaded = 0;
     for (const pk3 of requiredPk3s) {
-      progress('Dependencies', `Loading ${pk3}`, loaded / requiredPk3s.size);
+      progress("Dependencies", `Loading ${pk3}`, loaded / requiredPk3s.size);
       try {
         if (!loadedPk3s.has(pk3)) {
           const pk3Path = this.pk3Index.getPK3Path(pk3);
@@ -247,12 +247,12 @@ export class MapLoader {
     // Phase 3b: Resolve entity model dependencies (weapons, ammo, items)
     // Skip for background-only loads — no gameplay entities needed
     if (!backgroundOnly) {
-      progress('Dependencies', 'Resolving entity model PK3s');
+      progress("Dependencies", "Resolving entity model PK3s");
       initializeEntityDefs(); // Ensure entity definitions are populated
       const modelPk3s = this.resolveEntityModelDependencies(bsp);
       for (const pk3 of modelPk3s) {
         if (!loadedPk3s.has(pk3)) {
-          progress('Dependencies', `Loading model assets from ${pk3}`);
+          progress("Dependencies", `Loading model assets from ${pk3}`);
           try {
             const pk3Path = this.pk3Index.getPK3Path(pk3);
             if (pk3Path) {
@@ -267,25 +267,25 @@ export class MapLoader {
 
       // Load override PK3 (z_weapons.pk3) if it exists — ensures custom models
       // take priority over base data PK3s via alphabetical filename ordering
-      if (!loadedPk3s.has('z_weapons.pk3')) {
+      if (!loadedPk3s.has("z_weapons.pk3")) {
         try {
-          await this.pk3Loader.loadPK3FromUrl('data/z_weapons.pk3');
-          loadedPk3s.add('z_weapons.pk3');
-          console.log('[MapLoader] Loaded weapon override PK3: z_weapons.pk3');
+          await this.pk3Loader.loadPK3FromUrl("data/z_weapons.pk3");
+          loadedPk3s.add("z_weapons.pk3");
+          console.log("[MapLoader] Loaded weapon override PK3: z_weapons.pk3");
         } catch (e) {
-          console.warn('[MapLoader] z_weapons.pk3 not loaded:', e);
+          console.warn("[MapLoader] z_weapons.pk3 not loaded:", e);
         }
       }
     }
 
     // Phase 4: Load shaders
-    progress('Shaders', 'Loading shader definitions');
+    progress("Shaders", "Loading shader definitions");
     await this.shaderRegistry.loadShaders();
 
     // Phase 4b: Resolve sky texture dependencies (needs shaders loaded first)
     const skyPk3s = await this.resolveSkyDependencies(bsp);
     for (const pk3 of skyPk3s) {
-      progress('Dependencies', `Loading sky textures from ${pk3}`);
+      progress("Dependencies", `Loading sky textures from ${pk3}`);
       try {
         if (!loadedPk3s.has(pk3)) {
           const pk3Path = this.pk3Index.getPK3Path(pk3);
@@ -299,22 +299,22 @@ export class MapLoader {
     }
 
     // Phase 5: Build mesh
-    progress('Geometry', 'Building mesh');
+    progress("Geometry", "Building mesh");
     const meshResult = BspMeshBuilder.build(bsp, scene, {
       filterTextures: true,
     });
     this.currentMeshResult = meshResult;
 
     // Phase 6: Apply textures
-    progress('Textures', 'Loading and applying');
+    progress("Textures", "Loading and applying");
     await BspMeshBuilder.applyTextures(meshResult, bsp, scene);
 
     // Phase 7: Apply skybox
-    progress('Skybox', 'Creating');
+    progress("Skybox", "Creating");
     const engineAny = scene.getEngine() as any;
     const engineClass = engineAny?.getClassName?.();
     const engineCtorName = engineAny?.constructor?.name;
-    const isHeadlessNullEngine = engineClass === 'NullEngine' || engineCtorName === 'NullEngine';
+    const isHeadlessNullEngine = engineClass === "NullEngine" || engineCtorName === "NullEngine";
     if (!isHeadlessNullEngine) {
       const skyResult = await BspMeshBuilder.applySkybox(meshResult, scene);
       if (skyResult.success) {
@@ -323,11 +323,11 @@ export class MapLoader {
         console.warn(`[MapLoader] Skybox failed: ${skyResult.error}`);
       }
     } else {
-      progress('Skybox', 'Skipped (NullEngine)');
+      progress("Skybox", "Skipped (NullEngine)");
     }
 
     // Phase 7: Apply lightmaps (Q3 baked lighting)
-    progress('Lighting', 'Applying lightmaps');
+    progress("Lighting", "Applying lightmaps");
     try {
       const lmCount = BspMeshBuilder.applyLightmaps(meshResult, { intensity: 2.0 });
       console.log(`[MapLoader] Applied ${lmCount} lightmaps`);
@@ -340,7 +340,7 @@ export class MapLoader {
     // Disable dynamic day/night cycle for BSP maps - they use baked lightmaps
     // Import and configure SkyLightSystem to not interfere with lightmaps
     try {
-      const { SkyLightSystem } = await import('../../lighting/SkyLightSystem');
+      const { SkyLightSystem } = await import("../../lighting/SkyLightSystem");
       const skyLight = SkyLightSystem.getInstance();
 
       // CRITICAL: Ensure SkyLightSystem lights exist before configuring them
@@ -348,7 +348,7 @@ export class MapLoader {
       // CRITICAL: Force SkyLightSystem to sync with the current scene
       // This ensures we don't use a stale scene reference from a previous map
       // The init() method now handles cleanup of old lights automatically
-      console.log('[MapLoader] Initializing SkyLightSystem for current scene...');
+      console.log("[MapLoader] Initializing SkyLightSystem for current scene...");
       skyLight.init(scene, {
         sunIntensity: 1.0,
         moonIntensity: 0,
@@ -365,19 +365,18 @@ export class MapLoader {
       // Ensure blockMaterialDirtyMechanism is off so textures apply properly
       scene.blockMaterialDirtyMechanism = false;
 
-      console.log('[MapLoader] Configured lighting for BSP map (BSP Mode enabled)');
-
+      console.log("[MapLoader] Configured lighting for BSP map (BSP Mode enabled)");
     } catch (e) {
-      console.warn('[MapLoader] Could not configure lighting:', e);
+      console.warn("[MapLoader] Could not configure lighting:", e);
 
       // Fallback: Create basic ambient light if SkyLightSystem fails
       try {
-        const { HemisphericLight } = await import('@babylonjs/core/Lights/hemisphericLight');
-        const { Vector3 } = await import('@babylonjs/core/Maths/math.vector');
-        const { Color3 } = await import('@babylonjs/core/Maths/math.color');
+        const { HemisphericLight } = await import("@babylonjs/core/Lights/hemisphericLight");
+        const { Vector3 } = await import("@babylonjs/core/Maths/math.vector");
+        const { Color3 } = await import("@babylonjs/core/Maths/math.color");
 
         if (scene.lights.length === 0) {
-          console.log('[MapLoader] Creating fallback ambient light');
+          console.log("[MapLoader] Creating fallback ambient light");
           const light = new HemisphericLight("bsp_ambient", new Vector3(0, 1, 0), scene);
           light.intensity = 1.0;
           light.diffuse = new Color3(1, 1, 1);
@@ -386,13 +385,13 @@ export class MapLoader {
 
         scene.ambientColor = new Color3(1, 1, 1);
       } catch (fallbackError) {
-        console.error('[MapLoader] Failed to create fallback lighting:', fallbackError);
+        console.error("[MapLoader] Failed to create fallback lighting:", fallbackError);
       }
     }
 
     // Phase 8b: Register autosprite billboard updates (per-frame)
     if (meshResult.autospriteMeshes && meshResult.autospriteMeshes.length > 0) {
-      progress('Autosprites', `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
+      progress("Autosprites", `Registering ${meshResult.autospriteMeshes.length} billboard sprites`);
       scene.registerBeforeRender(() => {
         if (scene.activeCamera) {
           BspMeshBuilder.updateAutosprites(meshResult, scene.activeCamera.position);
@@ -403,43 +402,43 @@ export class MapLoader {
     // ── Phases 9-12: Gameplay-only (skip for background maps) ──
     if (!backgroundOnly) {
       // Phase 9: Generate collision meshes
-      progress('Collision', 'Building clip brush meshes');
+      progress("Collision", "Building clip brush meshes");
       const clipMeshCount = 0; // DISABLED for testing
       console.log(`[MapLoader] TESTING: Collision mesh generation disabled - Generated ${clipMeshCount} meshes`);
 
       // Phase 9b: Initialize collision system
-      progress('Collision', 'Initializing');
+      progress("Collision", "Initializing");
       try {
-        const { getCollisionManager } = await import('../../physics');
+        const { getCollisionManager } = await import("../../physics");
         const cm = getCollisionManager();
-        await cm.init(bsp, scene as never, 'q3');
+        await cm.init(bsp, scene as never, "q3");
         console.log(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
       } catch (e) {
-        console.warn('[MapLoader] Failed to initialize collision:', e);
+        console.warn("[MapLoader] Failed to initialize collision:", e);
       }
 
       // Phase 10: Preload pickup assets (weapons/ammo models)
-      progress('Assets', 'Preloading pickup models');
+      progress("Assets", "Preloading pickup models");
       try {
-        const { AssetPreloader } = await import('../AssetPreloader');
+        const { AssetPreloader } = await import("../AssetPreloader");
         const preloader = AssetPreloader.getInstance();
         const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
-          progress('Assets', `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
+          progress("Assets", `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
         });
         console.log(`[MapLoader] Preloaded ${preloadCount} pickup models`);
       } catch (e) {
-        console.warn('[MapLoader] Failed to preload assets:', e);
+        console.warn("[MapLoader] Failed to preload assets:", e);
       }
 
       // Phase 11: Process BSP entities through EntityHandlerRegistry
-      progress('Entities', 'Processing');
+      progress("Entities", "Processing");
       registerBspEntityHandlers();
       EntityManager.getInstance().registerHandlers();
       setCurrentBspForHandlers(bsp);
       await this.processBspEntities(bsp, scene);
 
       // Store BSP and meshResult in BspManager for PVS system
-      const { BspManager } = await import('../bsp/BspManager');
+      const { BspManager } = await import("../bsp/BspManager");
       const bspManager = BspManager.getInstance();
       bspManager.setBsp(mapName, bsp);
       bspManager.setMeshResult(meshResult);
@@ -452,8 +451,14 @@ export class MapLoader {
         const mat = mesh.material as any;
         if (mat && !frozenMats.has(mat.uniqueId)) {
           frozenMats.add(mat.uniqueId);
-          if (mat.lightmapTexture) { skippedCount++; continue; }
-          if (mesh.name === 'skybox') { skippedCount++; continue; }
+          if (mat.lightmapTexture) {
+            skippedCount++;
+            continue;
+          }
+          if (mesh.name === "skybox") {
+            skippedCount++;
+            continue;
+          }
           mat.freeze();
           frozenCount++;
         }
@@ -464,16 +469,16 @@ export class MapLoader {
     }
 
     this.currentMap = mapName;
-    progress('Complete', `Map ${mapName} loaded successfully`);
+    progress("Complete", `Map ${mapName} loaded successfully`);
 
     // Find player start position
     let playerStartPosition = new Vector3(0, 50, 0); // Default
-    let playerStart = bsp.entities.find(e => e.classname === 'info_player_start');
+    let playerStart = bsp.entities.find((e) => e.classname === "info_player_start");
     if (!playerStart) {
-      playerStart = bsp.entities.find(e => e.classname === 'info_player_deathmatch');
+      playerStart = bsp.entities.find((e) => e.classname === "info_player_deathmatch");
     }
     if (playerStart && playerStart.properties.origin) {
-      const parts = playerStart.properties.origin.split(' ').map(parseFloat);
+      const parts = playerStart.properties.origin.split(" ").map(parseFloat);
       if (parts.length === 3 && !parts.some(isNaN)) {
         playerStartPosition = new Vector3(parts[0], parts[2], parts[1]);
       }
@@ -481,24 +486,24 @@ export class MapLoader {
 
     // ── Shader warmup & GPU readiness: gameplay only ──
     if (!backgroundOnly) {
-      progress('Finalizing', 'Warming up effect shaders');
+      progress("Finalizing", "Warming up effect shaders");
       try {
-        const { preloadEffectShaders } = await import('../../weapon/EffectPreloader');
+        const { preloadEffectShaders } = await import("../../weapon/EffectPreloader");
         await preloadEffectShaders(scene);
       } catch (e) {
-        console.warn('[MapLoader] Effect shader warm-up failed, proceeding anyway:', e);
+        console.warn("[MapLoader] Effect shader warm-up failed, proceeding anyway:", e);
       }
 
       // Final gate: Wait for scene to be fully ready
-      progress('Finalizing', 'Waiting for GPU readiness');
+      progress("Finalizing", "Waiting for GPU readiness");
       try {
         await scene.whenReadyAsync();
-        console.log('[MapLoader] Scene fully ready — all textures and shaders compiled');
+        console.log("[MapLoader] Scene fully ready — all textures and shaders compiled");
       } catch (e) {
-        console.warn('[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:', e);
+        console.warn("[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:", e);
       }
     } else {
-      console.log('[MapLoader] Background mode: skipped shader warmup and GPU wait');
+      console.log("[MapLoader] Background mode: skipped shader warmup and GPU wait");
     }
 
     // ── Tab visibility recovery ──────────────────────────────────────────
@@ -506,33 +511,33 @@ export class MapLoader {
     // uploads and shader compilations may have silently failed. Force a
     // full revalidation now that loading is complete.
     this.isLoadingMap = false;
-    document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
 
     if (this.wasBackgroundedDuringLoad) {
-      console.warn('[MapLoader] Tab was backgrounded during load — revalidating textures and shaders...');
-      progress('Recovery', 'Revalidating textures (tab was backgrounded)');
+      console.warn("[MapLoader] Tab was backgrounded during load — revalidating textures and shaders...");
+      progress("Recovery", "Revalidating textures (tab was backgrounded)");
 
       // If tab is still hidden, wait for it to become visible first
       if (document.hidden) {
-        console.log('[MapLoader] Tab still hidden — waiting for visibility...');
+        console.log("[MapLoader] Tab still hidden — waiting for visibility...");
         await new Promise<void>((resolve) => {
           const waitForVisible = () => {
             if (!document.hidden) {
-              document.removeEventListener('visibilitychange', waitForVisible);
+              document.removeEventListener("visibilitychange", waitForVisible);
               resolve();
             }
           };
-          document.addEventListener('visibilitychange', waitForVisible);
+          document.addEventListener("visibilitychange", waitForVisible);
         });
-        console.log('[MapLoader] Tab now visible — starting revalidation');
+        console.log("[MapLoader] Tab now visible — starting revalidation");
       }
 
       try {
-        const { revalidateMaterials } = await import('../../weapon/EffectPreloader');
+        const { revalidateMaterials } = await import("../../weapon/EffectPreloader");
         await revalidateMaterials(scene);
-        console.log('[MapLoader] Post-background revalidation complete');
+        console.log("[MapLoader] Post-background revalidation complete");
       } catch (e) {
-        console.warn('[MapLoader] Post-background revalidation failed:', e);
+        console.warn("[MapLoader] Post-background revalidation failed:", e);
       }
 
       this.wasBackgroundedDuringLoad = false;
@@ -540,7 +545,7 @@ export class MapLoader {
 
     // Emit loading:complete event
     const completeEvent: LoadingCompleteEvent = {
-      type: 'map',
+      type: "map",
       success: true,
       duration: 0,
     };
@@ -549,7 +554,7 @@ export class MapLoader {
     return {
       success: true,
       mapName,
-      mapType: 'bsp',
+      mapType: "bsp",
       bsp,
       meshResult,
       playerStartPosition,
@@ -561,12 +566,10 @@ export class MapLoader {
    */
   private async resolveMapDependencies(bsp: BspFile): Promise<Set<string>> {
     const requiredPk3s = new Set<string>();
-    const loadedPackages = new Set(
-      this.pk3Loader.getPackageInfo().map(p => p.filename)
-    );
+    const loadedPackages = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
     // Get texture references from BSP
-    const textureNames = bsp.textures.map(t => t.name);
+    const textureNames = bsp.textures.map((t) => t.name);
 
     // Find PK3s for textures
     for (const texName of textureNames) {
@@ -577,7 +580,7 @@ export class MapLoader {
       }
 
       // Check for texture file
-      const extensions = ['.tga', '.jpg', '.png', '.ktx'];
+      const extensions = [".tga", ".jpg", ".png", ".ktx"];
       for (const ext of extensions) {
         const texPath = `textures/${texName}${ext}`;
         const pk3 = this.pk3Index.findFile(texPath);
@@ -610,11 +613,9 @@ export class MapLoader {
    */
   private async resolveSkyDependencies(bsp: BspFile): Promise<Set<string>> {
     const requiredPk3s = new Set<string>();
-    const loadedPackages = new Set(
-      this.pk3Loader.getPackageInfo().map(p => p.filename)
-    );
+    const loadedPackages = new Set(this.pk3Loader.getPackageInfo().map((p) => p.filename));
 
-    const textureNames = bsp.textures.map(t => t.name);
+    const textureNames = bsp.textures.map((t) => t.name);
 
     for (const texName of textureNames) {
       const shader = this.shaderRegistry.getShader(texName);
@@ -622,12 +623,12 @@ export class MapLoader {
         // Sky textures have _ft, _bk, _lf, _rt, _up, _dn suffixes
         // farbox may or may not include "env/" prefix already
         let skyPath = shader.skyParms.farbox;
-        if (!skyPath.startsWith('env/')) {
+        if (!skyPath.startsWith("env/")) {
           skyPath = `env/${skyPath}`;
         }
 
-        const suffixes = ['_ft', '_bk', '_lf', '_rt', '_up', '_dn'];
-        const extensions = ['.ktx', '.tga', '.jpg', '.png'];
+        const suffixes = ["_ft", "_bk", "_lf", "_rt", "_up", "_dn"];
+        const extensions = [".ktx", ".tga", ".jpg", ".png"];
 
         for (const suffix of suffixes) {
           for (const ext of extensions) {
@@ -671,29 +672,29 @@ export class MapLoader {
     // Without clearing caches, reload would return disposed textures (black walls)
     // MUST AWAIT to prevent race condition where new map's textures get disposed
     try {
-      const { PK3TextureLoader } = await import('../pk3/PK3TextureLoader');
+      const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
       PK3TextureLoader.getInstance().clearCache();
-      console.log('[MapLoader] Cleared PK3TextureLoader cache');
+      console.log("[MapLoader] Cleared PK3TextureLoader cache");
 
-      const { TextureManager } = await import('../texture/TextureManager');
+      const { TextureManager } = await import("../texture/TextureManager");
       TextureManager.getInstance().clearCache();
-      console.log('[MapLoader] Cleared TextureManager cache');
+      console.log("[MapLoader] Cleared TextureManager cache");
     } catch (e) {
-      console.warn('[MapLoader] Error clearing caches:', e);
+      console.warn("[MapLoader] Error clearing caches:", e);
     }
   }
 
   /**
    * Get list of available maps (from PK3 index)
    */
-  getAvailableMaps(): { name: string; pk3: string; type: 'bsp' }[] {
-    const maps: { name: string; pk3: string; type: 'bsp' }[] = [];
+  getAvailableMaps(): { name: string; pk3: string; type: "bsp" }[] {
+    const maps: { name: string; pk3: string; type: "bsp" }[] = [];
 
     const mapNames = this.pk3Index.getMapNames();
     for (const name of mapNames) {
       const pk3 = this.pk3Index.findMap(name);
       if (pk3) {
-        maps.push({ name, pk3, type: 'bsp' });
+        maps.push({ name, pk3, type: "bsp" });
       }
     }
 
@@ -713,7 +714,7 @@ export class MapLoader {
    */
   private async processBspEntities(bsp: BspFile, scene: Scene): Promise<void> {
     // Convert BSP entities to EntityData format
-    const entityDataList: EntityData[] = bsp.entities.map(e => ({
+    const entityDataList: EntityData[] = bsp.entities.map((e) => ({
       classname: e.classname,
       properties: e.properties,
     }));
@@ -736,7 +737,7 @@ export class MapLoader {
         }
       } else {
         // DEBUG: Log unhandled non-worldspawn entities
-        if (entity.classname !== 'worldspawn' && !entity.classname.startsWith('info_')) {
+        if (entity.classname !== "worldspawn" && !entity.classname.startsWith("info_")) {
           console.warn(`[MapLoader] No handler for entity: ${entity.classname}`);
         }
       }
@@ -749,7 +750,7 @@ export class MapLoader {
     // Log registered handlers for debugging
     const registered = EntityHandlerRegistry.getRegisteredClassnames();
     if (registered.length > 0) {
-      console.log(`[MapLoader] Available entity handlers: ${registered.join(', ')}`);
+      console.log(`[MapLoader] Available entity handlers: ${registered.join(", ")}`);
     }
   }
 
@@ -787,7 +788,7 @@ export class MapLoader {
     }
 
     if (requiredPk3s.size > 0) {
-      console.log(`[MapLoader] Resolved ${requiredPk3s.size} entity model PK3(s): ${[...requiredPk3s].join(', ')}`);
+      console.log(`[MapLoader] Resolved ${requiredPk3s.size} entity model PK3(s): ${[...requiredPk3s].join(", ")}`);
     }
 
     return requiredPk3s;

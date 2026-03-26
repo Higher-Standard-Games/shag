@@ -1,6 +1,6 @@
 /**
  * Q3ShaderTypes - Type definitions for Quake3/Warsow shader system
- * 
+ *
  * These shaders are defined in .shader files within PK3 archives
  * and control texture blending, transparency, animation, and other effects.
  */
@@ -8,60 +8,60 @@
 /**
  * Blend function presets and their GL equivalents
  */
-export type BlendFuncPreset = 'add' | 'blend' | 'filter';
+export type BlendFuncPreset = "add" | "blend" | "filter";
 
 /**
  * GL blend factors
  */
 export type BlendFactor =
-  | 'GL_ONE'
-  | 'GL_ZERO'
-  | 'GL_SRC_COLOR'
-  | 'GL_DST_COLOR'
-  | 'GL_ONE_MINUS_SRC_COLOR'
-  | 'GL_ONE_MINUS_DST_COLOR'
-  | 'GL_SRC_ALPHA'
-  | 'GL_DST_ALPHA'
-  | 'GL_ONE_MINUS_SRC_ALPHA'
-  | 'GL_ONE_MINUS_DST_ALPHA';
+  | "GL_ONE"
+  | "GL_ZERO"
+  | "GL_SRC_COLOR"
+  | "GL_DST_COLOR"
+  | "GL_ONE_MINUS_SRC_COLOR"
+  | "GL_ONE_MINUS_DST_COLOR"
+  | "GL_SRC_ALPHA"
+  | "GL_DST_ALPHA"
+  | "GL_ONE_MINUS_SRC_ALPHA"
+  | "GL_ONE_MINUS_DST_ALPHA";
 
 /**
  * Alpha test functions
  */
-export type AlphaFunc = 'GT0' | 'GE128' | 'LT128';
+export type AlphaFunc = "GT0" | "GE128" | "LT128";
 
 /**
  * Cull modes
  */
-export type CullMode = 'front' | 'back' | 'none' | 'disable';
+export type CullMode = "front" | "back" | "none" | "disable";
 
 /**
  * TC (texture coordinate) modifier types
  */
 export interface TcModScroll {
-  type: 'scroll';
+  type: "scroll";
   sSpeed: number;
   tSpeed: number;
 }
 
 export interface TcModScale {
-  type: 'scale';
+  type: "scale";
   sScale: number;
   tScale: number;
 }
 
 export interface TcModRotate {
-  type: 'rotate';
+  type: "rotate";
   degreesPerSecond: number;
 }
 
 export interface TcModStretch {
-  type: 'stretch';
+  type: "stretch";
   func: WaveFunc;
 }
 
 export interface TcModTurb {
-  type: 'turb';
+  type: "turb";
   base: number;
   amplitude: number;
   phase: number;
@@ -69,7 +69,7 @@ export interface TcModTurb {
 }
 
 export interface TcModTransform {
-  type: 'transform';
+  type: "transform";
   m00: number;
   m01: number;
   m10: number;
@@ -83,23 +83,23 @@ export type TcMod = TcModScroll | TcModScale | TcModRotate | TcModStretch | TcMo
 /**
  * Texture coordinate generation modes
  */
-export type TcGenMode = 'base' | 'lightmap' | 'environment' | 'vector';
+export type TcGenMode = "base" | "lightmap" | "environment" | "vector";
 
 export interface TcGenVector {
-  sVector: [number, number, number];  // S direction in world space
-  tVector: [number, number, number];  // T direction in world space
+  sVector: [number, number, number]; // S direction in world space
+  tVector: [number, number, number]; // T direction in world space
 }
 
 export interface TcGen {
   mode: TcGenMode;
-  vector?: TcGenVector;  // Only for mode='vector'
+  vector?: TcGenVector; // Only for mode='vector'
 }
 
 /**
  * Wave function for deformations and animations
  */
 export interface WaveFunc {
-  func: 'sin' | 'triangle' | 'square' | 'sawtooth' | 'inversesawtooth' | 'noise';
+  func: "sin" | "triangle" | "square" | "sawtooth" | "inversesawtooth" | "noise";
   base: number;
   amplitude: number;
   phase: number;
@@ -110,8 +110,16 @@ export interface WaveFunc {
  * RGB generation modes
  */
 export interface RgbGen {
-  type: 'identity' | 'identityLighting' | 'wave' | 'entity' | 'oneMinusEntity' |
-  'vertex' | 'oneMinusVertex' | 'lightingDiffuse' | 'const';
+  type:
+    | "identity"
+    | "identityLighting"
+    | "wave"
+    | "entity"
+    | "oneMinusEntity"
+    | "vertex"
+    | "oneMinusVertex"
+    | "lightingDiffuse"
+    | "const";
   wave?: WaveFunc;
   color?: [number, number, number];
 }
@@ -120,8 +128,16 @@ export interface RgbGen {
  * Alpha generation modes
  */
 export interface AlphaGen {
-  type: 'identity' | 'wave' | 'entity' | 'oneMinusEntity' |
-  'vertex' | 'oneMinusVertex' | 'lightingSpecular' | 'portal' | 'const';
+  type:
+    | "identity"
+    | "wave"
+    | "entity"
+    | "oneMinusEntity"
+    | "vertex"
+    | "oneMinusVertex"
+    | "lightingSpecular"
+    | "portal"
+    | "const";
   wave?: WaveFunc;
   value?: number;
 }
@@ -164,7 +180,7 @@ export interface Q3ShaderStage {
   depthWrite?: boolean;
 
   /** Depth test function */
-  depthFunc?: 'lequal' | 'equal';
+  depthFunc?: "lequal" | "equal";
 
   /** Detail texture (lower priority) */
   detail?: boolean;
@@ -174,7 +190,7 @@ export interface Q3ShaderStage {
  * Deform vertex types
  */
 export interface DeformVertexes {
-  type: 'wave' | 'normal' | 'bulge' | 'move' | 'autosprite' | 'autosprite2' | 'projectionshadow' | 'text';
+  type: "wave" | "normal" | "bulge" | "move" | "autosprite" | "autosprite2" | "projectionshadow" | "text";
   wave?: WaveFunc;
   div?: number;
   bulgeWidth?: number;
@@ -260,7 +276,7 @@ export interface ResolvedMaterialProps {
   useLightmap: boolean;
 
   /** Alpha mode: opaque, blend, add, multiply */
-  alphaMode: 'opaque' | 'blend' | 'add' | 'multiply';
+  alphaMode: "opaque" | "blend" | "add" | "multiply";
 
   /** Alpha cutoff for alpha testing */
   alphaCutoff?: number;

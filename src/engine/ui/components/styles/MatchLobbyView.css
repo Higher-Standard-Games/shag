@@ -3,557 +3,559 @@
  * ═══════════════════════════════════════════════════════════════════ */
 
 .match-lobby {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    padding: 0 16px 8px;
-    box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
 }
 
 /* Scrollable content area (maps + URL + teams) */
 .match-lobby__content {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding: 0 0 10px 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 0 10px 0;
 }
 
 .match-lobby__content::-webkit-scrollbar {
-    width: 3px;
+  width: 3px;
 }
 
 .match-lobby__content::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 .match-lobby__content::-webkit-scrollbar-thumb {
-    background: hsla(180, 100%, 50%, 0.1);
-    border-radius: 2px;
+  background: hsla(180, 100%, 50%, 0.1);
+  border-radius: 2px;
 }
 
 /* ── Header ── */
 
 .match-lobby__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0 8px;
-    flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0 8px;
+  flex-shrink: 0;
 }
 
 .match-lobby__gametype {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.4rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: hsla(180, 100%, 65%, 1);
-    text-shadow: 0 0 12px hsla(180, 100%, 50%, 0.4);
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: hsla(180, 100%, 65%, 1);
+  text-shadow: 0 0 12px hsla(180, 100%, 50%, 0.4);
 }
 
 .match-lobby__player-count {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.85rem;
-    letter-spacing: 0.12em;
-    color: hsla(180, 60%, 60%, 0.5);
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  color: hsla(180, 60%, 60%, 0.5);
 }
 
 /* ── Map Vote Row ── */
 
 .match-lobby__maps {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 .match-lobby__map-card {
-    position: relative;
-    border: 1px solid hsla(180, 60%, 40%, 0.2);
-    overflow: hidden;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    background: hsla(200, 40%, 8%, 0.6);
+  position: relative;
+  border: 1px solid hsla(180, 60%, 40%, 0.2);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: hsla(200, 40%, 8%, 0.6);
 }
 
 .match-lobby__map-card::before,
 .match-lobby__map-card::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    z-index: 2;
-    transition: all 0.25s ease;
-    opacity: 0.4;
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  z-index: 2;
+  transition: all 0.25s ease;
+  opacity: 0.4;
 }
 
 .match-lobby__map-card::before {
-    top: 4px;
-    left: 4px;
-    border-top: 2px solid hsla(180, 100%, 50%, 1);
-    border-left: 2px solid hsla(180, 100%, 50%, 1);
+  top: 4px;
+  left: 4px;
+  border-top: 2px solid hsla(180, 100%, 50%, 1);
+  border-left: 2px solid hsla(180, 100%, 50%, 1);
 }
 
 .match-lobby__map-card::after {
-    bottom: 4px;
-    right: 4px;
-    border-bottom: 2px solid hsla(45, 100%, 55%, 1);
-    border-right: 2px solid hsla(45, 100%, 55%, 1);
+  bottom: 4px;
+  right: 4px;
+  border-bottom: 2px solid hsla(45, 100%, 55%, 1);
+  border-right: 2px solid hsla(45, 100%, 55%, 1);
 }
 
 .match-lobby__map-card:hover {
-    border-color: hsla(180, 80%, 50%, 0.45);
-    box-shadow: 0 0 16px hsla(180, 80%, 40%, 0.12);
+  border-color: hsla(180, 80%, 50%, 0.45);
+  box-shadow: 0 0 16px hsla(180, 80%, 40%, 0.12);
 }
 
 .match-lobby__map-card:hover::before,
 .match-lobby__map-card:hover::after {
-    opacity: 0.8;
-    width: 12px;
-    height: 12px;
+  opacity: 0.8;
+  width: 12px;
+  height: 12px;
 }
 
 .match-lobby__map-card--voted {
-    border-color: hsla(180, 100%, 50%, 0.6);
-    box-shadow: 0 0 20px hsla(180, 100%, 50%, 0.15),
-        inset 0 0 30px hsla(180, 100%, 50%, 0.04);
+  border-color: hsla(180, 100%, 50%, 0.6);
+  box-shadow:
+    0 0 20px hsla(180, 100%, 50%, 0.15),
+    inset 0 0 30px hsla(180, 100%, 50%, 0.04);
 }
 
 .match-lobby__map-card--voted::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 .match-lobby__map-card--voted::after {
-    opacity: 1;
+  opacity: 1;
 }
 
 .match-lobby__map-img {
-    width: 100%;
-    height: 120px;
-    opacity: 0.65;
-    transition: opacity 0.2s;
+  width: 100%;
+  height: 120px;
+  opacity: 0.65;
+  transition: opacity 0.2s;
 }
 
 .match-lobby__map-card:hover .match-lobby__map-img {
-    opacity: 1;
+  opacity: 1;
 }
 
 .match-lobby__map-label {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    color: hsla(0, 0%, 90%, 0.9);
-    padding: 8px 10px 2px;
-    text-transform: uppercase;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: hsla(0, 0%, 90%, 0.9);
+  padding: 8px 10px 2px;
+  text-transform: uppercase;
 }
 
 .match-lobby__map-id {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    color: hsla(180, 60%, 60%, 0.4);
-    padding: 0 10px 6px;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: hsla(180, 60%, 60%, 0.4);
+  padding: 0 10px 6px;
 }
 
 .match-lobby__map-votes {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    color: hsla(180, 100%, 60%, 0.7);
-    padding: 0 10px 8px;
-    min-height: 16px;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: hsla(180, 100%, 60%, 0.7);
+  padding: 0 10px 8px;
+  min-height: 16px;
 }
 
 .match-lobby__map-check {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 22px;
-    height: 22px;
-    background: hsla(180, 100%, 50%, 0.1);
-    border: 1px solid hsla(180, 100%, 50%, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: transparent;
-    transition: all 0.2s;
-    z-index: 3;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  background: hsla(180, 100%, 50%, 0.1);
+  border: 1px solid hsla(180, 100%, 50%, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: transparent;
+  transition: all 0.2s;
+  z-index: 3;
 }
 
 .match-lobby__map-card--voted .match-lobby__map-check {
-    background: hsla(180, 100%, 50%, 0.25);
-    border-color: hsla(180, 100%, 50%, 0.7);
-    color: hsla(180, 100%, 80%, 1);
-    box-shadow: 0 0 8px hsla(180, 100%, 50%, 0.35);
+  background: hsla(180, 100%, 50%, 0.25);
+  border-color: hsla(180, 100%, 50%, 0.7);
+  color: hsla(180, 100%, 80%, 1);
+  box-shadow: 0 0 8px hsla(180, 100%, 50%, 0.35);
 }
 
 /* ── Players / Teams ── */
 
 .match-lobby__players {
-    flex: 1;
-    min-height: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 .match-lobby__players--teams {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 12px;
-    align-items: start;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: start;
 }
 
 .match-lobby__players--ffa {
-    display: flex;
+  display: flex;
 }
 
 .match-lobby__team,
 .match-lobby__player-list {
-    flex: 1;
+  flex: 1;
 }
 
 .match-lobby__team-header {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: hsla(180, 80%, 60%, 0.6);
-    text-align: center;
-    padding: 6px 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: hsla(180, 80%, 60%, 0.6);
+  text-align: center;
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .match-lobby__team-header::before,
 .match-lobby__team-header::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, hsla(180, 100%, 50%, 0.12), transparent);
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsla(180, 100%, 50%, 0.12), transparent);
 }
 
 .match-lobby__team--alpha .match-lobby__team-header {
-    color: hsla(200, 100%, 65%, 0.85);
+  color: hsla(200, 100%, 65%, 0.85);
 }
 
 .match-lobby__team--alpha .match-lobby__team-header::before,
 .match-lobby__team--alpha .match-lobby__team-header::after {
-    background: linear-gradient(90deg, transparent, hsla(200, 80%, 50%, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, hsla(200, 80%, 50%, 0.2), transparent);
 }
 
 .match-lobby__team--bravo .match-lobby__team-header {
-    color: hsla(350, 100%, 65%, 0.85);
+  color: hsla(350, 100%, 65%, 0.85);
 }
 
 .match-lobby__team--bravo .match-lobby__team-header::before,
 .match-lobby__team--bravo .match-lobby__team-header::after {
-    background: linear-gradient(90deg, transparent, hsla(350, 80%, 50%, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, hsla(350, 80%, 50%, 0.2), transparent);
 }
 
 .match-lobby__team-slots {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .match-lobby__vs {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: hsla(0, 0%, 50%, 0.3);
-    padding-top: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: hsla(0, 0%, 50%, 0.3);
+  padding-top: 40px;
 }
 
 /* ── Player Slots ── */
 
 .match-lobby__slot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 7px 12px;
-    border: 1px solid hsla(180, 40%, 30%, 0.15);
-    background: hsla(200, 30%, 10%, 0.25);
-    min-height: 34px;
-    transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid hsla(180, 40%, 30%, 0.15);
+  background: hsla(200, 30%, 10%, 0.25);
+  min-height: 34px;
+  transition: all 0.2s;
 }
 
 .match-lobby__slot--filled {
-    border-color: hsla(180, 50%, 35%, 0.25);
+  border-color: hsla(180, 50%, 35%, 0.25);
 }
 
 .match-lobby__slot--local {
-    border-color: hsla(180, 80%, 50%, 0.35);
-    background: hsla(180, 50%, 15%, 0.12);
+  border-color: hsla(180, 80%, 50%, 0.35);
+  background: hsla(180, 50%, 15%, 0.12);
 }
 
 .match-lobby__slot--ready {
-    border-color: hsla(140, 80%, 45%, 0.35);
+  border-color: hsla(140, 80%, 45%, 0.35);
 }
 
 .match-lobby__slot--empty {
-    border-style: dashed;
-    border-color: hsla(180, 30%, 30%, 0.15);
+  border-style: dashed;
+  border-color: hsla(180, 30%, 30%, 0.15);
 }
 
 .match-lobby__slot-name {
-    font-family: var(--w-font-body, 'Rajdhani', sans-serif);
-    font-size: 1.05rem;
-    color: hsla(0, 0%, 85%, 0.85);
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
+  font-size: 1.05rem;
+  color: hsla(0, 0%, 85%, 0.85);
 }
 
 .match-lobby__slot--local .match-lobby__slot-name {
-    color: hsla(180, 100%, 70%, 1);
+  color: hsla(180, 100%, 70%, 1);
 }
 
 .match-lobby__slot-status {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    color: hsla(0, 0%, 50%, 0.5);
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: hsla(0, 0%, 50%, 0.5);
 }
 
 .match-lobby__slot--ready .match-lobby__slot-status {
-    color: hsla(140, 80%, 55%, 0.85);
+  color: hsla(140, 80%, 55%, 0.85);
 }
 
 .match-lobby__slot-waiting {
-    font-family: var(--w-font-body, 'Rajdhani', sans-serif);
-    font-size: 1.0rem;
-    color: hsla(0, 0%, 40%, 0.4);
-    font-style: italic;
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
+  font-size: 1rem;
+  color: hsla(0, 0%, 40%, 0.4);
+  font-style: italic;
 }
 
 /* ── URL Bar ── */
 
 .match-lobby__url-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 14px;
-    border: 1px solid hsla(180, 40%, 30%, 0.15);
-    background: hsla(200, 30%, 8%, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border: 1px solid hsla(180, 40%, 30%, 0.15);
+  background: hsla(200, 30%, 8%, 0.35);
 }
 
 .match-lobby__url-icon {
-    font-size: 14px;
-    color: hsla(180, 60%, 55%, 0.5);
+  font-size: 14px;
+  color: hsla(180, 60%, 55%, 0.5);
 }
 
 .match-lobby__url-text {
-    flex: 1;
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
-    color: hsla(180, 80%, 60%, 0.7);
-    user-select: all;
+  flex: 1;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: hsla(180, 80%, 60%, 0.7);
+  user-select: all;
 }
 
 .match-lobby__url-copy {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 5px 14px;
-    border: 1px solid hsla(180, 60%, 40%, 0.25);
-    background: hsla(180, 50%, 20%, 0.1);
-    color: hsla(180, 100%, 65%, 0.8);
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border: 1px solid hsla(180, 60%, 40%, 0.25);
+  background: hsla(180, 50%, 20%, 0.1);
+  color: hsla(180, 100%, 65%, 0.8);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
 }
 
 .match-lobby__url-copy::before,
 .match-lobby__url-copy::after {
-    content: '';
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    transition: border-color 0.2s ease;
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  transition: border-color 0.2s ease;
 }
 
 .match-lobby__url-copy::before {
-    top: -1px;
-    left: -1px;
-    border-top: 2px solid hsla(180, 100%, 50%, 0.35);
-    border-left: 2px solid hsla(180, 100%, 50%, 0.35);
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid hsla(180, 100%, 50%, 0.35);
+  border-left: 2px solid hsla(180, 100%, 50%, 0.35);
 }
 
 .match-lobby__url-copy::after {
-    bottom: -1px;
-    right: -1px;
-    border-bottom: 2px solid hsla(45, 100%, 55%, 0.35);
-    border-right: 2px solid hsla(45, 100%, 55%, 0.35);
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid hsla(45, 100%, 55%, 0.35);
+  border-right: 2px solid hsla(45, 100%, 55%, 0.35);
 }
 
 .match-lobby__url-copy:hover {
-    background: hsla(180, 50%, 25%, 0.2);
-    border-color: hsla(180, 80%, 50%, 0.45);
-    box-shadow: 0 0 10px hsla(180, 80%, 50%, 0.15);
-    color: var(--w-cyan, hsl(180, 100%, 50%));
+  background: hsla(180, 50%, 25%, 0.2);
+  border-color: hsla(180, 80%, 50%, 0.45);
+  box-shadow: 0 0 10px hsla(180, 80%, 50%, 0.15);
+  color: var(--w-cyan, hsl(180, 100%, 50%));
 }
 
 .match-lobby__url-copy:hover::before {
-    border-color: hsla(180, 100%, 50%, 0.6);
+  border-color: hsla(180, 100%, 50%, 0.6);
 }
 
 .match-lobby__url-copy:hover::after {
-    border-color: hsla(45, 100%, 55%, 0.6);
+  border-color: hsla(45, 100%, 55%, 0.6);
 }
 
 /* ── Action Buttons ── */
 
 /* Static bottom action bar */
 .match-lobby__actions {
-    flex-shrink: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 0 2px;
-    border-top: 1px solid hsla(180, 60%, 40%, 0.08);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 2px;
+  border-top: 1px solid hsla(180, 60%, 40%, 0.08);
 }
 
 .match-lobby__btn {
-    font-family: var(--w-font-display, 'Orbitron', monospace);
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    padding: 10px 24px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
-    position: relative;
+  font-family: var(--w-font-display, "Orbitron", monospace);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  position: relative;
 }
 
 /* Corner brackets on all buttons */
 .match-lobby__btn::before,
 .match-lobby__btn::after {
-    content: '';
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    transition: border-color 0.2s ease;
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  transition: border-color 0.2s ease;
 }
 
 .match-lobby__btn::before {
-    top: -1px;
-    left: -1px;
-    border-top: 2px solid hsla(180, 100%, 50%, 0.35);
-    border-left: 2px solid hsla(180, 100%, 50%, 0.35);
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid hsla(180, 100%, 50%, 0.35);
+  border-left: 2px solid hsla(180, 100%, 50%, 0.35);
 }
 
 .match-lobby__btn::after {
-    bottom: -1px;
-    right: -1px;
-    border-bottom: 2px solid hsla(45, 100%, 55%, 0.35);
-    border-right: 2px solid hsla(45, 100%, 55%, 0.35);
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid hsla(45, 100%, 55%, 0.35);
+  border-right: 2px solid hsla(45, 100%, 55%, 0.35);
 }
 
 .match-lobby__btn:hover::before {
-    border-color: hsla(180, 100%, 50%, 0.7);
+  border-color: hsla(180, 100%, 50%, 0.7);
 }
 
 .match-lobby__btn:hover::after {
-    border-color: hsla(45, 100%, 55%, 0.7);
+  border-color: hsla(45, 100%, 55%, 0.7);
 }
 
 /* LEAVE button — muted, danger on hover */
 .match-lobby__btn--leave {
-    border: 1px solid hsla(180, 30%, 30%, 0.25);
-    background: hsla(180, 20%, 10%, 0.3);
-    color: hsla(180, 30%, 65%, 0.6);
+  border: 1px solid hsla(180, 30%, 30%, 0.25);
+  background: hsla(180, 20%, 10%, 0.3);
+  color: hsla(180, 30%, 65%, 0.6);
 }
 
 .match-lobby__btn--leave:hover {
-    border-color: hsla(0, 60%, 40%, 0.4);
-    color: hsla(0, 80%, 65%, 0.85);
-    background: hsla(0, 40%, 15%, 0.25);
+  border-color: hsla(0, 60%, 40%, 0.4);
+  color: hsla(0, 80%, 65%, 0.85);
+  background: hsla(0, 40%, 15%, 0.25);
 }
 
 .match-lobby__btn--leave:hover::before {
-    border-color: hsla(0, 80%, 50%, 0.5);
+  border-color: hsla(0, 80%, 50%, 0.5);
 }
 
 .match-lobby__btn--leave:hover::after {
-    border-color: hsla(0, 60%, 40%, 0.5);
+  border-color: hsla(0, 60%, 40%, 0.5);
 }
 
 /* SHUFFLE TEAMS button — gold accent */
 .match-lobby__btn--shuffle {
-    border: 1px solid hsla(45, 60%, 40%, 0.25);
-    background: hsla(45, 30%, 12%, 0.2);
-    color: hsla(45, 80%, 60%, 0.75);
-    font-size: 0.85rem;
-    padding: 8px 16px;
+  border: 1px solid hsla(45, 60%, 40%, 0.25);
+  background: hsla(45, 30%, 12%, 0.2);
+  color: hsla(45, 80%, 60%, 0.75);
+  font-size: 0.85rem;
+  padding: 8px 16px;
 }
 
 .match-lobby__btn--shuffle:hover {
-    border-color: hsla(45, 80%, 50%, 0.45);
-    color: hsla(45, 100%, 65%, 0.9);
-    background: hsla(45, 40%, 15%, 0.3);
-    box-shadow: 0 0 10px hsla(45, 80%, 50%, 0.12);
+  border-color: hsla(45, 80%, 50%, 0.45);
+  color: hsla(45, 100%, 65%, 0.9);
+  background: hsla(45, 40%, 15%, 0.3);
+  box-shadow: 0 0 10px hsla(45, 80%, 50%, 0.12);
 }
 
 .match-lobby__btn--shuffle:hover::before {
-    border-color: hsla(45, 100%, 55%, 0.6);
+  border-color: hsla(45, 100%, 55%, 0.6);
 }
 
 .match-lobby__btn--shuffle:hover::after {
-    border-color: hsla(45, 100%, 55%, 0.6);
+  border-color: hsla(45, 100%, 55%, 0.6);
 }
 
 .match-lobby__btn--voted {
-    border-color: hsla(45, 80%, 50%, 0.45);
-    background: hsla(45, 40%, 15%, 0.3);
+  border-color: hsla(45, 80%, 50%, 0.45);
+  background: hsla(45, 40%, 15%, 0.3);
 }
 
 /* READY button — green/cyan glow */
 .match-lobby__btn--ready {
-    border: 1px solid hsla(140, 60%, 40%, 0.35);
-    background: hsla(140, 40%, 12%, 0.2);
-    color: hsla(140, 80%, 60%, 0.85);
-    margin-left: auto;
+  border: 1px solid hsla(140, 60%, 40%, 0.35);
+  background: hsla(140, 40%, 12%, 0.2);
+  color: hsla(140, 80%, 60%, 0.85);
+  margin-left: auto;
 }
 
 .match-lobby__btn--ready:hover {
-    border-color: hsla(140, 80%, 50%, 0.55);
-    background: hsla(140, 50%, 15%, 0.3);
-    box-shadow: 0 0 14px hsla(140, 80%, 40%, 0.18);
+  border-color: hsla(140, 80%, 50%, 0.55);
+  background: hsla(140, 50%, 15%, 0.3);
+  box-shadow: 0 0 14px hsla(140, 80%, 40%, 0.18);
 }
 
 .match-lobby__btn--ready:hover::before {
-    border-color: hsla(140, 100%, 50%, 0.6);
+  border-color: hsla(140, 100%, 50%, 0.6);
 }
 
 .match-lobby__btn--ready:hover::after {
-    border-color: hsla(140, 80%, 50%, 0.6);
+  border-color: hsla(140, 80%, 50%, 0.6);
 }
 
 /* READY active state — bright glow */
 .match-lobby__btn--ready-active {
-    border-color: hsla(140, 100%, 50%, 0.7);
-    background: hsla(140, 60%, 18%, 0.4);
-    color: hsla(140, 100%, 70%, 1);
-    box-shadow: 0 0 18px hsla(140, 100%, 40%, 0.25),
-        inset 0 0 15px hsla(140, 100%, 40%, 0.08);
-    text-shadow: 0 0 8px hsla(140, 100%, 50%, 0.45);
+  border-color: hsla(140, 100%, 50%, 0.7);
+  background: hsla(140, 60%, 18%, 0.4);
+  color: hsla(140, 100%, 70%, 1);
+  box-shadow:
+    0 0 18px hsla(140, 100%, 40%, 0.25),
+    inset 0 0 15px hsla(140, 100%, 40%, 0.08);
+  text-shadow: 0 0 8px hsla(140, 100%, 50%, 0.45);
 }
 
 .match-lobby__btn--ready-active::before {
-    border-color: hsla(140, 100%, 50%, 0.8);
+  border-color: hsla(140, 100%, 50%, 0.8);
 }
 
 .match-lobby__btn--ready-active::after {
-    border-color: hsla(140, 80%, 50%, 0.8);
+  border-color: hsla(140, 80%, 50%, 0.8);
 }

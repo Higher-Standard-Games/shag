@@ -1,4 +1,4 @@
-import type { IComponent, StateEncoder } from './Component';
+import type { IComponent, StateEncoder } from "./Component";
 
 /**
  * Unique identifier for entities
@@ -14,11 +14,11 @@ export type PlayerId = string;
  * Entity types for the network simulation
  */
 export enum EntityType {
-  Player = 'player',
-  Projectile = 'projectile',
-  Item = 'item',
-  Trigger = 'trigger',
-  Effect = 'effect',
+  Player = "player",
+  Projectile = "projectile",
+  Item = "item",
+  Trigger = "trigger",
+  Effect = "effect",
 }
 
 /**
@@ -82,7 +82,7 @@ export class Entity {
   serialize(encoder: StateEncoder): void {
     // Entity metadata
     encoder.writeString(this.type);
-    encoder.writeString(this.ownerId ?? '');
+    encoder.writeString(this.ownerId ?? "");
 
     // Components
     encoder.writeUint8(this.components.size);
@@ -104,4 +104,3 @@ export class Entity {
     return cloned;
   }
 }
-

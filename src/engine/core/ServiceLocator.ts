@@ -1,22 +1,22 @@
 /**
  * ServiceLocator - Centralized service management with explicit initialization order
- * 
+ *
  * Provides dependency injection for engine services, ensuring proper initialization
  * order and making dependencies explicit rather than implicit.
- * 
+ *
  * Benefits:
  * - Explicit initialization order prevents race conditions
  * - Easy to mock services for testing
  * - Clear dependency graph
  * - Proper cleanup on shutdown
- * 
+ *
  * Usage:
  *   // During startup
  *   await ServiceLocator.getInstance().initEngine(scene);
- *   
+ *
  *   // Anywhere in code
  *   const textures = ServiceLocator.get<TextureManager>('textures');
- *   
+ *
  *   // During shutdown
  *   ServiceLocator.getInstance().dispose();
  */
@@ -50,7 +50,7 @@ interface ServiceInfo {
 /**
  * Initialization phase - controls when services are initialized
  */
-export type InitPhase = 'core' | 'scene' | 'game';
+export type InitPhase = "core" | "scene" | "game";
 
 /**
  * Service registration options
@@ -71,21 +71,21 @@ export interface ServiceRegistration {
  */
 export class ServiceLocator {
   private static instance: ServiceLocator;
-  
+
   private services: Map<string, ServiceInfo> = new Map();
   private registrations: Map<string, ServiceRegistration> = new Map();
   private initOrder: string[] = [];
   private currentPhase: InitPhase | null = null;
-  
+
   private constructor() {}
-  
+
   public static getInstance(): ServiceLocator {
     if (!ServiceLocator.instance) {
       ServiceLocator.instance = new ServiceLocator();
     }
     return ServiceLocator.instance;
   }
-  
+
   /**
    * Reset instance (for testing)
    */
@@ -95,7 +95,7 @@ export class ServiceLocator {
     }
     ServiceLocator.instance = null as unknown as ServiceLocator;
   }
-  
+
   /**
    * Register a service for later initialization
    */
@@ -104,14 +104,14 @@ export class ServiceLocator {
       console.warn(`[ServiceLocator] Service '${registration.name}' already registered, skipping`);
       return;
     }
-    
+
     this.registrations.set(registration.name, {
       ...registration,
       dependencies: registration.dependencies ?? [],
-      phase: registration.phase ?? 'core',
+      phase: registration.phase ?? "core",
     });
   }
-  
+
   /**
    * Register multiple services at once
    */
@@ -120,25 +120,25 @@ export class ServiceLocator {
       this.register(reg);
     }
   }
-  
+
   /**
    * Get a service by name (type-safe)
    */
   public static get<T extends Service>(name: string): T {
     const locator = ServiceLocator.getInstance();
     const info = locator.services.get(name);
-    
+
     if (!info) {
       throw new Error(`[ServiceLocator] Service '${name}' not found. Did you forget to register it?`);
     }
-    
+
     if (!info.initialized) {
       console.warn(`[ServiceLocator] Service '${name}' accessed before initialization`);
     }
-    
+
     return info.instance as T;
   }
-  
+
   /**
    * Try to get a service (returns undefined if not found)
    */
@@ -147,7 +147,7 @@ export class ServiceLocator {
     const info = locator.services.get(name);
     return info?.instance as T | undefined;
   }
-  
+
   /**
    * Check if a service is registered and initialized
    */
@@ -156,48 +156,48 @@ export class ServiceLocator {
     const info = locator.services.get(name);
     return info?.initialized ?? false;
   }
-  
+
   /**
    * Initialize all services for a given phase
    */
   public async initPhase(phase: InitPhase, ...args: unknown[]): Promise<void> {
     this.currentPhase = phase;
     console.log(`[ServiceLocator] Initializing ${phase} phase...`);
-    
+
     // Get services for this phase in dependency order
     const phaseServices = this.getServicesForPhase(phase);
-    
+
     for (const name of phaseServices) {
       await this.initService(name, ...args);
     }
-    
+
     console.log(`[ServiceLocator] ${phase} phase complete (${phaseServices.length} services)`);
   }
-  
+
   /**
    * Initialize core services (no scene required)
    * Call this early in startup
    */
   public async initCore(): Promise<void> {
-    await this.initPhase('core');
+    await this.initPhase("core");
   }
-  
+
   /**
    * Initialize scene-dependent services
    * Call this after creating the Babylon scene
    */
   public async initScene(scene: Scene): Promise<void> {
-    await this.initPhase('scene', scene);
+    await this.initPhase("scene", scene);
   }
-  
+
   /**
    * Initialize game-specific services
    * Call this after scene services are ready
    */
   public async initGame(): Promise<void> {
-    await this.initPhase('game');
+    await this.initPhase("game");
   }
-  
+
   /**
    * Get services for a phase in topologically sorted order
    */
@@ -205,20 +205,20 @@ export class ServiceLocator {
     const phaseRegs = Array.from(this.registrations.entries())
       .filter(([_, reg]) => reg.phase === phase)
       .map(([name, _]) => name);
-    
+
     // Topological sort based on dependencies
     const sorted: string[] = [];
     const visited = new Set<string>();
     const visiting = new Set<string>();
-    
+
     const visit = (name: string) => {
       if (visited.has(name)) return;
       if (visiting.has(name)) {
         throw new Error(`[ServiceLocator] Circular dependency detected involving '${name}'`);
       }
-      
+
       visiting.add(name);
-      
+
       const reg = this.registrations.get(name);
       if (reg) {
         for (const dep of reg.dependencies ?? []) {
@@ -229,34 +229,38 @@ export class ServiceLocator {
           }
         }
       }
-      
+
       visiting.delete(name);
       visited.add(name);
-      
+
       if (phaseRegs.includes(name)) {
         sorted.push(name);
       }
     };
-    
+
     for (const name of phaseRegs) {
       visit(name);
     }
-    
+
     return sorted;
   }
-  
+
   /**
    * Get phase order for sorting
    */
   private phaseOrder(phase: InitPhase): number {
     switch (phase) {
-      case 'core': return 0;
-      case 'scene': return 1;
-      case 'game': return 2;
-      default: return 0;
+      case "core":
+        return 0;
+      case "scene":
+        return 1;
+      case "game":
+        return 2;
+      default:
+        return 0;
     }
   }
-  
+
   /**
    * Initialize a single service
    */
@@ -265,12 +269,12 @@ export class ServiceLocator {
     if (existing?.initialized) {
       return; // Already initialized
     }
-    
+
     const reg = this.registrations.get(name);
     if (!reg) {
       throw new Error(`[ServiceLocator] Service '${name}' not registered`);
     }
-    
+
     // Create instance if not exists
     let info: ServiceInfo;
     if (existing) {
@@ -284,7 +288,7 @@ export class ServiceLocator {
       };
       this.services.set(name, info);
     }
-    
+
     // Initialize (cast to Service to access optional methods)
     const service = info.instance as Service;
     if (service.init) {
@@ -294,11 +298,11 @@ export class ServiceLocator {
     } else {
       console.log(`[ServiceLocator] Service '${name}' has no init method`);
     }
-    
+
     info.initialized = true;
     this.initOrder.push(name);
   }
-  
+
   /**
    * Manually set a service instance (useful for testing/mocking)
    */
@@ -309,14 +313,14 @@ export class ServiceLocator {
       dependencies: [],
     });
   }
-  
+
   /**
    * Get initialization order (for debugging)
    */
   public getInitOrder(): string[] {
     return [...this.initOrder];
   }
-  
+
   /**
    * Check if all services are initialized
    */
@@ -329,13 +333,13 @@ export class ServiceLocator {
     }
     return true;
   }
-  
+
   /**
    * Dispose all services in reverse initialization order
    */
   public dispose(): void {
-    console.log('[ServiceLocator] Disposing services...');
-    
+    console.log("[ServiceLocator] Disposing services...");
+
     // Dispose in reverse order
     const reversed = [...this.initOrder].reverse();
     for (const name of reversed) {
@@ -346,19 +350,19 @@ export class ServiceLocator {
         service.dispose();
       }
     }
-    
+
     this.services.clear();
     this.initOrder = [];
     this.currentPhase = null;
   }
-  
+
   /**
    * Get current initialization phase (for debugging)
    */
   public getCurrentPhase(): InitPhase | null {
     return this.currentPhase;
   }
-  
+
   /**
    * Get debug info about registered services
    */

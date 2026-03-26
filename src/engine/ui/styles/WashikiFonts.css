@@ -1,102 +1,102 @@
 /**
  * WashikiFonts - @font-face declarations and CSS vars for Washiki theme fonts
- * 
+ *
  * Extracted from WashikiTheme.css so fonts are available at app startup
  * (before FPS HUD loads). This file is imported in main.ts.
  */
 
 /* Orbitron — Display / Title font */
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Medium.ttf') format('truetype');
-    font-weight: 500;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-SemiBold.ttf') format('truetype');
-    font-weight: 600;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Bold.ttf') format('truetype');
-    font-weight: 700;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf') format('truetype');
-    font-weight: 800;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Black.ttf') format('truetype');
-    font-weight: 900;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: block;
 }
 
 /* Rajdhani — Body / Label font */
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Light.ttf') format('truetype');
-    font-weight: 300;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Medium.ttf') format('truetype');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf') format('truetype');
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Bold.ttf') format('truetype');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 /* Washiki Design Tokens (fonts + core colors needed at startup) */
 :root {
-    --w-font-display: 'Orbitron', monospace;
-    --w-font-body: 'Rajdhani', sans-serif;
+  --w-font-display: "Orbitron", monospace;
+  --w-font-body: "Rajdhani", sans-serif;
 }

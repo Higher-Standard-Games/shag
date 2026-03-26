@@ -1,6 +1,6 @@
 /**
  * HUDManager - Core HUD system manager
- * 
+ *
  * Handles:
  * - Loading configuration
  * - Creating and managing HUD elements
@@ -9,30 +9,30 @@
  * - User preferences persistence
  */
 
+import { UIStyles } from "../UIStyles";
+import { HUDAccordion } from "./components/HUDAccordion";
+import { HUDButton } from "./components/HUDButton";
+import { HUDPill } from "./components/HUDPill";
+import { HUDPillGroup } from "./components/HUDPillGroup";
+import { HUDPillProgress } from "./components/HUDPillProgress";
+import type { HUDElement } from "./HUDElement";
 import type {
+  HUDClickHandler,
   HUDConfig,
-  HUDSettings,
-  HUDPosition,
+  HUDContentProvider,
   HUDElementConfig,
+  HUDFlashType,
+  HUDListBinding,
+  HUDPosition,
+  HUDSettings,
   HUDUserPrefs,
   HUDValueGetter,
-  HUDClickHandler,
-  HUDListBinding,
-  HUDContentProvider,
-  HUDFlashType,
-} from './HUDTypes';
-import { HUDElement } from './HUDElement';
-import { HUDPill } from './components/HUDPill';
-import { HUDPillProgress } from './components/HUDPillProgress';
-import { HUDPillGroup } from './components/HUDPillGroup';
-import { HUDButton } from './components/HUDButton';
-import { HUDAccordion } from './components/HUDAccordion';
-import { UIStyles } from '../UIStyles';
+} from "./HUDTypes";
 
 // Import CSS
-import hudStyles from './styles/HUD.css?raw';
+import hudStyles from "./styles/HUD.css?raw";
 
-const STORAGE_KEY = 'hud-user-prefs';
+const STORAGE_KEY = "hud-user-prefs";
 const DEFAULT_UPDATE_INTERVAL = 100;
 
 export class HUDManager {
@@ -68,7 +68,7 @@ export class HUDManager {
   private running: boolean = false;
 
   // Theme
-  private currentTheme: string = 'default';
+  private currentTheme: string = "default";
 
   private constructor() {}
 
@@ -87,10 +87,10 @@ export class HUDManager {
    * Initialize the HUD system with a config file
    */
   public async init(configPath: string): Promise<void> {
-    console.log('[HUD] Initializing...');
+    console.log("[HUD] Initializing...");
 
     // Inject styles
-    UIStyles.injectCSS('hud-system', hudStyles);
+    UIStyles.injectCSS("hud-system", hudStyles);
 
     // Load config
     await this.loadConfig(configPath);
@@ -128,7 +128,7 @@ export class HUDManager {
 
       console.log(`[HUD] Config loaded from ${configPath}`);
     } catch (error) {
-      console.error('[HUD] Failed to load config:', error);
+      console.error("[HUD] Failed to load config:", error);
       // Use empty config
       this.config = {
         version: 1,
@@ -149,10 +149,10 @@ export class HUDManager {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         this.userPrefs = { ...this.userPrefs, ...JSON.parse(stored) };
-        console.log('[HUD] User preferences loaded');
+        console.log("[HUD] User preferences loaded");
       }
     } catch (error) {
-      console.warn('[HUD] Failed to load user preferences:', error);
+      console.warn("[HUD] Failed to load user preferences:", error);
     }
   }
 
@@ -165,7 +165,7 @@ export class HUDManager {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.userPrefs));
     } catch (error) {
-      console.warn('[HUD] Failed to save user preferences:', error);
+      console.warn("[HUD] Failed to save user preferences:", error);
     }
   }
 
@@ -176,7 +176,7 @@ export class HUDManager {
     // Apply collapsed state
     for (const id of this.userPrefs.collapsed) {
       const element = this.elements.get(id);
-      if (element && 'collapse' in element) {
+      if (element && "collapse" in element) {
         (element as HUDAccordion).collapse();
       }
     }
@@ -204,20 +204,26 @@ export class HUDManager {
    */
   private createLayoutContainers(): void {
     // Main container
-    this.container = document.createElement('div');
-    this.container.id = 'hud-container';
-    this.container.className = 'hud-container';
+    this.container = document.createElement("div");
+    this.container.id = "hud-container";
+    this.container.className = "hud-container";
     document.body.appendChild(this.container);
 
     // Create area containers for each position
     const positions: HUDPosition[] = [
-      'top-left', 'top-center', 'top-right',
-      'left', 'center', 'right',
-      'bottom-left', 'bottom-center', 'bottom-right',
+      "top-left",
+      "top-center",
+      "top-right",
+      "left",
+      "center",
+      "right",
+      "bottom-left",
+      "bottom-center",
+      "bottom-right",
     ];
 
     for (const position of positions) {
-      const area = document.createElement('div');
+      const area = document.createElement("div");
       area.className = `hud-area hud-area-${position}`;
       area.dataset.position = position;
       this.container.appendChild(area);
@@ -261,19 +267,19 @@ export class HUDManager {
    */
   private createComponent(id: string, config: HUDElementConfig): HUDElement | null {
     switch (config.type) {
-      case 'pill':
+      case "pill":
         return new HUDPill(id, config as any);
 
-      case 'pill-progress':
+      case "pill-progress":
         return new HUDPillProgress(id, config as any);
 
-      case 'pill-group':
+      case "pill-group":
         return new HUDPillGroup(id, config as any, this);
 
-      case 'button':
+      case "button":
         return new HUDButton(id, config as any);
 
-      case 'accordion':
+      case "accordion":
         return new HUDAccordion(id, config as any, this);
 
       default:
@@ -297,7 +303,7 @@ export class HUDManager {
    * Bind a list data source to an element
    */
   public bindList(id: string, binding: HUDListBinding | (() => any[])): void {
-    if (typeof binding === 'function') {
+    if (typeof binding === "function") {
       this.listBindings.set(id, { data: binding });
     } else {
       this.listBindings.set(id, binding);
@@ -364,10 +370,7 @@ export class HUDManager {
     if (this.running) return;
 
     this.running = true;
-    this.intervalId = window.setInterval(
-      () => this.update(),
-      this.settings.updateInterval
-    );
+    this.intervalId = window.setInterval(() => this.update(), this.settings.updateInterval);
     console.log(`[HUD] Update loop started (${this.settings.updateInterval}ms interval)`);
   }
 
@@ -382,7 +385,7 @@ export class HUDManager {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    console.log('[HUD] Update loop stopped');
+    console.log("[HUD] Update loop stopped");
   }
 
   /**
@@ -449,10 +452,10 @@ export class HUDManager {
 
     // Auto-animate numeric changes
     if (this.settings.animateValueChanges) {
-      if (typeof newValue === 'number' && typeof oldValue === 'number') {
+      if (typeof newValue === "number" && typeof oldValue === "number") {
         const delta = newValue - oldValue;
-        if (delta > 0) element.flash('gain');
-        if (delta < 0) element.flash('loss');
+        if (delta > 0) element.flash("gain");
+        if (delta < 0) element.flash("loss");
       }
     }
   }
@@ -465,7 +468,7 @@ export class HUDManager {
     if (!element) return;
 
     // Accordions handle list updates internally
-    if ('updateList' in element) {
+    if ("updateList" in element) {
       (element as HUDAccordion).updateList(data);
     }
   }
@@ -501,7 +504,7 @@ export class HUDManager {
       if (a.length !== b.length) return false;
       return JSON.stringify(a) === JSON.stringify(b);
     }
-    if (typeof a === 'object' && typeof b === 'object') {
+    if (typeof a === "object" && typeof b === "object") {
       return JSON.stringify(a) === JSON.stringify(b);
     }
     return false;
@@ -513,7 +516,7 @@ export class HUDManager {
   private clone(value: any): any {
     if (value == null) return value;
     if (Array.isArray(value)) return [...value];
-    if (typeof value === 'object') return { ...value };
+    if (typeof value === "object") return { ...value };
     return value;
   }
 
@@ -529,7 +532,7 @@ export class HUDManager {
     if (element) {
       element.show();
       // Remove from hidden prefs
-      this.userPrefs.hidden = this.userPrefs.hidden.filter(h => h !== id);
+      this.userPrefs.hidden = this.userPrefs.hidden.filter((h) => h !== id);
       this.saveUserPrefs();
     }
   }
@@ -614,7 +617,7 @@ export class HUDManager {
    */
   public collapse(id: string): void {
     const element = this.elements.get(id);
-    if (element && 'collapse' in element) {
+    if (element && "collapse" in element) {
       (element as HUDAccordion).collapse();
       if (!this.userPrefs.collapsed.includes(id)) {
         this.userPrefs.collapsed.push(id);
@@ -628,9 +631,9 @@ export class HUDManager {
    */
   public expand(id: string): void {
     const element = this.elements.get(id);
-    if (element && 'expand' in element) {
+    if (element && "expand" in element) {
       (element as HUDAccordion).expand();
-      this.userPrefs.collapsed = this.userPrefs.collapsed.filter(c => c !== id);
+      this.userPrefs.collapsed = this.userPrefs.collapsed.filter((c) => c !== id);
       this.saveUserPrefs();
     }
   }
@@ -640,7 +643,7 @@ export class HUDManager {
    */
   public collapseAll(): void {
     for (const [id, element] of this.elements) {
-      if ('collapse' in element) {
+      if ("collapse" in element) {
         (element as HUDAccordion).collapse();
         if (!this.userPrefs.collapsed.includes(id)) {
           this.userPrefs.collapsed.push(id);
@@ -720,7 +723,7 @@ export class HUDManager {
       `Running: ${this.running}`,
       `Theme: ${this.currentTheme}`,
     ];
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -764,7 +767,7 @@ export class HUDManager {
 
     this.areaContainers.clear();
 
-    console.log('[HUD] Destroyed');
+    console.log("[HUD] Destroyed");
   }
 
   /**
@@ -779,7 +782,7 @@ export class HUDManager {
       element.show();
     }
 
-    console.log('[HUD] Reset to defaults');
+    console.log("[HUD] Reset to defaults");
   }
 }
 

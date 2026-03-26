@@ -12,27 +12,27 @@
  *   if (canInitiateSlide(currentSpeed, slideCooldownExpired)) { ... }
  */
 
-import { InputButtons } from '../engine/network/components/InputComponent';
+import { InputButtons } from "../engine/network/components/InputComponent";
 
 // ── Movement Mechanic Interface ─────────────────────────────────────
 
 export interface MovementMechanic {
-    /** Mechanic identifier */
-    id: string;
-    /** Can the bot fire weapons during this movement? */
-    canFire: boolean;
-    /** Resulting speed (ups) or multiplier */
-    speed: number;
-    /** Minimum horizontal speed required to initiate (0 = none) */
-    minSpeedRequired: number;
-    /** Maximum duration in ms (0 = unlimited) */
-    duration: number;
-    /** Cooldown before reuse in ms (0 = none) */
-    cooldown: number;
-    /** InputButtons bitmask to activate this mechanic */
-    inputMask: number;
-    /** Brief description for debugging */
-    description: string;
+  /** Mechanic identifier */
+  id: string;
+  /** Can the bot fire weapons during this movement? */
+  canFire: boolean;
+  /** Resulting speed (ups) or multiplier */
+  speed: number;
+  /** Minimum horizontal speed required to initiate (0 = none) */
+  minSpeedRequired: number;
+  /** Maximum duration in ms (0 = unlimited) */
+  duration: number;
+  /** Cooldown before reuse in ms (0 = none) */
+  cooldown: number;
+  /** InputButtons bitmask to activate this mechanic */
+  inputMask: number;
+  /** Brief description for debugging */
+  description: string;
 }
 
 // ── Physics Constants (from MovementVars.ts defaults) ───────────────
@@ -40,131 +40,131 @@ export interface MovementMechanic {
 // If MovementVars defaults change, update these too.
 
 export const PHYSICS = {
-    // Movement speeds
-    BASE_SPEED: 280,           // sv_movementSpeed
-    SPRINT_SPEED: 400,         // sv_runSpeed
-    CROUCH_MULT: 0.5,          // cl_crouchmult
-    SPRINT_MULT: 1.5,          // cl_sprintmult
-    TOP_SPEED: 1000,           // sv_topspeed (hard cap)
+  // Movement speeds
+  BASE_SPEED: 280, // sv_movementSpeed
+  SPRINT_SPEED: 400, // sv_runSpeed
+  CROUCH_MULT: 0.5, // cl_crouchmult
+  SPRINT_MULT: 1.5, // cl_sprintmult
+  TOP_SPEED: 1000, // sv_topspeed (hard cap)
 
-    // Jump
-    JUMP_VELOCITY: 320,        // sv_jumpheight
-    GRAVITY: 1000,             // sv_gravity
-    AUTO_HOP: true,            // sv_autohop = 1
+  // Jump
+  JUMP_VELOCITY: 320, // sv_jumpheight
+  GRAVITY: 1000, // sv_gravity
+  AUTO_HOP: true, // sv_autohop = 1
 
-    // Air control
-    AIR_CONTROL: 150,          // sv_aircontrol
-    MAX_AIR_SPEED: 30,         // sv_maxairspeed
-    AIR_ACCELERATE: 1.0,       // sv_airaccelerate
+  // Air control
+  AIR_CONTROL: 150, // sv_aircontrol
+  MAX_AIR_SPEED: 30, // sv_maxairspeed
+  AIR_ACCELERATE: 1.0, // sv_airaccelerate
 
-    // Crouch-slide
-    SLIDE_MIN_SPEED: 375,      // sv_slideMinSpeed
-    SLIDE_SPEED_MULT: 1.2,     // sv_slideSpeedMultiplier
-    SLIDE_DURATION: 800,       // sv_slideDuration (ms)
-    SLIDE_COOLDOWN: 1500,      // sv_slideCooldown (ms)
-    SLIDE_FRICTION: 0.1,       // sv_slideFriction
-    SLIDE_DECAY: 0.5,          // sv_slideDecay
-    SLIDE_JUMP_BOOST: 1.3,     // sv_slideJumpBoost
+  // Crouch-slide
+  SLIDE_MIN_SPEED: 375, // sv_slideMinSpeed
+  SLIDE_SPEED_MULT: 1.2, // sv_slideSpeedMultiplier
+  SLIDE_DURATION: 800, // sv_slideDuration (ms)
+  SLIDE_COOLDOWN: 1500, // sv_slideCooldown (ms)
+  SLIDE_FRICTION: 0.1, // sv_slideFriction
+  SLIDE_DECAY: 0.5, // sv_slideDecay
+  SLIDE_JUMP_BOOST: 1.3, // sv_slideJumpBoost
 
-    // Wall-jump
-    WALLJUMP_HEIGHT: 280,      // sv_walljump_height
-    WALLJUMP_BOUNCE: 0.8,      // sv_walljump_bounce
-    WALLJUMP_REACH: 20,        // sv_walljump_reach
-    WALLJUMP_COOLDOWN: 1000,   // sv_walljump_cooldown (ms, 1.0s)
-    WALLJUMP_MIN_HEIGHT: 32,   // sv_walljump_minheight
-    WALLJUMP_CHARGE: 200,      // sv_walljump_chargetime (ms, 0.2s)
-    WALLJUMP_BOOST: 1.2,       // sv_walljump_boost
+  // Wall-jump
+  WALLJUMP_HEIGHT: 280, // sv_walljump_height
+  WALLJUMP_BOUNCE: 0.8, // sv_walljump_bounce
+  WALLJUMP_REACH: 20, // sv_walljump_reach
+  WALLJUMP_COOLDOWN: 1000, // sv_walljump_cooldown (ms, 1.0s)
+  WALLJUMP_MIN_HEIGHT: 32, // sv_walljump_minheight
+  WALLJUMP_CHARGE: 200, // sv_walljump_chargetime (ms, 0.2s)
+  WALLJUMP_BOOST: 1.2, // sv_walljump_boost
 
-    // Ledge-grab
-    LEDGE_REACH: 32,           // sv_ledge_reach
-    LEDGE_HEIGHT: 64,          // sv_ledge_height
-    LEDGE_TIMEOUT: 2000,       // sv_ledge_timeout (ms, 2.0s)
-    LEDGE_PULL_TIME: 350,      // sv_ledge_pulltime (ms, 0.35s)
+  // Ledge-grab
+  LEDGE_REACH: 32, // sv_ledge_reach
+  LEDGE_HEIGHT: 64, // sv_ledge_height
+  LEDGE_TIMEOUT: 2000, // sv_ledge_timeout (ms, 2.0s)
+  LEDGE_PULL_TIME: 350, // sv_ledge_pulltime (ms, 0.35s)
 
-    // Collision
-    STEP_HEIGHT: 18,           // sv_stepheight
-    PLAYER_HEIGHT: 64,         // sv_playerheight
+  // Collision
+  STEP_HEIGHT: 18, // sv_stepheight
+  PLAYER_HEIGHT: 64, // sv_playerheight
 } as const;
 
 // ── Movement Mechanics Table ────────────────────────────────────────
 
 export const MOVEMENT: Record<string, MovementMechanic> = {
-    walk: {
-        id: 'walk',
-        canFire: true,
-        speed: PHYSICS.BASE_SPEED,
-        minSpeedRequired: 0,
-        duration: 0,
-        cooldown: 0,
-        inputMask: InputButtons.FORWARD,
-        description: 'Standard ground movement (280 ups)',
-    },
+  walk: {
+    id: "walk",
+    canFire: true,
+    speed: PHYSICS.BASE_SPEED,
+    minSpeedRequired: 0,
+    duration: 0,
+    cooldown: 0,
+    inputMask: InputButtons.FORWARD,
+    description: "Standard ground movement (280 ups)",
+  },
 
-    sprint: {
-        id: 'sprint',
-        canFire: false,  // Weapon tilts up — cannot shoot
-        speed: PHYSICS.SPRINT_SPEED,
-        minSpeedRequired: 0,
-        duration: 0,
-        cooldown: 0,
-        inputMask: InputButtons.FORWARD | InputButtons.SPRINT,
-        description: 'Sprint at 400 ups — cannot fire',
-    },
+  sprint: {
+    id: "sprint",
+    canFire: false, // Weapon tilts up — cannot shoot
+    speed: PHYSICS.SPRINT_SPEED,
+    minSpeedRequired: 0,
+    duration: 0,
+    cooldown: 0,
+    inputMask: InputButtons.FORWARD | InputButtons.SPRINT,
+    description: "Sprint at 400 ups — cannot fire",
+  },
 
-    jump: {
-        id: 'jump',
-        canFire: true,
-        speed: PHYSICS.JUMP_VELOCITY,  // Upward velocity
-        minSpeedRequired: 0,
-        duration: 0,
-        cooldown: 0,
-        inputMask: InputButtons.JUMP,
-        description: 'Jump (320 upvel), hold for auto-hop',
-    },
+  jump: {
+    id: "jump",
+    canFire: true,
+    speed: PHYSICS.JUMP_VELOCITY, // Upward velocity
+    minSpeedRequired: 0,
+    duration: 0,
+    cooldown: 0,
+    inputMask: InputButtons.JUMP,
+    description: "Jump (320 upvel), hold for auto-hop",
+  },
 
-    strafeJump: {
-        id: 'strafeJump',
-        canFire: true,  // But hard to aim
-        speed: PHYSICS.TOP_SPEED,  // Potential max
-        minSpeedRequired: 0,
-        duration: 0,
-        cooldown: 0,
-        inputMask: InputButtons.JUMP | InputButtons.LEFT,  // + yaw turn
-        description: 'Strafe-jump momentum building (up to 1000 ups)',
-    },
+  strafeJump: {
+    id: "strafeJump",
+    canFire: true, // But hard to aim
+    speed: PHYSICS.TOP_SPEED, // Potential max
+    minSpeedRequired: 0,
+    duration: 0,
+    cooldown: 0,
+    inputMask: InputButtons.JUMP | InputButtons.LEFT, // + yaw turn
+    description: "Strafe-jump momentum building (up to 1000 ups)",
+  },
 
-    crouchSlide: {
-        id: 'crouchSlide',
-        canFire: true,  // Lower profile while sliding
-        speed: PHYSICS.SLIDE_SPEED_MULT,  // 1.2× current speed
-        minSpeedRequired: PHYSICS.SLIDE_MIN_SPEED,  // Need 375+ ups
-        duration: PHYSICS.SLIDE_DURATION,
-        cooldown: PHYSICS.SLIDE_COOLDOWN,
-        inputMask: InputButtons.CROUCH,
-        description: 'Crouch-slide: need 375+ ups, 1.2× boost, 800ms max',
-    },
+  crouchSlide: {
+    id: "crouchSlide",
+    canFire: true, // Lower profile while sliding
+    speed: PHYSICS.SLIDE_SPEED_MULT, // 1.2× current speed
+    minSpeedRequired: PHYSICS.SLIDE_MIN_SPEED, // Need 375+ ups
+    duration: PHYSICS.SLIDE_DURATION,
+    cooldown: PHYSICS.SLIDE_COOLDOWN,
+    inputMask: InputButtons.CROUCH,
+    description: "Crouch-slide: need 375+ ups, 1.2× boost, 800ms max",
+  },
 
-    wallJump: {
-        id: 'wallJump',
-        canFire: true,  // Briefly
-        speed: PHYSICS.WALLJUMP_HEIGHT,  // 280 upward velocity
-        minSpeedRequired: 0,
-        duration: PHYSICS.WALLJUMP_CHARGE,  // 200ms charge
-        cooldown: PHYSICS.WALLJUMP_COOLDOWN,
-        inputMask: InputButtons.JUMP,  // While airborne + near wall
-        description: 'Wall-jump: 280 upvel, 0.2s charge, 1.2× boost',
-    },
+  wallJump: {
+    id: "wallJump",
+    canFire: true, // Briefly
+    speed: PHYSICS.WALLJUMP_HEIGHT, // 280 upward velocity
+    minSpeedRequired: 0,
+    duration: PHYSICS.WALLJUMP_CHARGE, // 200ms charge
+    cooldown: PHYSICS.WALLJUMP_COOLDOWN,
+    inputMask: InputButtons.JUMP, // While airborne + near wall
+    description: "Wall-jump: 280 upvel, 0.2s charge, 1.2× boost",
+  },
 
-    ledgeGrab: {
-        id: 'ledgeGrab',
-        canFire: false,  // Hanging state
-        speed: 0,
-        minSpeedRequired: 0,
-        duration: PHYSICS.LEDGE_TIMEOUT,
-        cooldown: 0,
-        inputMask: InputButtons.JUMP | InputButtons.FORWARD,  // To pull up
-        description: 'Ledge-grab: auto-trigger, JUMP/FWD to pull up',
-    },
+  ledgeGrab: {
+    id: "ledgeGrab",
+    canFire: false, // Hanging state
+    speed: 0,
+    minSpeedRequired: 0,
+    duration: PHYSICS.LEDGE_TIMEOUT,
+    cooldown: 0,
+    inputMask: InputButtons.JUMP | InputButtons.FORWARD, // To pull up
+    description: "Ledge-grab: auto-trigger, JUMP/FWD to pull up",
+  },
 };
 
 // ── Query Functions ─────────────────────────────────────────────────
@@ -173,20 +173,14 @@ export const MOVEMENT: Record<string, MovementMechanic> = {
  * Check if a crouch-slide can be initiated given current speed and cooldown.
  */
 export function canInitiateSlide(currentSpeed: number, cooldownExpired: boolean): boolean {
-    return currentSpeed >= PHYSICS.SLIDE_MIN_SPEED && cooldownExpired;
+  return currentSpeed >= PHYSICS.SLIDE_MIN_SPEED && cooldownExpired;
 }
 
 /**
  * Check if a wall-jump can be performed.
  */
-export function canWallJump(
-    isGrounded: boolean,
-    heightAboveGround: number,
-    cooldownExpired: boolean,
-): boolean {
-    return !isGrounded
-        && heightAboveGround >= PHYSICS.WALLJUMP_MIN_HEIGHT
-        && cooldownExpired;
+export function canWallJump(isGrounded: boolean, heightAboveGround: number, cooldownExpired: boolean): boolean {
+  return !isGrounded && heightAboveGround >= PHYSICS.WALLJUMP_MIN_HEIGHT && cooldownExpired;
 }
 
 /**
@@ -194,16 +188,16 @@ export function canWallJump(
  * h = v² / (2g) where v = JUMP_VELOCITY, g = GRAVITY
  */
 export function getJumpApex(): number {
-    return (PHYSICS.JUMP_VELOCITY * PHYSICS.JUMP_VELOCITY) / (2 * PHYSICS.GRAVITY);
+  return (PHYSICS.JUMP_VELOCITY * PHYSICS.JUMP_VELOCITY) / (2 * PHYSICS.GRAVITY);
 }
 
 /**
  * Get jump + wall-jump combined height potential.
  */
 export function getMaxReachHeight(): number {
-    const jumpApex = getJumpApex();
-    const wallJumpApex = (PHYSICS.WALLJUMP_HEIGHT * PHYSICS.WALLJUMP_HEIGHT) / (2 * PHYSICS.GRAVITY);
-    return jumpApex + wallJumpApex;
+  const jumpApex = getJumpApex();
+  const wallJumpApex = (PHYSICS.WALLJUMP_HEIGHT * PHYSICS.WALLJUMP_HEIGHT) / (2 * PHYSICS.GRAVITY);
+  return jumpApex + wallJumpApex;
 }
 
 /**
@@ -213,37 +207,37 @@ export function getMaxReachHeight(): number {
  * Returns array of input steps (each step = a few ticks).
  */
 export function getEscapeSequence(): Array<{
-    phase: string;
-    buttons: number;
-    durationTicks: number;
-    notes: string;
+  phase: string;
+  buttons: number;
+  durationTicks: number;
+  notes: string;
 }> {
-    return [
-        {
-            phase: 'sprint',
-            buttons: InputButtons.FORWARD | InputButtons.SPRINT,
-            durationTicks: 30,  // ~0.5s to build speed to 375+
-            notes: 'Build speed (switch to blade for speedBonus)',
-        },
-        {
-            phase: 'slide',
-            buttons: InputButtons.CROUCH,
-            durationTicks: 30,  // 500ms of slide
-            notes: 'Crouch-slide: 1.2× speed, low profile',
-        },
-        {
-            phase: 'jumpCancel',
-            buttons: InputButtons.JUMP,
-            durationTicks: 1,
-            notes: 'Jump-cancel slide for 1.3× velocity boost',
-        },
-        {
-            phase: 'bunnyHop',
-            buttons: InputButtons.FORWARD | InputButtons.JUMP,
-            durationTicks: 60,  // 1s of bunny hopping
-            notes: 'Maintain speed with auto-hop',
-        },
-    ];
+  return [
+    {
+      phase: "sprint",
+      buttons: InputButtons.FORWARD | InputButtons.SPRINT,
+      durationTicks: 30, // ~0.5s to build speed to 375+
+      notes: "Build speed (switch to blade for speedBonus)",
+    },
+    {
+      phase: "slide",
+      buttons: InputButtons.CROUCH,
+      durationTicks: 30, // 500ms of slide
+      notes: "Crouch-slide: 1.2× speed, low profile",
+    },
+    {
+      phase: "jumpCancel",
+      buttons: InputButtons.JUMP,
+      durationTicks: 1,
+      notes: "Jump-cancel slide for 1.3× velocity boost",
+    },
+    {
+      phase: "bunnyHop",
+      buttons: InputButtons.FORWARD | InputButtons.JUMP,
+      durationTicks: 60, // 1s of bunny hopping
+      notes: "Maintain speed with auto-hop",
+    },
+  ];
 }
 
 /**
@@ -251,35 +245,35 @@ export function getEscapeSequence(): Array<{
  * Sprint → jump → wall-jump → ledge grab
  */
 export function getHeightSequence(): Array<{
-    phase: string;
-    buttons: number;
-    durationTicks: number;
-    notes: string;
+  phase: string;
+  buttons: number;
+  durationTicks: number;
+  notes: string;
 }> {
-    return [
-        {
-            phase: 'approach',
-            buttons: InputButtons.FORWARD | InputButtons.SPRINT,
-            durationTicks: 15,
-            notes: 'Sprint toward wall',
-        },
-        {
-            phase: 'jump',
-            buttons: InputButtons.FORWARD | InputButtons.JUMP,
-            durationTicks: 5,
-            notes: 'Jump off ground',
-        },
-        {
-            phase: 'wallJump',
-            buttons: InputButtons.JUMP,
-            durationTicks: 12,  // ~0.2s charge time
-            notes: 'Wall-jump: press JUMP near wall while airborne',
-        },
-        {
-            phase: 'pullUp',
-            buttons: InputButtons.FORWARD | InputButtons.JUMP,
-            durationTicks: 21,  // ~0.35s pull-up
-            notes: 'Ledge-grab pull-up (if ledge detected)',
-        },
-    ];
+  return [
+    {
+      phase: "approach",
+      buttons: InputButtons.FORWARD | InputButtons.SPRINT,
+      durationTicks: 15,
+      notes: "Sprint toward wall",
+    },
+    {
+      phase: "jump",
+      buttons: InputButtons.FORWARD | InputButtons.JUMP,
+      durationTicks: 5,
+      notes: "Jump off ground",
+    },
+    {
+      phase: "wallJump",
+      buttons: InputButtons.JUMP,
+      durationTicks: 12, // ~0.2s charge time
+      notes: "Wall-jump: press JUMP near wall while airborne",
+    },
+    {
+      phase: "pullUp",
+      buttons: InputButtons.FORWARD | InputButtons.JUMP,
+      durationTicks: 21, // ~0.35s pull-up
+      notes: "Ledge-grab pull-up (if ledge detected)",
+    },
+  ];
 }

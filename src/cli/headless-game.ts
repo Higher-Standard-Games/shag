@@ -13,10 +13,10 @@
  *   npx vite-node src/cli/headless-game.ts --exec "map wdm11; bsp info"
  */
 
-import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
-import { Scene } from "@babylonjs/core/scene";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
@@ -35,17 +35,17 @@ const originalConsoleError = console.error;
 
 function captureConsole(): void {
   console.log = (...args: unknown[]) => {
-    const line = args.map(a => String(a)).join(" ");
+    const line = args.map((a) => String(a)).join(" ");
     consoleHistory.push(line);
     originalConsoleLog.apply(console, args);
   };
   console.warn = (...args: unknown[]) => {
-    const line = "[WARN] " + args.map(a => String(a)).join(" ");
+    const line = "[WARN] " + args.map((a) => String(a)).join(" ");
     consoleHistory.push(line);
     originalConsoleWarn.apply(console, args);
   };
   console.error = (...args: unknown[]) => {
-    const line = "[ERROR] " + args.map(a => String(a)).join(" ");
+    const line = "[ERROR] " + args.map((a) => String(a)).join(" ");
     consoleHistory.push(line);
     originalConsoleError.apply(console, args);
   };
@@ -154,7 +154,10 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
 
     // Scan for PK3 files
     if (fs.existsSync(gamePath)) {
-      const pk3Files = fs.readdirSync(gamePath).filter(f => f.endsWith(".pk3")).sort();
+      const pk3Files = fs
+        .readdirSync(gamePath)
+        .filter((f) => f.endsWith(".pk3"))
+        .sort();
       console.log(`[Init] Found ${pk3Files.length} PK3 files`);
 
       // Load all PK3 files (takes a while but needed for full map support)
@@ -163,10 +166,14 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
         const pk3Path = path.join(gamePath, pk3File);
         try {
           const buffer = fs.readFileSync(pk3Path);
-          const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+          const arrayBuffer = buffer.buffer.slice(
+            buffer.byteOffset,
+            buffer.byteOffset + buffer.byteLength,
+          ) as ArrayBuffer;
           // Use processPK3ArrayBuffer directly for Node.js (fetch doesn't work)
-          await (pk3Loader as unknown as { processPK3ArrayBuffer: (f: string, a: ArrayBuffer) => Promise<void> })
-            .processPK3ArrayBuffer(pk3File, arrayBuffer);
+          await (
+            pk3Loader as unknown as { processPK3ArrayBuffer: (f: string, a: ArrayBuffer) => Promise<void> }
+          ).processPK3ArrayBuffer(pk3File, arrayBuffer);
 
           await pk3Index.indexPK3ArrayBuffer(pk3File, arrayBuffer, pk3Path);
           loadedCount++;
@@ -187,7 +194,6 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
     const { ModelLoader } = await import("../engine/loader/model/ModelLoader");
     ModelLoader.getInstance().init(ctx.scene);
     console.log("[Init] ModelLoader initialized");
-
   } catch (error) {
     console.warn("[Init] Some systems failed to initialize:", error);
   }
@@ -327,7 +333,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         const after = snapshot();
         const ok = same(after, baseline);
         console.log(
-          `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': after=${fmt(after)} ${ok ? "OK" : "MISMATCH"}`
+          `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': after=${fmt(after)} ${ok ? "OK" : "MISMATCH"}`,
         );
         if (!ok) {
           failures++;
@@ -378,7 +384,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
           },
         ] as any,
         scene,
-        mapName
+        mapName,
       );
 
       const box = MeshBuilder.CreateBox(`leaktest_box_${i}`, { size: 1 }, scene);
@@ -392,7 +398,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const after = ownedCounts();
 
       console.log(
-        `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': before=${before.total} (m=${before.meshes},n=${before.nodes},l=${before.lights}) after=${after.total} (m=${after.meshes},n=${after.nodes},l=${after.lights})`
+        `[LeakTest] Iter ${i + 1}/${iterations} map='${mapName}': before=${before.total} (m=${before.meshes},n=${before.nodes},l=${before.lights}) after=${after.total} (m=${after.meshes},n=${after.nodes},l=${after.lights})`,
       );
 
       if (after.total !== 0) {
@@ -451,11 +457,13 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         `Start: (${start.x.toFixed(2)}, ${start.y.toFixed(2)}, ${start.z.toFixed(2)})`,
         `End: (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})`,
         `Fraction: ${result.fraction.toFixed(4)}`,
-        `Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+        `Hit: ${result.fraction < 1.0 ? "YES" : "NO"}`,
         `StartSolid: ${result.startSolid}`,
         `EndPos: (${result.endPos.x.toFixed(2)}, ${result.endPos.y.toFixed(2)}, ${result.endPos.z.toFixed(2)})`,
-        result.normal ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})` : 'Normal: none',
-      ].join('\n');
+        result.normal
+          ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})`
+          : "Normal: none",
+      ].join("\n");
     }
 
     if (sub === "box") {
@@ -474,7 +482,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const dir = new Vector3(dx, dy, dz).normalize();
       const end = start.add(dir.scale(dist));
 
-      console.log(`[TraceTest] Box trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist} radius=${radius} height=${height}`);
+      console.log(
+        `[TraceTest] Box trace from (${x}, ${y}, ${z}) dir (${dx}, ${dy}, ${dz}) dist ${dist} radius=${radius} height=${height}`,
+      );
 
       const result = cm.trace(start as never, end as never, { debug: true, radius, height });
 
@@ -483,11 +493,13 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         `End: (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})`,
         `Hull: radius=${radius}, height=${height}`,
         `Fraction: ${result.fraction.toFixed(4)}`,
-        `Hit: ${result.fraction < 1.0 ? 'YES' : 'NO'}`,
+        `Hit: ${result.fraction < 1.0 ? "YES" : "NO"}`,
         `StartSolid: ${result.startSolid}`,
         `EndPos: (${result.endPos.x.toFixed(2)}, ${result.endPos.y.toFixed(2)}, ${result.endPos.z.toFixed(2)})`,
-        result.normal ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})` : 'Normal: none',
-      ].join('\n');
+        result.normal
+          ? `Normal: (${result.normal.x.toFixed(3)}, ${result.normal.y.toFixed(3)}, ${result.normal.z.toFixed(3)})`
+          : "Normal: none",
+      ].join("\n");
     }
 
     if (sub === "spawn") {
@@ -496,18 +508,17 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const bsp = MapLoader.getInstance().getCurrentBsp();
       if (!bsp) return "No BSP loaded";
 
-      const spawns = bsp.entities.filter(e =>
-        e.classname === 'info_player_deathmatch' ||
-        e.classname === 'info_player_start'
+      const spawns = bsp.entities.filter(
+        (e) => e.classname === "info_player_deathmatch" || e.classname === "info_player_start",
       );
 
       if (spawns.length === 0) return "No spawn points found";
 
-      const lines: string[] = [`Found ${spawns.length} spawn points:`, ''];
+      const lines: string[] = [`Found ${spawns.length} spawn points:`, ""];
 
       for (let i = 0; i < Math.min(spawns.length, 5); i++) {
         const spawn = spawns[i];
-        const origin = spawn.properties.origin?.split(' ').map(Number) || [0, 0, 0];
+        const origin = spawn.properties.origin?.split(" ").map(Number) || [0, 0, 0];
         // BSP entities are in Q3 coords, convert to Babylon
         const pos = new Vector3(origin[0], origin[2], origin[1]);
 
@@ -519,13 +530,15 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         const fwdEnd = pos.add(new Vector3(0, 0, 100));
         const fwdResult = cm.trace(pos as never, fwdEnd as never, { debug: false, radius: 16, height: 56 });
 
-        lines.push(`Spawn ${i + 1}: Q3(${origin[0]}, ${origin[1]}, ${origin[2]}) → Babylon(${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`);
+        lines.push(
+          `Spawn ${i + 1}: Q3(${origin[0]}, ${origin[1]}, ${origin[2]}) → Babylon(${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`,
+        );
         lines.push(`  Down: frac=${downResult.fraction.toFixed(3)}, startSolid=${downResult.startSolid}`);
         lines.push(`  Forward: frac=${fwdResult.fraction.toFixed(3)}, startSolid=${fwdResult.startSolid}`);
-        lines.push('');
+        lines.push("");
       }
 
-      return lines.join('\n');
+      return lines.join("\n");
     }
 
     if (sub === "compare") {
@@ -534,7 +547,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const bsp = MapLoader.getInstance().getCurrentBsp();
       if (!bsp) return "No BSP loaded";
 
-      const lines: string[] = ['BSP Coordinate Analysis:', ''];
+      const lines: string[] = ["BSP Coordinate Analysis:", ""];
 
       // Sample a few brushes and their planes
       const sampleBrushes = bsp.brushes.slice(0, 3);
@@ -546,30 +559,34 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         for (let si = 0; si < Math.min(brush.numSides, 3); si++) {
           const side = bsp.brushSides[brush.firstSide + si];
           const plane = bsp.planes[side.planeIndex];
-          lines.push(`  Plane ${si}: normal=(${plane.normal[0].toFixed(3)}, ${plane.normal[1].toFixed(3)}, ${plane.normal[2].toFixed(3)}), dist=${plane.dist.toFixed(1)}`);
+          lines.push(
+            `  Plane ${si}: normal=(${plane.normal[0].toFixed(3)}, ${plane.normal[1].toFixed(3)}, ${plane.normal[2].toFixed(3)}), dist=${plane.dist.toFixed(1)}`,
+          );
         }
-        lines.push('');
+        lines.push("");
       }
 
       // Check first few vertices for coordinate reference
       if (bsp.vertices.length > 0) {
-        lines.push('Sample vertices (Q3 format in BSP):');
+        lines.push("Sample vertices (Q3 format in BSP):");
         for (let vi = 0; vi < Math.min(5, bsp.vertices.length); vi++) {
           const v = bsp.vertices[vi];
-          lines.push(`  V${vi}: (${v.position[0].toFixed(1)}, ${v.position[1].toFixed(1)}, ${v.position[2].toFixed(1)})`);
+          lines.push(
+            `  V${vi}: (${v.position[0].toFixed(1)}, ${v.position[1].toFixed(1)}, ${v.position[2].toFixed(1)})`,
+          );
         }
       }
 
-      return lines.join('\n');
+      return lines.join("\n");
     }
 
     return [
-      'Collision trace testing commands:',
-      '  trace_test point x y z dx dy dz [dist] - Point trace',
-      '  trace_test box x y z dx dy dz [dist] [radius] [height] - Box trace',
-      '  trace_test spawn - Test traces at spawn points',
-      '  trace_test compare - Compare coordinate systems',
-    ].join('\n');
+      "Collision trace testing commands:",
+      "  trace_test point x y z dx dy dz [dist] - Point trace",
+      "  trace_test box x y z dx dy dz [dist] [radius] [height] - Box trace",
+      "  trace_test spawn - Test traces at spawn points",
+      "  trace_test compare - Compare coordinate systems",
+    ].join("\n");
   });
 
   // ============================================================================
@@ -589,13 +606,12 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         if (!fs.existsSync(animDir)) {
           return `Animation directory not found: ${animDir}`;
         }
-        files = fs.readdirSync(animDir)
-          .filter(f => f.endsWith(".glb"))
-          .map(f => path.join(animDir, f));
+        files = fs
+          .readdirSync(animDir)
+          .filter((f) => f.endsWith(".glb"))
+          .map((f) => path.join(animDir, f));
       } else {
-        const fullPath = fileName.includes("/") || fileName.includes("\\")
-          ? fileName
-          : path.join(animDir, fileName);
+        const fullPath = fileName.includes("/") || fileName.includes("\\") ? fileName : path.join(animDir, fileName);
         if (!fs.existsSync(fullPath)) {
           return `File not found: ${fullPath}`;
         }
@@ -618,11 +634,11 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       if (fs.existsSync(modelPath)) {
         try {
           const modelBuf = fs.readFileSync(modelPath);
-          const modelB64 = Buffer.from(modelBuf).toString("base64");
+          const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
           await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
           // Stop embedded animations
           for (const g of inspectScene.animationGroups) g.stop();
-          inspectScene.animationGroups.slice().forEach(g => g.dispose());
+          inspectScene.animationGroups.slice().forEach((g) => g.dispose());
         } catch {
           // Continue without model — targets will show as 'unknown'
         }
@@ -634,10 +650,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       for (const file of files) {
         try {
           const buf = fs.readFileSync(file);
-          const b64 = Buffer.from(buf).toString("base64");
-          const result = await SceneLoader.ImportAnimationsAsync(
-            "", `data:;base64,${b64}`, inspectScene, false
-          );
+          const b64 = Buffer.from(new Uint8Array(buf)).toString("base64");
+          const result = await SceneLoader.ImportAnimationsAsync("", `data:;base64,${b64}`, inspectScene, false);
 
           for (const group of result.animationGroups) {
             const total = group.targetedAnimations.length;
@@ -651,18 +665,18 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
                 const first = keys[0]?.value;
                 const last = keys[keys.length - 1]?.value;
                 const drift = Math.sqrt(
-                  Math.pow((last?.x ?? 0) - (first?.x ?? 0), 2) +
-                  Math.pow((last?.y ?? 0) - (first?.y ?? 0), 2) +
-                  Math.pow((last?.z ?? 0) - (first?.z ?? 0), 2)
+                  ((last?.x ?? 0) - (first?.x ?? 0)) ** 2 +
+                    ((last?.y ?? 0) - (first?.y ?? 0)) ** 2 +
+                    ((last?.z ?? 0) - (first?.z ?? 0)) ** 2,
                 );
-                positionTracks.push(
-                  `    "${targetName}".position (${keys.length} keys, drift=${drift.toFixed(3)})`
-                );
+                positionTracks.push(`    "${targetName}".position (${keys.length} keys, drift=${drift.toFixed(3)})`);
               }
             }
 
             const marker = positionTracks.length > 0 ? "⚠️" : "✅";
-            results.push(`${marker} ${path.basename(file)} (${total} channels, ${positionTracks.length} position tracks)`);
+            results.push(
+              `${marker} ${path.basename(file)} (${total} channels, ${positionTracks.length} position tracks)`,
+            );
             for (const pt of positionTracks) {
               results.push(pt);
             }
@@ -699,7 +713,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       const inspectScene = new Scene(inspectEngine);
 
       const modelBuf = fs.readFileSync(modelPath);
-      const modelB64 = Buffer.from(modelBuf).toString("base64");
+      const modelB64 = Buffer.from(new Uint8Array(modelBuf)).toString("base64");
       const result = await SceneLoader.ImportMeshAsync("", `data:;base64,${modelB64}`, "", inspectScene);
 
       const lines: string[] = [`\nSkeleton Bones (${result.skeletons[0]?.bones.length ?? 0}):\n`];
@@ -740,9 +754,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
           "Keys: W, A, S, D, JUMP, CROUCH",
           "",
           "Examples:",
-          '  sim replay W 60                        Run forward 60 ticks',
-          '  sim replay W+CROUCH 60; JUMP 1; W 30   Crouch-run, jump, continue',
-          '  sim replay W+JUMP 120                  Bunny hop for 2 seconds',
+          "  sim replay W 60                        Run forward 60 ticks",
+          "  sim replay W+CROUCH 60; JUMP 1; W 30   Crouch-run, jump, continue",
+          "  sim replay W+JUMP 120                  Bunny hop for 2 seconds",
         ].join("\n");
       }
 
@@ -761,7 +775,10 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         state.addEntity(player);
 
         // Parse sequences
-        const sequences = inputStr.split(";").map(s => s.trim()).filter(Boolean);
+        const sequences = inputStr
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
         const lines: string[] = [`\n=== Simulation Replay (125Hz) ===\n`];
         lines.push(`Input: ${inputStr}\n`);
         lines.push("Tick   Position (x, y, z)                 Velocity (x, y, z)                 Grounded  State");
@@ -802,9 +819,9 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
               if (t === 0 || t === ticks - 1 || totalTick % 10 === 0) {
                 lines.push(
                   `${totalTick.toString().padStart(5)}  ` +
-                  `(${pos.x.toFixed(2).padStart(8)}, ${pos.y.toFixed(2).padStart(8)}, ${pos.z.toFixed(2).padStart(8)})  ` +
-                  `(${vel.x.toFixed(2).padStart(8)}, ${vel.y.toFixed(2).padStart(8)}, ${vel.z.toFixed(2).padStart(8)})  ` +
-                  `${grounded.padStart(8)}  ${crouching}${sliding}`
+                    `(${pos.x.toFixed(2).padStart(8)}, ${pos.y.toFixed(2).padStart(8)}, ${pos.z.toFixed(2).padStart(8)})  ` +
+                    `(${vel.x.toFixed(2).padStart(8)}, ${vel.y.toFixed(2).padStart(8)}, ${vel.z.toFixed(2).padStart(8)})  ` +
+                    `${grounded.padStart(8)}  ${crouching}${sliding}`,
                 );
               }
             }
@@ -812,9 +829,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
         }
 
         lines.push("");
-        lines.push(`Total: ${totalTick} ticks (${(totalTick * 8 / 1000).toFixed(2)}s)`);
+        lines.push(`Total: ${totalTick} ticks (${((totalTick * 8) / 1000).toFixed(2)}s)`);
         return lines.join("\n");
-
       } catch (err) {
         return `Simulation error: ${(err as Error).message}`;
       }
@@ -822,7 +838,7 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
 
     return [
       "Simulation tools:",
-      '  sim replay <input-sequence>   Run physics simulation with specified inputs',
+      "  sim replay <input-sequence>   Run physics simulation with specified inputs",
       "",
       "Input format: KEY[+KEY...] TICKS[; KEY TICKS; ...]",
       "Keys: W, A, S, D, JUMP, CROUCH",
@@ -971,7 +987,6 @@ async function main(): Promise<void> {
       // Interactive mode - REPL
       await runREPL();
     }
-
   } catch (error) {
     console.error("[Fatal] Initialization failed:", error);
     process.exit(1);

@@ -1,12 +1,12 @@
 /**
  * Mobile/Touch Device Responsive Overrides
- * 
+ *
  * These styles apply when:
  * - Running on Capacitor native (body.capacitor-native)
  * - Running on Android specifically (body.capacitor-android)
  * - Touch device detected (body.touch-device)
  * - Small viewport (media query fallback)
- * 
+ *
  * Priority: Use touch-device class for broadest mobile support (includes mobile web)
  */
 
@@ -364,15 +364,15 @@ body.capacitor-native .build-status {
     padding: 20px 24px !important;
     overflow-y: auto !important;
   }
-  
+
   .settings-title {
     font-size: 1.5rem !important;
   }
-  
+
   .modal-panel {
     max-width: 90vw !important;
   }
-  
+
   .side-panel {
     width: 85vw !important;
     max-width: 400px !important;
@@ -397,13 +397,13 @@ body.capacitor-native .build-status {
     max-height: 90vh;
     padding: 12px 20px;
   }
-  
+
   .touch-device .settings-title,
   .capacitor-native .settings-title {
     font-size: 1.25rem;
     margin-bottom: 12px;
   }
-  
+
   .touch-device .settings-content,
   .capacitor-native .settings-content {
     gap: 8px;

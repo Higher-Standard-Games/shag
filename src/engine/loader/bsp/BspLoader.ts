@@ -22,7 +22,7 @@ const IBSP_VERSION = 46;
 const FBSP_VERSION = 1;
 
 // Lump indices (same for IBSP and FBSP)
-const enum LumpIndex {
+enum LumpIndex {
   ENTITIES = 0,
   TEXTURES = 1,
   PLANES = 2,
@@ -45,11 +45,11 @@ const enum LumpIndex {
 const LUMP_COUNT = 17;
 
 // Face types
-const enum FaceType {
-  POLYGON = 1,    // Regular polygon
-  PATCH = 2,      // Bezier patch
-  MESH = 3,       // Triangle mesh (misc_model)
-  BILLBOARD = 4,  // Flare/sprite
+enum FaceType {
+  POLYGON = 1, // Regular polygon
+  PATCH = 2, // Bezier patch
+  MESH = 3, // Triangle mesh (misc_model)
+  BILLBOARD = 4, // Flare/sprite
 }
 
 // Lightmap dimensions
@@ -139,8 +139,12 @@ export interface BspVertexFBSP {
   texCoord: [number, number];
   lightmapCoords: [[number, number], [number, number], [number, number], [number, number]];
   normal: [number, number, number];
-  colors: [[number, number, number, number], [number, number, number, number],
-    [number, number, number, number], [number, number, number, number]];
+  colors: [
+    [number, number, number, number],
+    [number, number, number, number],
+    [number, number, number, number],
+    [number, number, number, number],
+  ];
 }
 
 export type BspVertex = BspVertexIBSP | BspVertexFBSP;
@@ -153,7 +157,7 @@ export interface BspFace {
   numVertices: number;
   firstMeshVert: number;
   numMeshVerts: number;
-  lightmapIndex: number;       // IBSP: single lightmap, FBSP: first of up to 4
+  lightmapIndex: number; // IBSP: single lightmap, FBSP: first of up to 4
   lightmapIndices?: [number, number, number, number]; // FBSP only
   lightmapStart: [number, number];
   lightmapSize: [number, number];
@@ -210,12 +214,12 @@ export interface BspFile {
   meshVerts: number[];
   effects: BspEffect[];
   faces: BspFace[];
-  lightmaps: Uint8Array[];  // Raw RGB data, size depends on format
+  lightmaps: Uint8Array[]; // Raw RGB data, size depends on format
   lightVols: BspLightVol[];
   visData: BspVisData | null;
 
   // Metadata
-  lightmapSize: number;     // 128 for IBSP, 512 for FBSP
+  lightmapSize: number; // 128 for IBSP, 512 for FBSP
 
   // LightGrid Metadata (for model lighting)
   lightGridOrigin?: [number, number, number];
@@ -247,7 +251,10 @@ export class BspLoader {
   /**
    * Load BSP from PK3Loader by path
    */
-  public static async loadFromPK3(pk3Loader: { getFile(path: string): Promise<ArrayBuffer | null> }, path: string): Promise<BspFile | null> {
+  public static async loadFromPK3(
+    pk3Loader: { getFile(path: string): Promise<ArrayBuffer | null> },
+    path: string,
+  ): Promise<BspFile | null> {
     const buffer = await pk3Loader.getFile(path);
     if (!buffer) {
       console.error(`[BspLoader] File not found: ${path}`);
@@ -260,7 +267,7 @@ export class BspLoader {
     const header = this.readHeader();
     this.lumps = this.readLumpDirectory();
 
-    console.log(`[BspLoader] Parsing ${header.isFBSP ? 'FBSP' : 'IBSP'} v${header.version}`);
+    console.log(`[BspLoader] Parsing ${header.isFBSP ? "FBSP" : "IBSP"} v${header.version}`);
 
     const lightmapSize = header.isFBSP ? FBSP_LIGHTMAP_SIZE : IBSP_LIGHTMAP_SIZE;
 
@@ -284,7 +291,11 @@ export class BspLoader {
     const visData = this.parseVisData();
 
     // Calculate Grid parameters
-    const { lightGridOrigin, lightGridSize, lightGridStep } = this.calculateLightGrid(entities, models, lightVols.length);
+    const { lightGridOrigin, lightGridSize, lightGridStep } = this.calculateLightGrid(
+      entities,
+      models,
+      lightVols.length,
+    );
 
     return {
       header,
@@ -309,7 +320,7 @@ export class BspLoader {
       lightmapSize,
       lightGridOrigin,
       lightGridSize,
-      lightGridStep
+      lightGridStep,
     };
   }
 
@@ -317,7 +328,7 @@ export class BspLoader {
     const worldModel = models[0];
     if (!worldModel) return {};
 
-    const worldspawn = entities.find(e => e.classname === 'worldspawn');
+    const worldspawn = entities.find((e) => e.classname === "worldspawn");
 
     // Default gridsize for Quake 3 is 64 64 128
     let gridsize: [number, number, number] = [64, 64, 128];
@@ -353,17 +364,21 @@ export class BspLoader {
     const size: [number, number, number] = [
       Math.floor(baseSize[0]) + 1,
       Math.floor(baseSize[1]) + 1,
-      Math.ceil(lightVolCount / ((Math.floor(baseSize[0]) + 1) * (Math.floor(baseSize[1]) + 1)))
+      Math.ceil(lightVolCount / ((Math.floor(baseSize[0]) + 1) * (Math.floor(baseSize[1]) + 1))),
     ];
 
     const predictedCount = size[0] * size[1] * size[2];
     const actualCount = lightVolCount;
 
-    console.log(`[BspLoader] LightGrid: origin=(${origin.join(',')}) size=(${size.join(',')}) step=(${gridsize.join(',')})`);
+    console.log(
+      `[BspLoader] LightGrid: origin=(${origin.join(",")}) size=(${size.join(",")}) step=(${gridsize.join(",")})`,
+    );
     console.log(`[BspLoader] LightGrid Counts: Predicted=${predictedCount}, Actual=${actualCount}`);
 
     if (predictedCount !== actualCount) {
-      console.warn(`[BspLoader] LightGrid dimension mismatch! The map bounds imply ${predictedCount} vols, but lump has ${actualCount}. Lighting will be aligned incorrectly.`);
+      console.warn(
+        `[BspLoader] LightGrid dimension mismatch! The map bounds imply ${predictedCount} vols, but lump has ${actualCount}. Lighting will be aligned incorrectly.`,
+      );
     }
 
     return {
@@ -395,7 +410,10 @@ export class BspLoader {
       }
     } else {
       const magicStr = String.fromCharCode(
-        magic & 0xFF, (magic >> 8) & 0xFF, (magic >> 16) & 0xFF, (magic >> 24) & 0xFF
+        magic & 0xff,
+        (magic >> 8) & 0xff,
+        (magic >> 16) & 0xff,
+        (magic >> 24) & 0xff,
       );
       throw new Error(`[BspLoader] Invalid BSP magic: 0x${magic.toString(16)} ("${magicStr}")`);
     }
@@ -432,12 +450,12 @@ export class BspLoader {
 
   private parseEntities(): BspEntity[] {
     const lump = this.getLump(LumpIndex.ENTITIES);
-    const decoder = new TextDecoder('utf-8');
+    const decoder = new TextDecoder("utf-8");
     const bytes = new Uint8Array(this.data.buffer, lump.offset, lump.length);
 
     // Remove null terminator if present
     let text = decoder.decode(bytes);
-    if (text.endsWith('\0')) {
+    if (text.endsWith("\0")) {
       text = text.slice(0, -1);
     }
 
@@ -448,13 +466,13 @@ export class BspLoader {
     const entities: BspEntity[] = [];
     let current: BspEntity | null = null;
 
-    const lines = text.split('\n');
+    const lines = text.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
 
-      if (trimmed === '{') {
-        current = { classname: '', properties: {} };
-      } else if (trimmed === '}') {
+      if (trimmed === "{") {
+        current = { classname: "", properties: {} };
+      } else if (trimmed === "}") {
         if (current) {
           entities.push(current);
           current = null;
@@ -465,7 +483,7 @@ export class BspLoader {
         if (match) {
           const [, key, value] = match;
           current.properties[key] = value;
-          if (key === 'classname') {
+          if (key === "classname") {
             current.classname = value;
           }
         }
@@ -545,10 +563,7 @@ export class BspLoader {
       const offset = i * NODE_SIZE;
       nodes.push({
         planeIndex: lump.data.getInt32(offset, true),
-        children: [
-          lump.data.getInt32(offset + 4, true),
-          lump.data.getInt32(offset + 8, true),
-        ],
+        children: [lump.data.getInt32(offset + 4, true), lump.data.getInt32(offset + 8, true)],
         mins: [
           lump.data.getInt32(offset + 12, true),
           lump.data.getInt32(offset + 16, true),
@@ -711,14 +726,8 @@ export class BspLoader {
           lump.data.getFloat32(offset + 4, true),
           lump.data.getFloat32(offset + 8, true),
         ],
-        texCoord: [
-          lump.data.getFloat32(offset + 12, true),
-          lump.data.getFloat32(offset + 16, true),
-        ],
-        lightmapCoord: [
-          lump.data.getFloat32(offset + 20, true),
-          lump.data.getFloat32(offset + 24, true),
-        ],
+        texCoord: [lump.data.getFloat32(offset + 12, true), lump.data.getFloat32(offset + 16, true)],
+        lightmapCoord: [lump.data.getFloat32(offset + 20, true), lump.data.getFloat32(offset + 24, true)],
         normal: [
           lump.data.getFloat32(offset + 28, true),
           lump.data.getFloat32(offset + 32, true),
@@ -774,17 +783,37 @@ export class BspLoader {
       ];
 
       // 4 colors (16 bytes)
-      const colors: [[number, number, number, number], [number, number, number, number],
-        [number, number, number, number], [number, number, number, number]] = [
-          [lump.data.getUint8(offset + 64), lump.data.getUint8(offset + 65),
-          lump.data.getUint8(offset + 66), lump.data.getUint8(offset + 67)],
-          [lump.data.getUint8(offset + 68), lump.data.getUint8(offset + 69),
-          lump.data.getUint8(offset + 70), lump.data.getUint8(offset + 71)],
-          [lump.data.getUint8(offset + 72), lump.data.getUint8(offset + 73),
-          lump.data.getUint8(offset + 74), lump.data.getUint8(offset + 75)],
-          [lump.data.getUint8(offset + 76), lump.data.getUint8(offset + 77),
-          lump.data.getUint8(offset + 78), lump.data.getUint8(offset + 79)],
-        ];
+      const colors: [
+        [number, number, number, number],
+        [number, number, number, number],
+        [number, number, number, number],
+        [number, number, number, number],
+      ] = [
+        [
+          lump.data.getUint8(offset + 64),
+          lump.data.getUint8(offset + 65),
+          lump.data.getUint8(offset + 66),
+          lump.data.getUint8(offset + 67),
+        ],
+        [
+          lump.data.getUint8(offset + 68),
+          lump.data.getUint8(offset + 69),
+          lump.data.getUint8(offset + 70),
+          lump.data.getUint8(offset + 71),
+        ],
+        [
+          lump.data.getUint8(offset + 72),
+          lump.data.getUint8(offset + 73),
+          lump.data.getUint8(offset + 74),
+          lump.data.getUint8(offset + 75),
+        ],
+        [
+          lump.data.getUint8(offset + 76),
+          lump.data.getUint8(offset + 77),
+          lump.data.getUint8(offset + 78),
+          lump.data.getUint8(offset + 79),
+        ],
+      ];
 
       vertices.push({ position, texCoord, lightmapCoords, normal, colors });
     }
@@ -855,32 +884,31 @@ export class BspLoader {
         firstMeshVert: lump.data.getInt32(offset + 20, true),
         numMeshVerts: lump.data.getInt32(offset + 24, true),
         lightmapIndex: lump.data.getInt32(offset + 28, true),
-        lightmapStart: [
-          lump.data.getInt32(offset + 32, true),
-          lump.data.getInt32(offset + 36, true),
-        ],
-        lightmapSize: [
-          lump.data.getInt32(offset + 40, true),
-          lump.data.getInt32(offset + 44, true),
-        ],
+        lightmapStart: [lump.data.getInt32(offset + 32, true), lump.data.getInt32(offset + 36, true)],
+        lightmapSize: [lump.data.getInt32(offset + 40, true), lump.data.getInt32(offset + 44, true)],
         lightmapOrigin: [
           lump.data.getFloat32(offset + 48, true),
           lump.data.getFloat32(offset + 52, true),
           lump.data.getFloat32(offset + 56, true),
         ],
         lightmapVecs: [
-          [lump.data.getFloat32(offset + 60, true), lump.data.getFloat32(offset + 64, true), lump.data.getFloat32(offset + 68, true)],
-          [lump.data.getFloat32(offset + 72, true), lump.data.getFloat32(offset + 76, true), lump.data.getFloat32(offset + 80, true)],
+          [
+            lump.data.getFloat32(offset + 60, true),
+            lump.data.getFloat32(offset + 64, true),
+            lump.data.getFloat32(offset + 68, true),
+          ],
+          [
+            lump.data.getFloat32(offset + 72, true),
+            lump.data.getFloat32(offset + 76, true),
+            lump.data.getFloat32(offset + 80, true),
+          ],
         ],
         normal: [
           lump.data.getFloat32(offset + 84, true),
           lump.data.getFloat32(offset + 88, true),
           lump.data.getFloat32(offset + 92, true),
         ],
-        patchSize: [
-          lump.data.getInt32(offset + 96, true),
-          lump.data.getInt32(offset + 100, true),
-        ],
+        patchSize: [lump.data.getInt32(offset + 96, true), lump.data.getInt32(offset + 100, true)],
       });
     }
 
@@ -935,33 +963,32 @@ export class BspLoader {
         lightmapIndex: lightmapIndices[0],
         lightmapIndices,
         // lightmapX[0] and lightmapY[0] for lightmapStart
-        lightmapStart: [
-          lump.data.getInt32(offset + 52, true),
-          lump.data.getInt32(offset + 68, true),
-        ],
+        lightmapStart: [lump.data.getInt32(offset + 52, true), lump.data.getInt32(offset + 68, true)],
         // lightmapWidth and lightmapHeight for lightmapSize
-        lightmapSize: [
-          lump.data.getInt32(offset + 84, true),
-          lump.data.getInt32(offset + 88, true),
-        ],
+        lightmapSize: [lump.data.getInt32(offset + 84, true), lump.data.getInt32(offset + 88, true)],
         lightmapOrigin: [
           lump.data.getFloat32(offset + 92, true),
           lump.data.getFloat32(offset + 96, true),
           lump.data.getFloat32(offset + 100, true),
         ],
         lightmapVecs: [
-          [lump.data.getFloat32(offset + 104, true), lump.data.getFloat32(offset + 108, true), lump.data.getFloat32(offset + 112, true)],
-          [lump.data.getFloat32(offset + 116, true), lump.data.getFloat32(offset + 120, true), lump.data.getFloat32(offset + 124, true)],
+          [
+            lump.data.getFloat32(offset + 104, true),
+            lump.data.getFloat32(offset + 108, true),
+            lump.data.getFloat32(offset + 112, true),
+          ],
+          [
+            lump.data.getFloat32(offset + 116, true),
+            lump.data.getFloat32(offset + 120, true),
+            lump.data.getFloat32(offset + 124, true),
+          ],
         ],
         normal: [
           lump.data.getFloat32(offset + 128, true),
           lump.data.getFloat32(offset + 132, true),
           lump.data.getFloat32(offset + 136, true),
         ],
-        patchSize: [
-          lump.data.getInt32(offset + 140, true),
-          lump.data.getInt32(offset + 144, true),
-        ],
+        patchSize: [lump.data.getInt32(offset + 140, true), lump.data.getInt32(offset + 144, true)],
       });
     }
 
@@ -994,20 +1021,9 @@ export class BspLoader {
     for (let i = 0; i < count; i++) {
       const offset = i * LIGHTVOL_SIZE;
       lightVols.push({
-        ambient: [
-          lump.data.getUint8(offset),
-          lump.data.getUint8(offset + 1),
-          lump.data.getUint8(offset + 2),
-        ],
-        directional: [
-          lump.data.getUint8(offset + 3),
-          lump.data.getUint8(offset + 4),
-          lump.data.getUint8(offset + 5),
-        ],
-        direction: [
-          lump.data.getUint8(offset + 6),
-          lump.data.getUint8(offset + 7),
-        ],
+        ambient: [lump.data.getUint8(offset), lump.data.getUint8(offset + 1), lump.data.getUint8(offset + 2)],
+        directional: [lump.data.getUint8(offset + 3), lump.data.getUint8(offset + 4), lump.data.getUint8(offset + 5)],
+        direction: [lump.data.getUint8(offset + 6), lump.data.getUint8(offset + 7)],
       });
     }
 
@@ -1056,7 +1072,7 @@ export function findLeafForPoint(
   point: [number, number, number],
   nodes: BspNode[],
   leafs: BspLeaf[],
-  planes: BspPlane[]
+  planes: BspPlane[],
 ): BspLeaf | null {
   if (nodes.length === 0) return null;
 
@@ -1067,9 +1083,7 @@ export function findLeafForPoint(
     const plane = planes[node.planeIndex];
 
     // Calculate distance from point to plane
-    const dist = plane.normal[0] * point[0] +
-      plane.normal[1] * point[1] +
-      plane.normal[2] * point[2] - plane.dist;
+    const dist = plane.normal[0] * point[0] + plane.normal[1] * point[1] + plane.normal[2] * point[2] - plane.dist;
 
     // Choose child based on which side of plane
     nodeIndex = dist >= 0 ? node.children[0] : node.children[1];
@@ -1085,7 +1099,7 @@ export function findLeafForPoint(
  * Useful for pre-loading required PK3s
  */
 export function getBspTextureNames(bsp: BspFile): string[] {
-  return bsp.textures.map(t => t.name);
+  return bsp.textures.map((t) => t.name);
 }
 
 /**
@@ -1101,6 +1115,6 @@ export function getBspUsedTextures(bsp: BspFile): string[] {
   }
 
   return Array.from(usedIndices)
-    .map(idx => bsp.textures[idx].name)
-    .filter(name => !name.toLowerCase().includes('common/'));
+    .map((idx) => bsp.textures[idx].name)
+    .filter((name) => !name.toLowerCase().includes("common/"));
 }

@@ -22,38 +22,38 @@
  * One instance per map, shared by all bots.
  */
 
-import type { BotVision, MapKnowledgeData } from './BotVision';
-import type { Vec3 } from '../shared/bsp/BspDataLoader';
-import { vec3Distance } from './BotGameState';
+import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import { vec3Distance } from "./BotGameState";
+import type { BotVision, MapKnowledgeData } from "./BotVision";
 
 // ── Nav Types ───────────────────────────────────────────────────────
 
-export type NavNodeType = 'item' | 'spawn' | 'floor';
+export type NavNodeType = "item" | "spawn" | "floor";
 
 export interface NavNode {
-    id: number;
-    position: Vec3;
-    type: NavNodeType;
-    /** BSP classname for items (e.g. 'item_health_mega', 'weapon_rocketlauncher') */
-    classname?: string;
+  id: number;
+  position: Vec3;
+  type: NavNodeType;
+  /** BSP classname for items (e.g. 'item_health_mega', 'weapon_rocketlauncher') */
+  classname?: string;
 }
 
-export type NavEdgeType = 'walk' | 'jump' | 'fall';
+export type NavEdgeType = "walk" | "jump" | "fall";
 
 export interface NavEdge {
-    from: number;  // NavNode id
-    to: number;    // NavNode id
-    type: NavEdgeType;
-    cost: number;
+  from: number; // NavNode id
+  to: number; // NavNode id
+  type: NavEdgeType;
+  cost: number;
 }
 
 // ── Path Result ─────────────────────────────────────────────────────
 
 export interface NavPath {
-    /** Ordered list of nodes from start to goal */
-    nodes: NavNode[];
-    /** Total traversal cost */
-    totalCost: number;
+  /** Ordered list of nodes from start to goal */
+  nodes: NavNode[];
+  /** Total traversal cost */
+  totalCost: number;
 }
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -85,388 +85,398 @@ const MIN_NODE_DISTANCE = 64;
 // ── BotNavGraph ─────────────────────────────────────────────────────
 
 export class BotNavGraph {
-    private _nodes: NavNode[] = [];
-    private _edges: NavEdge[] = [];
-    private _adjacency: Map<number, NavEdge[]> = new Map();
-    private _mapName: string;
+  private _nodes: NavNode[] = [];
+  private _edges: NavEdge[] = [];
+  private _adjacency: Map<number, NavEdge[]> = new Map();
+  private _mapName: string;
 
-    constructor(mapName: string) {
-        this._mapName = mapName;
+  constructor(mapName: string) {
+    this._mapName = mapName;
+  }
+
+  // ── Accessors ───────────────────────────────────────────────────
+
+  get nodes(): ReadonlyArray<NavNode> {
+    return this._nodes;
+  }
+  get edges(): ReadonlyArray<NavEdge> {
+    return this._edges;
+  }
+  get nodeCount(): number {
+    return this._nodes.length;
+  }
+  get edgeCount(): number {
+    return this._edges.length;
+  }
+
+  // ── Graph Building ──────────────────────────────────────────────
+
+  /**
+   * Build the waypoint graph from map knowledge + collision probing.
+   * Call once per map load.
+   */
+  buildFromVision(vision: BotVision): void {
+    const startTime = Date.now();
+    const knowledge = vision.mapKnowledge;
+
+    console.log(`[NavGraph] Building nav graph for "${this._mapName}"...`);
+
+    // Step 1: Extract nodes from known positions
+    this._extractNodes(knowledge, vision);
+
+    // Step 2: Probe edges between nearby nodes
+    this._probeEdges(vision);
+
+    // Step 3: Build adjacency list
+    this._buildAdjacency();
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[NavGraph] Built: ${this._nodes.length} nodes, ${this._edges.length} edges (${elapsed}ms)`);
+
+    // Debug: type breakdown
+    const typeCounts = new Map<string, number>();
+    for (const node of this._nodes) {
+      typeCounts.set(node.type, (typeCounts.get(node.type) || 0) + 1);
+    }
+    const edgeTypeCounts = new Map<string, number>();
+    for (const edge of this._edges) {
+      edgeTypeCounts.set(edge.type, (edgeTypeCounts.get(edge.type) || 0) + 1);
     }
 
-    // ── Accessors ───────────────────────────────────────────────────
+    console.log(`[NavGraph] Nodes: ${[...typeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(", ")}`);
+    console.log(`[NavGraph] Edges: ${[...edgeTypeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(", ")}`);
+  }
 
-    get nodes(): ReadonlyArray<NavNode> { return this._nodes; }
-    get edges(): ReadonlyArray<NavEdge> { return this._edges; }
-    get nodeCount(): number { return this._nodes.length; }
-    get edgeCount(): number { return this._edges.length; }
+  // ── A* Pathfinding ──────────────────────────────────────────────
 
-    // ── Graph Building ──────────────────────────────────────────────
-
-    /**
-     * Build the waypoint graph from map knowledge + collision probing.
-     * Call once per map load.
-     */
-    buildFromVision(vision: BotVision): void {
-        const startTime = Date.now();
-        const knowledge = vision.mapKnowledge;
-
-        console.log(`[NavGraph] Building nav graph for "${this._mapName}"...`);
-
-        // Step 1: Extract nodes from known positions
-        this._extractNodes(knowledge, vision);
-
-        // Step 2: Probe edges between nearby nodes
-        this._probeEdges(vision);
-
-        // Step 3: Build adjacency list
-        this._buildAdjacency();
-
-        const elapsed = Date.now() - startTime;
-        console.log(`[NavGraph] Built: ${this._nodes.length} nodes, ${this._edges.length} edges (${elapsed}ms)`);
-
-        // Debug: type breakdown
-        const typeCounts = new Map<string, number>();
-        for (const node of this._nodes) {
-            typeCounts.set(node.type, (typeCounts.get(node.type) || 0) + 1);
-        }
-        const edgeTypeCounts = new Map<string, number>();
-        for (const edge of this._edges) {
-            edgeTypeCounts.set(edge.type, (edgeTypeCounts.get(edge.type) || 0) + 1);
-        }
-
-        console.log(`[NavGraph] Nodes: ${[...typeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(', ')}`);
-        console.log(`[NavGraph] Edges: ${[...edgeTypeCounts.entries()].map(([t, c]) => `${t}=${c}`).join(', ')}`);
+  /**
+   * Find the shortest path between two positions.
+   * Returns null if no path exists.
+   */
+  findPath(from: Vec3, to: Vec3): NavPath | null {
+    const startNode = this.findNearestNode(from);
+    const goalNode = this.findNearestNode(to);
+    if (!startNode || !goalNode) return null;
+    if (startNode.id === goalNode.id) {
+      return { nodes: [startNode], totalCost: 0 };
     }
 
-    // ── A* Pathfinding ──────────────────────────────────────────────
+    return this._astar(startNode.id, goalNode.id);
+  }
 
-    /**
-     * Find the shortest path between two positions.
-     * Returns null if no path exists.
-     */
-    findPath(from: Vec3, to: Vec3): NavPath | null {
-        const startNode = this.findNearestNode(from);
-        const goalNode = this.findNearestNode(to);
-        if (!startNode || !goalNode) return null;
-        if (startNode.id === goalNode.id) {
-            return { nodes: [startNode], totalCost: 0 };
-        }
+  /**
+   * Find shortest path to nearest item of a given type.
+   * Searches all item nodes and returns path to the closest one.
+   */
+  findPathToItem(from: Vec3, itemType: string): NavPath | null {
+    const startNode = this.findNearestNode(from);
+    if (!startNode) return null;
 
-        return this._astar(startNode.id, goalNode.id);
+    // Find all matching item nodes
+    const targets = this._nodes.filter((n) => {
+      if (n.type !== "item" || !n.classname) return false;
+      return this._matchesItemType(n.classname, itemType);
+    });
+
+    if (targets.length === 0) return null;
+
+    // Find path to each target, return cheapest
+    let bestPath: NavPath | null = null;
+    for (const target of targets) {
+      const path = this._astar(startNode.id, target.id);
+      if (path && (!bestPath || path.totalCost < bestPath.totalCost)) {
+        bestPath = path;
+      }
     }
 
-    /**
-     * Find shortest path to nearest item of a given type.
-     * Searches all item nodes and returns path to the closest one.
-     */
-    findPathToItem(from: Vec3, itemType: string): NavPath | null {
-        const startNode = this.findNearestNode(from);
-        if (!startNode) return null;
+    return bestPath;
+  }
 
-        // Find all matching item nodes
-        const targets = this._nodes.filter(n => {
-            if (n.type !== 'item' || !n.classname) return false;
-            return this._matchesItemType(n.classname, itemType);
+  /**
+   * Find the nearest NavNode to a world position.
+   */
+  findNearestNode(pos: Vec3): NavNode | null {
+    let best: NavNode | null = null;
+    let bestDist = Infinity;
+
+    for (const node of this._nodes) {
+      const dist = vec3Distance(pos, node.position);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = node;
+      }
+    }
+
+    return best;
+  }
+
+  /**
+   * Get the next waypoint to walk toward on a path.
+   * Skips nodes the bot has already passed.
+   *
+   * @param botPos Bot's current position
+   * @param path Previously computed path
+   * @param arrivedThreshold Distance to consider "arrived" at a node
+   * @returns Next node to walk toward, or null if path complete
+   */
+  getNextWaypoint(botPos: Vec3, path: NavPath, arrivedThreshold: number = 100): NavNode | null {
+    for (const node of path.nodes) {
+      const dist = vec3Distance(botPos, node.position);
+      if (dist > arrivedThreshold) {
+        return node;
+      }
+    }
+    return null; // Arrived at destination
+  }
+
+  // ── Private: Node Extraction ────────────────────────────────────
+
+  private _extractNodes(knowledge: MapKnowledgeData, vision: BotVision): void {
+    let nextId = 0;
+
+    // 1. Item pickup positions
+    for (const item of knowledge.pickupPositions) {
+      if (!this._isTooCloseToExisting(item.position)) {
+        this._nodes.push({
+          id: nextId++,
+          position: { ...item.position },
+          type: "item",
+          classname: item.classname,
         });
-
-        if (targets.length === 0) return null;
-
-        // Find path to each target, return cheapest
-        let bestPath: NavPath | null = null;
-        for (const target of targets) {
-            const path = this._astar(startNode.id, target.id);
-            if (path && (!bestPath || path.totalCost < bestPath.totalCost)) {
-                bestPath = path;
-            }
-        }
-
-        return bestPath;
+      }
     }
 
-    /**
-     * Find the nearest NavNode to a world position.
-     */
-    findNearestNode(pos: Vec3): NavNode | null {
-        let best: NavNode | null = null;
-        let bestDist = Infinity;
-
-        for (const node of this._nodes) {
-            const dist = vec3Distance(pos, node.position);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = node;
-            }
-        }
-
-        return best;
+    // 2. Spawn points
+    for (const sp of knowledge.spawnPoints) {
+      if (!this._isTooCloseToExisting(sp)) {
+        this._nodes.push({
+          id: nextId++,
+          position: { ...sp },
+          type: "spawn",
+        });
+      }
     }
 
-    /**
-     * Get the next waypoint to walk toward on a path.
-     * Skips nodes the bot has already passed.
-     *
-     * @param botPos Bot's current position
-     * @param path Previously computed path
-     * @param arrivedThreshold Distance to consider "arrived" at a node
-     * @returns Next node to walk toward, or null if path complete
-     */
-    getNextWaypoint(botPos: Vec3, path: NavPath, arrivedThreshold: number = 100): NavNode | null {
-        for (const node of path.nodes) {
-            const dist = vec3Distance(botPos, node.position);
-            if (dist > arrivedThreshold) {
-                return node;
-            }
-        }
-        return null; // Arrived at destination
+    // 3. Floor grid sampling (fills gaps)
+    this._sampleFloorGrid(vision, nextId);
+  }
+
+  /**
+   * Sample a sparse floor grid to find walkable positions in
+   * corridors/hallways that have no items or spawns.
+   */
+  private _sampleFloorGrid(vision: BotVision, startId: number): void {
+    // Determine bounds from existing nodes
+    if (this._nodes.length === 0) return;
+
+    let minX = Infinity,
+      maxX = -Infinity;
+    let minY = Infinity,
+      maxY = -Infinity;
+    let minZ = Infinity,
+      maxZ = -Infinity;
+
+    for (const node of this._nodes) {
+      minX = Math.min(minX, node.position.x);
+      maxX = Math.max(maxX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxY = Math.max(maxY, node.position.y);
+      minZ = Math.min(minZ, node.position.z);
+      maxZ = Math.max(maxZ, node.position.z);
     }
 
-    // ── Private: Node Extraction ────────────────────────────────────
+    // Expand bounds slightly
+    const pad = FLOOR_GRID_SPACING;
+    minX -= pad;
+    maxX += pad;
+    minZ -= pad;
+    maxZ += pad;
 
-    private _extractNodes(knowledge: MapKnowledgeData, vision: BotVision): void {
-        let nextId = 0;
+    let nextId = startId;
+    const collision = vision.collisionWorld;
 
-        // 1. Item pickup positions
-        for (const item of knowledge.pickupPositions) {
-            if (!this._isTooCloseToExisting(item.position)) {
-                this._nodes.push({
-                    id: nextId++,
-                    position: { ...item.position },
-                    type: 'item',
-                    classname: item.classname,
-                });
-            }
+    for (let x = minX; x <= maxX; x += FLOOR_GRID_SPACING) {
+      for (let z = minZ; z <= maxZ; z += FLOOR_GRID_SPACING) {
+        // Cast ray downward from height to find floor
+        const from: Vec3 = { x, y: maxY + FLOOR_SAMPLE_HEIGHT, z };
+        const to: Vec3 = { x, y: minY - 100, z };
+
+        const result = collision.trace(from, to);
+        if (!result.hit || !result.hitPoint) continue;
+
+        // Floor found — check it's a valid standing position
+        const floorPos: Vec3 = {
+          x: result.hitPoint.x,
+          y: result.hitPoint.y + 1, // Slightly above floor
+          z: result.hitPoint.z,
+        };
+
+        // Skip if inside solid geometry
+        if (vision.isInsideSolid(floorPos)) continue;
+
+        // Skip if too close to existing node
+        if (this._isTooCloseToExisting(floorPos)) continue;
+
+        this._nodes.push({
+          id: nextId++,
+          position: floorPos,
+          type: "floor",
+        });
+      }
+    }
+  }
+
+  // ── Private: Edge Probing ───────────────────────────────────────
+
+  private _probeEdges(vision: BotVision): void {
+    const nodeCount = this._nodes.length;
+
+    for (let i = 0; i < nodeCount; i++) {
+      for (let j = i + 1; j < nodeCount; j++) {
+        const a = this._nodes[i];
+        const b = this._nodes[j];
+
+        const dist = vec3Distance(a.position, b.position);
+        if (dist > MAX_EDGE_DISTANCE) continue;
+
+        const heightDiff = Math.abs(a.position.y - b.position.y);
+        const horizontalDist = Math.sqrt((a.position.x - b.position.x) ** 2 + (a.position.z - b.position.z) ** 2);
+
+        // Walk edge: low height diff + path clear
+        if (heightDiff < WALK_HEIGHT_MAX) {
+          if (vision.isPathClear(a.position, b.position)) {
+            const cost = dist;
+            this._edges.push({ from: a.id, to: b.id, type: "walk", cost });
+            this._edges.push({ from: b.id, to: a.id, type: "walk", cost });
+          }
+          continue;
         }
 
-        // 2. Spawn points
-        for (const sp of knowledge.spawnPoints) {
-            if (!this._isTooCloseToExisting(sp)) {
-                this._nodes.push({
-                    id: nextId++,
-                    position: { ...sp },
-                    type: 'spawn',
-                });
-            }
+        // Jump edge: medium height diff
+        if (heightDiff < JUMP_HEIGHT_MAX && horizontalDist < 400) {
+          // Check if horizontal path is roughly clear
+          if (vision.canSee(a.position, b.position)) {
+            const cost = dist * JUMP_COST_MULT;
+            // Bidirectional — bot can jump both ways
+            this._edges.push({ from: a.id, to: b.id, type: "jump", cost });
+            this._edges.push({ from: b.id, to: a.id, type: "jump", cost });
+          }
+          continue;
         }
 
-        // 3. Floor grid sampling (fills gaps)
-        this._sampleFloorGrid(vision, nextId);
+        // Fall edge: large height diff, one-way high→low
+        if (heightDiff >= JUMP_HEIGHT_MAX) {
+          const higher = a.position.y > b.position.y ? a : b;
+          const lower = a.position.y > b.position.y ? b : a;
+
+          // Check LOS between nodes (can see = can fall)
+          if (vision.canSee(higher.position, lower.position)) {
+            const cost = dist * FALL_COST_MULT;
+            this._edges.push({ from: higher.id, to: lower.id, type: "fall", cost });
+          }
+        }
+      }
+    }
+  }
+
+  // ── Private: Adjacency List ─────────────────────────────────────
+
+  private _buildAdjacency(): void {
+    this._adjacency.clear();
+    for (const node of this._nodes) {
+      this._adjacency.set(node.id, []);
+    }
+    for (const edge of this._edges) {
+      this._adjacency.get(edge.from)!.push(edge);
+    }
+  }
+
+  // ── Private: A* ─────────────────────────────────────────────────
+
+  private _astar(startId: number, goalId: number): NavPath | null {
+    const goalNode = this._nodes[goalId];
+    if (!goalNode) return null;
+
+    // Open set: priority queue (simple array sorted by fScore)
+    const openSet = new Set<number>([startId]);
+    const cameFrom = new Map<number, number>();
+
+    const gScore = new Map<number, number>();
+    gScore.set(startId, 0);
+
+    const fScore = new Map<number, number>();
+    fScore.set(startId, this._heuristic(this._nodes[startId], goalNode));
+
+    while (openSet.size > 0) {
+      // Find node in openSet with lowest fScore
+      let current = -1;
+      let lowestF = Infinity;
+      for (const id of openSet) {
+        const f = fScore.get(id) ?? Infinity;
+        if (f < lowestF) {
+          lowestF = f;
+          current = id;
+        }
+      }
+
+      if (current === goalId) {
+        // Reconstruct path
+        return this._reconstructPath(cameFrom, current, gScore.get(current) ?? 0);
+      }
+
+      openSet.delete(current);
+      const neighbors = this._adjacency.get(current) || [];
+
+      for (const edge of neighbors) {
+        const tentativeG = (gScore.get(current) ?? Infinity) + edge.cost;
+        const currentG = gScore.get(edge.to) ?? Infinity;
+
+        if (tentativeG < currentG) {
+          cameFrom.set(edge.to, current);
+          gScore.set(edge.to, tentativeG);
+          fScore.set(edge.to, tentativeG + this._heuristic(this._nodes[edge.to], goalNode));
+          openSet.add(edge.to);
+        }
+      }
     }
 
-    /**
-     * Sample a sparse floor grid to find walkable positions in
-     * corridors/hallways that have no items or spawns.
-     */
-    private _sampleFloorGrid(vision: BotVision, startId: number): void {
-        // Determine bounds from existing nodes
-        if (this._nodes.length === 0) return;
+    return null; // No path found
+  }
 
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-        let minZ = Infinity, maxZ = -Infinity;
+  private _heuristic(node: NavNode, goal: NavNode): number {
+    return vec3Distance(node.position, goal.position);
+  }
 
-        for (const node of this._nodes) {
-            minX = Math.min(minX, node.position.x);
-            maxX = Math.max(maxX, node.position.x);
-            minY = Math.min(minY, node.position.y);
-            maxY = Math.max(maxY, node.position.y);
-            minZ = Math.min(minZ, node.position.z);
-            maxZ = Math.max(maxZ, node.position.z);
-        }
-
-        // Expand bounds slightly
-        const pad = FLOOR_GRID_SPACING;
-        minX -= pad; maxX += pad;
-        minZ -= pad; maxZ += pad;
-
-        let nextId = startId;
-        const collision = vision.collisionWorld;
-
-        for (let x = minX; x <= maxX; x += FLOOR_GRID_SPACING) {
-            for (let z = minZ; z <= maxZ; z += FLOOR_GRID_SPACING) {
-                // Cast ray downward from height to find floor
-                const from: Vec3 = { x, y: maxY + FLOOR_SAMPLE_HEIGHT, z };
-                const to: Vec3 = { x, y: minY - 100, z };
-
-                const result = collision.trace(from, to);
-                if (!result.hit || !result.hitPoint) continue;
-
-                // Floor found — check it's a valid standing position
-                const floorPos: Vec3 = {
-                    x: result.hitPoint.x,
-                    y: result.hitPoint.y + 1, // Slightly above floor
-                    z: result.hitPoint.z,
-                };
-
-                // Skip if inside solid geometry
-                if (vision.isInsideSolid(floorPos)) continue;
-
-                // Skip if too close to existing node
-                if (this._isTooCloseToExisting(floorPos)) continue;
-
-                this._nodes.push({
-                    id: nextId++,
-                    position: floorPos,
-                    type: 'floor',
-                });
-            }
-        }
+  private _reconstructPath(cameFrom: Map<number, number>, current: number, totalCost: number): NavPath {
+    const path: NavNode[] = [this._nodes[current]];
+    while (cameFrom.has(current)) {
+      current = cameFrom.get(current)!;
+      path.unshift(this._nodes[current]);
     }
+    return { nodes: path, totalCost };
+  }
 
-    // ── Private: Edge Probing ───────────────────────────────────────
+  // ── Private: Utilities ──────────────────────────────────────────
 
-    private _probeEdges(vision: BotVision): void {
-        const nodeCount = this._nodes.length;
-
-        for (let i = 0; i < nodeCount; i++) {
-            for (let j = i + 1; j < nodeCount; j++) {
-                const a = this._nodes[i];
-                const b = this._nodes[j];
-
-                const dist = vec3Distance(a.position, b.position);
-                if (dist > MAX_EDGE_DISTANCE) continue;
-
-                const heightDiff = Math.abs(a.position.y - b.position.y);
-                const horizontalDist = Math.sqrt(
-                    (a.position.x - b.position.x) ** 2 +
-                    (a.position.z - b.position.z) ** 2,
-                );
-
-                // Walk edge: low height diff + path clear
-                if (heightDiff < WALK_HEIGHT_MAX) {
-                    if (vision.isPathClear(a.position, b.position)) {
-                        const cost = dist;
-                        this._edges.push({ from: a.id, to: b.id, type: 'walk', cost });
-                        this._edges.push({ from: b.id, to: a.id, type: 'walk', cost });
-                    }
-                    continue;
-                }
-
-                // Jump edge: medium height diff
-                if (heightDiff < JUMP_HEIGHT_MAX && horizontalDist < 400) {
-                    // Check if horizontal path is roughly clear
-                    if (vision.canSee(a.position, b.position)) {
-                        const cost = dist * JUMP_COST_MULT;
-                        // Bidirectional — bot can jump both ways
-                        this._edges.push({ from: a.id, to: b.id, type: 'jump', cost });
-                        this._edges.push({ from: b.id, to: a.id, type: 'jump', cost });
-                    }
-                    continue;
-                }
-
-                // Fall edge: large height diff, one-way high→low
-                if (heightDiff >= JUMP_HEIGHT_MAX) {
-                    const higher = a.position.y > b.position.y ? a : b;
-                    const lower = a.position.y > b.position.y ? b : a;
-
-                    // Check LOS between nodes (can see = can fall)
-                    if (vision.canSee(higher.position, lower.position)) {
-                        const cost = dist * FALL_COST_MULT;
-                        this._edges.push({ from: higher.id, to: lower.id, type: 'fall', cost });
-                    }
-                }
-            }
-        }
+  private _isTooCloseToExisting(pos: Vec3): boolean {
+    for (const node of this._nodes) {
+      if (vec3Distance(pos, node.position) < MIN_NODE_DISTANCE) {
+        return true;
+      }
     }
+    return false;
+  }
 
-    // ── Private: Adjacency List ─────────────────────────────────────
-
-    private _buildAdjacency(): void {
-        this._adjacency.clear();
-        for (const node of this._nodes) {
-            this._adjacency.set(node.id, []);
-        }
-        for (const edge of this._edges) {
-            this._adjacency.get(edge.from)!.push(edge);
-        }
+  private _matchesItemType(classname: string, type: string): boolean {
+    switch (type) {
+      case "health":
+        return classname.includes("health");
+      case "armor":
+        return classname.includes("armor");
+      case "weapon":
+        return classname.startsWith("weapon_");
+      default:
+        return classname === type;
     }
-
-    // ── Private: A* ─────────────────────────────────────────────────
-
-    private _astar(startId: number, goalId: number): NavPath | null {
-        const goalNode = this._nodes[goalId];
-        if (!goalNode) return null;
-
-        // Open set: priority queue (simple array sorted by fScore)
-        const openSet = new Set<number>([startId]);
-        const cameFrom = new Map<number, number>();
-
-        const gScore = new Map<number, number>();
-        gScore.set(startId, 0);
-
-        const fScore = new Map<number, number>();
-        fScore.set(startId, this._heuristic(this._nodes[startId], goalNode));
-
-        while (openSet.size > 0) {
-            // Find node in openSet with lowest fScore
-            let current = -1;
-            let lowestF = Infinity;
-            for (const id of openSet) {
-                const f = fScore.get(id) ?? Infinity;
-                if (f < lowestF) {
-                    lowestF = f;
-                    current = id;
-                }
-            }
-
-            if (current === goalId) {
-                // Reconstruct path
-                return this._reconstructPath(cameFrom, current, gScore.get(current) ?? 0);
-            }
-
-            openSet.delete(current);
-            const neighbors = this._adjacency.get(current) || [];
-
-            for (const edge of neighbors) {
-                const tentativeG = (gScore.get(current) ?? Infinity) + edge.cost;
-                const currentG = gScore.get(edge.to) ?? Infinity;
-
-                if (tentativeG < currentG) {
-                    cameFrom.set(edge.to, current);
-                    gScore.set(edge.to, tentativeG);
-                    fScore.set(edge.to, tentativeG + this._heuristic(this._nodes[edge.to], goalNode));
-                    openSet.add(edge.to);
-                }
-            }
-        }
-
-        return null; // No path found
-    }
-
-    private _heuristic(node: NavNode, goal: NavNode): number {
-        return vec3Distance(node.position, goal.position);
-    }
-
-    private _reconstructPath(cameFrom: Map<number, number>, current: number, totalCost: number): NavPath {
-        const path: NavNode[] = [this._nodes[current]];
-        while (cameFrom.has(current)) {
-            current = cameFrom.get(current)!;
-            path.unshift(this._nodes[current]);
-        }
-        return { nodes: path, totalCost };
-    }
-
-    // ── Private: Utilities ──────────────────────────────────────────
-
-    private _isTooCloseToExisting(pos: Vec3): boolean {
-        for (const node of this._nodes) {
-            if (vec3Distance(pos, node.position) < MIN_NODE_DISTANCE) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private _matchesItemType(classname: string, type: string): boolean {
-        switch (type) {
-            case 'health':
-                return classname.includes('health');
-            case 'armor':
-                return classname.includes('armor');
-            case 'weapon':
-                return classname.startsWith('weapon_');
-            default:
-                return classname === type;
-        }
-    }
+  }
 }

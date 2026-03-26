@@ -11,11 +11,11 @@
  * 4. We then show only meshes belonging to visible clusters
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import type { BspFile } from './BspLoader';
-import { findLeafForPoint, isClusterVisible } from './BspLoader';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { BspFile } from "./BspLoader";
+import { findLeafForPoint, isClusterVisible } from "./BspLoader";
 
 export interface PVSCullerStats {
   enabled: boolean;
@@ -89,7 +89,7 @@ export class PVSCuller {
       }
     }
 
-    console.log(`[PVSCuller] ${enabled ? 'Enabled' : 'Disabled'}`);
+    console.log(`[PVSCuller] ${enabled ? "Enabled" : "Disabled"}`);
   }
 
   /**
@@ -156,16 +156,23 @@ export class PVSCuller {
       // Sample points as [x, y, z] tuples to avoid Vector3 allocation
       const samples: [number, number, number][] = [
         // 8 corners
-        [min.x, min.y, min.z], [max.x, min.y, min.z],
-        [min.x, max.y, min.z], [max.x, max.y, min.z],
-        [min.x, min.y, max.z], [max.x, min.y, max.z],
-        [min.x, max.y, max.z], [max.x, max.y, max.z],
+        [min.x, min.y, min.z],
+        [max.x, min.y, min.z],
+        [min.x, max.y, min.z],
+        [max.x, max.y, min.z],
+        [min.x, min.y, max.z],
+        [max.x, min.y, max.z],
+        [min.x, max.y, max.z],
+        [max.x, max.y, max.z],
         // Center
         [midX, midY, midZ],
         // Face centers
-        [midX, min.y, midZ], [midX, max.y, midZ],
-        [min.x, midY, midZ], [max.x, midY, midZ],
-        [midX, midY, min.z], [midX, midY, max.z],
+        [midX, min.y, midZ],
+        [midX, max.y, midZ],
+        [min.x, midY, midZ],
+        [max.x, midY, midZ],
+        [midX, midY, min.z],
+        [midX, midY, max.z],
       ];
 
       for (const [x, y, z] of samples) {
@@ -189,9 +196,8 @@ export class PVSCuller {
       }
     }
 
-    const avgClusters = this.allManagedMeshes.length > 0
-      ? (totalClusterAssignments / this.allManagedMeshes.length).toFixed(1)
-      : '0';
+    const avgClusters =
+      this.allManagedMeshes.length > 0 ? (totalClusterAssignments / this.allManagedMeshes.length).toFixed(1) : "0";
 
     console.log(`[PVSCuller] Registered ${this.allManagedMeshes.length} meshes (avg ${avgClusters} clusters per mesh)`);
     this.forceUpdate = true;
@@ -310,7 +316,7 @@ export class PVSCuller {
       totalMeshes: this.allManagedMeshes.length,
       visibleMeshes: this.cachedVisibleCount,
       culledMeshes: this.cachedCulledCount,
-      lastUpdateTime: this.lastUpdateTime
+      lastUpdateTime: this.lastUpdateTime,
     };
   }
 
@@ -339,7 +345,7 @@ export class PVSCuller {
       totalMeshes: this.allManagedMeshes.length,
       visibleMeshes,
       culledMeshes,
-      lastUpdateTime: this.lastUpdateTime
+      lastUpdateTime: this.lastUpdateTime,
     };
   }
 
@@ -369,7 +375,7 @@ export class PVSCuller {
       info.push({
         cluster,
         meshCount: count,
-        visible: cluster < 0 || this.visibleClusters.has(cluster)
+        visible: cluster < 0 || this.visibleClusters.has(cluster),
       });
     }
 
@@ -392,7 +398,7 @@ export class PVSCuller {
  */
 export function createPVSCuller(bsp: BspFile): PVSCuller | null {
   if (!bsp.visData) {
-    console.log('[PVSCuller] No visibility data in BSP, PVS culling unavailable');
+    console.log("[PVSCuller] No visibility data in BSP, PVS culling unavailable");
     return null;
   }
 

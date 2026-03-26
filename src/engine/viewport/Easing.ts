@@ -14,8 +14,7 @@ export const Easing = {
   // ==================== Quadratic ====================
   easeInQuad: (t: number): number => t * t,
   easeOutQuad: (t: number): number => t * (2 - t),
-  easeInOutQuad: (t: number): number =>
-    t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+  easeInOutQuad: (t: number): number => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
 
   // ==================== Cubic ====================
   easeInCubic: (t: number): number => t * t * t,
@@ -23,8 +22,7 @@ export const Easing = {
     const t1 = t - 1;
     return t1 * t1 * t1 + 1;
   },
-  easeInOutCubic: (t: number): number =>
-    t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+  easeInOutCubic: (t: number): number => (t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1),
 
   // ==================== Quartic ====================
   easeInQuart: (t: number): number => t * t * t * t,
@@ -32,8 +30,7 @@ export const Easing = {
     const t1 = t - 1;
     return 1 - t1 * t1 * t1 * t1;
   },
-  easeInOutQuart: (t: number): number =>
-    t < 0.5 ? 8 * t * t * t * t : 1 - 8 * (t - 1) * (t - 1) * (t - 1) * (t - 1),
+  easeInOutQuart: (t: number): number => (t < 0.5 ? 8 * t * t * t * t : 1 - 8 * (t - 1) * (t - 1) * (t - 1) * (t - 1)),
 
   // ==================== Sine ====================
   easeInSine: (t: number): number => 1 - Math.cos((t * Math.PI) / 2),
@@ -41,33 +38,33 @@ export const Easing = {
   easeInOutSine: (t: number): number => -(Math.cos(Math.PI * t) - 1) / 2,
 
   // ==================== Exponential ====================
-  easeInExpo: (t: number): number => (t === 0 ? 0 : Math.pow(2, 10 * t - 10)),
-  easeOutExpo: (t: number): number => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  easeInExpo: (t: number): number => (t === 0 ? 0 : 2 ** (10 * t - 10)),
+  easeOutExpo: (t: number): number => (t === 1 ? 1 : 1 - 2 ** (-10 * t)),
   easeInOutExpo: (t: number): number => {
     if (t === 0) return 0;
     if (t === 1) return 1;
-    if (t < 0.5) return Math.pow(2, 20 * t - 10) / 2;
-    return (2 - Math.pow(2, -20 * t + 10)) / 2;
+    if (t < 0.5) return 2 ** (20 * t - 10) / 2;
+    return (2 - 2 ** (-20 * t + 10)) / 2;
   },
 
   // ==================== Elastic ====================
   easeInElastic: (t: number): number => {
     if (t === 0) return 0;
     if (t === 1) return 1;
-    return -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * ((2 * Math.PI) / 3));
+    return -(2 ** (10 * t - 10)) * Math.sin((t * 10 - 10.75) * ((2 * Math.PI) / 3));
   },
   easeOutElastic: (t: number): number => {
     if (t === 0) return 0;
     if (t === 1) return 1;
-    return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
+    return 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
   },
   easeInOutElastic: (t: number): number => {
     if (t === 0) return 0;
     if (t === 1) return 1;
     if (t < 0.5) {
-      return -(Math.pow(2, 20 * t - 10) * Math.sin((20 * t - 11.125) * ((2 * Math.PI) / 4.5))) / 2;
+      return -(2 ** (20 * t - 10) * Math.sin((20 * t - 11.125) * ((2 * Math.PI) / 4.5))) / 2;
     }
-    return (Math.pow(2, -20 * t + 10) * Math.sin((20 * t - 11.125) * ((2 * Math.PI) / 4.5))) / 2 + 1;
+    return (2 ** (-20 * t + 10) * Math.sin((20 * t - 11.125) * ((2 * Math.PI) / 4.5))) / 2 + 1;
   },
 
   // ==================== Back (overshoot) ====================
@@ -86,7 +83,7 @@ export const Easing = {
     const c1 = 1.70158;
     const c2 = c1 * 1.525;
     if (t < 0.5) {
-      return ((2 * t) * (2 * t) * ((c2 + 1) * 2 * t - c2)) / 2;
+      return (2 * t * (2 * t) * ((c2 + 1) * 2 * t - c2)) / 2;
     }
     return ((2 * t - 2) * (2 * t - 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2;
   },
@@ -110,9 +107,7 @@ export const Easing = {
   },
   easeInBounce: (t: number): number => 1 - Easing.easeOutBounce(1 - t),
   easeInOutBounce: (t: number): number =>
-    t < 0.5
-      ? (1 - Easing.easeOutBounce(1 - 2 * t)) / 2
-      : (1 + Easing.easeOutBounce(2 * t - 1)) / 2,
+    t < 0.5 ? (1 - Easing.easeOutBounce(1 - 2 * t)) / 2 : (1 + Easing.easeOutBounce(2 * t - 1)) / 2,
 } as const;
 
 /** Get easing function by name */

@@ -2,7 +2,7 @@
  * HUDElement - Base class for all HUD components
  */
 
-import type { HUDElementConfig, HUDFlashType, HUDAnimationType } from './HUDTypes';
+import type { HUDAnimationType, HUDElementConfig, HUDFlashType } from "./HUDTypes";
 
 export abstract class HUDElement {
   protected id: string;
@@ -16,9 +16,9 @@ export abstract class HUDElement {
     this.config = config;
     this.element = this.createElement();
     this.visible = config.visible !== false;
-    
+
     if (!this.visible) {
-      this.element.style.display = 'none';
+      this.element.style.display = "none";
     }
   }
 
@@ -51,7 +51,7 @@ export abstract class HUDElement {
    */
   public setClickHandler(handler: () => void): void {
     this.clickHandler = handler;
-    this.element.style.cursor = 'pointer';
+    this.element.style.cursor = "pointer";
     this.element.onclick = (e) => {
       e.stopPropagation();
       handler();
@@ -64,8 +64,8 @@ export abstract class HUDElement {
   public show(): void {
     if (!this.visible) {
       this.visible = true;
-      this.element.style.display = '';
-      this.animate('fadeIn');
+      this.element.style.display = "";
+      this.animate("fadeIn");
     }
   }
 
@@ -75,10 +75,10 @@ export abstract class HUDElement {
   public hide(): void {
     if (this.visible) {
       this.visible = false;
-      this.animate('fadeOut');
+      this.animate("fadeOut");
       setTimeout(() => {
         if (!this.visible) {
-          this.element.style.display = 'none';
+          this.element.style.display = "none";
         }
       }, 200);
     }
@@ -117,14 +117,14 @@ export abstract class HUDElement {
    * Pulse animation for attention
    */
   public pulse(): void {
-    this.animate('pulse');
+    this.animate("pulse");
   }
 
   /**
    * Shake animation
    */
   public shake(): void {
-    this.animate('shake');
+    this.animate("shake");
   }
 
   /**
@@ -136,7 +136,7 @@ export abstract class HUDElement {
     // Force reflow to restart animation
     void this.element.offsetWidth;
     this.element.classList.add(animClass);
-    
+
     // Remove class after animation completes
     const duration = this.getAnimationDuration(animation);
     setTimeout(() => {
@@ -149,18 +149,18 @@ export abstract class HUDElement {
    */
   private getAnimationDuration(animation: HUDAnimationType): number {
     switch (animation) {
-      case 'fadeIn':
-      case 'fadeOut':
-      case 'scaleIn':
-      case 'scaleOut':
+      case "fadeIn":
+      case "fadeOut":
+      case "scaleIn":
+      case "scaleOut":
         return 200;
-      case 'slideIn':
-      case 'slideOut':
+      case "slideIn":
+      case "slideOut":
         return 250;
-      case 'pulse':
+      case "pulse":
         return 500;
-      case 'shake':
-      case 'bounce':
+      case "shake":
+      case "bounce":
         return 300;
       default:
         return 200;

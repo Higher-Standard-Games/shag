@@ -6,7 +6,7 @@
   border: none;
   cursor: pointer;
   transition: all 0.1s ease;
-  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53,20 +53,20 @@
 
 /* Primary variant */
 .ui-button-primary {
-  background: #4CAF50;
+  background: #4caf50;
   color: #ffffff;
-  border-bottom: 4px solid #3D9140;
+  border-bottom: 4px solid #3d9140;
   box-shadow: 0 2px 4px rgba(61, 145, 64, 0.4);
 }
 
 .ui-button-primary:hover:not(:disabled) {
-  background: #5CBF60;
+  background: #5cbf60;
   top: -1px;
   box-shadow: 0 4px 8px rgba(61, 145, 64, 0.4);
 }
 
 .ui-button-primary:active:not(:disabled) {
-  background: #3D9140;
+  background: #3d9140;
   top: 4px;
   border-bottom-width: 0;
   box-shadow: 0 0 2px rgba(61, 145, 64, 0.4);

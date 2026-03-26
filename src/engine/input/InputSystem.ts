@@ -1,29 +1,29 @@
 /**
  * InputSystem - Central input management for the engine
- * 
+ *
  * Provides unified input handling with:
  * - Context stacking (gameplay, menu, dialog, etc.)
  * - Action-based input (query "interact" not "KeyE")
  * - Configurable bindings (keyboard, mouse, touch, gamepad)
  * - Frame-based state (wasPressed, wasReleased, isActive)
- * 
+ *
  * @example
  * ```typescript
  * const input = InputSystem.getInstance();
- * 
+ *
  * // Query actions
  * if (input.wasPressed("interact")) { ... }
  * if (input.isActive("move_forward")) { ... }
- * 
+ *
  * // Context management
  * input.pushContext("menu");
  * input.popContext();
  * ```
  */
 
-import { Scene } from "@babylonjs/core/scene";
+import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
-import {
+import type {
   ActionDefinition,
   ActionState,
   ContextDefinition,
@@ -73,10 +73,19 @@ const DEFAULT_CONTEXTS: ContextDefinition[] = [
     id: "gameplay",
     blocking: false,
     actions: [
-      "camera_pan", "camera_zoom_in", "camera_zoom_out",
-      "move_forward", "move_back", "move_left", "move_right", "move_up", "move_down",
-      "rotate_left", "rotate_right",
-      "interact", "cancel",
+      "camera_pan",
+      "camera_zoom_in",
+      "camera_zoom_out",
+      "move_forward",
+      "move_back",
+      "move_left",
+      "move_right",
+      "move_up",
+      "move_down",
+      "rotate_left",
+      "rotate_right",
+      "interact",
+      "cancel",
     ],
   },
   {
@@ -392,7 +401,10 @@ export class InputSystem {
       keysPressed: new Set(),
       keysReleased: new Set(),
       mouse: {
-        x: 0, y: 0, deltaX: 0, deltaY: 0,
+        x: 0,
+        y: 0,
+        deltaX: 0,
+        deltaY: 0,
         buttons: new Set(),
         buttonsPressed: new Set(),
         buttonsReleased: new Set(),
@@ -450,9 +462,8 @@ export class InputSystem {
       if (!action || !state) continue;
 
       // Get bindings (overrides take priority)
-      const bindings = this.bindingOverrides.get(actionId)
-        || activeContext.bindings?.[actionId]
-        || action.defaultBindings;
+      const bindings =
+        this.bindingOverrides.get(actionId) || activeContext.bindings?.[actionId] || action.defaultBindings;
 
       // Check if any binding is active
       let isActive = false;
@@ -462,9 +473,16 @@ export class InputSystem {
       for (const binding of bindings) {
         // Check modifiers first
         if (binding.modifiers) {
-          if (binding.modifiers.ctrl && !this.rawState.keys.has("ControlLeft") && !this.rawState.keys.has("ControlRight")) continue;
-          if (binding.modifiers.shift && !this.rawState.keys.has("ShiftLeft") && !this.rawState.keys.has("ShiftRight")) continue;
-          if (binding.modifiers.alt && !this.rawState.keys.has("AltLeft") && !this.rawState.keys.has("AltRight")) continue;
+          if (
+            binding.modifiers.ctrl &&
+            !this.rawState.keys.has("ControlLeft") &&
+            !this.rawState.keys.has("ControlRight")
+          )
+            continue;
+          if (binding.modifiers.shift && !this.rawState.keys.has("ShiftLeft") && !this.rawState.keys.has("ShiftRight"))
+            continue;
+          if (binding.modifiers.alt && !this.rawState.keys.has("AltLeft") && !this.rawState.keys.has("AltRight"))
+            continue;
         }
 
         // Check keyboard
@@ -484,8 +502,7 @@ export class InputSystem {
         // Check scroll wheel direction (impulse — fires as pressed for one frame)
         if (binding.scrollDirection) {
           const wheel = this.rawState.mouse.wheel;
-          if ((binding.scrollDirection === "down" && wheel > 0) ||
-            (binding.scrollDirection === "up" && wheel < 0)) {
+          if ((binding.scrollDirection === "down" && wheel > 0) || (binding.scrollDirection === "up" && wheel < 0)) {
             isActive = true;
             wasPressed = true;
           }
@@ -509,12 +526,12 @@ export class InputSystem {
     if (e.repeat) return;
 
     // Alt+Enter → toggle fullscreen
-    if (e.altKey && e.code === 'Enter') {
+    if (e.altKey && e.code === "Enter") {
       e.preventDefault();
       if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => { });
+        document.exitFullscreen().catch(() => {});
       } else {
-        document.documentElement.requestFullscreen().catch(() => { });
+        document.documentElement.requestFullscreen().catch(() => {});
       }
       return;
     }
@@ -573,7 +590,7 @@ export class InputSystem {
     e.preventDefault();
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      const point = this.rawState.touch.points.find(p => p.id === touch.identifier);
+      const point = this.rawState.touch.points.find((p) => p.id === touch.identifier);
       if (point) {
         point.deltaX = touch.clientX - point.x;
         point.deltaY = touch.clientY - point.y;
@@ -586,7 +603,7 @@ export class InputSystem {
   private onTouchEnd(e: TouchEvent): void {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      const index = this.rawState.touch.points.findIndex(p => p.id === touch.identifier);
+      const index = this.rawState.touch.points.findIndex((p) => p.id === touch.identifier);
       if (index !== -1) {
         const point = this.rawState.touch.points.splice(index, 1)[0];
         this.rawState.touch.pointsEnded.push(point);
@@ -596,10 +613,14 @@ export class InputSystem {
 
   private getMouseButton(button: number): MouseButton {
     switch (button) {
-      case 0: return "left";
-      case 1: return "middle";
-      case 2: return "right";
-      default: return "left";
+      case 0:
+        return "left";
+      case 1:
+        return "middle";
+      case 2:
+        return "right";
+      default:
+        return "left";
     }
   }
 
@@ -658,7 +679,7 @@ export class InputSystem {
    */
   loadBindingsFromStorage(): void {
     try {
-      const saved = localStorage.getItem('shag_keybindings');
+      const saved = localStorage.getItem("shag_keybindings");
       if (!saved) return;
       const data = JSON.parse(saved) as Record<string, InputBinding[]>;
       for (const [actionId, bindings] of Object.entries(data)) {
@@ -676,7 +697,7 @@ export class InputSystem {
       for (const [actionId, bindings] of this.bindingOverrides) {
         data[actionId] = bindings;
       }
-      localStorage.setItem('shag_keybindings', JSON.stringify(data));
+      localStorage.setItem("shag_keybindings", JSON.stringify(data));
     } catch {
       // localStorage might be unavailable
     }

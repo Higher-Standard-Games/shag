@@ -6,17 +6,16 @@
  * - BabylonPhysicsBackend: Babylon.js mesh raycasting for simpler games
  */
 
-export { ContentFlags, SurfaceFlags } from './ContentFlags';
-export { PhysicsSystem } from './PhysicsSystem';
-
+export { BabylonPhysicsBackend } from "./BabylonPhysicsBackend";
 // Collision Backend System
 export type {
   CollisionBackend,
   CollisionBackendType,
-  TraceResult,
-  TraceOptions,
   CollisionStats,
-} from './CollisionBackend';
-export { Contents, createDefaultTraceResult } from './CollisionBackend';
-export { BabylonPhysicsBackend } from './BabylonPhysicsBackend';
-export { CollisionManager, getCollisionManager } from './CollisionManager';
+  TraceOptions,
+  TraceResult,
+} from "./CollisionBackend";
+export { Contents, createDefaultTraceResult } from "./CollisionBackend";
+export { CollisionManager, getCollisionManager } from "./CollisionManager";
+export { ContentFlags, SurfaceFlags } from "./ContentFlags";
+export { PhysicsSystem } from "./PhysicsSystem";

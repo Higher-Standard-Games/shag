@@ -1,10 +1,10 @@
-import type { GameState } from './GameState';
-import type { Command } from './Command';
-import type { PlayerId } from './Entity';
+import type { Command } from "./Command";
+import type { PlayerId } from "./Entity";
+import type { GameState } from "./GameState";
 
 /**
  * Main game host interface - abstraction for local vs networked games
- * 
+ *
  * Game code uses this interface without knowing if it's single-player,
  * multiplayer client, or listen server.
  */

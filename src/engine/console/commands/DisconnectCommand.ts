@@ -1,5 +1,5 @@
-import { Command } from '../Command';
-import { Game } from '../../../games/fps/Game';
+import { Game } from "../../../games/fps/Game";
+import { Command } from "../Command";
 
 /**
  * Disconnect command - disconnects from current game server
@@ -7,9 +7,9 @@ import { Game } from '../../../games/fps/Game';
  */
 export default class DisconnectCommand extends Command {
   readonly definition = {
-    name: 'disconnect',
-    description: 'Disconnect from current game server',
-    usage: 'disconnect',
+    name: "disconnect",
+    description: "Disconnect from current game server",
+    usage: "disconnect",
   };
 
   async execute(_args: string[]): Promise<string> {
@@ -18,7 +18,7 @@ export default class DisconnectCommand extends Command {
       const serverUrl = gameManager.getServerUrl();
 
       if (!gameManager.isConnectedToServer()) {
-        return 'Not connected to any server';
+        return "Not connected to any server";
       }
 
       gameManager.shutdown();

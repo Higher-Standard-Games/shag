@@ -1,4 +1,4 @@
-import type { Transport } from './Transport';
+import type { Transport } from "./Transport";
 
 /**
  * WebTransport implementation (placeholder for future use)
@@ -14,13 +14,13 @@ export class WebTransportTransport implements Transport {
   private errorCallbacks: ((error: Error) => void)[] = [];
 
   async connect(url: string): Promise<void> {
-    if (!('WebTransport' in globalThis)) {
-      throw new Error('WebTransport not supported in this browser');
+    if (!("WebTransport" in globalThis)) {
+      throw new Error("WebTransport not supported in this browser");
     }
 
     try {
       // Convert http to https for WebTransport
-      const httpsUrl = url.replace(/^http/, 'https');
+      const httpsUrl = url.replace(/^http/, "https");
       this.transport = new (globalThis as any).WebTransport(httpsUrl);
 
       await this.transport.ready;
@@ -33,9 +33,9 @@ export class WebTransportTransport implements Transport {
       // Start reading messages from incoming streams (reliable channel)
       this.readIncomingStreams();
 
-      this.connectCallbacks.forEach(cb => cb());
+      this.connectCallbacks.forEach((cb) => cb());
     } catch (error) {
-      this.errorCallbacks.forEach(cb => cb(error as Error));
+      this.errorCallbacks.forEach((cb) => cb(error as Error));
       throw error;
     }
   }
@@ -52,15 +52,16 @@ export class WebTransportTransport implements Transport {
   send(data: Uint8Array, reliable: boolean = false): void {
     if (reliable && this.transport) {
       // Reliable: use a unidirectional stream for guaranteed, ordered delivery
-      this.transport.createUnidirectionalStream()
+      this.transport
+        .createUnidirectionalStream()
         .then((stream: any) => {
           const writer = stream.getWriter();
           writer.write(data);
           writer.close();
         })
         .catch((err: Error) => {
-          console.warn('[WebTransportTransport] Reliable send failed:', err);
-          this.errorCallbacks.forEach(cb => cb(err));
+          console.warn("[WebTransportTransport] Reliable send failed:", err);
+          this.errorCallbacks.forEach((cb) => cb(err));
         });
     } else if (this.writer) {
       // Unreliable: fast QUIC datagrams (game input, snapshots)
@@ -77,11 +78,11 @@ export class WebTransportTransport implements Transport {
         if (done) break;
 
         if (value) {
-          this.messageCallbacks.forEach(cb => cb(value));
+          this.messageCallbacks.forEach((cb) => cb(value));
         }
       }
     } catch (error) {
-      this.errorCallbacks.forEach(cb => cb(error as Error));
+      this.errorCallbacks.forEach((cb) => cb(error as Error));
     }
   }
 
@@ -109,7 +110,7 @@ export class WebTransportTransport implements Transport {
 
         // Concatenate chunks and deliver as a single message
         if (chunks.length === 1) {
-          this.messageCallbacks.forEach(cb => cb(chunks[0]));
+          this.messageCallbacks.forEach((cb) => cb(chunks[0]));
         } else if (chunks.length > 1) {
           const total = chunks.reduce((acc, c) => acc + c.length, 0);
           const merged = new Uint8Array(total);
@@ -118,7 +119,7 @@ export class WebTransportTransport implements Transport {
             merged.set(chunk, offset);
             offset += chunk.length;
           }
-          this.messageCallbacks.forEach(cb => cb(merged));
+          this.messageCallbacks.forEach((cb) => cb(merged));
         }
       }
     } catch (error) {
@@ -167,6 +168,6 @@ export class WebTransportTransport implements Transport {
   }
 
   isConnected(): boolean {
-    return this.transport?.state === 'connected';
+    return this.transport?.state === "connected";
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Cvar - Console Variable System (Quake-style)
- * 
+ *
  * Unified system for engine/game configuration variables.
  * Features:
  * - Type-safe get/set with validation
@@ -8,7 +8,7 @@
  * - Change callbacks for reactive updates
  * - Console integration (auto-registers as commands)
  * - Autocomplete support
- * 
+ *
  * Naming conventions:
  * - r_*   Render/graphics (r_bloom, r_wireframe)
  * - s_*   Sound/audio (s_volume, s_musicenabled)
@@ -20,9 +20,9 @@
  * - sv_*  Server (future)
  */
 
-const CVAR_STORAGE_KEY = 'engine_cvars';
+const CVAR_STORAGE_KEY = "engine_cvars";
 
-export type CvarType = 'bool' | 'int' | 'float' | 'string';
+export type CvarType = "bool" | "int" | "float" | "string";
 
 export type CvarValue = boolean | number | string;
 
@@ -71,10 +71,10 @@ export class Cvar {
    * Initialize the cvar system (loads persisted values)
    */
   static init(): void {
-    if (this.initialized) return;
-    this.initialized = true;
-    this.loadFromStorage();
-    console.log(`[Cvar] Initialized with ${this.cvars.size} cvars`);
+    if (Cvar.initialized) return;
+    Cvar.initialized = true;
+    Cvar.loadFromStorage();
+    console.log(`[Cvar] Initialized with ${Cvar.cvars.size} cvars`);
   }
 
   /**
@@ -82,9 +82,9 @@ export class Cvar {
    * This allows ConsoleCommandRegistry to auto-register cvars as commands
    */
   static setConsoleIntegration(callback: (cvar: CvarInstance) => void): void {
-    this.consoleIntegration = callback;
+    Cvar.consoleIntegration = callback;
     // Register existing cvars
-    for (const cvar of this.cvars.values()) {
+    for (const cvar of Cvar.cvars.values()) {
       callback(cvar);
     }
   }
@@ -92,19 +92,15 @@ export class Cvar {
   /**
    * Register a new cvar
    */
-  static register(
-    name: string,
-    defaultValue: CvarValue,
-    options: CvarOptions = {}
-  ): CvarInstance {
+  static register(name: string, defaultValue: CvarValue, options: CvarOptions = {}): CvarInstance {
     const lowerName = name.toLowerCase();
-    
+
     // Detect type from default value if not specified
-    const type = options.type ?? this.detectType(defaultValue);
-    
+    const type = options.type ?? Cvar.detectType(defaultValue);
+
     // Validate default value matches type
-    const validatedDefault = this.coerceValue(defaultValue, type, options.min, options.max);
-    
+    const validatedDefault = Cvar.coerceValue(defaultValue, type, options.min, options.max);
+
     const cvar: CvarInstance = {
       name: lowerName,
       type,
@@ -112,7 +108,7 @@ export class Cvar {
       defaultValue: validatedDefault,
       min: options.min,
       max: options.max,
-      description: options.description ?? '',
+      description: options.description ?? "",
       flags: {
         persist: options.persist ?? true,
         readonly: options.readonly ?? false,
@@ -121,21 +117,21 @@ export class Cvar {
       },
       onChange: options.onChange,
     };
-    
+
     // Check if we have a persisted value
-    const existing = this.cvars.get(lowerName);
+    const existing = Cvar.cvars.get(lowerName);
     if (existing) {
       // Keep the persisted/current value, update metadata
       cvar.value = existing.value;
     }
-    
-    this.cvars.set(lowerName, cvar);
-    
+
+    Cvar.cvars.set(lowerName, cvar);
+
     // Notify console integration
-    if (this.consoleIntegration) {
-      this.consoleIntegration(cvar);
+    if (Cvar.consoleIntegration) {
+      Cvar.consoleIntegration(cvar);
     }
-    
+
     return cvar;
   }
 
@@ -143,15 +139,15 @@ export class Cvar {
    * Get a cvar's current value
    */
   static get(name: string): CvarValue | undefined {
-    return this.cvars.get(name.toLowerCase())?.value;
+    return Cvar.cvars.get(name.toLowerCase())?.value;
   }
 
   /**
    * Get as string
    */
   static getString(name: string): string {
-    const value = this.get(name);
-    if (value === undefined) return '';
+    const value = Cvar.get(name);
+    if (value === undefined) return "";
     return String(value);
   }
 
@@ -159,10 +155,10 @@ export class Cvar {
    * Get as number
    */
   static getNumber(name: string): number {
-    const value = this.get(name);
+    const value = Cvar.get(name);
     if (value === undefined) return 0;
-    if (typeof value === 'boolean') return value ? 1 : 0;
-    if (typeof value === 'number') return value;
+    if (typeof value === "boolean") return value ? 1 : 0;
+    if (typeof value === "number") return value;
     return parseFloat(value) || 0;
   }
 
@@ -170,44 +166,44 @@ export class Cvar {
    * Get as boolean
    */
   static getBool(name: string): boolean {
-    const value = this.get(name);
+    const value = Cvar.get(name);
     if (value === undefined) return false;
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value !== 0;
-    return value.toLowerCase() !== '0' && value.toLowerCase() !== 'false' && value !== '';
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    return value.toLowerCase() !== "0" && value.toLowerCase() !== "false" && value !== "";
   }
 
   /**
    * Get as integer
    */
   static getInt(name: string): number {
-    return Math.round(this.getNumber(name));
+    return Math.round(Cvar.getNumber(name));
   }
 
   /**
    * Set a cvar's value
    */
   static set(name: string, value: CvarValue): boolean {
-    const cvar = this.cvars.get(name.toLowerCase());
+    const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) {
       console.warn(`[Cvar] Unknown cvar: ${name}`);
       return false;
     }
-    
+
     if (cvar.flags.readonly) {
       console.warn(`[Cvar] ${name} is read-only`);
       return false;
     }
-    
+
     const oldValue = cvar.value;
-    const newValue = this.coerceValue(value, cvar.type, cvar.min, cvar.max);
-    
+    const newValue = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
+
     if (oldValue === newValue) {
       return true; // No change needed
     }
-    
+
     cvar.value = newValue;
-    
+
     // Trigger onChange callback
     if (cvar.onChange) {
       try {
@@ -216,12 +212,12 @@ export class Cvar {
         console.error(`[Cvar] onChange error for ${name}:`, e);
       }
     }
-    
+
     // Persist if enabled
     if (cvar.flags.persist) {
-      this.saveToStorage();
+      Cvar.saveToStorage();
     }
-    
+
     return true;
   }
 
@@ -229,41 +225,41 @@ export class Cvar {
    * Toggle a boolean cvar
    */
   static toggle(name: string): boolean {
-    const cvar = this.cvars.get(name.toLowerCase());
+    const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) {
       console.warn(`[Cvar] Unknown cvar: ${name}`);
       return false;
     }
-    
-    if (cvar.type !== 'bool') {
+
+    if (cvar.type !== "bool") {
       // For non-bool, toggle between 0 and 1
-      const current = this.getNumber(name);
-      return this.set(name, current === 0 ? 1 : 0);
+      const current = Cvar.getNumber(name);
+      return Cvar.set(name, current === 0 ? 1 : 0);
     }
-    
-    return this.set(name, !this.getBool(name));
+
+    return Cvar.set(name, !Cvar.getBool(name));
   }
 
   /**
    * Reset a cvar to its default value
    */
   static reset(name: string): boolean {
-    const cvar = this.cvars.get(name.toLowerCase());
+    const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) {
       console.warn(`[Cvar] Unknown cvar: ${name}`);
       return false;
     }
-    
-    return this.set(name, cvar.defaultValue);
+
+    return Cvar.set(name, cvar.defaultValue);
   }
 
   /**
    * Reset all cvars to defaults
    */
   static resetAll(): void {
-    for (const cvar of this.cvars.values()) {
+    for (const cvar of Cvar.cvars.values()) {
       if (!cvar.flags.readonly) {
-        this.set(cvar.name, cvar.defaultValue);
+        Cvar.set(cvar.name, cvar.defaultValue);
       }
     }
   }
@@ -272,7 +268,7 @@ export class Cvar {
    * Get cvar instance (for detailed info)
    */
   static getCvar(name: string): CvarInstance | undefined {
-    return this.cvars.get(name.toLowerCase());
+    return Cvar.cvars.get(name.toLowerCase());
   }
 
   /**
@@ -281,13 +277,13 @@ export class Cvar {
   static list(filter?: string): CvarInstance[] {
     const result: CvarInstance[] = [];
     const filterLower = filter?.toLowerCase();
-    
-    for (const cvar of this.cvars.values()) {
+
+    for (const cvar of Cvar.cvars.values()) {
       if (cvar.flags.hidden) continue;
       if (filterLower && !cvar.name.startsWith(filterLower)) continue;
       result.push(cvar);
     }
-    
+
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -295,8 +291,8 @@ export class Cvar {
    * Get all cvar names (for autocomplete)
    */
   static getNames(): string[] {
-    return Array.from(this.cvars.keys())
-      .filter(name => !this.cvars.get(name)?.flags.hidden)
+    return Array.from(Cvar.cvars.keys())
+      .filter((name) => !Cvar.cvars.get(name)?.flags.hidden)
       .sort();
   }
 
@@ -304,28 +300,28 @@ export class Cvar {
    * Check if a cvar exists
    */
   static exists(name: string): boolean {
-    return this.cvars.has(name.toLowerCase());
+    return Cvar.cvars.has(name.toLowerCase());
   }
 
   /**
    * Format cvar info for console display
    */
   static formatInfo(name: string): string {
-    const cvar = this.cvars.get(name.toLowerCase());
+    const cvar = Cvar.cvars.get(name.toLowerCase());
     if (!cvar) return `Unknown cvar: ${name}`;
-    
+
     let info = `"${cvar.name}" is "${cvar.value}"`;
     if (cvar.value !== cvar.defaultValue) {
       info += ` (default: "${cvar.defaultValue}")`;
     }
     if (cvar.min !== undefined || cvar.max !== undefined) {
-      info += ` [${cvar.min ?? ''}..${cvar.max ?? ''}]`;
+      info += ` [${cvar.min ?? ""}..${cvar.max ?? ""}]`;
     }
     if (cvar.description) {
       info += `\n  ${cvar.description}`;
     }
     if (cvar.flags.readonly) {
-      info += ' [readonly]';
+      info += " [readonly]";
     }
     return info;
   }
@@ -339,27 +335,27 @@ export class Cvar {
     try {
       const stored = localStorage.getItem(CVAR_STORAGE_KEY);
       if (!stored) return;
-      
+
       const data = JSON.parse(stored) as Record<string, CvarValue>;
       for (const [name, value] of Object.entries(data)) {
-        const cvar = this.cvars.get(name);
+        const cvar = Cvar.cvars.get(name);
         if (cvar && cvar.flags.persist) {
-          cvar.value = this.coerceValue(value, cvar.type, cvar.min, cvar.max);
+          cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
         } else if (!cvar) {
           // Pre-load value for cvars not yet registered
-          this.cvars.set(name, {
+          Cvar.cvars.set(name, {
             name,
-            type: this.detectType(value),
+            type: Cvar.detectType(value),
             value,
             defaultValue: value,
-            description: '',
+            description: "",
             flags: { persist: true },
           });
         }
       }
       console.log(`[Cvar] Loaded ${Object.keys(data).length} cvars from storage`);
     } catch (e) {
-      console.warn('[Cvar] Failed to load from storage:', e);
+      console.warn("[Cvar] Failed to load from storage:", e);
     }
   }
 
@@ -369,14 +365,14 @@ export class Cvar {
   private static saveToStorage(): void {
     try {
       const data: Record<string, CvarValue> = {};
-      for (const cvar of this.cvars.values()) {
+      for (const cvar of Cvar.cvars.values()) {
         if (cvar.flags.persist && cvar.value !== cvar.defaultValue) {
           data[cvar.name] = cvar.value;
         }
       }
       localStorage.setItem(CVAR_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
-      console.warn('[Cvar] Failed to save to storage:', e);
+      console.warn("[Cvar] Failed to save to storage:", e);
     }
   }
 
@@ -386,40 +382,35 @@ export class Cvar {
    * Detect type from value
    */
   private static detectType(value: CvarValue): CvarType {
-    if (typeof value === 'boolean') return 'bool';
-    if (typeof value === 'number') {
-      return Number.isInteger(value) ? 'int' : 'float';
+    if (typeof value === "boolean") return "bool";
+    if (typeof value === "number") {
+      return Number.isInteger(value) ? "int" : "float";
     }
-    return 'string';
+    return "string";
   }
 
   /**
    * Coerce value to correct type with bounds checking
    */
-  private static coerceValue(
-    value: CvarValue,
-    type: CvarType,
-    min?: number,
-    max?: number
-  ): CvarValue {
+  private static coerceValue(value: CvarValue, type: CvarType, min?: number, max?: number): CvarValue {
     let result: CvarValue;
-    
+
     switch (type) {
-      case 'bool':
-        if (typeof value === 'boolean') {
+      case "bool":
+        if (typeof value === "boolean") {
           result = value;
-        } else if (typeof value === 'number') {
+        } else if (typeof value === "number") {
           result = value !== 0;
         } else {
           const lower = value.toLowerCase();
-          result = lower !== '0' && lower !== 'false' && lower !== '';
+          result = lower !== "0" && lower !== "false" && lower !== "";
         }
         break;
-        
-      case 'int':
-        if (typeof value === 'boolean') {
+
+      case "int":
+        if (typeof value === "boolean") {
           result = value ? 1 : 0;
-        } else if (typeof value === 'number') {
+        } else if (typeof value === "number") {
           result = Math.round(value);
         } else {
           result = Math.round(parseFloat(value) || 0);
@@ -428,11 +419,11 @@ export class Cvar {
         if (min !== undefined) result = Math.max(min, result as number);
         if (max !== undefined) result = Math.min(max, result as number);
         break;
-        
-      case 'float':
-        if (typeof value === 'boolean') {
+
+      case "float":
+        if (typeof value === "boolean") {
           result = value ? 1 : 0;
-        } else if (typeof value === 'number') {
+        } else if (typeof value === "number") {
           result = value;
         } else {
           result = parseFloat(value) || 0;
@@ -441,13 +432,13 @@ export class Cvar {
         if (min !== undefined) result = Math.max(min, result as number);
         if (max !== undefined) result = Math.min(max, result as number);
         break;
-        
-      case 'string':
+
+      case "string":
       default:
         result = String(value);
         break;
     }
-    
+
     return result;
   }
 
@@ -458,7 +449,7 @@ export class Cvar {
    */
   static registerMany(cvars: Array<[string, CvarValue, CvarOptions?]>): void {
     for (const [name, defaultValue, options] of cvars) {
-      this.register(name, defaultValue, options);
+      Cvar.register(name, defaultValue, options);
     }
   }
 
@@ -467,29 +458,29 @@ export class Cvar {
    */
   static exportConfig(): string {
     const lines: string[] = [];
-    for (const cvar of this.cvars.values()) {
+    for (const cvar of Cvar.cvars.values()) {
       if (cvar.value !== cvar.defaultValue && !cvar.flags.hidden) {
         lines.push(`${cvar.name} "${cvar.value}"`);
       }
     }
-    return lines.sort().join('\n');
+    return lines.sort().join("\n");
   }
 
   /**
    * Execute a config string (set multiple cvars)
    */
   static execConfig(config: string): void {
-    const lines = config.split('\n');
+    const lines = config.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
-      
+      if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
+
       // Parse: name "value" or name value
       const match = trimmed.match(/^(\S+)\s+(?:"([^"]*)"|(\S+))$/);
       if (match) {
         const name = match[1];
         const value = match[2] ?? match[3];
-        this.set(name, value);
+        Cvar.set(name, value);
       }
     }
   }

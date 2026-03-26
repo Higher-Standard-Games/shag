@@ -1,9 +1,9 @@
 /**
  * PersistenceManager - Engine-level save/load infrastructure
- * 
+ *
  * Provides generic save slot management, localStorage abstraction,
  * and hooks for game-specific save systems.
- * 
+ *
  * This is engine-level code that can be reused across different games.
  */
 
@@ -106,19 +106,19 @@ export class PersistenceManager {
   private currentSlot: number = 0;
   private sessionStartTime: number = Date.now();
   private autoSaveIntervalId: number | null = null;
-  
+
   /** Registered saveable systems */
   private saveables: Map<string, Saveable> = new Map();
-  
+
   /** Callback to collect game-specific save data */
   private collectGameData: (() => Record<string, unknown>) | null = null;
-  
+
   /** Callback to restore game-specific save data */
   private restoreGameData: ((data: Record<string, unknown>) => Promise<void>) | null = null;
-  
+
   /** Callback to get current map ID */
   private getCurrentMapId: (() => string) | null = null;
-  
+
   /** Callback to get preview data for save slot */
   private getPreviewData: (() => Record<string, unknown>) | null = null;
 
@@ -186,7 +186,7 @@ export class PersistenceManager {
   public saveToSlot(slot: number): void {
     const data = this.collectSaveData();
     const key = this.getStorageKey(slot);
-    
+
     try {
       localStorage.setItem(key, JSON.stringify(data));
       this.currentSlot = slot;
@@ -203,7 +203,7 @@ export class PersistenceManager {
    */
   public autoSave(): void {
     const data = this.collectSaveData();
-    
+
     try {
       localStorage.setItem(this.config.autoSaveKey, JSON.stringify(data));
       console.log("[PersistenceManager] Autosaved");
@@ -220,19 +220,19 @@ export class PersistenceManager {
    */
   public async loadFromSlot(slot: number): Promise<boolean> {
     const key = this.getStorageKey(slot);
-    
+
     try {
       const saved = localStorage.getItem(key);
       if (!saved) {
         console.warn(`[PersistenceManager] No save data in slot ${slot}`);
         return false;
       }
-      
+
       const data = JSON.parse(saved) as BaseSaveData;
       await this.restoreSaveData(data);
       this.currentSlot = slot;
       this.sessionStartTime = Date.now();
-      
+
       console.log(`[PersistenceManager] Loaded from slot ${slot}`);
       EventBus.emit("persistence:loaded", { slot });
       return true;
@@ -253,12 +253,12 @@ export class PersistenceManager {
         console.warn("[PersistenceManager] No autosave data");
         return false;
       }
-      
+
       const data = JSON.parse(saved) as BaseSaveData;
       await this.restoreSaveData(data);
       this.currentSlot = -1;
       this.sessionStartTime = Date.now();
-      
+
       console.log("[PersistenceManager] Loaded from autosave");
       EventBus.emit("persistence:loaded", { slot: -1 });
       return true;
@@ -275,18 +275,18 @@ export class PersistenceManager {
    */
   public getSaveSlots(): SaveSlotMeta[] {
     const slots: SaveSlotMeta[] = [];
-    
+
     // Regular slots
     for (let i = 0; i < this.config.maxSlots; i++) {
       slots.push(this.getSlotMeta(i));
     }
-    
+
     // Autosave slot
     const autoSave = this.getAutoSaveMeta();
     if (autoSave.exists) {
       slots.unshift(autoSave);
     }
-    
+
     return slots;
   }
 
@@ -296,7 +296,7 @@ export class PersistenceManager {
   public getSlotMeta(slot: number): SaveSlotMeta {
     const key = this.getStorageKey(slot);
     const saved = localStorage.getItem(key);
-    
+
     if (!saved) {
       return {
         slot,
@@ -307,7 +307,7 @@ export class PersistenceManager {
         playTime: 0,
       };
     }
-    
+
     try {
       const data = JSON.parse(saved) as BaseSaveData;
       return {
@@ -336,7 +336,7 @@ export class PersistenceManager {
    */
   public getAutoSaveMeta(): SaveSlotMeta {
     const saved = localStorage.getItem(this.config.autoSaveKey);
-    
+
     if (!saved) {
       return {
         slot: -1,
@@ -347,7 +347,7 @@ export class PersistenceManager {
         playTime: 0,
       };
     }
-    
+
     try {
       const data = JSON.parse(saved) as BaseSaveData;
       return {
@@ -409,12 +409,12 @@ export class PersistenceManager {
   public newGame(slot: number): void {
     this.currentSlot = slot;
     this.sessionStartTime = Date.now();
-    
+
     // Clear all registered saveables
     for (const saveable of this.saveables.values()) {
       saveable.clear();
     }
-    
+
     console.log(`[PersistenceManager] New game started in slot ${slot}`);
     EventBus.emit("persistence:newgame", { slot });
   }
@@ -426,12 +426,12 @@ export class PersistenceManager {
    */
   public startAutoSave(): void {
     if (this.config.autoSaveInterval <= 0) return;
-    
+
     this.stopAutoSave();
     this.autoSaveIntervalId = window.setInterval(() => {
       this.autoSave();
     }, this.config.autoSaveInterval);
-    
+
     console.log(`[PersistenceManager] Autosave started (${this.config.autoSaveInterval}ms interval)`);
   }
 
@@ -467,24 +467,24 @@ export class PersistenceManager {
 
   private collectSaveData(): BaseSaveData {
     const currentMapId = this.getCurrentMapId?.() || "";
-    
+
     // Collect from registered saveables
     const gameData: Record<string, unknown> = {};
     for (const [key, saveable] of this.saveables) {
       gameData[key] = saveable.getState();
     }
-    
+
     // Collect game-specific data via callback
     if (this.collectGameData) {
       const customData = this.collectGameData();
       Object.assign(gameData, customData);
     }
-    
+
     // Add preview data
     if (this.getPreviewData) {
       gameData.preview = this.getPreviewData();
     }
-    
+
     return {
       version: this.config.saveVersion,
       timestamp: Date.now(),
@@ -502,7 +502,7 @@ export class PersistenceManager {
         saveable.loadState(data.gameData[key]);
       }
     }
-    
+
     // Restore game-specific data via callback
     if (this.restoreGameData) {
       await this.restoreGameData(data.gameData);

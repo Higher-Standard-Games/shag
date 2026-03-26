@@ -1,11 +1,10 @@
-import type { IGameHost } from '../../core/IGameHost';
-import type { GameState } from '../../core/GameState';
-import type { Command } from '../../core/Command';
-import type { Simulation, SimulationConfig } from '../../core/Simulation';
-import type { PlayerId } from '../../core/Entity';
-import { Entity } from '../../core/Entity';
-import type { TransformComponent, Vec3 } from '../../components/TransformComponent';
-import type { VelocityComponent } from '../../components/VelocityComponent';
+import type { TransformComponent, Vec3 } from "../../components/TransformComponent";
+import type { VelocityComponent } from "../../components/VelocityComponent";
+import type { Command } from "../../core/Command";
+import type { Entity, PlayerId } from "../../core/Entity";
+import type { GameState } from "../../core/GameState";
+import type { IGameHost } from "../../core/IGameHost";
+import type { Simulation, SimulationConfig } from "../../core/Simulation";
 
 /**
  * Local game host - runs simulation in-process
@@ -27,13 +26,13 @@ export class LocalGameHost implements IGameHost {
   private pendingCommands: Command[] = [];
 
   // Interpolation support
-  private previousPositions: Map<string, Vec3> = new Map();  // entityId -> previous pos
+  private previousPositions: Map<string, Vec3> = new Map(); // entityId -> previous pos
   private previousVelocities: Map<string, Vec3> = new Map(); // entityId -> previous vel
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(config: SimulationConfig, SimulationClass: new (config: SimulationConfig) => Simulation<any, any>) {
     this.simulation = new SimulationClass(config);
-    this.localPlayerId = 'local-player';
+    this.localPlayerId = "local-player";
     this.tickDuration = config.tickDuration; // e.g., 16.67ms for 60Hz
     this.lastTickTime = performance.now();
   }
@@ -98,7 +97,7 @@ export class LocalGameHost implements IGameHost {
     const entity = this.simulation.state.entities.get(entityId) as Entity | undefined;
     if (!entity) return null;
 
-    const transform = entity.getComponent<TransformComponent>('transform');
+    const transform = entity.getComponent<TransformComponent>("transform");
     if (!transform) return null;
 
     const prevPos = this.previousPositions.get(entityId);
@@ -121,7 +120,7 @@ export class LocalGameHost implements IGameHost {
     const entity = this.simulation.state.entities.get(entityId) as Entity | undefined;
     if (!entity) return null;
 
-    const velocity = entity.getComponent<VelocityComponent>('velocity');
+    const velocity = entity.getComponent<VelocityComponent>("velocity");
     if (!velocity) return null;
 
     const prevVel = this.previousVelocities.get(entityId);
@@ -215,8 +214,8 @@ export class LocalGameHost implements IGameHost {
   private storePreviousState(): void {
     for (const [entityId, rawEntity] of this.simulation.state.entities) {
       const entity = rawEntity as Entity;
-      const transform = entity.getComponent<TransformComponent>('transform');
-      const velocity = entity.getComponent<VelocityComponent>('velocity');
+      const transform = entity.getComponent<TransformComponent>("transform");
+      const velocity = entity.getComponent<VelocityComponent>("velocity");
 
       if (transform) {
         this.previousPositions.set(entityId, { ...transform.position });
@@ -236,7 +235,7 @@ export class LocalGameHost implements IGameHost {
 
   private notifyStateUpdate(): void {
     const state = this.simulation.state;
-    this.stateUpdateCallbacks.forEach(callback => callback(state));
+    this.stateUpdateCallbacks.forEach((callback) => callback(state));
   }
 
   private processEvents(): void {
@@ -244,7 +243,7 @@ export class LocalGameHost implements IGameHost {
     this.simulation.state.events = []; // Clear events
 
     events.forEach((event: any) => {
-      this.eventCallbacks.forEach(callback => callback(event));
+      this.eventCallbacks.forEach((callback) => callback(event));
     });
   }
 }

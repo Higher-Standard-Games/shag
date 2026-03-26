@@ -2,8 +2,8 @@
  * HUDPillProgress - Pill with integrated progress bar
  */
 
-import { HUDElement } from '../HUDElement';
-import type { HUDPillProgressConfig } from '../HUDTypes';
+import { HUDElement } from "../HUDElement";
+import type { HUDPillProgressConfig } from "../HUDTypes";
 
 export class HUDPillProgress extends HUDElement {
   protected config: HUDPillProgressConfig;
@@ -20,34 +20,34 @@ export class HUDPillProgress extends HUDElement {
   }
 
   protected createElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hud-pill hud-pill-progress';
+    const el = document.createElement("div");
+    el.className = "hud-pill hud-pill-progress";
     el.id = `hud-${this.id}`;
 
     // Icon
-    this.iconEl = document.createElement('span');
-    this.iconEl.className = 'hud-pill-icon';
-    this.iconEl.textContent = this.config.icon || '';
+    this.iconEl = document.createElement("span");
+    this.iconEl.className = "hud-pill-icon";
+    this.iconEl.textContent = this.config.icon || "";
     el.appendChild(this.iconEl);
 
     // Value
-    this.valueEl = document.createElement('span');
-    this.valueEl.className = 'hud-pill-value';
+    this.valueEl = document.createElement("span");
+    this.valueEl.className = "hud-pill-value";
     el.appendChild(this.valueEl);
 
     // Progress bar
-    this.progressContainer = document.createElement('div');
-    this.progressContainer.className = 'hud-pill-progress-bar';
-    
-    this.progressFill = document.createElement('div');
-    this.progressFill.className = 'hud-pill-progress-fill';
+    this.progressContainer = document.createElement("div");
+    this.progressContainer.className = "hud-pill-progress-bar";
+
+    this.progressFill = document.createElement("div");
+    this.progressFill.className = "hud-pill-progress-fill";
     this.progressContainer.appendChild(this.progressFill);
-    
+
     el.appendChild(this.progressContainer);
 
     // Clickable styling
     if (this.config.clickable) {
-      el.classList.add('hud-pill-clickable');
+      el.classList.add("hud-pill-clickable");
     }
 
     return el;
@@ -63,7 +63,7 @@ export class HUDPillProgress extends HUDElement {
       displayValue = this.formatValue(value, this.config.format);
     }
 
-    this.valueEl.textContent = String(displayValue ?? '');
+    this.valueEl.textContent = String(displayValue ?? "");
   }
 
   /**
@@ -78,13 +78,13 @@ export class HUDPillProgress extends HUDElement {
    * Format a value using printf-style format string
    */
   private formatValue(value: any, format: string): string {
-    if (format.includes('%d')) {
-      return format.replace('%d', String(Math.floor(Number(value))));
+    if (format.includes("%d")) {
+      return format.replace("%d", String(Math.floor(Number(value))));
     }
-    if (format.includes('%s')) {
-      return format.replace('%s', String(value));
+    if (format.includes("%s")) {
+      return format.replace("%s", String(value));
     }
-    return format.replace('%', String(value));
+    return format.replace("%", String(value));
   }
 
   /**

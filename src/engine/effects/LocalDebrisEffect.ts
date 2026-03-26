@@ -1,18 +1,18 @@
 /**
  * LocalDebrisEffect - Position-based debris particle spawner
- * 
+ *
  * Unlike the global DebrisEffect that follows the camera, this spawns
  * debris in a fixed area defined by map entities (info_debris_zone).
  */
 
-import { Scene } from "@babylonjs/core/scene";
-import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { WindSystem, WindState } from "./WindSystem";
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import type { Scene } from "@babylonjs/core/scene";
+import { type WindState, WindSystem } from "./WindSystem";
 
 export type LocalDebrisType = "leaves" | "trash" | "dust" | "mixed";
 
@@ -26,25 +26,21 @@ export interface LocalDebrisConfig {
 }
 
 const LEAVES_COLORS = [
-  new Color4(0.8, 0.5, 0.2, 1),   // Orange
-  new Color4(0.7, 0.3, 0.1, 1),   // Brown
-  new Color4(0.9, 0.7, 0.2, 1),   // Yellow
-  new Color4(0.6, 0.2, 0.1, 1),   // Dark red
-  new Color4(0.4, 0.5, 0.2, 1),   // Green-brown
+  new Color4(0.8, 0.5, 0.2, 1), // Orange
+  new Color4(0.7, 0.3, 0.1, 1), // Brown
+  new Color4(0.9, 0.7, 0.2, 1), // Yellow
+  new Color4(0.6, 0.2, 0.1, 1), // Dark red
+  new Color4(0.4, 0.5, 0.2, 1), // Green-brown
 ];
 
 const TRASH_COLORS = [
-  new Color4(0.9, 0.9, 0.9, 1),   // White paper
-  new Color4(0.3, 0.3, 0.3, 1),   // Dark wrapper
-  new Color4(0.8, 0.7, 0.5, 1),   // Cardboard
-  new Color4(0.2, 0.5, 0.8, 1),   // Blue plastic
+  new Color4(0.9, 0.9, 0.9, 1), // White paper
+  new Color4(0.3, 0.3, 0.3, 1), // Dark wrapper
+  new Color4(0.8, 0.7, 0.5, 1), // Cardboard
+  new Color4(0.2, 0.5, 0.8, 1), // Blue plastic
 ];
 
-const DUST_COLORS = [
-  new Color4(0.7, 0.6, 0.5, 0.6),
-  new Color4(0.6, 0.5, 0.4, 0.5),
-  new Color4(0.8, 0.7, 0.6, 0.4),
-];
+const DUST_COLORS = [new Color4(0.7, 0.6, 0.5, 0.6), new Color4(0.6, 0.5, 0.4, 0.5), new Color4(0.8, 0.7, 0.6, 0.4)];
 
 export class LocalDebrisEffect {
   private scene: Scene;
@@ -128,17 +124,17 @@ export class LocalDebrisEffect {
     // Capacity based on density and area
     const areaFactor = (radius / 128) * (radius / 128);
     const capacity = Math.floor(150 * density * areaFactor);
-    
+
     this.particleSystem = new ParticleSystem(`debris_${this.id}`, capacity, this.scene);
     this.particleSystem.particleTexture = this.createDebrisTexture();
     this.particleSystem.emitter = this.emitter;
 
     // Box emitter covering the zone
     this.particleSystem.createBoxEmitter(
-      new Vector3(-1, -0.5, -1),  // direction1
-      new Vector3(1, 0.5, 1),     // direction2
-      new Vector3(-radius, -height/2, -radius),  // minEmitBox
-      new Vector3(radius, height/2, radius)      // maxEmitBox
+      new Vector3(-1, -0.5, -1), // direction1
+      new Vector3(1, 0.5, 1), // direction2
+      new Vector3(-radius, -height / 2, -radius), // minEmitBox
+      new Vector3(radius, height / 2, radius), // maxEmitBox
     );
 
     this.applySettings();
@@ -246,11 +242,7 @@ export class LocalDebrisEffect {
     this.particleSystem.direction1 = new Vector3(windX - turb, -2, windZ - turb);
     this.particleSystem.direction2 = new Vector3(windX + turb, 2, windZ + turb);
 
-    this.particleSystem.gravity = new Vector3(
-      windX * 0.3,
-      -3 + wind.gustStrength * 1.5,
-      windZ * 0.3
-    );
+    this.particleSystem.gravity = new Vector3(windX * 0.3, -3 + wind.gustStrength * 1.5, windZ * 0.3);
 
     this.particleSystem.minEmitPower = 1 + wind.strength * 2;
     this.particleSystem.maxEmitPower = 3 + wind.strength * 4;
@@ -272,7 +264,7 @@ export class LocalDebrisEffect {
 
     if (type === "dust") {
       // Soft circular dust particle
-      const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+      const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
       gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
       gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.5)");
       gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -282,7 +274,7 @@ export class LocalDebrisEffect {
       // Leaf/debris shape
       ctx.fillStyle = "white";
       ctx.beginPath();
-      ctx.ellipse(size/2, size/2, size/2 - 2, size/3 - 1, Math.PI/6, 0, Math.PI * 2);
+      ctx.ellipse(size / 2, size / 2, size / 2 - 2, size / 3 - 1, Math.PI / 6, 0, Math.PI * 2);
       ctx.fill();
     }
 

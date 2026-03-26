@@ -108,16 +108,19 @@ export function originToEyes(originY: number, viewheight: number = DEFAULT_VIEWH
  * @param radius Horizontal radius (default: 16)
  * @returns Object with mins and maxs arrays [x, y, z] in Babylon coords
  */
-export function getPlayerBounds(height: number = PLAYER_HEIGHT, radius: number = PLAYER_RADIUS): {
+export function getPlayerBounds(
+  height: number = PLAYER_HEIGHT,
+  radius: number = PLAYER_RADIUS,
+): {
   mins: [number, number, number];
   maxs: [number, number, number];
 } {
   // Scale proportionally: 24/56 of height below origin, 32/56 above
   const minsZ = -(height * (24 / 56));
-  const maxsZ = height + minsZ;  // = height * (32 / 56)
+  const maxsZ = height + minsZ; // = height * (32 / 56)
 
   return {
-    mins: [-radius, minsZ, -radius],  // Babylon: X, Y, Z
+    mins: [-radius, minsZ, -radius], // Babylon: X, Y, Z
     maxs: [radius, maxsZ, radius],
   };
 }
@@ -128,7 +131,10 @@ export function getPlayerBounds(height: number = PLAYER_HEIGHT, radius: number =
  * @param radius Horizontal radius (default: 16)
  * @returns Object with mins and maxs arrays [x, y, z] in Q3 coords
  */
-export function getPlayerBoundsQ3(height: number = PLAYER_HEIGHT, radius: number = PLAYER_RADIUS): {
+export function getPlayerBoundsQ3(
+  height: number = PLAYER_HEIGHT,
+  radius: number = PLAYER_RADIUS,
+): {
   mins: [number, number, number];
   maxs: [number, number, number];
 } {
@@ -136,7 +142,7 @@ export function getPlayerBoundsQ3(height: number = PLAYER_HEIGHT, radius: number
   const maxsZ = height + minsZ;
 
   return {
-    mins: [-radius, -radius, minsZ],  // Q3: X, Y, Z (Z is up)
+    mins: [-radius, -radius, minsZ], // Q3: X, Y, Z (Z is up)
     maxs: [radius, radius, maxsZ],
   };
 }

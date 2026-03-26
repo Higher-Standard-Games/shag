@@ -2,20 +2,20 @@
  * WeatherCommand - Weather control (uses game's weather system)
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class WeatherCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'weather',
-    description: 'Weather control',
-    usage: 'weather <rain|snow|clear|fog|thunder|status> [intensity]',
+    name: "weather",
+    description: "Weather control",
+    usage: "weather <rain|snow|clear|fog|thunder|status> [intensity]",
     subcommands: [
-      { name: 'rain', description: 'Start rain', args: [{ name: 'intensity', type: 'number' }] },
-      { name: 'snow', description: 'Start snow', args: [{ name: 'intensity', type: 'number' }] },
-      { name: 'clear', description: 'Clear all weather' },
-      { name: 'fog', description: 'Set fog', args: [{ name: 'density', type: 'number' }] },
-      { name: 'thunder', description: 'Trigger thunder' },
-      { name: 'status', description: 'Show weather status' },
+      { name: "rain", description: "Start rain", args: [{ name: "intensity", type: "number" }] },
+      { name: "snow", description: "Start snow", args: [{ name: "intensity", type: "number" }] },
+      { name: "clear", description: "Clear all weather" },
+      { name: "fog", description: "Set fog", args: [{ name: "density", type: "number" }] },
+      { name: "thunder", description: "Trigger thunder" },
+      { name: "status", description: "Show weather status" },
     ],
   };
 
@@ -24,56 +24,56 @@ export default class WeatherCommand extends Command {
     const weather = (window as any).weather;
 
     if (!weather) {
-      return 'Weather system not available (game not started)';
+      return "Weather system not available (game not started)";
     }
 
     const subcommand = args[0]?.toLowerCase();
     const intensity = parseFloat(args[1]) || 0.5;
 
     switch (subcommand) {
-      case 'rain':
+      case "rain":
         weather.rain(true);
         if (args[1]) weather.rainIntensity(intensity);
         return `Rain started (intensity: ${intensity})`;
 
-      case 'snow':
+      case "snow":
         weather.snow(true);
         if (args[1]) weather.snowIntensity(intensity);
         return `Snow started (intensity: ${intensity})`;
 
-      case 'clear':
+      case "clear":
         weather.rain(false);
         weather.snow(false);
         weather.fog(false);
-        return 'Weather cleared';
+        return "Weather cleared";
 
-      case 'fog': {
+      case "fog": {
         const density = parseFloat(args[1]) || 0.02;
         weather.fog(true);
         weather.fogDensity(density);
         return `Fog set (density: ${density})`;
       }
 
-      case 'thunder':
+      case "thunder":
         weather.thunder();
-        return 'Thunder triggered';
+        return "Thunder triggered";
 
-      case 'status': {
+      case "status": {
         const raining = weather.isRaining?.();
         const snowing = weather.isSnowing?.();
         const foggy = weather.isFoggy?.();
         const windy = weather.isWindy?.();
-        return `Weather: ${raining ? 'raining' : snowing ? 'snowing' : 'clear'}${foggy ? ', foggy' : ''}${windy ? ', windy' : ''}`;
+        return `Weather: ${raining ? "raining" : snowing ? "snowing" : "clear"}${foggy ? ", foggy" : ""}${windy ? ", windy" : ""}`;
       }
 
       default:
-        return 'Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, status';
+        return "Subcommands: rain [intensity], snow [intensity], clear, fog [density], thunder, status";
     }
   }
-  
+
   getCompletions(_input: string, args: string[]): string[] {
     if (args.length === 0) {
-      return ['rain', 'snow', 'clear', 'fog', 'thunder', 'status'];
+      return ["rain", "snow", "clear", "fog", "thunder", "status"];
     }
     return [];
   }

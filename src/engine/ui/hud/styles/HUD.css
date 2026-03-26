@@ -14,7 +14,7 @@
   bottom: 0;
   pointer-events: none;
   z-index: 500;
-  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
 }
 
 .hud-container * {
@@ -29,7 +29,7 @@
   pointer-events: none;
 }
 
-.hud-area>* {
+.hud-area > * {
   pointer-events: auto;
 }
 
@@ -110,14 +110,14 @@
   display: flex;
   align-items: center;
   gap: calc(10px * var(--ui-scale, 1));
-  background: var(--hud-pill-bg, #FAFAFA);
+  background: var(--hud-pill-bg, #fafafa);
   padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
   border-radius: calc(50px * var(--ui-scale, 1));
   color: var(--hud-pill-text, #333333);
   font-size: calc(17px * var(--ui-scale, 1));
   font-weight: 700;
   border: none;
-  border-bottom: 3px solid var(--hud-pill-border, #CCCCCC);
+  border-bottom: 3px solid var(--hud-pill-border, #cccccc);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   transition: all 0.1s ease;
   position: relative;
@@ -126,7 +126,7 @@
 }
 
 .hud-pill:hover {
-  background: #FFFFFF;
+  background: #ffffff;
   top: -2px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
@@ -136,8 +136,8 @@
 }
 
 .hud-pill-clickable:hover {
-  background: #E8F5E9;
-  border-bottom-color: #4CAF50;
+  background: #e8f5e9;
+  border-bottom-color: #4caf50;
 }
 
 .hud-pill-clickable:active {
@@ -157,7 +157,7 @@
 .hud-pill-progress .hud-pill-progress-bar {
   width: calc(60px * var(--ui-scale, 1));
   height: calc(6px * var(--ui-scale, 1));
-  background: #E0E0E0;
+  background: #e0e0e0;
   border-radius: calc(3px * var(--ui-scale, 1));
   overflow: hidden;
   margin-left: calc(5px * var(--ui-scale, 1));
@@ -165,7 +165,7 @@
 
 .hud-pill-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #FFC107, #FF9800);
+  background: linear-gradient(90deg, #ffc107, #ff9800);
   transition: width 0.3s ease;
 }
 
@@ -177,13 +177,13 @@
   display: flex;
   align-items: center;
   gap: calc(10px * var(--ui-scale, 1));
-  background: var(--hud-pill-bg, #FAFAFA);
+  background: var(--hud-pill-bg, #fafafa);
   padding: calc(10px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
   border-radius: calc(50px * var(--ui-scale, 1));
   color: var(--hud-pill-text, #333333);
   font-size: calc(16px * var(--ui-scale, 1));
   border: none;
-  border-bottom: 3px solid var(--hud-pill-border, #CCCCCC);
+  border-bottom: 3px solid var(--hud-pill-border, #cccccc);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   transition: all 0.1s ease;
   position: relative;
@@ -192,7 +192,7 @@
 }
 
 .hud-pill-group:hover {
-  background: #FFFFFF;
+  background: #ffffff;
   top: -2px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
@@ -203,7 +203,7 @@
 
 .hud-pill-group-bold {
   font-weight: 800;
-  color: #F57C00;
+  color: #f57c00;
 }
 
 .hud-pill-group-muted {
@@ -215,9 +215,9 @@
 }
 
 .hud-pill-group-btn {
-  background: #E8E8E8;
+  background: #e8e8e8;
   border: none;
-  border-bottom: 2px solid #BBBBBB;
+  border-bottom: 2px solid #bbbbbb;
   border-radius: calc(50px * var(--ui-scale, 1));
   color: #666666;
   font-size: calc(12px * var(--ui-scale, 1));
@@ -232,7 +232,7 @@
 }
 
 .hud-pill-group-btn:hover {
-  background: #F5F5F5;
+  background: #f5f5f5;
   top: -1px;
 }
 
@@ -242,26 +242,25 @@
 }
 
 .hud-pill-group-btn.hud-btn-fast {
-  background: #E8F5E9;
-  border-bottom-color: #4CAF50;
-  color: #2E7D32;
+  background: #e8f5e9;
+  border-bottom-color: #4caf50;
+  color: #2e7d32;
 }
 
 .hud-pill-group-btn.hud-btn-debug {
-  background: #FFEBEE;
-  border-bottom-color: #F44336;
-  color: #D32F2F;
+  background: #ffebee;
+  border-bottom-color: #f44336;
+  color: #d32f2f;
   animation: hud-debug-pulse 0.5s ease-in-out infinite;
 }
 
 .hud-pill-group-btn.hud-btn-active {
-  background: #E3F2FD;
-  border-bottom-color: #2196F3;
-  color: #1976D2;
+  background: #e3f2fd;
+  border-bottom-color: #2196f3;
+  color: #1976d2;
 }
 
 @keyframes hud-debug-pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -280,9 +279,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #E8E8E8;
+  background: #e8e8e8;
   border: none;
-  border-bottom: 2px solid #BBBBBB;
+  border-bottom: 2px solid #bbbbbb;
   border-radius: calc(50px * var(--ui-scale, 1));
   color: #666666;
   font-size: calc(14px * var(--ui-scale, 1));
@@ -296,7 +295,7 @@
 }
 
 .hud-button:hover {
-  background: #F5F5F5;
+  background: #f5f5f5;
   top: -1px;
 }
 
@@ -306,21 +305,21 @@
 }
 
 .hud-button-primary {
-  background: linear-gradient(180deg, #4ADE80 0%, #22C55E 100%);
-  border-bottom-color: #16A34A;
-  color: #FFFFFF;
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  border-bottom-color: #16a34a;
+  color: #ffffff;
 }
 
 .hud-button-danger {
-  background: linear-gradient(180deg, #F87171 0%, #EF4444 100%);
-  border-bottom-color: #DC2626;
-  color: #FFFFFF;
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+  border-bottom-color: #dc2626;
+  color: #ffffff;
 }
 
 .hud-button-active {
-  background: #E3F2FD;
-  border-bottom-color: #2196F3;
-  color: #1976D2;
+  background: #e3f2fd;
+  border-bottom-color: #2196f3;
+  color: #1976d2;
 }
 
 .hud-button-icon {
@@ -332,8 +331,8 @@
    ============================================================================ */
 
 .hud-accordion {
-  background: var(--hud-accordion-bg, #FAFAFA);
-  border: 1px solid #E0E0E0;
+  background: var(--hud-accordion-bg, #fafafa);
+  border: 1px solid #e0e0e0;
   border-radius: calc(12px * var(--ui-scale, 1));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -346,16 +345,16 @@
   align-items: center;
   justify-content: space-between;
   padding: calc(12px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
-  background: var(--hud-accordion-header, #F5F5F5);
+  background: var(--hud-accordion-header, #f5f5f5);
   cursor: pointer;
   user-select: none;
-  border-bottom: 1px solid #E0E0E0;
+  border-bottom: 1px solid #e0e0e0;
   min-height: calc(44px * var(--ui-scale, 1));
   transition: background 0.15s ease;
 }
 
 .hud-accordion-header:hover {
-  background: #EEEEEE;
+  background: #eeeeee;
 }
 
 .hud-accordion-header-left {
@@ -375,8 +374,8 @@
 }
 
 .hud-accordion-badge {
-  background: #4CAF50;
-  color: #FFFFFF;
+  background: #4caf50;
+  color: #ffffff;
   font-size: calc(12px * var(--ui-scale, 1));
   font-weight: 700;
   padding: calc(2px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
@@ -422,7 +421,7 @@
 }
 
 .hud-accordion-content {
-  background: #FFFFFF;
+  background: #ffffff;
   max-height: calc(300px * var(--ui-scale, 1));
   overflow-y: auto;
 }
@@ -447,7 +446,7 @@
   align-items: center;
   gap: calc(12px * var(--ui-scale, 1));
   padding: calc(12px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid #e8e8e8;
   transition: background 0.15s ease;
   min-height: calc(44px * var(--ui-scale, 1));
 }
@@ -457,7 +456,7 @@
 }
 
 .hud-accordion-item:hover {
-  background: #F5F5F5;
+  background: #f5f5f5;
 }
 
 .hud-item-clickable {
@@ -493,7 +492,7 @@
 
 .hud-item-progress {
   height: calc(4px * var(--ui-scale, 1));
-  background: #E0E0E0;
+  background: #e0e0e0;
   border-radius: calc(2px * var(--ui-scale, 1));
   margin-top: calc(4px * var(--ui-scale, 1));
   overflow: hidden;
@@ -501,7 +500,7 @@
 
 .hud-item-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
   transition: width 0.3s ease;
 }
 
@@ -582,7 +581,6 @@
 }
 
 @keyframes hud-pulse {
-
   0%,
   100% {
     transform: scale(1);
@@ -594,7 +592,6 @@
 }
 
 @keyframes hud-shake {
-
   0%,
   100% {
     transform: translateX(0);
@@ -610,7 +607,6 @@
 }
 
 @keyframes hud-bounce {
-
   0%,
   100% {
     transform: translateY(0);
@@ -670,7 +666,6 @@
 }
 
 @keyframes hud-flash-damage {
-
   0%,
   100% {
     transform: translateX(0);
@@ -683,7 +678,7 @@
   70%,
   90% {
     transform: translateX(-2px);
-    background-color: #FFEBEE;
+    background-color: #ffebee;
   }
 
   20%,

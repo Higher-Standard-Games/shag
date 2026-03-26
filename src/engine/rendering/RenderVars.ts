@@ -1,19 +1,19 @@
 /**
  * RenderVars - Runtime-configurable renderer variables
- * 
+ *
  * Provides Q3/Warsow-style r_* console variables for tuning
  * material intensities, lighting, and visual settings.
- * 
+ *
  * Values are persisted to localStorage and can be exported/imported
  * as config blocks.
  */
 
-import { Scene } from '@babylonjs/core/scene';
-import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
-import { PostProcessingManager } from '../effects/PostProcessingManager';
-import { Cvar } from '../core/Cvar';
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Scene } from "@babylonjs/core/scene";
+import { Cvar } from "../core/Cvar";
+import { PostProcessingManager } from "../effects/PostProcessingManager";
 
 // ==================== Types ====================
 
@@ -24,102 +24,102 @@ export interface RenderVar {
   min: number;
   max: number;
   description: string;
-  category: 'material' | 'lighting' | 'display' | 'texture' | 'debug';
+  category: "material" | "lighting" | "display" | "texture" | "debug";
 }
 
 export type RenderVarName =
-  | 'r_normalmap'
-  | 'r_glossmap'
-  | 'r_lightmap'
-  | 'r_ambient'
-  | 'r_emissive'
-  | 'r_anisotropy'
-  | 'r_wireframe'
-  | 'r_bloom'
-  | 'r_exposure'
-  | 'r_contrast'
+  | "r_normalmap"
+  | "r_glossmap"
+  | "r_lightmap"
+  | "r_ambient"
+  | "r_emissive"
+  | "r_anisotropy"
+  | "r_wireframe"
+  | "r_bloom"
+  | "r_exposure"
+  | "r_contrast"
   // Future vars (documented but not yet implemented)
-  | 'r_lightintensity'
-  | 'r_shadows'
-  | 'r_gamma'
-  | 'r_saturation'
-  | 'r_picmip'
-  | 'r_showtris'
-  | 'r_shownormals'
-  | 'r_showlightmaps'
+  | "r_lightintensity"
+  | "r_shadows"
+  | "r_gamma"
+  | "r_saturation"
+  | "r_picmip"
+  | "r_showtris"
+  | "r_shownormals"
+  | "r_showlightmaps"
   // Day/night cycle
-  | 'r_daynight'
-  | 'r_daynight_time'
-  | 'r_daynight_animate'
-  | 'r_daynight_speed'
-  | 'r_daynight_length'
-  | 'r_daynight_lm_min'
-  | 'r_daynight_lm_max'
-  | 'r_daynight_sun_intensity'
-  | 'r_daynight_moon_intensity'
-  | 'r_daynight_sky_tint';
+  | "r_daynight"
+  | "r_daynight_time"
+  | "r_daynight_animate"
+  | "r_daynight_speed"
+  | "r_daynight_length"
+  | "r_daynight_lm_min"
+  | "r_daynight_lm_max"
+  | "r_daynight_sun_intensity"
+  | "r_daynight_moon_intensity"
+  | "r_daynight_sky_tint";
 
 // ==================== Constants ====================
 
-const STORAGE_KEY = 'engine.renderVars';
+const STORAGE_KEY = "engine.renderVars";
 
-const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
+const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
   // Material intensities (core 4)
   r_normalmap: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Normal/bump map intensity multiplier',
-    category: 'material',
+    description: "Normal/bump map intensity multiplier",
+    category: "material",
   },
   r_glossmap: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Specular/gloss map intensity multiplier',
-    category: 'material',
+    description: "Specular/gloss map intensity multiplier",
+    category: "material",
   },
   r_lightmap: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Lightmap intensity multiplier',
-    category: 'material',
+    description: "Lightmap intensity multiplier",
+    category: "material",
   },
   r_ambient: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Ambient light intensity multiplier',
-    category: 'lighting',
+    description: "Ambient light intensity multiplier",
+    category: "lighting",
   },
   r_emissive: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Emissive/glow intensity multiplier',
-    category: 'material',
+    description: "Emissive/glow intensity multiplier",
+    category: "material",
   },
   r_anisotropy: {
     value: 8,
     defaultValue: 8,
     min: 1,
     max: 16,
-    description: 'Anisotropic filtering level (1-16)',
-    category: 'texture',
+    description: "Anisotropic filtering level (1-16)",
+    category: "texture",
   },
   r_wireframe: {
     value: 0,
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Wireframe mode toggle (0/1)',
-    category: 'debug',
+    description: "Wireframe mode toggle (0/1)",
+    category: "debug",
   },
   // Post-processing (multipliers)
   r_bloom: {
@@ -127,24 +127,24 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0,
     max: 3.0,
-    description: 'Bloom intensity multiplier (applies to post-processing pipeline)',
-    category: 'display',
+    description: "Bloom intensity multiplier (applies to post-processing pipeline)",
+    category: "display",
   },
   r_exposure: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 3.0,
-    description: 'Exposure multiplier (applies to post-processing pipeline)',
-    category: 'display',
+    description: "Exposure multiplier (applies to post-processing pipeline)",
+    category: "display",
   },
   r_contrast: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 3.0,
-    description: 'Contrast multiplier (applies to post-processing pipeline)',
-    category: 'display',
+    description: "Contrast multiplier (applies to post-processing pipeline)",
+    category: "display",
   },
   // Lighting
   r_lightintensity: {
@@ -152,8 +152,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     defaultValue: 1.0,
     min: 0,
     max: 4.0,
-    description: 'Global light intensity multiplier',
-    category: 'lighting',
+    description: "Global light intensity multiplier",
+    category: "lighting",
   },
   // Debug visualization
   r_showtris: {
@@ -161,8 +161,8 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Force wireframe on entire scene (0/1)',
-    category: 'debug',
+    description: "Force wireframe on entire scene (0/1)",
+    category: "debug",
   },
   // Day/night cycle
   r_daynight: {
@@ -170,80 +170,80 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, 'name'>> = {
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Enable day/night cycle for BSP maps (0/1)',
-    category: 'lighting',
+    description: "Enable day/night cycle for BSP maps (0/1)",
+    category: "lighting",
   },
   r_daynight_time: {
     value: 0.5,
     defaultValue: 0.5,
     min: 0,
     max: 1,
-    description: 'Time of day (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)',
-    category: 'lighting',
+    description: "Time of day (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)",
+    category: "lighting",
   },
   r_daynight_animate: {
     value: 0,
     defaultValue: 0,
     min: 0,
     max: 1,
-    description: 'Animate time progression (0/1)',
-    category: 'lighting',
+    description: "Animate time progression (0/1)",
+    category: "lighting",
   },
   r_daynight_speed: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0.1,
     max: 10.0,
-    description: 'Animation speed multiplier',
-    category: 'lighting',
+    description: "Animation speed multiplier",
+    category: "lighting",
   },
   r_daynight_length: {
     value: 1440,
     defaultValue: 1440,
     min: 60,
     max: 86400,
-    description: 'Full day cycle length in seconds (default 24 min)',
-    category: 'lighting',
+    description: "Full day cycle length in seconds (default 24 min)",
+    category: "lighting",
   },
   r_daynight_lm_min: {
     value: 0.05,
     defaultValue: 0.05,
     min: 0,
     max: 1,
-    description: 'Minimum lightmap intensity at night',
-    category: 'lighting',
+    description: "Minimum lightmap intensity at night",
+    category: "lighting",
   },
   r_daynight_lm_max: {
     value: 1.0,
     defaultValue: 1.0,
     min: 0,
     max: 2,
-    description: 'Maximum lightmap intensity at noon',
-    category: 'lighting',
+    description: "Maximum lightmap intensity at noon",
+    category: "lighting",
   },
   r_daynight_sun_intensity: {
     value: 0.3,
     defaultValue: 0.3,
     min: 0,
     max: 2,
-    description: 'Sun light intensity on BSP geometry',
-    category: 'lighting',
+    description: "Sun light intensity on BSP geometry",
+    category: "lighting",
   },
   r_daynight_moon_intensity: {
     value: 0.15,
     defaultValue: 0.15,
     min: 0,
     max: 1,
-    description: 'Moon light intensity at night',
-    category: 'lighting',
+    description: "Moon light intensity at night",
+    category: "lighting",
   },
   r_daynight_sky_tint: {
     value: 1,
     defaultValue: 1,
     min: 0,
     max: 1,
-    description: 'Enable skybox tinting for day/night (0/1)',
-    category: 'lighting',
+    description: "Enable skybox tinting for day/night (0/1)",
+    category: "lighting",
   },
 };
 
@@ -298,11 +298,11 @@ export class RenderVars {
   public registerCvars(): void {
     for (const [name, def] of this.vars) {
       // Determine type based on var characteristics
-      const isDebug = def.category === 'debug';
-      const isInt = name === 'r_anisotropy' || def.max === 1;
+      const isDebug = def.category === "debug";
+      const isInt = name === "r_anisotropy" || def.max === 1;
 
       Cvar.register(name, def.value, {
-        type: isInt ? 'int' : 'float',
+        type: isInt ? "int" : "float",
         min: def.min,
         max: def.max,
         description: def.description,
@@ -329,7 +329,7 @@ export class RenderVars {
 
       const s = pp.getSettings();
       const anyOverride = bloomMul !== 1.0 || exposureMul !== 1.0 || contrastMul !== 1.0;
-      const baseKey = '_renderVarPostProcessBaseline';
+      const baseKey = "_renderVarPostProcessBaseline";
 
       const currentBase = (pp as any)[baseKey] as RenderVarPostProcessBaseline | undefined;
       if (!anyOverride) {
@@ -413,7 +413,7 @@ export class RenderVars {
     }
 
     // Integer-like vars
-    if (name === 'r_anisotropy' || name === 'r_wireframe') {
+    if (name === "r_anisotropy" || name === "r_wireframe") {
       value = Math.round(value);
     }
 
@@ -476,8 +476,8 @@ export class RenderVars {
   /**
    * Get variables by category
    */
-  public getByCategory(category: RenderVar['category']): RenderVar[] {
-    return this.getAll().filter(v => v.category === category);
+  public getByCategory(category: RenderVar["category"]): RenderVar[] {
+    return this.getAll().filter((v) => v.category === category);
   }
 
   // ==================== Persistence ====================
@@ -490,7 +490,7 @@ export class RenderVars {
         for (const [name, value] of Object.entries(data)) {
           const varDef = this.vars.get(name);
           // Skip debug vars - they should always start at defaults
-          if (varDef && varDef.category !== 'debug' && typeof value === 'number') {
+          if (varDef && varDef.category !== "debug" && typeof value === "number") {
             varDef.value = Math.max(varDef.min, Math.min(varDef.max, value));
           }
         }
@@ -505,7 +505,7 @@ export class RenderVars {
       const data: Record<string, number> = {};
       for (const [name, varDef] of this.vars) {
         // Don't persist debug vars (wireframe, showtris, etc.) - they should reset on reload
-        if (varDef.category === 'debug') continue;
+        if (varDef.category === "debug") continue;
         data[name] = varDef.value;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -518,24 +518,24 @@ export class RenderVars {
    * Export all vars as a config string (for copy/paste)
    */
   public exportConfig(): string {
-    const lines: string[] = ['// Render variables config'];
+    const lines: string[] = ["// Render variables config"];
     for (const varDef of this.getAll()) {
       lines.push(`${varDef.name} ${varDef.value}`);
     }
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
    * Import vars from a config string
    */
   public importConfig(config: string): { applied: number; errors: string[] } {
-    const lines = config.split('\n');
+    const lines = config.split("\n");
     let applied = 0;
     const errors: string[] = [];
 
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) {
+      if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) {
         continue;
       }
 
@@ -576,18 +576,18 @@ export class RenderVars {
    * Apply current vars to all scene materials
    */
   public applyToScene(): void {
-    const normalIntensity = this.get('r_normalmap') ?? 1.0;
-    const glossIntensity = this.get('r_glossmap') ?? 1.0;
-    const lightmapIntensity = this.get('r_lightmap') ?? 1.0;
-    const ambientIntensity = this.get('r_ambient') ?? 1.0;
-    const emissiveIntensity = this.get('r_emissive') ?? 1.0;
-    const anisotropy = this.get('r_anisotropy') ?? 8;
-    const wireframe = (this.get('r_wireframe') ?? 0) >= 0.5;
+    const normalIntensity = this.get("r_normalmap") ?? 1.0;
+    const glossIntensity = this.get("r_glossmap") ?? 1.0;
+    const lightmapIntensity = this.get("r_lightmap") ?? 1.0;
+    const ambientIntensity = this.get("r_ambient") ?? 1.0;
+    const emissiveIntensity = this.get("r_emissive") ?? 1.0;
+    const anisotropy = this.get("r_anisotropy") ?? 8;
+    const wireframe = (this.get("r_wireframe") ?? 0) >= 0.5;
 
     // Post-processing
-    const bloomMul = this.get('r_bloom') ?? 1.0;
-    const exposureMul = this.get('r_exposure') ?? 1.0;
-    const contrastMul = this.get('r_contrast') ?? 1.0;
+    const bloomMul = this.get("r_bloom") ?? 1.0;
+    const exposureMul = this.get("r_exposure") ?? 1.0;
+    const contrastMul = this.get("r_contrast") ?? 1.0;
     this.applyToPostProcessing(bloomMul, exposureMul, contrastMul);
 
     if (!this.scene) return;
@@ -604,7 +604,15 @@ export class RenderVars {
         // Unfreeze so property changes take effect (frozen materials ignore mutations)
         mat.unfreeze();
       }
-      this.applyToMesh(mesh, normalIntensity, glossIntensity, lightmapIntensity, emissiveIntensity, anisotropy, wireframe);
+      this.applyToMesh(
+        mesh,
+        normalIntensity,
+        glossIntensity,
+        lightmapIntensity,
+        emissiveIntensity,
+        anisotropy,
+        wireframe,
+      );
       // Re-freeze after applying changes
       if (mat) mat.freeze();
     }
@@ -625,7 +633,7 @@ export class RenderVars {
     }
 
     // Light intensity multiplier
-    const lightIntensity = this.get('r_lightintensity') ?? 1.0;
+    const lightIntensity = this.get("r_lightintensity") ?? 1.0;
     for (const light of this.scene.lights) {
       const hasOriginal = (light as any)._originalIntensity !== undefined;
       if (lightIntensity !== 1.0) {
@@ -640,9 +648,8 @@ export class RenderVars {
     }
 
     // Force wireframe (r_showtris) - scene-level toggle
-    const showTris = (this.get('r_showtris') ?? 0) >= 0.5;
+    const showTris = (this.get("r_showtris") ?? 0) >= 0.5;
     this.scene.forceWireframe = showTris;
-
   }
 
   private applyToMesh(
@@ -652,7 +659,7 @@ export class RenderVars {
     lightmapIntensity: number,
     emissiveIntensity: number,
     anisotropy: number,
-    wireframe: boolean
+    wireframe: boolean,
   ): void {
     const mat = mesh.material;
     if (!mat) return;
@@ -728,7 +735,7 @@ export class RenderVars {
       }
 
       const setAniso = (tex: any) => {
-        if (tex && typeof tex === 'object') {
+        if (tex && typeof tex === "object") {
           (tex as any).anisotropicFilteringLevel = anisotropy;
         }
       };
@@ -811,7 +818,7 @@ export class RenderVars {
       }
 
       const setAniso = (tex: any) => {
-        if (tex && typeof tex === 'object') {
+        if (tex && typeof tex === "object") {
           (tex as any).anisotropicFilteringLevel = anisotropy;
         }
       };

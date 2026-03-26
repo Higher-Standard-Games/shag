@@ -18,88 +18,88 @@
  *   --difficulty <level>     Difficulty: easy, medium, hard, insane (default: medium)
  */
 
-import { BotServer } from '../bot/BotServer';
+import { BotServer } from "../bot/BotServer";
 
 // ── Parse Arguments ─────────────────────────────────────────────────────
 
 interface BotServerArgs {
-    port: number;
-    autoConnect?: string;
-    autoCount: number;
-    difficulty: string;
-    lobbyUrl?: string;
-    gametype: string;
-    modelDir?: string;
+  port: number;
+  autoConnect?: string;
+  autoCount: number;
+  difficulty: string;
+  lobbyUrl?: string;
+  gametype: string;
+  modelDir?: string;
 }
 
 function parseArgs(): BotServerArgs {
-    // Filter out '--' separators injected by npm/pnpm run
-    const args = process.argv.slice(2).filter(a => a !== '--');
-    const config: BotServerArgs = {
-        port: 9100,
-        autoCount: 3,
-        difficulty: 'medium',
-        gametype: 'duel',
-    };
+  // Filter out '--' separators injected by npm/pnpm run
+  const args = process.argv.slice(2).filter((a) => a !== "--");
+  const config: BotServerArgs = {
+    port: 9100,
+    autoCount: 3,
+    difficulty: "medium",
+    gametype: "duel",
+  };
 
-    let namedFlagFound = false;
-    for (let i = 0; i < args.length; i++) {
-        switch (args[i]) {
-            case '--port':
-                config.port = parseInt(args[++i], 10);
-                namedFlagFound = true;
-                break;
-            case '--auto':
-                config.autoConnect = args[++i];
-                namedFlagFound = true;
-                break;
-            case '--count':
-                config.autoCount = parseInt(args[++i], 10);
-                namedFlagFound = true;
-                break;
-            case '--difficulty':
-            case '-d':
-                config.difficulty = args[++i];
-                namedFlagFound = true;
-                break;
-            case '--lobby':
-                config.lobbyUrl = args[++i];
-                namedFlagFound = true;
-                break;
-            case '--gametype':
-            case '-g':
-                config.gametype = args[++i];
-                namedFlagFound = true;
-                break;
-            case '--models':
-                config.modelDir = args[++i];
-                namedFlagFound = true;
-                break;
-            case '--help':
-            case '-h':
-                printHelp();
-                process.exit(0);
-        }
+  let namedFlagFound = false;
+  for (let i = 0; i < args.length; i++) {
+    switch (args[i]) {
+      case "--port":
+        config.port = parseInt(args[++i], 10);
+        namedFlagFound = true;
+        break;
+      case "--auto":
+        config.autoConnect = args[++i];
+        namedFlagFound = true;
+        break;
+      case "--count":
+        config.autoCount = parseInt(args[++i], 10);
+        namedFlagFound = true;
+        break;
+      case "--difficulty":
+      case "-d":
+        config.difficulty = args[++i];
+        namedFlagFound = true;
+        break;
+      case "--lobby":
+        config.lobbyUrl = args[++i];
+        namedFlagFound = true;
+        break;
+      case "--gametype":
+      case "-g":
+        config.gametype = args[++i];
+        namedFlagFound = true;
+        break;
+      case "--models":
+        config.modelDir = args[++i];
+        namedFlagFound = true;
+        break;
+      case "--help":
+      case "-h":
+        printHelp();
+        process.exit(0);
     }
+  }
 
-    // Positional fallback: npm/pnpm sometimes strips flag names
-    // Treat positional args as: [url] [gametype] [count] [difficulty]
-    if (!namedFlagFound && args.length > 0) {
-        console.log(`[BIS] Note: Using positional arg parsing (flags were stripped by npm)`);
-        console.log(`[BIS] Raw args: ${args.join(' ')}`);
-        if (args[0]?.startsWith('ws://') || args[0]?.startsWith('wss://')) {
-            config.lobbyUrl = args[0];
-        }
-        if (args[1]) config.gametype = args[1];
-        if (args[2]) config.autoCount = parseInt(args[2], 10);
-        if (args[3]) config.difficulty = args[3];
+  // Positional fallback: npm/pnpm sometimes strips flag names
+  // Treat positional args as: [url] [gametype] [count] [difficulty]
+  if (!namedFlagFound && args.length > 0) {
+    console.log(`[BIS] Note: Using positional arg parsing (flags were stripped by npm)`);
+    console.log(`[BIS] Raw args: ${args.join(" ")}`);
+    if (args[0]?.startsWith("ws://") || args[0]?.startsWith("wss://")) {
+      config.lobbyUrl = args[0];
     }
+    if (args[1]) config.gametype = args[1];
+    if (args[2]) config.autoCount = parseInt(args[2], 10);
+    if (args[3]) config.difficulty = args[3];
+  }
 
-    return config;
+  return config;
 }
 
 function printHelp(): void {
-    console.log(`
+  console.log(`
 Bot Intelligence Server (BIS)
 
 Usage: npx vite-node src/cli/bot-server.ts [options]
@@ -127,158 +127,160 @@ Examples:
 // ── Main ────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-    const config = parseArgs();
+  const config = parseArgs();
 
-    console.log('');
-    console.log('╔═══════════════════════════════════════════════╗');
-    console.log('║       Bot Intelligence Server (BIS)           ║');
-    console.log('║         Phase 1: State Machine AI             ║');
-    console.log('╚═══════════════════════════════════════════════╝');
-    console.log('');
-    console.log(`[BIS] Control API port: ${config.port}`);
-    console.log(`[BIS] Default difficulty: ${config.difficulty}`);
-    console.log('');
+  console.log("");
+  console.log("╔═══════════════════════════════════════════════╗");
+  console.log("║       Bot Intelligence Server (BIS)           ║");
+  console.log("║         Phase 1: State Machine AI             ║");
+  console.log("╚═══════════════════════════════════════════════╝");
+  console.log("");
+  console.log(`[BIS] Control API port: ${config.port}`);
+  console.log(`[BIS] Default difficulty: ${config.difficulty}`);
+  console.log("");
 
-    const server = new BotServer(config.port);
-    await server.start();
+  const server = new BotServer(config.port);
+  await server.start();
 
-    // Auto-connect through lobby if --lobby flag
-    if (config.lobbyUrl) {
-        console.log(`[BIS] Lobby mode: connecting ${config.autoCount} bot(s) through ${config.lobbyUrl} (${config.gametype})...`);
-        console.log('');
+  // Auto-connect through lobby if --lobby flag
+  if (config.lobbyUrl) {
+    console.log(
+      `[BIS] Lobby mode: connecting ${config.autoCount} bot(s) through ${config.lobbyUrl} (${config.gametype})...`,
+    );
+    console.log("");
 
-        for (let i = 0; i < config.autoCount; i++) {
-            try {
-                if (i > 0) {
-                    await new Promise(r => setTimeout(r, 500));
-                }
-                await server.addLobbyBot(config.lobbyUrl, config.gametype, {
-                    difficulty: config.difficulty,
-                    modelDir: config.modelDir,
-                });
-            } catch (err: any) {
-                console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err.message}`);
-            }
+    for (let i = 0; i < config.autoCount; i++) {
+      try {
+        if (i > 0) {
+          await new Promise((r) => setTimeout(r, 500));
         }
-
-        console.log('');
-        console.log(`[BIS] Lobby auto-connect complete. ${server.getStatus().length} bots active.`);
+        await server.addLobbyBot(config.lobbyUrl, config.gametype, {
+          difficulty: config.difficulty,
+          modelDir: config.modelDir,
+        });
+      } catch (err: any) {
+        console.error(`[BIS] Failed to spawn lobby bot ${i + 1}: ${err.message}`);
+      }
     }
 
-    // Auto-connect bots directly if --auto flag
-    if (config.autoConnect) {
-        console.log(`[BIS] Auto-connecting ${config.autoCount} bots to ${config.autoConnect}...`);
-        console.log('');
+    console.log("");
+    console.log(`[BIS] Lobby auto-connect complete. ${server.getStatus().length} bots active.`);
+  }
 
-        for (let i = 0; i < config.autoCount; i++) {
-            try {
-                // Stagger connections by 500ms to avoid overwhelming the game server
-                if (i > 0) {
-                    await new Promise(r => setTimeout(r, 500));
-                }
-                await server.addBot(config.autoConnect, {
-                    difficulty: config.difficulty,
-                    modelDir: config.modelDir,
-                });
-            } catch (err: any) {
-                console.error(`[BIS] Failed to spawn bot ${i + 1}: ${err.message}`);
-            }
+  // Auto-connect bots directly if --auto flag
+  if (config.autoConnect) {
+    console.log(`[BIS] Auto-connecting ${config.autoCount} bots to ${config.autoConnect}...`);
+    console.log("");
+
+    for (let i = 0; i < config.autoCount; i++) {
+      try {
+        // Stagger connections by 500ms to avoid overwhelming the game server
+        if (i > 0) {
+          await new Promise((r) => setTimeout(r, 500));
         }
-
-        console.log('');
-        console.log(`[BIS] Auto-connect complete. ${server.getStatus().length} bots active.`);
+        await server.addBot(config.autoConnect, {
+          difficulty: config.difficulty,
+          modelDir: config.modelDir,
+        });
+      } catch (err: any) {
+        console.error(`[BIS] Failed to spawn bot ${i + 1}: ${err.message}`);
+      }
     }
 
-    // ── stdin command handler ───────────────────────────────────────
-    const readline = await import('readline');
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    console.log("");
+    console.log(`[BIS] Auto-connect complete. ${server.getStatus().length} bots active.`);
+  }
 
-    rl.on('line', async (line: string) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
+  // ── stdin command handler ───────────────────────────────────────
+  const readline = await import("readline");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-        const parts = trimmed.split(/\s+/);
-        const cmd = parts[0].toLowerCase();
+  rl.on("line", async (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
 
-        switch (cmd) {
-            case 'add':
-            case 'addbot': {
-                const url = parts[1] || config.autoConnect || 'ws://localhost:7777';
-                const diff = parts[2] || config.difficulty;
-                try {
-                    const bot = await server.addBot(url, { difficulty: diff });
-                    console.log(`[BIS] Added bot: ${bot.name} → ${url}`);
-                } catch (err: any) {
-                    console.error(`[BIS] Failed: ${err.message}`);
-                }
-                break;
-            }
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
 
-            case 'lobby': {
-                const url = parts[1] || config.lobbyUrl || 'ws://localhost:9000';
-                const gametype = parts[2] || config.gametype;
-                const diff = parts[3] || config.difficulty;
-                try {
-                    const lb = await server.addLobbyBot(url, gametype, { difficulty: diff });
-                    console.log(`[BIS] Lobby bot: ${lb.name} → ${url} (${gametype})`);
-                } catch (err: any) {
-                    console.error(`[BIS] Failed: ${err.message}`);
-                }
-                break;
-            }
-
-            case 'remove': {
-                if (parts[1] === 'all') {
-                    const count = await server.removeAllBots();
-                    console.log(`[BIS] Removed ${count} bots`);
-                } else if (parts[1]) {
-                    const removed = await server.removeBot(parts[1]);
-                    console.log(removed ? `[BIS] Removed bot ${parts[1]}` : `[BIS] Bot not found`);
-                }
-                break;
-            }
-
-            case 'status':
-            case 'list': {
-                const bots = server.getStatus();
-                if (bots.length === 0) {
-                    console.log('[BIS] No active bots');
-                } else {
-                    console.log(`[BIS] Active bots (${bots.length}):`);
-                    for (const bot of bots) {
-                        console.log(`  ${bot.name} [${bot.state}/${bot.brainState}] → ${bot.server}`);
-                    }
-                }
-                break;
-            }
-
-            case 'help': {
-                console.log('[BIS] Commands:');
-                console.log('  add [url] [difficulty]          - Add bot directly to game server');
-                console.log('  lobby [url] [gametype] [diff]   - Add bot through lobby');
-                console.log('  remove <botId|all>              - Remove bot(s)');
-                console.log('  status                          - Show bot status');
-                console.log('  help                            - Show this help');
-                break;
-            }
-
-            default:
-                console.log(`[BIS] Unknown command: ${cmd}. Type 'help' for available commands.`);
+    switch (cmd) {
+      case "add":
+      case "addbot": {
+        const url = parts[1] || config.autoConnect || "ws://localhost:7777";
+        const diff = parts[2] || config.difficulty;
+        try {
+          const bot = await server.addBot(url, { difficulty: diff });
+          console.log(`[BIS] Added bot: ${bot.name} → ${url}`);
+        } catch (err: any) {
+          console.error(`[BIS] Failed: ${err.message}`);
         }
-    });
+        break;
+      }
 
-    console.log('[BIS] Commands: add, lobby, remove, status, help');
-    console.log('[BIS] Press Ctrl+C to stop');
-    console.log('');
+      case "lobby": {
+        const url = parts[1] || config.lobbyUrl || "ws://localhost:9000";
+        const gametype = parts[2] || config.gametype;
+        const diff = parts[3] || config.difficulty;
+        try {
+          const lb = await server.addLobbyBot(url, gametype, { difficulty: diff });
+          console.log(`[BIS] Lobby bot: ${lb.name} → ${url} (${gametype})`);
+        } catch (err: any) {
+          console.error(`[BIS] Failed: ${err.message}`);
+        }
+        break;
+      }
 
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-        console.log('\n[BIS] Shutting down...');
-        rl.close();
-        await server.stop();
-        console.log('[BIS] Goodbye!');
-        process.exit(0);
-    });
+      case "remove": {
+        if (parts[1] === "all") {
+          const count = await server.removeAllBots();
+          console.log(`[BIS] Removed ${count} bots`);
+        } else if (parts[1]) {
+          const removed = await server.removeBot(parts[1]);
+          console.log(removed ? `[BIS] Removed bot ${parts[1]}` : `[BIS] Bot not found`);
+        }
+        break;
+      }
+
+      case "status":
+      case "list": {
+        const bots = server.getStatus();
+        if (bots.length === 0) {
+          console.log("[BIS] No active bots");
+        } else {
+          console.log(`[BIS] Active bots (${bots.length}):`);
+          for (const bot of bots) {
+            console.log(`  ${bot.name} [${bot.state}/${bot.brainState}] → ${bot.server}`);
+          }
+        }
+        break;
+      }
+
+      case "help": {
+        console.log("[BIS] Commands:");
+        console.log("  add [url] [difficulty]          - Add bot directly to game server");
+        console.log("  lobby [url] [gametype] [diff]   - Add bot through lobby");
+        console.log("  remove <botId|all>              - Remove bot(s)");
+        console.log("  status                          - Show bot status");
+        console.log("  help                            - Show this help");
+        break;
+      }
+
+      default:
+        console.log(`[BIS] Unknown command: ${cmd}. Type 'help' for available commands.`);
+    }
+  });
+
+  console.log("[BIS] Commands: add, lobby, remove, status, help");
+  console.log("[BIS] Press Ctrl+C to stop");
+  console.log("");
+
+  // Graceful shutdown
+  process.on("SIGINT", async () => {
+    console.log("\n[BIS] Shutting down...");
+    rl.close();
+    await server.stop();
+    console.log("[BIS] Goodbye!");
+    process.exit(0);
+  });
 }
 
 // Run

@@ -1,8 +1,8 @@
-import { Simulation, SimulationConfig, GameSystem } from '../core/Simulation';
-import { GameState } from '../core/GameState';
-import { MoveCommand } from '../core/Command';
-import { Entity } from '../core/Entity';
-import type { IComponent } from '../core/Component';
+import type { MoveCommand } from "../core/Command";
+import type { IComponent } from "../core/Component";
+import { Entity } from "../core/Entity";
+import { GameState } from "../core/GameState";
+import { GameSystem, Simulation, type SimulationConfig } from "../core/Simulation";
 
 // Simple position component for testing
 class PositionComponent implements IComponent {
@@ -62,9 +62,9 @@ class VelocityComponent implements IComponent {
 class MovementSystem extends GameSystem {
   update(state: GameState, deltaTime: number): void {
     for (const entity of state.entities.values()) {
-      const pos = entity.getComponent<PositionComponent>('position');
-      const vel = entity.getComponent<VelocityComponent>('velocity');
-      
+      const pos = entity.getComponent<PositionComponent>("position");
+      const vel = entity.getComponent<VelocityComponent>("velocity");
+
       if (pos && vel) {
         pos.x += vel.x * deltaTime;
         pos.y += vel.y * deltaTime;
@@ -78,13 +78,13 @@ class MovementSystem extends GameSystem {
 class TestSimulation extends Simulation {
   protected createInitialState(): GameState {
     const state = new GameState();
-    
+
     // Create test entity
-    const entity = new Entity('test-entity');
-    entity.addComponent('position', new PositionComponent());
-    entity.addComponent('velocity', new VelocityComponent());
-    state.entities.set('test-entity', entity);
-    
+    const entity = new Entity("test-entity");
+    entity.addComponent("position", new PositionComponent());
+    entity.addComponent("velocity", new VelocityComponent());
+    state.entities.set("test-entity", entity);
+
     return state;
   }
 
@@ -93,11 +93,11 @@ class TestSimulation extends Simulation {
   }
 
   protected registerCommandHandlers(): void {
-    this.onCommand('move', (state, cmd) => {
+    this.onCommand("move", (state, cmd) => {
       const moveCmd = cmd as MoveCommand;
-      const entity = state.entities.get('test-entity');
+      const entity = state.entities.get("test-entity");
       if (entity) {
-        const vel = entity.getComponent('velocity') as VelocityComponent;
+        const vel = entity.getComponent("velocity") as VelocityComponent;
         if (vel) {
           vel.x = moveCmd.direction.x * 100;
           vel.y = moveCmd.direction.y * 100;

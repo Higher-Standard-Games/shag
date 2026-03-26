@@ -1,13 +1,13 @@
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { Scene } from "@babylonjs/core/scene";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
+import type { Scene } from "@babylonjs/core/scene";
 import { SpriteDirection, SpriteSheet } from "./SpriteSheet";
 
 /**
@@ -63,12 +63,7 @@ export class BillboardSprite {
 
   private updateObserver: Observer<Scene> | null = null;
 
-  constructor(
-    name: string,
-    spriteSheet: SpriteSheet,
-    scene: Scene,
-    camera: Camera
-  ) {
+  constructor(name: string, spriteSheet: SpriteSheet, scene: Scene, camera: Camera) {
     this.spriteSheet = spriteSheet;
     this.scene = scene;
     this.camera = camera;
@@ -94,31 +89,33 @@ export class BillboardSprite {
     const mesh = new Mesh(name, scene);
 
     const positions = [
-      -0.5, 0, 0,  // bottom-left
-       0.5, 0, 0,  // bottom-right
-       0.5, 1, 0,  // top-right
-      -0.5, 1, 0,  // top-left
+      -0.5,
+      0,
+      0, // bottom-left
+      0.5,
+      0,
+      0, // bottom-right
+      0.5,
+      1,
+      0, // top-right
+      -0.5,
+      1,
+      0, // top-left
     ];
 
     const indices = [
-      0, 1, 2,  // first triangle
-      0, 2, 3,  // second triangle
+      0,
+      1,
+      2, // first triangle
+      0,
+      2,
+      3, // second triangle
     ];
 
-    const normals = [
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
-    ];
+    const normals = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
 
     // Initial UVs (will be updated per frame)
-    const uvs = [
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-    ];
+    const uvs = [0, 0, 1, 0, 1, 1, 0, 1];
 
     const vertexData = new VertexData();
     vertexData.positions = positions;
@@ -161,20 +158,20 @@ export class BillboardSprite {
   private updateLighting(): void {
     // Start with ambient color
     const totalColor = new Color3(this._ambientLevel, this._ambientLevel, this._ambientLevel);
-    
+
     // Sample all point lights in scene
     for (const light of this.scene.lights) {
       if (light instanceof PointLight && light.isEnabled()) {
         const lightPos = light.position;
         const distance = Vector3.Distance(this._position, lightPos);
-        
+
         // Calculate attenuation (inverse square with range limit)
         const range = light.range || 500;
         if (distance < range) {
           // Smooth falloff
-          const attenuation = Math.max(0, 1 - (distance / range));
+          const attenuation = Math.max(0, 1 - distance / range);
           const intensity = light.intensity * attenuation * attenuation;
-          
+
           // Add light contribution (with intensity multiplier for stronger effect)
           totalColor.r += light.diffuse.r * intensity * this._lightIntensityMultiplier;
           totalColor.g += light.diffuse.g * intensity * this._lightIntensityMultiplier;
@@ -384,7 +381,7 @@ export class BillboardSprite {
    */
   public set castShadow(value: boolean) {
     this._castShadow = value;
-    
+
     if (value && !this.shadowMesh) {
       this.createShadow();
     } else if (!value && this.shadowMesh) {
@@ -428,11 +425,7 @@ export class BillboardSprite {
    */
   private createShadow(): void {
     // Create an ellipse/disc for the shadow
-    this.shadowMesh = MeshBuilder.CreateDisc(
-      `${this.mesh.name}_shadow`,
-      { radius: 0.5, tessellation: 16 },
-      this.scene
-    );
+    this.shadowMesh = MeshBuilder.CreateDisc(`${this.mesh.name}_shadow`, { radius: 0.5, tessellation: 16 }, this.scene);
 
     // Rotate to lie flat on ground
     this.shadowMesh.rotation.x = Math.PI / 2;
@@ -444,9 +437,9 @@ export class BillboardSprite {
     shadowMat.emissiveColor = new Color3(0, 0, 0);
     shadowMat.alpha = this._shadowOpacity;
     shadowMat.backFaceCulling = false;
-    
+
     this.shadowMesh.material = shadowMat;
-    
+
     // Shadow doesn't receive light
     this.shadowMesh.receiveShadows = false;
 
@@ -463,7 +456,7 @@ export class BillboardSprite {
     this.shadowMesh.position.set(
       this._position.x,
       this._position.y + 0.5, // Slightly above ground
-      this._position.z
+      this._position.z,
     );
 
     // Scale shadow based on sprite size
@@ -472,7 +465,7 @@ export class BillboardSprite {
     this.shadowMesh.scaling.set(
       baseSize * aspectRatio * 0.8, // Slightly narrower
       baseSize * 0.5, // Squashed for perspective
-      1
+      1,
     );
   }
 

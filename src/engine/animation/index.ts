@@ -10,37 +10,31 @@
  * @module engine/animation
  */
 
-// Core classes
-export { HumanoidRig, MIXAMO_BONE_MAP } from "./HumanoidRig";
-export type { HumanoidBoneMap, HumanoidBoneRole } from "./HumanoidRig";
-
-export { AnimationLoader, STANDARD_ANIMATIONS } from "./AnimationLoader";
-export type { AnimationClipInfo } from "./AnimationLoader";
-
-export { AnimationBlender } from "./AnimationBlender";
 export type { BlendConfig } from "./AnimationBlender";
-
-export { ProceduralLayers } from "./ProceduralLayers";
-export type { ProceduralLayerConfig } from "./ProceduralLayers";
-
-// Main controller
-export {
-    PlayerAnimationController,
-    createPlayerAnimationController,
-} from "./PlayerAnimationController";
-export type { PlayerAnimationConfig } from "./PlayerAnimationController";
-
-// State types
-export {
-    AnimationStateName,
-    createDefaultAnimationState,
-    selectAnimationState,
-} from "./PlayerAnimationState";
-export type { PlayerAnimationState } from "./PlayerAnimationState";
-
+export { AnimationBlender } from "./AnimationBlender";
+export type { AnimationClipInfo } from "./AnimationLoader";
+export { AnimationLoader, STANDARD_ANIMATIONS } from "./AnimationLoader";
+export type { AnimationStateProvider } from "./AnimationStateBridge";
 // State bridge for FPSController integration
 export {
-    extractAnimationState,
-    FPSControllerAnimationAdapter,
+  extractAnimationState,
+  FPSControllerAnimationAdapter,
 } from "./AnimationStateBridge";
-export type { AnimationStateProvider } from "./AnimationStateBridge";
+export type { HumanoidBoneMap, HumanoidBoneRole } from "./HumanoidRig";
+// Core classes
+export { HumanoidRig, MIXAMO_BONE_MAP } from "./HumanoidRig";
+export type { PlayerAnimationConfig } from "./PlayerAnimationController";
+// Main controller
+export {
+  createPlayerAnimationController,
+  PlayerAnimationController,
+} from "./PlayerAnimationController";
+export type { PlayerAnimationState } from "./PlayerAnimationState";
+// State types
+export {
+  AnimationStateName,
+  createDefaultAnimationState,
+  selectAnimationState,
+} from "./PlayerAnimationState";
+export type { ProceduralLayerConfig } from "./ProceduralLayers";
+export { ProceduralLayers } from "./ProceduralLayers";

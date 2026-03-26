@@ -1,16 +1,16 @@
 /**
  * UIScale - Cross-platform UI scaling system
- * 
+ *
  * Provides consistent UI scaling across different screen sizes and devices.
  * Design UI at a reference resolution, then scale proportionally.
- * 
+ *
  * Usage:
  * 1. Initialize: UIScale.getInstance().init()
  * 2. Use CSS variables: var(--ui-scale), var(--ui-space-md), etc.
  * 3. Or use JS: UIScale.getInstance().px(16) for scaled pixels
  */
 
-export type ScaleMode = 'fit' | 'fill' | 'width' | 'height';
+export type ScaleMode = "fit" | "fill" | "width" | "height";
 
 export interface UIScaleConfig {
   /** Reference design width (default: 1920) */
@@ -34,7 +34,7 @@ const DEFAULT_CONFIG: UIScaleConfig = {
   designHeight: 1080,
   minScale: 0.4,
   maxScale: 2.5,
-  scaleMode: 'fit',
+  scaleMode: "fit",
   minTouchTarget: 44,
   mobileBreakpoint: 768,
 };
@@ -46,8 +46,8 @@ const SPACING = {
   md: 16,
   lg: 24,
   xl: 32,
-  '2xl': 48,
-  '3xl': 64,
+  "2xl": 48,
+  "3xl": 64,
 };
 
 // Font size scale (in design pixels)
@@ -57,8 +57,8 @@ const FONT_SIZES = {
   md: 16,
   lg: 20,
   xl: 24,
-  '2xl': 32,
-  '3xl': 40,
+  "2xl": 32,
+  "3xl": 40,
 };
 
 // Border radius scale (in design pixels)
@@ -127,16 +127,16 @@ export class UIScale {
     // Calculate scale based on mode
     let scale: number;
     switch (this.config.scaleMode) {
-      case 'fit':
+      case "fit":
         scale = Math.min(this.scaleX, this.scaleY);
         break;
-      case 'fill':
+      case "fill":
         scale = Math.max(this.scaleX, this.scaleY);
         break;
-      case 'width':
+      case "width":
         scale = this.scaleX;
         break;
-      case 'height':
+      case "height":
         scale = this.scaleY;
         break;
       default:
@@ -149,10 +149,7 @@ export class UIScale {
     }
 
     // Clamp to min/max
-    this.currentScale = Math.max(
-      this.config.minScale,
-      Math.min(this.config.maxScale, scale)
-    );
+    this.currentScale = Math.max(this.config.minScale, Math.min(this.config.maxScale, scale));
   }
 
   /**
@@ -160,8 +157,8 @@ export class UIScale {
    */
   private injectCSSVariables(): void {
     if (!this.styleElement) {
-      this.styleElement = document.createElement('style');
-      this.styleElement.id = 'ui-scale-variables';
+      this.styleElement = document.createElement("style");
+      this.styleElement.id = "ui-scale-variables";
       document.head.appendChild(this.styleElement);
     }
 
@@ -171,64 +168,64 @@ export class UIScale {
 
     // Build CSS variables
     let css = `:root {\n`;
-    
+
     // Scale factors
     css += `  --ui-scale: ${scale};\n`;
     css += `  --ui-scale-x: ${this.scaleX};\n`;
     css += `  --ui-scale-y: ${this.scaleY};\n`;
-    
+
     // Viewport info
     css += `  --ui-viewport-width: ${window.innerWidth}px;\n`;
     css += `  --ui-viewport-height: ${window.innerHeight}px;\n`;
     css += `  --ui-is-mobile: ${isMobile};\n`;
     css += `  --ui-is-portrait: ${isPortrait};\n`;
-    
+
     // Scaled spacing
     for (const [name, value] of Object.entries(SPACING)) {
       css += `  --ui-space-${name}: ${Math.round(value * scale)}px;\n`;
     }
-    
+
     // Scaled font sizes
     for (const [name, value] of Object.entries(FONT_SIZES)) {
       css += `  --ui-font-${name}: ${Math.round(value * scale)}px;\n`;
     }
-    
+
     // Scaled border radii
     for (const [name, value] of Object.entries(RADII)) {
-      if (name === 'full') {
+      if (name === "full") {
         css += `  --ui-radius-${name}: ${value}px;\n`;
       } else {
         css += `  --ui-radius-${name}: ${Math.round(value * scale)}px;\n`;
       }
     }
-    
+
     // Touch targets (ensure minimum size)
     const minTouch = Math.max(44, Math.round(this.config.minTouchTarget * scale));
     css += `  --ui-touch-min: ${minTouch}px;\n`;
     css += `  --ui-touch-comfortable: ${Math.round(minTouch * 1.1)}px;\n`;
-    
+
     // Safe area insets (for notched phones)
     css += `  --ui-safe-top: env(safe-area-inset-top, 0px);\n`;
     css += `  --ui-safe-bottom: env(safe-area-inset-bottom, 0px);\n`;
     css += `  --ui-safe-left: env(safe-area-inset-left, 0px);\n`;
     css += `  --ui-safe-right: env(safe-area-inset-right, 0px);\n`;
-    
+
     css += `}\n`;
 
     // Add utility classes
     css += `
 /* UIScale utility classes */
 .ui-scale-hidden-mobile {
-  display: ${isMobile ? 'none' : 'block'} !important;
+  display: ${isMobile ? "none" : "block"} !important;
 }
 .ui-scale-hidden-desktop {
-  display: ${isMobile ? 'block' : 'none'} !important;
+  display: ${isMobile ? "block" : "none"} !important;
 }
 .ui-scale-hidden-portrait {
-  display: ${isPortrait ? 'none' : 'block'} !important;
+  display: ${isPortrait ? "none" : "block"} !important;
 }
 .ui-scale-hidden-landscape {
-  display: ${isPortrait ? 'block' : 'none'} !important;
+  display: ${isPortrait ? "block" : "none"} !important;
 }
 `;
 
@@ -250,7 +247,7 @@ export class UIScale {
       resizeTimeout = window.setTimeout(() => {
         const oldScale = this.currentScale;
         this.calculateScale();
-        
+
         if (Math.abs(oldScale - this.currentScale) > 0.001) {
           this.injectCSSVariables();
           this.notifyListeners();
@@ -259,8 +256,8 @@ export class UIScale {
       }, 100);
     };
 
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
   }
 
   /**
@@ -271,7 +268,7 @@ export class UIScale {
       try {
         listener();
       } catch (e) {
-        console.error('[UIScale] Listener error:', e);
+        console.error("[UIScale] Listener error:", e);
       }
     }
   }
@@ -363,9 +360,9 @@ export class UIScale {
     this.calculateScale();
     this.injectCSSVariables();
     this.notifyListeners();
-    
+
     if (scale === null) {
-      console.log('[UIScale] Scale reset to automatic');
+      console.log("[UIScale] Scale reset to automatic");
     } else {
       console.log(`[UIScale] Scale forced to: ${scale}`);
     }
@@ -389,12 +386,12 @@ export class UIScale {
     if (this.debugOverlay) {
       this.debugOverlay.remove();
       this.debugOverlay = null;
-      console.log('[UIScale] Debug overlay hidden');
+      console.log("[UIScale] Debug overlay hidden");
       return;
     }
 
-    this.debugOverlay = document.createElement('div');
-    this.debugOverlay.id = 'ui-scale-debug';
+    this.debugOverlay = document.createElement("div");
+    this.debugOverlay.id = "ui-scale-debug";
     this.debugOverlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -408,7 +405,7 @@ export class UIScale {
     `;
 
     // Info panel
-    const info = document.createElement('div');
+    const info = document.createElement("div");
     info.style.cssText = `
       position: absolute;
       top: 10px;
@@ -429,7 +426,7 @@ export class UIScale {
     this.debugOverlay.appendChild(info);
 
     // Safe area indicators
-    const safeTop = document.createElement('div');
+    const safeTop = document.createElement("div");
     safeTop.style.cssText = `
       position: absolute;
       top: 0;
@@ -441,7 +438,7 @@ export class UIScale {
     `;
     this.debugOverlay.appendChild(safeTop);
 
-    const safeBottom = document.createElement('div');
+    const safeBottom = document.createElement("div");
     safeBottom.style.cssText = `
       position: absolute;
       bottom: 0;
@@ -454,7 +451,7 @@ export class UIScale {
     this.debugOverlay.appendChild(safeBottom);
 
     document.body.appendChild(this.debugOverlay);
-    console.log('[UIScale] Debug overlay shown');
+    console.log("[UIScale] Debug overlay shown");
   }
 
   /**
@@ -468,8 +465,8 @@ export class UIScale {
       `Design: ${this.config.designWidth}x${this.config.designHeight}`,
       `ScaleX: ${this.scaleX.toFixed(3)}, ScaleY: ${this.scaleY.toFixed(3)}`,
       `Mobile: ${this.isMobile()}, Portrait: ${this.isPortrait()}`,
-      `Forced: ${this.forcedScale ?? 'auto'}`,
-    ].join('\n');
+      `Forced: ${this.forcedScale ?? "auto"}`,
+    ].join("\n");
   }
 }
 

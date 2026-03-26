@@ -1,15 +1,14 @@
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import type { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Scene } from "@babylonjs/core/scene";
 import { GamePaths } from "../../core/GamePaths";
+import { ProceduralTextureGenerator } from "../../procedural/ProceduralTextureGenerator";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { PK3TextureLoader } from "../pk3/PK3TextureLoader";
 
 // Check if we're in production mode (Vite sets this)
-// @ts-ignore - Vite provides import.meta.env
 const IS_PRODUCTION: boolean = import.meta.env?.PROD ?? false;
 
 // KTX2 texture directory (converted textures for production)
@@ -57,7 +56,7 @@ export class TextureManager {
     "common/origin",
   ]);
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): TextureManager {
     if (!TextureManager.instance) {
@@ -217,7 +216,7 @@ export class TextureManager {
     }
 
     // Fall back to regular texture formats
-    const basePath = this.basePath || '/textures';
+    const basePath = this.basePath || "/textures";
     for (const ext of this.extensions) {
       const fullPath = `${basePath}/${normalizedPath}${ext}`.replace("textures/textures", "textures");
 
@@ -258,7 +257,7 @@ export class TextureManager {
     }
 
     // PK3 texture extensions to try
-    const pk3Extensions = ['.ktx', '.tga', '.png', '.jpg'];
+    const pk3Extensions = [".ktx", ".tga", ".png", ".jpg"];
 
     for (const ext of pk3Extensions) {
       const fullPath = `${texturePath}${ext}`;
@@ -299,7 +298,7 @@ export class TextureManager {
     if (!this.scene) return;
 
     // Get base path without extension
-    const basePath = textureInfo.path.replace(/\.[^/.]+$/, '');
+    const basePath = textureInfo.path.replace(/\.[^/.]+$/, "");
 
     // Try to load normal map (_norm)
     const normTexture = await this.tryLoadCompanionTexture(`${basePath}_norm`);
@@ -341,7 +340,7 @@ export class TextureManager {
     }
 
     // Try filesystem with various extensions
-    const extensions = ['.tga', '.png', '.jpg', '.jpeg'];
+    const extensions = [".tga", ".png", ".jpg", ".jpeg"];
     for (const ext of extensions) {
       const fullPath = `/textures/${normalizedPath}${ext}`.replace("textures/textures", "textures");
       try {
@@ -472,7 +471,7 @@ export class TextureManager {
     this.textureCache.clear();
     this.materialCache.clear();
     this.noisyTextureCache.clear();
-    console.log('[TextureManager] Cache cleared');
+    console.log("[TextureManager] Cache cleared");
   }
 
   /**
@@ -578,8 +577,8 @@ export class TextureManager {
       for (let x = 0; x <= halfSize; x++) {
         // Multi-frequency noise
         let value = 0;
-        value += (random() - 0.5) * 1.0;  // Base noise
-        value += Math.sin(x * 0.2 + random() * 6.28) * 0.3;  // Low freq
+        value += (random() - 0.5) * 1.0; // Base noise
+        value += Math.sin(x * 0.2 + random() * 6.28) * 0.3; // Low freq
         value += Math.sin(y * 0.15 + random() * 6.28) * 0.3;
         baseNoise[y][x] = value;
       }

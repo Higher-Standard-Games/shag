@@ -1,6 +1,6 @@
 /**
  * PK3TextureLoader - Load textures from PK3 packages into BabylonJS
- * 
+ *
  * Features:
  * - Load KTX1 compressed textures
  * - Auto-detect companion maps (_gloss, _norm)
@@ -8,14 +8,14 @@
  * - Create PBR materials from texture sets
  */
 
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
-import { Scene } from "@babylonjs/core/scene";
+import type { Engine } from "@babylonjs/core/Engines/engine";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Scene } from "@babylonjs/core/scene";
+import { createTextureFromKTX1, parseKTX1 } from "../texture/KTX1Loader";
 import { PK3Loader } from "./PK3Loader";
-import { parseKTX1, createTextureFromKTX1 } from "../texture/KTX1Loader";
 
 export interface TextureSet {
   /** Base/diffuse texture path */
@@ -45,7 +45,7 @@ export class PK3TextureLoader {
   private scene: Scene | null = null;
   private textureCache: Map<string, Texture> = new Map();
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): PK3TextureLoader {
     if (!PK3TextureLoader.instance) {
@@ -73,7 +73,7 @@ export class PK3TextureLoader {
 
     // Find base textures (exclude _gloss, _norm, _blue, _red, etc.)
     const suffixPattern = /_(gloss|norm|normal|spec|bump|ao|height|blue|red|green|orange|daze)$/i;
-    const textureExts = ['.ktx', '.tga', '.png', '.jpg', '.jpeg', '.dds'];
+    const textureExts = [".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"];
 
     const baseTextures = new Map<string, TextureSet>();
 
@@ -82,7 +82,7 @@ export class PK3TextureLoader {
       if (!textureExts.includes(ext.toLowerCase())) continue;
 
       const baseName = this.getBaseName(file);
-      const nameWithoutExt = baseName.replace(/\.[^.]+$/, '');
+      const nameWithoutExt = baseName.replace(/\.[^.]+$/, "");
 
       // Skip companion maps
       if (suffixPattern.test(nameWithoutExt)) continue;
@@ -99,15 +99,12 @@ export class PK3TextureLoader {
 
     // Find companion maps for each base texture
     for (const [key, set] of baseTextures) {
-      const nameWithoutExt = key.split('/').pop()!;
+      const nameWithoutExt = key.split("/").pop()!;
 
       // Look for gloss map
       const glossPatterns = [`${nameWithoutExt}_gloss`, `${nameWithoutExt}_spec`];
       for (const pattern of glossPatterns) {
-        const found = files.find(f =>
-          f.toLowerCase().includes(pattern.toLowerCase()) &&
-          this.isTextureFile(f)
-        );
+        const found = files.find((f) => f.toLowerCase().includes(pattern.toLowerCase()) && this.isTextureFile(f));
         if (found) {
           set.gloss = found;
           break;
@@ -117,10 +114,7 @@ export class PK3TextureLoader {
       // Look for normal map
       const normPatterns = [`${nameWithoutExt}_norm`, `${nameWithoutExt}_normal`, `${nameWithoutExt}_bump`];
       for (const pattern of normPatterns) {
-        const found = files.find(f =>
-          f.toLowerCase().includes(pattern.toLowerCase()) &&
-          this.isTextureFile(f)
-        );
+        const found = files.find((f) => f.toLowerCase().includes(pattern.toLowerCase()) && this.isTextureFile(f));
         if (found) {
           set.normal = found;
           break;
@@ -135,24 +129,24 @@ export class PK3TextureLoader {
    * Resolve a texture path by trying multiple extensions, then load it.
    * Accepts paths with or without extension. Prefers lossless formats (TGA, PNG, JPG)
    * and falls back to KTX (lossy ETC1) only when no lossless source exists.
-   * 
+   *
    * @param basePath - Texture path, e.g. "models/weapons/plasmagun/plasmagun" or "textures/foo.tga"
    */
   public async resolveAndLoadTexture(basePath: string): Promise<Texture | null> {
     const pk3 = PK3Loader.getInstance();
-    const cleanPath = basePath.replace(/^\//, '');
+    const cleanPath = basePath.replace(/^\//, "");
 
     // Strip existing extension to get the base
-    const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, '');
+    const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, "");
 
     // Try extensions in priority order: lossless formats first,
     // then KTX (lossy ETC1 compression) as fallback only when no lossless source exists
     const candidates = [
-      cleanPath,       // original path with original extension (highest priority)
+      cleanPath, // original path with original extension (highest priority)
       `${stripped}.tga`,
       `${stripped}.png`,
       `${stripped}.jpg`,
-      `${stripped}.ktx`,  // lossy ETC1 — fallback only
+      `${stripped}.ktx`, // lossy ETC1 — fallback only
     ];
 
     // De-duplicate (in case cleanPath === stripped + ext matches one above)
@@ -206,11 +200,10 @@ export class PK3TextureLoader {
         if (response.ok) {
           // Vite dev server returns 200 OK with HTML for non-existent files (SPA fallback)
           // So we MUST check Content-Type to avoid treating HTML as texture data
-          const contentType = response.headers.get('Content-Type') || '';
-          const isHtml = contentType.includes('text/html');
-          const isImage = contentType.includes('image/') ||
-            contentType.includes('application/octet-stream') ||
-            contentType === ''; // Some servers don't set content-type for .tga
+          const contentType = response.headers.get("Content-Type") || "";
+          const isHtml = contentType.includes("text/html");
+          const isImage =
+            contentType.includes("image/") || contentType.includes("application/octet-stream") || contentType === ""; // Some servers don't set content-type for .tga
 
           if (!isHtml && (isImage || !contentType)) {
             data = await response.arrayBuffer();
@@ -233,12 +226,16 @@ export class PK3TextureLoader {
     const effectiveFormat = actualFormat || ext;
 
     try {
-      if (ext === '.ktx') {
+      if (ext === ".ktx") {
         texture = await this.loadKTXTexture(path, data);
-      } else if (effectiveFormat === '.tga') {
+      } else if (effectiveFormat === ".tga") {
         texture = await this.loadTGATexture(path, data);
-      } else if (effectiveFormat === '.jpg' || effectiveFormat === '.jpeg' ||
-        effectiveFormat === '.png' || effectiveFormat === '.webp') {
+      } else if (
+        effectiveFormat === ".jpg" ||
+        effectiveFormat === ".jpeg" ||
+        effectiveFormat === ".png" ||
+        effectiveFormat === ".webp"
+      ) {
         // Handle files that are actually JPG/PNG regardless of extension
         texture = await this.loadStandardTexture(path, data, effectiveFormat);
       } else {
@@ -296,16 +293,16 @@ export class PK3TextureLoader {
    * When KTX format is unsupported, try to find the same texture in JPG/PNG/TGA
    */
   private async loadKTXFallback(ktxPath: string): Promise<Texture | null> {
-    const basePath = ktxPath.replace(/\.ktx$/i, '');
+    const basePath = ktxPath.replace(/\.ktx$/i, "");
     const pk3 = PK3Loader.getInstance();
 
-    for (const altExt of ['.jpg', '.png', '.tga']) {
+    for (const altExt of [".jpg", ".png", ".tga"]) {
       const altPath = basePath + altExt;
       const altData = await pk3.getFile(altPath);
       if (altData) {
         console.log(`[PK3TextureLoader] KTX fallback: ${ktxPath} -> ${altPath}`);
         // Load directly to avoid infinite recursion through loadTexture
-        if (altExt === '.tga') {
+        if (altExt === ".tga") {
           return this.loadTGATexture(altPath, altData);
         } else {
           return this.loadStandardTexture(altPath, altData, altExt);
@@ -353,14 +350,14 @@ export class PK3TextureLoader {
     if (!this.scene) return null;
 
     const mimeTypes: Record<string, string> = {
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.webp': 'image/webp',
-      '.gif': 'image/gif',
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".webp": "image/webp",
+      ".gif": "image/gif",
     };
 
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+    const mimeType = mimeTypes[ext] || "application/octet-stream";
     const blob = new Blob([data], { type: mimeType });
     const url = URL.createObjectURL(blob);
 
@@ -389,19 +386,27 @@ export class PK3TextureLoader {
     const view = new Uint8Array(data, 0, 12);
 
     // PNG: 89 50 4E 47 (‰PNG)
-    if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4E && view[3] === 0x47) {
-      return '.png';
+    if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) {
+      return ".png";
     }
 
     // JPEG/JFIF: FF D8 FF
-    if (view[0] === 0xFF && view[1] === 0xD8 && view[2] === 0xFF) {
-      return '.jpg';
+    if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) {
+      return ".jpg";
     }
 
     // WebP: RIFF....WEBP
-    if (view[0] === 0x52 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x46 &&
-      view[8] === 0x57 && view[9] === 0x45 && view[10] === 0x42 && view[11] === 0x50) {
-      return '.webp';
+    if (
+      view[0] === 0x52 &&
+      view[1] === 0x49 &&
+      view[2] === 0x46 &&
+      view[3] === 0x46 &&
+      view[8] === 0x57 &&
+      view[9] === 0x45 &&
+      view[10] === 0x42 &&
+      view[11] === 0x50
+    ) {
+      return ".webp";
     }
 
     // TGA has no magic bytes, but we can identify it's NOT TGA if it starts with known magic
@@ -424,21 +429,14 @@ export class PK3TextureLoader {
         const i = (y * size + x) * 4;
         const isWhite = ((x >> 3) ^ (y >> 3)) & 1;
         const c = isWhite ? 200 : 100;
-        pixels[i] = c;     // R
+        pixels[i] = c; // R
         pixels[i + 1] = c; // G
         pixels[i + 2] = c; // B
         pixels[i + 3] = 255; // A
       }
     }
 
-    const texture = RawTexture.CreateRGBATexture(
-      pixels,
-      size,
-      size,
-      this.scene,
-      true,
-      false
-    );
+    const texture = RawTexture.CreateRGBATexture(pixels, size, size, this.scene, true, false);
     texture.name = `placeholder:${name}`;
 
     return texture;
@@ -447,7 +445,7 @@ export class PK3TextureLoader {
   /**
    * Parse TGA file format
    */
-  private parseTGA(data: ArrayBuffer, path: string = ''): { pixels: Uint8Array; width: number; height: number } | null {
+  private parseTGA(data: ArrayBuffer, path: string = ""): { pixels: Uint8Array; width: number; height: number } | null {
     const view = new DataView(data);
     const uint8 = new Uint8Array(data);
 
@@ -463,15 +461,19 @@ export class PK3TextureLoader {
     // Support: uncompressed true-color (2), uncompressed grayscale (3), RLE true-color (10), RLE grayscale (11)
     if (imageType !== 2 && imageType !== 3 && imageType !== 10 && imageType !== 11) {
       // Check if this might be a JPEG or PNG with wrong extension
-      const magic0 = uint8[0], magic1 = uint8[1], magic2 = uint8[2];
-      const isPNG = magic0 === 0x89 && magic1 === 0x50 && magic2 === 0x4E;
-      const isJPG = magic0 === 0xFF && magic1 === 0xD8 && magic2 === 0xFF;
+      const magic0 = uint8[0],
+        magic1 = uint8[1],
+        magic2 = uint8[2];
+      const isPNG = magic0 === 0x89 && magic1 === 0x50 && magic2 === 0x4e;
+      const isJPG = magic0 === 0xff && magic1 === 0xd8 && magic2 === 0xff;
       if (isPNG) {
         console.warn(`[TGA] File is actually a PNG (wrong extension): ${path}`);
       } else if (isJPG) {
         console.warn(`[TGA] File is actually a JPEG (wrong extension): ${path}`);
       } else {
-        console.warn(`[TGA] Unsupported image type: ${imageType} for ${path} (header: idLen=${idLength}, colorMap=${colorMapType})`);
+        console.warn(
+          `[TGA] Unsupported image type: ${imageType} for ${path} (header: idLen=${idLength}, colorMap=${colorMapType})`,
+        );
       }
       return null;
     }
@@ -505,11 +507,11 @@ export class PK3TextureLoader {
       // Uncompressed grayscale
       let srcOffset = headerSize;
       for (let y = 0; y < height; y++) {
-        const destY = isTopToBottom ? y : (height - 1 - y);
+        const destY = isTopToBottom ? y : height - 1 - y;
         for (let x = 0; x < width; x++) {
           const destOffset = (destY * width + x) * 4;
           const lum = uint8[srcOffset];
-          pixels[destOffset] = lum;     // R
+          pixels[destOffset] = lum; // R
           pixels[destOffset + 1] = lum; // G
           pixels[destOffset + 2] = lum; // B
           pixels[destOffset + 3] = bytesPerPixel === 2 ? uint8[srcOffset + 1] : 255; // A
@@ -522,7 +524,7 @@ export class PK3TextureLoader {
       let pixelIndex = 0;
       while (pixelIndex < width * height) {
         const packet = uint8[srcOffset++];
-        const count = (packet & 0x7F) + 1;
+        const count = (packet & 0x7f) + 1;
         const isRLEPacket = (packet & 0x80) !== 0;
         if (isRLEPacket) {
           const lum = uint8[srcOffset];
@@ -531,7 +533,7 @@ export class PK3TextureLoader {
           for (let i = 0; i < count; i++) {
             const y = Math.floor(pixelIndex / width);
             const x = pixelIndex % width;
-            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destY = isTopToBottom ? y : height - 1 - y;
             const destOffset = (destY * width + x) * 4;
             pixels[destOffset] = lum;
             pixels[destOffset + 1] = lum;
@@ -543,7 +545,7 @@ export class PK3TextureLoader {
           for (let i = 0; i < count; i++) {
             const y = Math.floor(pixelIndex / width);
             const x = pixelIndex % width;
-            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destY = isTopToBottom ? y : height - 1 - y;
             const destOffset = (destY * width + x) * 4;
             const lum = uint8[srcOffset];
             pixels[destOffset] = lum;
@@ -560,15 +562,15 @@ export class PK3TextureLoader {
       let srcOffset = headerSize;
 
       for (let y = 0; y < height; y++) {
-        const destY = isTopToBottom ? y : (height - 1 - y);
+        const destY = isTopToBottom ? y : height - 1 - y;
 
         for (let x = 0; x < width; x++) {
           const destOffset = (destY * width + x) * 4;
 
           // TGA is BGR(A)
-          pixels[destOffset + 2] = uint8[srcOffset];     // B -> R
+          pixels[destOffset + 2] = uint8[srcOffset]; // B -> R
           pixels[destOffset + 1] = uint8[srcOffset + 1]; // G -> G
-          pixels[destOffset] = uint8[srcOffset + 2];     // R -> B
+          pixels[destOffset] = uint8[srcOffset + 2]; // R -> B
           pixels[destOffset + 3] = bytesPerPixel === 4 ? uint8[srcOffset + 3] : 255;
 
           srcOffset += bytesPerPixel;
@@ -581,7 +583,7 @@ export class PK3TextureLoader {
 
       while (pixelIndex < width * height) {
         const packet = uint8[srcOffset++];
-        const count = (packet & 0x7F) + 1;
+        const count = (packet & 0x7f) + 1;
         const isRLE = (packet & 0x80) !== 0;
 
         if (isRLE) {
@@ -595,7 +597,7 @@ export class PK3TextureLoader {
           for (let i = 0; i < count; i++) {
             const y = Math.floor(pixelIndex / width);
             const x = pixelIndex % width;
-            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destY = isTopToBottom ? y : height - 1 - y;
             const destOffset = (destY * width + x) * 4;
 
             pixels[destOffset] = r;
@@ -610,12 +612,12 @@ export class PK3TextureLoader {
           for (let i = 0; i < count; i++) {
             const y = Math.floor(pixelIndex / width);
             const x = pixelIndex % width;
-            const destY = isTopToBottom ? y : (height - 1 - y);
+            const destY = isTopToBottom ? y : height - 1 - y;
             const destOffset = (destY * width + x) * 4;
 
-            pixels[destOffset + 2] = uint8[srcOffset];     // B
+            pixels[destOffset + 2] = uint8[srcOffset]; // B
             pixels[destOffset + 1] = uint8[srcOffset + 1]; // G
-            pixels[destOffset] = uint8[srcOffset + 2];     // R
+            pixels[destOffset] = uint8[srcOffset + 2]; // R
             pixels[destOffset + 3] = bytesPerPixel === 4 ? uint8[srcOffset + 3] : 255;
 
             srcOffset += bytesPerPixel;
@@ -632,7 +634,7 @@ export class PK3TextureLoader {
    * Load a complete texture set (diffuse + gloss + normal)
    */
   public async loadTextureSet(diffusePath: string): Promise<LoadedTextureSet> {
-    const basePath = diffusePath.replace(/\.[^.]+$/, '');
+    const basePath = diffusePath.replace(/\.[^.]+$/, "");
     const pk3 = PK3Loader.getInstance();
 
     // Find companion textures
@@ -643,7 +645,7 @@ export class PK3TextureLoader {
     let normPath: string | undefined;
 
     // Check common extensions for companions
-    const exts = ['.tga', '.ktx', '.png', '.jpg'];
+    const exts = [".tga", ".ktx", ".png", ".jpg"];
 
     for (const pattern of glossPatterns) {
       for (const e of exts) {
@@ -676,7 +678,7 @@ export class PK3TextureLoader {
       diffuse,
       gloss,
       normal,
-      name: basePath.split('/').pop() || 'unknown',
+      name: basePath.split("/").pop() || "unknown",
     };
   }
 
@@ -714,16 +716,16 @@ export class PK3TextureLoader {
 
   private getExtension(path: string): string {
     const match = path.match(/\.[^.]+$/);
-    return match ? match[0] : '';
+    return match ? match[0] : "";
   }
 
   private getBaseName(path: string): string {
-    return path.split('/').pop() || path;
+    return path.split("/").pop() || path;
   }
 
   private isTextureFile(path: string): boolean {
     const ext = this.getExtension(path).toLowerCase();
-    return ['.ktx', '.tga', '.png', '.jpg', '.jpeg', '.dds'].includes(ext);
+    return [".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"].includes(ext);
   }
 
   /**

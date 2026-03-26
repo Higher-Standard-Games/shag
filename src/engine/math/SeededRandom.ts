@@ -1,17 +1,17 @@
 /**
  * SeededRandom - Deterministic random number generator
- * 
+ *
  * Engine-level utility for reproducible random sequences.
  * Uses Linear Congruential Generator (LCG) algorithm.
  */
 
 export class SeededRandom {
   private seed: number;
-  
+
   constructor(seed: number) {
     this.seed = seed;
   }
-  
+
   /**
    * Get next random number in range [0, 1)
    */
@@ -19,28 +19,28 @@ export class SeededRandom {
     this.seed = (this.seed * 1664525 + 1013904223) % 4294967296;
     return this.seed / 4294967296;
   }
-  
+
   /**
    * Random integer in range [min, max] (inclusive)
    */
   int(min: number, max: number): number {
     return Math.floor(this.next() * (max - min + 1)) + min;
   }
-  
+
   /**
    * Random float in range [min, max]
    */
   float(min: number, max: number): number {
     return this.next() * (max - min) + min;
   }
-  
+
   /**
    * Random boolean with given probability of true
    */
   bool(probability = 0.5): boolean {
     return this.next() < probability;
   }
-  
+
   /**
    * Pick random element from array
    */
@@ -48,7 +48,7 @@ export class SeededRandom {
     if (array.length === 0) return undefined;
     return array[this.int(0, array.length - 1)];
   }
-  
+
   /**
    * Shuffle array in place (Fisher-Yates)
    */
@@ -59,14 +59,14 @@ export class SeededRandom {
     }
     return array;
   }
-  
+
   /**
    * Get current seed (useful for saving state)
    */
   getSeed(): number {
     return this.seed;
   }
-  
+
   /**
    * Reset to a new seed
    */

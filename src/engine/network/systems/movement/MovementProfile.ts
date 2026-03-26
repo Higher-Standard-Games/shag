@@ -1,5 +1,5 @@
-import type { Vec3 } from '../../components/TransformComponent';
-import type { CollisionWorld } from '../collision/CollisionWorld';
+import type { Vec3 } from "../../components/TransformComponent";
+import type { CollisionWorld } from "../collision/CollisionWorld";
 
 /**
  * Movement input for the profile to process
@@ -65,7 +65,7 @@ export interface MovementProfile {
     velocity: Vec3,
     input: MovementInput | null,
     deltaTime: number,
-    collision: CollisionWorld | null
+    collision: CollisionWorld | null,
   ): MovementResult;
 
   /**

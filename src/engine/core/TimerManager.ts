@@ -1,9 +1,9 @@
 /**
  * TimerManager - Unified timer/cooldown system for game processes
- * 
+ *
  * Manages timed events like ability cooldowns, crafting progress,
  * spawn timers, and other duration-based game mechanics.
- * 
+ *
  * @example
  * ```typescript
  * TimerManager.create("cooldown", abilityId, duration, onComplete);
@@ -57,9 +57,9 @@ export class TimerManager {
     id: string,
     duration: number,
     onComplete?: () => void,
-    options: Omit<TimerOptions, "onComplete"> = {}
+    options: Omit<TimerOptions, "onComplete"> = {},
   ): string {
-    const key = this.getKey(category, id);
+    const key = TimerManager.getKey(category, id);
     const gameTimer = GameTimer.getInstance();
 
     const state: TimerState = {
@@ -77,12 +77,12 @@ export class TimerManager {
       state.pausedAt = state.startedAt;
     }
 
-    this.timers.set(key, state);
-    this.callbacks.set(key, { ...options, onComplete });
+    TimerManager.timers.set(key, state);
+    TimerManager.callbacks.set(key, { ...options, onComplete });
 
     // Start update loop if not running
-    if (!this.isRunning) {
-      this.startUpdateLoop();
+    if (!TimerManager.isRunning) {
+      TimerManager.startUpdateLoop();
     }
 
     EventBus.emit("timer:created", { category, id, duration, key });
@@ -108,14 +108,14 @@ export class TimerManager {
    * Get a timer's current state
    */
   public static get(category: string, id: string): TimerState | undefined {
-    return this.timers.get(this.getKey(category, id));
+    return TimerManager.timers.get(TimerManager.getKey(category, id));
   }
 
   /**
    * Get timer by key
    */
   public static getByKey(key: string): TimerState | undefined {
-    return this.timers.get(key);
+    return TimerManager.timers.get(key);
   }
 
   /**
@@ -123,7 +123,7 @@ export class TimerManager {
    */
   public static getByCategory(category: string): TimerState[] {
     const result: TimerState[] = [];
-    for (const [, state] of this.timers) {
+    for (const [, state] of TimerManager.timers) {
       if (state.category === category) {
         result.push(state);
       }
@@ -135,7 +135,7 @@ export class TimerManager {
    * Get progress (0-1) of a timer
    */
   public static getProgress(category: string, id: string): number {
-    const state = this.get(category, id);
+    const state = TimerManager.get(category, id);
     if (!state) return 0;
     return Math.min(1, state.elapsed / state.duration);
   }
@@ -144,7 +144,7 @@ export class TimerManager {
    * Get time remaining in ms
    */
   public static getTimeRemaining(category: string, id: string): number {
-    const state = this.get(category, id);
+    const state = TimerManager.get(category, id);
     if (!state) return 0;
     return Math.max(0, state.duration - state.elapsed);
   }
@@ -153,8 +153,8 @@ export class TimerManager {
    * Pause a timer
    */
   public static pause(category: string, id: string): boolean {
-    const key = this.getKey(category, id);
-    const state = this.timers.get(key);
+    const key = TimerManager.getKey(category, id);
+    const state = TimerManager.timers.get(key);
     if (!state || state.isPaused || state.isComplete) return false;
 
     state.isPaused = true;
@@ -168,8 +168,8 @@ export class TimerManager {
    * Resume a paused timer
    */
   public static resume(category: string, id: string): boolean {
-    const key = this.getKey(category, id);
-    const state = this.timers.get(key);
+    const key = TimerManager.getKey(category, id);
+    const state = TimerManager.timers.get(key);
     if (!state || !state.isPaused || state.isComplete) return false;
 
     state.isPaused = false;
@@ -183,11 +183,11 @@ export class TimerManager {
    * Cancel a timer
    */
   public static cancel(category: string, id: string): boolean {
-    const key = this.getKey(category, id);
-    const state = this.timers.get(key);
+    const key = TimerManager.getKey(category, id);
+    const state = TimerManager.timers.get(key);
     if (!state) return false;
 
-    const callbacks = this.callbacks.get(key);
+    const callbacks = TimerManager.callbacks.get(key);
     if (callbacks?.onCancel) {
       try {
         callbacks.onCancel();
@@ -196,8 +196,8 @@ export class TimerManager {
       }
     }
 
-    this.timers.delete(key);
-    this.callbacks.delete(key);
+    TimerManager.timers.delete(key);
+    TimerManager.callbacks.delete(key);
 
     EventBus.emit("timer:cancelled", { category, id, key });
     return true;
@@ -207,7 +207,7 @@ export class TimerManager {
    * Add time to a timer (extend duration)
    */
   public static addTime(category: string, id: string, additionalMs: number): boolean {
-    const state = this.get(category, id);
+    const state = TimerManager.get(category, id);
     if (!state || state.isComplete) return false;
 
     state.duration += additionalMs;
@@ -219,7 +219,7 @@ export class TimerManager {
    * Reduce time from a timer (speed up)
    */
   public static reduceTime(category: string, id: string, reduceMs: number): boolean {
-    const state = this.get(category, id);
+    const state = TimerManager.get(category, id);
     if (!state || state.isComplete) return false;
 
     state.duration = Math.max(state.elapsed, state.duration - reduceMs);
@@ -231,14 +231,14 @@ export class TimerManager {
    * Complete a timer immediately
    */
   public static complete(category: string, id: string): boolean {
-    const key = this.getKey(category, id);
-    const state = this.timers.get(key);
+    const key = TimerManager.getKey(category, id);
+    const state = TimerManager.timers.get(key);
     if (!state || state.isComplete) return false;
 
     state.elapsed = state.duration;
     state.isComplete = true;
 
-    const callbacks = this.callbacks.get(key);
+    const callbacks = TimerManager.callbacks.get(key);
     if (callbacks?.onComplete) {
       try {
         callbacks.onComplete();
@@ -250,8 +250,8 @@ export class TimerManager {
     EventBus.emit("timer:completed", { category, id, key });
 
     // Clean up
-    this.timers.delete(key);
-    this.callbacks.delete(key);
+    TimerManager.timers.delete(key);
+    TimerManager.callbacks.delete(key);
 
     return true;
   }
@@ -260,28 +260,28 @@ export class TimerManager {
    * Check if a timer exists
    */
   public static exists(category: string, id: string): boolean {
-    return this.timers.has(this.getKey(category, id));
+    return TimerManager.timers.has(TimerManager.getKey(category, id));
   }
 
   /**
    * Check if a timer is paused
    */
   public static isPaused(category: string, id: string): boolean {
-    return this.get(category, id)?.isPaused ?? false;
+    return TimerManager.get(category, id)?.isPaused ?? false;
   }
 
   /**
    * Check if a timer is complete
    */
   public static isComplete(category: string, id: string): boolean {
-    return this.get(category, id)?.isComplete ?? false;
+    return TimerManager.get(category, id)?.isComplete ?? false;
   }
 
   /**
    * Update all timers (called from game loop)
    */
   public static update(deltaMs: number): void {
-    for (const [key, state] of this.timers) {
+    for (const [key, state] of TimerManager.timers) {
       if (state.isPaused || state.isComplete) continue;
 
       state.elapsed += deltaMs;
@@ -289,7 +289,7 @@ export class TimerManager {
       const timeRemaining = Math.max(0, state.duration - state.elapsed);
 
       // Call progress callback
-      const callbacks = this.callbacks.get(key);
+      const callbacks = TimerManager.callbacks.get(key);
       if (callbacks?.onProgress) {
         try {
           callbacks.onProgress(progress, timeRemaining);
@@ -310,29 +310,29 @@ export class TimerManager {
           }
         }
 
-        EventBus.emit("timer:completed", { 
-          category: state.category, 
-          id: state.id, 
+        EventBus.emit("timer:completed", {
+          category: state.category,
+          id: state.id,
           key,
           metadata: state.metadata,
         });
 
         // Clean up completed timer
-        this.timers.delete(key);
-        this.callbacks.delete(key);
+        TimerManager.timers.delete(key);
+        TimerManager.callbacks.delete(key);
       }
     }
   }
 
   private static startUpdateLoop(): void {
-    if (this.isRunning) return;
-    this.isRunning = true;
+    if (TimerManager.isRunning) return;
+    TimerManager.isRunning = true;
 
     const gameTimer = GameTimer.getInstance();
-    gameTimer.scheduleTask(this.updateTaskId, 100, () => {
+    gameTimer.scheduleTask(TimerManager.updateTaskId, 100, () => {
       // Get scaled delta time (100ms real = 100ms * timeScale game time)
       const deltaMs = 100 * gameTimer.getTimeScale();
-      this.update(deltaMs);
+      TimerManager.update(deltaMs);
     });
   }
 
@@ -340,18 +340,18 @@ export class TimerManager {
    * Stop the update loop
    */
   public static stopUpdateLoop(): void {
-    if (!this.isRunning) return;
-    this.isRunning = false;
+    if (!TimerManager.isRunning) return;
+    TimerManager.isRunning = false;
 
     const gameTimer = GameTimer.getInstance();
-    gameTimer.cancelTask(this.updateTaskId);
+    gameTimer.cancelTask(TimerManager.updateTaskId);
   }
 
   /**
    * Get all timer states for saving
    */
   public static getState(): TimerState[] {
-    return Array.from(this.timers.values()).filter(t => t.metadata?.persistent !== false);
+    return Array.from(TimerManager.timers.values()).filter((t) => t.metadata?.persistent !== false);
   }
 
   /**
@@ -359,12 +359,12 @@ export class TimerManager {
    */
   public static loadState(states: TimerState[]): void {
     for (const state of states) {
-      const key = this.getKey(state.category, state.id);
-      this.timers.set(key, state);
+      const key = TimerManager.getKey(state.category, state.id);
+      TimerManager.timers.set(key, state);
     }
 
-    if (states.length > 0 && !this.isRunning) {
-      this.startUpdateLoop();
+    if (states.length > 0 && !TimerManager.isRunning) {
+      TimerManager.startUpdateLoop();
     }
   }
 
@@ -372,9 +372,9 @@ export class TimerManager {
    * Re-attach callbacks to loaded timers
    */
   public static attachCallbacks(category: string, id: string, options: TimerOptions): void {
-    const key = this.getKey(category, id);
-    if (this.timers.has(key)) {
-      this.callbacks.set(key, options);
+    const key = TimerManager.getKey(category, id);
+    if (TimerManager.timers.has(key)) {
+      TimerManager.callbacks.set(key, options);
     }
   }
 
@@ -383,7 +383,7 @@ export class TimerManager {
    */
   public static getActiveCount(): number {
     let count = 0;
-    for (const state of this.timers.values()) {
+    for (const state of TimerManager.timers.values()) {
       if (!state.isPaused && !state.isComplete) {
         count++;
       }
@@ -395,8 +395,8 @@ export class TimerManager {
    * Clear all timers
    */
   public static clear(): void {
-    this.timers.clear();
-    this.callbacks.clear();
-    this.stopUpdateLoop();
+    TimerManager.timers.clear();
+    TimerManager.callbacks.clear();
+    TimerManager.stopUpdateLoop();
   }
 }

@@ -25,8 +25,8 @@
  * - 0x20 = weaponMeta changed (string + 1 byte — for item_ entities)
  */
 
-import { GameState } from '../core/GameState';
-import { Entity } from '../core/Entity';
+import { Entity } from "../core/Entity";
+import { GameState } from "../core/GameState";
 
 // Module-level reusable encoder — avoids 16KB allocation per encode call.
 // getData() copies to a fresh Uint8Array, so previously returned data is safe.
@@ -40,9 +40,13 @@ function getEncoder(): BinaryEncoder {
 // ── Shared component stubs (hoisted to avoid per-entity closure allocations) ──
 // These are referenced by every decoded entity/player. Defining once at module
 // scope eliminates ~600+ function object allocations per second during gameplay.
-function _noopSerialize() { return {}; }
-function _noopDeserialize() { }
-function _shallowClone(this: any) { return { ...this }; }
+function _noopSerialize() {
+  return {};
+}
+function _noopDeserialize() {}
+function _shallowClone(this: any) {
+  return { ...this };
+}
 function _transformClone(this: any) {
   return {
     position: { ...this.position },
@@ -77,13 +81,13 @@ export class BinaryProtocol {
     // Encode ALL entities with delta-compressed components
     // Note: This is "full state with delta content" model - every entity is included,
     // but unchanged component values are omitted. Removals are implicit (missing = removed).
-    this.encodeEntities(encoder, state, baseline);
+    BinaryProtocol.encodeEntities(encoder, state, baseline);
 
     // Encode players with delta
-    this.encodePlayers(encoder, state, baseline);
+    BinaryProtocol.encodePlayers(encoder, state, baseline);
 
     // Encode events (no delta)
-    this.encodeEvents(encoder, state);
+    BinaryProtocol.encodeEvents(encoder, state);
 
     return encoder.getData();
   }
@@ -102,13 +106,13 @@ export class BinaryProtocol {
     state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
 
     // Decode entities
-    this.decodeEntities(decoder, state, baseline);
+    BinaryProtocol.decodeEntities(decoder, state, baseline);
 
     // Decode players
-    this.decodePlayers(decoder, state, baseline);
+    BinaryProtocol.decodePlayers(decoder, state, baseline);
 
     // Decode events
-    this.decodeEvents(decoder, state);
+    BinaryProtocol.decodeEvents(decoder, state);
 
     return state;
   }
@@ -148,7 +152,7 @@ export class BinaryProtocol {
 
     // Binary-decode matching the encode layout above
     const command = {
-      type: 'move' as const,
+      type: "move" as const,
       playerId,
       seq: sequence,
       direction: {
@@ -184,22 +188,28 @@ export class BinaryProtocol {
       let flags = 0;
 
       // Check for transform component (FPS style) or position component (legacy)
-      const transform = entity.getComponent('transform') as any;
-      const pos = transform?.position || entity.getComponent('position') as any;
-      const baselineTransform = baselineEntity?.getComponent('transform') as any;
-      const baselinePos = baselineTransform?.position || baselineEntity?.getComponent('position') as any;
+      const transform = entity.getComponent("transform") as any;
+      const pos = transform?.position || (entity.getComponent("position") as any);
+      const baselineTransform = baselineEntity?.getComponent("transform") as any;
+      const baselinePos = baselineTransform?.position || (baselineEntity?.getComponent("position") as any);
       // Only set flag if pos EXISTS and differs from baseline (or no baseline)
       if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
         flags |= 0x01;
       }
 
-      const vel = entity.getComponent('velocity') as any;
-      const baselineVel = baselineEntity?.getComponent('velocity') as any;
+      const vel = entity.getComponent("velocity") as any;
+      const baselineVel = baselineEntity?.getComponent("velocity") as any;
       // Check velocity.linear for VelocityComponent or direct x/y/z for basic
       const velData = vel?.linear || vel;
       const baselineVelData = baselineVel?.linear || baselineVel;
       // Only set flag if velData EXISTS and differs from baseline (or no baseline)
-      if (velData && (!baselineVelData || velData.x !== baselineVelData.x || velData.y !== baselineVelData.y || velData.z !== baselineVelData.z)) {
+      if (
+        velData &&
+        (!baselineVelData ||
+          velData.x !== baselineVelData.x ||
+          velData.y !== baselineVelData.y ||
+          velData.z !== baselineVelData.z)
+      ) {
         flags |= 0x02;
       }
 
@@ -221,19 +231,24 @@ export class BinaryProtocol {
       // Always send movement state (crouch/slide/walljump) — no delta compression.
       // Only 1 byte per entity. Delta compression here is fragile because
       // server/client baseline ACK mismatches can cause flags to get "stuck".
-      const movState = entity.getComponent('movementState') as any;
+      const movState = entity.getComponent("movementState") as any;
       const isCrouching = movState?.isCrouching ?? false;
       const isSliding = movState?.isSliding ?? false;
-      const wallJumpState = movState?.wallJumpState ?? 'none';
-      const isWallJumping = wallJumpState === 'charging';
+      const wallJumpState = movState?.wallJumpState ?? "none";
+      const isWallJumping = wallJumpState === "charging";
       if (movState) {
         flags |= 0x10;
       }
 
       // Check weaponMeta (item_ entities carry weaponId for model spawning)
-      const weaponMeta = entity.getComponent('weaponMeta') as any;
-      const baselineWeaponMeta = baselineEntity?.getComponent('weaponMeta') as any;
-      if (weaponMeta?.weaponId && (!baselineWeaponMeta || weaponMeta.weaponId !== baselineWeaponMeta.weaponId || weaponMeta.settled !== baselineWeaponMeta.settled)) {
+      const weaponMeta = entity.getComponent("weaponMeta") as any;
+      const baselineWeaponMeta = baselineEntity?.getComponent("weaponMeta") as any;
+      if (
+        weaponMeta?.weaponId &&
+        (!baselineWeaponMeta ||
+          weaponMeta.weaponId !== baselineWeaponMeta.weaponId ||
+          weaponMeta.settled !== baselineWeaponMeta.settled)
+      ) {
         flags |= 0x20;
       }
 
@@ -308,17 +323,19 @@ export class BinaryProtocol {
 
         // Legacy position component
         const pos = {
-          x, y, z,
+          x,
+          y,
+          z,
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,
           clone: _shallowClone,
         };
-        entity.addComponent('position', pos);
+        entity.addComponent("position", pos);
 
         // Preserve existing rotation if transform already exists (rotation may arrive independently)
         // Fall back to baseline rotation if entity was just created fresh
-        const existingTransform = entity.getComponent('transform') as any;
-        const baselineTransform = baselineEntity?.getComponent('transform') as any;
+        const existingTransform = entity.getComponent("transform") as any;
+        const baselineTransform = baselineEntity?.getComponent("transform") as any;
         const existingRot = existingTransform?.rotation || baselineTransform?.rotation || { x: 0, y: 0, z: 0, w: 1 };
 
         // TransformComponent-style for Game compatibility
@@ -329,27 +346,29 @@ export class BinaryProtocol {
           deserialize: _noopDeserialize,
           clone: _transformClone,
         };
-        entity.addComponent('transform', transform);
+        entity.addComponent("transform", transform);
       } else if (baselineEntity) {
-        const baselinePos = baselineEntity.getComponent('position');
+        const baselinePos = baselineEntity.getComponent("position");
         if (baselinePos) {
-          entity.addComponent('position', baselinePos);
+          entity.addComponent("position", baselinePos);
         }
-        const baselineTransform = baselineEntity.getComponent('transform');
+        const baselineTransform = baselineEntity.getComponent("transform");
         if (baselineTransform) {
-          entity.addComponent('transform', baselineTransform);
+          entity.addComponent("transform", baselineTransform);
         }
       }
 
       // Decode velocity (flag 0x02) and grounded (flag 0x04)
       // These are related - grounded affects whether player can jump
-      let velX = 0, velY = 0, velZ = 0;
+      let velX = 0,
+        velY = 0,
+        velZ = 0;
       let grounded = false;
       let hasVelocityData = false;
 
       // Always preserve baseline grounded (overridden below if flag 0x04 is set)
       if (baselineEntity) {
-        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        const baselineVel = baselineEntity.getComponent("velocity") as any;
         if (baselineVel) {
           grounded = baselineVel.grounded ?? false;
         }
@@ -363,7 +382,7 @@ export class BinaryProtocol {
         hasVelocityData = true;
       } else if (baselineEntity) {
         // Velocity unchanged - use baseline
-        const baselineVel = baselineEntity.getComponent('velocity') as any;
+        const baselineVel = baselineEntity.getComponent("velocity") as any;
         if (baselineVel?.linear) {
           velX = baselineVel.linear.x;
           velY = baselineVel.linear.y;
@@ -384,7 +403,7 @@ export class BinaryProtocol {
         const rotX = decoder.readFloat32(); // pitch
 
         // Update transform rotation (create transform if it doesn't exist)
-        let transform = entity.getComponent('transform') as any;
+        let transform = entity.getComponent("transform") as any;
         if (transform) {
           transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
         } else {
@@ -396,7 +415,7 @@ export class BinaryProtocol {
             deserialize: _noopDeserialize,
             clone: _transformClone,
           };
-          entity.addComponent('transform', transform);
+          entity.addComponent("transform", transform);
         }
       }
 
@@ -411,16 +430,18 @@ export class BinaryProtocol {
         isWallJumping = (movFlags & 4) !== 0;
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineMovState = baselineEntity.getComponent('movementState') as any;
+        const baselineMovState = baselineEntity.getComponent("movementState") as any;
         isCrouching = baselineMovState?.isCrouching ?? false;
         isSliding = baselineMovState?.isSliding ?? false;
-        isWallJumping = (baselineMovState?.wallJumpState === 'charging');
+        isWallJumping = baselineMovState?.wallJumpState === "charging";
       }
 
       // Create velocity component if we have data
-      if (hasVelocityData || (flags & 0x04) || (flags & 0x10)) {
+      if (hasVelocityData || flags & 0x04 || flags & 0x10) {
         const vel = {
-          x: velX, y: velY, z: velZ, // Legacy direct access
+          x: velX,
+          y: velY,
+          z: velZ, // Legacy direct access
           linear: { x: velX, y: velY, z: velZ }, // Game expects velocity.linear
           angular: { x: 0, y: 0, z: 0 },
           grounded, // Now properly transmitted!
@@ -430,15 +451,15 @@ export class BinaryProtocol {
           deserialize: _noopDeserialize,
           clone: _velocityClone,
         };
-        entity.addComponent('velocity', vel);
+        entity.addComponent("velocity", vel);
 
         // Also create a movementState component so RemotePlayerRenderer.pushSnapshot()
         // can find isCrouching/isSliding via entity.getComponent('movementState').
         // The encoder reads from 'movementState' on the server, so we reconstruct it here.
-        entity.addComponent('movementState', {
+        entity.addComponent("movementState", {
           isCrouching,
           isSliding,
-          wallJumpState: isWallJumping ? 'charging' : 'none',
+          wallJumpState: isWallJumping ? "charging" : "none",
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,
           clone: _shallowClone,
@@ -449,7 +470,7 @@ export class BinaryProtocol {
       if (flags & 0x20) {
         const weaponId = decoder.readString();
         const settled = decoder.readUint8() !== 0;
-        entity.addComponent('weaponMeta', {
+        entity.addComponent("weaponMeta", {
           weaponId,
           settled,
           serialize: _noopSerialize,
@@ -458,9 +479,9 @@ export class BinaryProtocol {
         });
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineMeta = baselineEntity.getComponent('weaponMeta');
+        const baselineMeta = baselineEntity.getComponent("weaponMeta");
         if (baselineMeta) {
-          entity.addComponent('weaponMeta', baselineMeta);
+          entity.addComponent("weaponMeta", baselineMeta);
         }
       }
     }
@@ -506,9 +527,9 @@ export class BinaryProtocol {
       let player = state.players.get(playerId);
       if (!player) {
         const newPlayer = {
-          entityId: '',
-          name: '',
-          team: '',
+          entityId: "",
+          name: "",
+          team: "",
           score: 0,
           deaths: 0,
           ping: 0,
@@ -558,24 +579,41 @@ export class BinaryProtocol {
   // ── Event type codes for binary encoding ──
   // All event types are known — no JSON fallback needed.
   private static readonly EVT_TYPE_MAP: Record<string, number> = {
-    'combat_state': 1, 'match_state': 2, 'weapon_state': 3,
-    'weapon_fire': 4, 'weapon_charge': 5, 'projectile_spawn': 6,
-    'projectile_impact': 7, 'item_pickup': 8, 'weapon_drop': 9,
-    'damage': 10, 'death': 11, 'award': 12,
+    combat_state: 1,
+    match_state: 2,
+    weapon_state: 3,
+    weapon_fire: 4,
+    weapon_charge: 5,
+    projectile_spawn: 6,
+    projectile_impact: 7,
+    item_pickup: 8,
+    weapon_drop: 9,
+    damage: 10,
+    death: 11,
+    award: 12,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
-    '', 'combat_state', 'match_state', 'weapon_state',
-    'weapon_fire', 'weapon_charge', 'projectile_spawn',
-    'projectile_impact', 'item_pickup', 'weapon_drop',
-    'damage', 'death', 'award',
+    "",
+    "combat_state",
+    "match_state",
+    "weapon_state",
+    "weapon_fire",
+    "weapon_charge",
+    "projectile_spawn",
+    "projectile_impact",
+    "item_pickup",
+    "weapon_drop",
+    "damage",
+    "death",
+    "award",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
     encoder.writeUint16(state.events.length);
 
     for (const event of state.events) {
-      const typeCode = this.EVT_TYPE_MAP[event.type];
+      const typeCode = BinaryProtocol.EVT_TYPE_MAP[event.type];
       encoder.writeUint8(typeCode);
 
       switch (typeCode) {
@@ -592,7 +630,7 @@ export class BinaryProtocol {
 
         case 3: // weapon_state: entityId, currentWeapon, weapons[], ammo{}, reloading, lastFireTick
           encoder.writeString(event.entityId);
-          encoder.writeString(event.currentWeapon ?? '');
+          encoder.writeString(event.currentWeapon ?? "");
           // weapons array as JSON (variable-length array of strings)
           encoder.writeString(JSON.stringify(event.weapons ?? []));
           // ammo as JSON (variable-length object)
@@ -603,7 +641,7 @@ export class BinaryProtocol {
 
         case 4: // weapon_fire: entityId, weaponId, origin xyz, dir xyz
           encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.weaponId ?? "");
           encoder.writeFloat32(event.originX ?? 0);
           encoder.writeFloat32(event.originY ?? 0);
           encoder.writeFloat32(event.originZ ?? 0);
@@ -614,17 +652,17 @@ export class BinaryProtocol {
 
         case 5: // weapon_charge: entityId, weaponId, charging
           encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.weaponId ?? "");
           encoder.writeUint8(event.charging ? 1 : 0);
           break;
 
         case 6: // projectile_spawn: entityId, defId
           encoder.writeString(event.entityId);
-          encoder.writeString(event.defId ?? '');
+          encoder.writeString(event.defId ?? "");
           break;
 
         case 7: // projectile_impact: defId, xyz, normal xyz
-          encoder.writeString(event.defId ?? '');
+          encoder.writeString(event.defId ?? "");
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
@@ -634,10 +672,10 @@ export class BinaryProtocol {
           break;
 
         case 8: // item_pickup: pickupId, weaponId, entityId, droppedWeaponId, xyz
-          encoder.writeInt16(typeof event.pickupId === 'number' ? event.pickupId : -1);
-          encoder.writeString(event.weaponId ?? '');
-          encoder.writeString(event.entityId ?? '');
-          encoder.writeString(event.droppedWeaponId ?? '');
+          encoder.writeInt16(typeof event.pickupId === "number" ? event.pickupId : -1);
+          encoder.writeString(event.weaponId ?? "");
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeString(event.droppedWeaponId ?? "");
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
@@ -645,7 +683,7 @@ export class BinaryProtocol {
 
         case 9: // weapon_drop: entityId, weaponId, xyz, vel xyz
           encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.weaponId ?? "");
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
@@ -656,9 +694,9 @@ export class BinaryProtocol {
 
         case 10: // damage: entityId, attackerId, damage, weaponId, xyz
           encoder.writeString(event.entityId);
-          encoder.writeString(event.attackerId ?? '');
+          encoder.writeString(event.attackerId ?? "");
           encoder.writeUint16(event.damage ?? 0);
-          encoder.writeString(event.weaponId ?? '');
+          encoder.writeString(event.weaponId ?? "");
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
           encoder.writeFloat32(event.z ?? 0);
@@ -666,9 +704,9 @@ export class BinaryProtocol {
 
         case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
           encoder.writeString(event.entityId);
-          encoder.writeString(event.killerId ?? '');
-          encoder.writeString(event.weaponId ?? '');
-          encoder.writeString(event.damageType ?? '');
+          encoder.writeString(event.killerId ?? "");
+          encoder.writeString(event.weaponId ?? "");
+          encoder.writeString(event.damageType ?? "");
           encoder.writeUint16(event.finalDamage ?? 0);
           encoder.writeFloat32(event.x ?? 0);
           encoder.writeFloat32(event.y ?? 0);
@@ -682,10 +720,10 @@ export class BinaryProtocol {
           break;
 
         case 12: // award: awardType, playerId, playerName, targetName, value
-          encoder.writeString(event.awardType ?? '');
-          encoder.writeString(event.playerId ?? '');
-          encoder.writeString(event.playerName ?? '');
-          encoder.writeString(event.targetName ?? '');
+          encoder.writeString(event.awardType ?? "");
+          encoder.writeString(event.playerId ?? "");
+          encoder.writeString(event.playerName ?? "");
+          encoder.writeString(event.targetName ?? "");
           encoder.writeUint16(event.value ?? 0);
           break;
       }
@@ -697,7 +735,7 @@ export class BinaryProtocol {
 
     for (let i = 0; i < eventCount; i++) {
       const typeCode = decoder.readUint8();
-      const type = this.EVT_NAME_MAP[typeCode];
+      const type = BinaryProtocol.EVT_NAME_MAP[typeCode];
 
       switch (typeCode) {
         case 1: // combat_state
@@ -860,7 +898,7 @@ export enum MessageType {
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
-  Pong = 0x0A,
+  Pong = 0x0a,
 
   // Client → Server
   Join = 0x81,
@@ -868,8 +906,8 @@ export enum MessageType {
   Input = 0x83,
   Disconnect = 0x84,
   Ping = 0x85,
-  JoinGame = 0x86,    // Spectator → Player: request to join the game
-  Spectate = 0x87,    // Player → Spectator: request to leave game and spectate
+  JoinGame = 0x86, // Spectator → Player: request to join the game
+  Spectate = 0x87, // Player → Spectator: request to leave game and spectate
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
 }
 
@@ -1005,7 +1043,9 @@ export class BinaryDecoder {
 
   private checkBounds(bytes: number): void {
     if (this.offset + bytes > this.data.length) {
-      throw new Error(`BinaryDecoder: Buffer underflow at offset ${this.offset}, need ${bytes} bytes, have ${this.data.length - this.offset}`);
+      throw new Error(
+        `BinaryDecoder: Buffer underflow at offset ${this.offset}, need ${bytes} bytes, have ${this.data.length - this.offset}`,
+      );
     }
   }
 

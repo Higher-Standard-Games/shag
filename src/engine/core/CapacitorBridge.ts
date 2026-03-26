@@ -1,6 +1,6 @@
 /**
  * CapacitorBridge - Bridge between web app and native Capacitor functionality
- * 
+ *
  * Handles:
  * - Platform detection (web vs native)
  * - App lifecycle (pause/resume)
@@ -9,13 +9,13 @@
  * - Safe area insets
  */
 
-import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
-import { StatusBar } from '@capacitor/status-bar';
-import { SplashScreen } from '@capacitor/splash-screen';
-import { EventBus } from './EventBus';
-import { UIStyles } from '../ui/UIStyles';
-import mobileCSS from '../ui/styles/mobile.css?raw';
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
+import { StatusBar } from "@capacitor/status-bar";
+import mobileCSS from "../ui/styles/mobile.css?raw";
+import { UIStyles } from "../ui/UIStyles";
+import { EventBus } from "./EventBus";
 
 export interface SafeAreaInsets {
   top: number;
@@ -48,8 +48,8 @@ export class CapacitorBridge {
   /**
    * Get the current platform
    */
-  public static getPlatform(): 'android' | 'ios' | 'web' {
-    return Capacitor.getPlatform() as 'android' | 'ios' | 'web';
+  public static getPlatform(): "android" | "ios" | "web" {
+    return Capacitor.getPlatform() as "android" | "ios" | "web";
   }
 
   /**
@@ -61,19 +61,19 @@ export class CapacitorBridge {
 
     const platform = CapacitorBridge.getPlatform();
     const isNative = CapacitorBridge.isNative();
-    
+
     console.log(`[CapacitorBridge] Platform: ${platform}, Native: ${isNative}`);
 
     // Add platform classes to body for CSS targeting
     this.addPlatformClasses();
-    
+
     // Load mobile CSS overrides if on touch device or native
     if (this.isTouchDevice() || isNative) {
       this.loadMobileCSS();
     }
 
     if (!isNative) {
-      console.log('[CapacitorBridge] Running in web mode - skipping native setup');
+      console.log("[CapacitorBridge] Running in web mode - skipping native setup");
       return;
     }
 
@@ -81,12 +81,12 @@ export class CapacitorBridge {
       await this.setupStatusBar();
       this.setupAppListeners();
       this.detectSafeAreaInsets();
-      console.log('[CapacitorBridge] Native initialization complete');
+      console.log("[CapacitorBridge] Native initialization complete");
     } catch (error) {
-      console.error('[CapacitorBridge] Initialization error:', error);
+      console.error("[CapacitorBridge] Initialization error:", error);
     }
   }
-  
+
   /**
    * Add platform-specific classes to body for CSS targeting
    * Classes added:
@@ -97,52 +97,44 @@ export class CapacitorBridge {
   private addPlatformClasses(): void {
     const body = document.body;
     const platform = CapacitorBridge.getPlatform();
-    
+
     // Platform-specific class
     body.classList.add(`capacitor-${platform}`);
-    
+
     // Native vs web
     if (CapacitorBridge.isNative()) {
-      body.classList.add('capacitor-native');
+      body.classList.add("capacitor-native");
     }
-    
+
     // Touch device detection (works for mobile web too)
     if (this.isTouchDevice()) {
-      body.classList.add('touch-device');
+      body.classList.add("touch-device");
     }
-    
+
     console.log(`[CapacitorBridge] Body classes: ${body.className}`);
   }
-  
+
   /**
    * Detect if device primarily uses touch input
    */
   private isTouchDevice(): boolean {
-    return (
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches
-    );
+    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
   }
-  
+
   /**
    * Check if running on a touch device (static helper)
    */
   public static isTouchDevice(): boolean {
-    return (
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches
-    );
+    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
   }
-  
+
   /**
    * Load mobile CSS overrides via UIStyles system
    * This ensures mobile styles are always applied LAST (highest priority)
    */
   private loadMobileCSS(): void {
     UIStyles.setMobileCSS(mobileCSS);
-    console.log('[CapacitorBridge] Mobile CSS overrides loaded');
+    console.log("[CapacitorBridge] Mobile CSS overrides loaded");
   }
 
   /**
@@ -153,9 +145,9 @@ export class CapacitorBridge {
 
     try {
       await SplashScreen.hide({ fadeOutDuration: 300 });
-      console.log('[CapacitorBridge] Splash screen hidden');
+      console.log("[CapacitorBridge] Splash screen hidden");
     } catch (error) {
-      console.error('[CapacitorBridge] Failed to hide splash screen:', error);
+      console.error("[CapacitorBridge] Failed to hide splash screen:", error);
     }
   }
 
@@ -166,9 +158,9 @@ export class CapacitorBridge {
     try {
       // Hide status bar for immersive fullscreen mode
       await StatusBar.hide();
-      console.log('[CapacitorBridge] Status bar hidden for immersive mode');
+      console.log("[CapacitorBridge] Status bar hidden for immersive mode");
     } catch (error) {
-      console.error('[CapacitorBridge] Status bar setup error:', error);
+      console.error("[CapacitorBridge] Status bar setup error:", error);
     }
   }
 
@@ -177,24 +169,24 @@ export class CapacitorBridge {
    */
   private setupAppListeners(): void {
     // Handle Android back button
-    App.addListener('backButton', ({ canGoBack }) => {
-      console.log('[CapacitorBridge] Back button pressed, canGoBack:', canGoBack);
-      EventBus.emit('app:back_button', { canGoBack });
+    App.addListener("backButton", ({ canGoBack }) => {
+      console.log("[CapacitorBridge] Back button pressed, canGoBack:", canGoBack);
+      EventBus.emit("app:back_button", { canGoBack });
     });
 
     // Handle app state changes (foreground/background)
-    App.addListener('appStateChange', ({ isActive }) => {
-      console.log('[CapacitorBridge] App state changed, isActive:', isActive);
-      EventBus.emit('app:state_change', { isActive });
+    App.addListener("appStateChange", ({ isActive }) => {
+      console.log("[CapacitorBridge] App state changed, isActive:", isActive);
+      EventBus.emit("app:state_change", { isActive });
     });
 
     // Handle app URL open (deep links)
-    App.addListener('appUrlOpen', (data) => {
-      console.log('[CapacitorBridge] App URL opened:', data.url);
-      EventBus.emit('app:url_open', { url: data.url });
+    App.addListener("appUrlOpen", (data) => {
+      console.log("[CapacitorBridge] App URL opened:", data.url);
+      EventBus.emit("app:url_open", { url: data.url });
     });
 
-    console.log('[CapacitorBridge] App listeners registered');
+    console.log("[CapacitorBridge] App listeners registered");
   }
 
   /**
@@ -203,21 +195,21 @@ export class CapacitorBridge {
   private detectSafeAreaInsets(): void {
     // These are set by the WebView based on device notch/cutout
     const computedStyle = getComputedStyle(document.documentElement);
-    
+
     this.safeAreaInsets = {
-      top: parseInt(computedStyle.getPropertyValue('--sat') || '0', 10),
-      bottom: parseInt(computedStyle.getPropertyValue('--sab') || '0', 10),
-      left: parseInt(computedStyle.getPropertyValue('--sal') || '0', 10),
-      right: parseInt(computedStyle.getPropertyValue('--sar') || '0', 10),
+      top: parseInt(computedStyle.getPropertyValue("--sat") || "0", 10),
+      bottom: parseInt(computedStyle.getPropertyValue("--sab") || "0", 10),
+      left: parseInt(computedStyle.getPropertyValue("--sal") || "0", 10),
+      right: parseInt(computedStyle.getPropertyValue("--sar") || "0", 10),
     };
 
     // Also set CSS custom properties for use in stylesheets
-    document.documentElement.style.setProperty('--safe-area-top', `env(safe-area-inset-top, 0px)`);
-    document.documentElement.style.setProperty('--safe-area-bottom', `env(safe-area-inset-bottom, 0px)`);
-    document.documentElement.style.setProperty('--safe-area-left', `env(safe-area-inset-left, 0px)`);
-    document.documentElement.style.setProperty('--safe-area-right', `env(safe-area-inset-right, 0px)`);
+    document.documentElement.style.setProperty("--safe-area-top", `env(safe-area-inset-top, 0px)`);
+    document.documentElement.style.setProperty("--safe-area-bottom", `env(safe-area-inset-bottom, 0px)`);
+    document.documentElement.style.setProperty("--safe-area-left", `env(safe-area-inset-left, 0px)`);
+    document.documentElement.style.setProperty("--safe-area-right", `env(safe-area-inset-right, 0px)`);
 
-    console.log('[CapacitorBridge] Safe area insets:', this.safeAreaInsets);
+    console.log("[CapacitorBridge] Safe area insets:", this.safeAreaInsets);
   }
 
   /**
@@ -231,7 +223,7 @@ export class CapacitorBridge {
    * Exit the app (Android only)
    */
   public async exitApp(): Promise<void> {
-    if (CapacitorBridge.getPlatform() === 'android') {
+    if (CapacitorBridge.getPlatform() === "android") {
       await App.exitApp();
     }
   }
@@ -246,7 +238,7 @@ export class CapacitorBridge {
       const info = await App.getInfo();
       return info;
     } catch (error) {
-      console.error('[CapacitorBridge] Failed to get app info:', error);
+      console.error("[CapacitorBridge] Failed to get app info:", error);
       return null;
     }
   }

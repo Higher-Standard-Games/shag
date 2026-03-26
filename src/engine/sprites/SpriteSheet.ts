@@ -1,7 +1,7 @@
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Scene } from "@babylonjs/core/scene";
 
 /**
  * Configuration for a sprite sheet
@@ -32,11 +32,11 @@ export interface SpriteSheetConfig {
  * Ordered by angle from camera's perspective
  */
 export enum SpriteDirection {
-  SOUTH = 0,      // Facing camera
+  SOUTH = 0, // Facing camera
   SOUTH_WEST = 1,
   WEST = 2,
   NORTH_WEST = 3,
-  NORTH = 4,      // Facing away
+  NORTH = 4, // Facing away
   NORTH_EAST = 5,
   EAST = 6,
   SOUTH_EAST = 7,
@@ -44,7 +44,7 @@ export enum SpriteDirection {
 
 /**
  * SpriteSheet handles loading and UV calculation for animated sprite sheets.
- * 
+ *
  * Expected sprite sheet layout (8-direction example):
  * - Rows: Each row is a direction (S, SW, W, NW, N, NE, E, SE)
  * - Columns: Animation frames for that direction
@@ -116,16 +116,20 @@ export class SpriteSheet {
     // UV coordinates for a quad (2 triangles, 4 vertices)
     // Order: bottom-left, bottom-right, top-right, top-left
     return [
-      uMin, vMin,  // bottom-left
-      uMax, vMin,  // bottom-right
-      uMax, vMax,  // top-right
-      uMin, vMax,  // top-left
+      uMin,
+      vMin, // bottom-left
+      uMax,
+      vMin, // bottom-right
+      uMax,
+      vMax, // top-right
+      uMin,
+      vMax, // top-left
     ];
   }
 
   /**
    * Calculate which direction sprite to show based on entity facing and camera angle
-   * 
+   *
    * @param entityAngle - The angle the entity is facing (radians, 0 = +Z)
    * @param cameraAngle - The angle from entity to camera (radians)
    * @returns The sprite direction index to use
@@ -133,7 +137,7 @@ export class SpriteSheet {
   public static calculateDirection(entityAngle: number, cameraAngle: number): SpriteDirection {
     // Calculate relative angle (how the entity faces relative to camera view)
     let relativeAngle = entityAngle - cameraAngle;
-    
+
     // Normalize to 0-2PI
     while (relativeAngle < 0) relativeAngle += Math.PI * 2;
     while (relativeAngle >= Math.PI * 2) relativeAngle -= Math.PI * 2;
@@ -143,13 +147,13 @@ export class SpriteSheet {
 
     // Map sector to our direction enum
     const directionMap: SpriteDirection[] = [
-      SpriteDirection.SOUTH,      // 0: facing camera
+      SpriteDirection.SOUTH, // 0: facing camera
       SpriteDirection.SOUTH_WEST, // 1
-      SpriteDirection.WEST,       // 2
+      SpriteDirection.WEST, // 2
       SpriteDirection.NORTH_WEST, // 3
-      SpriteDirection.NORTH,      // 4: facing away
+      SpriteDirection.NORTH, // 4: facing away
       SpriteDirection.NORTH_EAST, // 5
-      SpriteDirection.EAST,       // 6
+      SpriteDirection.EAST, // 6
       SpriteDirection.SOUTH_EAST, // 7
     ];
 

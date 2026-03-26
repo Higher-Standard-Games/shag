@@ -23,7 +23,7 @@
  * Loading types - extensible for different scenarios
  * 'generic' is provided for game-specific operations that don't fit other categories
  */
-export type LoadingType = 'map' | 'assets' | 'save' | 'network' | 'generic' | string;
+export type LoadingType = "map" | "assets" | "save" | "network" | "generic" | string;
 
 /**
  * Emitted when a loading operation begins
@@ -74,7 +74,7 @@ export interface LoadingCompleteEvent {
  * Event name constants for type safety
  */
 export const LOADING_EVENTS = {
-  START: 'loading:start',
-  PROGRESS: 'loading:progress',
-  COMPLETE: 'loading:complete',
+  START: "loading:start",
+  PROGRESS: "loading:progress",
+  COMPLETE: "loading:complete",
 } as const;

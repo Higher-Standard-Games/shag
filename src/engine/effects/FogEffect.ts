@@ -1,32 +1,32 @@
 /**
  * FogEffect - Atmospheric fog system
- * 
+ *
  * Creates fog using Babylon.js built-in fog modes:
  * - Linear fog (distance-based)
  * - Exponential fog (density-based)
- * 
+ *
  * Can be combined with other weather effects.
  */
 
-import { Scene } from "@babylonjs/core/scene";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Scene } from "@babylonjs/core/scene";
 
-export type FogMode = 'none' | 'linear' | 'exp' | 'exp2';
+export type FogMode = "none" | "linear" | "exp" | "exp2";
 
 export interface FogSettings {
-  mode: FogMode;           // Fog calculation mode
-  density: number;         // For exponential fog (0-1)
-  start: number;           // For linear fog - where fog starts
-  end: number;             // For linear fog - where fog is fully opaque
+  mode: FogMode; // Fog calculation mode
+  density: number; // For exponential fog (0-1)
+  start: number; // For linear fog - where fog starts
+  end: number; // For linear fog - where fog is fully opaque
   color: { r: number; g: number; b: number }; // Fog color
 }
 
 const DEFAULT_FOG_SETTINGS: FogSettings = {
-  mode: 'exp',
+  mode: "exp",
   density: 0.01,
   start: 50,
   end: 300,
-  color: { r: 0.8, g: 0.85, b: 0.9 },  // Light gray-blue
+  color: { r: 0.8, g: 0.85, b: 0.9 }, // Light gray-blue
 };
 
 export class FogEffect {
@@ -104,16 +104,16 @@ export class FogEffect {
 
     // Set fog mode
     switch (s.mode) {
-      case 'none':
+      case "none":
         this.scene.fogMode = Scene.FOGMODE_NONE;
         break;
-      case 'linear':
+      case "linear":
         this.scene.fogMode = Scene.FOGMODE_LINEAR;
         break;
-      case 'exp':
+      case "exp":
         this.scene.fogMode = Scene.FOGMODE_EXP;
         break;
-      case 'exp2':
+      case "exp2":
         this.scene.fogMode = Scene.FOGMODE_EXP2;
         break;
     }
@@ -151,7 +151,7 @@ export class FogEffect {
    */
   public lightMist(): void {
     this.start({
-      mode: 'exp',
+      mode: "exp",
       density: 0.005,
       color: { r: 0.9, g: 0.92, b: 0.95 },
     });
@@ -162,7 +162,7 @@ export class FogEffect {
    */
   public heavyFog(): void {
     this.start({
-      mode: 'exp2',
+      mode: "exp2",
       density: 0.02,
       color: { r: 0.7, g: 0.75, b: 0.8 },
     });
@@ -173,7 +173,7 @@ export class FogEffect {
    */
   public morningFog(): void {
     this.start({
-      mode: 'exp',
+      mode: "exp",
       density: 0.008,
       color: { r: 0.95, g: 0.9, b: 0.85 },
     });
@@ -184,7 +184,7 @@ export class FogEffect {
    */
   public spookyFog(): void {
     this.start({
-      mode: 'exp2',
+      mode: "exp2",
       density: 0.025,
       color: { r: 0.3, g: 0.35, b: 0.4 },
     });

@@ -9,41 +9,41 @@
  *   netsim input <buttons>   - Send input command
  */
 
-import { Command, CommandDef } from '../Command';
-import { FPSSimulation, FPSInputCommand } from '../../../games/fps/simulation/FPSSimulation';
-import { TransformComponent } from '../../network/components/TransformComponent';
-import { VelocityComponent } from '../../network/components/VelocityComponent';
-import { InputButtons } from '../../network/components/InputComponent';
-import { Game } from '../../../games/fps/Game';
+import { Game } from "../../../games/fps/Game";
+import { type FPSInputCommand, FPSSimulation } from "../../../games/fps/simulation/FPSSimulation";
+import { InputButtons } from "../../network/components/InputComponent";
+import type { TransformComponent } from "../../network/components/TransformComponent";
+import type { VelocityComponent } from "../../network/components/VelocityComponent";
+import { Command, type CommandDef } from "../Command";
 
 export default class NetTestCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'netsim',
-    description: 'Network simulation testing commands',
-    usage: 'netsim <test|spawn|tick|state|input>',
+    name: "netsim",
+    description: "Network simulation testing commands",
+    usage: "netsim <test|spawn|tick|state|input>",
   };
 
   private simulation: FPSSimulation | null = null;
-  private testPlayerId = 'test-player';
+  private testPlayerId = "test-player";
   private inputSeq = 0;
 
   async execute(args: string[]): Promise<string | void> {
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
-      case 'test':
+      case "test":
         return this.runTest();
-      case 'spawn':
+      case "spawn":
         return this.spawnPlayer();
-      case 'tick':
+      case "tick":
         return this.runTicks(parseInt(args[1]) || 1);
-      case 'state':
+      case "state":
         return this.showState();
-      case 'input':
+      case "input":
         return this.sendInput(args.slice(1));
-      case 'move':
+      case "move":
         return this.testMovement(args.slice(1));
-      case 'gamehost':
+      case "gamehost":
         return this.testGameHost();
       default:
         return this.showHelp();
@@ -62,7 +62,7 @@ export default class NetTestCommand extends Command {
   }
 
   private runTest(): string {
-    const lines: string[] = ['=== Network Simulation Test ==='];
+    const lines: string[] = ["=== Network Simulation Test ==="];
 
     // Create simulation
     this.simulation = new FPSSimulation({
@@ -72,21 +72,23 @@ export default class NetTestCommand extends Command {
       gameRules: {},
     });
 
-    lines.push('Created FPSSimulation');
+    lines.push("Created FPSSimulation");
 
     // Spawn a player
     const entity = this.simulation.spawnPlayer(this.testPlayerId);
     lines.push(`Spawned player: ${entity.id}`);
 
     // Get initial position
-    const transform = entity.getComponent<TransformComponent>('transform');
+    const transform = entity.getComponent<TransformComponent>("transform");
     if (transform) {
-      lines.push(`Initial position: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`);
+      lines.push(
+        `Initial position: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`,
+      );
     }
 
     // Send forward movement command
     const cmd: FPSInputCommand = {
-      type: 'fps_input',
+      type: "fps_input",
       playerId: this.testPlayerId,
       tick: 0,
       seq: this.inputSeq++,
@@ -105,20 +107,24 @@ export default class NetTestCommand extends Command {
 
     // Check final position
     if (transform) {
-      lines.push(`After 20 ticks: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`);
+      lines.push(
+        `After 20 ticks: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`,
+      );
     }
 
     // Get velocity
-    const velocity = entity.getComponent<VelocityComponent>('velocity');
+    const velocity = entity.getComponent<VelocityComponent>("velocity");
     if (velocity) {
-      lines.push(`Velocity: (${velocity.linear.x.toFixed(2)}, ${velocity.linear.y.toFixed(2)}, ${velocity.linear.z.toFixed(2)})`);
+      lines.push(
+        `Velocity: (${velocity.linear.x.toFixed(2)}, ${velocity.linear.y.toFixed(2)}, ${velocity.linear.z.toFixed(2)})`,
+      );
       lines.push(`Grounded: ${velocity.grounded}`);
     }
 
-    lines.push('');
-    lines.push('Test passed! State is flowing through simulation.');
+    lines.push("");
+    lines.push("Test passed! State is flowing through simulation.");
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private spawnPlayer(): string {
@@ -132,7 +138,7 @@ export default class NetTestCommand extends Command {
     }
 
     const entity = this.simulation.spawnPlayer(this.testPlayerId);
-    const transform = entity.getComponent<TransformComponent>('transform');
+    const transform = entity.getComponent<TransformComponent>("transform");
 
     return `Spawned player ${this.testPlayerId} -> entity ${entity.id} at (${transform?.position.x.toFixed(2)}, ${transform?.position.y.toFixed(2)}, ${transform?.position.z.toFixed(2)})`;
   }
@@ -166,21 +172,27 @@ export default class NetTestCommand extends Command {
 
       const entity = state.entities.get(player.entityId);
       if (entity) {
-        const transform = entity.getComponent<TransformComponent>('transform');
-        const velocity = entity.getComponent<VelocityComponent>('velocity');
+        const transform = entity.getComponent<TransformComponent>("transform");
+        const velocity = entity.getComponent<VelocityComponent>("velocity");
 
         if (transform) {
-          lines.push(`    Position: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`);
-          lines.push(`    Rotation: (${transform.rotation.x.toFixed(2)}, ${transform.rotation.y.toFixed(2)}, ${transform.rotation.z.toFixed(2)})`);
+          lines.push(
+            `    Position: (${transform.position.x.toFixed(2)}, ${transform.position.y.toFixed(2)}, ${transform.position.z.toFixed(2)})`,
+          );
+          lines.push(
+            `    Rotation: (${transform.rotation.x.toFixed(2)}, ${transform.rotation.y.toFixed(2)}, ${transform.rotation.z.toFixed(2)})`,
+          );
         }
         if (velocity) {
-          lines.push(`    Velocity: (${velocity.linear.x.toFixed(2)}, ${velocity.linear.y.toFixed(2)}, ${velocity.linear.z.toFixed(2)})`);
+          lines.push(
+            `    Velocity: (${velocity.linear.x.toFixed(2)}, ${velocity.linear.y.toFixed(2)}, ${velocity.linear.z.toFixed(2)})`,
+          );
           lines.push(`    Grounded: ${velocity.grounded}`);
         }
       }
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private sendInput(args: string[]): string {
@@ -189,40 +201,40 @@ export default class NetTestCommand extends Command {
     }
 
     let buttons = 0;
-    let direction = { x: 0, y: 0, z: 0 };
+    const direction = { x: 0, y: 0, z: 0 };
 
     for (const arg of args) {
       switch (arg.toLowerCase()) {
-        case 'forward':
-        case 'w':
+        case "forward":
+        case "w":
           buttons |= InputButtons.FORWARD;
           direction.z = 1;
           break;
-        case 'back':
-        case 's':
+        case "back":
+        case "s":
           buttons |= InputButtons.BACK;
           direction.z = -1;
           break;
-        case 'left':
-        case 'a':
+        case "left":
+        case "a":
           buttons |= InputButtons.LEFT;
           direction.x = -1;
           break;
-        case 'right':
-        case 'd':
+        case "right":
+        case "d":
           buttons |= InputButtons.RIGHT;
           direction.x = 1;
           break;
-        case 'jump':
-        case 'space':
+        case "jump":
+        case "space":
           buttons |= InputButtons.JUMP;
           break;
-        case 'crouch':
-        case 'ctrl':
+        case "crouch":
+        case "ctrl":
           buttons |= InputButtons.CROUCH;
           break;
-        case 'sprint':
-        case 'shift':
+        case "sprint":
+        case "shift":
           buttons |= InputButtons.SPRINT;
           break;
       }
@@ -236,7 +248,7 @@ export default class NetTestCommand extends Command {
     }
 
     const cmd: FPSInputCommand = {
-      type: 'fps_input',
+      type: "fps_input",
       playerId: this.testPlayerId,
       tick: this.simulation.currentTick,
       seq: this.inputSeq++,
@@ -265,50 +277,50 @@ export default class NetTestCommand extends Command {
       this.simulation.spawnPlayer(this.testPlayerId);
     }
 
-    const dir = args[0]?.toLowerCase() || 'forward';
+    const dir = args[0]?.toLowerCase() || "forward";
     const ticks = parseInt(args[1]) || 20;
 
     let buttons = 0;
-    let direction = { x: 0, y: 0, z: 0 };
+    const direction = { x: 0, y: 0, z: 0 };
 
     switch (dir) {
-      case 'forward':
+      case "forward":
         buttons = InputButtons.FORWARD;
         direction.z = 1;
         break;
-      case 'back':
+      case "back":
         buttons = InputButtons.BACK;
         direction.z = -1;
         break;
-      case 'left':
+      case "left":
         buttons = InputButtons.LEFT;
         direction.x = -1;
         break;
-      case 'right':
+      case "right":
         buttons = InputButtons.RIGHT;
         direction.x = 1;
         break;
-      case 'jump':
+      case "jump":
         buttons = InputButtons.JUMP;
         break;
     }
 
     // Get initial state
     const player = this.simulation.state.players.get(this.testPlayerId);
-    if (!player) return 'No player found';
+    if (!player) return "No player found";
 
     const entity = this.simulation.state.entities.get(player.entityId);
-    if (!entity) return 'No entity found';
+    if (!entity) return "No entity found";
 
-    const transform = entity.getComponent<TransformComponent>('transform');
-    const velocity = entity.getComponent<VelocityComponent>('velocity');
+    const transform = entity.getComponent<TransformComponent>("transform");
+    const velocity = entity.getComponent<VelocityComponent>("velocity");
 
     const startPos = transform ? { ...transform.position } : { x: 0, y: 0, z: 0 };
 
     // Run ticks with input
     for (let i = 0; i < ticks; i++) {
       const cmd: FPSInputCommand = {
-        type: 'fps_input',
+        type: "fps_input",
         playerId: this.testPlayerId,
         tick: this.simulation.currentTick,
         seq: this.inputSeq++,
@@ -326,9 +338,7 @@ export default class NetTestCommand extends Command {
     const endVel = velocity ? velocity.linear : { x: 0, y: 0, z: 0 };
 
     const distance = Math.sqrt(
-      Math.pow(endPos.x - startPos.x, 2) +
-      Math.pow(endPos.y - startPos.y, 2) +
-      Math.pow(endPos.z - startPos.z, 2)
+      (endPos.x - startPos.x) ** 2 + (endPos.y - startPos.y) ** 2 + (endPos.z - startPos.z) ** 2,
     );
 
     return `Moved ${dir} for ${ticks} ticks (${(ticks / 20).toFixed(2)}s):
@@ -339,32 +349,32 @@ export default class NetTestCommand extends Command {
   }
 
   private async testGameHost(): Promise<string> {
-    const lines: string[] = ['=== Game + LocalGameHost Test ==='];
+    const lines: string[] = ["=== Game + LocalGameHost Test ==="];
 
     try {
       // Initialize game manager
       const gameManager = Game.getInstance();
       await gameManager.initializeLocal({ tickRate: 20 });
-      lines.push('Initialized Game with LocalGameHost');
+      lines.push("Initialized Game with LocalGameHost");
 
       // Try to set up BSP collision if available
       try {
-        const { createBSPCollisionWorld } = await import('../../../games/fps/simulation/collision/BSPCollisionWorld');
-        const { getCollisionManager } = await import('../../physics/CollisionManager');
+        const { createBSPCollisionWorld } = await import("../../../games/fps/simulation/collision/BSPCollisionWorld");
+        const { getCollisionManager } = await import("../../physics/CollisionManager");
         const cm = getCollisionManager();
         if (cm.isInitialized()) {
           const collisionWorld = createBSPCollisionWorld();
           if (collisionWorld) {
             gameManager.setCollisionWorld(collisionWorld);
-            lines.push('Injected BSPCollisionWorld from CollisionManager');
+            lines.push("Injected BSPCollisionWorld from CollisionManager");
           } else {
-            lines.push('BSP collision world could not be created');
+            lines.push("BSP collision world could not be created");
           }
         } else {
-          lines.push('CollisionManager not initialized - using NullCollisionWorld');
+          lines.push("CollisionManager not initialized - using NullCollisionWorld");
         }
       } catch {
-        lines.push('BSP collision not available - using NullCollisionWorld');
+        lines.push("BSP collision not available - using NullCollisionWorld");
       }
 
       // Spawn local player
@@ -378,7 +388,7 @@ export default class NetTestCommand extends Command {
       }
 
       // Subscribe to state updates
-      let lastUpdate: import('../../../games/fps/Game').PlayerStateUpdate | null = null;
+      let lastUpdate: import("../../../games/fps/Game").PlayerStateUpdate | null = null;
       gameManager.onPlayerStateUpdate((state) => {
         lastUpdate = state;
       });
@@ -410,22 +420,23 @@ export default class NetTestCommand extends Command {
 
       // Show last state update
       if (lastUpdate) {
-        lines.push(`Last state update: (${(lastUpdate as any).position.x.toFixed(2)}, ${(lastUpdate as any).position.y.toFixed(2)}, ${(lastUpdate as any).position.z.toFixed(2)})`);
+        lines.push(
+          `Last state update: (${(lastUpdate as any).position.x.toFixed(2)}, ${(lastUpdate as any).position.y.toFixed(2)}, ${(lastUpdate as any).position.z.toFixed(2)})`,
+        );
       }
 
       lines.push(`Current tick: ${gameManager.getCurrentTick()}`);
 
       // Shutdown
       gameManager.shutdown();
-      lines.push('Shutdown complete');
+      lines.push("Shutdown complete");
 
-      lines.push('');
-      lines.push('Test passed! Game works with LocalGameHost.');
-
+      lines.push("");
+      lines.push("Test passed! Game works with LocalGameHost.");
     } catch (error) {
       lines.push(`Error: ${error}`);
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

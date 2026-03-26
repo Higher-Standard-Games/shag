@@ -2,13 +2,13 @@
  * TimescaleCommand - Time scale control
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export default class TimescaleCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'timescale',
-    description: 'Time scale control (slow-mo/fast-forward)',
-    usage: 'timescale [value]',
+    name: "timescale",
+    description: "Time scale control (slow-mo/fast-forward)",
+    usage: "timescale [value]",
     developer: true,
   };
 
@@ -16,19 +16,19 @@ export default class TimescaleCommand extends Command {
     // Get scene
     let scene;
     try {
-      const { CameraSystem } = await import('../../camera/CameraSystem');
+      const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();
     } catch {
-      return 'Scene not available';
+      return "Scene not available";
     }
 
     if (!scene) {
-      return 'No active scene';
+      return "No active scene";
     }
 
     const engine = scene.getEngine();
     const value = parseFloat(args[0]);
-    
+
     if (isNaN(value)) {
       // Get current time scale from engine
       const current = (engine as any)._timeScale ?? 1.0;
@@ -36,12 +36,12 @@ export default class TimescaleCommand extends Command {
     }
 
     if (value <= 0 || value > 10) {
-      return 'Timescale must be between 0.01 and 10';
+      return "Timescale must be between 0.01 and 10";
     }
 
     // Set time scale
     (engine as any)._timeScale = value;
-    
+
     // Also update scene animation ratio if available
     if (scene.animationTimeScale !== undefined) {
       scene.animationTimeScale = value;

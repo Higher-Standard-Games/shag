@@ -2,24 +2,24 @@
  * HudCommand - HUD management and control
  */
 
-import { Command, CommandDef } from '../Command';
+import { Command, type CommandDef } from "../Command";
 
 export class HudCommand extends Command {
   readonly definition: CommandDef = {
-    name: 'hud',
-    description: 'HUD management',
-    usage: 'hud <subcommand>',
+    name: "hud",
+    description: "HUD management",
+    usage: "hud <subcommand>",
   };
 
   async execute(args: string[]): Promise<string> {
-    const { HUD } = await import('../../ui/hud');
+    const { HUD } = await import("../../ui/hud");
     const subcommand = args[0]?.toLowerCase();
 
     switch (subcommand) {
-      case 'info':
+      case "info":
         return HUD.getDebugInfo();
 
-      case 'interval': {
+      case "interval": {
         const ms = parseInt(args[1], 10);
         if (!args[1]) {
           return `Current interval: ${HUD.getInterval()}ms`;
@@ -31,32 +31,32 @@ export class HudCommand extends Command {
         return `HUD update interval: ${ms}ms`;
       }
 
-      case 'show': {
+      case "show": {
         const id = args[1];
-        if (!id) return 'Usage: hud show <element-id>';
+        if (!id) return "Usage: hud show <element-id>";
         HUD.show(id);
         return `Showing: ${id}`;
       }
 
-      case 'hide': {
+      case "hide": {
         const id = args[1];
-        if (!id) return 'Usage: hud hide <element-id>';
+        if (!id) return "Usage: hud hide <element-id>";
         HUD.hide(id);
         return `Hidden: ${id}`;
       }
 
-      case 'toggle': {
+      case "toggle": {
         const id = args[1];
-        if (!id) return 'Usage: hud toggle <element-id>';
+        if (!id) return "Usage: hud toggle <element-id>";
         HUD.toggle(id);
         return `Toggled: ${id}`;
       }
 
-      case 'refresh':
+      case "refresh":
         HUD.refresh();
-        return 'HUD refreshed';
+        return "HUD refreshed";
 
-      case 'theme': {
+      case "theme": {
         const theme = args[1];
         if (!theme) {
           return `Current theme: ${HUD.getTheme()}\nAvailable: default, dark`;
@@ -65,50 +65,50 @@ export class HudCommand extends Command {
         return `Theme: ${theme}`;
       }
 
-      case 'collapse': {
+      case "collapse": {
         const id = args[1];
         if (!id) {
           HUD.collapseAll();
-          return 'All accordions collapsed';
+          return "All accordions collapsed";
         }
         HUD.collapse(id);
         return `Collapsed: ${id}`;
       }
 
-      case 'expand': {
+      case "expand": {
         const id = args[1];
-        if (!id) return 'Usage: hud expand <element-id>';
+        if (!id) return "Usage: hud expand <element-id>";
         HUD.expand(id);
         return `Expanded: ${id}`;
       }
 
-      case 'start':
+      case "start":
         HUD.start();
-        return 'HUD update loop started';
+        return "HUD update loop started";
 
-      case 'stop':
+      case "stop":
         HUD.stop();
-        return 'HUD update loop stopped';
+        return "HUD update loop stopped";
 
-      case 'reset':
+      case "reset":
         HUD.reset();
-        return 'HUD reset to defaults';
+        return "HUD reset to defaults";
 
       default:
         return [
-          'HUD Commands:',
-          '  hud info          - Show HUD status',
-          '  hud interval <ms> - Set update interval',
-          '  hud show <id>     - Show element',
-          '  hud hide <id>     - Hide element',
-          '  hud toggle <id>   - Toggle element',
-          '  hud refresh       - Force refresh',
-          '  hud theme <name>  - Set theme',
-          '  hud collapse [id] - Collapse accordion(s)',
-          '  hud expand <id>   - Expand accordion',
-          '  hud start/stop    - Control update loop',
-          '  hud reset         - Reset to defaults',
-        ].join('\n');
+          "HUD Commands:",
+          "  hud info          - Show HUD status",
+          "  hud interval <ms> - Set update interval",
+          "  hud show <id>     - Show element",
+          "  hud hide <id>     - Hide element",
+          "  hud toggle <id>   - Toggle element",
+          "  hud refresh       - Force refresh",
+          "  hud theme <name>  - Set theme",
+          "  hud collapse [id] - Collapse accordion(s)",
+          "  hud expand <id>   - Expand accordion",
+          "  hud start/stop    - Control update loop",
+          "  hud reset         - Reset to defaults",
+        ].join("\n");
     }
   }
 }

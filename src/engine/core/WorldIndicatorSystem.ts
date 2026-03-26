@@ -1,12 +1,12 @@
 /**
  * WorldIndicatorSystem - Generic engine feature for spawning UI indicators at world positions
- * 
+ *
  * Use this for any floating UI elements that need to track world positions:
  * - Action prompts above interactive objects
  * - Status indicators above entities
  * - Damage/healing numbers
  * - Floating labels and tooltips
- * 
+ *
  * @example
  * ```typescript
  * WorldIndicatorSystem.getInstance().init(scene, camera, engine);
@@ -18,25 +18,25 @@
  * ```
  */
 
-import { Scene } from "@babylonjs/core/scene";
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import { Engine } from "@babylonjs/core/Engines/engine";
+import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import type { Engine } from "@babylonjs/core/Engines/engine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
 
 // ==================== Types ====================
 
 export type IndicatorAnimation = "bounce" | "pulse" | "shake" | "none";
 
 export interface IndicatorConfig {
-  icon: string;                    // Emoji or HTML content for the icon
-  label?: string;                  // Optional text label below icon
-  animation?: IndicatorAnimation;  // Animation type (default: "bounce")
-  offsetY?: number;                // Height offset above world position (default: 40)
-  onClick?: (indicator: WorldIndicator) => void;  // Click handler
+  icon: string; // Emoji or HTML content for the icon
+  label?: string; // Optional text label below icon
+  animation?: IndicatorAnimation; // Animation type (default: "bounce")
+  offsetY?: number; // Height offset above world position (default: 40)
+  onClick?: (indicator: WorldIndicator) => void; // Click handler
   onExpire?: (indicator: WorldIndicator) => void; // Called when indicator expires
-  duration?: number;               // Auto-remove after ms (0 = permanent)
-  className?: string;              // Additional CSS class
-  zIndex?: number;                 // Z-index override
+  duration?: number; // Auto-remove after ms (0 = permanent)
+  className?: string; // Additional CSS class
+  zIndex?: number; // Z-index override
 }
 
 export interface WorldIndicator {
@@ -44,7 +44,7 @@ export interface WorldIndicator {
   worldPosition: { x: number; y: number; z: number };
   element: HTMLElement;
   config: IndicatorConfig;
-  data?: unknown;                  // Custom data (plantId, objectId, etc.)
+  data?: unknown; // Custom data (plantId, objectId, etc.)
   createdAt: number;
 }
 
@@ -68,7 +68,7 @@ export class WorldIndicatorSystem {
   private animationFrameId: number | null = null;
   private styleInjected: boolean = false;
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): WorldIndicatorSystem {
     if (!WorldIndicatorSystem.instance) {
@@ -118,7 +118,7 @@ export class WorldIndicatorSystem {
     const config = {
       animation: "bounce" as IndicatorAnimation,
       offsetY: 40,
-      zIndex: 100,  // Below UI panels (SidePanel=900, BottomBar=1000)
+      zIndex: 100, // Below UI panels (SidePanel=900, BottomBar=1000)
       ...options.config,
     };
 
@@ -277,10 +277,7 @@ export class WorldIndicatorSystem {
     const pos = new Vector3(worldPos.x, worldPos.y, worldPos.z);
     const viewMatrix = this.camera.getViewMatrix();
     const projectionMatrix = this.camera.getProjectionMatrix();
-    const viewport = this.camera.viewport.toGlobal(
-      this.engine.getRenderWidth(),
-      this.engine.getRenderHeight()
-    );
+    const viewport = this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight());
 
     const screenPos = Vector3.Project(pos, viewMatrix, projectionMatrix, viewport);
     return { x: screenPos.x, y: screenPos.y };
@@ -299,10 +296,13 @@ export class WorldIndicatorSystem {
 
     const screenPos = this.worldToScreen(worldPos);
 
-    if (screenPos &&
-      screenPos.x > -100 && screenPos.y > -100 &&
+    if (
+      screenPos &&
+      screenPos.x > -100 &&
+      screenPos.y > -100 &&
       screenPos.x < window.innerWidth + 100 &&
-      screenPos.y < window.innerHeight + 100) {
+      screenPos.y < window.innerHeight + 100
+    ) {
       indicator.element.style.left = `${screenPos.x}px`;
       indicator.element.style.top = `${screenPos.y}px`;
       indicator.element.style.display = "flex";

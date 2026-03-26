@@ -1,83 +1,83 @@
 /**
  * Riotgun - Weapon Definition
- * 
+ *
  * Shotgun-style hitscan weapon firing 20 pellets per shot.
  * Stats from Warsow gs_weapondefs.c.
  */
 
-import { WeaponDef } from '../../WeaponDef';
-import { EntityType } from '../../EntityType';
+import { EntityType } from "../../EntityType";
+import type { WeaponDef } from "../../WeaponDef";
 
 export const RIOTGUN: WeaponDef = {
-    // Identity
-    id: 'riotgun',
-    name: 'Riotgun',
-    type: EntityType.WEAPON,
-    classname: 'weapon_riotgun',
+  // Identity
+  id: "riotgun",
+  name: "Riotgun",
+  type: EntityType.WEAPON,
+  classname: "weapon_riotgun",
 
-    // Model
-    modelPath: '/data/models/weapons/riotgun/riotgun.glb',
+  // Model
+  modelPath: "/data/models/weapons/riotgun/riotgun.glb",
+  scale: 2.0,
+
+  // Pickup glow (warm orange)
+  glowColor: { r: 1.0, g: 0.6, b: 0.2 },
+
+  // Gameplay (server-authoritative)
+  // 5 damage per pellet × 20 pellets = 100 max damage
+  damage: 5,
+  fireRate: 1.875, // ~533ms between shots (20% faster than Warsow's 640ms)
+  clipSize: 20,
+  ammoType: "shells",
+  maxAmmo: 20,
+  reloadTime: 0.64,
+  range: 8192,
+  hitscan: true,
+  hitscanType: "pellet",
+  spread: 8, // 8° shotgun cone (hip-fire)
+  adsSpread: 2, // 2° when ADS (4x tighter)
+  fireMode: "semi",
+  burstCount: 20, // 20 pellets per shot
+  pickupBounds: { x: 32, y: 32, z: 32 },
+  pelletCount: 20,
+  knockbackScale: 2.5,
+  pickupAmmo: 10,
+  useLagCompensation: true,
+  crosshair: { style: "cross", baseGap: 12, lineLength: 8, lineWidth: 2 },
+  speedBonus: 5, // Light shotgun: +5 speed (405 run)
+  recoilScale: 4.0, // Heavy shotgun kick (4x normal — strong upward + backward)
+
+  // View Model — GLB format
+  viewModel: {
+    modelPath: "/data/models/weapons/riotgun/riotgun.glb",
+    viewModelFormat: "glb",
+
+    hipOffset: { x: 0, y: -25, z: -1 },
+    hipRotation: { x: 0, y: 0, z: 0 },
+
+    adsOffset: { x: 0, y: -21, z: -5 },
+    adsRotation: { x: 0, y: 0, z: 0 },
+
     scale: 2.0,
+  },
 
-    // Pickup glow (warm orange)
-    glowColor: { r: 1.0, g: 0.6, b: 0.2 },
+  // ADS
+  ads: {
+    time: 0.08,
+    fovReduction: 15,
+    sensitivity: 0.5,
+    movementPenalty: 0.5,
+  },
 
-    // Gameplay (server-authoritative)
-    // 5 damage per pellet × 20 pellets = 100 max damage
-    damage: 5,
-    fireRate: 1.875,       // ~533ms between shots (20% faster than Warsow's 640ms)
-    clipSize: 20,
-    ammoType: 'shells',
-    maxAmmo: 20,
-    reloadTime: 0.64,
-    range: 8192,
-    hitscan: true,
-    hitscanType: 'pellet',
-    spread: 8,            // 8° shotgun cone (hip-fire)
-    adsSpread: 2,         // 2° when ADS (4x tighter)
-    fireMode: 'semi',
-    burstCount: 20,       // 20 pellets per shot
-    pickupBounds: { x: 32, y: 32, z: 32 },
-    pelletCount: 20,
-    knockbackScale: 2.5,
-    pickupAmmo: 10,
-    useLagCompensation: true,
-    crosshair: { style: 'cross', baseGap: 12, lineLength: 8, lineWidth: 2 },
-    speedBonus: 5,             // Light shotgun: +5 speed (405 run)
-    recoilScale: 4.0,          // Heavy shotgun kick (4x normal — strong upward + backward)
+  // Muzzle Flash — bright warm
+  muzzleFlash: {
+    color: { r: 1.0, g: 0.7, b: 0.2 },
+    intensity: 25,
+    range: 45,
+    duration: 0.08,
+  },
 
-    // View Model — GLB format
-    viewModel: {
-        modelPath: '/data/models/weapons/riotgun/riotgun.glb',
-        viewModelFormat: 'glb',
-
-        hipOffset: { x: 0, y: -25, z: -1 },
-        hipRotation: { x: 0, y: 0, z: 0 },
-
-        adsOffset: { x: 0, y: -21, z: -5 },
-        adsRotation: { x: 0, y: 0, z: 0 },
-
-        scale: 2.0,
-    },
-
-    // ADS
-    ads: {
-        time: 0.08,
-        fovReduction: 15,
-        sensitivity: 0.5,
-        movementPenalty: 0.5,
-    },
-
-    // Muzzle Flash — bright warm
-    muzzleFlash: {
-        color: { r: 1.0, g: 0.7, b: 0.2 },
-        intensity: 25,
-        range: 45,
-        duration: 0.08,
-    },
-
-    // Sounds
-    sounds: {
-        fire: 'sounds/weapons/riotgun_fire_strong.ogg',
-    },
+  // Sounds
+  sounds: {
+    fire: "sounds/weapons/riotgun_fire_strong.ogg",
+  },
 };

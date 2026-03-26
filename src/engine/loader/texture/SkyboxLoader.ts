@@ -7,20 +7,20 @@
  * - Creates Babylon.js skybox mesh with proper coordinate mapping
  */
 
-import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { RawCubeTexture } from "@babylonjs/core/Materials/Textures/rawCubeTexture";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { Constants } from "@babylonjs/core/Engines/constants";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Scene } from "@babylonjs/core/scene";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { parseKTX1 } from "./KTX1Loader";
 
 // Q3 skybox face suffixes - MUST match Q3 tr_shader.c order!
 // From Q3 source: static char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
-const Q3_FACE_SUFFIXES = ['_rt', '_bk', '_lf', '_ft', '_up', '_dn'] as const;
+const Q3_FACE_SUFFIXES = ["_rt", "_bk", "_lf", "_ft", "_up", "_dn"] as const;
 // Indices:                  0     1     2     3     4     5
 
 // Q3 coordinate system: +X=right, +Y=forward, +Z=up (right-handed, Z-up)
@@ -52,7 +52,15 @@ const Q3_FACE_SUFFIXES = ['_rt', '_bk', '_lf', '_ft', '_up', '_dn'] as const;
 //   Q3 bk(-Y in Q3 = -Z in Babylon) → nz
 //   Q3 dn(-Z in Q3 = -Y in Babylon) → ny
 
-type FaceTransform = 'none' | 'flipH' | 'flipV' | 'rotate180' | 'rotate90CW' | 'rotate90CCW' | 'rotate90CW_flipH' | 'rotate90CCW_flipH';
+type FaceTransform =
+  | "none"
+  | "flipH"
+  | "flipV"
+  | "rotate180"
+  | "rotate90CW"
+  | "rotate90CCW"
+  | "rotate90CW_flipH"
+  | "rotate90CCW_flipH";
 
 // Q3 index → Babylon face position
 // CORRECTED: Babylon RawCubeTexture order is actually: [nx, px, py, ny, nz, pz]
@@ -71,12 +79,12 @@ type FaceTransform = 'none' | 'flipH' | 'flipV' | 'rotate180' | 'rotate90CW' | '
 // Handedness correction: Q3 is right-handed, Babylon is left-handed
 // This causes horizontal mirroring on most faces. DN (floor) confirmed correct with 'none'.
 const Q3_TO_BABYLON_FACE_MAP: { index: number; transform: FaceTransform }[] = [
-  { index: 2, transform: 'flipH' },           // slot 0: nx ← lf
-  { index: 0, transform: 'flipH' },           // slot 1: px ← rt
-  { index: 4, transform: 'rotate90CCW_flipH' }, // slot 2: py ← up (ceiling works!)
-  { index: 5, transform: 'rotate90CW_flipH' },  // slot 3: ny ← dn (floor faces opposite, try opposite rotation)
-  { index: 1, transform: 'flipH' },           // slot 4: nz ← bk
-  { index: 3, transform: 'flipH' },           // slot 5: pz ← ft
+  { index: 2, transform: "flipH" }, // slot 0: nx ← lf
+  { index: 0, transform: "flipH" }, // slot 1: px ← rt
+  { index: 4, transform: "rotate90CCW_flipH" }, // slot 2: py ← up (ceiling works!)
+  { index: 5, transform: "rotate90CW_flipH" }, // slot 3: ny ← dn (floor faces opposite, try opposite rotation)
+  { index: 1, transform: "flipH" }, // slot 4: nz ← bk
+  { index: 3, transform: "flipH" }, // slot 5: pz ← ft
 ];
 
 export interface SkyboxLoadResult {
@@ -94,7 +102,7 @@ export class SkyboxLoader {
   private static instance: SkyboxLoader;
   private scene: Scene | null = null;
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): SkyboxLoader {
     if (!SkyboxLoader.instance) {
@@ -146,8 +154,8 @@ export class SkyboxLoader {
 
     // Reorder and transform faces from Q3 order to Babylon.js order
     // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
-    const babylonFaceNames = ['nx(-X/left)', 'px(+X/right)', 'py(+Y/up)', 'ny(-Y/down)', 'nz(-Z/back)', 'pz(+Z/front)'];
-    const q3FaceNames = ['rt', 'bk', 'lf', 'ft', 'up', 'dn'];
+    const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
+    const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
     console.log(`[SkyboxLoader] Face mapping (Q3 → Babylon):`);
     const babylonFaces: Uint8Array[] = [];
@@ -169,9 +177,9 @@ export class SkyboxLoader {
       Constants.TEXTURETYPE_UNSIGNED_INT,
       false, // generateMipMaps
       false, // invertY
-      Texture.TRILINEAR_SAMPLINGMODE
+      Texture.TRILINEAR_SAMPLINGMODE,
     );
-    cubeTexture.name = `skybox_${basePath.replace(/\//g, '_')}`;
+    cubeTexture.name = `skybox_${basePath.replace(/\//g, "_")}`;
 
     // Create skybox mesh
     const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
@@ -216,7 +224,7 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
-    const extensions = ['.ktx', '.tga', '.jpg', '.png', '.jpeg'];
+    const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
 
     // Try to load the texture from PK3
     let fileData = await pk3.getFile(texturePath);
@@ -231,10 +239,10 @@ export class SkyboxLoader {
           break;
         }
         // Also try with textures/ prefix
-        if (!texturePath.startsWith('textures/')) {
-          fileData = await pk3.getFile('textures/' + texturePath + ext);
+        if (!texturePath.startsWith("textures/")) {
+          fileData = await pk3.getFile("textures/" + texturePath + ext);
           if (fileData) {
-            actualPath = 'textures/' + texturePath + ext;
+            actualPath = "textures/" + texturePath + ext;
             break;
           }
         }
@@ -243,7 +251,7 @@ export class SkyboxLoader {
 
     if (!fileData) {
       // Try with textures/ prefix (no extension change)
-      const altPath = texturePath.startsWith('textures/') ? texturePath : `textures/${texturePath}`;
+      const altPath = texturePath.startsWith("textures/") ? texturePath : `textures/${texturePath}`;
       fileData = await pk3.getFile(altPath);
       actualPath = altPath;
     }
@@ -253,7 +261,7 @@ export class SkyboxLoader {
     }
 
     // Parse the image to get RGBA data
-    const ext = actualPath.substring(actualPath.lastIndexOf('.')).toLowerCase();
+    const ext = actualPath.substring(actualPath.lastIndexOf(".")).toLowerCase();
     const rgba = await this.parseImageToRGBA(new Uint8Array(fileData), ext);
     if (!rgba) {
       return { success: false, error: `Failed to parse sky texture: ${actualPath}` };
@@ -262,12 +270,12 @@ export class SkyboxLoader {
     console.log(`[SkyboxLoader] Loaded sky texture: ${actualPath} (${rgba.size}x${rgba.size})`);
 
     // Create texture from blob URL (more reliable than RawTexture)
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = rgba.size;
     canvas.height = rgba.size;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
-      return { success: false, error: 'Failed to create canvas context' };
+      return { success: false, error: "Failed to create canvas context" };
     }
     const imageData = new ImageData(new Uint8ClampedArray(rgba.data), rgba.size, rgba.size);
     ctx.putImageData(imageData, 0, 0);
@@ -276,18 +284,22 @@ export class SkyboxLoader {
       canvas.toDataURL(),
       this.scene,
       false, // noMipmap
-      true,  // invertY
-      Texture.TRILINEAR_SAMPLINGMODE
+      true, // invertY
+      Texture.TRILINEAR_SAMPLINGMODE,
     );
-    texture.name = `sky_texture_${actualPath.replace(/\//g, '_')}`;
+    texture.name = `sky_texture_${actualPath.replace(/\//g, "_")}`;
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
 
     // Create sky sphere - flip inside-out with negative scale
-    const skySphere = MeshBuilder.CreateSphere("skybox", {
-      diameter: size,
-      segments: 32
-    }, this.scene);
+    const skySphere = MeshBuilder.CreateSphere(
+      "skybox",
+      {
+        diameter: size,
+        segments: 32,
+      },
+      this.scene,
+    );
     skySphere.scaling.x = -1; // Flip to render inside
     skySphere.infiniteDistance = true;
     skySphere.renderingGroupId = 0; // Render first
@@ -322,13 +334,13 @@ export class SkyboxLoader {
    */
   private async loadSkyboxFace(
     basePath: string,
-    suffix: string
+    suffix: string,
   ): Promise<{ data: Uint8Array; size: number; path: string } | null> {
     const pk3 = PK3Loader.getInstance();
-    const extensions = ['.ktx', '.tga', '.jpg', '.png', '.jpeg'];
+    const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
 
     // Try different path prefixes
-    const pathPrefixes = ['', 'textures/'];
+    const pathPrefixes = ["", "textures/"];
 
     for (const prefix of pathPrefixes) {
       for (const ext of extensions) {
@@ -352,15 +364,12 @@ export class SkyboxLoader {
   /**
    * Parse image data to RGBA Uint8Array
    */
-  private async parseImageToRGBA(
-    data: Uint8Array,
-    ext: string
-  ): Promise<{ data: Uint8Array; size: number } | null> {
-    if (ext === '.tga') {
+  private async parseImageToRGBA(data: Uint8Array, ext: string): Promise<{ data: Uint8Array; size: number } | null> {
+    if (ext === ".tga") {
       return this.parseTGAToRGBA(data);
     }
 
-    if (ext === '.ktx') {
+    if (ext === ".ktx") {
       return this.parseKTXToRGBA(data);
     }
 
@@ -588,12 +597,12 @@ export class SkyboxLoader {
    */
   private async parseStandardImageToRGBA(
     data: Uint8Array,
-    ext: string
+    ext: string,
   ): Promise<{ data: Uint8Array; size: number } | null> {
     const mimeTypes: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
     };
 
     const mimeType = mimeTypes[ext];
@@ -610,10 +619,10 @@ export class SkyboxLoader {
       img.onload = () => {
         URL.revokeObjectURL(url);
 
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = img.width;
         canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
 
         if (!ctx) {
           resolve(null);
@@ -640,12 +649,8 @@ export class SkyboxLoader {
   /**
    * Transform a face image (flip/rotate) to match Babylon.js expectations
    */
-  private transformFace(
-    data: Uint8Array,
-    size: number,
-    transform: FaceTransform
-  ): Uint8Array {
-    if (transform === 'none') {
+  private transformFace(data: Uint8Array, size: number, transform: FaceTransform): Uint8Array {
+    if (transform === "none") {
       return data;
     }
 
@@ -659,32 +664,32 @@ export class SkyboxLoader {
         let destY = y;
 
         switch (transform) {
-          case 'flipH':
+          case "flipH":
             destX = size - 1 - x;
             break;
-          case 'flipV':
+          case "flipV":
             destY = size - 1 - y;
             break;
-          case 'rotate180':
+          case "rotate180":
             destX = size - 1 - x;
             destY = size - 1 - y;
             break;
-          case 'rotate90CW':
+          case "rotate90CW":
             // 90° clockwise: (x,y) -> (size-1-y, x)
             destX = size - 1 - y;
             destY = x;
             break;
-          case 'rotate90CCW':
+          case "rotate90CCW":
             // 90° counter-clockwise: (x,y) -> (y, size-1-x)
             destX = y;
             destY = size - 1 - x;
             break;
-          case 'rotate90CW_flipH':
+          case "rotate90CW_flipH":
             // rotate90CW then flipH: (x,y) -> (size-1-y, x) -> (y, x)
             destX = y;
             destY = x;
             break;
-          case 'rotate90CCW_flipH':
+          case "rotate90CCW_flipH":
             // rotate90CCW then flipH: (x,y) -> (y, size-1-x) -> (size-1-y, size-1-x)
             destX = size - 1 - y;
             destY = size - 1 - x;
@@ -731,12 +736,12 @@ export class SkyboxLoader {
     // Q3 face colors and labels - loaded in Q3 order
     // These will be reordered to Babylon order using Q3_TO_BABYLON_FACE_MAP
     const q3Faces = [
-      { name: 'RT', color: [255, 0, 0] },      // 0: rt - RED
-      { name: 'BK', color: [0, 255, 0] },      // 1: bk - GREEN
-      { name: 'LF', color: [0, 0, 255] },      // 2: lf - BLUE
-      { name: 'FT', color: [255, 255, 0] },    // 3: ft - YELLOW
-      { name: 'UP', color: [255, 0, 255] },    // 4: up - MAGENTA
-      { name: 'DN', color: [0, 255, 255] },    // 5: dn - CYAN
+      { name: "RT", color: [255, 0, 0] }, // 0: rt - RED
+      { name: "BK", color: [0, 255, 0] }, // 1: bk - GREEN
+      { name: "LF", color: [0, 0, 255] }, // 2: lf - BLUE
+      { name: "FT", color: [255, 255, 0] }, // 3: ft - YELLOW
+      { name: "UP", color: [255, 0, 255] }, // 4: up - MAGENTA
+      { name: "DN", color: [0, 255, 255] }, // 5: dn - CYAN
     ];
 
     // Generate Q3 debug face textures
@@ -748,8 +753,8 @@ export class SkyboxLoader {
 
     // Reorder and transform faces from Q3 order to Babylon.js order
     // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
-    const babylonFaceNames = ['nx(-X/left)', 'px(+X/right)', 'py(+Y/up)', 'ny(-Y/down)', 'nz(-Z/back)', 'pz(+Z/front)'];
-    const q3FaceNames = ['rt', 'bk', 'lf', 'ft', 'up', 'dn'];
+    const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
+    const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
     console.log(`[SkyboxLoader] DEBUG Face mapping (Q3 → Babylon):`);
     const babylonFaces: Uint8Array[] = [];
@@ -759,7 +764,9 @@ export class SkyboxLoader {
       const transformed = this.transformFace(srcData, faceSize, mapping.transform);
       babylonFaces.push(transformed);
 
-      console.log(`  ${babylonFaceNames[i]} ← Q3 ${q3FaceNames[mapping.index]} (${q3Faces[mapping.index].name}, transform: ${mapping.transform})`);
+      console.log(
+        `  ${babylonFaceNames[i]} ← Q3 ${q3FaceNames[mapping.index]} (${q3Faces[mapping.index].name}, transform: ${mapping.transform})`,
+      );
     }
 
     // Create RawCubeTexture
@@ -771,9 +778,9 @@ export class SkyboxLoader {
       Constants.TEXTURETYPE_UNSIGNED_INT,
       false,
       false,
-      Texture.TRILINEAR_SAMPLINGMODE
+      Texture.TRILINEAR_SAMPLINGMODE,
     );
-    cubeTexture.name = 'skybox_debug';
+    cubeTexture.name = "skybox_debug";
 
     // Create skybox mesh
     const skybox = MeshBuilder.CreateBox("skybox", { size }, this.scene);
@@ -805,11 +812,7 @@ export class SkyboxLoader {
   /**
    * Generate a debug face with color and label
    */
-  private generateDebugFace(
-    size: number,
-    label: string,
-    color: [number, number, number]
-  ): Uint8Array {
+  private generateDebugFace(size: number, label: string, color: [number, number, number]): Uint8Array {
     const data = new Uint8Array(size * size * 4);
     const [r, g, b] = color;
 
@@ -825,8 +828,7 @@ export class SkyboxLoader {
     const borderWidth = Math.floor(size / 32);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        if (x < borderWidth || x >= size - borderWidth ||
-          y < borderWidth || y >= size - borderWidth) {
+        if (x < borderWidth || x >= size - borderWidth || y < borderWidth || y >= size - borderWidth) {
           const i = (y * size + x) * 4;
           data[i + 0] = 255;
           data[i + 1] = 255;
@@ -840,7 +842,7 @@ export class SkyboxLoader {
     this.drawLabel(data, size, label, Math.floor(size / 2), Math.floor(size / 2));
 
     // Draw "TOP" marker at the top edge to show orientation
-    this.drawLabel(data, size, 'TOP', Math.floor(size / 2), Math.floor(size / 6));
+    this.drawLabel(data, size, "TOP", Math.floor(size / 2), Math.floor(size / 6));
 
     // Draw arrow pointing up to show orientation
     const arrowCenterX = Math.floor(size / 2);
@@ -854,33 +856,27 @@ export class SkyboxLoader {
   /**
    * Draw a simple text label using a pixel font
    */
-  private drawLabel(
-    data: Uint8Array,
-    size: number,
-    text: string,
-    centerX: number,
-    centerY: number
-  ): void {
+  private drawLabel(data: Uint8Array, size: number, text: string, centerX: number, centerY: number): void {
     // Simple 5x7 pixel font for capital letters and numbers
     const font: Record<string, number[]> = {
-      'A': [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-      'B': [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
-      'C': [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
-      'D': [0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110],
-      'E': [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
-      'F': [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
-      'G': [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
-      'H': [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-      'I': [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-      'K': [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
-      'L': [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
-      'N': [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
-      'O': [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-      'P': [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
-      'R': [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
-      'T': [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
-      'U': [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-      ' ': [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],
+      A: [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+      B: [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
+      C: [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
+      D: [0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110],
+      E: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
+      F: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
+      G: [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
+      H: [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+      I: [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+      K: [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
+      L: [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
+      N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
+      O: [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+      P: [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
+      R: [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
+      T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
+      U: [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+      " ": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],
     };
 
     const charWidth = 5;
@@ -925,13 +921,7 @@ export class SkyboxLoader {
   /**
    * Draw an upward-pointing arrow
    */
-  private drawArrowUp(
-    data: Uint8Array,
-    size: number,
-    centerX: number,
-    centerY: number,
-    arrowSize: number
-  ): void {
+  private drawArrowUp(data: Uint8Array, size: number, centerX: number, centerY: number, arrowSize: number): void {
     const scale = Math.floor(size / 64);
 
     // Arrow shaft

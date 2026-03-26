@@ -1,19 +1,19 @@
 /**
  * HeightmapGenerator - Generate procedural heightmaps for terrain
- * 
+ *
  * Creates 2D arrays of normalized height values (0-1) that can be used
  * by MapGenerator for terrain elevation.
  */
 
-import { PerlinNoise } from '../engine/math/Noise';
-import * as fs from 'fs';
-import * as path from 'path';
-import { PNG } from 'pngjs';
+import * as fs from "fs";
+import * as path from "path";
+import { PNG } from "pngjs";
+import { PerlinNoise } from "../engine/math/Noise";
 
 export interface HeightmapConfig {
-  width: number;          // Width in pixels
-  height: number;         // Height in pixels
-  seed?: number;          // Random seed
+  width: number; // Width in pixels
+  height: number; // Height in pixels
+  seed?: number; // Random seed
 }
 
 export interface HeightmapPreset {
@@ -31,14 +31,9 @@ export function generatePerlinHeightmap(
     octaves?: number;
     persistence?: number;
     lacunarity?: number;
-  } = {}
+  } = {},
 ): number[][] {
-  const {
-    frequency = 0.02,
-    octaves = 4,
-    persistence = 0.5,
-    lacunarity = 2.0,
-  } = options;
+  const { frequency = 0.02, octaves = 4, persistence = 0.5, lacunarity = 2.0 } = options;
 
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
@@ -72,20 +67,14 @@ export function generatePerlinHeightmap(
 export function generateHillHeightmap(
   config: HeightmapConfig,
   options: {
-    centerX?: number;      // 0-1, default 0.5
-    centerY?: number;      // 0-1, default 0.5
-    radius?: number;       // 0-1, default 0.4
-    falloff?: number;      // Steepness, default 2
-    noiseAmount?: number;  // 0-1, default 0.2
-  } = {}
+    centerX?: number; // 0-1, default 0.5
+    centerY?: number; // 0-1, default 0.5
+    radius?: number; // 0-1, default 0.4
+    falloff?: number; // Steepness, default 2
+    noiseAmount?: number; // 0-1, default 0.2
+  } = {},
 ): number[][] {
-  const {
-    centerX = 0.5,
-    centerY = 0.5,
-    radius = 0.4,
-    falloff = 2,
-    noiseAmount = 0.2,
-  } = options;
+  const { centerX = 0.5, centerY = 0.5, radius = 0.4, falloff = 2, noiseAmount = 0.2 } = options;
 
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
@@ -102,7 +91,7 @@ export function generateHillHeightmap(
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       // Hill shape (inverse distance with falloff)
-      let height = Math.max(0, 1 - Math.pow(dist / radius, falloff));
+      let height = Math.max(0, 1 - (dist / radius) ** falloff);
 
       // Add noise for natural look
       if (noiseAmount > 0) {
@@ -127,14 +116,9 @@ export function generateMultiHillHeightmap(
     minRadius?: number;
     maxRadius?: number;
     noiseAmount?: number;
-  } = {}
+  } = {},
 ): number[][] {
-  const {
-    hillCount = 5,
-    minRadius = 0.15,
-    maxRadius = 0.35,
-    noiseAmount = 0.15,
-  } = options;
+  const { hillCount = 5, minRadius = 0.15, maxRadius = 0.35, noiseAmount = 0.15 } = options;
 
   const rng = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
@@ -150,8 +134,8 @@ export function generateMultiHillHeightmap(
     hills.push({
       x: 0.1 + rng.noise2D(i * 100, 0) * 0.4 + 0.4,
       y: 0.1 + rng.noise2D(0, i * 100) * 0.4 + 0.4,
-      radius: minRadius + (rng.noise2D(i * 50, i * 50) + 1) / 2 * (maxRadius - minRadius),
-      height: 0.5 + (rng.noise2D(i * 75, i * 25) + 1) / 2 * 0.5,
+      radius: minRadius + ((rng.noise2D(i * 50, i * 50) + 1) / 2) * (maxRadius - minRadius),
+      height: 0.5 + ((rng.noise2D(i * 75, i * 25) + 1) / 2) * 0.5,
     });
   }
 
@@ -166,7 +150,7 @@ export function generateMultiHillHeightmap(
         const dx = u - hill.x;
         const dy = v - hill.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const contribution = Math.max(0, 1 - Math.pow(dist / hill.radius, 2)) * hill.height;
+        const contribution = Math.max(0, 1 - (dist / hill.radius) ** 2) * hill.height;
         height = Math.max(height, contribution);
       }
 
@@ -189,16 +173,12 @@ export function generateMultiHillHeightmap(
 export function generateValleyHeightmap(
   config: HeightmapConfig,
   options: {
-    valleyWidth?: number;  // 0-1, default 0.3
-    valleyDepth?: number;  // 0-1, default 0.8
+    valleyWidth?: number; // 0-1, default 0.3
+    valleyDepth?: number; // 0-1, default 0.8
     noiseAmount?: number;
-  } = {}
+  } = {},
 ): number[][] {
-  const {
-    valleyWidth = 0.3,
-    valleyDepth = 0.8,
-    noiseAmount = 0.2,
-  } = options;
+  const { valleyWidth = 0.3, valleyDepth = 0.8, noiseAmount = 0.2 } = options;
 
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
@@ -222,7 +202,7 @@ export function generateValleyHeightmap(
       } else {
         // On the slopes
         const slopePos = (distFromCenter - valleyWidth) / (1 - valleyWidth);
-        height = (1 - valleyDepth) + slopePos * valleyDepth;
+        height = 1 - valleyDepth + slopePos * valleyDepth;
       }
 
       // Add noise
@@ -244,16 +224,12 @@ export function generateValleyHeightmap(
 export function generatePlateauHeightmap(
   config: HeightmapConfig,
   options: {
-    plateauRadius?: number;  // 0-1, default 0.3
-    edgeSharpness?: number;  // Higher = sharper edges, default 8
+    plateauRadius?: number; // 0-1, default 0.3
+    edgeSharpness?: number; // Higher = sharper edges, default 8
     noiseAmount?: number;
-  } = {}
+  } = {},
 ): number[][] {
-  const {
-    plateauRadius = 0.3,
-    edgeSharpness = 8,
-    noiseAmount = 0.1,
-  } = options;
+  const { plateauRadius = 0.3, edgeSharpness = 8, noiseAmount = 0.1 } = options;
 
   const noise = new PerlinNoise(config.seed ?? Date.now());
   const data: number[][] = [];
@@ -309,13 +285,11 @@ export function createHeightmapData(
   preset: keyof typeof HEIGHTMAP_PRESETS | ((config: HeightmapConfig) => number[][]),
   width: number = 64,
   height: number = 64,
-  seed?: number
+  seed?: number,
 ): { data: number[][]; width: number; height: number } {
   const config: HeightmapConfig = { width, height, seed };
 
-  const generator = typeof preset === 'function'
-    ? preset
-    : HEIGHTMAP_PRESETS[preset];
+  const generator = typeof preset === "function" ? preset : HEIGHTMAP_PRESETS[preset];
 
   if (!generator) {
     throw new Error(`Unknown heightmap preset: ${preset}`);
@@ -332,9 +306,7 @@ export function createHeightmapData(
  * Load a heightmap from a PNG file (grayscale or RGB - uses red channel or luminance)
  * Uses pngjs for proper PNG parsing
  */
-export function loadHeightmapFromPNG(
-  filePath: string
-): { data: number[][]; width: number; height: number } {
+export function loadHeightmapFromPNG(filePath: string): { data: number[][]; width: number; height: number } {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
 
   if (!fs.existsSync(absolutePath)) {
@@ -372,9 +344,7 @@ export function loadHeightmapFromPNG(
  * Load heightmap from a simple raw grayscale file (8-bit per pixel)
  * Format: width (4 bytes) + height (4 bytes) + pixels (width * height bytes)
  */
-export function loadHeightmapFromRaw(
-  filePath: string
-): { data: number[][]; width: number; height: number } {
+export function loadHeightmapFromRaw(filePath: string): { data: number[][]; width: number; height: number } {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
 
   if (!fs.existsSync(absolutePath)) {
@@ -406,7 +376,7 @@ export function loadHeightmapFromRaw(
  */
 export function saveHeightmapToRaw(
   heightmap: { data: number[][]; width: number; height: number },
-  filePath: string
+  filePath: string,
 ): void {
   const { data, width, height } = heightmap;
   const buffer = Buffer.alloc(8 + width * height);

@@ -1,10 +1,10 @@
 /**
  * CameraPresets - Predefined camera configurations for common game types
- * 
+ *
  * These presets can be applied via CameraSystem.applyPreset()
  */
 
-import { CameraControllerConfig } from "./controllers/ICameraController";
+import type { CameraControllerConfig } from "./controllers/ICameraController";
 
 export type CameraMode = "perspective" | "orthographic" | "fake_ortho";
 
@@ -40,15 +40,15 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
     controllerType: "isometric",
     cameraMode: "fake_ortho",
     height: 800,
-    alpha: -Math.PI / 4,  // 45° rotation
-    beta: Math.PI / 4,    // 45° from top
+    alpha: -Math.PI / 4, // 45° rotation
+    beta: Math.PI / 4, // 45° from top
     fov: 0.4,
     controllerConfig: {
       smoothing: 0.15,
       edgeScrollEnabled: false,
     },
   },
-  
+
   isometric_close: {
     name: "Isometric Close",
     description: "Close-up isometric view",
@@ -62,7 +62,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       smoothing: 0.15,
     },
   },
-  
+
   isometric_far: {
     name: "Isometric Far",
     description: "Zoomed out isometric view",
@@ -76,7 +76,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       smoothing: 0.15,
     },
   },
-  
+
   // Top-down presets
   topdown: {
     name: "Top Down",
@@ -85,22 +85,22 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
     cameraMode: "orthographic",
     height: 300,
     alpha: 0,
-    beta: 0.01,  // Nearly straight down (can't be exactly 0)
+    beta: 0.01, // Nearly straight down (can't be exactly 0)
     orthoSize: 300,
     controllerConfig: {
       smoothing: 0.15,
     },
   },
-  
+
   // FPS presets
   fps_default: {
     name: "FPS Default",
     description: "Standard first-person view",
     controllerType: "fps",
     cameraMode: "perspective",
-    height: 10,  // Eye height
+    height: 10, // Eye height
     alpha: 0,
-    beta: Math.PI / 2,  // Looking forward
+    beta: Math.PI / 2, // Looking forward
     fov: 0.8,
     controllerConfig: {
       mouseSensitivity: 0.002,
@@ -108,7 +108,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       invertY: false,
     },
   },
-  
+
   fps_wide: {
     name: "FPS Wide",
     description: "Wide FOV first-person view",
@@ -123,7 +123,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       speed: 10,
     },
   },
-  
+
   // Side-scroller presets
   sidescroll_default: {
     name: "Side Scroll Default",
@@ -131,16 +131,16 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
     controllerType: "sidescroll",
     cameraMode: "orthographic",
     height: 200,
-    alpha: Math.PI / 2,  // Looking from side
-    beta: Math.PI / 2,   // Level with ground
+    alpha: Math.PI / 2, // Looking from side
+    beta: Math.PI / 2, // Level with ground
     orthoSize: 200,
     controllerConfig: {
-      lockY: false,  // Allow vertical scrolling
+      lockY: false, // Allow vertical scrolling
       lockX: false,
       smoothing: 0.1,
     },
   },
-  
+
   sidescroll_locked: {
     name: "Side Scroll Locked",
     description: "Side-scrolling with locked vertical",
@@ -151,20 +151,20 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
     beta: Math.PI / 2,
     orthoSize: 200,
     controllerConfig: {
-      lockY: true,  // Lock vertical position
+      lockY: true, // Lock vertical position
       smoothing: 0.1,
     },
   },
-  
+
   // Follow/Third-person presets
   follow_default: {
     name: "Follow Default",
     description: "Third-person follow camera",
     controllerType: "follow",
     cameraMode: "perspective",
-    height: 100,  // Distance behind target
-    alpha: Math.PI,  // Behind target
-    beta: Math.PI / 3,  // Slightly above
+    height: 100, // Distance behind target
+    alpha: Math.PI, // Behind target
+    beta: Math.PI / 3, // Slightly above
     fov: 0.8,
     controllerConfig: {
       smoothing: 0.08,
@@ -172,7 +172,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       maxDistance: 200,
     },
   },
-  
+
   follow_close: {
     name: "Follow Close",
     description: "Close third-person camera",
@@ -188,7 +188,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       maxDistance: 100,
     },
   },
-  
+
   // Orbit/Showcase presets
   orbit_default: {
     name: "Orbit Default",
@@ -205,7 +205,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
       maxDistance: 500,
     },
   },
-  
+
   orbit_auto: {
     name: "Orbit Auto-Rotate",
     description: "Auto-rotating showcase camera",
@@ -217,7 +217,7 @@ export const CAMERA_PRESETS: Record<string, CameraPreset> = {
     fov: 0.7,
     controllerConfig: {
       smoothing: 0.02,
-      speed: 0.001,  // Auto-rotation speed
+      speed: 0.001, // Auto-rotation speed
     },
   },
 };

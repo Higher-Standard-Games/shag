@@ -1,6 +1,6 @@
 /**
  * WashikiTheme - Washiki Washoi Design System for HUD & UI
- * 
+ *
  * Visual language extracted from washoi-net website.
  * Fonts: Orbitron (display) + Rajdhani (body) — loaded locally from /engine/fonts/
  * Colors: neon-cyan, neon-magenta, neon-gold on dark bg
@@ -13,92 +13,92 @@
 
 /* Orbitron — Display / Title font */
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Medium.ttf') format('truetype');
-    font-weight: 500;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-SemiBold.ttf') format('truetype');
-    font-weight: 600;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Bold.ttf') format('truetype');
-    font-weight: 700;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf') format('truetype');
-    font-weight: 800;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: block;
 }
 
 @font-face {
-    font-family: 'Orbitron';
-    src: url('/engine/fonts/Orbitron/static/Orbitron-Black.ttf') format('truetype');
-    font-weight: 900;
-    font-style: normal;
-    font-display: block;
+  font-family: "Orbitron";
+  src: url("/engine/fonts/Orbitron/static/Orbitron-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: block;
 }
 
 /* Rajdhani — Body / Label font */
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Light.ttf') format('truetype');
-    font-weight: 300;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Medium.ttf') format('truetype');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf') format('truetype');
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Rajdhani';
-    src: url('/engine/fonts/Rajdhani/Rajdhani-Bold.ttf') format('truetype');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Rajdhani";
+  src: url("/engine/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 /* ============================================================================
@@ -106,512 +106,512 @@
    ============================================================================ */
 
 :root {
-    /* --- Neon Colors --- */
-    --w-cyan: hsl(180, 100%, 50%);
-    --w-cyan-h: 180;
-    --w-cyan-s: 100%;
-    --w-cyan-l: 50%;
+  /* --- Neon Colors --- */
+  --w-cyan: hsl(180, 100%, 50%);
+  --w-cyan-h: 180;
+  --w-cyan-s: 100%;
+  --w-cyan-l: 50%;
 
-    --w-magenta: hsl(320, 100%, 60%);
-    --w-magenta-h: 320;
-    --w-magenta-s: 100%;
-    --w-magenta-l: 60%;
+  --w-magenta: hsl(320, 100%, 60%);
+  --w-magenta-h: 320;
+  --w-magenta-s: 100%;
+  --w-magenta-l: 60%;
 
-    --w-gold: hsl(45, 100%, 55%);
-    --w-gold-h: 45;
-    --w-gold-s: 100%;
-    --w-gold-l: 55%;
+  --w-gold: hsl(45, 100%, 55%);
+  --w-gold-h: 45;
+  --w-gold-s: 100%;
+  --w-gold-l: 55%;
 
-    /* --- Backgrounds --- */
-    --w-bg: hsl(240, 20%, 5%);
-    --w-bg-card: hsla(240, 15%, 10%, 0.5);
-    --w-bg-panel: hsla(240, 15%, 10%, 0.7);
+  /* --- Backgrounds --- */
+  --w-bg: hsl(240, 20%, 5%);
+  --w-bg-card: hsla(240, 15%, 10%, 0.5);
+  --w-bg-panel: hsla(240, 15%, 10%, 0.7);
 
-    /* --- Text --- */
-    --w-text: hsl(180, 100%, 95%);
-    --w-text-muted: hsl(220, 10%, 55%);
-    --w-text-dim: hsl(220, 10%, 35%);
+  /* --- Text --- */
+  --w-text: hsl(180, 100%, 95%);
+  --w-text-muted: hsl(220, 10%, 55%);
+  --w-text-dim: hsl(220, 10%, 35%);
 
-    /* --- Borders --- */
-    --w-border: hsla(240, 20%, 18%, 1);
+  /* --- Borders --- */
+  --w-border: hsla(240, 20%, 18%, 1);
 
-    /* --- Neon Glows --- */
-    --w-glow-cyan: 0 0 20px hsla(180, 100%, 50%, 0.6), 0 0 60px hsla(180, 100%, 50%, 0.3);
-    --w-glow-magenta: 0 0 20px hsla(320, 100%, 60%, 0.6), 0 0 60px hsla(320, 100%, 60%, 0.3);
-    --w-glow-gold: 0 0 20px hsla(45, 100%, 55%, 0.6), 0 0 60px hsla(45, 100%, 55%, 0.3);
+  /* --- Neon Glows --- */
+  --w-glow-cyan: 0 0 20px hsla(180, 100%, 50%, 0.6), 0 0 60px hsla(180, 100%, 50%, 0.3);
+  --w-glow-magenta: 0 0 20px hsla(320, 100%, 60%, 0.6), 0 0 60px hsla(320, 100%, 60%, 0.3);
+  --w-glow-gold: 0 0 20px hsla(45, 100%, 55%, 0.6), 0 0 60px hsla(45, 100%, 55%, 0.3);
 
-    /* --- Neon Glows (subtle, for HUD elements) --- */
-    --w-glow-cyan-sm: 0 0 8px hsla(180, 100%, 50%, 0.4), 0 0 20px hsla(180, 100%, 50%, 0.15);
-    --w-glow-magenta-sm: 0 0 8px hsla(320, 100%, 60%, 0.4), 0 0 20px hsla(320, 100%, 60%, 0.15);
-    --w-glow-gold-sm: 0 0 8px hsla(45, 100%, 55%, 0.4), 0 0 20px hsla(45, 100%, 55%, 0.15);
+  /* --- Neon Glows (subtle, for HUD elements) --- */
+  --w-glow-cyan-sm: 0 0 8px hsla(180, 100%, 50%, 0.4), 0 0 20px hsla(180, 100%, 50%, 0.15);
+  --w-glow-magenta-sm: 0 0 8px hsla(320, 100%, 60%, 0.4), 0 0 20px hsla(320, 100%, 60%, 0.15);
+  --w-glow-gold-sm: 0 0 8px hsla(45, 100%, 55%, 0.4), 0 0 20px hsla(45, 100%, 55%, 0.15);
 
-    /* --- Fonts --- */
-    --w-font-display: 'Orbitron', monospace;
-    --w-font-body: 'Rajdhani', sans-serif;
+  /* --- Fonts --- */
+  --w-font-display: "Orbitron", monospace;
+  --w-font-body: "Rajdhani", sans-serif;
 
-    /* --- Panel --- */
-    --w-panel-blur: 8px;
-    --w-panel-border-width: 2px;
-    --w-corner-size: 5px;
+  /* --- Panel --- */
+  --w-panel-blur: 8px;
+  --w-panel-border-width: 2px;
+  --w-corner-size: 5px;
 }
-
 
 /* ============================================================================
    FPS HUD Container (overrides default hud-container for FPS games)
    ============================================================================ */
 
 .fps-hud-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    z-index: 500;
-    font-family: var(--w-font-body);
-    color: var(--w-text);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 500;
+  font-family: var(--w-font-body);
+  color: var(--w-text);
 }
 
 .fps-hud-container * {
-    pointer-events: none;
-    box-sizing: border-box;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
 /* --- Anchor Areas --- */
 .fps-hud-area {
-    position: absolute;
-    display: flex;
-    gap: calc(10px * var(--ui-scale, 1));
+  position: absolute;
+  display: flex;
+  gap: calc(10px * var(--ui-scale, 1));
 }
 
 /* Top row */
 .fps-hud-top-left {
-    top: calc(20px * var(--ui-scale, 1));
-    left: calc(20px * var(--ui-scale, 1));
-    flex-direction: column;
-    align-items: flex-start;
+  top: calc(20px * var(--ui-scale, 1));
+  left: calc(20px * var(--ui-scale, 1));
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .fps-hud-top-center {
-    top: calc(20px * var(--ui-scale, 1));
-    left: 50%;
-    transform: translateX(-50%);
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 0;
+  top: calc(20px * var(--ui-scale, 1));
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
 }
 
 .fps-hud-top-right {
-    top: calc(20px * var(--ui-scale, 1));
-    right: calc(20px * var(--ui-scale, 1));
-    flex-direction: column;
-    align-items: flex-end;
+  top: calc(20px * var(--ui-scale, 1));
+  right: calc(20px * var(--ui-scale, 1));
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 /* Middle row */
 .fps-hud-left {
-    top: 50%;
-    left: calc(20px * var(--ui-scale, 1));
-    transform: translateY(-50%);
-    flex-direction: column;
-    align-items: flex-start;
+  top: 50%;
+  left: calc(20px * var(--ui-scale, 1));
+  transform: translateY(-50%);
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .fps-hud-center {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    flex-direction: column;
-    align-items: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  align-items: center;
 }
 
 .fps-hud-right {
-    top: calc(120px * var(--ui-scale, 1));
-    right: calc(20px * var(--ui-scale, 1));
-    flex-direction: column;
-    align-items: flex-end;
+  top: calc(120px * var(--ui-scale, 1));
+  right: calc(20px * var(--ui-scale, 1));
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 /* Uniform bottom bar box height */
 :root {
-    --hud-box-h: calc(90px * var(--ui-scale, 1));
+  --hud-box-h: calc(90px * var(--ui-scale, 1));
 }
 
 /* Bottom bar — full-width semi-opaque strip anchoring all bottom widgets */
 .fps-hud-bottom-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: calc(14px * var(--ui-scale, 1)) calc(28px * var(--ui-scale, 1));
-    background: linear-gradient(180deg, hsla(220, 30%, 6%, 0) 0%, hsla(220, 30%, 6%, 0.65) 40%, hsla(220, 30%, 6%, 0.75) 100%);
-    border-top: 1px solid hsla(180, 100%, 50%, 0.08);
-    pointer-events: none;
-    z-index: 1;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(14px * var(--ui-scale, 1)) calc(28px * var(--ui-scale, 1));
+  background: linear-gradient(
+    180deg,
+    hsla(220, 30%, 6%, 0) 0%,
+    hsla(220, 30%, 6%, 0.65) 40%,
+    hsla(220, 30%, 6%, 0.75) 100%
+  );
+  border-top: 1px solid hsla(180, 100%, 50%, 0.08);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Bottom zones override: must be static/relative to flow inside the bar */
-.fps-hud-bottom-bar>.fps-hud-area {
-    position: relative;
-    overflow: visible;
+.fps-hud-bottom-bar > .fps-hud-area {
+  position: relative;
+  overflow: visible;
 }
 
 .fps-hud-bottom-left {
-    flex: 1;
-    flex-direction: row;
-    align-items: center;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
 }
 
 .fps-hud-bottom-center {
-    flex: 0 0 auto;
-    flex-direction: column;
-    align-items: center;
-    padding: 0 calc(20px * var(--ui-scale, 1));
-    position: relative;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 calc(20px * var(--ui-scale, 1));
+  position: relative;
 }
 
 /* Toast container floats above the bar so it never grows the bar height */
 .fps-hud-bottom-center .fps-toast-container {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    pointer-events: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .fps-hud-bottom-right {
-    flex: 1;
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
+  flex: 1;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
 }
-
 
 /* ============================================================================
    MangaPanel - Signature panel with corner brackets
    ============================================================================ */
 
 .manga-panel {
-    position: relative;
-    border: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.3);
-    background: var(--w-bg-card);
-    backdrop-filter: blur(var(--w-panel-blur));
-    -webkit-backdrop-filter: blur(var(--w-panel-blur));
-    transition: border-color 0.5s ease;
+  position: relative;
+  border: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.3);
+  background: var(--w-bg-card);
+  backdrop-filter: blur(var(--w-panel-blur));
+  -webkit-backdrop-filter: blur(var(--w-panel-blur));
+  transition: border-color 0.5s ease;
 }
 
 /* Corner brackets */
 .manga-panel::before,
 .manga-panel::after {
-    content: '';
-    position: absolute;
-    width: var(--w-corner-size);
-    height: var(--w-corner-size);
-    pointer-events: none;
+  content: "";
+  position: absolute;
+  width: var(--w-corner-size);
+  height: var(--w-corner-size);
+  pointer-events: none;
 }
 
 /* Top-left: cyan */
 .manga-panel::before {
-    top: -1px;
-    left: -1px;
-    border-top: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.6);
-    border-left: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.6);
+  top: -1px;
+  left: -1px;
+  border-top: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.6);
+  border-left: var(--w-panel-border-width) solid hsla(180, 100%, 50%, 0.6);
 }
 
 /* Bottom-right: gold */
 .manga-panel::after {
-    bottom: -1px;
-    right: -1px;
-    border-bottom: var(--w-panel-border-width) solid hsla(45, 100%, 55%, 0.6);
-    border-right: var(--w-panel-border-width) solid hsla(45, 100%, 55%, 0.6);
+  bottom: -1px;
+  right: -1px;
+  border-bottom: var(--w-panel-border-width) solid hsla(45, 100%, 55%, 0.6);
+  border-right: var(--w-panel-border-width) solid hsla(45, 100%, 55%, 0.6);
 }
 
 /* Extra corners via inner pseudo-elements */
 .manga-panel-corners {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
 }
 
 .manga-panel-corners::before {
-    content: '';
-    position: absolute;
-    top: -1px;
-    right: -1px;
-    width: var(--w-corner-size);
-    height: var(--w-corner-size);
-    border-top: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
-    border-right: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: var(--w-corner-size);
+  height: var(--w-corner-size);
+  border-top: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
+  border-right: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
 }
 
 .manga-panel-corners::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: -1px;
-    width: var(--w-corner-size);
-    height: var(--w-corner-size);
-    border-bottom: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
-    border-left: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: -1px;
+  width: var(--w-corner-size);
+  height: var(--w-corner-size);
+  border-bottom: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
+  border-left: var(--w-panel-border-width) solid hsla(320, 100%, 60%, 0.6);
 }
 
 /* Panel color variants */
 .manga-panel--cyan {
-    border-color: hsla(180, 100%, 50%, 0.3);
+  border-color: hsla(180, 100%, 50%, 0.3);
 }
 
 .manga-panel--magenta {
-    border-color: hsla(320, 100%, 60%, 0.3);
+  border-color: hsla(320, 100%, 60%, 0.3);
 }
 
 .manga-panel--gold {
-    border-color: hsla(45, 100%, 55%, 0.3);
+  border-color: hsla(45, 100%, 55%, 0.3);
 }
-
 
 /* ============================================================================
    Neon Text Utilities
    ============================================================================ */
 
 .w-text-cyan {
-    color: var(--w-cyan);
+  color: var(--w-cyan);
 }
 
 .w-text-magenta {
-    color: var(--w-magenta);
+  color: var(--w-magenta);
 }
 
 .w-text-gold {
-    color: var(--w-gold);
+  color: var(--w-gold);
 }
 
 .w-glow-cyan {
-    text-shadow: var(--w-glow-cyan);
+  text-shadow: var(--w-glow-cyan);
 }
 
 .w-glow-magenta {
-    text-shadow: var(--w-glow-magenta);
+  text-shadow: var(--w-glow-magenta);
 }
 
 .w-glow-gold {
-    text-shadow: var(--w-glow-gold);
+  text-shadow: var(--w-glow-gold);
 }
 
 .w-glow-cyan-sm {
-    text-shadow: var(--w-glow-cyan-sm);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .w-glow-magenta-sm {
-    text-shadow: var(--w-glow-magenta-sm);
+  text-shadow: var(--w-glow-magenta-sm);
 }
 
 .w-glow-gold-sm {
-    text-shadow: var(--w-glow-gold-sm);
+  text-shadow: var(--w-glow-gold-sm);
 }
 
 /* Font utilities */
 .w-font-display {
-    font-family: var(--w-font-display);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+  font-family: var(--w-font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .w-font-body {
-    font-family: var(--w-font-body);
+  font-family: var(--w-font-body);
 }
-
 
 /* ============================================================================
    Value Bar (Health / Armor / Ammo)
    ============================================================================ */
 
 .fps-value-bar {
-    display: flex;
-    align-items: center;
-    gap: calc(14px * var(--ui-scale, 1));
-    padding: calc(6px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
-    width: calc(220px * var(--ui-scale, 1));
-    height: var(--hud-box-h);
-    box-sizing: border-box;
-    overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: calc(14px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  width: calc(220px * var(--ui-scale, 1));
+  height: var(--hud-box-h);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .fps-value-bar-icon {
-    font-size: calc(26px * var(--ui-scale, 1));
-    flex-shrink: 0;
-    width: calc(30px * var(--ui-scale, 1));
-    text-align: center;
+  font-size: calc(26px * var(--ui-scale, 1));
+  flex-shrink: 0;
+  width: calc(30px * var(--ui-scale, 1));
+  text-align: center;
 }
 
 .fps-value-bar-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: calc(4px * var(--ui-scale, 1));
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
 }
 
 .fps-value-bar-top {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 .fps-value-bar-number {
-    font-family: var(--w-font-display);
-    font-size: calc(38px * var(--ui-scale, 1));
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    line-height: 1;
+  font-family: var(--w-font-display);
+  font-size: calc(38px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
 }
 
 .fps-value-bar-label {
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--w-text-muted);
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--w-text-muted);
 }
 
 .fps-value-bar-track {
-    width: 100%;
-    height: calc(4px * var(--ui-scale, 1));
-    background: hsla(0, 0%, 100%, 0.08);
-    border-radius: calc(2px * var(--ui-scale, 1));
-    overflow: hidden;
+  width: 100%;
+  height: calc(4px * var(--ui-scale, 1));
+  background: hsla(0, 0%, 100%, 0.08);
+  border-radius: calc(2px * var(--ui-scale, 1));
+  overflow: hidden;
 }
 
 .fps-value-bar-fill {
-    height: 100%;
-    border-radius: calc(2px * var(--ui-scale, 1));
-    transition: width 0.15s ease-out;
-    box-shadow: 0 0 6px currentColor;
+  height: 100%;
+  border-radius: calc(2px * var(--ui-scale, 1));
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 6px currentColor;
 }
 
 /* Color variants */
 .fps-value-bar--cyan .fps-value-bar-number {
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-value-bar--cyan .fps-value-bar-fill {
-    background: var(--w-cyan);
-    color: var(--w-cyan);
+  background: var(--w-cyan);
+  color: var(--w-cyan);
 }
 
 .fps-value-bar--cyan .fps-value-bar-icon {
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-value-bar--magenta .fps-value-bar-number {
-    color: var(--w-magenta);
-    text-shadow: var(--w-glow-magenta-sm);
+  color: var(--w-magenta);
+  text-shadow: var(--w-glow-magenta-sm);
 }
 
 .fps-value-bar--magenta .fps-value-bar-fill {
-    background: var(--w-magenta);
-    color: var(--w-magenta);
+  background: var(--w-magenta);
+  color: var(--w-magenta);
 }
 
 .fps-value-bar--magenta .fps-value-bar-icon {
-    color: var(--w-magenta);
-    text-shadow: var(--w-glow-magenta-sm);
+  color: var(--w-magenta);
+  text-shadow: var(--w-glow-magenta-sm);
 }
 
 .fps-value-bar--gold .fps-value-bar-number {
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
 }
 
 .fps-value-bar--gold .fps-value-bar-fill {
-    background: var(--w-gold);
-    color: var(--w-gold);
+  background: var(--w-gold);
+  color: var(--w-gold);
 }
 
 .fps-value-bar--gold .fps-value-bar-icon {
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
 }
-
 
 /* ============================================================================
    Ammo Counter (value-bar style, matches health/armor)
    ============================================================================ */
 
 .fps-ammo-counter {
-    display: flex;
-    align-items: center;
-    gap: calc(14px * var(--ui-scale, 1));
-    padding: calc(6px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
-    width: calc(220px * var(--ui-scale, 1));
-    height: var(--hud-box-h);
-    box-sizing: border-box;
-    overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: calc(14px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  width: calc(220px * var(--ui-scale, 1));
+  height: var(--hud-box-h);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .fps-ammo-counter .fps-value-bar-icon {
-    font-size: calc(26px * var(--ui-scale, 1));
-    flex-shrink: 0;
-    width: calc(30px * var(--ui-scale, 1));
-    text-align: center;
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
+  font-size: calc(26px * var(--ui-scale, 1));
+  flex-shrink: 0;
+  width: calc(30px * var(--ui-scale, 1));
+  text-align: center;
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
 }
 
 .fps-ammo-counter .fps-value-bar-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: calc(4px * var(--ui-scale, 1));
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
 }
 
 .fps-ammo-counter .fps-value-bar-top {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 .fps-ammo-number {
-    font-family: var(--w-font-display);
-    font-size: calc(38px * var(--ui-scale, 1));
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    line-height: 1;
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
+  font-family: var(--w-font-display);
+  font-size: calc(38px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
 }
 
 .fps-ammo-weapon {
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--w-text-muted);
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--w-text-muted);
 }
 
 .fps-ammo-counter .fps-value-bar-track {
-    width: 100%;
-    height: calc(4px * var(--ui-scale, 1));
-    background: hsla(0, 0%, 100%, 0.08);
-    border-radius: calc(2px * var(--ui-scale, 1));
-    overflow: hidden;
+  width: 100%;
+  height: calc(4px * var(--ui-scale, 1));
+  background: hsla(0, 0%, 100%, 0.08);
+  border-radius: calc(2px * var(--ui-scale, 1));
+  overflow: hidden;
 }
 
 .fps-ammo-counter .fps-value-bar-fill {
-    height: 100%;
-    border-radius: calc(2px * var(--ui-scale, 1));
-    transition: width 0.15s ease-out;
-    background: var(--w-gold);
-    color: var(--w-gold);
-    box-shadow: 0 0 6px currentColor;
+  height: 100%;
+  border-radius: calc(2px * var(--ui-scale, 1));
+  transition: width 0.15s ease-out;
+  background: var(--w-gold);
+  color: var(--w-gold);
+  box-shadow: 0 0 6px currentColor;
 }
 
 /* ============================================================================
@@ -619,130 +619,142 @@
    ============================================================================ */
 
 .fps-weapon-slots {
-    display: flex;
-    flex-direction: row;
-    gap: calc(8px * var(--ui-scale, 1));
-    align-items: flex-end;
+  display: flex;
+  flex-direction: row;
+  gap: calc(8px * var(--ui-scale, 1));
+  align-items: flex-end;
 }
 
 .fps-weapon-slots .fps-weapon-slot {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: calc(80px * var(--ui-scale, 1));
-    height: var(--hud-box-h);
-    box-sizing: border-box;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    pointer-events: auto;
-    cursor: default;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(80px * var(--ui-scale, 1));
+  height: var(--hud-box-h);
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+  pointer-events: auto;
+  cursor: default;
 }
 
 /* Keybind number badge (top-right corner) */
 .fps-weapon-slots .fps-weapon-slot-key {
-    position: absolute;
-    top: calc(3px * var(--ui-scale, 1));
-    right: calc(5px * var(--ui-scale, 1));
-    font-family: var(--w-font-display);
-    font-size: calc(11px * var(--ui-scale, 1));
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    line-height: 1;
-    color: hsla(180, 60%, 60%, 0.5);
-    transition: color 0.2s ease, text-shadow 0.2s ease;
+  position: absolute;
+  top: calc(3px * var(--ui-scale, 1));
+  right: calc(5px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: hsla(180, 60%, 60%, 0.5);
+  transition:
+    color 0.2s ease,
+    text-shadow 0.2s ease;
 }
 
 /* Weapon abbreviation */
 .fps-weapon-slots .fps-weapon-slot-name {
-    font-family: var(--w-font-display);
-    font-size: calc(18px * var(--ui-scale, 1));
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    color: hsla(0, 0%, 100%, 0.6);
-    text-transform: uppercase;
-    transition: color 0.2s ease, text-shadow 0.2s ease;
-    margin-top: calc(4px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(18px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: hsla(0, 0%, 100%, 0.6);
+  text-transform: uppercase;
+  transition:
+    color 0.2s ease,
+    text-shadow 0.2s ease;
+  margin-top: calc(4px * var(--ui-scale, 1));
 }
 
 /* Empty slot — dimmed */
 .fps-weapon-slots .fps-weapon-slot--empty {
-    border-color: hsla(220, 20%, 30%, 0.2);
-    background: hsla(220, 30%, 6%, 0.3);
+  border-color: hsla(220, 20%, 30%, 0.2);
+  background: hsla(220, 30%, 6%, 0.3);
 }
 
 .fps-weapon-slots .fps-weapon-slot--empty .fps-weapon-slot-key {
-    color: hsla(220, 20%, 40%, 0.3);
+  color: hsla(220, 20%, 40%, 0.3);
 }
 
 .fps-weapon-slots .fps-weapon-slot--empty .fps-weapon-slot-name {
-    color: hsla(220, 20%, 40%, 0.15);
-    font-size: calc(12px * var(--ui-scale, 1));
+  color: hsla(220, 20%, 40%, 0.15);
+  font-size: calc(12px * var(--ui-scale, 1));
 }
 
 /* ---- Active slot (currently selected weapon) ---- */
 .fps-weapon-slots .fps-weapon-slot--active {
-    border-color: var(--w-cyan);
-    background: hsla(180, 80%, 20%, 0.15);
-    box-shadow: 0 0 8px hsla(180, 100%, 50%, 0.25), inset 0 0 12px hsla(180, 100%, 50%, 0.06);
-    animation: fps-slot-breathe 2s ease-in-out infinite;
+  border-color: var(--w-cyan);
+  background: hsla(180, 80%, 20%, 0.15);
+  box-shadow:
+    0 0 8px hsla(180, 100%, 50%, 0.25),
+    inset 0 0 12px hsla(180, 100%, 50%, 0.06);
+  animation: fps-slot-breathe 2s ease-in-out infinite;
 }
 
 .fps-weapon-slots .fps-weapon-slot--active .fps-weapon-slot-key {
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-weapon-slots .fps-weapon-slot--active .fps-weapon-slot-name {
-    color: var(--w-text);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-text);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 /* ---- Weapon color variants (border tint when owned but not active) ---- */
 .fps-weapon-slots .fps-weapon-slot--cyan {
-    border-color: hsla(180, 70%, 45%, 0.35);
+  border-color: hsla(180, 70%, 45%, 0.35);
 }
 
 .fps-weapon-slots .fps-weapon-slot--cyan .fps-weapon-slot-name {
-    color: hsla(180, 70%, 60%, 0.7);
+  color: hsla(180, 70%, 60%, 0.7);
 }
 
 .fps-weapon-slots .fps-weapon-slot--gold {
-    border-color: hsla(40, 80%, 50%, 0.35);
+  border-color: hsla(40, 80%, 50%, 0.35);
 }
 
 .fps-weapon-slots .fps-weapon-slot--gold .fps-weapon-slot-name {
-    color: hsla(40, 80%, 60%, 0.7);
+  color: hsla(40, 80%, 60%, 0.7);
 }
 
 .fps-weapon-slots .fps-weapon-slot--green {
-    border-color: hsla(120, 60%, 45%, 0.35);
+  border-color: hsla(120, 60%, 45%, 0.35);
 }
 
 .fps-weapon-slots .fps-weapon-slot--green .fps-weapon-slot-name {
-    color: hsla(120, 60%, 55%, 0.7);
+  color: hsla(120, 60%, 55%, 0.7);
 }
 
 .fps-weapon-slots .fps-weapon-slot--magenta {
-    border-color: hsla(300, 70%, 50%, 0.35);
+  border-color: hsla(300, 70%, 50%, 0.35);
 }
 
 .fps-weapon-slots .fps-weapon-slot--magenta .fps-weapon-slot-name {
-    color: hsla(300, 70%, 55%, 0.7);
+  color: hsla(300, 70%, 55%, 0.7);
 }
 
 /* Active slot breathing glow */
 @keyframes fps-slot-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px hsla(180, 100%, 50%, 0.25),
+      inset 0 0 12px hsla(180, 100%, 50%, 0.06);
+  }
 
-    0%,
-    100% {
-        box-shadow: 0 0 8px hsla(180, 100%, 50%, 0.25), inset 0 0 12px hsla(180, 100%, 50%, 0.06);
-    }
-
-    50% {
-        box-shadow: 0 0 14px hsla(180, 100%, 50%, 0.4), inset 0 0 18px hsla(180, 100%, 50%, 0.1);
-    }
+  50% {
+    box-shadow:
+      0 0 14px hsla(180, 100%, 50%, 0.4),
+      inset 0 0 18px hsla(180, 100%, 50%, 0.1);
+  }
 }
 
 /* ============================================================================
@@ -750,71 +762,70 @@
    ============================================================================ */
 
 .fps-timer {
-    font-family: var(--w-font-display);
-    font-size: calc(26px * var(--ui-scale, 1));
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.12em;
-    color: var(--w-text);
-    padding: calc(8px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
-    min-width: calc(120px * var(--ui-scale, 1));
-    height: calc(46px * var(--ui-scale, 1));
-    text-align: center;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  font-family: var(--w-font-display);
+  font-size: calc(26px * var(--ui-scale, 1));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--w-text);
+  padding: calc(8px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
+  min-width: calc(120px * var(--ui-scale, 1));
+  height: calc(46px * var(--ui-scale, 1));
+  text-align: center;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .fps-timer--warning {
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
-    animation: fps-pulse-neon 2s ease-in-out infinite;
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
+  animation: fps-pulse-neon 2s ease-in-out infinite;
 }
 
 .fps-timer--critical {
-    color: hsl(0, 80%, 60%);
-    text-shadow: 0 0 8px hsla(0, 80%, 60%, 0.5);
-    animation: fps-pulse-neon 0.8s ease-in-out infinite;
+  color: hsl(0, 80%, 60%);
+  text-shadow: 0 0 8px hsla(0, 80%, 60%, 0.5);
+  animation: fps-pulse-neon 0.8s ease-in-out infinite;
 }
-
 
 /* ============================================================================
    Speedometer
    ============================================================================ */
 
 .fps-speedometer {
-    z-index: 900;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: calc(6px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1));
-    width: calc(110px * var(--ui-scale, 1));
-    height: var(--hud-box-h);
-    box-sizing: border-box;
+  z-index: 900;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(6px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1));
+  width: calc(110px * var(--ui-scale, 1));
+  height: var(--hud-box-h);
+  box-sizing: border-box;
 }
 
 .fps-speedometer-number {
-    font-family: var(--w-font-display);
-    font-size: calc(36px * var(--ui-scale, 1));
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    line-height: 1;
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
-    font-variant-numeric: tabular-nums;
+  font-family: var(--w-font-display);
+  font-size: calc(36px * var(--ui-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .fps-speedometer-label {
-    font-family: var(--w-font-body);
-    font-size: calc(12px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--w-text-muted);
-    margin-top: calc(2px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(12px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--w-text-muted);
+  margin-top: calc(2px * var(--ui-scale, 1));
 }
 
 /* ============================================================================
@@ -822,139 +833,140 @@
    ============================================================================ */
 
 @keyframes fps-pulse-neon {
+  0%,
+  100% {
+    opacity: 1;
+  }
 
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes fps-float-up {
-    0% {
-        opacity: 0;
-        transform: translateY(10px);
-    }
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 
-    20% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 
-    80% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 
-    100% {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes fps-fade-in {
-    from {
-        opacity: 0;
-    }
+  from {
+    opacity: 0;
+  }
 
-    to {
-        opacity: 1;
-    }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fps-fade-out {
-    from {
-        opacity: 1;
-    }
+  from {
+    opacity: 1;
+  }
 
-    to {
-        opacity: 0;
-    }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes fps-scale-in {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes fps-glow-pulse {
+  0%,
+  100% {
+    box-shadow: var(--w-glow-cyan-sm);
+  }
 
-    0%,
-    100% {
-        box-shadow: var(--w-glow-cyan-sm);
-    }
-
-    50% {
-        box-shadow: var(--w-glow-cyan);
-    }
+  50% {
+    box-shadow: var(--w-glow-cyan);
+  }
 }
 
 /* Flash on value change */
 @keyframes fps-flash-gain {
-    0% {
-        filter: brightness(2);
-    }
+  0% {
+    filter: brightness(2);
+  }
 
-    100% {
-        filter: brightness(1);
-    }
+  100% {
+    filter: brightness(1);
+  }
 }
 
 @keyframes fps-flash-loss {
-    0% {
-        filter: brightness(0.5) saturate(2);
-    }
+  0% {
+    filter: brightness(0.5) saturate(2);
+  }
 
-    30% {
-        filter: brightness(1.5);
-    }
+  30% {
+    filter: brightness(1.5);
+  }
 
-    100% {
-        filter: brightness(1) saturate(1);
-    }
+  100% {
+    filter: brightness(1) saturate(1);
+  }
 }
 
 .fps-flash-gain {
-    animation: fps-flash-gain 0.3s ease-out;
+  animation: fps-flash-gain 0.3s ease-out;
 }
 
 .fps-flash-loss {
-    animation: fps-flash-loss 0.4s ease-out;
+  animation: fps-flash-loss 0.4s ease-out;
 }
 
 /* Low value warning pulsing */
 .fps-value-low {
-    animation: fps-pulse-neon 1.5s ease-in-out infinite;
+  animation: fps-pulse-neon 1.5s ease-in-out infinite;
 }
 
 /* Critical health — red pulsing border glow */
 .fps-value-bar--critical {
-    border-color: hsla(0, 80%, 50%, 0.6) !important;
-    animation: fps-critical-pulse 0.8s ease-in-out infinite !important;
+  border-color: hsla(0, 80%, 50%, 0.6) !important;
+  animation: fps-critical-pulse 0.8s ease-in-out infinite !important;
 }
 
 @keyframes fps-critical-pulse {
+  0%,
+  100% {
+    border-color: hsla(0, 80%, 50%, 0.6);
+    box-shadow:
+      0 0 8px hsla(0, 80%, 50%, 0.3),
+      inset 0 0 6px hsla(0, 80%, 50%, 0.05);
+  }
 
-    0%,
-    100% {
-        border-color: hsla(0, 80%, 50%, 0.6);
-        box-shadow: 0 0 8px hsla(0, 80%, 50%, 0.3), inset 0 0 6px hsla(0, 80%, 50%, 0.05);
-    }
-
-    50% {
-        border-color: hsla(0, 90%, 55%, 0.9);
-        box-shadow: 0 0 16px hsla(0, 80%, 50%, 0.5), inset 0 0 12px hsla(0, 80%, 50%, 0.1);
-    }
+  50% {
+    border-color: hsla(0, 90%, 55%, 0.9);
+    box-shadow:
+      0 0 16px hsla(0, 80%, 50%, 0.5),
+      inset 0 0 12px hsla(0, 80%, 50%, 0.1);
+  }
 }
 
 /* ============================================================================
@@ -962,11 +974,11 @@
    ============================================================================ */
 
 .fps-ammo-icon {
-    font-size: calc(20px * var(--ui-scale, 1));
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
-    flex-shrink: 0;
-    line-height: 1;
+  font-size: calc(20px * var(--ui-scale, 1));
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 /* ============================================================================
@@ -974,37 +986,37 @@
    ============================================================================ */
 
 .fps-frag-counter {
-    display: flex;
-    align-items: baseline;
-    gap: calc(8px * var(--ui-scale, 1));
-    padding: calc(8px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
-    font-family: var(--w-font-display);
-    min-width: calc(120px * var(--ui-scale, 1));
-    height: calc(46px * var(--ui-scale, 1));
-    box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  gap: calc(8px * var(--ui-scale, 1));
+  padding: calc(8px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  min-width: calc(120px * var(--ui-scale, 1));
+  height: calc(46px * var(--ui-scale, 1));
+  box-sizing: border-box;
 }
 
 .fps-frag-icon {
-    font-size: calc(20px * var(--ui-scale, 1));
-    line-height: 1;
+  font-size: calc(20px * var(--ui-scale, 1));
+  line-height: 1;
 }
 
 .fps-frag-number {
-    font-size: calc(26px * var(--ui-scale, 1));
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.12em;
-    color: var(--w-text);
-    line-height: 1;
+  font-size: calc(26px * var(--ui-scale, 1));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--w-text);
+  line-height: 1;
 }
 
 .fps-frag-label {
-    font-size: calc(10px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--w-text-muted);
-    line-height: 1;
+  font-size: calc(10px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--w-text-muted);
+  line-height: 1;
 }
 
 /* ============================================================================
@@ -1012,820 +1024,806 @@
    ============================================================================ */
 
 .fps-kill-feed {
-    display: flex;
-    flex-direction: column;
-    gap: calc(4px * var(--ui-scale, 1));
-    max-width: calc(300px * var(--ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
+  max-width: calc(300px * var(--ui-scale, 1));
 }
 
 .fps-kill-entry {
-    font-family: var(--w-font-body);
-    font-size: calc(15px * var(--ui-scale, 1));
-    font-weight: 600;
-    padding: calc(5px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
-    background: hsla(240, 15%, 10%, 0.7);
-    border-left: 2px solid var(--w-cyan);
-    animation: fps-fade-in 0.2s ease-out;
-    white-space: nowrap;
+  font-family: var(--w-font-body);
+  font-size: calc(15px * var(--ui-scale, 1));
+  font-weight: 600;
+  padding: calc(5px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
+  background: hsla(240, 15%, 10%, 0.7);
+  border-left: 2px solid var(--w-cyan);
+  animation: fps-fade-in 0.2s ease-out;
+  white-space: nowrap;
 }
 
 .fps-kill-entry-self {
-    border-left-color: var(--w-gold);
-    background: hsla(45, 100%, 55%, 0.08);
+  border-left-color: var(--w-gold);
+  background: hsla(45, 100%, 55%, 0.08);
 }
 
 .fps-kill-killer {
-    color: var(--w-text);
+  color: var(--w-text);
 }
 
 .fps-kill-weapon {
-    color: var(--w-text-muted);
-    margin: 0 calc(4px * var(--ui-scale, 1));
+  color: var(--w-text-muted);
+  margin: 0 calc(4px * var(--ui-scale, 1));
 }
 
 .fps-kill-victim {
-    color: var(--w-text);
+  color: var(--w-text);
 }
-
 
 /* ============================================================================
    Frag Message (center screen)
    ============================================================================ */
 
 .fps-frag-message {
-    font-family: var(--w-font-display);
-    font-size: calc(22px * var(--ui-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold);
-    animation: fps-float-up 2.5s ease-in-out forwards;
-    text-align: center;
+  font-family: var(--w-font-display);
+  font-size: calc(22px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold);
+  animation: fps-float-up 2.5s ease-in-out forwards;
+  text-align: center;
 }
 
-
 /* Death Screen — see canonical version below (Death / Respawn Screen) */
-
 
 /* ============================================================================
    Toast / Pickup Notification
    ============================================================================ */
 
 .fps-toast {
-    padding: calc(12px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(24px * var(--ui-scale, 1));
-    font-weight: 700;
-    color: var(--w-text);
-    white-space: nowrap;
-    margin-bottom: calc(60px * var(--ui-scale, 1));
-    animation: fps-float-up 2s ease-in-out forwards;
+  padding: calc(12px * var(--ui-scale, 1)) calc(32px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-weight: 700;
+  color: var(--w-text);
+  white-space: nowrap;
+  margin-bottom: calc(60px * var(--ui-scale, 1));
+  animation: fps-float-up 2s ease-in-out forwards;
 }
-
 
 /* ============================================================================
    Weapon Rack (left vertical stack) — compact sidebar display
    ============================================================================ */
 
 .fps-weapon-rack {
-    display: flex;
-    flex-direction: column;
-    gap: calc(3px * var(--ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--ui-scale, 1));
 }
 
 .fps-weapon-rack .fps-weapon-slot {
-    display: flex;
-    align-items: center;
-    gap: calc(10px * var(--ui-scale, 1));
-    padding: calc(6px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(18px * var(--ui-scale, 1));
-    font-weight: 500;
-    color: var(--w-text-dim);
-    background: hsla(240, 15%, 10%, 0.3);
-    border-left: 2px solid transparent;
-    transition: all 0.15s ease;
-    min-width: calc(110px * var(--ui-scale, 1));
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(18px * var(--ui-scale, 1));
+  font-weight: 500;
+  color: var(--w-text-dim);
+  background: hsla(240, 15%, 10%, 0.3);
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+  min-width: calc(110px * var(--ui-scale, 1));
 }
 
 .fps-weapon-rack .fps-weapon-slot--active {
-    color: var(--w-cyan);
-    background: hsla(180, 100%, 50%, 0.06);
-    border-left-color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-cyan);
+  background: hsla(180, 100%, 50%, 0.06);
+  border-left-color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-weapon-rack .fps-weapon-slot--empty {
-    opacity: 0.25;
+  opacity: 0.25;
 }
 
 .fps-weapon-rack .fps-weapon-slot-key {
-    font-family: var(--w-font-display);
-    font-size: calc(9px * var(--ui-scale, 1));
-    font-weight: 600;
-    color: var(--w-text-muted);
-    min-width: calc(12px * var(--ui-scale, 1));
-    text-align: center;
+  font-family: var(--w-font-display);
+  font-size: calc(9px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-text-muted);
+  min-width: calc(12px * var(--ui-scale, 1));
+  text-align: center;
 }
 
 .fps-weapon-rack .fps-weapon-slot--active .fps-weapon-slot-key {
-    color: var(--w-cyan);
+  color: var(--w-cyan);
 }
 
 .fps-weapon-rack .fps-weapon-slot-name {
-    flex: 1;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: calc(10px * var(--ui-scale, 1));
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: calc(10px * var(--ui-scale, 1));
 }
 
 .fps-weapon-rack .fps-weapon-slot-ammo {
-    font-family: var(--w-font-display);
-    font-size: calc(10px * var(--ui-scale, 1));
-    font-weight: 600;
-    color: var(--w-text-muted);
-    min-width: calc(20px * var(--ui-scale, 1));
-    text-align: right;
+  font-family: var(--w-font-display);
+  font-size: calc(10px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-text-muted);
+  min-width: calc(20px * var(--ui-scale, 1));
+  text-align: right;
 }
 
 .fps-weapon-rack .fps-weapon-slot--active .fps-weapon-slot-ammo {
-    color: var(--w-gold);
-    text-shadow: var(--w-glow-gold-sm);
+  color: var(--w-gold);
+  text-shadow: var(--w-glow-gold-sm);
 }
-
 
 /* ============================================================================
    Scoreboard Overlay (Tab)
    ============================================================================ */
 
 .fps-scoreboard-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: hsla(240, 20%, 5%, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 600;
-    animation: fps-fade-in 0.15s ease-out;
-    pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: hsla(240, 20%, 5%, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 600;
+  animation: fps-fade-in 0.15s ease-out;
+  pointer-events: none;
 }
 
 .fps-scoreboard {
-    width: calc(600px * var(--ui-scale, 1));
-    max-width: 90vw;
-    max-height: 80vh;
+  width: calc(600px * var(--ui-scale, 1));
+  max-width: 90vw;
+  max-height: 80vh;
 }
 
 .fps-scoreboard-title {
-    font-family: var(--w-font-display);
-    font-size: calc(16px * var(--ui-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
-    text-align: center;
-    margin-bottom: calc(12px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(16px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
+  text-align: center;
+  margin-bottom: calc(12px * var(--ui-scale, 1));
 }
 
 .fps-scoreboard-header {
-    display: flex;
-    padding: calc(6px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(10px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--w-text-muted);
-    border-bottom: 1px solid var(--w-border);
+  display: flex;
+  padding: calc(6px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(10px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--w-text-muted);
+  border-bottom: 1px solid var(--w-border);
 }
 
 .fps-scoreboard-row {
-    display: flex;
-    padding: calc(6px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    font-weight: 500;
-    color: var(--w-text);
-    border-bottom: 1px solid hsla(240, 20%, 18%, 0.5);
-    transition: background 0.15s ease;
+  display: flex;
+  padding: calc(6px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 500;
+  color: var(--w-text);
+  border-bottom: 1px solid hsla(240, 20%, 18%, 0.5);
+  transition: background 0.15s ease;
 }
 
 .fps-scoreboard-row--self {
-    background: hsla(180, 100%, 50%, 0.06);
-    border-left: 2px solid var(--w-cyan);
+  background: hsla(180, 100%, 50%, 0.06);
+  border-left: 2px solid var(--w-cyan);
 }
 
 .fps-scoreboard-col-name {
-    flex: 3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  flex: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fps-scoreboard-col-score {
-    flex: 1;
-    text-align: center;
-    font-family: var(--w-font-display);
-    font-weight: 600;
-    color: var(--w-gold);
+  flex: 1;
+  text-align: center;
+  font-family: var(--w-font-display);
+  font-weight: 600;
+  color: var(--w-gold);
 }
 
 .fps-scoreboard-col-deaths {
-    flex: 1;
-    text-align: center;
-    color: var(--w-text-muted);
+  flex: 1;
+  text-align: center;
+  color: var(--w-text-muted);
 }
 
 .fps-scoreboard-col-ping {
-    flex: 1;
-    text-align: right;
-    font-size: calc(11px * var(--ui-scale, 1));
-    color: var(--w-text-dim);
+  flex: 1;
+  text-align: right;
+  font-size: calc(11px * var(--ui-scale, 1));
+  color: var(--w-text-dim);
 }
 
 /* --- Team Scoreboard Variants --- */
 
 .fps-scoreboard-teams {
-    display: flex;
-    gap: calc(20px * var(--ui-scale, 1));
-    width: 100%;
+  display: flex;
+  gap: calc(20px * var(--ui-scale, 1));
+  width: 100%;
 }
 
 .fps-scoreboard-team {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .fps-scoreboard-team-title {
-    font-family: var(--w-font-display);
-    font-size: calc(14px * var(--ui-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin-bottom: calc(8px * var(--ui-scale, 1));
-    text-align: center;
+  font-family: var(--w-font-display);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: calc(8px * var(--ui-scale, 1));
+  text-align: center;
 }
 
 /* Udon Team (Magenta/Red) */
 .fps-scoreboard-team--udon .fps-scoreboard-team-title {
-    color: var(--w-magenta);
-    text-shadow: var(--w-glow-magenta-sm);
+  color: var(--w-magenta);
+  text-shadow: var(--w-glow-magenta-sm);
 }
 
 .fps-scoreboard-team--udon .fps-scoreboard-row {
-    border-left: 2px solid var(--w-magenta);
+  border-left: 2px solid var(--w-magenta);
 }
 
 /* Soba Team (Cyan/Blue) */
 .fps-scoreboard-team--soba .fps-scoreboard-team-title {
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-scoreboard-team--soba .fps-scoreboard-row {
-    border-left: 2px solid var(--w-cyan);
+  border-left: 2px solid var(--w-cyan);
 }
-
 
 /* ============================================================================
    Chat UI
    ============================================================================ */
 
 .fps-chat {
-    position: fixed;
-    bottom: calc(120px * var(--ui-scale, 1));
-    left: calc(20px * var(--ui-scale, 1));
-    width: calc(400px * var(--ui-scale, 1));
-    max-width: 50vw;
-    z-index: 550;
-    display: flex;
-    flex-direction: column;
-    gap: calc(4px * var(--ui-scale, 1));
+  position: fixed;
+  bottom: calc(120px * var(--ui-scale, 1));
+  left: calc(20px * var(--ui-scale, 1));
+  width: calc(400px * var(--ui-scale, 1));
+  max-width: 50vw;
+  z-index: 550;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--ui-scale, 1));
 }
 
 .fps-chat-log {
-    display: flex;
-    flex-direction: column;
-    gap: calc(2px * var(--ui-scale, 1));
-    max-height: calc(200px * var(--ui-scale, 1));
-    overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--ui-scale, 1));
+  max-height: calc(200px * var(--ui-scale, 1));
+  overflow: hidden;
 }
 
 .fps-chat-message {
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    font-weight: 400;
-    color: var(--w-text);
-    padding: calc(2px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
-    animation: fps-fade-in 0.15s ease-out;
-    opacity: 0.9;
-    transition: opacity 1s ease;
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 400;
+  color: var(--w-text);
+  padding: calc(2px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+  animation: fps-fade-in 0.15s ease-out;
+  opacity: 0.9;
+  transition: opacity 1s ease;
 }
 
 .fps-chat-message--fading {
-    opacity: 0;
+  opacity: 0;
 }
 
 .fps-chat-sender {
-    font-weight: 600;
-    color: var(--w-cyan);
-    margin-right: calc(6px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-cyan);
+  margin-right: calc(6px * var(--ui-scale, 1));
 }
 
 .fps-chat-input-wrap {
-    display: none;
-    background: var(--w-bg-panel);
-    border: 1px solid hsla(180, 100%, 50%, 0.3);
-    padding: calc(6px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
-    pointer-events: auto;
+  display: none;
+  background: var(--w-bg-panel);
+  border: 1px solid hsla(180, 100%, 50%, 0.3);
+  padding: calc(6px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
+  pointer-events: auto;
 }
 
 .fps-chat-input-wrap--active {
-    display: flex;
+  display: flex;
 }
 
 .fps-chat-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--w-text);
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    caret-color: var(--w-cyan);
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--w-text);
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  caret-color: var(--w-cyan);
 }
 
 .fps-chat-input::placeholder {
-    color: var(--w-text-dim);
+  color: var(--w-text-dim);
 }
-
 
 /* ============================================================================
    Damage Indicators (directional)
    ============================================================================ */
 
 .fps-damage-indicators {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: calc(200px * var(--ui-scale, 1));
-    height: calc(200px * var(--ui-scale, 1));
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    z-index: 510;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: calc(200px * var(--ui-scale, 1));
+  height: calc(200px * var(--ui-scale, 1));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 510;
 }
 
 .fps-damage-arrow {
-    position: absolute;
-    width: calc(40px * var(--ui-scale, 1));
-    height: calc(8px * var(--ui-scale, 1));
-    background: hsla(0, 80%, 55%, 0.8);
-    box-shadow: 0 0 12px hsla(0, 80%, 55%, 0.6);
-    border-radius: calc(2px * var(--ui-scale, 1));
-    transform-origin: center center;
-    animation: fps-damage-flash 0.6s ease-out forwards;
+  position: absolute;
+  width: calc(40px * var(--ui-scale, 1));
+  height: calc(8px * var(--ui-scale, 1));
+  background: hsla(0, 80%, 55%, 0.8);
+  box-shadow: 0 0 12px hsla(0, 80%, 55%, 0.6);
+  border-radius: calc(2px * var(--ui-scale, 1));
+  transform-origin: center center;
+  animation: fps-damage-flash 0.6s ease-out forwards;
 }
 
 @keyframes fps-damage-flash {
-    0% {
-        opacity: 1;
-    }
+  0% {
+    opacity: 1;
+  }
 
-    60% {
-        opacity: 0.8;
-    }
+  60% {
+    opacity: 0.8;
+  }
 
-    100% {
-        opacity: 0;
-    }
+  100% {
+    opacity: 0;
+  }
 }
-
 
 /* ============================================================================
    Death / Respawn Screen — "YOU GOT FRAGGED"
    ============================================================================ */
 
 .fps-death-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: hsla(0, 0%, 0%, 0.65);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 800;
-    animation: fps-fade-in 0.3s ease-out;
-    pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: hsla(0, 0%, 0%, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 800;
+  animation: fps-fade-in 0.3s ease-out;
+  pointer-events: none;
 }
 
 .fps-death-panel {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: calc(12px * var(--ui-scale, 1));
-    padding: calc(48px * var(--ui-scale, 1)) calc(96px * var(--ui-scale, 1));
-    animation: fps-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(12px * var(--ui-scale, 1));
+  padding: calc(48px * var(--ui-scale, 1)) calc(96px * var(--ui-scale, 1));
+  animation: fps-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
 }
 
 .fps-death-title {
-    font-family: var(--w-font-display);
-    font-size: calc(52px * var(--ui-scale, 1));
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: hsl(0, 80%, 55%);
-    text-shadow: 0 0 20px hsla(0, 80%, 55%, 0.6), 0 0 60px hsla(0, 80%, 55%, 0.2);
-    animation: fps-pulse-neon 2s ease-in-out infinite;
+  font-family: var(--w-font-display);
+  font-size: calc(52px * var(--ui-scale, 1));
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: hsl(0, 80%, 55%);
+  text-shadow:
+    0 0 20px hsla(0, 80%, 55%, 0.6),
+    0 0 60px hsla(0, 80%, 55%, 0.2);
+  animation: fps-pulse-neon 2s ease-in-out infinite;
 }
 
 .fps-death-separator {
-    width: calc(160px * var(--ui-scale, 1));
-    height: 1px;
-    background: linear-gradient(90deg,
-            transparent,
-            hsla(0, 80%, 50%, 0.5),
-            transparent);
-    margin: calc(8px * var(--ui-scale, 1)) 0;
+  width: calc(160px * var(--ui-scale, 1));
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsla(0, 80%, 50%, 0.5), transparent);
+  margin: calc(8px * var(--ui-scale, 1)) 0;
 }
 
 .fps-death-killer {
-    font-family: var(--w-font-body);
-    font-size: calc(20px * var(--ui-scale, 1));
-    font-weight: 600;
-    color: var(--w-text-muted);
-    white-space: nowrap;
+  font-family: var(--w-font-body);
+  font-size: calc(20px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-text-muted);
+  white-space: nowrap;
 }
 
 .fps-death-killer-name {
-    color: var(--w-magenta);
-    font-weight: 700;
-    text-shadow: var(--w-glow-magenta-sm);
+  color: var(--w-magenta);
+  font-weight: 700;
+  text-shadow: var(--w-glow-magenta-sm);
 }
 
 .fps-death-timer {
-    font-family: var(--w-font-display);
-    font-size: calc(48px * var(--ui-scale, 1));
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.1em;
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan);
-    margin-top: calc(12px * var(--ui-scale, 1));
-    line-height: 1;
+  font-family: var(--w-font-display);
+  font-size: calc(48px * var(--ui-scale, 1));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan);
+  margin-top: calc(12px * var(--ui-scale, 1));
+  line-height: 1;
 }
 
 .fps-death-respawn {
-    font-family: var(--w-font-display);
-    font-size: calc(18px * var(--ui-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
-    margin-top: calc(16px * var(--ui-scale, 1));
-    animation: fps-pulse-neon 1.5s ease-in-out infinite;
+  font-family: var(--w-font-display);
+  font-size: calc(18px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
+  margin-top: calc(16px * var(--ui-scale, 1));
+  animation: fps-pulse-neon 1.5s ease-in-out infinite;
 }
-
 
 /* ============================================================================
    MangaPanel Dialog (Modal Base)
    ============================================================================ */
 
 .fps-dialog-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: hsla(240, 20%, 5%, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 700;
-    animation: fps-fade-in 0.2s ease-out;
-    pointer-events: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: hsla(240, 20%, 5%, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 700;
+  animation: fps-fade-in 0.2s ease-out;
+  pointer-events: auto;
 }
 
 .fps-dialog {
-    width: calc(500px * var(--ui-scale, 1));
-    max-width: 90vw;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    animation: fps-scale-in 0.2s ease-out;
+  width: calc(500px * var(--ui-scale, 1));
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: fps-scale-in 0.2s ease-out;
 }
 
 .fps-dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: calc(14px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
-    border-bottom: 1px solid var(--w-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(14px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-bottom: 1px solid var(--w-border);
 }
 
 .fps-dialog-title {
-    font-family: var(--w-font-display);
-    font-size: calc(16px * var(--ui-scale, 1));
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  font-family: var(--w-font-display);
+  font-size: calc(16px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-dialog-close {
-    width: calc(28px * var(--ui-scale, 1));
-    height: calc(28px * var(--ui-scale, 1));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(16px * var(--ui-scale, 1));
-    color: var(--w-text-muted);
-    cursor: pointer;
-    pointer-events: auto;
-    border: 1px solid transparent;
-    background: transparent;
-    transition: all 0.15s ease;
+  width: calc(28px * var(--ui-scale, 1));
+  height: calc(28px * var(--ui-scale, 1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(16px * var(--ui-scale, 1));
+  color: var(--w-text-muted);
+  cursor: pointer;
+  pointer-events: auto;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.15s ease;
 }
 
 .fps-dialog-close:hover {
-    color: var(--w-magenta);
-    border-color: hsla(320, 100%, 60%, 0.3);
+  color: var(--w-magenta);
+  border-color: hsla(320, 100%, 60%, 0.3);
 }
 
 .fps-dialog-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: calc(18px * var(--ui-scale, 1));
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(18px * var(--ui-scale, 1));
 }
 
 .fps-dialog-footer {
-    display: flex;
-    gap: calc(10px * var(--ui-scale, 1));
-    justify-content: flex-end;
-    padding: calc(12px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
-    border-top: 1px solid var(--w-border);
+  display: flex;
+  gap: calc(10px * var(--ui-scale, 1));
+  justify-content: flex-end;
+  padding: calc(12px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  border-top: 1px solid var(--w-border);
 }
-
 
 /* ============================================================================
    Menu Buttons
    ============================================================================ */
 
 .fps-btn {
-    font-family: var(--w-font-body);
-    font-size: calc(14px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: calc(8px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1));
-    border: 1px solid hsla(180, 100%, 50%, 0.3);
-    background: hsla(240, 15%, 10%, 0.6);
-    color: var(--w-text);
-    cursor: pointer;
-    pointer-events: auto;
-    transition: all 0.15s ease;
+  font-family: var(--w-font-body);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: calc(8px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1));
+  border: 1px solid hsla(180, 100%, 50%, 0.3);
+  background: hsla(240, 15%, 10%, 0.6);
+  color: var(--w-text);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.15s ease;
 }
 
 .fps-btn:hover {
-    background: hsla(180, 100%, 50%, 0.08);
-    border-color: var(--w-cyan);
-    color: var(--w-cyan);
-    text-shadow: var(--w-glow-cyan-sm);
+  background: hsla(180, 100%, 50%, 0.08);
+  border-color: var(--w-cyan);
+  color: var(--w-cyan);
+  text-shadow: var(--w-glow-cyan-sm);
 }
 
 .fps-btn:active {
-    background: hsla(180, 100%, 50%, 0.15);
-    transform: scale(0.97);
+  background: hsla(180, 100%, 50%, 0.15);
+  transform: scale(0.97);
 }
 
 .fps-btn--primary {
-    border-color: var(--w-cyan);
-    color: var(--w-cyan);
+  border-color: var(--w-cyan);
+  color: var(--w-cyan);
 }
 
 .fps-btn--danger {
-    border-color: hsla(0, 80%, 55%, 0.3);
-    color: hsl(0, 80%, 65%);
+  border-color: hsla(0, 80%, 55%, 0.3);
+  color: hsl(0, 80%, 65%);
 }
 
 .fps-btn--danger:hover {
-    border-color: hsl(0, 80%, 55%);
-    background: hsla(0, 80%, 55%, 0.08);
-    color: hsl(0, 80%, 65%);
-    text-shadow: 0 0 8px hsla(0, 80%, 55%, 0.4);
+  border-color: hsl(0, 80%, 55%);
+  background: hsla(0, 80%, 55%, 0.08);
+  color: hsl(0, 80%, 65%);
+  text-shadow: 0 0 8px hsla(0, 80%, 55%, 0.4);
 }
 
 .fps-btn--wide {
-    width: 100%;
-    text-align: center;
+  width: 100%;
+  text-align: center;
 }
-
 
 /* ============================================================================
    Pause Menu
    ============================================================================ */
 
 .fps-pause-menu .fps-dialog {
-    width: calc(360px * var(--ui-scale, 1));
+  width: calc(360px * var(--ui-scale, 1));
 }
 
 .fps-pause-menu .fps-dialog-body {
-    display: flex;
-    flex-direction: column;
-    gap: calc(6px * var(--ui-scale, 1));
-    padding: calc(20px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--ui-scale, 1));
+  padding: calc(20px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1));
 }
 
 .fps-pause-separator {
-    height: 1px;
-    background: var(--w-border);
-    margin: calc(6px * var(--ui-scale, 1)) 0;
+  height: 1px;
+  background: var(--w-border);
+  margin: calc(6px * var(--ui-scale, 1)) 0;
 }
-
 
 /* ============================================================================
    Settings Overlay
    ============================================================================ */
 
 .fps-settings .fps-dialog {
-    width: calc(600px * var(--ui-scale, 1));
+  width: calc(600px * var(--ui-scale, 1));
 }
 
 .fps-settings-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--w-border);
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--w-border);
 }
 
 .fps-settings-tab {
-    flex: 1;
-    padding: calc(10px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(12px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--w-text-muted);
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    pointer-events: auto;
-    transition: all 0.15s ease;
-    text-align: center;
+  flex: 1;
+  padding: calc(10px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(12px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--w-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.15s ease;
+  text-align: center;
 }
 
 .fps-settings-tab:hover {
-    color: var(--w-text);
-    background: hsla(180, 100%, 50%, 0.04);
+  color: var(--w-text);
+  background: hsla(180, 100%, 50%, 0.04);
 }
 
 .fps-settings-tab--active {
-    color: var(--w-cyan);
-    border-bottom-color: var(--w-cyan);
+  color: var(--w-cyan);
+  border-bottom-color: var(--w-cyan);
 }
 
 .fps-settings-section {
-    margin-bottom: calc(16px * var(--ui-scale, 1));
+  margin-bottom: calc(16px * var(--ui-scale, 1));
 }
 
 .fps-settings-section-title {
-    font-family: var(--w-font-display);
-    font-size: calc(11px * var(--ui-scale, 1));
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--w-text-muted);
-    margin-bottom: calc(10px * var(--ui-scale, 1));
-    padding-bottom: calc(4px * var(--ui-scale, 1));
-    border-bottom: 1px solid hsla(240, 20%, 18%, 0.5);
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--w-text-muted);
+  margin-bottom: calc(10px * var(--ui-scale, 1));
+  padding-bottom: calc(4px * var(--ui-scale, 1));
+  border-bottom: 1px solid hsla(240, 20%, 18%, 0.5);
 }
 
 .fps-settings-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: calc(6px * var(--ui-scale, 1)) 0;
-    font-family: var(--w-font-body);
-    font-size: calc(13px * var(--ui-scale, 1));
-    color: var(--w-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(6px * var(--ui-scale, 1)) 0;
+  font-family: var(--w-font-body);
+  font-size: calc(13px * var(--ui-scale, 1));
+  color: var(--w-text);
 }
 
 .fps-settings-label {
-    flex: 1;
-    color: var(--w-text);
+  flex: 1;
+  color: var(--w-text);
 }
 
 /* Slider */
 .fps-settings-slider {
-    -webkit-appearance: none;
-    appearance: none;
-    width: calc(140px * var(--ui-scale, 1));
-    height: calc(4px * var(--ui-scale, 1));
-    background: hsla(0, 0%, 100%, 0.1);
-    border-radius: calc(2px * var(--ui-scale, 1));
-    outline: none;
-    cursor: pointer;
-    pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: calc(140px * var(--ui-scale, 1));
+  height: calc(4px * var(--ui-scale, 1));
+  background: hsla(0, 0%, 100%, 0.1);
+  border-radius: calc(2px * var(--ui-scale, 1));
+  outline: none;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .fps-settings-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: calc(14px * var(--ui-scale, 1));
-    height: calc(14px * var(--ui-scale, 1));
-    border-radius: 50%;
-    background: var(--w-cyan);
-    box-shadow: var(--w-glow-cyan-sm);
-    cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  width: calc(14px * var(--ui-scale, 1));
+  height: calc(14px * var(--ui-scale, 1));
+  border-radius: 50%;
+  background: var(--w-cyan);
+  box-shadow: var(--w-glow-cyan-sm);
+  cursor: pointer;
 }
 
 /* Toggle */
 .fps-settings-toggle {
-    width: calc(40px * var(--ui-scale, 1));
-    height: calc(20px * var(--ui-scale, 1));
-    background: hsla(0, 0%, 100%, 0.1);
-    border-radius: calc(10px * var(--ui-scale, 1));
-    cursor: pointer;
-    pointer-events: auto;
-    position: relative;
-    transition: background 0.2s ease;
-    border: none;
+  width: calc(40px * var(--ui-scale, 1));
+  height: calc(20px * var(--ui-scale, 1));
+  background: hsla(0, 0%, 100%, 0.1);
+  border-radius: calc(10px * var(--ui-scale, 1));
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  transition: background 0.2s ease;
+  border: none;
 }
 
 .fps-settings-toggle--on {
-    background: hsla(180, 100%, 50%, 0.3);
+  background: hsla(180, 100%, 50%, 0.3);
 }
 
 .fps-settings-toggle::after {
-    content: '';
-    position: absolute;
-    top: calc(2px * var(--ui-scale, 1));
-    left: calc(2px * var(--ui-scale, 1));
-    width: calc(16px * var(--ui-scale, 1));
-    height: calc(16px * var(--ui-scale, 1));
-    border-radius: 50%;
-    background: var(--w-text-muted);
-    transition: all 0.2s ease;
+  content: "";
+  position: absolute;
+  top: calc(2px * var(--ui-scale, 1));
+  left: calc(2px * var(--ui-scale, 1));
+  width: calc(16px * var(--ui-scale, 1));
+  height: calc(16px * var(--ui-scale, 1));
+  border-radius: 50%;
+  background: var(--w-text-muted);
+  transition: all 0.2s ease;
 }
 
 .fps-settings-toggle--on::after {
-    left: calc(22px * var(--ui-scale, 1));
-    background: var(--w-cyan);
-    box-shadow: var(--w-glow-cyan-sm);
+  left: calc(22px * var(--ui-scale, 1));
+  background: var(--w-cyan);
+  box-shadow: var(--w-glow-cyan-sm);
 }
 
 /* Slider value label */
 .fps-settings-value {
-    font-family: var(--w-font-display);
-    font-size: calc(11px * var(--ui-scale, 1));
-    color: var(--w-text-muted);
-    min-width: calc(36px * var(--ui-scale, 1));
-    text-align: right;
-    margin-left: calc(8px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  color: var(--w-text-muted);
+  min-width: calc(36px * var(--ui-scale, 1));
+  text-align: right;
+  margin-left: calc(8px * var(--ui-scale, 1));
 }
 
 /* Keybind row */
 .fps-settings-keybind {
-    font-family: var(--w-font-display);
-    font-size: calc(11px * var(--ui-scale, 1));
-    font-weight: 600;
-    padding: calc(4px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
-    border: 1px solid var(--w-border);
-    background: hsla(240, 15%, 10%, 0.6);
-    color: var(--w-text-muted);
-    min-width: calc(60px * var(--ui-scale, 1));
-    text-align: center;
-    cursor: pointer;
-    pointer-events: auto;
-    transition: all 0.15s ease;
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 600;
+  padding: calc(4px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
+  border: 1px solid var(--w-border);
+  background: hsla(240, 15%, 10%, 0.6);
+  color: var(--w-text-muted);
+  min-width: calc(60px * var(--ui-scale, 1));
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.15s ease;
 }
 
 .fps-settings-keybind:hover {
-    border-color: var(--w-cyan);
-    color: var(--w-cyan);
+  border-color: var(--w-cyan);
+  color: var(--w-cyan);
 }
 
 .fps-settings-keybind--listening {
-    border-color: var(--w-gold);
-    color: var(--w-gold);
-    animation: fps-pulse-neon 1s ease-in-out infinite;
+  border-color: var(--w-gold);
+  color: var(--w-gold);
+  animation: fps-pulse-neon 1s ease-in-out infinite;
 }
-
 
 /* ============================================================================
    Match Lifecycle Widgets (Phase Message, Ready Bar, Gametype Badge)
@@ -1834,167 +1832,167 @@
 /* --- Phase Message (Warmup / Countdown / FIGHT / Match Over) --- */
 
 .fps-phase-message {
-    position: fixed;
-    top: calc(76px * var(--ui-scale, 1));
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    pointer-events: none;
-    z-index: 910;
-    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  position: fixed;
+  top: calc(76px * var(--ui-scale, 1));
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 910;
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.4s ease-out;
 }
 
 .fps-phase-message.hidden {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.9);
+  opacity: 0;
+  transform: translateX(-50%) scale(0.9);
 }
 
 .fps-phase-title {
-    font-family: var(--w-font-display);
-    font-size: calc(28px * var(--ui-scale, 1));
-    font-weight: 900;
-    color: var(--w-text);
-    text-shadow:
-        0 0 20px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.6),
-        0 0 60px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.3),
-        0 4px 16px hsla(0, 0%, 0%, 0.8);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-bottom: calc(8px * var(--ui-scale, 1));
+  font-family: var(--w-font-display);
+  font-size: calc(28px * var(--ui-scale, 1));
+  font-weight: 900;
+  color: var(--w-text);
+  text-shadow:
+    0 0 20px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.6),
+    0 0 60px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.3),
+    0 4px 16px hsla(0, 0%, 0%, 0.8);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: calc(8px * var(--ui-scale, 1));
 }
 
 .fps-phase-subtitle {
-    font-family: var(--w-font-body);
-    font-size: calc(16px * var(--ui-scale, 1));
-    font-weight: 500;
-    color: var(--w-text-muted);
-    text-shadow: 0 2px 10px hsla(0, 0%, 0%, 0.6);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+  font-family: var(--w-font-body);
+  font-size: calc(16px * var(--ui-scale, 1));
+  font-weight: 500;
+  color: var(--w-text-muted);
+  text-shadow: 0 2px 10px hsla(0, 0%, 0%, 0.6);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* Countdown number */
 .fps-phase-countdown {
-    font-family: var(--w-font-display);
-    font-size: calc(140px * var(--ui-scale, 1));
-    font-weight: 900;
-    color: var(--w-text);
-    text-shadow:
-        0 0 30px hsla(30, 100%, 50%, 0.8),
-        0 0 80px hsla(20, 100%, 40%, 0.5),
-        0 6px 24px hsla(0, 0%, 0%, 0.8);
-    line-height: 1;
-    animation: fps-countdown-pulse 1s ease-out;
+  font-family: var(--w-font-display);
+  font-size: calc(140px * var(--ui-scale, 1));
+  font-weight: 900;
+  color: var(--w-text);
+  text-shadow:
+    0 0 30px hsla(30, 100%, 50%, 0.8),
+    0 0 80px hsla(20, 100%, 40%, 0.5),
+    0 6px 24px hsla(0, 0%, 0%, 0.8);
+  line-height: 1;
+  animation: fps-countdown-pulse 1s ease-out;
 }
 
 @keyframes fps-countdown-pulse {
-    0% {
-        transform: scale(1.5);
-        opacity: 0.5;
-    }
+  0% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
 
-    30% {
-        transform: scale(1.0);
-        opacity: 1;
-    }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
 
-    100% {
-        transform: scale(1.0);
-        opacity: 1;
-    }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* FIGHT! flash */
 .fps-phase-fight {
-    font-family: var(--w-font-display);
-    font-size: calc(88px * var(--ui-scale, 1));
-    font-weight: 900;
-    color: var(--w-cyan);
-    text-shadow:
-        0 0 40px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.9),
-        0 0 100px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.5),
-        0 6px 30px hsla(0, 0%, 0%, 0.8);
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    animation: fps-fight-flash 0.6s ease-out;
+  font-family: var(--w-font-display);
+  font-size: calc(88px * var(--ui-scale, 1));
+  font-weight: 900;
+  color: var(--w-cyan);
+  text-shadow:
+    0 0 40px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.9),
+    0 0 100px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.5),
+    0 6px 30px hsla(0, 0%, 0%, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  animation: fps-fight-flash 0.6s ease-out;
 }
 
 @keyframes fps-fight-flash {
-    0% {
-        transform: scale(2.0);
-        opacity: 0;
-    }
+  0% {
+    transform: scale(2);
+    opacity: 0;
+  }
 
-    30% {
-        transform: scale(1.0);
-        opacity: 1;
-    }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
 
-    100% {
-        transform: scale(1.0);
-        opacity: 1;
-    }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
-
 
 /* --- Ready Bar (Warmup phase) --- */
 
 .fps-ready-bar {
-    position: fixed;
-    top: calc(120px * var(--ui-scale, 1));
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(180deg, hsla(200, 60%, 8%, 0.85) 0%, hsla(200, 60%, 4%, 0.9) 100%);
-    border: var(--w-panel-border-width) solid hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.4);
-    border-radius: calc(8px * var(--ui-scale, 1));
-    padding: calc(16px * var(--ui-scale, 1)) calc(48px * var(--ui-scale, 1));
-    font-family: var(--w-font-body);
-    font-size: calc(26px * var(--ui-scale, 1));
-    font-weight: 600;
-    color: var(--w-text);
-    backdrop-filter: blur(12px);
-    box-shadow:
-        0 0 30px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.15),
-        0 8px 32px hsla(0, 0%, 0%, 0.5);
-    letter-spacing: 0.04em;
-    pointer-events: none;
-    z-index: 910;
-    transition: opacity 0.3s;
-    white-space: nowrap;
+  position: fixed;
+  top: calc(120px * var(--ui-scale, 1));
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, hsla(200, 60%, 8%, 0.85) 0%, hsla(200, 60%, 4%, 0.9) 100%);
+  border: var(--w-panel-border-width) solid hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.4);
+  border-radius: calc(8px * var(--ui-scale, 1));
+  padding: calc(16px * var(--ui-scale, 1)) calc(48px * var(--ui-scale, 1));
+  font-family: var(--w-font-body);
+  font-size: calc(26px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-text);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 30px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.15),
+    0 8px 32px hsla(0, 0%, 0%, 0.5);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  z-index: 910;
+  transition: opacity 0.3s;
+  white-space: nowrap;
 }
 
 .fps-ready-bar.hidden {
-    opacity: 0;
-    pointer-events: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .fps-ready-key {
-    color: var(--w-cyan);
-    font-family: var(--w-font-display);
-    font-weight: 700;
-    font-size: calc(28px * var(--ui-scale, 1));
-    text-shadow: 0 0 10px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.5);
+  color: var(--w-cyan);
+  font-family: var(--w-font-display);
+  font-weight: 700;
+  font-size: calc(28px * var(--ui-scale, 1));
+  text-shadow: 0 0 10px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.5);
 }
 
 .fps-ready-bar--ready {
-    border-color: hsla(120, 80%, 50%, 0.5);
-    box-shadow:
-        0 0 20px hsla(120, 80%, 50%, 0.15),
-        0 8px 32px hsla(0, 0%, 0%, 0.5);
+  border-color: hsla(120, 80%, 50%, 0.5);
+  box-shadow:
+    0 0 20px hsla(120, 80%, 50%, 0.15),
+    0 8px 32px hsla(0, 0%, 0%, 0.5);
 }
-
 
 /* --- Gametype Badge (top-left) --- */
 
 .fps-gametype-badge {
-    font-family: var(--w-font-body);
-    font-size: calc(14px * var(--ui-scale, 1));
-    font-weight: 600;
-    color: hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    text-shadow: 0 0 8px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.2);
-    padding: calc(2px * var(--ui-scale, 1)) 0;
+  font-family: var(--w-font-body);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 8px hsla(var(--w-cyan-h), var(--w-cyan-s), var(--w-cyan-l), 0.2);
+  padding: calc(2px * var(--ui-scale, 1)) 0;
 }
 
 /* ============================================================================
@@ -2002,37 +2000,37 @@
    ============================================================================ */
 
 .fps-scoreboard-spectators {
-    margin-top: calc(8px * var(--ui-scale, 1));
-    border-top: 1px solid hsla(180, 100%, 50%, 0.15);
-    padding-top: calc(8px * var(--ui-scale, 1));
+  margin-top: calc(8px * var(--ui-scale, 1));
+  border-top: 1px solid hsla(180, 100%, 50%, 0.15);
+  padding-top: calc(8px * var(--ui-scale, 1));
 }
 
 .fps-scoreboard-spectators-title {
-    font-family: var(--w-font-display);
-    font-size: calc(11px * var(--ui-scale, 1));
-    color: var(--w-text-muted);
-    text-align: center;
-    margin-bottom: calc(4px * var(--ui-scale, 1));
-    letter-spacing: 0.1em;
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  color: var(--w-text-muted);
+  text-align: center;
+  margin-bottom: calc(4px * var(--ui-scale, 1));
+  letter-spacing: 0.1em;
 }
 
 .fps-scoreboard-spectators-body {
-    display: flex;
-    flex-wrap: wrap;
-    gap: calc(8px * var(--ui-scale, 1));
-    justify-content: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8px * var(--ui-scale, 1));
+  justify-content: center;
 }
 
 .fps-scoreboard-spectator-row {
-    font-family: var(--w-font-mono);
-    font-size: calc(12px * var(--ui-scale, 1));
-    color: var(--w-text);
-    padding: calc(2px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
-    background: hsla(220, 30%, 20%, 0.4);
-    border-radius: 2px;
+  font-family: var(--w-font-mono);
+  font-size: calc(12px * var(--ui-scale, 1));
+  color: var(--w-text);
+  padding: calc(2px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1));
+  background: hsla(220, 30%, 20%, 0.4);
+  border-radius: 2px;
 }
 
 .fps-scoreboard-spectator-row.fps-scoreboard-row--self {
-    color: var(--w-cyan);
-    background: hsla(180, 100%, 50%, 0.15);
+  color: var(--w-cyan);
+  background: hsla(180, 100%, 50%, 0.15);
 }

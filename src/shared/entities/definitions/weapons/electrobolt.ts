@@ -1,77 +1,77 @@
 /**
  * Electrobolt - Weapon Definition
- * 
+ *
  * High-damage hitscan sniper weapon with slow fire rate.
  * Stats from Warsow gs_weapondefs.c.
  */
 
-import { WeaponDef } from '../../WeaponDef';
-import { EntityType } from '../../EntityType';
+import { EntityType } from "../../EntityType";
+import type { WeaponDef } from "../../WeaponDef";
 
 export const ELECTROBOLT: WeaponDef = {
-    // Identity
-    id: 'electrobolt',
-    name: 'Electrobolt',
-    type: EntityType.WEAPON,
-    classname: 'weapon_electrobolt',
+  // Identity
+  id: "electrobolt",
+  name: "Electrobolt",
+  type: EntityType.WEAPON,
+  classname: "weapon_electrobolt",
 
-    // Model
-    modelPath: '/data/models/weapons/electrobolt/electrobolt.glb',
+  // Model
+  modelPath: "/data/models/weapons/electrobolt/electrobolt.glb",
+  scale: 2.0,
+
+  // Pickup glow (electric blue)
+  glowColor: { r: 0.3, g: 0.5, b: 1.0 },
+
+  // Gameplay (server-authoritative)
+  damage: 75,
+  fireRate: 0.8, // 1250ms reload = 0.8 shots/sec
+  clipSize: 10,
+  ammoType: "bolts",
+  maxAmmo: 10,
+  reloadTime: 1.25,
+  range: 10000,
+  hitscan: true,
+  hitscanType: "bolt",
+  fireMode: "semi",
+  pickupBounds: { x: 32, y: 32, z: 32 },
+  knockbackScale: 3.5,
+  pickupAmmo: 5,
+  useLagCompensation: true,
+  crosshair: { style: "cross_dot", baseGap: 2, lineLength: 5, lineWidth: 1 },
+  speedBonus: -25, // Heavy sniper: -25 speed (375 run)
+
+  // View Model — GLB format
+  viewModel: {
+    modelPath: "/data/models/weapons/electrobolt/electrobolt.glb",
+    viewModelFormat: "glb",
+
+    hipOffset: { x: 0, y: -25, z: -1 },
+    hipRotation: { x: 0, y: 0, z: 0 },
+
+    adsOffset: { x: 0, y: -21, z: -5 },
+    adsRotation: { x: 0, y: 0, z: 0 },
+
     scale: 2.0,
+  },
 
-    // Pickup glow (electric blue)
-    glowColor: { r: 0.3, g: 0.5, b: 1.0 },
+  // ADS
+  ads: {
+    time: 0.08,
+    fovReduction: 25, // More zoom for sniper
+    sensitivity: 0.3,
+    movementPenalty: 0.7,
+  },
 
-    // Gameplay (server-authoritative)
-    damage: 75,
-    fireRate: 0.8,        // 1250ms reload = 0.8 shots/sec
-    clipSize: 10,
-    ammoType: 'bolts',
-    maxAmmo: 10,
-    reloadTime: 1.25,
-    range: 10000,
-    hitscan: true,
-    hitscanType: 'bolt',
-    fireMode: 'semi',
-    pickupBounds: { x: 32, y: 32, z: 32 },
-    knockbackScale: 3.5,
-    pickupAmmo: 5,
-    useLagCompensation: true,
-    crosshair: { style: 'cross_dot', baseGap: 2, lineLength: 5, lineWidth: 1 },
-    speedBonus: -25,           // Heavy sniper: -25 speed (375 run)
+  // Muzzle Flash — electric blue
+  muzzleFlash: {
+    color: { r: 0.3, g: 0.5, b: 1.0 },
+    intensity: 35,
+    range: 60,
+    duration: 0.1,
+  },
 
-    // View Model — GLB format
-    viewModel: {
-        modelPath: '/data/models/weapons/electrobolt/electrobolt.glb',
-        viewModelFormat: 'glb',
-
-        hipOffset: { x: 0, y: -25, z: -1 },
-        hipRotation: { x: 0, y: 0, z: 0 },
-
-        adsOffset: { x: 0, y: -21, z: -5 },
-        adsRotation: { x: 0, y: 0, z: 0 },
-
-        scale: 2.0,
-    },
-
-    // ADS
-    ads: {
-        time: 0.08,
-        fovReduction: 25,     // More zoom for sniper
-        sensitivity: 0.3,
-        movementPenalty: 0.7,
-    },
-
-    // Muzzle Flash — electric blue
-    muzzleFlash: {
-        color: { r: 0.3, g: 0.5, b: 1.0 },
-        intensity: 35,
-        range: 60,
-        duration: 0.1,
-    },
-
-    // Sounds
-    sounds: {
-        fire: 'sounds/weapons/electrobolt_strong.ogg',
-    },
+  // Sounds
+  sounds: {
+    fire: "sounds/weapons/electrobolt_strong.ogg",
+  },
 };

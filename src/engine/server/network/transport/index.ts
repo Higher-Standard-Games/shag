@@ -1,13 +1,13 @@
 /**
  * Transport module - WebTransport primary, WebSocket fallback
  */
-export {
-    WebTransportServerTransport,
-    type Transport,
-    type TransportConfig,
-    type TransportEvents,
-    type ClientConnection,
-} from './WebTransportTransport';
 
 // Legacy WebSocket for fallback
-export { WebSocketServerTransport } from './WebSocketTransport';
+export { WebSocketServerTransport } from "./WebSocketTransport";
+export {
+  type ClientConnection,
+  type Transport,
+  type TransportConfig,
+  type TransportEvents,
+  WebTransportServerTransport,
+} from "./WebTransportTransport";

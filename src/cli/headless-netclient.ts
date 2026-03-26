@@ -9,23 +9,23 @@
  *   npm run net:client -- --connect ws://localhost:7777 --name Player1
  */
 
-import { WebSocket } from 'ws';
-import { MessageCodec, MessageType } from '../engine/network/protocol/MessageCodec';
-import { BinaryEncoder } from '../engine/network/protocol/BinaryProtocol';
+import { WebSocket } from "ws";
+import { BinaryEncoder } from "../engine/network/protocol/BinaryProtocol";
+import { MessageCodec, MessageType } from "../engine/network/protocol/MessageCodec";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-let serverUrl = 'ws://localhost:7777';
+let serverUrl = "ws://localhost:7777";
 let playerName = `Player_${Math.random().toString(36).substring(7)}`;
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--connect' && args[i + 1]) {
+  if (args[i] === "--connect" && args[i + 1]) {
     serverUrl = args[i + 1];
     i++;
-  } else if (args[i] === '--name' && args[i + 1]) {
+  } else if (args[i] === "--name" && args[i + 1]) {
     playerName = args[i + 1];
     i++;
-  } else if (args[i] === '--help' || args[i] === '-h') {
+  } else if (args[i] === "--help" || args[i] === "-h") {
     console.log(`
 Headless Network Client
 
@@ -53,24 +53,24 @@ let lastSnapshotTime = 0;
 
 // Connect to server
 const ws = new WebSocket(serverUrl);
-ws.binaryType = 'arraybuffer';
+ws.binaryType = "arraybuffer";
 
-ws.on('open', () => {
-  console.log('[Client] Connected! Waiting for welcome...');
+ws.on("open", () => {
+  console.log("[Client] Connected! Waiting for welcome...");
 });
 
-ws.on('message', (data: Buffer) => {
+ws.on("message", (data: Buffer) => {
   const uint8 = new Uint8Array(data);
   handleMessage(uint8);
 });
 
-ws.on('close', (code, reason) => {
+ws.on("close", (code, reason) => {
   console.log(`[Client] Disconnected: ${code} - ${reason}`);
   process.exit(0);
 });
 
-ws.on('error', (error) => {
-  console.error('[Client] Connection error:', error.message);
+ws.on("error", (error) => {
+  console.error("[Client] Connection error:", error.message);
   process.exit(1);
 });
 
@@ -108,7 +108,7 @@ function handleMessage(data: Uint8Array): void {
       }
 
       case MessageType.JoinReject: {
-        console.log('[Client] Join rejected!');
+        console.log("[Client] Join rejected!");
         ws.close();
         break;
       }
@@ -122,7 +122,9 @@ function handleMessage(data: Uint8Array): void {
 
         // Log every 20th snapshot (once per second at 20Hz)
         if (tickCount % 20 === 0) {
-          console.log(`[Client] Tick ${snapshot.tick}: ${snapshot.entities.size} entities, ${snapshot.players.size} players (${delta}ms)`);
+          console.log(
+            `[Client] Tick ${snapshot.tick}: ${snapshot.entities.size} entities, ${snapshot.players.size} players (${delta}ms)`,
+          );
         }
 
         // Send acknowledgment
@@ -131,17 +133,17 @@ function handleMessage(data: Uint8Array): void {
       }
 
       case MessageType.PlayerJoined: {
-        console.log('[Client] Another player joined');
+        console.log("[Client] Another player joined");
         break;
       }
 
       case MessageType.PlayerLeft: {
-        console.log('[Client] A player left');
+        console.log("[Client] A player left");
         break;
       }
 
       case MessageType.GameStart: {
-        console.log('[Client] Game started!');
+        console.log("[Client] Game started!");
         break;
       }
 
@@ -149,7 +151,7 @@ function handleMessage(data: Uint8Array): void {
         console.log(`[Client] Unknown message type: 0x${messageType.toString(16)}`);
     }
   } catch (error) {
-    console.error('[Client] Failed to handle message:', error);
+    console.error("[Client] Failed to handle message:", error);
   }
 }
 
@@ -180,13 +182,15 @@ function sendTestInput(): void {
   encoder.writeUint8(MessageType.Input);
   encoder.writeString(playerId);
   encoder.writeUint16(tickCount); // sequence
-  encoder.writeString(JSON.stringify({
-    type: 'move',
-    direction: { x: 1, y: 0, z: 0 },
-    pitch: 0,
-    yaw: 0,
-    buttons: 0
-  }));
+  encoder.writeString(
+    JSON.stringify({
+      type: "move",
+      direction: { x: 1, y: 0, z: 0 },
+      pitch: 0,
+      yaw: 0,
+      buttons: 0,
+    }),
+  );
 
   ws.send(encoder.getData());
 }
@@ -199,10 +203,10 @@ setInterval(() => {
 }, 50);
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n[Client] Shutting down...');
+process.on("SIGINT", () => {
+  console.log("\n[Client] Shutting down...");
   ws.close();
   process.exit(0);
 });
 
-console.log('[Client] Press Ctrl+C to exit');
+console.log("[Client] Press Ctrl+C to exit");

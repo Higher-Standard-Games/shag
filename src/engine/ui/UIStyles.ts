@@ -1,16 +1,16 @@
 /**
  * UIStyles - CSS injection system
- * 
+ *
  * Provides utilities for injecting CSS into the document.
  * Components can use this to load their own CSS files or inline styles.
- * 
+ *
  * Usage:
  *   // Inject base styles once on app init
  *   UIStyles.injectBase();
- * 
+ *
  *   // Components inject their own styles
  *   UIStyles.injectCSS("quest-panel", questPanelCSS);
- * 
+ *
  *   // Or import from .css file (requires bundler support)
  *   import styles from "./QuestPanel.css?raw";
  *   UIStyles.injectCSS("quest-panel", styles);
@@ -22,21 +22,21 @@ export class UIStyles {
   private static mobileCSS: string = "";
 
   /**
-   * Inject CSS with a unique ID. Safe to call multiple times - 
+   * Inject CSS with a unique ID. Safe to call multiple times -
    * styles with the same ID are only injected once.
    * Mobile overrides are automatically re-appended to maintain priority.
    */
   public static injectCSS(id: string, css: string): void {
-    if (this.injectedIds.has(id)) return;
+    if (UIStyles.injectedIds.has(id)) return;
 
     const style = document.createElement("style");
     style.id = `ui-styles-${id}`;
     style.textContent = css;
     document.head.appendChild(style);
-    this.injectedIds.add(id);
+    UIStyles.injectedIds.add(id);
 
     // Re-append mobile styles to ensure they come last (highest priority)
-    this.reapplyMobileStyles();
+    UIStyles.reapplyMobileStyles();
   }
 
   /**
@@ -44,28 +44,28 @@ export class UIStyles {
    * to ensure they override component styles.
    */
   public static setMobileCSS(css: string): void {
-    this.mobileCSS = css;
-    this.reapplyMobileStyles();
+    UIStyles.mobileCSS = css;
+    UIStyles.reapplyMobileStyles();
   }
 
   /**
    * Re-append mobile styles to end of head (ensures highest priority)
    */
   private static reapplyMobileStyles(): void {
-    if (!this.mobileCSS) return;
+    if (!UIStyles.mobileCSS) return;
 
     // Remove existing mobile style element
-    if (this.mobileStyleElement) {
-      this.mobileStyleElement.remove();
+    if (UIStyles.mobileStyleElement) {
+      UIStyles.mobileStyleElement.remove();
     }
 
     // Create and append at end of head
-    this.mobileStyleElement = document.createElement("style");
-    this.mobileStyleElement.id = "ui-styles-mobile-overrides";
-    this.mobileStyleElement.textContent = this.mobileCSS;
-    document.head.appendChild(this.mobileStyleElement);
+    UIStyles.mobileStyleElement = document.createElement("style");
+    UIStyles.mobileStyleElement.id = "ui-styles-mobile-overrides";
+    UIStyles.mobileStyleElement.textContent = UIStyles.mobileCSS;
+    document.head.appendChild(UIStyles.mobileStyleElement);
 
-    console.log(`[UIStyles] Mobile CSS reapplied (${this.mobileCSS.length} chars), now last in head`);
+    console.log(`[UIStyles] Mobile CSS reapplied (${UIStyles.mobileCSS.length} chars), now last in head`);
   }
 
   /**
@@ -75,7 +75,7 @@ export class UIStyles {
     const style = document.getElementById(`ui-styles-${id}`);
     if (style) {
       style.remove();
-      this.injectedIds.delete(id);
+      UIStyles.injectedIds.delete(id);
     }
   }
 
@@ -83,32 +83,32 @@ export class UIStyles {
    * Check if styles with given ID are already injected
    */
   public static hasCSS(id: string): boolean {
-    return this.injectedIds.has(id);
+    return UIStyles.injectedIds.has(id);
   }
 
   /**
    * Inject all base/shared UI styles. Call once on app init.
    */
   public static injectBase(): void {
-    if (this.injectedIds.has("base")) return;
+    if (UIStyles.injectedIds.has("base")) return;
 
     const allStyles = [
-      this.getBaseStyles(),
-      this.getConsoleStyles(),
-      this.getAnimations(),
-      this.getTypography(),
-      this.getButtons(),
-      this.getDialogs(),
-      this.getPanels(),
-      this.getCards(),
-      this.getForms(),
-      this.getPauseMenu(),
-      this.getLoadingScreen(),
-      this.getEffects(),
-      this.getUtilities(),
+      UIStyles.getBaseStyles(),
+      UIStyles.getConsoleStyles(),
+      UIStyles.getAnimations(),
+      UIStyles.getTypography(),
+      UIStyles.getButtons(),
+      UIStyles.getDialogs(),
+      UIStyles.getPanels(),
+      UIStyles.getCards(),
+      UIStyles.getForms(),
+      UIStyles.getPauseMenu(),
+      UIStyles.getLoadingScreen(),
+      UIStyles.getEffects(),
+      UIStyles.getUtilities(),
     ].join("\n\n");
 
-    this.injectCSS("base", allStyles);
+    UIStyles.injectCSS("base", allStyles);
     console.log("[UIStyles] Base styles injected");
   }
 
@@ -136,50 +136,50 @@ export class UIStyles {
    */
   private static consoleColors = {
     // Primary accent (teal from SHAG logo)
-    primary: '#2EC4B6',
-    primaryDim: 'rgba(46, 196, 182, 0.4)',
-    primaryGlow: 'rgba(46, 196, 182, 0.6)',
+    primary: "#2EC4B6",
+    primaryDim: "rgba(46, 196, 182, 0.4)",
+    primaryGlow: "rgba(46, 196, 182, 0.6)",
 
     // SHAG palette for variety
-    orange: '#E85D04',
-    yellow: '#FAC748',
-    teal: '#2EC4B6',
-    magenta: '#E040FB',
-    green: '#4ADE80',
+    orange: "#E85D04",
+    yellow: "#FAC748",
+    teal: "#2EC4B6",
+    magenta: "#E040FB",
+    green: "#4ADE80",
 
     // Semantic colors
-    error: '#ff6b6b',
-    warn: '#FAC748',
-    info: '#54a0ff',
-    success: '#4ADE80',
+    error: "#ff6b6b",
+    warn: "#FAC748",
+    info: "#54a0ff",
+    success: "#4ADE80",
 
     // Text
-    text: '#c8c8c8',
-    textBright: '#e8e8e8',
-    textDim: 'rgba(255, 255, 255, 0.4)',
+    text: "#c8c8c8",
+    textBright: "#e8e8e8",
+    textDim: "rgba(255, 255, 255, 0.4)",
 
     // Background
-    bg: 'rgba(10, 12, 16, 0.95)',
-    bgHeader: 'rgba(46, 196, 182, 0.15)',
-    bgInput: 'rgba(0, 0, 0, 0.3)',
+    bg: "rgba(10, 12, 16, 0.95)",
+    bgHeader: "rgba(46, 196, 182, 0.15)",
+    bgInput: "rgba(0, 0, 0, 0.3)",
   };
 
   /**
    * Allow games to customize console colors before UIStyles.injectBase()
    */
   public static setConsoleColors(colors: Partial<typeof UIStyles.consoleColors>): void {
-    this.consoleColors = { ...this.consoleColors, ...colors };
+    UIStyles.consoleColors = { ...UIStyles.consoleColors, ...colors };
   }
 
   /**
    * Get current console colors (for programmatic access)
    */
   public static getConsoleColors(): typeof UIStyles.consoleColors {
-    return { ...this.consoleColors };
+    return { ...UIStyles.consoleColors };
   }
 
   private static getConsoleStyles(): string {
-    const c = this.consoleColors;
+    const c = UIStyles.consoleColors;
     return `
 /* ==================== Console Color Variables ==================== */
 :root {

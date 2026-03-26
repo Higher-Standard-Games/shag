@@ -1,4 +1,3 @@
-
 import JSZip from "jszip";
 
 export interface PK3LoaderConfig {
@@ -29,7 +28,7 @@ export class PK3Loader {
   /** Track Blob URLs created via getFileAsURL() for cleanup */
   private blobUrls: string[] = [];
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): PK3Loader {
     if (!PK3Loader.instance) {
@@ -43,7 +42,7 @@ export class PK3Loader {
    */
   public async init(): Promise<void> {
     // PK3 data files live in public/data/ (served as /data/)
-    const basePath = 'data/';
+    const basePath = "data/";
     this.configure({ basePath });
     console.log(`[PK3Loader] Auto-configured with basePath: ${basePath}`);
   }
@@ -81,11 +80,7 @@ export class PK3Loader {
    * If the download is truncated (e.g. by Vite HMR restart), magic or size
    * check will fail and trigger a retry after a brief delay.
    */
-  private async fetchAndValidatePK3(
-    url: string,
-    filename: string,
-    maxRetries = 2
-  ): Promise<ArrayBuffer> {
+  private async fetchAndValidatePK3(url: string, filename: string, maxRetries = 2): Promise<ArrayBuffer> {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const response = await fetch(url);
       if (!response.ok) {
@@ -97,8 +92,10 @@ export class PK3Loader {
       // Validate minimum ZIP size (empty ZIP end-of-central-directory is 22 bytes)
       if (arrayBuffer.byteLength < 22) {
         if (attempt < maxRetries) {
-          console.warn(`[PK3Loader] ${filename}: too small (${arrayBuffer.byteLength} bytes), retrying (${attempt + 1}/${maxRetries})...`);
-          await new Promise(r => setTimeout(r, 500));
+          console.warn(
+            `[PK3Loader] ${filename}: too small (${arrayBuffer.byteLength} bytes), retrying (${attempt + 1}/${maxRetries})...`,
+          );
+          await new Promise((r) => setTimeout(r, 500));
           continue;
         }
         throw new Error(`PK3 file too small (${arrayBuffer.byteLength} bytes): ${filename}`);
@@ -106,10 +103,12 @@ export class PK3Loader {
 
       // Validate ZIP magic bytes: PK\x03\x04
       const magic = new Uint8Array(arrayBuffer, 0, 4);
-      if (magic[0] !== 0x50 || magic[1] !== 0x4B || magic[2] !== 0x03 || magic[3] !== 0x04) {
+      if (magic[0] !== 0x50 || magic[1] !== 0x4b || magic[2] !== 0x03 || magic[3] !== 0x04) {
         if (attempt < maxRetries) {
-          console.warn(`[PK3Loader] ${filename}: invalid ZIP magic [${magic.join(',')}], retrying (${attempt + 1}/${maxRetries})...`);
-          await new Promise(r => setTimeout(r, 500));
+          console.warn(
+            `[PK3Loader] ${filename}: invalid ZIP magic [${magic.join(",")}], retrying (${attempt + 1}/${maxRetries})...`,
+          );
+          await new Promise((r) => setTimeout(r, 500));
           continue;
         }
         throw new Error(`Invalid PK3 file (bad ZIP magic): ${filename}`);
@@ -132,7 +131,7 @@ export class PK3Loader {
    */
   public async loadPK3FromUrl(url: string): Promise<void> {
     // Extract filename from URL
-    const filename = url.split('/').pop() || url;
+    const filename = url.split("/").pop() || url;
 
     console.log(`[PK3Loader] Loading ${filename} from ${url}...`);
 
@@ -161,7 +160,7 @@ export class PK3Loader {
       }
     }
 
-    const pathsStr = searchPaths.join(', ');
+    const pathsStr = searchPaths.join(", ");
     throw new Error(`PK3 not found in any search path: ${filename} (searched: ${pathsStr})`);
   }
 
@@ -246,10 +245,9 @@ export class PK3Loader {
 
     // Sort packages alphabetically by filename (later = higher priority)
     // This matches Quake 3/Warsow: z_*.pk3 overrides data*.pk3
-    const sortedPackages = Array.from(this.packages.values())
-      .sort((a, b) => a.filename.localeCompare(b.filename));
+    const sortedPackages = Array.from(this.packages.values()).sort((a, b) => a.filename.localeCompare(b.filename));
 
-    console.log(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map(p => p.filename).join(', ')}`);
+    console.log(`[PK3Loader] rebuildFileIndex: ${sortedPackages.map((p) => p.filename).join(", ")}`);
 
     // Add files from each package (later packages override)
     for (const pkg of sortedPackages) {
@@ -321,12 +319,9 @@ export class PK3Loader {
     }
 
     // Simple glob matching (only supports * wildcard)
-    const regex = new RegExp(
-      "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$",
-      "i"
-    );
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");
 
-    return files.filter(f => regex.test(f));
+    return files.filter((f) => regex.test(f));
   }
 
   /**
@@ -337,8 +332,8 @@ export class PK3Loader {
     const normalizedDir = directory.toLowerCase().replace(/\\/g, "/").replace(/\/$/, "") + "/";
 
     return Array.from(this.fileIndex.keys())
-      .filter(f => f.startsWith(normalizedDir))
-      .map(f => f.substring(normalizedDir.length).split("/")[0])
+      .filter((f) => f.startsWith(normalizedDir))
+      .map((f) => f.substring(normalizedDir.length).split("/")[0])
       .filter((v, i, a) => a.indexOf(v) === i); // Unique
   }
 
@@ -347,7 +342,7 @@ export class PK3Loader {
    */
   public getPackageInfo(): { filename: string; priority: number; fileCount: number }[] {
     return Array.from(this.packages.values())
-      .map(p => ({
+      .map((p) => ({
         filename: p.filename,
         priority: p.priority,
         fileCount: p.files.size,

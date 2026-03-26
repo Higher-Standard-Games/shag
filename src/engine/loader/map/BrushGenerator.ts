@@ -1,12 +1,12 @@
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { Plane } from "@babylonjs/core/Maths/math.plane";
-import type { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Plane } from "@babylonjs/core/Maths/math.plane";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
-import type { Brush, PlaneDefinition } from "./MapParser";
+import type { Scene } from "@babylonjs/core/scene";
 import { SkyLightSystem } from "../../lighting/SkyLightSystem";
+import type { Brush, PlaneDefinition } from "./MapParser";
 
 export interface BrushFace {
   vertices: Vector3[];

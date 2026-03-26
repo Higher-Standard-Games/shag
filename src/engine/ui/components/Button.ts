@@ -1,9 +1,9 @@
 /**
  * Button - Factory for creating consistently styled 3D buttons
- * 
+ *
  * Part of the unified UI system. Use this for all UI buttons to ensure
  * consistent styling across the application.
- * 
+ *
  * Features:
  * - Light palette with 3D pressed effect
  * - Rounded corners for modern look
@@ -27,12 +27,12 @@ export type ButtonSize = "small" | "medium" | "large";
 
 export interface ButtonConfig {
   text: string;
-  variant?: ButtonVariant;  // default: 'secondary'
-  size?: ButtonSize;        // default: 'medium'
-  icon?: string;            // Optional icon HTML/emoji
+  variant?: ButtonVariant; // default: 'secondary'
+  size?: ButtonSize; // default: 'medium'
+  icon?: string; // Optional icon HTML/emoji
   disabled?: boolean;
   fullWidth?: boolean;
-  playSound?: boolean;      // default: true - play click sound
+  playSound?: boolean; // default: true - play click sound
   onClick: () => void;
 }
 
@@ -43,7 +43,7 @@ export interface ButtonConfig {
  */
 export function createButton(config: ButtonConfig): HTMLButtonElement {
   injectButtonStyles();
-  
+
   const variant = config.variant || "secondary";
   const size = config.size || "medium";
   const playSound = config.playSound !== false; // default true
@@ -51,7 +51,7 @@ export function createButton(config: ButtonConfig): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.className = `ui-button ui-button-${variant} ui-button-${size}`;
   btn.disabled = config.disabled || false;
-  
+
   if (config.fullWidth) {
     btn.style.width = "100%";
   }
@@ -79,10 +79,7 @@ export function createButton(config: ButtonConfig): HTMLButtonElement {
 /**
  * Create a row of buttons (useful for dialog footers)
  */
-export function createButtonRow(
-  buttons: ButtonConfig[],
-  gap: number = 12
-): HTMLDivElement {
+export function createButtonRow(buttons: ButtonConfig[], gap: number = 12): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "ui-button-row";
   if (gap !== 12) {

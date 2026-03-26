@@ -1,8 +1,8 @@
 /**
  * Q3ShaderParser - Parse Quake3/Warsow .shader files
- * 
+ *
  * .shader files use a C-like syntax:
- * 
+ *
  * textures/mymap/myshader
  * {
  *   surfaceparm trans
@@ -15,24 +15,24 @@
  */
 
 import type {
+  AlphaFunc,
+  AlphaGen,
+  BlendFactor,
   Q3Shader,
   Q3ShaderStage,
-  BlendFactor,
-  AlphaFunc,
+  RgbGen,
+  TcGen,
   // CullMode, // Currently unused
   TcMod,
-  TcGen,
   WaveFunc,
-  RgbGen,
-  AlphaGen,
-} from './Q3ShaderTypes';
+} from "./Q3ShaderTypes";
 
 /**
  * Template storage - maps template name to raw body tokens
  */
 interface ShaderTemplate {
   name: string;
-  bodyTokens: string[];  // Tokens between { and } of template
+  bodyTokens: string[]; // Tokens between { and } of template
 }
 
 /** Global template storage (shared across all shader files) */
@@ -49,7 +49,7 @@ export function parseShaderFile(content: string): Q3Shader[] {
 
   // First pass: collect templates
   while (pos < tokens.length) {
-    if (tokens[pos] === '{' || tokens[pos] === '}') {
+    if (tokens[pos] === "{" || tokens[pos] === "}") {
       pos++;
       continue;
     }
@@ -57,32 +57,30 @@ export function parseShaderFile(content: string): Q3Shader[] {
     const name = tokens[pos++];
     if (!name || pos >= tokens.length) break;
 
-    if (tokens[pos] !== '{') continue;
+    if (tokens[pos] !== "{") continue;
     pos++; // consume '{'
 
     // Find matching closing brace and collect body tokens
     const bodyStart = pos;
     let braceDepth = 1;
     while (pos < tokens.length && braceDepth > 0) {
-      if (tokens[pos] === '{') braceDepth++;
-      else if (tokens[pos] === '}') braceDepth--;
+      if (tokens[pos] === "{") braceDepth++;
+      else if (tokens[pos] === "}") braceDepth--;
       pos++;
     }
     const bodyEnd = pos - 1; // exclude closing '}'
 
     // Check if this is a template definition
-    if (name.endsWith('_Template')) {
+    if (name.endsWith("_Template")) {
       const bodyTokens = tokens.slice(bodyStart, bodyEnd);
       templates.set(name, { name, bodyTokens });
-      // Don't add to shaders list
-      continue;
     }
   }
 
   // Second pass: parse shaders and expand templates
   pos = 0;
   while (pos < tokens.length) {
-    if (tokens[pos] === '{' || tokens[pos] === '}') {
+    if (tokens[pos] === "{" || tokens[pos] === "}") {
       pos++;
       continue;
     }
@@ -90,28 +88,28 @@ export function parseShaderFile(content: string): Q3Shader[] {
     const name = tokens[pos++];
     if (!name || pos >= tokens.length) break;
 
-    if (tokens[pos] !== '{') continue;
+    if (tokens[pos] !== "{") continue;
     pos++; // consume '{'
 
     // Skip templates (already processed)
-    if (name.endsWith('_Template')) {
+    if (name.endsWith("_Template")) {
       let braceDepth = 1;
       while (pos < tokens.length && braceDepth > 0) {
-        if (tokens[pos] === '{') braceDepth++;
-        else if (tokens[pos] === '}') braceDepth--;
+        if (tokens[pos] === "{") braceDepth++;
+        else if (tokens[pos] === "}") braceDepth--;
         pos++;
       }
       continue;
     }
 
     // Check if body starts with 'template' directive
-    if (tokens[pos]?.toLowerCase() === 'template') {
+    if (tokens[pos]?.toLowerCase() === "template") {
       pos++; // consume 'template'
       const templateName = tokens[pos++];
 
       // Collect template parameters until we hit '}'
       const params: string[] = [];
-      while (pos < tokens.length && tokens[pos] !== '}') {
+      while (pos < tokens.length && tokens[pos] !== "}") {
         params.push(tokens[pos++]);
       }
       pos++; // consume '}'
@@ -140,11 +138,11 @@ export function parseShaderFile(content: string): Q3Shader[] {
  * Expand template by replacing $1, $2, etc. with parameters
  */
 function expandTemplate(bodyTokens: string[], params: string[]): string[] {
-  return bodyTokens.map(token => {
+  return bodyTokens.map((token) => {
     // Replace $1, $2, etc. with parameters
     let result = token;
     for (let i = 0; i < params.length; i++) {
-      result = result.replace(new RegExp(`\\$${i + 1}`, 'g'), params[i]);
+      result = result.replace(new RegExp(`\\$${i + 1}`, "g"), params[i]);
     }
     return result;
   });
@@ -169,21 +167,21 @@ function tokenize(content: string): string[] {
     }
 
     // Line comment
-    if (c === '/' && content[i + 1] === '/') {
-      while (i < len && content[i] !== '\n') i++;
+    if (c === "/" && content[i + 1] === "/") {
+      while (i < len && content[i] !== "\n") i++;
       continue;
     }
 
     // Block comment
-    if (c === '/' && content[i + 1] === '*') {
+    if (c === "/" && content[i + 1] === "*") {
       i += 2;
-      while (i < len - 1 && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      while (i < len - 1 && !(content[i] === "*" && content[i + 1] === "/")) i++;
       i += 2;
       continue;
     }
 
     // Braces are individual tokens
-    if (c === '{' || c === '}') {
+    if (c === "{" || c === "}") {
       tokens.push(c);
       i++;
       continue;
@@ -192,7 +190,7 @@ function tokenize(content: string): string[] {
     // Quoted string
     if (c === '"') {
       i++;
-      let str = '';
+      let str = "";
       while (i < len && content[i] !== '"') {
         str += content[i++];
       }
@@ -202,7 +200,7 @@ function tokenize(content: string): string[] {
     }
 
     // Regular token (until whitespace or brace)
-    let token = '';
+    let token = "";
     while (i < len && !/[\s{}]/.test(content[i])) {
       token += content[i++];
     }
@@ -217,15 +215,11 @@ function tokenize(content: string): string[] {
 /**
  * Parse shader body (between outer braces)
  */
-function parseShaderBody(
-  name: string,
-  tokens: string[],
-  startPos: number
-): { shader: Q3Shader; newPos: number } {
+function parseShaderBody(name: string, tokens: string[], startPos: number): { shader: Q3Shader; newPos: number } {
   const shader: Q3Shader = {
     name: name.toLowerCase(),
     surfaceParms: new Set(),
-    cull: 'back', // default
+    cull: "back", // default
     stages: [],
   };
 
@@ -235,7 +229,7 @@ function parseShaderBody(
   while (pos < tokens.length && braceDepth > 0) {
     const token = tokens[pos].toLowerCase();
 
-    if (token === '{') {
+    if (token === "{") {
       // Start of a stage
       pos++;
       const { stage, newPos } = parseStage(tokens, pos);
@@ -244,7 +238,7 @@ function parseShaderBody(
       continue;
     }
 
-    if (token === '}') {
+    if (token === "}") {
       braceDepth--;
       pos++;
       continue;
@@ -252,28 +246,28 @@ function parseShaderBody(
 
     // Parse shader directives
     switch (token) {
-      case 'surfaceparm':
+      case "surfaceparm":
         if (tokens[pos + 1]) {
           shader.surfaceParms.add(tokens[pos + 1].toLowerCase());
         }
         pos += 2;
         break;
 
-      case 'cull':
+      case "cull":
         if (tokens[pos + 1]) {
           const cullVal = tokens[pos + 1].toLowerCase();
-          if (cullVal === 'none' || cullVal === 'disable' || cullVal === 'twosided') {
-            shader.cull = 'none';
-          } else if (cullVal === 'front') {
-            shader.cull = 'front';
+          if (cullVal === "none" || cullVal === "disable" || cullVal === "twosided") {
+            shader.cull = "none";
+          } else if (cullVal === "front") {
+            shader.cull = "front";
           } else {
-            shader.cull = 'back';
+            shader.cull = "back";
           }
         }
         pos += 2;
         break;
 
-      case 'sort':
+      case "sort":
         if (tokens[pos + 1]) {
           const sortVal = tokens[pos + 1].toLowerCase();
           // Can be a number or preset name
@@ -283,32 +277,32 @@ function parseShaderBody(
         pos += 2;
         break;
 
-      case 'nomipmaps':
+      case "nomipmaps":
         shader.nomipmaps = true;
         pos++;
         break;
 
-      case 'nopicmip':
+      case "nopicmip":
         shader.nopicmip = true;
         pos++;
         break;
 
-      case 'polygonoffset':
+      case "polygonoffset":
         shader.polygonOffset = true;
         pos++;
         break;
 
-      case 'portal':
+      case "portal":
         shader.portal = true;
         pos++;
         break;
 
-      case 'entitymergable':
+      case "entitymergable":
         shader.entityMergable = true;
         pos++;
         break;
 
-      case 'deformvertexes': {
+      case "deformvertexes": {
         // Parse deformVertexes directive
         pos++;
         if (pos >= tokens.length) break;
@@ -320,129 +314,147 @@ function parseShaderBody(
           shader.deformVertexes = [];
         }
 
-        if (deformType === 'autosprite') {
-          shader.deformVertexes.push({ type: 'autosprite' });
-        } else if (deformType === 'autosprite2') {
-          shader.deformVertexes.push({ type: 'autosprite2' });
+        if (deformType === "autosprite") {
+          shader.deformVertexes.push({ type: "autosprite" });
+        } else if (deformType === "autosprite2") {
+          shader.deformVertexes.push({ type: "autosprite2" });
         } else {
           // Skip other deformVertexes types for now (wave, bulge, etc.)
-          while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' &&
-            !isDirective(tokens[pos])) {
+          while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
             pos++;
           }
         }
         break;
       }
 
-      case 'fogparms': {
+      case "fogparms": {
         // Parse: fogParms ( R G B ) depthForOpaque
         // or: fogParms R G B depthForOpaque
         // Color values are 0-1 range, depthForOpaque is distance in units
         pos++;
 
         // Skip opening parenthesis if present
-        if (pos < tokens.length && tokens[pos] === '(') {
+        if (pos < tokens.length && tokens[pos] === "(") {
           pos++;
         }
 
-        let r = 0.5, g = 0.5, b = 0.5;
+        let r = 0.5,
+          g = 0.5,
+          b = 0.5;
         let depthForOpaque = 512;
 
         // Read R G B values
-        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (
+          pos < tokens.length &&
+          tokens[pos] !== ")" &&
+          tokens[pos] !== "{" &&
+          tokens[pos] !== "}" &&
+          !isDirective(tokens[pos])
+        ) {
           r = parseFloat(tokens[pos]) || 0;
           pos++;
         }
-        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (
+          pos < tokens.length &&
+          tokens[pos] !== ")" &&
+          tokens[pos] !== "{" &&
+          tokens[pos] !== "}" &&
+          !isDirective(tokens[pos])
+        ) {
           g = parseFloat(tokens[pos]) || 0;
           pos++;
         }
-        if (pos < tokens.length && tokens[pos] !== ')' && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (
+          pos < tokens.length &&
+          tokens[pos] !== ")" &&
+          tokens[pos] !== "{" &&
+          tokens[pos] !== "}" &&
+          !isDirective(tokens[pos])
+        ) {
           b = parseFloat(tokens[pos]) || 0;
           pos++;
         }
 
         // Skip closing parenthesis if present
-        if (pos < tokens.length && tokens[pos] === ')') {
+        if (pos < tokens.length && tokens[pos] === ")") {
           pos++;
         }
 
         // Read depthForOpaque
-        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           depthForOpaque = parseFloat(tokens[pos]) || 512;
           pos++;
         }
 
         shader.fogParms = {
           color: [r, g, b],
-          depthForOpaque
+          depthForOpaque,
         };
         break;
       }
 
-      case 'skyparms': {
+      case "skyparms": {
         // Parse: skyparms <farbox> <cloudheight> <nearbox>
         // farbox: texture path prefix for 6 skybox faces, or '-' for none
-        // cloudheight: height for cloud layer, or '-' for none  
+        // cloudheight: height for cloud layer, or '-' for none
         // nearbox: near skybox path prefix, or '-' for none
         // Be careful not to consume tokens belonging to next directive
         pos++;
 
-        let farbox = '-';
-        let cloudHeightStr = '-';
-        let nearbox = '-';
+        let farbox = "-";
+        let cloudHeightStr = "-";
+        let nearbox = "-";
 
         // Read up to 3 parameters, stopping if we hit a directive or brace
-        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           farbox = tokens[pos];
           pos++;
         }
-        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           cloudHeightStr = tokens[pos];
           pos++;
         }
-        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           nearbox = tokens[pos];
           pos++;
         }
 
         shader.skyParms = {
-          farbox: farbox !== '-' ? farbox : '',
-          cloudHeight: cloudHeightStr !== '-' ? parseFloat(cloudHeightStr) : 0,
-          nearbox: nearbox !== '-' ? nearbox : '',
+          farbox: farbox !== "-" ? farbox : "",
+          cloudHeight: cloudHeightStr !== "-" ? parseFloat(cloudHeightStr) : 0,
+          nearbox: nearbox !== "-" ? nearbox : "",
         };
         break;
       }
 
-      case 'skyparmssides': {
+      case "skyparmssides": {
         // Warsow/QFusion extension: skyparmssides <basename> <rt> <bk> <lf> <ft> <up> <dn> [- -]
         // Example: skyparmssides env/starsky rt rt rt env/starsky_up rt - -
         // We extract the basename for cubemap loading
         pos++;
 
-        let skyBaseName = '-';
+        let skyBaseName = "-";
 
         // Read basename
-        if (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' && !isDirective(tokens[pos])) {
+        if (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           skyBaseName = tokens[pos];
           pos++;
         }
 
         // Skip remaining parameters (face suffixes and trailing dashes)
-        while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' &&
-          !isDirective(tokens[pos])) {
+        while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
           pos++;
         }
 
         shader.skyParms = {
-          farbox: skyBaseName !== '-' ? skyBaseName : '',
+          farbox: skyBaseName !== "-" ? skyBaseName : "",
           cloudHeight: 0,
-          nearbox: '',
+          nearbox: "",
         };
         break;
       }
 
-      case 'qer_editorimage':
+      case "qer_editorimage":
         // Capture editor image — used as fallback for sky textures when cubemap is missing
         if (tokens[pos + 1]) {
           shader.editorImage = tokens[pos + 1];
@@ -452,11 +464,10 @@ function parseShaderBody(
 
       default:
         // Skip q3map_*, qer_*, and other unknown directives
-        if (token.startsWith('q3map') || token.startsWith('qer_')) {
+        if (token.startsWith("q3map") || token.startsWith("qer_")) {
           pos++;
           // Skip parameters until next directive or brace
-          while (pos < tokens.length && tokens[pos] !== '{' && tokens[pos] !== '}' &&
-            !isDirective(tokens[pos])) {
+          while (pos < tokens.length && tokens[pos] !== "{" && tokens[pos] !== "}" && !isDirective(tokens[pos])) {
             pos++;
           }
         } else {
@@ -474,9 +485,19 @@ function parseShaderBody(
  */
 function isDirective(token: string): boolean {
   const directives = [
-    'surfaceparm', 'cull', 'sort', 'nomipmaps', 'nopicmip', 'polygonoffset',
-    'portal', 'entitymergable', 'deformvertexes', 'fogparms', 'skyparms', 'skyparmssides',
-    'qer_editorimage',
+    "surfaceparm",
+    "cull",
+    "sort",
+    "nomipmaps",
+    "nopicmip",
+    "polygonoffset",
+    "portal",
+    "entitymergable",
+    "deformvertexes",
+    "fogparms",
+    "skyparms",
+    "skyparmssides",
+    "qer_editorimage",
   ];
   return directives.includes(token.toLowerCase());
 }
@@ -486,23 +507,23 @@ function isDirective(token: string): boolean {
  */
 function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage; newPos: number } {
   const stage: Q3ShaderStage = {
-    map: '',
+    map: "",
   };
 
   let pos = startPos;
 
-  while (pos < tokens.length && tokens[pos] !== '}') {
+  while (pos < tokens.length && tokens[pos] !== "}") {
     const token = tokens[pos].toLowerCase();
 
     switch (token) {
-      case 'map':
+      case "map":
         if (tokens[pos + 1]) {
           stage.map = tokens[pos + 1];
         }
         pos += 2;
         break;
 
-      case 'clampmap':
+      case "clampmap":
         if (tokens[pos + 1]) {
           stage.map = tokens[pos + 1];
           stage.clampMap = true;
@@ -510,14 +531,14 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         pos += 2;
         break;
 
-      case 'material':
+      case "material":
         // Warsow/QFusion extension: material <diffuse> [<normalmap>]
         // Sets the diffuse texture (and optionally normal map)
         if (tokens[pos + 1]) {
           stage.map = tokens[pos + 1];
           pos += 2;
           // Check for optional normal map (we store but don't use yet)
-          if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== '}') {
+          if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== "}") {
             // Skip the normal map parameter for now
             pos++;
           }
@@ -526,13 +547,13 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         break;
 
-      case 'animmap':
+      case "animmap":
         // animMap <frequency> <frame1> <frame2> ...
         if (tokens[pos + 1]) {
           const freq = parseFloat(tokens[pos + 1]);
           const frames: string[] = [];
           pos += 2;
-          while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+          while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
             frames.push(tokens[pos]);
             pos++;
           }
@@ -545,13 +566,13 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         break;
 
-      case 'animclampmap':
+      case "animclampmap":
         // animClampMap <frequency> <frame1> <frame2> ... (same as animMap but with clamping)
         if (tokens[pos + 1]) {
           const freq = parseFloat(tokens[pos + 1]);
           const frames: string[] = [];
           pos += 2;
-          while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+          while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
             frames.push(tokens[pos]);
             pos++;
           }
@@ -565,44 +586,44 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         break;
 
-      case 'blendfunc':
+      case "blendfunc":
         stage.blendFunc = parseBlendFunc(tokens, pos + 1);
         pos += 2;
         // Check if it's a two-parameter blend func
-        if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== '}') {
+        if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== "}") {
           pos++;
         }
         break;
 
-      case 'alphafunc':
+      case "alphafunc":
         if (tokens[pos + 1]) {
           const af = tokens[pos + 1].toUpperCase();
-          if (af === 'GT0' || af === 'GE128' || af === 'LT128') {
+          if (af === "GT0" || af === "GE128" || af === "LT128") {
             stage.alphaFunc = af as AlphaFunc;
           }
         }
         pos += 2;
         break;
 
-      case 'rgbgen':
+      case "rgbgen":
         stage.rgbGen = parseRgbGen(tokens, pos + 1);
         pos += 2;
         // Skip additional wave parameters
-        while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+        while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
           pos++;
         }
         break;
 
-      case 'alphagen':
+      case "alphagen":
         stage.alphaGen = parseAlphaGen(tokens, pos + 1);
         pos += 2;
         // Skip additional wave parameters
-        while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+        while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
           pos++;
         }
         break;
 
-      case 'tcmod':
+      case "tcmod": {
         const tcMod = parseTcMod(tokens, pos + 1);
         if (tcMod) {
           if (!stage.tcMod) stage.tcMod = [];
@@ -610,38 +631,39 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         pos += 2;
         // Skip additional parameters
-        while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+        while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
           pos++;
         }
         break;
+      }
 
-      case 'depthwrite':
+      case "depthwrite":
         stage.depthWrite = true;
         pos++;
         break;
 
-      case 'depthfunc':
+      case "depthfunc":
         if (tokens[pos + 1]) {
           const df = tokens[pos + 1].toLowerCase();
-          if (df === 'equal') {
-            stage.depthFunc = 'equal';
+          if (df === "equal") {
+            stage.depthFunc = "equal";
           } else {
-            stage.depthFunc = 'lequal';
+            stage.depthFunc = "lequal";
           }
         }
         pos += 2;
         break;
 
-      case 'detail':
+      case "detail":
         stage.detail = true;
         pos++;
         break;
 
-      case 'tcgen':
+      case "tcgen":
         stage.tcGen = parseTcGen(tokens, pos + 1);
         pos += 2;
         // Skip additional vector parameters if present
-        while (pos < tokens.length && tokens[pos] !== '}' && !isStageDirective(tokens[pos])) {
+        while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
           pos++;
         }
         break;
@@ -653,7 +675,7 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
   }
 
   // Skip closing brace
-  if (tokens[pos] === '}') {
+  if (tokens[pos] === "}") {
     pos++;
   }
 
@@ -665,8 +687,20 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
  */
 function isStageDirective(token: string): boolean {
   const directives = [
-    'map', 'clampmap', 'animmap', 'animclampmap', 'material', 'blendfunc', 'alphafunc', 'rgbgen',
-    'alphagen', 'tcmod', 'tcgen', 'depthwrite', 'depthfunc', 'detail',
+    "map",
+    "clampmap",
+    "animmap",
+    "animclampmap",
+    "material",
+    "blendfunc",
+    "alphafunc",
+    "rgbgen",
+    "alphagen",
+    "tcmod",
+    "tcgen",
+    "depthwrite",
+    "depthfunc",
+    "detail",
   ];
   return directives.includes(token.toLowerCase());
 }
@@ -679,17 +713,18 @@ function parseBlendFunc(tokens: string[], pos: number): [BlendFactor, BlendFacto
 
   // Preset shortcuts
   switch (token) {
-    case 'add':
-      return ['GL_ONE', 'GL_ONE'];
-    case 'blend':
-      return ['GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA'];
-    case 'filter':
-      return ['GL_DST_COLOR', 'GL_ZERO'];
-    default:
+    case "add":
+      return ["GL_ONE", "GL_ONE"];
+    case "blend":
+      return ["GL_SRC_ALPHA", "GL_ONE_MINUS_SRC_ALPHA"];
+    case "filter":
+      return ["GL_DST_COLOR", "GL_ZERO"];
+    default: {
       // Two-parameter form: blendFunc <src> <dst>
       const src = parseBlendFactor(token);
       const dst = parseBlendFactor(tokens[pos + 1]);
       return [src, dst];
+    }
   }
 }
 
@@ -697,21 +732,27 @@ function parseBlendFunc(tokens: string[], pos: number): [BlendFactor, BlendFacto
  * Parse a single blend factor
  */
 function parseBlendFactor(token?: string): BlendFactor {
-  if (!token) return 'GL_ONE';
+  if (!token) return "GL_ONE";
 
   const t = token.toUpperCase();
   const factors: BlendFactor[] = [
-    'GL_ONE', 'GL_ZERO', 'GL_SRC_COLOR', 'GL_DST_COLOR',
-    'GL_ONE_MINUS_SRC_COLOR', 'GL_ONE_MINUS_DST_COLOR',
-    'GL_SRC_ALPHA', 'GL_DST_ALPHA',
-    'GL_ONE_MINUS_SRC_ALPHA', 'GL_ONE_MINUS_DST_ALPHA',
+    "GL_ONE",
+    "GL_ZERO",
+    "GL_SRC_COLOR",
+    "GL_DST_COLOR",
+    "GL_ONE_MINUS_SRC_COLOR",
+    "GL_ONE_MINUS_DST_COLOR",
+    "GL_SRC_ALPHA",
+    "GL_DST_ALPHA",
+    "GL_ONE_MINUS_SRC_ALPHA",
+    "GL_ONE_MINUS_DST_ALPHA",
   ];
 
   if (factors.includes(t as BlendFactor)) {
     return t as BlendFactor;
   }
 
-  return 'GL_ONE';
+  return "GL_ONE";
 }
 
 /**
@@ -721,33 +762,29 @@ function parseRgbGen(tokens: string[], pos: number): RgbGen {
   const token = tokens[pos]?.toLowerCase();
 
   switch (token) {
-    case 'identity':
-      return { type: 'identity' };
-    case 'identitylighting':
-      return { type: 'identityLighting' };
-    case 'vertex':
-      return { type: 'vertex' };
-    case 'oneminusvertex':
-      return { type: 'oneMinusVertex' };
-    case 'entity':
-      return { type: 'entity' };
-    case 'oneminusentity':
-      return { type: 'oneMinusEntity' };
-    case 'lightingdiffuse':
-      return { type: 'lightingDiffuse' };
-    case 'wave':
-      return { type: 'wave', wave: parseWaveFunc(tokens, pos + 1) };
-    case 'const':
+    case "identity":
+      return { type: "identity" };
+    case "identitylighting":
+      return { type: "identityLighting" };
+    case "vertex":
+      return { type: "vertex" };
+    case "oneminusvertex":
+      return { type: "oneMinusVertex" };
+    case "entity":
+      return { type: "entity" };
+    case "oneminusentity":
+      return { type: "oneMinusEntity" };
+    case "lightingdiffuse":
+      return { type: "lightingDiffuse" };
+    case "wave":
+      return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
+    case "const":
       return {
-        type: 'const',
-        color: [
-          parseFloat(tokens[pos + 2]) || 1,
-          parseFloat(tokens[pos + 3]) || 1,
-          parseFloat(tokens[pos + 4]) || 1,
-        ],
+        type: "const",
+        color: [parseFloat(tokens[pos + 2]) || 1, parseFloat(tokens[pos + 3]) || 1, parseFloat(tokens[pos + 4]) || 1],
       };
     default:
-      return { type: 'identity' };
+      return { type: "identity" };
   }
 }
 
@@ -758,29 +795,29 @@ function parseAlphaGen(tokens: string[], pos: number): AlphaGen {
   const token = tokens[pos]?.toLowerCase();
 
   switch (token) {
-    case 'identity':
-      return { type: 'identity' };
-    case 'vertex':
-      return { type: 'vertex' };
-    case 'oneminusvertex':
-      return { type: 'oneMinusVertex' };
-    case 'entity':
-      return { type: 'entity' };
-    case 'oneminusentity':
-      return { type: 'oneMinusEntity' };
-    case 'lightingspecular':
-      return { type: 'lightingSpecular' };
-    case 'portal':
-      return { type: 'portal' };
-    case 'wave':
-      return { type: 'wave', wave: parseWaveFunc(tokens, pos + 1) };
-    case 'const':
+    case "identity":
+      return { type: "identity" };
+    case "vertex":
+      return { type: "vertex" };
+    case "oneminusvertex":
+      return { type: "oneMinusVertex" };
+    case "entity":
+      return { type: "entity" };
+    case "oneminusentity":
+      return { type: "oneMinusEntity" };
+    case "lightingspecular":
+      return { type: "lightingSpecular" };
+    case "portal":
+      return { type: "portal" };
+    case "wave":
+      return { type: "wave", wave: parseWaveFunc(tokens, pos + 1) };
+    case "const":
       return {
-        type: 'const',
+        type: "const",
         value: parseFloat(tokens[pos + 1]) || 1,
       };
     default:
-      return { type: 'identity' };
+      return { type: "identity" };
   }
 }
 
@@ -788,11 +825,11 @@ function parseAlphaGen(tokens: string[], pos: number): AlphaGen {
  * Parse wave function
  */
 function parseWaveFunc(tokens: string[], pos: number): WaveFunc {
-  const funcName = tokens[pos]?.toLowerCase() || 'sin';
-  const validFuncs = ['sin', 'triangle', 'square', 'sawtooth', 'inversesawtooth', 'noise'];
+  const funcName = tokens[pos]?.toLowerCase() || "sin";
+  const validFuncs = ["sin", "triangle", "square", "sawtooth", "inversesawtooth", "noise"];
 
   return {
-    func: validFuncs.includes(funcName) ? funcName as WaveFunc['func'] : 'sin',
+    func: validFuncs.includes(funcName) ? (funcName as WaveFunc["func"]) : "sin",
     base: parseFloat(tokens[pos + 1]) || 0,
     amplitude: parseFloat(tokens[pos + 2]) || 1,
     phase: parseFloat(tokens[pos + 3]) || 0,
@@ -807,39 +844,39 @@ function parseTcMod(tokens: string[], pos: number): TcMod | null {
   const token = tokens[pos]?.toLowerCase();
 
   switch (token) {
-    case 'scroll':
+    case "scroll":
       return {
-        type: 'scroll',
+        type: "scroll",
         sSpeed: parseFloat(tokens[pos + 1]) || 0,
         tSpeed: parseFloat(tokens[pos + 2]) || 0,
       };
-    case 'scale':
+    case "scale":
       return {
-        type: 'scale',
+        type: "scale",
         sScale: parseFloat(tokens[pos + 1]) || 1,
         tScale: parseFloat(tokens[pos + 2]) || 1,
       };
-    case 'rotate':
+    case "rotate":
       return {
-        type: 'rotate',
+        type: "rotate",
         degreesPerSecond: parseFloat(tokens[pos + 1]) || 0,
       };
-    case 'stretch':
+    case "stretch":
       return {
-        type: 'stretch',
+        type: "stretch",
         func: parseWaveFunc(tokens, pos + 1),
       };
-    case 'turb':
+    case "turb":
       return {
-        type: 'turb',
+        type: "turb",
         base: parseFloat(tokens[pos + 1]) || 0,
         amplitude: parseFloat(tokens[pos + 2]) || 1,
         phase: parseFloat(tokens[pos + 3]) || 0,
         frequency: parseFloat(tokens[pos + 4]) || 1,
       };
-    case 'transform':
+    case "transform":
       return {
-        type: 'transform',
+        type: "transform",
         m00: parseFloat(tokens[pos + 1]) || 1,
         m01: parseFloat(tokens[pos + 2]) || 0,
         m10: parseFloat(tokens[pos + 3]) || 0,
@@ -859,40 +896,40 @@ function parseTcGen(tokens: string[], pos: number): TcGen {
   const token = tokens[pos]?.toLowerCase();
 
   switch (token) {
-    case 'base':
-      return { mode: 'base' };
-    case 'lightmap':
-      return { mode: 'lightmap' };
-    case 'environment':
-      return { mode: 'environment' };
-    case 'vector':
+    case "base":
+      return { mode: "base" };
+    case "lightmap":
+      return { mode: "lightmap" };
+    case "environment":
+      return { mode: "environment" };
+    case "vector": {
       // Parse two 3-component vectors: ( sx sy sz ) ( tx ty tz )
       // Skip opening parenthesis if present
       let i = pos + 1;
 
       // Parse S vector
-      if (tokens[i] === '(') i++;
+      if (tokens[i] === "(") i++;
       const sx = parseFloat(tokens[i++]) || 0;
       const sy = parseFloat(tokens[i++]) || 0;
       const sz = parseFloat(tokens[i++]) || 0;
-      if (tokens[i] === ')') i++;
+      if (tokens[i] === ")") i++;
 
       // Parse T vector
-      if (tokens[i] === '(') i++;
+      if (tokens[i] === "(") i++;
       const tx = parseFloat(tokens[i++]) || 0;
       const ty = parseFloat(tokens[i++]) || 0;
       const tz = parseFloat(tokens[i++]) || 0;
 
       return {
-        mode: 'vector',
+        mode: "vector",
         vector: {
           sVector: [sx, sy, sz],
           tVector: [tx, ty, tz],
         },
       };
+    }
     default:
       // Unknown tcGen mode, default to base
-      return { mode: 'base' };
+      return { mode: "base" };
   }
 }
-

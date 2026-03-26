@@ -1,5 +1,5 @@
-import { Entity, type EntityId, type PlayerId } from './Entity';
-import type { MatchStateSnapshot } from '../../../shared/server/gametype';
+import type { MatchStateSnapshot } from "../../../shared/server/gametype";
+import { Entity, type EntityId, type PlayerId } from "./Entity";
 
 /**
  * Game event that can be synchronized
@@ -127,9 +127,9 @@ export class GameState {
     copy.tick = this.tick;
     copy.serverTimestamp = this.serverTimestamp;
     copy.ackedInputSeq = this.ackedInputSeq;
-    copy.entities = this.entities;    // Share reference (read-only during broadcast)
-    copy.players = this.players;      // Share reference
-    copy.events = this.events;        // Share reference
+    copy.entities = this.entities; // Share reference (read-only during broadcast)
+    copy.players = this.players; // Share reference
+    copy.events = this.events; // Share reference
     copy.matchSnapshot = this.matchSnapshot;
     return copy;
   }
@@ -165,20 +165,20 @@ export class GameState {
   private serializeEvent(encoder: any, event: GameEvent): void {
     // Basic serialization - can be extended by games
     switch (event.type) {
-      case 'damage':
+      case "damage":
         encoder.writeString(event.entityId);
-        encoder.writeString(event.attackerId ?? '');
+        encoder.writeString(event.attackerId ?? "");
         encoder.writeFloat32(event.damage);
-        encoder.writeString(event.weaponId ?? '');
+        encoder.writeString(event.weaponId ?? "");
         // Victim position for floating damage numbers
         encoder.writeFloat32(event.x ?? 0);
         encoder.writeFloat32(event.y ?? 0);
         encoder.writeFloat32(event.z ?? 0);
         break;
-      case 'death':
+      case "death":
         encoder.writeString(event.entityId);
         encoder.writeString(event.killerId);
-        encoder.writeString(event.weaponId ?? '');
+        encoder.writeString(event.weaponId ?? "");
         // Victim position + velocity for gib spawning
         encoder.writeFloat32(event.x ?? 0);
         encoder.writeFloat32(event.y ?? 0);
@@ -187,59 +187,60 @@ export class GameState {
         encoder.writeFloat32(event.velY ?? 0);
         encoder.writeFloat32(event.velZ ?? 0);
         break;
-      case 'combat_state':
+      case "combat_state":
         encoder.writeString(event.entityId);
         encoder.writeUint16(event.health);
         encoder.writeUint16(event.armor);
         encoder.writeUint8(event.dead ? 1 : 0);
         break;
-      case 'chat':
+      case "chat":
         encoder.writeString(event.playerId);
         encoder.writeString(event.message);
         break;
-      case 'weapon_fire':
-        encoder.writeString(event.entityId);    // shooter entity
-        encoder.writeString(event.weaponId);     // weapon id
-        encoder.writeFloat32(event.originX);     // fire origin
+      case "weapon_fire":
+        encoder.writeString(event.entityId); // shooter entity
+        encoder.writeString(event.weaponId); // weapon id
+        encoder.writeFloat32(event.originX); // fire origin
         encoder.writeFloat32(event.originY);
         encoder.writeFloat32(event.originZ);
-        encoder.writeFloat32(event.dirX);        // fire direction
+        encoder.writeFloat32(event.dirX); // fire direction
         encoder.writeFloat32(event.dirY);
         encoder.writeFloat32(event.dirZ);
         break;
-      case 'weapon_stop':
-        encoder.writeString(event.entityId);     // shooter entity
-        encoder.writeString(event.weaponId);     // weapon id
+      case "weapon_stop":
+        encoder.writeString(event.entityId); // shooter entity
+        encoder.writeString(event.weaponId); // weapon id
         break;
-      case 'weapon_charge':
+      case "weapon_charge":
         encoder.writeString(event.entityId);
         encoder.writeString(event.weaponId);
         encoder.writeUint8(event.charging ? 1 : 0);
         break;
-      case 'projectile_impact':
-        encoder.writeString(event.defId);         // weapon definition id
-        encoder.writeFloat32(event.x);            // impact position
+      case "projectile_impact":
+        encoder.writeString(event.defId); // weapon definition id
+        encoder.writeFloat32(event.x); // impact position
         encoder.writeFloat32(event.y);
         encoder.writeFloat32(event.z);
-        encoder.writeFloat32(event.normalX);      // surface normal
+        encoder.writeFloat32(event.normalX); // surface normal
         encoder.writeFloat32(event.normalY);
         encoder.writeFloat32(event.normalZ);
         break;
-      case 'projectile_spawn':
-        encoder.writeString(event.entityId);      // projectile entity id (proj_XXX)
-        encoder.writeString(event.defId);          // weapon def id (rlauncher, glauncher, etc.)
+      case "projectile_spawn":
+        encoder.writeString(event.entityId); // projectile entity id (proj_XXX)
+        encoder.writeString(event.defId); // weapon def id (rlauncher, glauncher, etc.)
         break;
-      default:
+      default: {
         // Serialize as JSON for unknown events
         const json = JSON.stringify(event);
         encoder.writeString(json);
         break;
+      }
     }
   }
 
   private deserializeEvent(decoder: any, type: string): GameEvent {
     switch (type) {
-      case 'damage':
+      case "damage":
         return {
           type,
           entityId: decoder.readString(),
@@ -251,7 +252,7 @@ export class GameState {
           y: decoder.readFloat32(),
           z: decoder.readFloat32(),
         };
-      case 'death':
+      case "death":
         return {
           type,
           entityId: decoder.readString(),
@@ -265,7 +266,7 @@ export class GameState {
           velY: decoder.readFloat32(),
           velZ: decoder.readFloat32(),
         };
-      case 'combat_state':
+      case "combat_state":
         return {
           type,
           entityId: decoder.readString(),
@@ -273,13 +274,13 @@ export class GameState {
           armor: decoder.readUint16(),
           dead: decoder.readUint8() === 1,
         };
-      case 'chat':
+      case "chat":
         return {
           type,
           playerId: decoder.readString(),
           message: decoder.readString(),
         };
-      case 'weapon_fire':
+      case "weapon_fire":
         return {
           type,
           entityId: decoder.readString(),
@@ -291,20 +292,20 @@ export class GameState {
           dirY: decoder.readFloat32(),
           dirZ: decoder.readFloat32(),
         };
-      case 'weapon_stop':
+      case "weapon_stop":
         return {
           type,
           entityId: decoder.readString(),
           weaponId: decoder.readString(),
         };
-      case 'weapon_charge':
+      case "weapon_charge":
         return {
           type,
           entityId: decoder.readString(),
           weaponId: decoder.readString(),
           charging: decoder.readUint8() === 1,
         };
-      case 'projectile_impact':
+      case "projectile_impact":
         return {
           type,
           defId: decoder.readString(),
@@ -315,15 +316,16 @@ export class GameState {
           normalY: decoder.readFloat32(),
           normalZ: decoder.readFloat32(),
         };
-      case 'projectile_spawn':
+      case "projectile_spawn":
         return {
           type,
           entityId: decoder.readString(),
           defId: decoder.readString(),
         };
-      default:
+      default: {
         const json = decoder.readString();
         return JSON.parse(json);
+      }
     }
   }
 }
@@ -333,13 +335,13 @@ export class GameState {
  */
 export class PlayerState {
   /** Entity ID this player controls */
-  entityId: EntityId = '';
+  entityId: EntityId = "";
 
   /** Player name */
-  name: string = '';
+  name: string = "";
 
   /** Team (if applicable) */
-  team: string = '';
+  team: string = "";
 
   /** Score */
   score: number = 0;

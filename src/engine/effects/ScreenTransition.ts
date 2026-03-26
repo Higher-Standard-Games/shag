@@ -1,6 +1,6 @@
 /**
  * ScreenTransition - Handles screen fade effects for map transitions
- * 
+ *
  * Provides smooth fade-to-black (or other colors) transitions
  * when changing maps or scenes. Only covers the game canvas area,
  * leaving UI elements visible.
@@ -53,7 +53,7 @@ export class ScreenTransition {
     this.overlay = document.createElement("div");
     this.overlay.id = "screen-transition-overlay";
     this.overlay.className = "ui-screen-transition";
-    
+
     // Insert overlay into canvas container (so UI stays on top)
     if (container !== document.body) {
       // Make sure container has relative positioning for absolute child
@@ -108,10 +108,7 @@ export class ScreenTransition {
    * Perform a fade transition with a callback in the middle
    * Fades out -> calls callback -> fades in
    */
-  public async fadeTransition(
-    callback: () => Promise<void>,
-    options?: TransitionOptions
-  ): Promise<void> {
+  public async fadeTransition(callback: () => Promise<void>, options?: TransitionOptions): Promise<void> {
     if (this.isTransitioning) {
       console.warn("Transition already in progress");
       return;
@@ -124,7 +121,7 @@ export class ScreenTransition {
     const duration = options?.duration ?? this.defaultDuration;
     const halfDuration = duration / 2;
     const easing = options?.easing ?? "ease-in-out";
-    
+
     // Determine color: explicit color > useSkyColor option > default behavior
     let color: string;
     if (options?.color) {

@@ -1,4 +1,4 @@
-import type { Vec3 } from '../../components/TransformComponent';
+import type { Vec3 } from "../../components/TransformComponent";
 
 /**
  * Result of a collision trace
@@ -131,14 +131,14 @@ export class NullCollisionWorld implements CollisionWorld {
   stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult {
     // Simple floor collision at Y=0 for testing
     // Calculate new position
-    let newX = start.x + velocity.x * deltaTime;
+    const newX = start.x + velocity.x * deltaTime;
     let newY = start.y + velocity.y * deltaTime;
-    let newZ = start.z + velocity.z * deltaTime;
+    const newZ = start.z + velocity.z * deltaTime;
 
     // Apply velocity
-    let newVelX = velocity.x;
+    const newVelX = velocity.x;
     let newVelY = velocity.y;
-    let newVelZ = velocity.z;
+    const newVelZ = velocity.z;
 
     // Floor height (adjust for player bounds - AABB min.y is negative)
     const floorHeight = -bounds.min.y;
@@ -156,7 +156,7 @@ export class NullCollisionWorld implements CollisionWorld {
     return {
       endPos: { x: newX, y: newY, z: newZ },
       velocity: { x: newVelX, y: newVelY, z: newVelZ },
-      grounded
+      grounded,
     };
   }
 

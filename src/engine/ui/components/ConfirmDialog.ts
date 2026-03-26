@@ -1,22 +1,22 @@
 /**
  * ConfirmDialog - Reusable confirmation dialog
- * 
+ *
  * Mobile-friendly replacement for browser confirm().
  * Uses Overlay and Button components for consistent styling.
  */
 
 import { UIManager } from "../UIManager";
-import { Overlay } from "./Overlay";
-import { createButtonRow, type ButtonVariant } from "./Button";
 import { UIStyles } from "../UIStyles";
+import { type ButtonVariant, createButtonRow } from "./Button";
+import { Overlay } from "./Overlay";
 import confirmDialogCSS from "./styles/ConfirmDialog.css?raw";
 
 export interface ConfirmOptions {
   title: string;
   message: string;
-  confirmText?: string;        // default: 'Confirm'
-  cancelText?: string;         // default: 'Cancel'
-  confirmVariant?: ButtonVariant;  // default: 'danger'
+  confirmText?: string; // default: 'Confirm'
+  cancelText?: string; // default: 'Cancel'
+  confirmVariant?: ButtonVariant; // default: 'danger'
   onConfirm: () => void;
   onCancel?: () => void;
 }
@@ -27,8 +27,8 @@ export class ConfirmDialog {
   private static stylesInjected = false;
 
   private static injectStyles(): void {
-    if (this.stylesInjected) return;
-    this.stylesInjected = true;
+    if (ConfirmDialog.stylesInjected) return;
+    ConfirmDialog.stylesInjected = true;
     UIStyles.injectCSS("confirm-dialog", confirmDialogCSS);
   }
 
@@ -37,8 +37,8 @@ export class ConfirmDialog {
    */
   public static show(options: ConfirmOptions): void {
     // Hide any existing confirm dialog
-    this.hide();
-    this.injectStyles();
+    ConfirmDialog.hide();
+    ConfirmDialog.injectStyles();
 
     const {
       title,
@@ -51,7 +51,7 @@ export class ConfirmDialog {
     } = options;
 
     // Create overlay (don't close on click for confirm dialogs)
-    this.overlay = new Overlay(
+    ConfirmDialog.overlay = new Overlay(
       {
         id: "confirm-dialog",
         opacity: 0.8,
@@ -63,26 +63,26 @@ export class ConfirmDialog {
       () => {
         // Called when overlay is closed (e.g., by ESC)
         onCancel?.();
-      }
+      },
     );
-    this.overlay.show();
+    ConfirmDialog.overlay.show();
 
     // Create panel
-    this.panel = document.createElement("div");
-    this.panel.className = "ui-confirm-panel";
-    this.panel.style.zIndex = String(UIManager.getInstance().getZIndex("CONFIRM") + 1);
+    ConfirmDialog.panel = document.createElement("div");
+    ConfirmDialog.panel.className = "ui-confirm-panel";
+    ConfirmDialog.panel.style.zIndex = String(UIManager.getInstance().getZIndex("CONFIRM") + 1);
 
     // Title
     const titleEl = document.createElement("h3");
     titleEl.className = "ui-confirm-title";
     titleEl.textContent = title;
-    this.panel.appendChild(titleEl);
+    ConfirmDialog.panel.appendChild(titleEl);
 
     // Message
     const messageEl = document.createElement("p");
     messageEl.className = "ui-confirm-message";
     messageEl.textContent = message;
-    this.panel.appendChild(messageEl);
+    ConfirmDialog.panel.appendChild(messageEl);
 
     // Buttons
     const buttonRow = createButtonRow([
@@ -90,7 +90,7 @@ export class ConfirmDialog {
         text: cancelText,
         variant: "secondary",
         onClick: () => {
-          this.hide();
+          ConfirmDialog.hide();
           onCancel?.();
         },
       },
@@ -98,31 +98,31 @@ export class ConfirmDialog {
         text: confirmText,
         variant: confirmVariant,
         onClick: () => {
-          this.hide();
+          ConfirmDialog.hide();
           onConfirm();
         },
       },
     ]);
-    this.panel.appendChild(buttonRow);
+    ConfirmDialog.panel.appendChild(buttonRow);
 
-    document.body.appendChild(this.panel);
+    document.body.appendChild(ConfirmDialog.panel);
   }
 
   /**
    * Hide the confirmation dialog
    */
   public static hide(): void {
-    if (this.panel) {
-      this.panel.style.animation = "uiFadeOut 0.15s ease";
+    if (ConfirmDialog.panel) {
+      ConfirmDialog.panel.style.animation = "uiFadeOut 0.15s ease";
       setTimeout(() => {
-        this.panel?.remove();
-        this.panel = null;
+        ConfirmDialog.panel?.remove();
+        ConfirmDialog.panel = null;
       }, 150);
     }
 
-    if (this.overlay) {
-      this.overlay.hide();
-      this.overlay = null;
+    if (ConfirmDialog.overlay) {
+      ConfirmDialog.overlay.hide();
+      ConfirmDialog.overlay = null;
     }
   }
 
@@ -130,6 +130,6 @@ export class ConfirmDialog {
    * Check if dialog is currently visible
    */
   public static isVisible(): boolean {
-    return this.panel !== null;
+    return ConfirmDialog.panel !== null;
   }
 }

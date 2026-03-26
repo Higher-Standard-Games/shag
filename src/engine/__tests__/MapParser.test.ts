@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { MapParser } from '../loader/map/MapParser';
+import { describe, expect, it } from "vitest";
+import { MapParser } from "../loader/map/MapParser";
 
 describe("MapParser", () => {
   describe("parse", () => {

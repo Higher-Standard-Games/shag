@@ -1,26 +1,27 @@
 /**
  * SweepCollisionBackend - Clean implementation of swept box collision
- * 
+ *
  * Based on the Q3 BSP collision detection algorithm:
  * - BSP tree traversal for spatial queries
  * - Swept AABB collision against brush planes
  * - Proper content flag handling
- * 
+ *
  * This is an experimental backend created from scratch following
  * the documented Q3 collision detection approach.
  */
 
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Scene } from '@babylonjs/core/scene';
-import type { BspFile, BspBrush, BspLeaf, BspFace } from '../loader/bsp/BspLoader';
-import { CollisionBackend, TraceResult, TraceOptions, CollisionStats, createDefaultTraceResult } from './CollisionBackend';
-import { PatchTessellator } from './PatchTessellator';
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
+import type { BspBrush, BspFace, BspFile, BspLeaf } from "../loader/bsp/BspLoader";
 import {
-  PLAYER_RADIUS,
-  PLAYER_HEIGHT,
-  PLAYER_MINS_Z,
-  STEPSIZE,
-} from './PlayerPhysicsConstants';
+  type CollisionBackend,
+  type CollisionStats,
+  createDefaultTraceResult,
+  type TraceOptions,
+  type TraceResult,
+} from "./CollisionBackend";
+import { PatchTessellator } from "./PatchTessellator";
+import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
 
 // Content flags (Q3-compatible)
 const ContentFlags = {
@@ -61,7 +62,7 @@ interface FaceCollisionGeometry {
 }
 
 // Trace type
-type TraceType = 'ray' | 'box';
+type TraceType = "ray" | "box";
 
 // Internal trace state
 interface TraceState {
@@ -91,8 +92,8 @@ interface InternalTraceResult {
  * Q3-style collision backend
  */
 export class SweepCollisionBackend implements CollisionBackend {
-  readonly type = 'q3' as const;
-  readonly name = 'Sweep Collision (Experimental)';
+  readonly type = "q3" as const;
+  readonly name = "Sweep Collision (Experimental)";
 
   private bsp: BspFile | null = null;
   private isFBSP = false;
@@ -118,7 +119,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   // Pooled trace state to avoid per-trace allocations
   private readonly _pooledState: TraceState = {
-    type: 'box',
+    type: "box",
     start: [0, 0, 0],
     end: [0, 0, 0],
     mins: [0, 0, 0],
@@ -133,12 +134,10 @@ export class SweepCollisionBackend implements CollisionBackend {
       allSolid: false,
       contents: 0,
       hitBrushIndex: -1,
-      hitTextureName: '',
+      hitTextureName: "",
     },
     debug: false,
   };
-
-
 
   async init(bsp: BspFile, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
@@ -162,8 +161,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-      const name = (texture.name || '').toLowerCase();
-      if (name.includes('fullclip') || name.includes('playerclip')) {
+      const name = (texture.name || "").toLowerCase();
+      if (name.includes("fullclip") || name.includes("playerclip")) {
         this.clipBrushIndices.push(bi);
       }
     }
@@ -208,7 +207,6 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
   }
 
-
   private buildMeshFace(face: BspFace): FaceCollisionGeometry | null {
     if (!this.bsp) return null;
 
@@ -243,7 +241,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       vertices,
       indices,
       mins: min,
-      maxs: max
+      maxs: max,
     };
   }
 
@@ -269,8 +267,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Q3-style ASYMMETRIC bounding box (Z is up in Q3 coords)
     // Box extends 24/56 of height BELOW origin, 32/56 ABOVE origin
     // This matches Q3's player hull: mins.z = -24, maxs.z = 32 for height 56
-    const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT));  // -24 for height 56
-    const maxsZ = height + minsZ;                                 // +32 for height 56
+    const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT)); // -24 for height 56
+    const maxsZ = height + minsZ; // +32 for height 56
 
     // Use exact bbox — Q3 does NOT shrink the collision hull.
     // SURFACE_CLIP_EPSILON in traceBrush provides the safety margin.
@@ -282,28 +280,42 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Reset pooled trace state instead of allocating new objects
     const state = this._pooledState;
-    state.type = 'box';
-    state.start[0] = q3Start[0]; state.start[1] = q3Start[1]; state.start[2] = q3Start[2];
-    state.end[0] = q3End[0]; state.end[1] = q3End[1]; state.end[2] = q3End[2];
-    state.mins[0] = mins[0]; state.mins[1] = mins[1]; state.mins[2] = mins[2];
-    state.maxs[0] = maxs[0]; state.maxs[1] = maxs[1]; state.maxs[2] = maxs[2];
+    state.type = "box";
+    state.start[0] = q3Start[0];
+    state.start[1] = q3Start[1];
+    state.start[2] = q3Start[2];
+    state.end[0] = q3End[0];
+    state.end[1] = q3End[1];
+    state.end[2] = q3End[2];
+    state.mins[0] = mins[0];
+    state.mins[1] = mins[1];
+    state.mins[2] = mins[2];
+    state.maxs[0] = maxs[0];
+    state.maxs[1] = maxs[1];
+    state.maxs[2] = maxs[2];
     state.extents[0] = Math.max(Math.abs(mins[0]), Math.abs(maxs[0]));
     state.extents[1] = Math.max(Math.abs(mins[1]), Math.abs(maxs[1]));
     state.extents[2] = Math.max(Math.abs(mins[2]), Math.abs(maxs[2]));
     state.contentMask = contentMask;
     state.result.fraction = 1.0;
-    state.result.endPos[0] = q3End[0]; state.result.endPos[1] = q3End[1]; state.result.endPos[2] = q3End[2];
+    state.result.endPos[0] = q3End[0];
+    state.result.endPos[1] = q3End[1];
+    state.result.endPos[2] = q3End[2];
     state.result.normal = null;
     state.result.startSolid = false;
     state.result.allSolid = false;
     state.result.contents = 0;
     state.result.hitBrushIndex = -1;
-    state.result.hitTextureName = '';
+    state.result.hitTextureName = "";
     state.debug = options?.debug ?? false;
 
     if (state.debug) {
-      console.log(`[SweepCollision] Trace start: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)})`);
-      console.log(`[SweepCollision] Trace end: (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`);
+      console.log(
+        `[SweepCollision] Trace start: (${q3Start[0].toFixed(1)}, ${q3Start[1].toFixed(1)}, ${q3Start[2].toFixed(1)})`,
+      );
+      console.log(
+        `[SweepCollision] Trace end: (${q3End[0].toFixed(1)}, ${q3End[1].toFixed(1)}, ${q3End[2].toFixed(1)})`,
+      );
       console.log(`[SweepCollision] ContentMask: 0x${contentMask.toString(16)}`);
     }
 
@@ -339,10 +351,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     const elapsed = performance.now() - startTime;
     this.stats.totalTraceTime += elapsed;
 
-
-
     if (state.debug && result.fraction < 1.0) {
-      console.log(`[SweepCollision] HIT: fraction=${result.fraction.toFixed(3)} brush=${result.hitBrushIndex} tex="${result.hitTextureName}"`);
+      console.log(
+        `[SweepCollision] HIT: fraction=${result.fraction.toFixed(3)} brush=${result.hitBrushIndex} tex="${result.hitTextureName}"`,
+      );
     }
 
     return result;
@@ -357,7 +369,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     endFraction: number,
     start: [number, number, number],
     end: [number, number, number],
-    state: TraceState
+    state: TraceState,
   ): void {
     if (!this.bsp) return;
 
@@ -402,7 +414,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       // Non-axial plane
       startDist = this.dot(start, plane.normal) - plane.dist;
       endDist = this.dot(end, plane.normal) - plane.dist;
-      offset = Math.abs(state.extents[0] * plane.normal[0]) +
+      offset =
+        Math.abs(state.extents[0] * plane.normal[0]) +
         Math.abs(state.extents[1] * plane.normal[1]) +
         Math.abs(state.extents[2] * plane.normal[2]);
     }
@@ -478,8 +491,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       const texture = this.getBrushTexture(brush);
       if (!texture) continue;
 
-
-
       // Check content flags
       if (!this.shouldCollideWith(texture, state.contentMask)) {
         continue;
@@ -521,9 +532,14 @@ export class SweepCollisionBackend implements CollisionBackend {
       const meshMinQ3: [number, number, number] = [mesh.mins.x, mesh.mins.z, mesh.mins.y];
       const meshMaxQ3: [number, number, number] = [mesh.maxs.x, mesh.maxs.z, mesh.maxs.y];
 
-      if (traceMax[0] < meshMinQ3[0] || traceMin[0] > meshMaxQ3[0] ||
-        traceMax[1] < meshMinQ3[1] || traceMin[1] > meshMaxQ3[1] ||
-        traceMax[2] < meshMinQ3[2] || traceMin[2] > meshMaxQ3[2]) {
+      if (
+        traceMax[0] < meshMinQ3[0] ||
+        traceMin[0] > meshMaxQ3[0] ||
+        traceMax[1] < meshMinQ3[1] ||
+        traceMin[1] > meshMaxQ3[1] ||
+        traceMax[2] < meshMinQ3[2] ||
+        traceMin[2] > meshMaxQ3[2]
+      ) {
         continue;
       }
 
@@ -555,7 +571,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     const normal: [number, number, number] = [
       edge1[1] * edge2[2] - edge1[2] * edge2[1],
       edge1[2] * edge2[0] - edge1[0] * edge2[2],
-      edge1[0] * edge2[1] - edge1[1] * edge2[0]
+      edge1[0] * edge2[1] - edge1[1] * edge2[0],
     ];
 
     // Normalize
@@ -567,7 +583,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     normal[2] /= len;
 
     // Project box onto normal to find offset
-    const offset = Math.abs(state.extents[0] * normal[0]) +
+    const offset =
+      Math.abs(state.extents[0] * normal[0]) +
       Math.abs(state.extents[1] * normal[1]) +
       Math.abs(state.extents[2] * normal[2]);
 
@@ -603,38 +620,50 @@ export class SweepCollisionBackend implements CollisionBackend {
 
       if (absNx >= absNy && absNx >= absNz) {
         // Project onto YZ plane
-        u1 = v1[1]; v1Value = v1[2];
-        u2 = v2[1]; v2Value = v2[2];
-        u3 = v3[1]; v3Value = v3[2];
-        startU = state.start[1]; startV = state.start[2];
+        u1 = v1[1];
+        v1Value = v1[2];
+        u2 = v2[1];
+        v2Value = v2[2];
+        u3 = v3[1];
+        v3Value = v3[2];
+        startU = state.start[1];
+        startV = state.start[2];
       } else if (absNy >= absNz) {
         // Project onto XZ plane
-        u1 = v1[0]; v1Value = v1[2];
-        u2 = v2[0]; v2Value = v2[2];
-        u3 = v3[0]; v3Value = v3[2];
-        startU = state.start[0]; startV = state.start[2];
+        u1 = v1[0];
+        v1Value = v1[2];
+        u2 = v2[0];
+        v2Value = v2[2];
+        u3 = v3[0];
+        v3Value = v3[2];
+        startU = state.start[0];
+        startV = state.start[2];
       } else {
         // Project onto XY plane
-        u1 = v1[0]; v1Value = v1[1];
-        u2 = v2[0]; v2Value = v2[1];
-        u3 = v3[0]; v3Value = v3[1];
-        startU = state.start[0]; startV = state.start[1];
+        u1 = v1[0];
+        v1Value = v1[1];
+        u2 = v2[0];
+        v2Value = v2[1];
+        u3 = v3[0];
+        v3Value = v3[1];
+        startU = state.start[0];
+        startV = state.start[1];
       }
 
       // Determine 2D box size based on projection
       let boxHalfW: number, boxHalfH: number;
       if (absNx >= absNy && absNx >= absNz) {
-        boxHalfW = state.extents[1]; boxHalfH = state.extents[2];
+        boxHalfW = state.extents[1];
+        boxHalfH = state.extents[2];
       } else if (absNy >= absNz) {
-        boxHalfW = state.extents[0]; boxHalfH = state.extents[2];
+        boxHalfW = state.extents[0];
+        boxHalfH = state.extents[2];
       } else {
-        boxHalfW = state.extents[0]; boxHalfH = state.extents[1];
+        boxHalfW = state.extents[0];
+        boxHalfH = state.extents[1];
       }
 
-      if (this.triangleAabbOverlap2D(
-        startU, startV, boxHalfW, boxHalfH,
-        u1, v1Value, u2, v2Value, u3, v3Value
-      )) {
+      if (this.triangleAabbOverlap2D(startU, startV, boxHalfW, boxHalfH, u1, v1Value, u2, v2Value, u3, v3Value)) {
         isStartSolid = true;
       }
     }
@@ -668,7 +697,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Handle tunneling: If we started inside (fraction < 0) but moving towards plane
     if (fraction < 0) {
-      if (fraction > -0.001) fraction = 0; // Snap to 0 if very close
+      if (fraction > -0.001)
+        fraction = 0; // Snap to 0 if very close
       else return; // Truly behind
     }
 
@@ -703,39 +733,51 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     if (absNx >= absNy && absNx >= absNz) {
       // Project onto YZ plane
-      u1 = v1[1]; v1Value = v1[2];
-      u2 = v2[1]; v2Value = v2[2];
-      u3 = v3[1]; v3Value = v3[2];
-      hitU = hitPoint[1]; hitV = hitPoint[2];
+      u1 = v1[1];
+      v1Value = v1[2];
+      u2 = v2[1];
+      v2Value = v2[2];
+      u3 = v3[1];
+      v3Value = v3[2];
+      hitU = hitPoint[1];
+      hitV = hitPoint[2];
     } else if (absNy >= absNz) {
       // Project onto XZ plane
-      u1 = v1[0]; v1Value = v1[2];
-      u2 = v2[0]; v2Value = v2[2];
-      u3 = v3[0]; v3Value = v3[2];
-      hitU = hitPoint[0]; hitV = hitPoint[2];
+      u1 = v1[0];
+      v1Value = v1[2];
+      u2 = v2[0];
+      v2Value = v2[2];
+      u3 = v3[0];
+      v3Value = v3[2];
+      hitU = hitPoint[0];
+      hitV = hitPoint[2];
     } else {
       // Project onto XY plane
-      u1 = v1[0]; v1Value = v1[1];
-      u2 = v2[0]; v2Value = v2[1];
-      u3 = v3[0]; v3Value = v3[1];
-      hitU = hitPoint[0]; hitV = hitPoint[1];
+      u1 = v1[0];
+      v1Value = v1[1];
+      u2 = v2[0];
+      v2Value = v2[1];
+      u3 = v3[0];
+      v3Value = v3[1];
+      hitU = hitPoint[0];
+      hitV = hitPoint[1];
     }
 
     // Determine 2D box size based on projection
     let boxHalfW: number, boxHalfH: number;
     if (absNx >= absNy && absNx >= absNz) {
-      boxHalfW = state.extents[1]; boxHalfH = state.extents[2];
+      boxHalfW = state.extents[1];
+      boxHalfH = state.extents[2];
     } else if (absNy >= absNz) {
-      boxHalfW = state.extents[0]; boxHalfH = state.extents[2];
+      boxHalfW = state.extents[0];
+      boxHalfH = state.extents[2];
     } else {
-      boxHalfW = state.extents[0]; boxHalfH = state.extents[1];
+      boxHalfW = state.extents[0];
+      boxHalfH = state.extents[1];
     }
 
     // Perform AABB-Triangle intersection test in 2D centered at hitU, hitV
-    if (!this.triangleAabbOverlap2D(
-      hitU, hitV, boxHalfW, boxHalfH,
-      u1, v1Value, u2, v2Value, u3, v3Value
-    )) {
+    if (!this.triangleAabbOverlap2D(hitU, hitV, boxHalfW, boxHalfH, u1, v1Value, u2, v2Value, u3, v3Value)) {
       return;
     }
 
@@ -743,8 +785,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     // Valid hit!
     state.result.fraction = fraction;
     state.result.normal = hitBack
-      ? [-normal[0], -normal[1], -normal[2]] as [number, number, number]
-      : [...normal] as [number, number, number];
+      ? ([-normal[0], -normal[1], -normal[2]] as [number, number, number])
+      : ([...normal] as [number, number, number]);
     state.result.contents = ContentFlags.SOLID;
   }
 
@@ -753,8 +795,16 @@ export class SweepCollisionBackend implements CollisionBackend {
    * Tests if an AABB centered at (cx, cy) overlaps with a triangle
    */
   private triangleAabbOverlap2D(
-    cx: number, cy: number, hw: number, hh: number,
-    u0: number, v0: number, u1: number, v1: number, u2: number, v2: number
+    cx: number,
+    cy: number,
+    hw: number,
+    hh: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
+    u2: number,
+    v2: number,
   ): boolean {
     // 1. Test AABB against Triangle AABB
     const triMinU = Math.min(u0, u1, u2);
@@ -762,42 +812,50 @@ export class SweepCollisionBackend implements CollisionBackend {
     const triMinV = Math.min(v0, v1, v2);
     const triMaxV = Math.max(v0, v1, v2);
 
-    if (triMinU > cx + hw || triMaxU < cx - hw ||
-      triMinV > cy + hh || triMaxV < cy - hh) {
+    if (triMinU > cx + hw || triMaxU < cx - hw || triMinV > cy + hh || triMaxV < cy - hh) {
       return false;
     }
 
     // 2. Test Box vertices against Triangle edges (Edge normals)
     // Offset triangle to be relative to box center (0,0)
-    const p0u = u0 - cx, p0v = v0 - cy;
-    const p1u = u1 - cx, p1v = v1 - cy;
-    const p2u = u2 - cx, p2v = v2 - cy;
+    const p0u = u0 - cx,
+      p0v = v0 - cy;
+    const p1u = u1 - cx,
+      p1v = v1 - cy;
+    const p2u = u2 - cx,
+      p2v = v2 - cy;
 
-    const f0u = p1u - p0u, f0v = p1v - p0v;
-    const f1u = p2u - p1u, f1v = p2v - p1v;
-    const f2u = p0u - p2u, f2v = p0v - p2v;
+    const f0u = p1u - p0u,
+      f0v = p1v - p0v;
+    const f1u = p2u - p1u,
+      f1v = p2v - p1v;
+    const f2u = p0u - p2u,
+      f2v = p0v - p2v;
 
     // Normal to edge 0: (-f0v, f0u)
     // Project box extents: hw * |nx| + hh * |ny|
     // Project triangle vertex (p0 or p2 - both are same distance from edge 0)
-    let axisU = -f0v, axisV = f0u;
+    let axisU = -f0v,
+      axisV = f0u;
     let dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
     let pDist = axisU * p0u + axisV * p0v; // All points on edge 0 project to same value
-    let p2Dist = axisU * p2u + axisV * p2v; // Third point
+    const p2Dist = axisU * p2u + axisV * p2v; // Third point
     if (Math.min(pDist, p2Dist) > dist || Math.max(pDist, p2Dist) < -dist) return false;
 
     // Normal to edge 1
-    axisU = -f1v; axisV = f1u;
+    axisU = -f1v;
+    axisV = f1u;
     dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
     pDist = axisU * p1u + axisV * p1v;
-    let p0Dist = axisU * p0u + axisV * p0v;
+    const p0Dist = axisU * p0u + axisV * p0v;
     if (Math.min(pDist, p0Dist) > dist || Math.max(pDist, p0Dist) < -dist) return false;
 
     // Normal to edge 2
-    axisU = -f2v; axisV = f2u;
+    axisU = -f2v;
+    axisV = f2u;
     dist = Math.abs(axisU * hw) + Math.abs(axisV * hh);
     pDist = axisU * p2u + axisV * p2v;
-    let p1Dist = axisU * p1u + axisV * p1v;
+    const p1Dist = axisU * p1u + axisV * p1v;
     if (Math.min(pDist, p1Dist) > dist || Math.max(pDist, p1Dist) < -dist) return false;
 
     return true;
@@ -806,10 +864,13 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Check if we should collide with this brush based on content flags AND texture name
    */
-  private shouldCollideWith(texture: { name: string; contentFlags: number; surfaceFlags: number }, contentMask: number): boolean {
+  private shouldCollideWith(
+    texture: { name: string; contentFlags: number; surfaceFlags: number },
+    contentMask: number,
+  ): boolean {
     const contentFlags = texture.contentFlags;
     const surfaceFlags = texture.surfaceFlags;
-    const name = (texture.name || '').toLowerCase();
+    const name = (texture.name || "").toLowerCase();
 
     // Skip non-solid surfaces
     if (surfaceFlags & SurfaceFlags.NONSOLID) return false;
@@ -827,8 +888,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     const wantsPlayerclip = (contentMask & ContentFlags.PLAYERCLIP) !== 0;
 
     // Also check by texture name (playerclip/fullclip are often identified by name)
-    const isFullclipByName = name.includes('fullclip') || name.includes('clip') && !name.includes('playerclip');
-    const isPlayerclipByName = name.includes('playerclip');
+    const isFullclipByName = name.includes("fullclip") || (name.includes("clip") && !name.includes("playerclip"));
+    const isPlayerclipByName = name.includes("playerclip");
 
     // Fullclip and playerclip should both block players
     if (wantsSolid && hasSolid) return true;
@@ -849,7 +910,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     let texture = this.bsp.textures[brush.shaderIndex];
     if (texture) {
       return {
-        name: texture.name || '',
+        name: texture.name || "",
         contentFlags: texture.contentFlags || 0,
         surfaceFlags: texture.surfaceFlags || 0,
       };
@@ -861,7 +922,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       texture = this.bsp.textures[firstSide.shaderIndex];
       if (texture) {
         return {
-          name: texture.name || '',
+          name: texture.name || "",
           contentFlags: texture.contentFlags || 0,
           surfaceFlags: texture.surfaceFlags || 0,
         };
@@ -895,7 +956,12 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Check collision with a single brush
    */
-  private traceBrush(brush: BspBrush, brushIndex: number, texture: { name: string; contentFlags: number; surfaceFlags: number }, state: TraceState): void {
+  private traceBrush(
+    brush: BspBrush,
+    brushIndex: number,
+    texture: { name: string; contentFlags: number; surfaceFlags: number },
+    state: TraceState,
+  ): void {
     if (!this.bsp) return;
 
     let enterFraction = -1.0;
@@ -925,12 +991,14 @@ export class SweepCollisionBackend implements CollisionBackend {
       }
 
       // Distance from plane (adjusted for box)
-      startDist = (state.start[0] + offset[0]) * plane.normal[0] +
+      startDist =
+        (state.start[0] + offset[0]) * plane.normal[0] +
         (state.start[1] + offset[1]) * plane.normal[1] +
         (state.start[2] + offset[2]) * plane.normal[2] -
         plane.dist;
 
-      endDist = (state.end[0] + offset[0]) * plane.normal[0] +
+      endDist =
+        (state.end[0] + offset[0]) * plane.normal[0] +
         (state.end[1] + offset[1]) * plane.normal[1] +
         (state.end[2] + offset[2]) * plane.normal[2] -
         plane.dist;
@@ -984,7 +1052,8 @@ export class SweepCollisionBackend implements CollisionBackend {
             offset[j] = state.mins[j];
           }
         }
-        const dist = (state.start[0] + offset[0]) * plane.normal[0] +
+        const dist =
+          (state.start[0] + offset[0]) * plane.normal[0] +
           (state.start[1] + offset[1]) * plane.normal[1] +
           (state.start[2] + offset[2]) * plane.normal[2] -
           plane.dist;
@@ -1055,7 +1124,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   slideMove(
     startPos: Vector3,
     velocity: Vector3,
-    options?: TraceOptions
+    options?: TraceOptions,
   ): { endPos: Vector3; velocity: Vector3; hitCount: number } {
     const planes: Vector3[] = [];
     let numPlanes = 0;
@@ -1080,12 +1149,17 @@ export class SweepCollisionBackend implements CollisionBackend {
         // Q3-style recovery: find an escape direction instead of trapping the player
         const NUDGE = 2.0;
         const nudges = [
-          new Vector3(NUDGE, 0, 0), new Vector3(-NUDGE, 0, 0),
-          new Vector3(0, NUDGE, 0), new Vector3(0, -NUDGE, 0),
-          new Vector3(0, 0, NUDGE), new Vector3(0, 0, -NUDGE),
+          new Vector3(NUDGE, 0, 0),
+          new Vector3(-NUDGE, 0, 0),
+          new Vector3(0, NUDGE, 0),
+          new Vector3(0, -NUDGE, 0),
+          new Vector3(0, 0, NUDGE),
+          new Vector3(0, 0, -NUDGE),
           // Diagonals for corner junctions
-          new Vector3(NUDGE, NUDGE, 0), new Vector3(-NUDGE, NUDGE, 0),
-          new Vector3(0, NUDGE, NUDGE), new Vector3(0, NUDGE, -NUDGE),
+          new Vector3(NUDGE, NUDGE, 0),
+          new Vector3(-NUDGE, NUDGE, 0),
+          new Vector3(0, NUDGE, NUDGE),
+          new Vector3(0, NUDGE, -NUDGE),
         ];
         let escaped = false;
         for (const nudge of nudges) {
@@ -1223,7 +1297,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   stepSlideMove(
     startPos: Vector3,
     velocity: Vector3,
-    options?: TraceOptions
+    options?: TraceOptions,
   ): { endPos: Vector3; velocity: Vector3; hitCount: number; stepped: boolean } {
     const startO = this._ssm_startO;
     const startV = this._ssm_startV;
@@ -1232,8 +1306,6 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // First, try a normal slide move
     const firstResult = this.slideMove(startPos, velocity, options);
-
-
 
     // If we moved the full distance without hitting anything, we're done
     if (firstResult.hitCount === 0) {
@@ -1249,11 +1321,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     // With asymmetric box, origin is 24 units above feet.
     // Tracing down by STEPSIZE checks if there's ground within step distance.
     this._ssm_traceEnd.set(startO.x, startO.y - STEPSIZE, startO.z);
-    const downTrace = this.trace(
-      startO,
-      this._ssm_traceEnd,
-      options
-    );
+    const downTrace = this.trace(startO, this._ssm_traceEnd, options);
 
     // If not on ground (trace went full distance down), don't try to step
     if (downTrace.fraction >= 1.0) {
@@ -1302,11 +1370,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     const raisedResult = this.slideMove(upTrace.endPos, startV, options);
 
     // Step back down by the same amount we stepped up
-    this._ssm_traceEnd.set(
-      raisedResult.endPos.x,
-      raisedResult.endPos.y - stepSize,
-      raisedResult.endPos.z
-    );
+    this._ssm_traceEnd.set(raisedResult.endPos.x, raisedResult.endPos.y - stepSize, raisedResult.endPos.z);
     const stepDownTrace = this.trace(raisedResult.endPos, this._ssm_traceEnd, options);
 
     if (!stepDownTrace.allSolid) {
@@ -1363,7 +1427,11 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Find ground below point
    */
-  findGround(point: Vector3, maxDistance: number = 100, options?: TraceOptions): { position: Vector3; normal: Vector3 } | null {
+  findGround(
+    point: Vector3,
+    maxDistance: number = 100,
+    options?: TraceOptions,
+  ): { position: Vector3; normal: Vector3 } | null {
     const end = point.add(new Vector3(0, -maxDistance, 0));
     // Default to player collision size (16, 56) if no options, but allow overrides
     const traceOpts = { radius: 16, height: 56, ...options };
@@ -1386,9 +1454,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     return {
       traceCount: this.stats.traceCount,
       hitCount: this.stats.hitCount,
-      avgTraceTimeMs: this.stats.traceCount > 0
-        ? this.stats.totalTraceTime / this.stats.traceCount
-        : 0,
+      avgTraceTimeMs: this.stats.traceCount > 0 ? this.stats.totalTraceTime / this.stats.traceCount : 0,
       backendStats: {
         brushCount: this.bsp?.brushes?.length || 0,
         isFBSP: this.isFBSP ? 1 : 0,

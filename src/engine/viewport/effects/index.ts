@@ -2,8 +2,8 @@
  * Viewport Effects - Individual effect implementations
  */
 
-export { WalkBobEffect } from './WalkBobEffect';
-export { LandingImpactEffect } from './LandingImpactEffect';
-export { StrafeLeanEffect } from './StrafeLeanEffect';
-export { SpeedFOVEffect } from './SpeedFOVEffect';
-export { IdleBreathingEffect } from './IdleBreathingEffect';
+export { IdleBreathingEffect } from "./IdleBreathingEffect";
+export { LandingImpactEffect } from "./LandingImpactEffect";
+export { SpeedFOVEffect } from "./SpeedFOVEffect";
+export { StrafeLeanEffect } from "./StrafeLeanEffect";
+export { WalkBobEffect } from "./WalkBobEffect";

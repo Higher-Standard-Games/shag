@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { ActionSystem } from "../core/ActionSystem";
 
 describe("ActionSystem", () => {
@@ -45,7 +45,7 @@ describe("ActionSystem", () => {
       ActionSystem.register(
         "validated_action",
         () => "executed",
-        (payload) => (payload as { valid: boolean }).valid === true
+        (payload) => (payload as { valid: boolean }).valid === true,
       );
 
       const validResult = await ActionSystem.execute("validated_action", { valid: true });
@@ -64,7 +64,7 @@ describe("ActionSystem", () => {
             return "Amount cannot be negative";
           }
           return true;
-        }
+        },
       );
 
       const result = await ActionSystem.execute("custom_error_action", { amount: -5 });
@@ -76,8 +76,11 @@ describe("ActionSystem", () => {
       let executed = false;
       ActionSystem.register(
         "canexec_test",
-        () => { executed = true; return "done"; },
-        (payload) => (payload as { ok: boolean }).ok
+        () => {
+          executed = true;
+          return "done";
+        },
+        (payload) => (payload as { ok: boolean }).ok,
       );
 
       const canExec = ActionSystem.canExecute("canexec_test", { ok: true });
@@ -92,12 +95,12 @@ describe("ActionSystem", () => {
   describe("unregister", () => {
     it("should unregister an action", async () => {
       ActionSystem.register("temp_action", () => "result");
-      
+
       const result1 = await ActionSystem.execute("temp_action", {});
       expect(result1.success).toBe(true);
 
       ActionSystem.unregister("temp_action");
-      
+
       const result2 = await ActionSystem.execute("temp_action", {});
       expect(result2.success).toBe(false);
     });
@@ -120,25 +123,21 @@ describe("ActionSystem", () => {
       });
 
       await ActionSystem.execute("middleware_test", {});
-      
-      expect(middlewareLog).toEqual([
-        "before:middleware_test",
-        "handler",
-        "after:middleware_test"
-      ]);
+
+      expect(middlewareLog).toEqual(["before:middleware_test", "handler", "after:middleware_test"]);
     });
   });
 
   describe("history", () => {
     it("should track action history", async () => {
       ActionSystem.register("history_test", (p) => p);
-      
+
       await ActionSystem.execute("history_test", { step: 1 });
       await ActionSystem.execute("history_test", { step: 2 });
-      
+
       const history = ActionSystem.getHistory();
       expect(history.length).toBeGreaterThanOrEqual(2);
-      
+
       const lastTwo = history.slice(-2);
       expect(lastTwo[0].type).toBe("history_test");
       expect(lastTwo[1].type).toBe("history_test");
@@ -147,9 +146,9 @@ describe("ActionSystem", () => {
     it("should clear history", async () => {
       ActionSystem.register("clear_test", () => "ok");
       await ActionSystem.execute("clear_test", {});
-      
+
       ActionSystem.clearHistory();
-      
+
       const history = ActionSystem.getHistory();
       expect(history.length).toBe(0);
     });

@@ -2,9 +2,9 @@
  * HUDAccordion - Collapsible panel with header and content
  */
 
-import { HUDElement } from '../HUDElement';
-import type { HUDAccordionConfig } from '../HUDTypes';
-import type { HUDManager } from '../HUDManager';
+import { HUDElement } from "../HUDElement";
+import type { HUDManager } from "../HUDManager";
+import type { HUDAccordionConfig } from "../HUDTypes";
 
 export class HUDAccordion extends HUDElement {
   protected config: HUDAccordionConfig;
@@ -24,67 +24,67 @@ export class HUDAccordion extends HUDElement {
     this.config = config;
     this.manager = manager;
     this.collapsed = config.collapsed ?? false;
-    
+
     if (this.collapsed) {
-      this.element.classList.add('hud-accordion-collapsed');
-      this.contentEl.style.display = 'none';
+      this.element.classList.add("hud-accordion-collapsed");
+      this.contentEl.style.display = "none";
     }
   }
 
   protected createElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hud-accordion';
+    const el = document.createElement("div");
+    el.className = "hud-accordion";
     el.id = `hud-${this.id}`;
 
     // Header
-    this.headerEl = document.createElement('div');
-    this.headerEl.className = 'hud-accordion-header';
+    this.headerEl = document.createElement("div");
+    this.headerEl.className = "hud-accordion-header";
     this.headerEl.onclick = () => this.toggle();
 
     // Header left section
-    const headerLeft = document.createElement('div');
-    headerLeft.className = 'hud-accordion-header-left';
+    const headerLeft = document.createElement("div");
+    headerLeft.className = "hud-accordion-header-left";
 
-    this.iconEl = document.createElement('span');
-    this.iconEl.className = 'hud-accordion-icon';
-    this.iconEl.textContent = this.config.icon || '';
+    this.iconEl = document.createElement("span");
+    this.iconEl.className = "hud-accordion-icon";
+    this.iconEl.textContent = this.config.icon || "";
     headerLeft.appendChild(this.iconEl);
 
-    this.titleEl = document.createElement('span');
-    this.titleEl.className = 'hud-accordion-title';
-    this.titleEl.textContent = this.config.title || '';
+    this.titleEl = document.createElement("span");
+    this.titleEl.className = "hud-accordion-title";
+    this.titleEl.textContent = this.config.title || "";
     headerLeft.appendChild(this.titleEl);
 
-    this.badgeEl = document.createElement('span');
-    this.badgeEl.className = 'hud-accordion-badge';
-    this.badgeEl.style.display = 'none';
+    this.badgeEl = document.createElement("span");
+    this.badgeEl.className = "hud-accordion-badge";
+    this.badgeEl.style.display = "none";
     headerLeft.appendChild(this.badgeEl);
 
     this.headerEl.appendChild(headerLeft);
 
     // Toggle arrow
-    this.toggleEl = document.createElement('span');
-    this.toggleEl.className = 'hud-accordion-toggle';
-    this.toggleEl.textContent = '▶';
+    this.toggleEl = document.createElement("span");
+    this.toggleEl.className = "hud-accordion-toggle";
+    this.toggleEl.textContent = "▶";
     this.headerEl.appendChild(this.toggleEl);
 
     el.appendChild(this.headerEl);
 
     // Content
-    this.contentEl = document.createElement('div');
-    this.contentEl.className = 'hud-accordion-content';
+    this.contentEl = document.createElement("div");
+    this.contentEl.className = "hud-accordion-content";
 
     // List container (for list content type)
-    if (this.config.content?.type === 'list') {
-      this.listContainer = document.createElement('div');
-      this.listContainer.className = 'hud-accordion-list';
-      
+    if (this.config.content?.type === "list") {
+      this.listContainer = document.createElement("div");
+      this.listContainer.className = "hud-accordion-list";
+
       // Empty text
-      const emptyEl = document.createElement('div');
-      emptyEl.className = 'hud-accordion-empty';
-      emptyEl.textContent = this.config.content.emptyText || 'No items';
+      const emptyEl = document.createElement("div");
+      emptyEl.className = "hud-accordion-empty";
+      emptyEl.textContent = this.config.content.emptyText || "No items";
       this.listContainer.appendChild(emptyEl);
-      
+
       this.contentEl.appendChild(this.listContainer);
     }
 
@@ -95,7 +95,7 @@ export class HUDAccordion extends HUDElement {
 
   public setValue(value: any): void {
     // For accordions, value is typically the badge count
-    if (typeof value === 'number') {
+    if (typeof value === "number") {
       this.setBadge(value);
     }
   }
@@ -107,20 +107,16 @@ export class HUDAccordion extends HUDElement {
     if (!this.listContainer) return;
 
     const listBinding = this.manager.getListBinding(this.id);
-    const itemTemplate = this.config.content?.type === 'list' 
-      ? this.config.content.itemTemplate 
-      : null;
+    const itemTemplate = this.config.content?.type === "list" ? this.config.content.itemTemplate : null;
 
     // Clear existing items
-    this.listContainer.innerHTML = '';
+    this.listContainer.innerHTML = "";
 
     if (!data || data.length === 0) {
       // Show empty state
-      const emptyEl = document.createElement('div');
-      emptyEl.className = 'hud-accordion-empty';
-      emptyEl.textContent = 
-        (this.config.content?.type === 'list' ? this.config.content.emptyText : null) 
-        || 'No items';
+      const emptyEl = document.createElement("div");
+      emptyEl.className = "hud-accordion-empty";
+      emptyEl.textContent = (this.config.content?.type === "list" ? this.config.content.emptyText : null) || "No items";
       this.listContainer.appendChild(emptyEl);
       return;
     }
@@ -149,39 +145,39 @@ export class HUDAccordion extends HUDElement {
    * Render an item using a template name
    */
   private renderItemWithTemplate(item: any, _templateName: string | null): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'hud-accordion-item';
+    const el = document.createElement("div");
+    el.className = "hud-accordion-item";
 
     // Default rendering based on common fields
     if (item.icon) {
-      const iconEl = document.createElement('span');
-      iconEl.className = 'hud-item-icon';
+      const iconEl = document.createElement("span");
+      iconEl.className = "hud-item-icon";
       iconEl.textContent = item.icon;
       el.appendChild(iconEl);
     }
 
-    const contentEl = document.createElement('div');
-    contentEl.className = 'hud-item-content';
+    const contentEl = document.createElement("div");
+    contentEl.className = "hud-item-content";
 
     if (item.title || item.name) {
-      const titleEl = document.createElement('div');
-      titleEl.className = 'hud-item-title';
+      const titleEl = document.createElement("div");
+      titleEl.className = "hud-item-title";
       titleEl.textContent = item.title || item.name;
       contentEl.appendChild(titleEl);
     }
 
     if (item.description || item.subtitle) {
-      const descEl = document.createElement('div');
-      descEl.className = 'hud-item-description';
+      const descEl = document.createElement("div");
+      descEl.className = "hud-item-description";
       descEl.textContent = item.description || item.subtitle;
       contentEl.appendChild(descEl);
     }
 
     if (item.progress !== undefined) {
-      const progressEl = document.createElement('div');
-      progressEl.className = 'hud-item-progress';
-      const fillEl = document.createElement('div');
-      fillEl.className = 'hud-item-progress-fill';
+      const progressEl = document.createElement("div");
+      progressEl.className = "hud-item-progress";
+      const fillEl = document.createElement("div");
+      fillEl.className = "hud-item-progress-fill";
       fillEl.style.width = `${Math.min(100, Math.max(0, item.progress * 100))}%`;
       progressEl.appendChild(fillEl);
       contentEl.appendChild(progressEl);
@@ -191,7 +187,7 @@ export class HUDAccordion extends HUDElement {
 
     // Make clickable if item has onClick or action
     if (item.onClick || item.action) {
-      el.classList.add('hud-item-clickable');
+      el.classList.add("hud-item-clickable");
       el.onclick = () => {
         if (item.onClick) item.onClick();
         else if (item.action) item.action();
@@ -207,9 +203,9 @@ export class HUDAccordion extends HUDElement {
   public collapse(): void {
     if (this.collapsed) return;
     this.collapsed = true;
-    this.element.classList.add('hud-accordion-collapsed');
-    this.contentEl.style.display = 'none';
-    this.toggleEl.textContent = '▶';
+    this.element.classList.add("hud-accordion-collapsed");
+    this.contentEl.style.display = "none";
+    this.toggleEl.textContent = "▶";
   }
 
   /**
@@ -218,9 +214,9 @@ export class HUDAccordion extends HUDElement {
   public expand(): void {
     if (!this.collapsed) return;
     this.collapsed = false;
-    this.element.classList.remove('hud-accordion-collapsed');
-    this.contentEl.style.display = '';
-    this.toggleEl.textContent = '▼';
+    this.element.classList.remove("hud-accordion-collapsed");
+    this.contentEl.style.display = "";
+    this.toggleEl.textContent = "▼";
   }
 
   /**
@@ -248,15 +244,15 @@ export class HUDAccordion extends HUDElement {
     this.badgeValue = value;
 
     if (value === null || value === 0) {
-      this.badgeEl.style.display = 'none';
+      this.badgeEl.style.display = "none";
     } else {
-      this.badgeEl.style.display = '';
+      this.badgeEl.style.display = "";
       this.badgeEl.textContent = String(value);
-      
+
       // Pulse animation on change
-      this.badgeEl.classList.remove('hud-badge-pulse');
+      this.badgeEl.classList.remove("hud-badge-pulse");
       void this.badgeEl.offsetWidth;
-      this.badgeEl.classList.add('hud-badge-pulse');
+      this.badgeEl.classList.add("hud-badge-pulse");
     }
   }
 

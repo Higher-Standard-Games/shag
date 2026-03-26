@@ -1,6 +1,6 @@
 /**
  * StreetLampSystem - Manages street lamps that turn on/off with day/night cycle
- * 
+ *
  * Features:
  * - Automatic on/off based on time of day
  * - Smooth fade in/out transitions
@@ -10,13 +10,13 @@
 
 import { ClusteredLightContainer } from "@babylonjs/core/Lights/Clustered/clusteredLightContainer";
 import "@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import type { Scene } from "@babylonjs/core/scene";
 import { GameClock, type TimePeriod } from "../core/GameClock";
 
 // ==================== Types ====================
@@ -24,15 +24,15 @@ import { GameClock, type TimePeriod } from "../core/GameClock";
 export interface StreetLampConfig {
   id: string;
   position: Vector3;
-  color?: Color3;           // Light color (default: warm yellow)
-  intensity?: number;       // Max intensity when on (default: 1.0)
-  range?: number;           // Light range (default: 100)
-  fadeTime?: number;        // Fade duration in seconds (default: 2)
-  turnOnHour?: number;      // Hour to turn on (default: 18 - 6 PM)
-  turnOffHour?: number;     // Hour to turn off (default: 6 - 6 AM)
+  color?: Color3; // Light color (default: warm yellow)
+  intensity?: number; // Max intensity when on (default: 1.0)
+  range?: number; // Light range (default: 100)
+  fadeTime?: number; // Fade duration in seconds (default: 2)
+  turnOnHour?: number; // Hour to turn on (default: 18 - 6 PM)
+  turnOffHour?: number; // Hour to turn off (default: 6 - 6 AM)
   flickerEnabled?: boolean; // Enable subtle flicker (default: false)
-  showBulb?: boolean;       // Show glowing bulb mesh (default: true)
-  bulbSize?: number;        // Bulb mesh size (default: 3)
+  showBulb?: boolean; // Show glowing bulb mesh (default: true)
+  bulbSize?: number; // Bulb mesh size (default: 3)
 }
 
 interface StreetLamp {
@@ -64,7 +64,7 @@ export class StreetLampSystem {
   private lamps: Map<string, StreetLamp> = new Map();
   private clusteredLights: ClusteredLightContainer | null = null;
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): StreetLampSystem {
     if (!StreetLampSystem.instance) {
@@ -145,11 +145,7 @@ export class StreetLampSystem {
     };
 
     // Create point light
-    const light = new PointLight(
-      `streetLamp_${config.id}`,
-      config.position,
-      this.scene
-    );
+    const light = new PointLight(`streetLamp_${config.id}`, config.position, this.scene);
     light.diffuse = fullConfig.color;
     light.specular = fullConfig.color.scale(0.3);
     light.range = fullConfig.range;
@@ -166,10 +162,14 @@ export class StreetLampSystem {
     let bulbMaterial: StandardMaterial | null = null;
 
     if (fullConfig.showBulb) {
-      bulb = MeshBuilder.CreateSphere(`lampBulb_${config.id}`, {
-        diameter: fullConfig.bulbSize,
-        segments: 8,
-      }, this.scene);
+      bulb = MeshBuilder.CreateSphere(
+        `lampBulb_${config.id}`,
+        {
+          diameter: fullConfig.bulbSize,
+          segments: 8,
+        },
+        this.scene,
+      );
       bulb.position = config.position;
 
       bulbMaterial = new StandardMaterial(`lampBulbMat_${config.id}`, this.scene);
@@ -228,9 +228,7 @@ export class StreetLampSystem {
 
         // Update bulb glow
         if (lamp.bulbMaterial) {
-          lamp.bulbMaterial.emissiveColor = lamp.config.color.scale(
-            lamp.currentIntensity / lamp.config.intensity
-          );
+          lamp.bulbMaterial.emissiveColor = lamp.config.color.scale(lamp.currentIntensity / lamp.config.intensity);
         }
       }
 
@@ -281,8 +279,7 @@ export class StreetLampSystem {
 
     for (const lamp of this.lamps.values()) {
       // Only auto-switch if using default hours
-      if (lamp.config.turnOnHour === DEFAULT_TURN_ON_HOUR &&
-        lamp.config.turnOffHour === DEFAULT_TURN_OFF_HOUR) {
+      if (lamp.config.turnOnHour === DEFAULT_TURN_ON_HOUR && lamp.config.turnOffHour === DEFAULT_TURN_OFF_HOUR) {
         if (isNightTime && !lamp.isOn) {
           this.turnOn(lamp.config.id);
         } else if (!isNightTime && lamp.isOn) {

@@ -39,11 +39,11 @@ export interface PatchControlPoint {
 export class MapParser {
   /**
    * Preprocess .map content to normalize different formats.
-   * 
+   *
    * Handles:
    * - Valve format: ( p1 ) ( p2 ) ( p3 ) texture u v rot scaleU scaleV
    * - NetRadiant brushDef: { brushDef { ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture flags } }
-   * 
+   *
    * Output: Normalized Valve format that the main parser can handle.
    */
   private static preprocess(content: string): string {
@@ -56,13 +56,13 @@ export class MapParser {
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
-      
+
       // Skip empty lines and layer definitions
       if (!line || line.startsWith("//@$&")) continue;
-      
+
       // Skip full-line comments
       if (line.startsWith("//")) continue;
-      
+
       // Remove inline comments
       const commentIdx = line.indexOf("//");
       if (commentIdx !== -1) {
@@ -116,12 +116,12 @@ export class MapParser {
           inBrushDef = false;
           continue;
         }
-        
+
         // Convert brushDef plane format to simple format:
         // FROM: ( p1 ) ( p2 ) ( p3 ) ( ( uv ) ( uv ) ) texture contentFlags surfaceFlags value
         // TO:   ( p1 ) ( p2 ) ( p3 ) texture 0 0 0 1 1
         const brushDefMatch = line.match(
-          /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\([^)]+\)\s*\([^)]+\)\s*\)\s+(\S+)/
+          /\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)\s*\(\s*\([^)]+\)\s*\([^)]+\)\s*\)\s+(\S+)/,
         );
         if (brushDefMatch) {
           const [, x1, y1, z1, x2, y2, z2, x3, y3, z3, texture] = brushDefMatch;
@@ -148,7 +148,7 @@ export class MapParser {
   static parse(content: string): Entity[] {
     // Preprocess to normalize format (handles brushDef conversion, removes comments)
     const normalizedContent = MapParser.preprocess(content);
-    
+
     const entities: Entity[] = [];
     let currentEntity: Entity | null = null;
     let currentBrush: Brush | null = null;
@@ -334,5 +334,4 @@ export class MapParser {
       return null;
     }
   }
-
 }

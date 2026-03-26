@@ -1,6 +1,6 @@
 /**
  * ResourceSystem - Unified resource management for currencies, items, and stats
- * 
+ *
  * @example
  * ```typescript
  * ResourceSystem.add("gold", 500);
@@ -41,9 +41,9 @@ export class ResourceSystem {
    * Register a resource type
    */
   public static register(definition: ResourceDefinition): void {
-    this.resources.set(definition.id, definition);
-    if (!this.amounts.has(definition.id)) {
-      this.amounts.set(definition.id, definition.minAmount ?? 0);
+    ResourceSystem.resources.set(definition.id, definition);
+    if (!ResourceSystem.amounts.has(definition.id)) {
+      ResourceSystem.amounts.set(definition.id, definition.minAmount ?? 0);
     }
   }
 
@@ -52,7 +52,7 @@ export class ResourceSystem {
    */
   public static registerMany(definitions: ResourceDefinition[]): void {
     for (const def of definitions) {
-      this.register(def);
+      ResourceSystem.register(def);
     }
   }
 
@@ -60,7 +60,7 @@ export class ResourceSystem {
    * Get current amount of a resource
    */
   public static get(resourceId: string): number {
-    return this.amounts.get(resourceId) ?? 0;
+    return ResourceSystem.amounts.get(resourceId) ?? 0;
   }
 
   /**
@@ -68,7 +68,7 @@ export class ResourceSystem {
    */
   public static getAll(): Record<string, number> {
     const result: Record<string, number> = {};
-    for (const [id, amount] of this.amounts) {
+    for (const [id, amount] of ResourceSystem.amounts) {
       result[id] = amount;
     }
     return result;
@@ -79,9 +79,9 @@ export class ResourceSystem {
    */
   public static getByCategory(category: string): Record<string, number> {
     const result: Record<string, number> = {};
-    for (const [id, def] of this.resources) {
+    for (const [id, def] of ResourceSystem.resources) {
       if (def.category === category) {
-        result[id] = this.amounts.get(id) ?? 0;
+        result[id] = ResourceSystem.amounts.get(id) ?? 0;
       }
     }
     return result;
@@ -91,8 +91,8 @@ export class ResourceSystem {
    * Set a resource to a specific amount
    */
   public static set(resourceId: string, amount: number, source?: string): boolean {
-    const def = this.resources.get(resourceId);
-    const oldAmount = this.amounts.get(resourceId) ?? 0;
+    const def = ResourceSystem.resources.get(resourceId);
+    const oldAmount = ResourceSystem.amounts.get(resourceId) ?? 0;
 
     // Apply min/max constraints
     let newAmount = amount;
@@ -107,7 +107,7 @@ export class ResourceSystem {
       newAmount = Math.max(0, newAmount); // Default min is 0
     }
 
-    this.amounts.set(resourceId, newAmount);
+    ResourceSystem.amounts.set(resourceId, newAmount);
 
     const change: ResourceChange = {
       resourceId,
@@ -117,7 +117,7 @@ export class ResourceSystem {
       source,
     };
 
-    this.notifyChange(change);
+    ResourceSystem.notifyChange(change);
     return true;
   }
 
@@ -125,18 +125,18 @@ export class ResourceSystem {
    * Add to a resource
    */
   public static add(resourceId: string, amount: number, source?: string): number {
-    const current = this.get(resourceId);
-    this.set(resourceId, current + amount, source);
-    return this.get(resourceId);
+    const current = ResourceSystem.get(resourceId);
+    ResourceSystem.set(resourceId, current + amount, source);
+    return ResourceSystem.get(resourceId);
   }
 
   /**
    * Remove from a resource (will not go below min)
    */
   public static remove(resourceId: string, amount: number, source?: string): number {
-    const current = this.get(resourceId);
-    this.set(resourceId, current - amount, source);
-    return this.get(resourceId);
+    const current = ResourceSystem.get(resourceId);
+    ResourceSystem.set(resourceId, current - amount, source);
+    return ResourceSystem.get(resourceId);
   }
 
   /**
@@ -144,11 +144,15 @@ export class ResourceSystem {
    * @returns true if consumed, false if not enough
    */
   public static consume(resourceId: string, amount: number, source?: string): boolean {
-    if (!this.hasEnough(resourceId, amount)) {
-      EventBus.emit("resource:insufficient", { resourceId, required: amount, available: this.get(resourceId) });
+    if (!ResourceSystem.hasEnough(resourceId, amount)) {
+      EventBus.emit("resource:insufficient", {
+        resourceId,
+        required: amount,
+        available: ResourceSystem.get(resourceId),
+      });
       return false;
     }
-    this.remove(resourceId, amount, source);
+    ResourceSystem.remove(resourceId, amount, source);
     return true;
   }
 
@@ -156,7 +160,7 @@ export class ResourceSystem {
    * Check if there's enough of a resource
    */
   public static hasEnough(resourceId: string, amount: number): boolean {
-    return this.get(resourceId) >= amount;
+    return ResourceSystem.get(resourceId) >= amount;
   }
 
   /**
@@ -164,7 +168,7 @@ export class ResourceSystem {
    */
   public static canAfford(cost: ResourceCost): boolean {
     for (const [resourceId, amount] of Object.entries(cost)) {
-      if (!this.hasEnough(resourceId, amount)) {
+      if (!ResourceSystem.hasEnough(resourceId, amount)) {
         return false;
       }
     }
@@ -177,10 +181,10 @@ export class ResourceSystem {
    */
   public static pay(cost: ResourceCost, source?: string): boolean {
     // First check if we can afford everything
-    if (!this.canAfford(cost)) {
+    if (!ResourceSystem.canAfford(cost)) {
       const missing: Record<string, number> = {};
       for (const [resourceId, amount] of Object.entries(cost)) {
-        const available = this.get(resourceId);
+        const available = ResourceSystem.get(resourceId);
         if (available < amount) {
           missing[resourceId] = amount - available;
         }
@@ -191,7 +195,7 @@ export class ResourceSystem {
 
     // Consume all resources
     for (const [resourceId, amount] of Object.entries(cost)) {
-      this.remove(resourceId, amount, source);
+      ResourceSystem.remove(resourceId, amount, source);
     }
 
     EventBus.emit("resource:paid", { cost, source });
@@ -203,7 +207,7 @@ export class ResourceSystem {
    */
   public static receive(resources: ResourceCost, source?: string): void {
     for (const [resourceId, amount] of Object.entries(resources)) {
-      this.add(resourceId, amount, source);
+      ResourceSystem.add(resourceId, amount, source);
     }
     EventBus.emit("resource:received", { resources, source });
   }
@@ -211,15 +215,10 @@ export class ResourceSystem {
   /**
    * Transfer resources between accounts/entities
    */
-  public static transfer(
-    resourceId: string,
-    amount: number,
-    _from: string,
-    _to: string
-  ): boolean {
+  public static transfer(resourceId: string, amount: number, _from: string, _to: string): boolean {
     // For now, just consume and add (single-player)
     // In multiplayer, this would handle different accounts
-    if (!this.hasEnough(resourceId, amount)) {
+    if (!ResourceSystem.hasEnough(resourceId, amount)) {
       return false;
     }
     // In a real implementation, we'd track per-entity resources
@@ -232,14 +231,14 @@ export class ResourceSystem {
    * Subscribe to changes for a specific resource
    */
   public static onChange(resourceId: string, callback: (change: ResourceChange) => void): () => void {
-    if (!this.changeCallbacks.has(resourceId)) {
-      this.changeCallbacks.set(resourceId, []);
+    if (!ResourceSystem.changeCallbacks.has(resourceId)) {
+      ResourceSystem.changeCallbacks.set(resourceId, []);
     }
-    this.changeCallbacks.get(resourceId)!.push(callback);
+    ResourceSystem.changeCallbacks.get(resourceId)!.push(callback);
 
     // Return unsubscribe function
     return () => {
-      const callbacks = this.changeCallbacks.get(resourceId);
+      const callbacks = ResourceSystem.changeCallbacks.get(resourceId);
       if (callbacks) {
         const index = callbacks.indexOf(callback);
         if (index !== -1) {
@@ -253,12 +252,12 @@ export class ResourceSystem {
    * Subscribe to all resource changes
    */
   public static onAnyChange(callback: (change: ResourceChange) => void): () => void {
-    return this.onChange("*", callback);
+    return ResourceSystem.onChange("*", callback);
   }
 
   private static notifyChange(change: ResourceChange): void {
     // Notify specific listeners
-    const callbacks = this.changeCallbacks.get(change.resourceId);
+    const callbacks = ResourceSystem.changeCallbacks.get(change.resourceId);
     if (callbacks) {
       for (const cb of callbacks) {
         try {
@@ -270,7 +269,7 @@ export class ResourceSystem {
     }
 
     // Notify wildcard listeners
-    const wildcardCallbacks = this.changeCallbacks.get("*");
+    const wildcardCallbacks = ResourceSystem.changeCallbacks.get("*");
     if (wildcardCallbacks) {
       for (const cb of wildcardCallbacks) {
         try {
@@ -289,14 +288,14 @@ export class ResourceSystem {
    * Get resource definition
    */
   public static getDefinition(resourceId: string): ResourceDefinition | undefined {
-    return this.resources.get(resourceId);
+    return ResourceSystem.resources.get(resourceId);
   }
 
   /**
    * Get all resource definitions
    */
   public static getAllDefinitions(): ResourceDefinition[] {
-    return Array.from(this.resources.values());
+    return Array.from(ResourceSystem.resources.values());
   }
 
   /**
@@ -304,7 +303,7 @@ export class ResourceSystem {
    */
   public static loadState(state: Record<string, number>): void {
     for (const [resourceId, amount] of Object.entries(state)) {
-      this.amounts.set(resourceId, amount);
+      ResourceSystem.amounts.set(resourceId, amount);
     }
   }
 
@@ -313,9 +312,9 @@ export class ResourceSystem {
    */
   public static getState(): Record<string, number> {
     const state: Record<string, number> = {};
-    for (const [id, def] of this.resources) {
+    for (const [id, def] of ResourceSystem.resources) {
       if (def.persistent !== false) {
-        state[id] = this.amounts.get(id) ?? 0;
+        state[id] = ResourceSystem.amounts.get(id) ?? 0;
       }
     }
     return state;
@@ -325,8 +324,8 @@ export class ResourceSystem {
    * Reset all resources to their minimum values
    */
   public static reset(): void {
-    for (const [id, def] of this.resources) {
-      this.amounts.set(id, def.minAmount ?? 0);
+    for (const [id, def] of ResourceSystem.resources) {
+      ResourceSystem.amounts.set(id, def.minAmount ?? 0);
     }
   }
 
@@ -334,9 +333,9 @@ export class ResourceSystem {
    * Clear all registrations and amounts
    */
   public static clear(): void {
-    this.resources.clear();
-    this.amounts.clear();
-    this.changeCallbacks.clear();
+    ResourceSystem.resources.clear();
+    ResourceSystem.amounts.clear();
+    ResourceSystem.changeCallbacks.clear();
   }
 }
 

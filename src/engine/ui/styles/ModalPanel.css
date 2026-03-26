@@ -27,7 +27,7 @@
 }
 
 .modal-container {
-  background: #FAFAFA;
+  background: #fafafa;
   border-radius: var(--ui-radius-xl, 16px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   width: 100%;
@@ -35,8 +35,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-family: var(--w-font-body, 'Rajdhani', sans-serif);
-  border: 1px solid #E0E0E0;
+  font-family: var(--w-font-body, "Rajdhani", sans-serif);
+  border: 1px solid #e0e0e0;
   transform: scale(0.9);
   transition: transform 0.2s ease;
 }
@@ -50,8 +50,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--ui-space-md, 14px) var(--ui-space-md, 16px);
-  border-bottom: 1px solid #E0E0E0;
-  background: #F5F5F5;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f5f5f5;
   border-radius: var(--ui-radius-xl, 16px) var(--ui-radius-xl, 16px) 0 0;
   min-height: var(--ui-touch-min, 44px);
 }
@@ -73,9 +73,9 @@
 }
 
 .modal-close {
-  background: #E8E8E8;
+  background: #e8e8e8;
   border: none;
-  border-bottom: 2px solid #CCCCCC;
+  border-bottom: 2px solid #cccccc;
   color: #666666;
   width: var(--ui-touch-min, 44px);
   height: var(--ui-touch-min, 44px);
@@ -89,7 +89,7 @@
 }
 
 .modal-close:hover {
-  background: #F5F5F5;
+  background: #f5f5f5;
 }
 
 .modal-content {
@@ -102,14 +102,14 @@
   display: flex;
   gap: var(--ui-space-sm, 10px);
   padding: var(--ui-space-md, 16px);
-  border-top: 1px solid #E0E0E0;
-  background: #F5F5F5;
+  border-top: 1px solid #e0e0e0;
+  background: #f5f5f5;
 }
 
 .modal-action {
-  background: #F5F5F5;
+  background: #f5f5f5;
   border: none;
-  border-bottom: 3px solid #CCCCCC;
+  border-bottom: 3px solid #cccccc;
   color: #333333;
   padding: var(--ui-space-md, 12px) var(--ui-space-md, 16px);
   border-radius: var(--ui-radius-md, 10px);
@@ -139,16 +139,16 @@
 }
 
 .modal-action.primary {
-  background: #4CAF50;
-  border-bottom-color: #3D9140;
-  color: #FFFFFF;
+  background: #4caf50;
+  border-bottom-color: #3d9140;
+  color: #ffffff;
   min-height: calc(var(--ui-touch-comfortable, 48px) + var(--ui-space-sm, 8px));
   font-size: var(--ui-font-md, 15px);
 }
 
 .modal-action.disabled {
-  background: #E0E0E0;
-  border-bottom-color: #CCCCCC;
+  background: #e0e0e0;
+  border-bottom-color: #cccccc;
   color: #999999;
   cursor: not-allowed;
   opacity: 0.6;

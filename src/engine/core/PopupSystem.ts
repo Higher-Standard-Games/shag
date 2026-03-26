@@ -1,6 +1,6 @@
 /**
  * PopupSystem - Generic popup/modal system for the engine
- * 
+ *
  * Usage:
  *   PopupSystem.show({
  *     id: "seed_selection",
@@ -51,11 +51,11 @@ export class PopupSystem {
    */
   public static show(config: PopupConfig): void {
     // Close existing popup with same ID
-    if (this.popups.has(config.id)) {
-      this.close(config.id);
+    if (PopupSystem.popups.has(config.id)) {
+      PopupSystem.close(config.id);
     }
 
-    this.injectStyles();
+    PopupSystem.injectStyles();
 
     // Create overlay
     const overlay = document.createElement("div");
@@ -65,7 +65,7 @@ export class PopupSystem {
     if (config.closeOnOverlay !== false) {
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) {
-          this.close(config.id);
+          PopupSystem.close(config.id);
         }
       });
     }
@@ -125,7 +125,7 @@ export class PopupSystem {
         const action = (btn as HTMLElement).dataset.action!;
         console.log(`[PopupSystem] Button clicked: ${action} for popup ${config.id}`);
         if (action === "close") {
-          this.close(config.id);
+          PopupSystem.close(config.id);
         } else if (config.onButton) {
           config.onButton(action);
         }
@@ -140,7 +140,7 @@ export class PopupSystem {
     if (config.closeOnEscape !== false) {
       const escHandler = (e: KeyboardEvent) => {
         if (e.key === "Escape") {
-          this.close(config.id);
+          PopupSystem.close(config.id);
           document.removeEventListener("keydown", escHandler);
         }
       };
@@ -148,7 +148,7 @@ export class PopupSystem {
     }
 
     // Store reference
-    this.popups.set(config.id, { config, element: popup, overlay });
+    PopupSystem.popups.set(config.id, { config, element: popup, overlay });
 
     // Emit event
     EventBus.emit("popup:opened", { id: config.id });
@@ -163,7 +163,7 @@ export class PopupSystem {
    * Close a specific popup
    */
   public static close(id: string): void {
-    const popup = this.popups.get(id);
+    const popup = PopupSystem.popups.get(id);
     if (!popup) return;
 
     popup.overlay.classList.remove("popup-visible");
@@ -171,7 +171,7 @@ export class PopupSystem {
     // Wait for animation
     setTimeout(() => {
       popup.overlay.remove();
-      this.popups.delete(id);
+      PopupSystem.popups.delete(id);
 
       if (popup.config.onClose) {
         popup.config.onClose();
@@ -185,8 +185,8 @@ export class PopupSystem {
    * Close all popups
    */
   public static closeAll(): void {
-    for (const id of this.popups.keys()) {
-      this.close(id);
+    for (const id of PopupSystem.popups.keys()) {
+      PopupSystem.close(id);
     }
   }
 
@@ -194,14 +194,14 @@ export class PopupSystem {
    * Check if a popup is open
    */
   public static isOpen(id: string): boolean {
-    return this.popups.has(id);
+    return PopupSystem.popups.has(id);
   }
 
   /**
    * Update popup content
    */
   public static updateContent(id: string, content: string | HTMLElement): void {
-    const popup = this.popups.get(id);
+    const popup = PopupSystem.popups.get(id);
     if (!popup) return;
 
     const contentEl = popup.element.querySelector(".popup-content");
@@ -219,12 +219,12 @@ export class PopupSystem {
    * Get popup element for direct manipulation
    */
   public static getElement(id: string): HTMLElement | null {
-    return this.popups.get(id)?.element || null;
+    return PopupSystem.popups.get(id)?.element || null;
   }
 
   private static injectStyles(): void {
-    if (this.styleInjected) return;
-    this.styleInjected = true;
+    if (PopupSystem.styleInjected) return;
+    PopupSystem.styleInjected = true;
 
     const style = document.createElement("style");
     style.textContent = `

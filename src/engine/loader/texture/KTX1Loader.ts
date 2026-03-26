@@ -1,45 +1,45 @@
 /**
  * KTX1Loader - Parse KTX v1 texture files for WebGL
- * 
+ *
  * KTX (Khronos Texture) v1 is a container format for GPU-compressed textures.
  * Supports DXT/S3TC, ETC, ASTC formats via WebGL extensions.
- * 
+ *
  * When GPU compressed texture support is missing, falls back to a software
  * DXT1/DXT3/DXT5 decoder that converts to RGBA on load.
- * 
+ *
  * @see https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
  */
 
-import { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
-import { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Constants } from "@babylonjs/core/Engines/constants";
+import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
 
 // KTX1 file header structure
-const KTX_IDENTIFIER = [0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];
+const KTX_IDENTIFIER = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x31, 0x31, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a];
 const KTX_HEADER_SIZE = 64;
 
 // Common OpenGL internal formats
 const GL_FORMATS = {
   // DXT/S3TC (most common on desktop)
-  COMPRESSED_RGB_S3TC_DXT1_EXT: 0x83F0,
-  COMPRESSED_RGBA_S3TC_DXT1_EXT: 0x83F1,
-  COMPRESSED_RGBA_S3TC_DXT3_EXT: 0x83F2,
-  COMPRESSED_RGBA_S3TC_DXT5_EXT: 0x83F3,
+  COMPRESSED_RGB_S3TC_DXT1_EXT: 0x83f0,
+  COMPRESSED_RGBA_S3TC_DXT1_EXT: 0x83f1,
+  COMPRESSED_RGBA_S3TC_DXT3_EXT: 0x83f2,
+  COMPRESSED_RGBA_S3TC_DXT5_EXT: 0x83f3,
 
   // ETC (common on mobile)
   COMPRESSED_RGB8_ETC2: 0x9274,
   COMPRESSED_RGBA8_ETC2_EAC: 0x9278,
-  ETC1_RGB8_OES: 0x8D64,
+  ETC1_RGB8_OES: 0x8d64,
 
   // ASTC (modern mobile)
-  COMPRESSED_RGBA_ASTC_4x4_KHR: 0x93B0,
-  COMPRESSED_RGBA_ASTC_8x8_KHR: 0x93B7,
+  COMPRESSED_RGBA_ASTC_4x4_KHR: 0x93b0,
+  COMPRESSED_RGBA_ASTC_8x8_KHR: 0x93b7,
 
   // Uncompressed
   RGB: 0x1907,
   RGBA: 0x1908,
   LUMINANCE: 0x1909,
-  LUMINANCE_ALPHA: 0x190A,
+  LUMINANCE_ALPHA: 0x190a,
 };
 
 export interface KTX1Header {
@@ -128,7 +128,9 @@ export function parseKTX1(data: ArrayBuffer): KTX1ParseResult {
 
     // Bounds check: ensure we have enough data for this mip level
     if (offset + imageSize > data.byteLength) {
-      console.warn(`[KTX1Loader] Truncated KTX: mip ${level} needs ${imageSize} bytes at offset ${offset}, but buffer is only ${data.byteLength} bytes`);
+      console.warn(
+        `[KTX1Loader] Truncated KTX: mip ${level} needs ${imageSize} bytes at offset ${offset}, but buffer is only ${data.byteLength} bytes`,
+      );
       break;
     }
 
@@ -184,8 +186,10 @@ export function isFormatSupported(engine: AbstractEngine, glInternalFormat: numb
   if (!gl) return false;
 
   // Check for S3TC (DXT) support
-  if (glInternalFormat >= GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT &&
-    glInternalFormat <= GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT5_EXT) {
+  if (
+    glInternalFormat >= GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT &&
+    glInternalFormat <= GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT5_EXT
+  ) {
     const ext = gl.getExtension("WEBGL_compressed_texture_s3tc");
     return !!ext;
   }
@@ -196,15 +200,17 @@ export function isFormatSupported(engine: AbstractEngine, glInternalFormat: numb
     return !!ext;
   }
 
-  if (glInternalFormat === GL_FORMATS.COMPRESSED_RGB8_ETC2 ||
-    glInternalFormat === GL_FORMATS.COMPRESSED_RGBA8_ETC2_EAC) {
+  if (
+    glInternalFormat === GL_FORMATS.COMPRESSED_RGB8_ETC2 ||
+    glInternalFormat === GL_FORMATS.COMPRESSED_RGBA8_ETC2_EAC
+  ) {
     const ext = gl.getExtension("WEBGL_compressed_texture_etc");
     return !!ext;
   }
 
   // Check for ASTC support
-  if (glInternalFormat >= GL_FORMATS.COMPRESSED_RGBA_ASTC_4x4_KHR &&
-    glInternalFormat <= 0x93BD) { // ASTC range
+  if (glInternalFormat >= GL_FORMATS.COMPRESSED_RGBA_ASTC_4x4_KHR && glInternalFormat <= 0x93bd) {
+    // ASTC range
     const ext = gl.getExtension("WEBGL_compressed_texture_astc");
     return !!ext;
   }
@@ -217,11 +223,13 @@ export function isFormatSupported(engine: AbstractEngine, glInternalFormat: numb
 // ══════════════════════════════════════════════════════════════════════
 
 function canSoftwareDecode(format: number): boolean {
-  return format === GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT ||
+  return (
+    format === GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT ||
     format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT ||
     format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT3_EXT ||
     format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT5_EXT ||
-    format === GL_FORMATS.ETC1_RGB8_OES;
+    format === GL_FORMATS.ETC1_RGB8_OES
+  );
 }
 
 /**
@@ -232,23 +240,41 @@ function decompressDXT1Block(block: Uint8Array, out: Uint8Array, outOff: number,
   const c1 = block[2] | (block[3] << 8);
 
   // Expand RGB565 → 8-bit
-  const r0 = ((c0 >> 11) & 0x1F) * 255 / 31;
-  const g0 = ((c0 >> 5) & 0x3F) * 255 / 63;
-  const b0 = (c0 & 0x1F) * 255 / 31;
-  const r1 = ((c1 >> 11) & 0x1F) * 255 / 31;
-  const g1 = ((c1 >> 5) & 0x3F) * 255 / 63;
-  const b1 = (c1 & 0x1F) * 255 / 31;
+  const r0 = (((c0 >> 11) & 0x1f) * 255) / 31;
+  const g0 = (((c0 >> 5) & 0x3f) * 255) / 63;
+  const b0 = ((c0 & 0x1f) * 255) / 31;
+  const r1 = (((c1 >> 11) & 0x1f) * 255) / 31;
+  const g1 = (((c1 >> 5) & 0x3f) * 255) / 63;
+  const b1 = ((c1 & 0x1f) * 255) / 31;
 
   // Build 4-color palette
   const pal = new Uint8Array(16);
-  pal[0] = r0; pal[1] = g0; pal[2] = b0; pal[3] = 255;
-  pal[4] = r1; pal[5] = g1; pal[6] = b1; pal[7] = 255;
+  pal[0] = r0;
+  pal[1] = g0;
+  pal[2] = b0;
+  pal[3] = 255;
+  pal[4] = r1;
+  pal[5] = g1;
+  pal[6] = b1;
+  pal[7] = 255;
   if (c0 > c1) {
-    pal[8] = (2 * r0 + r1) / 3; pal[9] = (2 * g0 + g1) / 3; pal[10] = (2 * b0 + b1) / 3; pal[11] = 255;
-    pal[12] = (r0 + 2 * r1) / 3; pal[13] = (g0 + 2 * g1) / 3; pal[14] = (b0 + 2 * b1) / 3; pal[15] = 255;
+    pal[8] = (2 * r0 + r1) / 3;
+    pal[9] = (2 * g0 + g1) / 3;
+    pal[10] = (2 * b0 + b1) / 3;
+    pal[11] = 255;
+    pal[12] = (r0 + 2 * r1) / 3;
+    pal[13] = (g0 + 2 * g1) / 3;
+    pal[14] = (b0 + 2 * b1) / 3;
+    pal[15] = 255;
   } else {
-    pal[8] = (r0 + r1) / 2; pal[9] = (g0 + g1) / 2; pal[10] = (b0 + b1) / 2; pal[11] = 255;
-    pal[12] = 0; pal[13] = 0; pal[14] = 0; pal[15] = 0; // transparent black
+    pal[8] = (r0 + r1) / 2;
+    pal[9] = (g0 + g1) / 2;
+    pal[10] = (b0 + b1) / 2;
+    pal[11] = 255;
+    pal[12] = 0;
+    pal[13] = 0;
+    pal[14] = 0;
+    pal[15] = 0; // transparent black
   }
 
   // 32 bits of 2-bit indices
@@ -269,8 +295,14 @@ function decompressDXT1Block(block: Uint8Array, out: Uint8Array, outOff: number,
  * ETC1 modifier table (from Khronos spec Table 3.17.2)
  */
 const ETC1_MODIFIER_TABLE = [
-  [2, 8], [5, 17], [9, 29], [13, 42],
-  [18, 60], [24, 80], [33, 106], [47, 183],
+  [2, 8],
+  [5, 17],
+  [9, 29],
+  [13, 42],
+  [18, 60],
+  [24, 80],
+  [33, 106],
+  [47, 183],
 ];
 
 /**
@@ -297,12 +329,12 @@ function decompressETC1Block(block: Uint8Array, out: Uint8Array, outOff: number,
 
   if (diffBit) {
     // Differential mode: 5-bit base + 3-bit signed delta
-    const br = (high >> 27) & 0x1F;
-    const bg = (high >> 19) & 0x1F;
-    const bb = (high >> 11) & 0x1F;
-    const dr = ((high >> 24) & 0x07);
-    const dg = ((high >> 16) & 0x07);
-    const db = ((high >> 8) & 0x07);
+    const br = (high >> 27) & 0x1f;
+    const bg = (high >> 19) & 0x1f;
+    const bb = (high >> 11) & 0x1f;
+    const dr = (high >> 24) & 0x07;
+    const dg = (high >> 16) & 0x07;
+    const db = (high >> 8) & 0x07;
     // Sign-extend 3-bit
     const sdr = dr >= 4 ? dr - 8 : dr;
     const sdg = dg >= 4 ? dg - 8 : dg;
@@ -318,12 +350,12 @@ function decompressETC1Block(block: Uint8Array, out: Uint8Array, outOff: number,
     b1 = (b1_5 << 3) | (b1_5 >> 2);
   } else {
     // Individual mode: two independent 4-bit colors
-    const r0_4 = (high >> 28) & 0xF;
-    const g0_4 = (high >> 20) & 0xF;
-    const b0_4 = (high >> 12) & 0xF;
-    const r1_4 = (high >> 24) & 0xF;
-    const g1_4 = (high >> 16) & 0xF;
-    const b1_4 = (high >> 8) & 0xF;
+    const r0_4 = (high >> 28) & 0xf;
+    const g0_4 = (high >> 20) & 0xf;
+    const b0_4 = (high >> 12) & 0xf;
+    const r1_4 = (high >> 24) & 0xf;
+    const g1_4 = (high >> 16) & 0xf;
+    const b1_4 = (high >> 8) & 0xf;
     r0 = (r0_4 << 4) | r0_4;
     g0 = (g0_4 << 4) | g0_4;
     b0 = (b0_4 << 4) | b0_4;
@@ -380,28 +412,29 @@ function decompressETC1Block(block: Uint8Array, out: Uint8Array, outOff: number,
  * Bytes 0-7: interpolated alpha block. Bytes 8-15: DXT1 color block.
  */
 function decompressDXT5Block(block: Uint8Array, out: Uint8Array, outOff: number, stride: number): void {
-  const a0 = block[0], a1 = block[1];
+  const a0 = block[0],
+    a1 = block[1];
   const alphas = new Uint8Array(8);
-  alphas[0] = a0; alphas[1] = a1;
+  alphas[0] = a0;
+  alphas[1] = a1;
   if (a0 > a1) {
     for (let i = 0; i < 6; i++) alphas[i + 2] = ((6 - i) * a0 + (i + 1) * a1) / 7;
   } else {
     for (let i = 0; i < 4; i++) alphas[i + 2] = ((4 - i) * a0 + (i + 1) * a1) / 5;
-    alphas[6] = 0; alphas[7] = 255;
+    alphas[6] = 0;
+    alphas[7] = 255;
   }
 
   // 48-bit alpha index packed into two 24-bit groups
-  const alphaBits = [
-    block[2] | (block[3] << 8) | (block[4] << 16),
-    block[5] | (block[6] << 8) | (block[7] << 16),
-  ];
+  const alphaBits = [block[2] | (block[3] << 8) | (block[4] << 16), block[5] | (block[6] << 8) | (block[7] << 16)];
 
   // Decode color from DXT1 sub-block
   decompressDXT1Block(block.subarray(8, 16), out, outOff, stride);
 
   // Overwrite alpha channel from interpolated values
   for (let i = 0; i < 16; i++) {
-    const row = (i >> 2), col = i & 3;
+    const row = i >> 2,
+      col = i & 3;
     const grp = i < 8 ? 0 : 1;
     const bitIdx = (i < 8 ? i : i - 8) * 3;
     const ai = (alphaBits[grp] >> bitIdx) & 7;
@@ -417,18 +450,18 @@ function softwareDecodeMip(data: Uint8Array, width: number, height: number, form
   const bw = Math.max(1, Math.ceil(width / 4));
   const bh = Math.max(1, Math.ceil(height / 4));
   const stride = width * 4;
-  const isDXT1 = format === GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT ||
-    format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT;
+  const isDXT1 =
+    format === GL_FORMATS.COMPRESSED_RGB_S3TC_DXT1_EXT || format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT1_EXT;
   const isDXT5 = format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT5_EXT;
   const isDXT3 = format === GL_FORMATS.COMPRESSED_RGBA_S3TC_DXT3_EXT;
   const isETC1 = format === GL_FORMATS.ETC1_RGB8_OES;
-  const blockSize = (isDXT1 || isETC1) ? 8 : 16;
+  const blockSize = isDXT1 || isETC1 ? 8 : 16;
 
   let srcOff = 0;
   for (let by = 0; by < bh; by++) {
     for (let bx = 0; bx < bw; bx++) {
       const block = data.subarray(srcOff, srcOff + blockSize);
-      const outOff = (by * 4) * stride + (bx * 4) * 4;
+      const outOff = by * 4 * stride + bx * 4 * 4;
 
       if (isDXT1) {
         decompressDXT1Block(block, rgba, outOff, stride);
@@ -438,8 +471,9 @@ function softwareDecodeMip(data: Uint8Array, width: number, height: number, form
         // DXT3: explicit 4-bit alpha + DXT1 color
         decompressDXT1Block(block.subarray(8, 16), rgba, outOff, stride);
         for (let i = 0; i < 16; i++) {
-          const row = (i >> 2), col = i & 3;
-          const nibble = (i & 1) ? (block[i >> 1] >> 4) : (block[i >> 1] & 0xF);
+          const row = i >> 2,
+            col = i & 3;
+          const nibble = i & 1 ? block[i >> 1] >> 4 : block[i >> 1] & 0xf;
           rgba[outOff + row * stride + col * 4 + 3] = nibble * 17;
         }
       } else if (isETC1) {
@@ -457,7 +491,7 @@ function softwareDecodeMip(data: Uint8Array, width: number, height: number, form
 
 /**
  * Create a BabylonJS texture from KTX1 data.
- * 
+ *
  * Strategy:
  * 1. If GPU supports the compressed format → upload directly (fastest)
  * 2. If it's DXT but no GPU ext → software-decompress to RGBA on load
@@ -467,7 +501,7 @@ function softwareDecodeMip(data: Uint8Array, width: number, height: number, form
 export function createTextureFromKTX1(
   engine: AbstractEngine,
   ktx: KTX1ParseResult,
-  name: string
+  name: string,
 ): InternalTexture | null {
   // ── Uncompressed KTX ───────────────────────────────────────────
   if (!ktx.isCompressed) {
@@ -519,7 +553,9 @@ export function createTextureFromKTX1(
         console.log(`[KTX1Loader] Converted LUMINANCE_ALPHA→RGBA: ${name} (${mip.width}x${mip.height})`);
       } else {
         // Unknown format — try as RGBA, may fail but better than crashing silently
-        console.warn(`[KTX1Loader] Unknown uncompressed format 0x${baseFmt.toString(16)} for ${name}, attempting as RGBA`);
+        console.warn(
+          `[KTX1Loader] Unknown uncompressed format 0x${baseFmt.toString(16)} for ${name}, attempting as RGBA`,
+        );
         rgba = mip.data;
       }
 
@@ -528,10 +564,11 @@ export function createTextureFromKTX1(
         mip.width,
         mip.height,
         Constants.TEXTUREFORMAT_RGBA,
-        false, false,
+        false,
+        false,
         Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
         null,
-        Constants.TEXTURETYPE_UNSIGNED_BYTE
+        Constants.TEXTURETYPE_UNSIGNED_BYTE,
       );
       internalTexture.isReady = true;
       console.log(`[KTX1Loader] Uncompressed texture: ${name} (${mip.width}x${mip.height})`);
@@ -550,10 +587,11 @@ export function createTextureFromKTX1(
       ktx.header.pixelWidth,
       ktx.header.pixelHeight,
       Constants.TEXTUREFORMAT_RGBA,
-      false, false,
+      false,
+      false,
       Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
       null,
-      Constants.TEXTURETYPE_UNSIGNED_BYTE
+      Constants.TEXTURETYPE_UNSIGNED_BYTE,
     );
 
     gl.bindTexture(gl.TEXTURE_2D, (internalTexture as any)._webGLTexture);
@@ -572,7 +610,9 @@ export function createTextureFromKTX1(
     internalTexture.isReady = true;
     internalTexture.width = ktx.header.pixelWidth;
     internalTexture.height = ktx.header.pixelHeight;
-    console.log(`[KTX1Loader] GPU compressed: ${name} (${ktx.formatName}, ${ktx.header.pixelWidth}x${ktx.header.pixelHeight}, ${ktx.mipLevels.length} mips)`);
+    console.log(
+      `[KTX1Loader] GPU compressed: ${name} (${ktx.formatName}, ${ktx.header.pixelWidth}x${ktx.header.pixelHeight}, ${ktx.mipLevels.length} mips)`,
+    );
     return internalTexture;
   }
 
@@ -601,10 +641,11 @@ export function createTextureFromKTX1(
       mip.width,
       mip.height,
       Constants.TEXTUREFORMAT_RGBA,
-      true, false,   // generateMipMaps=true since we only upload mip 0
+      true,
+      false, // generateMipMaps=true since we only upload mip 0
       Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
       null,
-      Constants.TEXTURETYPE_UNSIGNED_BYTE
+      Constants.TEXTURETYPE_UNSIGNED_BYTE,
     );
     internalTexture.isReady = true;
     console.log(`[KTX1Loader] Software decoded: ${name} (${ktx.formatName} → RGBA, ${mip.width}x${mip.height})`);
