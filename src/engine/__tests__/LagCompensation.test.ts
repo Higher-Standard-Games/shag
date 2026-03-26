@@ -5,10 +5,10 @@
  * max compensation clamping, and ray-capsule geometry.
  */
 
+import { playerId, tickNumber } from "@shared/server/simulation/types";
 import { describe, expect, it } from "vitest";
-import { LagCompensation } from "../server/lagcomp/LagCompensation";
 import { CASUAL_CONFIG, TOURNAMENT_CONFIG } from "../server/lagcomp/config";
-import { tickNumber, playerId } from "@shared/server/simulation/types";
+import { LagCompensation } from "../server/lagcomp/LagCompensation";
 
 describe("LagCompensation", () => {
   describe("getRewindTick", () => {
@@ -48,7 +48,7 @@ describe("LagCompensation", () => {
 
     it("should differ between configs", () => {
       // Same ping, different max compensation
-      const casual = new LagCompensation(CASUAL_CONFIG);     // 200ms max
+      const casual = new LagCompensation(CASUAL_CONFIG); // 200ms max
       const tournament = new LagCompensation(TOURNAMENT_CONFIG); // 50ms max
 
       // 100ms ping: casual allows full rewind, tournament clamps

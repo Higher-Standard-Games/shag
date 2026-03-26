@@ -9,19 +9,35 @@ import { describe, expect, it } from "vitest";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 import { BinaryProtocol } from "../network/protocol/BinaryProtocol";
+import type { IComponent } from "../network/core/Component";
+
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: test stub components need flexible shape for BinaryProtocol
+type ComponentStub = IComponent & Record<string, any>;
 
 /** Create entity with position + velocity components (matches BinaryProtocol expectations) */
 function createEntity(id: string, x: number, y: number, z: number, grounded = true): Entity {
   const entity = new Entity(id);
   entity.addComponent("position", {
-    x, y, z,
-    serialize() {}, deserialize() {},
-    clone() { return { ...this }; },
+    x,
+    y,
+    z,
+    serialize() {},
+    deserialize() {},
+    clone() {
+      return { ...this };
+    },
   });
   entity.addComponent("transform", {
     position: { x, y, z },
     rotation: { x: 0, y: 0, z: 0, w: 1 },
-    serialize() {}, deserialize() {},
+    serialize() {},
+    deserialize() {},
     clone() {
       return {
         position: { ...this.position },
@@ -31,17 +47,22 @@ function createEntity(id: string, x: number, y: number, z: number, grounded = tr
         clone: this.clone,
       };
     },
-  } as any);
+  } as ComponentStub);
   entity.addComponent("velocity", {
-    x: 0, y: 0, z: 0,
+    x: 0,
+    y: 0,
+    z: 0,
     linear: { x: 0, y: 0, z: 0 },
     angular: { x: 0, y: 0, z: 0 },
     grounded,
     isCrouching: false,
     isSliding: false,
-    serialize() {}, deserialize() {},
-    clone() { return { ...this, linear: { ...this.linear }, angular: { ...this.angular } }; },
-  } as any);
+    serialize() {},
+    deserialize() {},
+    clone() {
+      return { ...this, linear: { ...this.linear }, angular: { ...this.angular } };
+    },
+  } as ComponentStub);
   return entity;
 }
 
@@ -80,7 +101,7 @@ describe("Delta Snapshot", () => {
       expect(decoded.entities.has("e2")).toBe(true);
 
       // New entity should have correct position
-      const e2Pos = decoded.entities.get("e2")!.getComponent("position") as any;
+      const e2Pos = decoded.entities.get("e2")!.getComponent("position") as unknown as Vec3;
       expect(e2Pos.x).toBeCloseTo(100, 1);
       expect(e2Pos.y).toBeCloseTo(50, 1);
     });
@@ -128,7 +149,7 @@ describe("Delta Snapshot", () => {
       const encoded = BinaryProtocol.encodeSnapshot(current, baseline);
       const decoded = BinaryProtocol.decodeSnapshot(encoded, baseline);
 
-      const pos = decoded.entities.get("e1")!.getComponent("position") as any;
+      const pos = decoded.entities.get("e1")!.getComponent("position") as unknown as Vec3;
       expect(pos.x).toBeCloseTo(100, 1);
       expect(pos.y).toBeCloseTo(50, 1);
       expect(pos.z).toBeCloseTo(-200, 1);
@@ -213,7 +234,7 @@ describe("Delta Snapshot", () => {
 
       // Verify all positions updated
       for (let i = 0; i < 16; i++) {
-        const pos = decoded.entities.get(`e${i}`)!.getComponent("position") as any;
+        const pos = decoded.entities.get(`e${i}`)!.getComponent("position") as unknown as Vec3;
         expect(pos.x).toBeCloseTo(i * 10 + 5, 1);
       }
     });

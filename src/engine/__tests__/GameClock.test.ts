@@ -5,7 +5,7 @@
  * scheduled events, save/load, and formatting.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { GameClock } from "../core/GameClock";
 
 describe("GameClock", () => {
@@ -195,7 +195,11 @@ describe("GameClock", () => {
       clock.setTime(15, 45);
       clock.setDay(5);
 
-      const saveData = clock.getSaveData() as any;
+      const saveData = clock.getSaveData() as {
+        currentTimeNormalized: number;
+        currentDay: number;
+        dayLengthSeconds?: number;
+      };
 
       clock.reset(); // Clear state
       clock.loadSaveData(saveData);

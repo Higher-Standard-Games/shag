@@ -5,16 +5,16 @@
  * disabled subsystems, and reset behavior.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
-import { TickOrchestrator } from "../server/tick/TickOrchestrator";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { TickConfig } from "../server/tick/TickConfig";
+import { TickOrchestrator } from "../server/tick/TickOrchestrator";
 
 const testConfig: TickConfig = {
-  physics: 125,   // 8ms per tick
+  physics: 125, // 8ms per tick
   collision: 125,
-  ai: 20,         // 50ms per tick
+  ai: 20, // 50ms per tick
   networking: 60, // ~16.7ms per tick
-  economy: 0,     // Disabled
+  economy: 0, // Disabled
   pathfinding: 0, // Disabled
 };
 
@@ -54,9 +54,9 @@ describe("TickOrchestrator", () => {
   describe("Multi-rate subsystems", () => {
     it("should tick different subsystems at different rates", () => {
       // Feed 50ms
-      const physicsTicks = orchestrator.shouldTick("physics", 0.05);  // 6 ticks (50/8=6.25)
-      const aiTicks = orchestrator.shouldTick("ai", 0.05);            // 1 tick (50/50=1.0)
-      const netTicks = orchestrator.shouldTick("networking", 0.05);   // 3 ticks (50/16.7=2.99)
+      const physicsTicks = orchestrator.shouldTick("physics", 0.05); // 6 ticks (50/8=6.25)
+      const aiTicks = orchestrator.shouldTick("ai", 0.05); // 1 tick (50/50=1.0)
+      const netTicks = orchestrator.shouldTick("networking", 0.05); // 3 ticks (50/16.7=2.99)
 
       expect(physicsTicks).toBe(6);
       expect(aiTicks).toBe(1);
@@ -89,7 +89,7 @@ describe("TickOrchestrator", () => {
     it("should clear all accumulators", () => {
       // Accumulate some time
       orchestrator.shouldTick("physics", 0.005); // Not enough for a tick
-      orchestrator.shouldTick("ai", 0.03);       // Not enough for a tick
+      orchestrator.shouldTick("ai", 0.03); // Not enough for a tick
 
       orchestrator.reset();
 
@@ -111,7 +111,7 @@ describe("TickOrchestrator", () => {
   describe("Accumulator precision", () => {
     it("should preserve remainder across ticks", () => {
       // 125Hz = 8ms. Feed 10ms → 1 tick + 2ms remainder
-      expect(orchestrator.shouldTick("physics", 0.010)).toBe(1);
+      expect(orchestrator.shouldTick("physics", 0.01)).toBe(1);
 
       // Feed 6ms → 6ms + 2ms remainder = 8ms → 1 tick
       expect(orchestrator.shouldTick("physics", 0.006)).toBe(1);

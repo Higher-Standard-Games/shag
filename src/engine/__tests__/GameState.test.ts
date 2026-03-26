@@ -6,9 +6,9 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { IComponent, StateEncoder } from "../network/core/Component";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
-import type { IComponent, StateEncoder } from "../network/core/Component";
 
 // Minimal test component
 class PositionComponent implements IComponent {

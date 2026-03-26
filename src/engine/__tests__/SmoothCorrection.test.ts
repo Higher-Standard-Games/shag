@@ -5,7 +5,7 @@
  * side-effect-free getCorrection(), and reset behavior.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { SmoothCorrection } from "../network/client/SmoothCorrection";
 
 describe("SmoothCorrection", () => {
@@ -45,9 +45,9 @@ describe("SmoothCorrection", () => {
     it("should handle all three axes", () => {
       correction.addCorrection(10, 20, 30);
       const c = correction.getCorrection();
-      expect(c.x).toBeCloseTo(1.0);  // 10 * 0.1
-      expect(c.y).toBeCloseTo(2.0);  // 20 * 0.1
-      expect(c.z).toBeCloseTo(3.0);  // 30 * 0.1
+      expect(c.x).toBeCloseTo(1.0); // 10 * 0.1
+      expect(c.y).toBeCloseTo(2.0); // 20 * 0.1
+      expect(c.z).toBeCloseTo(3.0); // 30 * 0.1
     });
   });
 
@@ -110,7 +110,7 @@ describe("SmoothCorrection", () => {
       }
       // 100 * 0.9^10 ≈ 34.87
       const c = correction.getCorrection();
-      expect(c.x).toBeCloseTo(100 * Math.pow(0.9, 10) * 0.1, 0);
+      expect(c.x).toBeCloseTo(100 * 0.9 ** 10 * 0.1, 0);
     });
 
     it("should retain ~12% after 20 decays", () => {
@@ -120,7 +120,7 @@ describe("SmoothCorrection", () => {
       }
       // 100 * 0.9^20 ≈ 12.16
       const c = correction.getCorrection();
-      expect(c.x).toBeCloseTo(100 * Math.pow(0.9, 20) * 0.1, 0);
+      expect(c.x).toBeCloseTo(100 * 0.9 ** 20 * 0.1, 0);
     });
   });
 

@@ -5,8 +5,8 @@
  * yaw shortest-path, jitter adaptation, buffer eviction, and flush.
  */
 
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { SnapshotBuffer, type EntitySnapshot } from "../network/client/SnapshotBuffer";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type EntitySnapshot, SnapshotBuffer } from "../network/client/SnapshotBuffer";
 
 // Mock Cvar to avoid dependency on console variable system
 vi.mock("../../core/Cvar", () => ({
@@ -18,9 +18,13 @@ vi.mock("../../core/Cvar", () => ({
 
 function makeEntity(overrides: Partial<EntitySnapshot> = {}): EntitySnapshot {
   return {
-    x: 0, y: 0, z: 0,
+    x: 0,
+    y: 0,
+    z: 0,
     yaw: 0,
-    vx: 0, vy: 0, vz: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
     grounded: true,
     crouching: false,
     sliding: false,
@@ -101,7 +105,7 @@ describe("SnapshotBuffer", () => {
       // This tests the SnapshotBuffer's internal lerp for yaw
       // We push two snapshots with yaw near the wrap point
       const e1 = new Map<string, EntitySnapshot>();
-      e1.set("player", makeEntity({ yaw: Math.PI * 0.9 }));  // ~162°
+      e1.set("player", makeEntity({ yaw: Math.PI * 0.9 })); // ~162°
 
       const e2 = new Map<string, EntitySnapshot>();
       e2.set("player", makeEntity({ yaw: -Math.PI * 0.9 })); // ~-162°
@@ -120,11 +124,18 @@ describe("SnapshotBuffer", () => {
   describe("Extrapolation", () => {
     it("should extrapolate using velocity when past all snapshots", () => {
       const entities = new Map<string, EntitySnapshot>();
-      entities.set("player", makeEntity({
-        x: 100, y: 50, z: 0,
-        vx: 200, vy: 0, vz: 100,
-        grounded: true,
-      }));
+      entities.set(
+        "player",
+        makeEntity({
+          x: 100,
+          y: 50,
+          z: 0,
+          vx: 200,
+          vy: 0,
+          vz: 100,
+          grounded: true,
+        }),
+      );
       buffer.push(1, entities);
 
       // Sample with zero delay = renderTime = performance.now()
@@ -136,11 +147,18 @@ describe("SnapshotBuffer", () => {
 
     it("should apply gravity for airborne extrapolation", () => {
       const entities = new Map<string, EntitySnapshot>();
-      entities.set("player", makeEntity({
-        x: 0, y: 100, z: 0,
-        vx: 0, vy: 100, vz: 0,
-        grounded: false,
-      }));
+      entities.set(
+        "player",
+        makeEntity({
+          x: 0,
+          y: 100,
+          z: 0,
+          vx: 0,
+          vy: 100,
+          vz: 0,
+          grounded: false,
+        }),
+      );
       buffer.push(1, entities);
 
       // For airborne, extrapolation uses parabolic arc with gravity

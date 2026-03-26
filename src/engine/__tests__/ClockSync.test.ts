@@ -5,7 +5,7 @@
  * and time conversion roundtrips.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { ClockSync } from "../network/client/ClockSync";
 
 describe("ClockSync", () => {

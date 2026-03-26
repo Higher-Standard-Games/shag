@@ -6,8 +6,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { TestSimulation, testConfig, PositionComponent, VelocityComponent } from "../network/test/TestSimulation";
 import { MoveCommand } from "../network/core/Command";
+import {
+  type PositionComponent,
+  TestSimulation,
+  testConfig,
+  type VelocityComponent,
+} from "../network/test/TestSimulation";
 
 function makeCommand(playerId: string, seq: number, direction: { x: number; y: number; z: number }): MoveCommand {
   return new MoveCommand(playerId, 0, seq, direction, 0, 0, 0);

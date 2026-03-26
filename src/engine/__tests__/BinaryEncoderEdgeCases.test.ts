@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { BinaryEncoder, BinaryDecoder } from "../network/protocol/BinaryProtocol";
+import { BinaryDecoder, BinaryEncoder } from "../network/protocol/BinaryProtocol";
 
 describe("BinaryEncoder", () => {
   describe("Buffer auto-growth", () => {
@@ -14,9 +14,9 @@ describe("BinaryEncoder", () => {
       const encoder = new BinaryEncoder(8); // Tiny initial buffer
 
       // Write more than 8 bytes
-      encoder.writeFloat32(1.0);  // 4 bytes
-      encoder.writeFloat32(2.0);  // 4 bytes
-      encoder.writeFloat32(3.0);  // 4 bytes — triggers growth
+      encoder.writeFloat32(1.0); // 4 bytes
+      encoder.writeFloat32(2.0); // 4 bytes
+      encoder.writeFloat32(3.0); // 4 bytes — triggers growth
 
       const data = encoder.getData();
       expect(data.length).toBe(12);
@@ -144,14 +144,14 @@ describe("BinaryEncoder", () => {
       const encoder = new BinaryEncoder(32);
       encoder.writeFloat32(0);
       encoder.writeFloat32(-1.5);
-      encoder.writeFloat32(3.14159);
+      encoder.writeFloat32(Math.PI);
       encoder.writeFloat32(1e10);
       encoder.writeFloat32(-1e-10);
 
       const decoder = new BinaryDecoder(encoder.getData());
       expect(decoder.readFloat32()).toBe(0);
       expect(decoder.readFloat32()).toBeCloseTo(-1.5);
-      expect(decoder.readFloat32()).toBeCloseTo(3.14159, 4);
+      expect(decoder.readFloat32()).toBeCloseTo(Math.PI, 4);
       expect(decoder.readFloat32()).toBeCloseTo(1e10, -5);
       expect(decoder.readFloat32()).toBeCloseTo(-1e-10, 15);
     });
@@ -162,7 +162,7 @@ describe("BinaryEncoder", () => {
       encoder.writeFloat64(-Math.E);
 
       const decoder = new BinaryDecoder(encoder.getData());
-      expect(decoder.readFloat64()).toBe(Math.PI);  // Exact equality for float64
+      expect(decoder.readFloat64()).toBe(Math.PI); // Exact equality for float64
       expect(decoder.readFloat64()).toBe(-Math.E);
     });
 
@@ -181,19 +181,19 @@ describe("BinaryEncoder", () => {
     it("should produce independent data after reset", () => {
       const encoder = new BinaryEncoder(64);
 
-      encoder.writeUint32(0xDEADBEEF);
+      encoder.writeUint32(0xdeadbeef);
       const data1 = encoder.getData();
 
       encoder.reset();
-      encoder.writeUint32(0xCAFEBABE);
+      encoder.writeUint32(0xcafebabe);
       const data2 = encoder.getData();
 
       // Data1 should still be valid (getData copies)
       const dec1 = new BinaryDecoder(data1);
-      expect(dec1.readUint32()).toBe(0xDEADBEEF);
+      expect(dec1.readUint32()).toBe(0xdeadbeef);
 
       const dec2 = new BinaryDecoder(data2);
-      expect(dec2.readUint32()).toBe(0xCAFEBABE);
+      expect(dec2.readUint32()).toBe(0xcafebabe);
     });
 
     it("should reset offset to 0", () => {

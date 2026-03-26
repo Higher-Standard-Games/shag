@@ -5,10 +5,10 @@
  * getInterpolatedState, containsTick, and boundary accessors.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
-import { HistoryBuffer } from "../server/lagcomp/HistoryBuffer";
-import { WorldState } from "../server/core/WorldState";
 import { tickNumber } from "@shared/server/simulation/types";
+import { beforeEach, describe, expect, it } from "vitest";
+import { WorldState } from "../server/core/WorldState";
+import { HistoryBuffer } from "../server/lagcomp/HistoryBuffer";
 
 function makeState(tick: number): WorldState {
   return new WorldState(tickNumber(tick));

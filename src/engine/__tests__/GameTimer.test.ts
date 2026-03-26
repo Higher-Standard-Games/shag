@@ -5,7 +5,7 @@
  * time scale, and timer CRUD.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { GameTimer, SPEED_MULTIPLIERS } from "../core/GameTimer";
 
 describe("GameTimer", () => {

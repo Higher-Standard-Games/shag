@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Entity, EntityType } from "../network/core/Entity";
 import type { IComponent, StateEncoder } from "../network/core/Component";
+import { Entity, EntityType } from "../network/core/Entity";
 
 // Simple test component
 class TestComponent implements IComponent {

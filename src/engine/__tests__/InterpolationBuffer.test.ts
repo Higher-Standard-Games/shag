@@ -5,7 +5,7 @@
  * and entity position/transform lerping.
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { InterpolationBuffer } from "../network/client/InterpolationBuffer";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
@@ -14,10 +14,14 @@ import { GameState, PlayerState } from "../network/core/GameState";
 function createEntityWithPosition(id: string, x: number, y: number, z: number): Entity {
   const entity = new Entity(id);
   entity.addComponent("position", {
-    x, y, z,
+    x,
+    y,
+    z,
     serialize() {},
     deserialize() {},
-    clone() { return { ...this }; },
+    clone() {
+      return { ...this };
+    },
   });
   return entity;
 }
@@ -74,7 +78,7 @@ describe("InterpolationBuffer", () => {
       const pos = result.entities.get("e1")?.getComponent("position") as any;
 
       expect(pos).not.toBeUndefined();
-      expect(pos.x).toBeCloseTo(50, 0);  // lerp(0, 100, 0.5)
+      expect(pos.x).toBeCloseTo(50, 0); // lerp(0, 100, 0.5)
       expect(pos.z).toBeCloseTo(100, 0); // lerp(0, 200, 0.5)
     });
 
@@ -114,7 +118,10 @@ describe("InterpolationBuffer", () => {
   describe("New entity handling", () => {
     it("should clone entity that only exists in second snapshot", () => {
       const s1 = createSnapshot(1, [["e1", 0, 0, 0]]);
-      const s2 = createSnapshot(2, [["e1", 100, 0, 0], ["e2", 50, 50, 50]]);
+      const s2 = createSnapshot(2, [
+        ["e1", 100, 0, 0],
+        ["e2", 50, 50, 50],
+      ]);
 
       buffer.addSnapshot(s1, 1000);
       buffer.addSnapshot(s2, 1100);

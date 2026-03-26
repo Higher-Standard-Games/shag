@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { MessageCodec } from "../network/protocol/MessageCodec";
 import type { NetworkCommand } from "../network/protocol/BinaryProtocol";
+import { MessageCodec } from "../network/protocol/MessageCodec";
 
 describe("CommandRedundancy", () => {
   describe("Command encode/decode roundtrip", () => {
@@ -67,7 +67,7 @@ describe("CommandRedundancy", () => {
         direction: { x: -1, y: 1, z: -1 },
         pitch: -Math.PI / 2,
         yaw: Math.PI,
-        buttons: 0xFF,
+        buttons: 0xff,
       };
 
       const encoded = MessageCodec.encodeCommand("extreme-player", 65535, command);
@@ -77,7 +77,7 @@ describe("CommandRedundancy", () => {
       expect(decoded.command.direction!.x).toBeCloseTo(-1, 2);
       expect(decoded.command.pitch).toBeCloseTo(-Math.PI / 2, 2);
       expect(decoded.command.yaw).toBeCloseTo(Math.PI, 2);
-      expect(decoded.command.buttons).toBe(0xFF);
+      expect(decoded.command.buttons).toBe(0xff);
     });
   });
 
@@ -111,7 +111,7 @@ describe("CommandRedundancy", () => {
       expect(buffer.length).toBe(3);
 
       // Decode each to verify sequence numbers
-      const sequences = buffer.map(b => MessageCodec.decodeCommand(b).sequence);
+      const sequences = buffer.map((b) => MessageCodec.decodeCommand(b).sequence);
       expect(sequences).toEqual([3, 4, 5]);
     });
 

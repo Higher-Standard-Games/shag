@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { PlayerState } from "../network/core/GameState";
-import { BinaryEncoder, BinaryDecoder } from "../network/protocol/BinaryProtocol";
+import { BinaryDecoder, BinaryEncoder } from "../network/protocol/BinaryProtocol";
 
 function roundtrip(input: PlayerState): PlayerState {
   const encoder = new BinaryEncoder(256);

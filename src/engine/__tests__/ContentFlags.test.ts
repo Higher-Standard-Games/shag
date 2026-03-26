@@ -6,14 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  ContentFlags,
-  SurfaceFlags,
-  CollisionMasks,
-  isPlayerSolid,
-  isSolid,
-  isLiquid,
-} from "../physics/ContentFlags";
+import { CollisionMasks, ContentFlags, isLiquid, isPlayerSolid, isSolid, SurfaceFlags } from "../physics/ContentFlags";
 
 describe("ContentFlags", () => {
   describe("isPlayerSolid", () => {
