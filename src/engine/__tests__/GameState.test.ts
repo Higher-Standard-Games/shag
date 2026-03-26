@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { IComponent, StateEncoder } from "../network/core/Component";
+import type { IComponent, StateDecoder, StateEncoder } from "../network/core/Component";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 
@@ -22,7 +22,7 @@ class PositionComponent implements IComponent {
     encoder.writeFloat32(this.z);
   }
 
-  deserialize(decoder: any): void {
+  deserialize(decoder: StateDecoder): void {
     this.x = decoder.readFloat32();
     this.y = decoder.readFloat32();
     this.z = decoder.readFloat32();

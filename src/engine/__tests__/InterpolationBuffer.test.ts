@@ -10,6 +10,12 @@ import { InterpolationBuffer } from "../network/client/InterpolationBuffer";
 import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
 // Helper: Create entity with position component
 function createEntityWithPosition(id: string, x: number, y: number, z: number): Entity {
   const entity = new Entity(id);
@@ -75,7 +81,7 @@ describe("InterpolationBuffer", () => {
       // interpDelay = 50ms. renderTime = 1050 + 50 = 1100. targetTime = 1100 - 50 = 1050.
       // t = (1050 - 1000) / (1100 - 1000) = 0.5 → midpoint
       const result = buffer.getInterpolatedState(1100);
-      const pos = result.entities.get("e1")?.getComponent("position") as any;
+      const pos = result.entities.get("e1")?.getComponent("position") as unknown as Vec3;
 
       expect(pos).not.toBeUndefined();
       expect(pos.x).toBeCloseTo(50, 0); // lerp(0, 100, 0.5)
@@ -91,7 +97,7 @@ describe("InterpolationBuffer", () => {
 
       // targetTime = renderTime - 50. For t=0, targetTime = 1000 → renderTime = 1050
       const result = buffer.getInterpolatedState(1050);
-      const pos = result.entities.get("e1")?.getComponent("position") as any;
+      const pos = result.entities.get("e1")?.getComponent("position") as unknown as Vec3;
 
       expect(pos.x).toBeCloseTo(10, 0);
       expect(pos.y).toBeCloseTo(20, 0);
@@ -107,7 +113,7 @@ describe("InterpolationBuffer", () => {
 
       // targetTime = 1100 → renderTime = 1150
       const result = buffer.getInterpolatedState(1150);
-      const pos = result.entities.get("e1")?.getComponent("position") as any;
+      const pos = result.entities.get("e1")?.getComponent("position") as unknown as Vec3;
 
       expect(pos.x).toBeCloseTo(110, 0);
       expect(pos.y).toBeCloseTo(120, 0);

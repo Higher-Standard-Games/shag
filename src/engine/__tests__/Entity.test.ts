@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { IComponent, StateEncoder } from "../network/core/Component";
+import type { IComponent, StateDecoder, StateEncoder } from "../network/core/Component";
 import { Entity, EntityType } from "../network/core/Entity";
 
 // Simple test component
@@ -17,7 +17,7 @@ class TestComponent implements IComponent {
     encoder.writeFloat32(this.value);
   }
 
-  deserialize(decoder: any): void {
+  deserialize(decoder: StateDecoder): void {
     this.value = decoder.readFloat32();
   }
 

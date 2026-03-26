@@ -54,7 +54,7 @@ describe("ServiceLocator", () => {
       await locator.initCore();
       expect(initOrder).toEqual(["core1", "core2"]);
 
-      await locator.initScene({} as any);
+      await locator.initScene({} as unknown as import("@babylonjs/core/scene").Scene);
       expect(initOrder).toEqual(["core1", "core2", "scene1"]);
     });
 
@@ -117,7 +117,7 @@ describe("ServiceLocator", () => {
       });
 
       const mockScene = { name: "mockScene" };
-      await locator.initScene(mockScene as any);
+      await locator.initScene(mockScene as unknown as import("@babylonjs/core/scene").Scene);
 
       expect(initSpy).toHaveBeenCalledWith(mockScene);
     });
@@ -126,7 +126,7 @@ describe("ServiceLocator", () => {
   describe("get/has", () => {
     it("should get initialized service", async () => {
       const locator = ServiceLocator.getInstance();
-      const mockService: Service = { value: 42 } as any;
+      const mockService = { value: 42 } as Service;
 
       locator.register({ name: "test", factory: () => mockService, phase: "core" });
       await locator.initCore();
@@ -194,7 +194,7 @@ describe("ServiceLocator", () => {
   describe("manual set", () => {
     it("should allow manually setting a service", () => {
       const locator = ServiceLocator.getInstance();
-      const mockService: Service = { custom: true } as any;
+      const mockService = { custom: true } as Service;
 
       locator.set("custom", mockService);
 

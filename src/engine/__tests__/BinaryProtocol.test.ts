@@ -10,6 +10,20 @@ import { Entity } from "../network/core/Entity";
 import { GameState, PlayerState } from "../network/core/GameState";
 import { BinaryDecoder, BinaryEncoder, BinaryProtocol, MessageType } from "../network/protocol/BinaryProtocol";
 import { MessageCodec } from "../network/protocol/MessageCodec";
+import type { IComponent } from "../network/core/Component";
+
+// biome-ignore lint/suspicious/noExplicitAny: test stub components need flexible shape for BinaryProtocol
+type ComponentStub = IComponent & Record<string, any>;
+
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+interface VelocityData {
+  linear: Vec3;
+  grounded: boolean;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -43,7 +57,7 @@ function createTestEntity(
         clone: this.clone,
       };
     },
-  } as any);
+  } as ComponentStub);
   entity.addComponent("velocity", {
     x: vel.x,
     y: vel.y,
@@ -58,7 +72,7 @@ function createTestEntity(
     clone() {
       return { ...this, linear: { ...this.linear }, angular: { ...this.angular } };
     },
-  } as any);
+  } as ComponentStub);
   return entity;
 }
 
@@ -108,13 +122,13 @@ describe("BinaryProtocol", () => {
 
       // Check entity e1 position
       const de1 = decoded.entities.get("e1")!;
-      const pos1 = de1.getComponent("position") as any;
+      const pos1 = de1.getComponent("position") as unknown as Vec3;
       expect(pos1.x).toBeCloseTo(100.5, 2);
       expect(pos1.y).toBeCloseTo(50.25, 2);
       expect(pos1.z).toBeCloseTo(-200, 2);
 
       // Check entity e1 velocity
-      const vel1 = de1.getComponent("velocity") as any;
+      const vel1 = de1.getComponent("velocity") as unknown as VelocityData;
       expect(vel1.linear.x).toBeCloseTo(1, 2);
       expect(vel1.linear.y).toBeCloseTo(-9.8, 1);
       expect(vel1.grounded).toBe(true);
@@ -143,8 +157,8 @@ describe("BinaryProtocol", () => {
 
       // Only change one entity's position
       const e1 = current.entities.get("e1")!;
-      (e1.getComponent("position") as any).x = 105;
-      (e1.getComponent("transform") as any).position.x = 105;
+      (e1.getComponent("position") as unknown as Vec3).x = 105;
+      (e1.getComponent("transform") as unknown as { position: Vec3 }).position.x = 105;
       current.tick = 43;
       current.ackedInputSeq = 11;
 
@@ -154,11 +168,11 @@ describe("BinaryProtocol", () => {
       expect(decoded.tick).toBe(43);
 
       // e1 position should be updated
-      const dPos1 = decoded.entities.get("e1")!.getComponent("position") as any;
+      const dPos1 = decoded.entities.get("e1")!.getComponent("position") as unknown as Vec3;
       expect(dPos1.x).toBeCloseTo(105, 2);
 
       // e2 position should be carried from baseline
-      const dPos2 = decoded.entities.get("e2")!.getComponent("position") as any;
+      const dPos2 = decoded.entities.get("e2")!.getComponent("position") as unknown as Vec3;
       expect(dPos2.x).toBeCloseTo(-300, 2);
     });
   });
