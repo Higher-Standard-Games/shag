@@ -1,71 +1,145 @@
 # AGENTS.md - AI Assistant Instructions for SHAG Engine
 
-> **Goal**: This file should contain enough information that an AI agent can create a complete game from a single prompt like *"make me a bunny hop racing game with checkpoints"*.
+> Goal: provide enough concrete, verified guidance for an agent to build and validate gameplay features from a single prompt.
+> Priority: information accuracy over speed. If unsure, inspect code/docs before acting.
+
+## Strict Mode Checklist (Read First)
+
+1. Verify facts in source before coding:
+   - APIs and imports in actual `.ts` files
+   - command/script names in `package.json`
+   - behavior/usage in `docs/manual/guides/*`
+2. Choose architecture correctly:
+   - default to `src/games/fps` extensions
+   - do not create a separate game module unless explicitly required
+3. For renderer or networking edits, treat as high-risk:
+   - edit cautiously
+   - run required regression commands (see Critical Systems section)
+   - include test results in final report
+4. Headless-first validation is required before browser/manual testing.
+5. Handoff must include:
+   - exact files changed
+   - exact validation commands run
+   - explicit assumptions
+   - explicit unverified items
 
 ## Quick Reference
 
 | I want to... | Do this |
 |--------------|---------|
-| Load a map | `ConsoleSystem.getInstance().execute('map wdm2')` |
-| Change camera | `CameraSystem.getInstance().setMode('fps')` |
-| Play sound | `AudioManager.getInstance().playSound('weapons/rocket/fire')` |
-| Spawn entity | Use `EntityManager.getInstance().spawn(...)` |
-| Add command | `CommandRegistry.getInstance().register(...)` |
-| Check key | `InputSystem.getInstance().isKeyDown('w')` |
-| Connect server | `ConsoleSystem.getInstance().execute('connect localhost:7777')` |
+| Load a map | `await ConsoleSystem.getInstance().execute('map wdm2')` |
+| Change camera mode | `CameraSystem.getInstance().setMode('fps')` |
+| Play a sound | `AudioManager.getInstance().playSound('weapons/rocket/fire')` |
+| Spawn pickups/entities | `EntityManager.getInstance().spawn(...)` or console `spawnpickup ...` |
+| Add a console command | `CommandRegistry.getInstance().register(...)` |
+| Read keyboard input | `InputSystem.getInstance().isKeyDown('w')` |
+| Connect to a server | `await ConsoleSystem.getInstance().execute('connect localhost:7777')` |
 
----
+## Agent Workflow (Do This First)
+
+1. Confirm scope from prompt: game mode, win condition, map, single-player vs networked.
+2. Choose implementation strategy:
+   - Preferred: extend `src/games/fps` with a new mode/system.
+   - Full new game module only when prompt explicitly requires a separate game package.
+3. Implement iteratively in small patches (commands, systems, HUD/events).
+4. Validate in headless mode first (required before asking for browser testing).
+5. Summarize what was built, how to run it, and known limitations.
+
+## Accuracy and Context Protocol (Mandatory)
+
+Before coding:
+
+1. Verify API names and file locations from source (not memory).
+2. Open the relevant guide in `docs/manual/guides/` for the subsystem being edited.
+3. Check for existing implementations in `src/games/fps` and reuse patterns before creating new abstractions.
+4. Confirm script names in `package.json` before running or documenting commands.
+
+When handing off or reporting:
+
+1. List exact files changed.
+2. List exact commands run for validation.
+3. State assumptions explicitly (map name, gametype, single-player/network).
+4. Call out anything unverified.
+
+## Architecture Reality Check (Important)
+
+The codebase is currently FPS-centric:
+
+- `@game/*` path alias in `tsconfig.json` points to `src/games/fps/*`.
+- `src/main.ts` directly wires `FPSPlayer` and FPS-focused flow.
+- Multiple engine/console/ui paths import from `src/games/fps` directly.
+
+Implication:
+
+- For most requests, implement inside `src/games/fps` (new gametype, command, subsystem, HUD widget).
+- Creating a truly separate game under `src/games/<newgame>` is possible, but requires additional wiring/refactor work.
+
+## Critical Systems: Renderer and Networking
+
+Renderer and networking are high-value and high-risk systems. Edit with extra caution.
+
+- Renderer-sensitive areas include: `src/engine/loader`, `src/engine/rendering`, `src/engine/lighting`, map/material/shader paths.
+- Networking-sensitive areas include: `src/engine/network`, `src/engine/server`, `src/games/fps/server`, prediction/replication code.
+
+If either area is edited, always run targeted regressions after changes:
+
+```bash
+npm run test:simulation
+npm run test:physics
+npm run server:tick
+npm run server:fuzz -- --ticks 1000
+npm run cli:game -- --exec "map wdm2; bsp info; quit"
+```
+
+Do not ship renderer/networking edits without test results in the final report.
 
 ## Project Overview
 
-**SHAG Engine** is a Babylon.js game engine for Quake 3 / Warsow style games:
+SHAG Engine is a Babylon.js engine for Quake 3 / Warsow-style gameplay:
 
 - BSP map loading (Q3, FBSP/Warsow)
 - PK3 virtual filesystem
-- Q3 shader system
+- Quake shader workflows
 - Server-authoritative multiplayer
-- FPS movement (strafe jumping, bunny hop, wall jump)
+- High-skill FPS movement (strafe jump, bunny hop, wall jump)
 
-📚 **Full Manual**: `docs/manual/`
-
----
+Full manual: `docs/manual/`
 
 ## Directory Structure
 
-```
+```text
 src/
-├── engine/           # Game-agnostic engine code
-│   ├── core/         # GamePaths, EventBus, GameTimer
-│   ├── camera/       # Camera controllers
-│   ├── console/      # Commands, cvars
-│   ├── loader/       # BSP, PK3, textures, models
-│   ├── network/      # Client networking
-│   ├── server/       # Headless server, ECS
-│   ├── physics/      # BSP collision, Havok
-│   ├── movement/     # Character controllers
-│   └── ui/           # HUD, menus
-├── games/            # Game submodules
-│   ├── fps/          # → wash-fps repo
-│   └── tower/        # → tower repo
-└── cli/              # Headless tools
+|- engine/           # Game-agnostic engine code
+|  |- core/          # GamePaths, EventBus, GameTimer
+|  |- camera/        # Camera controllers
+|  |- console/       # Commands, cvars
+|  |- loader/        # BSP, PK3, textures, models
+|  |- network/       # Client networking
+|  |- server/        # Headless server, ECS
+|  |- physics/       # BSP collision, Havok
+|  |- movement/      # Character controllers
+|  `- ui/            # HUD, menus
+|- games/
+|  |- fps/           # Main active gameplay module
+|  `- tower/         # Secondary module
+`- cli/              # Headless tools
 
 public/
-├── engine/           # Engine assets (fonts)
-├── data/             # Game data (gitignored)
-└── wasm/             # Havok (auto-copied)
+|- engine/           # Engine assets
+|- data/             # Game data (gitignored)
+`- wasm/             # Havok wasm (auto-copied)
 ```
 
----
+## Creating a New Game Module (When Explicitly Needed)
 
-## 🎮 Creating a New Game
-
-### Minimal Game Template
+### Minimal template
 
 ```typescript
 // src/games/mygame/MyGame.ts
 import { Scene } from "@babylonjs/core/scene";
 import { CameraSystem } from "@/engine/camera";
 import { ConsoleSystem } from "@/engine/console";
+import { CommandRegistry } from "@/engine/console/CommandRegistry";
 
 export class MyGame {
   private scene: Scene;
@@ -75,32 +149,25 @@ export class MyGame {
   }
 
   async init(): Promise<void> {
-    // Set camera mode
-    CameraSystem.getInstance().setMode('freefly');
-    
-    // Load a map
-    await ConsoleSystem.getInstance().execute('map wdm2');
-    
-    // Register custom commands
+    CameraSystem.getInstance().setMode("freefly");
+    await ConsoleSystem.getInstance().execute("map wdm2");
     this.registerCommands();
   }
 
   private registerCommands(): void {
-    CommandRegistry.getInstance().register('hello', async () => {
-      return 'Hello from MyGame!';
-    }, { description: 'Say hello' });
+    CommandRegistry.getInstance().register(
+      "hello",
+      async () => "Hello from MyGame!",
+      { description: "Say hello", category: "game" },
+    );
   }
 }
 ```
 
-### Game Entry Point
-
 ```typescript
 // src/games/mygame/index.ts
-export { MyGame } from './MyGame';
+export { MyGame } from "./MyGame";
 ```
-
-### Metadata
 
 ```json
 // src/games/mygame/game.json
@@ -111,445 +178,191 @@ export { MyGame } from './MyGame';
 }
 ```
 
-📚 **Guide**: `docs/manual/guides/configuration.md`
+### Additional wiring usually required
 
----
+- Update aliasing/entry wiring if `@game/*` should target the new module.
+- Update app bootstrap where FPS-specific classes are imported.
+- Verify CLI/server scripts if the new mode requires them.
 
-## 📷 Camera System
+Guide: `docs/manual/guides/configuration.md`
 
-| Mode | Use Case | Features |
-|------|----------|----------|
-| `fps` | First-person | Mouse look, weapon view |
-| `freefly` | Spectator/debug | WASD + mouse, noclip optional |
-| `isometric` | RTS/RPG | Top-down, zoom, pan |
-| `sidescroll` | 2.5D platformer | Fixed horizontal view |
-| `follow` | Third-person | Follow target mesh |
+## Core Systems
+
+### Camera
+
+Modes: `fps`, `freefly`, `isometric`, `sidescroll`, `follow`
 
 ```typescript
 const cam = CameraSystem.getInstance();
-cam.setMode('fps');
+cam.setMode("fps");
 cam.setFOV(90);
-
-// Get Babylon camera
 const camera = cam.getCamera();
 ```
 
-📚 **Guide**: `docs/manual/guides/camera-system.md`
+Guide: `docs/manual/guides/camera-system.md`
 
----
-
-## 🕹️ Input System
+### Input
 
 ```typescript
 const input = InputSystem.getInstance();
-
-// Keyboard
-if (input.isKeyDown('w')) { /* move forward */ }
-if (input.wasKeyPressed('space')) { /* jump */ }
-
-// Mouse
-const delta = input.getMouseDelta(); // { x, y }
-const pos = input.getMousePosition(); // { x, y }
+if (input.isKeyDown("w")) {
+  // move forward
+}
+if (input.wasKeyPressed("space")) {
+  // jump
+}
+const delta = input.getMouseDelta();
 ```
 
-### Key Names
+Keys: `w`, `a`, `s`, `d`, `space`, `shift`, `control`, `escape`, `tab`, `enter`, `1`-`9`
 
-`w`, `a`, `s`, `d`, `space`, `shift`, `control`, `escape`, `tab`, `enter`, `1`-`9`
-
----
-
-## 🎵 Audio System
-
-```typescript
-const audio = AudioManager.getInstance();
-
-// Play sound effect
-audio.playSound('weapons/rocket/fire');
-
-// Play music
-audio.playMusic('music/track01');
-
-// Volume
-audio.setVolume(0.8);
-audio.mute();
-```
-
-📚 **Guide**: `docs/manual/guides/audio-system.md` (if exists)
-
----
-
-## 💬 Console Commands
-
-### Registering Commands
+### Console Commands
 
 ```typescript
 import { CommandRegistry } from "@/engine/console/CommandRegistry";
 
-CommandRegistry.getInstance().register('mycommand', async (args) => {
-  const subcommand = args[0];
-  
-  switch (subcommand) {
-    case 'start':
-      return 'Game started!';
-    case 'stop':
-      return 'Game stopped!';
-    default:
-      return 'Usage: mycommand <start|stop>';
-  }
-}, {
-  description: 'My custom command',
-  usage: 'mycommand <start|stop>',
-  category: 'game'
-});
+CommandRegistry.getInstance().register(
+  "mycommand",
+  async (args) => {
+    const sub = args[0];
+    if (sub === "start") return "Game started!";
+    if (sub === "stop") return "Game stopped!";
+    return "Usage: mycommand <start|stop>";
+  },
+  {
+    description: "My custom command",
+    usage: "mycommand <start|stop>",
+    category: "game",
+  },
+);
 ```
-
-### Executing Commands
 
 ```typescript
-const console = ConsoleSystem.getInstance();
-await console.execute('map wdm2');
-await console.execute('noclip');
+await ConsoleSystem.getInstance().execute("map wdm2");
+await ConsoleSystem.getInstance().execute("noclip");
 ```
 
-📚 **Guide**: `docs/manual/guides/command-reference.md`
+Guide: `docs/manual/guides/command-reference.md`
 
----
-
-## 📦 Asset Loading
-
-### PK3 Virtual Filesystem
+### Assets and BSP
 
 ```typescript
 import { PK3Loader } from "@/engine/loader/pk3";
-
-const pk3 = PK3Loader.getInstance();
-
-// Load texture
-const texture = await pk3.loadTexture('textures/base/floor');
-
-// List files
-const maps = pk3.listFiles('maps/*.bsp');
-```
-
-### Loading Models
-
-```typescript
-import { ModelLoader } from "@/engine/loader/model";
-
-const mesh = await ModelLoader.loadGLB('models/weapons/rocket.glb', scene);
-mesh.position.set(0, 1, 0);
-```
-
-📚 **Guide**: `docs/manual/guides/pk3-filesystem.md`
-
----
-
-## 🌍 BSP Maps
-
-```typescript
 import { MapRenderer } from "@/engine/MapRenderer";
 
-// Load map
-await ConsoleSystem.getInstance().execute('map wdm2');
-
-// Get collision world
+const texture = await PK3Loader.getInstance().loadTexture("textures/base/floor");
 const collision = MapRenderer.getInstance().getCollisionWorld();
-
-// Trace ray
-const result = collision.trace(start, end, radius);
-if (result.fraction < 1.0) {
-  // Hit something
-  console.log('Hit at', result.endPos);
-}
 ```
 
-### Spawn Points
+Guides:
+- `docs/manual/guides/pk3-filesystem.md`
+- `docs/manual/guides/bsp-system.md`
 
-```typescript
-import { SpawnPointManager } from "@/engine/spawn/SpawnPointManager";
-
-const spawns = SpawnPointManager.getInstance();
-const spawnPoint = spawns.getRandomSpawnPoint();
-player.position = spawnPoint.position.clone();
-```
-
-📚 **Guide**: `docs/manual/guides/bsp-system.md`
-
----
-
-## 🏃 Movement (Q3 Physics)
-
-### Using FPS Movement Profile
+### Movement (Q3-style)
 
 ```typescript
 import { FPSMovementProfile } from "@game/simulation/FPSMovementProfile";
 
 const movement = new FPSMovementProfile();
-
-// Configure
 movement.maxSpeed = 320;
 movement.jumpVelocity = 270;
 movement.gravity = 800;
-movement.airControl = 150; // Warsow-style
-
-// Each frame
-const newState = movement.move(currentState, input, deltaTime, collisionWorld);
+movement.airControl = 150;
 ```
 
-### Movement CVars
+Common CVars: `sv_speed`, `sv_jumpheight`, `sv_gravity`, `sv_aircontrol`, `sv_autohop`
 
-| Cvar | Default | Description |
-|------|---------|-------------|
-| `sv_speed` | 320 | Base speed |
-| `sv_jumpheight` | 270 | Jump velocity |
-| `sv_gravity` | 800 | Gravity |
-| `sv_aircontrol` | 150 | Air turning |
-| `sv_autohop` | 1 | Bunny hop |
+Guide: `docs/manual/guides/movement-system.md`
 
-📚 **Guide**: `docs/manual/guides/movement-system.md`
-
----
-
-## 🌐 Networking
-
-### Client Connection
+### Networking
 
 ```typescript
-await ConsoleSystem.getInstance().execute('connect localhost:7777');
+await ConsoleSystem.getInstance().execute("connect localhost:7777");
 ```
 
-### V2NetworkClient (FPS Prediction)
-
-```typescript
-import { V2NetworkClient } from "@game/client/V2NetworkClient";
-
-const client = new V2NetworkClient(tickRate);
-
-// Each frame
-client.update(deltaTime, inputState);
-
-// Get predicted position
-const pos = client.getPosition();
-```
-
-### Running Dedicated Server
+Server:
 
 ```bash
 npm run net:server -- --map wdm2 --port 7777
 ```
 
-📚 **Guide**: `docs/manual/guides/networking.md`
+Guide: `docs/manual/guides/networking.md`
 
----
-
-## 📡 EventBus
+### EventBus
 
 ```typescript
 import { EventBus } from "@/engine/core/EventBus";
 
-// Subscribe (store unsubscribe!)
-const unsub = EventBus.on('player:spawn', (data) => {
-  console.log('Player spawned at', data.position);
+const unsub = EventBus.on("player:spawn", (data) => {
+  console.log(data.position);
 });
 
-// Emit
-EventBus.emit('player:death', { playerId: 1, killerId: 2 });
-
-// Cleanup
-unsub(); // IMPORTANT: call in dispose()
+EventBus.emit("player:death", { playerId: 1 });
+unsub(); // always cleanup subscriptions
 ```
 
-### Common Events
+## Headless-First Validation (Required)
 
-| Event | Data | When |
-|-------|------|------|
-| `map:loaded` | `{ mapName }` | Map finished loading |
-| `map:unloaded` | `{ mapName }` | Map cleared |
-| `player:spawn` | `{ position }` | Player respawned |
-| `player:death` | `{ playerId }` | Player died |
-| `weapon:fire` | `{ weapon }` | Weapon fired |
-| `pickup:collected` | `{ type, playerId }` | Item picked up |
-
----
-
-## 🛠️ Headless Mode & CLI Tools
-
-> **HEADLESS FIRST!** Always try headless mode before asking user to test in browser. Headless tests are instant, repeatable, and scriptable — no browser/lobby/match setup needed. This is the engine's **superpower**.
-
-### Quick Start
+Run these before asking for manual browser tests:
 
 ```bash
-npm run cli:game                                           # Interactive REPL
-npm run cli:game -- --exec "anim inspect all; quit"        # Batch mode
-```
-
-### All CLI Commands by Purpose
-
-#### 🎮 Engine REPL (`cli:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run cli:game` | Full headless game REPL — BSP loading, commands, leak testing |
-| `npm run cli:bsp` | BSP file inspector |
-
-**Built-in REPL commands** (inside `cli:game`):
-
-| Command | Description |
-|---------|-------------|
-| `map <name>` | Load BSP map |
-| `bsp info` | Show BSP statistics |
-| `anim inspect [file\|all]` | Inspect animation channels, flag root-motion position tracks |
-| `anim bones` | List skeleton bones |
-| `sim replay <input>` | Run physics simulation with input sequence (e.g. `W+CROUCH 60; JUMP 1`) |
-| `leaktest maprenderer <N>` | Memory leak test: load/unload map N times |
-| `leaktest mapcycle <N> <A> [B]` | Map cycle leak test |
-| `trace_test point\|box\|spawn` | Collision trace testing |
-| `scene info\|clear` | Scene statistics / cleanup |
-
-#### 🌐 Networking (`net:`, `lobby:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run net:server -- --map wdm2` | Dedicated game server |
-| `npm run net:client` | Headless network client |
-| `npm run lobby:server` | Lobby + match orchestrator |
-
-#### 🔬 Server Testing (`server:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run server:tick` | Tick-by-tick determinism test |
-| `npm run server:bench` | Performance benchmark (1-64 players) |
-| `npm run server:fuzz -- --ticks 1000` | Random input fuzzing |
-| `npm run server:protocol` | Protocol serialization test |
-| `npm run server:integration` | Integration test suite |
-| `npm run server:replay` | Replay playback |
-| `npm run server:game` | Standalone game server |
-
-#### 🐛 Debugging (`debug:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run debug:textures -- wdm2` | Audit BSP texture coverage |
-| `npm run debug:compare` | Compare local vs server state |
-| `npm run debug:collision` | Collision + gravity testing |
-| `npm run debug:pickup` | Pickup system debugging |
-| `npm run debug:spawn` | Spawn point testing |
-
-#### 🧪 Tests (`test:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run test:simulation` | FPS simulation initialization test |
-| `npm run test:physics` | Server physics test |
-| `npm test` | Vitest unit tests |
-
-#### 🔧 Asset Tools (`tools:`)
-
-| Command | Description |
-|---------|-------------|
-| `npm run tools:convert -- slide.fbx` | Convert FBX → GLB (auto-installs tool) |
-| `npm run tools:convert -- --all` | Convert all FBX in animations folder |
-| `npm run tools:fbx2gltf` | Download FBX2glTF converter |
-| `npm run tools:textures` | Convert textures to KTX2 |
-| `npm run tools:optimize` | Optimize GLB files |
-| `npm run tools:manifest` | Generate PK3 manifest |
-| `npm run tools:map` | Generate test map |
-
-### Common Debugging Workflows
-
-```bash
-# 🎬 Animation debugging (root-motion, missing channels)
-npm run cli:game -- --exec "anim inspect all; quit"
-
-# 🗺️ Map leak testing
-npm run cli:game -- --exec "leaktest mapcycle 10 wdm2 wdm7; quit"
-
-# 💀 Texture coverage audit
-npm run debug:textures -- wdm11
-
-# 🏃 Physics verification (no browser needed!)
+npm run cli:game -- --exec "map wdm2; bsp info; quit"
 npm run cli:game -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
-
-# ⚡ Server performance check
-npm run server:bench
-
-# 🎯 Determinism verification
-npm run server:tick
-
-# 🔀 Fuzz testing for physics crashes
-npm run server:fuzz -- --ticks 5000 --players 4
-
-# 🔧 Convert new animations
-npm run tools:convert -- crouchwalk.fbx
+npm run test:simulation
+npm run test:physics
 ```
 
----
+Useful command groups:
 
-## ⚠️ Common Gotchas
+- REPL: `npm run cli:game`, `npm run cli:bsp`
+- Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`
+- Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
+- Debug: `npm run debug:textures -- wdm2`, `npm run debug:spawn`
+- Unit tests: `npm test`
 
-### 1. Babylon.js Imports
+## Definition of Done for Agent Tasks
 
-```typescript
-// ✅ CORRECT
-import { Scene } from "@babylonjs/core/scene";
+A feature is done only when all are true:
 
-// ❌ WRONG (UMD bundle)
-import { Scene } from "babylonjs";
-```
+1. Gameplay logic is implemented (not only scaffolding).
+2. Console command(s) or config path exists to access the feature.
+3. Headless validation was run, with command output checked for errors.
+4. New EventBus listeners/timers are cleaned up (no obvious leak).
+5. User-facing summary includes run instructions and caveats.
+6. If renderer/networking was touched, required regression suite was run and reported.
 
-### 2. Side-Effect Imports
+## Common Gotchas
 
-```typescript
-// Some features need these:
-import "@babylonjs/core/Animations/animatable";
-import "@babylonjs/core/Collisions/collisionCoordinator";
-```
-
-### 3. Memory Leaks
-
-```typescript
-// ❌ WRONG - Can't unsubscribe
-EventBus.on("event", handler);
-
-// ✅ CORRECT
-this.unsub = EventBus.on("event", handler);
-// Later: this.unsub();
-```
-
-### 4. Map Object Cleanup
+1. Babylon imports must be modular:
+   - Correct: `@babylonjs/core/...`
+   - Avoid: `babylonjs` UMD import
+2. Some Babylon features need side-effect imports:
+   - `@babylonjs/core/Animations/animatable`
+   - `@babylonjs/core/Collisions/collisionCoordinator`
+3. Do not forget unsubscribe handles for EventBus listeners.
+4. Tag map-owned objects for cleanup when needed:
 
 ```typescript
-// Tag objects for map cleanup
 mesh.metadata = { mapOwned: true };
 ```
 
----
+## Documentation Pointers
 
-## 📚 Documentation Links
+- Commands: `docs/manual/guides/command-reference.md`
+- BSP/PK3: `docs/manual/guides/bsp-system.md`
+- Camera: `docs/manual/guides/camera-system.md`
+- Movement: `docs/manual/guides/movement-system.md`
+- Networking: `docs/manual/guides/networking.md`
+- Headless: `docs/manual/guides/headless-mode.md`
+- Configuration: `docs/manual/guides/configuration.md`
+- Shader system: `docs/manual/guides/shader-system.md`
+- Research notes: `docs/research/`
+- Changelog: `docs/changelog/`
 
-| Topic | Location |
-|-------|----------|
-| All console commands | `docs/manual/guides/command-reference.md` |
-| BSP/PK3 loading | `docs/manual/guides/bsp-system.md` |
-| Camera modes | `docs/manual/guides/camera-system.md` |
-| Movement physics | `docs/manual/guides/movement-system.md` |
-| Multiplayer networking | `docs/manual/guides/networking.md` |
-| Configuration | `docs/manual/guides/configuration.md` |
-| Shader system | `docs/manual/guides/shader-system.md` |
-| Architecture deep-dives | `docs/research/` |
-| Changelog | `docs/changelog/` |
+## Fast Game Ideas
 
----
-
-## 🎯 Game Ideas to Try
-
-1. **Bunny Hop Racer** - Checkpoints, timer, strafe jump to win
-2. **Gun Game** - Kill to upgrade weapon, first to final weapon wins
-3. **Trick Arena** - Score points for strafe jump distance/height
-4. **Hide & Seek** - One seeker, spectator camera for dead players
-5. **Rocket Arena** - Rockets only, instagib
-
----
-
-*Made with ❤️ and probably too much coffee. Happy game making!*
+1. Bunny Hop Racer: checkpoint routing + timer + PB ghosts
+2. Gun Game: weapon progression per frag
+3. Trick Arena: score chains for movement skill
+4. Hide and Seek: seeker phase + spectator flow
+5. Rocket Arena: rockets-only duel ruleset

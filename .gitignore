@@ -82,6 +82,8 @@ _archive/
 
 # Build tools (downloaded on demand)
 tools/
+!src/tools/
+!src/tools/**
 
 # TLS certificates for local development
 certs/
