@@ -259,6 +259,34 @@ export class MessageCodec {
     return encoder.getData();
   }
 
+  /**
+   * Encode a ServerMessage (Server → Client)
+   * Generic text message for UI notifications (queue position, join rejection, etc.)
+   * Format: [MessageType.ServerMessage][type: string][message: string]
+   */
+  static encodeServerMessage(message: string, type: string = 'info'): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.ServerMessage);
+    encoder.writeString(type);
+    encoder.writeString(message);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a ServerMessage
+   */
+  static decodeServerMessage(data: Uint8Array): { type: string; message: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.ServerMessage) {
+      throw new Error(`Expected ServerMessage, got 0x${messageType.toString(16)}`);
+    }
+    return {
+      type: decoder.readString(),
+      message: decoder.readString(),
+    };
+  }
+
   // ── ClockSync: Ping / Pong ───────────────────────────────
 
   /**

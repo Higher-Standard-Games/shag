@@ -15,6 +15,7 @@ import matchLobbyCSSRaw from "../components/styles/MatchLobbyView.css?raw";
 import { UIStyles } from "../UIStyles";
 import { GamePanel } from "./GamePanel";
 import lobbyCSSRaw from "./styles/LobbyPanel.css?raw";
+import { ConnectingOverlay } from "../components/ConnectingOverlay";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & DATA
@@ -664,6 +665,14 @@ export class LobbyPanel extends GamePanel {
         const watchBtn = document.createElement("button");
         watchBtn.className = "lobby__watch-btn";
         watchBtn.textContent = "WATCH";
+        watchBtn.addEventListener("click", () => {
+          if (m.serverUrl) {
+            const overlay = new ConnectingOverlay();
+            overlay.show(m.serverUrl, true); // asSpectator = true
+          } else {
+            console.warn("[LobbyPanel] No server URL for match", m.id);
+          }
+        });
         footer.appendChild(watchBtn);
       } else {
         const joinBtn = document.createElement("button");

@@ -92,6 +92,7 @@ export class NetworkGameHost implements IGameHost {
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
+  private serverMessageCallbacks: ((msg: { type: string; message: string }) => void)[] = [];
 
   private interpolationBuffer = new InterpolationBuffer();
   private smoothCorrection = new SmoothCorrection();
@@ -163,6 +164,18 @@ export class NetworkGameHost implements IGameHost {
     return () => {
       const index = this.serverInfoCallbacks.indexOf(callback);
       if (index >= 0) this.serverInfoCallbacks.splice(index, 1);
+    };
+  }
+
+  /**
+   * Register callback for server-sent messages (queue notifications, rejection, etc.)
+   * Returns unsubscribe function.
+   */
+  onServerMessage(callback: (msg: { type: string; message: string }) => void): () => void {
+    this.serverMessageCallbacks.push(callback);
+    return () => {
+      const index = this.serverMessageCallbacks.indexOf(callback);
+      if (index >= 0) this.serverMessageCallbacks.splice(index, 1);
     };
   }
 
@@ -485,6 +498,12 @@ export class NetworkGameHost implements IGameHost {
         case MessageType.Pong: {
           const { clientSendTime, serverTime } = MessageCodec.decodePong(data);
           this.clockSync.processPong(clientSendTime, serverTime);
+          break;
+        }
+        case MessageType.ServerMessage: {
+          const msg = MessageCodec.decodeServerMessage(data);
+          console.log(`[NetworkGameHost] Server message [${msg.type}]: ${msg.message}`);
+          this.serverMessageCallbacks.forEach((cb) => cb(msg));
           break;
         }
         default:

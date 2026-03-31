@@ -95,6 +95,7 @@ class MatchLobby {
   createdAt: number = Date.now();
   isStarting: boolean = false;
   matchMap: string = ""; // Set when match starts
+  serverUrl: string = ""; // Set when game server is spawned
   state: "waiting" | "playing" = "waiting";
 
   get playerCount(): number {
@@ -796,6 +797,9 @@ export class LobbyServer {
       // Track matchId → lobbyId mapping for cleanup
       this.matchToLobby.set(server.matchId, lobby.id);
 
+      // Store server URL on lobby for spectator discovery
+      lobby.serverUrl = server.url;
+
       // Send connect URL to all lobby players
       this.broadcastToLobby(lobby.id, {
         type: "lobby:connect",
@@ -1020,6 +1024,7 @@ export class LobbyServer {
         maxPlayers: lobby.gametype.maxPlayers,
         state: lobby.state,
         startedAt: lobby.createdAt,
+        serverUrl: lobby.serverUrl || undefined,
       });
     }
     return matches;

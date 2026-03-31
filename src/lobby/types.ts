@@ -100,6 +100,7 @@ export interface LiveMatchInfo {
   maxPlayers: number;
   state: "waiting" | "playing";
   startedAt: number; // lobby creation timestamp
+  serverUrl?: string; // game server URL (set when match is playing, for spectator connect)
 }
 
 // ============================================================================

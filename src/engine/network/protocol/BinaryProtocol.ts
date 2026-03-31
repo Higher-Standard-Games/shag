@@ -962,6 +962,7 @@ export enum MessageType {
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
+  ServerMessage = 0x09,  // Generic server→client text message (queue, rejection, info)
   Pong = 0x0a,
 
   // Client → Server

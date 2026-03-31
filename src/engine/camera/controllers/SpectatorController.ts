@@ -1,0 +1,283 @@
+/**
+ * SpectatorController — First-person chase-cam that follows a target player entity.
+ *
+ * Implements ICameraController. Reads target entity's position and rotation
+ * from the latest GameState snapshot via a target provider callback.
+ * No prediction, no input processing — purely follows server state.
+ *
+ * Usage:
+ *   const ctrl = new SpectatorController();
+ *   ctrl.setTargetProvider((id) => getLatestStateForEntity(id));
+ *   CameraSystem.getInstance().registerController('spectator', ctrl);
+ *   CameraSystem.getInstance().setController('spectator');
+ */
+
+import type { Camera } from '@babylonjs/core/Cameras/camera';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import type { Scene } from '@babylonjs/core/scene';
+import type { CameraControllerConfig, ICameraController } from './ICameraController';
+import { Game } from '../../../games/fps/Game';
+
+// ─── Types ───────────────────────────────────────────────────────
+
+/** Data returned by the target provider */
+export interface SpectatorTargetData {
+  /** World position of the target entity (Q3 origin — waist level) */
+  x: number;
+  y: number;
+  z: number;
+  /** Yaw rotation in radians */
+  yaw: number;
+  /** Pitch rotation in radians */
+  pitch: number;
+}
+
+/**
+ * Provider callback that returns the current state of a target entity.
+ * Returns null if the entity doesn't exist or has no valid data.
+ */
+export type SpectatorTargetProvider = (entityId: string) => SpectatorTargetData | null;
+
+// ─── Constants ───────────────────────────────────────────────────
+
+/** Eye height offset above Q3 origin (Q3 PLAYER_MAXS_Z = 40, viewheight = 26) */
+const EYE_HEIGHT_OFFSET = 26;
+
+/** Default smoothing factor (0 = no smoothing, 1 = instant snap) */
+const DEFAULT_SMOOTHING = 0.25;
+
+/** Snap threshold — if distance exceeds this, snap immediately (teleport / first frame) */
+const SNAP_DISTANCE_THRESHOLD = 500;
+
+// ─── Controller ──────────────────────────────────────────────────
+
+export class SpectatorController implements ICameraController {
+  readonly type = 'spectator';
+
+  private camera: FreeCamera | null = null;
+  private scene: Scene | null = null;
+  private enabled: boolean = true;
+  private renderObserver: any = null;  // Babylon Observer handle
+
+  // Target tracking
+  private targetEntityId: string | null = null;
+  private targetProvider: SpectatorTargetProvider | null = null;
+
+  // Smoothed state
+  private smoothedPosition: Vector3 = Vector3.Zero();
+  private smoothedYaw: number = 0;
+  private smoothedPitch: number = 0;
+  private hasInitialPosition: boolean = false;
+
+  // Configuration
+  private config: CameraControllerConfig = {
+    smoothing: DEFAULT_SMOOTHING,
+  };
+
+  // ── ICameraController lifecycle ────────────────────────────────
+
+  attach(camera: Camera, _scene: Scene, _canvas: HTMLCanvasElement): void {
+
+    if (camera instanceof FreeCamera) {
+      this.camera = camera;
+    } else {
+      // Create a FreeCamera if one doesn't exist
+      this.camera = new FreeCamera('spectatorCamera', camera.position.clone(), _scene);
+    }
+
+    this.scene = _scene;
+
+    // Clear inputs — we control the camera entirely
+    this.camera.inputs.clear();
+
+    // Set as active camera
+    _scene.activeCamera = this.camera;
+
+    // Reset rotation quaternion (Euler angles only)
+    this.camera.rotationQuaternion = null;
+
+    // Reset smoothing state
+    this.hasInitialPosition = false;
+
+    // Register render loop — CameraSystem doesn't call update() for us
+    // Guard: onBeforeRenderObservable may not exist in test mocks
+    if (_scene.onBeforeRenderObservable) {
+      this.renderObserver = _scene.onBeforeRenderObservable.add(() => {
+        const dt = _scene.getEngine().getDeltaTime() / 1000;  // ms → seconds
+        this.update(dt);
+      });
+    }
+
+    console.log('[SpectatorController] Attached');
+  }
+
+  detach(): void {
+    // Remove render loop observer
+    if (this.renderObserver && this.scene) {
+      this.scene.onBeforeRenderObservable.remove(this.renderObserver);
+      this.renderObserver = null;
+    }
+    this.camera = null;
+    this.scene = null;
+    this.hasInitialPosition = false;
+    console.log('[SpectatorController] Detached');
+  }
+
+  update(deltaTime: number): void {
+    if (!this.enabled || !this.camera) return;
+
+    // Tick the network and render remote players (same as FreeflyController)
+    try {
+      const gameManager = Game.getInstance();
+      if (gameManager.isGameRunning()) {
+        gameManager.processSnapshots();
+        gameManager.renderRemotePlayers();
+      }
+    } catch (_e) {
+      // Ignore if not initialized yet
+    }
+
+    if (!this.targetEntityId || !this.targetProvider) {
+      return;
+    }
+
+    // Read target entity state from provider
+    const target = this.targetProvider(this.targetEntityId);
+    if (!target) {
+      // Target entity is gone — don't move camera
+      return;
+    }
+
+    // Calculate eye position (Q3 origin + eye height)
+    const eyeX = target.x;
+    const eyeY = target.y + EYE_HEIGHT_OFFSET;
+    const eyeZ = target.z;
+
+    if (!this.hasInitialPosition) {
+      // First frame — snap to target immediately
+      this.smoothedPosition.set(eyeX, eyeY, eyeZ);
+      this.smoothedYaw = target.yaw;
+      this.smoothedPitch = target.pitch;
+      this.hasInitialPosition = true;
+    } else {
+      // Calculate distance to determine snap vs smoothing
+      const dx = eyeX - this.smoothedPosition.x;
+      const dy = eyeY - this.smoothedPosition.y;
+      const dz = eyeZ - this.smoothedPosition.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      if (distance > SNAP_DISTANCE_THRESHOLD) {
+        // Teleport — snap immediately
+        this.smoothedPosition.set(eyeX, eyeY, eyeZ);
+        this.smoothedYaw = target.yaw;
+        this.smoothedPitch = target.pitch;
+      } else {
+        // Exponential interpolation for smooth following
+        const smoothing = this.config.smoothing ?? DEFAULT_SMOOTHING;
+        // Frame-rate independent smoothing: factor = 1 - (1 - s)^(dt * 60)
+        const factor = 1 - Math.pow(1 - smoothing, deltaTime * 60);
+
+        this.smoothedPosition.x += dx * factor;
+        this.smoothedPosition.y += dy * factor;
+        this.smoothedPosition.z += dz * factor;
+
+        // Smooth yaw (handle wrap-around)
+        let yawDiff = target.yaw - this.smoothedYaw;
+        if (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+        if (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+        this.smoothedYaw += yawDiff * factor;
+
+        // Smooth pitch (no wrap-around needed)
+        this.smoothedPitch += (target.pitch - this.smoothedPitch) * factor;
+      }
+    }
+
+    // Apply to camera
+    this.camera.position.set(
+      this.smoothedPosition.x,
+      this.smoothedPosition.y,
+      this.smoothedPosition.z,
+    );
+    this.camera.rotation.set(
+      this.smoothedPitch,
+      this.smoothedYaw,
+      0,  // No roll
+    );
+  }
+
+  configure(config: Partial<CameraControllerConfig>): void {
+    Object.assign(this.config, config);
+    // Clamp smoothing to [0, 1] — values > 1.0 produce NaN via Math.pow(negative, fractional)
+    if (this.config.smoothing !== undefined) {
+      this.config.smoothing = Math.max(0, Math.min(this.config.smoothing, 1));
+    }
+  }
+
+  getConfig(): CameraControllerConfig {
+    return { ...this.config };
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  dispose(): void {
+    this.detach();
+    this.targetEntityId = null;
+    this.targetProvider = null;
+    this.smoothedPosition = Vector3.Zero();
+    this.smoothedYaw = 0;
+    this.smoothedPitch = 0;
+  }
+
+  // ── Spectator-specific API ─────────────────────────────────────
+
+  /**
+   * Set the target provider callback.
+   * The provider resolves an entity ID to its current position/rotation.
+   */
+  setTargetProvider(provider: SpectatorTargetProvider): void {
+    this.targetProvider = provider;
+  }
+
+  /**
+   * Set the target entity to follow.
+   * Named setSpectateTarget to avoid conflict with ICameraController.setTarget(Vector3).
+   */
+  setSpectateTarget(entityId: string): void {
+    this.targetEntityId = entityId;
+    // Reset smoothing so first frame snaps to new target
+    this.hasInitialPosition = false;
+  }
+
+  /**
+   * Clear the target — camera stops following.
+   */
+  clearSpectateTarget(): void {
+    this.targetEntityId = null;
+    this.hasInitialPosition = false;
+  }
+
+  /**
+   * Get the ID of the currently followed entity.
+   */
+  getTargetEntityId(): string | null {
+    return this.targetEntityId;
+  }
+
+  /**
+   * Get the smoothed position (for external use, e.g. audio positioning).
+   */
+  getSmoothedPosition(): { x: number; y: number; z: number } {
+    return {
+      x: this.smoothedPosition.x,
+      y: this.smoothedPosition.y,
+      z: this.smoothedPosition.z,
+    };
+  }
+}

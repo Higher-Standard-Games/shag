@@ -320,4 +320,64 @@ export class DemoReader {
   static peekHeader(data: Uint8Array | ArrayBuffer): DemoHeader {
     return new DemoReader(data).readHeader();
   }
+
+  /**
+   * Async factory method for browser-compatible demo loading.
+   * Auto-detects gzip and decompresses using DecompressionStream (browser)
+   * or zlib (Node.js) before constructing the reader.
+   *
+   * Use this instead of `new DemoReader(data)` when in a browser environment
+   * and the demo file may be gzip-compressed.
+   */
+  static async fromFile(data: Uint8Array | ArrayBuffer): Promise<DemoReader> {
+    let raw = data instanceof Uint8Array ? data : new Uint8Array(data);
+
+    // Auto-detect gzip: magic bytes 0x1f 0x8b
+    if (raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b) {
+      raw = await DemoReader._decompressGzip(raw);
+    }
+
+    return new DemoReader(raw);
+  }
+
+  /**
+   * Decompress gzip data using browser DecompressionStream API or Node zlib.
+   * @internal
+   */
+  private static async _decompressGzip(data: Uint8Array): Promise<Uint8Array> {
+    // Try Node zlib first (faster, synchronous)
+    if (zlib) {
+      return new Uint8Array(zlib.gunzipSync(data));
+    }
+
+    // Browser: use DecompressionStream API
+    if (typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('gzip');
+      const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer]);
+      const reader = blob.stream().pipeThrough(ds).getReader();
+      const chunks: Uint8Array[] = [];
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+
+      // Concatenate all chunks
+      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return result;
+    }
+
+    throw new Error(
+      'DemoReader: gzip-compressed demo cannot be read — ' +
+      'neither Node zlib nor browser DecompressionStream available.',
+    );
+  }
 }

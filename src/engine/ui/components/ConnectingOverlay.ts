@@ -19,12 +19,15 @@ export class ConnectingOverlay {
    * Show the overlay and begin connecting to the given server URL.
    * The overlay stays visible until the map starts loading (lobby hides it),
    * or an error occurs.
+   *
+   * @param serverUrl - WebSocket URL of the game server
+   * @param asSpectator - If true, connect as spectator (autoJoin=false)
    */
-  async show(serverUrl: string = "ws://localhost:7777"): Promise<void> {
+  async show(serverUrl: string = "ws://localhost:7777", asSpectator: boolean = false): Promise<void> {
     // Don't double-show
     if (this.el) return;
 
-    this.el = this.build(serverUrl);
+    this.el = this.build(serverUrl, asSpectator);
 
     // Wait for fonts (Orbitron) to load before showing overlay
     // to prevent flash of unstyled text (FOUT)
@@ -52,8 +55,8 @@ export class ConnectingOverlay {
         return;
       }
 
-      await gameManager.initializeNetwork(serverUrl, { autoJoin: true });
-      this.setStatus("CONNECTED");
+      await gameManager.initializeNetwork(serverUrl, { autoJoin: !asSpectator, watchOnly: asSpectator });
+      this.setStatus(asSpectator ? "SPECTATING" : "CONNECTED");
 
       // The lobby hide + overlay cleanup happens when EventBus fires 'loading:start'
       // which triggers the lobby to hide — we clean up ourselves after a moment
@@ -84,7 +87,7 @@ export class ConnectingOverlay {
   /**
    * Build the overlay DOM.
    */
-  private build(serverUrl: string): HTMLElement {
+  private build(serverUrl: string, asSpectator: boolean = false): HTMLElement {
     const overlay = document.createElement("div");
     overlay.className = "connecting-overlay";
 
@@ -101,7 +104,7 @@ export class ConnectingOverlay {
     // Title
     const title = document.createElement("div");
     title.className = "connecting-overlay__title";
-    title.textContent = "GAME STARTING";
+    title.textContent = asSpectator ? "SPECTATING MATCH" : "GAME STARTING";
 
     // Status line
     const status = document.createElement("div");
