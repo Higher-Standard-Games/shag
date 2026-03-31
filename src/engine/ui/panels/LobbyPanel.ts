@@ -9,6 +9,8 @@
 
 import { LobbyClient } from "../../../lobby/LobbyClient";
 import type { DemoInfo, LiveMatchInfo, MatchLobbyInfo, PlayerInfo } from "../../../lobby/types";
+import { DemoService } from "../../../games/fps/client/DemoService";
+import { DurationPickerModal } from "../../../games/fps/client/DurationPickerModal";
 import { DebugConsole } from "../../debug/DebugConsole";
 import { MatchLobbyView } from "../components/MatchLobbyView";
 import matchLobbyCSSRaw from "../components/styles/MatchLobbyView.css?raw";
@@ -283,6 +285,9 @@ export class LobbyPanel extends GamePanel {
   private async initLobbyConnection(): Promise<void> {
     try {
       await this.lobbyClient.connect("ws://localhost:9000");
+
+      // Share lobby client with DemoService so console `demolist` command works
+      DemoService.getInstance().setLobbyClient(this.lobbyClient);
 
       // Generate a player name (later: from profile/login)
       const name = `player_${Math.random().toString(36).slice(2, 6)}`;
@@ -843,6 +848,20 @@ export class LobbyPanel extends GamePanel {
                 font-family: var(--w-font-display, 'Orbitron', sans-serif);
             }
             .lobby__demo-card-btn:hover { background: rgba(255,180,60,0.25); }
+            .lobby__demo-card-btn--highlight {
+                background: rgba(255,180,60,0.05); color: rgba(255,200,60,0.8);
+                border-top: 1px solid rgba(255,180,60,0.12);
+            }
+            .lobby__demo-card-btn--highlight:hover { background: rgba(255,180,60,0.2); }
+            .lobby__demo-card-btn-row {
+                display: flex; border-top: 1px solid rgba(255,255,255,0.06);
+            }
+            .lobby__demo-card-btn-row .lobby__demo-card-btn {
+                flex: 1; border-top: none; border-radius: 0;
+            }
+            .lobby__demo-card-btn-row .lobby__demo-card-btn + .lobby__demo-card-btn {
+                border-left: 1px solid rgba(255,255,255,0.06);
+            }
             .lobby__match--demo { border-left: 2px solid rgba(255,180,60,0.3); }
             .lobby__match-demo-label { color: rgba(255,180,60,0.9); font-weight: 700; font-size: 10px; letter-spacing: 0.05em; }
             .lobby__watch-btn--demo { background: rgba(255,180,60,0.15) !important; color: rgba(255,180,60,0.9) !important; }
@@ -956,18 +975,41 @@ export class LobbyPanel extends GamePanel {
 
       card.appendChild(body);
 
-      // View button
-      const btn = document.createElement("button");
-      btn.className = "lobby__demo-card-btn";
-      btn.textContent = "▶ VIEW DEMO";
-      btn.addEventListener("click", (e) => {
+      // Button row: ▶ PLAY DEMO  |  ⚡ HIGHLIGHTS
+      const btnRow = document.createElement("div");
+      btnRow.className = "lobby__demo-card-btn-row";
+
+      const playBtn = document.createElement("button");
+      playBtn.className = "lobby__demo-card-btn";
+      playBtn.textContent = "▶ PLAY";
+      playBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        const link = document.createElement("a");
-        link.href = `/data/demos/${d.filename}`;
-        link.download = d.filename;
-        link.click();
+        try {
+          await DemoService.getInstance().fetchAndLoad(d.filename);
+          window.dispatchEvent(new CustomEvent("demoplay:start", { detail: { filename: d.filename } }));
+        } catch (err) {
+          console.error("[LobbyPanel] Failed to load demo:", err);
+        }
       });
-      card.appendChild(btn);
+      btnRow.appendChild(playBtn);
+
+      const highlightBtn = document.createElement("button");
+      highlightBtn.className = "lobby__demo-card-btn lobby__demo-card-btn--highlight";
+      highlightBtn.textContent = "⚡ HIGHLIGHTS";
+      highlightBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        DurationPickerModal.show(async (minutes) => {
+          try {
+            await DemoService.getInstance().fetchAndLoad(d.filename);
+            window.dispatchEvent(new CustomEvent("demoplay:cinematic", { detail: { filename: d.filename, minutes } }));
+          } catch (err) {
+            console.error("[LobbyPanel] Failed to load demo for highlights:", err);
+          }
+        });
+      });
+      btnRow.appendChild(highlightBtn);
+
+      card.appendChild(btnRow);
 
       this.demosGridEl.appendChild(card);
     }
