@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "type": "code",
+  "title": "Investigate and implement a focused code change",
+  "goal": "Describe the change, expected behavior, and constraints.",
+  "risk": "medium",
+  "target": {
+    "kind": "files",
+    "files": [
+      "src/example.ts"
+    ]
+  },
+  "constraints": [
+    "Keep scope narrow",
+    "List validation steps"
+  ]
+}

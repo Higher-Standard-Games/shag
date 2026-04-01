@@ -51,6 +51,36 @@ npm run build
 npm run docs:api
 ```
 
+## AI Agent Research Workflow
+
+The repo now includes a small local multi-agent orchestrator for document analysis. The default path is optimized for low-cost usage:
+
+- `gemini` goes first when available, with `opencode` and `claude` as fallback workers
+- `codex` synthesizes the final result
+- outputs are written under `.agent/runs/`
+- provider/account failures are cached in `.agent/agent-health.json` so unhealthy agents are skipped automatically
+
+Single-document workflow:
+
+```powershell
+npm run dev:research:agents-list
+npm run dev:research:wizard
+```
+
+Direct command workflow:
+
+```powershell
+npm run dev:research:doc --doc=docs/research/DEMO_PLAYER.md --goal="Summarize implementation risks and next steps"
+```
+
+Dry run without calling models:
+
+```powershell
+npm run dev:research:doc --doc=docs/research/DEMO_PLAYER.md --goal="Summarize implementation risks and next steps" --dry-run=true
+```
+
+Use `--risk=high` if you want the default policy to favor a stronger synthesis/review path.
+
 ## Server Architecture
 
 SHAG Engine includes a complete dedicated server stack for multiplayer FPS gameplay.

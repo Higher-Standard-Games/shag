@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "type": "research",
+  "title": "Summarize a research document",
+  "goal": "Extract the highest-signal ideas, implementation implications, and next steps.",
+  "risk": "medium",
+  "target": {
+    "kind": "document",
+    "path": "docs/research/index.md"
+  }
+}

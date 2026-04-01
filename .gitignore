@@ -33,6 +33,7 @@ npm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+.agent/
 
 # NetRadiant Editor (exclude all except our gamepack)
 editor/*

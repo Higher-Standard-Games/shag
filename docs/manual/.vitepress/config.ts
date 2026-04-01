@@ -114,6 +114,7 @@ export default defineConfig({
           text: 'Tools',
           items: [
             { text: 'Overview', link: '/tools/' },
+            { text: 'Agent Orchestration', link: '/tools/agent-orchestration' },
             { text: 'Headless Game', link: '/tools/headless-game' },
             { text: 'Headless BSP', link: '/tools/headless-bsp' }
           ]

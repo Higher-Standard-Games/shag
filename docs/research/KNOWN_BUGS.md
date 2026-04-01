@@ -4,8 +4,8 @@ This document tracks known issues with the multiplayer networking and spawn syst
 
 ## 🔴 Critical: Player Stuck in Walls on Network Spawn
 
-**Status:** Unresolved  
-**Severity:** Critical  
+**Status:** Partially fixed — needs live repro  
+**Severity:** Critical (if still occurs)  
 **First Observed:** v0.9.0 development  
 **Affected:** Multiplayer mode (dedicated server)
 
@@ -23,20 +23,28 @@ This document tracks known issues with the multiplayer networking and spawn syst
 3. **Client receives position**: V2NetworkClient receives and processes first snapshot correctly
 4. **Reconciliation passes**: `[Reconcile] Error: 0.0 units` confirms client-server sync
 
-### Suspected Causes
+### Fixes Since Last Assessment
 
-1. **Client-side collision different from server**: Despite using same `FPSMovementProfile`, client BSP collision may interpret geometry differently
-2. **Spawn point inside brush**: Some spawn points may be too close to walls/floors
-3. **Timing issue**: Player physics may run before collision world is fully injected
-4. **Patch collision variance**: Curve/patch surfaces may have different tessellation client vs server
-
-### Fixes Attempted
-
-| Fix | Result |
+| Fix | Source |
 |-----|--------|
-| Wait for server position before FPSController init | ✅ Prevented re-initialization bug, but stuck issue persists |
-| Floor trace at spawn to adjust Y | ✅ Correct Y-level, doesn't fix stuck |
-| Inject BSP collision into client prediction | ✅ Collision works, but still stuck |
+| `V2NetworkClient.resetForRespawn()` — clears all death-period state (input history, skip counters, visual offset) | `V2NetworkClient.ts:492-525` |
+| `V2NetworkClient.forceTeleport()` — snaps camera on next snapshot (respawn/teleport) | `V2NetworkClient.ts:472-478` |
+| `SharedCollisionWorld` — single shared implementation for client and server (eliminates physics divergence) | `SharedCollisionWorld.ts` |
+| Reconciliation skip during ledge grab / walljump (prevents correction-induced jitter) | `V2NetworkClient.ts:284-308` |
+| `FPSController` waits for server position before physics init | `FPSController.ts:735-751` |
+
+### Remaining Risk: Async Collision Injection Timing
+
+The most plausible remaining cause is a race between collision world injection and the first physics tick:
+
+- `FPSController.ts:828-838` injects BSP collision via `initializeLocal().then(...)` — this is async
+- `V2NetworkClient.setCollisionWorld()` (line 157) can be called after the client has already started processing inputs
+- If the first few ticks run with `collision = null`, the player moves in no-collision mode, then collision appears mid-frame and the player is inside geometry
+
+### Unverified Hypotheses
+
+- **Spawn point inside brush** — spawn points may be too close to walls/floors. The ledge grab code now does a full hull clearance check (`LedgeGrab.ts:228-234`), but spawn point selection does not.
+- **Patch collision variance** — curve/patch tessellation could differ between client and server if the `SweepCollisionBackend` handles patches differently on each side.
 
 ### Workarounds
 
@@ -45,18 +53,19 @@ This document tracks known issues with the multiplayer networking and spawn syst
 
 ### Related Files
 
-- `src/engine/camera/controllers/FPSController.ts` - Client movement controller
-- `src/games/fps/client/V2NetworkClient.ts` - Client prediction
-- `src/games/fps/simulation/FPSMovementProfile.ts` - Shared movement physics
-- `src/cli/headless-netserver-v2.ts` - Dedicated server
+- `src/engine/camera/controllers/FPSController.ts` — Client movement controller
+- `src/games/fps/client/V2NetworkClient.ts` — Client prediction
+- `src/games/fps/simulation/MovementProfile.ts` — Shared movement physics
+- `src/shared/collision/SharedCollisionWorld.ts` — Shared collision (client + server)
+- `src/cli/headless-netserver-v2.ts` — Dedicated server
 
 ---
 
-## 🟡 Medium: FPSController Re-initialization on Pointer Lock
+## ~~🟡 Medium: FPSController Re-initialization on Pointer Lock~~
 
-**Status:** Fixed  
-**Severity:** Medium  
-**Fixed In:** v0.9.0 (commit pending)
+**Status:** ✅ Fixed (verified in source)  
+**Severity:** Was Medium  
+**Fixed In:** v0.9.0
 
 ### Issue
 
@@ -64,7 +73,7 @@ When mouse pointer was captured (click to play), FPSController would re-initiali
 
 ### Fix
 
-Modified `FPSController.ts` to wait for `V2NetworkClient.hasValidPosition()` before initializing in network mode.
+`FPSController.ts:735-751` — `smoothingInitialized` guard calls `gameManager.processSnapshots()` then `gameManager.getLocalPlayerPosition()` before setting physics position. If server position is not yet available, the frame returns early without initializing. In local mode, camera position is still used (acceptable).
 
 ---
 
