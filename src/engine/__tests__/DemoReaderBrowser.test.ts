@@ -22,13 +22,13 @@ function createMinimalDemo(): Uint8Array {
   // Version: 1
   parts.push(1);
 
-  // Map name: "test" (uint16 len + bytes)
+  // Map name: "test" (uint16 LE len + bytes)
   const mapBytes = new TextEncoder().encode('test');
-  parts.push(0, mapBytes.length, ...mapBytes);
+  parts.push(mapBytes.length, 0, ...mapBytes);
 
   // Gametype: "duel"
   const gtBytes = new TextEncoder().encode('duel');
-  parts.push(0, gtBytes.length, ...gtBytes);
+  parts.push(gtBytes.length, 0, ...gtBytes);
 
   // Tick rate: 60
   parts.push(60);
@@ -48,11 +48,11 @@ function createMinimalDemo(): Uint8Array {
   const indexOffset = parts.length;
   parts.push(0, 0, 0, 0); // frameCount = 0
 
-  // Footer: durationMs (uint32) + indexOffset (uint32)
+  // Footer: durationMs (uint32 LE) + indexOffset (uint32 LE)
   const durationMs = 0;
   const footer = new DataView(new ArrayBuffer(8));
-  footer.setUint32(0, durationMs);
-  footer.setUint32(4, indexOffset);
+  footer.setUint32(0, durationMs, true);
+  footer.setUint32(4, indexOffset, true);
   for (let i = 0; i < 8; i++) {
     parts.push(new Uint8Array(footer.buffer)[i]);
   }

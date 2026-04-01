@@ -136,9 +136,9 @@ export class DemoReader {
     offset += 1;
 
     // Start timestamp (uint32 high + uint32 low → 64-bit)
-    const tsHigh = view.getUint32(offset);
+    const tsHigh = view.getUint32(offset, true);
     offset += 4;
-    const tsLow = view.getUint32(offset);
+    const tsLow = view.getUint32(offset, true);
     offset += 4;
     const startTime = tsHigh * 0x100000000 + tsLow;
 
@@ -175,8 +175,8 @@ export class DemoReader {
     const fileLen = this._data.byteLength;
 
     // Footer is last 8 bytes: durationMs (uint32) + indexOffset (uint32)
-    const indexOffset = view.getUint32(fileLen - 4);
-    const durationMs = view.getUint32(fileLen - 8);
+    const indexOffset = view.getUint32(fileLen - 4, true);
+    const durationMs = view.getUint32(fileLen - 8, true);
 
     // Validate indexOffset is within file bounds
     if (indexOffset >= fileLen - 8 || indexOffset < 0) {
@@ -185,14 +185,14 @@ export class DemoReader {
 
     // Read index table at indexOffset
     let offset = indexOffset;
-    const frameCount = view.getUint32(offset);
+    const frameCount = view.getUint32(offset, true);
     offset += 4;
 
     const entries: Array<{ tick: number; offset: number }> = [];
     for (let i = 0; i < frameCount; i++) {
-      const tick = view.getUint32(offset);
+      const tick = view.getUint32(offset, true);
       offset += 4;
-      const byteOffset = view.getUint32(offset);
+      const byteOffset = view.getUint32(offset, true);
       offset += 4;
       entries.push({ tick, offset: byteOffset });
     }
@@ -279,11 +279,11 @@ export class DemoReader {
     let offset = byteOffset;
 
     // Read tick
-    const tick = view.getUint32(offset);
+    const tick = view.getUint32(offset, true);
     offset += 4;
 
     // Read frame length
-    const frameLen = view.getUint32(offset);
+    const frameLen = view.getUint32(offset, true);
     offset += 4;
 
     // Extract frame data
@@ -305,7 +305,7 @@ export class DemoReader {
    */
   private _readString(offset: number): [string, number] {
     const view = new DataView(this._data.buffer, this._data.byteOffset, this._data.byteLength);
-    const strLen = view.getUint16(offset);
+    const strLen = view.getUint16(offset, true);
     offset += 2;
     const bytes = this._data.slice(offset, offset + strLen);
     const decoder = new TextDecoder();
