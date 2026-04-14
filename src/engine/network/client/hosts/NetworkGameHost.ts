@@ -37,7 +37,7 @@ import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
 import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
-import { type GameEvent, type GameState } from "../../core/GameState";
+import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 import { MessageCodec, MessageType } from "../../protocol/MessageCodec";
@@ -47,9 +47,20 @@ import { SmoothCorrection } from "../SmoothCorrection";
 import type { Transport } from "../transport/Transport";
 
 // Component shapes for typed access
-interface Vec3 { x: number; y: number; z: number }
-interface TransformShape { position: Vec3; rotation?: { x: number; y: number; z: number; w: number } }
-interface MovementStateShape { ledgeGrabState?: string; isCrouching?: boolean; isSliding?: boolean }
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+interface TransformShape {
+  position: Vec3;
+  rotation?: { x: number; y: number; z: number; w: number };
+}
+interface MovementStateShape {
+  ledgeGrabState?: string;
+  isCrouching?: boolean;
+  isSliding?: boolean;
+}
 
 /** Duck-type for simulations that support player spawning */
 interface SpawnableSimulation {
@@ -60,8 +71,6 @@ interface SpawnableSimulation {
 interface CollisionCapableSimulation {
   setCollisionWorld(collision: unknown): void;
 }
-
-
 
 // SmoothCorrection and InterpolationBuffer are extracted into their own modules
 // for testability. See ../SmoothCorrection.ts and ../InterpolationBuffer.ts
@@ -655,7 +664,8 @@ export class NetworkGameHost implements IGameHost {
     const serverTransform = serverEntity.getComponent("transform") as unknown as TransformShape | undefined;
 
     const localPos = localTransform?.position || (localEntity.getComponent("position") as unknown as Vec3 | undefined);
-    const serverPos = serverTransform?.position || (serverEntity.getComponent("position") as unknown as Vec3 | undefined);
+    const serverPos =
+      serverTransform?.position || (serverEntity.getComponent("position") as unknown as Vec3 | undefined);
 
     if (!localPos || !serverPos) return;
 

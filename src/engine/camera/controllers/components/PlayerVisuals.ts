@@ -240,7 +240,9 @@ export class PlayerVisuals {
       if (this.debugInstance) {
         this.debugInstance.anchor.setEnabled(false);
         this.debugInstance.mesh.isVisible = false;
-        this.debugInstance.mesh.getChildMeshes().forEach((m) => { m.isVisible = false; });
+        this.debugInstance.mesh.getChildMeshes().forEach((m) => {
+          m.isVisible = false;
+        });
       }
       return;
     }
@@ -308,7 +310,9 @@ export class PlayerVisuals {
 
     // Make visible
     inst.mesh.isVisible = true;
-    inst.mesh.getChildMeshes().forEach((m) => { m.isVisible = true; });
+    inst.mesh.getChildMeshes().forEach((m) => {
+      m.isVisible = true;
+    });
 
     // Determine animation from movement state
     const derivedAnim = this.deriveAnimationState();

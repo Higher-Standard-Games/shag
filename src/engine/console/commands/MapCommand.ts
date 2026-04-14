@@ -24,7 +24,7 @@ export default class MapCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get camera system and scene
-    let cameraSystem = undefined;
+    let cameraSystem;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

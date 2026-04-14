@@ -56,7 +56,9 @@ async function runTest() {
   console.log(`  After debugBox.computeWorldMatrix: debugBox world Y = ${debugBox.getAbsolutePosition().y}`);
 
   // Try getChildMeshes approach
-  pickup.getChildMeshes().forEach((m) => { m.computeWorldMatrix(true); });
+  pickup.getChildMeshes().forEach((m) => {
+    m.computeWorldMatrix(true);
+  });
   console.log(`  After getChildMeshes().computeWorldMatrix: debugBox world Y = ${debugBox.getAbsolutePosition().y}`);
 
   // Step 4: Check what getAbsolutePosition actually returns

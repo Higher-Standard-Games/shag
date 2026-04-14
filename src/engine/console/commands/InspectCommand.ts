@@ -14,8 +14,8 @@ export default class InspectCommand extends Command {
 
   async execute(): Promise<string | undefined> {
     // Get scene and camera
-    let scene = undefined;
-    let camera = undefined;
+    let scene;
+    let camera;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       camera = CameraSystem.getInstance().getCamera();

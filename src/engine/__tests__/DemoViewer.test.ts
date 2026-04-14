@@ -1,28 +1,28 @@
 /**
  * DemoViewer tests — In-browser demo playback controller
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DemoViewer, type DemoViewerState } from '../../games/fps/client/DemoViewer';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DemoViewer, type DemoViewerState } from "../../games/fps/client/DemoViewer";
 
 // ─── Mock DemoReader ─────────────────────────────────────────────
 
 const mockHeader = {
   version: 1,
-  map: 'wdm2',
-  gametype: 'duel',
+  map: "wdm2",
+  gametype: "duel",
   tickRate: 60,
   snapshotRate: 20,
   startTime: Date.now(),
   players: [
-    { playerId: 'p1', name: 'Alice', team: '' },
-    { playerId: 'p2', name: 'Bob', team: '' },
+    { playerId: "p1", name: "Alice", team: "" },
+    { playerId: "p2", name: "Bob", team: "" },
   ],
 };
 
 const mockIndex = {
   frameCount: 100,
   entries: Array.from({ length: 100 }, (_, i) => ({
-    tick: i * 3,  // 60Hz / 20Hz = 3 ticks per snapshot
+    tick: i * 3, // 60Hz / 20Hz = 3 ticks per snapshot
     offset: 100 + i * 50,
   })),
   durationMs: 5000,
@@ -38,7 +38,7 @@ const mockFrame = (tick: number) => ({
   },
 });
 
-vi.mock('../../shared/demo/DemoReader', () => ({
+vi.mock("../../shared/demo/DemoReader", () => ({
   DemoReader: {
     fromFile: vi.fn(async () => ({
       readHeader: () => mockHeader,
@@ -50,14 +50,14 @@ vi.mock('../../shared/demo/DemoReader', () => ({
         }
         return mockIndex.entries.length - 1;
       },
-      getSummary: () => 'wdm2 (duel) — 5.0s, 100 frames — Players: Alice, Bob',
+      getSummary: () => "wdm2 (duel) — 5.0s, 100 frames — Players: Alice, Bob",
     })),
   },
 }));
 
 // ─── Tests ───────────────────────────────────────────────────────
 
-describe('DemoViewer', () => {
+describe("DemoViewer", () => {
   let viewer: DemoViewer;
 
   beforeEach(() => {
@@ -66,51 +66,51 @@ describe('DemoViewer', () => {
 
   // ── Loading ───────────────────────────────────────────────────
 
-  it('starts in idle state', () => {
-    expect(viewer.getState()).toBe('idle');
+  it("starts in idle state", () => {
+    expect(viewer.getState()).toBe("idle");
     expect(viewer.isLoaded()).toBe(false);
   });
 
-  it('loads a demo file', async () => {
+  it("loads a demo file", async () => {
     await viewer.load(new Uint8Array(10));
     expect(viewer.isLoaded()).toBe(true);
-    expect(viewer.getState()).toBe('loaded');
+    expect(viewer.getState()).toBe("loaded");
   });
 
-  it('exposes header after loading', async () => {
+  it("exposes header after loading", async () => {
     await viewer.load(new Uint8Array(10));
     expect(viewer.getHeader()).toEqual(mockHeader);
   });
 
-  it('reports total frames after loading', async () => {
+  it("reports total frames after loading", async () => {
     await viewer.load(new Uint8Array(10));
     expect(viewer.getTotalFrames()).toBe(100);
   });
 
   // ── Playback ──────────────────────────────────────────────────
 
-  it('transitions to playing on play()', async () => {
+  it("transitions to playing on play()", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
-    expect(viewer.getState()).toBe('playing');
+    expect(viewer.getState()).toBe("playing");
   });
 
-  it('pauses playback', async () => {
+  it("pauses playback", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
     viewer.pause();
-    expect(viewer.getState()).toBe('paused');
+    expect(viewer.getState()).toBe("paused");
   });
 
-  it('toggles play/pause', async () => {
+  it("toggles play/pause", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.togglePlayPause();
-    expect(viewer.getState()).toBe('playing');
+    expect(viewer.getState()).toBe("playing");
     viewer.togglePlayPause();
-    expect(viewer.getState()).toBe('paused');
+    expect(viewer.getState()).toBe("paused");
   });
 
-  it('advances frames at snapshot rate', async () => {
+  it("advances frames at snapshot rate", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
 
@@ -119,7 +119,7 @@ describe('DemoViewer', () => {
     expect(viewer.getCurrentFrame()).toBe(1);
   });
 
-  it('advances multiple frames when enough time passes', async () => {
+  it("advances multiple frames when enough time passes", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
 
@@ -127,7 +127,7 @@ describe('DemoViewer', () => {
     expect(viewer.getCurrentFrame()).toBe(3);
   });
 
-  it('ends at last frame', async () => {
+  it("ends at last frame", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
 
@@ -135,11 +135,11 @@ describe('DemoViewer', () => {
     viewer.seekToFrame(98);
     viewer.play();
     viewer.update(200); // Should trigger 'ended'
-    expect(viewer.getState()).toBe('ended');
+    expect(viewer.getState()).toBe("ended");
     expect(viewer.getCurrentFrame()).toBe(99); // Last frame (0-based)
   });
 
-  it('does not advance when paused', async () => {
+  it("does not advance when paused", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
     viewer.pause();
@@ -150,7 +150,7 @@ describe('DemoViewer', () => {
 
   // ── Speed ─────────────────────────────────────────────────────
 
-  it('applies speed multiplier', async () => {
+  it("applies speed multiplier", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.setSpeed(2.0);
     viewer.play();
@@ -159,7 +159,7 @@ describe('DemoViewer', () => {
     expect(viewer.getCurrentFrame()).toBe(2);
   });
 
-  it('cycles through speed options', async () => {
+  it("cycles through speed options", async () => {
     await viewer.load(new Uint8Array(10));
     expect(viewer.getSpeed()).toBe(1.0);
 
@@ -175,13 +175,13 @@ describe('DemoViewer', () => {
 
   // ── Seeking ───────────────────────────────────────────────────
 
-  it('seeks to specific frame', async () => {
+  it("seeks to specific frame", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToFrame(50);
     expect(viewer.getCurrentFrame()).toBe(50);
   });
 
-  it('clamps seek to valid range', async () => {
+  it("clamps seek to valid range", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToFrame(-5);
     expect(viewer.getCurrentFrame()).toBe(0);
@@ -190,14 +190,14 @@ describe('DemoViewer', () => {
     expect(viewer.getCurrentFrame()).toBe(99);
   });
 
-  it('seeks by progress (0.0 – 1.0)', async () => {
+  it("seeks by progress (0.0 – 1.0)", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToProgress(0.5);
     // 0.5 * 99 = 50 (rounded)
     expect(viewer.getCurrentFrame()).toBe(50);
   });
 
-  it('seeks to start and end', async () => {
+  it("seeks to start and end", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToProgress(1.0);
     expect(viewer.getCurrentFrame()).toBe(99);
@@ -206,21 +206,21 @@ describe('DemoViewer', () => {
     expect(viewer.getCurrentFrame()).toBe(0);
   });
 
-  it('seeking from ended state transitions to paused', async () => {
+  it("seeking from ended state transitions to paused", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
     viewer.seekToFrame(98);
     viewer.play();
     viewer.update(200);
-    expect(viewer.getState()).toBe('ended');
+    expect(viewer.getState()).toBe("ended");
 
     viewer.seekToFrame(50);
-    expect(viewer.getState()).toBe('paused');
+    expect(viewer.getState()).toBe("paused");
   });
 
   // ── Frame delivery ────────────────────────────────────────────
 
-  it('delivers frames via callback', async () => {
+  it("delivers frames via callback", async () => {
     await viewer.load(new Uint8Array(10));
 
     const frames: number[] = [];
@@ -236,7 +236,7 @@ describe('DemoViewer', () => {
     expect(frames.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('delivers frame on seek', async () => {
+  it("delivers frame on seek", async () => {
     await viewer.load(new Uint8Array(10));
 
     const frames: number[] = [];
@@ -251,7 +251,7 @@ describe('DemoViewer', () => {
 
   // ── State callbacks ───────────────────────────────────────────
 
-  it('notifies on state changes', async () => {
+  it("notifies on state changes", async () => {
     const states: DemoViewerState[] = [];
     viewer.onStateChange((s) => states.push(s));
 
@@ -259,24 +259,24 @@ describe('DemoViewer', () => {
     viewer.play();
     viewer.pause();
 
-    expect(states).toEqual(['loaded', 'playing', 'paused']);
+    expect(states).toEqual(["loaded", "playing", "paused"]);
   });
 
   // ── Info ───────────────────────────────────────────────────────
 
-  it('returns complete viewer info', async () => {
+  it("returns complete viewer info", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToFrame(50);
 
     const info = viewer.getInfo();
-    expect(info.state).toBe('loaded');
+    expect(info.state).toBe("loaded");
     expect(info.currentFrame).toBe(50);
     expect(info.totalFrames).toBe(100);
     expect(info.durationMs).toBe(5000);
     expect(info.playbackSpeed).toBe(1.0);
   });
 
-  it('returns progress', async () => {
+  it("returns progress", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.seekToFrame(0);
     expect(viewer.getProgress()).toBe(0);
@@ -290,25 +290,25 @@ describe('DemoViewer', () => {
 
   // ── Cleanup ───────────────────────────────────────────────────
 
-  it('disposes cleanly', async () => {
+  it("disposes cleanly", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.dispose();
-    expect(viewer.getState()).toBe('idle');
+    expect(viewer.getState()).toBe("idle");
     expect(viewer.isLoaded()).toBe(false);
   });
 
   // ── Play from ended ───────────────────────────────────────────
 
-  it('restarts from beginning when playing from ended state', async () => {
+  it("restarts from beginning when playing from ended state", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
     viewer.seekToFrame(98);
     viewer.play();
     viewer.update(200);
-    expect(viewer.getState()).toBe('ended');
+    expect(viewer.getState()).toBe("ended");
 
     viewer.play();
-    expect(viewer.getState()).toBe('playing');
+    expect(viewer.getState()).toBe("playing");
     expect(viewer.getCurrentFrame()).toBe(0);
   });
 });

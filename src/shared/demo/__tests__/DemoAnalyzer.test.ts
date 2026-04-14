@@ -9,8 +9,8 @@
 import { describe, expect, it } from "vitest";
 import { Entity } from "../../../engine/network/core/Entity";
 import { GameState } from "../../../engine/network/core/GameState";
-import type { DemoFrame, DemoHeader } from "../DemoReader";
 import { DemoAnalyzer } from "../DemoAnalyzer";
+import type { DemoFrame, DemoHeader } from "../DemoReader";
 
 // ── Component stubs ──────────────────────────────────────────────────────────
 
@@ -107,11 +107,7 @@ function makeHeader(
 /**
  * Build a DemoFrame with the given tick, events, and entities.
  */
-function makeFrame(
-  tick: number,
-  events: Array<Record<string, unknown>> = [],
-  entities: Entity[] = [],
-): DemoFrame {
+function makeFrame(tick: number, events: Array<Record<string, unknown>> = [], entities: Entity[] = []): DemoFrame {
   const state = new GameState();
   state.tick = tick;
   state.events = events as GameState["events"];
@@ -151,11 +147,7 @@ function deathEvent(
   };
 }
 
-function awardEvent(
-  playerId: string,
-  awardType: string,
-  playerName = "killer",
-): Record<string, unknown> {
+function awardEvent(playerId: string, awardType: string, playerName = "killer"): Record<string, unknown> {
   return {
     type: "award",
     awardType,
@@ -183,13 +175,7 @@ describe("DemoAnalyzer", () => {
     it("produces exactly 1 highlight with base score 10", () => {
       // Killer at origin, victim at x=500 — neutral distance (>150, <1500)
       const killer = makeEntity("player_k1", { grounded: true, posX: 0, posY: 0, posZ: 0 });
-      const frames = [
-        makeFrame(
-          100,
-          [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })],
-          [killer],
-        ),
-      ];
+      const frames = [makeFrame(100, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer])];
       const header = makeHeader([
         { playerId: "k1", name: "Killer" },
         { playerId: "v1", name: "Victim" },
@@ -209,9 +195,7 @@ describe("DemoAnalyzer", () => {
 
     it("stores killerPos from transform component", () => {
       const killer = makeEntity("player_k1", { grounded: true, posX: 50, posY: 10, posZ: 30 });
-      const frames = [
-        makeFrame(100, [deathEvent("player_k1", "player_v1", { x: 50, y: 10, z: 30 })], [killer]),
-      ];
+      const frames = [makeFrame(100, [deathEvent("player_k1", "player_v1", { x: 50, y: 10, z: 30 })], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 1000);
       const h = result.highlights[0];
@@ -224,9 +208,7 @@ describe("DemoAnalyzer", () => {
     it("tags as 'airborne' when killer is not grounded and velY <= 150", () => {
       // Killer at origin, victim at x=500 (neutral distance)
       const killer = makeEntity("player_k1", { grounded: false, velY: 50, posX: 0, posY: 0, posZ: 0 });
-      const frames = [
-        makeFrame(200, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer]),
-      ];
+      const frames = [makeFrame(200, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
 
@@ -243,9 +225,7 @@ describe("DemoAnalyzer", () => {
     it("tags as 'rocket_jump' when airborne AND velY > 150, score ×1.8 not ×1.5", () => {
       // Killer at origin, victim at x=500 (neutral distance)
       const killer = makeEntity("player_k1", { grounded: false, velY: 200, posX: 0, posY: 0, posZ: 0 });
-      const frames = [
-        makeFrame(300, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer]),
-      ];
+      const frames = [makeFrame(300, [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 })], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
 
@@ -298,9 +278,7 @@ describe("DemoAnalyzer", () => {
       const result = analyzer.analyze(frames, header, 20000);
 
       // Should produce 2 separate highlights (unless they overlap after context expansion)
-      const killerHighlights = result.highlights.filter(
-        (h) => h.primaryPlayer === "player_k1",
-      );
+      const killerHighlights = result.highlights.filter((h) => h.primaryPlayer === "player_k1");
       // Both frags belong to same player but are far apart — should produce 2
       // (context windows: 3s leadin+2s followthrough = 100 ticks total at 20Hz)
       // At 20Hz, 3s = 60 ticks leadin, 2s = 40 followthrough
@@ -332,10 +310,7 @@ describe("DemoAnalyzer", () => {
       const frames = [
         makeFrame(
           50,
-          [
-            deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 }),
-            awardEvent("k1", "first_blood", "Killer"),
-          ],
+          [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 }), awardEvent("k1", "first_blood", "Killer")],
           [killer],
         ),
       ];
@@ -367,16 +342,8 @@ describe("DemoAnalyzer", () => {
       const killerB = makeEntity("player_b", { grounded: false, velY: 200, posX: 0, posY: 0, posZ: 0 });
 
       const frames = [
-        makeFrame(
-          100,
-          [deathEvent("player_a", "player_v1", { x: 500, y: 0, z: 0 })],
-          [killerA],
-        ),
-        makeFrame(
-          120,
-          [deathEvent("player_b", "player_v2", { x: 500, y: 0, z: 0 })],
-          [killerB],
-        ),
+        makeFrame(100, [deathEvent("player_a", "player_v1", { x: 500, y: 0, z: 0 })], [killerA]),
+        makeFrame(120, [deathEvent("player_b", "player_v2", { x: 500, y: 0, z: 0 })], [killerB]),
       ];
 
       const header = makeHeader([
@@ -423,15 +390,13 @@ describe("DemoAnalyzer", () => {
     it("tags long_range when distance > 1500", () => {
       const killer = makeEntity("player_k1", {
         grounded: true,
-        posX: 0, posY: 0, posZ: 0,
+        posX: 0,
+        posY: 0,
+        posZ: 0,
       });
       const frames = [
         // victim is 2000 units away on X axis
-        makeFrame(
-          100,
-          [deathEvent("player_k1", "player_v1", { x: 2000, y: 0, z: 0 })],
-          [killer],
-        ),
+        makeFrame(100, [deathEvent("player_k1", "player_v1", { x: 2000, y: 0, z: 0 })], [killer]),
       ];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
@@ -441,15 +406,13 @@ describe("DemoAnalyzer", () => {
     it("tags close_range when distance < 150", () => {
       const killer = makeEntity("player_k1", {
         grounded: true,
-        posX: 0, posY: 0, posZ: 0,
+        posX: 0,
+        posY: 0,
+        posZ: 0,
       });
       const frames = [
         // victim is 100 units away
-        makeFrame(
-          100,
-          [deathEvent("player_k1", "player_v1", { x: 100, y: 0, z: 0 })],
-          [killer],
-        ),
+        makeFrame(100, [deathEvent("player_k1", "player_v1", { x: 100, y: 0, z: 0 })], [killer]),
       ];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 5000);
@@ -500,9 +463,7 @@ describe("DemoAnalyzer", () => {
   describe("self-kill / suicide", () => {
     it("does not create a highlight for self-kills (killerId === victimId)", () => {
       const player = makeEntity("player_p1", { grounded: true });
-      const frames = [
-        makeFrame(100, [deathEvent("player_p1", "player_p1")], [player]),
-      ];
+      const frames = [makeFrame(100, [deathEvent("player_p1", "player_p1")], [player])];
       const header = makeHeader([{ playerId: "p1", name: "P" }]);
       const result = analyzer.analyze(frames, header, 5000);
       expect(result.highlights).toHaveLength(0);
@@ -512,10 +473,7 @@ describe("DemoAnalyzer", () => {
   describe("context window clamping", () => {
     it("clamps startTick to firstTick when frag is near start", () => {
       const killer = makeEntity("player_k1", { grounded: true });
-      const frames = [
-        makeFrame(5, [deathEvent("player_k1", "player_v1")], [killer]),
-        makeFrame(1000, [], []),
-      ];
+      const frames = [makeFrame(5, [deathEvent("player_k1", "player_v1")], [killer]), makeFrame(1000, [], [])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 50000);
       expect(result.highlights[0].startTick).toBeGreaterThanOrEqual(5);
@@ -523,10 +481,7 @@ describe("DemoAnalyzer", () => {
 
     it("clamps endTick to lastTick when frag is near end", () => {
       const killer = makeEntity("player_k1", { grounded: true });
-      const frames = [
-        makeFrame(100, [], []),
-        makeFrame(995, [deathEvent("player_k1", "player_v1")], [killer]),
-      ];
+      const frames = [makeFrame(100, [], []), makeFrame(995, [deathEvent("player_k1", "player_v1")], [killer])];
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 50000);
       expect(result.highlights[0].endTick).toBeLessThanOrEqual(995);
@@ -540,10 +495,7 @@ describe("DemoAnalyzer", () => {
       const frames = [
         makeFrame(
           100,
-          [
-            deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 }),
-            awardEvent("k1", "on_fire"),
-          ],
+          [deathEvent("player_k1", "player_v1", { x: 500, y: 0, z: 0 }), awardEvent("k1", "on_fire")],
           [killer],
         ),
       ];
@@ -581,10 +533,7 @@ describe("DemoAnalyzer", () => {
 
   describe("totalTicks and totalDurationMs", () => {
     it("reports correct totalTicks (lastTick - firstTick + 1)", () => {
-      const frames = [
-        makeFrame(10, [], []),
-        makeFrame(110, [], []),
-      ];
+      const frames = [makeFrame(10, [], []), makeFrame(110, [], [])];
       const result = analyzer.analyze(frames, makeHeader(), 5000);
       expect(result.totalTicks).toBe(101);
       expect(result.totalDurationMs).toBe(5000);

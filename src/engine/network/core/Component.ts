@@ -1,7 +1,8 @@
 // Re-export BinaryEncoder as StateEncoder and BinaryDecoder as StateDecoder
 // for backwards compatibility with existing code
 import { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
-export { BinaryEncoder as StateEncoder, BinaryDecoder as StateDecoder };
+
+export { BinaryDecoder as StateDecoder, BinaryEncoder as StateEncoder };
 
 /**
  * Base interface for all networked components.

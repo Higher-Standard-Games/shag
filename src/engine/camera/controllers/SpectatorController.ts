@@ -12,12 +12,12 @@
  *   CameraSystem.getInstance().setController('spectator');
  */
 
-import type { Camera } from '@babylonjs/core/Cameras/camera';
-import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import type { Scene } from '@babylonjs/core/scene';
-import type { CameraControllerConfig, ICameraController } from './ICameraController';
-import { Game } from '../../../games/fps/Game';
+import type { Camera } from "@babylonjs/core/Cameras/camera";
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Scene } from "@babylonjs/core/scene";
+import { Game } from "../../../games/fps/Game";
+import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -53,12 +53,12 @@ const SNAP_DISTANCE_THRESHOLD = 500;
 // ─── Controller ──────────────────────────────────────────────────
 
 export class SpectatorController implements ICameraController {
-  readonly type = 'spectator';
+  readonly type = "spectator";
 
   private camera: FreeCamera | null = null;
   private scene: Scene | null = null;
   private enabled: boolean = true;
-  private renderObserver: any = null;  // Babylon Observer handle
+  private renderObserver: any = null; // Babylon Observer handle
 
   // Target tracking
   private targetEntityId: string | null = null;
@@ -78,12 +78,11 @@ export class SpectatorController implements ICameraController {
   // ── ICameraController lifecycle ────────────────────────────────
 
   attach(camera: Camera, _scene: Scene, _canvas: HTMLCanvasElement): void {
-
     if (camera instanceof FreeCamera) {
       this.camera = camera;
     } else {
       // Create a FreeCamera if one doesn't exist
-      this.camera = new FreeCamera('spectatorCamera', camera.position.clone(), _scene);
+      this.camera = new FreeCamera("spectatorCamera", camera.position.clone(), _scene);
     }
 
     this.scene = _scene;
@@ -104,12 +103,12 @@ export class SpectatorController implements ICameraController {
     // Guard: onBeforeRenderObservable may not exist in test mocks
     if (_scene.onBeforeRenderObservable) {
       this.renderObserver = _scene.onBeforeRenderObservable.add(() => {
-        const dt = _scene.getEngine().getDeltaTime() / 1000;  // ms → seconds
+        const dt = _scene.getEngine().getDeltaTime() / 1000; // ms → seconds
         this.update(dt);
       });
     }
 
-    console.log('[SpectatorController] Attached');
+    console.log("[SpectatorController] Attached");
   }
 
   detach(): void {
@@ -121,7 +120,7 @@ export class SpectatorController implements ICameraController {
     this.camera = null;
     this.scene = null;
     this.hasInitialPosition = false;
-    console.log('[SpectatorController] Detached');
+    console.log("[SpectatorController] Detached");
   }
 
   update(deltaTime: number): void {
@@ -176,7 +175,7 @@ export class SpectatorController implements ICameraController {
         // Exponential interpolation for smooth following
         const smoothing = this.config.smoothing ?? DEFAULT_SMOOTHING;
         // Frame-rate independent smoothing: factor = 1 - (1 - s)^(dt * 60)
-        const factor = 1 - Math.pow(1 - smoothing, deltaTime * 60);
+        const factor = 1 - (1 - smoothing) ** (deltaTime * 60);
 
         this.smoothedPosition.x += dx * factor;
         this.smoothedPosition.y += dy * factor;
@@ -194,15 +193,11 @@ export class SpectatorController implements ICameraController {
     }
 
     // Apply to camera
-    this.camera.position.set(
-      this.smoothedPosition.x,
-      this.smoothedPosition.y,
-      this.smoothedPosition.z,
-    );
+    this.camera.position.set(this.smoothedPosition.x, this.smoothedPosition.y, this.smoothedPosition.z);
     this.camera.rotation.set(
       this.smoothedPitch,
       this.smoothedYaw,
-      0,  // No roll
+      0, // No roll
     );
   }
 

@@ -373,10 +373,7 @@ textures/base/floor
       const stage = parseShaderFile(content)[0].stages[0];
       expect(stage.animMap).toBeDefined();
       expect(stage.animMap!.frequency).toBe(5);
-      expect(stage.animMap!.frames).toEqual([
-        "textures/base/light_on.tga",
-        "textures/base/light_off.tga",
-      ]);
+      expect(stage.animMap!.frames).toEqual(["textures/base/light_on.tga", "textures/base/light_off.tga"]);
       // First frame used as default map
       expect(stage.map).toBe("textures/base/light_on.tga");
     });

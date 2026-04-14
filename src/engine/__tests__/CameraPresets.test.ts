@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CAMERA_PRESETS, getCameraPreset, getCameraPresetNames, type CameraPreset } from "../camera/CameraPresets";
+import { CAMERA_PRESETS, type CameraPreset, getCameraPreset, getCameraPresetNames } from "../camera/CameraPresets";
 
 describe("CameraPresets", () => {
   // ── Preset Data ───────────────────────────────────────────
@@ -59,7 +59,7 @@ describe("CameraPresets", () => {
 
   describe("controller categories", () => {
     it("isometric presets use fake_ortho or orthographic", () => {
-      const isoPresets = Object.values(CAMERA_PRESETS).filter(p => p.controllerType === "isometric");
+      const isoPresets = Object.values(CAMERA_PRESETS).filter((p) => p.controllerType === "isometric");
       expect(isoPresets.length).toBeGreaterThanOrEqual(3);
       for (const p of isoPresets) {
         expect(["fake_ortho", "orthographic"]).toContain(p.cameraMode);
@@ -67,7 +67,7 @@ describe("CameraPresets", () => {
     });
 
     it("fps presets use perspective", () => {
-      const fpsPresets = Object.values(CAMERA_PRESETS).filter(p => p.controllerType === "fps");
+      const fpsPresets = Object.values(CAMERA_PRESETS).filter((p) => p.controllerType === "fps");
       expect(fpsPresets.length).toBeGreaterThanOrEqual(2);
       for (const p of fpsPresets) {
         expect(p.cameraMode).toBe("perspective");
@@ -75,7 +75,7 @@ describe("CameraPresets", () => {
     });
 
     it("follow presets use perspective", () => {
-      const followPresets = Object.values(CAMERA_PRESETS).filter(p => p.controllerType === "follow");
+      const followPresets = Object.values(CAMERA_PRESETS).filter((p) => p.controllerType === "follow");
       expect(followPresets.length).toBeGreaterThanOrEqual(2);
       for (const p of followPresets) {
         expect(p.cameraMode).toBe("perspective");

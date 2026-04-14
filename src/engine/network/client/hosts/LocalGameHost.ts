@@ -2,7 +2,7 @@ import type { TransformComponent, Vec3 } from "../../components/TransformCompone
 import type { VelocityComponent } from "../../components/VelocityComponent";
 import type { Command } from "../../core/Command";
 import type { Entity, PlayerId } from "../../core/Entity";
-import { type GameEvent, type GameState } from "../../core/GameState";
+import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 

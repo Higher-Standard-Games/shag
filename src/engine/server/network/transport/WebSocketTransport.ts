@@ -12,7 +12,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import type { ClientConnection, Transport, TransportConfig, TransportEvents } from "./WebTransportTransport";
 
 // Re-export interfaces for convenience
-export type { Transport, TransportConfig, TransportEvents, ClientConnection };
+export type { ClientConnection, Transport, TransportConfig, TransportEvents };
 
 // ═══════════════════════════════════════════════════════════════════
 // WEBSOCKET CLIENT CONNECTION

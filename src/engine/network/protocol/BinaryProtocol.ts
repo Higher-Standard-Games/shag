@@ -33,8 +33,17 @@ import { GameState } from "../core/GameState";
 // The component system is untyped (string keys → IComponent), so we define
 // the structural shapes used during encode/decode.
 
-interface Vec3 { x: number; y: number; z: number }
-interface Vec4 { x: number; y: number; z: number; w: number }
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+interface Vec4 {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
 
 interface PositionShape extends Vec3 {
   serialize?(): void;
@@ -51,7 +60,9 @@ interface TransformShape {
 }
 
 interface VelocityShape {
-  x: number; y: number; z: number;
+  x: number;
+  y: number;
+  z: number;
   linear: Vec3;
   angular: Vec3;
   grounded: boolean;
@@ -255,7 +266,9 @@ export class BinaryProtocol {
       const transform = entity.getComponent("transform") as unknown as TransformShape | undefined;
       const pos = transform?.position || (entity.getComponent("position") as unknown as PositionShape | undefined);
       const baselineTransform = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
-      const baselinePos = baselineTransform?.position || (baselineEntity?.getComponent("position") as unknown as PositionShape | undefined);
+      const baselinePos =
+        baselineTransform?.position ||
+        (baselineEntity?.getComponent("position") as unknown as PositionShape | undefined);
       // Only set flag if pos EXISTS and differs from baseline (or no baseline)
       if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
         flags |= 0x01;
@@ -467,7 +480,9 @@ export class BinaryProtocol {
         const rotX = decoder.readFloat32(); // pitch
 
         // Update transform rotation (create transform if it doesn't exist)
-        let transform = entity.getComponent("transform") as unknown as (TransformShape & Record<string, unknown>) | undefined;
+        let transform = entity.getComponent("transform") as unknown as
+          | (TransformShape & Record<string, unknown>)
+          | undefined;
         if (transform) {
           transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
         } else {
@@ -494,7 +509,9 @@ export class BinaryProtocol {
         isWallJumping = (movFlags & 4) !== 0;
       } else if (baselineEntity) {
         // Carry forward from baseline
-        const baselineMovState = baselineEntity.getComponent("movementState") as unknown as MovementStateShape | undefined;
+        const baselineMovState = baselineEntity.getComponent("movementState") as unknown as
+          | MovementStateShape
+          | undefined;
         isCrouching = baselineMovState?.isCrouching ?? false;
         isSliding = baselineMovState?.isSliding ?? false;
         isWallJumping = baselineMovState?.wallJumpState === "charging";
@@ -962,7 +979,7 @@ export enum MessageType {
   PlayerLeft = 0x06,
   GameStart = 0x07,
   Ack = 0x08,
-  ServerMessage = 0x09,  // Generic server→client text message (queue, rejection, info)
+  ServerMessage = 0x09, // Generic server→client text message (queue, rejection, info)
   Pong = 0x0a,
 
   // Client → Server

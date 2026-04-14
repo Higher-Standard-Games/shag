@@ -35,7 +35,9 @@ async function testCollisionAtSpawn(): Promise<void> {
         const bounds = m.getBoundingInfo();
         const size = bounds.boundingBox.extendSize.scale(2);
         console.log(`  - "${m.name}"`);
-        console.log(`    Position: (${m.position.x.toFixed(1)}, ${m.position.y.toFixed(1)}, ${m.position.z.toFixed(1)})`);
+        console.log(
+          `    Position: (${m.position.x.toFixed(1)}, ${m.position.y.toFixed(1)}, ${m.position.z.toFixed(1)})`,
+        );
         console.log(`    Distance from spawn: ${dist.toFixed(1)} units`);
         console.log(`    Size: (${size.x.toFixed(1)}, ${size.y.toFixed(1)}, ${size.z.toFixed(1)})`);
         console.log(`    Metadata: ${JSON.stringify(m.metadata)}`);
@@ -51,7 +53,9 @@ async function testCollisionAtSpawn(): Promise<void> {
         insideCount++;
         const size = bounds.boundingBox.extendSize.scale(2);
         console.log(`  - INSIDE "${m.name}"`);
-        console.log(`    Position: (${m.position.x.toFixed(1)}, ${m.position.y.toFixed(1)}, ${m.position.z.toFixed(1)})`);
+        console.log(
+          `    Position: (${m.position.x.toFixed(1)}, ${m.position.y.toFixed(1)}, ${m.position.z.toFixed(1)})`,
+        );
         console.log(`    Size: (${size.x.toFixed(1)}, ${size.y.toFixed(1)}, ${size.z.toFixed(1)})`);
         console.log(`    Metadata: ${JSON.stringify(m.metadata)}`);
         console.log("");

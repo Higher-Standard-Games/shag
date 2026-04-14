@@ -1,9 +1,9 @@
 import type { MoveCommand } from "../core/Command";
 import type { IComponent } from "../core/Component";
-import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 import { Entity } from "../core/Entity";
 import { GameState } from "../core/GameState";
 import { GameSystem, Simulation, type SimulationConfig } from "../core/Simulation";
+import type { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
 
 // Simple position component for testing
 class PositionComponent implements IComponent {
@@ -118,4 +118,4 @@ const testConfig: SimulationConfig = {
 };
 
 // Export for testing
-export { TestSimulation, testConfig, PositionComponent, VelocityComponent };
+export { PositionComponent, TestSimulation, testConfig, VelocityComponent };

@@ -5,8 +5,8 @@
  * Uses mock Babylon.js mesh objects since tests run in Node.js.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstancedMeshManager, type InstanceTransform } from "../rendering/InstancedMeshManager";
 
 // ─── Mock Mesh ──────────────────────────────────────────────────
@@ -116,7 +116,7 @@ describe("InstancedMeshManager", () => {
       mgr.registerTemplate("tree", mesh);
       // Second registration should be silently rejected
       mgr.registerTemplate("tree", mesh);
-      expect(mgr.getTemplateNames().filter(n => n === "tree").length).toBe(1);
+      expect(mgr.getTemplateNames().filter((n) => n === "tree").length).toBe(1);
     });
 
     it("rejects mesh without geometry", () => {

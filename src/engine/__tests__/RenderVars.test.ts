@@ -15,9 +15,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 })();
 // biome-ignore lint/suspicious/noExplicitAny: mock global for tests
@@ -25,7 +31,10 @@ const localStorageMock = (() => {
 
 // Mock requestAnimationFrame (not available in Node)
 // biome-ignore lint/suspicious/noExplicitAny: mock global for tests
-(globalThis as any).requestAnimationFrame = (cb: () => void) => { cb(); return 0; };
+(globalThis as any).requestAnimationFrame = (cb: () => void) => {
+  cb();
+  return 0;
+};
 
 import { Cvar } from "../core/Cvar";
 import { RenderVars } from "../rendering/RenderVars";
@@ -79,7 +88,7 @@ describe("RenderVars", () => {
     it("initializes all expected r_* variables", () => {
       const rv = getRV();
       const names = rv.getNames();
-      
+
       // Core material vars
       expect(names).toContain("r_normalmap");
       expect(names).toContain("r_glossmap");
@@ -88,7 +97,7 @@ describe("RenderVars", () => {
       expect(names).toContain("r_emissive");
       expect(names).toContain("r_anisotropy");
       expect(names).toContain("r_wireframe");
-      
+
       // Post-processing
       expect(names).toContain("r_bloom");
       expect(names).toContain("r_exposure");
@@ -280,7 +289,7 @@ describe("RenderVars", () => {
       rv.set("r_glossmap", 0.5);
 
       const config = rv.exportConfig();
-      
+
       // Reset and reimport
       rv.resetAll();
       expect(rv.get("r_normalmap")).toBe(1.0);
@@ -335,7 +344,7 @@ describe("RenderVars", () => {
       const rv = getRV();
       const callback = vi.fn();
       const unsub = rv.onChange("r_normalmap", callback);
-      
+
       rv.set("r_normalmap", 2.0);
       expect(callback).toHaveBeenCalledTimes(1);
 
@@ -346,7 +355,9 @@ describe("RenderVars", () => {
 
     it("handles listener errors gracefully", () => {
       const rv = getRV();
-      rv.onChange("r_normalmap", () => { throw new Error("boom"); });
+      rv.onChange("r_normalmap", () => {
+        throw new Error("boom");
+      });
       // Should not throw
       expect(() => rv.set("r_normalmap", 2.0)).not.toThrow();
     });

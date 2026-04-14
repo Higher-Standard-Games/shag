@@ -26,9 +26,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 })();
 
@@ -318,7 +324,9 @@ describe("Cvar", () => {
     });
 
     it("handles onChange errors gracefully", () => {
-      const onChange = vi.fn(() => { throw new Error("boom"); });
+      const onChange = vi.fn(() => {
+        throw new Error("boom");
+      });
       Cvar.register("r_bloom", 1.0, { onChange });
       // Should not throw
       expect(Cvar.set("r_bloom", 2.0)).toBe(true);
@@ -335,8 +343,8 @@ describe("Cvar", () => {
       Cvar.register("r_wire", 0);
       const list = Cvar.list();
       expect(list.length).toBe(2);
-      expect(list.map(c => c.name)).toContain("r_bloom");
-      expect(list.map(c => c.name)).not.toContain("r_hidden");
+      expect(list.map((c) => c.name)).toContain("r_bloom");
+      expect(list.map((c) => c.name)).not.toContain("r_hidden");
     });
 
     it("filters by prefix", () => {
@@ -405,7 +413,7 @@ describe("Cvar", () => {
     it("exportConfig only exports non-default values", () => {
       Cvar.register("r_bloom", 1.0, { type: "float" });
       Cvar.register("r_wire", 0, { type: "int" });
-      
+
       // Nothing changed — should be empty
       expect(Cvar.exportConfig()).toBe("");
 

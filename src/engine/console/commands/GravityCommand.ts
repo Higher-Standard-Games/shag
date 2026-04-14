@@ -14,7 +14,7 @@ export default class GravityCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get scene physics
-    let scene = undefined;
+    let scene;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

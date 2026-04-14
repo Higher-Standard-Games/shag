@@ -351,8 +351,8 @@ export class DemoReader {
     }
 
     // Browser: use DecompressionStream API
-    if (typeof DecompressionStream !== 'undefined') {
-      const ds = new DecompressionStream('gzip');
+    if (typeof DecompressionStream !== "undefined") {
+      const ds = new DecompressionStream("gzip");
       const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer]);
       const reader = blob.stream().pipeThrough(ds).getReader();
       const chunks: Uint8Array[] = [];
@@ -376,8 +376,8 @@ export class DemoReader {
     }
 
     throw new Error(
-      'DemoReader: gzip-compressed demo cannot be read — ' +
-      'neither Node zlib nor browser DecompressionStream available.',
+      "DemoReader: gzip-compressed demo cannot be read — " +
+        "neither Node zlib nor browser DecompressionStream available.",
     );
   }
 }

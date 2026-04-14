@@ -12,9 +12,9 @@
  * DemoViewer before calling this — typically done by the game setup code.
  */
 
-import { CameraSystem } from "../../camera/CameraSystem";
 import { DemoService } from "../../../games/fps/client/DemoService";
 import { DemoViewer } from "../../../games/fps/client/DemoViewer";
+import { CameraSystem } from "../../camera/CameraSystem";
 import { Command, type CommandDef } from "../Command";
 
 export default class DemoPlayCommand extends Command {

@@ -16,7 +16,7 @@ export default class ScreenshotCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get scene
-    let scene = undefined;
+    let scene;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

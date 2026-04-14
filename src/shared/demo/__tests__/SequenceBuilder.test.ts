@@ -2,8 +2,8 @@
  * SequenceBuilder.test.ts — Unit tests for Phase 2 cinematic reel builder
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import type { HighlightCandidate, DemoAnalysis } from "../DemoAnalyzer";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { DemoAnalysis, HighlightCandidate } from "../DemoAnalyzer";
 import type { DemoHeader } from "../DemoReader";
 import { SequenceBuilder } from "../SequenceBuilder";
 
@@ -30,10 +30,7 @@ function makeHighlight(overrides: Partial<HighlightCandidate> = {}): HighlightCa
   };
 }
 
-function makeAnalysis(
-  highlights: HighlightCandidate[],
-  totalTicks = 10000,
-): DemoAnalysis {
+function makeAnalysis(highlights: HighlightCandidate[], totalTicks = 10000): DemoAnalysis {
   return {
     highlights,
     totalTicks,

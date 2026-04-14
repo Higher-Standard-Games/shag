@@ -5,13 +5,13 @@
  * to play based on player movement state. Pure logic — no Babylon scene.
  */
 
-import { describe, expect, it } from "vitest";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { describe, expect, it } from "vitest";
 import {
   AnimationStateName,
   createDefaultAnimationState,
-  selectAnimationState,
   type PlayerAnimationState,
+  selectAnimationState,
 } from "../animation/PlayerAnimationState";
 
 /** Create a state with overrides */
@@ -56,11 +56,15 @@ describe("PlayerAnimationState", () => {
     });
 
     it("selects WallJump when wall jumping", () => {
-      expect(selectAnimationState(makeState({ isWallJumping: true, grounded: false }))).toBe(AnimationStateName.WallJump);
+      expect(selectAnimationState(makeState({ isWallJumping: true, grounded: false }))).toBe(
+        AnimationStateName.WallJump,
+      );
     });
 
     it("selects LedgeGrab when grabbing ledge", () => {
-      expect(selectAnimationState(makeState({ isLedgeGrabbing: true, grounded: false }))).toBe(AnimationStateName.LedgeGrab);
+      expect(selectAnimationState(makeState({ isLedgeGrabbing: true, grounded: false }))).toBe(
+        AnimationStateName.LedgeGrab,
+      );
     });
 
     it("slide takes priority over wall jump", () => {

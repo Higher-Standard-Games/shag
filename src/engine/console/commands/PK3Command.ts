@@ -19,7 +19,7 @@ export default class PK3Command extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let pk3Index = undefined;
+    let pk3Index;
     try {
       const { PK3Index } = await import("../../loader/pk3/PK3Index");
       pk3Index = PK3Index.getInstance();

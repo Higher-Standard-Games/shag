@@ -4,9 +4,10 @@
  * Tests the DemoReader.fromFile() async factory and _decompressGzip path.
  * Uses Node zlib to create gzipped test data and verifies roundtrip.
  */
-import { describe, it, expect } from 'vitest';
-import { DemoReader } from '../../shared/demo/DemoReader';
-import * as zlib from 'node:zlib';
+
+import * as zlib from "node:zlib";
+import { describe, expect, it } from "vitest";
+import { DemoReader } from "../../shared/demo/DemoReader";
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -23,11 +24,11 @@ function createMinimalDemo(): Uint8Array {
   parts.push(1);
 
   // Map name: "test" (uint16 LE len + bytes)
-  const mapBytes = new TextEncoder().encode('test');
+  const mapBytes = new TextEncoder().encode("test");
   parts.push(mapBytes.length, 0, ...mapBytes);
 
   // Gametype: "duel"
-  const gtBytes = new TextEncoder().encode('duel');
+  const gtBytes = new TextEncoder().encode("duel");
   parts.push(gtBytes.length, 0, ...gtBytes);
 
   // Tick rate: 60
@@ -69,61 +70,61 @@ function gzipCompress(data: Uint8Array): Uint8Array {
 
 // ─── Tests ───────────────────────────────────────────────────────
 
-describe('DemoReader (browser gzip)', () => {
+describe("DemoReader (browser gzip)", () => {
   // ── Constructor (existing behavior) ───────────────────────────
 
-  it('reads uncompressed demo via constructor', () => {
+  it("reads uncompressed demo via constructor", () => {
     const data = createMinimalDemo();
     const reader = new DemoReader(data);
     const header = reader.readHeader();
-    expect(header.map).toBe('test');
-    expect(header.gametype).toBe('duel');
+    expect(header.map).toBe("test");
+    expect(header.gametype).toBe("duel");
     expect(header.tickRate).toBe(60);
     expect(header.snapshotRate).toBe(20);
   });
 
-  it('reads gzip-compressed demo via constructor (Node zlib)', () => {
+  it("reads gzip-compressed demo via constructor (Node zlib)", () => {
     const demo = createMinimalDemo();
     const compressed = gzipCompress(demo);
     const reader = new DemoReader(compressed);
     const header = reader.readHeader();
-    expect(header.map).toBe('test');
-    expect(header.gametype).toBe('duel');
+    expect(header.map).toBe("test");
+    expect(header.gametype).toBe("duel");
   });
 
-  it('rejects invalid magic bytes', () => {
+  it("rejects invalid magic bytes", () => {
     const data = new Uint8Array([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
-    expect(() => new DemoReader(data).readHeader()).toThrow('bad magic bytes');
+    expect(() => new DemoReader(data).readHeader()).toThrow("bad magic bytes");
   });
 
   // ── fromFile (async factory) ──────────────────────────────────
 
-  it('fromFile reads uncompressed demo', async () => {
+  it("fromFile reads uncompressed demo", async () => {
     const data = createMinimalDemo();
     const reader = await DemoReader.fromFile(data);
     const header = reader.readHeader();
-    expect(header.map).toBe('test');
+    expect(header.map).toBe("test");
   });
 
-  it('fromFile reads gzip-compressed demo', async () => {
+  it("fromFile reads gzip-compressed demo", async () => {
     const demo = createMinimalDemo();
     const compressed = gzipCompress(demo);
     const reader = await DemoReader.fromFile(compressed);
     const header = reader.readHeader();
-    expect(header.map).toBe('test');
-    expect(header.gametype).toBe('duel');
+    expect(header.map).toBe("test");
+    expect(header.gametype).toBe("duel");
   });
 
-  it('fromFile accepts ArrayBuffer input', async () => {
+  it("fromFile accepts ArrayBuffer input", async () => {
     const data = createMinimalDemo();
     const reader = await DemoReader.fromFile(data.buffer as ArrayBuffer);
     const header = reader.readHeader();
-    expect(header.map).toBe('test');
+    expect(header.map).toBe("test");
   });
 
   // ── Index + summary ───────────────────────────────────────────
 
-  it('reads index from minimal demo', () => {
+  it("reads index from minimal demo", () => {
     const data = createMinimalDemo();
     const reader = new DemoReader(data);
     reader.readHeader();
@@ -132,18 +133,18 @@ describe('DemoReader (browser gzip)', () => {
     expect(index.entries).toEqual([]);
   });
 
-  it('provides human-readable summary', () => {
+  it("provides human-readable summary", () => {
     const data = createMinimalDemo();
     const reader = new DemoReader(data);
     const summary = reader.getSummary();
-    expect(summary).toContain('test');
-    expect(summary).toContain('duel');
-    expect(summary).toContain('0 frames');
+    expect(summary).toContain("test");
+    expect(summary).toContain("duel");
+    expect(summary).toContain("0 frames");
   });
 
   // ── Edge cases ────────────────────────────────────────────────
 
-  it('detects gzip magic bytes correctly', async () => {
+  it("detects gzip magic bytes correctly", async () => {
     const demo = createMinimalDemo();
     const compressed = gzipCompress(demo);
 
@@ -153,12 +154,12 @@ describe('DemoReader (browser gzip)', () => {
 
     // fromFile should auto-detect and decompress
     const reader = await DemoReader.fromFile(compressed);
-    expect(reader.readHeader().map).toBe('test');
+    expect(reader.readHeader().map).toBe("test");
   });
 
-  it('peekHeader works on uncompressed data', () => {
+  it("peekHeader works on uncompressed data", () => {
     const data = createMinimalDemo();
     const header = DemoReader.peekHeader(data);
-    expect(header.map).toBe('test');
+    expect(header.map).toBe("test");
   });
 });

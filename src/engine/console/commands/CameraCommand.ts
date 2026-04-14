@@ -22,7 +22,7 @@ export default class CameraCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let cameraSystem = undefined;
+    let cameraSystem;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

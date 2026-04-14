@@ -6,8 +6,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Q3Shader } from "../loader/shader/Q3ShaderTypes";
 import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
+import type { Q3Shader } from "../loader/shader/Q3ShaderTypes";
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -113,10 +113,12 @@ describe("Q3ShaderRegistry", () => {
     });
 
     it("resolves sky shader", () => {
-      injectShader(makeShader("textures/skies/blue", {
-        surfaceParms: new Set(["sky"]),
-        skyParms: { farbox: "env/sky", cloudHeight: 200, nearbox: "" },
-      }));
+      injectShader(
+        makeShader("textures/skies/blue", {
+          surfaceParms: new Set(["sky"]),
+          skyParms: { farbox: "env/sky", cloudHeight: 200, nearbox: "" },
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/skies/blue");
       expect(props.isSky).toBe(true);
       expect(props.useLightmap).toBe(false);
@@ -130,20 +132,26 @@ describe("Q3ShaderRegistry", () => {
     });
 
     it("resolves transparent surfaceparm", () => {
-      injectShader(makeShader("textures/base/glass", {
-        surfaceParms: new Set(["trans"]),
-      }));
+      injectShader(
+        makeShader("textures/base/glass", {
+          surfaceParms: new Set(["trans"]),
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/glass");
       expect(props.isTransparent).toBe(true);
     });
 
     it("resolves additive blend", () => {
-      injectShader(makeShader("textures/effects/glow", {
-        stages: [{
-          map: "textures/effects/glow.tga",
-          blendFunc: ["GL_ONE", "GL_ONE"],
-        }],
-      }));
+      injectShader(
+        makeShader("textures/effects/glow", {
+          stages: [
+            {
+              map: "textures/effects/glow.tga",
+              blendFunc: ["GL_ONE", "GL_ONE"],
+            },
+          ],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/effects/glow");
       expect(props.alphaMode).toBe("add");
       expect(props.isTransparent).toBe(true);
@@ -151,32 +159,42 @@ describe("Q3ShaderRegistry", () => {
     });
 
     it("resolves alpha blend", () => {
-      injectShader(makeShader("textures/effects/smoke", {
-        stages: [{
-          map: "textures/effects/smoke.tga",
-          blendFunc: ["GL_SRC_ALPHA", "GL_ONE_MINUS_SRC_ALPHA"],
-        }],
-      }));
+      injectShader(
+        makeShader("textures/effects/smoke", {
+          stages: [
+            {
+              map: "textures/effects/smoke.tga",
+              blendFunc: ["GL_SRC_ALPHA", "GL_ONE_MINUS_SRC_ALPHA"],
+            },
+          ],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/effects/smoke");
       expect(props.alphaMode).toBe("blend");
       expect(props.isTransparent).toBe(true);
     });
 
     it("resolves filter/multiply blend", () => {
-      injectShader(makeShader("textures/base/decal", {
-        stages: [{
-          map: "textures/base/decal.tga",
-          blendFunc: ["GL_DST_COLOR", "GL_ZERO"],
-        }],
-      }));
+      injectShader(
+        makeShader("textures/base/decal", {
+          stages: [
+            {
+              map: "textures/base/decal.tga",
+              blendFunc: ["GL_DST_COLOR", "GL_ZERO"],
+            },
+          ],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/decal");
       expect(props.alphaMode).toBe("multiply");
     });
 
     it("resolves fullbright (nolightmap)", () => {
-      injectShader(makeShader("textures/base/lamp", {
-        surfaceParms: new Set(["nolightmap"]),
-      }));
+      injectShader(
+        makeShader("textures/base/lamp", {
+          surfaceParms: new Set(["nolightmap"]),
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/lamp");
       expect(props.isFullbright).toBe(true);
       expect(props.useLightmap).toBe(false);
@@ -189,45 +207,54 @@ describe("Q3ShaderRegistry", () => {
     });
 
     it("resolves autosprite from deformVertexes", () => {
-      injectShader(makeShader("textures/effects/spark", {
-        deformVertexes: [{ type: "autosprite" }],
-        stages: [{ map: "textures/effects/spark.tga" }],
-      }));
+      injectShader(
+        makeShader("textures/effects/spark", {
+          deformVertexes: [{ type: "autosprite" }],
+          stages: [{ map: "textures/effects/spark.tga" }],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/effects/spark");
       expect(props.autosprite).toBe(true);
     });
 
     it("resolves alpha cutoff from alphaFunc GT0", () => {
-      injectShader(makeShader("textures/base/grate", {
-        stages: [{
-          map: "textures/base/grate.tga",
-          alphaFunc: "GT0",
-        }],
-      }));
+      injectShader(
+        makeShader("textures/base/grate", {
+          stages: [
+            {
+              map: "textures/base/grate.tga",
+              alphaFunc: "GT0",
+            },
+          ],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/grate");
       expect(props.isTransparent).toBe(true);
       expect(props.alphaCutoff).toBeCloseTo(0.01);
     });
 
     it("detects lightmap usage", () => {
-      injectShader(makeShader("textures/base/brick", {
-        stages: [
-          { map: "textures/base/brick.tga" },
-          { map: "$lightmap", blendFunc: ["GL_DST_COLOR", "GL_ZERO"] },
-        ],
-      }));
+      injectShader(
+        makeShader("textures/base/brick", {
+          stages: [{ map: "textures/base/brick.tga" }, { map: "$lightmap", blendFunc: ["GL_DST_COLOR", "GL_ZERO"] }],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/brick");
       expect(props.useLightmap).toBe(true);
       expect(props.diffuseTexture).toBe("textures/base/brick.tga");
     });
 
     it("detects animation from tcMod", () => {
-      injectShader(makeShader("textures/base/water", {
-        stages: [{
-          map: "textures/base/water.tga",
-          tcMod: [{ type: "scroll", sSpeed: 0.5, tSpeed: 0.2 }],
-        }],
-      }));
+      injectShader(
+        makeShader("textures/base/water", {
+          stages: [
+            {
+              map: "textures/base/water.tga",
+              tcMod: [{ type: "scroll", sSpeed: 0.5, tSpeed: 0.2 }],
+            },
+          ],
+        }),
+      );
       const props = getRegistry().resolveMaterialProps("textures/base/water");
       expect(props.needsAnimation).toBe(true);
     });

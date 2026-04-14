@@ -6,27 +6,27 @@
  * playback.  Pure TypeScript, no external dependencies.
  */
 
-import type { HighlightCandidate, DemoAnalysis } from "./DemoAnalyzer";
+import type { DemoAnalysis, HighlightCandidate } from "./DemoAnalyzer";
 import type { DemoHeader } from "./DemoReader";
 
 // ── Exported types ────────────────────────────────────────────────────────────
 
 export type CameraPresetId =
-  | "chase_hero"        // first-person chase-cam on killer
-  | "orbit_kill"        // freefly orbit around action midpoint
-  | "rocket_jump_hero"  // freefly below jump arc, looking up
-  | "victim_pov"        // chase-cam on victim before death
-  | "dramatic_zoom"     // freefly wide→tight dolly
-  | "replay_orbit";     // slow 360° orbit for instant replay
+  | "chase_hero" // first-person chase-cam on killer
+  | "orbit_kill" // freefly orbit around action midpoint
+  | "rocket_jump_hero" // freefly below jump arc, looking up
+  | "victim_pov" // chase-cam on victim before death
+  | "dramatic_zoom" // freefly wide→tight dolly
+  | "replay_orbit"; // slow 360° orbit for instant replay
 
 export type TransitionType = "cut" | "crossfade" | "white_flash" | "fade_to_black";
 
 export interface CinematicSegment {
   startTick: number;
   endTick: number;
-  durationMs: number;       // wall-clock ms at the segment's playbackSpeed
+  durationMs: number; // wall-clock ms at the segment's playbackSpeed
   cameraPreset: CameraPresetId;
-  cameraTarget?: string;    // entity ID for chase-cam presets
+  cameraTarget?: string; // entity ID for chase-cam presets
   playbackSpeed: number;
   speedKeyframes?: Array<{ tick: number; speed: number }>;
   highlight: HighlightCandidate;
@@ -72,17 +72,10 @@ export class SequenceBuilder {
     const selected = this._selectHighlights(analysis.highlights, targetMs);
 
     // ── 2. Build base segments ────────────────────────────────────────
-    const baseSegments = selected.map((h) =>
-      this._buildBaseSegment(h, snapshotRate, analysis.totalTicks),
-    );
+    const baseSegments = selected.map((h) => this._buildBaseSegment(h, snapshotRate, analysis.totalTicks));
 
     // ── 3. Insert instant replays ────────────────────────────────────
-    const withReplays = this._insertReplays(
-      baseSegments,
-      targetMs,
-      snapshotRate,
-      analysis.totalTicks,
-    );
+    const withReplays = this._insertReplays(baseSegments, targetMs, snapshotRate, analysis.totalTicks);
 
     // ── 4. Assign transitions ────────────────────────────────────────
     this._assignTransitions(withReplays);
@@ -94,8 +87,7 @@ export class SequenceBuilder {
 
     // ── 6. Compute totals ────────────────────────────────────────────
     const totalDurationMs =
-      withReplays.reduce((sum, s) => sum + s.durationMs, 0) +
-      withReplays.length * DEFAULT_TRANSITION_MS;
+      withReplays.reduce((sum, s) => sum + s.durationMs, 0) + withReplays.length * DEFAULT_TRANSITION_MS;
 
     return {
       segments: withReplays,
@@ -107,10 +99,7 @@ export class SequenceBuilder {
 
   // ── Private: selection ────────────────────────────────────────────────────
 
-  private _selectHighlights(
-    highlights: HighlightCandidate[],
-    targetMs: number,
-  ): HighlightCandidate[] {
+  private _selectHighlights(highlights: HighlightCandidate[], targetMs: number): HighlightCandidate[] {
     const maxSegments = Math.max(1, Math.floor(targetMs / AVG_SEGMENT_MS));
 
     // Already sorted by score desc from DemoAnalyzer, but sort defensively
@@ -138,19 +127,10 @@ export class SequenceBuilder {
 
   // ── Private: base segment construction ───────────────────────────────────
 
-  private _buildBaseSegment(
-    h: HighlightCandidate,
-    snapshotRate: number,
-    _totalTicks: number,
-  ): CinematicSegment {
+  private _buildBaseSegment(h: HighlightCandidate, snapshotRate: number, _totalTicks: number): CinematicSegment {
     const preset = this._assignPreset(h);
     const { playbackSpeed, speedKeyframes } = this._assignSpeed(preset, h);
-    const durationMs = this._computeDurationMs(
-      h.startTick,
-      h.endTick,
-      snapshotRate,
-      playbackSpeed,
-    );
+    const durationMs = this._computeDurationMs(h.startTick, h.endTick, snapshotRate, playbackSpeed);
 
     const segment: CinematicSegment = {
       startTick: h.startTick,
@@ -160,9 +140,9 @@ export class SequenceBuilder {
       playbackSpeed,
       highlight: h,
       isReplay: false,
-      segmentIndex: 0,        // assigned later
-      transitionIn: "cut",    // assigned later
-      transitionOut: "cut",   // assigned later
+      segmentIndex: 0, // assigned later
+      transitionIn: "cut", // assigned later
+      transitionOut: "cut", // assigned later
       transitionDurationMs: DEFAULT_TRANSITION_MS,
     };
 
@@ -248,14 +228,9 @@ export class SequenceBuilder {
 
   // ── Private: durationMs ───────────────────────────────────────────────────
 
-  private _computeDurationMs(
-    startTick: number,
-    endTick: number,
-    snapshotRate: number,
-    playbackSpeed: number,
-  ): number {
+  private _computeDurationMs(startTick: number, endTick: number, snapshotRate: number, playbackSpeed: number): number {
     const rawTicks = endTick - startTick;
-    return (rawTicks / snapshotRate) * 1000 / playbackSpeed;
+    return ((rawTicks / snapshotRate) * 1000) / playbackSpeed;
   }
 
   // ── Private: instant replay insertion ────────────────────────────────────
@@ -302,7 +277,7 @@ export class SequenceBuilder {
         playbackSpeed: 0.25,
         highlight: h,
         isReplay: true,
-        segmentIndex: 0,          // assigned later
+        segmentIndex: 0, // assigned later
         transitionIn: "white_flash",
         transitionOut: "cut",
         transitionDurationMs: DEFAULT_TRANSITION_MS,

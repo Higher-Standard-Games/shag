@@ -7,17 +7,20 @@
  *   MY PROFILE:  Player name, stats, settings
  */
 
+import { DemoService } from "../../../games/fps/client/DemoService";
+import { DemoViewer } from "../../../games/fps/client/DemoViewer";
+import { DurationPickerModal } from "../../../games/fps/client/DurationPickerModal";
 import { LobbyClient } from "../../../lobby/LobbyClient";
 import type { DemoInfo, LiveMatchInfo, MatchLobbyInfo, PlayerInfo } from "../../../lobby/types";
-import { DemoService } from "../../../games/fps/client/DemoService";
-import { DurationPickerModal } from "../../../games/fps/client/DurationPickerModal";
+import { CameraSystem } from "../../camera/CameraSystem";
 import { DebugConsole } from "../../debug/DebugConsole";
+import { ConnectingOverlay } from "../components/ConnectingOverlay";
 import { MatchLobbyView } from "../components/MatchLobbyView";
 import matchLobbyCSSRaw from "../components/styles/MatchLobbyView.css?raw";
 import { UIStyles } from "../UIStyles";
 import { GamePanel } from "./GamePanel";
+import demoTabCSSRaw from "./styles/DemoTab.css?raw";
 import lobbyCSSRaw from "./styles/LobbyPanel.css?raw";
-import { ConnectingOverlay } from "../components/ConnectingOverlay";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & DATA
@@ -244,6 +247,7 @@ export class LobbyPanel extends GamePanel {
   private recentDemos: DemoInfo[] = [];
   private demosArchive: DemoInfo[] = [];
   private demosGridEl: HTMLElement | null = null;
+  private _preloadedLevelshots = new Set<string>();
 
   constructor() {
     super("PLAY");
@@ -304,6 +308,13 @@ export class LobbyPanel extends GamePanel {
           this.liveMatches = msg.liveMatches || [];
           this.recentDemos = msg.recentDemos || [];
           this.refreshMatchList();
+
+          // Preload levelshots for all maps in gametype pools
+          const poolMaps = new Set<string>();
+          for (const gt of msg.gametypes || []) {
+            for (const m of gt.mapPool || []) poolMaps.add(m);
+          }
+          this._preloadLevelshots([...poolMaps]);
 
           // Load chat history
           if (msg.chatHistory && this.chatMessagesEl) {
@@ -381,6 +392,9 @@ export class LobbyPanel extends GamePanel {
       this.unsubscribers.push(
         this.lobbyClient.on("demos:list_response", (msg) => {
           this.demosArchive = msg.demos || [];
+          // Preload any new map levelshots from demo list
+          const demoMaps = [...new Set<string>((msg.demos || []).map((d: DemoInfo) => d.map))];
+          this._preloadLevelshots(demoMaps);
           this.refreshDemosGrid();
         }),
       );
@@ -799,76 +813,7 @@ export class LobbyPanel extends GamePanel {
   // ═══════════════════════════════════════════════════════════════════
 
   private buildDemosTab(): HTMLElement {
-    // Inject demo-specific CSS
-    UIStyles.injectCSS(
-      "demo-tab",
-      `
-            .lobby__demos { padding: 16px; overflow-y: auto; max-height: 100%; }
-            .lobby__demos-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-            .lobby__demos-title { font-family: var(--w-font-display, 'Orbitron', sans-serif); font-size: 18px; color: #fff; letter-spacing: 0.08em; }
-            .lobby__demos-count { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; }
-            .lobby__demos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-            @media (max-width: 1200px) { .lobby__demos-grid { grid-template-columns: repeat(3, 1fr); } }
-            @media (max-width: 900px) { .lobby__demos-grid { grid-template-columns: repeat(2, 1fr); } }
-            .lobby__demo-card {
-                background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 8px; overflow: hidden; cursor: pointer;
-                transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
-            }
-            .lobby__demo-card:hover {
-                border-color: rgba(255,180,60,0.4); transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            }
-            .lobby__demo-card-banner {
-                height: 80px; background: linear-gradient(135deg, rgba(255,180,60,0.15), rgba(255,100,50,0.08));
-                display: flex; align-items: center; justify-content: center; position: relative;
-            }
-            .lobby__demo-card-map {
-                font-family: var(--w-font-display, 'Orbitron', sans-serif);
-                font-size: 16px; color: #fff; letter-spacing: 0.1em; text-transform: uppercase;
-            }
-            .lobby__demo-card-gametype {
-                position: absolute; top: 6px; right: 8px; font-size: 9px;
-                color: rgba(255,180,60,0.8); letter-spacing: 0.1em; font-weight: 700;
-            }
-            .lobby__demo-card-body { padding: 10px 12px; }
-            .lobby__demo-card-players {
-                font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            }
-            .lobby__demo-card-meta {
-                display: flex; justify-content: space-between; font-size: 10px;
-                color: rgba(255,255,255,0.35); letter-spacing: 0.04em;
-            }
-            .lobby__demo-card-btn {
-                display: block; width: 100%; padding: 8px;
-                background: rgba(255,180,60,0.12); border: none; border-top: 1px solid rgba(255,255,255,0.06);
-                color: rgba(255,180,60,0.9); font-size: 10px; font-weight: 700;
-                letter-spacing: 0.12em; cursor: pointer; transition: background 0.2s;
-                font-family: var(--w-font-display, 'Orbitron', sans-serif);
-            }
-            .lobby__demo-card-btn:hover { background: rgba(255,180,60,0.25); }
-            .lobby__demo-card-btn--highlight {
-                background: rgba(255,180,60,0.05); color: rgba(255,200,60,0.8);
-                border-top: 1px solid rgba(255,180,60,0.12);
-            }
-            .lobby__demo-card-btn--highlight:hover { background: rgba(255,180,60,0.2); }
-            .lobby__demo-card-btn-row {
-                display: flex; border-top: 1px solid rgba(255,255,255,0.06);
-            }
-            .lobby__demo-card-btn-row .lobby__demo-card-btn {
-                flex: 1; border-top: none; border-radius: 0;
-            }
-            .lobby__demo-card-btn-row .lobby__demo-card-btn + .lobby__demo-card-btn {
-                border-left: 1px solid rgba(255,255,255,0.06);
-            }
-            .lobby__match--demo { border-left: 2px solid rgba(255,180,60,0.3); }
-            .lobby__match-demo-label { color: rgba(255,180,60,0.9); font-weight: 700; font-size: 10px; letter-spacing: 0.05em; }
-            .lobby__watch-btn--demo { background: rgba(255,180,60,0.15) !important; color: rgba(255,180,60,0.9) !important; }
-            .lobby__watch-btn--demo:hover { background: rgba(255,180,60,0.3) !important; }
-            .lobby__demos-empty { text-align: center; padding: 40px; color: rgba(255,255,255,0.3); font-size: 14px; }
-        `,
-    );
+    UIStyles.injectCSS("demo-tab", demoTabCSSRaw);
 
     const container = document.createElement("div");
     container.className = "lobby__demos";
@@ -915,7 +860,7 @@ export class LobbyPanel extends GamePanel {
       return;
     }
 
-    // Map gametype → hue for card color
+    // Map gametype → hue for fallback gradient
     const gametypeHues: Record<string, string> = {
       duel: "180",
       deathmatch: "45",
@@ -928,17 +873,44 @@ export class LobbyPanel extends GamePanel {
       const card = document.createElement("div");
       card.className = "lobby__demo-card";
 
-      // Banner with map name
+      // Banner — levelshot image or gradient fallback
       const hue = gametypeHues[d.gametype] || "200";
       const banner = document.createElement("div");
       banner.className = "lobby__demo-card-banner";
-      banner.style.background = `linear-gradient(135deg, hsla(${hue},60%,40%,0.2), hsla(${hue},40%,20%,0.1))`;
 
+      // Always set gradient as base — levelshot overlays on top
+      const fallbackGradient = `linear-gradient(135deg, hsla(${hue},60%,40%,0.25), hsla(${hue},40%,20%,0.1))`;
+      banner.style.background = fallbackGradient;
+
+      if (d.levelshot) {
+        banner.classList.add("lobby__demo-card-banner--has-image");
+        banner.style.background = `url(${d.levelshot}) center/cover, ${fallbackGradient}`;
+        // Remove image class if levelshot 404s (disables CRT scanlines on fallback)
+        const testImg = new Image();
+        testImg.onerror = () => {
+          banner.classList.remove("lobby__demo-card-banner--has-image");
+          banner.style.background = fallbackGradient;
+        };
+        testImg.src = d.levelshot;
+      }
+
+      // Map name — secondary, small label above players
       const mapName = document.createElement("span");
       mapName.className = "lobby__demo-card-map";
       mapName.textContent = d.mapDisplayName;
       banner.appendChild(mapName);
 
+      // Player names — primary heading inside banner
+      const players = document.createElement("div");
+      players.className = "lobby__demo-card-players";
+      if (d.players.length > 4) {
+        players.textContent = d.players.slice(0, 4).join(" vs ") + ` +${d.players.length - 4}`;
+      } else {
+        players.textContent = d.players.length > 0 ? d.players.join(" vs ") : "Unknown";
+      }
+      banner.appendChild(players);
+
+      // Gametype chip
       const gametypeLabel = document.createElement("span");
       gametypeLabel.className = "lobby__demo-card-gametype";
       gametypeLabel.textContent = d.gametype.toUpperCase();
@@ -946,16 +918,10 @@ export class LobbyPanel extends GamePanel {
 
       card.appendChild(banner);
 
-      // Body
+      // Body — metadata row
       const body = document.createElement("div");
       body.className = "lobby__demo-card-body";
 
-      const players = document.createElement("div");
-      players.className = "lobby__demo-card-players";
-      players.textContent = d.players.length > 0 ? d.players.join(" vs ") : "Unknown";
-      body.appendChild(players);
-
-      // Duration
       const totalSecs = Math.floor(d.durationMs / 1000);
       const mins = Math.floor(totalSecs / 60);
       const secs = totalSecs % 60;
@@ -984,11 +950,20 @@ export class LobbyPanel extends GamePanel {
       playBtn.textContent = "▶ PLAY";
       playBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
+        playBtn.disabled = true;
+        playBtn.textContent = "LOADING…";
         try {
-          await DemoService.getInstance().fetchAndLoad(d.filename);
-          window.dispatchEvent(new CustomEvent("demoplay:start", { detail: { filename: d.filename } }));
+          const service = DemoService.getInstance();
+          await service.fetchAndLoad(d.filename);
+          const viewer = new DemoViewer();
+          await service.loadAndPlayNormal(viewer);
+          this.hide();
         } catch (err) {
           console.error("[LobbyPanel] Failed to load demo:", err);
+          this._showDemoError(card, err instanceof Error ? err.message : String(err));
+        } finally {
+          playBtn.disabled = false;
+          playBtn.textContent = "▶ PLAY";
         }
       });
       btnRow.appendChild(playBtn);
@@ -999,11 +974,21 @@ export class LobbyPanel extends GamePanel {
       highlightBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         DurationPickerModal.show(async (minutes) => {
+          highlightBtn.disabled = true;
+          highlightBtn.textContent = "LOADING…";
           try {
-            await DemoService.getInstance().fetchAndLoad(d.filename);
-            window.dispatchEvent(new CustomEvent("demoplay:cinematic", { detail: { filename: d.filename, minutes } }));
+            const service = DemoService.getInstance();
+            await service.fetchAndLoad(d.filename);
+            const viewer = new DemoViewer();
+            const cameraSystem = CameraSystem.getInstance();
+            await service.loadAndPlayCinematic(viewer, cameraSystem, minutes);
+            this.hide();
           } catch (err) {
             console.error("[LobbyPanel] Failed to load demo for highlights:", err);
+            this._showDemoError(card, err instanceof Error ? err.message : String(err));
+          } finally {
+            highlightBtn.disabled = false;
+            highlightBtn.textContent = "⚡ HIGHLIGHTS";
           }
         });
       });
@@ -1013,6 +998,28 @@ export class LobbyPanel extends GamePanel {
 
       this.demosGridEl.appendChild(card);
     }
+  }
+
+  /** Best-effort preload of levelshot images for given map names */
+  private _preloadLevelshots(maps: string[]): void {
+    for (const map of maps) {
+      if (this._preloadedLevelshots.has(map)) continue;
+      this._preloadedLevelshots.add(map);
+      const img = new Image();
+      img.src = `/data/levelshots/${map}.png`;
+      // No-op on success or error — purely warming the browser cache
+    }
+  }
+
+  /** Show a temporary error toast on a demo card */
+  private _showDemoError(card: HTMLElement, message: string): void {
+    // Remove any previous error on this card
+    card.querySelector(".lobby__demo-card-error")?.remove();
+    const el = document.createElement("div");
+    el.className = "lobby__demo-card-error";
+    el.textContent = message;
+    card.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
   }
 
   // ═══════════════════════════════════════════════════════════════════

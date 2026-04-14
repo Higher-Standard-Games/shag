@@ -7,7 +7,11 @@ import { TestSimulation, testConfig } from "../../network/test/TestSimulation";
 import { Command } from "../Command";
 
 // Component shapes for typed access in test
-interface Vec3 { x: number; y: number; z: number }
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
 // Note: Old WebSocketServer was deleted. Use headless-netserver-v2.ts for server testing
 
 /**

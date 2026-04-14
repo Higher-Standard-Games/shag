@@ -10,7 +10,7 @@
  * Designed to be used by both live spectator (Game.ts) and DemoViewer.
  */
 
-import type { GameState } from '../../network/core/GameState';
+import type { GameState } from "../../network/core/GameState";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ export class SpectatorCycling {
   private targetEntityId: string | null = null;
   private alivePlayerIds: string[] = [];
   private playerNames: Map<string, string> = new Map();
-  private _aliveWorkBuffer: string[] = [];  // reusable to avoid per-tick allocation
+  private _aliveWorkBuffer: string[] = []; // reusable to avoid per-tick allocation
 
   /**
    * Update the alive player list from a GameState snapshot.
@@ -45,21 +45,19 @@ export class SpectatorCycling {
 
     for (const [entityId, entity] of state.entities) {
       // Only player entities
-      if (!entityId.startsWith('player_')) continue;
+      if (!entityId.startsWith("player_")) continue;
 
       // Exclude self (if provided)
       if (excludeEntityId && entityId === excludeEntityId) continue;
 
       // Must have a valid transform (position)
-      const transform = entity.getComponent('transform') as
+      const transform = entity.getComponent("transform") as
         | { position?: { x: number; y: number; z: number } }
         | undefined;
       if (!transform?.position) continue;
 
       // Check if dead
-      const health = entity.getComponent('health') as
-        | { dead?: boolean }
-        | undefined;
+      const health = entity.getComponent("health") as { dead?: boolean } | undefined;
       if (health?.dead) continue;
 
       alive.push(entityId);
@@ -69,8 +67,7 @@ export class SpectatorCycling {
     alive.sort();
 
     // Only replace if list actually changed (avoids unnecessary GC churn)
-    if (alive.length !== this.alivePlayerIds.length ||
-        !alive.every((id, i) => id === this.alivePlayerIds[i])) {
+    if (alive.length !== this.alivePlayerIds.length || !alive.every((id, i) => id === this.alivePlayerIds[i])) {
       this.alivePlayerIds = [...alive];
     }
 
@@ -169,13 +166,13 @@ export class SpectatorCycling {
    * Falls back to a formatted entity ID if no name is known.
    */
   getTargetName(): string {
-    if (!this.targetEntityId) return '';
+    if (!this.targetEntityId) return "";
 
     const name = this.playerNames.get(this.targetEntityId);
     if (name) return name;
 
     // Fallback: format entity ID (e.g. 'player_1' → 'Player 1')
-    return this.targetEntityId.replace('player_', 'Player ');
+    return this.targetEntityId.replace("player_", "Player ");
   }
 
   /**
@@ -184,7 +181,7 @@ export class SpectatorCycling {
   getPlayerName(entityId: string): string {
     const name = this.playerNames.get(entityId);
     if (name) return name;
-    return entityId.replace('player_', 'Player ');
+    return entityId.replace("player_", "Player ");
   }
 
   /**

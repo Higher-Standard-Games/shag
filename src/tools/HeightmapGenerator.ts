@@ -195,7 +195,7 @@ export function generateValleyHeightmap(
       const distFromCenter = Math.abs(v - 0.5) * 2;
 
       // Valley shape
-      let height = undefined;
+      let height;
       if (distFromCenter < valleyWidth) {
         // In the valley
         height = (1 - valleyDepth) * (distFromCenter / valleyWidth);
@@ -246,7 +246,7 @@ export function generatePlateauHeightmap(
       const dist = Math.sqrt(dx * dx + dy * dy) * 2;
 
       // Plateau shape using sigmoid-like function
-      let height = undefined;
+      let height;
       if (dist < plateauRadius) {
         height = 1;
       } else {

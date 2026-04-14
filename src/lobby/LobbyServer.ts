@@ -979,6 +979,7 @@ export class LobbyServer {
               durationMs,
               date: header.startTime,
               sizeMB: parseFloat((stat.size / (1024 * 1024)).toFixed(2)),
+              levelshot: `/data/levelshots/${header.map}.png`,
             });
           }
         } catch (err) {

@@ -21,7 +21,7 @@ export default class LightCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene
-    let scene = undefined;
+    let scene;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

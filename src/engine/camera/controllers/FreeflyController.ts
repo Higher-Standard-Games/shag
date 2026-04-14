@@ -469,8 +469,8 @@ export class FreeflyController implements ICameraController {
       const posAfterBabylon = this.camera.position.clone();
       // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
       const ellipsoidOffset = (this.camera as any).ellipsoidOffset
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
-        ? (this.camera as any).ellipsoidOffset
+        ? // biome-ignore lint/suspicious/noExplicitAny: Babylon camera internals
+          (this.camera as any).ellipsoidOffset
         : Vector3.Zero();
 
       // Use the new Q3 collision backend for BSP collision

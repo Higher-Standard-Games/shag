@@ -5,8 +5,8 @@
  * freefly segments, or returns entity IDs for chase-cam segments.
  */
 
-import type { CameraPresetId } from "./SequenceBuilder";
 import type { HighlightCandidate } from "./DemoAnalyzer";
+import type { CameraPresetId } from "./SequenceBuilder";
 
 // ── Exported types ────────────────────────────────────────────────────────────
 
@@ -117,11 +117,7 @@ export function generateCameraPath(
 
 // ── Per-preset path generators ────────────────────────────────────────────────
 
-function _orbitKill(
-  highlight: HighlightCandidate,
-  startTick: number,
-  endTick: number,
-): CameraPathResult {
+function _orbitKill(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
   const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
   const victimPos: Vec3 = highlight.victimPos ?? { x: 200, y: 0, z: 0 };
   const midpoint: Vec3 = vec3Scale(vec3Add(killerPos, victimPos), 0.5);
@@ -145,11 +141,7 @@ function _orbitKill(
   return { type: "freefly", keyframes, interpolation: "catmull_rom" };
 }
 
-function _rocketJumpHero(
-  highlight: HighlightCandidate,
-  startTick: number,
-  endTick: number,
-): CameraPathResult {
+function _rocketJumpHero(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
   const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 100, z: 0 };
   const apexPos: Vec3 = { ...killerPos, y: killerPos.y + 150 };
 
@@ -170,11 +162,7 @@ function _rocketJumpHero(
   return { type: "freefly", keyframes, interpolation: "catmull_rom" };
 }
 
-function _dramaticZoom(
-  highlight: HighlightCandidate,
-  startTick: number,
-  endTick: number,
-): CameraPathResult {
+function _dramaticZoom(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
   const killerPos: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
   const victimPos: Vec3 = highlight.victimPos ?? { x: 400, y: 0, z: 0 };
   const midpoint: Vec3 = vec3Scale(vec3Add(killerPos, victimPos), 0.5);
@@ -208,11 +196,7 @@ function _dramaticZoom(
   return { type: "freefly", keyframes, interpolation: "linear" };
 }
 
-function _replayOrbit(
-  highlight: HighlightCandidate,
-  startTick: number,
-  endTick: number,
-): CameraPathResult {
+function _replayOrbit(highlight: HighlightCandidate, startTick: number, endTick: number): CameraPathResult {
   const center: Vec3 = highlight.killerPos ?? { x: 0, y: 0, z: 0 };
   const height = center.y + 60;
   const radius = 250;

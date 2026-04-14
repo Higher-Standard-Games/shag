@@ -202,7 +202,9 @@ export class AnimationLoader {
    */
   clearCache(): void {
     for (const groups of this.loadedAnimations.values()) {
-      groups.forEach((g) => { g.dispose(); });
+      groups.forEach((g) => {
+        g.dispose();
+      });
     }
     this.loadedAnimations.clear();
   }

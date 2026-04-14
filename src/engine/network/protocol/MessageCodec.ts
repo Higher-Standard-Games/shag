@@ -264,7 +264,7 @@ export class MessageCodec {
    * Generic text message for UI notifications (queue position, join rejection, etc.)
    * Format: [MessageType.ServerMessage][type: string][message: string]
    */
-  static encodeServerMessage(message: string, type: string = 'info'): Uint8Array {
+  static encodeServerMessage(message: string, type: string = "info"): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.ServerMessage);
     encoder.writeString(type);

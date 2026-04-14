@@ -14,10 +14,23 @@
 import { GameState } from "../core/GameState";
 
 // Component shapes for typed access (same as BinaryProtocol)
-interface Vec3 { x: number; y: number; z: number }
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
 interface PositionShape extends Vec3 {}
-interface TransformShape { position: Vec3; rotation?: { x: number; y: number; z: number; w: number } }
-interface VelocityShape { linear: Vec3; x: number; y: number; z: number; grounded?: boolean }
+interface TransformShape {
+  position: Vec3;
+  rotation?: { x: number; y: number; z: number; w: number };
+}
+interface VelocityShape {
+  linear: Vec3;
+  x: number;
+  y: number;
+  z: number;
+  grounded?: boolean;
+}
 
 export class InterpolationBuffer {
   private snapshots: { state: GameState; timestamp: number }[] = [];
@@ -142,7 +155,9 @@ export class InterpolationBuffer {
       const transform2 = entity2.getComponent("transform") as unknown as TransformShape | undefined;
 
       if (transform1?.position && transform2?.position) {
-        const interpolatedTransform = interpolatedEntity.getComponent("transform") as unknown as TransformShape | undefined;
+        const interpolatedTransform = interpolatedEntity.getComponent("transform") as unknown as
+          | TransformShape
+          | undefined;
         if (interpolatedTransform?.position) {
           interpolatedTransform.position.x =
             transform1.position.x + (transform2.position.x - transform1.position.x) * t;

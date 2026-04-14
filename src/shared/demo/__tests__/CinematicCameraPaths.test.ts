@@ -2,9 +2,9 @@
  * CinematicCameraPaths.test.ts — Unit tests for Phase 3 camera path generation
  */
 
-import { describe, it, expect } from "vitest";
-import type { HighlightCandidate } from "../DemoAnalyzer";
+import { describe, expect, it } from "vitest";
 import { generateCameraPath, interpolatePath } from "../CinematicCameraPaths";
+import type { HighlightCandidate } from "../DemoAnalyzer";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,10 +29,7 @@ function makeHighlight(overrides: Partial<HighlightCandidate> = {}): HighlightCa
   };
 }
 
-function distance3d(
-  a: { x: number; y: number; z: number },
-  b: { x: number; y: number; z: number },
-): number {
+function distance3d(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   const dz = a.z - b.z;

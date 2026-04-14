@@ -116,6 +116,7 @@ export interface DemoInfo {
   durationMs: number; // match duration
   date: number; // unix timestamp ms
   sizeMB: number; // file size in MB
+  levelshot?: string; // "/data/levelshots/wdm14.png"
 }
 
 // ============================================================================

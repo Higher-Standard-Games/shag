@@ -22,7 +22,7 @@ export default class AudioCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Lazy import AudioManager to support headless mode
-    let audio = undefined;
+    let audio;
     try {
       const { AudioManager } = await import("../../AudioManager");
       audio = AudioManager.getInstance();

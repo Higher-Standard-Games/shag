@@ -17,13 +17,7 @@ import type { DemoFrame, DemoHeader } from "./DemoReader";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
-export type HighlightType =
-  | "frag"
-  | "multi_kill"
-  | "airborne_frag"
-  | "streak_kill"
-  | "first_blood"
-  | "movement";
+export type HighlightType = "frag" | "multi_kill" | "airborne_frag" | "streak_kill" | "first_blood" | "movement";
 
 export type HighlightTag =
   | "airborne"
@@ -142,11 +136,7 @@ export class DemoAnalyzer {
    * @param header      - Demo header (player roster, snapshotRate)
    * @param durationMs  - Total demo duration from DemoIndex.durationMs
    */
-  analyze(
-    frames: DemoFrame[],
-    header: DemoHeader,
-    durationMs: number,
-  ): DemoAnalysis {
+  analyze(frames: DemoFrame[], header: DemoHeader, durationMs: number): DemoAnalysis {
     if (frames.length === 0) {
       return {
         highlights: [],
@@ -302,9 +292,7 @@ export class DemoAnalyzer {
 
         // High speed
         if (killerVelocity) {
-          const horizSpeed = Math.sqrt(
-            killerVelocity.x * killerVelocity.x + killerVelocity.z * killerVelocity.z,
-          );
+          const horizSpeed = Math.sqrt(killerVelocity.x * killerVelocity.x + killerVelocity.z * killerVelocity.z);
           if (horizSpeed > HIGH_SPEED_THRESHOLD) {
             tags.push("high_speed");
           }
@@ -323,11 +311,12 @@ export class DemoAnalyzer {
         const primaryPlayerName = playerNames.get(killerId) ?? killerId;
         const victimPlayerName = playerNames.get(victimId) ?? victimId;
 
-        const highlightType: HighlightType = tags.includes("rocket_jump") || tags.includes("airborne")
-          ? "airborne_frag"
-          : tags.includes("first_blood")
-            ? "first_blood"
-            : "frag";
+        const highlightType: HighlightType =
+          tags.includes("rocket_jump") || tags.includes("airborne")
+            ? "airborne_frag"
+            : tags.includes("first_blood")
+              ? "first_blood"
+              : "frag";
 
         const candidate: HighlightCandidate = {
           startTick: tick, // will be expanded after grouping
@@ -403,10 +392,7 @@ export class DemoAnalyzer {
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
-  private _buildPlayerNames(
-    frames: DemoFrame[],
-    header: DemoHeader,
-  ): Map<string, string> {
+  private _buildPlayerNames(frames: DemoFrame[], header: DemoHeader): Map<string, string> {
     const names = new Map<string, string>();
 
     // Primary: use header roster
@@ -458,10 +444,7 @@ export class DemoAnalyzer {
         // Collect a run of frags within the window
         const group: HighlightCandidate[] = [playerFrags[i]];
         let j = i + 1;
-        while (
-          j < playerFrags.length &&
-          playerFrags[j].peakTick - playerFrags[i].peakTick <= MULTI_KILL_WINDOW
-        ) {
+        while (j < playerFrags.length && playerFrags[j].peakTick - playerFrags[i].peakTick <= MULTI_KILL_WINDOW) {
           group.push(playerFrags[j]);
           j++;
         }
@@ -536,9 +519,7 @@ export class DemoAnalyzer {
     const kept: HighlightCandidate[] = [];
 
     for (const candidate of sorted) {
-      const overlaps = kept.some(
-        (k) => candidate.startTick <= k.endTick && candidate.endTick >= k.startTick,
-      );
+      const overlaps = kept.some((k) => candidate.startTick <= k.endTick && candidate.endTick >= k.startTick);
       if (!overlaps) {
         kept.push(candidate);
       }
