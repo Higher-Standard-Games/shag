@@ -266,6 +266,15 @@ export class SpectatorController implements ICameraController {
   }
 
   /**
+   * Get the FreeCamera created by this controller.
+   * Returns null until attach() has been called.
+   * Used by DemoService to hand the spectator camera to WeaponViewManager.
+   */
+  getCamera(): FreeCamera | null {
+    return this.camera;
+  }
+
+  /**
    * Get the smoothed position (for external use, e.g. audio positioning).
    */
   getSmoothedPosition(): { x: number; y: number; z: number } {
