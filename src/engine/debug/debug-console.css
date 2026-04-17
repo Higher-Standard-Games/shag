@@ -272,3 +272,59 @@
   font-size: 10px;
   margin-right: 8px;
 }
+
+/* Inspect button — fixed at top-right of output area */
+.console-inspect-btn {
+  position: absolute;
+  top: 34px; /* just below the header bar */
+  right: 10px;
+  z-index: 1;
+  background: transparent;
+  border: 1px solid var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+  color: var(--console-text-dim, rgba(255, 255, 255, 0.45));
+  font-family: "Share Tech Mono", "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  padding: 2px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.console-inspect-btn::before {
+  content: "[ ";
+  color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+}
+
+.console-inspect-btn::after {
+  content: " ]";
+  color: var(--console-primary-dim, rgba(46, 196, 182, 0.4));
+}
+
+.console-inspect-btn:hover {
+  color: var(--console-primary, #2ec4b6);
+  border-color: var(--console-primary, #2ec4b6);
+  background: rgba(46, 196, 182, 0.08);
+}
+
+.console-inspect-btn:hover::before,
+.console-inspect-btn:hover::after {
+  color: var(--console-primary, #2ec4b6);
+}
+
+.console-inspect-btn:active {
+  background: var(--console-primary, #2ec4b6);
+  color: #0a0c10;
+  border-color: var(--console-primary, #2ec4b6);
+  transform: scale(0.94);
+}
+
+.console-inspect-btn:active::before,
+.console-inspect-btn:active::after {
+  color: #0a0c10;
+}

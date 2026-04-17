@@ -11,6 +11,7 @@
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { Engine } from "@babylonjs/core/Engines/engine";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
@@ -274,6 +275,8 @@ export interface BuildOptions {
   faceTypes?: number[];
   /** Skip non-drawable textures */
   filterTextures?: boolean;
+  /** Resolve Warsow/QFusion deluxe shader branches for this build */
+  deluxe?: boolean;
 }
 
 export class BspMeshBuilder {
@@ -418,7 +421,7 @@ export class BspMeshBuilder {
       // Sky shader detection - track for skybox creation
       // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
       const textureName = this.bsp.textures[face.textureIndex]?.name || "";
-      const shaderProps = shaderRegistry.resolveMaterialProps(textureName);
+      const shaderProps = shaderRegistry.resolveMaterialProps(textureName, { deluxe: this.options.deluxe });
       const bspSurfaceFlags = this.bsp.textures[face.textureIndex]?.surfaceFlags ?? 0;
       const isSkyFace = shaderProps.isSky || (bspSurfaceFlags & 0x4) !== 0;
       if (isSkyFace) {
@@ -1068,6 +1071,7 @@ export class BspMeshBuilder {
     _bsp: BspFile, // Reserved for future use
     scene: Scene,
     progressCallback?: (loaded: number, total: number, name: string) => void,
+    options?: { deluxe?: boolean; pbr?: boolean },
   ): Promise<number> {
     const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
     const texLoader = PK3TextureLoader.getInstance();
@@ -1091,6 +1095,112 @@ export class BspMeshBuilder {
     // Get shader registry for looking up actual texture paths
     const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
     const shaderRegistry = Q3ShaderRegistry.getInstance();
+    const stripTextureExtension = (path: string): string => path.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
+    const normalizeTexturePath = (path: string): string => path.replace(/\\/g, "/");
+    const isSpecialTextureToken = (path?: string): boolean => Boolean(path?.startsWith("$"));
+    const addTexturePrefixes = (path: string): string[] => {
+      const normalized = normalizeTexturePath(path);
+      if (isSpecialTextureToken(normalized)) {
+        return [];
+      }
+
+      const paths = [normalized];
+      const lower = normalized.toLowerCase();
+      if (!lower.startsWith("textures/") && !lower.startsWith("models/")) {
+        paths.push(`textures/${normalized}`);
+      }
+      return paths;
+    };
+    const dedupePaths = (paths: string[]): string[] => {
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      for (const path of paths) {
+        const normalized = normalizeTexturePath(path);
+        const key = normalized.toLowerCase();
+        if (!normalized || seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(normalized);
+      }
+      return deduped;
+    };
+    const buildTextureNameFallbacks = (textureName: string): string[] => {
+      const paths: string[] = [textureName];
+      if (textureName.includes("_") && !textureName.includes("/")) {
+        const parts = textureName.split("_");
+        if (parts.length >= 2) {
+          paths.push(parts.join("/"));
+          if (parts.length >= 3) {
+            paths.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join("_")}`);
+          }
+          if (parts.length >= 4) {
+            paths.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join("_")}`);
+          }
+        }
+      }
+      return paths;
+    };
+    const buildDiffuseCandidates = (textureName: string, shaderProps: ResolvedMaterialProps): string[] => {
+      const candidates: string[] = [];
+
+      if (shaderProps.hasMaterialMetadata) {
+        if (shaderProps.diffuseTexture && !isSpecialTextureToken(shaderProps.diffuseTexture)) {
+          candidates.push(...addTexturePrefixes(shaderProps.diffuseTexture));
+        } else if (!shaderProps.diffuseTexture) {
+          for (const fallback of buildTextureNameFallbacks(textureName)) {
+            candidates.push(...addTexturePrefixes(fallback));
+          }
+        }
+        return dedupePaths(candidates);
+      }
+
+      if (shaderProps.diffuseTexture && !isSpecialTextureToken(shaderProps.diffuseTexture)) {
+        candidates.push(...addTexturePrefixes(shaderProps.diffuseTexture));
+      }
+      for (const fallback of buildTextureNameFallbacks(textureName)) {
+        candidates.push(...addTexturePrefixes(fallback));
+      }
+      return dedupePaths(candidates);
+    };
+    const loadFirstTexture = async (
+      candidates: string[],
+    ): Promise<{ texture: Texture | null; resolvedBasePath: string }> => {
+      for (const candidate of candidates) {
+        const texture = await texLoader.resolveAndLoadTexture(candidate);
+        if (texture) {
+          return {
+            texture,
+            resolvedBasePath: stripTextureExtension(candidate),
+          };
+        }
+      }
+      return { texture: null, resolvedBasePath: "" };
+    };
+    const loadOptionalTexture = async (
+      explicitPath: string | undefined,
+      explicitBlank: boolean,
+      fallbackBasePath: string,
+      suffixes: string[],
+    ): Promise<Texture | null> => {
+      if (explicitBlank) {
+        return null;
+      }
+
+      if (explicitPath) {
+        const { texture } = await loadFirstTexture(addTexturePrefixes(explicitPath));
+        return texture;
+      }
+
+      if (!fallbackBasePath) {
+        return null;
+      }
+
+      const candidates: string[] = [];
+      for (const suffix of suffixes) {
+        candidates.push(...addTexturePrefixes(`${fallbackBasePath}${suffix}`));
+      }
+      const { texture } = await loadFirstTexture(dedupePaths(candidates));
+      return texture;
+    };
 
     for (const group of result.textureGroups) {
       const texName = group.textureName;
@@ -1098,74 +1208,14 @@ export class BspMeshBuilder {
 
       progressCallback?.(loadedCount, total, texName);
 
-      // Build list of paths to try
-      const pathsToTry: string[] = [];
-
-      // 1. Check shader for actual texture path (override)
+      const shaderProps = shaderRegistry.resolveMaterialProps(texName, { deluxe: options?.deluxe });
       const shader = shaderRegistry.getShader(texName);
-      if (shader && shader.stages.length > 0) {
-        const firstStage = shader.stages[0];
-        if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
-          pathsToTry.push(firstStage.map);
-          console.log(`[BspMeshBuilder] Shader override: ${texName} -> ${firstStage.map}`);
-        }
-      }
-
-      // 2. Try texture name as-is (for paths with slashes)
-      pathsToTry.push(texName);
-
-      // 3. If name has underscores but no slashes, try converting underscores to slashes
-      if (texName.includes("_") && !texName.includes("/")) {
-        // models_mapobjects_lamp_lamp_halo -> models/mapobjects/lamp/lamp_halo
-        // But we need to be smart - not all underscores are path separators
-        // Try progressively: first underscore, then second, etc.
-        const parts = texName.split("_");
-        if (parts.length >= 2) {
-          // Try common patterns
-          pathsToTry.push(parts.join("/")); // all underscores to slashes
-          if (parts.length >= 3) {
-            // First two segments as path: models/mapobjects/rest
-            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join("_")}`);
-          }
-          if (parts.length >= 4) {
-            // First three segments as path
-            pathsToTry.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join("_")}`);
-          }
-        }
-      }
-
-      // 4. If doesn't start with textures/, add that prefix to each path
-      const allPaths: string[] = [];
-      for (const p of pathsToTry) {
-        allPaths.push(p);
-        if (!p.toLowerCase().startsWith("textures/") && !p.toLowerCase().startsWith("models/")) {
-          allPaths.push(`textures/${p}`);
-        }
-      }
-
-      // Try to load texture with various extensions
-      const extensions = [".jpg", ".png", ".tga", ".ktx"];
-      // biome-ignore lint/suspicious/noExplicitAny: Babylon.js internal API access
-      let texture: any = null;
-      let foundCleanPath: string = ""; // Track which path succeeded for normal map loading
-
-      for (const basePath of allPaths) {
-        if (texture) break;
-
-        // Strip any existing extension to avoid .tga.tga bug
-        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
-
-        for (const ext of extensions) {
-          texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
-          if (texture) {
-            foundCleanPath = cleanPath;
-            break;
-          }
-        }
-      }
-
-      // Get shader props to check if we need fallback texture
-      const shaderProps = shaderRegistry.resolveMaterialProps(texName);
+      const diffuseCandidates = buildDiffuseCandidates(texName, shaderProps);
+      let texture: Texture | null = null;
+      let foundCleanPath = "";
+      const diffuseResult = await loadFirstTexture(diffuseCandidates);
+      texture = diffuseResult.texture;
+      foundCleanPath = diffuseResult.resolvedBasePath;
 
       // If no texture found, check if we should generate a fallback
       if (!texture && shaderProps.alphaMode === "add") {
@@ -1199,7 +1249,7 @@ export class BspMeshBuilder {
           }
 
           // Check if this shader needs special material (glow overlay, etc.)
-          if (shader) {
+          if (shader && !shaderProps.hasMaterialMetadata && shaderProps.resolvedBranch === "default" && !shader.conditionalBlocks?.length) {
             const { analyzeShaderPattern, createQ3Material } = await import("../shader/Q3ShaderMaterialFactory");
             const analysis = analyzeShaderPattern(shader);
 
@@ -1212,16 +1262,8 @@ export class BspMeshBuilder {
               // Load glow texture
               let glowTexture: Texture | null = null;
               if (glowStage?.map) {
-                const glowPath = glowStage.map.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
-                for (const ext of extensions) {
-                  glowTexture = await texLoader.loadTexture(`${glowPath}${ext}`);
-                  if (glowTexture) break;
-                  // Try with textures/ prefix
-                  if (!glowPath.startsWith("textures/")) {
-                    glowTexture = await texLoader.loadTexture(`textures/${glowPath}${ext}`);
-                    if (glowTexture) break;
-                  }
-                }
+                const glowResult = await loadFirstTexture(addTexturePrefixes(glowStage.map));
+                glowTexture = glowResult.texture;
               }
 
               if (texture && glowTexture) {
@@ -1257,22 +1299,69 @@ export class BspMeshBuilder {
           if (mesh.material instanceof StandardMaterial) {
             const mat = mesh.material;
             mat.diffuseTexture = texture;
+            let hasNormalMap = false;
+            let hasGlossMap = false;
 
-            // Try to load normal map companion texture (_norm, _normal, _bump)
-            const normalSuffixes = ["_norm", "_normal", "_bump"];
-            for (const suffix of normalSuffixes) {
-              let normalTexFound = false;
-              for (const ext of extensions) {
-                const normalTex = await texLoader.loadTexture(`${foundCleanPath}${suffix}${ext}`);
-                if (normalTex) {
-                  mat.bumpTexture = normalTex;
-                  mat.bumpTexture.level = 1.0;
-                  console.log(`[BspMeshBuilder] Loaded normal map: ${foundCleanPath}${suffix}${ext}`);
-                  normalTexFound = true;
-                  break;
-                }
+            const normalTexture = await loadOptionalTexture(
+              shaderProps.normalTexture,
+              shaderProps.normalTextureExplicitlyBlank,
+              foundCleanPath,
+              ["_norm", "_normal", "_bump"],
+            );
+            if (normalTexture) {
+              mat.bumpTexture = normalTexture;
+              mat.bumpTexture.level = 1.0;
+              hasNormalMap = true;
+              console.log(`[BspMeshBuilder] Loaded normal map for: ${texName}`);
+            }
+
+            const glossTexture = await loadOptionalTexture(
+              shaderProps.glossTexture,
+              shaderProps.glossTextureExplicitlyBlank,
+              foundCleanPath,
+              ["_gloss", "_spec"],
+            );
+            if (glossTexture) {
+              mat.specularTexture = glossTexture;
+              hasGlossMap = true;
+              console.log(`[BspMeshBuilder] Loaded gloss map for: ${texName}`);
+            }
+
+            BspMeshBuilder.tuneCompanionSurfaceMaterial(mat, { hasNormalMap, hasGlossMap });
+
+            const glowTexture = await loadOptionalTexture(
+              shaderProps.glowTexture,
+              shaderProps.glowTextureExplicitlyBlank,
+              "",
+              [],
+            );
+            if (glowTexture) {
+              mat.emissiveTexture = glowTexture;
+              mat.emissiveColor = new Color3(1, 1, 1);
+              if (!mesh.metadata) mesh.metadata = {};
+              mesh.metadata.preserveEmissive = true;
+              console.log(`[BspMeshBuilder] Loaded glow map for: ${texName}`);
+            }
+
+            if (options?.pbr && BspMeshBuilder.shouldUseGeneratedPBR(shaderProps, hasNormalMap, hasGlossMap)) {
+              const pbrMat = BspMeshBuilder.createGeneratedPBRMaterial(
+                `${mesh.name}_pbr`,
+                scene,
+                shaderProps,
+                texture,
+                normalTexture,
+                glossTexture,
+                glowTexture,
+              );
+              mesh.material = pbrMat;
+              if (!mesh.metadata) mesh.metadata = {};
+              mesh.metadata.usesBspPbr = true;
+              if (glowTexture) {
+                mesh.metadata.preserveEmissive = true;
               }
-              if (normalTexFound) break;
+              console.log(`[BspMeshBuilder] Created generated PBR material for: ${texName}`);
+              loadedCount++;
+              continue;
             }
 
             if (shaderProps.alphaCutoff !== undefined && shaderProps.alphaCutoff > 0) {
@@ -1296,6 +1385,8 @@ export class BspMeshBuilder {
               // Emissive makes bright pixels glow, diffuse=0 prevents double lighting
               mat.emissiveColor = new Color3(1, 1, 1);
               mat.diffuseColor = new Color3(0, 0, 0);
+              if (!mesh.metadata) mesh.metadata = {};
+              mesh.metadata.preserveEmissive = true;
             } else if (shaderProps.alphaMode === "multiply") {
               // Multiply/filter blending for decals (blendFunc filter = GL_DST_COLOR, GL_ZERO)
               // Use custom shader that computes alpha from luminance (white = transparent)
@@ -1325,15 +1416,16 @@ export class BspMeshBuilder {
             // Fullbright surfaces (lamps, light panels) - appear self-lit
             // These have surfaceparm nolightmap - they ARE the light sources
             if (shaderProps.isFullbright) {
-              mat.emissiveTexture = texture;
+              mat.emissiveTexture = glowTexture ?? texture;
               mat.emissiveColor = new Color3(1, 1, 1);
               mat.diffuseColor = new Color3(1, 1, 1);
               mat.disableLighting = true; // Immune to scene lights — renders at full brightness
               // Mark mesh to skip lightmap application
               if (mesh.metadata) {
                 mesh.metadata.isFullbright = true;
+                mesh.metadata.preserveEmissive = true;
               } else {
-                mesh.metadata = { isFullbright: true };
+                mesh.metadata = { isFullbright: true, preserveEmissive: true };
               }
               console.log(`[BspMeshBuilder] Fullbright surface: ${texName}`);
             }
@@ -1403,13 +1495,14 @@ export class BspMeshBuilder {
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
     let appliedCount = 0;
 
-    for (const mesh of meshes) {
-      if (!mesh.metadata?.lightmapIndex || mesh.metadata.lightmapIndex < 0) continue;
+      for (const mesh of meshes) {
+        const meshLightmapIndex = mesh.metadata?.lightmapIndex;
+        if (meshLightmapIndex === undefined || meshLightmapIndex === null || meshLightmapIndex < 0) continue;
 
-      // Skip fullbright surfaces - they should not receive lightmap darkening
-      if (mesh.metadata?.isFullbright) continue;
+        // Skip fullbright surfaces - they should not receive lightmap darkening
+        if (mesh.metadata?.isFullbright) continue;
 
-      const lightmapIndex = mesh.metadata.lightmapIndex;
+        const lightmapIndex = meshLightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
 
       const lightmapTex = lightmaps[lightmapIndex];
@@ -1430,12 +1523,37 @@ export class BspMeshBuilder {
         // Ensure diffuse is white so lightmap modulates at full range
         mat.diffuseColor = new Color3(1, 1, 1);
 
-        // Clear any stale emissive that might wash out the lightmap
-        mat.emissiveTexture = null;
-        mat.emissiveColor = new Color3(0, 0, 0);
+        // Clear stale emissive unless this surface deliberately uses a glow map.
+        if (!mesh.metadata?.preserveEmissive) {
+          mat.emissiveTexture = null;
+          mat.emissiveColor = new Color3(0, 0, 0);
+        }
 
         if (appliedCount === 0) {
           console.log(`[BspMeshBuilder] Applied first lightmap to ${mesh.name} (intensity: ${intensity})`);
+        }
+
+        appliedCount++;
+      } else if (mat instanceof PBRMaterial) {
+        mat.lightmapTexture = lightmapTex;
+        mat.lightmapTexture.coordinatesIndex = 1; // Use UV2 (lightmap UVs)
+        // PBR surfaces already respond more strongly to scene lighting than the
+        // classic StandardMaterial BSP path, so use a softer lightmap gain to
+        // avoid washing out normal/spec detail on metallic Warsow materials.
+        mat.lightmapTexture.level = intensity * 0.6;
+        const pbrWithShadowmap = mat as PBRMaterial & { useLightmapAsShadowmap?: boolean };
+        pbrWithShadowmap.useLightmapAsShadowmap = true;
+
+        mat.maxSimultaneousLights = 4;
+        mat.albedoColor = new Color3(1, 1, 1);
+
+        if (!mesh.metadata?.preserveEmissive) {
+          mat.emissiveTexture = null;
+          mat.emissiveColor = new Color3(0, 0, 0);
+        }
+
+        if (appliedCount === 0) {
+          console.log(`[BspMeshBuilder] Applied first PBR lightmap to ${mesh.name} (intensity: ${intensity})`);
         }
 
         appliedCount++;
@@ -1602,6 +1720,102 @@ export class BspMeshBuilder {
     // TODO: Investigate proper decal rendering with depth sorting or stencil buffer
     if (props.polygonOffset) {
       mat.zOffset = -2;
+    }
+
+    return mat;
+  }
+
+  /**
+   * Tune StandardMaterial response for filename- or material-driven companion maps.
+   * Warsow-style `_norm`/`_gloss` sets often expect a punchier metal response than
+   * Babylon's conservative defaults provide out of the box.
+   */
+  private static tuneCompanionSurfaceMaterial(
+    mat: StandardMaterial,
+    options: {
+      hasNormalMap: boolean;
+      hasGlossMap: boolean;
+    },
+  ): void {
+    if (options.hasGlossMap && mat.specularTexture) {
+      // Boost gloss contribution and broaden highlights so dark grayscale gloss maps
+      // still read as metal in the BSP + lightmap pipeline.
+      mat.specularTexture.level = options.hasNormalMap ? 1.4 : 1.2;
+      const specularStrength = options.hasNormalMap ? 0.65 : 0.5;
+      mat.specularColor = new Color3(specularStrength, specularStrength, specularStrength);
+      mat.specularPower = options.hasNormalMap ? 24 : 32;
+      return;
+    }
+
+    if (options.hasNormalMap) {
+      // Even without an explicit gloss map, a small specular term helps the relief
+      // from companion normal maps show up on worn metal/concrete surfaces.
+      mat.specularColor = new Color3(0.18, 0.18, 0.18);
+      mat.specularPower = 48;
+    }
+  }
+
+  private static shouldUseGeneratedPBR(
+    props: ResolvedMaterialProps,
+    hasNormalMap: boolean,
+    hasGlossMap: boolean,
+  ): boolean {
+    if (!hasNormalMap || !hasGlossMap) return false;
+    if (props.isTransparent || props.alphaMode !== "opaque") return false;
+    if (props.alphaCutoff !== undefined) return false;
+    if (props.isSky || props.isFullbright) return false;
+    return true;
+  }
+
+  private static createGeneratedPBRMaterial(
+    name: string,
+    scene: Scene,
+    props: ResolvedMaterialProps,
+    diffuseTexture: Texture,
+    normalTexture: Texture | null,
+    glossTexture: Texture | null,
+    glowTexture: Texture | null,
+  ): PBRMaterial {
+    const mat = new PBRMaterial(name, scene);
+    mat.albedoTexture = diffuseTexture;
+    mat.albedoColor = new Color3(1, 1, 1);
+    mat.backFaceCulling = props.backFaceCulling;
+    mat.twoSidedLighting = props.twoSidedLighting;
+    mat.maxSimultaneousLights = 4;
+    mat.usePhysicalLightFalloff = false;
+    // BSP surfaces are primarily driven by baked lightmaps plus the fixed BSP
+    // sun. Synthetic environment lighting tends to over-brighten and flatten
+    // these materials, so keep it off for the generated path.
+    mat.environmentIntensity = 0.0;
+    mat.metallic = 0;
+    // These assets are authored closer to an old spec/gloss workflow than a
+    // modern metallic/roughness one. Keep metalness at 0 and let the gloss map
+    // shape surface response instead of pretending it is a metalness map.
+    mat.roughness = 0.78;
+    mat.microSurface = 0.9;
+
+    if (normalTexture) {
+      mat.bumpTexture = normalTexture;
+      mat.bumpTexture.level = 1.0;
+    }
+
+    if (glossTexture) {
+      // Babylon treats microSurfaceTexture as grayscale glossiness in its
+      // spec/gloss workflow, which is a closer fit for Warsow `_gloss` maps.
+      mat.microSurfaceTexture = glossTexture;
+      mat.microSurfaceTexture.level = 1.0;
+      mat.reflectivityColor = new Color3(0.62, 0.62, 0.62);
+      const pbrAny = mat as PBRMaterial & {
+        useMicroSurfaceFromReflectivityMapAlpha?: boolean;
+        useAutoMicroSurfaceFromReflectivityMap?: boolean;
+      };
+      pbrAny.useMicroSurfaceFromReflectivityMapAlpha = false;
+      pbrAny.useAutoMicroSurfaceFromReflectivityMap = false;
+    }
+
+    if (glowTexture) {
+      mat.emissiveTexture = glowTexture;
+      mat.emissiveColor = new Color3(1, 1, 1);
     }
 
     return mat;

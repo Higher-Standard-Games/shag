@@ -62,6 +62,8 @@ export interface RenderVar {
 }
 
 export type RenderVarName =
+  | "r_deluxe"
+  | "r_bsp_pbr"
   | "r_normalmap"
   | "r_glossmap"
   | "r_lightmap"
@@ -99,6 +101,22 @@ const STORAGE_KEY = "engine.renderVars";
 
 const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
   // Material intensities (core 4)
+  r_deluxe: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Resolve Warsow deluxe shader branches at next map/material build (0/1)",
+    category: "material",
+  },
+  r_bsp_pbr: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Use generated PBR materials for rich BSP companion-map surfaces on next map/material build (0/1)",
+    category: "material",
+  },
   r_normalmap: {
     value: 1.0,
     defaultValue: 1.0,
@@ -463,7 +481,9 @@ export class RenderVars {
 
     // Save and apply
     this.saveToStorage();
-    this.scheduleUpdate();
+    if (this.shouldApplyLive(name)) {
+      this.scheduleUpdate();
+    }
     this.notifyListeners(name, clamped);
 
     return true;
@@ -606,6 +626,10 @@ export class RenderVars {
     });
   }
 
+  private shouldApplyLive(name: string): boolean {
+    return name !== "r_deluxe" && name !== "r_bsp_pbr";
+  }
+
   /**
    * Apply current vars to all scene materials
    */
@@ -698,6 +722,12 @@ export class RenderVars {
     const mat = mesh.material;
     if (!mat) return;
 
+    const setAniso = (tex: object | null | undefined) => {
+      if (tex && typeof tex === "object") {
+        setProp(tex, "anisotropicFilteringLevel", anisotropy);
+      }
+    };
+
     if (mat instanceof StandardMaterial) {
       setProp(mat, "wireframe", wireframe);
 
@@ -721,13 +751,28 @@ export class RenderVars {
       }
 
       // Specular intensity (gloss)
+      // Scale both the gloss texture energy and highlight width so filename-inferred
+      // Warsow companion maps can be tuned without making highlights vanish.
+      if (mat.specularTexture) {
+        const hasOriginal = getStashed<number>(mat, "_originalSpecularTextureLevel") !== undefined;
+        if (shouldApplyGloss) {
+          if (!hasOriginal) {
+            setStashed(mat, "_originalSpecularTextureLevel", mat.specularTexture.level);
+          }
+          mat.specularTexture.level = getStashed<number>(mat, "_originalSpecularTextureLevel")! * glossIntensity;
+        } else if (hasOriginal) {
+          mat.specularTexture.level = getStashed<number>(mat, "_originalSpecularTextureLevel")!;
+          deleteStashed(mat, "_originalSpecularTextureLevel");
+        }
+      }
+
       // Store original specular power if not stored
       if (getStashed<number>(mat, "_originalSpecularPower") === undefined && mat.specularPower !== undefined) {
         setStashed(mat, "_originalSpecularPower", mat.specularPower);
       }
       const baseSpecPower = getStashed<number>(mat, "_originalSpecularPower") ?? 64;
       if (shouldApplyGloss) {
-        mat.specularPower = baseSpecPower * glossIntensity;
+        mat.specularPower = baseSpecPower * Math.sqrt(glossIntensity);
       } else if (getStashed<number>(mat, "_originalSpecularPower") !== undefined) {
         mat.specularPower = getStashed<number>(mat, "_originalSpecularPower")!;
         deleteStashed(mat, "_originalSpecularPower");
@@ -788,7 +833,6 @@ export class RenderVars {
       const shouldApplyLightmap = lightmapIntensity !== 1.0;
       const shouldApplyEmissive = emissiveIntensity !== 1.0;
 
-      // PBR normal map
       if (mat.bumpTexture) {
         const hasOriginal = getStashed<number>(mat, "_originalBumpLevel") !== undefined;
         if (shouldApplyNormal) {
@@ -802,7 +846,6 @@ export class RenderVars {
         }
       }
 
-      // PBR roughness/metallic (inverse of gloss)
       if (mat.reflectivityTexture) {
         const hasOriginal = getStashed<number>(mat, "_originalReflectivityLevel") !== undefined;
         if (shouldApplyGloss) {
@@ -816,7 +859,45 @@ export class RenderVars {
         }
       }
 
-      // Lightmap
+      if (mat.microSurfaceTexture) {
+        const hasOriginal = getStashed<number>(mat, "_originalMicroSurfaceTextureLevel") !== undefined;
+        if (shouldApplyGloss) {
+          if (!hasOriginal) {
+            setStashed(mat, "_originalMicroSurfaceTextureLevel", mat.microSurfaceTexture.level);
+          }
+          mat.microSurfaceTexture.level = getStashed<number>(mat, "_originalMicroSurfaceTextureLevel")! * glossIntensity;
+        } else if (hasOriginal) {
+          mat.microSurfaceTexture.level = getStashed<number>(mat, "_originalMicroSurfaceTextureLevel")!;
+          deleteStashed(mat, "_originalMicroSurfaceTextureLevel");
+        }
+      }
+
+      const hasOriginalRoughness = getStashed<number>(mat, "_originalRoughness") !== undefined;
+      if (shouldApplyGloss) {
+        if (!hasOriginalRoughness) {
+          setStashed(mat, "_originalRoughness", mat.roughness);
+        }
+        const baseRoughness = getStashed<number>(mat, "_originalRoughness") ?? mat.roughness ?? 1.0;
+        const glossShape = Math.sqrt(glossIntensity);
+        mat.roughness = Math.max(0.12, baseRoughness / glossShape);
+      } else if (hasOriginalRoughness) {
+        mat.roughness = getStashed<number>(mat, "_originalRoughness")!;
+        deleteStashed(mat, "_originalRoughness");
+      }
+
+      const hasOriginalMicroSurface = getStashed<number>(mat, "_originalMicroSurface") !== undefined;
+      if (shouldApplyGloss) {
+        if (!hasOriginalMicroSurface) {
+          setStashed(mat, "_originalMicroSurface", mat.microSurface);
+        }
+        const baseMicroSurface = getStashed<number>(mat, "_originalMicroSurface") ?? mat.microSurface ?? 0;
+        const glossShape = Math.sqrt(glossIntensity);
+        mat.microSurface = Math.min(1.0, baseMicroSurface * glossShape);
+      } else if (hasOriginalMicroSurface) {
+        mat.microSurface = getStashed<number>(mat, "_originalMicroSurface")!;
+        deleteStashed(mat, "_originalMicroSurface");
+      }
+
       if (mat.lightmapTexture) {
         const hasOriginal = getStashed<number>(mat, "_originalLightmapLevel") !== undefined;
         if (shouldApplyLightmap) {
@@ -851,19 +932,14 @@ export class RenderVars {
         deleteStashed(mat, "_originalEmissiveColor");
       }
 
-      const setAniso = (tex: object | null | undefined) => {
-        if (tex && typeof tex === "object") {
-          setProp(tex!, "anisotropicFilteringLevel", anisotropy);
-        }
-      };
       setAniso(getProp(mat, "albedoTexture"));
       setAniso(getProp(mat, "bumpTexture"));
       setAniso(getProp(mat, "reflectivityTexture"));
+      setAniso(getProp(mat, "microSurfaceTexture"));
       setAniso(getProp(mat, "lightmapTexture"));
       setAniso(getProp(mat, "emissiveTexture"));
     }
   }
-
   // ==================== Listeners ====================
 
   /**

@@ -18,7 +18,9 @@ import type {
   AlphaFunc,
   AlphaGen,
   BlendFactor,
+  Q3MaterialDirective,
   Q3Shader,
+  Q3ShaderConditionalBlock,
   Q3ShaderStage,
   RgbGen,
   TcGen,
@@ -221,6 +223,7 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
     surfaceParms: new Set(),
     cull: "back", // default
     stages: [],
+    unconditionalStages: [],
   };
 
   let pos = startPos;
@@ -234,6 +237,7 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
       pos++;
       const { stage, newPos } = parseStage(tokens, pos);
       shader.stages.push(stage);
+      shader.unconditionalStages?.push(stage);
       pos = newPos;
       continue;
     }
@@ -462,6 +466,19 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
         pos += 2;
         break;
 
+      case "if": {
+        const { block, newPos } = parseConditionalBlock(tokens, pos + 1);
+        if (!shader.conditionalBlocks) {
+          shader.conditionalBlocks = [];
+        }
+        shader.conditionalBlocks.push(block);
+        // Preserve current downstream behavior until material resolution
+        // becomes deluxe-aware in later phases.
+        shader.stages.push(...block.stages);
+        pos = newPos;
+        break;
+      }
+
       default:
         // Skip q3map_*, qer_*, and other unknown directives
         if (token.startsWith("q3map") || token.startsWith("qer_")) {
@@ -498,8 +515,71 @@ function isDirective(token: string): boolean {
     "skyparms",
     "skyparmssides",
     "qer_editorimage",
+    "if",
+    "endif",
   ];
   return directives.includes(token.toLowerCase());
+}
+
+function parseConditionalBlock(
+  tokens: string[],
+  startPos: number,
+): { block: Q3ShaderConditionalBlock; newPos: number } {
+  const { condition, newPos: conditionPos } = parseConditionalCondition(tokens, startPos);
+  const block: Q3ShaderConditionalBlock = {
+    condition,
+    stages: [],
+  };
+
+  let pos = conditionPos;
+
+  while (pos < tokens.length) {
+    const token = tokens[pos].toLowerCase();
+
+    if (token === "endif") {
+      pos++;
+      break;
+    }
+
+    if (token === "{") {
+      pos++;
+      const { stage, newPos } = parseStage(tokens, pos);
+      block.stages.push(stage);
+      pos = newPos;
+      continue;
+    }
+
+    // Preserve nested stages without introducing a nested conditional AST yet.
+    if (token === "if") {
+      const { block: nestedBlock, newPos } = parseConditionalBlock(tokens, pos + 1);
+      block.stages.push(...nestedBlock.stages);
+      pos = newPos;
+      continue;
+    }
+
+    pos++;
+  }
+
+  return { block, newPos: pos };
+}
+
+function parseConditionalCondition(tokens: string[], startPos: number): { condition: "deluxe" | "!deluxe"; newPos: number } {
+  const first = tokens[startPos]?.toLowerCase();
+  const second = tokens[startPos + 1]?.toLowerCase();
+
+  if (first === "!" && second === "deluxe") {
+    return { condition: "!deluxe", newPos: startPos + 2 };
+  }
+
+  if (first === "!deluxe") {
+    return { condition: "!deluxe", newPos: startPos + 1 };
+  }
+
+  if (first === "deluxe") {
+    return { condition: "deluxe", newPos: startPos + 1 };
+  }
+
+  return { condition: "deluxe", newPos: startPos };
 }
 
 /**
@@ -532,18 +612,14 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         break;
 
       case "material":
-        // Warsow/QFusion extension: material <diffuse> [<normalmap>]
-        // Sets the diffuse texture (and optionally normal map)
-        if (tokens[pos + 1]) {
-          stage.map = tokens[pos + 1];
-          pos += 2;
-          // Check for optional normal map (we store but don't use yet)
-          if (tokens[pos] && !isStageDirective(tokens[pos]) && tokens[pos] !== "}") {
-            // Skip the normal map parameter for now
-            pos++;
+        pos++;
+        {
+          const { material, newPos } = parseMaterialDirective(tokens, pos);
+          stage.material = material;
+          if (material.diffuse) {
+            stage.map = material.diffuse;
           }
-        } else {
-          pos++;
+          pos = newPos;
         }
         break;
 
@@ -703,6 +779,31 @@ function isStageDirective(token: string): boolean {
     "detail",
   ];
   return directives.includes(token.toLowerCase());
+}
+
+function parseMaterialDirective(tokens: string[], startPos: number): { material: Q3MaterialDirective; newPos: number } {
+  const rawTokens: string[] = [];
+  let pos = startPos;
+
+  while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
+    rawTokens.push(tokens[pos]);
+    pos++;
+  }
+
+  const [diffuse, normal, gloss, glow, ...extras] = rawTokens;
+  const material: Q3MaterialDirective = {
+    rawTokens,
+    diffuse,
+    normal,
+    gloss,
+    glow,
+  };
+
+  if (extras.length > 0) {
+    material.extras = extras;
+  }
+
+  return { material, newPos: pos };
 }
 
 /**

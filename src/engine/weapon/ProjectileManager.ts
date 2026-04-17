@@ -973,16 +973,18 @@ export class ProjectileManager {
     // Need at least 2 points for a ribbon
     if (proj.trailPoints.length < 2) return;
 
-    // Build ribbon path arrays — X-formation: two perpendicular planes for volume
+    // Build a single camera-facing ribbon.
+    // The previous X-formation looked volumetric on straight shots, but on
+    // curved grenade arcs the two planes visibly split and read like a delayed
+    // second trail.
     const pathA: Vector3[] = [];
     const pathB: Vector3[] = [];
-    const pathC: Vector3[] = [];
-    const pathD: Vector3[] = [];
+    const cameraPos = this.scene.activeCamera?.globalPosition ?? this.scene.activeCamera?.position ?? null;
 
     for (let i = 0; i < proj.trailPoints.length; i++) {
       const p = proj.trailPoints[i];
 
-      // Compute a perpendicular offset direction
+      // Compute a stable perpendicular that faces the active camera when possible.
       let tangent: Vector3;
       if (i < proj.trailPoints.length - 1) {
         tangent = proj.trailPoints[i + 1].subtract(p).normalize();
@@ -990,29 +992,28 @@ export class ProjectileManager {
         tangent = p.subtract(proj.trailPoints[i - 1]).normalize();
       }
 
-      // First perpendicular: cross tangent with world up (horizontal)
-      let perp1 = Vector3.Cross(tangent, Vector3.Up());
-      if (perp1.lengthSquared() < 0.001) {
-        perp1 = Vector3.Cross(tangent, Vector3.Forward());
+      let perp = Vector3.Zero();
+      if (cameraPos) {
+        const toCamera = cameraPos.subtract(p);
+        perp = Vector3.Cross(tangent, toCamera);
       }
-      perp1.normalize();
-
-      // Second perpendicular: cross tangent with first perp (vertical)
-      const perp2 = Vector3.Cross(tangent, perp1).normalize();
+      if (perp.lengthSquared() < 0.001) {
+        perp = Vector3.Cross(tangent, Vector3.Up());
+      }
+      if (perp.lengthSquared() < 0.001) {
+        perp = Vector3.Cross(tangent, Vector3.Forward());
+      }
+      perp.normalize();
 
       // Taper width: 0 at tail → full at head
       const t = i / (proj.trailPoints.length - 1);
       const width = TRAIL_WIDTH * t;
 
-      // First ribbon plane (horizontal)
-      pathA.push(p.add(perp1.scale(width)));
-      pathB.push(p.subtract(perp1.scale(width)));
-      // Second ribbon plane (vertical) — X formation
-      pathC.push(p.add(perp2.scale(width)));
-      pathD.push(p.subtract(perp2.scale(width)));
+      pathA.push(p.add(perp.scale(width)));
+      pathB.push(p.subtract(perp.scale(width)));
     }
 
-    const pathArray = [pathA, pathB, pathC, pathD];
+    const pathArray = [pathA, pathB];
 
     // At max capacity, the point count is stable — update ribbon in place.
     // During growth phase, we must dispose + recreate because Babylon requires

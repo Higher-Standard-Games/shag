@@ -20,6 +20,7 @@ import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandler
 import { EventBus } from "../../core/EventBus";
 import { LOADING_EVENTS, type LoadingCompleteEvent, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { EntityManager } from "../../entities/EntityManager";
+import RenderVars from "../../rendering/RenderVars";
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
@@ -52,6 +53,7 @@ export class MapLoader {
   private pk3Index: PK3Index;
   private pk3Loader: PK3Loader;
   private shaderRegistry: Q3ShaderRegistry;
+  private renderVars: RenderVars;
 
   private currentMap: string | null = null;
   private currentBsp: BspFile | null = null;
@@ -66,6 +68,20 @@ export class MapLoader {
     this.pk3Index = PK3Index.getInstance();
     this.pk3Loader = PK3Loader.getInstance();
     this.shaderRegistry = Q3ShaderRegistry.getInstance();
+    this.renderVars = RenderVars.getInstance();
+
+    this.renderVars.onChange("r_deluxe", (value) => {
+      if (!this.currentMeshResult) return;
+
+      const enabled = value >= 0.5 ? 1 : 0;
+      console.log(`[MapLoader] r_deluxe changed to ${enabled} - will apply on next BSP map reload`);
+    });
+    this.renderVars.onChange("r_bsp_pbr", (value) => {
+      if (!this.currentMeshResult) return;
+
+      const enabled = value >= 0.5 ? 1 : 0;
+      console.log(`[MapLoader] r_bsp_pbr changed to ${enabled} - will apply on next BSP map reload`);
+    });
   }
 
   static getInstance(): MapLoader {
@@ -183,6 +199,11 @@ export class MapLoader {
     progress: (phase: string, detail?: string, pct?: number) => void,
     backgroundOnly?: boolean,
   ): Promise<MapLoadResult> {
+    const deluxeEnabled = (this.renderVars.get("r_deluxe") ?? 0) >= 0.5;
+    const bspPbrEnabled = (this.renderVars.get("r_bsp_pbr") ?? 0) >= 0.5;
+    console.log(`[MapLoader] Deluxe shader branches: ${deluxeEnabled ? "enabled" : "disabled"} for this map load`);
+    console.log(`[MapLoader] BSP PBR materials: ${bspPbrEnabled ? "enabled" : "disabled"} for this map load`);
+
     // ── Tab visibility tracking ──────────────────────────────────────────
     // When the browser tab is backgrounded, WebGL texture uploads and shader
     // compilations silently fail. Track visibility so we can revalidate after.
@@ -302,12 +323,16 @@ export class MapLoader {
     progress("Geometry", "Building mesh");
     const meshResult = BspMeshBuilder.build(bsp, scene, {
       filterTextures: true,
+      deluxe: deluxeEnabled,
     });
     this.currentMeshResult = meshResult;
 
     // Phase 6: Apply textures
     progress("Textures", "Loading and applying");
-    await BspMeshBuilder.applyTextures(meshResult, bsp, scene);
+    await BspMeshBuilder.applyTextures(meshResult, bsp, scene, undefined, {
+      deluxe: deluxeEnabled,
+      pbr: bspPbrEnabled,
+    });
 
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");

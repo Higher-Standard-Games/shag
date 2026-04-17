@@ -9,6 +9,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Scene } from "@babylonjs/core/scene";
 
 // Mock localStorage before importing modules that use it
 const localStorageMock = (() => {
@@ -90,6 +95,8 @@ describe("RenderVars", () => {
       const names = rv.getNames();
 
       // Core material vars
+      expect(names).toContain("r_deluxe");
+      expect(names).toContain("r_bsp_pbr");
       expect(names).toContain("r_normalmap");
       expect(names).toContain("r_glossmap");
       expect(names).toContain("r_lightmap");
@@ -106,6 +113,8 @@ describe("RenderVars", () => {
 
     it("has correct default values", () => {
       const rv = getRV();
+      expect(rv.get("r_deluxe")).toBe(1);
+      expect(rv.get("r_bsp_pbr")).toBe(1);
       expect(rv.get("r_normalmap")).toBe(1.0);
       expect(rv.get("r_glossmap")).toBe(1.0);
       expect(rv.get("r_lightmap")).toBe(1.0);
@@ -212,6 +221,32 @@ describe("RenderVars", () => {
       rv.resetAll();
       expect(rv.get("r_normalmap")).toBe(1.0);
       expect(rv.get("r_glossmap")).toBe(1.0);
+    });
+  });
+
+  describe("PBR gloss tuning", () => {
+    it("scales microSurfaceTexture on PBR materials when r_glossmap changes", () => {
+      const rv = getRV();
+      const engine = new NullEngine();
+      const scene = new Scene(engine);
+      const mesh = MeshBuilder.CreateBox("box", {}, scene);
+      const material = new PBRMaterial("pbr", scene);
+      const glossTex = RawTexture.CreateRGBATexture(new Uint8Array([255, 255, 255, 255]), 1, 1, scene, false, false);
+
+      material.microSurfaceTexture = glossTex;
+      material.microSurfaceTexture.level = 1.0;
+      mesh.material = material;
+
+      // biome-ignore lint/suspicious/noExplicitAny: testing private helper directly
+      (rv as any).applyToMesh(mesh, 1.0, 1.5, 1.0, 1.0, 8, false);
+      expect(material.microSurfaceTexture?.level).toBeCloseTo(1.5);
+
+      // biome-ignore lint/suspicious/noExplicitAny: testing private helper directly
+      (rv as any).applyToMesh(mesh, 1.0, 1.0, 1.0, 1.0, 8, false);
+      expect(material.microSurfaceTexture?.level).toBeCloseTo(1.0);
+
+      scene.dispose();
+      engine.dispose();
     });
   });
 

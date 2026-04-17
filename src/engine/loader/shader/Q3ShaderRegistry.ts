@@ -7,7 +7,99 @@
 
 import { PK3Loader } from "../pk3/PK3Loader";
 import { parseShaderFile } from "./Q3ShaderParser";
-import type { Q3Shader, ResolvedMaterialProps } from "./Q3ShaderTypes";
+import type {
+  Q3MaterialDirective,
+  Q3Shader,
+  Q3ShaderStage,
+  ResolveMaterialOptions,
+  ResolvedMaterialProps,
+} from "./Q3ShaderTypes";
+
+type ResolvedBranch = ResolvedMaterialProps["resolvedBranch"];
+
+type MaterialChannelResolution = {
+  value?: string;
+  explicitlyBlank: boolean;
+};
+
+type NormalizedMaterialDirective = {
+  tokens: string[];
+  diffuse: MaterialChannelResolution;
+  normal: MaterialChannelResolution;
+  gloss: MaterialChannelResolution;
+  glow: MaterialChannelResolution;
+};
+
+const IMPLICIT_TEXTURE_EXTENSIONS = [".ktx", ".tga", ".png", ".jpg", ".jpeg"];
+const IMPLICIT_NORMAL_SUFFIXES = ["_norm", "_normal", "_bump"];
+const IMPLICIT_GLOSS_SUFFIXES = ["_gloss", "_spec"];
+const IMPLICIT_GLOW_SUFFIXES = ["_glow", "_add"];
+
+function normalizeShaderName(textureName: string): string {
+  return textureName.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
+}
+
+function normalizeTextureReference(texturePath: string): string {
+  return texturePath.replace(/\\/g, "/");
+}
+
+function addTexturePrefixes(path: string): string[] {
+  const normalized = normalizeTextureReference(path);
+  const candidates = [normalized];
+  const lower = normalized.toLowerCase();
+  if (!lower.startsWith("textures/") && !lower.startsWith("models/")) {
+    candidates.push(`textures/${normalized}`);
+  }
+  return candidates;
+}
+
+function buildTextureNameFallbacks(textureName: string): string[] {
+  const paths: string[] = [textureName];
+  if (textureName.includes("_") && !textureName.includes("/")) {
+    const parts = textureName.split("_");
+    if (parts.length >= 2) {
+      paths.push(parts.join("/"));
+      if (parts.length >= 3) {
+        paths.push(`${parts[0]}/${parts[1]}/${parts.slice(2).join("_")}`);
+      }
+      if (parts.length >= 4) {
+        paths.push(`${parts[0]}/${parts[1]}/${parts[2]}/${parts.slice(3).join("_")}`);
+      }
+    }
+  }
+  return paths;
+}
+
+function dedupePaths(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const path of paths) {
+    const normalized = normalizeTextureReference(path);
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(normalized);
+  }
+  return deduped;
+}
+
+function isExplicitBlankToken(token?: string): boolean {
+  if (!token) return false;
+  const normalized = token.toLowerCase();
+  return normalized === "-" || normalized === "$blankbumpimage";
+}
+
+function isLightmapStage(stage: Q3ShaderStage): boolean {
+  return stage.map.toLowerCase() === "$lightmap";
+}
+
+function isRenderableStage(stage: Q3ShaderStage): boolean {
+  return Boolean(stage.material?.diffuse || (stage.map && !isLightmapStage(stage)));
+}
+
+function hasFilterBlend(stage: Q3ShaderStage): boolean {
+  return stage.blendFunc?.[0] === "GL_DST_COLOR" && stage.blendFunc?.[1] === "GL_ZERO";
+}
 
 export class Q3ShaderRegistry {
   private static instance: Q3ShaderRegistry;
@@ -71,7 +163,7 @@ export class Q3ShaderRegistry {
 
         for (const shader of parsedShaders) {
           // Store by normalized name (lowercase, no extension)
-          const name = shader.name.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, "");
+          const name = normalizeShaderName(shader.name);
           this.shaders.set(name, shader);
           newShaderCount++;
         }
@@ -92,7 +184,7 @@ export class Q3ShaderRegistry {
    */
   getShader(textureName: string): Q3Shader | undefined {
     // Normalize: lowercase, no extension
-    const name = textureName.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, "");
+    const name = normalizeShaderName(textureName);
 
     // Try exact match first
     let shader = this.shaders.get(name);
@@ -132,15 +224,24 @@ export class Q3ShaderRegistry {
    * Resolve shader to Babylon.js material properties
    * This is the main interface for BspMeshBuilder
    */
-  resolveMaterialProps(textureName: string): ResolvedMaterialProps {
-    // Check cache first (same texture always resolves to the same props)
-    const cached = this.resolvedCache.get(textureName);
+  resolveMaterialProps(textureName: string, options: ResolveMaterialOptions = {}): ResolvedMaterialProps {
+    const deluxe = options.deluxe ?? false;
+    const normalizedTextureName = normalizeShaderName(textureName);
+    const cacheKey = `${normalizedTextureName}|deluxe=${deluxe ? 1 : 0}`;
+
+    // Check cache first (same texture + deluxe mode resolves to the same props)
+    const cached = this.resolvedCache.get(cacheKey);
     if (cached) return cached;
 
     const shader = this.getShader(textureName);
 
     // Default opaque material
     const defaults: ResolvedMaterialProps = {
+      hasMaterialMetadata: false,
+      normalTextureExplicitlyBlank: false,
+      glossTextureExplicitlyBlank: false,
+      glowTextureExplicitlyBlank: false,
+      resolvedBranch: "default",
       useLightmap: true,
       alphaMode: "opaque",
       backFaceCulling: true,
@@ -156,11 +257,25 @@ export class Q3ShaderRegistry {
     };
 
     if (!shader) {
-      this.resolvedCache.set(textureName, defaults);
-      return defaults;
+      const syntheticMaterial = this.createImplicitMaterialDirective(textureName);
+      if (!syntheticMaterial) {
+        this.resolvedCache.set(cacheKey, defaults);
+        return defaults;
+      }
+
+      const props: ResolvedMaterialProps = { ...defaults };
+      this.applyNormalizedMaterialToProps(props, this.normalizeMaterialDirective(syntheticMaterial));
+      this.resolvedCache.set(cacheKey, props);
+      return props;
     }
 
     const props: ResolvedMaterialProps = { ...defaults };
+    const { stages: activeStages, branch } = this.getResolvedStages(shader, deluxe);
+    const primaryStage = this.getPrimaryStage(activeStages);
+    const materialStage = activeStages.find((stage) => stage.material !== undefined);
+    const isClassicLightmapComposition = this.isClassicLightmapComposition(activeStages);
+
+    props.resolvedBranch = branch;
 
     // Sky detection - surfaceparm sky or has skyparms
     if (shader.surfaceParms.has("sky") || shader.skyParms) {
@@ -198,21 +313,23 @@ export class Q3ShaderRegistry {
       props.useLightmap = false;
     }
 
-    // Check stages for blend modes
-    if (shader.stages.length > 0) {
-      const firstStage = shader.stages[0];
+    // Normalize structured material metadata before any stage-map fallback.
+    if (materialStage?.material) {
+      this.applyNormalizedMaterialToProps(props, this.normalizeMaterialDirective(materialStage.material));
+    }
 
-      // Get diffuse texture from first stage
-      if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
-        props.diffuseTexture = firstStage.map;
+    if (activeStages.length > 0) {
+      if (!props.diffuseTexture && primaryStage?.map && !isLightmapStage(primaryStage)) {
+        props.diffuseTexture = normalizeTextureReference(primaryStage.map);
       }
 
-      // Check for lightmap stage
-      props.useLightmap = shader.stages.some((s) => s.map === "$lightmap");
+      // Check for lightmap stage in the selected stage stack
+      props.useLightmap = activeStages.some((stage) => isLightmapStage(stage));
 
-      // Determine alpha mode from blend function
-      if (firstStage.blendFunc) {
-        const [src, dst] = firstStage.blendFunc;
+      // Determine alpha mode from the representative stage, unless this is just
+      // the classic Q3 base * lightmap composition we already map to lightmapTexture.
+      if (primaryStage?.blendFunc && !isClassicLightmapComposition) {
+        const [src, dst] = primaryStage.blendFunc;
 
         // Additive: GL_ONE, GL_ONE
         if (src === "GL_ONE" && dst === "GL_ONE") {
@@ -238,7 +355,6 @@ export class Q3ShaderRegistry {
           props.depthWrite = false;
         }
         // Soft additive / screen: GL_ONE, GL_ONE_MINUS_SRC_COLOR
-        // Used for flares, glows - adds light but caps at white
         else if (src === "GL_ONE" && dst === "GL_ONE_MINUS_SRC_COLOR") {
           props.alphaMode = "add";
           props.isTransparent = true;
@@ -258,9 +374,9 @@ export class Q3ShaderRegistry {
       }
 
       // Alpha testing
-      if (firstStage.alphaFunc) {
+      if (primaryStage?.alphaFunc) {
         props.isTransparent = true;
-        switch (firstStage.alphaFunc) {
+        switch (primaryStage.alphaFunc) {
           case "GT0":
             props.alphaCutoff = 0.01;
             break;
@@ -269,28 +385,27 @@ export class Q3ShaderRegistry {
             break;
           case "LT128":
             props.alphaCutoff = 0.5;
-            // This is inverted - would need special handling
             break;
         }
       }
 
       // Check for animations
-      if (firstStage.tcMod && firstStage.tcMod.length > 0) {
+      if (primaryStage?.tcMod && primaryStage.tcMod.length > 0) {
         props.needsAnimation = true;
-        props.tcMod = firstStage.tcMod;
+        props.tcMod = primaryStage.tcMod;
       }
-      if (firstStage.animMap) {
+      if (primaryStage?.animMap) {
         props.needsAnimation = true;
       }
 
       // Texture coordinate generation mode (environment mapping, etc.)
-      if (firstStage.tcGen) {
-        props.tcGen = firstStage.tcGen;
+      if (primaryStage?.tcGen) {
+        props.tcGen = primaryStage.tcGen;
       }
 
       // Explicit depth write in stage
-      if (firstStage.depthWrite !== undefined) {
-        props.depthWrite = firstStage.depthWrite;
+      if (primaryStage?.depthWrite !== undefined) {
+        props.depthWrite = primaryStage.depthWrite;
       }
     }
 
@@ -305,8 +420,146 @@ export class Q3ShaderRegistry {
       }
     }
 
-    this.resolvedCache.set(textureName, props);
+    this.resolvedCache.set(cacheKey, props);
     return props;
+  }
+
+  private getResolvedStages(shader: Q3Shader, deluxe: boolean): { stages: Q3ShaderStage[]; branch: ResolvedBranch } {
+    const unconditionalStages = shader.unconditionalStages ?? shader.stages;
+
+    if (!shader.conditionalBlocks || shader.conditionalBlocks.length === 0) {
+      return { stages: unconditionalStages, branch: "default" };
+    }
+
+    const requestedBranch: Exclude<ResolvedBranch, "default"> = deluxe ? "deluxe" : "!deluxe";
+    const branchStages = shader.conditionalBlocks
+      .filter((block) => block.condition === requestedBranch)
+      .flatMap((block) => block.stages);
+
+    if (branchStages.length === 0) {
+      return { stages: unconditionalStages, branch: "default" };
+    }
+
+    return {
+      stages: [...unconditionalStages, ...branchStages],
+      branch: requestedBranch,
+    };
+  }
+
+  private getPrimaryStage(stages: Q3ShaderStage[]): Q3ShaderStage | undefined {
+    const renderableStage = stages.find((stage) => isRenderableStage(stage));
+    return renderableStage ?? stages[0];
+  }
+
+  private normalizeMaterialDirective(material: Q3MaterialDirective): NormalizedMaterialDirective {
+    const tokens = material.rawTokens.map((token) => normalizeTextureReference(token));
+    const [diffuseToken, normalToken, glossToken, glowToken] = tokens;
+    const resolveChannel = (token?: string): MaterialChannelResolution => {
+      if (!token) {
+        return { value: undefined, explicitlyBlank: false };
+      }
+      if (isExplicitBlankToken(token)) {
+        return { value: undefined, explicitlyBlank: true };
+      }
+      return { value: token, explicitlyBlank: false };
+    };
+
+    return {
+      tokens,
+      diffuse: resolveChannel(diffuseToken),
+      normal: resolveChannel(normalToken),
+      gloss: resolveChannel(glossToken),
+      glow: resolveChannel(glowToken),
+    };
+  }
+
+  private applyNormalizedMaterialToProps(props: ResolvedMaterialProps, material: NormalizedMaterialDirective): void {
+    props.hasMaterialMetadata = true;
+    props.materialTokens = material.tokens;
+    props.normalTextureExplicitlyBlank = material.normal.explicitlyBlank;
+    props.glossTextureExplicitlyBlank = material.gloss.explicitlyBlank;
+    props.glowTextureExplicitlyBlank = material.glow.explicitlyBlank;
+
+    if (material.diffuse.value) {
+      props.diffuseTexture = material.diffuse.value;
+    }
+    if (material.normal.value) {
+      props.normalTexture = material.normal.value;
+    }
+    if (material.gloss.value) {
+      props.glossTexture = material.gloss.value;
+    }
+    if (material.glow.value) {
+      props.glowTexture = material.glow.value;
+    }
+  }
+
+  private createImplicitMaterialDirective(textureName: string): Q3MaterialDirective | null {
+    const pk3Loader = PK3Loader.getInstance();
+    const candidateBases = dedupePaths(
+      buildTextureNameFallbacks(normalizeShaderName(textureName)).flatMap((candidate) => addTexturePrefixes(candidate)),
+    );
+
+    const diffuse = this.findFirstExistingTexturePath(candidateBases);
+    if (!diffuse) {
+      return null;
+    }
+
+    const diffuseBase = normalizeShaderName(diffuse);
+    const normal = this.findFirstExistingTexturePath(IMPLICIT_NORMAL_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
+    const gloss = this.findFirstExistingTexturePath(IMPLICIT_GLOSS_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
+    const glow = this.findFirstExistingTexturePath(IMPLICIT_GLOW_SUFFIXES.map((suffix) => `${diffuseBase}${suffix}`));
+
+    const rawTokens = [diffuse];
+    if (normal || gloss || glow) {
+      rawTokens.push(normal ?? "-");
+    }
+    if (gloss || glow) {
+      rawTokens.push(gloss ?? "-");
+    }
+    if (glow) {
+      rawTokens.push(glow);
+    }
+
+    // Avoid synthetic metadata when the diffuse itself doesn't exist in loaded PK3s.
+    if (!pk3Loader.hasFile(diffuse)) {
+      return null;
+    }
+
+    return {
+      rawTokens,
+      diffuse,
+      normal,
+      gloss,
+      glow,
+    };
+  }
+
+  private findFirstExistingTexturePath(baseCandidates: string[]): string | undefined {
+    const pk3Loader = PK3Loader.getInstance();
+    for (const baseCandidate of baseCandidates) {
+      const normalizedBase = normalizeShaderName(baseCandidate);
+      for (const ext of IMPLICIT_TEXTURE_EXTENSIONS) {
+        const candidate = `${normalizedBase}${ext}`;
+        if (pk3Loader.hasFile(candidate)) {
+          return candidate;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private isClassicLightmapComposition(stages: Q3ShaderStage[]): boolean {
+    if (stages.length === 0) return false;
+
+    const hasExplicitMaterial = stages.some((stage) => stage.material !== undefined);
+    if (hasExplicitMaterial) return false;
+
+    const hasLightmapStage = stages.some((stage) => isLightmapStage(stage));
+    const hasRenderableStage = stages.some((stage) => isRenderableStage(stage));
+    const hasFilterStage = stages.some((stage) => hasFilterBlend(stage));
+
+    return hasLightmapStage && hasRenderableStage && hasFilterStage;
   }
 
   /**

@@ -19,6 +19,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../core/Cvar";
 import { GameClock, type TimeOfDay } from "../core/GameClock";
 import { BspManager } from "../loader/bsp/BspManager";
+import { RenderVars } from "../rendering/RenderVars";
 import { SpriteBuildingManager } from "../sprites/SpriteBuilding";
 
 // ==================== Types ====================
@@ -350,11 +351,13 @@ export class SkyLightSystem {
 
     // BSP Mode: Lock lighting state
     if (this.bspMode) {
+      const bspPbrEnabled = (RenderVars.getInstance().get("r_bsp_pbr") ?? 0) >= 0.5;
+
       // 1. Sun Light: Needs to be active and directional for Normal Maps to work
       // But not too strong to wash out lightmaps
-      this.sunLight.intensity = 1.0;
+      this.sunLight.intensity = bspPbrEnabled ? 1.15 : 1.0;
       this.sunLight.diffuse = new Color3(1, 1, 1);
-      this.sunLight.specular = new Color3(0.1, 0.1, 0.1);
+      this.sunLight.specular = bspPbrEnabled ? new Color3(0.16, 0.16, 0.16) : new Color3(0.1, 0.1, 0.1);
       // Fixed direction (noon-ish but angled) for good normal map relief
       this.sunLight.direction = new Vector3(-0.5, -1, -0.2).normalize();
 
@@ -366,9 +369,11 @@ export class SkyLightSystem {
       // StandardMaterial logic: lightmap * ambient? Or lightmap * diffuse?
       // If we want "pure" lightmap look, we want neutral ambient.
       // Let's stick to a clean white light so colours aren't tinted.
-      this.ambientLight.intensity = 0.8;
+      this.ambientLight.intensity = bspPbrEnabled ? 0.35 : 0.8;
       this.ambientLight.diffuse = new Color3(1, 1, 1);
-      this.ambientLight.groundColor = new Color3(0.5, 0.5, 0.5);
+      this.ambientLight.groundColor = bspPbrEnabled
+        ? new Color3(0.18, 0.18, 0.18)
+        : new Color3(0.5, 0.5, 0.5);
       this.ambientLight.specular = Color3.Black();
 
       return;
