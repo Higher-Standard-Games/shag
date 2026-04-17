@@ -300,11 +300,15 @@ export class TextureManager {
 
     // Get base path without extension
     const basePath = textureInfo.path.replace(/\.[^/.]+$/, "");
+    let hasNormalMap = false;
+    let hasGlossMap = false;
 
     // Try to load normal map (_norm)
     const normTexture = await this.tryLoadCompanionTexture(`${basePath}_norm`);
     if (normTexture) {
       material.bumpTexture = normTexture;
+      material.bumpTexture.level = 1.0;
+      hasNormalMap = true;
       // Apply same UV transform as diffuse
       this.applyUVTransform(normTexture, textureInfo);
       console.log(`[TextureManager] Loaded normal map: ${basePath}_norm`);
@@ -314,11 +318,19 @@ export class TextureManager {
     const glossTexture = await this.tryLoadCompanionTexture(`${basePath}_gloss`);
     if (glossTexture) {
       material.specularTexture = glossTexture;
-      // Enable specular for gloss maps
-      material.specularColor = new Color3(0.3, 0.3, 0.3);
+      glossTexture.level = hasNormalMap ? 1.4 : 1.2;
+      const specularStrength = hasNormalMap ? 0.65 : 0.5;
+      material.specularColor = new Color3(specularStrength, specularStrength, specularStrength);
+      material.specularPower = hasNormalMap ? 24 : 32;
+      hasGlossMap = true;
       // Apply same UV transform as diffuse
       this.applyUVTransform(glossTexture, textureInfo);
       console.log(`[TextureManager] Loaded gloss map: ${basePath}_gloss`);
+    }
+
+    if (hasNormalMap && !hasGlossMap) {
+      material.specularColor = new Color3(0.18, 0.18, 0.18);
+      material.specularPower = 48;
     }
   }
 

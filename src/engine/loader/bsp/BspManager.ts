@@ -10,6 +10,7 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import RenderVars from "../../rendering/RenderVars";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "./BspMeshBuilder";
@@ -401,9 +402,11 @@ export class BspManager {
     this.clearRender();
 
     try {
+      const deluxeEnabled = (RenderVars.getInstance().get("r_deluxe") ?? 0) >= 0.5;
       this.meshResult = BspMeshBuilder.build(this.loadedBsp, scene, {
         faceTypes: options.faceTypes,
         filterTextures: options.filterTextures ?? true,
+        deluxe: deluxeEnabled,
       });
 
       const filterInfo = options.faceTypes ? ` (types: ${options.faceTypes.join(",")})` : "";
@@ -444,7 +447,12 @@ export class BspManager {
       throw new Error("No BSP rendered");
     }
 
-    return BspMeshBuilder.applyTextures(this.meshResult, this.loadedBsp, scene, onProgress);
+    const deluxeEnabled = (RenderVars.getInstance().get("r_deluxe") ?? 0) >= 0.5;
+    const bspPbrEnabled = (RenderVars.getInstance().get("r_bsp_pbr") ?? 0) >= 0.5;
+    return BspMeshBuilder.applyTextures(this.meshResult, this.loadedBsp, scene, onProgress, {
+      deluxe: deluxeEnabled,
+      pbr: bspPbrEnabled,
+    });
   }
 
   /**

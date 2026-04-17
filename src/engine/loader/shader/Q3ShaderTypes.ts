@@ -143,11 +143,48 @@ export interface AlphaGen {
 }
 
 /**
+ * Warsow/QFusion `material` directive payload.
+ * We preserve raw tokens because real assets use variable arity,
+ * placeholders like `-`, and engine tokens such as `$blankbumpimage`.
+ */
+export interface Q3MaterialDirective {
+  /** Raw tokens after the `material` keyword, in source order */
+  rawTokens: string[];
+
+  /** First token, typically the diffuse/albedo texture */
+  diffuse?: string;
+
+  /** Second token, often a normal map or placeholder */
+  normal?: string;
+
+  /** Third token, often a gloss/specular map or placeholder */
+  gloss?: string;
+
+  /** Fourth token, often a glow/emissive map or placeholder */
+  glow?: string;
+
+  /** Any remaining tokens after the common 4-slot interpretation */
+  extras?: string[];
+}
+
+/**
+ * Warsow/QFusion conditional block preserved from shader source.
+ * Phase 1 stores branch structure without changing downstream resolution yet.
+ */
+export interface Q3ShaderConditionalBlock {
+  condition: "deluxe" | "!deluxe";
+  stages: Q3ShaderStage[];
+}
+
+/**
  * A single stage (pass) in a Q3 shader
  */
 export interface Q3ShaderStage {
   /** Texture map path, or special values like $lightmap, $whiteimage */
   map: string;
+
+  /** Structured payload for Warsow/QFusion `material` directives */
+  material?: Q3MaterialDirective;
 
   /** Clamp texture instead of repeat */
   clampMap?: boolean;
@@ -227,6 +264,12 @@ export interface Q3Shader {
   /** Shader stages/passes */
   stages: Q3ShaderStage[];
 
+  /** Top-level stages outside conditional blocks */
+  unconditionalStages?: Q3ShaderStage[];
+
+  /** Preserved conditional branches such as `if deluxe` / `if ! deluxe` */
+  conditionalBlocks?: Q3ShaderConditionalBlock[];
+
   /** Vertex deformations */
   deformVertexes?: DeformVertexes[];
 
@@ -264,6 +307,11 @@ export interface Q3Shader {
   editorImage?: string;
 }
 
+export interface ResolveMaterialOptions {
+  /** Select Warsow/QFusion deluxe branches when present */
+  deluxe?: boolean;
+}
+
 /**
  * Resolved material properties for Babylon.js
  * This is what BspMeshBuilder uses to configure materials
@@ -271,6 +319,33 @@ export interface Q3Shader {
 export interface ResolvedMaterialProps {
   /** Primary diffuse texture path */
   diffuseTexture?: string;
+
+  /** Structured normal map path resolved from `material`, when present */
+  normalTexture?: string;
+
+  /** Structured gloss/specular texture path resolved from `material`, when present */
+  glossTexture?: string;
+
+  /** Structured glow/emissive texture path resolved from `material`, when present */
+  glowTexture?: string;
+
+  /** Raw `material` payload tokens after normalization */
+  materialTokens?: string[];
+
+  /** Whether a `material` directive was explicitly present */
+  hasMaterialMetadata: boolean;
+
+  /** `material` explicitly blanked the normal channel (for example `-` or `$blankbumpimage`) */
+  normalTextureExplicitlyBlank: boolean;
+
+  /** `material` explicitly blanked the gloss channel */
+  glossTextureExplicitlyBlank: boolean;
+
+  /** `material` explicitly blanked the glow channel */
+  glowTextureExplicitlyBlank: boolean;
+
+  /** Which shader branch was selected during resolution */
+  resolvedBranch: "default" | "deluxe" | "!deluxe";
 
   /** Use lightmap */
   useLightmap: boolean;

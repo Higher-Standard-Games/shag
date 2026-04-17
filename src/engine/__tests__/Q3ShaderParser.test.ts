@@ -552,4 +552,142 @@ textures/base/floor
       expect(parseShaderFile(content)[0].stages[0].tcGen?.mode).toBe("environment");
     });
   });
+
+  describe("material directive", () => {
+    it("parses variable-arity material payloads", () => {
+      const content = `textures/test/material
+{
+  {
+    material textures/test/diffuse.tga textures/test/norm.tga textures/test/gloss.tga textures/test/glow.tga textures/test/mask.tga
+  }
+}`;
+      const stage = parseShaderFile(content)[0].stages[0];
+      expect(stage.map).toBe("textures/test/diffuse.tga");
+      expect(stage.material).toBeDefined();
+      expect(stage.material?.rawTokens).toEqual([
+        "textures/test/diffuse.tga",
+        "textures/test/norm.tga",
+        "textures/test/gloss.tga",
+        "textures/test/glow.tga",
+        "textures/test/mask.tga",
+      ]);
+      expect(stage.material?.diffuse).toBe("textures/test/diffuse.tga");
+      expect(stage.material?.normal).toBe("textures/test/norm.tga");
+      expect(stage.material?.gloss).toBe("textures/test/gloss.tga");
+      expect(stage.material?.glow).toBe("textures/test/glow.tga");
+      expect(stage.material?.extras).toEqual(["textures/test/mask.tga"]);
+    });
+
+    it("preserves placeholder tokens in material payloads", () => {
+      const content = `textures/test/placeholder
+{
+  {
+    material textures/test/diffuse.tga $blankbumpimage -
+  }
+}`;
+      const stage = parseShaderFile(content)[0].stages[0];
+      expect(stage.material?.rawTokens).toEqual(["textures/test/diffuse.tga", "$blankbumpimage", "-"]);
+      expect(stage.material?.normal).toBe("$blankbumpimage");
+      expect(stage.material?.gloss).toBe("-");
+    });
+
+    it("handles bare material directives without crashing", () => {
+      const content = `textures/test/empty
+{
+  {
+    material
+  }
+}`;
+      const stage = parseShaderFile(content)[0].stages[0];
+      expect(stage.material).toBeDefined();
+      expect(stage.material?.rawTokens).toEqual([]);
+      expect(stage.map).toBe("");
+    });
+  });
+
+  describe("conditional deluxe blocks", () => {
+    it("preserves unconditional stages separately from conditional branches", () => {
+      const content = `textures/test/mixed
+{
+  {
+    map textures/test/common.tga
+  }
+
+  if deluxe
+  {
+    {
+      material textures/test/common.tga textures/test/common_norm.tga
+    }
+  }
+  endif
+}`;
+      const shader = parseShaderFile(content)[0];
+      expect(shader.unconditionalStages).toHaveLength(1);
+      expect(shader.unconditionalStages?.[0].map).toBe("textures/test/common.tga");
+      expect(shader.conditionalBlocks).toHaveLength(1);
+      expect(shader.conditionalBlocks?.[0].stages[0].material?.normal).toBe("textures/test/common_norm.tga");
+      expect(shader.stages).toHaveLength(2);
+    });
+
+    it("captures deluxe and non-deluxe blocks while preserving flat stages", () => {
+      const content = `textures/test/deluxe
+{
+  if ! deluxe
+  {
+    {
+      map $lightmap
+    }
+    {
+      map textures/test/base.tga
+      blendFunc filter
+    }
+  }
+  endif
+
+  if deluxe
+  {
+    {
+      material textures/test/base.tga textures/test/base_norm.tga textures/test/base_gloss.tga textures/test/base_glow.tga
+    }
+  }
+  endif
+}`;
+      const shader = parseShaderFile(content)[0];
+      expect(shader.conditionalBlocks).toBeDefined();
+      expect(shader.conditionalBlocks).toHaveLength(2);
+      expect(shader.conditionalBlocks?.[0].condition).toBe("!deluxe");
+      expect(shader.conditionalBlocks?.[0].stages).toHaveLength(2);
+      expect(shader.conditionalBlocks?.[1].condition).toBe("deluxe");
+      expect(shader.conditionalBlocks?.[1].stages).toHaveLength(1);
+      expect(shader.conditionalBlocks?.[1].stages[0].material?.rawTokens).toEqual([
+        "textures/test/base.tga",
+        "textures/test/base_norm.tga",
+        "textures/test/base_gloss.tga",
+        "textures/test/base_glow.tga",
+      ]);
+
+      // Phase 1 keeps the legacy flat stage list intact for current consumers.
+      expect(shader.stages).toHaveLength(3);
+      expect(shader.stages[0].map).toBe("$lightmap");
+      expect(shader.stages[1].map).toBe("textures/test/base.tga");
+      expect(shader.stages[2].material?.glow).toBe("textures/test/base_glow.tga");
+    });
+
+    it("parses compact !deluxe condition syntax", () => {
+      const content = `textures/test/notdeluxe
+{
+  if !deluxe
+  {
+    {
+      map textures/test/base.tga
+    }
+  }
+  endif
+}`;
+      const shader = parseShaderFile(content)[0];
+      expect(shader.conditionalBlocks).toHaveLength(1);
+      expect(shader.conditionalBlocks?.[0].condition).toBe("!deluxe");
+      expect(shader.conditionalBlocks?.[0].stages[0].map).toBe("textures/test/base.tga");
+    });
+  });
 });

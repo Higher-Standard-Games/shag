@@ -201,6 +201,7 @@ export class DebugConsole {
         <span class="debug-console-version">${EngineVersion.getInstance().getVersionString()} "${EngineVersion.getInstance().getRandomQuote()}"</span>
         <span class="debug-console-close" title="Close console">✕</span>
       </div>
+      <button class="console-inspect-btn" title="Run: inspect">inspect</button>
       <div class="debug-console-output"></div>
       <div class="debug-console-input-container">
         <span class="debug-console-prompt">></span>
@@ -236,6 +237,15 @@ export class DebugConsole {
     // Close button handler
     const closeBtn = this.container.querySelector(".debug-console-close");
     closeBtn?.addEventListener("click", () => this.toggle());
+
+    // Inspect button — runs "inspect" command
+    const inspectBtn = this.container.querySelector(".console-inspect-btn");
+    inspectBtn?.addEventListener("click", () => {
+      this.log("command", "inspect");
+      CommandRegistry.getInstance()
+        .execute("inspect")
+        .then((result) => { if (result) this.log("result", result); });
+    });
   }
 
   private destroyDOM(): void {
