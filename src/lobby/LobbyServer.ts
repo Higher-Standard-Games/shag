@@ -30,43 +30,19 @@ import type {
 // Configuration
 // ============================================================================
 
-/** Default gametype definitions */
-const GAMETYPES: GametypeInfo[] = [
-  {
-    id: "duel",
-    name: "DUEL",
-    description: "1v1 Arena Duel",
-    maxPlayers: 2,
-    hasTeams: true,
-    teamNames: ["UDON", "SOBA"],
-    mapPool: ["wdm1", "wdm2", "wdm7"],
-  },
-  {
-    id: "tdm",
-    name: "TEAM",
-    description: "2v2 Team Deathmatch",
-    maxPlayers: 4,
-    hasTeams: true,
-    teamNames: ["UDON", "SOBA"],
-    mapPool: ["wdm2", "wdm7", "wdm14"],
-  },
-  {
-    id: "ffa",
-    name: "FFA",
-    description: "Free For All",
-    maxPlayers: 8,
-    hasTeams: false,
-    mapPool: ["wdm7", "wdm14", "wdm2"],
-  },
+/** Gametype shells — map pools are populated dynamically at startup */
+const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
+  { id: "duel", name: "DUEL", description: "1v1 Arena Duel",        maxPlayers: 2, hasTeams: true,  teamNames: ["UDON", "SOBA"] },
+  { id: "tdm",  name: "TEAM", description: "2v2 Team Deathmatch",   maxPlayers: 4, hasTeams: true,  teamNames: ["UDON", "SOBA"] },
+  { id: "ffa",  name: "FFA",  description: "Free For All",           maxPlayers: 8, hasTeams: false },
 ];
 
-/** Map display names */
-const MAP_NAMES: Record<string, string> = {
-  wdm1: "The Edge",
-  wdm2: "Proving Grounds",
-  wdm7: "Brimstone",
-  wdm14: "Aerowalk",
-};
+/** Shape of config/maps.json */
+interface MapManifestEntry {
+  displayName: string;
+  gametypes: string[];
+}
+type MapManifest = Record<string, MapManifestEntry>;
 
 // ============================================================================
 // Connected Player
@@ -102,7 +78,7 @@ class MatchLobby {
     return this.players.size;
   }
 
-  constructor(gametype: GametypeInfo) {
+  constructor(gametype: GametypeInfo, mapNames: Record<string, string>) {
     this.id = randomUUID().slice(0, 8);
     this.gametype = gametype;
 
@@ -110,7 +86,7 @@ class MatchLobby {
     const shuffled = [...gametype.mapPool].sort(() => Math.random() - 0.5);
     this.maps = shuffled.slice(0, 3).map((name) => ({
       name,
-      displayName: MAP_NAMES[name] || name,
+      displayName: mapNames[name] || name,
       votes: 0,
     }));
   }
@@ -182,7 +158,7 @@ class MatchLobby {
         candidates.push(map.name);
       }
     }
-    return candidates[Math.floor(Math.random() * candidates.length)] || this.maps[0].name;
+    return candidates[Math.floor(Math.random() * candidates.length)] || this.maps[0]?.name || "";
   }
 
   toInfo(): MatchLobbyInfo {
@@ -240,6 +216,13 @@ export class LobbyServer {
   private readonly DEMO_DIR = path.join(process.cwd(), "public", "data", "demos");
   private readonly DEMO_CACHE_INTERVAL = 60_000; // 60s refresh
 
+  // Dynamic map config (built at startup from config/maps.json + disk scan)
+  private gametypes: GametypeInfo[] = [];
+  private mapNames: Record<string, string> = {};
+
+  private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
+  private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
+
   constructor(port: number = 9000) {
     this.port = port;
     this.spawner = new GameServerSpawner();
@@ -253,6 +236,7 @@ export class LobbyServer {
   // ── Lifecycle ──────────────────────────────────────────────────
 
   async start(): Promise<void> {
+    this._loadMapsConfig();
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0" });
 
@@ -263,7 +247,7 @@ export class LobbyServer {
       });
       this.wss.on("listening", () => {
         console.log(`[LobbyServer] Ready on ws://localhost:${this.port}`);
-        console.log(`[LobbyServer] ${GAMETYPES.length} gametypes loaded: ${GAMETYPES.map((g) => g.id).join(", ")}`);
+        console.log(`[LobbyServer] ${this.gametypes.length} gametypes loaded: ${this.gametypes.map((g) => g.id).join(", ")}`);
 
         // Initial demo scan + periodic refresh
         this._scanDemos();
@@ -416,7 +400,7 @@ export class LobbyServer {
     const welcome = {
       type: "welcome",
       playerId: player.id,
-      gametypes: GAMETYPES,
+      gametypes: this.gametypes,
       onlinePlayers: this.getOnlinePlayers(),
       chatHistory: this.chatHistory,
       liveMatches: this.getLiveMatches(),
@@ -470,13 +454,13 @@ export class LobbyServer {
       return;
     }
 
-    const gametype = GAMETYPES.find((g) => g.id === gametypeId);
+    const gametype = this.gametypes.find((g) => g.id === gametypeId);
     if (!gametype) {
       this.send(player, { type: "lobby:error", error: `Unknown gametype: ${gametypeId}` });
       return;
     }
 
-    const lobby = new MatchLobby(gametype);
+    const lobby = new MatchLobby(gametype, this.mapNames);
     this.lobbies.set(lobby.id, lobby);
 
     // Add creator to lobby
@@ -671,7 +655,7 @@ export class LobbyServer {
       return;
     }
 
-    const gametype = GAMETYPES.find((g) => g.id === gametypeId);
+    const gametype = this.gametypes.find((g) => g.id === gametypeId);
     if (!gametype) {
       this.send(player, { type: "lobby:error", error: `Unknown gametype: ${gametypeId}` });
       return;
@@ -728,7 +712,7 @@ export class LobbyServer {
       this.broadcastMatchesUpdate();
     } else {
       // No waiting lobby — create one immediately
-      const lobby = new MatchLobby(gametype);
+      const lobby = new MatchLobby(gametype, this.mapNames);
       this.lobbies.set(lobby.id, lobby);
 
       lobby.addPlayer(player);
@@ -924,6 +908,75 @@ export class LobbyServer {
     }
   }
 
+  // ── Map Config ───────────────────────────────────────────────
+
+  /**
+   * Build gametypes and mapNames from config/maps.json + disk scan.
+   *
+   * A map is included in a gametype's pool only when:
+   *   1. It is listed for that gametype in config/maps.json
+   *   2. Its map_<name>.pk3 file exists in public/games/default/
+   *
+   * If the PK3 directory is missing (dev environment without assets),
+   * all manifest maps are included without the disk filter.
+   */
+  private _loadMapsConfig(): void {
+    // Read manifest
+    let manifest: MapManifest = {};
+    try {
+      const raw = fs.readFileSync(this.MAP_CONFIG_PATH, "utf-8");
+      manifest = JSON.parse(raw) as MapManifest;
+    } catch (err) {
+      console.warn("[LobbyServer] Could not read config/maps.json — using empty map pool:", (err as Error).message);
+    }
+
+    // Scan disk for available PK3s
+    let availableOnDisk: Set<string> | null = null;
+    try {
+      if (fs.existsSync(this.PK3_DIR)) {
+        const files = fs.readdirSync(this.PK3_DIR);
+        const mapPk3Names = files
+          .filter((f) => f.startsWith("map_") && f.endsWith(".pk3"))
+          .map((f) => f.slice(4, -4)); // "map_wdm2.pk3" → "wdm2"
+        if (mapPk3Names.length > 0) {
+          availableOnDisk = new Set(mapPk3Names);
+          console.log(`[LobbyServer] Found ${availableOnDisk.size} map PK3s in ${this.PK3_DIR}`);
+        } else {
+          console.log("[LobbyServer] No map_*.pk3 files found in PK3 dir — skipping disk filter");
+        }
+      } else {
+        console.log("[LobbyServer] PK3 directory not found — skipping disk filter, using all manifest maps");
+      }
+    } catch (err) {
+      console.warn("[LobbyServer] PK3 scan failed — skipping disk filter:", (err as Error).message);
+    }
+
+    // Build mapNames lookup from manifest
+    this.mapNames = {};
+    for (const [name, entry] of Object.entries(manifest)) {
+      this.mapNames[name] = entry.displayName;
+    }
+
+    // Build gametypes with resolved map pools
+    this.gametypes = GAMETYPE_SHELLS.map((shell) => {
+      const mapPool = Object.entries(manifest)
+        .filter(([name, entry]) => {
+          const inManifest = entry.gametypes.includes(shell.id);
+          const onDisk = availableOnDisk === null || availableOnDisk.has(name);
+          return inManifest && onDisk;
+        })
+        .map(([name]) => name);
+
+      if (mapPool.length === 0) {
+        console.warn(`[LobbyServer] Gametype "${shell.id}" has no available maps`);
+      } else {
+        console.log(`[LobbyServer] ${shell.id}: ${mapPool.join(", ")}`);
+      }
+
+      return { ...shell, mapPool };
+    });
+  }
+
   // ── Demo Scanning ────────────────────────────────────────────
 
   private handleDemosList(player: ConnectedPlayer, limit: number): void {
@@ -973,7 +1026,7 @@ export class LobbyServer {
             demos.push({
               filename,
               map: header.map,
-              mapDisplayName: MAP_NAMES[header.map] || header.map,
+              mapDisplayName: this.mapNames[header.map] || header.map,
               gametype: header.gametype,
               players: header.players.map((p) => p.name),
               durationMs,
@@ -1019,7 +1072,7 @@ export class LobbyServer {
         gametype: lobby.gametype.id,
         gametypeName: lobby.gametype.name,
         map: lobby.matchMap,
-        mapDisplayName: lobby.matchMap ? MAP_NAMES[lobby.matchMap] || lobby.matchMap : "",
+        mapDisplayName: lobby.matchMap ? this.mapNames[lobby.matchMap] || lobby.matchMap : "",
         players: [...lobby.players.values()].map((p) => p.name),
         playerCount: lobby.players.size,
         maxPlayers: lobby.gametype.maxPlayers,

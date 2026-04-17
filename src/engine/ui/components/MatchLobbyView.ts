@@ -37,24 +37,6 @@ export interface MatchLobbyConfig {
   hasTeams: boolean;
 }
 
-// Map pools per gametype
-const MAP_POOLS: Record<string, { name: string; displayName: string }[]> = {
-  duel: [
-    { name: "wdm1", displayName: "Aerowalk" },
-    { name: "wdm2", displayName: "The Proving Grounds" },
-    { name: "wdm7", displayName: "Bravado" },
-  ],
-  team: [
-    { name: "wca1", displayName: "Castle Siege" },
-    { name: "wdm2", displayName: "The Proving Grounds" },
-    { name: "wdm5", displayName: "Sinister" },
-  ],
-  ffa: [
-    { name: "wdm2", displayName: "The Proving Grounds" },
-    { name: "wdm5", displayName: "Sinister" },
-    { name: "wdm7", displayName: "Bravado" },
-  ],
-};
 
 const GAMETYPE_CONFIG: Record<string, MatchLobbyConfig> = {
   duel: { gametype: "duel", gametypeLabel: "DUEL 1v1", maxPlayers: 2, hasTeams: true },
@@ -112,16 +94,10 @@ export class MatchLobbyView {
         isLocal: p.id === lobbyInfo.players[0]?.id, // First player is creator
       }));
     } else {
-      // Fallback: mock data
+      // Fallback: mock data (no server connection — map pool comes from server in production)
       this.config = GAMETYPE_CONFIG[gametype] || GAMETYPE_CONFIG.duel;
       this.lobbyId = generateLobbyId();
-      const pool = MAP_POOLS[gametype] || MAP_POOLS.duel;
-      this.maps = pool.map((m) => ({
-        name: m.name,
-        displayName: m.displayName,
-        votes: 0,
-        votedByLocal: false,
-      }));
+      this.maps = [];
       this.players = this.generateMockPlayers();
     }
 

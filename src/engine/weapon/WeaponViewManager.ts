@@ -82,6 +82,51 @@ export class WeaponViewManager {
     return this.scene !== null && this.weaponRoot !== null;
   }
 
+  /** Returns true if init() has been called. Guards all demo-side WVM calls. */
+  public isInitialized(): boolean {
+    return this.scene !== null;
+  }
+
+  /**
+   * Trigger first-person weapon recoil kick (used by DemoService for spectated fire events).
+   */
+  public triggerRecoil(scale: number): void {
+    this.weaponRecoil.fire(scale, 0);
+  }
+
+  /**
+   * Weapon bob for demo spectator mode.
+   * Not implemented — WeaponBob.update requires a tracked bobCycle and deltaTime
+   * from the live FPS controller. Bob during demo playback is a future polish item.
+   */
+  public updateBob(_hSpeed: number, _velY: number): void {
+    // no-op until ViewportEffectsManager is wired for spectator state
+  }
+
+  /**
+   * Re-parent the weapon camera to a different camera (e.g. SpectatorController's FreeCamera).
+   * Updates scene.activeCameras to [newCamera, weaponCamera] so the weapon renders correctly.
+   * Call restoreToFPSCamera() when demo playback ends.
+   */
+  public attachToCamera(camera: FreeCamera): void {
+    if (!this.scene || !this.weaponCamera) return;
+    this.mainCamera = camera;
+    this.weaponCamera.parent = camera;
+    // Weapon camera must come after world camera so depth doesn't clobber world geometry
+    this.scene.activeCameras = [camera, this.weaponCamera];
+  }
+
+  /**
+   * Restore weapon camera parent back to the camera passed to init() (live FPS camera).
+   * Called when demo playback stops.
+   */
+  public restoreToFPSCamera(): void {
+    if (!this.scene || !this.weaponCamera || !this._initCamera) return;
+    this.mainCamera = this._initCamera;
+    this.weaponCamera.parent = this._initCamera;
+    this.scene.activeCameras = [this._initCamera, this.weaponCamera];
+  }
+
   /**
    * Get the world-space position of the gun barrel/muzzle (for beam origin etc.)
    *
@@ -123,6 +168,7 @@ export class WeaponViewManager {
   }
   private weaponCamera: FreeCamera | null = null;
   private mainCamera: FreeCamera | null = null; // Main player camera for aim direction
+  private _initCamera: FreeCamera | null = null; // Camera passed to init() — used for restore
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
@@ -202,6 +248,7 @@ export class WeaponViewManager {
   public init(scene: Scene, camera: FreeCamera): void {
     this.scene = scene;
     this.mainCamera = camera; // Store for aim direction
+    this._initCamera = camera; // Store for restoreToFPSCamera()
 
     // Initialize MD3 loader
     getMD3Loader().init(scene);

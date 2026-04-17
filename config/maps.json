@@ -1,0 +1,9 @@
+{
+  "wdm1":  { "displayName": "The Edge",        "gametypes": ["ffa", "tdm"] },
+  "wdm2":  { "displayName": "Proving Grounds", "gametypes": ["duel", "tdm", "ffa"] },
+  "wdm5":  { "displayName": "Sinister",        "gametypes": ["ffa", "tdm"] },
+  "wdm7":  { "displayName": "Brimstone",       "gametypes": ["tdm", "ffa"] },
+  "wdm12": { "displayName": "wdm12",           "gametypes": ["duel"] },
+  "wdm14": { "displayName": "Aerowalk",        "gametypes": ["tdm", "ffa"] },
+  "wdm15": { "displayName": "wdm15",           "gametypes": ["duel"] }
+}
