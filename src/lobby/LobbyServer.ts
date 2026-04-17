@@ -158,7 +158,7 @@ class MatchLobby {
         candidates.push(map.name);
       }
     }
-    return candidates[Math.floor(Math.random() * candidates.length)] || this.maps[0].name;
+    return candidates[Math.floor(Math.random() * candidates.length)] || this.maps[0]?.name || "";
   }
 
   toInfo(): MatchLobbyInfo {
@@ -221,7 +221,7 @@ export class LobbyServer {
   private mapNames: Record<string, string> = {};
 
   private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
-  private readonly PK3_DIR = path.join(process.cwd(), "public", "games", "default");
+  private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
   constructor(port: number = 9000) {
     this.port = port;
@@ -935,12 +935,15 @@ export class LobbyServer {
     try {
       if (fs.existsSync(this.PK3_DIR)) {
         const files = fs.readdirSync(this.PK3_DIR);
-        availableOnDisk = new Set(
-          files
-            .filter((f) => f.startsWith("map_") && f.endsWith(".pk3"))
-            .map((f) => f.slice(4, -4)), // "map_wdm2.pk3" → "wdm2"
-        );
-        console.log(`[LobbyServer] Found ${availableOnDisk.size} map PK3s in ${this.PK3_DIR}`);
+        const mapPk3Names = files
+          .filter((f) => f.startsWith("map_") && f.endsWith(".pk3"))
+          .map((f) => f.slice(4, -4)); // "map_wdm2.pk3" → "wdm2"
+        if (mapPk3Names.length > 0) {
+          availableOnDisk = new Set(mapPk3Names);
+          console.log(`[LobbyServer] Found ${availableOnDisk.size} map PK3s in ${this.PK3_DIR}`);
+        } else {
+          console.log("[LobbyServer] No map_*.pk3 files found in PK3 dir — skipping disk filter");
+        }
       } else {
         console.log("[LobbyServer] PK3 directory not found — skipping disk filter, using all manifest maps");
       }
