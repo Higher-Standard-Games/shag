@@ -7,8 +7,18 @@ import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
 
 /**
- * Local game host - runs simulation in-process
- * Used for single-player games or listen server hosting
+ * LocalGameHost — in-process IGameHost used for single-player and listen-server hosting.
+ *
+ * Runs the Simulation directly (no transport). sendCommand() queues the command into
+ * pendingCommands and calls processAccumulatedTime(), which advances the simulation
+ * using a fixed-timestep accumulator: per-call elapsed time is added to timeAccumulator
+ * and tick() is run while timeAccumulator >= tickDuration. The accumulator is capped at
+ * 5 * tickDuration to prevent spiral-of-death after tab resumes.
+ *
+ * Each tick stores the previous-frame position and velocity of every entity so the
+ * renderer can sample interpolated state between the last two simulation ticks via
+ * getInterpolatedPosition() / getInterpolatedVelocity(). The interpolation factor is
+ * timeAccumulator / tickDuration clamped to [0, 1].
  */
 export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;

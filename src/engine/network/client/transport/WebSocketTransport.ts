@@ -1,7 +1,14 @@
 import type { Transport } from "./Transport";
 
 /**
- * WebSocket transport implementation
+ * WebSocketTransport — reliable/ordered TCP-backed transport implementing Transport.
+ *
+ * Uses ArrayBuffer binary frames (binaryType = "arraybuffer") and delivers every
+ * inbound frame as a Uint8Array to onMessage subscribers. connect() is idempotent:
+ * if the socket is already OPEN it resolves immediately, and if it is CONNECTING it
+ * awaits the in-flight handshake. send() is a no-op when the socket is not OPEN and
+ * logs a 1% sample to avoid console spam. The `reliable` flag is ignored — WebSocket
+ * is always reliable and ordered.
  */
 export class WebSocketTransport implements Transport {
   private ws: WebSocket | null = null;
