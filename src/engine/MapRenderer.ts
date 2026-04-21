@@ -67,10 +67,25 @@ export interface MapRenderResult {
   } | null;
 }
 
+/**
+ * MapRenderer — converts parsed map entity arrays into a populated Babylon scene.
+ *
+ * Consumes `Entity[]` from the loader (worldspawn + brush/patch/prefab/light entities)
+ * and dispatches each one through EntityHandlerRegistry, BrushGenerator, PatchGenerator,
+ * PrefabInstance, SpriteBuildingManager, StreetLampSystem, or SkyLightSystem depending
+ * on `classname`. All static brush-like geometry is routed through InstancedMeshManager
+ * so duplicate (model, texture) pairs collapse to a single ThinInstance template.
+ *
+ * Worldspawn keys surface on the returned MapRenderResult (camera mode, lighting
+ * overrides, weather, time-of-day, playlist, indoor flag) so the host engine can
+ * apply them after render. Also emits player start position, prefab TransformNodes
+ * (for cleanup), and spawned BillboardSprite instances (for frame updates).
+ */
 export class MapRenderer {
   /**
-   * Renders parsed map entities into a Babylon scene.
-   * Returns the player start position if found.
+   * Render `entities` into `scene`. Awaits texture preload, builds brush/patch/prefab
+   * meshes, spawns lights and sprites, and returns MapRenderResult with player start
+   * and worldspawn-derived scene overrides. `mapName` is used for asset-scoped caches.
    */
   public static async renderEntities(entities: Entity[], scene: Scene, mapName?: string): Promise<MapRenderResult> {
     const textureManager = TextureManager.getInstance();

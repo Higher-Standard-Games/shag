@@ -28,11 +28,16 @@ export interface Transport {
 }
 
 /**
- * Transport factory for selecting best available transport
+ * Factory that returns the best available Transport for the current runtime.
+ *
+ * Attempts WebTransport first (QUIC, supports unreliable datagrams for game traffic).
+ * Falls back to WebSocketTransport if WebTransport is unavailable or its handshake
+ * fails. The connection handshake is completed before the Transport is returned.
  */
 export class TransportFactory {
   /**
-   * Create transport for given URL
+   * Connect to `url` using the best available transport. `url` may use http/https;
+   * WebTransport internally rewrites to https and WebSocket rewrites to ws/wss.
    */
   static async create(url: string): Promise<Transport> {
     // Try WebTransport first (if available)

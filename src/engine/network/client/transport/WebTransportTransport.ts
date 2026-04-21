@@ -1,8 +1,18 @@
 import type { Transport } from "./Transport";
 
 /**
- * WebTransport implementation (placeholder for future use)
- * Note: WebTransport is still experimental and not widely supported
+ * WebTransportTransport — QUIC-based Transport using the browser WebTransport API.
+ *
+ * Supports both delivery modes over a single connection:
+ * - reliable=false: writes to the `datagrams.writable` writer (unordered, unreliable,
+ *   low-latency — used for input commands and snapshots)
+ * - reliable=true:  opens a unidirectional stream per message for ordered, guaranteed
+ *   delivery (used for auth, welcome, and game events)
+ *
+ * Inbound traffic comes from two sources: `datagrams.readable` (read in a long-lived
+ * loop by readMessages()) and `incomingUnidirectionalStreams` (each stream is drained
+ * to completion and reassembled into a single Uint8Array before delivery).
+ * connect() requires an https URL and will throw if WebTransport is unavailable.
  */
 export class WebTransportTransport implements Transport {
   // biome-ignore lint/suspicious/noExplicitAny: browser WebTransport API (experimental, not in TS dom lib)

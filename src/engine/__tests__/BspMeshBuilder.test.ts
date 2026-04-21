@@ -6,6 +6,15 @@ import { describe, expect, it } from "vitest";
 import { BspMeshBuilder } from "../loader/bsp/BspMeshBuilder";
 import type { ResolvedMaterialProps } from "../loader/shader/Q3ShaderTypes";
 
+// Babylon's NullEngine.dispose touches window.removeEventListener. Stub just
+// enough of a window so tests can dispose cleanly in the node environment.
+if (typeof (globalThis as { window?: unknown }).window === "undefined") {
+  (globalThis as { window?: unknown }).window = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+}
+
 function makeProps(overrides: Partial<ResolvedMaterialProps> = {}): ResolvedMaterialProps {
   return {
     hasMaterialMetadata: false,
