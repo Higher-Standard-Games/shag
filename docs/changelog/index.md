@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.12](./v0.9.12.md) | TBD | In development |
+| [v0.9.13](./v0.9.13.md) | TBD | In development |
+| [v0.9.12](./v0.9.12.md) | Apr 14, 2026 | Warsow deluxe materials, demo cinematic pipeline, protocol/movement test lock-down (150 tests) |
 | [v0.9.6](./v0.9.6.md) | Feb 23, 2026 | Washiki HUD overhaul + performance optimization pass (47 items across loading, collision, rendering) |
 | [v0.9.5](./v0.9.5.md) | Feb 22, 2026 | V2 network client, movement refinements |
 | [v0.9.4](./v0.9.4.md) | Feb 21, 2026 | Network prediction improvements |
