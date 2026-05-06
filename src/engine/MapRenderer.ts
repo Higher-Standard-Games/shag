@@ -620,9 +620,7 @@ export class MapRenderer {
         const spriteBuildingManager = SpriteBuildingManager.getInstance();
 
         // Initialize if needed
-        if (!spriteBuildingManager.scene) {
-          spriteBuildingManager.init(scene);
-        }
+        spriteBuildingManager.init(scene);
 
         // Parse position
         const parts = entity.properties.origin.split(" ").map(parseFloat);

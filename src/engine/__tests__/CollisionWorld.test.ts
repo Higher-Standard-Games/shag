@@ -14,8 +14,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { AABB, Vec3 } from "../network/systems/collision/CollisionWorld";
+import type { AABB } from "../network/systems/collision/CollisionWorld";
 import { Contents, NullCollisionWorld } from "../network/systems/collision/CollisionWorld";
+
+type Vec3 = { x: number; y: number; z: number };
 
 const PLAYER_BOUNDS: AABB = {
   min: { x: -16, y: -24, z: -16 },
@@ -51,12 +53,7 @@ describe("NullCollisionWorld — trace", () => {
 describe("NullCollisionWorld — stepSlideMove", () => {
   it("moves freely when not contacting the floor", () => {
     const w = new NullCollisionWorld();
-    const r = w.stepSlideMove(
-      { x: 0, y: 200, z: 0 },
-      { x: 50, y: 0, z: 0 },
-      0.1,
-      PLAYER_BOUNDS,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 200, z: 0 }, { x: 50, y: 0, z: 0 }, 0.1, PLAYER_BOUNDS);
     expect(r.endPos.x).toBeCloseTo(5, 5);
     expect(r.endPos.y).toBeCloseTo(200, 5);
     expect(r.grounded).toBe(false);
@@ -65,12 +62,7 @@ describe("NullCollisionWorld — stepSlideMove", () => {
 
   it("clamps Y to floor height (=-bounds.min.y) and zeroes negative vy", () => {
     const w = new NullCollisionWorld();
-    const r = w.stepSlideMove(
-      { x: 0, y: 10, z: 0 },
-      { x: 0, y: -1000, z: 0 },
-      0.1,
-      PLAYER_BOUNDS,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 10, z: 0 }, { x: 0, y: -1000, z: 0 }, 0.1, PLAYER_BOUNDS);
     // floorHeight = -(-24) = 24
     expect(r.endPos.y).toBe(24);
     expect(r.velocity.y).toBe(0);
@@ -79,12 +71,7 @@ describe("NullCollisionWorld — stepSlideMove", () => {
 
   it("preserves positive vy through the clamp (upward motion)", () => {
     const w = new NullCollisionWorld();
-    const r = w.stepSlideMove(
-      { x: 0, y: 30, z: 0 },
-      { x: 0, y: 100, z: 0 },
-      0.1,
-      PLAYER_BOUNDS,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 30, z: 0 }, { x: 0, y: 100, z: 0 }, 0.1, PLAYER_BOUNDS);
     // 30 + 100*0.1 = 40, above floor — no clamp
     expect(r.endPos.y).toBeCloseTo(40, 5);
     expect(r.velocity.y).toBe(100);
@@ -93,12 +80,7 @@ describe("NullCollisionWorld — stepSlideMove", () => {
 
   it("preserves horizontal velocity under floor contact", () => {
     const w = new NullCollisionWorld();
-    const r = w.stepSlideMove(
-      { x: 0, y: 10, z: 0 },
-      { x: 100, y: -500, z: 50 },
-      0.1,
-      PLAYER_BOUNDS,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 10, z: 0 }, { x: 100, y: -500, z: 50 }, 0.1, PLAYER_BOUNDS);
     expect(r.velocity.x).toBe(100);
     expect(r.velocity.z).toBe(50);
   });
@@ -106,23 +88,13 @@ describe("NullCollisionWorld — stepSlideMove", () => {
   it("honors non-default bounds (different floor height)", () => {
     const w = new NullCollisionWorld();
     const tallBounds: AABB = { min: { x: -16, y: -48, z: -16 }, max: { x: 16, y: 48, z: 16 } };
-    const r = w.stepSlideMove(
-      { x: 0, y: 10, z: 0 },
-      { x: 0, y: -1000, z: 0 },
-      0.1,
-      tallBounds,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 10, z: 0 }, { x: 0, y: -1000, z: 0 }, 0.1, tallBounds);
     expect(r.endPos.y).toBe(48); // -(-48)
   });
 
   it("when starting exactly at floor, stays at floor and reports grounded", () => {
     const w = new NullCollisionWorld();
-    const r = w.stepSlideMove(
-      { x: 0, y: 24, z: 0 },
-      { x: 0, y: -100, z: 0 },
-      0.016,
-      PLAYER_BOUNDS,
-    );
+    const r = w.stepSlideMove({ x: 0, y: 24, z: 0 }, { x: 0, y: -100, z: 0 }, 0.016, PLAYER_BOUNDS);
     expect(r.endPos.y).toBe(24);
     expect(r.grounded).toBe(true);
     expect(r.velocity.y).toBe(0);
@@ -141,12 +113,7 @@ describe("NullCollisionWorld — stepSlideMove", () => {
 
   it("is deterministic — identical inputs produce identical outputs", () => {
     const w = new NullCollisionWorld();
-    const args: [Vec3, Vec3, number, AABB] = [
-      { x: 1, y: 30, z: -2 },
-      { x: 10, y: -50, z: 5 },
-      0.016,
-      PLAYER_BOUNDS,
-    ];
+    const args: [Vec3, Vec3, number, AABB] = [{ x: 1, y: 30, z: -2 }, { x: 10, y: -50, z: 5 }, 0.016, PLAYER_BOUNDS];
     const a = w.stepSlideMove(...args);
     const b = w.stepSlideMove(...args);
     expect(a).toEqual(b);

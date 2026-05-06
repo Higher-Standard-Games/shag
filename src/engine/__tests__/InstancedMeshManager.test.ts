@@ -5,7 +5,7 @@
  * Uses mock Babylon.js mesh objects since tests run in Node.js.
  */
 
-import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstancedMeshManager, type InstanceTransform } from "../rendering/InstancedMeshManager";
 
@@ -19,12 +19,12 @@ interface MockInstancedMesh {
   dispose: ReturnType<typeof vi.fn>;
 }
 
-function createMockMesh(name: string) {
+function createMockMesh(name: string, hasGeometry = true) {
   const instances: MockInstancedMesh[] = [];
   return {
     name,
     isVisible: true,
-    geometry: { id: "geo_1" }, // truthy = has geometry
+    geometry: hasGeometry ? { id: "geo_1" } : null, // truthy = has geometry
     setEnabled: vi.fn(),
     thinInstanceSetBuffer: vi.fn(),
     createInstance: vi.fn((instanceName: string) => {
@@ -121,8 +121,7 @@ describe("InstancedMeshManager", () => {
 
     it("rejects mesh without geometry", () => {
       const mgr = InstancedMeshManager.getInstance();
-      const mesh = createMockMesh("nogeom");
-      mesh.geometry = null;
+      const mesh = createMockMesh("nogeom", false);
       // biome-ignore lint/suspicious/noExplicitAny: mock mesh for testing
       mgr.registerTemplate("nogeom", mesh as any);
       expect(mgr.hasTemplate("nogeom")).toBe(false);

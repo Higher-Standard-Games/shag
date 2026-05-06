@@ -2,7 +2,7 @@
 
 import * as fs from "node:fs";
 import JSZip from "jszip";
-import { parseBsp } from "../engine/loader/bsp/BspLoader";
+import { BspLoader } from "../engine/loader/bsp/BspLoader";
 
 async function main(): Promise<void> {
   const pk3Path = "./public/games/default/map_wdm2.pk3";
@@ -20,8 +20,8 @@ async function main(): Promise<void> {
   }
 
   const bspBuffer = await bspEntry.async("arraybuffer");
-  const bsp = parseBsp(bspBuffer);
-  const spawns = bsp.entities.filter((e) => e.classname === "info_player_deathmatch");
+  const bsp = BspLoader.load(bspBuffer);
+  const spawns = bsp.entities.filter((entity) => entity.classname === "info_player_deathmatch");
 
   console.log("\n=== WDM2 Spawn Points ===");
   spawns.slice(0, 6).forEach((spawn, i) => {

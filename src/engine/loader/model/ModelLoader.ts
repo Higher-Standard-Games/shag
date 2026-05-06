@@ -158,7 +158,7 @@ export class ModelLoader {
         const md3 = MD3Loader.getInstance();
 
         // Ensure loaders are initialized
-        if (!md3.scene) md3.init(this.scene); // Access private scene or just call init safe
+        if (this.scene) md3.init(this.scene);
 
         // Try to get file from PK3
         const buffer = await pk3.getFile(modelPath);

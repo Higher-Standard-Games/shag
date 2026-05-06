@@ -116,7 +116,7 @@ export class BotLobbyClient {
   /**
    * Handle incoming lobby messages.
    */
-  private _handleMessage(msg: any, onReady?: (value: undefined) => void): void {
+  private _handleMessage(msg: any, onReady?: () => void): void {
     switch (msg.type) {
       case "welcome": {
         // Successfully authenticated — join queue

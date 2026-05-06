@@ -69,13 +69,6 @@ function vec3Distance(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-// Scalar lerp between two tick values — returns t interpolated in [0,1]
-// (Not actually needed externally but included per spec as an internal helper)
-// biome-ignore lint/correctness/noUnusedVariables: spec-required internal helper
-function _vec3LerpT(tickA: number, tickB: number, t: number): number {
-  return tickA + (tickB - tickA) * t;
-}
-
 // ── lerp helpers ─────────────────────────────────────────────────────────────
 
 function lerpTick(a: number, b: number, t: number): number {

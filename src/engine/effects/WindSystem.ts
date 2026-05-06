@@ -51,6 +51,7 @@ export class WindSystem {
   private currentGust: number = 0;
   private targetGust: number = 0;
   private gustLerpSpeed: number = 2;
+  private gustTimer: number = 0;
 
   // Direction variation
   private angleOffset: number = 0;

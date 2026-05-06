@@ -10,7 +10,6 @@
 
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { Constants } from "@babylonjs/core/Engines/constants";
-import { Engine } from "@babylonjs/core/Engines/engine";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -23,230 +22,15 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
-import type {
-  BspFace,
-  BspFile,
-  BspVertex,
-  BspVertexIBSP,
-  // BspVertexFBSP, // Currently unused
-} from "./BspLoader";
+import type { BspFile } from "./BspLoader";
+import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
+import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
+import type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface BspMeshBuildResult {
-  /** Main world geometry mesh */
-  worldMesh: Mesh;
-  /** Individual face meshes (for debugging) */
-  faceMeshes?: Mesh[];
-  /** Lightmap textures */
-  lightmapTextures: Texture[];
-  /** Texture groups info for later texture loading */
-  textureGroups?: { textureIndex: number; textureName: string }[];
-  /** Sky shader names found in the map (for skybox creation) */
-  skyShaders: {
-    textureName: string;
-    skyParms?: { farbox: string; cloudHeight: number; nearbox: string };
-    /** Stage textures for sky shaders without skyparms (for textured skybox) */
-    stageTextures?: string[];
-    /** Editor image (qer_editorimage) — fallback when cubemap and stage textures are missing */
-    editorImage?: string;
-  }[];
-  /** Statistics */
-  stats: {
-    totalFaces: number;
-    polygonFaces: number;
-    patchFaces: number;
-    meshFaces: number;
-    billboardFaces: number;
-    skippedSkyFaces: number;
-    totalVertices: number;
-    totalTriangles: number;
-  };
-  /** Reference to BSP data for PVS culling */
-  bspData: BspFile;
-  /** Cluster info for PVS culling (cluster -> mesh indices) */
-  clusterInfo?: {
-    numClusters: number;
-    hasPVS: boolean;
-  };
-  /** Fog volume meshes */
-  fogVolumes?: Mesh[];
-  /** Autosprite meshes that need per-frame billboard updates */
-  autospriteMeshes?: {
-    mesh: Mesh;
-    center: [number, number, number];
-    halfWidth: number;
-    halfHeight: number;
-    isAutosprite2: boolean; // true = Y-axis only, false = full billboard
-    // Normalized offsets for each vertex: [rightFrac, upFrac] where -1 to 1 maps to -halfWidth/halfHeight to +halfWidth/halfHeight
-    vertexOffsets: [number, number][];
-  }[];
-}
-
-// ============================================================================
-// Coordinate Conversion
-// ============================================================================
-
-/**
- * Convert Q3 coordinates (Z-up, right-handed) to Babylon (Y-up, left-handed)
- *
- * Q3: X=right, Y=forward, Z=up
- * Babylon: X=right, Y=up, Z=forward
- *
- * Transform: (x, y, z) → (x, z, y)
- *
- * NOTE: This changes handedness! Triangle winding must be reversed.
- */
-function q3ToBabylon(x: number, y: number, z: number): [number, number, number] {
-  return [x, z, y];
-}
-
-/** Convert Q3 position array to Babylon Vector3 (exported for future use) */
-export function q3ToBabylonVec3(pos: [number, number, number]): Vector3 {
-  return new Vector3(pos[0], pos[2], pos[1]);
-}
-
-/**
- * Reverse triangle winding order to fix handedness change
- * Input: [i0, i1, i2, i3, i4, i5, ...]
- * Output: [i0, i2, i1, i3, i5, i4, ...]
- */
-export function reverseTriangleWinding(indices: number[]): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < indices.length; i += 3) {
-    result.push(indices[i], indices[i + 2], indices[i + 1]);
-  }
-  return result;
-}
-
-// ============================================================================
-// Fallback Texture Generation
-// ============================================================================
-
-/** Cache for generated fallback textures */
-const fallbackTextureCache: Map<string, RawTexture> = new Map();
-
-/**
- * Create a radial gradient texture for additive halos/flares
- * White center fading to transparent edges
- */
-function createRadialGradientTexture(scene: Scene, size: number = 64): RawTexture {
-  const cacheKey = `radial_${size}`;
-  if (fallbackTextureCache.has(cacheKey)) {
-    return fallbackTextureCache.get(cacheKey)!;
-  }
-
-  const data = new Uint8Array(size * size * 4);
-  const center = size / 2;
-  const maxDist = center;
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = x - center;
-      const dy = y - center;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const alpha = Math.max(0, 1 - dist / maxDist);
-      // Smooth falloff using squared alpha
-      const smoothAlpha = alpha * alpha;
-
-      const idx = (y * size + x) * 4;
-      data[idx + 0] = 255; // R
-      data[idx + 1] = 255; // G
-      data[idx + 2] = 255; // B
-      data[idx + 3] = Math.floor(smoothAlpha * 255); // A
-    }
-  }
-
-  const texture = new RawTexture(
-    data,
-    size,
-    size,
-    Constants.TEXTUREFORMAT_RGBA,
-    scene,
-    false, // generateMipMaps
-    false, // invertY
-    Texture.BILINEAR_SAMPLINGMODE,
-  );
-  texture.hasAlpha = true;
-  texture.name = "fallback_radial_gradient";
-
-  fallbackTextureCache.set(cacheKey, texture);
-  console.log(`[BspMeshBuilder] Created fallback radial gradient texture`);
-  return texture;
-}
-
-/**
- * Create a solid color texture ($whiteimage, $blackimage)
- */
-function createSolidColorTexture(scene: Scene, r: number, g: number, b: number, a: number = 255): RawTexture {
-  const cacheKey = `solid_${r}_${g}_${b}_${a}`;
-  if (fallbackTextureCache.has(cacheKey)) {
-    return fallbackTextureCache.get(cacheKey)!;
-  }
-
-  const size = 8;
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    data[i * 4 + 0] = r;
-    data[i * 4 + 1] = g;
-    data[i * 4 + 2] = b;
-    data[i * 4 + 3] = a;
-  }
-
-  const texture = new RawTexture(
-    data,
-    size,
-    size,
-    Constants.TEXTUREFORMAT_RGBA,
-    scene,
-    false,
-    false,
-    Texture.NEAREST_SAMPLINGMODE,
-  );
-  texture.hasAlpha = a < 255;
-  texture.name = `fallback_solid_${r}_${g}_${b}`;
-
-  fallbackTextureCache.set(cacheKey, texture);
-  return texture;
-}
-
-// ============================================================================
-// Vertex Helpers
-// ============================================================================
-
-function isIBSPVertex(v: BspVertex): v is BspVertexIBSP {
-  return "lightmapCoord" in v;
-}
-
-function getVertexPosition(v: BspVertex): [number, number, number] {
-  return q3ToBabylon(v.position[0], v.position[1], v.position[2]);
-}
-
-function getVertexNormal(v: BspVertex): [number, number, number] {
-  return q3ToBabylon(v.normal[0], v.normal[1], v.normal[2]);
-}
-
-function getVertexTexCoord(v: BspVertex): [number, number] {
-  return [v.texCoord[0], v.texCoord[1]];
-}
-
-function getVertexLightmapCoord(v: BspVertex): [number, number] {
-  if (isIBSPVertex(v)) {
-    return [v.lightmapCoord[0], v.lightmapCoord[1]];
-  }
-  // FBSP: use first lightmap coord
-  return [v.lightmapCoords[0][0], v.lightmapCoords[0][1]];
-}
-
-function getVertexColor(v: BspVertex): [number, number, number, number] {
-  if (isIBSPVertex(v)) {
-    return [v.color[0] / 255, v.color[1] / 255, v.color[2] / 255, v.color[3] / 255];
-  }
-  // FBSP: use first color
-  return [v.colors[0][0] / 255, v.colors[0][1] / 255, v.colors[0][2] / 255, v.colors[0][3] / 255];
-}
+export type { BspMeshBuildResult, BuildOptions } from "./mesh/types";
+export { q3ToBabylonVec3, reverseTriangleWinding } from "./mesh/coordinates";
+export { buildBrushModel } from "./mesh/brushModelBuilder";
+export { getVisibleFaces } from "./mesh/pvs";
 
 // ============================================================================
 // BspMeshBuilder Class
@@ -269,15 +53,6 @@ const NON_DRAWABLE_TEXTURES = [
   "textures/common/",
   "noshader",
 ];
-
-export interface BuildOptions {
-  /** Only render specific face types (1=polygon, 2=patch, 3=mesh) */
-  faceTypes?: number[];
-  /** Skip non-drawable textures */
-  filterTextures?: boolean;
-  /** Resolve Warsow/QFusion deluxe shader branches for this build */
-  deluxe?: boolean;
-}
 
 export class BspMeshBuilder {
   private bsp: BspFile;
@@ -464,13 +239,13 @@ export class BspMeshBuilder {
 
         switch (face.faceType) {
           case 1:
-            faceData = this.buildPolygonFace(face);
+            faceData = buildPolygonFace(this.bsp, face);
             break;
           case 2:
-            faceData = this.buildPatchFace(face);
+            faceData = buildPatchFace(this.bsp, face);
             break;
           case 3:
-            faceData = this.buildMeshFace(face);
+            faceData = buildMeshFace(this.bsp, face);
             break;
         }
 
@@ -572,15 +347,15 @@ export class BspMeshBuilder {
       switch (face.faceType) {
         case 1: // Polygon
           stats.polygonFaces++;
-          faceData = this.buildPolygonFace(face);
+          faceData = buildPolygonFace(this.bsp, face);
           break;
         case 2: // Patch
           stats.patchFaces++;
-          faceData = this.buildPatchFace(face);
+          faceData = buildPatchFace(this.bsp, face);
           break;
         case 3: // Mesh
           stats.meshFaces++;
-          faceData = this.buildMeshFace(face);
+          faceData = buildMeshFace(this.bsp, face);
           break;
         case 4: // Billboard
           stats.billboardFaces++;
@@ -1249,7 +1024,12 @@ export class BspMeshBuilder {
           }
 
           // Check if this shader needs special material (glow overlay, etc.)
-          if (shader && !shaderProps.hasMaterialMetadata && shaderProps.resolvedBranch === "default" && !shader.conditionalBlocks?.length) {
+          if (
+            shader &&
+            !shaderProps.hasMaterialMetadata &&
+            shaderProps.resolvedBranch === "default" &&
+            !shader.conditionalBlocks?.length
+          ) {
             const { analyzeShaderPattern, createQ3Material } = await import("../shader/Q3ShaderMaterialFactory");
             const analysis = analyzeShaderPattern(shader);
 
@@ -1495,14 +1275,14 @@ export class BspMeshBuilder {
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
     let appliedCount = 0;
 
-      for (const mesh of meshes) {
-        const meshLightmapIndex = mesh.metadata?.lightmapIndex;
-        if (meshLightmapIndex === undefined || meshLightmapIndex === null || meshLightmapIndex < 0) continue;
+    for (const mesh of meshes) {
+      const meshLightmapIndex = mesh.metadata?.lightmapIndex;
+      if (meshLightmapIndex === undefined || meshLightmapIndex === null || meshLightmapIndex < 0) continue;
 
-        // Skip fullbright surfaces - they should not receive lightmap darkening
-        if (mesh.metadata?.isFullbright) continue;
+      // Skip fullbright surfaces - they should not receive lightmap darkening
+      if (mesh.metadata?.isFullbright) continue;
 
-        const lightmapIndex = meshLightmapIndex;
+      const lightmapIndex = meshLightmapIndex;
       if (lightmapIndex >= lightmaps.length) continue;
 
       const lightmapTex = lightmaps[lightmapIndex];
@@ -1822,304 +1602,6 @@ export class BspMeshBuilder {
   }
 
   // ============================================================================
-  // Face Builders
-  // ============================================================================
-
-  /**
-   * Build polygon face (type 1)
-   * Vertices are referenced directly, meshverts provide triangle indices
-   */
-  private buildPolygonFace(face: BspFace): {
-    positions: number[];
-    normals: number[];
-    uvs: number[];
-    uv2s: number[];
-    colors: number[];
-    indices: number[];
-  } {
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const uvs: number[] = [];
-    const uv2s: number[] = [];
-    const colors: number[] = [];
-    const indices: number[] = [];
-
-    // Get face vertices
-    for (let i = 0; i < face.numVertices; i++) {
-      const v = this.bsp.vertices[face.firstVertex + i];
-      const pos = getVertexPosition(v);
-      const normal = getVertexNormal(v);
-      const uv = getVertexTexCoord(v);
-      const uv2 = getVertexLightmapCoord(v);
-      const color = getVertexColor(v);
-
-      positions.push(pos[0], pos[1], pos[2]);
-      normals.push(normal[0], normal[1], normal[2]);
-      uvs.push(uv[0], uv[1]);
-      uv2s.push(uv2[0], uv2[1]);
-      colors.push(color[0], color[1], color[2], color[3]);
-    }
-
-    // Get indices from meshverts and reverse winding for coordinate system change
-    const rawIndices: number[] = [];
-    for (let i = 0; i < face.numMeshVerts; i++) {
-      rawIndices.push(this.bsp.meshVerts[face.firstMeshVert + i]);
-    }
-
-    // Reverse triangle winding: (i0, i1, i2) -> (i0, i2, i1)
-    for (let i = 0; i < rawIndices.length; i += 3) {
-      indices.push(rawIndices[i], rawIndices[i + 2], rawIndices[i + 1]);
-    }
-
-    return { positions, normals, uvs, uv2s, colors, indices };
-  }
-
-  /**
-   * Build mesh face (type 3)
-   * Same as polygon, vertices + meshverts define triangles
-   */
-  private buildMeshFace(face: BspFace): {
-    positions: number[];
-    normals: number[];
-    uvs: number[];
-    uv2s: number[];
-    colors: number[];
-    indices: number[];
-  } {
-    // Type 3 is identical to type 1 in terms of data layout
-    return this.buildPolygonFace(face);
-  }
-
-  /**
-   * Build patch face (type 2) - Bezier surface
-   *
-   * Uses a shared vertex grid across all sub-patches to eliminate seam gaps.
-   * For an NxM quilt of 3×3 sub-patches (numPatchesX × numPatchesY):
-   *   - Total grid = (numPatchesX * tessLevel + 1) × (numPatchesY * tessLevel + 1)
-   *   - Adjacent sub-patches share their edge vertices exactly
-   *
-   * This matches Q3/Warsow rendering where curved surfaces are seamless.
-   */
-  private buildPatchFace(face: BspFace): {
-    positions: number[];
-    normals: number[];
-    uvs: number[];
-    uv2s: number[];
-    colors: number[];
-    indices: number[];
-  } {
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const uvs: number[] = [];
-    const uv2s: number[] = [];
-    const colors: number[] = [];
-    const indices: number[] = [];
-
-    const width = face.patchSize[0];
-    const height = face.patchSize[1];
-
-    if (width < 3 || height < 3) {
-      console.warn(`[BspMeshBuilder] Skipping patch with invalid size: ${width}x${height}`);
-      return { positions, normals, uvs, uv2s, colors, indices };
-    }
-
-    // Get control points
-    const controlPoints: BspVertex[][] = [];
-    for (let row = 0; row < height; row++) {
-      const rowPoints: BspVertex[] = [];
-      for (let col = 0; col < width; col++) {
-        const idx = face.firstVertex + row * width + col;
-        rowPoints.push(this.bsp.vertices[idx]);
-      }
-      controlPoints.push(rowPoints);
-    }
-
-    // Tessellation level per sub-patch (Q3 "high" geometry used ~8)
-    const tessLevel = 8;
-
-    // Number of 3×3 sub-patches in each direction
-    const numPatchesX = Math.floor((width - 1) / 2);
-    const numPatchesY = Math.floor((height - 1) / 2);
-
-    if (numPatchesX <= 0 || numPatchesY <= 0) {
-      console.warn(`[BspMeshBuilder] Invalid patch size: ${width}x${height}`);
-      return { positions, normals, uvs, uv2s, colors, indices };
-    }
-
-    // Total grid dimensions (shared edges between sub-patches)
-    const gridW = numPatchesX * tessLevel + 1;
-    const gridH = numPatchesY * tessLevel + 1;
-
-    // Build shared vertex grid
-    type TessVert = {
-      pos: [number, number, number];
-      normal: [number, number, number];
-      uv: [number, number];
-      uv2: [number, number];
-      color: [number, number, number, number];
-    };
-    const grid: TessVert[] = new Array(gridW * gridH);
-
-    for (let py = 0; py < numPatchesY; py++) {
-      for (let px = 0; px < numPatchesX; px++) {
-        // Extract 3×3 control grid for this sub-patch
-        const ctrl: BspVertex[][] = [];
-        for (let j = 0; j < 3; j++) {
-          const row: BspVertex[] = [];
-          for (let i = 0; i < 3; i++) {
-            row.push(controlPoints[py * 2 + j][px * 2 + i]);
-          }
-          ctrl.push(row);
-        }
-
-        // Tessellate this sub-patch into the shared grid
-        // Only write interior + right/bottom edges; left/top edges come from adjacent sub-patch
-        const uStart = px === 0 ? 0 : 1; // skip left edge if not first column
-        const vStart = py === 0 ? 0 : 1; // skip top edge if not first row
-
-        for (let v = vStart; v <= tessLevel; v++) {
-          for (let u = uStart; u <= tessLevel; u++) {
-            const s = u / tessLevel;
-            const t = v / tessLevel;
-            const gridX = px * tessLevel + u;
-            const gridY = py * tessLevel + v;
-            grid[gridY * gridW + gridX] = this.evaluateBezierPatch(ctrl, s, t);
-          }
-        }
-      }
-    }
-
-    // Emit vertices from grid
-    for (let gy = 0; gy < gridH; gy++) {
-      for (let gx = 0; gx < gridW; gx++) {
-        const vert = grid[gy * gridW + gx];
-        positions.push(vert.pos[0], vert.pos[1], vert.pos[2]);
-        normals.push(vert.normal[0], vert.normal[1], vert.normal[2]);
-        uvs.push(vert.uv[0], vert.uv[1]);
-        uv2s.push(vert.uv2[0], vert.uv2[1]);
-        colors.push(vert.color[0], vert.color[1], vert.color[2], vert.color[3]);
-      }
-    }
-
-    // Create indices (reversed winding for Q3→Babylon coordinate system change)
-    for (let gy = 0; gy < gridH - 1; gy++) {
-      for (let gx = 0; gx < gridW - 1; gx++) {
-        const i00 = gy * gridW + gx;
-        const i10 = i00 + 1;
-        const i01 = i00 + gridW;
-        const i11 = i01 + 1;
-
-        // Two triangles per quad (CW winding for Babylon)
-        indices.push(i00, i10, i01);
-        indices.push(i10, i11, i01);
-      }
-    }
-
-    return { positions, normals, uvs, uv2s, colors, indices };
-  }
-
-  /**
-   * Evaluate bezier patch at (s, t) parameter
-   *
-   * Normals are interpolated from control point normals using the same bezier
-   * basis functions (matching Q3/ioquake3). This avoids degenerate normals at
-   * patch corners where the cross-product of partial derivatives goes to zero.
-   */
-  private evaluateBezierPatch(
-    ctrl: BspVertex[][],
-    s: number,
-    t: number,
-  ): {
-    pos: [number, number, number];
-    normal: [number, number, number];
-    uv: [number, number];
-    uv2: [number, number];
-    color: [number, number, number, number];
-  } {
-    // Quadratic bezier basis functions
-    const b0s = (1 - s) * (1 - s);
-    const b1s = 2 * s * (1 - s);
-    const b2s = s * s;
-
-    const b0t = (1 - t) * (1 - t);
-    const b1t = 2 * t * (1 - t);
-    const b2t = t * t;
-
-    // Initialize outputs
-    let px = 0,
-      py = 0,
-      pz = 0;
-    let nx = 0,
-      ny = 0,
-      nz = 0;
-    let u = 0,
-      v = 0;
-    let lu = 0,
-      lv = 0;
-    let cr = 0,
-      cg = 0,
-      cb = 0,
-      ca = 0;
-
-    const bs = [b0s, b1s, b2s];
-    const bt = [b0t, b1t, b2t];
-
-    for (let j = 0; j < 3; j++) {
-      for (let i = 0; i < 3; i++) {
-        const cp = ctrl[j][i];
-        const w = bs[i] * bt[j];
-
-        const pos = getVertexPosition(cp);
-        const norm = getVertexNormal(cp);
-        const tex = getVertexTexCoord(cp);
-        const lm = getVertexLightmapCoord(cp);
-        const col = getVertexColor(cp);
-
-        px += pos[0] * w;
-        py += pos[1] * w;
-        pz += pos[2] * w;
-
-        // Interpolate control point normals (Q3 approach)
-        nx += norm[0] * w;
-        ny += norm[1] * w;
-        nz += norm[2] * w;
-
-        u += tex[0] * w;
-        v += tex[1] * w;
-
-        lu += lm[0] * w;
-        lv += lm[1] * w;
-
-        cr += col[0] * w;
-        cg += col[1] * w;
-        cb += col[2] * w;
-        ca += col[3] * w;
-      }
-    }
-
-    // Normalize the interpolated normal
-    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-    if (len > 0.0001) {
-      nx /= len;
-      ny /= len;
-      nz /= len;
-    } else {
-      // Degenerate — fall back to up vector
-      nx = 0;
-      ny = 1;
-      nz = 0;
-    }
-
-    return {
-      pos: [px, py, pz],
-      normal: [nx, ny, nz],
-      uv: [u, v],
-      uv2: [lu, lv],
-      color: [cr, cg, cb, ca],
-    };
-  }
-
-  // ============================================================================
   // Lightmap Building
   // ============================================================================
 
@@ -2186,308 +1668,4 @@ export class BspMeshBuilder {
       return { success: false, fogMeshes: [], error: String(error) };
     }
   }
-}
-
-// ============================================================================
-// Utility: Get visible faces using PVS
-// ============================================================================
-
-export function getVisibleFaces(
-  bsp: BspFile,
-  cameraPosition: Vector3,
-  leafFinder: (pos: [number, number, number]) => number, // Returns cluster
-): number[] {
-  if (!bsp.visData) {
-    // No PVS, return all faces
-    const allFaces: number[] = [];
-    for (let i = 0; i < bsp.faces.length; i++) {
-      allFaces.push(i);
-    }
-    return allFaces;
-  }
-
-  // Convert camera to Q3 coords
-  const q3Pos: [number, number, number] = [cameraPosition.x, cameraPosition.z, cameraPosition.y];
-  const currentCluster = leafFinder(q3Pos);
-
-  if (currentCluster < 0) {
-    // Outside world, show everything
-    const allFaces: number[] = [];
-    for (let i = 0; i < bsp.faces.length; i++) {
-      allFaces.push(i);
-    }
-    return allFaces;
-  }
-
-  // Collect visible faces from visible clusters
-  const visibleFaces = new Set<number>();
-
-  for (let leafIdx = 0; leafIdx < bsp.leafs.length; leafIdx++) {
-    const leaf = bsp.leafs[leafIdx];
-    if (leaf.cluster < 0) continue;
-
-    // Check if this leaf's cluster is visible from current cluster
-    const byteIdx = currentCluster * bsp.visData.bytesPerCluster + Math.floor(leaf.cluster / 8);
-    const bitIdx = leaf.cluster % 8;
-    const visible = (bsp.visData.bitVectors[byteIdx] & (1 << bitIdx)) !== 0;
-
-    if (visible) {
-      // Add all faces in this leaf
-      for (let i = 0; i < leaf.numLeafFaces; i++) {
-        visibleFaces.add(bsp.leafFaces[leaf.firstLeafFace + i]);
-      }
-    }
-  }
-
-  return Array.from(visibleFaces);
-}
-
-// ============================================================================
-// Brush Model Builder (for func_door, func_button, etc.)
-// ============================================================================
-
-/**
- * Build a mesh for a specific brush model (inline model like *5, *6, etc.)
- * Used for func_door, func_button, func_rotating, etc.
- *
- * Creates a parent mesh with child meshes per texture group for proper texturing.
- */
-export async function buildBrushModel(
-  bsp: BspFile,
-  modelIndex: number,
-  scene: Scene,
-  name: string,
-): Promise<Mesh | null> {
-  if (modelIndex < 0 || modelIndex >= bsp.models.length) {
-    console.warn(`[BspMeshBuilder] Invalid model index: ${modelIndex}`);
-    return null;
-  }
-
-  const model = bsp.models[modelIndex];
-  if (model.numFaces === 0) {
-    console.warn(`[BspMeshBuilder] Model ${modelIndex} has no faces`);
-    return null;
-  }
-
-  // Group faces by texture (like main builder)
-  const textureGroups = new Map<
-    number,
-    {
-      textureIndex: number;
-      textureName: string;
-      positions: number[];
-      normals: number[];
-      uvs: number[];
-      uv2s: number[]; // Lightmap UVs
-      indices: number[];
-      vertexOffset: number;
-      lightmapIndex: number; // Primary lightmap for this group
-    }
-  >();
-
-  for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) {
-    const face = bsp.faces[i];
-    if (!face || face.numVertices < 3) continue;
-
-    // Skip non-polygon/mesh face types for now (patches need tessellation)
-    if (face.faceType !== 1 && face.faceType !== 3) continue;
-
-    // Get or create texture group
-    let group = textureGroups.get(face.textureIndex);
-    if (!group) {
-      const textureName = bsp.textures[face.textureIndex]?.name || "";
-      group = {
-        textureIndex: face.textureIndex,
-        textureName,
-        positions: [],
-        normals: [],
-        uvs: [],
-        uv2s: [],
-        indices: [],
-        vertexOffset: 0,
-        lightmapIndex: face.lightmapIndex,
-      };
-      textureGroups.set(face.textureIndex, group);
-    }
-
-    const vertexOffset = group.vertexOffset;
-
-    // Get face vertices with proper coordinate conversion
-    for (let v = 0; v < face.numVertices; v++) {
-      const vertex = bsp.vertices[face.firstVertex + v];
-      if (!vertex) continue;
-
-      // Convert Q3 (Z-up) to Babylon (Y-up): [x, y, z] -> [x, z, y]
-      group.positions.push(vertex.position[0], vertex.position[2], vertex.position[1]);
-      group.normals.push(vertex.normal[0], vertex.normal[2], vertex.normal[1]);
-      group.uvs.push(vertex.texCoord[0], vertex.texCoord[1]);
-      const lmCoord = getVertexLightmapCoord(vertex);
-      group.uv2s.push(lmCoord[0], lmCoord[1]);
-    }
-
-    // Get indices from meshVerts (proper triangle indices, not fan)
-    // Reverse winding for coordinate system change: (i0, i1, i2) -> (i0, i2, i1)
-    for (let m = 0; m < face.numMeshVerts; m += 3) {
-      const i0 = bsp.meshVerts[face.firstMeshVert + m] + vertexOffset;
-      const i1 = bsp.meshVerts[face.firstMeshVert + m + 1] + vertexOffset;
-      const i2 = bsp.meshVerts[face.firstMeshVert + m + 2] + vertexOffset;
-      group.indices.push(i0, i2, i1); // Reversed winding
-    }
-
-    group.vertexOffset += face.numVertices;
-  }
-
-  if (textureGroups.size === 0) {
-    console.warn(`[BspMeshBuilder] Model ${modelIndex} produced no geometry`);
-    return null;
-  }
-
-  // Create parent mesh
-  const parentMesh = new Mesh(name, scene);
-
-  // Calculate model center for pivot (convert Q3 to Babylon coords)
-  const centerX = (model.mins[0] + model.maxs[0]) / 2;
-  const centerY = (model.mins[2] + model.maxs[2]) / 2; // Z->Y
-  const centerZ = (model.mins[1] + model.maxs[1]) / 2; // Y->Z
-
-  // Get texture loader
-  const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
-  const texLoader = PK3TextureLoader.getInstance();
-
-  let totalVertices = 0;
-  let totalTriangles = 0;
-
-  // Create child mesh for each texture group
-  for (const [texIndex, group] of textureGroups) {
-    if (group.indices.length === 0) continue;
-
-    const childName = `${name}_tex${texIndex}`;
-    const childMesh = new Mesh(childName, scene);
-
-    const vertexData = new VertexData();
-    vertexData.positions = group.positions;
-    vertexData.normals = group.normals;
-    vertexData.uvs = group.uvs;
-    if (group.uv2s.length > 0) {
-      vertexData.uvs2 = group.uv2s;
-    }
-    vertexData.indices = group.indices;
-    vertexData.applyToMesh(childMesh);
-
-    // Store lightmap index for later application
-    const texFlags = bsp.textures[texIndex];
-    childMesh.metadata = {
-      lightmapIndex: group.lightmapIndex,
-      textureName: group.textureName,
-      textureIndex: texIndex,
-      contentFlags: texFlags?.contentFlags ?? 0,
-      surfaceFlags: texFlags?.surfaceFlags ?? 0,
-    };
-
-    // Create material and try to load texture
-    const mat = new StandardMaterial(`${childName}_mat`, scene);
-    mat.backFaceCulling = true;
-    mat.maxSimultaneousLights = 4;
-
-    // Try to load texture (use same path resolution as main BSP)
-    if (group.textureName && !group.textureName.toLowerCase().includes("common/")) {
-      const texName = group.textureName;
-      const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
-      const shaderRegistry = Q3ShaderRegistry.getInstance();
-
-      // Build paths to try
-      const pathsToTry: string[] = [];
-
-      // 1. Check shader for texture override
-      const shader = shaderRegistry.getShader(texName);
-      if (shader && shader.stages.length > 0) {
-        const firstStage = shader.stages[0];
-        if (firstStage.map && firstStage.map !== "$lightmap" && firstStage.map !== "$whiteimage") {
-          pathsToTry.push(firstStage.map);
-        }
-      }
-
-      // 2. Try texture name as-is
-      pathsToTry.push(texName);
-
-      // 3. Add textures/ prefix if needed
-      const allPaths: string[] = [];
-      for (const p of pathsToTry) {
-        allPaths.push(p);
-        if (!p.toLowerCase().startsWith("textures/") && !p.toLowerCase().startsWith("models/")) {
-          allPaths.push(`textures/${p}`);
-        }
-      }
-
-      // Try loading with various extensions
-      const extensions = [".jpg", ".png", ".tga", ".ktx"];
-      let texture: Texture | null = null;
-
-      for (const basePath of allPaths) {
-        if (texture) break;
-        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
-        for (const ext of extensions) {
-          texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
-          if (texture) break;
-        }
-      }
-
-      if (texture) {
-        mat.diffuseTexture = texture;
-        // Try to load and apply lightmap
-        if (group.lightmapIndex >= 0 && group.lightmapIndex < bsp.lightmaps.length) {
-          const lmData = bsp.lightmaps[group.lightmapIndex];
-          if (lmData && lmData.length > 0) {
-            const lmSize = bsp.lightmapSize;
-            const lmTex = new RawTexture(
-              lmData,
-              lmSize,
-              lmSize,
-              Engine.TEXTUREFORMAT_RGB,
-              scene,
-              false, // generateMipMaps
-              false, // invertY
-              Texture.BILINEAR_SAMPLINGMODE,
-            );
-            lmTex.name = `${childName}_lightmap`;
-            mat.lightmapTexture = lmTex;
-            mat.useLightmapAsShadowmap = true;
-            mat.lightmapTexture.coordinatesIndex = 1; // Use UV2
-          }
-        }
-        // Slight emissive boost for visibility
-        mat.emissiveColor = new Color3(0.15, 0.15, 0.15);
-      } else {
-        mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
-        mat.emissiveColor = new Color3(0.3, 0.3, 0.3);
-      }
-    } else {
-      mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
-      mat.emissiveColor = new Color3(0.3, 0.3, 0.3);
-    }
-
-    childMesh.material = mat;
-    childMesh.parent = parentMesh;
-
-    totalVertices += group.positions.length / 3;
-    totalTriangles += group.indices.length / 3;
-  }
-
-  // Set pivot to model center
-  parentMesh.setPivotPoint(new Vector3(centerX, centerY, centerZ));
-
-  // Store model info in metadata
-  parentMesh.metadata = {
-    brushModelIndex: modelIndex,
-    modelBounds: {
-      min: new Vector3(model.mins[0], model.mins[2], model.mins[1]),
-      max: new Vector3(model.maxs[0], model.maxs[2], model.maxs[1]),
-    },
-  };
-
-  console.log(
-    `[BspMeshBuilder] Built brush model *${modelIndex}: ${totalVertices} vertices, ${totalTriangles} triangles, ${textureGroups.size} textures`,
-  );
-
-  return parentMesh;
 }

@@ -10,7 +10,7 @@ async function testCollisionAtSpawn(): Promise<void> {
 
   const engine = new NullEngine();
   const scene = new Scene(engine);
-  const mapLoader = new MapLoader();
+  const mapLoader = MapLoader.getInstance();
 
   try {
     await mapLoader.loadMap("wdm2", scene, () => {});
