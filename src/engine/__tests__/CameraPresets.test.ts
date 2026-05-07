@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CAMERA_PRESETS, type CameraPreset, getCameraPreset, getCameraPresetNames } from "../camera/CameraPresets";
+import { CAMERA_PRESETS, getCameraPreset, getCameraPresetNames } from "../camera/CameraPresets";
 
 describe("CameraPresets", () => {
   // ── Preset Data ───────────────────────────────────────────

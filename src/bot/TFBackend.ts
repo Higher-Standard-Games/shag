@@ -45,7 +45,8 @@ async function _doInit(): Promise<void> {
 
   // Try 2: Pure JS backend (@tensorflow/tfjs — WASM or CPU)
   try {
-    const mod = (await import("@tensorflow/tfjs")) as unknown as typeof import("@tensorflow/tfjs-node");
+    const tfjsPackage = "@tensorflow/tfjs";
+    const mod = (await import(tfjsPackage)) as unknown as typeof import("@tensorflow/tfjs-node");
     _tf = mod;
     _backend = (mod.getBackend?.() as typeof _backend) || "cpu";
     console.log(`[TFBackend] Loaded @tensorflow/tfjs (backend: ${_backend})`);
