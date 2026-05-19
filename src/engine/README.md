@@ -76,12 +76,12 @@ src/engine/
 ├── weapon/         # Weapon definitions and systems*
 ├── spawn/          # Spawn point management
 ├── player/         # Player profiles
-├── entities/       # Entity management
-├── game/           # Pickup framework, inventory (currently FPS-flavoured)*
+├── entities/       # Entity management (still FPS-flavoured spawn paths)*
 ├── debug/          # Debug console and tools
 ├── viewport/       # Viewport effects (FPS-flavoured fields like wallJumpState)*
 ├── procedural/     # Procedural texture generation
 ├── math/           # Math utilities
+├── world/          # Engine-generic in-world entities (Pickup base class)
 ├── MapRenderer.ts  # BSP map renderer
 ├── AudioManager.ts # Audio system
 ├── BuildableSystem.ts # Generic buildable framework (used by external SHAG games)

@@ -9,7 +9,10 @@ import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
-import type { InventoryManager } from "../game/InventoryManager";
+// Type-only import reaches into the fps game module — EntityManager itself
+// builds FPS-flavoured entity types (weapon/ammo) and is FPS-coupled (matrix #6).
+// Type-only imports are erased at compile time.
+import type { InventoryManager } from "../../games/fps/world/InventoryManager";
 
 export class EntityManager {
   private static instance: EntityManager;
