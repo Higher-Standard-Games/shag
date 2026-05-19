@@ -45,18 +45,21 @@ interface Vec4 {
   w: number;
 }
 
+// Shape interfaces below satisfy the IComponent contract (engine/network/core/Component.ts).
+// serialize/deserialize/clone are required so the decoder can pass constructed
+// components straight to entity.addComponent without `as IComponent` casts.
 interface PositionShape extends Vec3 {
-  serialize?(): void;
-  deserialize?(): void;
-  clone?(): PositionShape;
+  serialize(encoder: BinaryEncoder): void;
+  deserialize(decoder: BinaryDecoder): void;
+  clone(): PositionShape;
 }
 
 interface TransformShape {
   position: Vec3;
   rotation: Vec4;
-  serialize?(): void;
-  deserialize?(): void;
-  clone?(): TransformShape;
+  serialize(encoder: BinaryEncoder): void;
+  deserialize(decoder: BinaryDecoder): void;
+  clone(): TransformShape;
 }
 
 interface VelocityShape {
@@ -68,9 +71,9 @@ interface VelocityShape {
   grounded: boolean;
   isCrouching?: boolean;
   isSliding?: boolean;
-  serialize?(): void;
-  deserialize?(): void;
-  clone?(): VelocityShape;
+  serialize(encoder: BinaryEncoder): void;
+  deserialize(decoder: BinaryDecoder): void;
+  clone(): VelocityShape;
 }
 
 interface MovementStateShape {
@@ -112,10 +115,11 @@ function getEncoder(): BinaryEncoder {
 // ── Shared component stubs (hoisted to avoid per-entity closure allocations) ──
 // These are referenced by every decoded entity/player. Defining once at module
 // scope eliminates ~600+ function object allocations per second during gameplay.
-function _noopSerialize() {
-  return {};
-}
-function _noopDeserialize() {}
+// Signatures match IComponent.serialize/deserialize; bodies are intentionally
+// empty — these stubs are attached to decoded components and never invoked
+// (the encoder/decoder reads fields directly, never calls these methods).
+function _noopSerialize(_encoder: BinaryEncoder): void {}
+function _noopDeserialize(_decoder: BinaryDecoder): void {}
 // biome-ignore lint/suspicious/noExplicitAny: clone functions use `this` binding for shallow copy of arbitrary component shapes
 function _shallowClone(this: any) {
   return { ...this };
