@@ -32,6 +32,7 @@ import { CameraSystem, IsometricController } from "./camera";
 import { EngineSettings } from "./core/EngineSettings";
 import { EventBus } from "./core/EventBus";
 import { QualityDetector } from "./core/QualityDetector";
+import { ServiceLocator } from "./core/ServiceLocator";
 import { WorldIndicatorSystem } from "./core/WorldIndicatorSystem";
 import { DebrisEffect } from "./effects/DebrisEffect";
 import { FogEffect } from "./effects/FogEffect";
@@ -247,7 +248,6 @@ export abstract class EngineScene {
 
     // Initialize all scene-dependent services via ServiceLocator
     console.log("[EngineScene] Initializing scene services...");
-    const { ServiceLocator } = await import("./core/ServiceLocator");
     await ServiceLocator.getInstance().initScene(this.scene);
     console.log("[EngineScene] Scene services initialized");
 
@@ -887,6 +887,17 @@ export abstract class EngineScene {
     for (const key of this.debugWindowKeys) {
       // biome-ignore lint/suspicious/noExplicitAny: window debug surface
       delete (window as any)[key];
+    }
+
+    // Sweep any remaining ServiceLocator-registered services that the manual
+    // explicit-dispose list above didn't touch (ProceduralTextureGenerator,
+    // ModelLoader, SpriteBuildingManager, etc.). Each dispose is wrapped in
+    // a try/catch inside the locator, and double-disposing the services we
+    // already disposed manually is idempotent (they null their handles).
+    try {
+      ServiceLocator.getInstance().dispose();
+    } catch (e) {
+      console.warn("[EngineScene] ServiceLocator dispose sweep threw", e);
     }
 
     if (this.scene) {
