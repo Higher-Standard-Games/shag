@@ -59,13 +59,17 @@ export class GameTimer {
   // Real-time tracking
   private realTimeElapsed: number = 0;
 
+  // Captured EventBus unsubscribers so resetInstance() doesn't leak listeners
+  // that would fire on stale instances after `game:paused`/`game:resumed`.
+  private eventUnsubscribers: Array<() => void> = [];
+
   private constructor() {
     this.lastRealTime = performance.now();
     this.debugModeEnabled = DEBUG_SPEED_ENABLED;
 
     // Listen for pause/resume events from engine
-    EventBus.on("game:paused", () => this.pause());
-    EventBus.on("game:resumed", () => this.resume());
+    this.eventUnsubscribers.push(EventBus.on("game:paused", () => this.pause()));
+    this.eventUnsubscribers.push(EventBus.on("game:resumed", () => this.resume()));
   }
 
   public static getInstance(): GameTimer {
@@ -76,7 +80,28 @@ export class GameTimer {
   }
 
   public static resetInstance(): void {
+    if (GameTimer.instance) {
+      GameTimer.instance.dispose();
+    }
     GameTimer.instance = null as any;
+  }
+
+  /**
+   * Tear down EventBus subscriptions so the instance can be GC'd cleanly.
+   * Called by `resetInstance()`; safe to call directly for test setup.
+   */
+  public dispose(): void {
+    for (const unsub of this.eventUnsubscribers) {
+      try {
+        unsub();
+      } catch (e) {
+        console.warn("[GameTimer] dispose: unsubscribe threw", e);
+      }
+    }
+    this.eventUnsubscribers.length = 0;
+    this.timers.clear();
+    this.tasks.clear();
+    this.updateCallbacks.length = 0;
   }
 
   // ==================== Core Update ====================
