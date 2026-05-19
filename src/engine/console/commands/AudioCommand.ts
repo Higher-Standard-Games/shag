@@ -2,6 +2,7 @@
  * AudioCommand - Control audio playback and settings
  */
 
+import type { AudioManager } from "../../AudioManager";
 import { Command, type CommandDef } from "../Command";
 
 export default class AudioCommand extends Command {
@@ -22,7 +23,7 @@ export default class AudioCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Lazy import AudioManager to support headless mode
-    let audio;
+    let audio: AudioManager;
     try {
       const { AudioManager } = await import("../../AudioManager");
       audio = AudioManager.getInstance();

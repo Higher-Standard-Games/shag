@@ -2,6 +2,7 @@
  * TextureCommand - Texture management and debugging
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class TextureCommand extends Command {
@@ -22,7 +23,7 @@ export default class TextureCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get scene
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

@@ -1241,7 +1241,9 @@ export class WeaponViewManager {
     if (this.muzzleFlashModel) {
       this.muzzleFlashModel.setEnabled(true);
       if (this.muzzleFlashModel instanceof TransformNode) {
-        this.muzzleFlashModel.getChildMeshes().forEach((m) => (m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY));
+        for (const m of this.muzzleFlashModel.getChildMeshes()) {
+          m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY;
+        }
       }
     }
 
@@ -1339,7 +1341,9 @@ export class WeaponViewManager {
       if (this.muzzleFlashModel?.isEnabled()) {
         const opacity = normalizedIntensity * WeaponViewManager.MUZZLE_FLASH_OPACITY;
         if (this.muzzleFlashModel instanceof TransformNode) {
-          this.muzzleFlashModel.getChildMeshes().forEach((m) => (m.visibility = opacity));
+          for (const m of this.muzzleFlashModel.getChildMeshes()) {
+            m.visibility = opacity;
+          }
         }
 
         if (this.muzzleFlashIntensity <= 0) {

@@ -2,6 +2,7 @@
  * StatsCommand - Performance statistics
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class StatsCommand extends Command {
@@ -15,7 +16,7 @@ export default class StatsCommand extends Command {
     const detailed = args[0] === "detailed" || args[0] === "full";
 
     // Get scene
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

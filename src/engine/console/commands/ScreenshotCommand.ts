@@ -2,6 +2,7 @@
  * ScreenshotCommand - Take a screenshot
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 // Side-effect: registers CreateScreenshot on Tools
 import "@babylonjs/core/Misc/screenshotTools";
@@ -16,7 +17,7 @@ export default class ScreenshotCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get scene
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

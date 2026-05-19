@@ -4,6 +4,7 @@
 
 import { MovementVars } from "../../movement/MovementVars";
 import { PhysicsSystem } from "../../physics/PhysicsSystem";
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class PhysicsCommand extends Command {
@@ -28,7 +29,7 @@ export default class PhysicsCommand extends Command {
     const physics = PhysicsSystem.getInstance();
 
     // Get scene
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

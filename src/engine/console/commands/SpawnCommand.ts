@@ -2,6 +2,7 @@
  * SpawnCommand - Spawn at map spawn points
  */
 
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { Command, type CommandDef } from "../Command";
 
 export default class SpawnCommand extends Command {
@@ -14,7 +15,7 @@ export default class SpawnCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get camera system and MapLoader
-    let cameraSystem;
+    let cameraSystem: CameraSystem;
     let mapLoader;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");

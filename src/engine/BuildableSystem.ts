@@ -513,6 +513,7 @@ export class BuildableSystem {
     return instance;
   }
 
+  // biome-ignore lint/suspicious/useAdjacentOverloadSignatures: shadows the static singleton accessor by name only — different signature, different `this`, intentional public API for external consumers (isometric SHAG project)
   public getInstance(id: string): BuildableInstance | undefined {
     return this.instances.get(id);
   }

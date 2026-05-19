@@ -3,6 +3,7 @@
  */
 
 import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { Command, type CommandDef } from "../Command";
 import { CommandRegistry } from "../CommandRegistry";
 
@@ -24,7 +25,7 @@ export default class MapCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get camera system and scene
-    let cameraSystem;
+    let cameraSystem: CameraSystem;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

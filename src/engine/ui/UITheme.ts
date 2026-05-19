@@ -247,7 +247,9 @@ export class UITheme {
     this.injectStyles();
 
     // Notify listeners
-    this.listeners.forEach((fn) => fn(mode));
+    this.listeners.forEach((fn) => {
+      fn(mode);
+    });
 
     console.log(`[UITheme] Switched to ${mode} mode`);
   }
