@@ -5,6 +5,10 @@
  * Does NOT require developer mode.
  */
 
+import type { CameraSystem } from "../../camera/CameraSystem";
+import type { FPSController as FPSControllerClass } from "../../camera/controllers/FPSController";
+import type { FreeflyController as FreeflyControllerClass } from "../../camera/controllers/FreeflyController";
+import type { MapLoader } from "../../loader/map/MapLoader";
 import { Command, type CommandDef } from "../Command";
 
 export default class JoinCommand extends Command {
@@ -27,10 +31,10 @@ export default class JoinCommand extends Command {
     }
 
     // Get required systems
-    let cameraSystem;
-    let mapLoader;
-    let FPSController;
-    let FreeflyController;
+    let cameraSystem: CameraSystem;
+    let mapLoader: MapLoader;
+    let FPSController: typeof FPSControllerClass;
+    let FreeflyController: typeof FreeflyControllerClass;
 
     try {
       const cameraModule = await import("../../camera/CameraSystem");

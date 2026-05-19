@@ -2,6 +2,7 @@
  * TeleportCommand - Teleport camera to position
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Command, type CommandDef } from "../Command";
 
 export default class TeleportCommand extends Command {
@@ -27,7 +28,7 @@ export default class TeleportCommand extends Command {
     }
 
     // Get camera
-    let camera;
+    let camera: Camera | null;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       camera = CameraSystem.getInstance().getCamera();

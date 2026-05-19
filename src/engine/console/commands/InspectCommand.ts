@@ -2,9 +2,11 @@
  * InspectCommand - Inspect mesh under cursor
  */
 
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 function describeTexture(label: string, texture: BaseTexture | null | undefined): string | null {
@@ -30,8 +32,8 @@ export default class InspectCommand extends Command {
 
   async execute(): Promise<string | undefined> {
     // Get scene and camera
-    let scene;
-    let camera;
+    let scene: Scene | null | undefined;
+    let camera: Camera | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       camera = CameraSystem.getInstance().getCamera();

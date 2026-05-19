@@ -2,6 +2,7 @@
  * PK3Command - PK3 archive management
  */
 
+import type { PK3Index } from "../../loader/pk3/PK3Index";
 import { Command, type CommandDef } from "../Command";
 
 export default class PK3Command extends Command {
@@ -19,7 +20,7 @@ export default class PK3Command extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let pk3Index;
+    let pk3Index: PK3Index;
     try {
       const { PK3Index } = await import("../../loader/pk3/PK3Index");
       pk3Index = PK3Index.getInstance();
@@ -43,7 +44,7 @@ export default class PK3Command extends Command {
       }
 
       case "index": {
-        const count = await pk3Index.buildIndex((msg) => console.log(`[PK3] ${msg}`));
+        const count = await pk3Index.buildIndex((msg: string) => console.log(`[PK3] ${msg}`));
         return `Index rebuilt: ${count} files indexed`;
       }
 
