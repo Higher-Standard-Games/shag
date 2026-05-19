@@ -78,8 +78,10 @@ async function main() {
   const debugConsole = DebugConsole.getInstance();
   debugConsole.enable();
 
-  // Register engine commands
+  // Register engine commands, then fps-specific commands (connect, disconnect, demo*, netsim)
   await registerEngineCommands();
+  const { registerFpsCommands } = await import("./games/fps");
+  await registerFpsCommands();
 
   // Initialize UI
   UIScale.getInstance().init();
