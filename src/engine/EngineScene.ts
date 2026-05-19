@@ -90,6 +90,7 @@ export abstract class EngineScene {
 
   private resizeHandler: (() => void) | null = null;
   private unsubscribeMapLoaded: (() => void) | null = null;
+  private unsubscribeStartMapLoaded: (() => void) | null = null;
   private unsubscribeAppStateChange: (() => void) | null = null;
   private unsubscribeBackButton: (() => void) | null = null;
 
@@ -142,8 +143,11 @@ export abstract class EngineScene {
     // Setup Capacitor app lifecycle handlers
     this.setupCapacitorListeners();
 
-    // Listen for map loaded events (e.g. from MapCommand)
-    EventBus.on<{ result: MapLoadResult }>("map:loaded", (data) => {
+    // Listen for map loaded events (e.g. from MapCommand). Stored so dispose()
+    // can remove it; without this, a stale listener would fire onMapLoaded on
+    // a disposed scene if EventBus outlives this instance.
+    this.unsubscribeStartMapLoaded?.();
+    this.unsubscribeStartMapLoaded = EventBus.on<{ result: MapLoadResult }>("map:loaded", (data) => {
       console.log(`[EngineScene] Received map:loaded event`);
       this.onMapLoaded(data.result).catch((e) => console.error("Error in onMapLoaded:", e));
     });
@@ -815,6 +819,8 @@ export abstract class EngineScene {
 
     this.unsubscribeMapLoaded?.();
     this.unsubscribeMapLoaded = null;
+    this.unsubscribeStartMapLoaded?.();
+    this.unsubscribeStartMapLoaded = null;
     this.unsubscribeAppStateChange?.();
     this.unsubscribeAppStateChange = null;
     this.unsubscribeBackButton?.();

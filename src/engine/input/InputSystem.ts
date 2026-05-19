@@ -21,6 +21,7 @@
  * ```
  */
 
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { EventBus } from "../core/EventBus";
 import type {
@@ -133,6 +134,11 @@ export class InputSystem {
   private boundTouchEnd: (e: TouchEvent) => void;
   private boundContextMenu: (e: Event) => void;
 
+  // Babylon render-loop observers — stored so dispose() can detach them
+  // from the scene cleanly (otherwise they survive scene-handoff scenarios).
+  private beforeRenderObserver: Observer<Scene> | null = null;
+  private afterRenderObserver: Observer<Scene> | null = null;
+
   private constructor() {
     // Initialize raw state
     this.rawState = this.createEmptyRawState();
@@ -188,10 +194,10 @@ export class InputSystem {
     canvas.addEventListener("contextmenu", this.boundContextMenu);
 
     // Update action states BEFORE render (so controllers can query them)
-    scene.onBeforeRenderObservable.add(() => this.updateActionStates());
+    this.beforeRenderObserver = scene.onBeforeRenderObservable.add(() => this.updateActionStates());
 
     // Clear per-frame state AFTER render
-    scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
+    this.afterRenderObserver = scene.onAfterRenderObservable.add(() => this.clearPerFrameState());
 
     console.log("[InputSystem] Initialized");
   }
@@ -750,6 +756,19 @@ export class InputSystem {
       this.canvas.removeEventListener("touchend", this.boundTouchEnd);
       this.canvas.removeEventListener("contextmenu", this.boundContextMenu);
     }
+    // Detach Babylon scene observers explicitly. Scene disposal would clean
+    // them anyway, but init() may be called on a fresh scene; without this
+    // the previous scene retains a callback that touches this singleton.
+    if (this.scene) {
+      if (this.beforeRenderObserver) {
+        this.scene.onBeforeRenderObservable.remove(this.beforeRenderObserver);
+      }
+      if (this.afterRenderObserver) {
+        this.scene.onAfterRenderObservable.remove(this.afterRenderObserver);
+      }
+    }
+    this.beforeRenderObserver = null;
+    this.afterRenderObserver = null;
     this.scene = null;
     this.canvas = null;
     this._initialized = false;
