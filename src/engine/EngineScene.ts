@@ -110,6 +110,20 @@ export abstract class EngineScene {
   protected debrisEffect: DebrisEffect | null = null;
   protected isIndoorMap: boolean = false;
 
+  // Idempotency guard: prevent double-start() from stacking listeners/effects.
+  private started: boolean = false;
+
+  // Cached singleton references for the render loop (avoids `.getInstance()`
+  // lookup overhead each frame). Populated lazily on first render tick.
+  private cachedSkyLight: typeof SkyLightSystem.prototype | null = null;
+  private cachedStreetLamps: typeof StreetLampSystem.prototype | null = null;
+  private cachedBuildable: typeof BuildableSystem.prototype | null = null;
+  private cachedCameraSystem: typeof CameraSystem.prototype | null = null;
+
+  // Debug-window keys this scene attached in exposeDebugFunctions() — cleared
+  // in dispose() so stale closures don't keep the disposed scene alive.
+  private readonly debugWindowKeys = ["loadMap", "setZoom", "setCameraMode", "getCameraMode", "setCameraHeight", "getCameraHeight", "camera", "fx", "weather"] as const;
+
   constructor(engine: Engine, canvas: HTMLCanvasElement) {
     this.engine = engine;
     this.canvas = canvas;
@@ -119,6 +133,11 @@ export abstract class EngineScene {
    * Start the scene - creates scene, loads initial map, starts render loop
    */
   public async start(): Promise<void> {
+    if (this.started) {
+      console.warn("[EngineScene] start() called more than once; ignoring re-entry");
+      return;
+    }
+    this.started = true;
     const config = AssetLoader.getInstance().getConfig();
     const startMap = config?.game.startMap || "test.map";
 
@@ -621,23 +640,29 @@ export abstract class EngineScene {
         this.lastRenderTime = currentTime - (elapsed % this.frameInterval);
       }
 
+      // Cache singleton refs on first tick — eliminates per-frame getInstance() lookups.
+      if (!this.cachedSkyLight) this.cachedSkyLight = SkyLightSystem.getInstance();
+      if (!this.cachedStreetLamps) this.cachedStreetLamps = StreetLampSystem.getInstance();
+      if (!this.cachedBuildable) this.cachedBuildable = BuildableSystem.getInstance();
+      if (!this.cachedCameraSystem) this.cachedCameraSystem = CameraSystem.getInstance();
+
       // Update street lamps
       const deltaTime = this.engine.getDeltaTime();
-      if (StreetLampSystem.getInstance().isInitialized()) {
-        StreetLampSystem.getInstance().update(deltaTime);
+      if (this.cachedStreetLamps.isInitialized()) {
+        this.cachedStreetLamps.update(deltaTime);
       }
 
       // Update day/night cycle (cvar-driven, works for BSP maps even without sun lights)
-      SkyLightSystem.getInstance().update(deltaTime);
+      this.cachedSkyLight.update(deltaTime);
 
       // Update BuildableSystem
-      BuildableSystem.getInstance().update();
+      this.cachedBuildable.update();
 
       // Let game update
       this.onUpdate(deltaTime);
 
       // Only force isometric angles if using isometric controller
-      const activeController = CameraSystem.getInstance().getActiveController();
+      const activeController = this.cachedCameraSystem.getActiveController();
       if (!activeController || activeController.type === "isometric") {
         this.camera.alpha = -Math.PI / 4;
         this.camera.beta = Math.PI / 4;
@@ -831,10 +856,46 @@ export abstract class EngineScene {
     SpriteManager.getInstance().clear();
     WorldIndicatorSystem.getInstance().clearAll();
 
+    // Tear down the rest of the scene-scoped singletons. These hold references
+    // to the scene's lights / post-process pipelines and need explicit cleanup
+    // so re-entry on a fresh scene doesn't leak the previous pipeline.
+    try {
+      PostProcessingManager.getInstance().dispose();
+    } catch (e) {
+      console.warn("[EngineScene] PostProcessingManager dispose threw", e);
+    }
+    try {
+      SkyLightSystem.getInstance().dispose();
+    } catch (e) {
+      console.warn("[EngineScene] SkyLightSystem dispose threw", e);
+    }
+    try {
+      StreetLampSystem.getInstance().dispose();
+    } catch (e) {
+      console.warn("[EngineScene] StreetLampSystem dispose threw", e);
+    }
+
+    // Clear cached singleton references so the next start() picks up fresh
+    // instances after singletons have been disposed/reset.
+    this.cachedSkyLight = null;
+    this.cachedStreetLamps = null;
+    this.cachedBuildable = null;
+    this.cachedCameraSystem = null;
+
+    // Detach debug functions from `window.*` so stale closures don't keep
+    // disposed weather effects / post-processing pipelines alive.
+    for (const key of this.debugWindowKeys) {
+      // biome-ignore lint/suspicious/noExplicitAny: window debug surface
+      delete (window as any)[key];
+    }
+
     if (this.scene) {
       this.scene.dispose();
       this.scene = null;
     }
+
+    // Allow start() to be called again after a clean dispose() cycle.
+    this.started = false;
   }
 
   // ==================== Hook methods for game to override ====================

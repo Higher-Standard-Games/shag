@@ -83,6 +83,16 @@ export class CameraSystem {
    * Register a camera controller
    */
   registerController(type: string, controller: ICameraController): void {
+    // If a controller is already registered for this type, dispose it first
+    // so re-registration on scene re-init doesn't orphan the previous one.
+    const previous = this.controllers.get(type);
+    if (previous && previous !== controller) {
+      if (this.activeController === previous) {
+        previous.detach();
+        this.activeController = null;
+      }
+      previous.dispose();
+    }
     this.controllers.set(type, controller);
   }
 
