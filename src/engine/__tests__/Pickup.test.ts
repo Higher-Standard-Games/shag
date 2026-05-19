@@ -20,7 +20,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Pickup } from "../game/Pickup";
+import { FPSPickup as Pickup } from "../../games/fps/world/FPSPickup";
 
 interface FakePickup {
   isActive: boolean;
