@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_LOBBY_URL?: string;
+}
+
 // CSS module imports with ?raw suffix
 declare module "*.css?raw" {
   const content: string;

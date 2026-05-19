@@ -37,8 +37,8 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     tickRate: 125,
     snapshotRate: 60,
     gamePath: "./game",
-    certPath: "./certs/localhost.pem",
-    keyPath: "./certs/localhost-key.pem",
+    certPath: process.env.SHAG_GAME_CERT_PATH || "./certs/localhost.pem",
+    keyPath: process.env.SHAG_GAME_KEY_PATH || "./certs/localhost-key.pem",
     gametype: "Deathmatch",
     shutdownOnEmpty: false,
   };
@@ -146,6 +146,10 @@ WebTransport Setup:
 Examples:
   npx vite-node src/cli/headless-netserver-v2.ts --map wdm7
   npx vite-node src/cli/headless-netserver-v2.ts --port 7777 --map wdm2
+
+Environment:
+  SHAG_GAME_CERT_PATH    Default TLS certificate path for spawned game servers
+  SHAG_GAME_KEY_PATH     Default TLS private key path for spawned game servers
 `);
 }
 
@@ -314,7 +318,7 @@ async function main(): Promise<void> {
   // Check for TLS certificates
   if (!fs.existsSync(config.certPath) || !fs.existsSync(config.keyPath)) {
     console.log("[Server] WARNING: TLS certificates not found.");
-    console.log("[Server] WebTransport requires TLS. Running in mock mode for testing.");
+    console.log("[Server] Direct wss:// requires TLS. Falling back to plain ws:// for this server.");
     console.log("");
     console.log("[Server] To generate certificates for development:");
     console.log("  1. Install mkcert: https://github.com/FiloSottile/mkcert");
@@ -322,6 +326,8 @@ async function main(): Promise<void> {
     console.log("  3. Run: mkcert localhost");
     console.log("  4. Create ./certs/ directory and move the .pem files there");
     console.log("");
+    config.certPath = "";
+    config.keyPath = "";
   }
 
   // Load BSP

@@ -337,14 +337,14 @@ export class BinaryProtocol {
 
       // Encode changed components
       // Flag 0x01: Position (12 bytes - 3 floats)
-      if (flags & 0x01) {
+      if ((flags & 0x01) && pos) {
         encoder.writeFloat32(pos.x);
         encoder.writeFloat32(pos.y);
         encoder.writeFloat32(pos.z);
       }
 
       // Flag 0x02: Velocity (12 bytes - 3 floats)
-      if (flags & 0x02) {
+      if ((flags & 0x02) && velData) {
         encoder.writeFloat32(velData.x);
         encoder.writeFloat32(velData.y);
         encoder.writeFloat32(velData.z);
@@ -356,7 +356,7 @@ export class BinaryProtocol {
       }
 
       // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
-      if (flags & 0x08) {
+      if ((flags & 0x08) && rot) {
         encoder.writeFloat32(rot.y); // yaw
         encoder.writeFloat32(rot.x); // pitch
       }
@@ -371,7 +371,7 @@ export class BinaryProtocol {
       }
 
       // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
-      if (flags & 0x20) {
+      if ((flags & 0x20) && weaponMeta) {
         encoder.writeString(weaponMeta.weaponId);
         encoder.writeUint8(weaponMeta.settled ? 1 : 0);
       }

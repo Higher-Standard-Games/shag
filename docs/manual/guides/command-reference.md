@@ -6,10 +6,10 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 
 | Command | Description |
 |---------|-------------|
-| `map <name>` | Load a BSP map |
+| `map <name> [gametype]` | Developer-only server-backed gameplay launch through the lobby |
 | `map list` | List available maps |
-| `map reload` | Reload current map |
-| `map unload` | Unload current map |
+| `map reload` | Relaunch last server-backed gameplay map |
+| `map unload` | Disconnect and unload current client map |
 | `scene empty` | Create empty scene for testing |
 | `scene clear` | Clear all scene objects |
 | `scene dispose` | Dispose empty scene |
@@ -73,7 +73,7 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 
 | Command | Description |
 |---------|-------------|
-| `bsp load <name>` | Load BSP file |
+| `bsp load <name>` | Load BSP file for inspection/rendering |
 | `bsp info` | Show BSP statistics |
 | `bsp entities` | List BSP entities |
 | `bsp textures` | List required textures |

@@ -65,9 +65,6 @@ import type { CameraControllerConfig, ICameraController } from "./ICameraControl
 
 import { FPS, getWeaponSlotPressed, registerFPSActions } from "../../../games/fps/client/FPSActions";
 import { Game } from "../../../games/fps/Game";
-import { createBSPCollisionWorld } from "../../../games/fps/simulation/collision/BSPCollisionWorld";
-import { getCollisionManager } from "../../physics/CollisionManager";
-import { extractSpawnPoints } from "../../spawn/SpawnPointManager";
 import { PlayerVisuals } from "./components/PlayerVisuals";
 
 export class FPSController implements ICameraController {
@@ -825,79 +822,9 @@ export class FPSController implements ICameraController {
         // Network mode already enabled by enableNetworkMode() - skip initialization
         console.log(`[FPS] Network mode already enabled, skipping initialization`);
       } else {
-        // === LOCAL SIMULATION MODE ===
-        // Using local FPSMovementProfile simulation (same physics as server)
-        console.log(`[FPS] Initializing local simulation via Game`);
-        this.useNetworkMovement = true;
-
-        this.gameManager
-          .initializeLocal({ tickRate: 60 })
-          .then(async () => {
-            // Set up BSP collision if available
-            const cm = getCollisionManager();
-            if (cm.isInitialized()) {
-              const collisionWorld = createBSPCollisionWorld();
-              this.gameManager!.setCollisionWorld(collisionWorld);
-              console.log(`[FPS] BSP collision injected into simulation`);
-            }
-
-            // Extract spawn points from loaded BSP
-            try {
-              const { MapLoader } = await import("../../loader/map/MapLoader");
-              const bsp = MapLoader.getInstance().getCurrentBsp();
-              if (bsp?.entities) {
-                const spawns = extractSpawnPoints(bsp.entities);
-                if (spawns.length > 0) {
-                  this.gameManager!.setSpawnPoints(spawns.map((s) => s.position));
-                  console.log(`[FPS] Extracted ${spawns.length} spawn points from BSP`);
-                }
-              }
-            } catch (e) {
-              console.warn(`[FPS] Could not extract spawn points:`, e);
-            }
-
-            // Spawn player at current position
-            this.gameManager!.spawnLocalPlayer({
-              x: this.physicsX,
-              y: this.physicsY,
-              z: this.physicsZ,
-            });
-
-            // Subscribe to state updates for visual effects
-            this.stateUnsubscribe = this.gameManager!.onPlayerStateUpdate((state) => {
-              // Track previous grounded state for landing detection
-              this.wasGroundedLastFrame = this.isGrounded;
-
-              // NOTE: Do NOT set physicsX/Y/Z here — getLocalPlayerPosition()
-              // reads V2Client's predicted state directly. Setting position here
-              // causes jitter (one-frame snaps between reconciled and predicted state).
-              this.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
-
-              // Update movement state for visual effects
-              this.isGrounded = state.grounded;
-              this.isSliding = state.isSliding;
-              this.isCrouching = state.isCrouching;
-              this.crouchViewOffset = state.crouchViewOffset;
-              this.wallJumpState = state.wallJumpState;
-              this.ledgeGrabState = state.ledgeGrabState;
-              this.actualHorizSpeed = state.actualHorizSpeed;
-              this.slidePhase = state.slidePhase;
-              this.ledgeGrabPhase = state.ledgeGrabPhase;
-
-              // Capture landing velocity for impact effect
-              if (!this.wasGroundedLastFrame && this.isGrounded && state.velocity.y < -50) {
-                this.landingVelocityCapture = Math.abs(state.velocity.y);
-              }
-            });
-
-            this.networkReady = true;
-            console.log(`[FPS] Local network simulation initialized - player spawned`);
-          })
-          .catch((err: Error) => {
-            console.error(`[FPS] Failed to initialize network movement:`, err);
-            this.useNetworkMovement = false;
-            this.networkReady = false;
-          });
+        console.warn("[FPS] No authoritative server connection. Use 'developer 1' and 'map <mapname> [gametype]'.");
+        this.useNetworkMovement = false;
+        this.networkReady = false;
       }
 
       console.log(

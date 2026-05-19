@@ -8,6 +8,9 @@
  * allowing easy swapping between protocols.
  */
 
+import { readFileSync } from "node:fs";
+import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
+import { createServer as createHttpsServer, type Server as HttpsServer } from "node:https";
 import { WebSocket, WebSocketServer } from "ws";
 import type { ClientConnection, Transport, TransportConfig, TransportEvents } from "./WebTransportTransport";
 
@@ -76,6 +79,7 @@ export class WebSocketServerTransport implements Transport {
   private clients: Map<string, WebSocketClientConnection> = new Map();
   private running: boolean = false;
   private wss: WebSocketServer | null = null;
+  private httpServer: HttpServer | HttpsServer | null = null;
   private nextClientId: number = 1;
 
   constructor(config: TransportConfig, events: TransportEvents = {}) {
@@ -97,25 +101,37 @@ export class WebSocketServerTransport implements Transport {
 
     return new Promise((resolve, reject) => {
       try {
+        const secure = this.config.certPath.length > 0 && this.config.keyPath.length > 0;
+        this.httpServer = secure
+          ? createHttpsServer({
+              cert: readFileSync(this.config.certPath),
+              key: readFileSync(this.config.keyPath),
+            })
+          : createHttpServer();
+
         this.wss = new WebSocketServer({
-          port: this.config.port,
-          host: this.config.host,
+          server: this.httpServer,
         });
 
         this.wss.on("connection", (ws, req) => {
           this.handleConnection(ws, req);
         });
 
-        this.wss.on("error", (error) => {
+        const onError = (error: Error) => {
           console.error("[WebSocket] Server error:", error);
           reject(error);
-        });
+        };
 
-        this.wss.on("listening", () => {
+        this.wss.on("error", onError);
+        this.httpServer.on("error", onError);
+        this.httpServer.on("listening", () => {
           this.running = true;
-          console.log(`[WebSocket] Server ready on ${this.config.host}:${this.config.port}`);
+          const scheme = secure ? "wss" : "ws";
+          console.log(`[WebSocket] Server ready on ${scheme}://${this.config.host}:${this.config.port}`);
           resolve();
         });
+
+        this.httpServer.listen(this.config.port, this.config.host);
       } catch (error) {
         reject(error);
       }
@@ -134,10 +150,22 @@ export class WebSocketServerTransport implements Transport {
 
       // Close WebSocket server
       this.wss!.close(() => {
-        this.running = false;
-        this.wss = null;
-        console.log("[WebSocket] Server stopped");
-        resolve();
+        const httpServer = this.httpServer;
+        if (!httpServer) {
+          this.running = false;
+          this.wss = null;
+          console.log("[WebSocket] Server stopped");
+          resolve();
+          return;
+        }
+
+        httpServer.close(() => {
+          this.running = false;
+          this.wss = null;
+          this.httpServer = null;
+          console.log("[WebSocket] Server stopped");
+          resolve();
+        });
       });
     });
   }
