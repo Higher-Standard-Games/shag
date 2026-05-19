@@ -79,9 +79,13 @@ async function main() {
   debugConsole.enable();
 
   // Register engine commands, then fps-specific commands (connect, disconnect, demo*, netsim)
+  // and register the fps NetworkConnector so the engine's lobby ConnectingOverlay can
+  // initiate a connection without importing fps directly.
   await registerEngineCommands();
-  const { registerFpsCommands } = await import("./games/fps");
-  await registerFpsCommands();
+  const fpsModule = await import("./games/fps");
+  await fpsModule.registerFpsCommands();
+  const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
+  registerNetworkConnector(fpsModule.fpsNetworkConnector);
 
   // Initialize UI
   UIScale.getInstance().init();
