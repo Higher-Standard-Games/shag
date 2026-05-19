@@ -3,6 +3,7 @@
  */
 
 import type { CameraSystem } from "../../camera/CameraSystem";
+import type { MapLoader } from "../../loader/map/MapLoader";
 import { Command, type CommandDef } from "../Command";
 
 export default class SpawnCommand extends Command {
@@ -16,7 +17,7 @@ export default class SpawnCommand extends Command {
   async execute(args: string[]): Promise<string | undefined> {
     // Get camera system and MapLoader
     let cameraSystem: CameraSystem;
-    let mapLoader;
+    let mapLoader: MapLoader;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       const { MapLoader } = await import("../../loader/map/MapLoader");

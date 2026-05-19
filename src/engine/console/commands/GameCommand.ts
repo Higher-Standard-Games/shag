@@ -2,6 +2,7 @@
  * GameCommand - Game path control
  */
 
+import type { GamePaths } from "../../core/GamePaths";
 import { Command, type CommandDef } from "../Command";
 
 export default class GameCommand extends Command {
@@ -18,7 +19,7 @@ export default class GameCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let gamePaths;
+    let gamePaths: GamePaths;
     try {
       const { GamePaths } = await import("../../core/GamePaths");
       gamePaths = GamePaths.getInstance();

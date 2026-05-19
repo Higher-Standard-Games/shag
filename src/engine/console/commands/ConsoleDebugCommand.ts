@@ -2,6 +2,7 @@
  * ConsoleDebugCommand - Toggle debug overlay
  */
 
+import type { DebugOverlay } from "../../debug/DebugOverlay";
 import { Command, type CommandDef } from "../Command";
 
 export default class ConsoleDebugCommand extends Command {
@@ -13,7 +14,7 @@ export default class ConsoleDebugCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let overlay;
+    let overlay: DebugOverlay;
     try {
       const { getDebugOverlay } = await import("../../debug/DebugOverlay");
       overlay = getDebugOverlay();

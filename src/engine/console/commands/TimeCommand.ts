@@ -2,6 +2,7 @@
  * TimeCommand - Control game time
  */
 
+import type { GameClock } from "../../core/GameClock";
 import { Command, type CommandDef } from "../Command";
 
 export default class TimeCommand extends Command {
@@ -18,7 +19,7 @@ export default class TimeCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Lazy import GameClock
-    let clock;
+    let clock: GameClock;
     try {
       const { GameClock } = await import("../../core/GameClock");
       clock = GameClock.getInstance();

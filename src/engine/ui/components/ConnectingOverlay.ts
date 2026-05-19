@@ -2,9 +2,10 @@
  * ConnectingOverlay — Full-screen "GAME STARTING" overlay.
  *
  * Shown when all players are ready and the match server is starting.
- * Displays a connecting animation, then triggers the actual server connection.
+ * Displays a connecting animation, then triggers the actual server connection
+ * via the registered `NetworkConnector` (game modules register one at boot).
  */
-import { Game } from "../../../games/fps/Game";
+import { getNetworkConnector } from "./NetworkConnector";
 
 // Import CSS
 import "./styles/ConnectingOverlay.css";
@@ -45,17 +46,25 @@ export class ConnectingOverlay {
     await this.delay(600);
 
     try {
-      const gameManager = Game.getInstance();
+      const connector = getNetworkConnector();
+      if (!connector) {
+        // No game module has registered a connector — engine alone can't connect.
+        this.setStatus("NO NETWORK ADAPTER");
+        this.showError("No NetworkConnector registered. Did the game module load?");
+        await this.delay(3000);
+        this.hide();
+        return;
+      }
 
       // Check if already connected
-      if (gameManager.isConnectedToServer()) {
+      if (connector.isConnected()) {
         this.setStatus("ALREADY CONNECTED");
         await this.delay(1000);
         this.hide();
         return;
       }
 
-      await gameManager.initializeNetwork(serverUrl, { autoJoin: !asSpectator, watchOnly: asSpectator });
+      await connector.connect(serverUrl, { autoJoin: !asSpectator, watchOnly: asSpectator });
       this.setStatus(asSpectator ? "SPECTATING" : "CONNECTED");
 
       // The lobby hide + overlay cleanup happens when EventBus fires 'loading:start'

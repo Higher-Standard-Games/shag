@@ -189,6 +189,58 @@ describe("ServiceLocator", () => {
 
       expect(ServiceLocator.has("test")).toBe(false);
     });
+
+    it("should continue disposing remaining services when one throws", async () => {
+      const locator = ServiceLocator.getInstance();
+      const disposed: string[] = [];
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      locator.register({
+        name: "A",
+        factory: (): Service => ({
+          init: () => {},
+          dispose: () => {
+            disposed.push("A");
+          },
+        }),
+        phase: "core",
+      });
+      locator.register({
+        name: "B",
+        factory: (): Service => ({
+          init: () => {},
+          dispose: () => {
+            disposed.push("B");
+            throw new Error("B blew up during dispose");
+          },
+        }),
+        phase: "core",
+        dependencies: ["A"],
+      });
+      locator.register({
+        name: "C",
+        factory: (): Service => ({
+          init: () => {},
+          dispose: () => {
+            disposed.push("C");
+          },
+        }),
+        phase: "core",
+        dependencies: ["B"],
+      });
+
+      await locator.initCore();
+      locator.dispose();
+
+      // Even though B threw, the locator's own dispose loop must not propagate
+      // — A's dispose still has to run after B's failure.
+      expect(disposed).toEqual(["C", "B", "A"]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Dispose of 'B' threw:"),
+        expect.any(Error),
+      );
+      warnSpy.mockRestore();
+    });
   });
 
   describe("manual set", () => {

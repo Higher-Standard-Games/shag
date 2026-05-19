@@ -1,4 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { EntityManager } from "../../entities/EntityManager"; // Safe import for types/static access
 import { Command, type CommandDef } from "../Command";
 
@@ -18,8 +19,8 @@ export default class SpawnPickupCommand extends Command {
     const entityId = args[0];
 
     // Get EntityManager lazily
-    let entityManager;
-    let cameraSystem;
+    let entityManager: EntityManager;
+    let cameraSystem: CameraSystem;
     try {
       const { EntityManager } = await import("../../entities/EntityManager");
       const { CameraSystem } = await import("../../camera/CameraSystem");

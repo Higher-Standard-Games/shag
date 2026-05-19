@@ -340,14 +340,20 @@ export class ServiceLocator {
   public dispose(): void {
     console.log("[ServiceLocator] Disposing services...");
 
-    // Dispose in reverse order
+    // Dispose in reverse order. Each individual dispose is wrapped so a
+    // throwing service can't block the remaining tear-down — the locator's
+    // job is to give every service a chance to clean up.
     const reversed = [...this.initOrder].reverse();
     for (const name of reversed) {
       const info = this.services.get(name);
       const service = info?.instance as Service | undefined;
       if (service?.dispose) {
         console.log(`[ServiceLocator] Disposing '${name}'...`);
-        service.dispose();
+        try {
+          service.dispose();
+        } catch (e) {
+          console.warn(`[ServiceLocator] Dispose of '${name}' threw:`, e);
+        }
       }
     }
 

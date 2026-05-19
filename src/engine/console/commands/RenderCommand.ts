@@ -2,6 +2,7 @@
  * RenderCommand - Render variable control (consolidates r_list, r_reset, r_export, r_apply)
  */
 
+import type { RenderVars } from "../../rendering/RenderVars";
 import { Command, type CommandDef } from "../Command";
 
 export default class RenderCommand extends Command {
@@ -23,7 +24,7 @@ export default class RenderCommand extends Command {
     const subcommand = args[0]?.toLowerCase();
 
     // Get RenderVars
-    let renderVars;
+    let renderVars: RenderVars;
     try {
       const { RenderVars } = await import("../../rendering/RenderVars");
       renderVars = RenderVars.getInstance();

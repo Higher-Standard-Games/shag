@@ -32,7 +32,7 @@ import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
-import { LobbyPanel } from "./engine/ui/panels/LobbyPanel";
+import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
@@ -78,8 +78,14 @@ async function main() {
   const debugConsole = DebugConsole.getInstance();
   debugConsole.enable();
 
-  // Register engine commands
+  // Register engine commands, then fps-specific commands (connect, disconnect, demo*, netsim)
+  // and register the fps NetworkConnector so the engine's lobby ConnectingOverlay can
+  // initiate a connection without importing fps directly.
   await registerEngineCommands();
+  const fpsModule = await import("./games/fps");
+  await fpsModule.registerFpsCommands();
+  const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
+  registerNetworkConnector(fpsModule.fpsNetworkConnector);
 
   // Initialize UI
   UIScale.getInstance().init();
