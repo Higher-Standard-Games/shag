@@ -1,8 +1,12 @@
 /**
- * HSG Engine - Main exports
+ * SHAG Engine - Main exports
  *
- * A BabylonJS-based game engine for isometric/RTS games.
- * Supports Quake-style .map files, sprites, lighting, and more.
+ * A Babylon.js engine for Quake 3 / Warsow-style games and beyond.
+ * Supports BSP map loading (Q3 / Warsow FBSP), PK3 virtual filesystem,
+ * Q3 shaders, server-authoritative networking, BSP collision, Q3-style
+ * movement, skeletal animation, weather, sprites, HUD/UI, and console.
+ *
+ * Engine-generic; game-specific code lives under `src/games/<game>`.
  */
 
 export type { GameConfig, LoadedMap, LoadProgress, ProgressCallback } from "./AssetLoader";
