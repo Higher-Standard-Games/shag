@@ -46,7 +46,7 @@ export default class SceneCommand extends Command {
     }
 
     // Get scene from camera system for other commands
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

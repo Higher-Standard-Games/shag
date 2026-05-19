@@ -58,8 +58,8 @@ A Babylon.js game engine for Quake 3 / Warsow-style multiplayer games. Handles B
 
 ```
 src/engine/
-├── core/           # EventBus, GamePaths, GameTimer
-├── camera/         # Camera controllers (FPS, Freefly, Isometric, SideScroll, Follow)
+├── core/           # EventBus, GamePaths, GameTimer, settings
+├── camera/         # Camera controllers (FPS, Freefly, Isometric, SideScroll, Follow)*
 ├── console/        # Console system, command registry, cvars
 ├── input/          # Keyboard/mouse input handling
 ├── loader/         # BSP, PK3, shader, texture, model loading
@@ -73,19 +73,25 @@ src/engine/
 ├── effects/        # Weather, particles
 ├── sprites/        # 2D sprite system
 ├── ui/             # HUD, menus, loading screen, panels
-├── weapon/         # Weapon definitions and systems
+├── weapon/         # Weapon definitions and systems*
 ├── spawn/          # Spawn point management
-├── player/         # Player systems
-├── entities/       # Entity management
-├── game/           # Game lifecycle
+├── player/         # Player profiles
+├── entities/       # Entity management (still FPS-flavoured spawn paths)*
 ├── debug/          # Debug console and tools
-├── viewport/       # Viewport management
-├── procedural/     # Procedural generation
+├── viewport/       # Viewport effects (FPS-flavoured fields like wallJumpState)*
+├── procedural/     # Procedural texture generation
 ├── math/           # Math utilities
+├── world/          # Engine-generic in-world entities (Pickup base class)
 ├── MapRenderer.ts  # BSP map renderer
 ├── AudioManager.ts # Audio system
+├── BuildableSystem.ts # Generic buildable framework (used by external SHAG games)
+├── SpawnValidator.ts  # Generic spawn-validation hook (used by external SHAG games)
 └── EngineScene.ts  # Main scene manager
 ```
+
+> `*` marks subdirs that contain code currently coupled to the FPS game in
+> `src/games/fps`. These are slated for cleanup — see
+> `docs/research/0.9.13-QA-improvements.md` for the plan.
 
 ## Quick Start
 
@@ -102,6 +108,6 @@ await ConsoleSystem.getInstance().execute('map wdm2');
 
 ## Version
 
-Current version: **0.9.10**
+Current version: **0.9.13** (see `src/engine/version.txt`)
 
 See `docs/changelog/` for version history.

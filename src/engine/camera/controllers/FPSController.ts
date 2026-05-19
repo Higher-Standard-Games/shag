@@ -30,7 +30,11 @@ import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders";
 import { Cvar } from "../../core/Cvar";
 import { DeveloperBar } from "../../debug/DeveloperBar";
-import type { InventoryManager } from "../../game/InventoryManager";
+// Type-only import reaches into the fps game module — FPSController is itself
+// FPS-coupled (see QA matrix #6/#19). Type imports are erased at compile time
+// so this doesn't introduce a runtime engine→games dependency. Full relocation
+// to src/games/fps/camera/ is tracked separately.
+import type { InventoryManager } from "../../../games/fps/world/InventoryManager";
 import { InputSystem } from "../../input/InputSystem";
 import { MovementVars } from "../../movement/MovementVars";
 import {

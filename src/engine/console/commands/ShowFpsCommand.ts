@@ -2,6 +2,7 @@
  * ShowFpsCommand - Toggle FPS display
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class ShowFpsCommand extends Command {
@@ -14,7 +15,7 @@ export default class ShowFpsCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get scene from camera system
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

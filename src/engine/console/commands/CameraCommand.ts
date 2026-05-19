@@ -2,6 +2,7 @@
  * CameraCommand - Camera control and debugging
  */
 
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { Command, type CommandDef } from "../Command";
 
 export default class CameraCommand extends Command {
@@ -22,7 +23,7 @@ export default class CameraCommand extends Command {
   };
 
   async execute(args: string[]): Promise<string | undefined> {
-    let cameraSystem;
+    let cameraSystem: CameraSystem;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

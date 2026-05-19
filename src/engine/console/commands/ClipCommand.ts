@@ -2,6 +2,7 @@
  * ClipCommand - Toggle noclip mode (collision)
  */
 
+import type { CameraSystem } from "../../camera/CameraSystem";
 import { Command, type CommandDef } from "../Command";
 
 export default class ClipCommand extends Command {
@@ -13,7 +14,7 @@ export default class ClipCommand extends Command {
 
   async execute(): Promise<string | undefined> {
     // Get camera controller
-    let cameraSystem;
+    let cameraSystem: CameraSystem;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       cameraSystem = CameraSystem.getInstance();

@@ -13,6 +13,7 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
@@ -222,6 +223,11 @@ export class WeaponViewManager {
   // Weapon switch animation (extracted)
   private switchAnim = new WeaponSwitchAnim();
 
+  // Babylon scene render observer — stored so re-init on a fresh scene
+  // can detach the previous observer (prevents stale per-frame update()
+  // calls on the previous scene).
+  private updateObserver: Observer<Scene> | null = null;
+
   // Debug
   private debugEnabled: boolean = false;
 
@@ -246,6 +252,12 @@ export class WeaponViewManager {
    * Initialize with scene and camera
    */
   public init(scene: Scene, camera: FreeCamera): void {
+    // Detach previous-scene observer before swapping `this.scene` so a re-init
+    // on a fresh scene doesn't leave a callback attached to the previous one.
+    if (this.updateObserver && this.scene && this.scene !== scene) {
+      this.scene.onBeforeRenderObservable.remove(this.updateObserver);
+      this.updateObserver = null;
+    }
     this.scene = scene;
     this.mainCamera = camera; // Store for aim direction
     this._initCamera = camera; // Store for restoreToFPSCamera()
@@ -299,8 +311,9 @@ export class WeaponViewManager {
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
 
-    // Register update loop
-    scene.onBeforeRenderObservable.add(() => {
+    // Register update loop. Previous-scene observer (if any) is already
+    // detached above before `this.scene` was swapped.
+    this.updateObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaTime = scene.getEngine().getDeltaTime() / 1000;
       this.update(deltaTime);
     });
@@ -1228,7 +1241,9 @@ export class WeaponViewManager {
     if (this.muzzleFlashModel) {
       this.muzzleFlashModel.setEnabled(true);
       if (this.muzzleFlashModel instanceof TransformNode) {
-        this.muzzleFlashModel.getChildMeshes().forEach((m) => (m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY));
+        for (const m of this.muzzleFlashModel.getChildMeshes()) {
+          m.visibility = WeaponViewManager.MUZZLE_FLASH_OPACITY;
+        }
       }
     }
 
@@ -1326,7 +1341,9 @@ export class WeaponViewManager {
       if (this.muzzleFlashModel?.isEnabled()) {
         const opacity = normalizedIntensity * WeaponViewManager.MUZZLE_FLASH_OPACITY;
         if (this.muzzleFlashModel instanceof TransformNode) {
-          this.muzzleFlashModel.getChildMeshes().forEach((m) => (m.visibility = opacity));
+          for (const m of this.muzzleFlashModel.getChildMeshes()) {
+            m.visibility = opacity;
+          }
         }
 
         if (this.muzzleFlashIntensity <= 0) {

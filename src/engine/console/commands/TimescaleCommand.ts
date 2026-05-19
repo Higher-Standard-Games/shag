@@ -2,6 +2,7 @@
  * TimescaleCommand - Time scale control
  */
 
+import type { Scene } from "@babylonjs/core/scene";
 import { Command, type CommandDef } from "../Command";
 
 export default class TimescaleCommand extends Command {
@@ -14,7 +15,7 @@ export default class TimescaleCommand extends Command {
 
   async execute(args: string[]): Promise<string | undefined> {
     // Get scene
-    let scene;
+    let scene: Scene | null | undefined;
     try {
       const { CameraSystem } = await import("../../camera/CameraSystem");
       scene = CameraSystem.getInstance().getCamera()?.getScene();

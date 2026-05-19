@@ -647,7 +647,7 @@ export class MapRenderer {
         const emissiveIntensity = entity.properties.emissive ? parseFloat(entity.properties.emissive) : 0;
 
         // Trigger properties
-        let trigger;
+        let trigger: { size: Vector3; properties: Record<string, unknown> } | undefined;
         if (entity.properties.triggerWidth || entity.properties.windowTarget) {
           trigger = {
             size: new Vector3(
@@ -663,7 +663,7 @@ export class MapRenderer {
         }
 
         // Collision properties
-        let collision;
+        let collision: { size: Vector3 } | undefined;
         if (entity.properties.collisionWidth) {
           collision = {
             size: new Vector3(

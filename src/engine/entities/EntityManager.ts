@@ -9,7 +9,10 @@ import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../core/EntityHandlerRegistry";
-import type { InventoryManager } from "../game/InventoryManager";
+// Type-only import reaches into the fps game module — EntityManager itself
+// builds FPS-flavoured entity types (weapon/ammo) and is FPS-coupled (matrix #6).
+// Type-only imports are erased at compile time.
+import type { InventoryManager } from "../../games/fps/world/InventoryManager";
 
 export class EntityManager {
   private static instance: EntityManager;
@@ -74,8 +77,10 @@ export class EntityManager {
     console.log(`[EntityManager] Manually spawning ${id} at ${position}`);
 
     try {
-      // DIRECT PICKUP CREATION for manual spawn is safer/cleaner:
-      new (await import("../game/Pickup")).Pickup(`${id}_${Date.now()}`, scene, position, {
+      // DIRECT PICKUP CREATION for manual spawn is safer/cleaner.
+      // FPSPickup lives in the fps game module — imported dynamically here to
+      // keep EntityManager runtime-independent of the fps module loading order.
+      new (await import("../../games/fps/world/FPSPickup")).FPSPickup(`${id}_${Date.now()}`, scene, position, {
         id: def.id,
         modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
         type: def.type === EntityType.WEAPON ? "weapon" : "ammo",
@@ -117,32 +122,30 @@ export class EntityManager {
 
     console.log(`[EntityManager] Spawning ${def.name} at ${position}`);
 
-    // Dynamically import Pickup to avoid circular deps
-    const { Pickup } = await import("../game/Pickup");
+    // Dynamically import FPSPickup to avoid loading the fps game module eagerly
+    // from engine code (EntityManager is engine-positioned but its entity types
+    // are FPS-flavoured — weapon/ammo. Plan to relocate EntityManager to fps is
+    // tracked separately).
+    const { FPSPickup } = await import("../../games/fps/world/FPSPickup");
 
-    // Create Pickup instance
     // Naming: Use targetname if available, otherwise classname
     const name = data.properties.targetname || `${def.classname || "item"}_${Date.now()}`;
 
     const type = def.type === EntityType.AMMO ? "ammo" : "weapon";
     let value: string | number = def.id;
 
-    // For ammo, we might need specific property if it differs from ID
-    // But commonly ID is used or a specific subtype.
-    // We'll rely on passing `def` properties if needed or stick to ID.
     if (type === "ammo" && (def as any).ammoType) {
       value = (def as any).ammoType;
     }
 
-    const pickup = new Pickup(name, scene, position, {
+    const pickup = new FPSPickup(name, scene, position, {
       id: def.id,
-      modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3", // Fallback
+      modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
       type: type,
       value: value,
-      respawnTime: 30, // Default 30s
+      respawnTime: 30,
       scale: def.scale || 1.0,
-      glowColor: def.glowColor, // Pass glow color from definition
-      // Assign sequential pickup ID for weapons (must match server PickupSystem ordering)
+      glowColor: def.glowColor,
       pickupId: type === "weapon" ? this.nextPickupId++ : undefined,
     });
 

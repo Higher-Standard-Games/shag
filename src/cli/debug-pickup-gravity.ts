@@ -3,7 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Logger } from "@babylonjs/core/Misc/logger";
 import { Scene } from "@babylonjs/core/scene";
-import { Pickup } from "../engine/game/Pickup";
+import { FPSPickup } from "../games/fps/world/FPSPickup";
 
 // Mute babylon noise
 Logger.LogLevels = 0;
@@ -27,7 +27,7 @@ async function runTest() {
 
   // We mock the options to strip visual stuff that might crash NullEngine if not careful,
   // though Pickup is fairly robust now.
-  const pickup = new Pickup("test_pickup", scene, startPos, {
+  const pickup = new FPSPickup("test_pickup", scene, startPos, {
     id: "test_item",
     type: "weapon",
     value: "weapon_test",
