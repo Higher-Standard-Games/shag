@@ -32,7 +32,7 @@ import { PK3Index } from "./engine/loader/pk3/PK3Index";
 import { InstancedMeshManager } from "./engine/rendering/InstancedMeshManager";
 import { LoadingScreen } from "./engine/ui/LoadingScreen";
 import { MapLoadingOverlay } from "./engine/ui/MapLoadingOverlay";
-import { LobbyPanel } from "./engine/ui/panels/LobbyPanel";
+import { LobbyPanel } from "./games/fps/client/LobbyPanel";
 import { UIScale } from "./engine/ui/UIScale";
 import { UITheme } from "./engine/ui/UITheme";
 import { FPSPlayer } from "./games/fps/FPSPlayer";
