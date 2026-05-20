@@ -27,7 +27,8 @@
 
 | I want to... | Do this |
 |--------------|---------|
-| Load a map | `await ConsoleSystem.getInstance().execute('map wdm2')` |
+| Launch a gameplay map | `await ConsoleSystem.getInstance().execute('developer 1; map wdm2 duel')` |
+| Inspect a BSP map | `await ConsoleSystem.getInstance().execute('bsp load wdm2; bsp info')` |
 | Change camera mode | `CameraSystem.getInstance().setMode('fps')` |
 | Play a sound | `AudioManager.getInstance().playSound('weapons/rocket/fire')` |
 | Spawn pickups/entities | `EntityManager.getInstance().spawn(...)` or console `spawnpickup ...` |
@@ -88,7 +89,7 @@ npm run test:simulation
 npm run test:physics
 npm run server:tick
 npm run server:fuzz -- --ticks 1000
-npm run cli:game -- --exec "map wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
 ```
 
 Do not ship renderer/networking edits without test results in the final report.
@@ -150,7 +151,7 @@ export class MyGame {
 
   async init(): Promise<void> {
     CameraSystem.getInstance().setMode("freefly");
-    await ConsoleSystem.getInstance().execute("map wdm2");
+    await ConsoleSystem.getInstance().execute("developer 1; map wdm2 duel");
     this.registerCommands();
   }
 
@@ -238,7 +239,7 @@ CommandRegistry.getInstance().register(
 ```
 
 ```typescript
-await ConsoleSystem.getInstance().execute("map wdm2");
+await ConsoleSystem.getInstance().execute("developer 1; map wdm2 duel");
 await ConsoleSystem.getInstance().execute("noclip");
 ```
 
@@ -306,8 +307,8 @@ unsub(); // always cleanup subscriptions
 Run these before asking for manual browser tests:
 
 ```bash
-npm run cli:game -- --exec "map wdm2; bsp info; quit"
-npm run cli:game -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
+npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run cli:game -- -- --exec "sim replay W+CROUCH 60; JUMP 1; W 30; quit"
 npm run test:simulation
 npm run test:physics
 ```

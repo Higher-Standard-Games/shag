@@ -63,8 +63,8 @@ Features:
 ### Validate a Map
 
 ```bash
-npm run cli:game -- \
-  --command "map wdm7" \
+npm run cli:game -- -- \
+  --command "bsp load wdm7" \
   --command "bsp info" \
   --command "quit"
 ```
@@ -72,8 +72,8 @@ npm run cli:game -- \
 ### Extract Entities
 
 ```bash
-npm run cli:game -- \
-  --command "map wdm7" \
+npm run cli:game -- -- \
+  --command "bsp load wdm7" \
   --command "bsp entities" \
   --command "quit"
 ```
@@ -81,7 +81,7 @@ npm run cli:game -- \
 ### Check Shader Count
 
 ```bash
-npm run cli:game -- \
+npm run cli:game -- -- \
   --command "shader count" \
   --command "quit"
 ```
@@ -92,10 +92,10 @@ Test for resource leaks across map load/unload cycles:
 
 ```bash
 # Test MapRenderer create/clear (fast, no PK3 needed)
-npm run cli:game -- --command "leaktest maprenderer 10"
+npm run cli:game -- -- --command "leaktest maprenderer 10"
 
 # Test full map cycle (requires maps in PK3)
-npm run cli:game -- --command "leaktest mapcycle 10 wdm7 wdm1"
+npm run cli:game -- -- --command "leaktest mapcycle 10 wdm7 wdm1"
 ```
 
 The leak tests compare resource counts (meshes, nodes, lights, materials, textures) before and after each iteration. They exit with code 1 on failure.
@@ -105,7 +105,7 @@ The leak tests compare resource counts (meshes, nodes, lights, materials, textur
 Execute multiple commands in one invocation:
 
 ```bash
-npm run cli:game -- --command "map wdm7; bsp info; quit"
+npm run cli:game -- -- --command "bsp load wdm7; bsp info; quit"
 ```
 
 Commands can be separated by `;` or newlines.
@@ -140,13 +140,13 @@ jobs:
       
       - name: Validate Maps
         run: |
-          npm run cli:game -- \
-            --command "map wdm7" \
+          npm run cli:game -- -- \
+            --command "bsp load wdm7" \
             --command "bsp info" \
             --command "quit"
 
       - name: Memory Leak Test
-        run: npm run cli:game -- --command "leaktest maprenderer 10"
+        run: npm run cli:game -- -- --command "leaktest maprenderer 10"
 ```
 
 ### GitLab CI
@@ -156,7 +156,7 @@ validate:
   image: node:22
   script:
     - npm ci
-    - npm run cli:game -- --command "shader count" --command "quit"
+    - npm run cli:game -- -- --command "shader count" --command "quit"
 ```
 
 ## Programmatic Usage

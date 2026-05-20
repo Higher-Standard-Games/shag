@@ -37,6 +37,37 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
   { id: "ffa",  name: "FFA",  description: "Free For All",           maxPlayers: 8, hasTeams: false },
 ];
 
+export function normalizeGametype(input: string | undefined): string | null {
+  const value = (input || "duel").trim().toLowerCase();
+  switch (value) {
+    case "duel":
+    case "1v1":
+      return "duel";
+    case "tdm":
+    case "team":
+    case "teamdeathmatch":
+    case "team_deathmatch":
+      return "tdm";
+    case "ffa":
+    case "dm":
+    case "deathmatch":
+      return "ffa";
+    default:
+      return null;
+  }
+}
+
+export function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  return (
+    address === "127.0.0.1" ||
+    address === "::1" ||
+    address === "localhost" ||
+    address.startsWith("::ffff:127.") ||
+    address.startsWith("127.")
+  );
+}
+
 /** Shape of config/maps.json */
 interface MapManifestEntry {
   displayName: string;
@@ -55,6 +86,7 @@ interface ConnectedPlayer {
   status: PlayerStatus;
   lobbyId: string | null;
   authenticated: boolean;
+  address: string;
 }
 
 // ============================================================================
@@ -207,6 +239,8 @@ export class LobbyServer {
   private spawner: GameServerSpawner;
   /** Map matchId → lobbyId for server exit cleanup */
   private matchToLobby: Map<string, string> = new Map();
+  /** Map dev-spawned matchId to the requesting player. */
+  private devMatchToPlayer: Map<string, string> = new Map();
 
   private readonly MAX_CHAT_HISTORY = 50;
 
@@ -223,9 +257,9 @@ export class LobbyServer {
   private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
-  constructor(port: number = 9000) {
+  constructor(port: number = 9000, spawner: GameServerSpawner = new GameServerSpawner()) {
     this.port = port;
-    this.spawner = new GameServerSpawner();
+    this.spawner = spawner;
 
     // Handle game server exits
     this.spawner.onServerExit = (matchId, code) => {
@@ -240,7 +274,7 @@ export class LobbyServer {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0" });
 
-      this.wss.on("connection", (ws) => this.handleConnection(ws));
+      this.wss.on("connection", (ws, req) => this.handleConnection(ws, req.socket.remoteAddress || "unknown"));
       this.wss.on("error", (err) => {
         console.error("[LobbyServer] Error:", err);
         reject(err);
@@ -277,6 +311,7 @@ export class LobbyServer {
     this.players.clear();
     this.lobbies.clear();
     this.matchToLobby.clear();
+    this.devMatchToPlayer.clear();
 
     return new Promise((resolve) => {
       this.wss!.close(() => {
@@ -289,7 +324,7 @@ export class LobbyServer {
 
   // ── Connection Handling ──────────────────────────────────────
 
-  private handleConnection(ws: WebSocket): void {
+  private handleConnection(ws: WebSocket, address: string = "unknown"): void {
     const playerId = `p_${this.nextPlayerId++}`;
     console.log(`[LobbyServer] New connection → ${playerId}`);
 
@@ -300,6 +335,7 @@ export class LobbyServer {
       status: "online",
       lobbyId: null,
       authenticated: false,
+      address,
     };
     this.players.set(playerId, player);
 
@@ -383,6 +419,9 @@ export class LobbyServer {
         break;
       case "demos:list":
         this.handleDemosList(player, msg.limit ?? 64);
+        break;
+      case "dev:spawn_server":
+        this.handleDevSpawnServer(player, msg.requestId, msg.map, msg.gametype);
         break;
       default:
         console.log(`[LobbyServer] Unknown message type: ${msg.type}`);
@@ -739,6 +778,79 @@ export class LobbyServer {
     }
   }
 
+  private async handleDevSpawnServer(
+    player: ConnectedPlayer,
+    requestId: string,
+    mapName: string,
+    requestedGametype: string,
+  ): Promise<void> {
+    if (!isLoopbackAddress(player.address)) {
+      this.send(player, {
+        type: "dev:server_spawn_failed",
+        requestId,
+        error: "Developer server spawn is only allowed from localhost.",
+      });
+      return;
+    }
+
+    const map = String(mapName || "").trim().toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(map)) {
+      this.send(player, {
+        type: "dev:server_spawn_failed",
+        requestId,
+        error: `Invalid map name: ${mapName}`,
+      });
+      return;
+    }
+
+    const gametypeId = normalizeGametype(requestedGametype);
+    if (!gametypeId) {
+      this.send(player, {
+        type: "dev:server_spawn_failed",
+        requestId,
+        error: `Unknown gametype: ${requestedGametype}`,
+      });
+      return;
+    }
+
+    const gametype = this.gametypes.find((g) => g.id === gametypeId) || GAMETYPE_SHELLS.find((g) => g.id === gametypeId);
+    const maxClients = gametype?.maxPlayers ?? 2;
+
+    try {
+      console.log(`[LobbyServer] Dev spawn requested by ${player.name}: map=${map} gametype=${gametypeId}`);
+      const server = await this.spawner.spawn({
+        map,
+        gametype: gametypeId,
+        maxClients,
+        shutdown: true,
+      });
+
+      this.devMatchToPlayer.set(server.matchId, player.id);
+
+      player.status = "in_match";
+      this.broadcast({
+        type: "player:status",
+        playerId: player.id,
+        status: "in_match",
+      });
+
+      this.send(player, {
+        type: "dev:server_spawned",
+        requestId,
+        serverUrl: server.url,
+        map,
+        gametype: gametypeId,
+        matchId: server.matchId,
+      });
+    } catch (err) {
+      this.send(player, {
+        type: "dev:server_spawn_failed",
+        requestId,
+        error: (err as Error).message,
+      });
+    }
+  }
+
   /** Find an existing lobby of this gametype that still has room */
   private findWaitingLobby(gametypeId: string): MatchLobby | undefined {
     for (const lobby of this.lobbies.values()) {
@@ -842,7 +954,22 @@ export class LobbyServer {
 
     console.log(`[LobbyServer] Game server exited: match=${matchId} lobby=${lobbyId} code=${code}`);
 
-    if (!lobbyId) return;
+    if (!lobbyId) {
+      const playerId = this.devMatchToPlayer.get(matchId);
+      this.devMatchToPlayer.delete(matchId);
+      if (playerId) {
+        const player = this.players.get(playerId);
+        if (player) {
+          player.status = "online";
+          this.broadcast({
+            type: "player:status",
+            playerId: player.id,
+            status: "online",
+          });
+        }
+      }
+      return;
+    }
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby) return;
 

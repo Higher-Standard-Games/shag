@@ -3,7 +3,7 @@
 **Time:** 30 minutes  
 **Level:** Intermediate
 
-Set up an isometric camera for strategy or RPG games.
+Set up an isometric camera. SHAG ships an `IsometricController` that any game can use; the bundled FPS game doesn't, but other SHAG game submodules — an isometric building game is in development — do. This tutorial focuses on getting the camera and input loop right so you can build on top.
 
 ## What We'll Build
 
@@ -177,8 +177,8 @@ async function setupIsometricGame(scene: Scene) {
 ## Tips
 
 - Use `camera mode orthographic` for true isometric projection
-- Disable freefly collision for strategy games
-- Consider fog of war for RTS games
+- Disable freefly collision if you want to fly through walls during prototyping
+- Game-specific concerns (fog of war, resource trees, unit selection) live in your game submodule, not the engine — see [Configuration](../../guides/configuration.md) for how to add a new game submodule under `src/games/`.
 
 ## Next Steps
 

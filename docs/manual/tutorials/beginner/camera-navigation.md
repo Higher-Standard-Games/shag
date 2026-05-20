@@ -115,7 +115,7 @@ Look for `info_player_deathmatch` entries.
 
 - **Stuck?** Try `freefly_collision 0` to escape
 - **Too dark?** Use `r_lightmap 2` to brighten
-- **Lost?** Load a new map with `map wdm2`
+- **Lost?** Load a different map for inspection with `bsp load wdm2` (see the [first-map-load tutorial](./first-map-load.md) for why `bsp load` vs `map`)
 
 ## Next Steps
 

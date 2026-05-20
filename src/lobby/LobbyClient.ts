@@ -119,6 +119,61 @@ export class LobbyClient {
     this.send({ type: "lobby:vote_shuffle", lobbyId });
   }
 
+  async spawnDevServer(map: string, gametype: string, timeoutMs: number = 30000): Promise<{
+    serverUrl: string;
+    map: string;
+    gametype: string;
+    matchId: string;
+  }> {
+    const requestId = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const cleanup: (() => void)[] = [];
+
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+
+      const timer = setTimeout(() => {
+        finish(() => reject(new Error(`Timed out waiting for lobby server to spawn ${map}`)));
+      }, timeoutMs);
+
+      cleanup.push(
+        this.on("dev:server_spawned", (msg) => {
+          if (msg.requestId !== requestId) return;
+          finish(() =>
+            resolve({
+              serverUrl: msg.serverUrl,
+              map: msg.map,
+              gametype: msg.gametype,
+              matchId: msg.matchId,
+            }),
+          );
+        }),
+      );
+
+      cleanup.push(
+        this.on("dev:server_spawn_failed", (msg) => {
+          if (msg.requestId !== requestId) return;
+          finish(() => reject(new Error(msg.error || "Lobby server failed to spawn server")));
+        }),
+      );
+
+      cleanup.push(
+        this.on("_disconnected", () => {
+          finish(() => reject(new Error("Lobby server disconnected while spawning server")));
+        }),
+      );
+
+      this.send({ type: "dev:spawn_server", requestId, map, gametype });
+    });
+  }
+
   // ── Matchmaking Queue ───────────────────────────────────────
 
   joinQueue(gametype: string): void {

@@ -119,13 +119,22 @@ src/engine/entities/
 └── EntityManager.ts            # Entity lifecycle management
 ```
 
-#### Game
+#### World (in-world entities)
 
 ```text
-src/engine/game/
-├── InventoryManager.ts         # Inventory system
-└── Pickup.ts                   # Pickup item logic
+src/engine/world/
+└── Pickup.ts                   # Engine-generic in-world collectible base class
 ```
+
+> Game-specific subclasses live in their game submodule. For the FPS game, the
+> subclass + inventory + HUD prompt are at `src/games/fps/world/`:
+>
+> ```text
+> src/games/fps/world/
+> ├── FPSPickup.ts                # FPS subclass (weapon/ammo/health/armor)
+> ├── InventoryManager.ts         # Q3-style ammo + weapon slots
+> └── PickupPrompt.ts             # "PRESS [F] TO PICKUP" HUD
+> ```
 
 #### Input
 

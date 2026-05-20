@@ -20,6 +20,8 @@ export interface SpawnConfig {
   map: string;
   gametype: string;
   maxClients?: number;
+  /** Auto-exit when all clients disconnect. Defaults to true. */
+  shutdown?: boolean;
 }
 
 export interface SpawnedServer {
@@ -30,6 +32,15 @@ export interface SpawnedServer {
   gametype: string;
   url: string; // e.g. 'ws://localhost:7777'
   startedAt: number;
+}
+
+export function buildPublicGameServerUrl(port: number): string {
+  const protocol = (process.env.SHAG_PUBLIC_GAME_PROTOCOL || "ws").trim().replace(/:\/?\/?$/, "");
+  const host = (process.env.SHAG_PUBLIC_GAME_HOST || "localhost")
+    .trim()
+    .replace(/^wss?:\/\//, "")
+    .replace(/\/+$/, "");
+  return `${protocol}://${host}:${port}`;
 }
 
 // ============================================================================
@@ -62,8 +73,11 @@ export class GameServerSpawner {
       config.gametype,
       "--port",
       String(port),
-      "--shutdown", // Auto-exit when all clients disconnect
     ];
+
+    if (config.shutdown ?? true) {
+      args.push("--shutdown");
+    }
 
     if (config.maxClients) {
       args.push("--max", String(config.maxClients));
@@ -81,7 +95,7 @@ export class GameServerSpawner {
       port,
       map: config.map,
       gametype: config.gametype,
-      url: `ws://localhost:${port}`,
+      url: buildPublicGameServerUrl(port),
       startedAt: Date.now(),
     };
 

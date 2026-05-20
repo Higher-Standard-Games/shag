@@ -70,8 +70,10 @@ echo "Hello World"
 ### Map Commands
 
 ```
-map <name>           // Load map
+developer 1          // Enable developer commands
+map <name> [type]    // Spawn a server via lobby and connect
 map list             // List available maps
+bsp load <name>      // Load BSP for inspection
 scene clear          // Clear current scene
 ```
 

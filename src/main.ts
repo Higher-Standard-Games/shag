@@ -86,6 +86,8 @@ async function main() {
   await fpsModule.registerFpsCommands();
   const { registerNetworkConnector } = await import("./engine/ui/components/NetworkConnector");
   registerNetworkConnector(fpsModule.fpsNetworkConnector);
+  const { registerGameplayMapLauncher } = await import("./engine/console/GameplayMapLauncher");
+  registerGameplayMapLauncher(fpsModule.fpsMapLauncher);
 
   // Initialize UI
   UIScale.getInstance().init();

@@ -174,6 +174,13 @@ export interface QueueLeaveMessage extends LobbyMessage {
   type: "queue:leave";
 }
 
+export interface DevSpawnServerMessage extends LobbyMessage {
+  type: "dev:spawn_server";
+  requestId: string;
+  map: string;
+  gametype: string;
+}
+
 // ============================================================================
 // Server → Client Messages
 // ============================================================================
@@ -263,6 +270,21 @@ export interface LobbyErrorMessage extends LobbyMessage {
 export interface MatchesUpdateMessage extends LobbyMessage {
   type: "matches:update";
   matches: LiveMatchInfo[];
+}
+
+export interface DevServerSpawnedMessage extends LobbyMessage {
+  type: "dev:server_spawned";
+  requestId: string;
+  serverUrl: string;
+  map: string;
+  gametype: string;
+  matchId: string;
+}
+
+export interface DevServerSpawnFailedMessage extends LobbyMessage {
+  type: "dev:server_spawn_failed";
+  requestId: string;
+  error: string;
 }
 
 // ============================================================================

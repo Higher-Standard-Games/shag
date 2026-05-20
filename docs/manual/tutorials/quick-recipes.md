@@ -2,23 +2,36 @@
 
 Copy-paste examples for common game development tasks. Each recipe is self-contained and ready to use!
 
-## 🎮 Load a Map and Start Playing
+## 🗺️ Render a Map for Inspection
+
+`bsp load` is the inert mesh-render path — no server, no gameplay. Use this for screenshots, debugging shaders, or any code that only needs the map geometry in the scene.
 
 ```typescript
 import { ConsoleSystem } from '@/engine/console';
 import { CameraSystem } from '@/engine/camera';
 
-async function startGame() {
-  // Set up FPS camera
-  CameraSystem.getInstance().setMode('fps');
-  CameraSystem.getInstance().setFOV(90);
-  
-  // Load the map
-  await ConsoleSystem.getInstance().execute('map wdm2');
-  
-  console.log('Game ready!');
+async function loadMapForInspection() {
+  CameraSystem.getInstance().setMode('freefly');
+  await ConsoleSystem.getInstance().execute('bsp load wdm2');
+  console.log('Map rendered. Fly around with WASD/mouse.');
 }
 ```
+
+## 🎮 Launch a Gameplay Session
+
+The `map` command is developer-only: it asks the lobby to spawn a dedicated game server and connects this client to it. Real player flows go through the lobby UI's "Play" button, not the console.
+
+```typescript
+import { ConsoleSystem } from '@/engine/console';
+
+async function startDevGame() {
+  // Requires: lobby server running (`npm run lobby:server`)
+  await ConsoleSystem.getInstance().execute('map wdm2 duel');
+  console.log('Connected to dev-spawned duel server on wdm2');
+}
+```
+
+See the [Map Launching Guide](./../guides/map-launching.md) for the full architecture and the underlying `GameplayMapLauncher` registry pattern.
 
 ---
 

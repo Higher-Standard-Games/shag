@@ -6,7 +6,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 
 | Guide | Description |
 |-------|-------------|
-| [Configuration](./configuration.md) | Engine configuration (engine.json) |
+| [Configuration](./configuration.md) | Build-time `GAME` selection, `.env` runtime networking, game submodules |
 | [BSP Map System](./bsp-system.md) | How BSP maps are loaded and rendered |
 | [Q3 Shader System](./shader-system.md) | Shader parsing and material application |
 | [PK3 Filesystem](./pk3-filesystem.md) | Virtual filesystem and archive loading |
@@ -14,6 +14,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Physics System](./physics-system.md) | Collision detection and backends |
 | [Raw .map System](./raw-map-system.md) | **Prototyping without compiling** (NetRadiant workflow) |
 | [Movement System](./movement-system.md) | Player movement and physics cvars |
+| [Pickup System](./pickup-system.md) | Engine-generic in-world collectibles + how to subclass for your game |
 | [Viewport Effects](./viewport-effects.md) | View bob, screen shake, FOV effects |
 | [Weapon System](./weapon-system.md) | First-person weapons and projectiles |
 
@@ -26,12 +27,15 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 | [Cvar System](./cvar-system.md) | Console variables for configuration |
 | [Render Variables](./render-variables.md) | Runtime graphics configuration |
 | [Skybox System](./skybox-system.md) | Cubemap and textured sky loading |
+| [Map Launching](./map-launching.md) | `bsp load` vs `map` — the two paths, lobby dev-spawn, env vars |
+| [Service Registries](./service-registries.md) | `NetworkConnector` / `GameplayMapLauncher` — how games inject behaviour into engine code |
 
 ## Multiplayer
 
 | Guide | Description |
 |-------|-------------|
 | [Networking System](./networking.md) | Multiplayer architecture and API |
+| [Map Launching](./map-launching.md) | Lobby dev-spawn flow used by the developer `map` command |
 
 ## Advanced Topics
 

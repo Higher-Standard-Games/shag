@@ -118,12 +118,15 @@ Press `~` and you're in familiar territory.
 | **Custom Commands** | Easy to register your own |
 
 ```
-map wdm7              # Load a map
+bsp load wdm7         # Render a map (inert, no gameplay)
 r_lightmap 2          # Increase lightmap intensity
-mv sv_gravity 400     # Lower gravity
-connect localhost:7777 # Join a server
+set sv_gravity 400    # Lower gravity (gameplay session)
+connect ws://localhost:7777 # Connect to a dedicated server
 cl_netgraph 2         # Show network diagnostics
 ```
+
+> See [Map Launching Guide](../guides/map-launching.md) for the developer
+> `map <name> [gametype]` command (server-backed gameplay launch).
 
 ---
 
@@ -280,7 +283,7 @@ Run the full engine without a GPU. Essential for:
 npm run cli:game
 
 # Single command
-npm run cli:game -- --command "map wdm7; bsp info; quit"
+npm run cli:game -- --exec "bsp load wdm7; bsp info; quit"
 
 # Dedicated server
 npm run net:server -- --map wdm2
@@ -306,12 +309,12 @@ Being honest about limitations helps you choose the right tool:
 
 | Limitation | Why |
 |------------|-----|
-| **No built-in game modes** | Engine provides framework, you implement game logic |
-| **No AI/bots** | Pathfinding and bot logic is game code |
+| **Game modes live in each game, not the engine** | The engine ships a `GametypeController` framework; each game built on SHAG implements its own gametypes (duel, deathmatch, team-vs-team, capture-the-flag, whatever). |
+| **Bots live in each game, not the engine** | The engine knows how to register a bot player slot in the simulation; each game ships its own bot brain and navigation. |
 | **Partial shader support** | ~90% of Q3 shaders work, some edge cases don't |
 | **No map editor** | Use NetRadiant-custom, import the BSP |
 
-SHAG is an **engine**, not a complete game. It handles the hard parts (BSP loading, networking, physics) so you can focus on making your game unique.
+SHAG is an **engine**. It handles the hard parts — BSP loading, networking, physics, gametype framework, bot scaffolding — so each game built on it can focus on what makes it different. Games live as git submodules under `src/games/<gameid>/`; each game has its own repository, its own version, and its own manual.
 
 ---
 

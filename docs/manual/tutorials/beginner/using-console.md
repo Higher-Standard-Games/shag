@@ -28,10 +28,17 @@ Shows detailed help for a specific command.
 ### Map Commands
 
 ```
-map wdm7           # Load a map
+bsp load wdm7      # Render a map for inspection (no gameplay, no server)
+bsp info           # Show stats about the loaded BSP
+bsp entities       # List entities inside the BSP
+map wdm7 duel      # Developer-only: launch a server-backed gameplay match
 map list           # List available maps
 scene clear        # Clear current scene
 ```
+
+> The `map <name> [gametype]` command launches a dedicated server via the
+> lobby and connects this client to it — see [Map Launching Guide](../../guides/map-launching.md).
+> For just inspecting a map, use `bsp load`.
 
 ### Camera Commands
 
