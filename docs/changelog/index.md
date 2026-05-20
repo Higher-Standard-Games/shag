@@ -6,7 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.15](./v0.9.15.md) | TBD | In development |
+| [v0.9.15](./v0.9.15.md) | May 20, 2026 | Matrix #56 closed (server-backed `map` via lobby dev-spawn) + #11 closed (BinaryProtocol narrowing); SHAG manual accuracy pass + three new guides; Washiki Washoi manual stood up |
 | [v0.9.14](./v0.9.14.md) | May 19, 2026 | Engine QA continuation — fps console commands + ConnectingOverlay + LobbyPanel relocated/decoupled (matrix #8 closed); noImplicitAnyLet finished; SpawnValidator smoke coverage; ServiceLocator dispose resilience |
 | [v0.9.13](./v0.9.13.md) | May 19, 2026 | FPS settings redesign, BSP mesh builder split, engine QA pass (Pickup split, lifecycle/leak fixes, type+lint cleanup, investigation doc) |
 | [v0.9.12](./v0.9.12.md) | Apr 14, 2026 | Warsow deluxe materials, demo cinematic pipeline, protocol/movement test lock-down (150 tests) |
