@@ -146,7 +146,16 @@ export class FPSGameLoop {
   }
   
   private checkPickups() {
-    // Check for nearby pickups
+    // Pickups in SHAG are server-authoritative. The engine generic base
+    // class is `src/engine/world/Pickup` and the FPS-specific subclass is
+    // `src/games/fps/world/FPSPickup`. The subclass owns a static
+    // deactivation registry (`allPickups`, `pickupById`, `deactivateByPosition`)
+    // that the server calls into via item_pickup events.
+    //
+    // Client-side `checkPickup` is display-only — it surfaces the HUD
+    // prompt for weapon swap when the player approaches a pickup. The
+    // actual pickup logic lives in `src/games/fps/server/systems/PickupSystem.ts`.
+    // See the Pickup System Guide: ../../guides/pickup-system.md
   }
   
   private updateEnemies(dt: number) {

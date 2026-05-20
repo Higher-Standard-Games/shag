@@ -36,9 +36,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — you should see a map loaded and ready to explore.
+Open [http://localhost:5173](http://localhost:5173) — you should see the lobby UI.
 
-**First thing to try:** Press `~` to open the console, then type `map wdm7` to load a different map.
+**First thing to try:** Press `~` to open the console, then type `bsp load wdm7` to render a different map for inspection. (`bsp load` is the inert mesh-render path; the `map` command is a developer command that launches a dedicated server via the lobby — see [Map Launching Guide](../guides/map-launching.md).)
 
 ---
 
@@ -80,13 +80,17 @@ Open [http://localhost:5173](http://localhost:5173) — you should see a map loa
 Once the dev server is running, open the console (`~`) and try:
 
 ```
-map wdm7              # Load a map
-camera mode freefly   # FPS-style camera
+bsp load wdm7         # Render a map (no gameplay, no server)
+camera mode freefly   # Spectator-style fly camera
 r_wireframe 1         # Wireframe mode
 r_wireframe 0         # Normal mode
-mv sv_gravity 100     # Moon gravity!
-mv sv_gravity 1000    # Back to normal
+set sv_gravity 100    # Moon gravity (requires gameplay)
+set sv_gravity 1000   # Back to normal
 ```
+
+> `bsp load` renders the map and lets you fly around it. To actually play the
+> map (gameplay, weapons, bots, etc.), use the lobby UI or the developer
+> command `map <name> [gametype]` — see [Map Launching Guide](../guides/map-launching.md).
 
 ---
 
@@ -99,11 +103,16 @@ SHAG runs without a browser for testing and servers:
 npm run cli:game
 
 # Single command and exit
-npm run cli:game -- --command "map wdm7; bsp info; quit"
+npm run cli:game -- --exec "bsp load wdm7; bsp info; quit"
 
 # Memory leak test
-npm run cli:game -- --command "leaktest maprenderer 5"
+npm run cli:game -- --exec "leaktest maprenderer 5"
 ```
+
+> Note: `--exec` is the canonical flag; `--command` is also accepted as an
+> alias. Use `bsp load` in headless flows for inert mesh rendering; the
+> developer `map` command needs a lobby server reachable (see the [Map
+> Launching Guide](../guides/map-launching.md)).
 
 This is how you test changes without opening a browser. AI assistants: use this.
 
@@ -161,17 +170,16 @@ shag-engine/
 
 ## Configuration
 
-The engine reads `public/engine.json` at startup:
+The engine reads `public/engine.json` at startup. The defaults are minimal:
 
 ```json
 {
-  "defaultMap": "wdm7",
-  "defaultCamera": "freefly",
-  "pk3Paths": ["games/default/basewsw"]
+  "defaultGame": "fps",
+  "engineAssetsPath": "/engine"
 }
 ```
 
-> **Note:** The server tick rate (125Hz) and snapshot rate (60Hz) are configured via server flags, not `engine.json`. See the [Networking Guide](../guides/networking.md).
+Game selection at build time is via the `GAME` environment variable; runtime networking (lobby URL, server-spawn public address) is via the `.env` file — copy `.env.example` to `.env` and edit. Server tick rate (125Hz) and snapshot rate (60Hz) are server flags, not config-file values.
 
 See [Configuration Guide](../guides/configuration.md) for all options.
 
@@ -195,8 +203,9 @@ Now that you're running, here's where to go:
 
 ### "Map doesn't load"
 
-- Check that PK3 files exist in `public/games/default/basewsw/`
-- Verify the map name: `map list` shows available maps
+- Check that PK3 files exist under `public/data/` (the game-data directory; this is gitignored, so each developer has their own copy).
+- Verify the map name: `bsp list` shows available maps discovered in the PK3 index.
+- If you're using the developer `map <name>` command rather than `bsp load`, check that the lobby server is running: `npm run lobby:server`.
 - Check browser console for errors
 
 ### "Performance is bad"

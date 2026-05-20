@@ -36,8 +36,8 @@ shag-engine/
 ├── src/
 │   ├── engine/           # Engine code (always included)
 │   └── games/            # Game submodules
-│       ├── fps/          # → git submodule (wash-fps)
-│       └── newgame/      # → git submodule (another game)
+│       ├── fps/          # → git submodule (a SHAG-based game)
+│       └── newgame/      # → git submodule (another SHAG-based game)
 ├── public/
 │   ├── engine/           # Engine assets (fonts) - IN GIT
 │   └── data/             # Game data - GITIGNORED
@@ -135,6 +135,29 @@ For backwards compatibility, you can still use `public/engine.json`:
 ```
 
 However, the `GAME` environment variable takes precedence.
+
+## Runtime Networking Configuration (.env)
+
+In addition to the build-time `GAME` variable, runtime networking behaviour is configured via `.env` at the repo root. Copy `.env.example` to `.env` and edit:
+
+```bash
+# Browser-visible lobby WebSocket URL.
+# Default if unset: ws://localhost:9000
+VITE_LOBBY_URL=ws://localhost:9000
+
+# Public address advertised by the lobby for spawned game servers.
+# Defaults if unset: ws / localhost
+SHAG_PUBLIC_GAME_PROTOCOL=ws
+SHAG_PUBLIC_GAME_HOST=localhost
+```
+
+| Variable | Read By | Purpose |
+|----------|---------|---------|
+| `VITE_LOBBY_URL` | Browser (Vite-exposed) | The lobby URL the client connects to for matchmaking and developer dev-spawn flows. `VITE_` prefix is required for Vite to expose the variable to client code. |
+| `SHAG_PUBLIC_GAME_PROTOCOL` | Lobby server (Node) | `ws` or `wss`. Used when the lobby returns a freshly-spawned game server's URL to the requesting client. |
+| `SHAG_PUBLIC_GAME_HOST` | Lobby server (Node) | The public hostname (or IP) that clients should use to reach a spawned game server. For LAN play this might be your machine's LAN IP; for production it's the public host. |
+
+For the dev workflow (`map <name>` console command, "Play" button in the lobby UI) the lobby server has to be running. Start it with `npm run lobby:server` in a separate terminal — see [Map Launching Guide](./map-launching.md) for the full flow.
 
 ## Customizing UI Styles
 
