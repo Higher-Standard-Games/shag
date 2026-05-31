@@ -356,7 +356,7 @@ async function main(): Promise<void> {
     server.setCollisionWorld(bspData.collision);
     server.setSpawnPoints(bspData.spawnPoints);
     server.setPickupItems(bspData.pickupItems);
-    server.setPickupRespawnTime(25); // 25 second respawn
+    server.setPickupRespawnTime(15); // weapons: 15s respawn (per-type config added with armor/powerup)
     if (bspData.pvs) {
       server.setPVSData(bspData.pvs);
     }

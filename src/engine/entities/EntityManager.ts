@@ -170,7 +170,9 @@ export class EntityManager {
       modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
       type: type,
       value: value,
-      respawnTime: 30,
+      // Server-authoritative: visibility/respawn is driven by the snapshot
+      // active-set, not a client-local timer (matches the server exactly).
+      serverManagedRespawn: true,
       scale: def.scale || 1.0,
       glowColor: def.glowColor,
       pickupId,

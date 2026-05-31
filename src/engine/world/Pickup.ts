@@ -59,6 +59,12 @@ export interface PickupOptions {
   pickupId?: number;
   /** AudioManager sfx key to play on pickup. Default `"pickup"`. */
   pickupSoundKey?: string;
+  /**
+   * When true, the client never self-respawns this pickup on a local timer —
+   * visibility is driven entirely by the server (the snapshot active-set, see
+   * `setActiveState`). Used for networked, server-authoritative map pickups.
+   */
+  serverManagedRespawn?: boolean;
   /** Free-form game metadata (FPS uses this for weapon type/value/ammoCount). */
   metadata?: Record<string, unknown>;
 }
@@ -221,6 +227,14 @@ export class Pickup extends TransformNode {
           if (leaderMesh) {
             leaderMesh.position.copyFrom(this.getAbsolutePosition());
           }
+        }
+
+        // If the server already marked this pickup inactive before the model
+        // finished loading (setActiveState ran with mesh === null), apply the
+        // hidden state now that the mesh exists.
+        if (!this.isActive && this.mesh) {
+          this.mesh.setEnabled(false);
+          if (this.glowLight) this.glowLight.setEnabled(false);
         }
 
         // Per-frame proximity check + glow pulse. Capture the observer so
@@ -386,14 +400,33 @@ export class Pickup extends TransformNode {
       if (this.glowLight) this.glowLight.setEnabled(false);
     });
 
+    // Server-managed pickups never self-respawn — the server's snapshot
+    // active-set drives reactivation (see setActiveState). Local timer only
+    // applies to standalone (non-networked) pickups.
     const respawnTime = this.options.respawnTime;
-    if (respawnTime && respawnTime > 0) {
+    if (!this.options.serverManagedRespawn && respawnTime && respawnTime > 0) {
       this.respawnTimer = window.setTimeout(() => {
         this.respawn();
       }, respawnTime * 1000);
     }
 
     this.onAfterDeactivated();
+  }
+
+  /**
+   * Idempotently set this pickup's active (visible/collectible) state. Called by
+   * the client each snapshot to reconcile with the server's authoritative
+   * active-set. Unlike onPickedUp()/respawn() this is silent and side-effect
+   * free: no sfx, no respawn timer, no physics toss — just visibility.
+   */
+  public setActiveState(active: boolean): void {
+    if (active === this.isActive) return;
+    this.isActive = active;
+    this.setEnabled(active);
+    // The leader mesh is intentionally NOT parented to this node (Havok needs a
+    // root-level mesh), so it must be toggled explicitly.
+    if (this.mesh) this.mesh.setEnabled(active);
+    if (this.glowLight) this.glowLight.setEnabled(active);
   }
 
   protected respawn(): void {

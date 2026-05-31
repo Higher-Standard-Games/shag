@@ -150,6 +150,45 @@ describe("BinaryProtocol", () => {
     });
   });
 
+  describe("Pickup active-set roundtrip", () => {
+    const roundtrip = (mask: boolean[]): boolean[] => {
+      const state = new GameState();
+      state.pickupActiveMask = mask;
+      return BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(state)).pickupActiveMask;
+    };
+
+    it("round-trips a multi-byte mask (mixed bits across byte boundaries)", () => {
+      const mask = [true, false, true, true, false, false, false, true, true, false, true]; // 11 bits → 2 bytes
+      expect(roundtrip(mask)).toEqual(mask);
+    });
+
+    it("round-trips all-active and all-inactive masks", () => {
+      const allOn = new Array(13).fill(true);
+      const allOff = new Array(13).fill(false);
+      expect(roundtrip(allOn)).toEqual(allOn);
+      expect(roundtrip(allOff)).toEqual(allOff);
+    });
+
+    it("round-trips an empty mask", () => {
+      expect(roundtrip([])).toEqual([]);
+    });
+
+    it("decodes an empty mask when no pickup section is present (back-compat)", () => {
+      // Simulate an older payload: a snapshot body with no trailing pickup
+      // section. decodeSnapshot must not throw and must yield an empty mask.
+      const enc = new BinaryEncoder();
+      enc.writeUint32(7); // tick
+      enc.writeFloat64(Date.now()); // timestamp
+      enc.writeUint32(0); // ackedInputSeq
+      enc.writeUint16(0); // 0 entities
+      enc.writeUint16(0); // 0 players
+      enc.writeUint16(0); // 0 events
+      // (no pickup section)
+      const decoded = BinaryProtocol.decodeSnapshot(enc.getData());
+      expect(decoded.pickupActiveMask).toEqual([]);
+    });
+  });
+
   describe("Snapshot roundtrip (with baseline)", () => {
     it("should delta-encode unchanged entities", () => {
       const baseline = createTestState();
