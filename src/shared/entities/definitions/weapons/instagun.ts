@@ -28,7 +28,7 @@ export const INSTAGUN: WeaponDef = {
   clipSize: 5,
   ammoType: "instas",
   maxAmmo: 5,
-  reloadTime: 1.3,
+  reloadTime: 1.69,
   range: 8024,
   hitscan: true,
   hitscanType: "bolt",

@@ -28,7 +28,7 @@ export const ELECTROBOLT: WeaponDef = {
   clipSize: 10,
   ammoType: "bolts",
   maxAmmo: 10,
-  reloadTime: 1.25,
+  reloadTime: 1.625,
   range: 10000,
   hitscan: true,
   hitscanType: "bolt",

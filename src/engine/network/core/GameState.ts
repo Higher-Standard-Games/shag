@@ -33,6 +33,15 @@ export class GameState {
   /** Pending events to be processed */
   events: GameEvent[] = [];
 
+  /**
+   * Authoritative active-state of every server-tracked map pickup, indexed by
+   * pickup id (see src/shared/bsp/PickupTable.ts). Sent in full each snapshot
+   * (not delta) so client pickup visibility converges and self-heals against
+   * packet loss — replacing the old one-shot item_pickup events + client timer.
+   * Empty when the server sends no pickup state (older payloads / no pickups).
+   */
+  pickupActiveMask: boolean[] = [];
+
   /** Add-on for high level game state logic */
   matchSnapshot?: MatchStateSnapshot;
 
@@ -132,6 +141,7 @@ export class GameState {
     copy.entities = this.entities; // Share reference (read-only during broadcast)
     copy.players = this.players; // Share reference
     copy.events = this.events; // Share reference
+    copy.pickupActiveMask = this.pickupActiveMask; // Share reference (read-only during broadcast)
     copy.matchSnapshot = this.matchSnapshot;
     return copy;
   }

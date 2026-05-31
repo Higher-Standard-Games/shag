@@ -28,7 +28,7 @@ export const VOLTAIC: WeaponDef = {
   clipSize: 150,
   ammoType: "cells",
   maxAmmo: 150,
-  reloadTime: 0.05,
+  reloadTime: 0.065,
   range: 850, // Short range beam
   hitscan: true,
   hitscanType: "beam",

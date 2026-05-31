@@ -24,19 +24,19 @@ export const GRENADE_LAUNCHER: WeaponDef = {
 
   // Gameplay (server-authoritative)
   damage: 80,
-  fireRate: 1.5625, // 640ms between shots = 1.5625 shots/sec
+  fireRate: 1.25, // 800ms between shots
   clipSize: 0,
   ammoType: "grenades",
   maxAmmo: 20,
-  reloadTime: 0.64,
+  reloadTime: 0.832,
   range: 10000,
   hitscan: false,
   fireMode: "semi",
   hipfireBlocked: true,
   pickupBounds: { x: 32, y: 32, z: 32 },
   projectileId: "grenade",
-  projectileSpeed: 2434,
-  splashRadius: 125,
+  projectileSpeed: 1704,
+  splashRadius: 150,
   splashDamage: 80,
   minSplashDamage: 15,
   knockbackScale: 10.0,

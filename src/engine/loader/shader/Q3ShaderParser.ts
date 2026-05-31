@@ -72,10 +72,12 @@ export function parseShaderFile(content: string): Q3Shader[] {
     }
     const bodyEnd = pos - 1; // exclude closing '}'
 
-    // Check if this is a template definition
-    if (name.endsWith("_Template")) {
+    // Check if this is a template definition. Warsow uses BOTH "_Template" and
+    // "_template" casings (e.g. weaponIcon_HUD_Template vs armor_template,
+    // debris_template), so match case-insensitively and key the store lowercased.
+    if (name.toLowerCase().endsWith("_template")) {
       const bodyTokens = tokens.slice(bodyStart, bodyEnd);
-      templates.set(name, { name, bodyTokens });
+      templates.set(name.toLowerCase(), { name, bodyTokens });
     }
   }
 
@@ -94,7 +96,7 @@ export function parseShaderFile(content: string): Q3Shader[] {
     pos++; // consume '{'
 
     // Skip templates (already processed)
-    if (name.endsWith("_Template")) {
+    if (name.toLowerCase().endsWith("_template")) {
       let braceDepth = 1;
       while (pos < tokens.length && braceDepth > 0) {
         if (tokens[pos] === "{") braceDepth++;
@@ -116,8 +118,8 @@ export function parseShaderFile(content: string): Q3Shader[] {
       }
       pos++; // consume '}'
 
-      // Expand template
-      const template = templates.get(templateName);
+      // Expand template (lookup case-insensitive — see template-collection note)
+      const template = templates.get(templateName.toLowerCase());
       if (template) {
         const expandedTokens = expandTemplate(template.bodyTokens, params);
         const { shader } = parseShaderBody(name, expandedTokens, 0);
@@ -623,6 +625,24 @@ function parseStage(tokens: string[], startPos: number): { stage: Q3ShaderStage;
         }
         break;
 
+      case "celshade": {
+        // Warsow/QFusion cel-shading pass:
+        //   celshade <diffuse> <cellRamp> [diffuse2] [decal] [entityDecal] [stripes] [light]
+        // We don't do full cel-shading; we render the diffuse so the item is
+        // textured. arg0 is the base diffuse (e.g. armor ga.tga); if it's a
+        // builtin ($whiteImage) or "-", the real skin is the diffuse-overlay
+        // at arg2 (e.g. player *_fb.tga). The cell ramp (arg1) is ignored.
+        pos++;
+        const args: string[] = [];
+        while (pos < tokens.length && tokens[pos] !== "}" && !isStageDirective(tokens[pos])) {
+          args.push(tokens[pos]);
+          pos++;
+        }
+        const isRealTexture = (t: string | undefined): boolean => !!t && t !== "-" && !t.startsWith("$");
+        stage.map = isRealTexture(args[0]) ? args[0] : isRealTexture(args[2]) ? args[2] : args[0] || "";
+        break;
+      }
+
       case "animmap":
         // animMap <frequency> <frame1> <frame2> ...
         if (tokens[pos + 1]) {
@@ -768,6 +788,7 @@ function isStageDirective(token: string): boolean {
     "animmap",
     "animclampmap",
     "material",
+    "celshade",
     "blendfunc",
     "alphafunc",
     "rgbgen",

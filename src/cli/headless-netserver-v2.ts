@@ -17,6 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
+import { extractPickups } from "../shared/bsp/PickupTable";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
@@ -160,7 +161,8 @@ Environment:
 interface BspData {
   collision: CollisionWorld;
   spawnPoints: Array<{ x: number; y: number; z: number }>;
-  pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }>;
+  /** Authoritative pickup table (weapons/armor/health) shared with the client. */
+  pickups: import("../shared/bsp/PickupTable").PickupEntry[];
   /** PVS data for server-side network visibility culling */
   pvs: import("../engine/server/ServerPVS").ServerPVSData | null;
 }
@@ -254,23 +256,10 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
   }
   console.log(`[Server] BSP entity classnames: ${[...classnameSet].sort().join(", ")}`);
 
-  // Extract weapon/item pickups
-  const pickupItems: Array<{ classname: string; position: { x: number; y: number; z: number } }> = [];
-
-  for (const entity of bsp.entities) {
-    if (entity.classname.startsWith("weapon_") || entity.classname.startsWith("item_")) {
-      const origin = entity.properties.origin;
-      if (origin) {
-        const [x, y, z] = origin.split(" ").map(Number);
-        pickupItems.push({
-          classname: entity.classname,
-          position: { x, y: z, z: y }, // Q3→Babylon coord swap: Y↔Z
-        });
-      }
-    }
-  }
-
-  console.log(`[Server] Found ${pickupItems.length} weapon/item pickups`);
+  // Extract the authoritative pickup table (weapons/armor/health) — shared
+  // extractor guarantees ids match the client.
+  const pickups = extractPickups(bsp.entities);
+  console.log(`[Server] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
 
   // Retain PVS data for server-side network visibility culling
   const pvs = bsp.visData
@@ -288,7 +277,7 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
     console.log(`[Server] No PVS data in BSP (open-world mode)`);
   }
 
-  return { collision, spawnPoints, pickupItems, pvs };
+  return { collision, spawnPoints, pickups, pvs };
 }
 
 // ============================================================================
@@ -355,8 +344,8 @@ async function main(): Promise<void> {
   if (bspData) {
     server.setCollisionWorld(bspData.collision);
     server.setSpawnPoints(bspData.spawnPoints);
-    server.setPickupItems(bspData.pickupItems);
-    server.setPickupRespawnTime(25); // 25 second respawn
+    server.setPickupItems(bspData.pickups);
+    server.setPickupRespawnTime(15); // weapons: 15s (armor 25s+15s delay, health 20s, mega 60s are PickupSystem defaults)
     if (bspData.pvs) {
       server.setPVSData(bspData.pvs);
     }

@@ -13,4 +13,6 @@ export enum EntityType {
   TRIGGER = "trigger",
   EFFECT = "effect",
   AMMO = "ammo",
+  ARMOR = "armor",
+  HEALTH = "health",
 }

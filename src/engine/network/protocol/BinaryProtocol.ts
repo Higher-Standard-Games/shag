@@ -168,6 +168,10 @@ export class BinaryProtocol {
     // Encode events (no delta)
     BinaryProtocol.encodeEvents(encoder, state);
 
+    // Encode the pickup active-set (no delta — full mask every snapshot so the
+    // client converges and self-heals against packet loss).
+    BinaryProtocol.encodePickupState(encoder, state);
+
     return encoder.getData();
   }
 
@@ -193,7 +197,52 @@ export class BinaryProtocol {
     // Decode events
     BinaryProtocol.decodeEvents(decoder, state);
 
+    // Decode the pickup active-set, if present (older payloads/demos omit it).
+    if (decoder.hasMore()) {
+      BinaryProtocol.decodePickupState(decoder, state);
+    }
+
     return state;
+  }
+
+  /**
+   * Encode the pickup active-set: a uint16 count followed by a packed bitmask
+   * (bit i = pickup id i is active). Full every snapshot — no delta.
+   */
+  private static encodePickupState(encoder: BinaryEncoder, state: GameState): void {
+    const mask = state.pickupActiveMask;
+    const count = mask.length;
+    encoder.writeUint16(count);
+    if (count === 0) return;
+
+    const byteCount = Math.ceil(count / 8);
+    for (let b = 0; b < byteCount; b++) {
+      let byte = 0;
+      for (let bit = 0; bit < 8; bit++) {
+        const idx = b * 8 + bit;
+        if (idx < count && mask[idx]) byte |= 1 << bit;
+      }
+      encoder.writeUint8(byte);
+    }
+  }
+
+  private static decodePickupState(decoder: BinaryDecoder, state: GameState): void {
+    const count = decoder.readUint16();
+    const mask: boolean[] = new Array(count);
+    if (count === 0) {
+      state.pickupActiveMask = mask;
+      return;
+    }
+
+    const byteCount = Math.ceil(count / 8);
+    for (let b = 0; b < byteCount; b++) {
+      const byte = decoder.readUint8();
+      for (let bit = 0; bit < 8; bit++) {
+        const idx = b * 8 + bit;
+        if (idx < count) mask[idx] = (byte & (1 << bit)) !== 0;
+      }
+    }
+    state.pickupActiveMask = mask;
   }
 
   /**

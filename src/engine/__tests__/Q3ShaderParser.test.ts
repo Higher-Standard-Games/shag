@@ -690,4 +690,49 @@ textures/base/floor
       expect(shader.conditionalBlocks?.[0].stages[0].map).toBe("textures/test/base.tga");
     });
   });
+
+  // ── Warsow templates (lowercase _template) + celshade ──────
+  // Mirrors the real models.shader item shaders (data0_21pure.pk3): the armor
+  // template is named lowercase `armor_template` and its only stage is
+  // `celshade $1 env/cell`.
+  describe("Warsow armor item shaders (template + celshade)", () => {
+    const ARMOR_SHADER = `models/items/armor/armor_template
+{
+\tnopicmip
+\tcull front
+\t{
+\t\tcelshade $1 env/cell
+\t\talphagen entity
+\t}
+}
+models/items/armor/ga/ga
+{
+\ttemplate models/items/armor/armor_template models/items/armor/ga/ga.tga
+}`;
+
+    it("expands a lowercase _template (was case-sensitive _Template only)", () => {
+      const shaders = parseShaderFile(ARMOR_SHADER);
+      const ga = shaders.find((s) => s.name === "models/items/armor/ga/ga");
+      expect(ga).toBeDefined();
+      // The template definition itself is not emitted as a renderable shader.
+      expect(shaders.some((s) => s.name.endsWith("armor_template"))).toBe(false);
+    });
+
+    it("celshade resolves the diffuse map ($1 → the item .tga)", () => {
+      const ga = parseShaderFile(ARMOR_SHADER).find((s) => s.name === "models/items/armor/ga/ga")!;
+      expect(ga.stages[0].map).toBe("models/items/armor/ga/ga.tga");
+    });
+
+    it("celshade picks the diffuse overlay (arg2) when the base is a builtin", () => {
+      // Player-style: celshade $whiteImage <cell> <skin> - - - <light>
+      const content = `models/players/x/skin
+{
+\t{
+\t\tcelshade $whiteImage env/cellbright models/players/x/skin_fb.tga - - - env/celllight
+\t}
+}`;
+      const shader = parseShaderFile(content)[0];
+      expect(shader.stages[0].map).toBe("models/players/x/skin_fb.tga");
+    });
+  });
 });

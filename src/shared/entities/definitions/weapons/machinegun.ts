@@ -28,7 +28,7 @@ export const MACHINEGUN: WeaponDef = {
   clipSize: 100,
   ammoType: "bullets",
   maxAmmo: 100,
-  reloadTime: 0.1,
+  reloadTime: 0.13,
   range: 6000,
   hitscan: true,
   hitscanType: "tracer",

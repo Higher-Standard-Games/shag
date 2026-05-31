@@ -27,7 +27,7 @@ export const PLASMAGUN: WeaponDef = {
   clipSize: 50,
   ammoType: "cells",
   maxAmmo: 200,
-  reloadTime: 1.0, // Reload animation duration (1.0 seconds)
+  reloadTime: 1.3, // Reload animation duration (1.0 seconds)
   range: 1500,
   hitscan: false,
   fireMode: "auto",
@@ -36,7 +36,7 @@ export const PLASMAGUN: WeaponDef = {
   adsSpread: 0, // Perfectly accurate when ADS
   pickupBounds: { x: 32, y: 32, z: 32 },
   projectileId: "plasma_bolt",
-  projectileSpeed: 2500,
+  projectileSpeed: 1750,
   splashRadius: 45,
   splashDamage: 15,
   minSplashDamage: 5,
