@@ -5,6 +5,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 
+import { type WeaponPickupEntry, extractWeaponPickups } from "../../shared/bsp/PickupTable";
 import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
@@ -17,8 +18,13 @@ import type { InventoryManager } from "../../games/fps/world/InventoryManager";
 export class EntityManager {
   private static instance: EntityManager;
   private entities: any[] = []; // TODO: ActiveEntity interface
-  /** Sequential counter for BSP weapon pickup IDs — must match server's PickupSystem.setPickupItems() ordering */
-  private nextPickupId: number = 0;
+  /**
+   * Authoritative weapon-pickup table for the current map, derived from the SAME
+   * shared extractor the server uses (src/shared/bsp/PickupTable.ts). Pickup ids
+   * come from here so they match the server exactly — no parallel counter.
+   * Rebuilt each map load via the pre-render hook registered in registerHandlers().
+   */
+  private pickupTable: WeaponPickupEntry[] = [];
 
   private constructor() {}
 
@@ -48,6 +54,13 @@ export class EntityManager {
         EntityHandlerRegistry.register(item.classname, (data, scene) => this.spawnEntity(item, data, scene));
       }
     }
+
+    // Build the authoritative weapon-pickup table before spawn handlers run, so
+    // each weapon pickup gets the same id the server assigns. Pre-render hooks
+    // run before the per-entity handlers in MapLoader.processBspEntities.
+    EntityHandlerRegistry.addPreRenderHook((entities) => {
+      this.pickupTable = extractWeaponPickups(entities);
+    });
   }
 
   /**
@@ -138,6 +151,20 @@ export class EntityManager {
       value = (def as any).ammoType;
     }
 
+    // Authoritative pickup id from the shared table (matches the server). Match
+    // by classname + XZ — both sides parse the same BSP origin, so XZ is exact
+    // (only Y differs: client adds +24, table keeps raw). Disambiguates multiple
+    // pickups of the same weapon by position.
+    const pickupId =
+      type === "weapon"
+        ? this.pickupTable.find(
+            (e) =>
+              e.classname === def.classname &&
+              Math.abs(e.position.x - position.x) < 0.5 &&
+              Math.abs(e.position.z - position.z) < 0.5,
+          )?.id
+        : undefined;
+
     const pickup = new FPSPickup(name, scene, position, {
       id: def.id,
       modelPath: def.modelPath || "models/items/ammo/ammobox/ammobox.md3",
@@ -146,7 +173,7 @@ export class EntityManager {
       respawnTime: 30,
       scale: def.scale || 1.0,
       glowColor: def.glowColor,
-      pickupId: type === "weapon" ? this.nextPickupId++ : undefined,
+      pickupId,
     });
 
     // Register this pickup in local tracking (optional, Pickup handles its own logic now)
