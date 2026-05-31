@@ -281,14 +281,11 @@ describe("SweepCollisionBackend — stepSlideMove", () => {
 // ── ground queries ──────────────────────────────────────────────────
 
 describe("SweepCollisionBackend — ground queries", () => {
-  // NOTE: findGround() hardcodes a height-56 probe hull, but the real default
-  // PLAYER_HEIGHT is 64 (PLAYER_MAXS_Z 40 − PLAYER_MINS_Z −24). So findGround's
-  // hull sits ~3u shorter than the trace hull (feet 21u below origin rather
-  // than 24u), and isOnGround() (which calls findGround(point, 2)) only reports
-  // true within ~2u of that shorter hull touching the floor — i.e. origin y in
-  // roughly (21, 23] over a floor at y=0. These tests pin the *observed*
-  // behaviour; if that hardcoded 56 is ever reconciled with PLAYER_HEIGHT, the
-  // thresholds below shift and should be updated deliberately.
+  // findGround() now defaults to the canonical player hull (PLAYER_RADIUS,
+  // PLAYER_HEIGHT=64), so its probe feet sit 24u below origin — matching the
+  // trace hull. isOnGround() (findGround(point, 2)) reports true while the
+  // player hull's feet are within ~2u of the floor, i.e. origin y ≲ 26 over a
+  // floor at y=0.
   it("findGround locates the floor below and returns an upward normal", async () => {
     const backend = await makeBackend([FLOOR]);
     const ground = backend.findGround(new Vector3(0, 50, 0), 100);
@@ -305,10 +302,10 @@ describe("SweepCollisionBackend — ground queries", () => {
     expect(ground).toBeNull();
   });
 
-  it("isOnGround is true when the probe hull rests on the floor, false high up", async () => {
+  it("isOnGround is true when the player hull rests on the floor, false high up", async () => {
     const backend = await makeBackend([FLOOR]);
-    // origin y=22 → findGround's height-56 hull feet ≈1u above the floor.
-    expect(backend.isOnGround(new Vector3(0, 22, 0))).toBe(true);
+    // origin y=24 → feet at the floor (y=0); clearly grounded.
+    expect(backend.isOnGround(new Vector3(0, 24, 0))).toBe(true);
     expect(backend.isOnGround(new Vector3(0, 200, 0))).toBe(false);
   });
 });

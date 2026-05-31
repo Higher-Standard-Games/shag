@@ -330,6 +330,11 @@ export class Pickup extends TransformNode {
         if (cm.isInitialized()) {
           const ground = cm.findGround(this.position, 2000, {
             radius: 0.1,
+            // Pin the historical probe height (56) so pickup rest position is
+            // unchanged by the findGround default fix (was 56, now PLAYER_HEIGHT
+            // 64). The `+ 12` offset below is empirically tuned to this probe.
+            // TODO: a point-probe (small height) would be more honest here.
+            height: 56,
             contentMask: 1,
             debug: false,
           });

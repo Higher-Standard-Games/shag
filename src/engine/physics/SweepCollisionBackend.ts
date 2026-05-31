@@ -264,11 +264,12 @@ export class SweepCollisionBackend implements CollisionBackend {
     const radius = options?.radius ?? PLAYER_RADIUS;
     const height = options?.height ?? PLAYER_HEIGHT;
 
-    // Q3-style ASYMMETRIC bounding box (Z is up in Q3 coords)
-    // Box extends 24/56 of height BELOW origin, 32/56 ABOVE origin
-    // This matches Q3's player hull: mins.z = -24, maxs.z = 32 for height 56
-    const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT)); // -24 for height 56
-    const maxsZ = height + minsZ; // +32 for height 56
+    // Q3-style ASYMMETRIC bounding box (Z is up in Q3 coords).
+    // Preserves the player's below/above-origin split (PLAYER_MINS_Z / PLAYER_HEIGHT)
+    // for any requested height. For the default PLAYER_HEIGHT (64): mins.z = -24,
+    // maxs.z = +40 (PLAYER_MINS_Z = -24, PLAYER_MAXS_Z = 40).
+    const minsZ = -(height * (-PLAYER_MINS_Z / PLAYER_HEIGHT)); // -24 at the default height 64
+    const maxsZ = height + minsZ; // +40 at the default height 64
 
     // Use exact bbox — Q3 does NOT shrink the collision hull.
     // SURFACE_CLIP_EPSILON in traceBrush provides the safety margin.
@@ -1433,8 +1434,10 @@ export class SweepCollisionBackend implements CollisionBackend {
     options?: TraceOptions,
   ): { position: Vector3; normal: Vector3 } | null {
     const end = point.add(new Vector3(0, -maxDistance, 0));
-    // Default to player collision size (16, 56) if no options, but allow overrides
-    const traceOpts = { radius: 16, height: 56, ...options };
+    // Default to the canonical player hull, but allow overrides. (Previously
+    // hardcoded height:56 — a stale leftover from before PLAYER_MAXS_Z was
+    // raised 32→40; the probe hull was 3u shorter than the actual player.)
+    const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT, ...options };
     const result = this.trace(point, end, traceOpts);
 
     if (result.fraction < 1.0 && result.normal) {
