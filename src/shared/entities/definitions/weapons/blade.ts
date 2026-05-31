@@ -30,7 +30,7 @@ export const BLADE: WeaponDef = {
   clipSize: 1,
   ammoType: "blade",
   maxAmmo: 1,
-  reloadTime: 0.5,
+  reloadTime: 0.65,
   range: 100, // Melee reach (~1.5 player widths)
   hitscan: true, // Melee is instant hit check
   fireMode: "semi",

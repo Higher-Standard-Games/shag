@@ -25,11 +25,11 @@ export const RIOTGUN: WeaponDef = {
   // Gameplay (server-authoritative)
   // 5 damage per pellet × 20 pellets = 100 max damage
   damage: 5,
-  fireRate: 1.875, // ~533ms between shots (20% faster than Warsow's 640ms)
+  fireRate: 1.25, // 800ms between shots
   clipSize: 20,
   ammoType: "shells",
   maxAmmo: 20,
-  reloadTime: 0.64,
+  reloadTime: 0.832,
   range: 8192,
   hitscan: true,
   hitscanType: "pellet",
