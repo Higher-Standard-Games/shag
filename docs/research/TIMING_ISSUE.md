@@ -2,6 +2,42 @@
 
 Date: 2026-05-31
 
+## Resolution (2026-05-31) — FIXED
+
+Root cause **confirmed** in `GameServer.scheduleNextTick()`: it was called with
+the current tick's *start* time, then measured `elapsed = now - lastTickTime`
+*after* `tick()` ran — so `elapsed` was the tick's work duration (~1ms), not the
+inter-tick interval. The drift math then scheduled `tickMs - drift = 8 - (1-8) =
+15ms` after tick end → **~16ms start-to-start at 125Hz = ~62.5Hz = half
+real-time**. Match timer (`_timeRemaining -= 1/125` per tick) and all
+tick-count timers (respawn/weapon/projectile/pickup) ran ~2× slow. Matches the
+"1 game second ≈ 2 real seconds" report.
+
+**Fix** (`src/games/fps/server/GameServer.ts`):
+- Replaced the scheduler with an **absolute wall-clock deadline** (`nextTickAt`):
+  each fire runs every tick whose deadline has passed (bounded catch-up, cap 5,
+  resync on real stalls to avoid a spiral of death), then advances `nextTickAt`
+  by `tickMs`. The sim now tracks real time regardless of setTimeout jitter or
+  tick work time.
+- Added a **tick-rate diagnostic** logged every ~5s: actual Hz vs target, ticks,
+  wall seconds, max tick-work ms.
+
+**Regression:** `src/games/fps/server/__tests__/GameServerTickRate.test.ts` runs
+the real scheduler over ~480ms wall-clock (no-op transport, no port) and asserts
+~125Hz, not ~62.5Hz.
+
+**Verification:** full suite 1078/1078; `server:tick` + `server:fuzz` determinism
+pass; `test:simulation` passes. (`server:tick`/`fuzz` exercise `Simulation.tick()`
+math, which was never wrong — the bug was purely the wall-clock scheduler.)
+
+The secondary risks below remain accurate notes (subsystem multi-rate has no
+catch-up loop; only relevant if `--tickrate` < a subsystem's rate — out of scope
+here since both default to 125Hz, and GameServer-level catch-up now drives
+`Simulation.tick()` at the correct rate).
+
+---
+
+
 ## Problem Statement
 
 Observed symptom: the internal game timer does not feel like real time. A displayed or simulated game second appears to take roughly 2-3 real seconds.
