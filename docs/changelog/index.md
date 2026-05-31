@@ -6,6 +6,7 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| [v0.9.16](./v0.9.16.md) | May 31, 2026 | Server-authoritative pickups (fixes "ghost weapons") + plate-armor/health systems; server tick-rate fix (was half real-time); armor absorption fix; Warsow template/celshade shader fixes; SweepCollisionBackend coverage; weapon balance retune |
 | [v0.9.15](./v0.9.15.md) | May 20, 2026 | Matrix #56 closed (server-backed `map` via lobby dev-spawn) + #11 closed (BinaryProtocol narrowing); SHAG manual accuracy pass + three new guides; Washiki Washoi manual stood up |
 | [v0.9.14](./v0.9.14.md) | May 19, 2026 | Engine QA continuation — fps console commands + ConnectingOverlay + LobbyPanel relocated/decoupled (matrix #8 closed); noImplicitAnyLet finished; SpawnValidator smoke coverage; ServiceLocator dispose resilience |
 | [v0.9.13](./v0.9.13.md) | May 19, 2026 | FPS settings redesign, BSP mesh builder split, engine QA pass (Pickup split, lifecycle/leak fixes, type+lint cleanup, investigation doc) |
