@@ -17,6 +17,8 @@ import {
   SHELL_AMMO,
   VOLTAIC_AMMO,
 } from "./definitions/ammo";
+// Armor & health
+import { ARMOR_DEFS, HEALTH_DEFS } from "./definitions/items";
 // Projectiles
 import { BLADE_BLAST, GRENADE, GUNBLADE_BLAST, PLASMA_BOLT, ROCKET } from "./definitions/projectiles";
 // Weapons
@@ -75,6 +77,10 @@ export function initializeEntityDefs(): void {
   registry.register(VOLTAIC_AMMO); // Replaces laser ammo (aliases: ammo_lasers)
   registry.register(BOLT_AMMO);
   registry.register(INSTA_AMMO);
+
+  // Armor & health pickups
+  for (const def of ARMOR_DEFS) registry.register(def);
+  for (const def of HEALTH_DEFS) registry.register(def);
 
   console.log(`[EntityDefs] Registered ${registry.getCount()} definitions`);
 }

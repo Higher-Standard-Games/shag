@@ -5,7 +5,7 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { type WeaponPickupEntry, extractWeaponPickups } from "../../shared/bsp/PickupTable";
+import { type PickupEntry, extractPickups } from "../../shared/bsp/PickupTable";
 import type { EntityDef } from "../../shared/entities/EntityDef";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
@@ -24,7 +24,7 @@ export class EntityManager {
    * come from here so they match the server exactly — no parallel counter.
    * Rebuilt each map load via the pre-render hook registered in registerHandlers().
    */
-  private pickupTable: WeaponPickupEntry[] = [];
+  private pickupTable: PickupEntry[] = [];
 
   private constructor() {}
 
@@ -43,11 +43,15 @@ export class EntityManager {
     const registry = EntityRegistry.getInstance();
     const weapons = registry.getByType<EntityDef>(EntityType.WEAPON);
     const ammo = registry.getByType<EntityDef>(EntityType.AMMO);
+    const armor = registry.getByType<EntityDef>(EntityType.ARMOR);
+    const health = registry.getByType<EntityDef>(EntityType.HEALTH);
 
-    console.log(`[EntityManager] Registering handlers for ${weapons.length} weapons and ${ammo.length} ammo types...`);
+    console.log(
+      `[EntityManager] Registering handlers for ${weapons.length} weapons, ${ammo.length} ammo, ${armor.length} armor, ${health.length} health...`,
+    );
 
     // Register All Items
-    const allItems = [...weapons, ...ammo];
+    const allItems = [...weapons, ...ammo, ...armor, ...health];
 
     for (const item of allItems) {
       if (item.classname) {
@@ -59,7 +63,7 @@ export class EntityManager {
     // each weapon pickup gets the same id the server assigns. Pre-render hooks
     // run before the per-entity handlers in MapLoader.processBspEntities.
     EntityHandlerRegistry.addPreRenderHook((entities) => {
-      this.pickupTable = extractWeaponPickups(entities);
+      this.pickupTable = extractPickups(entities);
     });
   }
 
@@ -144,26 +148,34 @@ export class EntityManager {
     // Naming: Use targetname if available, otherwise classname
     const name = data.properties.targetname || `${def.classname || "item"}_${Date.now()}`;
 
-    const type = def.type === EntityType.AMMO ? "ammo" : "weapon";
+    const type: "weapon" | "ammo" | "armor" | "health" =
+      def.type === EntityType.AMMO
+        ? "ammo"
+        : def.type === EntityType.ARMOR
+          ? "armor"
+          : def.type === EntityType.HEALTH
+            ? "health"
+            : "weapon";
     let value: string | number = def.id;
 
     if (type === "ammo" && (def as any).ammoType) {
       value = (def as any).ammoType;
     }
 
-    // Authoritative pickup id from the shared table (matches the server). Match
-    // by classname + XZ — both sides parse the same BSP origin, so XZ is exact
+    // Authoritative pickup id from the shared table (matches the server). All
+    // server-tracked types (weapon/armor/health) share one id space. Match by
+    // classname + XZ — both sides parse the same BSP origin, so XZ is exact
     // (only Y differs: client adds +24, table keeps raw). Disambiguates multiple
-    // pickups of the same weapon by position.
+    // pickups of the same kind by position. (ammo is not server-tracked → no id.)
     const pickupId =
-      type === "weapon"
-        ? this.pickupTable.find(
+      type === "ammo"
+        ? undefined
+        : this.pickupTable.find(
             (e) =>
               e.classname === def.classname &&
               Math.abs(e.position.x - position.x) < 0.5 &&
               Math.abs(e.position.z - position.z) < 0.5,
-          )?.id
-        : undefined;
+          )?.id;
 
     const pickup = new FPSPickup(name, scene, position, {
       id: def.id,

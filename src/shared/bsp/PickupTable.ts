@@ -27,33 +27,73 @@ export const CLASSNAME_TO_WEAPON: Record<string, string> = {
   weapon_instagun: "instagun",
 };
 
-export interface WeaponPickupEntry {
+/** Pickup type tracked by the server. */
+export type PickupType = "weapon" | "armor" | "health";
+
+/** Descriptor for a tracked pickup classname: its type + game-specific kind. */
+interface PickupClassInfo {
+  type: PickupType;
+  /** For weapons: the weapon id. For armor: ArmorKind. For health: HealthKind. */
+  kind: string;
+}
+
+/**
+ * Canonical map of every server-tracked pickup classname → {type, kind}.
+ * Shared by client (visual spawn + id assignment) and server (tracking + grant).
+ * Legacy Warsow/Quake armor & health classnames are mapped onto the unified
+ * plate-armor and health systems (see ItemGrants.ts).
+ */
+export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
+  // Weapons (kind = weapon id)
+  ...Object.fromEntries(
+    Object.entries(CLASSNAME_TO_WEAPON).map(([classname, weaponId]) => [
+      classname,
+      { type: "weapon" as const, kind: weaponId },
+    ]),
+  ),
+  // Armor (kind = ArmorKind) — Warsow classnames
+  item_armor_shard: { type: "armor", kind: "shard" },
+  item_armor_ga: { type: "armor", kind: "ga" },
+  item_armor_ya: { type: "armor", kind: "ya" },
+  item_armor_ra: { type: "armor", kind: "ra" },
+  // Health (kind = HealthKind) — Warsow classnames
+  item_health_small: { type: "health", kind: "small" },
+  item_health_large: { type: "health", kind: "large" },
+  item_health_mega: { type: "health", kind: "mega" },
+  item_health_ultra: { type: "health", kind: "ultra" }, // alias → mega behavior
+};
+
+export interface PickupEntry {
   /** Stable index in BSP order — authoritative pickup id on both client and server. */
   id: number;
   /** BSP classname, e.g. "weapon_rocketlauncher". */
   classname: string;
-  /** Game weapon id, e.g. "rlauncher". */
-  weaponId: string;
+  /** Pickup type. */
+  type: PickupType;
+  /** Game-specific kind: weapon id, ArmorKind, or HealthKind. */
+  kind: string;
   /** Babylon-space position (Q3 Y↔Z swapped), matching the BSP origin. */
   position: { x: number; y: number; z: number };
 }
 
+/** Back-compat alias — weapon pickups are PickupEntry with type "weapon". */
+export type WeaponPickupEntry = PickupEntry;
+
 /**
- * Extract the ordered weapon-pickup list from BSP entities.
- *
- * Iterates entities in BSP order, keeps only classnames in CLASSNAME_TO_WEAPON,
- * and assigns sequential ids. Deterministic: identical input → identical output,
- * so server and client agree on every pickup id.
+ * Extract the ordered list of ALL server-tracked pickups (weapons, armor,
+ * health) from BSP entities. Iterates in BSP order, keeps only classnames in
+ * PICKUP_CLASSNAMES, and assigns sequential ids. Deterministic: identical input
+ * → identical output, so server and client agree on every pickup id.
  */
-export function extractWeaponPickups(
+export function extractPickups(
   entities: Array<{ classname: string; properties: Record<string, string> }>,
-): WeaponPickupEntry[] {
-  const out: WeaponPickupEntry[] = [];
+): PickupEntry[] {
+  const out: PickupEntry[] = [];
   let id = 0;
 
   for (const entity of entities) {
-    const weaponId = CLASSNAME_TO_WEAPON[entity.classname];
-    if (!weaponId) continue;
+    const info = PICKUP_CLASSNAMES[entity.classname];
+    if (!info) continue;
 
     const origin = entity.properties.origin;
     if (!origin) continue;
@@ -64,10 +104,22 @@ export function extractWeaponPickups(
     out.push({
       id: id++,
       classname: entity.classname,
-      weaponId,
+      type: info.type,
+      kind: info.kind,
       position: { x, y: z, z: y }, // Q3→Babylon coord swap
     });
   }
 
   return out;
+}
+
+/**
+ * Back-compat helper: extract only weapon pickups. Note ids are assigned over
+ * the FULL pickup set (extractPickups) so they stay consistent with the active-
+ * set mask once armor/health share the same id space.
+ */
+export function extractWeaponPickups(
+  entities: Array<{ classname: string; properties: Record<string, string> }>,
+): PickupEntry[] {
+  return extractPickups(entities).filter((e) => e.type === "weapon");
 }
