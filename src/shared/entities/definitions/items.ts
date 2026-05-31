@@ -6,15 +6,13 @@
  * and lives in shared/items/ItemGrants.ts, keyed by the classname→kind map in
  * shared/bsp/PickupTable.ts. Classnames follow Warsow conventions.
  *
- * TODO(models): modelPath uses the generic ammobox placeholder so pickups load
- * and render out-of-the-box. Swap in real armor/health models when available
- * (data-only change — no code impact).
+ * Models are the real Warsow item .md3s from the PK3 data (data0_21pure.pk3).
+ * Their surface shaders (rotating glow / emissive effects) are resolved from the
+ * PK3 scripts by the engine's Q3 shader parser automatically — no extra wiring.
  */
 
 import type { EntityDef } from "../EntityDef";
 import { EntityType } from "../EntityType";
-
-const PLACEHOLDER_MODEL = "models/items/ammo/ammobox/ammobox.md3";
 
 // ── Armor (unified plate model: shard +5, ga/ya/ra = 1/2/4 plates) ──
 
@@ -23,8 +21,8 @@ export const ARMOR_SHARD: EntityDef = {
   name: "Armor Shard",
   type: EntityType.ARMOR,
   classname: "item_armor_shard",
-  modelPath: PLACEHOLDER_MODEL,
-  scale: 0.8,
+  modelPath: "models/items/armor/shard/shard.md3",
+  scale: 1.0,
   glowColor: { r: 0.3, g: 1.0, b: 0.3 },
 };
 
@@ -33,7 +31,7 @@ export const ARMOR_GREEN: EntityDef = {
   name: "Green Armor",
   type: EntityType.ARMOR,
   classname: "item_armor_ga",
-  modelPath: PLACEHOLDER_MODEL,
+  modelPath: "models/items/armor/ga/ga.md3",
   scale: 1.0,
   glowColor: { r: 0.2, g: 1.0, b: 0.2 },
 };
@@ -43,7 +41,7 @@ export const ARMOR_YELLOW: EntityDef = {
   name: "Yellow Armor",
   type: EntityType.ARMOR,
   classname: "item_armor_ya",
-  modelPath: PLACEHOLDER_MODEL,
+  modelPath: "models/items/armor/ya/ya.md3",
   scale: 1.0,
   glowColor: { r: 1.0, g: 0.85, b: 0.1 },
 };
@@ -53,7 +51,7 @@ export const ARMOR_RED: EntityDef = {
   name: "Red Armor",
   type: EntityType.ARMOR,
   classname: "item_armor_ra",
-  modelPath: PLACEHOLDER_MODEL,
+  modelPath: "models/items/armor/ra/ra.md3",
   scale: 1.0,
   glowColor: { r: 1.0, g: 0.2, b: 0.2 },
 };
@@ -65,8 +63,8 @@ export const HEALTH_SMALL: EntityDef = {
   name: "Health (Small)",
   type: EntityType.HEALTH,
   classname: "item_health_small",
-  modelPath: PLACEHOLDER_MODEL,
-  scale: 0.8,
+  modelPath: "models/items/health/small/small_health.md3",
+  scale: 1.0,
   glowColor: { r: 0.4, g: 0.6, b: 1.0 },
 };
 
@@ -75,7 +73,7 @@ export const HEALTH_LARGE: EntityDef = {
   name: "Health (Large)",
   type: EntityType.HEALTH,
   classname: "item_health_large",
-  modelPath: PLACEHOLDER_MODEL,
+  modelPath: "models/items/health/large/large_health.md3",
   scale: 1.0,
   glowColor: { r: 0.5, g: 0.8, b: 1.0 },
 };
@@ -85,8 +83,8 @@ export const HEALTH_MEGA: EntityDef = {
   name: "Mega Health",
   type: EntityType.HEALTH,
   classname: "item_health_mega",
-  modelPath: PLACEHOLDER_MODEL,
-  scale: 1.2,
+  modelPath: "models/items/health/mega/mega_health.md3",
+  scale: 1.0,
   glowColor: { r: 1.0, g: 0.3, b: 0.3 },
 };
 
@@ -96,8 +94,8 @@ export const HEALTH_ULTRA: EntityDef = {
   name: "Ultra Health",
   type: EntityType.HEALTH,
   classname: "item_health_ultra",
-  modelPath: PLACEHOLDER_MODEL,
-  scale: 1.2,
+  modelPath: "models/items/health/ultra/ultra_health.md3",
+  scale: 1.0,
   glowColor: { r: 1.0, g: 0.2, b: 0.5 },
 };
 
