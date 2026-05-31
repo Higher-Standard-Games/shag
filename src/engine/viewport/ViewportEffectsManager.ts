@@ -34,6 +34,9 @@ export class ViewportEffectsManager {
   // ADS FOV state
   private adsProgress: number = 0; // 0 = hip, 1 = fully ADS
 
+  /** Cached MovementVars singleton — avoids a getInstance() lookup every frame in update(). */
+  private _movementVars: MovementVars | null = null;
+
   private constructor() {}
 
   static getInstance(): ViewportEffectsManager {
@@ -147,7 +150,8 @@ export class ViewportEffectsManager {
     }
 
     // === ADS FOV ZOOM ===
-    const mv = MovementVars.getInstance();
+    this._movementVars ??= MovementVars.getInstance();
+    const mv = this._movementVars;
     const adsTime = mv.get("cl_ads_time");
     // FOV reduction as a percentage (15 = 15% reduction, so 0.85x multiplier)
     const adsFovReductionPercent = mv.get("cl_ads_fov_reduction") / 100;

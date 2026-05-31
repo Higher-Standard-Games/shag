@@ -572,4 +572,30 @@ export class AudioManager {
   public getCurrentPlaylistName(): string | null {
     return this.playlistName;
   }
+
+  /**
+   * Tear down all audio resources: stop the playlist and music without fading,
+   * clear the fade interval, and revoke any outstanding Blob URLs. Call on scene
+   * teardown / app shutdown. Safe to call more than once.
+   */
+  public dispose(): void {
+    this.stopPlaylist(false);
+    this.stopMusic(false);
+
+    if (this.fadeInterval) {
+      clearInterval(this.fadeInterval);
+      this.fadeInterval = null;
+    }
+
+    if (this.fadingOutMusic) {
+      this.fadingOutMusic.pause();
+      this.fadingOutMusic = null;
+    }
+
+    // Revoke any Blob URLs that survived stopMusic (e.g. cached sfx elements).
+    for (const blobUrl of this.audioBlobUrls.values()) {
+      URL.revokeObjectURL(blobUrl);
+    }
+    this.audioBlobUrls.clear();
+  }
 }

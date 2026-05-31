@@ -27,6 +27,7 @@ import type { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import type { Scene } from "@babylonjs/core/scene";
 import { AudioManager } from "../AudioManager";
@@ -69,6 +70,9 @@ export class Pickup extends TransformNode {
   protected respawnTimer: number | null = null;
   protected glowLight: PointLight | null = null;
   protected glowPulseTime: number = 0;
+
+  /** Per-frame proximity/glow observer. Captured so dispose() can detach it. */
+  private _renderObserver: Observer<Scene> | null = null;
 
   /** Whether physics has settled (velocity near zero). Used for server position sync. */
   public settled: boolean = false;
@@ -219,8 +223,10 @@ export class Pickup extends TransformNode {
           }
         }
 
-        // Per-frame proximity check + glow pulse
-        this.getScene().onBeforeRenderObservable.add(() => {
+        // Per-frame proximity check + glow pulse. Capture the observer so
+        // dispose() can detach it — otherwise each unloaded pickup orphans a
+        // per-frame callback that pins this (disposed) instance alive.
+        this._renderObserver = this.getScene().onBeforeRenderObservable.add(() => {
           this.tick();
         });
       } else {
@@ -475,6 +481,10 @@ export class Pickup extends TransformNode {
   // ═════════════════════════════════════════════════════════════════
 
   public dispose(): void {
+    if (this._renderObserver) {
+      this.getScene().onBeforeRenderObservable.remove(this._renderObserver);
+      this._renderObserver = null;
+    }
     if (this.respawnTimer) clearTimeout(this.respawnTimer);
     if (this.glowLight) {
       this.glowLight.dispose();
