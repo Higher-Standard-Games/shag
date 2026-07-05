@@ -159,6 +159,14 @@ export interface WeaponDef extends EntityDef {
   /** Ammo given on pickup (defaults to maxAmmo if unset) */
   pickupAmmo?: number;
 
+  // === CHAIN LIGHTNING (voltaic) ===
+  /** Number of extra enemies the beam arcs to after the primary hit (0 = none) */
+  chainCount?: number;
+  /** Max distance (units) between chain links */
+  chainRadius?: number;
+  /** Damage multiplier applied per hop (e.g. 0.5 → 100% / 50% / 25%) */
+  chainFalloff?: number;
+
   // === MELEE ===
   /** Melee hit detection radius (wider than hitscan ray) */
   meleeRadius?: number;

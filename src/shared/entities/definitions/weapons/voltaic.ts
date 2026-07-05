@@ -39,6 +39,13 @@ export const VOLTAIC: WeaponDef = {
   crosshair: { style: "dot", baseGap: 0, lineLength: 0, lineWidth: 3 },
   recoilScale: 0.1, // Energy gun — very stable, minimal recoil
 
+  // Chain lightning — this is what sets Voltaic apart from the lasergun: the beam
+  // arcs from the primary target to nearby enemies at falloff damage. Distinct
+  // FFA/team role (crowd damage) vs the lasergun's single-target cutting beam.
+  chainCount: 2, // arc to up to 2 extra enemies
+  chainRadius: 280, // links up to 280u apart
+  chainFalloff: 0.5, // 100% → 50% → 25% per hop
+
   // View Model — GLB format
   viewModel: {
     modelPath: "/data/models/weapons/voltaic/voltaic.glb",
