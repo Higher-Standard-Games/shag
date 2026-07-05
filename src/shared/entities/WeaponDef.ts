@@ -148,6 +148,12 @@ export interface WeaponDef extends EntityDef {
   knockbackScale?: number;
   /** For projectile: speed in units/sec */
   projectileSpeed?: number;
+  /**
+   * Projectile gravity multiplier (× base 800 u/s²). 0 = flies perfectly straight
+   * along the crosshair (rockets, plasma, blasts); >0 = arcs downward (grenades).
+   * Default 0 when unset.
+   */
+  projectileGravity?: number;
   /** Whether to use lag compensation for hitscan */
   useLagCompensation?: boolean;
   /** Ammo given on pickup (defaults to maxAmmo if unset) */

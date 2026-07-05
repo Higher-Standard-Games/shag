@@ -36,6 +36,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
   pickupBounds: { x: 32, y: 32, z: 32 },
   projectileId: "grenade",
   projectileSpeed: 1704,
+  projectileGravity: 3, // arcs downward (× base 800); other projectiles fly straight (F6)
   splashRadius: 150,
   splashDamage: 80,
   minSplashDamage: 15,
