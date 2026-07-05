@@ -466,13 +466,21 @@ export class HitscanEffects {
     if (right.lengthSquared() < 0.001) right = Vector3.Cross(dir, Vector3.Forward());
     right.normalize();
     const up = Vector3.Cross(right, dir).normalize();
-    const amp = Math.min(len * 0.06, 15);
+
+    const jitterAmp = Math.min(len * 0.06, 15); // fast random crackle
+    const bowAmp = Math.min(len * 0.11, 26); // smooth coherent bow (the "bending")
+    // Slowly rotate the bow plane over time so the whole bolt sways/whips.
+    const phase = (performance.now() / 1000) * 3.2;
+    const bowX = Math.cos(phase);
+    const bowY = Math.sin(phase);
 
     for (let i = 1; i < n; i++) {
       const t = i / n;
-      const a = amp * Math.sin(t * Math.PI); // taper to 0 at both ends
-      const ox = (Math.random() * 2 - 1) * a;
-      const oy = (Math.random() * 2 - 1) * a;
+      const taper = Math.sin(t * Math.PI); // 0 at both ends
+      // Coherent bow (arc + sway) gives the bending look; jitter adds crackle.
+      const bow = bowAmp * taper;
+      const ox = bowX * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
+      const oy = bowY * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
       points.push(origin.add(diff.scale(t)).add(right.scale(ox)).add(up.scale(oy)));
     }
     points.push(endpoint.clone());
