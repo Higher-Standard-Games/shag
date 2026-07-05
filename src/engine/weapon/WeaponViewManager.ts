@@ -1380,12 +1380,18 @@ export class WeaponViewManager {
       const forward = this.mainCamera.getDirection(Vector3.Forward());
       const muzzlePos = this.getMuzzleWorldPosition();
       if (muzzlePos) {
-        getHitscanEffects().updateBeam({
+        const cfg = {
           origin: muzzlePos,
           direction: forward,
           maxRange: this.currentWeaponDef?.range ?? 850,
           color: this.beamColor,
-        });
+        };
+        // Chain-lightning weapons (voltaic) render a jagged bolt; others a smooth beam.
+        if (this.currentWeaponDef?.chainCount) {
+          getHitscanEffects().updateLightningBeam(cfg);
+        } else {
+          getHitscanEffects().updateBeam(cfg);
+        }
       }
     }
   }
@@ -1395,7 +1401,9 @@ export class WeaponViewManager {
     this.beamActive = active;
     if (color) this.beamColor = color;
     if (!active) {
+      // Stop both beam styles — cheap no-op for whichever isn't active.
       getHitscanEffects().stopBeam();
+      getHitscanEffects().stopLightning();
       this.beamChargeProgress = 0;
     } else {
       this.beamChargeProgress = 1; // fully charged when beam is active
