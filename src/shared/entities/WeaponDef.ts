@@ -95,6 +95,13 @@ export interface WeaponDef extends EntityDef {
   damage: number;
   /** Fire rate (rounds per second) */
   fireRate: number;
+  /**
+   * Explicit refire interval in server ticks (125 Hz), overriding the value
+   * derived from `fireRate`. Fire cadence is tick-quantized (8 ms/tick at 125 Hz),
+   * so a `fireRate` that doesn't divide 125 cannot be hit exactly — set this to
+   * pin the intended tick count. When unset, the interval is `round(125/fireRate)`.
+   */
+  fireIntervalTicks?: number;
   /** Ammo per clip */
   clipSize: number;
   /** Ammo Type (string identifier) */
