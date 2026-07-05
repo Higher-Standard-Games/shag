@@ -467,9 +467,9 @@ export class HitscanEffects {
     right.normalize();
     const up = Vector3.Cross(right, dir).normalize();
 
-    const jitterAmp = Math.min(len * 0.06, 15); // fast random crackle
-    const bowAmp = Math.min(len * 0.11, 26); // smooth coherent bow (the "bending")
-    // Slowly rotate the bow plane over time so the whole bolt sways/whips.
+    const jitterAmp = Math.min(len * 0.04, 9); // fast random crackle (kept small so the arc reads)
+    const bowAmp = Math.min(len * 0.22, 110); // pronounced coherent bow — the visible "bending"
+    // Rotate the bow plane over time so the whole bolt sways/whips.
     const phase = (performance.now() / 1000) * 3.2;
     const bowX = Math.cos(phase);
     const bowY = Math.sin(phase);
