@@ -46,6 +46,10 @@ export const VOLTAIC: WeaponDef = {
   chainRadius: 280, // links up to 280u apart
   chainFalloff: 0.5, // 100% → 50% → 25% per hop
 
+  // Hipfire downside: the beam is unstable and bends/drifts from the hip, so it's
+  // imprecise at range unless you ADS (which locks it straight). Warsow-LG feel.
+  beamWanderDeg: 4,
+
   // View Model — GLB format
   viewModel: {
     modelPath: "/data/models/weapons/voltaic/voltaic.glb",

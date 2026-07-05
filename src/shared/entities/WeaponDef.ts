@@ -166,6 +166,12 @@ export interface WeaponDef extends EntityDef {
   chainRadius?: number;
   /** Damage multiplier applied per hop (e.g. 0.5 → 100% / 50% / 25%) */
   chainFalloff?: number;
+  /**
+   * Unstable-beam hipfire wander (degrees). The beam's aim sweeps in a smooth
+   * deterministic arc when firing from the hip, so it bends and drifts off distant
+   * targets; holding ADS zeroes it (pinpoint). 0/unset = stable beam.
+   */
+  beamWanderDeg?: number;
 
   // === MELEE ===
   /** Melee hit detection radius (wider than hitscan ray) */
