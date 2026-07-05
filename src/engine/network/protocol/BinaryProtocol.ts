@@ -725,6 +725,7 @@ export class BinaryProtocol {
     damage: 10,
     death: 11,
     award: 12,
+    weapon_chain: 13,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -741,6 +742,7 @@ export class BinaryProtocol {
     "damage",
     "death",
     "award",
+    "weapon_chain",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -789,6 +791,19 @@ export class BinaryProtocol {
           encoder.writeString(event.weaponId ?? "");
           encoder.writeUint8(event.charging ? 1 : 0);
           break;
+
+        case 13: {
+          // weapon_chain: entityId, point count (u8), then count × (xyz float32)
+          encoder.writeString(event.entityId);
+          const pts = event.points ?? [];
+          encoder.writeUint8(Math.min(255, pts.length));
+          for (const p of pts) {
+            encoder.writeFloat32(p.x);
+            encoder.writeFloat32(p.y);
+            encoder.writeFloat32(p.z);
+          }
+          break;
+        }
 
         case 6: // projectile_spawn: entityId, defId
           encoder.writeString(event.entityId);
@@ -920,6 +935,18 @@ export class BinaryProtocol {
             charging: decoder.readUint8() !== 0,
           });
           break;
+
+        case 13: {
+          // weapon_chain
+          const entityId = decoder.readString();
+          const count = decoder.readUint8();
+          const points: { x: number; y: number; z: number }[] = [];
+          for (let p = 0; p < count; p++) {
+            points.push({ x: decoder.readFloat32(), y: decoder.readFloat32(), z: decoder.readFloat32() });
+          }
+          state.events.push({ type, entityId, points });
+          break;
+        }
 
         case 6: // projectile_spawn
           state.events.push({

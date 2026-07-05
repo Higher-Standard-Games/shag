@@ -355,6 +355,57 @@ export class HitscanEffects {
   }
 
   /**
+   * One-shot lightning arc between two points (a chain-lightning hop). Spawns a
+   * short jagged bolt that fades via the shared effects[] lifecycle. Refreshed each
+   * shot by the server's weapon_chain event → reads as continuous forking lightning.
+   */
+  fireLightningArc(from: Vector3, to: Vector3, color?: Color3, duration = 0.14): void {
+    if (!this.scene) return;
+    const col = color ?? new Color3(1.0, 0.7, 0.1);
+    const path = this.lightningPath(from, to);
+    const id = `larc_${this.nextId++}`;
+
+    const coreMat = new StandardMaterial(`${id}_cm`, this.scene);
+    coreMat.emissiveColor = this.brighten(col);
+    coreMat.disableLighting = true;
+    coreMat.alpha = 0.9;
+    coreMat.backFaceCulling = false;
+    coreMat.maxSimultaneousLights = 4;
+
+    const glowMat = new StandardMaterial(`${id}_gm`, this.scene);
+    glowMat.emissiveColor = col;
+    glowMat.disableLighting = true;
+    glowMat.alpha = 0.3;
+    glowMat.backFaceCulling = false;
+    glowMat.maxSimultaneousLights = 4;
+
+    const meshes: Mesh[] = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      const core = MeshBuilder.CreateCylinder(`${id}_c${i}`, { height: 1, diameter: 0.16, tessellation: 5 }, this.scene);
+      core.isPickable = false;
+      core.material = coreMat;
+      this.orientCylinder(core, path[i], path[i + 1]);
+      meshes.push(core);
+
+      const glow = MeshBuilder.CreateCylinder(`${id}_g${i}`, { height: 1, diameter: 0.45, tessellation: 5 }, this.scene);
+      glow.isPickable = false;
+      glow.material = glowMat;
+      this.orientCylinder(glow, path[i], path[i + 1]);
+      meshes.push(glow);
+    }
+
+    const light = getPointLightPool().acquire(to, col, 6, 12);
+    this.effects.push({
+      id,
+      meshes,
+      materials: [coreMat, glowMat],
+      light,
+      spawnTime: performance.now() / 1000,
+      duration,
+    });
+  }
+
+  /**
    * Remote player's lightning beam. Driven by per-shot fire events; update() then
    * re-jitters it each frame and auto-cleans it after REMOTE_BEAM_TIMEOUT.
    */
