@@ -15,14 +15,13 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import JSZip from "jszip";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
-import { extractPickups } from "../shared/bsp/PickupTable";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
+import { extractPickups } from "../shared/bsp/PickupTable";
 
 // ============================================================================
 // Configuration
@@ -172,48 +171,14 @@ async function loadBspCollision(mapName: string, gamePath: string): Promise<BspD
 
   const gameDir = gamePath.endsWith(".json") ? path.dirname(gamePath) : gamePath;
 
-  const possiblePaths = [
-    path.resolve("./public/data", `map_${mapName}.pk3`),
-    path.resolve("./public/data/maps", `${mapName}.bsp`),
-    path.resolve("./public/data", `${mapName}.bsp`),
-    path.join(gameDir, `map_${mapName}.pk3`),
-    path.join(gameDir, `${mapName}.bsp`),
-    path.join(gameDir, "maps", `${mapName}.bsp`),
-    path.resolve("./public/data/basewsw", `map_${mapName}.pk3`),
-    path.resolve("./public/games/default", `map_${mapName}.pk3`),
-    path.resolve("./dist/games/default", `map_${mapName}.pk3`),
-  ];
-
-  console.log(`[Server] Searching for BSP in: ${possiblePaths.length} locations`);
-
-  let bspBuffer: ArrayBuffer | null = null;
-
-  for (const bspPath of possiblePaths) {
-    if (fs.existsSync(bspPath)) {
-      console.log(`[Server] Found BSP at: ${bspPath}`);
-
-      if (bspPath.endsWith(".pk3")) {
-        const pk3Buffer = fs.readFileSync(bspPath);
-        const zip = await JSZip.loadAsync(new Uint8Array(pk3Buffer));
-
-        for (const filename of Object.keys(zip.files)) {
-          if (filename.endsWith(".bsp")) {
-            const bspFile = zip.files[filename];
-            bspBuffer = await bspFile.async("arraybuffer");
-            console.log(`[Server] Extracted BSP from PK3: ${filename}`);
-            break;
-          }
-        }
-      } else {
-        const buffer = fs.readFileSync(bspPath);
-        bspBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
-      }
-      break;
-    }
-  }
+  // Resolve the map's BSP through the SAME pk3 index the game uses (no ad-hoc
+  // path search). Reads only the pk3(s) needed to find this map.
+  const { resolveMapBspViaIndex } = await import("../engine/loader/pk3/NodePk3");
+  const candidateDirs = [path.resolve("./public/data"), path.resolve("./dist/data"), gameDir];
+  const bspBuffer = await resolveMapBspViaIndex(candidateDirs, mapName);
 
   if (!bspBuffer) {
-    console.warn(`[Server] Could not find BSP for map: ${mapName}`);
+    console.warn(`[Server] Could not find BSP for map "${mapName}" via pk3 index (dirs: ${candidateDirs.join(", ")})`);
     return null;
   }
 
