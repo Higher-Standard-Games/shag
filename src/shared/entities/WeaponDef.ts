@@ -82,6 +82,8 @@ export interface CrosshairConfig {
   color?: string;
 }
 
+export type WeaponReloadModel = "clip" | "pool" | "none";
+
 // ==================== WEAPON DEF ====================
 
 /**
@@ -95,8 +97,22 @@ export interface WeaponDef extends EntityDef {
   damage: number;
   /** Fire rate (rounds per second) */
   fireRate: number;
+  /**
+   * Explicit refire interval in server ticks (125 Hz), overriding the value
+   * derived from `fireRate`. Fire cadence is tick-quantized (8 ms/tick at 125 Hz),
+   * so a `fireRate` that doesn't divide 125 cannot be hit exactly — set this to
+   * pin the intended tick count. When unset, the interval is `round(125/fireRate)`.
+   */
+  fireIntervalTicks?: number;
   /** Ammo per clip */
   clipSize: number;
+  /**
+   * Ammo/reload behavior:
+   * - clip: magazine + reserve, reload moves reserve into clip
+   * - pool: one ammo pool, no reload
+   * - none: infinite/no ammo consumption
+   */
+  reloadModel?: WeaponReloadModel;
   /** Ammo Type (string identifier) */
   ammoType?: string;
   /** Max reserve ammo */
@@ -141,10 +157,30 @@ export interface WeaponDef extends EntityDef {
   knockbackScale?: number;
   /** For projectile: speed in units/sec */
   projectileSpeed?: number;
+  /**
+   * Projectile gravity multiplier (× base 800 u/s²). 0 = flies perfectly straight
+   * along the crosshair (rockets, plasma, blasts); >0 = arcs downward (grenades).
+   * Default 0 when unset.
+   */
+  projectileGravity?: number;
   /** Whether to use lag compensation for hitscan */
   useLagCompensation?: boolean;
   /** Ammo given on pickup (defaults to maxAmmo if unset) */
   pickupAmmo?: number;
+
+  // === CHAIN LIGHTNING (voltaic) ===
+  /** Number of extra enemies the beam arcs to after the primary hit (0 = none) */
+  chainCount?: number;
+  /** Max distance (units) between chain links */
+  chainRadius?: number;
+  /** Damage multiplier applied per hop (e.g. 0.5 → 100% / 50% / 25%) */
+  chainFalloff?: number;
+  /**
+   * Unstable-beam hipfire wander (degrees). The beam's aim sweeps in a smooth
+   * deterministic arc when firing from the hip, so it bends and drifts off distant
+   * targets; holding ADS zeroes it (pinpoint). 0/unset = stable beam.
+   */
+  beamWanderDeg?: number;
 
   // === MELEE ===
   /** Melee hit detection radius (wider than hitscan ray) */
@@ -218,6 +254,7 @@ export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
   damage: 10,
   fireRate: 5,
   clipSize: 30,
+  reloadModel: "pool",
   maxAmmo: 120,
   reloadTime: 2.0,
   range: 1000,

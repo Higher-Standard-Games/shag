@@ -86,6 +86,26 @@ interface ActiveEffect {
   duration: number;
 }
 
+/**
+ * Jagged lightning beam (voltaic) — a chain of thin emissive cylinder segments
+ * following a jittered path, re-jittered each frame for crackle. Core + glow layers.
+ */
+interface LightningBeam {
+  coreSegs: Mesh[];
+  glowSegs: Mesh[];
+  coreMat: StandardMaterial;
+  glowMat: StandardMaterial;
+  light: PointLight | null;
+}
+
+/** Remote-player lightning beam — cached endpoints so update() can re-jitter it. */
+interface RemoteLightning extends LightningBeam {
+  origin: Vector3;
+  endpoint: Vector3;
+  color: Color3;
+  lastUpdate: number;
+}
+
 /** A traveling pellet tracer — short segment that slides along a ray */
 interface TravelingPellet {
   id: string;
@@ -129,6 +149,13 @@ export class HitscanEffects {
     }
   > = new Map();
   private static readonly REMOTE_BEAM_TIMEOUT = 0.15; // seconds
+
+  /** Local player's lightning beam (voltaic) — re-jittered each frame while firing */
+  private activeLightning: LightningBeam | null = null;
+  /** Remote players' lightning beams, keyed by entity id */
+  private remoteLightning: Map<number, RemoteLightning> = new Map();
+  /** Segments per bolt (more = smoother jag, more meshes) */
+  private static readonly LIGHTNING_SEGMENTS = 9;
 
   /** Pooled wall marks (bullet holes / scorch marks) */
   private wallMarks: { mesh: Mesh; spawnTime: number }[] = [];
@@ -300,6 +327,228 @@ export class HitscanEffects {
     this.activeBeamGlowMat = null;
     getPointLightPool().release(this.activeBeamLight);
     this.activeBeamLight = null;
+  }
+
+  // ── Lightning beam (voltaic chain lightning) ─────────────────────
+
+  /**
+   * Local player's jagged lightning beam. Call every frame while firing (like
+   * updateBeam); it re-jitters the bolt each call for crackle. `stopLightning()`
+   * when fire ends.
+   */
+  updateLightningBeam(cfg: BeamConfig): Vector3 | null {
+    if (!this.scene) return null;
+    const range = cfg.maxRange ?? 850;
+    const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
+    const hit = this.traceRay(cfg.origin, cfg.direction, range);
+    const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
+
+    if (!this.activeLightning) this.activeLightning = this.createLightningBeam(color, endpoint);
+    this.orientLightning(this.activeLightning, cfg.origin, endpoint, color);
+    return hit?.point ?? null;
+  }
+
+  /** Stop the local player's lightning beam. */
+  stopLightning(): void {
+    if (this.activeLightning) this.disposeLightning(this.activeLightning);
+    this.activeLightning = null;
+  }
+
+  /**
+   * One-shot lightning arc between two points (a chain-lightning hop). Spawns a
+   * short jagged bolt that fades via the shared effects[] lifecycle. Refreshed each
+   * shot by the server's weapon_chain event → reads as continuous forking lightning.
+   */
+  fireLightningArc(from: Vector3, to: Vector3, color?: Color3, duration = 0.14): void {
+    if (!this.scene) return;
+    const col = color ?? new Color3(1.0, 0.7, 0.1);
+    const path = this.lightningPath(from, to);
+    const id = `larc_${this.nextId++}`;
+
+    const coreMat = new StandardMaterial(`${id}_cm`, this.scene);
+    coreMat.emissiveColor = this.brighten(col);
+    coreMat.disableLighting = true;
+    coreMat.alpha = 0.9;
+    coreMat.backFaceCulling = false;
+    coreMat.maxSimultaneousLights = 4;
+
+    const glowMat = new StandardMaterial(`${id}_gm`, this.scene);
+    glowMat.emissiveColor = col;
+    glowMat.disableLighting = true;
+    glowMat.alpha = 0.3;
+    glowMat.backFaceCulling = false;
+    glowMat.maxSimultaneousLights = 4;
+
+    const meshes: Mesh[] = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      const core = MeshBuilder.CreateCylinder(`${id}_c${i}`, { height: 1, diameter: 0.16, tessellation: 5 }, this.scene);
+      core.isPickable = false;
+      core.material = coreMat;
+      this.orientCylinder(core, path[i], path[i + 1]);
+      meshes.push(core);
+
+      const glow = MeshBuilder.CreateCylinder(`${id}_g${i}`, { height: 1, diameter: 0.45, tessellation: 5 }, this.scene);
+      glow.isPickable = false;
+      glow.material = glowMat;
+      this.orientCylinder(glow, path[i], path[i + 1]);
+      meshes.push(glow);
+    }
+
+    const light = getPointLightPool().acquire(to, col, 6, 12);
+    this.effects.push({
+      id,
+      meshes,
+      materials: [coreMat, glowMat],
+      light,
+      spawnTime: performance.now() / 1000,
+      duration,
+    });
+  }
+
+  /**
+   * Remote player's lightning beam. Driven by per-shot fire events; update() then
+   * re-jitters it each frame and auto-cleans it after REMOTE_BEAM_TIMEOUT.
+   */
+  updateRemoteLightningBeam(entityId: number, cfg: BeamConfig): void {
+    if (!this.scene) return;
+    const range = cfg.maxRange ?? 850;
+    const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
+    const endpoint = cfg.origin.add(cfg.direction.scale(range)); // no raytrace for remote
+    const now = performance.now() / 1000;
+
+    let beam = this.remoteLightning.get(entityId);
+    if (!beam) {
+      beam = {
+        ...this.createLightningBeam(color, endpoint),
+        origin: cfg.origin.clone(),
+        endpoint: endpoint.clone(),
+        color,
+        lastUpdate: now,
+      };
+      this.remoteLightning.set(entityId, beam);
+    } else {
+      beam.origin = cfg.origin.clone();
+      beam.endpoint = endpoint.clone();
+      beam.color = color;
+      beam.lastUpdate = now;
+    }
+    this.orientLightning(beam, beam.origin, beam.endpoint, color);
+  }
+
+  private stopRemoteLightning(entityId: number): void {
+    const beam = this.remoteLightning.get(entityId);
+    if (beam) {
+      this.disposeLightning(beam);
+      this.remoteLightning.delete(entityId);
+    }
+  }
+
+  /** Build the segment meshes + materials + endpoint light for a lightning bolt. */
+  private createLightningBeam(color: Color3, endpoint: Vector3): LightningBeam {
+    const n = HitscanEffects.LIGHTNING_SEGMENTS;
+    const id = `lightning_${this.nextId++}`;
+
+    const coreMat = new StandardMaterial(`${id}_core_mat`, this.scene!);
+    coreMat.emissiveColor = this.brighten(color);
+    coreMat.disableLighting = true;
+    coreMat.alpha = 0.9;
+    coreMat.backFaceCulling = false;
+    coreMat.maxSimultaneousLights = 4;
+
+    const glowMat = new StandardMaterial(`${id}_glow_mat`, this.scene!);
+    glowMat.emissiveColor = color;
+    glowMat.disableLighting = true;
+    glowMat.alpha = 0.28;
+    glowMat.backFaceCulling = false;
+    glowMat.maxSimultaneousLights = 4;
+
+    const coreSegs: Mesh[] = [];
+    const glowSegs: Mesh[] = [];
+    for (let i = 0; i < n; i++) {
+      const core = MeshBuilder.CreateCylinder(`${id}_c${i}`, { height: 1, diameter: 0.18, tessellation: 5 }, this.scene!);
+      core.isPickable = false;
+      core.material = coreMat;
+      coreSegs.push(core);
+
+      const glow = MeshBuilder.CreateCylinder(`${id}_g${i}`, { height: 1, diameter: 0.5, tessellation: 5 }, this.scene!);
+      glow.isPickable = false;
+      glow.material = glowMat;
+      glowSegs.push(glow);
+    }
+
+    const light = getPointLightPool().acquire(endpoint, color, 7, 14);
+    return { coreSegs, glowSegs, coreMat, glowMat, light };
+  }
+
+  /** Re-jitter + orient a lightning bolt's segments between origin and endpoint. */
+  private orientLightning(beam: LightningBeam, origin: Vector3, endpoint: Vector3, color: Color3): void {
+    const path = this.lightningPath(origin, endpoint);
+    const n = beam.coreSegs.length;
+    for (let i = 0; i < n; i++) {
+      const a = path[i];
+      const b = path[i + 1];
+      this.orientCylinder(beam.coreSegs[i], a, b);
+      this.orientCylinder(beam.glowSegs[i], a, b);
+    }
+    beam.coreMat.emissiveColor = this.brighten(color);
+    beam.glowMat.emissiveColor = color;
+    if (beam.light) {
+      beam.light.position = endpoint;
+      beam.light.diffuse = color;
+    }
+  }
+
+  /**
+   * Build a jagged path from origin→endpoint with pinned endpoints and jitter that
+   * tapers to zero at both ends (so the bolt actually connects muzzle→target).
+   * Returns LIGHTNING_SEGMENTS+1 points.
+   */
+  private lightningPath(origin: Vector3, endpoint: Vector3): Vector3[] {
+    const n = HitscanEffects.LIGHTNING_SEGMENTS;
+    const diff = endpoint.subtract(origin);
+    const len = diff.length();
+    const points: Vector3[] = [origin.clone()];
+    if (len < 0.001) {
+      for (let i = 1; i <= n; i++) points.push(endpoint.clone());
+      return points;
+    }
+    const dir = diff.scale(1 / len);
+    let right = Vector3.Cross(dir, Vector3.Up());
+    if (right.lengthSquared() < 0.001) right = Vector3.Cross(dir, Vector3.Forward());
+    right.normalize();
+    const up = Vector3.Cross(right, dir).normalize();
+
+    const jitterAmp = Math.min(len * 0.04, 9); // fast random crackle (kept small so the arc reads)
+    const bowAmp = Math.min(len * 0.22, 110); // pronounced coherent bow — the visible "bending"
+    // Rotate the bow plane over time so the whole bolt sways/whips.
+    const phase = (performance.now() / 1000) * 3.2;
+    const bowX = Math.cos(phase);
+    const bowY = Math.sin(phase);
+
+    for (let i = 1; i < n; i++) {
+      const t = i / n;
+      const taper = Math.sin(t * Math.PI); // 0 at both ends
+      // Coherent bow (arc + sway) gives the bending look; jitter adds crackle.
+      const bow = bowAmp * taper;
+      const ox = bowX * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
+      const oy = bowY * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
+      points.push(origin.add(diff.scale(t)).add(right.scale(ox)).add(up.scale(oy)));
+    }
+    points.push(endpoint.clone());
+    return points;
+  }
+
+  /** Brighten a color toward white for the hot bolt core. */
+  private brighten(color: Color3): Color3 {
+    return new Color3(Math.min(1, color.r + 0.3), Math.min(1, color.g + 0.3), Math.min(1, color.b + 0.3));
+  }
+
+  private disposeLightning(beam: LightningBeam): void {
+    for (const m of beam.coreSegs) m.dispose();
+    for (const m of beam.glowSegs) m.dispose();
+    beam.coreMat.dispose();
+    beam.glowMat.dispose();
+    getPointLightPool().release(beam.light);
   }
 
   /**
@@ -693,6 +942,15 @@ export class HitscanEffects {
         this.stopRemoteBeam(entityId);
       }
     }
+
+    // Remote lightning: re-jitter each frame for crackle, or time out.
+    for (const [entityId, beam] of this.remoteLightning) {
+      if (now - beam.lastUpdate > HitscanEffects.REMOTE_BEAM_TIMEOUT) {
+        this.stopRemoteLightning(entityId);
+      } else {
+        this.orientLightning(beam, beam.origin, beam.endpoint, beam.color);
+      }
+    }
   }
 
   /** Cleanup everything */
@@ -710,6 +968,8 @@ export class HitscanEffects {
     this.travelingPellets = [];
     this.stopBeam();
     this.stopAllRemoteBeams();
+    this.stopLightning();
+    for (const id of [...this.remoteLightning.keys()]) this.stopRemoteLightning(id);
   }
 
   // ── Private helpers ──────────────────────────────────────────────

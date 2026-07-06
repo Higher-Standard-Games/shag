@@ -25,7 +25,8 @@ export const LASERGUN: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 7,
   fireRate: 20, // 50ms reload = 20 shots/sec (beam)
-  clipSize: 150,
+  clipSize: 75,
+  reloadModel: "clip",
   ammoType: "lasers",
   maxAmmo: 150,
   reloadTime: 0.065,

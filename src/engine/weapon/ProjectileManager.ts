@@ -131,7 +131,8 @@ export class ProjectileManager {
    * Position will be updated from server snapshots.
    */
   public spawnFromServer(serverEntityId: string, defId: string, position: Vector3, velocity: Vector3): string | null {
-    // Map weapon defId → projectile defId
+    // defId is the projectileId (F8); older weapon-id forms are mapped for back-compat,
+    // and any already-projectile id passes through unchanged.
     const projDefId =
       defId === "glauncher"
         ? "grenade"
@@ -141,7 +142,7 @@ export class ProjectileManager {
             ? "rocket"
             : defId === "gunblade"
               ? "gunblade_blast"
-              : "rocket";
+              : defId;
 
     const direction = velocity.normalizeToNew();
     const id = this.spawn(projDefId, position, direction, {

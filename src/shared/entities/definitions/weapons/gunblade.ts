@@ -25,7 +25,8 @@ export const GUNBLADE: WeaponDef = {
   // Gameplay (server-authoritative) — strong fire (blast)
   damage: 35,
   fireRate: 1.67, // 600ms reload = ~1.67 shots/sec
-  clipSize: 1,
+  clipSize: 0,
+  reloadModel: "pool",
   ammoType: "gunblade",
   maxAmmo: 1,
   reloadTime: 0.78,

@@ -25,9 +25,10 @@ export const VOLTAIC: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 7,
   fireRate: 20, // 50ms reload = 20 shots/sec (beam)
-  clipSize: 150,
+  clipSize: 60,
+  reloadModel: "clip",
   ammoType: "cells",
-  maxAmmo: 150,
+  maxAmmo: 120,
   reloadTime: 0.065,
   range: 850, // Short range beam
   hitscan: true,
@@ -38,6 +39,17 @@ export const VOLTAIC: WeaponDef = {
   useLagCompensation: true,
   crosshair: { style: "dot", baseGap: 0, lineLength: 0, lineWidth: 3 },
   recoilScale: 0.1, // Energy gun — very stable, minimal recoil
+
+  // Chain lightning — this is what sets Voltaic apart from the lasergun: the beam
+  // arcs from the primary target to nearby enemies at falloff damage. Distinct
+  // FFA/team role (crowd damage) vs the lasergun's single-target cutting beam.
+  chainCount: 2, // arc to up to 2 extra enemies
+  chainRadius: 280, // links up to 280u apart
+  chainFalloff: 0.5, // 100% → 50% → 25% per hop
+
+  // Hipfire downside: the beam is unstable and bends/drifts from the hip, so it's
+  // imprecise at range unless you ADS (which locks it straight). Warsow-LG feel.
+  beamWanderDeg: 4,
 
   // View Model — GLB format
   viewModel: {

@@ -26,9 +26,10 @@ export const RIOTGUN: WeaponDef = {
   // 5 damage per pellet × 20 pellets = 100 max damage
   damage: 5,
   fireRate: 1.25, // 800ms between shots
-  clipSize: 20,
+  clipSize: 8,
+  reloadModel: "clip",
   ammoType: "shells",
-  maxAmmo: 20,
+  maxAmmo: 24,
   reloadTime: 0.832,
   range: 8192,
   hitscan: true,
@@ -40,7 +41,7 @@ export const RIOTGUN: WeaponDef = {
   pickupBounds: { x: 32, y: 32, z: 32 },
   pelletCount: 20,
   knockbackScale: 2.5,
-  pickupAmmo: 10,
+  pickupAmmo: 8,
   useLagCompensation: true,
   crosshair: { style: "cross", baseGap: 12, lineLength: 8, lineWidth: 2 },
   speedBonus: 5, // Light shotgun: +5 speed (405 run)

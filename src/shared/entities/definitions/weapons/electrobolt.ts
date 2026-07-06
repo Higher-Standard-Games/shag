@@ -25,7 +25,8 @@ export const ELECTROBOLT: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 75,
   fireRate: 0.8, // 1250ms reload = 0.8 shots/sec
-  clipSize: 10,
+  clipSize: 0,
+  reloadModel: "pool",
   ammoType: "bolts",
   maxAmmo: 10,
   reloadTime: 1.625,
