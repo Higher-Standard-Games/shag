@@ -638,6 +638,7 @@ export class BinaryProtocol {
       if (!baselinePlayer || player.score !== baselinePlayer.score) flags |= 0x04;
       if (!baselinePlayer || player.deaths !== baselinePlayer.deaths) flags |= 0x08;
       if (!baselinePlayer || player.ping !== baselinePlayer.ping) flags |= 0x10;
+      if (!baselinePlayer || player.team !== baselinePlayer.team) flags |= 0x20;
 
       encoder.writeUint8(flags);
 
@@ -647,6 +648,7 @@ export class BinaryProtocol {
       if (flags & 0x04) encoder.writeUint32(player.score);
       if (flags & 0x08) encoder.writeUint32(player.deaths);
       if (flags & 0x10) encoder.writeUint16(player.ping);
+      if (flags & 0x20) encoder.writeString(player.team);
     }
   }
 
@@ -706,6 +708,12 @@ export class BinaryProtocol {
         player!.ping = decoder.readUint16();
       } else if (baselinePlayer) {
         player!.ping = baselinePlayer.ping;
+      }
+
+      if (flags & 0x20) {
+        player!.team = decoder.readString();
+      } else if (baselinePlayer) {
+        player!.team = baselinePlayer.team;
       }
     }
   }
