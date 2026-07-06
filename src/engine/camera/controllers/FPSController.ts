@@ -895,6 +895,7 @@ export class FPSController implements ICameraController {
           sprint: sprintForServer,
           fire: this.keys.fire,
           altFire: this.keys.aim,
+          reload: this.keys.reload,
           use: this.keys.use,
           pitch: this.camera!.rotation.x,
           yaw: this.camera!.rotation.y,
