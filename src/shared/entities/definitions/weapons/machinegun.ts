@@ -25,9 +25,10 @@ export const MACHINEGUN: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 10,
   fireRate: 10, // 100ms reload = 10 shots/sec
-  clipSize: 100,
+  clipSize: 40,
+  reloadModel: "clip",
   ammoType: "bullets",
-  maxAmmo: 100,
+  maxAmmo: 120,
   reloadTime: 0.13,
   range: 6000,
   hitscan: true,

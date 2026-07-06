@@ -25,9 +25,10 @@ export const VOLTAIC: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 7,
   fireRate: 20, // 50ms reload = 20 shots/sec (beam)
-  clipSize: 150,
+  clipSize: 60,
+  reloadModel: "clip",
   ammoType: "cells",
-  maxAmmo: 150,
+  maxAmmo: 120,
   reloadTime: 0.065,
   range: 850, // Short range beam
   hitscan: true,

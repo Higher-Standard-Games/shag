@@ -82,6 +82,8 @@ export interface CrosshairConfig {
   color?: string;
 }
 
+export type WeaponReloadModel = "clip" | "pool" | "none";
+
 // ==================== WEAPON DEF ====================
 
 /**
@@ -104,6 +106,13 @@ export interface WeaponDef extends EntityDef {
   fireIntervalTicks?: number;
   /** Ammo per clip */
   clipSize: number;
+  /**
+   * Ammo/reload behavior:
+   * - clip: magazine + reserve, reload moves reserve into clip
+   * - pool: one ammo pool, no reload
+   * - none: infinite/no ammo consumption
+   */
+  reloadModel?: WeaponReloadModel;
   /** Ammo Type (string identifier) */
   ammoType?: string;
   /** Max reserve ammo */
@@ -245,6 +254,7 @@ export const WEAPON_DEFAULTS: Partial<WeaponDef> = {
   damage: 10,
   fireRate: 5,
   clipSize: 30,
+  reloadModel: "pool",
   maxAmmo: 120,
   reloadTime: 2.0,
   range: 1000,

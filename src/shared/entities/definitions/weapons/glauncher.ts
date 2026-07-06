@@ -26,6 +26,7 @@ export const GRENADE_LAUNCHER: WeaponDef = {
   damage: 80,
   fireRate: 1.25, // 800ms between shots
   clipSize: 0,
+  reloadModel: "pool",
   ammoType: "grenades",
   maxAmmo: 20,
   reloadTime: 0.832,

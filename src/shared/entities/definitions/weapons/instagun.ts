@@ -25,7 +25,8 @@ export const INSTAGUN: WeaponDef = {
   // Gameplay (server-authoritative)
   damage: 200,
   fireRate: 0.77, // 1300ms reload = ~0.77 shots/sec
-  clipSize: 5,
+  clipSize: 0,
+  reloadModel: "pool",
   ammoType: "instas",
   maxAmmo: 5,
   reloadTime: 1.69,

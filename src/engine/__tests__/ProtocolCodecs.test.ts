@@ -635,7 +635,7 @@ describe("BinaryProtocol — event serialization", () => {
       entityId: "e1",
       currentWeapon: "rlauncher",
       weapons: ["gauntlet", "rlauncher", "shotgun"],
-      ammo: { rlauncher: 10, shotgun: 20 },
+      ammo: { rlauncher: { clip: 10, reserve: 0 }, shotgun: { clip: 8, reserve: 12 } },
       reloading: false,
       lastFireTick: 123456,
     };
@@ -643,7 +643,7 @@ describe("BinaryProtocol — event serialization", () => {
     expect(ev.entityId).toBe("e1");
     expect(ev.currentWeapon).toBe("rlauncher");
     expect(ev.weapons).toEqual(["gauntlet", "rlauncher", "shotgun"]);
-    expect(ev.ammo).toEqual({ rlauncher: 10, shotgun: 20 });
+    expect(ev.ammo).toEqual({ rlauncher: { clip: 10, reserve: 0 }, shotgun: { clip: 8, reserve: 12 } });
     expect(ev.reloading).toBe(false);
     expect(ev.lastFireTick).toBe(123456);
   });
