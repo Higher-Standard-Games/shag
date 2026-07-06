@@ -117,6 +117,60 @@ npx vite-node src/cli/headless-game.ts --exec "shader info models/weapons/plasma
 ```
 :::
 
+## Recording Demos {#recording-demos}
+
+Record a `.shagdemo` for playback / highlight analysis. Recording is
+server-authoritative: it captures the real match snapshots plus **all** events
+(kills, damage, projectiles, chains) and only spans the **active** match —
+warmup/countdown are never recorded. Demos land in `public/data/demos/`.
+
+### One command (server + AI bots)
+
+```bash
+npm run demo:record -- --map wdm12 --bots 2 --seconds 30
+# options: --gametype duel|ffa|tdm   --difficulty easy|medium|hard   --port <n>
+```
+
+Starts a headless `GameServer` (map resolved via the pk3 index), connects N AI
+bots through `BotServer` (they load map vision + a navgraph and join as
+players), forces the match Active so recording starts immediately, records for
+`--seconds`, then saves the demo and prints its path.
+
+- Produces **movement-rich** demos (bots roam the map) — ideal for exercising
+  remote-player locomotion in playback.
+- **Caveat:** the headless bots navigate but don't currently engage in combat
+  (their vision doesn't flag enemies), so these demos have movement but no
+  `weapon_fire`/`death` events yet. This is a BotVision limitation, not a map
+  issue — changing maps doesn't change it.
+
+### Manual (server + bots, or play it yourself)
+
+```bash
+# terminal 1 — dedicated server (maps load via the pk3 index)
+npm run net:server -- --map wdm12 --gametype duel --port 7777
+# terminal 2 — AI bots that connect and roam
+npm run bot:server -- --auto ws://localhost:7777 --count 2
+```
+
+Or connect from the browser and play vs a bot yourself. Recording auto-starts
+when the match goes Active and **finalizes when the last player leaves** (or the
+server stops) — so a match you played (with your own shooting, which *does*
+produce `weapon_fire`/`death`) is written the moment you disconnect. Demos
+shorter than ~10s are discarded (anti-flood; tunable via
+`DemoConfig.minDurationMs`).
+
+### Under the hood
+
+- **Map resolution** is unified through the pk3 index
+  (`resolveMapBspViaIndex` in `src/engine/loader/pk3/NodePk3.ts`) — the same
+  lookup the game uses; no ad-hoc BSP path search.
+- **Recording fidelity:** the server builds each snapshot once and hands the
+  *same instance* to the broadcaster and the recorder, so one-shot events aren't
+  lost (`GameServer.tick` → `SnapshotBroadcaster` + `DemoRecorder`).
+- **Playback / highlights:** `DemoReader` → `DemoAnalyzer` /
+  `CinematicDemoPlayer` (`src/games/fps/client/`). Watch in-game with
+  `demolist` → `demo <n>` → `demoplay`.
+
 ## CI/CD Integration
 
 ### GitHub Actions
