@@ -500,11 +500,13 @@ definitive appeal answer.
 player); (b) a `demo:verify` CLI that builds a `GameServer` sim, feeds the recorded usercmds
 tick-by-tick, and compares per-tick snapshot checksums to the recorded ones (same idea as
 `server:fuzz`).
-**Key work — determinism audit:** `server:fuzz` proves run1==run2 *within one process/seed*;
-record→replay across processes needs **every** non-deterministic sim input captured or seeded.
-**Known offender: weapon-drop scatter uses `Math.random()`** (`WeaponSystem.addWeapon` /
-`dropAllWeapons`) → must be seeded or excluded from the reconciliation checksum. Spread is already
-deterministic (`computeSpreadSeed`); KB has no RNG. Catalog and fix/seed all such sources first.
+**Key work — determinism audit (in progress):** `server:fuzz` proves run1==run2 *within one
+process/seed*; record→replay across processes needs **every** non-deterministic sim input captured
+or seeded. **Done:** `WeaponSystem` drop scatter + projectile spread now seeded via
+`shared/DeterministicRng.ts` (`rngFrom(tick, entityId, salt)`) — see R3. **Remaining (R3b):**
+`GametypeController` respawn delay + spawn choice, and `SpawnPointStrategy` spawn selection, still use
+`Math.random()`; hitscan spread is already deterministic (`computeSpreadSeed`); KB has no RNG. Finish
+the spawn/respawn audit before wiring the verifier.
 **Prompt:** *"Audit the server sim for non-determinism across a record→replay boundary (start with
 the Math.random weapon-drop scatter). Then add a usercmd track to DemoRecorder and a demo:verify CLI
 that re-simulates recorded inputs and asserts per-tick snapshot checksums match. Test: a clean bot
@@ -522,7 +524,8 @@ Kept current as work lands. **Sev** = impact if unmitigated. **Status:** OPEN / 
 |---|------|-----|--------|-------------------|
 | R1 | **False positives** — a signal wired to auto-punish before calibration wrongly flags an honest player (the cardinal sin, §0.3) | **High** | MITIGATED | Everything shipped so far is **log-only, gates nothing**. Hard rule: no signal gates until WO-AC3 measures its FP rate; high-impact actions need offline review. |
 | R2 | **Biased calibration data** — our demos are me-vs-bot, so FP thresholds tuned on them won't reflect real players | High | OPEN | Treat all thresholds as *directional* until real ranked demos exist; record ranked demos early (§3). Blocks trustworthy gating. |
-| R3 | **Determinism for re-sim (AC4)** — `Math.random()` in weapon-drop scatter (`WeaponSystem.addWeapon`/`dropAllWeapons`) breaks record→replay reconciliation; other non-determinism may exist | Med | OPEN | Audit sim for wall-clock / RNG / iteration-order leaks; seed the drop scatter. Prerequisite for WO-AC4. Note: `server:fuzz` proves run1==run2 *in one process* and doesn't exercise drops. |
+| R3 | **Determinism for re-sim (AC4)** — RNG in the sim breaks record→replay reconciliation | Med | PARTIALLY MITIGATED | **Fixed:** `WeaponSystem` drop scatter + projectile spread now seeded from sim state (`shared/DeterministicRng.ts`, `rngFrom(tick, entityId, salt)`). New `DeterministicRng.test.ts` proves reproducibility; `server:fuzz` still green. |
+| R3b | **Spawn/respawn RNG still non-deterministic** — `GametypeController` (respawn delay `Math.random()*5000`, spawn choice) + `SpawnPointStrategy` (4× random spawn selection) | Med | OPEN | Remaining audit for WO-AC4. Seed from sim state (or feed recorded spawn events as inputs in re-sim). Affects *when*/*where* players respawn → must be deterministic or replayed. |
 | R4 | **Accuracy scope evasion** — WO-AC1 is single-ray hitscan only; a cheater using only pellet/projectile weapons dodges the accuracy signal | Med | WATCH | Deliberate v1 scope; covered by other signals (occlusion-aim, flick, reaction). Revisit if pellet/projectile cheating shows up. |
 | R5 | **Skilled-player overlap** — high accuracy / fast flicks / low reaction also describe genuinely great humans | Med | WATCH | Distributions + min-sample gating + score composition; **never a solo verdict** (§0.3). Calibrate the "impossible" bands from human demos. |
 | R6 | **Open-source evasion** — cheaters read the detection code | Med | MITIGATED (by design) | Kerckhoffs (§0.2): secrets live in **server-side thresholds outside the repo** + no feedback loop (shadow-flag, offline decide, delayed respond). **Risk if thresholds ever get committed to the public repo** — keep them in deployment config. |
