@@ -146,42 +146,11 @@ async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
 
   // Import and initialize systems
   try {
-    // Initialize PK3 loader
-    const { PK3Loader } = await import("../engine/loader/pk3/PK3Loader");
-    const pk3Loader = PK3Loader.getInstance();
-    const { PK3Index } = await import("../engine/loader/pk3/PK3Index");
-    const pk3Index = PK3Index.getInstance();
-
-    // Scan for PK3 files
+    // Load all PK3 files into PK3Loader + PK3Index (shared headless bootstrap).
     if (fs.existsSync(gamePath)) {
-      const pk3Files = fs
-        .readdirSync(gamePath)
-        .filter((f) => f.endsWith(".pk3"))
-        .sort();
-      console.log(`[Init] Found ${pk3Files.length} PK3 files`);
-
-      // Load all PK3 files (takes a while but needed for full map support)
-      let loadedCount = 0;
-      for (const pk3File of pk3Files) {
-        const pk3Path = path.join(gamePath, pk3File);
-        try {
-          const buffer = fs.readFileSync(pk3Path);
-          const arrayBuffer = buffer.buffer.slice(
-            buffer.byteOffset,
-            buffer.byteOffset + buffer.byteLength,
-          ) as ArrayBuffer;
-          // Use processPK3ArrayBuffer directly for Node.js (fetch doesn't work)
-          await (
-            pk3Loader as unknown as { processPK3ArrayBuffer: (f: string, a: ArrayBuffer) => Promise<void> }
-          ).processPK3ArrayBuffer(pk3File, arrayBuffer);
-
-          await pk3Index.indexPK3ArrayBuffer(pk3File, arrayBuffer, pk3Path);
-          loadedCount++;
-        } catch (e) {
-          console.warn(`[Init] Failed to load ${pk3File}:`, e instanceof Error ? e.message : e);
-        }
-      }
-      console.log(`[Init] Indexed ${loadedCount}/${pk3Files.length} PK3 files`);
+      const { ingestPk3Dir } = await import("../engine/loader/pk3/NodePk3");
+      const loadedCount = await ingestPk3Dir(gamePath);
+      console.log(`[Init] Indexed ${loadedCount} PK3 files from ${gamePath}`);
     }
 
     // Load shaders

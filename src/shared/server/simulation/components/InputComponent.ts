@@ -39,8 +39,15 @@ export interface InputComponent {
   /** Sequence number for reconciliation */
   sequence: number;
 
-  /** Queued inputs waiting to be processed (newest at end) */
+  /** Queued inputs waiting to be processed (FIFO — oldest at front, newest at end) */
   inputQueue: QueuedInput[];
+
+  /**
+   * Sequence of the last command the SERVER actually consumed into physics.
+   * This — not the last command *received* — is what the client is acked with,
+   * so reconciliation stays correct under the one-command-per-tick model.
+   */
+  lastProcessedSeq: number;
 
   /** Set by server when client sends RequestSpawn (cleared on actual respawn) */
   wantsRespawn: boolean;
@@ -62,6 +69,7 @@ export function createInput(): InputComponent {
     weaponSlot: 1,
     sequence: 0,
     inputQueue: [],
+    lastProcessedSeq: 0,
     wantsRespawn: false,
   };
 }

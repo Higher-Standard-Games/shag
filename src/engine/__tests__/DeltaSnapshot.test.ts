@@ -191,6 +191,51 @@ describe("Delta Snapshot", () => {
     });
   });
 
+  describe("Player team round-trip", () => {
+    it("round-trips team on a full (no-baseline) encode", () => {
+      const current = new GameState();
+      current.tick = 5;
+      addPlayer(current, "p1", "e1", "Alice");
+      addPlayer(current, "p2", "e2", "Bob");
+      current.players.get("p1")!.team = "udon";
+      current.players.get("p2")!.team = "soba";
+
+      const decoded = BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(current));
+
+      expect(decoded.players.get("p1")!.team).toBe("udon");
+      expect(decoded.players.get("p2")!.team).toBe("soba");
+    });
+
+    it("carries team through a delta when unchanged, and updates on change", () => {
+      const baseline = new GameState();
+      baseline.tick = 1;
+      addPlayer(baseline, "p1", "e1", "Alice");
+      baseline.players.get("p1")!.team = "udon";
+
+      // Unchanged team → not re-sent, but reconstructed from baseline
+      const same = new GameState();
+      same.tick = 2;
+      addPlayer(same, "p1", "e1", "Alice");
+      same.players.get("p1")!.team = "udon";
+      const decodedSame = BinaryProtocol.decodeSnapshot(
+        BinaryProtocol.encodeSnapshot(same, baseline),
+        baseline,
+      );
+      expect(decodedSame.players.get("p1")!.team).toBe("udon");
+
+      // Changed team → re-sent
+      const changed = new GameState();
+      changed.tick = 3;
+      addPlayer(changed, "p1", "e1", "Alice");
+      changed.players.get("p1")!.team = "soba";
+      const decodedChanged = BinaryProtocol.decodeSnapshot(
+        BinaryProtocol.encodeSnapshot(changed, baseline),
+        baseline,
+      );
+      expect(decodedChanged.players.get("p1")!.team).toBe("soba");
+    });
+  });
+
   describe("Player removed between baselines", () => {
     it("should not include removed player", () => {
       const baseline = new GameState();

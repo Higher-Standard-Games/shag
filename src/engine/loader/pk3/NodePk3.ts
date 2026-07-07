@@ -1,0 +1,95 @@
+/**
+ * NodePk3 — headless (Node) PK3 asset loading that routes through the SAME
+ * PK3Loader + PK3Index the game/browser uses, instead of ad-hoc filesystem path
+ * searches. Lets servers and CLIs resolve maps (and any pk3 file) the same way
+ * the client does.
+ *
+ * The browser builds the index via fetch()/localStorage; Node can't, so these
+ * helpers read pk3s off disk and feed them to `PK3Loader.processPK3ArrayBuffer`
+ * + `PK3Index.indexPK3ArrayBuffer` (both in-memory, Node-friendly).
+ */
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { PK3Index } from "./PK3Index";
+import { PK3Loader } from "./PK3Loader";
+
+// processPK3ArrayBuffer is private on PK3Loader; the Node bootstrap path needs it
+// (there's no fetch()). Same access pattern as headless-game.ts.
+type Ingestable = { processPK3ArrayBuffer: (filename: string, buf: ArrayBuffer) => Promise<void> };
+
+function readArrayBuffer(fullPath: string): ArrayBuffer {
+  const buf = fs.readFileSync(fullPath);
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+}
+
+/**
+ * Load one pk3 from disk into both PK3Loader (file access) and PK3Index (lookup).
+ * Returns false if the file doesn't exist.
+ */
+export async function ingestPk3File(dir: string, pk3File: string): Promise<boolean> {
+  const full = path.join(dir, pk3File);
+  if (!fs.existsSync(full)) return false;
+  const ab = readArrayBuffer(full);
+  await (PK3Loader.getInstance() as unknown as Ingestable).processPK3ArrayBuffer(pk3File, ab);
+  await PK3Index.getInstance().indexPK3ArrayBuffer(pk3File, ab, full);
+  return true;
+}
+
+/**
+ * Load every *.pk3 in a directory into PK3Loader + PK3Index. Used by full
+ * headless bootstraps (e.g. headless-game) that need all assets. Returns the
+ * count successfully ingested.
+ */
+export async function ingestPk3Dir(dir: string): Promise<number> {
+  if (!fs.existsSync(dir)) return 0;
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".pk3"))
+    .sort();
+  let count = 0;
+  for (const f of files) {
+    try {
+      if (await ingestPk3File(dir, f)) count++;
+    } catch (e) {
+      console.warn(`[NodePk3] Failed to load ${f}:`, e instanceof Error ? e.message : e);
+    }
+  }
+  return count;
+}
+
+/**
+ * Resolve a map's BSP bytes through the PK3 index, loading pk3s from the given
+ * directories lazily: the conventional `map_<name>.pk3` first, then any other
+ * `map_*.pk3` in the dirs, until the index knows the map. Only the pk3s needed
+ * are read — no full-library load.
+ *
+ * @returns the BSP ArrayBuffer, or null if the map can't be found.
+ */
+export async function resolveMapBspViaIndex(dirs: string[], mapName: string): Promise<ArrayBuffer | null> {
+  const index = PK3Index.getInstance();
+  const loader = PK3Loader.getInstance();
+  const name = mapName.toLowerCase();
+
+  // 1. Fast path: the conventional map pk3 in each dir.
+  for (const dir of dirs) {
+    if (index.findMap(name)) break;
+    await ingestPk3File(dir, `map_${name}.pk3`).catch(() => false);
+  }
+
+  // 2. Fallback: scan every map_*.pk3 in each dir until the map appears.
+  if (!index.findMap(name)) {
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!f.startsWith("map_") || !f.endsWith(".pk3")) continue;
+        await ingestPk3File(dir, f).catch(() => false);
+        if (index.findMap(name)) break;
+      }
+      if (index.findMap(name)) break;
+    }
+  }
+
+  if (!index.findMap(name)) return null;
+  return loader.getFile(`maps/${name}.bsp`);
+}

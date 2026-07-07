@@ -320,6 +320,9 @@ Useful command groups:
 - Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
 - Debug: `npm run debug:textures -- wdm2`, `npm run debug:spawn`
 - Unit tests: `npm test`
+- Demos: `npm run demo:record -- --map wdm12 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See [headless-mode guide](docs/manual/guides/headless-mode.md#recording-demos).
+
+Headless map loading goes through the pk3 index (`src/engine/loader/pk3/NodePk3.ts` — `resolveMapBspViaIndex`), the same database the game uses. Do NOT re-introduce ad-hoc BSP path searches.
 
 ## Definition of Done for Agent Tasks
 

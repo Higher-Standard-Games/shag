@@ -14,15 +14,12 @@
  */
 
 import * as fs from "node:fs";
-import * as path from "node:path";
-import JSZip from "jszip";
-import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
-import { extractPickups } from "../shared/bsp/PickupTable";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
 import { Deathmatch } from "../games/fps/server/gametypes/Deathmatch";
 import { Duel } from "../games/fps/server/gametypes/Duel";
 import { TeamDeathmatch } from "../games/fps/server/gametypes/TeamDeathmatch";
+import { loadBspCollision } from "./HeadlessMapLoader";
 
 // ============================================================================
 // Configuration
@@ -152,132 +149,6 @@ Environment:
   SHAG_GAME_CERT_PATH    Default TLS certificate path for spawned game servers
   SHAG_GAME_KEY_PATH     Default TLS private key path for spawned game servers
 `);
-}
-
-// ============================================================================
-// BSP Loading (Headless)
-// ============================================================================
-
-interface BspData {
-  collision: CollisionWorld;
-  spawnPoints: Array<{ x: number; y: number; z: number }>;
-  /** Authoritative pickup table (weapons/armor/health) shared with the client. */
-  pickups: import("../shared/bsp/PickupTable").PickupEntry[];
-  /** PVS data for server-side network visibility culling */
-  pvs: import("../engine/server/ServerPVS").ServerPVSData | null;
-}
-
-async function loadBspCollision(mapName: string, gamePath: string): Promise<BspData | null> {
-  console.log(`[Server] Loading BSP: ${mapName}`);
-
-  const gameDir = gamePath.endsWith(".json") ? path.dirname(gamePath) : gamePath;
-
-  const possiblePaths = [
-    path.resolve("./public/data", `map_${mapName}.pk3`),
-    path.resolve("./public/data/maps", `${mapName}.bsp`),
-    path.resolve("./public/data", `${mapName}.bsp`),
-    path.join(gameDir, `map_${mapName}.pk3`),
-    path.join(gameDir, `${mapName}.bsp`),
-    path.join(gameDir, "maps", `${mapName}.bsp`),
-    path.resolve("./public/data/basewsw", `map_${mapName}.pk3`),
-    path.resolve("./public/games/default", `map_${mapName}.pk3`),
-    path.resolve("./dist/games/default", `map_${mapName}.pk3`),
-  ];
-
-  console.log(`[Server] Searching for BSP in: ${possiblePaths.length} locations`);
-
-  let bspBuffer: ArrayBuffer | null = null;
-
-  for (const bspPath of possiblePaths) {
-    if (fs.existsSync(bspPath)) {
-      console.log(`[Server] Found BSP at: ${bspPath}`);
-
-      if (bspPath.endsWith(".pk3")) {
-        const pk3Buffer = fs.readFileSync(bspPath);
-        const zip = await JSZip.loadAsync(new Uint8Array(pk3Buffer));
-
-        for (const filename of Object.keys(zip.files)) {
-          if (filename.endsWith(".bsp")) {
-            const bspFile = zip.files[filename];
-            bspBuffer = await bspFile.async("arraybuffer");
-            console.log(`[Server] Extracted BSP from PK3: ${filename}`);
-            break;
-          }
-        }
-      } else {
-        const buffer = fs.readFileSync(bspPath);
-        bspBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
-      }
-      break;
-    }
-  }
-
-  if (!bspBuffer) {
-    console.warn(`[Server] Could not find BSP for map: ${mapName}`);
-    return null;
-  }
-
-  const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
-  const { createHeadlessCollisionWorld } = await import("./HeadlessBSPCollisionWorld");
-
-  const bsp = BspLoader.load(bspBuffer);
-  console.log(`[Server] BSP parsed: ${bsp.header.isFBSP ? "FBSP" : "IBSP"} v${bsp.header.version}`);
-  console.log(`[Server] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
-
-  const collision = await createHeadlessCollisionWorld(bsp);
-  console.log(`[Server] Collision world initialized`);
-
-  // Extract spawn points
-  const spawnPoints: Array<{ x: number; y: number; z: number }> = [];
-  const spawnClassnames = ["info_player_deathmatch", "info_player_start", "info_player_team1", "info_player_team2"];
-
-  for (const entity of bsp.entities) {
-    if (spawnClassnames.includes(entity.classname)) {
-      const origin = entity.properties.origin;
-      if (origin) {
-        const [x, y, z] = origin.split(" ").map(Number);
-        const PLAYER_ORIGIN_HEIGHT = 24;
-        spawnPoints.push({ x, y: z + PLAYER_ORIGIN_HEIGHT, z: y });
-      }
-    }
-  }
-
-  if (spawnPoints.length === 0) {
-    console.warn("[Server] No spawn points found in BSP, using defaults");
-    spawnPoints.push({ x: 0, y: 100, z: 0 }, { x: 100, y: 100, z: 100 }, { x: -100, y: 100, z: -100 });
-  }
-
-  console.log(`[Server] Found ${spawnPoints.length} spawn points`);
-
-  // Debug: list ALL entity classnames in the BSP
-  const classnameSet = new Set<string>();
-  for (const entity of bsp.entities) {
-    classnameSet.add(entity.classname);
-  }
-  console.log(`[Server] BSP entity classnames: ${[...classnameSet].sort().join(", ")}`);
-
-  // Extract the authoritative pickup table (weapons/armor/health) — shared
-  // extractor guarantees ids match the client.
-  const pickups = extractPickups(bsp.entities);
-  console.log(`[Server] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
-
-  // Retain PVS data for server-side network visibility culling
-  const pvs = bsp.visData
-    ? {
-        nodes: bsp.nodes,
-        leafs: bsp.leafs,
-        planes: bsp.planes,
-        visData: bsp.visData,
-      }
-    : null;
-
-  if (pvs) {
-    console.log(`[Server] PVS data retained: ${bsp.visData!.numClusters} clusters`);
-  } else {
-    console.log(`[Server] No PVS data in BSP (open-world mode)`);
-  }
-
-  return { collision, spawnPoints, pickups, pvs };
 }
 
 // ============================================================================

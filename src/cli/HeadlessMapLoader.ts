@@ -1,0 +1,87 @@
+/**
+ * HeadlessMapLoader — load a map's BSP + collision + spawns + pickups + PVS for
+ * a headless GameServer, resolving the BSP through the same pk3 index the game
+ * uses (see NodePk3). Shared by the dedicated server CLI and the demo recorder.
+ */
+
+import * as path from "node:path";
+import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
+import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
+import type { PickupEntry } from "../shared/bsp/PickupTable";
+import { extractPickups } from "../shared/bsp/PickupTable";
+
+export interface BspData {
+  collision: CollisionWorld;
+  spawnPoints: Array<{ x: number; y: number; z: number }>;
+  /** Authoritative pickup table (weapons/armor/health) shared with the client. */
+  pickups: PickupEntry[];
+  /** PVS data for server-side network visibility culling */
+  pvs: import("../engine/server/ServerPVS").ServerPVSData | null;
+}
+
+export async function loadBspCollision(mapName: string, gamePath = "./game"): Promise<BspData | null> {
+  console.log(`[Map] Loading BSP: ${mapName}`);
+
+  const gameDir = gamePath.endsWith(".json") ? path.dirname(gamePath) : gamePath;
+
+  // Resolve the map's BSP through the SAME pk3 index the game uses (no ad-hoc
+  // path search). Reads only the pk3(s) needed to find this map.
+  const candidateDirs = [path.resolve("./public/data"), path.resolve("./dist/data"), gameDir];
+  const bspBuffer = await resolveMapBspViaIndex(candidateDirs, mapName);
+
+  if (!bspBuffer) {
+    console.warn(`[Map] Could not find BSP for map "${mapName}" via pk3 index (dirs: ${candidateDirs.join(", ")})`);
+    return null;
+  }
+
+  const { BspLoader } = await import("../engine/loader/bsp/BspLoader");
+  const { createHeadlessCollisionWorld } = await import("./HeadlessBSPCollisionWorld");
+
+  const bsp = BspLoader.load(bspBuffer);
+  console.log(`[Map] BSP parsed: ${bsp.header.isFBSP ? "FBSP" : "IBSP"} v${bsp.header.version}`);
+  console.log(`[Map] Brushes: ${bsp.brushes.length}, Planes: ${bsp.planes.length}`);
+
+  const collision = await createHeadlessCollisionWorld(bsp);
+  console.log(`[Map] Collision world initialized`);
+
+  // Extract spawn points
+  const spawnPoints: Array<{ x: number; y: number; z: number }> = [];
+  const spawnClassnames = ["info_player_deathmatch", "info_player_start", "info_player_team1", "info_player_team2"];
+
+  for (const entity of bsp.entities) {
+    if (spawnClassnames.includes(entity.classname)) {
+      const origin = entity.properties.origin;
+      if (origin) {
+        const [x, y, z] = origin.split(" ").map(Number);
+        const PLAYER_ORIGIN_HEIGHT = 24;
+        spawnPoints.push({ x, y: z + PLAYER_ORIGIN_HEIGHT, z: y });
+      }
+    }
+  }
+
+  if (spawnPoints.length === 0) {
+    console.warn("[Map] No spawn points found in BSP, using defaults");
+    spawnPoints.push({ x: 0, y: 100, z: 0 }, { x: 100, y: 100, z: 100 }, { x: -100, y: 100, z: -100 });
+  }
+
+  console.log(`[Map] Found ${spawnPoints.length} spawn points`);
+
+  // Extract the authoritative pickup table (weapons/armor/health) — shared
+  // extractor guarantees ids match the client.
+  const pickups = extractPickups(bsp.entities);
+  console.log(`[Map] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
+
+  // Retain PVS data for server-side network visibility culling
+  const pvs = bsp.visData
+    ? {
+        nodes: bsp.nodes,
+        leafs: bsp.leafs,
+        planes: bsp.planes,
+        visData: bsp.visData,
+      }
+    : null;
+
+  console.log(pvs ? `[Map] PVS data retained: ${bsp.visData!.numClusters} clusters` : "[Map] No PVS data in BSP");
+
+  return { collision, spawnPoints, pickups, pvs };
+}
