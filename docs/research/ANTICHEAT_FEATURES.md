@@ -1,8 +1,10 @@
 # Anti-Cheat Features — Research & Roadmap
 
-**Status:** Research / idea capture. Companion to `docs/research/v0.9.16-server-authority.md`
-(the server-authority *prevention* layer). This doc is the *detection*, *evidence*, and
-*response* layers — the part that deals with cheats authority alone can't stop.
+**Status:** Research + active build (Phase C). Companion to `docs/research/v0.9.16-server-authority.md`
+(the server-authority *prevention* layer). This doc is the *detection*, *evidence*, and *response*
+layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
+telemetry substrate + WO-AC1 accuracy/headshot telemetry (see §7). Next: WO-AC2 impossible-input
+counters.
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -355,7 +357,7 @@ eventually makes real competition possible again.
 | # | Feature | Layer | Signal strength | Cost | FP risk | Phase |
 |---|---------|-------|-----------------|------|---------|-------|
 | 1 | Per-client telemetry substrate (jitter/loss/flick) | 2 | — (substrate) | M | — | **C (WO-12, done)** |
-| 2 | Accuracy & headshot telemetry | 2 | **High** | S | Low* | **C** |
+| 2 | Accuracy & headshot telemetry | 2 | **High** | S | Low* | **C (WO-AC1, done)** |
 | 3 | Impossible-input hard counters | 2 | **High** (contract) | S | **Very low** | **C** |
 | 4 | Flick histogram (angular-velocity shape) | 2 | Med-High | S | Low-Med | C/D |
 | 5 | Demo telemetry sidecar (evidence store) | 3 | — (enables review) | M | — | D |
@@ -427,24 +429,29 @@ handlers / event drains / diagnostic logs — **not** sim-tick state — so it s
 
 Order: **AC1 → AC2 → AC3**, then the foundational **AC4** as its own slice.
 
-### WO-AC1 — Accuracy & headshot telemetry  ·  Roadmap #2  ·  Effort S
-**Goal:** per-client, per-weapon shots / hits / headshots → accuracy% and headshot% (the strongest
-aim signal), all from data we already produce.
-**Hooks:** `WeaponSystem` fire events = shots; `CombatSystem` processed damage = hits (carries
-`attackerId` + `hitLocation` ∈ Head/Body/Legs). `GameServer` owns the `entityId ↔ playerId` map.
-**Approach:**
-- Extend `Telemetry` with `recordShot(playerId, weaponId)` and `recordHit(playerId, weaponId, headshot)`.
-- Attribute at the **existing single drain point** in `GameServer.tick` (where it already forwards
-  `weaponSystem.getPendingDamage()` / combat results) — **do not add a second drain** (see the demo
-  double-drain bug in `v0.9.16.md`). Map `attackerId`→player; **skip bots** (no telemetry).
-- Count a *shot* per trigger-pull fire event, **not** per pellet ray (a shotgun blast is one shot).
-- `Telemetry.get` adds `accuracy = hits/shots`, `headshotRatio = headshots/hits`, **gated by a
-  min-sample** (e.g. ≥30 shots) before it's reported — small samples are noise (§0.3).
-**Prompt:** *"Extend Telemetry with per-weapon shot/hit/headshot counters and accuracy/HS getters
-(min-sample gated). Attribute shots+hits to players at the existing damage-drain in GameServer.tick,
-bots excluded, no double-drain. Add the accuracy/HS fields to the [Telemetry] log. Unit-test the
-accuracy/HS/min-sample math."*
-**Acceptance:** per-weapon accuracy+HS in the log; bots absent; no event double-drain; determinism green.
+### WO-AC1 — Accuracy & headshot telemetry  ·  Roadmap #2  ·  Effort S  ·  ✅ IMPLEMENTED
+**Goal:** per-client accuracy% and headshot% (the strongest aim signal), from data we already produce.
+**As built (deviates from the original sketch — cleaner, and consistent with how warp-strikes
+already work):**
+- Accounting lives in **`WeaponSystem`** (keyed by entity, where shot/hit/weapon-type semantics
+  are), *not* in `Telemetry`. Same pattern as strikes in `MovementValidator`: the raw counters live
+  next to the ground truth; `GameServer` **composes** them into the `[Telemetry]` log at flush time
+  (it owns `entityId ↔ playerId`). No event draining, so **no double-drain risk** and no attribution
+  plumbing through `GameServer.tick`.
+- **Scope: single-ray hitscan only** (machinegun / electrobolt / instagun / lasergun / voltaic) —
+  one trigger pull = one ray = 0/1 hit, the cleanest possible shot↔hit mapping and the strongest
+  signal (rail accuracy, MG tracking%, HS%). **Pellet (riotgun) and projectile/splash weapons are
+  excluded** — a blast has no clean shot↔hit ratio (multi-victim splash would inflate >100%).
+  Documented as a deliberate v1 scope; extend later if needed.
+- `traceHitscanRay` now returns `hitLocation` too; the single-ray path increments
+  `shots`/`hits`/`headshots`. `WeaponSystem.getAccuracy(entityId)` exposes cumulative-per-entity
+  (≈ per-match, since respawn reuses the entity id) counts.
+- `GameServer.logClientTelemetry` composes `acc=` / `hs=` / `shots=` into the log line,
+  **min-sample gated** (≥30 shots → `acc`, ≥10 hits → `hs`, else `n/a`) so small samples don't lie (§0.3).
+**Files:** `WeaponSystem.ts` (accuracy map + getter + `traceHitscanRay` return + single-ray
+accounting), `GameServer.ts` (`logClientTelemetry` compose). **Tests:** `WeaponSystem.test.ts`
+(shot+hit on landing ray; shot-no-hit on miss + accumulation; zero for never-fired).
+**Result:** 1167 tests green, tsc + biome clean, determinism holds.
 
 ### WO-AC2 — Impossible-input hard counters  ·  Roadmap #3  ·  Effort S
 **Goal:** per-client counters for input-contract violations — near-zero false positives because an
