@@ -3,8 +3,8 @@
 **Status:** Research + active build (Phase C). Companion to `docs/research/v0.9.16-server-authority.md`
 (the server-authority *prevention* layer). This doc is the *detection*, *evidence*, and *response*
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
-telemetry substrate + WO-AC1 accuracy/headshot telemetry (see §7). Next: WO-AC2 impossible-input
-counters.
+telemetry substrate + WO-AC1 accuracy/headshot + WO-AC2 impossible-input counters (see §7). Next:
+WO-AC3 calibration harness (the guardrail) or WO-AC4 deterministic re-sim.
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -358,7 +358,7 @@ eventually makes real competition possible again.
 |---|---------|-------|-----------------|------|---------|-------|
 | 1 | Per-client telemetry substrate (jitter/loss/flick) | 2 | — (substrate) | M | — | **C (WO-12, done)** |
 | 2 | Accuracy & headshot telemetry | 2 | **High** | S | Low* | **C (WO-AC1, done)** |
-| 3 | Impossible-input hard counters | 2 | **High** (contract) | S | **Very low** | **C** |
+| 3 | Impossible-input hard counters | 2 | **High** (contract) | S | **Very low** | **C (WO-AC2, done)** |
 | 4 | Flick histogram (angular-velocity shape) | 2 | Med-High | S | Low-Med | C/D |
 | 5 | Demo telemetry sidecar (evidence store) | 3 | — (enables review) | M | — | D |
 | 6 | Reaction-time / time-to-target | 2 | High | M | Med | D |
@@ -453,22 +453,26 @@ accounting), `GameServer.ts` (`logClientTelemetry` compose). **Tests:** `WeaponS
 (shot+hit on landing ray; shot-no-hit on miss + accumulation; zero for never-fired).
 **Result:** 1167 tests green, tsc + biome clean, determinism holds.
 
-### WO-AC2 — Impossible-input hard counters  ·  Roadmap #3  ·  Effort S
+### WO-AC2 — Impossible-input hard counters  ·  Roadmap #3  ·  Effort S  ·  ✅ IMPLEMENTED
 **Goal:** per-client counters for input-contract violations — near-zero false positives because an
-honest client trips them ~never.
-**Hooks (all already fire; we just count instead of forget):**
-- `GameServer.handleInput` → `sanitizeCommand` returned `null` (NaN/Inf) = `rejected`.
-- Sanitizer *had to clamp* (pitch/dir out of range) = `clamped` — needs `sanitizeMovement` to report
-  whether it changed anything (add a small `clamped` flag to its result, or compare in/out).
-- `FPSMovementSubsystem` tripwire (WO-9) fired = `tripwire` (entity-keyed → bridge to player, or
-  expose a per-entity count GameServer reads at flush).
-- `MovementValidator.getStrikes` = `warpStrikes` (already available; compose at flush).
-**Approach:** `Telemetry.recordViolation(playerId, kind)`; surface raw counts + per-1000-input rates.
-**Prompt:** *"Add recordViolation(playerId, kind) to Telemetry for {rejected, clamped, tripwire}.
-Wire rejected+clamped from GameServer.handleInput (extend sanitizeMovement to report a clamped flag),
-tripwire from FPSMovementSubsystem via a per-entity counter GameServer reads at flush, and compose
-warpStrikes from MovementValidator. Log the counts. Test each counter increments on its trigger."*
-**Acceptance:** counters in the log; honest play ≈ 0; determinism green.
+honest client trips them ~never. All are events we *already detect and discarded*; now we count them.
+**As built:**
+- `Telemetry.recordViolation(playerId, "rejected" | "clamped")` + `rejectedCmds` / `clampedCmds` in
+  `ClientMetrics`.
+- **rejected** — `GameServer.handleInput`, when `sanitizeCommand` returns `null` (non-finite
+  dir/pitch/yaw). **clamped** — computed in `handleInput` from the *raw* command
+  (`|pitch| > π/2` or `|wishdir_xz| > 1`), so no change to `sanitizeMovement`'s shape/tests (avoids
+  breaking the `toEqual` sanitizer tests). Both need no new detection — the sanitizer already does it.
+- **tripwire** — `FPSMovementSubsystem` bumps a per-entity `tripwireHits` counter in the WO-9
+  warn block; `getTripwireHits(entityId)` exposes it; `GameServer` composes it at flush (entity→player),
+  same pattern as accuracy/strikes.
+- **warpStrikes** — already composed from `MovementValidator.getStrikes`.
+- `logClientTelemetry` now appends `rejected=… clamped=… tripwire=…` to the `[Telemetry]` line.
+**Files:** `Telemetry.ts` (+counters +`recordViolation`), `GameServer.ts` (record on reject/clamp;
+compose tripwire), `FPSMovementSubsystem.ts` (`tripwireHits` +`getTripwireHits`). **Tests:**
+`Telemetry.test.ts` (violation counters, untracked no-op), `FixedRatePhysics.test.ts` (tripwire
+counter increments on an impossible delta).
+**Result:** 1168 tests green, tsc + biome clean, determinism holds. Honest play → all ≈ 0.
 
 ### WO-AC3 — Offline calibration harness  ·  Roadmap #11  ·  Effort M  ·  the guardrail
 **Goal:** measure detection% vs **false-positive%** per threshold against labeled data, so no signal
