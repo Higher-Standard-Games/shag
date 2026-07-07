@@ -514,6 +514,24 @@ documented.
 
 ---
 
+## 8. Risk register (living)
+
+Kept current as work lands. **Sev** = impact if unmitigated. **Status:** OPEN / MITIGATED / WATCH.
+
+| # | Risk | Sev | Status | Mitigation / note |
+|---|------|-----|--------|-------------------|
+| R1 | **False positives** — a signal wired to auto-punish before calibration wrongly flags an honest player (the cardinal sin, §0.3) | **High** | MITIGATED | Everything shipped so far is **log-only, gates nothing**. Hard rule: no signal gates until WO-AC3 measures its FP rate; high-impact actions need offline review. |
+| R2 | **Biased calibration data** — our demos are me-vs-bot, so FP thresholds tuned on them won't reflect real players | High | OPEN | Treat all thresholds as *directional* until real ranked demos exist; record ranked demos early (§3). Blocks trustworthy gating. |
+| R3 | **Determinism for re-sim (AC4)** — `Math.random()` in weapon-drop scatter (`WeaponSystem.addWeapon`/`dropAllWeapons`) breaks record→replay reconciliation; other non-determinism may exist | Med | OPEN | Audit sim for wall-clock / RNG / iteration-order leaks; seed the drop scatter. Prerequisite for WO-AC4. Note: `server:fuzz` proves run1==run2 *in one process* and doesn't exercise drops. |
+| R4 | **Accuracy scope evasion** — WO-AC1 is single-ray hitscan only; a cheater using only pellet/projectile weapons dodges the accuracy signal | Med | WATCH | Deliberate v1 scope; covered by other signals (occlusion-aim, flick, reaction). Revisit if pellet/projectile cheating shows up. |
+| R5 | **Skilled-player overlap** — high accuracy / fast flicks / low reaction also describe genuinely great humans | Med | WATCH | Distributions + min-sample gating + score composition; **never a solo verdict** (§0.3). Calibrate the "impossible" bands from human demos. |
+| R6 | **Open-source evasion** — cheaters read the detection code | Med | MITIGATED (by design) | Kerckhoffs (§0.2): secrets live in **server-side thresholds outside the repo** + no feedback loop (shadow-flag, offline decide, delayed respond). **Risk if thresholds ever get committed to the public repo** — keep them in deployment config. |
+| R7 | **Telemetry map growth** — per-entity maps (`accuracy`, `tripwireHits`) grow with entity ids; `Telemetry`/physics clean on remove, but `WeaponSystem.accuracy` isn't cleared per-entity | Low | WATCH | Bounded by joins per server session; fine for now. Add cleanup if long-lived servers show growth. |
+| R8 | **Jitter includes server scheduling** — telemetry jitter uses `performance.now`, so GC/load noise mixes with network jitter | Low | WATCH | It measures *arrival regularity* (which is what a jitter buffer cares about); calibrate accordingly, don't read as pure network jitter. |
+| R9 | **Privacy scope creep** — behavioral collection drifting toward fingerprinting/surveillance | Med | MITIGATED | §0.3 guardrail: only gameplay-derived data, no hardware/machine inspection, bounded retention, transparent. Re-check when adding ban-evasion linkage (§4). |
+
+---
+
 ## Cross-links
 - `docs/research/v0.9.16-server-authority.md` — Layer 1 (prevention), the sanitizer, PVS, tripwire,
   and the WO-12 telemetry work orders. WO-14 there is the home of Layer 4 (trust pools / lobby).
