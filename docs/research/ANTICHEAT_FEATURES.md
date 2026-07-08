@@ -3,12 +3,12 @@
 **Status:** Research + active build (Phase C). Companion to `docs/research/v0.9.16-server-authority.md`
 (the server-authority *prevention* layer). This doc is the *detection*, *evidence*, and *response*
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
-telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; sim RNG determinism
+telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; Phase D flick histogram substrate (log-only); sim RNG determinism
 (R3/R3b); and the WO-AC4 re-sim **oracle** (`ReSim.ts` — tamper-evident replay, movement scope). See
 §7. WO-AC4 (`ReSim` oracle + `ReSimBundle` + `demo:verify`) done; **R10 blocker cleared** (full
 weapon+combat+projectile stack proven deterministic under replay); **WO-AC3 calibration harness**
 (`anticheat:calibrate`) done. Next: real-demo calibration (R2, needs full-match re-sim R10) or the
-Phase D detection signals (occlusion-aim, flick, reaction).
+Phase D detection signals (occlusion-aim, reaction; flick histogram substrate is log-only).
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -203,7 +203,8 @@ Each is a feature with: **what it catches**, **cost**, **false-positive risk**, 
 - **Cost:** low (a few int buckets per client).
 - **FP risk:** low-medium — high-sens players flick fast; calibrate the "impossible" bucket from
   real human data (and from our own demos).
-- **Hook:** `Telemetry.recordInput` (already receives pitch/yaw) → bucket the computed speed.
+- **Hook:** `Telemetry.recordInput` (already receives pitch/yaw) buckets the computed speed.
+- **Status:** substrate implemented as cumulative `flickHistogram` telemetry + `flickHist=` logs. Log-only until R2 real-demo calibration.
 - **Phase:** C/D.
 
 ### 2.4 Reaction-time / time-to-target
@@ -363,7 +364,7 @@ eventually makes real competition possible again.
 | 1 | Per-client telemetry substrate (jitter/loss/flick) | 2 | — (substrate) | M | — | **C (WO-12, done)** |
 | 2 | Accuracy & headshot telemetry | 2 | **High** | S | Low* | **C (WO-AC1, done)** |
 | 3 | Impossible-input hard counters | 2 | **High** (contract) | S | **Very low** | **C (WO-AC2, done)** |
-| 4 | Flick histogram (angular-velocity shape) | 2 | Med-High | S | Low-Med | C/D |
+| 4 | Flick histogram (angular-velocity shape) | 2 | Med-High | S | Low-Med | **C — substrate done (log-only); R2 gates** |
 | 5 | Demo telemetry sidecar (evidence store) | 3 | — (enables review) | M | — | D |
 | 6 | Reaction-time / time-to-target | 2 | High | M | Med | D |
 | 7 | Spinbot / view-entropy | 2 | Med (dumb cheats) | S | Low | D |
@@ -412,7 +413,7 @@ living vote, not a binding one:
 | Calibration harness / labeled demos (§3) | `[rec]` | guardrail — build alongside first signals so nothing ships un-calibrated |
 | Demo telemetry sidecar (§3) |  | unlocks offline review + threshold tuning |
 | Occlusion-aware aim (2.7) |  | strongest server-side ESP tell |
-| Flick histogram (2.3) |  |  |
+| Flick histogram (2.3) | `[rec]` | substrate shipped log-only; R2 still blocks gates |
 | Aim-trajectory shape (2.8) |  |  |
 | Reaction-time (2.4) |  |  |
 | Server-random canaries (2.6) |  | strongest active probe vs ESP; design carefully |
