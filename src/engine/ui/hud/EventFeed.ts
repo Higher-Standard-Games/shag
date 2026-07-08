@@ -15,7 +15,6 @@
 const MAX_MESSAGES = 6; // max visible messages
 const MESSAGE_LIFETIME = 6.0; // seconds before fade starts
 const MESSAGE_FADE_TIME = 1.0; // seconds to fade out
-const FONT_BODY = "'Rajdhani', sans-serif";
 
 // ============================================================================
 // Message Types
@@ -41,19 +40,8 @@ export class EventFeed {
   private constructor() {
     this.container = document.createElement("div");
     this.container.id = "event-feed";
-    this.container.style.cssText = `
-            position: fixed;
-            top: 60px;
-            left: 20px;
-            width: 400px;
-            pointer-events: none;
-            z-index: 1040;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-family: ${FONT_BODY};
-            font-size: 16px;
-        `;
+    // Styled by WashikiTheme.css (injected by FPSHud before gameplay events fire)
+    this.container.className = "fps-event-feed";
     document.body.appendChild(this.container);
   }
 
@@ -72,11 +60,11 @@ export class EventFeed {
    * Add a kill message to the feed.
    */
   addKill(killerName: string, victimName: string, weaponId?: string): void {
-    const weaponText = weaponId ? ` [${weaponId}]` : "";
+    const weaponText = weaponId ? `<span class="fps-event-weapon">[${this.esc(weaponId)}]</span> ` : "";
     const html =
-      `<span style="color:#00e5ff">${this.esc(killerName)}</span>` +
-      `<span style="color:#aaa">${weaponText} fragged </span>` +
-      `<span style="color:#ff5555">${this.esc(victimName)}</span>`;
+      `<span class="fps-event-killer">${this.esc(killerName)}</span> ` +
+      `${weaponText}<span class="fps-event-action">fragged</span> ` +
+      `<span class="fps-event-victim">${this.esc(victimName)}</span>`;
     this.push(html);
   }
 
@@ -85,15 +73,15 @@ export class EventFeed {
    */
   addAward(playerName: string, awardType: string, _value: number): void {
     const messages: Record<string, string> = {
-      first_blood: `<span style="color:#ff2222">${this.esc(playerName)}</span> <span style="color:#ff6666">drew First Blood!</span>`,
-      on_fire: `<span style="color:#ffaa00">${this.esc(playerName)}</span> <span style="color:#ffcc44">is On Fire! 🔥</span>`,
-      raging: `<span style="color:#ff4400">${this.esc(playerName)}</span> <span style="color:#ff6633">is Raging!</span>`,
-      unstoppable: `<span style="color:#ff0044">${this.esc(playerName)}</span> <span style="color:#ff3366">is Unstoppable! ⚡</span>`,
+      first_blood: `<span class="fps-event-blood">${this.esc(playerName)}</span> <span class="fps-event-action">drew First Blood!</span>`,
+      on_fire: `<span class="fps-event-gold">${this.esc(playerName)}</span> <span class="fps-event-action">is On Fire!</span>`,
+      raging: `<span class="fps-event-blood">${this.esc(playerName)}</span> <span class="fps-event-action">is Raging!</span>`,
+      unstoppable: `<span class="fps-event-magenta">${this.esc(playerName)}</span> <span class="fps-event-action">is Unstoppable!</span>`,
     };
 
     const html =
       messages[awardType] ||
-      `<span style="color:#00ccff">${this.esc(playerName)}</span> <span style="color:#88ddff">earned ${this.esc(awardType)}!</span>`;
+      `<span class="fps-event-killer">${this.esc(playerName)}</span> <span class="fps-event-action">earned ${this.esc(awardType)}!</span>`;
     this.push(html);
   }
 
@@ -115,29 +103,16 @@ export class EventFeed {
       element: null,
     };
 
-    // Create DOM element
+    // Create DOM element (styled by WashikiTheme.css)
     const el = document.createElement("div");
     el.innerHTML = html;
-    el.style.cssText = `
-            padding: 3px 8px;
-            background: rgba(0, 0, 0, 0.5);
-            border-left: 2px solid rgba(0, 229, 255, 0.4);
-            border-radius: 2px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-            opacity: 0;
-            transform: translateX(-20px);
-            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        `;
+    el.className = "fps-event-entry";
     msg.element = el;
     this.container.appendChild(el);
 
-    // Slide in (next frame for transition to trigger)
+    // Stamp in (next frame for transition to trigger)
     requestAnimationFrame(() => {
-      el.style.opacity = "1";
-      el.style.transform = "translateX(0)";
+      el.classList.add("fps-event-entry--in");
     });
 
     this.messages.push(msg);
@@ -171,9 +146,11 @@ export class EventFeed {
         msg.element?.remove();
         this.messages.splice(i, 1);
       } else if (age > MESSAGE_LIFETIME) {
-        // Fading out
+        // Fading out — disable the entry transition so per-frame opacity
+        // writes apply immediately instead of lagging behind it
         const fadeProgress = (age - MESSAGE_LIFETIME) / MESSAGE_FADE_TIME;
         if (msg.element) {
+          msg.element.style.transition = "none";
           msg.element.style.opacity = String(1 - fadeProgress);
         }
         anyActive = true;

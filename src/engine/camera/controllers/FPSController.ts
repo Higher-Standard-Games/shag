@@ -1007,7 +1007,8 @@ export class FPSController implements ICameraController {
         }
       }
 
-      // Update UI
+      // Opt-in speed readout (cl_showspeed, default 0 to keep the combat HUD
+      // clear; the developer bar always shows speed).
       const showSpeed = mv.get("cl_showspeed") > 0;
       this.updateSpeedDisplay(showSpeed, this.actualHorizSpeed);
 
@@ -1233,12 +1234,7 @@ export class FPSController implements ICameraController {
         // Create speed display widget
         const el = document.createElement("div");
         el.id = "fps-speed-display";
-        el.className = "fps-speedometer manga-panel";
-
-        // Corner brackets
-        const corners = document.createElement("div");
-        corners.className = "manga-panel-corners";
-        el.appendChild(corners);
+        el.className = "fps-speedometer";
 
         // Number
         const num = document.createElement("span");
@@ -1259,7 +1255,8 @@ export class FPSController implements ICameraController {
       FPSController.speedNumberEl!.textContent = String(Math.round(speed));
       FPSController.speedDisplayEl.style.display = "";
     } else if (FPSController.speedDisplayEl) {
-      FPSController.speedDisplayEl.style.display = "none";
+      FPSController.speedDisplayEl.remove();
+      FPSController.resetSpeedDisplay();
     }
   }
 
