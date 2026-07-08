@@ -5,7 +5,8 @@
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
 telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; sim RNG determinism
 (R3/R3b); and the WO-AC4 re-sim **oracle** (`ReSim.ts` — tamper-evident replay, movement scope). See
-§7. Next: WO-AC4b (on-disk usercmd track + `demo:verify` CLI) or WO-AC3 (calibration harness).
+§7. WO-AC4 complete at movement scope — `ReSim` oracle + `ReSimBundle` + `demo:verify` CLI
+(full-match re-sim = R10). Next: WO-AC3 (calibration harness) or R10 (full-match re-sim).
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -372,7 +373,7 @@ eventually makes real competition possible again.
 | 13 | Trust score + soft segregation | 4 | — (response) | L | — | D+ |
 | 14 | Trusted / tournament pools | 4 | — (enables prize play) | M | — | D+ |
 | 15 | LobbyServer / account security audit + trust pools | — | — (Layer-4 home) | L | — | D+ (own doc) |
-| 16 | **Deterministic demo re-sim** (input track + verifier) | 3 | — (ground-truth oracle) | M | — | **C/D — oracle done (AC4a); on-disk track/CLI remain (AC4b)** |
+| 16 | **Deterministic demo re-sim** (oracle + bundle + `demo:verify`) | 3 | — (ground-truth oracle) | M | — | **C — DONE (movement scope); full-match = R10** |
 
 \* Low as a *signal*; never a solo verdict — always one input to the score.
 † Only if the bait is genuinely unperceivable to an honest client (§2.6).
@@ -493,7 +494,7 @@ demos and (b) a scripted superhuman-aim bot session, and prints detection% vs fa
 threshold. Document it in AGENTS.md; note the baseline is currently small/biased."*
 **Acceptance:** repeatable command; aimbot run scores clearly above the human run on aim signals.
 
-### WO-AC4 — Deterministic demo re-simulation  ·  Roadmap #16  ·  foundational  ·  🟡 CORE DONE (AC4a), AC4b remaining
+### WO-AC4 — Deterministic demo re-simulation  ·  Roadmap #16  ·  foundational  ·  ✅ IMPLEMENTED (movement scope; full-match = R10)
 **Goal:** record usercmds in demos + a verifier that replays them through the authoritative sim and
 checks reconciliation → tamper-evident demos + a full-fidelity offline detector oracle + the
 definitive appeal answer.
@@ -507,11 +508,22 @@ determinism (two re-sims agree), clean reconciliation, and **tamper-evidence** �
 of `demo:verify`. Scope: **movement only** (the fixed-rate input path the determinism work targeted);
 weapons/combat re-sim needs a collision world — tracked as a limitation, not yet built.
 
-**AC4b — on-disk plumbing (remaining):** (a) extend `DemoRecorder` with a **usercmd track** + a
-**golden per-tick checksum** track (bump `DEMO_VERSION`; careful — the footer is parsed from EOF, so
-add sections *before* the footer and version-gate the reader); (b) a `demo:verify` CLI that reads a
-real `.shagdemo`, feeds its usercmds to `resimulate`, and calls `verifyAgainst` on its golden
-checksums. The oracle (AC4a) is done; this is I/O + format work.
+**AC4b — on-disk plumbing (✅ IMPLEMENTED):** rather than entangle the fragile `.shagdemo` footer
+format with the (movement-scope) oracle, AC4b ships a **standalone re-sim bundle** — the cleaner,
+decoupled artifact:
+- `src/games/fps/server/ReSimBundle.ts` — a gzipped binary (magic `SHVR`, versioned) carrying
+  `{tickRate, ticks, spawns, usercmd log, golden per-tick checksums}`. `buildBundle` runs the oracle
+  to fill `golden`; `encodeBundle`/`decodeBundle` round-trip it; `verifyBundle(bytes)` re-sims and
+  reconciles.
+- **`demo:verify` CLI** (`src/cli/demo-verify.ts`, `npm run demo:verify -- <bundle>`) — exit 0 =
+  reconciled, exit 1 = diverged (prints the tick) or unreadable. Verified end-to-end: a clean bundle
+  reconciles; a corrupted one is rejected (gzip CRC / diverged tick).
+- Tests: `ReSimBundle.test.ts` (round-trip; clean verify; doctored-golden and tampered-log both
+  diverge; non-bundle bytes throw).
+
+**Why a bundle, not `.shagdemo`:** the oracle is movement-scope, so a bundle it can actually
+reconcile is the honest artifact today. Extending to verify a *full recorded `.shagdemo` match* needs
+full-server re-sim (all subsystems + collision + join/respawn/event replay) — tracked as R10.
 **Key work — determinism audit (✅ complete):** `server:fuzz` proves run1==run2 *within one
 process/seed*; record→replay across processes needs **every** non-deterministic sim input captured
 or seeded. **Done:** all sim-affecting RNG is now seeded from sim state via
@@ -545,6 +557,7 @@ Kept current as work lands. **Sev** = impact if unmitigated. **Status:** OPEN / 
 | R7 | **Telemetry map growth** — per-entity maps (`accuracy`, `tripwireHits`) grow with entity ids; `Telemetry`/physics clean on remove, but `WeaponSystem.accuracy` isn't cleared per-entity | Low | WATCH | Bounded by joins per server session; fine for now. Add cleanup if long-lived servers show growth. |
 | R8 | **Jitter includes server scheduling** — telemetry jitter uses `performance.now`, so GC/load noise mixes with network jitter | Low | WATCH | It measures *arrival regularity* (which is what a jitter buffer cares about); calibrate accordingly, don't read as pure network jitter. |
 | R9 | **Privacy scope creep** — behavioral collection drifting toward fingerprinting/surveillance | Med | MITIGATED | §0.3 guardrail: only gameplay-derived data, no hardware/machine inspection, bounded retention, transparent. Re-check when adding ban-evasion linkage (§4). |
+| R10 | **Re-sim scope is movement-only** — `ReSim`/`demo:verify` reconcile a movement bundle, not a full recorded `.shagdemo` match (weapons/combat/pickups/respawns + collision + event replay) | Med | WATCH | The determinism substrate (R3/R3b) covers the whole sim, so extension is mechanical: run the full `GameServer` sim headless, replay recorded join/input/respawn events, checksum per tick. Until then, `demo:verify` proves the *primitive*, not full matches. |
 
 ---
 

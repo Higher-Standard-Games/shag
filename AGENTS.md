@@ -321,6 +321,7 @@ Useful command groups:
 - Debug: `npm run debug:textures -- wdm2`, `npm run debug:spawn`
 - Unit tests: `npm test`
 - Demos: `npm run demo:record -- --map wdm12 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See [headless-mode guide](docs/manual/guides/headless-mode.md#recording-demos).
+- Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile (tamper-evident; anti-cheat WO-AC4). Exit 0 = reconciled, 1 = diverged.
 
 Headless map loading goes through the pk3 index (`src/engine/loader/pk3/NodePk3.ts` — `resolveMapBspViaIndex`), the same database the game uses. Do NOT re-introduce ad-hoc BSP path searches.
 
