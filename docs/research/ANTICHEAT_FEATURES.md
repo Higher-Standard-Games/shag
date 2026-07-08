@@ -5,10 +5,10 @@
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
 telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; sim RNG determinism
 (R3/R3b); and the WO-AC4 re-sim **oracle** (`ReSim.ts` — tamper-evident replay, movement scope). See
-§7. WO-AC4 (`ReSim` oracle + `ReSimBundle` + `demo:verify`) done; **R10 blocker cleared** — the full
-weapon+combat+projectile stack is proven deterministic under replay (`resimulateFull`), so full-match
-re-sim is now a mechanical extension (collision + event replay + recording). Next: WO-AC3
-(calibration harness) or finishing R10 (event replay + recording).
+§7. WO-AC4 (`ReSim` oracle + `ReSimBundle` + `demo:verify`) done; **R10 blocker cleared** (full
+weapon+combat+projectile stack proven deterministic under replay); **WO-AC3 calibration harness**
+(`anticheat:calibrate`) done. Next: real-demo calibration (R2, needs full-match re-sim R10) or the
+Phase D detection signals (occlusion-aim, flick, reaction).
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -370,7 +370,7 @@ eventually makes real competition possible again.
 | 8 | Server-random canaries (ESP/wallhack bait) | 2 | Med-High | M | Low† | D |
 | 9 | Occlusion-aware aim (wallhack/prefire) | 2 | **High** (best ESP tell) | M | Med | D |
 | 10 | Aim-trajectory shape (snap vs arc) | 2 | Med-High | S | Med | D |
-| 11 | Offline calibration harness (labeled demos) | 3 | — (enables everything) | M | — | **C/D** |
+| 11 | Offline calibration harness (labeled demos) | 3 | — (enables everything) | M | — | **C — DONE (synthetic; real-demo v2 open, R2)** |
 | 12 | Community demo review (trust-weighted) | 3 | High (human) | M | Low | D+ |
 | 13 | Trust score + soft segregation | 4 | — (response) | L | — | D+ |
 | 14 | Trusted / tournament pools | 4 | — (enables prize play) | M | — | D+ |
@@ -478,23 +478,26 @@ compose tripwire), `FPSMovementSubsystem.ts` (`tripwireHits` +`getTripwireHits`)
 counter increments on an impossible delta).
 **Result:** 1168 tests green, tsc + biome clean, determinism holds. Honest play → all ≈ 0.
 
-### WO-AC3 — Offline calibration harness  ·  Roadmap #11  ·  Effort M  ·  the guardrail
+### WO-AC3 — Offline calibration harness  ·  Roadmap #11  ·  the guardrail  ·  ✅ IMPLEMENTED
 **Goal:** measure detection% vs **false-positive%** per threshold against labeled data, so no signal
 ships un-calibrated (§0.3).
-**Approach:**
-- New CLI (e.g. `anticheat:calibrate`): (a) a **human baseline** from our recorded demos; (b) a
-  **scripted test-bench aimbot** — drive `BotServer`/usercmds with superhuman aim/reaction — as the
-  cheating set. Run the Layer-2 detectors (AC1 accuracy, later occlusion/flick) over both; emit a
-  detection% / FP% table per threshold.
-- v1 can run detectors **live** during a scripted human-like-vs-aimbot session (no re-sim needed);
-  v2 runs them over stored demos via WO-AC4.
-**Key caveat to document:** our current demos are me-vs-bot — a small, biased baseline. Treat FP
-numbers as **directional** until real player demos exist; that's a reason to record ranked demos
-early (§3).
-**Prompt:** *"Build an anticheat:calibrate CLI that runs the aim detectors over (a) recorded human
-demos and (b) a scripted superhuman-aim bot session, and prints detection% vs false-positive% per
-threshold. Document it in AGENTS.md; note the baseline is currently small/biased."*
-**Acceptance:** repeatable command; aimbot run scores clearly above the human run on aim signals.
+**As built:** `src/games/fps/server/Calibrate.ts` + **`anticheat:calibrate` CLI**.
+- `runAccuracyTrial(seed, aimNoiseDeg, ticks)` — a controlled full-combat trial (reusing the
+  now-deterministic weapon+combat stack from R10): a shooter tracks a target and fires a machinegun
+  with **seeded aim noise**. Near-zero noise = stand-in **aimbot**; several degrees = **human**.
+  Returns the WO-AC1 accuracy (hits/shots).
+- `calibrateAccuracy({trials, ticks, human/aimbot noise, thresholds})` runs N of each and returns,
+  per threshold, **detection rate** (aimbots ≥ threshold) and **false-positive rate** (humans ≥
+  threshold). `npm run anticheat:calibrate` prints the table.
+- **Result today:** human ≈38% accuracy, aimbot ≈100% → clean separation; any threshold 50–99% gives
+  100% detection / 0% FP *on this synthetic data*. That very cleanliness is the warning: real players
+  aren't uniform-noise stand-ins.
+**Key caveat (risk R2):** the synthetic human is a stand-in and our demos are me-vs-bot. Treat the
+numbers as **directional**; recalibrate on real player demos before any threshold gates. Wiring the
+harness to run over *recorded* demos is the natural v2 (needs the full-match re-sim, R10).
+**Files:** `Calibrate.ts`, `Calibrate.test.ts` (determinism; aimbot ≫ human; a threshold with high
+detection + low FP; FP monotonic in threshold), `src/cli/anticheat-calibrate.ts`.
+**Acceptance:** ✅ repeatable command; aimbot scores clearly above human; FP/detection table emitted.
 
 ### WO-AC4 — Deterministic demo re-simulation  ·  Roadmap #16  ·  foundational  ·  ✅ IMPLEMENTED (movement scope; full-match = R10)
 **Goal:** record usercmds in demos + a verifier that replays them through the authoritative sim and
@@ -558,7 +561,7 @@ Kept current as work lands. **Sev** = impact if unmitigated. **Status:** OPEN / 
 | # | Risk | Sev | Status | Mitigation / note |
 |---|------|-----|--------|-------------------|
 | R1 | **False positives** — a signal wired to auto-punish before calibration wrongly flags an honest player (the cardinal sin, §0.3) | **High** | MITIGATED | Everything shipped so far is **log-only, gates nothing**. Hard rule: no signal gates until WO-AC3 measures its FP rate; high-impact actions need offline review. |
-| R2 | **Biased calibration data** — our demos are me-vs-bot, so FP thresholds tuned on them won't reflect real players | High | OPEN | Treat all thresholds as *directional* until real ranked demos exist; record ranked demos early (§3). Blocks trustworthy gating. |
+| R2 | **Biased calibration data** — the calibration *harness* exists (WO-AC3), but its "human" is a synthetic uniform-noise stand-in and our demos are me-vs-bot, so FP thresholds are not yet trustworthy for real players | High | OPEN | `anticheat:calibrate` produces the detection/FP table; treat numbers as *directional* until fed real ranked demos (v2, needs full-match re-sim R10). **Still blocks trustworthy gating** — record real player demos early (§3). |
 | R3 | **Determinism for re-sim (AC4)** — RNG in the sim breaks record→replay reconciliation | Med | MITIGATED | `WeaponSystem` drop scatter + projectile spread now seeded from sim state (`shared/DeterministicRng.ts`, `rngFrom(tick, entityId, salt)`). `DeterministicRng.test.ts` proves reproducibility; `server:fuzz` green. Sim RNG audit complete (see R3b). |
 | R3b | **Spawn/respawn selection RNG** — `SpawnPointStrategy` (3 strategies) + `GametypeController.jitterSpawn` picked spawns via `Math.random()` | Med | MITIGATED | `choose()`/`jitterSpawn()` take a seeded `rng`; join/respawn/getSpawnPoint pass `rngFrom(tick, entityId)`; `SpawnDeterminism.test.ts` covers it. **Intentionally NOT seeded:** the bot auto-ready `setTimeout(Math.random()*5000)` — wall-clock lobby timing that runs *before* recording starts, outside the sim, so it can't affect re-sim. |
 | R4 | **Accuracy scope evasion** — WO-AC1 is single-ray hitscan only; a cheater using only pellet/projectile weapons dodges the accuracy signal | Med | WATCH | Deliberate v1 scope; covered by other signals (occlusion-aim, flick, reaction). Revisit if pellet/projectile cheating shows up. |
