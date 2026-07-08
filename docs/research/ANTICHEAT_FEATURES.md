@@ -3,8 +3,9 @@
 **Status:** Research + active build (Phase C). Companion to `docs/research/v0.9.16-server-authority.md`
 (the server-authority *prevention* layer). This doc is the *detection*, *evidence*, and *response*
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
-telemetry substrate + WO-AC1 accuracy/headshot + WO-AC2 impossible-input counters (see §7). Next:
-WO-AC3 calibration harness (the guardrail) or WO-AC4 deterministic re-sim.
+telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; sim RNG determinism
+(R3/R3b); and the WO-AC4 re-sim **oracle** (`ReSim.ts` — tamper-evident replay, movement scope). See
+§7. Next: WO-AC4b (on-disk usercmd track + `demo:verify` CLI) or WO-AC3 (calibration harness).
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -371,7 +372,7 @@ eventually makes real competition possible again.
 | 13 | Trust score + soft segregation | 4 | — (response) | L | — | D+ |
 | 14 | Trusted / tournament pools | 4 | — (enables prize play) | M | — | D+ |
 | 15 | LobbyServer / account security audit + trust pools | — | — (Layer-4 home) | L | — | D+ (own doc) |
-| 16 | **Deterministic demo re-sim** (input track + verifier) | 3 | — (ground-truth oracle) | M | — | **C/D (foundational)** |
+| 16 | **Deterministic demo re-sim** (input track + verifier) | 3 | — (ground-truth oracle) | M | — | **C/D — oracle done (AC4a); on-disk track/CLI remain (AC4b)** |
 
 \* Low as a *signal*; never a solo verdict — always one input to the score.
 † Only if the bait is genuinely unperceivable to an honest client (§2.6).
@@ -492,14 +493,25 @@ demos and (b) a scripted superhuman-aim bot session, and prints detection% vs fa
 threshold. Document it in AGENTS.md; note the baseline is currently small/biased."*
 **Acceptance:** repeatable command; aimbot run scores clearly above the human run on aim signals.
 
-### WO-AC4 — Deterministic demo re-simulation  ·  Roadmap #16  ·  Effort M  ·  foundational (own slice)
+### WO-AC4 — Deterministic demo re-simulation  ·  Roadmap #16  ·  foundational  ·  🟡 CORE DONE (AC4a), AC4b remaining
 **Goal:** record usercmds in demos + a verifier that replays them through the authoritative sim and
 checks reconciliation → tamper-evident demos + a full-fidelity offline detector oracle + the
 definitive appeal answer.
-**Approach:** (a) extend `DemoRecorder` with a **usercmd track** (sanitized inputs per tick per
-player); (b) a `demo:verify` CLI that builds a `GameServer` sim, feeds the recorded usercmds
-tick-by-tick, and compares per-tick snapshot checksums to the recorded ones (same idea as
-`server:fuzz`).
+
+**AC4a — re-sim oracle (✅ IMPLEMENTED):** `src/games/fps/server/ReSim.ts` —
+`resimulate(spawns, log, ticks)` replays a recorded usercmd log through a fresh `FPSMovementSubsystem`
+sim and emits a **per-tick state checksum** (`WorldState.checksum()`); `verifyAgainst(spawns, log,
+golden[])` compares those to a golden series. `ReSim.test.ts` proves the three oracle properties:
+determinism (two re-sims agree), clean reconciliation, and **tamper-evidence** — a doctored input log
+*or* a doctored recorded checksum both diverge, at the expected tick. This is the computational heart
+of `demo:verify`. Scope: **movement only** (the fixed-rate input path the determinism work targeted);
+weapons/combat re-sim needs a collision world — tracked as a limitation, not yet built.
+
+**AC4b — on-disk plumbing (remaining):** (a) extend `DemoRecorder` with a **usercmd track** + a
+**golden per-tick checksum** track (bump `DEMO_VERSION`; careful — the footer is parsed from EOF, so
+add sections *before* the footer and version-gate the reader); (b) a `demo:verify` CLI that reads a
+real `.shagdemo`, feeds its usercmds to `resimulate`, and calls `verifyAgainst` on its golden
+checksums. The oracle (AC4a) is done; this is I/O + format work.
 **Key work — determinism audit (✅ complete):** `server:fuzz` proves run1==run2 *within one
 process/seed*; record→replay across processes needs **every** non-deterministic sim input captured
 or seeded. **Done:** all sim-affecting RNG is now seeded from sim state via
