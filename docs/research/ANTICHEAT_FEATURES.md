@@ -5,8 +5,10 @@
 layers — the part that deals with cheats authority alone can't stop. **Shipped so far:** WO-12
 telemetry substrate; WO-AC1 accuracy/headshot; WO-AC2 impossible-input counters; sim RNG determinism
 (R3/R3b); and the WO-AC4 re-sim **oracle** (`ReSim.ts` — tamper-evident replay, movement scope). See
-§7. WO-AC4 complete at movement scope — `ReSim` oracle + `ReSimBundle` + `demo:verify` CLI
-(full-match re-sim = R10). Next: WO-AC3 (calibration harness) or R10 (full-match re-sim).
+§7. WO-AC4 (`ReSim` oracle + `ReSimBundle` + `demo:verify`) done; **R10 blocker cleared** — the full
+weapon+combat+projectile stack is proven deterministic under replay (`resimulateFull`), so full-match
+re-sim is now a mechanical extension (collision + event replay + recording). Next: WO-AC3
+(calibration harness) or finishing R10 (event replay + recording).
 
 **Mission:** a **safe space for vintage FPS gamers** — a place where players of classic-style
 movement-shooters get fair games, and where cheating is made costly, risky, and mostly kept away
@@ -524,6 +526,14 @@ decoupled artifact:
 **Why a bundle, not `.shagdemo`:** the oracle is movement-scope, so a bundle it can actually
 reconcile is the honest artifact today. Extending to verify a *full recorded `.shagdemo` match* needs
 full-server re-sim (all subsystems + collision + join/respawn/event replay) — tracked as R10.
+
+**R10 progress — full-stack determinism proven:** `ReSim.resimulateFull` runs movement + weapons +
+combat + projectiles with the same per-tick damage forwarding as `GameServer.tick`, and
+`stateChecksum` now folds in velocity + health/dead (not just position) so combat/knockback are
+observable. `ReSim.test.ts` proves the full combat stack is **deterministic under replay** and that
+combat is actually exercised. That clears R10's real blocker (was the full stack even deterministic?
+— yes). The remaining R10 work is mechanical: a collision world, gametype/event replay, and recording
+the event+usercmd+checksum stream live.
 **Key work — determinism audit (✅ complete):** `server:fuzz` proves run1==run2 *within one
 process/seed*; record→replay across processes needs **every** non-deterministic sim input captured
 or seeded. **Done:** all sim-affecting RNG is now seeded from sim state via
@@ -557,7 +567,7 @@ Kept current as work lands. **Sev** = impact if unmitigated. **Status:** OPEN / 
 | R7 | **Telemetry map growth** — per-entity maps (`accuracy`, `tripwireHits`) grow with entity ids; `Telemetry`/physics clean on remove, but `WeaponSystem.accuracy` isn't cleared per-entity | Low | WATCH | Bounded by joins per server session; fine for now. Add cleanup if long-lived servers show growth. |
 | R8 | **Jitter includes server scheduling** — telemetry jitter uses `performance.now`, so GC/load noise mixes with network jitter | Low | WATCH | It measures *arrival regularity* (which is what a jitter buffer cares about); calibrate accordingly, don't read as pure network jitter. |
 | R9 | **Privacy scope creep** — behavioral collection drifting toward fingerprinting/surveillance | Med | MITIGATED | §0.3 guardrail: only gameplay-derived data, no hardware/machine inspection, bounded retention, transparent. Re-check when adding ban-evasion linkage (§4). |
-| R10 | **Re-sim scope is movement-only** — `ReSim`/`demo:verify` reconcile a movement bundle, not a full recorded `.shagdemo` match (weapons/combat/pickups/respawns + collision + event replay) | Med | WATCH | The determinism substrate (R3/R3b) covers the whole sim, so extension is mechanical: run the full `GameServer` sim headless, replay recorded join/input/respawn events, checksum per tick. Until then, `demo:verify` proves the *primitive*, not full matches. |
+| R10 | **Re-sim scope < full match** — verifying a real recorded `.shagdemo` (all subsystems + collision + join/respawn/event replay) | Med | PARTIALLY MITIGATED | **Blocker cleared:** `resimulateFull` (movement+weapon+combat+projectile) is proven **deterministic under replay** (`ReSim.test.ts` R10 block), and `stateChecksum` now folds in velocity + health/dead so combat/knockback are observable. So full-match re-sim is *achievable* — the remaining work is mechanical: a collision world (map via pk3 index), gametype respawn + join/disconnect **event replay**, and recording the event+usercmd+checksum stream during a live match. Not a determinism problem anymore. |
 
 ---
 
