@@ -87,6 +87,8 @@ export class ProjectileManager {
   private _tmpMoveDir = Vector3.Zero();
   private _tmpRay = new Ray(Vector3.Zero(), Vector3.Forward(), 1);
   private static readonly _defaultFwd = new Vector3(0, 0, 1);
+  // Scratch for updateTrail's cumulative arc lengths (avoids per-frame alloc)
+  private _trailArcLenScratch: number[] = [];
 
   private constructor() {}
 
@@ -998,6 +1000,20 @@ export class ProjectileManager {
     const pathB: Vector3[] = [];
     const cameraPos = this.scene.activeCamera?.globalPosition ?? this.scene.activeCamera?.position ?? null;
 
+    // Cumulative arc length per point — the width taper is distance-based,
+    // NOT index-based. The pre-fill packs up to 59 points into a ~0.6u cluster
+    // behind the spawn; an index-based taper compresses the whole 0→full fade
+    // into that invisible cluster and the first real point renders near full
+    // width (square-cut tail). Arc-length fraction spreads the triangle over
+    // the actual visible trail regardless of point spacing.
+    const arcLen = this._trailArcLenScratch;
+    arcLen.length = proj.trailPoints.length;
+    arcLen[0] = 0;
+    for (let i = 1; i < proj.trailPoints.length; i++) {
+      arcLen[i] = arcLen[i - 1] + Vector3.Distance(proj.trailPoints[i], proj.trailPoints[i - 1]);
+    }
+    const totalArcLen = arcLen[proj.trailPoints.length - 1];
+
     for (let i = 0; i < proj.trailPoints.length; i++) {
       const p = proj.trailPoints[i];
 
@@ -1022,8 +1038,9 @@ export class ProjectileManager {
       }
       perp.normalize();
 
-      // Taper width: 0 at tail → full at head
-      const t = i / (proj.trailPoints.length - 1);
+      // Taper width: 0 at tail → full at head (soft triangle), by distance
+      // along the trail so packed pre-fill points don't distort the shape
+      const t = totalArcLen > 0.001 ? arcLen[i] / totalArcLen : 0;
       const width = TRAIL_WIDTH * t;
 
       pathA.push(p.add(perp.scale(width)));
