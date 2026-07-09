@@ -7,6 +7,7 @@
 
 import { EntityType } from "../../EntityType";
 import type { WeaponDef } from "../../WeaponDef";
+import { GRENADE } from "../projectiles/grenade";
 
 export const GRENADE_LAUNCHER: WeaponDef = {
   // Identity
@@ -36,8 +37,8 @@ export const GRENADE_LAUNCHER: WeaponDef = {
   hipfireBlocked: true,
   pickupBounds: { x: 32, y: 32, z: 32 },
   projectileId: "grenade",
-  projectileSpeed: 1704,
-  projectileGravity: 3, // arcs downward (× base 800); other projectiles fly straight (F6)
+  projectileSpeed: GRENADE.speed,
+  projectileGravity: GRENADE.gravity, // arcs downward (x base 800); other projectiles fly straight (F6)
   splashRadius: 150,
   splashDamage: 80,
   minSplashDamage: 15,

@@ -20,13 +20,14 @@ export const GRENADE: ProjectileDef = {
   scale: 1.0,
 
   // Gameplay (server-authoritative)
-  speed: 1000,
+  speed: 900,
   damage: 80,
   splashDamage: 15,
   splashRadius: 125,
-  lifetime: 1.25, // 1250ms timeout
-  gravity: 1, // Full gravity
+  lifetime: 1.5, // 1500ms timeout
+  gravity: 1.05, // Warsow-like arc: ~840 u/s^2
   bounces: 3, // Bounces before explode
+  bounceFactor: 0.45,
 
   // Light
   lightColor: { r: 0.3, g: 0.5, b: 1.0 },

@@ -16,7 +16,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { getEntityRegistry, type ProjectileDef } from "../../shared/entities";
+import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import {
@@ -38,7 +38,7 @@ interface ActiveProjectile {
   velocity: Vector3; // Full velocity vector (modified by gravity)
   gravity: number; // 0 = none, 1 = full (800 u/s²)
   bouncesLeft: number; // Remaining bounces before explode
-  bounceFactor: number; // Velocity retention on bounce (0.65)
+  bounceFactor: number; // Velocity retention on bounce
   spawnTime: number;
   lifetime: number;
   materials: StandardMaterial[]; // For fade-in effect
@@ -486,7 +486,7 @@ export class ProjectileManager {
       velocity: opts?.velocityOverride ? opts.velocityOverride.clone() : normalDir.scale(def.speed),
       gravity: def.gravity ?? 0,
       bouncesLeft: def.bounces ?? 0,
-      bounceFactor: 0.65,
+      bounceFactor: def.bounceFactor ?? DEFAULT_PROJECTILE_BOUNCE_FACTOR,
       spawnTime: performance.now() / 1000,
       lifetime: def.lifetime,
       materials,

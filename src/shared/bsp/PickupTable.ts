@@ -28,14 +28,29 @@ export const CLASSNAME_TO_WEAPON: Record<string, string> = {
 };
 
 /** Pickup type tracked by the server. */
-export type PickupType = "weapon" | "armor" | "health";
+export type PickupType = "weapon" | "ammo" | "armor" | "health";
 
 /** Descriptor for a tracked pickup classname: its type + game-specific kind. */
 interface PickupClassInfo {
   type: PickupType;
-  /** For weapons: the weapon id. For armor: ArmorKind. For health: HealthKind. */
+  /** For weapons: weapon id. For ammo: ammo type. For armor/health: grant kind. */
   kind: string;
+  /** Ammo amount for ammo pickups. */
+  amount?: number;
 }
+
+const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
+  ammo_bullets: { type: "ammo", kind: "bullets", amount: 50 },
+  ammo_shells: { type: "ammo", kind: "shells", amount: 10 },
+  ammo_rockets: { type: "ammo", kind: "rockets", amount: 10 },
+  ammo_cells: { type: "ammo", kind: "cells", amount: 100 },
+  ammo_grenades: { type: "ammo", kind: "grenades", amount: 10 },
+  ammo_bolts: { type: "ammo", kind: "bolts", amount: 10 },
+  ammo_instas: { type: "ammo", kind: "instas", amount: 5 },
+  ammo_lasers: { type: "ammo", kind: "lasers", amount: 100 },
+  ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
+  ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
+};
 
 /**
  * Canonical map of every server-tracked pickup classname → {type, kind}.
@@ -51,6 +66,8 @@ export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
       { type: "weapon" as const, kind: weaponId },
     ]),
   ),
+  // Ammo (kind = ammo type)
+  ...AMMO_CLASSNAMES,
   // Armor (kind = ArmorKind) — Warsow classnames
   item_armor_shard: { type: "armor", kind: "shard" },
   item_armor_ga: { type: "armor", kind: "ga" },
@@ -70,8 +87,10 @@ export interface PickupEntry {
   classname: string;
   /** Pickup type. */
   type: PickupType;
-  /** Game-specific kind: weapon id, ArmorKind, or HealthKind. */
+  /** Game-specific kind: weapon id, ammo type, ArmorKind, or HealthKind. */
   kind: string;
+  /** Ammo amount, only for type === "ammo". */
+  amount?: number;
   /** Babylon-space position (Q3 Y↔Z swapped), matching the BSP origin. */
   position: { x: number; y: number; z: number };
 }
@@ -81,7 +100,7 @@ export type WeaponPickupEntry = PickupEntry;
 
 /**
  * Extract the ordered list of ALL server-tracked pickups (weapons, armor,
- * health) from BSP entities. Iterates in BSP order, keeps only classnames in
+ * health, ammo) from BSP entities. Iterates in BSP order, keeps only classnames in
  * PICKUP_CLASSNAMES, and assigns sequential ids. Deterministic: identical input
  * → identical output, so server and client agree on every pickup id.
  */
@@ -106,6 +125,7 @@ export function extractPickups(
       classname: entity.classname,
       type: info.type,
       kind: info.kind,
+      amount: info.amount,
       position: { x, y: z, z: y }, // Q3→Babylon coord swap
     });
   }
@@ -116,7 +136,7 @@ export function extractPickups(
 /**
  * Back-compat helper: extract only weapon pickups. Note ids are assigned over
  * the FULL pickup set (extractPickups) so they stay consistent with the active-
- * set mask once armor/health share the same id space.
+ * set mask once armor/health/ammo share the same id space.
  */
 export function extractWeaponPickups(
   entities: Array<{ classname: string; properties: Record<string, string> }>,
