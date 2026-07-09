@@ -1,9 +1,13 @@
 /**
  * PointLightPool — Global pool of reusable PointLights.
  *
- * Pre-creates a fixed number of PointLights at init time so the scene
- * light count never changes. This prevents Babylon.js shader recompilation
- * when effects (projectiles, explosions, impacts) create/destroy lights.
+ * Pre-creates a fixed number of PointLights at init time and keeps them
+ * PERMANENTLY ENABLED (parked at intensity 0) so the scene's enabled-light
+ * set never changes. Babylon derives material shader defines from the set of
+ * enabled lights — toggling `setEnabled()` (or creating lights mid-game)
+ * changes the defines and forces shader recompilation, which caused the
+ * v0.9.16 first-shot hitch + transparent-wall flicker. An enabled light at
+ * intensity 0 contributes nothing visually but keeps the defines stable.
  *
  * Usage:
  *   const pool = getPointLightPool();
@@ -41,17 +45,26 @@ export class PointLightPool {
   }
 
   /**
-   * Pre-create all pool lights (call once during scene init).
-   * Lights start disabled so they don't affect anything.
+   * Pre-create all pool lights (call during scene init / map load, BEFORE
+   * EffectPreloader force-compiles materials so the compiled shader variants
+   * include these lights).
+   *
+   * Lights stay permanently ENABLED at intensity 0 — never toggled — so
+   * material defines (and thus compiled shaders) are identical whether a
+   * pool light is "in use" or parked.
    */
   init(scene: Scene): void {
-    if (this.initialized) return;
+    if (this.initialized) {
+      // Same scene: nothing to do. New scene (map change): rebuild the pool
+      // so the lights live in the active scene from load time.
+      if (this.entries.length > 0 && this.entries[0].light.getScene() === scene) return;
+      this.dispose();
+    }
 
     for (let i = 0; i < POOL_SIZE; i++) {
       const light = new PointLight(`_pool_light_${i}`, Vector3.Zero(), scene);
       light.intensity = 0;
-      light.range = 0;
-      light.setEnabled(false);
+      light.range = 1;
 
       this.entries.push({
         light,
@@ -61,7 +74,7 @@ export class PointLightPool {
     }
 
     this.initialized = true;
-    console.log(`[PointLightPool] Initialized with ${POOL_SIZE} lights`);
+    console.log(`[PointLightPool] Initialized with ${POOL_SIZE} always-enabled lights (intensity-parked)`);
   }
 
   /**
@@ -88,14 +101,15 @@ export class PointLightPool {
     light.specular = color.scale(0.3);
     light.intensity = intensity;
     light.range = range;
-    light.setEnabled(true);
+    // NOTE: no setEnabled() — pool lights are permanently enabled. Toggling
+    // enabled-state changes material defines → shader recompiles → flicker.
 
     return light;
   }
 
   /**
    * Release a light back to the pool.
-   * The light is disabled and hidden.
+   * The light is parked at intensity 0 (kept enabled — see class doc).
    */
   release(light: PointLight | null): void {
     if (!light) return;
@@ -109,9 +123,12 @@ export class PointLightPool {
 
     entry.inUse = false;
     entry.acquireTime = 0;
+    // Detach from any effect node BEFORE that node is disposed — a parented
+    // light is a child Node and node.dispose() recurses into children, which
+    // would destroy the pooled light and silently break the pool.
+    light.parent = null;
     light.intensity = 0;
-    light.range = 0;
-    light.setEnabled(false);
+    light.range = 1;
   }
 
   /**

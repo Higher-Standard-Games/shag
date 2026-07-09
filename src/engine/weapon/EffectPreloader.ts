@@ -263,6 +263,16 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
   // compiled shaders. Disposing immediately can cause the GPU to discard
   // the pending compilation work.
   {
+    // Create the effect dlight pool NOW, before force-compilation, so the
+    // compiled shader variants include its 4 permanently-enabled lights.
+    // The pool never toggles setEnabled (only intensity), so the light set —
+    // and therefore every material's define set — is identical at runtime to
+    // what gets compiled here. If the pool were created later (lazily, on the
+    // first projectile), the light set would change mid-game and every
+    // lightmapped material would recompile → first-shot flicker.
+    const { getPointLightPool } = await import("./PointLightPool");
+    getPointLightPool().init(scene);
+
     // Build mapping: material → first mesh that uses it (deduplicated)
     // Covers BOTH StandardMaterial (BSP/MD3) and PBRMaterial (GLB weapons)
     const matMeshMap = new Map<StandardMaterial, Mesh>();

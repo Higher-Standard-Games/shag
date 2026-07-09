@@ -14,6 +14,15 @@ export interface MovementInput {
   /** Button states */
   buttons: number;
 
+  /**
+   * Input command sequence number (monotonic, 1 seq = one fixed-dt sim step).
+   * When present, movement profiles derive their internal timelines from it
+   * (`simTime = sequence * dt`) instead of accumulating deltaTime. This makes
+   * reconciliation replays idempotent: re-simulating the same command recomputes
+   * the same timestamps, so slide/walljump/ledge timers don't double-advance.
+   */
+  sequence?: number;
+
   /** Button check helper */
   isPressed(button: number): boolean;
 }

@@ -311,6 +311,16 @@ export class WeaponViewManager {
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
 
+    // Create the muzzle-flash light EAGERLY and keep it permanently enabled,
+    // parked at intensity 0. Creating it lazily on the first shot (or toggling
+    // setEnabled per shot) changes the scene's enabled-light set → material
+    // defines change → synchronous shader recompiles → first-shot hitch and
+    // walls flickering invisible while their new effect compiles.
+    if (this.muzzleFlashLight) this.muzzleFlashLight.dispose();
+    this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
+    this.muzzleFlashLight.intensity = 0;
+    this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
+
     // Register update loop. Previous-scene observer (if any) is already
     // detached above before `this.scene` was swapped.
     this.updateObserver = scene.onBeforeRenderObservable.add(() => {
@@ -1307,7 +1317,9 @@ export class WeaponViewManager {
       }
     }
 
-    // Create/Update light
+    // Update light (created eagerly in init(); fallback covers legacy init paths).
+    // Intensity-only control — never setEnabled(), which would change material
+    // defines and trigger shader recompilation (first-shot flicker bug).
     if (!this.muzzleFlashLight) {
       this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
     }
@@ -1317,10 +1329,7 @@ export class WeaponViewManager {
     this.muzzleFlashLight.diffuse = new Color3(color.r, color.g, color.b);
     this.muzzleFlashLight.specular = new Color3(color.r * 0.5, color.g * 0.5, color.b * 0.5);
     this.muzzleFlashLight.range = range;
-
-    // Ensure light is on
     this.muzzleFlashLight.intensity = 1.0;
-    this.muzzleFlashLight.setEnabled(true);
   }
 
   /**
@@ -1351,13 +1360,13 @@ export class WeaponViewManager {
         }
       }
 
-      // Update light intensity and position
+      // Update light intensity and position. Fades to intensity 0 and STAYS
+      // enabled — toggling setEnabled changes material defines → shader
+      // recompile flicker (see init()).
       if (this.muzzleFlashLight) {
         this.muzzleFlashLight.intensity = normalizedIntensity;
 
-        if (this.muzzleFlashIntensity <= 0) {
-          this.muzzleFlashLight.setEnabled(false);
-        } else {
+        if (this.muzzleFlashIntensity > 0) {
           // Update position if attached to tag
           const tag = this.currentWeapon?.getTag("tag_flash");
           if (tag && this.weaponRoot) {

@@ -951,10 +951,17 @@ export class ProjectileManager {
   /**
    * Update trail ribbon mesh for a projectile (grenades, rockets, etc.)
    *
-   * Material is created once and reused. The ribbon is created with updatable=true
-   * so that once the trail reaches max length to update geometry in place.
-   * During the growth phase (< MAX points), we must recreate because
-   * Babylon requires the same vertex count to update in place.
+   * Material is created once and reused. The trail is FIXED-SIZE: on the first
+   * update, trailPoints is pre-filled with MAX_TRAIL_POINTS positions packed
+   * tightly behind the spawn point, so the ribbon is created exactly once and
+   * every subsequent frame updates it in place with an identical point count.
+   *
+   * IMPORTANT: Babylon's CreateRibbon `instance` update does NO vertex-count
+   * validation — it writes path positions sequentially into the existing
+   * buffer. Updating with a different point count than the mesh was built
+   * with shifts every row against the stale index buffer and leaves stale
+   * vertices at the end (v0.9.16 "ghost triangle" GL trail bug). Never let
+   * the point count differ from the mesh's creation count.
    */
   private updateTrail(proj: ActiveProjectile): void {
     if (!this.scene) return;
@@ -962,17 +969,26 @@ export class ProjectileManager {
     const MAX_TRAIL_POINTS = 60;
     const TRAIL_WIDTH = 6.0;
 
+    // First update: pre-fill to fixed size with points packed just behind the
+    // current position (tiny spacing avoids fully-degenerate ribbon geometry;
+    // the width taper renders the tail invisible until real points displace it)
+    if (proj.trailPoints.length === 0) {
+      const pos = proj.node.position;
+      const back = proj.direction.lengthSquared() > 0.001 ? proj.direction : Vector3.Up();
+      for (let i = 0; i < MAX_TRAIL_POINTS; i++) {
+        const behind = (MAX_TRAIL_POINTS - i) * 0.01;
+        proj.trailPoints.push(pos.subtract(back.scale(behind)));
+      }
+    }
+
     // Record current position
     proj.trailPoints.push(proj.node.position.clone());
 
-    // Trim old points — single splice is O(1) amortized vs O(n) per shift() call
+    // Trim old points — keeps length pinned at exactly MAX_TRAIL_POINTS
     const overshoot = proj.trailPoints.length - MAX_TRAIL_POINTS;
     if (overshoot > 0) {
       proj.trailPoints.splice(0, overshoot);
     }
-
-    // Need at least 2 points for a ribbon
-    if (proj.trailPoints.length < 2) return;
 
     // Build a single camera-facing ribbon.
     // The previous X-formation looked volumetric on straight shots, but on
@@ -1016,10 +1032,10 @@ export class ProjectileManager {
 
     const pathArray = [pathA, pathB];
 
-    // At max capacity, the point count is stable — update ribbon in place.
-    // During growth phase, we must dispose + recreate because Babylon requires
-    // the same vertex count to update an existing ribbon.
-    if (proj.trailMesh && proj.trailPoints.length === MAX_TRAIL_POINTS) {
+    // Point count is fixed from the first frame (pre-fill above), so the mesh
+    // is created exactly once and updated in place ever after — same vertex
+    // count guaranteed, no growth-phase recreation churn.
+    if (proj.trailMesh) {
       MeshBuilder.CreateRibbon(`${proj.id}_trail`, {
         pathArray,
         updatable: true,
@@ -1027,11 +1043,6 @@ export class ProjectileManager {
         instance: proj.trailMesh as unknown as Mesh,
       });
     } else {
-      // Dispose old mesh if point count changed (growth phase)
-      if (proj.trailMesh) {
-        proj.trailMesh.dispose();
-        proj.trailMesh = null;
-      }
       proj.trailMesh = MeshBuilder.CreateRibbon(
         `${proj.id}_trail`,
         {
