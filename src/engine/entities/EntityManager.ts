@@ -163,19 +163,25 @@ export class EntityManager {
     }
 
     // Authoritative pickup id from the shared table (matches the server). All
-    // server-tracked types (weapon/armor/health) share one id space. Match by
+    // server-tracked types (weapon/ammo/armor/health) share one id space. Match by
     // classname + XZ — both sides parse the same BSP origin, so XZ is exact
     // (only Y differs: client adds +24, table keeps raw). Disambiguates multiple
-    // pickups of the same kind by position. (ammo is not server-tracked → no id.)
-    const pickupId =
-      type === "ammo"
-        ? undefined
-        : this.pickupTable.find(
-            (e) =>
-              e.classname === def.classname &&
-              Math.abs(e.position.x - position.x) < 0.5 &&
-              Math.abs(e.position.z - position.z) < 0.5,
-          )?.id;
+    // pickups of the same kind by position. All server-tracked pickups,
+    // including ammo, must have an id.
+    const pickupEntry = this.pickupTable.find(
+      (e) =>
+        e.classname === def.classname &&
+        Math.abs(e.position.x - position.x) < 0.5 &&
+        Math.abs(e.position.z - position.z) < 0.5,
+    );
+    const pickupId = pickupEntry?.id;
+
+    if (pickupId === undefined) {
+      console.warn(
+        `[EntityManager] Skipping server-managed pickup without shared id: ${def.classname ?? def.id} at ${position.toString()}`,
+      );
+      return { handled: true };
+    }
 
     const pickup = new FPSPickup(name, scene, position, {
       id: def.id,

@@ -389,6 +389,7 @@ export class Pickup extends TransformNode {
 
     // Defer visual changes to next frame to avoid render-state conflicts
     requestAnimationFrame(() => {
+      if (this.isActive) return;
       this.setEnabled(false);
       if (this.mesh) {
         this.mesh.setEnabled(false);

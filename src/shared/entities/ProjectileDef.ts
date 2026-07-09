@@ -29,6 +29,8 @@ export interface ProjectileDef extends EntityDef {
   gravity?: number;
   /** Number of bounces before explode (0 = explode on first hit) */
   bounces?: number;
+  /** Velocity retention on bounce (0.45 = retain 45% after reflection) */
+  bounceFactor?: number;
 
   // === CLIENT-SIDE (visuals) ===
   /** Projectile light color */
@@ -66,12 +68,17 @@ export interface ProjectileDef extends EntityDef {
 
 // ==================== DEFAULTS ====================
 
+/** Velocity retention on world bounce when a def doesn't specify one (Warsow-style).
+ *  Single source — server ProjectileSystem and client ProjectileManager both use it. */
+export const DEFAULT_PROJECTILE_BOUNCE_FACTOR = 0.45;
+
 export const PROJECTILE_DEFAULTS: Partial<ProjectileDef> = {
   speed: 2000,
   damage: 15,
   lifetime: 5.0,
   gravity: 0,
   bounces: 0,
+  bounceFactor: DEFAULT_PROJECTILE_BOUNCE_FACTOR,
   lightIntensity: 5,
   lightRange: 20,
 };
