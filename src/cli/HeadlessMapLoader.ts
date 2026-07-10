@@ -9,12 +9,16 @@ import { resolveMapBspViaIndex } from "../engine/loader/pk3/NodePk3";
 import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { PickupEntry } from "../shared/bsp/PickupTable";
 import { extractPickups } from "../shared/bsp/PickupTable";
+import type { TriggerVolume } from "../shared/bsp/TriggerTable";
+import { extractTriggerVolumes } from "../shared/bsp/TriggerTable";
 
 export interface BspData {
   collision: CollisionWorld;
   spawnPoints: Array<{ x: number; y: number; z: number }>;
   /** Authoritative pickup table (weapons/armor/health) shared with the client. */
   pickups: PickupEntry[];
+  /** Trigger volumes (teleporters/jumppads) — shared TriggerTable, same ids as the client. */
+  triggers: TriggerVolume[];
   /** PVS data for server-side network visibility culling */
   pvs: import("../engine/server/ServerPVS").ServerPVSData | null;
 }
@@ -71,6 +75,12 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
   const pickups = extractPickups(bsp.entities);
   console.log(`[Map] Found ${pickups.length} tracked pickups (weapon/armor/health)`);
 
+  // Extract trigger volumes (teleporters + jumppads) via the shared TriggerTable.
+  const triggers = extractTriggerVolumes(bsp.entities, bsp.models);
+  console.log(
+    `[Map] Found ${triggers.length} trigger volumes (${triggers.filter((t) => t.type === "teleport").length} teleporters, ${triggers.filter((t) => t.type === "push").length} jumppads)`,
+  );
+
   // Retain PVS data for server-side network visibility culling
   const pvs = bsp.visData
     ? {
@@ -83,5 +93,5 @@ export async function loadBspCollision(mapName: string, gamePath = "./game"): Pr
 
   console.log(pvs ? `[Map] PVS data retained: ${bsp.visData!.numClusters} clusters` : "[Map] No PVS data in BSP");
 
-  return { collision, spawnPoints, pickups, pvs };
+  return { collision, spawnPoints, pickups, triggers, pvs };
 }

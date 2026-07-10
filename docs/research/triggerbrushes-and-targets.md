@@ -1,10 +1,35 @@
 # Trigger Brushes & Targets — Teleporters and Jumppads
 
 Date: 2026-07-10
-Status: in progress — T1 + T2 + T3 done; T4 (wiring + client) remaining
+Status: T1–T4 core done — **teleporters and jumppads are live end-to-end**;
+remaining: T4b (events/sounds/VFX, spawn facing) + the wdm2 browser pass
 Target test map: **wdm2** (4 teleporters + 1 jumppad)
 
 ## Progress log
+
+- **T4 CORE DONE (2026-07-10)** — wiring, both sides:
+  - Server: `HeadlessMapLoader` extracts `BspData.triggers` via the shared
+    table → `GameServer.setTriggerVolumes` → `FPSMovementSubsystem` installs
+    into every profile (existing + created-later). Wired in
+    `headless-netserver-v2` and `record-demo`. **Smoke-tested live on wdm2:
+    `[Map] Found 5 trigger volumes (4 teleporters, 1 jumppads)` →
+    `[GameServer] 5 trigger volumes configured`.**
+  - Client: `Game.ts` map-load callback runs the SAME extraction from the
+    client's parsed BSP (new `CollisionManager.getBsp()`) →
+    `V2NetworkClient.setTriggerVolumes` → prediction profile. Pads and
+    teleporters are now client-predicted with zero reconciliation snap by
+    construction.
+  - Camera: `V2NetworkClient.onTeleport(cb)` fires ONLY from the fresh-input
+    prediction path (never reconciliation replays, which recompute past
+    steps); `Game.ts` hooks it to the new `FPSController.setViewYaw(yaw)`
+    (writes the input-handler mouse accumulator AND the camera — setting
+    only the camera would snap back on the next mouse move).
+  - Gates: tsc clean, 1254/1254, test:simulation, server:tick, server:fuzz.
+  - **Remaining (T4b, browser-adjacent):** teleport_in/out + jumppad_launch
+    snapshot events with sounds/VFX (server edge-detects off the result
+    flags), spawn-facing from the spawn-point `angle` key (same camera
+    plumbing — use `setViewYaw`), the `q3AngleToGameYaw` empirical sign
+    check on wdm2's t2 exit, and the full wdm2/wdm7 browser pass.
 
 - **T3 DONE (2026-07-10)** — teleporters in the shared `MovementProfile` +
   server side effects:

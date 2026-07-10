@@ -122,6 +122,7 @@ async function main(): Promise<void> {
   server.setCollisionWorld(bspData.collision);
   server.setSpawnPoints(bspData.spawnPoints);
   server.setPickupItems(bspData.pickups);
+  server.setTriggerVolumes(bspData.triggers);
   server.setPickupRespawnTime(15);
   if (bspData.pvs) server.setPVSData(bspData.pvs);
   await server.start();
