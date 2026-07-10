@@ -193,8 +193,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     type: "int",
   },
   sv_falldamage_min: {
-    value: 128,
-    defaultValue: 128,
+    value: 256,
+    defaultValue: 256,
     min: 0,
     max: 4096,
     description: "Fall distance where damage starts (map units)",
@@ -202,8 +202,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     developerOnly: true,
   },
   sv_falldamage_full: {
-    value: 256,
-    defaultValue: 256,
+    value: 384,
+    defaultValue: 384,
     min: 1,
     max: 4096,
     description: "Fall distance where ramp damage reaches 100",
@@ -211,8 +211,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     developerOnly: true,
   },
   sv_falldamage_fatal: {
-    value: 384,
-    defaultValue: 384,
+    value: 512,
+    defaultValue: 512,
     min: 1,
     max: 4096,
     description: "Fall distance that becomes instantly fatal",
