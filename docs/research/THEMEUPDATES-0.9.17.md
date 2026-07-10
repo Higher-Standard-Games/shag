@@ -144,10 +144,9 @@ there, and what is still legacy styling.
 
 ### Partial or mixed style
 
-- `engine/ui/panels/GamePanel.{ts,css}`: dark and branded, but still the older
-  neon/bracket full-screen shell. Tabs, footer buttons, header treatment,
-  content panels, particles/logo, and generic `.fps-btn` should be converted so
-  all tabbed views inherit the new frame.
+- `engine/ui/panels/GamePanel.{ts,css}`: first print-slab CSS pass is now in.
+  It has the new frame, tab, footer, and shared settings-control treatment, but
+  still needs browser visual review against lobby/settings content.
 - `games/fps/client/settings/FPSSettingsView.css`: uses theme fonts/colors and
   its confirm dialog goes through `MangaPanelDialog`, but settings sections,
   category tabs, keybind rows, mouse/controller visuals, sliders, toggles, and
@@ -188,9 +187,8 @@ there, and what is still legacy styling.
 
 ### Suggested migration order
 
-1. Add shared primitives in `WashikiTheme.css` (`.w-slab`, `.w-stamp`,
-   `.w-btn`, `.w-panel-backdrop`, maybe `.w-ticket`) and convert
-   `GamePanel.css` to use them. This gives every tabbed panel the right frame.
+1. Visual-review the new shared primitives + `GamePanel.css` pass in lobby and
+   settings, then tune spacing/cut angles if any panel content clips.
 2. Finish the player-facing lobby tabs: Leaderboard, Profile, Demos, and the
    duration picker.
 3. Convert `FPSSettingsView.css` and its menu/toggle/slider/keybind controls.
@@ -204,7 +202,7 @@ there, and what is still legacy styling.
 
 Implemented the first high-leverage theme pass after the audit:
 
-- Added shared print-slab primitives to `src/engine/ui/hud/styles/WashikiTheme.css`:
+- Confirmed shared print-slab primitives are available in `src/engine/ui/hud/styles/WashikiTheme.css`:
   `.w-panel-backdrop`, `.w-slab`, `.w-ticket`, `.w-stamp`, `.w-btn`, plus primary/danger/accent variants.
 - Reworked `src/engine/ui/panels/styles/GamePanel.css` toward the ESC/menu language:
   dark navy scanline center ground, hard print shadows, stamped title, cut tab buttons,
