@@ -7,6 +7,32 @@ Target test map: **wdm2** (4 teleporters + 1 jumppad)
 
 ## Progress log
 
+- **T4b VFX DONE (2026-07-10)** — washoi teleport effects, entry AND exit
+  (user call: "we're more arcade than warsow" — entry ghost is deliberate
+  gameplay info, a duelist can track tele usage):
+  - `client/TeleportEffect.ts`: **posterized afterimage ghost** (anchor
+    hierarchy cloned, shares the source skeleton so the pose stays live, one
+    flat unlit team-color material, alpha fades in 4 DISCRETE steps — print
+    frames, not a smooth ghost) + **radial speed-line burst** (procedural
+    12-spike starburst, camera-billboarded, 3-step fade + scale-up).
+    Self-updating observer, hard cap 12, scene-change safe, fully defensive
+    (cosmetic — never breaks the render loop).
+  - Remote players: `RemotePlayerRenderer` detects a >256u frame-to-frame
+    displacement → ghost+burst at both ends. **No protocol changes** — the
+    heuristic rides the snapshot stream (respawns don't fire: death disposes
+    the hitbox via markDead). Explicit events can replace it later if it
+    ever misfires.
+  - Streak fix at the right altitude: `SnapshotBuffer.lerpEntity` now SNAPS
+    (no lerp) across >256u inter-snapshot jumps — Q3's EF_TELEPORT_BIT
+    equivalent. Without it a teleporting remote player smeared across the
+    map for the interp window. Benefits demo playback too.
+  - Local player: profile result gained `teleportFrom` (entry position);
+    `V2NetworkClient.onTeleport(exitYaw, from, to)` → Game pops bursts at
+    both ends (no self-ghost — we have no third-person body; other clients
+    draw our ghosts from their remote view).
+  - Gates: tsc clean, 1255/1255, server:tick checksum unchanged. Needs the
+    browser eyeball for look/feel tuning (step counts, radii, colors).
+
 - **BROWSER PASS #1 (2026-07-10)** — teleporters and jumppads confirmed
   working in-game on wdm2. One feel bug found and fixed: mode-1 exit velocity
   preserved only the HORIZONTAL magnitude, but wdm2 has drop-in teles where
