@@ -216,6 +216,7 @@ async function main(): Promise<void> {
     server.setCollisionWorld(bspData.collision);
     server.setSpawnPoints(bspData.spawnPoints);
     server.setPickupItems(bspData.pickups);
+    server.setTriggerVolumes(bspData.triggers);
     server.setPickupRespawnTime(15); // weapons: 15s (armor 25s+15s delay, health 20s, mega 60s are PickupSystem defaults)
     if (bspData.pvs) {
       server.setPVSData(bspData.pvs);

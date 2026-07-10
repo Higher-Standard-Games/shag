@@ -141,6 +141,21 @@ export class FPSController implements ICameraController {
   }
 
   /**
+   * Hard-set the view yaw (radians) — teleporter exits and spawn facing.
+   * Must write BOTH the input handler's mouse accumulator and the camera,
+   * otherwise the next mouse move snaps the view back to the old yaw.
+   */
+  public setViewYaw(yaw: number): void {
+    this.mouseRotationY = yaw;
+    if (this.inputHandler) {
+      this.inputHandler.mouseRotationY = yaw;
+    }
+    if (this.camera) {
+      this.camera.rotation.y = yaw;
+    }
+  }
+
+  /**
    * Get current player collision height based on crouch/slide state
    * @returns CROUCH_HEIGHT (36) when crouching/sliding, PLAYER_HEIGHT (56) otherwise
    */

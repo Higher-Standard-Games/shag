@@ -76,6 +76,15 @@ export class CollisionManager {
   }
 
   /**
+   * The parsed BSP this manager was initialized with (null before init).
+   * Used by game modules that need map entity/model data at the same
+   * lifetime as collision (e.g. trigger volumes for client prediction).
+   */
+  getBsp(): BspFile | null {
+    return this.bsp;
+  }
+
+  /**
    * Switch to a different collision backend
    */
   setBackend(type: CollisionBackendType): boolean {

@@ -231,6 +231,138 @@
 }
 
 /* ============================================================================
+   Shared Print-Slab Primitives
+   ============================================================================ */
+
+.w-panel-backdrop {
+  position: relative;
+  background:
+    linear-gradient(138deg, hsla(238, 36%, 9%, 0.92), hsla(245, 42%, 5%, 0.94)),
+    var(--w-scan-cyan);
+  color: var(--w-text);
+  border: 2px solid hsla(180, 100%, 50%, 0.28);
+  box-shadow:
+    10px 11px 0 hsla(250, 45%, 4%, 0.54),
+    inset 0 0 0 2px hsla(180, 100%, 50%, 0.18),
+    inset 7px 0 0 hsla(180, 100%, 50%, 0.36);
+}
+
+.w-slab,
+.w-ticket {
+  position: relative;
+  background:
+    linear-gradient(92deg, hsla(180, 100%, 50%, 0.08), hsla(0, 0%, 100%, 0.03) 62%),
+    hsla(238, 38%, 8%, 0.72);
+  color: var(--w-text);
+  border: 1.5px solid hsla(180, 100%, 50%, 0.28);
+  box-shadow:
+    4px 5px 0 hsla(250, 45%, 4%, 0.38),
+    inset 5px 0 0 hsla(180, 100%, 50%, 0.38);
+}
+
+.w-slab {
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+}
+
+.w-ticket {
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 95% 100%, 0 100%);
+}
+
+.w-slab:hover,
+.w-ticket:hover,
+.w-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    7px 8px 0 hsla(250, 45%, 4%, 0.48),
+    inset 5px 0 0 hsla(45, 100%, 55%, 0.72);
+}
+
+.w-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  font-family: var(--w-font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--w-ink);
+  background: var(--w-gold);
+  clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
+  box-shadow: 3px 3px 0 hsla(320, 100%, 60%, 0.58);
+}
+
+.w-stamp--cyan {
+  background: var(--w-cyan);
+  box-shadow: 3px 3px 0 hsla(45, 100%, 55%, 0.42);
+}
+
+.w-stamp--magenta {
+  background: var(--w-magenta);
+  box-shadow: 3px 3px 0 hsla(180, 100%, 50%, 0.38);
+}
+
+.w-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 20px;
+  font-family: var(--w-font-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--w-text);
+  background:
+    linear-gradient(92deg, hsla(180, 100%, 50%, 0.18), hsla(0, 0%, 100%, 0.05) 62%),
+    hsla(238, 38%, 8%, 0.9);
+  border: 1.5px solid hsla(180, 100%, 50%, 0.4);
+  clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
+  box-shadow:
+    4px 5px 0 hsla(250, 45%, 4%, 0.4),
+    inset 5px 0 0 hsla(180, 100%, 50%, 0.44);
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.w-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow:
+    2px 2px 0 hsla(250, 45%, 4%, 0.4),
+    inset 5px 0 0 hsla(45, 100%, 55%, 0.68);
+}
+
+.w-btn--primary {
+  color: var(--w-ink);
+  background: linear-gradient(90deg, var(--w-gold), hsl(50, 100%, 62%));
+  border-color: hsla(45, 100%, 55%, 0.78);
+  box-shadow:
+    5px 6px 0 hsla(250, 45%, 4%, 0.42),
+    inset 5px 0 0 hsla(0, 0%, 100%, 0.32);
+}
+
+.w-btn--danger {
+  color: hsl(350, 100%, 86%);
+  border-color: hsla(345, 100%, 62%, 0.58);
+  background:
+    linear-gradient(92deg, hsla(345, 100%, 62%, 0.24), hsla(320, 100%, 60%, 0.06) 62%),
+    hsla(248, 42%, 8%, 0.92);
+  box-shadow:
+    4px 5px 0 hsla(250, 45%, 4%, 0.42),
+    inset 5px 0 0 hsla(345, 100%, 62%, 0.54);
+}
+/* ============================================================================
    FPS HUD Container (overrides default hud-container for FPS games)
    ============================================================================ */
 

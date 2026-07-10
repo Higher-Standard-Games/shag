@@ -268,8 +268,19 @@ export class SnapshotBuffer {
     return snap.receiveTime;
   }
 
+  /** Inter-snapshot jump beyond this = teleport: snap instead of streaking across the map. */
+  private static readonly TELEPORT_SNAP_DIST = 256;
+
   private lerpEntity(a: EntitySnapshot, b: EntitySnapshot, t: number): InterpolatedEntity {
     const clampedT = Math.max(0, Math.min(1, t));
+
+    // Teleport discontinuity: interpolating across a huge inter-snapshot jump
+    // would streak the entity across the map. Snap to the newer snapshot
+    // instead (same idea as Q3's EF_TELEPORT_BIT no-lerp).
+    const jumpSq = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 + (b.z - a.z) ** 2;
+    if (jumpSq > SnapshotBuffer.TELEPORT_SNAP_DIST * SnapshotBuffer.TELEPORT_SNAP_DIST) {
+      return { ...b };
+    }
 
     // Lerp position
     const x = a.x + (b.x - a.x) * clampedT;
