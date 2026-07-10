@@ -48,6 +48,8 @@ interface ActiveProjectile {
   isLocalPrediction: boolean; // If true, silently despawn on hit (no explosion)
   isServerDriven: boolean; // If true, position comes from server snapshots (no client raycast)
   serverEntityId?: string; // Server entity ID (e.g. 'proj_10001') for linking
+  /** First-person muzzle convergence: visual offset decaying to zero (own shots only). */
+  renderOffset?: Vector3 | null;
 }
 
 interface ActiveImpact {
@@ -128,6 +130,46 @@ export class ProjectileManager {
   // SERVER-DRIVEN PROJECTILE API
   // ═══════════════════════════════════════════════════════════════
 
+  // ── First-person muzzle convergence ─────────────────────────────
+  // The authoritative projectile spawns at the EYE (crosshair-accurate), so
+  // for the local player its trail points straight back at the camera and
+  // never reads as "from the barrel". Q3-family fix: offset the VISUAL to
+  // the view-model muzzle and converge onto the true trajectory over the
+  // first fraction of a second. Position on the wire is untouched.
+
+  /** Visual muzzle relative to the camera (units): forward, down. */
+  private static readonly MUZZLE_FORWARD = 34;
+  private static readonly MUZZLE_DOWN = 9;
+  /** Time for the visual to converge onto the authoritative trajectory. */
+  private static readonly MUZZLE_CONVERGE_SEC = 0.22;
+  /** "This is my shot" heuristic: spawned near my camera, flying along my view. */
+  private static readonly OWN_SHOT_MAX_DIST = 120;
+
+  /**
+   * If a freshly spawned server projectile looks like the local player's own
+   * shot, return the render offset that moves its visual to the view-model
+   * muzzle (decays to zero over MUZZLE_CONVERGE_SEC).
+   */
+  private computeMuzzleOffset(position: Vector3, velocity: Vector3): Vector3 | null {
+    const camera = this.scene?.activeCamera;
+    if (!camera) return null;
+
+    const camPos = camera.globalPosition;
+    if (Vector3.Distance(position, camPos) > ProjectileManager.OWN_SHOT_MAX_DIST) return null;
+
+    const forward = camera.getDirection(Vector3.Forward());
+    const speed = velocity.length();
+    if (speed > 1) {
+      const alongView = Vector3.Dot(velocity, forward) / speed;
+      if (alongView < 0.7) return null; // not flying where I'm looking — not my shot
+    }
+
+    const muzzle = camPos
+      .add(forward.scale(ProjectileManager.MUZZLE_FORWARD))
+      .add(new Vector3(0, -ProjectileManager.MUZZLE_DOWN, 0));
+    return muzzle.subtract(position);
+  }
+
   /**
    * Spawn a server-driven projectile visual.
    * Position will be updated from server snapshots.
@@ -147,12 +189,17 @@ export class ProjectileManager {
               : defId;
 
     const direction = velocity.normalizeToNew();
-    const id = this.spawn(projDefId, position, direction, {
+    const muzzleOffset = this.computeMuzzleOffset(position, velocity);
+    const id = this.spawn(projDefId, muzzleOffset ? position.add(muzzleOffset) : position, direction, {
       isLocalPrediction: false,
       isServerDriven: true,
       serverEntityId,
       velocityOverride: velocity,
     });
+    if (id && muzzleOffset) {
+      const proj = this.projectiles.find((p) => p.id === id);
+      if (proj) proj.renderOffset = muzzleOffset;
+    }
     return id;
   }
 
@@ -165,6 +212,19 @@ export class ProjectileManager {
     const proj = this.projectiles.find((p) => p.serverEntityId === serverEntityId);
     if (!proj) return;
     proj.node.position.copyFrom(position);
+
+    // Muzzle convergence: blend the barrel-offset visual onto the
+    // authoritative trajectory over the first fraction of a second.
+    if (proj.renderOffset) {
+      const age = performance.now() / 1000 - proj.spawnTime;
+      const k = 1 - age / ProjectileManager.MUZZLE_CONVERGE_SEC;
+      if (k <= 0) {
+        proj.renderOffset = null;
+      } else {
+        proj.node.position.addInPlace(proj.renderOffset.scale(k));
+      }
+    }
+
     proj.velocity.copyFrom(velocity);
     if (velocity.lengthSquared() > 0.01) {
       proj.direction = velocity.normalizeToNew();
