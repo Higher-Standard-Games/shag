@@ -1,8 +1,21 @@
 # Trigger Brushes & Targets — Teleporters and Jumppads
 
 Date: 2026-07-10
-Status: investigation complete, implementation planned (unstarted)
+Status: in progress — T1 done; T2/T3/T4 unstarted
 Target test map: **wdm2** (4 teleporters + 1 jumppad)
+
+## Progress log
+
+- **T1 DONE (2026-07-10)** — `src/shared/bsp/TriggerTable.ts`
+  (`extractTriggerVolumes` + `q3AngleToGameYaw`) + 11 tests in
+  `src/shared/bsp/__tests__/TriggerTable.test.ts` using the real wdm2
+  records as fixtures (all 5 volumes, Babylon swap with min<max preserved,
+  dest resolution + yaw, dead-vertical pad geometry check, fail-closed drops,
+  determinism). Deviation from plan: the spawn-`angle` fix was **deferred to
+  T4** — spawn facing needs the same client camera-yaw plumbing as teleport
+  exits (yaw is client-authoritative input), so it lands with that wiring
+  instead of as a dead field. `q3AngleToGameYaw` still needs the empirical
+  sign check on wdm2's t2 exit (flagged in the code).
 
 ## TL;DR
 
