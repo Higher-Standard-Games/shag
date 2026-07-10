@@ -116,15 +116,102 @@ Still on the old/other styling — apply the recipe above:
 - [ ] Lobby **Profile** tab (`buildProfileTab`, `.lobby__profile*`)
 - [ ] Lobby **Settings** view (`FPSSettingsView` / `settings/`)
 - [ ] Lobby **Demos** tab (`buildDemosTab`, `styles/DemoTab.css`)
-- [ ] The **GamePanel** shell itself (`engine/ui/panels/GamePanel.{ts,css}`) — tabs, header, footer, particles/logo — so every tabbed surface inherits the frame
+- [x] The **GamePanel** shell itself (`engine/ui/panels/GamePanel.{ts,css}`) - first print-slab CSS pass implemented; visual review still needed
 - [ ] Generic engine components: `Button`, `Overlay`, `MapLoadingOverlay`, toasts/modals
 - [ ] Spectator overlay, killfeed/HUD widgets not yet on the print-slab system
 - [ ] In-match **scoreboard** and **settings** dialogs
-- [ ] Consider promoting the repeated `--l-*` helper block + recipe into shared
-      classes/tokens in `WashikiTheme.css` (e.g. `.w-slab`, `.w-stamp`, `.w-btn`)
-      so surfaces stop re-declaring them (plan step 1 in
-      `v0.9.16-gameplay-and-ui-improvements.md`).
+- [x] Shared print-slab primitives added to `WashikiTheme.css` (`.w-slab`, `.w-ticket`, `.w-stamp`, `.w-btn`, `.w-panel-backdrop`) so later surfaces can stop re-declaring the recipe.
 
+## Audit map - 2026-07-10 Codex
+
+Source pass against the current workspace. This is the practical fan-out map for
+what is already in the new dark-navy print-slab direction, what is only partly
+there, and what is still legacy styling.
+
+### Already in the new style
+
+- Combat HUD core and ESC/pause menu: `WashikiTheme.css` `.fps-pause-*`,
+  vitals/ammo/weapon rack/scoreline/event feed/phase/ready surfaces. These are
+  the visual source of truth.
+- Dialog primitive for in-match overlays: `engine/ui/panels/GameDialogPanel.ts`
+  reuses the `.fps-dialog` print-slab stack.
+- Matchmaking mode cards: `games/fps/client/LobbyPanel.ts` +
+  `games/fps/client/styles/LobbyPanel.css` `.lobby__mode-*`.
+- Lobby Social + Chat columns: `.lobby__side-*`, `.lobby__players-*`,
+  `.lobby__chat-*`, `.lobby__match-*` are already dark slab/ticket style.
+- Ready-room: `engine/ui/components/styles/MatchLobbyView.css`.
+- Connecting overlay: `engine/ui/components/styles/ConnectingOverlay.css`.
+
+### Partial or mixed style
+
+- `engine/ui/panels/GamePanel.{ts,css}`: dark and branded, but still the older
+  neon/bracket full-screen shell. Tabs, footer buttons, header treatment,
+  content panels, particles/logo, and generic `.fps-btn` should be converted so
+  all tabbed views inherit the new frame.
+- `games/fps/client/settings/FPSSettingsView.css`: uses theme fonts/colors and
+  its confirm dialog goes through `MangaPanelDialog`, but settings sections,
+  category tabs, keybind rows, mouse/controller visuals, sliders, toggles, and
+  context menus are still rounded/glow UI rather than slab/stamp controls.
+- `engine/ui/UIStyles.ts` and `engine/ui/UITheme.ts`: still expose old generic
+  green/orange/light-card UI primitives. They need either a compatibility pass
+  or migration behind shared `.w-*` classes so legacy surfaces do not keep
+  reintroducing the old look.
+- In-match scoreboard appears closer to the HUD family through `WashikiTheme.css`,
+  but it should get a focused visual pass after GamePanel/settings because the
+  handover explicitly called it out.
+
+### Still legacy / not converted
+
+- Lobby Leaderboard tab: `LobbyPanel.ts` `buildLeaderboardTab` and
+  `LobbyPanel.css` `.lobby__leaderboard*`, `.lobby__lb-*`. Still a conventional
+  table/card layout.
+- Lobby Profile tab: `buildProfileTab` and `.lobby__profile*`. Still rounded
+  neon profile cards, stats boxes, and input styling.
+- Lobby Demos tab: `styles/DemoTab.css` `.lobby__demos*`,
+  `.lobby__demo-card*`. Still amber/rounded demo cards and soft shadows.
+- Highlight duration picker: `styles/DurationPickerModal.css`. Still amber
+  modal styling.
+- Generic engine components: `components/styles/Button.css`,
+  `ConfirmDialog.css`, `Overlay.css`, `styles/ModalPanel.css`,
+  `styles/SidePanel.css`, and `styles/BottomBar.css`. These are mostly light or
+  older green/gray/red controls.
+- Map/loading flow: `engine/ui/MapLoadingOverlay.ts` inline CSS and
+  `LoadingScreen` styles in `UIStyles.ts`. Still minimal black/old palette, not
+  a fight-poster/loading-ticket treatment.
+- Spectator join/spectating/freefly UI: `games/fps/client/SpectatorOverlay.ts`
+  uses inline orange Washiki-era styles and should also align team semantics
+  (udon/alpha cyan, soba/bravo magenta).
+- Demo playback overlays: `DemoViewerHUD.ts` and `CinematicHUD.ts` still use
+  rounded translucent demo controls with white/teal/amber accents.
+- Debug console: `engine/debug/debug-console.css` is functional dark console UI,
+  not a priority, but it is outside the slab system.
+
+### Suggested migration order
+
+1. Add shared primitives in `WashikiTheme.css` (`.w-slab`, `.w-stamp`,
+   `.w-btn`, `.w-panel-backdrop`, maybe `.w-ticket`) and convert
+   `GamePanel.css` to use them. This gives every tabbed panel the right frame.
+2. Finish the player-facing lobby tabs: Leaderboard, Profile, Demos, and the
+   duration picker.
+3. Convert `FPSSettingsView.css` and its menu/toggle/slider/keybind controls.
+4. Convert generic engine components (`Button`, `ConfirmDialog`, `ModalPanel`,
+   `Overlay`) so future surfaces stop starting from the old light UI.
+5. Convert transition/observer surfaces: `MapLoadingOverlay`, `LoadingScreen`,
+   `SpectatorOverlay`, `DemoViewerHUD`, and `CinematicHUD`.
+6. Sweep low-priority debug/build UI (`SidePanel`, `BottomBar`, debug console)
+   once the main play path is coherent.
+## Implementation update - 2026-07-10 Codex
+
+Implemented the first high-leverage theme pass after the audit:
+
+- Added shared print-slab primitives to `src/engine/ui/hud/styles/WashikiTheme.css`:
+  `.w-panel-backdrop`, `.w-slab`, `.w-ticket`, `.w-stamp`, `.w-btn`, plus primary/danger/accent variants.
+- Reworked `src/engine/ui/panels/styles/GamePanel.css` toward the ESC/menu language:
+  dark navy scanline center ground, hard print shadows, stamped title, cut tab buttons,
+  slab footer buttons, slab settings rows, rectangular sliders/toggles/keybinds, and
+  cyan udon / magenta soba team semantics.
+- No TypeScript or runtime wiring changes; this is a CSS-only pass. Needs browser visual
+  review through `npm run lobby:server` + `npm run dev`.
 ## Branch / commit / validation state
 
 - **fps** `feature/manga-lobby-ui`: `46ab507` (lobby Social+Chat restyle), off fps `main` (`4a2d145`).
