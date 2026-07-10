@@ -25,6 +25,7 @@ export { FIRE_PALETTE, ICE_PALETTE, MONO_PALETTE, type PaletteColor, SHAG_PALETT
 // Loading screens
 export { LoadingScreen } from "./LoadingScreen";
 export { MapLoadingOverlay, type MapLoadingOverlayConfig } from "./MapLoadingOverlay";
+export { GameDialogPanel, type GameDialogPanelOptions } from "./panels/GameDialogPanel";
 export type {
   ModalAction,
   ModalCallbacks,

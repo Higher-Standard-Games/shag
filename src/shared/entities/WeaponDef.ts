@@ -187,6 +187,8 @@ export interface WeaponDef extends EntityDef {
   meleeRadius?: number;
   /** Delay before melee damage check (seconds) — gives dodge window */
   meleeDamageDelay?: number;
+  /** Server-authoritative forward lunge distance on accepted melee primary fire. */
+  meleeDashDistance?: number;
 
   // === CHARGED ATTACK ===
   /** Time to hold fire for max charged attack (seconds) */
