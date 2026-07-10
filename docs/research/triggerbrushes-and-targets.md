@@ -7,6 +7,16 @@ Target test map: **wdm2** (4 teleporters + 1 jumppad)
 
 ## Progress log
 
+- **BROWSER PASS #1 (2026-07-10)** — teleporters and jumppads confirmed
+  working in-game on wdm2. One feel bug found and fixed: mode-1 exit velocity
+  preserved only the HORIZONTAL magnitude, but wdm2 has drop-in teles where
+  entry velocity is nearly all vertical → players exited at ~0 ups and fell
+  short (one tele route effectively unreachable). Now mode 1 redirects the
+  **full 3D momentum magnitude** along the exit yaw (Warsow behavior: drop
+  speed converts into exit speed). Regression test added ("pure vertical
+  drop converts into exit speed"). Sounds are explicitly out of scope until
+  the game has audio at all; exit VFX still open (see T4b).
+
 - **T4 CORE DONE (2026-07-10)** — wiring, both sides:
   - Server: `HeadlessMapLoader` extracts `BspData.triggers` via the shared
     table → `GameServer.setTriggerVolumes` → `FPSMovementSubsystem` installs
