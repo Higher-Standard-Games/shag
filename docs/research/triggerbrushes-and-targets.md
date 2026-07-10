@@ -26,10 +26,12 @@ Target test map: **wdm2** (4 teleporters + 1 jumppad)
     only the camera would snap back on the next mouse move).
   - Gates: tsc clean, 1254/1254, test:simulation, server:tick, server:fuzz.
   - **Remaining (T4b, browser-adjacent):** teleport_in/out + jumppad_launch
-    snapshot events with sounds/VFX (server edge-detects off the result
-    flags), spawn-facing from the spawn-point `angle` key (same camera
-    plumbing — use `setViewYaw`), the `q3AngleToGameYaw` empirical sign
-    check on wdm2's t2 exit, and the full wdm2/wdm7 browser pass.
+    snapshot events with VFX (server edge-detects off the result flags;
+    **sounds explicitly out of scope** — the game has no sound system usage
+    anywhere yet, revisit when audio lands game-wide), spawn-facing from the
+    spawn-point `angle` key (same camera plumbing — use `setViewYaw`), the
+    `q3AngleToGameYaw` empirical sign check on wdm2's t2 exit, and the full
+    wdm2/wdm7 browser pass.
 
 - **T3 DONE (2026-07-10)** — teleporters in the shared `MovementProfile` +
   server side effects:
