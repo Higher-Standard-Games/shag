@@ -1,10 +1,39 @@
 # Trigger Brushes & Targets — Teleporters and Jumppads
 
 Date: 2026-07-10
-Status: in progress — T1 + T2 done; T3/T4 unstarted
+Status: in progress — T1 + T2 + T3 done; T4 (wiring + client) remaining
 Target test map: **wdm2** (4 teleporters + 1 jumppad)
 
 ## Progress log
+
+- **T3 DONE (2026-07-10)** — teleporters in the shared `MovementProfile` +
+  server side effects:
+  - Profile: teleporter volumes evaluated BEFORE pads at the end-of-step
+    position; at most one trigger fires per step (a dest inside another
+    trigger chains one step per tick — no intra-tick loops, verified by
+    test). Exit = `dest + 25u` waist lift; result flags `teleported`,
+    `teleportYaw`, `triggerId`. `actualHorizSpeed` samples the pre-teleport
+    position so the speedometer/animations don't see a 50k-ups frame.
+  - **Velocity policy is a CONFIG field, not a live cvar** (deviation from
+    the §3.5 plan): `MovementConfig.teleportSpeedMode` — `1` (default)
+    preserves horizontal speed redirected along the exit yaw; `0` = Q3 fixed
+    `teleportExitSpeed` (400). Profiles read config only, so demo re-sim
+    stays exact without snapshotting cvars (avoids the F8 caveat entirely).
+    Promote to a cvar later only if playtest wants runtime switching.
+  - Server (`FPSMovementSubsystem`): `teleported` ticks are whitelisted from
+    the `[Authority]` position-delta tripwire; fall tracking is cleared on
+    teleport (a 600u fall + teleport near the floor no longer lands as a
+    fatal drop — regression test); `telefragAtExit` queues 9999
+    armor-piercing `DamageType.Telefrag` damage (frag credited to the
+    teleporting player) for living players overlapping the exit box.
+  - Tests: 8 profile (`TeleporterTrigger.test.ts` — wdm2 *1→t1 fixture,
+    both speed policies, default yaw, one-trigger-per-step incl. tele→pad
+    chain, no speed spike, replay idempotency), 3 subsystem (telefrag hit /
+    filtered / tripwire whitelist+control), 1 fall regression. Gates: tsc
+    clean, 1254/1254, test:simulation, `server:tick` checksum unchanged,
+    server:fuzz pass.
+  - Still needs (T4): the empirical `q3AngleToGameYaw` sign check on wdm2's
+    t2 exit, client camera-yaw rotation on predicted teleport, events/VFX.
 
 - **T2 DONE (2026-07-10)** — jumppads in the shared `MovementProfile`:
   `setTriggerVolumes(volumes)` (teleport volumes skipped until T3), AABB
