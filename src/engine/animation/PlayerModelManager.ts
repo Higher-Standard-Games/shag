@@ -38,6 +38,13 @@ export interface PlayerModelInstance {
   currentAnim: string;
   /** Timestamp (performance.now) until which a one-shot anim has priority over locomotion */
   oneshotUntil: number;
+  /**
+   * Weapon mesh bone-attached to this model's hand (3rd-person view weapon).
+   * Bone attachment means it is NOT a scene-graph child, so it must be disposed
+   * explicitly with the model — otherwise it leaks (e.g. a dropped blade left
+   * floating after death/ragdoll cleanup).
+   */
+  attachedWeapon?: TransformNode | null;
 }
 
 /** Animation file descriptor */
@@ -520,6 +527,10 @@ export class PlayerModelManager {
 
   /** Dispose a single instance */
   disposeInstance(instance: PlayerModelInstance): void {
+    if (instance.attachedWeapon) {
+      instance.attachedWeapon.dispose(false, true);
+      instance.attachedWeapon = null;
+    }
     if (instance.masterGroup) {
       instance.masterGroup.stop();
       instance.masterGroup.dispose();
