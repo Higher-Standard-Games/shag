@@ -1,10 +1,34 @@
 # Trigger Brushes & Targets — Teleporters and Jumppads
 
 Date: 2026-07-10
-Status: in progress — T1 done; T2/T3/T4 unstarted
+Status: in progress — T1 + T2 done; T3/T4 unstarted
 Target test map: **wdm2** (4 teleporters + 1 jumppad)
 
 ## Progress log
+
+- **T2 DONE (2026-07-10)** — jumppads in the shared `MovementProfile`:
+  `setTriggerVolumes(volumes)` (teleport volumes skipped until T3), AABB
+  overlap at the end-of-step position with crouch-aware bounds, `jumppadLaunch`
+  + `triggerId` result flags (edge-detection is the consumer's job — profile
+  stays stateless), invalid pads (target not above pad) dropped at install.
+  10 tests in `simulation/__tests__/JumppadTrigger.test.ts` (wdm2 mega pad
+  fixture, angled pad, velocity replace, re-touch, replay-idempotency, full
+  arc integration). Gates: tsc clean, 1242/1242, test:simulation,
+  `server:tick` checksum **unchanged** (no volumes installed ⇒ zero behavior
+  change), server:fuzz pass.
+  **Design deviation from the plan (and from Q3), important:** the launch is
+  solved from the **player's current position each fire**, not precomputed
+  from the pad center. Testing exposed why: the pad re-fires every tick while
+  the player is inside the 16u volume (~5 ticks), and Q3-style fixed velocity
+  accumulated the re-fires into a **+28u apex overshoot** (331 vs 304 on the
+  wdm2 pad). Q3 suppresses this with `ps->jumppadEnt` contact state — but
+  per-pad contact state is a reconciliation-replay hazard (stale flag on the
+  first replayed step ⇒ suppressed/doubled launch). Per-position solving is
+  stateless AND convergent: every re-fire re-aims at the target, the last
+  fire wins, and the apex lands ON dest (±Euler discretization; asserted
+  312±8 in the arc test). Side effect: entry point inside the pad no longer
+  offsets the landing — everyone lands on target (slightly "tighter" than
+  Q3; watch it in the browser pass).
 
 - **T1 DONE (2026-07-10)** — `src/shared/bsp/TriggerTable.ts`
   (`extractTriggerVolumes` + `q3AngleToGameYaw`) + 11 tests in
@@ -215,25 +239,30 @@ one-shot snapshot events for sound/VFX (`teleport_out`/`teleport_in`/
 `jumppad_launch` — same pattern as `weapon_chain`). The shared profile never
 touches other entities or emits events.
 
-### 3.4 Jumppad math (Q3 `AimAtTarget`, verbatim)
+### 3.4 Jumppad math (Q3 `AimAtTarget`, adapted — see T2 progress note)
 
 ```
-origin  = center of trigger AABB            (wdm2: (16, −912, 8) in Q3 coords)
-height  = target.z − origin.z               (304)
-time    = sqrt(height / (0.5 · gravity))    (gravity = MovementConfig.gravity = 1000 → 0.7797 s)
-v_xy    = (target.xy − origin.xy) / time    (wdm2 pad: 0 — dead vertical)
-v_z     = gravity · time                    (≈ 780 ups)
+origin  = PLAYER position at fire time      (≈ pad surface; Q3 uses the pad center)
+height  = target.y − origin.y               (≈ 304 on the wdm2 pad)
+time    = sqrt(height / (0.5 · gravity))    (gravity = MovementConfig.gravity = 1000 → ≈ 0.78 s)
+v_xz    = (target.xz − origin.xz) / time    (wdm2 pad: ≈ 0 — dead vertical)
+v_y     = gravity · time                    (≈ 780 ups)
 ```
 
-- Velocity is **replaced**, not added (Q3 behavior) — re-touching the pad every
-  tick while inside the volume is idempotent, so no edge-tracking is needed for
-  correctness (only for the one-shot launch event/sound → rising-edge flag).
-- `height ≤ 0` → invalid pad; warn at extraction time and drop.
-- Precompute the launch velocity per pad at `setTriggerVolumes` time from the
-  profile's own gravity so the hot path is a copy. **Worked check for the wdm2
-  pad: expect velocity ≈ (0, 780, 0) Babylon, apex 304u — the mega platform.**
+- Velocity is **replaced**, not added (Q3 behavior).
+- **Per-position, per-fire solve** (deviation from Q3's precomputed fixed
+  velocity): the pad re-fires every tick the player is still inside the
+  volume; with a fixed velocity those re-fires accumulate into an apex
+  overshoot (+28u measured on the wdm2 pad). Q3 counters with `ps->jumppadEnt`
+  contact state — a replay hazard for us. Re-aiming from the current position
+  each fire is stateless and convergent: the last fire inside the volume wins
+  and the arc lands ON the target.
+- `height ≤ 0` → invalid pad: dropped at `setTriggerVolumes` (center check)
+  and guarded per-fire (player above target ⇒ no-op).
+- **Worked check for the wdm2 pad: velocity ≈ (0, 780, 0) Babylon, apex
+  312±8 absolute (the mega platform) — asserted in `JumppadTrigger.test.ts`.**
 - Do NOT route through `queueImpulse`/knockback — pads must not incur the
-  Warsow knockback air-drag decay.
+  Warsow knockback air-drag decay. (Verified: launch bypasses the KB path.)
 - Q3 also holds air control briefly (`PMF_TIME_KNOCKBACK`); we skip that for
   v1 (our air control is mild) and tune after the browser pass.
 
