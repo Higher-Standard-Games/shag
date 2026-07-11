@@ -528,6 +528,19 @@ export class InputSystem {
 
   // ==================== Event Handlers ====================
 
+  /**
+   * True while a text field owns the keyboard (in-game chat, console input…).
+   * Game binds must not fire while typing — WASD in chat is a message, not
+   * movement. Held keys are still cleared on keyup so nothing sticks when a
+   * field grabs focus mid-press.
+   */
+  private static isTextInputFocused(): boolean {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable === true;
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
     if (e.repeat) return;
 
@@ -542,11 +555,16 @@ export class InputSystem {
       return;
     }
 
+    // Typing in a text field → keystrokes are text, not game binds
+    if (InputSystem.isTextInputFocused()) return;
+
     this.rawState.keys.add(e.code);
     this.rawState.keysPressed.add(e.code);
   }
 
   private onKeyUp(e: KeyboardEvent): void {
+    // NOTE: keyup always clears (even while typing) so a key held when a
+    // text field grabbed focus doesn't stay stuck down.
     this.rawState.keys.delete(e.code);
     this.rawState.keysReleased.add(e.code);
   }

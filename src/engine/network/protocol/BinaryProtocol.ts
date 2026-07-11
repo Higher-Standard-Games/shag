@@ -734,6 +734,7 @@ export class BinaryProtocol {
     death: 11,
     award: 12,
     weapon_chain: 13,
+    chat: 14,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -751,6 +752,7 @@ export class BinaryProtocol {
     "death",
     "award",
     "weapon_chain",
+    "chat",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -882,6 +884,13 @@ export class BinaryProtocol {
           encoder.writeString(event.playerName ?? "");
           encoder.writeString(event.targetName ?? "");
           encoder.writeUint16(event.value ?? 0);
+          break;
+
+        case 14: // chat: senderId, senderName, team, text (lands in demos via D16)
+          encoder.writeString(event.senderId ?? "");
+          encoder.writeString(event.senderName ?? "");
+          encoder.writeString(event.team ?? "");
+          encoder.writeString(event.text ?? "");
           break;
       }
     }
@@ -1047,6 +1056,16 @@ export class BinaryProtocol {
             value: decoder.readUint16(),
           });
           break;
+
+        case 14: // chat
+          state.events.push({
+            type,
+            senderId: decoder.readString(),
+            senderName: decoder.readString(),
+            team: decoder.readString(),
+            text: decoder.readString(),
+          });
+          break;
       }
     }
   }
@@ -1079,6 +1098,7 @@ export enum MessageType {
   JoinGame = 0x86, // Spectator → Player: request to join the game
   Spectate = 0x87, // Player → Spectator: request to leave game and spectate
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
+  Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

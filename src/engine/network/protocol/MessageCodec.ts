@@ -260,6 +260,31 @@ export class MessageCodec {
   }
 
   /**
+   * Encode a Chat message (Client → Server)
+   * Sender is identified by connection; the server sanitizes, rate-limits,
+   * and rebroadcasts the text as a `chat` snapshot event (which also lands
+   * in demo recordings). Format: [MessageType.Chat][text: string]
+   */
+  static encodeChat(text: string): Uint8Array {
+    const encoder = new BinaryEncoder();
+    encoder.writeUint8(MessageType.Chat);
+    encoder.writeString(text);
+    return encoder.getData();
+  }
+
+  /**
+   * Decode a Chat message
+   */
+  static decodeChat(data: Uint8Array): { text: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Chat) {
+      throw new Error(`Expected Chat message, got 0x${messageType.toString(16)}`);
+    }
+    return { text: decoder.readString() };
+  }
+
+  /**
    * Encode a ServerMessage (Server → Client)
    * Generic text message for UI notifications (queue position, join rejection, etc.)
    * Format: [MessageType.ServerMessage][type: string][message: string]

@@ -352,6 +352,7 @@ describe("MessageCodec — all message types", () => {
         [MessageType.Ping, MessageCodec.encodePing(1)],
         [MessageType.JoinGame, MessageCodec.encodeJoinGame()],
         [MessageType.Spectate, MessageCodec.encodeSpectate()],
+        [MessageType.Chat, MessageCodec.encodeChat("hello")],
         [MessageType.RequestSpawn, MessageCodec.encodeRequestSpawn()],
       ];
       for (const [expectedType, bytes] of cases) {
@@ -385,6 +386,7 @@ describe("MessageCodec — all message types", () => {
       expect(MessageType.Ping).toBe(0x85);
       expect(MessageType.JoinGame).toBe(0x86);
       expect(MessageType.Spectate).toBe(0x87);
+      expect(MessageType.Chat).toBe(0x89);
       expect(MessageType.RequestSpawn).toBe(0x88);
     });
   });
@@ -807,6 +809,26 @@ describe("BinaryProtocol — event serialization", () => {
       playerName: "Alice",
       targetName: "Bob",
       value: 1,
+    });
+  });
+
+  it("chat: stable fields incl. UTF-8 text (WO-C1)", () => {
+    const [ev] = roundtripEvents([
+      {
+        type: "chat",
+        senderId: "player_3",
+        senderName: "washoi_dev",
+        team: "udon",
+        text: "nice rocket! 🚀 <script>alert(1)</script>",
+      },
+    ]);
+    expect(ev).toMatchObject({
+      type: "chat",
+      senderId: "player_3",
+      senderName: "washoi_dev",
+      team: "udon",
+      // Codec is transparent — sanitization is the server's job, escaping the renderer's
+      text: "nice rocket! 🚀 <script>alert(1)</script>",
     });
   });
 

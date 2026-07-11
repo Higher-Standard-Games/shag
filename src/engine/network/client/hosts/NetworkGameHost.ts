@@ -253,6 +253,18 @@ export class NetworkGameHost implements IGameHost {
     console.log("[NetworkGameHost] Sent Spectate request");
   }
 
+  /**
+   * Send an in-game chat message. The server sanitizes, rate-limits, and
+   * rebroadcasts it as a `chat` snapshot event (no local echo — the message
+   * appears when it round-trips, Q3-style).
+   */
+  sendChat(text: string): void {
+    if (!this._isConnected) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    this.transport.send(MessageCodec.encodeChat(trimmed.slice(0, 128)), true); // Reliable
+  }
+
   // Debug counter
   private _sendCommandCalls = 0;
 

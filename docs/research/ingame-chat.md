@@ -1,7 +1,36 @@
 # In-Game Chat — plan & work orders
 
 Date: 2026-07-11
-Status: planned (brainstorm round with user in progress)
+Status: IMPLEMENTED (WO-C1..C4) — on `feature/ingame-chat`, needs the two-window browser pass
+Decisions locked with user: Warsow/Q3 style; all-chat v1 (team chat fast-follow);
+T only; 128 chars / 600ms / 5-per-5s; bottom-left; talk only in history; no local echo.
+
+## Progress log
+
+- **C1 DONE**: `MessageType.Chat (0x89)` + `encodeChat/decodeChat`; `chat` snapshot
+  event (EVT 14: senderId/senderName/team/text); GameServer `handleChat` —
+  charCode-filter sanitize (control chars → space, collapse, 128 cap),
+  `rateLimited` 600ms + 5-per-5s burst on ClientInfo fields, team resolved via
+  `matchState.getPlayerTeam` ("spectator" for specs); `pendingChatEvents` →
+  SnapshotBuilder emit + clear. Codec tests incl. UTF-8/emoji + XSS-transparent
+  roundtrip (escaping is the renderer's job — textContent).
+- **C2 DONE**: `InputSystem.isTextInputFocused()` guard — keydown ignored while
+  a text field owns the keyboard (keyup still clears so held keys don't stick);
+  T handler in FPSHud (capture phase; guards: pointer-locked, no pause/settings,
+  no other text field, preventDefault so the "t" doesn't leak);
+  `NetworkGameHost.sendChat` (reliable) ← `Game.sendChat` ← `FPSChat.onSend`;
+  `GameEvents` `chat` case → HUD chat with `[SPEC]` prefix.
+- **C3 DONE**: Chat.ts rewritten — one store (cap 100), closed = last 5 fading
+  overlay (8s), talk mode = scrollable washoi history dialog (navy scan panel,
+  cyan edge-bar, gold SAY stamp, team-colored sender stamps udon-cyan /
+  soba-magenta / spec-dim). Renderer uses textContent (XSS-safe).
+- **C4 DONE**: DemoService spawns a read-only FPSChat during playback and
+  replays `chat` events at their recorded ticks. Regression tests in
+  DemoRecordingCapture.test.ts: chat event appears exactly once in a recorded
+  frame (real scheduler, fake transport) + handleChat sanitize/rate-limit.
+- Gates: tsc clean, **1263/1263**, test:simulation, server:tick checksum
+  unchanged, server:fuzz pass. Browser pass owed: two windows, T-talk while
+  strafing (guard check), history scrollback, demo replay with chat.
 Cycle: v0.9.18
 
 ## Requirements (user)
