@@ -53,6 +53,12 @@ export class StateMachineBrain extends BotBrain {
   private _strafeDirection: number = 1; // 1 or -1
   private _strafeTimer: number = 0;
 
+  // Charged weapon cadence (blade alt-fire: hold, then release to shoot)
+  private _chargeWeaponId: string | null = null;
+  private _chargeTargetId: string | null = null;
+  private _chargeStartTick: number | null = null;
+  private _chargeReleaseTick: number | null = null;
+
   // Random look-around for human-feel
   private _lookAroundTimer: number = 0;
   private _lookAroundYaw: number = 0;
@@ -210,22 +216,23 @@ export class StateMachineBrain extends BotBrain {
       return this._executeHunt(state);
     }
 
-    // Select best weapon for distance (profile-based)
-    const { slot: weaponSlot } = selectBestWeapon(
+    // Select best weapon for distance (profile-based). The server switches before
+    // firing, so combat behavior can use the selected profile immediately.
+    const { slot: weaponSlot, profile: selectedProfile } = selectBestWeapon(
       state.self.weapons,
       state.self.ammo,
       state.self.currentWeapon,
       enemy.distance,
     );
+    const selectedWeaponId = weaponSlot > 0 ? state.self.weapons[weaponSlot - 1] : state.self.currentWeapon;
+    const currentProfile = selectedProfile.id === "unknown" ? getWeaponProfile(selectedWeaponId) : selectedProfile;
 
-    // Get current weapon profile for ADS/behavior decisions
-    const currentProfile = getWeaponProfile(state.self.currentWeapon);
-
-    // Aim at enemy — use projectile prediction if needed
-    const aim =
-      currentProfile.isProjectile && currentProfile.projectileSpeed > 0
-        ? this._aimAtTargetWithLead(state, enemy, currentProfile)
-        : this._aimAtTarget(state, enemy);
+    // Aim at enemy - use projectile prediction if needed.
+    const useProjectileAim =
+      (currentProfile.isProjectile || currentProfile.hasChargedProjectile) && currentProfile.projectileSpeed > 0;
+    const aim = useProjectileAim
+      ? this._aimAtTargetWithLead(state, enemy, currentProfile)
+      : this._aimAtTarget(state, enemy);
 
     // Strafe while fighting
     this._updateStrafe();
@@ -233,26 +240,25 @@ export class StateMachineBrain extends BotBrain {
 
     // Build buttons
     let buttons = 0;
-    let wantsFire = false;
+    const wantsFire = this._hasAmmoForWeapon(state, selectedWeaponId);
 
-    // Only fire if we have ammo for current weapon
-    const currentAmmo = state.self.ammo[state.self.currentWeapon];
-    if (currentAmmo === undefined || currentAmmo > 0) {
-      wantsFire = true;
-    }
-
-    // ── Weapon-aware combat behavior ───────────────────────────
-
+    // Weapon-aware combat behavior
     if (currentProfile.isMelee) {
-      // MELEE: Rush forward, swing, no ADS
-      if (enemy.distance < MELEE_RANGE && wantsFire) {
+      const chargeFire = this._updateChargedProjectileFire(state, enemy, selectedWeaponId, currentProfile);
+
+      if (chargeFire.holdAltFire && wantsFire) {
+        buttons |= InputButtons.ALT_FIRE;
+      }
+
+      // Close range: swing. Mid range: keep pressure while charging/releasing the blade blast.
+      if (enemy.distance < MELEE_RANGE && wantsFire && !chargeFire.holdAltFire) {
         buttons |= InputButtons.FIRE;
       }
-      // Always rush toward enemy with melee
+
       buttons |= InputButtons.FORWARD;
       buttons |= InputButtons.SPRINT;
     } else {
-      // RANGED COMBAT
+      this._clearChargedProjectileFire();
 
       // ADS: Only when weapon needs it AND we're firing
       if (currentProfile.needsADS && wantsFire) {
@@ -267,7 +273,7 @@ export class StateMachineBrain extends BotBrain {
       // Movement based on range
       if (enemy.distance > CLOSE_RANGE) {
         buttons |= InputButtons.FORWARD; // Close distance
-      } else if (enemy.distance < MELEE_RANGE && !currentProfile.isMelee) {
+      } else if (enemy.distance < MELEE_RANGE) {
         buttons |= InputButtons.BACK; // Too close for ranged, back up
       }
 
@@ -278,7 +284,7 @@ export class StateMachineBrain extends BotBrain {
       }
     }
 
-    // Always sprint — arena FPS players strafe-run by default
+    // Always sprint - arena FPS players strafe-run by default
     buttons |= InputButtons.SPRINT;
 
     // Strafe (universal)
@@ -289,7 +295,7 @@ export class StateMachineBrain extends BotBrain {
     }
 
     // Jump occasionally (dodge + human feel)
-    // Low probability — JUMP persists across ~5 server ticks (125Hz/~25Hz input)
+    // Low probability - JUMP persists across ~5 server ticks (125Hz/~25Hz input)
     if (Math.random() < 0.004 && state.self.isGrounded) {
       buttons |= InputButtons.JUMP;
     }
@@ -313,6 +319,60 @@ export class StateMachineBrain extends BotBrain {
     };
   }
 
+  private _hasAmmoForWeapon(state: BotGameState, weaponId: string): boolean {
+    if (!weaponId) return true;
+    const ammo = state.self.ammo[weaponId];
+    return ammo === undefined || ammo > 0;
+  }
+
+  private _updateChargedProjectileFire(
+    state: BotGameState,
+    enemy: VisiblePlayer,
+    weaponId: string,
+    profile: WeaponProfile,
+  ): { holdAltFire: boolean } {
+    if (!profile.hasChargedProjectile || !weaponId || enemy.distance < MELEE_RANGE) {
+      this._clearChargedProjectileFire();
+      return { holdAltFire: false };
+    }
+
+    // If we are switching to this weapon, let the server confirm the switch before
+    // starting charge state. This keeps the cached 125Hz input loop from charging
+    // an old weapon for one snapshot interval.
+    if (state.self.currentWeapon && weaponId !== state.self.currentWeapon) {
+      this._clearChargedProjectileFire();
+      return { holdAltFire: false };
+    }
+
+    const targetChanged = this._chargeTargetId !== enemy.playerId;
+    const weaponChanged = this._chargeWeaponId !== weaponId;
+    if (targetChanged || weaponChanged || this._chargeStartTick === null || this._chargeReleaseTick === null) {
+      this._chargeWeaponId = weaponId;
+      this._chargeTargetId = enemy.playerId;
+      this._chargeStartTick = state.tick;
+
+      const chargeSpan = Math.max(0, profile.chargeMaxTicks - profile.chargeMinTicks);
+      const skillHold = 0.35 + this.difficulty.predictionSkill * 0.4;
+      const jitter = (Math.random() - 0.5) * 0.15;
+      const holdTicks = Math.round(profile.chargeMinTicks + chargeSpan * Math.max(0, Math.min(1, skillHold + jitter)));
+      this._chargeReleaseTick = state.tick + Math.max(profile.chargeMinTicks, holdTicks);
+      return { holdAltFire: true };
+    }
+
+    if (state.tick >= this._chargeReleaseTick) {
+      this._clearChargedProjectileFire();
+      return { holdAltFire: false };
+    }
+
+    return { holdAltFire: true };
+  }
+
+  private _clearChargedProjectileFire(): void {
+    this._chargeWeaponId = null;
+    this._chargeTargetId = null;
+    this._chargeStartTick = null;
+    this._chargeReleaseTick = null;
+  }
   // ── DODGE State ───────────────────────────────────────────────────
 
   private _executeDodge(state: BotGameState): BotInput {

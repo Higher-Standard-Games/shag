@@ -46,6 +46,15 @@ export interface WeaponProfile {
   /** True if has splash damage */
   hasSplash: boolean;
 
+  /** True if alt-fire can charge and release a projectile */
+  hasChargedProjectile: boolean;
+
+  /** Minimum hold time before a charged projectile can fire, in server ticks */
+  chargeMinTicks: number;
+
+  /** Maximum useful hold time for a charged projectile, in server ticks */
+  chargeMaxTicks: number;
+
   /** Fire mode: 'auto' (hold fire) or 'semi' (tap fire) */
   fireMode: string;
 
@@ -80,6 +89,7 @@ function buildProfile(def: WeaponDef): WeaponProfile {
   const isProjectile = !isHitscan && !isMelee;
   const hasSplash = (def.splashRadius ?? 0) > 0;
   const needsADS = def.hipfireBlocked === true;
+  const hasChargedProjectile = Boolean(def.chargedProjectileId);
 
   // Compute ideal range brackets
   let idealMinRange: number;
@@ -128,8 +138,11 @@ function buildProfile(def: WeaponDef): WeaponProfile {
     isBeam,
     needsADS,
     hasSplash,
+    hasChargedProjectile,
+    chargeMinTicks: Math.ceil((def.chargeMinTime ?? 0.5) * 125),
+    chargeMaxTicks: Math.ceil((def.chargeTime ?? 1.0) * 125),
     fireMode: def.fireMode ?? "semi",
-    projectileSpeed: def.projectileSpeed ?? 0,
+    projectileSpeed: def.projectileSpeed ?? (hasChargedProjectile ? 2500 : 0),
     splashRadius: def.splashRadius ?? 0,
     idealMinRange,
     idealMaxRange,
@@ -169,6 +182,9 @@ const DEFAULT_PROFILE: WeaponProfile = {
   isBeam: false,
   needsADS: false,
   hasSplash: false,
+  hasChargedProjectile: false,
+  chargeMinTicks: 0,
+  chargeMaxTicks: 0,
   fireMode: "semi",
   projectileSpeed: 0,
   splashRadius: 0,
