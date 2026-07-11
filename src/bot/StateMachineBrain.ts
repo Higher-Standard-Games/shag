@@ -13,6 +13,7 @@
  * prediction skill, and other human-feel parameters.
  */
 
+import { DEFAULT_VIEWHEIGHT } from "../engine/physics/PlayerPhysicsConstants";
 import { BotBrain, type BotInput, BotState } from "./BotBrain";
 import { type BotDifficulty, InputButtons } from "./BotConfig";
 import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
@@ -611,12 +612,13 @@ export class StateMachineBrain extends BotBrain {
       targetPos = prediction;
     }
 
-    // Calculate aim angles
-    const delta = vec3Subtract(targetPos, state.self.position);
+    // Weapons fire from the eye, not the player origin. Aim at the enemy origin
+    // from our fire origin so same-floor shots do not pass above the target.
+    const delta = vec3Subtract(targetPos, this._getFireOrigin(state));
     const horizontalDist = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
     const perfectYaw = horizontalDist > 0.01 ? Math.atan2(delta.x, delta.z) : state.self.yaw;
     const perfectPitch =
-      horizontalDist > 0.01 ? Math.atan2(delta.y, horizontalDist) : delta.y > 0 ? Math.PI / 2 : -Math.PI / 2;
+      horizontalDist > 0.01 ? -Math.atan2(delta.y, horizontalDist) : delta.y > 0 ? -Math.PI / 2 : Math.PI / 2;
 
     // Add inaccuracy based on difficulty
     const inaccuracy = (1 - this.difficulty.aimAccuracy) * 0.15;
@@ -694,8 +696,8 @@ export class StateMachineBrain extends BotBrain {
       predicted.y -= 20;
     }
 
-    // Calculate angles to predicted position
-    const diff = vec3Subtract(predicted, state.self.position);
+    // Calculate angles from the actual weapon fire origin.
+    const diff = vec3Subtract(predicted, this._getFireOrigin(state));
     const dist2D = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
 
     const yaw = Math.atan2(diff.x, diff.z);
@@ -733,6 +735,14 @@ export class StateMachineBrain extends BotBrain {
   }
 
   // ── Movement Helpers ──────────────────────────────────────────────
+
+  private _getFireOrigin(state: BotGameState): Vec3 {
+    return {
+      x: state.self.position.x,
+      y: state.self.position.y + DEFAULT_VIEWHEIGHT,
+      z: state.self.position.z,
+    };
+  }
 
   /**
    * Navigate to a target position using NavGraph pathfinding when available.

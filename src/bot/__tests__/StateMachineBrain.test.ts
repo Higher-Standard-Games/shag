@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_VIEWHEIGHT } from "../../engine/physics/PlayerPhysicsConstants";
 import { InputButtons, type BotDifficulty } from "../BotConfig";
 import { BotGameState, type VisiblePlayer } from "../BotGameState";
 import { StateMachineBrain } from "../StateMachineBrain";
@@ -85,7 +86,18 @@ describe("StateMachineBrain combat", () => {
     expect(input.buttons & InputButtons.FIRE).not.toBe(0);
     expect(input.buttons & InputButtons.ALT_FIRE).toBe(0);
   });
+
+  it("aims hitscan fire from eye height toward the enemy origin", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState({ currentWeapon: "machinegun", weapons: ["machinegun"], ammo: { machinegun: 160 } }, 600);
+
+    const input = brain.decide(state);
+    expect(input.buttons & InputButtons.FIRE).not.toBe(0);
+    expect(input.pitch).toBeGreaterThan(0);
+    expect(input.pitch).toBeCloseTo(Math.atan2(DEFAULT_VIEWHEIGHT, 600), 3);
+  });
 });
+
 describe("StateMachineBrain movement", () => {
   it("starts crouchslide while hunting at slide speed", () => {
     const brain = new StateMachineBrain(difficulty);
