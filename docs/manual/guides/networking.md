@@ -128,6 +128,24 @@ With predict():
   Client prediction: runs physics for instant feedback, doesn't advance tick
 ```
 
+### 3b. Fixed-Rate Authoritative Physics
+
+The server advances each player's physics **exactly one `dt` per server tick**, regardless of how fast that client sends input:
+
+- It consumes **at most one** buffered command per tick (FIFO, in sequence order) and **repeats the last input** when none arrived (so gravity and momentum still advance).
+- The input buffer is capped, so a fast/flooding client can't bank extra physics steps.
+- It acks the last **simulated** sequence (`input.lastProcessedSeq`), not the last received, so reconciliation replays exactly the un-simulated inputs.
+
+This closes an authority hole where a slow, laggy, throttled, or malicious client that halved its command rate would get *reduced* gravity and speed ("moon jump"). Input *content* still matters; input *rate* cannot change the physics.
+
+Movement effect timers (slide, wall-jump charge, ledge grab, crouch view) are all derived from an **absolute sim clock** (`sequence × dt`), so reconciliation replays recompute identical timelines instead of double-advancing — replay-idempotent by construction.
+
+### 3c. Input Sanitizer
+
+Every usercmd is clamped at a single ingest choke point (`InputSanitizer`): reject non-finite direction/pitch/yaw, clamp look pitch to ±90°, wrap yaw, unit-clamp the wish direction, bound the weapon slot. The **same** clamp runs in client prediction, so predicted and simulated states can't diverge at steep pitch. A frozen/silent client also stops firing and jumping after a short grace (its repeated input has action buttons stripped).
+
+Detection telemetry (uplink jitter/loss, view-flick histograms, accuracy/headshot, impossible-input counters) sits on top of this and is **strictly log-only** — it produces signals, never verdicts, until calibrated. The simulation is RNG-deterministic, enabling tamper-evident demo re-simulation (`demo:verify`).
+
 ### 4. Client Prediction
 
 When you press W to move forward:
@@ -382,7 +400,13 @@ All messages use binary encoding for efficiency:
 | Ready | 0x82 | Player ready to start |
 | Input | 0x83 | Player command (with sequence #) |
 | Disconnect | 0x84 | Graceful disconnect |
-| Ack | 0x85 | Snapshot acknowledgement |
+| Ping | 0x85 | ClockSync ping (server replies Pong) |
+| JoinGame | 0x86 | Spectator → player |
+| Spectate | 0x87 | Player → spectator |
+| RequestSpawn | 0x88 | Dead player requests respawn |
+| Chat | 0x89 | In-game chat text (server sanitizes + rate-limits, rebroadcasts as a `chat` snapshot event) |
+
+Snapshot one-shot events include `weapon_fire`, `projectile_spawn` / `projectile_impact`, `damage`, `death`, `award`, `weapon_chain`, and `chat` — all carried in the events section and captured verbatim into demo recordings (the snapshot is built once and shared by the broadcaster and recorder).
 
 ### Snapshot Format
 
