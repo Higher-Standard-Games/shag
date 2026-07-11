@@ -15,6 +15,7 @@
 
 import type { AABB, CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
 import type { Vec3 } from "../shared/bsp/BspDataLoader";
+import { extractTriggerVolumes, type TriggerVolume } from "../shared/bsp/TriggerTable";
 import type { BotGameState, VisiblePickup, VisiblePlayer } from "./BotGameState";
 import { vec3Add, vec3Distance, vec3Length, vec3Normalize, vec3Scale, vec3Subtract } from "./BotGameState";
 
@@ -89,6 +90,8 @@ export interface MapKnowledgeData {
   spawnPoints: Vec3[];
   /** Item/weapon pickup positions from BSP entities */
   pickupPositions: Array<{ classname: string; position: Vec3 }>;
+  /** Map trigger volumes: teleporters and jumppads */
+  triggerVolumes: TriggerVolume[];
   /** Map name */
   mapName: string;
 }
@@ -740,13 +743,18 @@ export async function createBotVision(mapName: string): Promise<BotVision | null
 
   // Extract map knowledge
   const mapData = extractMapData(bsp.entities);
+  const triggerVolumes = extractTriggerVolumes(bsp.entities, bsp.models);
   console.log(`[BotVision] Map data: ${mapData.spawnPoints.length} spawns, ${mapData.pickupItems.length} pickups`);
+  console.log(
+    `[BotVision] Trigger volumes: ${triggerVolumes.filter((t) => t.type === "teleport").length} teleporters, ${triggerVolumes.filter((t) => t.type === "push").length} jumppads`,
+  );
   console.log(`[BotVision] Entity classnames: ${mapData.entityClassnames.join(", ")}`);
 
   const mapKnowledge: MapKnowledgeData = {
     mapName,
     spawnPoints: mapData.spawnPoints,
     pickupPositions: mapData.pickupItems,
+    triggerVolumes,
   };
 
   return new BotVision(collisionWorld, mapKnowledge);

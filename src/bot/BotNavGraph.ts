@@ -28,7 +28,7 @@ import type { BotVision, MapKnowledgeData } from "./BotVision";
 
 // ── Nav Types ───────────────────────────────────────────────────────
 
-export type NavNodeType = "item" | "spawn" | "floor";
+export type NavNodeType = "item" | "spawn" | "floor" | "jumppad" | "teleporter";
 
 export interface NavNode {
   id: number;
@@ -38,7 +38,7 @@ export interface NavNode {
   classname?: string;
 }
 
-export type NavEdgeType = "walk" | "jump" | "fall";
+export type NavEdgeType = "walk" | "jump" | "fall" | "jumppad" | "teleporter";
 
 export interface NavEdge {
   from: number; // NavNode id
@@ -82,12 +82,19 @@ const FLOOR_SAMPLE_HEIGHT = 500;
 /** Min distance between any two nodes (dedup threshold) */
 const MIN_NODE_DISTANCE = 64;
 
+/** Teleporters are effectively instant, but keep a small cost so A* stays stable. */
+const TELEPORT_COST = 32;
+
+/** Jump pads cost roughly their flight commitment, cheaper than walking the same distance. */
+const JUMPPAD_COST_MULT = 0.45;
+
 // ── BotNavGraph ─────────────────────────────────────────────────────
 
 export class BotNavGraph {
   private _nodes: NavNode[] = [];
   private _edges: NavEdge[] = [];
   private _adjacency: Map<number, NavEdge[]> = new Map();
+  private _triggerLinks: Array<{ from: number; to: number; type: "jumppad" | "teleporter" }> = [];
   private _mapName: string;
 
   constructor(mapName: string) {
@@ -120,6 +127,11 @@ export class BotNavGraph {
     const knowledge = vision.mapKnowledge;
 
     console.log(`[NavGraph] Building nav graph for "${this._mapName}"...`);
+
+    this._nodes = [];
+    this._edges = [];
+    this._adjacency.clear();
+    this._triggerLinks = [];
 
     // Step 1: Extract nodes from known positions
     this._extractNodes(knowledge, vision);
@@ -234,30 +246,39 @@ export class BotNavGraph {
   private _extractNodes(knowledge: MapKnowledgeData, vision: BotVision): void {
     let nextId = 0;
 
+    const addNode = (position: Vec3, type: NavNodeType, classname?: string): NavNode => {
+      const existing = this._findNearbyNode(position, MIN_NODE_DISTANCE);
+      if (existing) return existing;
+      const node: NavNode = {
+        id: nextId++,
+        position: { ...position },
+        type,
+        classname,
+      };
+      this._nodes.push(node);
+      return node;
+    };
+
     // 1. Item pickup positions
     for (const item of knowledge.pickupPositions) {
-      if (!this._isTooCloseToExisting(item.position)) {
-        this._nodes.push({
-          id: nextId++,
-          position: { ...item.position },
-          type: "item",
-          classname: item.classname,
-        });
-      }
+      addNode(item.position, "item", item.classname);
     }
 
     // 2. Spawn points
     for (const sp of knowledge.spawnPoints) {
-      if (!this._isTooCloseToExisting(sp)) {
-        this._nodes.push({
-          id: nextId++,
-          position: { ...sp },
-          type: "spawn",
-        });
-      }
+      addNode(sp, "spawn");
     }
 
-    // 3. Floor grid sampling (fills gaps)
+    // 3. Trigger volumes. Source nodes sit at trigger AABB centers; destination
+    // nodes sit at the resolved TriggerTable target so A* can route through them.
+    for (const trigger of knowledge.triggerVolumes ?? []) {
+      const type = trigger.type === "push" ? "jumppad" : "teleporter";
+      const source = addNode(this._triggerCenter(trigger), type, `trigger_${trigger.type}`);
+      const dest = addNode(trigger.dest, type, `trigger_${trigger.type}_dest`);
+      this._triggerLinks.push({ from: source.id, to: dest.id, type });
+    }
+
+    // 4. Floor grid sampling (fills gaps)
     this._sampleFloorGrid(vision, nextId);
   }
 
@@ -377,6 +398,21 @@ export class BotNavGraph {
         }
       }
     }
+    this._addTriggerEdges();
+  }
+
+  // ── Private: Trigger Edges ─────────────────────────────────────
+
+  private _addTriggerEdges(): void {
+    for (const link of this._triggerLinks) {
+      const from = this._nodes[link.from];
+      const to = this._nodes[link.to];
+      if (!from || !to || from.id === to.id) continue;
+
+      const dist = vec3Distance(from.position, to.position);
+      const cost = link.type === "teleporter" ? TELEPORT_COST : Math.max(TELEPORT_COST, dist * JUMPPAD_COST_MULT);
+      this._edges.push({ from: from.id, to: to.id, type: link.type, cost });
+    }
   }
 
   // ── Private: Adjacency List ─────────────────────────────────────
@@ -459,12 +495,24 @@ export class BotNavGraph {
   // ── Private: Utilities ──────────────────────────────────────────
 
   private _isTooCloseToExisting(pos: Vec3): boolean {
+    return this._findNearbyNode(pos, MIN_NODE_DISTANCE) !== null;
+  }
+
+  private _findNearbyNode(pos: Vec3, radius: number): NavNode | null {
     for (const node of this._nodes) {
-      if (vec3Distance(pos, node.position) < MIN_NODE_DISTANCE) {
-        return true;
+      if (vec3Distance(pos, node.position) < radius) {
+        return node;
       }
     }
-    return false;
+    return null;
+  }
+
+  private _triggerCenter(trigger: MapKnowledgeData["triggerVolumes"][number]): Vec3 {
+    return {
+      x: (trigger.min.x + trigger.max.x) / 2,
+      y: (trigger.min.y + trigger.max.y) / 2,
+      z: (trigger.min.z + trigger.max.z) / 2,
+    };
   }
 
   private _matchesItemType(classname: string, type: string): boolean {
