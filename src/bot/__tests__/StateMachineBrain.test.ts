@@ -50,7 +50,8 @@ describe("StateMachineBrain combat", () => {
     const brain = new StateMachineBrain(difficulty);
     const state = makeState({ currentWeapon: "blade", weapons: ["blade"], ammo: { blade: 1 } }, 700);
 
-    const charging = brain.decide(state);    expect(charging.buttons & InputButtons.ALT_FIRE).not.toBe(0);
+    const charging = brain.decide(state);
+    expect(charging.buttons & InputButtons.ALT_FIRE).not.toBe(0);
     expect(charging.buttons & InputButtons.FIRE).toBe(0);
 
     state.tick = 200;
@@ -83,5 +84,47 @@ describe("StateMachineBrain combat", () => {
     expect(input.weaponSlot).toBe(2);
     expect(input.buttons & InputButtons.FIRE).not.toBe(0);
     expect(input.buttons & InputButtons.ALT_FIRE).toBe(0);
+  });
+});
+describe("StateMachineBrain movement", () => {
+  it("starts crouchslide while hunting at slide speed", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState(
+      { currentWeapon: "blade", weapons: ["blade"], ammo: { blade: 1 }, velocity: { x: 0, y: 0, z: 420 } },
+      600,
+    );
+    state.players = [];
+
+    const input = brain.decide(state);
+    expect(input.buttons & InputButtons.SPRINT).not.toBe(0);
+    expect(input.buttons & InputButtons.FORWARD).not.toBe(0);
+    expect(input.buttons & InputButtons.CROUCH).not.toBe(0);
+  });
+
+  it("continues a crouchslide and jump-cancels near the end", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState(
+      { currentWeapon: "blade", weapons: ["blade"], ammo: { blade: 1 }, velocity: { x: 0, y: 0, z: 420 } },
+      600,
+    );
+    state.players = [];
+
+    brain.decide(state);
+    state.tick = 70;
+    const input = brain.decide(state);
+    expect(input.buttons & InputButtons.CROUCH).not.toBe(0);
+    expect(input.buttons & InputButtons.JUMP).not.toBe(0);
+  });
+
+  it("does not crouchslide while charging blade alt-fire", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState(
+      { currentWeapon: "blade", weapons: ["blade"], ammo: { blade: 1 }, velocity: { x: 0, y: 0, z: 420 } },
+      700,
+    );
+
+    const input = brain.decide(state);
+    expect(input.buttons & InputButtons.ALT_FIRE).not.toBe(0);
+    expect(input.buttons & InputButtons.CROUCH).toBe(0);
   });
 });

@@ -19,6 +19,7 @@ import type { BotGameState, Vec3, VisiblePlayer } from "./BotGameState";
 import { vec3Length, vec3Normalize, vec3Subtract } from "./BotGameState";
 import type { BotNavGraph, NavPath } from "./BotNavGraph";
 import type { BotVision, VisionResult } from "./BotVision";
+import { canInitiateSlide, PHYSICS } from "./BotMovementProfile";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
 
 // ── Constants ───────────────────────────────────────────────────────────
@@ -43,6 +44,10 @@ const FEELER_STEER_THRESHOLD = 0.6; // fraction below which we steer away
 const PATH_ARRIVED_THRESHOLD = 100; // Distance to consider "arrived" at a waypoint
 const PATH_RECALC_INTERVAL = 120; // Recalculate path every ~2 seconds
 
+const BOT_SLIDE_HOLD_TICKS = Math.ceil((PHYSICS.SLIDE_DURATION / 1000) * 125 * 0.75);
+const BOT_SLIDE_COOLDOWN_TICKS = Math.ceil((PHYSICS.SLIDE_COOLDOWN / 1000) * 125);
+const BOT_SLIDE_JUMP_CANCEL_WINDOW = 10;
+
 export class StateMachineBrain extends BotBrain {
   // ── Internal state ────────────────────────────────────────────────
   private _huntYaw: number = 0;
@@ -52,6 +57,10 @@ export class StateMachineBrain extends BotBrain {
   // Movement variety
   private _strafeDirection: number = 1; // 1 or -1
   private _strafeTimer: number = 0;
+
+  // Crouchslide timing. State ticks are authoritative server ticks.
+  private _slideUntilTick: number = 0;
+  private _slideCooldownUntilTick: number = 0;
 
   // Charged weapon cadence (blade alt-fire: hold, then release to shoot)
   private _chargeWeaponId: string | null = null;
@@ -142,6 +151,8 @@ export class StateMachineBrain extends BotBrain {
     if (vision && this.currentState !== BotState.FIGHT && this.currentState !== BotState.DODGE) {
       input = this._applyFeelers(input, state, vision);
     }
+
+    input = this._applyCrouchslide(input, state);
 
     return input;
   }
@@ -837,6 +848,51 @@ export class StateMachineBrain extends BotBrain {
    * If a wall is detected, steer the bot away from it.
    * Runs after brain decision — adjusts heading, doesn't override state.
    */
+  private _applyCrouchslide(input: BotInput, state: BotGameState): BotInput {
+    if (state.self.isDead) return input;
+
+    const isActiveSlide = state.tick < this._slideUntilTick;
+    if (isActiveSlide) {
+      input.buttons |= InputButtons.CROUCH | InputButtons.FORWARD | InputButtons.SPRINT;
+
+      const shouldJumpCancel =
+        this.difficulty.strafeJumpSkill >= 0.55 && state.tick >= this._slideUntilTick - BOT_SLIDE_JUMP_CANCEL_WINDOW;
+      if (shouldJumpCancel) {
+        input.buttons |= InputButtons.JUMP;
+      }
+      return input;
+    }
+
+    const movingForward = (input.buttons & InputButtons.FORWARD) !== 0 && (input.buttons & InputButtons.BACK) === 0;
+    const sprinting = (input.buttons & InputButtons.SPRINT) !== 0;
+    const attackingWithAlt = (input.buttons & InputButtons.ALT_FIRE) !== 0;
+    const horizontalSpeed = Math.sqrt(state.self.velocity.x ** 2 + state.self.velocity.z ** 2);
+    const cooldownExpired = state.tick >= this._slideCooldownUntilTick;
+
+    const canSlide =
+      state.self.isGrounded &&
+      movingForward &&
+      sprinting &&
+      !attackingWithAlt &&
+      canInitiateSlide(horizontalSpeed, cooldownExpired);
+
+    if (!canSlide) return input;
+
+    const navigationSlide =
+      this.currentState === BotState.HUNT ||
+      this.currentState === BotState.ITEM_RUN ||
+      this.currentState === BotState.RETREAT ||
+      this.currentState === BotState.CHASE;
+    const dodgeSlide = this.currentState === BotState.DODGE && this.difficulty.dodgeSkill >= 0.35;
+
+    if (!navigationSlide && !dodgeSlide) return input;
+
+    this._slideUntilTick = state.tick + BOT_SLIDE_HOLD_TICKS;
+    this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
+    input.buttons |= InputButtons.CROUCH | InputButtons.FORWARD | InputButtons.SPRINT;
+    return input;
+  }
+
   private _applyFeelers(input: BotInput, state: BotGameState, vision: BotVision): BotInput {
     const pos = state.self.position;
     const yaw = input.yaw;

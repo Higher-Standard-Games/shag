@@ -24,6 +24,7 @@ import { InputButtons } from "./BotConfig";
 import type { BotGameState, VisiblePlayer } from "./BotGameState";
 import { buildCombatInput, buildTacticalInput, COMBAT_INPUT_SIZE, TACTICAL_INPUT_SIZE } from "./BotInputNormalizer";
 import { canInitiateSlide } from "./BotMovementProfile";
+import { getWeaponProfile } from "./BotWeaponProfile";
 import type { BotVision, VisionResult } from "./BotVision";
 import { StateMachineBrain } from "./StateMachineBrain";
 import { getTF, initTF } from "./TFBackend";
@@ -285,8 +286,12 @@ export class HybridBrain extends BotBrain {
     }
 
     // Crouch-slide suggestion (only if speed allows)
-    if (output[TACT.MOVE_SLIDE] > THRESHOLD.MOVEMENT_ACTION && canInitiateSlide(speed, true)) {
-      input.buttons |= InputButtons.CROUCH;
+    if (
+      output[TACT.MOVE_SLIDE] > THRESHOLD.MOVEMENT_ACTION &&
+      canInitiateSlide(speed, true) &&
+      (input.buttons & InputButtons.ALT_FIRE) === 0
+    ) {
+      input.buttons |= InputButtons.CROUCH | InputButtons.FORWARD | InputButtons.SPRINT;
     }
 
     // Jump suggestion
@@ -314,14 +319,18 @@ export class HybridBrain extends BotBrain {
       // so server applies backward movement physics correctly
       input.direction.z = -1;
       input.buttons |= InputButtons.SPRINT | InputButtons.BACK;
-      input.buttons &= ~(InputButtons.FIRE | InputButtons.FORWARD);
+      input.buttons &= ~(InputButtons.FIRE | InputButtons.ALT_FIRE | InputButtons.FORWARD);
     }
   }
 
   /**
    * Apply combat model outputs to refine aim and fire decisions.
    */
-  private _applyCombat(output: Float32Array, input: BotInput, _state: BotGameState): void {
+  private _applyCombat(output: Float32Array, input: BotInput, state: BotGameState): void {
+    const profile = getWeaponProfile(state.self.currentWeapon);
+    const baseAltFireCharge =
+      profile.hasChargedProjectile && (input.buttons & InputButtons.ALT_FIRE) !== 0 && (input.buttons & InputButtons.FIRE) === 0;
+
     // Fire control
     if (output[COMBAT.SHOULD_FIRE] > THRESHOLD.COMBAT_FIRE) {
       input.buttons |= InputButtons.FIRE;
@@ -329,10 +338,12 @@ export class HybridBrain extends BotBrain {
       input.buttons &= ~InputButtons.FIRE;
     }
 
-    // ADS control
-    if (output[COMBAT.SHOULD_ADS] > THRESHOLD.COMBAT_ADS) {
+    // ADS control. ALT_FIRE is allowed only as part of an attack: either firing
+    // a ranged weapon or holding an existing charged alt-fire attack.
+    const isFiring = (input.buttons & InputButtons.FIRE) !== 0;
+    if (output[COMBAT.SHOULD_ADS] > THRESHOLD.COMBAT_ADS && (isFiring || baseAltFireCharge)) {
       input.buttons |= InputButtons.ALT_FIRE;
-    } else {
+    } else if (!baseAltFireCharge) {
       input.buttons &= ~InputButtons.ALT_FIRE;
     }
 
