@@ -5,7 +5,8 @@ export const INSTA_AMMO: AmmoDef = {
   id: "ammo_instas",
   name: "Insta Charges",
   type: EntityType.AMMO,
-  classname: "ammo_instas",
+  classname: "ammo_instagun", // Warsow per-weapon name (what maps use)
+  classnameAliases: ["ammo_instas"], // legacy Quake-style
 
   ammoType: "instas",
   amount: 5,

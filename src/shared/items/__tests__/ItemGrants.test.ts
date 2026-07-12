@@ -35,11 +35,18 @@ describe("armorAfterPickup — plate insertion (CoD-style)", () => {
 });
 
 describe("healthAfterPickup — caps + overheal", () => {
-  it("small/large add and cap at 100", () => {
-    expect(healthAfterPickup(50, "small")).toBe(75);
-    expect(healthAfterPickup(90, "small")).toBe(100); // +25 capped
+  it("medium/large add and cap at 100", () => {
+    expect(healthAfterPickup(50, "medium")).toBe(75); // +25
+    expect(healthAfterPickup(90, "medium")).toBe(100); // +25 capped
     expect(healthAfterPickup(60, "large")).toBe(100); // +50 capped
-    expect(healthAfterPickup(100, "small")).toBe(100); // no benefit
+    expect(healthAfterPickup(100, "medium")).toBe(100); // no benefit
+  });
+
+  it("small bubble adds +5 and overheals to 200", () => {
+    expect(healthAfterPickup(50, "small")).toBe(55); // +5
+    expect(healthAfterPickup(100, "small")).toBe(105); // overheals past 100
+    expect(healthAfterPickup(198, "small")).toBe(200); // +5 capped at 200
+    expect(healthAfterPickup(200, "small")).toBe(200); // no benefit at cap
   });
 
   it("mega/ultra overheal to 200", () => {

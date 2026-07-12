@@ -5,7 +5,8 @@ export const ROCKET_AMMO: AmmoDef = {
   id: "ammo_rockets",
   name: "Rockets",
   type: EntityType.AMMO,
-  classname: "ammo_rockets",
+  classname: "ammo_rocketlauncher", // Warsow per-weapon name (what maps use)
+  classnameAliases: ["ammo_rockets"], // legacy Quake-style
 
   ammoType: "rockets",
   amount: 10,

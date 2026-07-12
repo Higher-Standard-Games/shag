@@ -5,7 +5,8 @@ export const GRENADE_AMMO: AmmoDef = {
   id: "ammo_grenades",
   name: "Grenades",
   type: EntityType.AMMO,
-  classname: "ammo_grenades",
+  classname: "ammo_grenadelauncher", // Warsow per-weapon name (what maps use)
+  classnameAliases: ["ammo_grenades"], // legacy Quake-style
 
   ammoType: "grenades",
   amount: 10,

@@ -40,6 +40,18 @@ interface PickupClassInfo {
 }
 
 const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
+  // Warsow per-weapon ammo classnames — what every shipped map actually uses.
+  // (kind = the weapon's ammoType pool; see shared/entities/definitions/weapons/*.)
+  ammo_machinegun: { type: "ammo", kind: "bullets", amount: 50 },
+  ammo_riotgun: { type: "ammo", kind: "shells", amount: 10 },
+  ammo_grenadelauncher: { type: "ammo", kind: "grenades", amount: 10 },
+  ammo_rocketlauncher: { type: "ammo", kind: "rockets", amount: 10 },
+  ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
+  ammo_lasergun: { type: "ammo", kind: "lasers", amount: 100 },
+  ammo_electrobolt: { type: "ammo", kind: "bolts", amount: 10 },
+  ammo_instagun: { type: "ammo", kind: "instas", amount: 5 },
+  ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
+  // Legacy Quake-style names — a couple of old maps still use these.
   ammo_bullets: { type: "ammo", kind: "bullets", amount: 50 },
   ammo_shells: { type: "ammo", kind: "shells", amount: 10 },
   ammo_rockets: { type: "ammo", kind: "rockets", amount: 10 },
@@ -48,8 +60,6 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_bolts: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instas: { type: "ammo", kind: "instas", amount: 5 },
   ammo_lasers: { type: "ammo", kind: "lasers", amount: 100 },
-  ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
-  ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
 };
 
 /**
@@ -74,8 +84,10 @@ export const PICKUP_CLASSNAMES: Record<string, PickupClassInfo> = {
   item_armor_ya: { type: "armor", kind: "ya" },
   item_armor_ra: { type: "armor", kind: "ra" },
   // Health (kind = HealthKind) — Warsow classnames
-  item_health_small: { type: "health", kind: "small" },
-  item_health_large: { type: "health", kind: "large" },
+  item_health_small: { type: "health", kind: "small" }, // +5 bubble
+  item_health_medium: { type: "health", kind: "medium" }, // +25
+  item_health: { type: "health", kind: "medium" }, // bare Q3 default (+25) → medium
+  item_health_large: { type: "health", kind: "large" }, // +50
   item_health_mega: { type: "health", kind: "mega" },
   item_health_ultra: { type: "health", kind: "ultra" }, // alias → mega behavior
 };

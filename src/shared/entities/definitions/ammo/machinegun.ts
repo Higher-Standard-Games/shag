@@ -5,7 +5,8 @@ export const BULLET_AMMO: AmmoDef = {
   id: "ammo_bullets",
   name: "Bullets",
   type: EntityType.AMMO,
-  classname: "ammo_bullets",
+  classname: "ammo_machinegun", // Warsow per-weapon name (what maps use)
+  classnameAliases: ["ammo_bullets"], // legacy Quake-style
 
   ammoType: "bullets",
   amount: 50,

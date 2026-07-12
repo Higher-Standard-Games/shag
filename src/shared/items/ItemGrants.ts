@@ -12,8 +12,9 @@
  *   so e.g. 58 + green(1 plate) → 75, not 83.
  *     shard → +5 flat   ga → +1 plate   ya → +2 plates   ra → fill (4 plates)
  *
- * HEALTH:
- *   small +25, large +50 — capped at 100.
+ * HEALTH (Warsow amounts):
+ *   small +5  — the scattered "bubbles"; overheal to 200, decays 1 HP/s.
+ *   medium +25, large +50 — capped at 100.
  *   mega/ultra +100 — overheals to 200, then decays 1 HP/s back toward 100.
  */
 
@@ -23,7 +24,7 @@ export const HEALTH_MAX = 100;
 export const HEALTH_OVERHEAL_MAX = 200;
 
 export type ArmorKind = "shard" | "ga" | "ya" | "ra";
-export type HealthKind = "small" | "large" | "mega" | "ultra";
+export type HealthKind = "small" | "medium" | "large" | "mega" | "ultra";
 
 /** Plates inserted per armor pickup kind (shard is handled as a flat +5). */
 const ARMOR_PLATES: Record<Exclude<ArmorKind, "shard">, number> = {
@@ -48,15 +49,16 @@ export function armorAfterPickup(current: number, kind: ArmorKind): number {
 
 /** Health amount added by each health kind. */
 const HEALTH_AMOUNT: Record<HealthKind, number> = {
-  small: 25,
+  small: 5, // Warsow bubble
+  medium: 25,
   large: 50,
   mega: 100,
   ultra: 100, // ultra is an alias for mega
 };
 
-/** True if this health kind overheals past HEALTH_MAX (mega/ultra). */
+/** True if this health kind overheals past HEALTH_MAX (small bubbles + mega/ultra). */
 export function healthOverheals(kind: HealthKind): boolean {
-  return kind === "mega" || kind === "ultra";
+  return kind === "small" || kind === "mega" || kind === "ultra";
 }
 
 /**

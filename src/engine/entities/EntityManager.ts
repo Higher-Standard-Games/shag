@@ -54,8 +54,15 @@ export class EntityManager {
     const allItems = [...weapons, ...ammo, ...armor, ...health];
 
     for (const item of allItems) {
+      const handler = (data: EntityData, scene: Scene) => this.spawnEntity(item, data, scene);
+      // Register the primary classname AND every alias — MapLoader dispatches by
+      // exact classname (getHandler), so aliased map classnames (e.g. bare
+      // "item_health", legacy "ammo_shells") only spawn if their own handler exists.
       if (item.classname) {
-        EntityHandlerRegistry.register(item.classname, (data, scene) => this.spawnEntity(item, data, scene));
+        EntityHandlerRegistry.register(item.classname, handler);
+      }
+      for (const alias of item.classnameAliases ?? []) {
+        EntityHandlerRegistry.register(alias, handler);
       }
     }
 
@@ -168,9 +175,12 @@ export class EntityManager {
     // (only Y differs: client adds +24, table keeps raw). Disambiguates multiple
     // pickups of the same kind by position. All server-tracked pickups,
     // including ammo, must have an id.
+    // Match by the entity's RAW classname (extractPickups records the BSP
+    // classname), not def.classname — a def can be reached via a classnameAlias
+    // (e.g. "item_health" → HEALTH_MEDIUM), whose primary classname differs.
     const pickupEntry = this.pickupTable.find(
       (e) =>
-        e.classname === def.classname &&
+        e.classname === data.classname &&
         Math.abs(e.position.x - position.x) < 0.5 &&
         Math.abs(e.position.z - position.z) < 0.5,
     );

@@ -60,6 +60,32 @@ describe("extractPickups", () => {
     ]);
   });
 
+  it("maps the Warsow per-weapon ammo classnames every shipped map uses", () => {
+    const out = extractPickups([
+      ent("ammo_machinegun", "0 0 0"),
+      ent("ammo_riotgun", "0 0 0"),
+      ent("ammo_grenadelauncher", "0 0 0"),
+      ent("ammo_rocketlauncher", "0 0 0"),
+      ent("ammo_lasergun", "0 0 0"),
+      ent("ammo_electrobolt", "0 0 0"),
+      ent("ammo_instagun", "0 0 0"),
+    ]);
+    expect(out.map((e) => `${e.kind}:${e.amount}`)).toEqual([
+      "bullets:50",
+      "shells:10",
+      "grenades:10",
+      "rockets:10",
+      "lasers:100",
+      "bolts:10",
+      "instas:5",
+    ]);
+  });
+
+  it("maps medium (25) and bare item_health to the medium kind", () => {
+    const out = extractPickups([ent("item_health_medium", "0 0 0"), ent("item_health", "0 0 0")]);
+    expect(out.map((e) => e.kind)).toEqual(["medium", "medium"]);
+  });
+
   it("skips entities with missing or malformed origin", () => {
     const out = extractPickups([
       ent("weapon_rocketlauncher"),

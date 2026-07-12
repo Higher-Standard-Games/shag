@@ -56,7 +56,7 @@ export const ARMOR_RED: EntityDef = {
   glowColor: { r: 1.0, g: 0.2, b: 0.2 },
 };
 
-// ── Health (small +25, large +50, mega/ultra +100 overheal→200) ──
+// ── Health (small +5 bubble, medium +25, large +50, mega/ultra +100 overheal→200) ──
 
 export const HEALTH_SMALL: EntityDef = {
   id: "health_small",
@@ -66,6 +66,18 @@ export const HEALTH_SMALL: EntityDef = {
   modelPath: "models/items/health/small/small_health.md3",
   scale: 1.0,
   glowColor: { r: 0.4, g: 0.6, b: 1.0 },
+};
+
+export const HEALTH_MEDIUM: EntityDef = {
+  id: "health_medium",
+  name: "Health (Medium)",
+  type: EntityType.HEALTH,
+  classname: "item_health_medium",
+  // Bare "item_health" is the Q3 default (+25) — behaves as medium.
+  classnameAliases: ["item_health"],
+  modelPath: "models/items/health/medium/medium_health.md3",
+  scale: 1.0,
+  glowColor: { r: 0.45, g: 0.7, b: 1.0 },
 };
 
 export const HEALTH_LARGE: EntityDef = {
@@ -100,4 +112,4 @@ export const HEALTH_ULTRA: EntityDef = {
 };
 
 export const ARMOR_DEFS = [ARMOR_SHARD, ARMOR_GREEN, ARMOR_YELLOW, ARMOR_RED];
-export const HEALTH_DEFS = [HEALTH_SMALL, HEALTH_LARGE, HEALTH_MEGA, HEALTH_ULTRA];
+export const HEALTH_DEFS = [HEALTH_SMALL, HEALTH_MEDIUM, HEALTH_LARGE, HEALTH_MEGA, HEALTH_ULTRA];

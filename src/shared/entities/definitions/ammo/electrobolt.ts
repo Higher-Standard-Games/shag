@@ -5,7 +5,8 @@ export const BOLT_AMMO: AmmoDef = {
   id: "ammo_bolts",
   name: "Electro Bolts",
   type: EntityType.AMMO,
-  classname: "ammo_bolts",
+  classname: "ammo_electrobolt", // Warsow per-weapon name (what maps use)
+  classnameAliases: ["ammo_bolts"], // legacy Quake-style
 
   ammoType: "bolts",
   amount: 10,
