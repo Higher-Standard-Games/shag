@@ -21,6 +21,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getPointLightPool } from "./PointLightPool";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -356,7 +357,7 @@ export class ExplosionEffect {
     mat.disableLighting = true;
     mat.backFaceCulling = false;
     mat.alpha = 0.9;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
     // Start small, will animate up
@@ -410,7 +411,7 @@ export class ExplosionEffect {
       mat.diffuseColor = Color3.Black();
       mat.disableLighting = true;
       mat.alpha = 0.8;
-      mat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(mat);
       mesh.material = mat;
 
       // Start small
@@ -462,7 +463,7 @@ export class ExplosionEffect {
     mat.disableLighting = true;
     mat.backFaceCulling = false;
     mat.alpha = 0.7;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
     return { mesh, material: mat };

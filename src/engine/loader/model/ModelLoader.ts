@@ -8,6 +8,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import "@babylonjs/loaders/glTF";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -258,7 +259,7 @@ export class ModelLoader {
           if (mesh.material) {
             if (mesh.material instanceof PBRMaterial) {
               mesh.material.usePhysicalLightFalloff = false;
-              mesh.material.maxSimultaneousLights = 4;
+              applySafeMaxSimultaneousLights(mesh.material);
               // NOTE: Don't freeze here - will be frozen after applyBspLighting to avoid flicker
             }
             // StandardMaterial works with clustered lights by default

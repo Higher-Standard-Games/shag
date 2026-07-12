@@ -9,6 +9,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { EntityRegistry } from "../../shared/entities/EntityRegistry";
 import { EntityType } from "../../shared/entities/EntityType";
 import type { BspFile } from "./bsp/BspLoader";
@@ -142,7 +143,7 @@ export class AssetPreloader {
           for (const m of glbResult.meshes) {
             if (m.material && "maxSimultaneousLights" in m.material) {
               // biome-ignore lint/suspicious/noExplicitAny: Babylon loader internals
-              (m.material as any).maxSimultaneousLights = 4;
+              applySafeMaxSimultaneousLights(m.material as any);
             }
           }
 

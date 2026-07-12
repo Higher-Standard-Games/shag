@@ -10,6 +10,7 @@
 
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { findTag, loadTags } from "../loader/model/TagsLoader";
 
 // Layer mask for weapon-only rendering (must match WeaponViewManager)
@@ -186,7 +187,7 @@ export class WeaponBarrels {
             // through weapon body openings instead of being occluded
             pbr.zOffset = -2;
             pbr.backFaceCulling = false;
-            pbr.maxSimultaneousLights = 4;
+            applySafeMaxSimultaneousLights(pbr);
           }
         }
 

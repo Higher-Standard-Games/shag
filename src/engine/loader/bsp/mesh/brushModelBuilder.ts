@@ -7,6 +7,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
 import type { BspFile } from "../BspLoader";
 import { getVertexLightmapCoord } from "./vertices";
 
@@ -138,7 +139,7 @@ export async function buildBrushModel(
 
     const mat = new StandardMaterial(`${childName}_mat`, scene);
     mat.backFaceCulling = true;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
 
     if (group.textureName && !group.textureName.toLowerCase().includes("common/")) {
       const texName = group.textureName;

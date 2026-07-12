@@ -1067,7 +1067,11 @@ export class FPSController implements ICameraController {
       this.camera.rotation.z = 0; // Roll is never user-controlled in FPS
 
       // === DEATH CAMERA ===
-      // Warsow-style: smoothly tilt camera sideways and drop view to ground when dead
+      // Preferred: the game runs a smoothed "corpse follow" that trails the death
+      // ragdoll (applyDeathCamera returns true when it owns the camera). When
+      // there's no ragdoll (gib deaths) it returns false and we fall back to the
+      // Warsow-style sideways tilt + drop-to-ground.
+      let deathCamOwnsCamera = false;
       const isDead = this.gameManager?.isPlayerDead() ?? false;
       if (isDead) {
         // Ramp up death effect over ~0.8s
@@ -1080,17 +1084,21 @@ export class FPSController implements ICameraController {
       }
 
       if (this.deathCamPhase > 0) {
-        // Smoothstep for natural ease-in
-        const t = this.deathCamPhase;
-        const smooth = t * t * (3 - 2 * t);
+        deathCamOwnsCamera = this.gameManager?.applyDeathCamera(this.camera, deltaTime) ?? false;
 
-        // Roll: tilt ~40° (0.7 rad) sideways
-        this.deathCamRoll = smooth * 0.7;
-        this.camera.rotation.z = this.deathCamRoll;
+        if (!deathCamOwnsCamera) {
+          // Fallback: smoothstep sideways tilt + height drop.
+          const t = this.deathCamPhase;
+          const smooth = t * t * (3 - 2 * t);
 
-        // Height drop: lower camera by ~20 units (from eye to near feet)
-        this.deathCamHeightDrop = smooth * 20;
-        this.camera.position.y -= this.deathCamHeightDrop;
+          // Roll: tilt ~40° (0.7 rad) sideways
+          this.deathCamRoll = smooth * 0.7;
+          this.camera.rotation.z = this.deathCamRoll;
+
+          // Height drop: lower camera by ~20 units (from eye to near feet)
+          this.deathCamHeightDrop = smooth * 20;
+          this.camera.position.y -= this.deathCamHeightDrop;
+        }
       }
 
       // Update camera shake (decaying random offsets)
@@ -1128,8 +1136,12 @@ export class FPSController implements ICameraController {
         isSliding: this.isSliding,
       };
 
-      const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
-      this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
+      // Skip view-bob/FOV shaping while the corpse-follow owns the camera — it
+      // sets an absolute position + look target that bob would fight.
+      if (!deathCamOwnsCamera) {
+        const viewportDelta = this.viewportEffectsManager.update(deltaTime, playerState);
+        this.viewportApplicator.apply(viewportDelta, this.camera, this.baseFOV);
+      }
     }
 
     // === CROSSHAIR ===

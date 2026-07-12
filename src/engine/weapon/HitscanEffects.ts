@@ -18,6 +18,7 @@ import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { mulberry32 } from "../../shared/SpreadUtils";
 import { getPointLightPool } from "./PointLightPool";
 
@@ -262,7 +263,7 @@ export class HitscanEffects {
       this.activeBeamCoreMat.disableLighting = true;
       this.activeBeamCoreMat.alpha = 0.75;
       this.activeBeamCoreMat.backFaceCulling = false;
-      this.activeBeamCoreMat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(this.activeBeamCoreMat);
       this.activeBeamCore.material = this.activeBeamCoreMat;
 
       // Outer glow beam (wider, semi-transparent)
@@ -287,7 +288,7 @@ export class HitscanEffects {
       this.activeBeamGlowMat.disableLighting = true;
       this.activeBeamGlowMat.alpha = 0.2;
       this.activeBeamGlowMat.backFaceCulling = false;
-      this.activeBeamGlowMat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(this.activeBeamGlowMat);
       this.activeBeamGlow.material = this.activeBeamGlowMat;
     } else {
       if (this.activeBeamCoreMat) this.activeBeamCoreMat.emissiveColor = color;
@@ -370,14 +371,14 @@ export class HitscanEffects {
     coreMat.disableLighting = true;
     coreMat.alpha = 0.9;
     coreMat.backFaceCulling = false;
-    coreMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(coreMat);
 
     const glowMat = new StandardMaterial(`${id}_gm`, this.scene);
     glowMat.emissiveColor = col;
     glowMat.disableLighting = true;
     glowMat.alpha = 0.3;
     glowMat.backFaceCulling = false;
-    glowMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(glowMat);
 
     const meshes: Mesh[] = [];
     for (let i = 0; i < path.length - 1; i++) {
@@ -453,14 +454,14 @@ export class HitscanEffects {
     coreMat.disableLighting = true;
     coreMat.alpha = 0.9;
     coreMat.backFaceCulling = false;
-    coreMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(coreMat);
 
     const glowMat = new StandardMaterial(`${id}_glow_mat`, this.scene!);
     glowMat.emissiveColor = color;
     glowMat.disableLighting = true;
     glowMat.alpha = 0.28;
     glowMat.backFaceCulling = false;
-    glowMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(glowMat);
 
     const coreSegs: Mesh[] = [];
     const glowSegs: Mesh[] = [];
@@ -584,7 +585,7 @@ export class HitscanEffects {
       coreMat.disableLighting = true;
       coreMat.alpha = 0.7;
       coreMat.backFaceCulling = false;
-      coreMat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(coreMat);
       core.material = coreMat;
 
       const glow = MeshBuilder.CreateCylinder(
@@ -607,7 +608,7 @@ export class HitscanEffects {
       glowMat.disableLighting = true;
       glowMat.alpha = 0.15;
       glowMat.backFaceCulling = false;
-      glowMat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(glowMat);
       glow.material = glowMat;
 
       const light = getPointLightPool().acquire(endpoint, color, 6, 12);
@@ -748,7 +749,7 @@ export class HitscanEffects {
     mat.disableLighting = true;
     mat.alpha = 0.85;
     mat.backFaceCulling = false;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
     const rayLength = endpoint.subtract(origin).length();
@@ -806,7 +807,7 @@ export class HitscanEffects {
     coreMat.disableLighting = true;
     coreMat.alpha = 0.9;
     coreMat.backFaceCulling = false;
-    coreMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(coreMat);
     core.material = coreMat;
     this.orientCylinder(core, cfg.origin, endpoint);
     meshes.push(core);
@@ -828,7 +829,7 @@ export class HitscanEffects {
     glowMat.disableLighting = true;
     glowMat.alpha = 0.25;
     glowMat.backFaceCulling = false;
-    glowMat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(glowMat);
     glow.material = glowMat;
     this.orientCylinder(glow, cfg.origin, endpoint);
     meshes.push(glow);
@@ -1137,7 +1138,7 @@ export class HitscanEffects {
       this.wallMarkMaterial.alpha = 0.7;
       this.wallMarkMaterial.disableLighting = true;
       this.wallMarkMaterial.backFaceCulling = false;
-      this.wallMarkMaterial.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(this.wallMarkMaterial);
     }
     mesh.material = this.wallMarkMaterial;
 
@@ -1216,7 +1217,7 @@ export class HitscanEffects {
     mat.disableLighting = true;
     mat.backFaceCulling = false;
     mat.alpha = 0.7;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
     // Register as active effect — fades automatically via update()

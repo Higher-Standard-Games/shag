@@ -287,10 +287,18 @@ export class PlayerModelManager {
     if (clonedMesh.rotationQuaternion) clonedMesh.rotationQuaternion = null;
     clonedMesh.rotation.set(0, 0, 0);
 
-    // Visible
+    // Visible and never culled. Skinned clone bounds can be stale after GLB
+    // cloning/retargeted animations; if Babylon culls the body, the separately
+    // bone-attached weapon still renders and looks like a floating gun.
+    clonedMesh.setEnabled(true);
     clonedMesh.isVisible = true;
+    clonedMesh.visibility = 1;
+    clonedMesh.alwaysSelectAsActiveMesh = true;
     clonedMesh.getChildMeshes().forEach((m) => {
+      m.setEnabled(true);
       m.isVisible = true;
+      m.visibility = 1;
+      m.alwaysSelectAsActiveMesh = true;
     });
 
     // CRITICAL: Clear ALL .animations on cloned nodes.

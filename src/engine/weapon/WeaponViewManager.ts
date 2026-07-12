@@ -12,9 +12,11 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -535,7 +537,7 @@ export class WeaponViewManager {
             pbr.environmentIntensity = 2.0;
             pbr.directIntensity = 1.0;
             pbr.backFaceCulling = false;
-            pbr.maxSimultaneousLights = 4; // Prevent shader overflow from projectile PointLights
+            applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
             console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
           }
         }
@@ -832,6 +834,15 @@ export class WeaponViewManager {
     }
   }
 
+  private updateMuzzleFlashLightScope(): void {
+    if (!this.muzzleFlashLight || !this.currentWeapon) return;
+
+    const meshes: AbstractMesh[] = [...this.currentWeapon.meshes];
+    if (this.muzzleFlashModel) {
+      meshes.push(...this.muzzleFlashModel.getChildMeshes());
+    }
+    this.muzzleFlashLight.includedOnlyMeshes = meshes;
+  }
   // ==================== Shared Weapon Setup ====================
 
   /**
@@ -858,6 +869,7 @@ export class WeaponViewManager {
       mesh.renderingGroupId = 1;
       mesh.layerMask = WEAPON_LAYER_MASK;
     }
+    this.updateMuzzleFlashLightScope();
 
     // Apply position — GLB weapons use their viewModel offsets,
     // MD3 weapons reset to default hip position
@@ -1350,6 +1362,7 @@ export class WeaponViewManager {
     // defines and trigger shader recompilation (first-shot flicker bug).
     if (!this.muzzleFlashLight) {
       this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
+      this.updateMuzzleFlashLightScope();
     }
 
     const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };

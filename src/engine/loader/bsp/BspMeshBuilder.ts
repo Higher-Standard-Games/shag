@@ -20,6 +20,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import type { ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import type { BspFile } from "./BspLoader";
@@ -1298,7 +1299,7 @@ export class BspMeshBuilder {
 
         // Pre-allocate light slots so dynamic PointLights (projectiles, explosions)
         // work without shader recompilation (which frozen materials can't do)
-        mat.maxSimultaneousLights = 4;
+        applySafeMaxSimultaneousLights(mat);
 
         // Ensure diffuse is white so lightmap modulates at full range
         mat.diffuseColor = new Color3(1, 1, 1);
@@ -1324,7 +1325,7 @@ export class BspMeshBuilder {
         const pbrWithShadowmap = mat as PBRMaterial & { useLightmapAsShadowmap?: boolean };
         pbrWithShadowmap.useLightmapAsShadowmap = true;
 
-        mat.maxSimultaneousLights = 4;
+        applySafeMaxSimultaneousLights(mat);
         mat.albedoColor = new Color3(1, 1, 1);
 
         if (!mesh.metadata?.preserveEmissive) {
@@ -1493,7 +1494,7 @@ export class BspMeshBuilder {
     mat.disableDepthWrite = !props.depthWrite;
 
     // Cap light slots to avoid shader uniform block overflow (WebGL2 limit)
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
 
     // Polygon offset for decals
     // NOTE: polygonOffset with multiply blend (decals) still has z-fighting issues
@@ -1561,7 +1562,7 @@ export class BspMeshBuilder {
     mat.albedoColor = new Color3(1, 1, 1);
     mat.backFaceCulling = props.backFaceCulling;
     mat.twoSidedLighting = props.twoSidedLighting;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mat.usePhysicalLightFalloff = false;
     // BSP surfaces are primarily driven by baked lightmaps plus the fixed BSP
     // sun. Synthetic environment lighting tends to over-brighten and flatten

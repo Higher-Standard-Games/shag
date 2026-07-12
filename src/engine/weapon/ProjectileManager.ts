@@ -16,6 +16,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef } from "../../shared/entities";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -432,7 +433,7 @@ export class ProjectileManager {
       mat.emissiveColor = new Color3(color.r, color.g, color.b);
       mat.disableLighting = true;
       mat.backFaceCulling = false;
-      mat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(mat);
       mesh.material = mat;
     } else if (cachedModel) {
       // Clone the cached model meshes
@@ -458,7 +459,7 @@ export class ProjectileManager {
             mat.emissiveColor = new Color3(color.r, color.g, color.b);
             mat.disableLighting = true;
             mat.backFaceCulling = false;
-            mat.maxSimultaneousLights = 4;
+            applySafeMaxSimultaneousLights(mat);
             clone.material = mat;
           }
         }
@@ -798,7 +799,7 @@ export class ProjectileManager {
     mat.emissiveColor = new Color3(0.4, 0.6, 1.0); // blue spark
     mat.diffuseColor = Color3.Black();
     mat.disableLighting = true;
-    mat.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(mat);
     mesh.material = mat;
 
     // Small flash light from pool
@@ -881,7 +882,7 @@ export class ProjectileManager {
         mat.emissiveColor = new Color3(color.r, color.g, color.b);
         mat.disableLighting = true;
         mat.backFaceCulling = false;
-        mat.maxSimultaneousLights = 4;
+        applySafeMaxSimultaneousLights(mat);
         mesh.material = mat;
 
         // Scale
@@ -913,7 +914,7 @@ export class ProjectileManager {
       mat.diffuseColor = Color3.Black();
       mat.alpha = 1.0;
       mat.disableLighting = true;
-      mat.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(mat);
       mesh.material = mat;
     }
 

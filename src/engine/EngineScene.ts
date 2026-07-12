@@ -44,6 +44,7 @@ import { WindSystem } from "./effects/WindSystem";
 import { InputSystem } from "./input";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
+import { applySafeMaxSimultaneousLights, applySafeSceneLightCaps } from "./lighting/DynamicLightSafety";
 import { TextureManager, TextureMemoryManager } from "./loader";
 import { MapLoader } from "./loader/map/MapLoader";
 import { MapRenderer } from "./MapRenderer";
@@ -215,11 +216,9 @@ export abstract class EngineScene {
     // provides dynamic lighting while staying safely under 12 UBOs.
     // ═══════════════════════════════════════════════════════════════
     this.scene.onNewMaterialAddedObservable.add((material) => {
-      if ("maxSimultaneousLights" in material) {
-        // biome-ignore lint/suspicious/noExplicitAny: Babylon scene resource management internals
-        (material as any).maxSimultaneousLights = 2;
-      }
+      applySafeMaxSimultaneousLights(material);
     });
+    applySafeSceneLightCaps(this.scene);
 
     // Initialize Physics System
     try {

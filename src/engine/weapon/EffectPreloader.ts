@@ -28,6 +28,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 
 interface Disposable {
   dispose: () => void;
@@ -73,7 +74,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     matA.lightmapTexture.coordinatesIndex = 1;
     matA.lightmapTexture.level = 2.0;
     matA.useLightmapAsShadowmap = true;
-    matA.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(matA);
     matA.emissiveColor = new Color3(0, 0, 0);
     warmupDisposables.push(matA);
 
@@ -90,7 +91,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     matB.lightmapTexture.coordinatesIndex = 1;
     matB.lightmapTexture.level = 2.0;
     matB.useLightmapAsShadowmap = true;
-    matB.maxSimultaneousLights = 4;
+    applySafeMaxSimultaneousLights(matB);
     matB.emissiveColor = new Color3(0, 0, 0);
     warmupDisposables.push(matB);
 
@@ -281,13 +282,13 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
     for (const mesh of scene.meshes) {
       if (mesh.material instanceof StandardMaterial) {
         // Cap ALL StandardMaterials to prevent shader overflow from dynamic PointLights
-        mesh.material.maxSimultaneousLights = 4;
+        applySafeMaxSimultaneousLights(mesh.material);
         if (!matMeshMap.has(mesh.material)) {
           matMeshMap.set(mesh.material, mesh as Mesh);
         }
       } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
         // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-        (mesh.material as any).maxSimultaneousLights = 4;
+        applySafeMaxSimultaneousLights(mesh.material as any);
         if (!pbrMatMeshMap.has(mesh.material)) {
           pbrMatMeshMap.set(mesh.material, mesh as Mesh);
         }
@@ -417,13 +418,13 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   const pbrMatMeshMap = new Map<any, Mesh>();
   for (const mesh of scene.meshes) {
     if (mesh.material instanceof StandardMaterial) {
-      mesh.material.maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(mesh.material);
       if (!matMeshMap.has(mesh.material)) {
         matMeshMap.set(mesh.material, mesh as Mesh);
       }
     } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
       // biome-ignore lint/suspicious/noExplicitAny: Babylon particle system internals
-      (mesh.material as any).maxSimultaneousLights = 4;
+      applySafeMaxSimultaneousLights(mesh.material as any);
       if (!pbrMatMeshMap.has(mesh.material)) {
         pbrMatMeshMap.set(mesh.material, mesh as Mesh);
       }

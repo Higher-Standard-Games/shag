@@ -30,6 +30,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 import type { Scene } from "@babylonjs/core/scene";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { AudioManager } from "../AudioManager";
 import { CameraSystem } from "../camera/CameraSystem";
 import { ModelLoader } from "../loader/model/ModelLoader";
@@ -164,7 +165,7 @@ export class Pickup extends TransformNode {
             // Cap lights to prevent shader uniform block overflow
             if (m.material && "maxSimultaneousLights" in m.material) {
               // biome-ignore lint/suspicious/noExplicitAny: Babylon material introspection
-              (m.material as any).maxSimultaneousLights = 4;
+              applySafeMaxSimultaneousLights(m.material as any);
             }
             if (m.getTotalVertices() === 0) continue;
             if (!leaderMesh) {

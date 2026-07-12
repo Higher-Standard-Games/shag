@@ -11,6 +11,7 @@ import { type EntityData, EntityHandlerRegistry } from "./core/EntityHandlerRegi
 import { LocalDebrisManager, type LocalDebrisType } from "./effects/LocalDebrisEffect";
 import { SkyLightSystem } from "./lighting/SkyLightSystem";
 import { StreetLampSystem } from "./lighting/StreetLampSystem";
+import { applySafeMaxSimultaneousLights } from "./lighting/DynamicLightSafety";
 import {
   BrushGenerator,
   type Entity,
@@ -459,7 +460,7 @@ export class MapRenderer {
               material.diffuseColor = new Color3(0.8, 0.8, 0.8);
               material.specularColor = new Color3(0, 0, 0);
               material.backFaceCulling = false;
-              material.maxSimultaneousLights = 4;
+              applySafeMaxSimultaneousLights(material);
               mesh.material = material;
             }
           }
