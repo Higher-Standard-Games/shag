@@ -735,6 +735,7 @@ export class BinaryProtocol {
     award: 12,
     weapon_chain: 13,
     chat: 14,
+    pickup_notify: 15,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -753,6 +754,7 @@ export class BinaryProtocol {
     "award",
     "weapon_chain",
     "chat",
+    "pickup_notify",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -891,6 +893,11 @@ export class BinaryProtocol {
           encoder.writeString(event.senderName ?? "");
           encoder.writeString(event.team ?? "");
           encoder.writeString(event.text ?? "");
+          break;
+
+        case 15: // pickup_notify: entityId (grabber), label
+          encoder.writeString(event.entityId ?? "");
+          encoder.writeString(event.label ?? "");
           break;
       }
     }
@@ -1064,6 +1071,14 @@ export class BinaryProtocol {
             senderName: decoder.readString(),
             team: decoder.readString(),
             text: decoder.readString(),
+          });
+          break;
+
+        case 15: // pickup_notify
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            label: decoder.readString(),
           });
           break;
       }

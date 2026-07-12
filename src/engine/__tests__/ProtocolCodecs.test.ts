@@ -832,6 +832,11 @@ describe("BinaryProtocol — event serialization", () => {
     });
   });
 
+  it("pickup_notify: stable fields (WO-#5/#7)", () => {
+    const [ev] = roundtripEvents([{ type: "pickup_notify", entityId: "player_4", label: "Green Armor" }]);
+    expect(ev).toMatchObject({ type: "pickup_notify", entityId: "player_4", label: "Green Armor" });
+  });
+
   it("preserves event order across roundtrip", () => {
     const events = [
       { type: "weapon_fire", entityId: "e1", weaponId: "rg", originX: 0, originY: 0, originZ: 0, dirX: 0, dirY: 0, dirZ: 1 },
