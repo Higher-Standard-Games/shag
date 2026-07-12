@@ -23,6 +23,7 @@ import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { MovementVars } from "../movement/MovementVars";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
+import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
 import { getHitscanEffects } from "./HitscanEffects";
 import { getProjectileManager } from "./ProjectileManager";
 import { WeaponBarrels } from "./WeaponBarrels";
@@ -204,6 +205,11 @@ export class WeaponViewManager {
 
   // ADS (Aiming Down Sights) state
   private adsProgress: number = 0; // 0 = hip, 1 = fully ADS
+
+  // On-weapon ammo counter (Warsow tag_ammo bone + ammoCounter cfg). Only weapons
+  // authored with the counter bones + cfg get one; null otherwise.
+  private ammoCounter: AmmoCounterDisplay | null = null;
+  private displayedAmmo = 0;
 
   // Muzzle flash state
   private muzzleFlashLight: PointLight | null = null;
@@ -425,6 +431,7 @@ export class WeaponViewManager {
     }
 
     // Remove previous weapon before loading new one
+    this.disposeAmmoCounter();
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -598,6 +605,9 @@ export class WeaponViewManager {
           () => this._loadGeneration,
         );
       }
+
+      // Build the on-weapon ammo counter if this model is authored for one.
+      this.setupAmmoCounter(weaponName, loadGen).catch(() => {});
 
       return true;
     } catch (e) {
@@ -968,9 +978,63 @@ export class WeaponViewManager {
    * Clear current weapon
    */
   public clear(): void {
+    this.disposeAmmoCounter();
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
+    }
+  }
+
+  // ==================== On-weapon Ammo Counter ====================
+
+  /**
+   * Push the live ammo count for the on-weapon counter. Cheap to call every
+   * frame — the display only repaints when the number changes. No-op for weapons
+   * without a counter.
+   */
+  public setAmmoCount(ammo: number): void {
+    this.displayedAmmo = ammo;
+    this.ammoCounter?.setAmmo(ammo);
+  }
+
+  private disposeAmmoCounter(): void {
+    this.ammoCounter?.dispose();
+    this.ammoCounter = null;
+  }
+
+  /**
+   * Build the on-weapon ammo counter if this weapon is authored for it: its model
+   * has a `tag_ammo` bone and its `.cfg` carries an `ammoCounter` directive.
+   * Fire-and-forget — a missing bone/cfg just means no counter (most weapons).
+   */
+  private async setupAmmoCounter(weaponName: string, loadGen: number): Promise<void> {
+    try {
+      const cfgPath = `/data/models/weapons/${weaponName}/${weaponName}.cfg`;
+      const res = await fetch(cfgPath);
+      if (!res.ok) return;
+      const config = parseAmmoCounter(await res.text());
+      if (!config) return;
+
+      // A newer load may have superseded us while awaiting the cfg.
+      if (loadGen !== this._loadGeneration || !this.scene) return;
+
+      // The counter mounts to the `tag_ammo` bone (Warsow ammo-counter anchor).
+      let anchor: TransformNode | null = null;
+      for (const skeleton of this.scene.skeletons) {
+        const bone = skeleton.bones.find((b) => b.name === "tag_ammo");
+        const node = bone?.getTransformNode();
+        if (node) {
+          anchor = node;
+          break;
+        }
+      }
+      if (!anchor) return; // weapon has an ammoCounter cfg but no tag_ammo bone yet
+
+      this.disposeAmmoCounter();
+      this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config);
+      this.ammoCounter.setAmmo(this.displayedAmmo);
+    } catch {
+      // No cfg / fetch unavailable (e.g. headless) — silently skip the counter.
     }
   }
 
