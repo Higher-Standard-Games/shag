@@ -192,8 +192,12 @@
 
   /* drop-shadow() variants: unlike box-shadow, these follow the clip-path
      silhouette, so clipped slabs get a true offset print shadow. */
-  --w-drop-print-sm: drop-shadow(calc(6px * var(--ui-scale, 1)) calc(7px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.6));
-  --w-drop-print-md: drop-shadow(calc(9px * var(--ui-scale, 1)) calc(9px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.65));
+  --w-drop-print-sm: drop-shadow(
+    calc(6px * var(--ui-scale, 1)) calc(7px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.6)
+  );
+  --w-drop-print-md: drop-shadow(
+    calc(9px * var(--ui-scale, 1)) calc(9px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.65)
+  );
 
   --w-ink-text-sm: calc(2px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 var(--w-ink);
   --w-ink-text-md: calc(3px * var(--ui-scale, 1)) calc(4px * var(--ui-scale, 1)) 0 var(--w-ink);
@@ -236,9 +240,7 @@
 
 .w-panel-backdrop {
   position: relative;
-  background:
-    linear-gradient(138deg, hsla(238, 36%, 9%, 0.92), hsla(245, 42%, 5%, 0.94)),
-    var(--w-scan-cyan);
+  background: linear-gradient(138deg, hsla(238, 36%, 9%, 0.92), hsla(245, 42%, 5%, 0.94)), var(--w-scan-cyan);
   color: var(--w-text);
   border: 2px solid hsla(180, 100%, 50%, 0.28);
   box-shadow:
@@ -250,9 +252,7 @@
 .w-slab,
 .w-ticket {
   position: relative;
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.08), hsla(0, 0%, 100%, 0.03) 62%),
-    hsla(238, 38%, 8%, 0.72);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.08), hsla(0, 0%, 100%, 0.03) 62%), hsla(238, 38%, 8%, 0.72);
   color: var(--w-text);
   border: 1.5px solid hsla(180, 100%, 50%, 0.28);
   box-shadow:
@@ -319,9 +319,7 @@
   line-height: 1;
   text-transform: uppercase;
   color: var(--w-text);
-  background:
-    linear-gradient(92deg, hsla(180, 100%, 50%, 0.18), hsla(0, 0%, 100%, 0.05) 62%),
-    hsla(238, 38%, 8%, 0.9);
+  background: linear-gradient(92deg, hsla(180, 100%, 50%, 0.18), hsla(0, 0%, 100%, 0.05) 62%), hsla(238, 38%, 8%, 0.9);
   border: 1.5px solid hsla(180, 100%, 50%, 0.4);
   clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
   box-shadow:
@@ -356,8 +354,7 @@
   color: hsl(350, 100%, 86%);
   border-color: hsla(345, 100%, 62%, 0.58);
   background:
-    linear-gradient(92deg, hsla(345, 100%, 62%, 0.24), hsla(320, 100%, 60%, 0.06) 62%),
-    hsla(248, 42%, 8%, 0.92);
+    linear-gradient(92deg, hsla(345, 100%, 62%, 0.24), hsla(320, 100%, 60%, 0.06) 62%), hsla(248, 42%, 8%, 0.92);
   box-shadow:
     4px 5px 0 hsla(250, 45%, 4%, 0.42),
     inset 5px 0 0 hsla(345, 100%, 62%, 0.54);
@@ -1258,9 +1255,7 @@
   min-width: calc(200px * var(--ui-scale, 1));
   height: calc(68px * var(--ui-scale, 1));
   padding: calc(6px * var(--ui-scale, 1)) calc(36px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
-  background:
-    linear-gradient(178deg, hsla(250, 30%, 11%, 0.97), var(--w-void) 60%),
-    var(--w-scan-cyan);
+  background: linear-gradient(178deg, hsla(250, 30%, 11%, 0.97), var(--w-void) 60%), var(--w-scan-cyan);
   clip-path: polygon(0 0, 100% 0, 96% 88%, 52% 100%, 4% 92%);
   box-shadow: inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(255, 70%, 3%, 0.5);
   filter: var(--w-drop-print-md);
@@ -1309,9 +1304,7 @@
 
 /* Last 10s — blood field, two-step ink flash */
 .fps-timer--critical {
-  background:
-    linear-gradient(105deg, hsla(7, 92%, 58%, 0.97), hsla(350, 80%, 42%, 0.95)),
-    var(--w-scan-cream);
+  background: linear-gradient(105deg, hsla(7, 92%, 58%, 0.97), hsla(350, 80%, 42%, 0.95)), var(--w-scan-cream);
   animation: w-crit-flash 0.72s steps(2, end) infinite;
 }
 
@@ -1409,8 +1402,7 @@
   padding: calc(10px * var(--ui-scale, 1)) calc(26px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));
   box-sizing: border-box;
   background:
-    linear-gradient(115deg, hsla(190, 98%, 58%, 0.2), hsla(230, 60%, 10%, 0.85) 50%, var(--w-void)),
-    var(--w-scan-cyan);
+    linear-gradient(115deg, hsla(190, 98%, 58%, 0.2), hsla(230, 60%, 10%, 0.85) 50%, var(--w-void)), var(--w-scan-cyan);
   clip-path: polygon(4% 0, 96% 6%, 100% 100%, 0 92%);
   box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
   filter: var(--w-drop-print-sm);
@@ -1619,9 +1611,7 @@
   max-width: 100%;
   padding: calc(4px * var(--ui-scale, 1)) calc(20px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1))
     calc(12px * var(--ui-scale, 1));
-  background:
-    linear-gradient(100deg, hsla(250, 30%, 12%, 0.9), var(--w-void) 70%),
-    var(--w-scan-cyan);
+  background: linear-gradient(100deg, hsla(250, 30%, 12%, 0.9), var(--w-void) 70%), var(--w-scan-cyan);
   clip-path: polygon(2% 0, 100% 0, 97% 100%, 0 100%);
   transform: skewX(-5deg);
   transform-origin: left bottom;
@@ -1714,23 +1704,43 @@
    gold field, dark ink text, cut-slab silhouette, hard print shadow. Pops in
    with a stamp then floats up and fades. */
 .fps-pickup-toast {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: calc(9px * var(--ui-scale, 1)) calc(30px * var(--ui-scale, 1));
+  gap: calc(10px * var(--ui-scale, 1));
+  padding: calc(11px * var(--ui-scale, 1)) calc(40px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
   margin-bottom: calc(52px * var(--ui-scale, 1));
-  background:
-    linear-gradient(178deg, hsl(45, 100%, 62%), hsl(42, 96%, 52%) 70%),
-    var(--w-scan-cream);
-  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  background: linear-gradient(178deg, hsl(46, 100%, 64%), hsl(41, 96%, 50%) 72%), var(--w-scan-cream);
+  /* Torn "dispatch plate" silhouette — same cartoonish family as the FIGHT slam. */
+  clip-path: polygon(2% 8%, 98% 0, 100% 86%, 52% 100%, 0 92%);
   box-shadow:
     calc(5px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
     inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(38, 90%, 34%, 0.6);
-  transform: var(--w-tilt-top);
-  transform-origin: center top;
-  animation:
-    fps-pickup-pop 0.18s steps(2, end),
-    fps-float-up 2.3s ease-in-out forwards;
+  transform: skewX(-5deg);
+  transform-origin: center;
+  animation: fps-pickup-life 2.3s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+}
+
+/* Burst ring — a quick "pop" halo that expands and fades on spawn. */
+.fps-pickup-toast::before {
+  content: "";
+  position: absolute;
+  inset: calc(-12px * var(--ui-scale, 1));
+  border: calc(4px * var(--ui-scale, 1)) solid hsla(46, 100%, 72%, 0.85);
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  animation: fps-pickup-burst 0.5s ease-out forwards;
+}
+
+.fps-pickup-toast-plus {
+  font-family: var(--w-font-display);
+  font-size: calc(26px * var(--ui-scale, 1));
+  font-weight: 900;
+  line-height: 1;
+  color: hsl(140, 78%, 26%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(46, 100%, 82%, 0.8);
 }
 
 .fps-pickup-toast-label {
@@ -1744,14 +1754,49 @@
   white-space: nowrap;
 }
 
-@keyframes fps-pickup-pop {
+/* Slam in with an overshoot bounce, hold, then break loose and tumble away. */
+@keyframes fps-pickup-life {
   0% {
     opacity: 0;
-    transform: var(--w-tilt-top) scale(1.14);
+    transform: skewX(-5deg) scale(1.8);
+  }
+  7% {
+    opacity: 1;
+    transform: skewX(-5deg) scale(0.93);
+  }
+  13% {
+    transform: skewX(-5deg) scale(1.05);
+  }
+  18% {
+    transform: skewX(-5deg) scale(1);
+  }
+  72% {
+    opacity: 1;
+    transform: skewX(-5deg) scale(1) translateY(0) rotate(0deg);
   }
   100% {
-    opacity: 1;
-    transform: var(--w-tilt-top) scale(1);
+    opacity: 0;
+    transform: skewX(-5deg) scale(0.88) translateY(calc(46px * var(--ui-scale, 1))) rotate(7deg);
+  }
+}
+
+@keyframes fps-pickup-burst {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fps-pickup-toast {
+    animation: fps-float-up 2.3s ease-in-out forwards;
+  }
+  .fps-pickup-toast::before {
+    animation: none;
   }
 }
 
@@ -1792,16 +1837,12 @@
 
 /* RELOAD — gold clock-slab. */
 .fps-ammo-warning--reload {
-  background:
-    linear-gradient(178deg, hsl(45, 100%, 62%), hsl(42, 96%, 52%) 70%),
-    var(--w-scan-cream);
+  background: linear-gradient(178deg, hsl(45, 100%, 62%), hsl(42, 96%, 52%) 70%), var(--w-scan-cream);
 }
 
 /* OUT OF AMMO — hot red slab, urgent. */
 .fps-ammo-warning--out {
-  background:
-    linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%),
-    var(--w-scan-cream);
+  background: linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%), var(--w-scan-cream);
 }
 
 .fps-ammo-warning--out .fps-ammo-warning-label {
@@ -1822,6 +1863,66 @@
 }
 
 /* ============================================================================
+   Actionable keycap — shared chip for HUD key hints ([F], [R], …)
+   Dark ink chip with a gold inner edge so it reads on both cream and gold slabs.
+   ============================================================================ */
+.fps-keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(20px * var(--ui-scale, 1));
+  padding: calc(1px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1));
+  margin: 0 calc(3px * var(--ui-scale, 1));
+  background: hsl(246, 42%, 10%);
+  color: var(--w-cream);
+  font-family: var(--w-font-display);
+  font-weight: 900;
+  font-size: 0.84em;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  border-radius: calc(4px * var(--ui-scale, 1));
+  box-shadow:
+    calc(2px * var(--ui-scale, 1)) calc(2px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
+    inset 0 0 0 calc(1.5px * var(--ui-scale, 1)) hsla(45, 100%, 68%, 0.6);
+  transform: translateY(-0.08em);
+}
+
+/* ============================================================================
+   Pickup / weapon-swap prompt — bright cream print-slab, centered.
+   ============================================================================ */
+.fps-pickup-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 25%;
+  transform: translateX(-50%);
+  z-index: 900;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: calc(9px * var(--ui-scale, 1)) calc(28px * var(--ui-scale, 1)) calc(11px * var(--ui-scale, 1));
+  background: linear-gradient(178deg, var(--w-cream), hsl(41, 92%, 85%) 78%), var(--w-scan-cyan);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  filter: var(--w-drop-print-sm);
+  box-shadow: inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(190, 70%, 45%, 0.28);
+  transition: opacity 0.15s ease;
+}
+
+.fps-pickup-prompt-text {
+  font-family: var(--w-font-display);
+  font-size: calc(21px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(246, 42%, 12%);
+}
+
+/* The item being picked up / swapped to — punchy teal so it pops off the cream. */
+.fps-pickup-prompt-weapon {
+  color: hsl(196, 96%, 32%);
+}
+
+/* ============================================================================
    Spectator overlay — Washoi print-slab (freefly cue + spectating bar)
    ============================================================================ */
 
@@ -1835,9 +1936,7 @@
   width: calc(420px * var(--ui-scale, 1));
   box-sizing: border-box;
   padding: calc(14px * var(--ui-scale, 1)) calc(22px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
-  background:
-    linear-gradient(158deg, hsla(190, 92%, 52%, 0.16), var(--w-void) 56%),
-    var(--w-scan-cyan);
+  background: linear-gradient(158deg, hsla(190, 92%, 52%, 0.16), var(--w-void) 56%), var(--w-scan-cyan);
   clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
   box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
   filter: var(--w-drop-print-sm);
@@ -1912,8 +2011,7 @@
   gap: calc(12px * var(--ui-scale, 1));
   padding: calc(6px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
   background:
-    linear-gradient(115deg, hsla(190, 98%, 58%, 0.22), hsla(230, 60%, 10%, 0.85) 52%, var(--w-void)),
-    var(--w-scan-cyan);
+    linear-gradient(115deg, hsla(190, 98%, 58%, 0.22), hsla(230, 60%, 10%, 0.85) 52%, var(--w-void)), var(--w-scan-cyan);
   clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
   box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
   filter: var(--w-drop-print-sm);
@@ -1983,9 +2081,7 @@
   max-height: 82vh;
   overflow-y: auto;
   padding: calc(64px * var(--ui-scale, 1)) calc(38px * var(--ui-scale, 1)) calc(30px * var(--ui-scale, 1));
-  background:
-    linear-gradient(172deg, hsla(250, 30%, 10%, 0.97), var(--w-void) 40%),
-    var(--w-scan-cyan);
+  background: linear-gradient(172deg, hsla(250, 30%, 10%, 0.97), var(--w-void) 40%), var(--w-scan-cyan);
   clip-path: polygon(0 2%, 98.5% 0, 100% 97%, 1.5% 100%);
   box-shadow: inset 0 0 0 1px hsla(190, 90%, 72%, 0.14);
   filter: var(--w-drop-print-md);
@@ -2011,9 +2107,7 @@
   left: calc(22px * var(--ui-scale, 1));
   padding: calc(8px * var(--ui-scale, 1)) calc(30px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1))
     calc(20px * var(--ui-scale, 1));
-  background:
-    linear-gradient(100deg, hsla(7, 92%, 58%, 0.96), hsla(350, 80%, 42%, 0.94)),
-    var(--w-scan-cream);
+  background: linear-gradient(100deg, hsla(7, 92%, 58%, 0.96), hsla(350, 80%, 42%, 0.94)), var(--w-scan-cream);
   clip-path: polygon(0 8%, 100% 0, 96% 100%, 3% 92%);
   transform: skewX(-5deg);
   transform-origin: left bottom;
@@ -2136,9 +2230,7 @@
 
 /* Udon Team (blood) */
 .fps-scoreboard-team--udon .fps-scoreboard-team-title {
-  background:
-    linear-gradient(100deg, hsla(7, 92%, 58%, 0.95), hsla(350, 80%, 42%, 0.93)),
-    var(--w-scan-cream);
+  background: linear-gradient(100deg, hsla(7, 92%, 58%, 0.95), hsla(350, 80%, 42%, 0.93)), var(--w-scan-cream);
 }
 
 .fps-scoreboard-team--udon .fps-scoreboard-row {
@@ -2147,9 +2239,7 @@
 
 /* Soba Team (armor cyan) */
 .fps-scoreboard-team--soba .fps-scoreboard-team-title {
-  background:
-    linear-gradient(115deg, hsla(190, 98%, 58%, 0.45), hsla(210, 62%, 20%, 0.92) 70%),
-    var(--w-scan-cyan);
+  background: linear-gradient(115deg, hsla(190, 98%, 58%, 0.45), hsla(210, 62%, 20%, 0.92) 70%), var(--w-scan-cyan);
 }
 
 .fps-scoreboard-team--soba .fps-scoreboard-row {
@@ -2186,9 +2276,7 @@
   overflow-y: auto;
   pointer-events: auto;
   padding: calc(8px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
-  background:
-    linear-gradient(135deg, hsla(238, 34%, 9%, 0.92), hsla(242, 36%, 5%, 0.92)),
-    var(--w-scan-cyan);
+  background: linear-gradient(135deg, hsla(238, 34%, 9%, 0.92), hsla(242, 36%, 5%, 0.92)), var(--w-scan-cyan);
   border: calc(1.5px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.24);
   box-shadow:
     calc(3px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(0, 0%, 0%, 0.3),
@@ -2358,24 +2446,30 @@
   white-space: nowrap;
 }
 
+/* YOU GOT FRAGGED — same blood-plate slam as the match-start FIGHT! stamp,
+   scaled up as the centerpiece of the death screen. */
 .fps-death-title {
+  padding: calc(14px * var(--ui-scale, 1)) calc(64px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  background: linear-gradient(105deg, hsla(7, 92%, 56%, 0.98), hsla(350, 82%, 40%, 0.96)), var(--w-scan-cream);
+  clip-path: polygon(3% 6%, 97% 0, 100% 88%, 52% 100%, 0 90%);
+  transform: skewX(-5deg);
+  filter: var(--w-drop-print-md);
   font-family: var(--w-font-display);
-  font-size: calc(52px * var(--ui-scale, 1));
+  font-size: calc(60px * var(--ui-scale, 1));
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: hsl(0, 80%, 55%);
-  text-shadow:
-    0 0 20px hsla(0, 80%, 55%, 0.6),
-    0 0 60px hsla(0, 80%, 55%, 0.2);
-  animation: fps-pulse-neon 2s ease-in-out infinite;
+  letter-spacing: 0.14em;
+  color: var(--w-cream);
+  text-shadow: var(--w-ink-text-md);
+  animation: w-fight-stamp 0.4s steps(2, end);
 }
 
 .fps-death-separator {
-  width: calc(160px * var(--ui-scale, 1));
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsla(0, 80%, 50%, 0.5), transparent);
-  margin: calc(8px * var(--ui-scale, 1)) 0;
+  width: calc(200px * var(--ui-scale, 1));
+  height: calc(3px * var(--ui-scale, 1));
+  background: linear-gradient(90deg, transparent, hsla(7, 85%, 52%, 0.7), transparent);
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  margin: calc(10px * var(--ui-scale, 1)) 0;
 }
 
 .fps-death-killer {
@@ -2558,8 +2652,7 @@
 .fps-pause-menu.fps-dialog-backdrop {
   background:
     radial-gradient(circle at 50% 42%, hsla(320, 100%, 60%, 0.18), transparent 34%),
-    radial-gradient(circle at 18% 18%, hsla(45, 100%, 55%, 0.12), transparent 28%),
-    hsla(240, 22%, 5%, 0.72);
+    radial-gradient(circle at 18% 18%, hsla(45, 100%, 55%, 0.12), transparent 28%), hsla(240, 22%, 5%, 0.72);
   backdrop-filter: blur(4px) saturate(1.15);
   -webkit-backdrop-filter: blur(4px) saturate(1.15);
 }
@@ -2571,9 +2664,7 @@
   overflow: visible;
   border: none;
   border-radius: calc(6px * var(--ui-scale, 1));
-  background:
-    linear-gradient(135deg, hsla(238, 34%, 9%, 0.98), hsla(242, 36%, 5%, 0.98)),
-    var(--w-scan-cyan);
+  background: linear-gradient(135deg, hsla(238, 34%, 9%, 0.98), hsla(242, 36%, 5%, 0.98)), var(--w-scan-cyan);
   filter: var(--w-drop-print-md);
   box-shadow:
     inset 0 0 0 calc(2px * var(--ui-scale, 1)) hsla(180, 100%, 50%, 0.45),
@@ -2644,9 +2735,7 @@
   position: relative;
   padding: calc(14px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
   margin-bottom: calc(4px * var(--ui-scale, 1));
-  background:
-    linear-gradient(100deg, hsla(180, 100%, 50%, 0.16), transparent 68%),
-    hsla(0, 0%, 100%, 0.055);
+  background: linear-gradient(100deg, hsla(180, 100%, 50%, 0.16), transparent 68%), hsla(0, 0%, 100%, 0.055);
   border: calc(2px * var(--ui-scale, 1)) solid hsla(180, 100%, 50%, 0.28);
   clip-path: polygon(0 7%, 96% 0, 100% 88%, 5% 100%);
 }
@@ -2741,9 +2830,7 @@
 
 .fps-btn.fps-btn--pause.fps-btn--primary {
   border-color: hsla(45, 100%, 55%, 0.58);
-  background:
-    linear-gradient(92deg, hsla(45, 100%, 55%, 0.92), hsla(45, 100%, 55%, 0.58)),
-    var(--w-gold);
+  background: linear-gradient(92deg, hsla(45, 100%, 55%, 0.92), hsla(45, 100%, 55%, 0.58)), var(--w-gold);
   color: hsl(246, 38%, 7%);
   box-shadow:
     calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(320, 100%, 60%, 0.55),
@@ -2752,9 +2839,7 @@
 
 .fps-btn.fps-btn--pause.fps-btn--danger {
   border-color: hsla(0, 84%, 62%, 0.56);
-  background:
-    linear-gradient(92deg, hsla(0, 84%, 58%, 0.28), hsla(238, 38%, 8%, 0.98)),
-    hsla(238, 38%, 8%, 0.98);
+  background: linear-gradient(92deg, hsla(0, 84%, 58%, 0.28), hsla(238, 38%, 8%, 0.98)), hsla(238, 38%, 8%, 0.98);
   color: hsl(0, 100%, 76%);
   box-shadow:
     calc(4px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1)) 0 hsla(0, 84%, 40%, 0.34),
@@ -3023,8 +3108,7 @@
 .fps-phase-title {
   padding: calc(10px * var(--ui-scale, 1)) calc(44px * var(--ui-scale, 1)) calc(13px * var(--ui-scale, 1));
   background:
-    linear-gradient(115deg, hsla(190, 98%, 58%, 0.3), hsla(210, 62%, 20%, 0.9) 55%, var(--w-void)),
-    var(--w-scan-cyan);
+    linear-gradient(115deg, hsla(190, 98%, 58%, 0.3), hsla(210, 62%, 20%, 0.9) 55%, var(--w-void)), var(--w-scan-cyan);
   clip-path: polygon(2% 0, 100% 0, 97% 88%, 52% 100%, 0 90%);
   transform: skewX(-5deg);
   filter: var(--w-drop-print-sm);
@@ -3080,9 +3164,7 @@
 /* FIGHT! — blood plate slam */
 .fps-phase-fight {
   padding: calc(14px * var(--ui-scale, 1)) calc(60px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
-  background:
-    linear-gradient(105deg, hsla(7, 92%, 58%, 0.97), hsla(350, 80%, 42%, 0.95)),
-    var(--w-scan-cream);
+  background: linear-gradient(105deg, hsla(7, 92%, 58%, 0.97), hsla(350, 80%, 42%, 0.95)), var(--w-scan-cream);
   clip-path: polygon(3% 4%, 97% 0, 100% 90%, 52% 100%, 0 86%);
   transform: skewX(-5deg);
   filter: var(--w-drop-print-md);
@@ -3123,9 +3205,7 @@
   display: flex;
   align-items: stretch;
   padding: 0;
-  background:
-    linear-gradient(172deg, hsla(250, 30%, 11%, 0.95), var(--w-void) 60%),
-    var(--w-scan-cyan);
+  background: linear-gradient(172deg, hsla(250, 30%, 11%, 0.95), var(--w-void) 60%), var(--w-scan-cyan);
   clip-path: polygon(1.5% 0, 100% 0, 98.5% 100%, 0 94%);
   box-shadow: inset 0 0 0 1px hsla(190, 90%, 72%, 0.16);
   filter: var(--w-drop-print-sm);
@@ -3189,8 +3269,7 @@
 /* Readied: field goes confirm-green */
 .fps-ready-bar--ready {
   background:
-    linear-gradient(115deg, hsla(145, 80%, 45%, 0.35), hsla(160, 60%, 14%, 0.94) 60%, var(--w-void)),
-    var(--w-scan-cyan);
+    linear-gradient(115deg, hsla(145, 80%, 45%, 0.35), hsla(160, 60%, 14%, 0.94) 60%, var(--w-void)), var(--w-scan-cyan);
   box-shadow: inset 0 0 0 1px hsla(140, 80%, 60%, 0.3);
 }
 
@@ -3201,8 +3280,7 @@
 /* Spectating: magenta accent, no count cell */
 .fps-ready-bar--spectating {
   background:
-    linear-gradient(115deg, hsla(320, 90%, 60%, 0.26), hsla(285, 45%, 12%, 0.94) 55%, var(--w-void)),
-    var(--w-scan-cyan);
+    linear-gradient(115deg, hsla(320, 90%, 60%, 0.26), hsla(285, 45%, 12%, 0.94) 55%, var(--w-void)), var(--w-scan-cyan);
   box-shadow: inset 0 0 0 1px hsla(320, 80%, 70%, 0.25);
 }
 

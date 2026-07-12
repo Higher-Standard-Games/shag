@@ -179,6 +179,12 @@ export class WeaponViewManager {
    * mispredicted/stuck viewmodel against its authoritative weapon.
    */
   private _intendedWeaponId: string | null = null;
+  /**
+   * Sticky visibility. setVisible() records it here and every freshly loaded
+   * weapon re-applies it — so hiding the viewmodel on death survives the weapon
+   * reset to blade (which would otherwise re-show a fresh, enabled mesh).
+   */
+  private _visible = true;
   private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
 
   // CVar tracking for live updates
@@ -841,6 +847,10 @@ export class WeaponViewManager {
     // Parent to weapon root
     this.currentWeapon.root.parent = this.weaponRoot;
 
+    // Re-apply sticky visibility — a weapon loaded while the view is hidden
+    // (e.g. the death reset to blade) must stay hidden until setVisible(true).
+    this.currentWeapon.root.setEnabled(this._visible);
+
     // Set rendering group and layer mask for each mesh
     // - renderingGroupId 1: renders after world with depth cleared
     // - layerMask: only visible to weapon camera (separate FOV)
@@ -936,6 +946,7 @@ export class WeaponViewManager {
    * Toggle weapon visibility
    */
   public setVisible(visible: boolean): void {
+    this._visible = visible;
     if (this.currentWeapon) {
       this.currentWeapon.root.setEnabled(visible);
     }
