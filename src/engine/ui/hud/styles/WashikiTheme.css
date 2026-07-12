@@ -1756,6 +1756,72 @@
 }
 
 /* ============================================================================
+   Ammo Warning — "OUT OF AMMO" / "RELOAD" print-slab, fixed above speedometer
+   ============================================================================ */
+
+/* Fixed + out of flow so it stays centered above the speedometer regardless of
+   the bottom-center anchor's row layout. Same cut-slab material as the timer. */
+.fps-ammo-warning {
+  position: fixed;
+  left: 50%;
+  bottom: 17%;
+  transform: translateX(-50%);
+  z-index: 950;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(8px * var(--ui-scale, 1)) calc(30px * var(--ui-scale, 1)) calc(10px * var(--ui-scale, 1));
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  box-shadow:
+    calc(5px * var(--ui-scale, 1)) calc(6px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.55),
+    inset 0 calc(-3px * var(--ui-scale, 1)) 0 hsla(38, 90%, 34%, 0.5);
+  animation: fps-ammo-warning-pulse 0.9s ease-in-out infinite;
+}
+
+.fps-ammo-warning-label {
+  font-family: var(--w-font-display);
+  font-size: calc(20px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: hsl(246, 40%, 8%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(45, 100%, 78%, 0.7);
+}
+
+/* RELOAD — gold clock-slab. */
+.fps-ammo-warning--reload {
+  background:
+    linear-gradient(178deg, hsl(45, 100%, 62%), hsl(42, 96%, 52%) 70%),
+    var(--w-scan-cream);
+}
+
+/* OUT OF AMMO — hot red slab, urgent. */
+.fps-ammo-warning--out {
+  background:
+    linear-gradient(178deg, hsl(2, 92%, 60%), hsl(356, 82%, 46%) 72%),
+    var(--w-scan-cream);
+}
+
+.fps-ammo-warning--out .fps-ammo-warning-label {
+  color: hsl(48, 100%, 94%);
+  text-shadow: calc(1px * var(--ui-scale, 1)) calc(1px * var(--ui-scale, 1)) 0 hsla(0, 60%, 12%, 0.8);
+}
+
+@keyframes fps-ammo-warning-pulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    filter: var(--w-drop-print-sm);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.04);
+    filter: var(--w-drop-print-md);
+  }
+}
+
+/* ============================================================================
    Scoreboard Overlay (Tab) — Washoi print board
    ============================================================================ */
 

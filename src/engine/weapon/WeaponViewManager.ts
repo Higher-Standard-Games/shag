@@ -916,6 +916,14 @@ export class WeaponViewManager {
   }
 
   /**
+   * Current ADS blend, 0 = hip-fire, 1 = fully aimed. Drives the crosshair's
+   * COD-style converge-to-center (Crosshair.update).
+   */
+  public getAdsProgress(): number {
+    return this.adsProgress;
+  }
+
+  /**
    * Toggle weapon visibility
    */
   public setVisible(visible: boolean): void {
