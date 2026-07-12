@@ -1897,10 +1897,14 @@
   transform: translateX(-50%);
   z-index: 900;
   pointer-events: none;
-  display: inline-flex;
-  align-items: center;
+  /* inline-block (not inline-flex): position:fixed blockifies inline-flex to
+     flex, and flex items get their trailing whitespace trimmed at the line-box
+     edge — that dropped the space before the item name ("TO SWAP TO PLASMAGUN").
+     Block-level inline flow keeps the keycap + text on one line and preserves
+     the mid-line space. Kept in sync with PickupPrompt.ts's inline display. */
+  display: inline-block;
   white-space: nowrap;
-  padding: calc(9px * var(--ui-scale, 1)) calc(28px * var(--ui-scale, 1)) calc(11px * var(--ui-scale, 1));
+  padding: calc(12px * var(--ui-scale, 1)) calc(36px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));
   background: linear-gradient(178deg, var(--w-cream), hsl(41, 92%, 85%) 78%), var(--w-scan-cyan);
   clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
   filter: var(--w-drop-print-sm);
@@ -1910,7 +1914,7 @@
 
 .fps-pickup-prompt-text {
   font-family: var(--w-font-display);
-  font-size: calc(21px * var(--ui-scale, 1));
+  font-size: calc(25px * var(--ui-scale, 1));
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
