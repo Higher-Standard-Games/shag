@@ -27,8 +27,8 @@ import {
   type NetworkCommand,
 } from "../network/protocol/BinaryProtocol";
 import { MessageCodec } from "../network/protocol/MessageCodec";
-import { StateEncoder } from "../network/protocol/StateEncoder";
 import { StateDecoder } from "../network/protocol/StateDecoder";
+import { StateEncoder } from "../network/protocol/StateEncoder";
 
 // biome-ignore lint/suspicious/noExplicitAny: test stub components need a flexible shape
 type ComponentStub = IComponent & Record<string, any>;
@@ -124,14 +124,7 @@ function addWeaponMeta(entity: Entity, weaponId: string, settled: boolean): void
   } as ComponentStub);
 }
 
-function makePlayer(
-  entityId: string,
-  name: string,
-  score = 0,
-  deaths = 0,
-  ping = 0,
-  team = "",
-): PlayerState {
+function makePlayer(entityId: string, name: string, score = 0, deaths = 0, ping = 0, team = ""): PlayerState {
   const p = new PlayerState();
   p.entityId = entityId;
   p.name = name;
@@ -194,6 +187,11 @@ describe("MessageCodec — all message types", () => {
     it("first byte is MessageType.Join", () => {
       const encoded = MessageCodec.encodeJoin("Alice");
       expect(encoded[0]).toBe(MessageType.Join);
+    });
+
+    it("defaults isBot to false and roundtrips the bot flag", () => {
+      expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Alice")).isBot).toBe(false);
+      expect(MessageCodec.decodeJoin(MessageCodec.encodeJoin("Botty", true)).isBot).toBe(true);
     });
   });
 
@@ -326,9 +324,7 @@ describe("MessageCodec — all message types", () => {
     });
 
     it("rejects non-ServerMessage bytes", () => {
-      expect(() => MessageCodec.decodeServerMessage(MessageCodec.encodeAck(0))).toThrow(
-        /Expected ServerMessage/,
-      );
+      expect(() => MessageCodec.decodeServerMessage(MessageCodec.encodeAck(0))).toThrow(/Expected ServerMessage/);
     });
   });
 
@@ -446,9 +442,11 @@ describe("BinaryProtocol — entity delta flags", () => {
       addRotation(e, 0.25, -1.5);
     });
     const decoded = encodeDecodeRoundtrip(current);
-    const rot = (decoded.entities.get("e1")!.getComponent("transform") as unknown as {
-      rotation: { x: number; y: number; z: number; w: number };
-    }).rotation;
+    const rot = (
+      decoded.entities.get("e1")!.getComponent("transform") as unknown as {
+        rotation: { x: number; y: number; z: number; w: number };
+      }
+    ).rotation;
     expect(rot.x).toBeCloseTo(0.25, 3);
     expect(rot.y).toBeCloseTo(-1.5, 3);
   });
@@ -614,9 +612,7 @@ describe("BinaryProtocol — event serialization", () => {
   }
 
   it("combat_state: health, armor, dead", () => {
-    const [ev] = roundtripEvents([
-      { type: "combat_state", entityId: "e1", health: 75, armor: 25, dead: false },
-    ]);
+    const [ev] = roundtripEvents([{ type: "combat_state", entityId: "e1", health: 75, armor: 25, dead: false }]);
     expect(ev).toEqual({ type: "combat_state", entityId: "e1", health: 75, armor: 25, dead: false });
   });
 
@@ -839,9 +835,35 @@ describe("BinaryProtocol — event serialization", () => {
 
   it("preserves event order across roundtrip", () => {
     const events = [
-      { type: "weapon_fire", entityId: "e1", weaponId: "rg", originX: 0, originY: 0, originZ: 0, dirX: 0, dirY: 0, dirZ: 1 },
+      {
+        type: "weapon_fire",
+        entityId: "e1",
+        weaponId: "rg",
+        originX: 0,
+        originY: 0,
+        originZ: 0,
+        dirX: 0,
+        dirY: 0,
+        dirZ: 1,
+      },
       { type: "damage", entityId: "e2", attackerId: "e1", damage: 10, weaponId: "rg", x: 0, y: 0, z: 0 },
-      { type: "death", entityId: "e2", killerId: "e1", weaponId: "rg", damageType: "dir", finalDamage: 100, x: 0, y: 0, z: 0, velX: 0, velY: 0, velZ: 0, kbDirX: 0, kbDirY: 0, kbDirZ: 0 },
+      {
+        type: "death",
+        entityId: "e2",
+        killerId: "e1",
+        weaponId: "rg",
+        damageType: "dir",
+        finalDamage: 100,
+        x: 0,
+        y: 0,
+        z: 0,
+        velX: 0,
+        velY: 0,
+        velZ: 0,
+        kbDirX: 0,
+        kbDirY: 0,
+        kbDirZ: 0,
+      },
     ];
     const decoded = roundtripEvents(events);
     expect(decoded.map((e) => e.type)).toEqual(["weapon_fire", "damage", "death"]);

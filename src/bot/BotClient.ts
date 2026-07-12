@@ -523,7 +523,8 @@ export class BotClient extends EventEmitter {
 
   private _sendJoin(): void {
     console.log(`${this._logPrefix} Sending Join...`);
-    this._send(MessageCodec.encodeJoin(this.name));
+    // Mark as a bot so the server can tell humans from bots (demo/shutdown gating).
+    this._send(MessageCodec.encodeJoin(this.name, true));
   }
 
   private _sendJoinGame(): void {

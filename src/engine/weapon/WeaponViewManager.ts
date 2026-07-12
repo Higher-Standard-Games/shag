@@ -173,6 +173,12 @@ export class WeaponViewManager {
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
+  /**
+   * The weapon id the view is currently showing or switching toward. Set by
+   * loadWeapon() and switchWeaponAnimated() so the server can reconcile a
+   * mispredicted/stuck viewmodel against its authoritative weapon.
+   */
+  private _intendedWeaponId: string | null = null;
   private currentPosition: WeaponPosition = DEFAULT_POSITIONS.hip;
 
   // CVar tracking for live updates
@@ -340,6 +346,9 @@ export class WeaponViewManager {
       console.error("[WeaponViewManager] Not initialized");
       return false;
     }
+
+    // Track the weapon the view is committing to (for server reconciliation).
+    this._intendedWeaponId = weaponName;
 
     // Increment load generation — stale concurrent loads will check this and bail out
     const loadGen = ++(this as any)._loadGeneration;
@@ -1442,7 +1451,18 @@ export class WeaponViewManager {
     // Cancel reload
     this.reloadAnim.cancel();
 
+    // Track the target immediately so reconciliation sees where the view is headed.
+    this._intendedWeaponId = weaponId;
     this.switchAnim.start(weaponId, pk3Path);
+  }
+
+  /**
+   * The weapon id the view is currently showing or switching toward. Used by the
+   * server-reconciliation path to detect (and heal) a mispredicted/stuck viewmodel.
+   * Returns null before any weapon has been loaded.
+   */
+  public getDisplayedWeaponId(): string | null {
+    return this._intendedWeaponId;
   }
 
   /**

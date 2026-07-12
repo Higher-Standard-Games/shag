@@ -27,6 +27,7 @@ export class BotLobbyClient {
   private _ws: WebSocket | null = null;
   private _state: LobbyBotState = "disconnected";
   private _lobbyId: string = "";
+  private _joinLobbyId: string = ""; // when set, join this exact lobby instead of queueing
   private _gametype: string = "";
   private _botOptions: BotOptions;
   private _difficulty: BotOptions["difficulty"];
@@ -61,10 +62,13 @@ export class BotLobbyClient {
   }
 
   /**
-   * Connect to lobby server and join queue for a gametype.
+   * Connect to lobby server. If `joinLobbyId` is given, join that exact lobby
+   * (used by the in-lobby "Invite AI Bot" button); otherwise join the queue
+   * for `gametype`.
    */
-  async connect(lobbyUrl: string, gametype: string): Promise<void> {
+  async connect(lobbyUrl: string, gametype: string, joinLobbyId?: string): Promise<void> {
     this._gametype = gametype;
+    this._joinLobbyId = joinLobbyId || "";
     this._state = "connecting";
 
     return new Promise<void>((resolve, reject) => {
@@ -81,8 +85,9 @@ export class BotLobbyClient {
         clearTimeout(connectTimeout);
         console.log(`[LobbyBot:${this.name}] Connected to lobby ${lobbyUrl}`);
 
-        // Step 1: Authenticate
-        this._send({ type: "auth", name: this.name });
+        // Step 1: Authenticate (flagged as a bot so the lobby can evict bots
+        // once the last human leaves a lobby).
+        this._send({ type: "auth", name: this.name, isBot: true });
       });
 
       ws.on("message", (data: Buffer) => {
@@ -119,10 +124,17 @@ export class BotLobbyClient {
   private _handleMessage(msg: any, onReady?: () => void): void {
     switch (msg.type) {
       case "welcome": {
-        // Successfully authenticated — join queue
+        // Successfully authenticated — join a specific lobby or the queue
         this._state = "authenticated";
-        console.log(`[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining queue: ${this._gametype}`);
-        this._send({ type: "queue:join", gametype: this._gametype });
+        if (this._joinLobbyId) {
+          console.log(
+            `[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining lobby: ${this._joinLobbyId}`,
+          );
+          this._send({ type: "lobby:join", lobbyId: this._joinLobbyId });
+        } else {
+          console.log(`[LobbyBot:${this.name}] Authenticated (id: ${msg.playerId}). Joining queue: ${this._gametype}`);
+          this._send({ type: "queue:join", gametype: this._gametype });
+        }
         onReady?.();
         break;
       }
@@ -152,6 +164,14 @@ export class BotLobbyClient {
         console.log(`[LobbyBot:${this.name}] Match starting! Connecting to game server: ${serverUrl}`);
         this._state = "in_match";
         this._connectToGameServer(serverUrl);
+        break;
+      }
+
+      case "lobby:kicked": {
+        // The lobby evicted us (last human left). Tear down — this also
+        // disconnects the in-game bot so a bot-only match doesn't linger.
+        console.log(`[LobbyBot:${this.name}] Kicked from lobby: ${msg.reason || "no humans left"}. Disconnecting.`);
+        this.disconnect().catch(() => {});
         break;
       }
 

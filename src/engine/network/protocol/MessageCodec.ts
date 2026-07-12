@@ -113,25 +113,28 @@ export class MessageCodec {
   /**
    * Encode a join message (Client → Server)
    */
-  static encodeJoin(playerName: string): Uint8Array {
+  static encodeJoin(playerName: string, isBot = false): Uint8Array {
     const encoder = new BinaryEncoder();
     encoder.writeUint8(MessageType.Join);
     encoder.writeString(playerName);
+    // Trailing bot flag — optional so older clients (no byte) still decode.
+    encoder.writeUint8(isBot ? 1 : 0);
     return encoder.getData();
   }
 
   /**
-   * Decode a join message
+   * Decode a join message. The bot flag is optional for backward compatibility
+   * with clients that predate it (absent byte → human).
    */
-  static decodeJoin(data: Uint8Array): { playerName: string } {
+  static decodeJoin(data: Uint8Array): { playerName: string; isBot: boolean } {
     const decoder = new BinaryDecoder(data);
     const messageType = decoder.readUint8();
     if (messageType !== MessageType.Join) {
       throw new Error(`Expected Join message, got 0x${messageType.toString(16)}`);
     }
-    return {
-      playerName: decoder.readString(),
-    };
+    const playerName = decoder.readString();
+    const isBot = decoder.hasMore() ? decoder.readUint8() !== 0 : false;
+    return { playerName, isBot };
   }
 
   /**

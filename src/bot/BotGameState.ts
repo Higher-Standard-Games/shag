@@ -122,6 +122,32 @@ export interface MapKnowledge {
   deathPositions: Vec3[];
 }
 
+// ── Ammo normalization ──────────────────────────────────────────────────
+
+/**
+ * Flatten the server's per-weapon ammo (`{ clip, reserve }` objects) into a
+ * single numeric total per weapon, which is what the bot's decision code
+ * (selectBestWeapon, _hasAmmoForWeapon, BotInputNormalizer) all assume. A
+ * missing entry means "unlimited" (blade/gunblade) and is preserved as absent.
+ *
+ * Without this the bot compared `{ clip, reserve }` objects as numbers —
+ * `{ clip: 0, reserve: 0 } <= 0` is false — so it never recognized an empty
+ * weapon and kept "firing" it instead of switching.
+ */
+export function normalizeBotAmmo(raw: Record<string, unknown>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [weaponId, value] of Object.entries(raw)) {
+    if (typeof value === "number") {
+      out[weaponId] = value;
+    } else if (value && typeof value === "object") {
+      const clip = Number((value as { clip?: unknown }).clip) || 0;
+      const reserve = Number((value as { reserve?: unknown }).reserve) || 0;
+      out[weaponId] = clip + reserve;
+    }
+  }
+  return out;
+}
+
 // ── Main BotGameState ───────────────────────────────────────────────────
 
 export class BotGameState {
@@ -297,12 +323,16 @@ export class BotGameState {
             this.self.currentWeapon = evt.currentWeapon || "";
             this.self.weapons = evt.weapons || [];
             this.self.isReloading = evt.reloading || false;
-            // Parse ammo
+            // Parse + normalize ammo. The server sends per-weapon ammo as
+            // { clip, reserve } objects; the bot reasons about a numeric total
+            // per weapon (undefined = unlimited). Flatten here so out-of-ammo is
+            // detected correctly by every downstream consumer.
             if (evt.ammo) {
               try {
-                this.self.ammo = typeof evt.ammo === "string" ? JSON.parse(evt.ammo) : evt.ammo;
+                const raw = typeof evt.ammo === "string" ? JSON.parse(evt.ammo) : evt.ammo;
+                this.self.ammo = normalizeBotAmmo(raw);
               } catch {
-                // ammo might already be an object
+                // leave previous ammo state intact on malformed payloads
               }
             }
           }

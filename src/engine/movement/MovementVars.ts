@@ -424,8 +424,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     developerOnly: false,
   },
   cl_autorun: {
-    value: 0,
-    defaultValue: 0,
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
     description: "Invert run/walk - run by default, walk when holding shift",

@@ -165,6 +165,12 @@ export interface LobbyVoteShuffleMessage extends LobbyMessage {
   lobbyId: string;
 }
 
+export interface LobbyInviteBotMessage extends LobbyMessage {
+  type: "lobby:invite_bot";
+  lobbyId: string;
+  difficulty?: string; // easy | medium | hard | insane (default: medium)
+}
+
 export interface QueueJoinMessage extends LobbyMessage {
   type: "queue:join";
   gametype: string;
@@ -270,6 +276,18 @@ export interface LobbyErrorMessage extends LobbyMessage {
 export interface MatchesUpdateMessage extends LobbyMessage {
   type: "matches:update";
   matches: LiveMatchInfo[];
+}
+
+export interface LobbyBotInvitedMessage extends LobbyMessage {
+  type: "lobby:bot_invited";
+  lobbyId: string;
+  name: string; // bot name that is joining
+}
+
+export interface LobbyBotInviteFailedMessage extends LobbyMessage {
+  type: "lobby:bot_invite_failed";
+  lobbyId: string;
+  error: string;
 }
 
 export interface DevServerSpawnedMessage extends LobbyMessage {

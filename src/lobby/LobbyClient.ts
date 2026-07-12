@@ -119,7 +119,16 @@ export class LobbyClient {
     this.send({ type: "lobby:vote_shuffle", lobbyId });
   }
 
-  async spawnDevServer(map: string, gametype: string, timeoutMs: number = 30000): Promise<{
+  /** Ask the server to spawn an AI bot opponent into this lobby. */
+  inviteBot(lobbyId: string, difficulty?: string): void {
+    this.send({ type: "lobby:invite_bot", lobbyId, difficulty });
+  }
+
+  async spawnDevServer(
+    map: string,
+    gametype: string,
+    timeoutMs: number = 30000,
+  ): Promise<{
     serverUrl: string;
     map: string;
     gametype: string;

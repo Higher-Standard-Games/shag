@@ -145,7 +145,12 @@ export class BotServer {
    * Spawn a bot that joins through the lobby server.
    * Bot authenticates, joins queue, readies up, and auto-transitions to game.
    */
-  async addLobbyBot(lobbyUrl: string, gametype: string, options?: Partial<BotOptions>): Promise<BotLobbyClient> {
+  async addLobbyBot(
+    lobbyUrl: string,
+    gametype: string,
+    options?: Partial<BotOptions>,
+    joinLobbyId?: string,
+  ): Promise<BotLobbyClient> {
     const lobbyBot = new BotLobbyClient({
       name: options?.name || getNextBotName(),
       difficulty: options?.difficulty || "medium",
@@ -171,9 +176,10 @@ export class BotServer {
     };
 
     try {
-      await lobbyBot.connect(lobbyUrl, gametype);
+      await lobbyBot.connect(lobbyUrl, gametype, joinLobbyId);
       this._lobbyBots.set(lobbyBot.id, lobbyBot);
-      console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) queued for ${gametype}`);
+      const where = joinLobbyId ? `lobby ${joinLobbyId}` : `queue ${gametype}`;
+      console.log(`[BotServer] Lobby bot ${lobbyBot.name} (${lobbyBot.id}) → ${where}`);
       return lobbyBot;
     } catch (err: any) {
       console.error(`[BotServer] Failed to spawn lobby bot:`, err.message);
@@ -328,6 +334,23 @@ export class BotServer {
           this._sendResponse(ws, {
             type: "error",
             error: `Failed to add bot: ${err.message}`,
+          });
+        }
+        break;
+      }
+
+      case "add_lobby_bot": {
+        try {
+          const bot = await this.addLobbyBot(msg.lobbyUrl, msg.gametype || "duel", msg.options, msg.lobbyId);
+          this._sendResponse(ws, {
+            type: "bot_added",
+            botId: bot.id,
+            name: bot.name,
+          });
+        } catch (err: any) {
+          this._sendResponse(ws, {
+            type: "error",
+            error: `Failed to add lobby bot: ${err.message}`,
           });
         }
         break;

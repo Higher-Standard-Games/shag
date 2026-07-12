@@ -32,9 +32,23 @@ import type {
 
 /** Gametype shells — map pools are populated dynamically at startup */
 const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
-  { id: "duel", name: "DUEL", description: "1v1 Arena Duel",        maxPlayers: 2, hasTeams: true,  teamNames: ["UDON", "SOBA"] },
-  { id: "tdm",  name: "TEAM", description: "2v2 Team Deathmatch",   maxPlayers: 4, hasTeams: true,  teamNames: ["UDON", "SOBA"] },
-  { id: "ffa",  name: "FFA",  description: "Free For All",           maxPlayers: 8, hasTeams: false },
+  {
+    id: "duel",
+    name: "DUEL",
+    description: "1v1 Arena Duel",
+    maxPlayers: 2,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+  },
+  {
+    id: "tdm",
+    name: "TEAM",
+    description: "2v2 Team Deathmatch",
+    maxPlayers: 4,
+    hasTeams: true,
+    teamNames: ["UDON", "SOBA"],
+  },
+  { id: "ffa", name: "FFA", description: "Free For All", maxPlayers: 8, hasTeams: false },
 ];
 
 export function normalizeGametype(input: string | undefined): string | null {
@@ -68,6 +82,24 @@ export function isLoopbackAddress(address: string | undefined): boolean {
   );
 }
 
+/**
+ * Bot Intelligence Server (BIS) control API URL. The lobby relays
+ * "invite bot" requests here so a bot can be spawned into a lobby.
+ * Override with BOT_SERVER_URL for non-local deployments.
+ */
+const BOT_SERVER_URL = process.env.BOT_SERVER_URL || "ws://127.0.0.1:9100";
+
+/**
+ * URL a spawned bot uses to connect back to THIS lobby server. Defaults to
+ * loopback on the lobby's own port; override with LOBBY_BOT_CONNECT_URL.
+ */
+function botLobbyConnectUrl(port: number): string {
+  return process.env.LOBBY_BOT_CONNECT_URL || `ws://127.0.0.1:${port}`;
+}
+
+/** How long to wait for the bot server to acknowledge an invite before failing. */
+const BOT_INVITE_TIMEOUT_MS = 8000;
+
 /** Shape of config/maps.json */
 interface MapManifestEntry {
   displayName: string;
@@ -87,6 +119,9 @@ interface ConnectedPlayer {
   lobbyId: string | null;
   authenticated: boolean;
   address: string;
+  /** true = AI bot connection (flagged at auth). Bots are evicted from a lobby
+   *  once its last human leaves so a bot-only lobby/match never lingers. */
+  isBot: boolean;
 }
 
 // ============================================================================
@@ -281,7 +316,9 @@ export class LobbyServer {
       });
       this.wss.on("listening", () => {
         console.log(`[LobbyServer] Ready on ws://localhost:${this.port}`);
-        console.log(`[LobbyServer] ${this.gametypes.length} gametypes loaded: ${this.gametypes.map((g) => g.id).join(", ")}`);
+        console.log(
+          `[LobbyServer] ${this.gametypes.length} gametypes loaded: ${this.gametypes.map((g) => g.id).join(", ")}`,
+        );
 
         // Initial demo scan + periodic refresh
         this._scanDemos();
@@ -336,6 +373,7 @@ export class LobbyServer {
       lobbyId: null,
       authenticated: false,
       address,
+      isBot: false,
     };
     this.players.set(playerId, player);
 
@@ -384,7 +422,7 @@ export class LobbyServer {
 
     switch (msg.type) {
       case "auth":
-        this.handleAuth(player, msg.name);
+        this.handleAuth(player, msg.name, msg.isBot === true);
         break;
       case "chat:send":
         this.handleChatSend(player, msg.text);
@@ -406,6 +444,9 @@ export class LobbyServer {
         break;
       case "lobby:vote_shuffle":
         this.handleLobbyVoteShuffle(player, msg.lobbyId);
+        break;
+      case "lobby:invite_bot":
+        this.handleLobbyInviteBot(player, msg.lobbyId, msg.difficulty);
         break;
       case "queue:join":
         this.handleQueueJoin(player, msg.gametype);
@@ -430,10 +471,14 @@ export class LobbyServer {
 
   // ── Auth ─────────────────────────────────────────────────────
 
-  private handleAuth(player: ConnectedPlayer, name: string): void {
+  private handleAuth(player: ConnectedPlayer, name: string, isBot = false): void {
     player.name = name || `Player${player.id.slice(2)}`;
     player.authenticated = true;
-    console.log(`[LobbyServer] Authenticated: ${player.name} (${player.id})`);
+    // Only trust the bot flag from loopback. The bot server always runs locally
+    // and connects bots over 127.0.0.1, so a remote client cannot claim bot
+    // status to dodge the human-presence accounting that drives lobby eviction.
+    player.isBot = isBot && isLoopbackAddress(player.address);
+    console.log(`[LobbyServer] Authenticated: ${player.name} (${player.id})${player.isBot ? " [bot]" : ""}`);
 
     // Send welcome with all initial data
     const welcome = {
@@ -602,6 +647,10 @@ export class LobbyServer {
       playerId: player.id,
     });
 
+    // If only bots are left, evict them too — a bot-only lobby should never
+    // persist or start a match once every human has left.
+    this.evictBotsIfNoHumans(lobby);
+
     // Destroy empty lobbies
     if (lobby.players.size === 0) {
       this.lobbies.delete(lobbyId);
@@ -620,6 +669,33 @@ export class LobbyServer {
 
     // Broadcast updated matches list
     this.broadcastMatchesUpdate();
+  }
+
+  /**
+   * If a lobby still has members but none of them are human, kick the remaining
+   * bots so they disconnect (which also tears down their in-game bot clients).
+   * Prevents bot-only lobbies from lingering or starting a match, and stops the
+   * bot-only demo flood at its source.
+   */
+  private evictBotsIfNoHumans(lobby: MatchLobby): void {
+    if (lobby.players.size === 0) return;
+
+    const anyHuman = [...lobby.players.values()].some((lp) => {
+      const p = this.players.get(lp.id);
+      return p !== undefined && !p.isBot;
+    });
+    if (anyHuman) return;
+
+    for (const lp of [...lobby.players.values()]) {
+      lobby.removePlayer(lp.id);
+      const botPlayer = this.players.get(lp.id);
+      if (botPlayer) {
+        botPlayer.lobbyId = null;
+        botPlayer.status = "online";
+        this.send(botPlayer, { type: "lobby:kicked", lobbyId: lobby.id, reason: "no humans remaining" });
+      }
+    }
+    console.log(`[LobbyServer] Evicted bots from lobby ${lobby.id} (no humans remaining)`);
   }
 
   // ── Lobby: Vote Map ──────────────────────────────────────────
@@ -683,6 +759,107 @@ export class LobbyServer {
         needed: result.needed,
       });
     }
+  }
+
+  // ── Lobby: Invite Bot ────────────────────────────────────────
+
+  /**
+   * Spawn an AI bot opponent into a specific lobby.
+   *
+   * The lobby has no direct handle on the Bot Intelligence Server, so it
+   * relays the request over the BIS control API (BOT_SERVER_URL). The bot
+   * connects back to this lobby and joins THIS lobby by id (not the queue),
+   * so it always lands in the caller's room. The bot then shows up via the
+   * normal lobby:player_joined broadcast.
+   */
+  private async handleLobbyInviteBot(player: ConnectedPlayer, lobbyId: string, difficulty?: string): Promise<void> {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby || !lobby.players.has(player.id)) {
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "You are not in this lobby." });
+      return;
+    }
+
+    if (lobby.state !== "waiting" || lobby.isStarting) {
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "Match is already starting." });
+      return;
+    }
+
+    if (lobby.playerCount >= lobby.gametype.maxPlayers) {
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "Lobby is full." });
+      return;
+    }
+
+    try {
+      const name = await this.requestBotForLobby(lobby, difficulty);
+      console.log(`[LobbyServer] Bot "${name}" invited into lobby ${lobbyId} by ${player.name}`);
+      // The bot will appear via lobby:player_joined; this is just requester feedback.
+      this.send(player, { type: "lobby:bot_invited", lobbyId, name });
+    } catch (err) {
+      const error = (err as Error).message;
+      console.warn(`[LobbyServer] Bot invite failed for lobby ${lobbyId}: ${error}`);
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error });
+    }
+  }
+
+  /**
+   * Open a short-lived control connection to the Bot Intelligence Server and
+   * ask it to spawn a lobby bot that joins `lobby` by id. Resolves with the
+   * bot's name once the BIS acknowledges, or rejects on timeout/error.
+   */
+  private requestBotForLobby(lobby: MatchLobby, difficulty?: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const ws = new WebSocket(BOT_SERVER_URL);
+
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try {
+          ws.close();
+        } catch {
+          // ignore
+        }
+        fn();
+      };
+
+      const timer = setTimeout(() => {
+        finish(() => reject(new Error("Bot server did not respond (is bot:server running?)")));
+      }, BOT_INVITE_TIMEOUT_MS);
+
+      ws.on("open", () => {
+        ws.send(
+          JSON.stringify({
+            type: "add_lobby_bot",
+            lobbyUrl: botLobbyConnectUrl(this.port),
+            lobbyId: lobby.id,
+            gametype: lobby.gametype.id,
+            options: { difficulty: difficulty || "medium" },
+          }),
+        );
+      });
+
+      ws.on("message", (data: Buffer) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "bot_added") {
+            finish(() => resolve(msg.name || "Bot"));
+          } else if (msg.type === "error") {
+            finish(() => reject(new Error(msg.error || "Bot server rejected the request")));
+          }
+        } catch {
+          // ignore malformed frames
+        }
+      });
+
+      ws.on("error", (err: Error) => {
+        finish(() => reject(new Error(`Bot server unreachable: ${err.message}`)));
+      });
+
+      ws.on("close", () => {
+        finish(() => reject(new Error("Bot server closed the connection")));
+      });
+    });
   }
 
   // ── Matchmaking Queue ───────────────────────────────────────
@@ -793,7 +970,9 @@ export class LobbyServer {
       return;
     }
 
-    const map = String(mapName || "").trim().toLowerCase();
+    const map = String(mapName || "")
+      .trim()
+      .toLowerCase();
     if (!/^[a-z0-9_-]+$/.test(map)) {
       this.send(player, {
         type: "dev:server_spawn_failed",
@@ -813,7 +992,8 @@ export class LobbyServer {
       return;
     }
 
-    const gametype = this.gametypes.find((g) => g.id === gametypeId) || GAMETYPE_SHELLS.find((g) => g.id === gametypeId);
+    const gametype =
+      this.gametypes.find((g) => g.id === gametypeId) || GAMETYPE_SHELLS.find((g) => g.id === gametypeId);
     const maxClients = gametype?.maxPlayers ?? 2;
 
     try {
@@ -1062,9 +1242,7 @@ export class LobbyServer {
     try {
       if (fs.existsSync(this.PK3_DIR)) {
         const files = fs.readdirSync(this.PK3_DIR);
-        const mapPk3Names = files
-          .filter((f) => f.startsWith("map_") && f.endsWith(".pk3"))
-          .map((f) => f.slice(4, -4)); // "map_wdm2.pk3" → "wdm2"
+        const mapPk3Names = files.filter((f) => f.startsWith("map_") && f.endsWith(".pk3")).map((f) => f.slice(4, -4)); // "map_wdm2.pk3" → "wdm2"
         if (mapPk3Names.length > 0) {
           availableOnDisk = new Set(mapPk3Names);
           console.log(`[LobbyServer] Found ${availableOnDisk.size} map PK3s in ${this.PK3_DIR}`);

@@ -37,7 +37,6 @@ export interface MatchLobbyConfig {
   hasTeams: boolean;
 }
 
-
 const GAMETYPE_CONFIG: Record<string, MatchLobbyConfig> = {
   duel: { gametype: "duel", gametypeLabel: "DUEL 1v1", maxPlayers: 2, hasTeams: true },
   team: { gametype: "team", gametypeLabel: "TEAM 2v2", maxPlayers: 4, hasTeams: true },
@@ -63,6 +62,8 @@ export class MatchLobbyView {
   private onLeaveCallback: (() => void) | null = null;
   private lobbyClient: LobbyClient | null = null;
   private unsubscribers: (() => void)[] = [];
+  private inviteBotBtn: HTMLButtonElement | null = null;
+  private inviteBotPending = false;
 
   constructor(gametype: string, lobbyClient?: LobbyClient, lobbyInfo?: MatchLobbyInfo) {
     this.lobbyClient = lobbyClient || null;
@@ -146,6 +147,9 @@ export class MatchLobbyView {
         });
         this.refreshPlayerSlots();
         this.refreshHeader();
+        // A joining player (incl. an invited bot) may have filled the lobby.
+        this.inviteBotPending = false;
+        this.updateInviteBotState();
       }),
     );
 
@@ -155,6 +159,28 @@ export class MatchLobbyView {
         this.players = this.players.filter((p) => p.name !== msg.playerId);
         this.refreshPlayerSlots();
         this.refreshHeader();
+        this.updateInviteBotState();
+      }),
+    );
+
+    // Bot invite acknowledged — the bot will arrive via lobby:player_joined.
+    this.unsubscribers.push(
+      this.lobbyClient.on("lobby:bot_invited", () => {
+        // Keep the button disabled until the bot's player_joined lands.
+      }),
+    );
+
+    // Bot invite failed — re-enable the button and surface the reason.
+    this.unsubscribers.push(
+      this.lobbyClient.on("lobby:bot_invite_failed", (msg) => {
+        console.warn("[MatchLobbyView] Bot invite failed:", msg.error);
+        this.inviteBotPending = false;
+        this.updateInviteBotState();
+        if (this.inviteBotBtn) {
+          this.inviteBotBtn.textContent = "🤖 NO BOTS AVAILABLE";
+          this.inviteBotBtn.disabled = true;
+          window.setTimeout(() => this.updateInviteBotState(), 2500);
+        }
       }),
     );
 
@@ -483,6 +509,17 @@ export class MatchLobbyView {
     });
     actions.appendChild(leaveBtn);
 
+    // Invite AI bot opponent (server feature — needs a live lobby connection)
+    if (this.lobbyClient) {
+      const inviteBtn = document.createElement("button");
+      inviteBtn.className = "match-lobby__btn match-lobby__btn--invite-bot";
+      inviteBtn.textContent = "🤖 INVITE AI BOT";
+      inviteBtn.addEventListener("click", () => this.requestBot());
+      actions.appendChild(inviteBtn);
+      this.inviteBotBtn = inviteBtn;
+      this.updateInviteBotState();
+    }
+
     // Shuffle teams button (team modes only)
     if (this.config.hasTeams) {
       const shuffleBtn = document.createElement("button");
@@ -529,6 +566,43 @@ export class MatchLobbyView {
     actions.appendChild(readyBtn);
 
     return actions;
+  }
+
+  /** Ask the server to spawn an AI bot opponent into this lobby. */
+  private requestBot(): void {
+    if (!this.lobbyClient || this.inviteBotPending) return;
+    if (this.players.length >= this.config.maxPlayers) return;
+
+    this.inviteBotPending = true;
+    this.lobbyClient.inviteBot(this.lobbyId);
+
+    if (this.inviteBotBtn) {
+      this.inviteBotBtn.textContent = "🤖 SUMMONING…";
+      this.inviteBotBtn.disabled = true;
+    }
+
+    // Safety: clear the pending state if the server never answers.
+    window.setTimeout(() => {
+      if (this.inviteBotPending) {
+        this.inviteBotPending = false;
+        this.updateInviteBotState();
+      }
+    }, 9000);
+  }
+
+  /** Enable/disable the invite-bot button based on lobby capacity + pending state. */
+  private updateInviteBotState(): void {
+    const btn = this.inviteBotBtn;
+    if (!btn) return;
+
+    if (this.inviteBotPending) {
+      btn.disabled = true;
+      return;
+    }
+
+    const full = this.players.length >= this.config.maxPlayers;
+    btn.disabled = full;
+    btn.textContent = full ? "🤖 LOBBY FULL" : "🤖 INVITE AI BOT";
   }
 
   /**
