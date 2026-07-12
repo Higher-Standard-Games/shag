@@ -1822,6 +1822,137 @@
 }
 
 /* ============================================================================
+   Spectator overlay — Washoi print-slab (freefly cue + spectating bar)
+   ============================================================================ */
+
+/* Freefly control cue — cyan cut-slab panel, bottom-left. */
+.fps-spectator-cue {
+  position: absolute;
+  bottom: calc(200px * var(--ui-scale, 1));
+  left: calc(28px * var(--ui-scale, 1));
+  display: none;
+  flex-direction: column;
+  width: calc(420px * var(--ui-scale, 1));
+  box-sizing: border-box;
+  padding: calc(14px * var(--ui-scale, 1)) calc(22px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  background:
+    linear-gradient(158deg, hsla(190, 92%, 52%, 0.16), var(--w-void) 56%),
+    var(--w-scan-cyan);
+  clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
+  box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
+  filter: var(--w-drop-print-sm);
+  transform: var(--w-tilt-bottom);
+  transform-origin: left bottom;
+  pointer-events: none;
+}
+
+.fps-spectator-cue-header {
+  font-family: var(--w-font-display);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 900;
+  letter-spacing: calc(3px * var(--ui-scale, 1));
+  text-transform: uppercase;
+  text-align: center;
+  color: hsl(45, 100%, 60%);
+  text-shadow: var(--w-ink-text-sm);
+  margin-bottom: calc(10px * var(--ui-scale, 1));
+}
+
+.fps-spectator-cue-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsla(190, 100%, 70%, 0.4), transparent);
+  margin-bottom: calc(10px * var(--ui-scale, 1));
+}
+
+.fps-spectator-cue-grid {
+  display: grid;
+  grid-template-columns:
+    calc(58px * var(--ui-scale, 1)) 1fr calc(20px * var(--ui-scale, 1))
+    calc(58px * var(--ui-scale, 1)) 1fr;
+  row-gap: calc(6px * var(--ui-scale, 1));
+  column-gap: calc(8px * var(--ui-scale, 1));
+  align-items: center;
+}
+
+.fps-spectator-key {
+  font-family: var(--w-font-display);
+  font-size: calc(10px * var(--ui-scale, 1));
+  font-weight: 800;
+  color: hsl(185, 98%, 68%);
+  letter-spacing: calc(1px * var(--ui-scale, 1));
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fps-spectator-action {
+  font-family: var(--w-font-body);
+  font-size: calc(11px * var(--ui-scale, 1));
+  font-weight: 600;
+  color: var(--w-cream-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.fps-spectator-sep {
+  width: 1px;
+  height: 100%;
+  justify-self: center;
+  background: hsla(190, 100%, 70%, 0.18);
+}
+
+/* Spectating bar — cyan slab, top-center, shown during first-person chase. */
+.fps-spectator-bar {
+  position: absolute;
+  top: calc(10px * var(--ui-scale, 1));
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: calc(12px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
+  background:
+    linear-gradient(115deg, hsla(190, 98%, 58%, 0.22), hsla(230, 60%, 10%, 0.85) 52%, var(--w-void)),
+    var(--w-scan-cyan);
+  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
+  box-shadow: inset 0 calc(1px * var(--ui-scale, 1)) 0 hsla(190, 95%, 75%, 0.3);
+  filter: var(--w-drop-print-sm);
+  pointer-events: auto;
+}
+
+.fps-spectator-bar-label {
+  font-family: var(--w-font-body);
+  font-size: calc(12px * var(--ui-scale, 1));
+  font-weight: 800;
+  letter-spacing: calc(2px * var(--ui-scale, 1));
+  text-transform: uppercase;
+  color: hsl(45, 100%, 62%);
+  text-shadow: var(--w-ink-text-sm);
+}
+
+.fps-spectator-bar-name {
+  font-family: var(--w-font-display);
+  font-size: calc(16px * var(--ui-scale, 1));
+  font-weight: 900;
+  color: var(--w-cream);
+  text-shadow: var(--w-ink-text-sm);
+}
+
+.fps-spectator-bar-nav {
+  font-family: var(--w-font-display);
+  font-size: calc(13px * var(--ui-scale, 1));
+  font-weight: 800;
+  color: hsl(185, 98%, 68%);
+  cursor: pointer;
+  padding: 0 calc(6px * var(--ui-scale, 1));
+  user-select: none;
+}
+
+.fps-spectator-bar-nav:hover {
+  color: hsl(45, 100%, 66%);
+}
+
+/* ============================================================================
    Scoreboard Overlay (Tab) — Washoi print board
    ============================================================================ */
 
