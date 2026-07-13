@@ -2,7 +2,8 @@
  * PlayerState Serialization — Binary roundtrip tests
  *
  * Verifies that PlayerState.serialize/deserialize preserves all fields
- * through the specific binary encoding (uint32 score, uint16 deaths/ping).
+ * through the specific binary encoding (int32 score — can be negative after a
+ * selfkill — uint16 deaths/ping).
  */
 
 import { describe, expect, it } from "vitest";
@@ -43,11 +44,28 @@ describe("PlayerState Serialization", () => {
   });
 
   describe("Encoding boundaries", () => {
-    it("should handle score at uint32 max (4,294,967,295)", () => {
+    it("should preserve a negative score (selfkill → -1, not uint32 underflow)", () => {
       const player = new PlayerState();
-      player.score = 4294967295;
+      player.score = -1;
       const decoded = roundtrip(player);
-      expect(decoded.score).toBe(4294967295);
+      expect(decoded.score).toBe(-1);
+    });
+
+    it("should preserve a larger negative score", () => {
+      const player = new PlayerState();
+      player.score = -50;
+      const decoded = roundtrip(player);
+      expect(decoded.score).toBe(-50);
+    });
+
+    it("should handle score at int32 max/min", () => {
+      const max = new PlayerState();
+      max.score = 2147483647;
+      expect(roundtrip(max).score).toBe(2147483647);
+
+      const min = new PlayerState();
+      min.score = -2147483648;
+      expect(roundtrip(min).score).toBe(-2147483648);
     });
 
     it("should handle deaths at uint16 max (65535)", () => {

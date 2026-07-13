@@ -140,6 +140,14 @@ describe("BinaryEncoder", () => {
       expect(decoder.readUint32()).toBe(4294967295);
     });
 
+    it("should roundtrip int32 including negatives (-2147483648 to 2147483647)", () => {
+      const encoder = new BinaryEncoder(32);
+      for (const v of [-1, -50, 0, 2147483647, -2147483648]) encoder.writeInt32(v);
+
+      const decoder = new BinaryDecoder(encoder.getData());
+      for (const v of [-1, -50, 0, 2147483647, -2147483648]) expect(decoder.readInt32()).toBe(v);
+    });
+
     it("should roundtrip float32 with precision", () => {
       const encoder = new BinaryEncoder(32);
       encoder.writeFloat32(0);

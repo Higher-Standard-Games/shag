@@ -371,7 +371,7 @@ export class PlayerState {
     encoder.writeString(this.entityId);
     encoder.writeString(this.name);
     encoder.writeString(this.team);
-    encoder.writeUint32(this.score);
+    encoder.writeInt32(this.score);
     encoder.writeUint16(this.deaths);
     encoder.writeUint16(this.ping);
   }
@@ -383,7 +383,7 @@ export class PlayerState {
     this.entityId = decoder.readString();
     this.name = decoder.readString();
     this.team = decoder.readString();
-    this.score = decoder.readUint32();
+    this.score = decoder.readInt32();
     this.deaths = decoder.readUint16();
     this.ping = decoder.readUint16();
   }

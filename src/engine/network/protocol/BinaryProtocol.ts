@@ -645,7 +645,7 @@ export class BinaryProtocol {
       // Encode changed fields
       if (flags & 0x01) encoder.writeString(player.entityId);
       if (flags & 0x02) encoder.writeString(player.name);
-      if (flags & 0x04) encoder.writeUint32(player.score);
+      if (flags & 0x04) encoder.writeInt32(player.score);
       if (flags & 0x08) encoder.writeUint32(player.deaths);
       if (flags & 0x10) encoder.writeUint16(player.ping);
       if (flags & 0x20) encoder.writeString(player.team);
@@ -693,7 +693,7 @@ export class BinaryProtocol {
       }
 
       if (flags & 0x04) {
-        player!.score = decoder.readUint32();
+        player!.score = decoder.readInt32();
       } else if (baselinePlayer) {
         player!.score = baselinePlayer.score;
       }
@@ -1164,6 +1164,13 @@ export class BinaryEncoder {
     this.offset += 4;
   }
 
+  /** Signed 32-bit — use for values that can go negative (e.g. score after a selfkill). */
+  writeInt32(value: number): void {
+    this.ensureSpace(4);
+    this.view.setInt32(this.offset, value, true);
+    this.offset += 4;
+  }
+
   writeFloat32(value: number): void {
     this.ensureSpace(4);
     this.view.setFloat32(this.offset, value, true);
@@ -1285,6 +1292,14 @@ export class BinaryDecoder {
   readUint32(): number {
     this.checkBounds(4);
     const value = this.view.getUint32(this.offset, true);
+    this.offset += 4;
+    return value;
+  }
+
+  /** Signed 32-bit — pairs with writeInt32 (e.g. score, which can be negative). */
+  readInt32(): number {
+    this.checkBounds(4);
+    const value = this.view.getInt32(this.offset, true);
     this.offset += 4;
     return value;
   }

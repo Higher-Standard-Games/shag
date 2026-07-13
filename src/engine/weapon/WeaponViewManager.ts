@@ -607,7 +607,7 @@ export class WeaponViewManager {
       }
 
       // Build the on-weapon ammo counter if this model is authored for one.
-      this.setupAmmoCounter(weaponName, loadGen).catch(() => {});
+      this.setupAmmoCounter(weaponName, glbRoot, loadGen).catch(() => {});
 
       return true;
     } catch (e) {
@@ -1004,38 +1004,66 @@ export class WeaponViewManager {
 
   /**
    * Build the on-weapon ammo counter if this weapon is authored for it: its model
-   * has a `tag_ammo` bone and its `.cfg` carries an `ammoCounter` directive.
-   * Fire-and-forget — a missing bone/cfg just means no counter (most weapons).
+   * has a `tag_ammo` anchor and its `.cfg` carries an `ammoCounter` directive.
+   * Fire-and-forget — a missing anchor/cfg just means no counter (most weapons).
    */
-  private async setupAmmoCounter(weaponName: string, loadGen: number): Promise<void> {
+  private async setupAmmoCounter(weaponName: string, glbRoot: TransformNode, loadGen: number): Promise<void> {
     try {
       const cfgPath = `/data/models/weapons/${weaponName}/${weaponName}.cfg`;
       const res = await fetch(cfgPath);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.log(`[AmmoCounter] no cfg for ${weaponName} (${res.status}) — skipping`);
+        return;
+      }
       const config = parseAmmoCounter(await res.text());
-      if (!config) return;
+      if (!config) return; // weapon declares no ammoCounter — normal for most guns
+      console.log(`[AmmoCounter] ${weaponName}: cfg ammoCounter =`, config);
 
       // A newer load may have superseded us while awaiting the cfg.
       if (loadGen !== this._loadGeneration || !this.scene) return;
 
-      // The counter mounts to the `tag_ammo` bone (Warsow ammo-counter anchor).
-      let anchor: TransformNode | null = null;
-      for (const skeleton of this.scene.skeletons) {
-        const bone = skeleton.bones.find((b) => b.name === "tag_ammo");
-        const node = bone?.getTransformNode();
-        if (node) {
-          anchor = node;
-          break;
-        }
+      // The counter mounts to the `tag_ammo` anchor. GLB tags import as either
+      // TransformNodes (nodes) or skeleton bones depending on the exporter, so
+      // search both; fall back to the units-digit tag.
+      const anchor = this.findWeaponTag(glbRoot, ["tag_ammo", "tag_ammo_digit_1"]);
+      if (!anchor) {
+        const tagNames = glbRoot
+          .getDescendants(false)
+          .map((n) => n.name)
+          .filter((n) => n.startsWith("tag_"));
+        console.warn(
+          `[AmmoCounter] ${weaponName}: ammoCounter cfg present but no tag_ammo anchor found. tags seen: [${tagNames.join(", ")}]`,
+        );
+        return;
       }
-      if (!anchor) return; // weapon has an ammoCounter cfg but no tag_ammo bone yet
 
       this.disposeAmmoCounter();
       this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config);
       this.ammoCounter.setAmmo(this.displayedAmmo);
-    } catch {
-      // No cfg / fetch unavailable (e.g. headless) — silently skip the counter.
+      console.log(`[AmmoCounter] ${weaponName}: counter mounted on "${anchor.name}"`);
+    } catch (e) {
+      console.warn(`[AmmoCounter] ${weaponName}: setup failed`, e);
     }
+  }
+
+  /** Resolve a weapon attachment tag by name — as a TransformNode child or a
+   *  skeleton bone's linked node — searching within the loaded weapon's tree. */
+  private findWeaponTag(glbRoot: TransformNode, names: string[]): TransformNode | null {
+    const descendants = glbRoot.getDescendants(false);
+    for (const name of names) {
+      const node = descendants.find((n) => n.name === name);
+      if (node && node instanceof TransformNode) return node;
+    }
+    if (this.scene) {
+      for (const name of names) {
+        for (const skeleton of this.scene.skeletons) {
+          const bone = skeleton.bones.find((b) => b.name === name);
+          const boneNode = bone?.getTransformNode();
+          if (boneNode) return boneNode;
+        }
+      }
+    }
+    return null;
   }
 
   // ==================== Weapon Outlines ====================
