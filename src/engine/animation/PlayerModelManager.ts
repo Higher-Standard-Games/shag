@@ -15,6 +15,9 @@ import type { Animation } from "@babylonjs/core/Animations/animation";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import type { Material } from "@babylonjs/core/Materials/material";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
@@ -45,6 +48,17 @@ export interface PlayerModelInstance {
    * floating after death/ragdoll cleanup).
    */
   attachedWeapon?: TransformNode | null;
+}
+
+export type PlayerModelTeamColor = "alpha" | "beta" | "bravo" | "ffa";
+
+export interface PlayerModelVisualStyle {
+  tintColor: Color3 | null;
+  fullbrightEnabled: boolean;
+  fullbrightIntensity: number;
+  outlineEnabled: boolean;
+  outlineColor: Color3;
+  outlineWidth: number;
 }
 
 /** Animation file descriptor */
@@ -442,65 +456,88 @@ export class PlayerModelManager {
     return true;
   }
 
-  // ── Team Colors ─────────────────────────────────────────────
+  // --- Player Visibility Styling ------------------------------------------
 
-  /** Predefined team colors (match UI palette) */
-  static readonly TEAM_COLORS = {
-    alpha: { r: 0.05, g: 0.9, b: 1.5 }, // Teal/cyan — blue-biased to counteract warm base texture
-    bravo: { r: 1.4, g: 0.2, b: 1.2 }, // Neon hot pink (HDR for vivid pop)
+  /** Predefined team colors (match UI palette). Values may exceed 1 for HDR tint pop. */
+  static readonly TEAM_COLORS: Record<PlayerModelTeamColor, { r: number; g: number; b: number }> = {
+    alpha: { r: 0.1, g: 1.15, b: 1.85 },
+    beta: { r: 1.55, g: 0.2, b: 1.35 },
+    bravo: { r: 1.55, g: 0.2, b: 1.35 },
+    ffa: { r: 0.1, g: 1.15, b: 1.85 },
   };
 
+  private ensureInstanceMaterial(instance: PlayerModelInstance, mesh: AbstractMesh): Material | null {
+    if (!mesh.material) return null;
+
+    const material = mesh.material;
+    const visibilityCloneName = `playerMat_${instance.id}_${mesh.name}`;
+    const legacyCloneName = `teamMat_${instance.id}_${mesh.name}`;
+
+    if (material.name === visibilityCloneName || material.name === legacyCloneName) {
+      return material;
+    }
+
+    const cloned = material.clone(visibilityCloneName);
+    if (!cloned) return null;
+    mesh.material = cloned;
+    return cloned;
+  }
+
   /**
-   * Apply a team color tint to a player model instance.
-   * Clones all PBR materials on the mesh and sets albedoColor to the team color.
-   * The albedoColor multiplies the albedoTexture — light armor takes the tint,
-   * dark undersuit/visor areas remain dark.
-   *
-   * @param instance The player model instance to tint
-   * @param team 'alpha' (teal) or 'bravo' (magenta), or null to reset
+   * Apply third-person player visibility styling to a model instance.
+   * The tint still multiplies the model texture, while fullbright adds only a
+   * small emissive lift so armor and fabric detail remain visible.
    */
-  applyTeamColor(instance: PlayerModelInstance, team: "alpha" | "bravo" | null): void {
-    const allMeshes = [instance.mesh, ...instance.mesh.getChildMeshes()];
+  applyVisualStyle(instance: PlayerModelInstance, style: PlayerModelVisualStyle): void {
+    const allMeshes: AbstractMesh[] = [instance.mesh, ...instance.mesh.getChildMeshes()];
+    const tint = style.tintColor ?? Color3.White();
+    const outlineWidth = Math.max(0, style.outlineWidth);
 
     for (const mesh of allMeshes) {
-      if (!mesh.material) continue;
+      const material = this.ensureInstanceMaterial(instance, mesh);
+      const pbrMat = material as any;
 
-      // Clone material so each instance has its own
-      const mat = mesh.material;
-      const cloneName = `teamMat_${instance.id}_${mesh.name}`;
+      if (pbrMat?.albedoColor) {
+        pbrMat.albedoColor.r = tint.r;
+        pbrMat.albedoColor.g = tint.g;
+        pbrMat.albedoColor.b = tint.b;
+      }
 
-      // Avoid re-cloning if already team-colored
-      if (mat.name === cloneName) {
-        // Already cloned — just update the color
-        const pbrMat = mat as any;
-        if (team && pbrMat.albedoColor) {
-          const c = PlayerModelManager.TEAM_COLORS[team];
-          pbrMat.albedoColor.r = c.r;
-          pbrMat.albedoColor.g = c.g;
-          pbrMat.albedoColor.b = c.b;
-        } else if (!team && pbrMat.albedoColor) {
-          // Reset to white (no tint)
-          pbrMat.albedoColor.r = 1;
-          pbrMat.albedoColor.g = 1;
-          pbrMat.albedoColor.b = 1;
+      if (pbrMat?.emissiveColor) {
+        if (!pbrMat.__playerModelBaseEmissiveColor) {
+          pbrMat.__playerModelBaseEmissiveColor = pbrMat.emissiveColor.clone
+            ? pbrMat.emissiveColor.clone()
+            : new Color3(0, 0, 0);
         }
-        continue;
+        const base = pbrMat.__playerModelBaseEmissiveColor as Color3;
+        if (style.fullbrightEnabled && style.fullbrightIntensity > 0) {
+          pbrMat.emissiveColor.r = base.r + tint.r * style.fullbrightIntensity;
+          pbrMat.emissiveColor.g = base.g + tint.g * style.fullbrightIntensity;
+          pbrMat.emissiveColor.b = base.b + tint.b * style.fullbrightIntensity;
+        } else {
+          pbrMat.emissiveColor.r = base.r;
+          pbrMat.emissiveColor.g = base.g;
+          pbrMat.emissiveColor.b = base.b;
+        }
       }
 
-      // Clone the material
-      const cloned = mat.clone(cloneName);
-      if (!cloned) continue;
-      mesh.material = cloned;
-
-      // Apply team color
-      const pbrCloned = cloned as any;
-      if (team && pbrCloned.albedoColor) {
-        const c = PlayerModelManager.TEAM_COLORS[team];
-        pbrCloned.albedoColor.r = c.r;
-        pbrCloned.albedoColor.g = c.g;
-        pbrCloned.albedoColor.b = c.b;
-      }
+      mesh.renderOutline = style.outlineEnabled && outlineWidth > 0;
+      mesh.outlineColor = style.outlineColor;
+      mesh.outlineWidth = outlineWidth;
     }
+  }
+
+  /** Back-compat wrapper for older callers that only know about team colors. */
+  applyTeamColor(instance: PlayerModelInstance, team: PlayerModelTeamColor | null): void {
+    const color = team ? PlayerModelManager.TEAM_COLORS[team] : null;
+    this.applyVisualStyle(instance, {
+      tintColor: color ? new Color3(color.r, color.g, color.b) : null,
+      fullbrightEnabled: false,
+      fullbrightIntensity: 0,
+      outlineEnabled: false,
+      outlineColor: Color3.Black(),
+      outlineWidth: 0,
+    });
 
     console.log(`[PlayerModelManager] Applied team color: ${team ?? "none"} to ${instance.id}`);
   }
