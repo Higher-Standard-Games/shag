@@ -42,11 +42,10 @@ describe("healthAfterPickup — caps + overheal", () => {
     expect(healthAfterPickup(100, "medium")).toBe(100); // no benefit
   });
 
-  it("small bubble adds +5 and overheals to 200", () => {
+  it("small adds +5 and caps at 100 (no overheal → stays visible at full HP)", () => {
     expect(healthAfterPickup(50, "small")).toBe(55); // +5
-    expect(healthAfterPickup(100, "small")).toBe(105); // overheals past 100
-    expect(healthAfterPickup(198, "small")).toBe(200); // +5 capped at 200
-    expect(healthAfterPickup(200, "small")).toBe(200); // no benefit at cap
+    expect(healthAfterPickup(97, "small")).toBe(100); // +5 capped at 100
+    expect(healthAfterPickup(100, "small")).toBe(100); // no benefit at full HP
   });
 
   it("mega/ultra overheal to 200", () => {
