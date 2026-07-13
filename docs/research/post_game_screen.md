@@ -1,6 +1,6 @@
 # Post-Game Screen — Research & Design
 
-**Status:** research / design — not yet implemented
+**Status:** design — vision locked (three-act structure approved), not yet implemented
 **End goal:** the best FPS endgame screen ever made.
 
 Today the match ends and a new warmup silently begins; there is no post-game
@@ -376,7 +376,55 @@ three-quarter view — close enough to read, angled like a versus splash page:
 - Risks: model/anim availability for poses (start with static poses); one more
   camera+layer interaction (we just learned this dance with the ammo counter).
 
-## 8. Open questions
+## 8. The background camera — what the world does behind the page
+
+The Chapter End page needs a stage. Options, grounded in what the maps and
+engine actually provide (BSP survey of all 38 shipped maps, Jul 2026):
+
+### What exists
+
+| Source | Availability | Notes |
+|---|---|---|
+| `info_player_intermission` | **4 maps** (wdm4, wdm13, wctf4, wctf6) | The authentic Q3-heritage "match over" camera, placed by the mapper. Honor it when present. |
+| `misc_portal_camera` | **11 maps** (incl. wdm2) | Mapper-authored camera positions for portal surfaces — reusable as vista candidates. |
+| Item table (mega/RA spots) | all maps | We already extract pickups (`extractPickups`) — the mega/RA spot is the map's gravitational center of fights; a camera above it looking at the map centroid is a decent auto-vista. |
+| Kill positions | every match | Combat events carry positions — we know where *this* match actually happened. |
+| DeathCamera | engine | Damped follow already built (Act 2 climax camera). |
+
+### Candidate concepts
+
+- **A. Mapper's intermission point** — use when present. Authentic, zero risk.
+- **B. Portal-camera vista** — fallback #1; repurpose `misc_portal_camera` spots.
+- **C. Item-derived auto-vista** — fallback #2; above the mega/RA looking at the
+  arena. Works on all maps with no authoring.
+- **D. Match-memory rail** *(the interesting one)* — generate a slow camera
+  drift from the match's own kill heatmap: ease over the densest fight spot(s),
+  ending at the final-kill location. **Every ending is unique to that match** —
+  the camera literally revisits where the story happened.
+- **E. Final-kill shrine** — park/orbit where the match ended, ragdoll still
+  settling. Simple, dramatic, always available.
+
+### The recommendation: one continuous shot
+
+Act 2 already puts the camera at the final kill (DeathCamera slow-mo). So don't
+cut — **ease the same camera out of the slow-mo into the background drift**:
+finishing blow → slow-mo orbit → pull up/back into the vista (priority:
+D match-memory rail → A intermission → B portal camera → C auto-vista) while
+the manga ink treatment (halftone/edge-ink/desaturate) fades onto the world and
+the page panels slam over it. The ending is a single unbroken camera move from
+"your hands" to "the closing page" — that continuity is what will make it feel
+authored rather than UI-triggered.
+
+Detail touches:
+- **Mouse parallax** on the page: tiny camera/panel offset following the mouse —
+  the page feels physical, and spectators have something tactile during the 15s.
+- The duel **Face-Off diorama (§7)** composites in front of this background —
+  world softly inked behind, panels + tableau sharp in front (depth hierarchy:
+  page > tableau > world).
+- Degradation: if anything fails (no kill data, camera clips), C then E always
+  work. Never block the page on the camera.
+
+## 9. Open questions
 
 - **Input lock granularity**: fully freeze (can't move/look) vs. free-look but
   no fire/move? Overwatch-style free-look while the board shows reads well.
