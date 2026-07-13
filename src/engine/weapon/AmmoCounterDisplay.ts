@@ -92,13 +92,25 @@ export class AmmoCounterDisplay {
    *  stay upright and unmirrored. */
   private mirror = { x: 1, y: 1, z: 1 };
 
+  private readonly renderLayer: { renderingGroupId: number; layerMask: number };
+
   /**
    * @param scene   the render scene
    * @param anchor  the `tag_ammo` transform node (bone) the counter mounts to
+   * @param config  parsed ammoCounter cfg
+   * @param renderLayer  the weapon's render group/layer — the FPS view model is
+   *   drawn by a dedicated weapon camera on its own layer, so the counter MUST
+   *   match it or the weapon camera won't draw it and the main camera buries it.
    */
-  constructor(scene: Scene, anchor: TransformNode, config: AmmoCounterConfig) {
+  constructor(
+    scene: Scene,
+    anchor: TransformNode,
+    config: AmmoCounterConfig,
+    renderLayer: { renderingGroupId: number; layerMask: number },
+  ) {
     this.scene = scene;
     this.config = config;
+    this.renderLayer = renderLayer;
     this.build(anchor);
   }
 
@@ -110,6 +122,9 @@ export class AmmoCounterDisplay {
     plane.parent = anchor;
     plane.rotationQuaternion = null;
     plane.isPickable = false;
+    // Match the weapon's dedicated render pass/camera layer (view-model overlay).
+    plane.renderingGroupId = this.renderLayer.renderingGroupId;
+    plane.layerMask = this.renderLayer.layerMask;
 
     // Cancel any mirrored parent scale so digits render upright/unmirrored.
     anchor.computeWorldMatrix(true);

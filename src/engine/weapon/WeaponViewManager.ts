@@ -1038,7 +1038,12 @@ export class WeaponViewManager {
       }
 
       this.disposeAmmoCounter();
-      this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config);
+      // The view model draws on its own camera layer (WEAPON_LAYER_MASK, group 1);
+      // the counter must join it or neither camera shows it.
+      this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config, {
+        renderingGroupId: 1,
+        layerMask: WEAPON_LAYER_MASK,
+      });
       this.ammoCounter.setAmmo(this.displayedAmmo);
       // Log the anchor's world transform — a near-zero scale (invisible speck) or
       // wildly off position is the usual reason a mounted counter can't be seen.
