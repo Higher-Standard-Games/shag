@@ -590,6 +590,11 @@ export class NetworkGameHost implements IGameHost {
         if (currentPhase === MatchPhase.PostGame) {
           console.log("[NetworkGameHost] Match finished, starting endgame music");
           AudioManager.getInstance().loadPlaylist("data/endgame.playlist.json");
+        } else if (this.lastMatchPhase === MatchPhase.PostGame) {
+          // Post-game screen over (next warmup) — the endgame playlist loops
+          // forever otherwise. Bring back the in-game music.
+          console.log("[NetworkGameHost] Post-game over, restoring game music");
+          AudioManager.getInstance().loadPlaylist("data/game.playlist.json");
         }
         this.lastMatchPhase = currentPhase;
       }

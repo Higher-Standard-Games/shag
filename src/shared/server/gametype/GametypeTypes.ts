@@ -111,6 +111,19 @@ export type SpawnStrategyType = "random" | "furthest" | "team";
 // ============================================================================
 
 /**
+ * Authoritative match result, computed by the server when the match enters
+ * PostGame. `kind` disambiguates: a team win (TDM), a player win (FFA/duel),
+ * or a draw (tied at the limit). Cleared when the next warmup begins.
+ */
+export interface MatchWinner {
+  kind: "player" | "team" | "draw";
+  /** PlayerId (as string) or TeamId, absent for a draw. */
+  id?: string;
+  /** Display name for the banner ("Wraith", "Team Udon"). */
+  name?: string;
+}
+
+/**
  * Lightweight match state sent to clients for HUD display.
  * Keeps game rules server-side; client only knows what to display.
  */
@@ -124,4 +137,6 @@ export interface MatchStateSnapshot {
   teamScores?: Record<TeamId, number>;
   playerTeams?: Record<string, TeamId>;
   teamNames?: Record<TeamId, string>;
+  /** Set only during PostGame — who won the match that just ended. */
+  winner?: MatchWinner;
 }
