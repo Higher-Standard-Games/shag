@@ -371,9 +371,11 @@ export class MatchLobbyView {
       const alphaTeam = this.players.filter((p) => p.team === "alpha");
       const bravoTeam = this.players.filter((p) => p.team === "bravo");
 
-      area.appendChild(this.buildTeamColumn("TEAM ALPHA", alphaTeam, "alpha"));
+      // Display names match the in-game teams (esc menu): alpha = Soba (blue),
+      // bravo = Udon (pink). Internal team keys stay alpha/bravo (data + colors).
+      area.appendChild(this.buildTeamColumn("TEAM SOBA", alphaTeam, "alpha"));
       area.appendChild(this.buildVsDiv());
-      area.appendChild(this.buildTeamColumn("TEAM BRAVO", bravoTeam, "bravo"));
+      area.appendChild(this.buildTeamColumn("TEAM UDON", bravoTeam, "bravo"));
     } else {
       area.classList.add("match-lobby__players--ffa");
       area.appendChild(this.buildPlayerList());
