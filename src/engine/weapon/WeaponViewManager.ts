@@ -1038,10 +1038,12 @@ export class WeaponViewManager {
       }
 
       this.disposeAmmoCounter();
-      // The view model draws on its own camera layer (WEAPON_LAYER_MASK, group 1);
-      // the counter must join it or neither camera shows it.
+      // Draw the counter in its own rendering group (2) on the weapon layer, with
+      // depth cleared before it, so it renders ON TOP of the gun instead of being
+      // occluded by gun geometry (e.g. the riotgun sight the tag sits behind).
+      this.scene.setRenderingAutoClearDepthStencil(2, true, true, false);
       this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config, {
-        renderingGroupId: 1,
+        renderingGroupId: 2,
         layerMask: WEAPON_LAYER_MASK,
       });
       this.ammoCounter.setAmmo(this.displayedAmmo);
