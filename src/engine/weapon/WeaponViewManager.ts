@@ -1040,7 +1040,14 @@ export class WeaponViewManager {
       this.disposeAmmoCounter();
       this.ammoCounter = new AmmoCounterDisplay(this.scene, anchor, config);
       this.ammoCounter.setAmmo(this.displayedAmmo);
-      console.log(`[AmmoCounter] ${weaponName}: counter mounted on "${anchor.name}"`);
+      // Log the anchor's world transform — a near-zero scale (invisible speck) or
+      // wildly off position is the usual reason a mounted counter can't be seen.
+      anchor.computeWorldMatrix(true);
+      const wp = anchor.getAbsolutePosition();
+      const ws = anchor.absoluteScaling;
+      console.log(
+        `[AmmoCounter] ${weaponName}: mounted on "${anchor.name}" worldPos=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldScale=(${ws.x.toFixed(3)},${ws.y.toFixed(3)},${ws.z.toFixed(3)}) planeLocalSize=${(config.digitWidth * 3).toFixed(2)}x${config.digitHeight.toFixed(2)}`,
+      );
     } catch (e) {
       console.warn(`[AmmoCounter] ${weaponName}: setup failed`, e);
     }

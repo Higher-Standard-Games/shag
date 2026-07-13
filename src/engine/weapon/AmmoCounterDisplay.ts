@@ -114,8 +114,9 @@ export class AmmoCounterDisplay {
     mat.emissiveTexture = texture;
     mat.useAlphaFromDiffuseTexture = true;
     mat.transparencyMode = 2; // ALPHABLEND
-    mat.backFaceCulling = false;
-    mat.alpha = this.config.digitAlpha;
+    mat.backFaceCulling = false; // readable from either face
+    mat.alpha = 1; // panel supplies its own per-pixel alpha
+    mat.zOffset = -2; // bias toward camera so it isn't z-fought by the gun surface
     plane.material = mat;
 
     this.plane = plane;
@@ -130,27 +131,34 @@ export class AmmoCounterDisplay {
     this.draw(formatAmmoDigits(ammo));
   }
 
-  /** Paint the digit string into the DynamicTexture in a bold LCD style. */
+  /** Paint the digit string into the DynamicTexture as a solid LCD panel. */
   private draw(digits: string): void {
     if (!this.texture) return;
     const ctx = this.texture.getContext() as CanvasRenderingContext2D;
     const { width, height } = this.texture.getSize();
     ctx.clearRect(0, 0, width, height);
 
-    // LCD look: dim "off-segment" ghost behind, bright digits on top.
-    const fontPx = Math.round(height * 0.8);
+    // Opaque dark screen so the counter reads as a physical LCD panel (not a few
+    // faint floating digits that are easy to miss on the grey gun body).
+    ctx.fillStyle = "rgba(6, 16, 10, 1)";
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "rgba(90, 200, 130, 0.5)";
+    ctx.lineWidth = Math.max(2, height * 0.04);
+    ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, width - ctx.lineWidth * 2, height - ctx.lineWidth * 2);
+
+    const fontPx = Math.round(height * 0.78);
     ctx.font = `900 ${fontPx}px "Consolas", "Menlo", monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cx = width / 2;
     const cy = height / 2;
 
-    // Faint full-block backing so blanked places read as an LCD panel.
-    ctx.fillStyle = "rgba(20, 60, 30, 0.35)";
+    // Dim "off-segment" ghost so blanked places still read as an LCD.
+    ctx.fillStyle = "rgba(40, 90, 55, 0.5)";
     ctx.fillText("888", cx, cy);
 
     // Bright active digits.
-    ctx.fillStyle = "rgba(120, 255, 160, 0.95)";
+    ctx.fillStyle = `rgba(140, 255, 175, ${Math.max(0.4, this.config.digitAlpha)})`;
     ctx.fillText(digits, cx, cy);
 
     this.texture.update();
