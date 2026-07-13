@@ -192,26 +192,29 @@ export class PK3TextureLoader {
     const pk3 = PK3Loader.getInstance();
     let data = await pk3.getFile(path);
 
-    // Fallback: Check for loose file (development mode)
+    // Fallback: check for a loose file (loose assets that aren't packed into a
+    // loaded pk3). Try the game() root AND the PK3 search roots (e.g. "data/") —
+    // in some layouts loose model/HUD assets serve from the pk3 root, not the
+    // game() root, so we probe both.
     if (!data) {
-      try {
-        const { GamePaths } = await import("../../core/GamePaths");
-        const fullPath = GamePaths.getInstance().game(path);
-        const response = await fetch(fullPath);
-        if (response.ok) {
-          // Vite dev server returns 200 OK with HTML for non-existent files (SPA fallback)
-          // So we MUST check Content-Type to avoid treating HTML as texture data
+      const { GamePaths } = await import("../../core/GamePaths");
+      const candidateUrls = [
+        GamePaths.getInstance().game(path),
+        ...pk3.getSearchPaths().map((base) => `${base}${path.replace(/^\//, "")}`),
+      ];
+      for (const url of candidateUrls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          // Vite dev server returns 200 OK with HTML for non-existent files (SPA
+          // fallback), so reject HTML to avoid treating a page as texture data.
           const contentType = response.headers.get("Content-Type") || "";
-          const isHtml = contentType.includes("text/html");
-          const isImage =
-            contentType.includes("image/") || contentType.includes("application/octet-stream") || contentType === ""; // Some servers don't set content-type for .tga
-
-          if (!isHtml && (isImage || !contentType)) {
-            data = await response.arrayBuffer();
-          }
+          if (contentType.includes("text/html")) continue;
+          data = await response.arrayBuffer();
+          break;
+        } catch {
+          // try the next candidate
         }
-      } catch (_e) {
-        // Ignore fetch errors, file just doesn't exist
       }
     }
 
