@@ -1182,6 +1182,8 @@ export class WeaponViewManager {
     if (this.cvarCheckTimer >= WeaponViewManager.CVAR_CHECK_INTERVAL) {
       this.cvarCheckTimer = 0;
       this.checkCVarChanges();
+      // Re-apply ammo-counter tuning cvars so edits take effect live.
+      this.ammoCounter?.applyTuning();
     }
 
     // Update lighting every frame for smooth transitions

@@ -23,6 +23,15 @@ import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { Cvar } from "../core/Cvar";
+
+const DEG2RAD = Math.PI / 180;
+
+/** Read a numeric cvar with a fallback. */
+function cvarNum(name: string, fallback: number): number {
+  const v = Cvar.get(name);
+  return typeof v === "number" ? v : fallback;
+}
 
 /** Parsed `ammoCounter` cfg directive. */
 export interface AmmoCounterConfig {
@@ -78,6 +87,10 @@ export class AmmoCounterDisplay {
   private texture: DynamicTexture | null = null;
   private material: StandardMaterial | null = null;
   private lastAmmo = -1;
+  /** Per-axis sign of the anchor's world scale — the counter model bones import
+   *  mirrored on some weapons (e.g. worldScale.y < 0); we cancel it so digits
+   *  stay upright and unmirrored. */
+  private mirror = { x: 1, y: 1, z: 1 };
 
   /**
    * @param scene   the render scene
@@ -95,10 +108,13 @@ export class AmmoCounterDisplay {
     const height = this.config.digitHeight;
     const plane = CreatePlane("ammoCounter", { width, height }, this.scene);
     plane.parent = anchor;
-    plane.position.setAll(0);
     plane.rotationQuaternion = null;
-    plane.rotation.setAll(0);
     plane.isPickable = false;
+
+    // Cancel any mirrored parent scale so digits render upright/unmirrored.
+    anchor.computeWorldMatrix(true);
+    const s = anchor.absoluteScaling;
+    this.mirror = { x: s.x < 0 ? -1 : 1, y: s.y < 0 ? -1 : 1, z: s.z < 0 ? -1 : 1 };
 
     // Texture resolution scaled off the cfg font size; keep it a power-of-two-ish
     // strip so the 3 digits stay crisp.
@@ -122,6 +138,27 @@ export class AmmoCounterDisplay {
     this.plane = plane;
     this.texture = texture;
     this.material = mat;
+    this.applyTuning();
+  }
+
+  /**
+   * Apply the live-tunable transform (scale / rotation / forward offset) from
+   * cvars, on top of the mirror correction. Cheap; safe to call every frame so
+   * cvar edits take effect immediately while dialing the counter in.
+   *   cg_ammocounter_scale   size multiplier
+   *   cg_ammocounter_yaw/pitch/roll   facing, degrees (Q3 tag axes vary per model)
+   *   cg_ammocounter_fwd     offset along the mount normal (push off the gun)
+   */
+  public applyTuning(): void {
+    if (!this.plane) return;
+    const scale = cvarNum("cg_ammocounter_scale", 1);
+    this.plane.scaling.set(this.mirror.x * scale, this.mirror.y * scale, this.mirror.z * scale);
+    this.plane.rotation.set(
+      cvarNum("cg_ammocounter_pitch", 0) * DEG2RAD,
+      cvarNum("cg_ammocounter_yaw", 0) * DEG2RAD,
+      cvarNum("cg_ammocounter_roll", 0) * DEG2RAD,
+    );
+    this.plane.position.set(0, 0, cvarNum("cg_ammocounter_fwd", 0));
   }
 
   /** Update the rendered number. No-op when unchanged (cheap to call per frame). */
@@ -173,3 +210,12 @@ export class AmmoCounterDisplay {
     this.material = null;
   }
 }
+
+// Live tuning cvars for positioning the on-gun counter (Q3 tag axis conventions
+// vary per weapon model, so the facing needs to be dialed in per-set). Changes
+// apply immediately — WeaponViewManager re-applies them each frame.
+Cvar.register("cg_ammocounter_scale", 1, { type: "float", min: 0.05, max: 20, description: "Ammo counter size multiplier" });
+Cvar.register("cg_ammocounter_yaw", 0, { type: "float", min: -180, max: 180, description: "Ammo counter yaw (deg)" });
+Cvar.register("cg_ammocounter_pitch", 0, { type: "float", min: -180, max: 180, description: "Ammo counter pitch (deg)" });
+Cvar.register("cg_ammocounter_roll", 0, { type: "float", min: -180, max: 180, description: "Ammo counter roll (deg)" });
+Cvar.register("cg_ammocounter_fwd", 0, { type: "float", min: -10, max: 10, description: "Ammo counter forward offset" });
