@@ -2248,6 +2248,16 @@
   font-size: calc(14px * var(--ui-scale, 1));
 }
 
+/* Departed players (bots released at +10s, ragequits) stay on the post-game
+   board with their final score — dimmed, ping column reads "LEFT". */
+.fps-scoreboard-row--departed {
+  opacity: 0.45;
+}
+
+.fps-scoreboard-row--departed .fps-scoreboard-col-ping {
+  letter-spacing: 0.08em;
+}
+
 /* RETURN TO LOBBY — the single-match post-game exit. Sits on the overlay
    (which is pointer-events: none); this button is the one interactive thing. */
 .fps-scoreboard-return {
