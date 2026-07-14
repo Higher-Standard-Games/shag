@@ -47,6 +47,11 @@ export interface MatchConfig {
   maxRespawnDelay?: number;
   /** Self-damage multiplier (1.0 = full, 0.0 = none). Default: 1.0 (Warsow DM-style) */
   selfDamage: number;
+  /** If true, a tie at the time limit extends the match instead of ending it
+   *  (duel: there is no draw — sudden extra minute until someone leads). */
+  overtimeOnDraw?: boolean;
+  /** Overtime extension in seconds (default 60). */
+  overtimeDuration?: number;
 }
 
 // ============================================================================
@@ -139,4 +144,6 @@ export interface MatchStateSnapshot {
   teamNames?: Record<TeamId, string>;
   /** Set only during PostGame — who won the match that just ended. */
   winner?: MatchWinner;
+  /** Number of overtime extensions this match (0 = regulation). */
+  overtime?: number;
 }
