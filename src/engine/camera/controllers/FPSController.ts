@@ -1299,6 +1299,15 @@ export class FPSController implements ICameraController {
     return { ...this.config };
   }
 
+  /**
+   * Freeze/unfreeze mouse-look without releasing pointer lock (post-game
+   * screen). Movement/actions are frozen separately (server input gate +
+   * Game.sendInput strip); this locks the aim itself.
+   */
+  setLookFrozen(frozen: boolean): void {
+    this.inputHandler.setLookFrozen(frozen);
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {

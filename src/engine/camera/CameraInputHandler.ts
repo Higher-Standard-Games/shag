@@ -49,6 +49,15 @@ export class CameraInputHandler {
   private _onCanvasClick: ((e: MouseEvent) => void) | null = null;
   private _onPointerLockChange: (() => void) | null = null;
   private _onMouseMove: ((e: MouseEvent) => void) | null = null;
+
+  /** While true, mouse-look is ignored WITHOUT releasing pointer lock (unlike
+   *  a full disable, which would exit pointer lock and pop the pause menu).
+   *  Used by the post-game screen to freeze aim while the board is up. */
+  private _lookFrozen: boolean = false;
+
+  setLookFrozen(frozen: boolean): void {
+    this._lookFrozen = frozen;
+  }
   private _onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private _onKeyUp: ((e: KeyboardEvent) => void) | null = null;
   private _onContextMenu: ((e: Event) => void) | null = null;
@@ -128,6 +137,7 @@ export class CameraInputHandler {
     // Mouse look (only when pointer is locked)
     this._onMouseMove = (e: MouseEvent) => {
       if (!this._isPointerLocked || !this.camera) return;
+      if (this._lookFrozen) return; // post-game screen: aim is locked, pointer lock stays held
 
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
       const sensitivityMultiplier = Cvar.getNumber("m_sensitivity") ?? 2.0;
