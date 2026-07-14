@@ -146,4 +146,7 @@ export interface MatchStateSnapshot {
   winner?: MatchWinner;
   /** Number of overtime extensions this match (0 = regulation). */
   overtime?: number;
+  /** Match flow mode: "single" = per-match server, post-game is terminal
+   *  (players return to the lobby); "continuous" = classic warmup loop. */
+  flow?: "single" | "continuous";
 }

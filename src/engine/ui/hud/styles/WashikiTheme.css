@@ -2248,6 +2248,41 @@
   font-size: calc(14px * var(--ui-scale, 1));
 }
 
+/* RETURN TO LOBBY — the single-match post-game exit. Sits on the overlay
+   (which is pointer-events: none); this button is the one interactive thing. */
+.fps-scoreboard-return {
+  position: absolute;
+  right: 5vw;
+  bottom: 12vh;
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  padding: calc(14px * var(--ui-scale, 1)) calc(40px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsl(190, 92%, 52%), hsl(200, 88%, 42%)), var(--w-scan-cream);
+  clip-path: polygon(2% 8%, 100% 0, 98% 100%, 0 92%);
+  transform: skewX(-5deg);
+  font-family: var(--w-font-display);
+  font-size: calc(20px * var(--ui-scale, 1));
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(246, 42%, 10%);
+  filter: var(--w-drop-print-sm);
+  animation: w-fight-stamp 0.45s cubic-bezier(0.16, 1.3, 0.3, 1);
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+
+.fps-scoreboard-return:hover {
+  transform: skewX(-5deg) scale(1.06);
+  filter: var(--w-drop-print-md);
+}
+
+.fps-scoreboard-return:active {
+  transform: skewX(-5deg) scale(0.97);
+}
+
 /* --- Team Scoreboard Variants --- */
 
 .fps-scoreboard-teams {

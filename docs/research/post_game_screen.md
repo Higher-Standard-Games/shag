@@ -194,7 +194,7 @@ to **~15s** to fit the sequence (duel maybe 18s — savor it).
 | +5s | **Score panels stagger in**: leaderboard rows reveal top-to-bottom, numbers count up; your row highlighted; FLAWLESS/comeback stamps where earned | `Scoreboard` rendering, restyled as panels |
 | +8s | **MVP / accolade mini-panels**: most frags, best streak, "first blood" — small manga panels with stat stamps | needs server stat lines |
 | +12s | **Handoff printed on the page**: "NEXT CHAPTER: WARMUP — PRESS [F4] WHEN READY" (keycap style); ready count visible | `ReadyBar`, keycap chips |
-| +15s | The page turns again → warmup begins; music crossfades to warmup/map track | `restart()` (already exists) |
+| +15s | The page turns again → warmup begins; music crossfades to warmup/map track. **Single-match servers (the default) don't loop**: the post-game is terminal — mouse + chat + RETURN TO LOBBY at ~6s, and the next chapter opens in the lobby (see `single_game_server_lobby.md`) | `restart()` (continuous mode) / single-match flow |
 
 Notes:
 - The page is **still a scoreboard** — all the information is there, just art-directed.

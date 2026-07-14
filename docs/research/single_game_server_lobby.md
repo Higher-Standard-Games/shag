@@ -188,9 +188,9 @@ broadcasts). Add:
 
 | WO | State | Notes |
 |---|---|---|
-| WO-1 server flow mode | pending | — |
-| WO-2 bot kick + grace | pending | — |
-| WO-3 client open-up + return | pending | — |
-| WO-4 lobby reset gaps | pending | — |
-| WO-5 docs/changelog | pending | this doc written (plan); changelog + cross-link with implementation |
-| WO-6 e2e verification | pending | manual pass with user (checklist §5/WO-6) |
+| WO-1 server flow mode | **done** | `GameServerConfig.singleMatch` → `setMatchFlow` → terminal PostGame in MatchState; snapshot `flow`; `--single-match` CLI; spawner defaults it ON. 4 tests. |
+| WO-2 bot kick + grace | **done** | GameServer tick step 3c: bots closed at +10s (one-shot), everyone at +120s; tick-based, single mode only. |
+| WO-3 client open-up + return | **done** | 6s timer → `exitPointerLock` (canvas click-to-recapture suppressed while look frozen) + chat `openInput` + RETURN TO LOBBY button on the overlay (reload path). Flow-aware slam subtitle. |
+| WO-4 lobby reset gaps | **done** | `handleServerExit` now also resets `isStarting`, clears `serverUrl`, clears map votes. |
+| WO-5 docs/changelog | **done** | this log + post_game_screen.md cross-link + v0.9.18 changelog entry. |
+| WO-6 e2e verification | pending | manual pass with user (checklist §5/WO-6). |

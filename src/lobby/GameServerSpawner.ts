@@ -22,6 +22,10 @@ export interface SpawnConfig {
   maxClients?: number;
   /** Auto-exit when all clients disconnect. Defaults to true. */
   shutdown?: boolean;
+  /** One match per server: post-game is terminal and players return to the
+   *  lobby (docs/research/single_game_server_lobby.md). Defaults to true —
+   *  every lobby/dev spawn is per-match during alpha. */
+  singleMatch?: boolean;
 }
 
 export interface SpawnedServer {
@@ -77,6 +81,10 @@ export class GameServerSpawner {
 
     if (config.shutdown ?? true) {
       args.push("--shutdown");
+    }
+
+    if (config.singleMatch ?? true) {
+      args.push("--single-match");
     }
 
     if (config.maxClients) {

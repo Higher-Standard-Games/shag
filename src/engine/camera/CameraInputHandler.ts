@@ -117,6 +117,9 @@ export class CameraInputHandler {
     // Click to capture mouse
     this._onCanvasClick = (e: MouseEvent) => {
       if (e.target !== this.canvas) return;
+      // Post-game "open up": the cursor is deliberately free (chat + return
+      // button) — don't re-capture on a stray world click while look is frozen.
+      if (this._lookFrozen) return;
       if (!this._isPointerLocked && this.canvas) {
         this.canvas.requestPointerLock();
       }

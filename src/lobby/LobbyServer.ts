@@ -1160,9 +1160,13 @@ export class LobbyServer {
       exitCode: code,
     });
 
-    // Return lobby to waiting state
+    // Return lobby to waiting state — the lobby IS the rematch screen
+    // (single-match flow: docs/research/single_game_server_lobby.md).
     lobby.state = "waiting";
     lobby.matchMap = "";
+    lobby.isStarting = false; // otherwise re-ready and findWaitingLobby stay blocked
+    lobby.serverUrl = ""; // never offer a connect URL to a dead server
+    lobby.votes.clear(); // fresh map vote for the next round
 
     // Return all players to online status
     for (const lp of lobby.players.values()) {
