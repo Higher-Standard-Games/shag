@@ -2342,7 +2342,9 @@
   left: calc(20px * var(--ui-scale, 1));
   width: calc(420px * var(--ui-scale, 1));
   max-width: 50vw;
-  z-index: 550;
+  /* Above the scoreboard overlay (600) — post-game banter happens over the
+     board veil — but below modal dialogs (700). */
+  z-index: 650;
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--ui-scale, 1));

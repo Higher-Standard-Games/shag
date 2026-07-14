@@ -195,6 +195,14 @@ export class MatchLobbyView {
 
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:connect", (msg) => {
+        // Remember which lobby this match came from — the post-game
+        // RETURN TO LOBBY button navigates back to it via ?lobby=<id>
+        // (docs/research/single_game_server_lobby.md).
+        try {
+          sessionStorage.setItem("shag.return_lobby", this.lobbyId);
+        } catch {
+          /* storage unavailable — return falls back to a plain reload */
+        }
         const overlay = new ConnectingOverlay();
         overlay.show(msg.serverUrl);
       }),
