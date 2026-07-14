@@ -2248,6 +2248,47 @@
   font-size: calc(14px * var(--ui-scale, 1));
 }
 
+/* Winner stat panel — stands beside the 3D showcase model (left third).
+   Cream print-slab stack; values in display face. */
+.fps-postgame-stats {
+  position: absolute;
+  left: 4vw;
+  bottom: 18vh;
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-postgame-stats-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(24px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
+  background: linear-gradient(178deg, var(--w-cream), hsl(41, 92%, 85%) 78%), var(--w-scan-cyan);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  transform: skewX(-4deg);
+  filter: var(--w-drop-print-sm);
+}
+
+.fps-postgame-stats-label {
+  font-family: var(--w-font-body);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: hsl(246, 30%, 30%);
+}
+
+.fps-postgame-stats-value {
+  font-family: var(--w-font-display);
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: hsl(246, 42%, 12%);
+}
+
 /* Departed players (bots released at +10s, ragequits) stay on the post-game
    board with their final score — dimmed, ping column reads "LEFT". */
 .fps-scoreboard-row--departed {
