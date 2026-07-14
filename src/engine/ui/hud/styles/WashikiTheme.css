@@ -2207,7 +2207,12 @@
    The overlay veil goes light and un-blurred so the 3D winner showcase (stood
    in the left third of the view) stays readable; the board shifts right. */
 .fps-scoreboard-overlay--postgame {
-  background: linear-gradient(100deg, hsla(248, 30%, 4%, 0.55) 0%, hsla(248, 30%, 4%, 0.2) 45%, transparent 70%);
+  /* Directional veil: LIGHT on the left (3D winner showcase shows through),
+     dark on the right where the board sits. No backdrop blur — the showcase
+     is world-rendered behind this DOM layer and must stay crisp. */
+  background:
+    radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
+    linear-gradient(100deg, hsla(248, 30%, 4%, 0.3) 0%, hsla(248, 30%, 4%, 0.5) 45%, hsla(248, 30%, 4%, 0.85) 80%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;
