@@ -2212,7 +2212,7 @@
      is world-rendered behind this DOM layer and must stay crisp. */
   background:
     radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
-    linear-gradient(100deg, hsla(248, 30%, 4%, 0.3) 0%, hsla(248, 30%, 4%, 0.5) 45%, hsla(248, 30%, 4%, 0.85) 80%);
+    linear-gradient(100deg, hsla(248, 30%, 4%, 0.55) 0%, hsla(248, 30%, 4%, 0.72) 45%, hsla(248, 30%, 4%, 0.92) 80%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;
