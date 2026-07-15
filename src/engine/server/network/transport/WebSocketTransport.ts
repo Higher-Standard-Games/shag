@@ -248,4 +248,14 @@ export class WebSocketServerTransport implements Transport {
   isRunning(): boolean {
     return this.running;
   }
+
+  /**
+   * Actual bound TCP port. When constructed with `port: 0` the OS assigns an
+   * ephemeral port; this reads it back from the listening HTTP server (needed to
+   * connect a client in tests/embeddings).
+   */
+  getPort(): number {
+    const addr = this.httpServer?.address();
+    return addr && typeof addr === "object" ? addr.port : this.config.port;
+  }
 }

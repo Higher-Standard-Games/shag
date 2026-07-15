@@ -79,6 +79,9 @@ export interface Transport {
   getClients(): ReadonlyMap<string, ClientConnection>;
   getClient(id: string): ClientConnection | undefined;
   isRunning(): boolean;
+
+  /** Actual bound port (resolves the ephemeral port when configured with port 0). */
+  getPort(): number;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -357,6 +360,10 @@ export class WebTransportServerTransport implements Transport {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  getPort(): number {
+    return this.config.port ?? 0;
   }
 
   // ═══════════════════════════════════════════════════════════════════
