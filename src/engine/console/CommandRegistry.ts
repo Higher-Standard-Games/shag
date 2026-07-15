@@ -10,9 +10,17 @@
  */
 
 import { Cvar } from "../core/Cvar";
-import { Command, type CommandDef } from "./Command";
+import { Command, type CommandDef, type CommandOutput, fail, isCommandFailure } from "./Command";
 
-export type CommandHandler = (args: string[]) => string | undefined | Promise<string | undefined>;
+export type CommandHandler = (args: string[]) => CommandOutput | Promise<CommandOutput>;
+
+/** Structured result of {@link CommandRegistry.executeChecked}. */
+export interface CommandExecResult {
+  /** False for structural failures, thrown exceptions, or explicit CommandFailure returns. */
+  ok: boolean;
+  /** Human-readable output/error string to display (may be undefined for no-output). */
+  output: string | undefined;
+}
 
 interface RegisteredCommand {
   command: Command;
@@ -32,7 +40,7 @@ class LegacyCommand extends Command {
     this.handler = handler;
   }
 
-  async execute(args: string[]): Promise<string | undefined> {
+  async execute(args: string[]): Promise<CommandOutput> {
     return this.handler(args);
   }
 }
@@ -116,15 +124,32 @@ export class CommandRegistry {
   }
 
   /**
-   * Execute a command string
+   * Execute a command string, returning only its display output.
+   *
+   * Backwards-compatible thin wrapper over {@link executeChecked}; callers that
+   * need to know whether the command failed (batch/headless runners) should use
+   * `executeChecked` so they can gate the process exit code (QA-23).
    */
   async execute(input: string): Promise<string | undefined> {
+    return (await this.executeChecked(input)).output;
+  }
+
+  /**
+   * Execute a command string and report success/failure explicitly.
+   *
+   * `ok` is false for structural failures (unknown command, developer-mode
+   * rejection), thrown exceptions, explicit {@link CommandOutput} failures a
+   * command returns via `fail()`, and failed cvar sets. This is the signal
+   * batch/headless runners use to set a non-zero exit code instead of printing
+   * an error string and exiting 0.
+   */
+  async executeChecked(input: string): Promise<CommandExecResult> {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed) return { ok: true, output: undefined };
 
     // Parse command and arguments
     const parts = this.parseInput(trimmed);
-    if (parts.length === 0) return;
+    if (parts.length === 0) return { ok: true, output: undefined };
 
     const [commandName, ...args] = parts;
     const key = commandName.toLowerCase();
@@ -137,35 +162,43 @@ export class CommandRegistry {
     if (registered) {
       // Check developer mode
       if (registered.definition.developer && !Cvar.getBool("developer")) {
-        return `Command '${commandName}' requires developer mode`;
+        return { ok: false, output: `Command '${commandName}' requires developer mode` };
       }
 
       try {
-        return await registered.command.execute(args);
+        return this.normalize(await registered.command.execute(args));
       } catch (error) {
-        return `Error executing '${commandName}': ${error}`;
+        return { ok: false, output: `Error executing '${commandName}': ${error}` };
       }
     }
 
     // Try as cvar
     if (this.cvarNames.has(key)) {
-      return this.handleCvar(key, args);
+      return this.normalize(this.handleCvar(key, args));
     }
 
     // Check if it's a cvar we haven't tracked yet
     const cvarValue = Cvar.get(key);
     if (cvarValue !== undefined) {
       this.cvarNames.add(key);
-      return this.handleCvar(key, args);
+      return this.normalize(this.handleCvar(key, args));
     }
 
-    return `Unknown command: ${commandName}`;
+    return { ok: false, output: `Unknown command: ${commandName}` };
+  }
+
+  /** Normalize a command's raw output into a checked result. */
+  private normalize(result: CommandOutput): CommandExecResult {
+    if (isCommandFailure(result)) {
+      return { ok: false, output: result.output };
+    }
+    return { ok: true, output: result };
   }
 
   /**
    * Handle cvar get/set
    */
-  private handleCvar(name: string, args: string[]): string {
+  private handleCvar(name: string, args: string[]): CommandOutput {
     if (args.length === 0) {
       // Get value - use formatInfo for full display
       return Cvar.formatInfo(name);
@@ -176,7 +209,7 @@ export class CommandRegistry {
       if (success) {
         return `${name} = ${JSON.stringify(Cvar.get(name))}`;
       } else {
-        return `Failed to set ${name}`;
+        return fail(`Failed to set ${name}`);
       }
     }
   }

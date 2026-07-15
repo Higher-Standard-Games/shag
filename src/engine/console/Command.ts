@@ -57,6 +57,32 @@ export interface CommandDef {
 }
 
 /**
+ * Explicit failure result a command may return instead of a plain string.
+ *
+ * Plain-string / `undefined` returns are treated as success. Returning a
+ * `CommandFailure` lets batch/headless runners gate on it (exit non-zero)
+ * instead of printing an error string and exiting 0 (QA-23). In interactive
+ * mode the `output` is displayed exactly like a normal string result.
+ */
+export interface CommandFailure {
+  readonly ok: false;
+  readonly output: string;
+}
+
+/** Result of executing a command: display string, no output, or explicit failure. */
+export type CommandOutput = string | undefined | CommandFailure;
+
+/** Construct an explicit command failure (see {@link CommandFailure}). */
+export function fail(output: string): CommandFailure {
+  return { ok: false, output };
+}
+
+/** Type guard: did a command signal an explicit failure? */
+export function isCommandFailure(result: CommandOutput): result is CommandFailure {
+  return typeof result === "object" && result !== null && result.ok === false;
+}
+
+/**
  * Base class for all console commands
  */
 export abstract class Command {
@@ -66,9 +92,10 @@ export abstract class Command {
   /**
    * Execute the command with parsed arguments
    * @param args Command arguments (already split by spaces)
-   * @returns Output string to display, or void for no output
+   * @returns Output string to display, `undefined` for no output, or a
+   *   {@link CommandFailure} to signal an error to batch/headless runners
    */
-  abstract execute(args: string[]): Promise<string | undefined>;
+  abstract execute(args: string[]): Promise<CommandOutput>;
 
   /**
    * Optional: Custom autocomplete logic beyond definition

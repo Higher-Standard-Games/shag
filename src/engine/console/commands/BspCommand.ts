@@ -13,7 +13,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { Command, type CommandDef } from "../Command";
+import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
 export class BspCommand extends Command {
   readonly definition: CommandDef = {
@@ -22,7 +22,7 @@ export class BspCommand extends Command {
     usage: "bsp <subcommand> [args]",
   };
 
-  async execute(args: string[]): Promise<string> {
+  async execute(args: string[]): Promise<CommandOutput> {
     const { BspManager } = await import("../../loader/bsp/BspManager");
     const manager = BspManager.getInstance();
 
@@ -48,7 +48,7 @@ export class BspCommand extends Command {
           const summary = await manager.load(mapName);
           return `Loaded: maps/${mapName}.bsp\n${summary}\n\nUse "bsp info" for details, "bsp render" to display`;
         } catch (e) {
-          return `${e}`;
+          return fail(`${e}`);
         }
       }
 

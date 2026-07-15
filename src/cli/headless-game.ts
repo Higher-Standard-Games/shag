@@ -195,7 +195,8 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
       context.scene.dispose();
       context.engine.dispose();
     }
-    process.exit(0);
+    // Preserve a failure code set by an earlier batch command — never force 0.
+    process.exit(typeof process.exitCode === "number" ? process.exitCode : 0);
   });
 
   registry.register("headless", (args: string[]) => {
@@ -910,9 +911,16 @@ async function runBatch(commands: string): Promise<void> {
     .filter(Boolean);
 
   for (const cmd of parts) {
-    const result = await registry.execute(cmd);
-    if (result) {
-      console.log(result);
+    const { ok, output } = await registry.executeChecked(cmd);
+    if (output) {
+      console.log(output);
+    }
+    if (!ok) {
+      // A required batch command failed — make the process observably fail
+      // instead of exiting 0 (QA-23). Later commands still run (e.g. diagnostic
+      // "bsp info; quit") but the failure code persists.
+      console.error(`[Headless] Command failed: ${cmd}`);
+      process.exitCode = 1;
     }
   }
 }
@@ -954,7 +962,8 @@ async function main(): Promise<void> {
       // Batch mode - execute commands and exit
       await runBatch(execCommands);
       console.log("\n[Headless] Batch complete, exiting.");
-      process.exit(0);
+      // Preserve a failure code set by a failed batch command (QA-23).
+      process.exit(typeof process.exitCode === "number" ? process.exitCode : 0);
     } else {
       // Interactive mode - REPL
       await runREPL();
