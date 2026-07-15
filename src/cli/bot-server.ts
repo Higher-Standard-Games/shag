@@ -18,6 +18,7 @@
  *   --difficulty <level>     Difficulty: easy, medium, hard, insane (default: medium)
  */
 
+import { runCli } from "./_runCli";
 import { BotServer } from "../bot/BotServer";
 
 // ── Parse Arguments ─────────────────────────────────────────────────────
@@ -284,4 +285,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-main().catch(console.error);
+runCli(main);

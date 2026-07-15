@@ -1,3 +1,4 @@
+import { runCli } from "./_runCli";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
@@ -65,4 +66,4 @@ async function runTest() {
   console.log("=== TEST COMPLETE ===");
 }
 
-runTest().catch(console.error);
+runCli(runTest);

@@ -12,6 +12,7 @@
  *   npx vite-node src/cli/headless-bsp.ts build <bspfile>
  */
 
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
@@ -586,4 +587,4 @@ Example:
 }
 
 // Run
-main().catch(console.error);
+runCli(main);

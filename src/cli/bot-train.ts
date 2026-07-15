@@ -18,6 +18,7 @@
  *   Start one with: npm run net:server -- --port 17777 --map wdm7
  */
 
+import { runCli } from "./_runCli";
 import { BotTrainer, DEFAULT_TRAINER_CONFIG, type TrainerConfig } from "../bot/BotTrainer";
 
 // ── Argument Parsing ────────────────────────────────────────────────
@@ -292,4 +293,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch(console.error);
+runCli(main);

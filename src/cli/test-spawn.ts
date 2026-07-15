@@ -1,6 +1,7 @@
 /**
  * Simple spawn test - check if player can spawn and stand on ground
  */
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
@@ -69,4 +70,4 @@ async function test() {
   console.log(`Y should stabilize around ${(spawnPos.y - 8).toFixed(1)} (spawn - 8 units)`);
 }
 
-test().catch(console.error);
+runCli(test);

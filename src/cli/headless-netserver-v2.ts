@@ -13,6 +13,7 @@
  *   - @fails-components/webtransport or @aspect-build/webtransport
  */
 
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import { GameServer, type GameServerConfig } from "../games/fps/server/GameServer";
 import type { BaseGametype } from "../games/fps/server/gametypes/BaseGametype";
@@ -292,4 +293,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-main().catch(console.error);
+runCli(main);

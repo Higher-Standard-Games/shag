@@ -7,6 +7,7 @@
  * Run with: npx vite-node src/cli/test-server-physics.ts --map wdm14
  */
 
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
@@ -216,4 +217,4 @@ async function runTest() {
   }
 }
 
-runTest().catch(console.error);
+runCli(runTest);

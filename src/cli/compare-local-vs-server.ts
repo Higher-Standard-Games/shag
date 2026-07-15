@@ -6,6 +6,7 @@
  * Run with: npx vite-node src/cli/compare-local-vs-server.ts --map wdm14
  */
 
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import JSZip from "jszip";
@@ -151,4 +152,4 @@ async function runComparison() {
   console.log(`Final velocity: (${serverVel.x.toFixed(1)}, ${serverVel.y.toFixed(1)}, ${serverVel.z.toFixed(1)})`);
 }
 
-runComparison().catch(console.error);
+runCli(runComparison);

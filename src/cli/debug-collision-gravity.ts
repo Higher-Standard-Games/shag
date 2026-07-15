@@ -1,6 +1,7 @@
 /**
  * Headless test to verify Pickup gravity works with CollisionManager
  */
+import { runCli } from "./_runCli";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Logger } from "@babylonjs/core/Misc/logger";
@@ -98,4 +99,4 @@ async function runTest() {
   console.log("\n=== TEST COMPLETE ===");
 }
 
-runTest().catch(console.error);
+runCli(runTest);

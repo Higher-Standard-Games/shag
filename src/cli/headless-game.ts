@@ -13,6 +13,7 @@
  *   npx vite-node src/cli/headless-game.ts --exec "map wdm11; bsp info"
  */
 
+import { runCli } from "./_runCli";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
@@ -965,4 +966,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-main().catch(console.error);
+runCli(main);
