@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v0.9.18](./v0.9.18.md) | Jul 11, 2026 | In-game chat, chat-in-demo playback, networking manual refresh, FPS manual refresh |
+| [v0.9.19](./v0.9.19.md) | unreleased | Living changelog — v0.9.19 QA cycle |
+| [v0.9.18](./v0.9.18.md) | Jul 15, 2026 | In-game chat, post-game screen + single-match servers, demo player recorded-tick playback, smarter bots, HUD/pickup/death-cam polish |
 | [v0.9.17](./v0.9.17.md) | Jul 10, 2026 | Fall damage tuning, Washoi UI rollout, blade drop leak fix, teleporters and jumppads |
 | [v0.9.16](./v0.9.16.md) | May 31, 2026 | Server-authoritative pickups (fixes "ghost weapons") + plate-armor/health systems; server tick-rate fix (was half real-time); armor absorption fix; Warsow template/celshade shader fixes; SweepCollisionBackend coverage; weapon balance retune |
 | [v0.9.15](./v0.9.15.md) | May 20, 2026 | Matrix #56 closed (server-backed `map` via lobby dev-spawn) + #11 closed (BinaryProtocol narrowing); SHAG manual accuracy pass + three new guides; Washiki Washoi manual stood up |
