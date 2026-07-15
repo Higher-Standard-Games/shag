@@ -1311,10 +1311,13 @@ export class FPSController implements ICameraController {
   setLookFrozen(frozen: boolean): void {
     this.inputHandler.setLookFrozen(frozen);
     if (frozen) {
-      this.mouseRotationX = 0;
-      this.inputHandler.mouseRotationX = 0;
+      // Slight down-tilt (~4°) instead of dead level: raises the horizon so
+      // the post-game showcase model sits higher in frame.
+      const framedPitch = 0.07;
+      this.mouseRotationX = framedPitch;
+      this.inputHandler.mouseRotationX = framedPitch;
       if (this.camera) {
-        this.camera.rotation.x = 0;
+        this.camera.rotation.x = framedPitch;
       }
     }
   }

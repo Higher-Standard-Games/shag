@@ -2210,9 +2210,17 @@
   /* Directional veil: LIGHT on the left (3D winner showcase shows through),
      dark on the right where the board sits. No backdrop blur — the showcase
      is world-rendered behind this DOM layer and must stay crisp. */
+  /* Spotlight column: fully clear over the showcase model (left ~30%), then a
+     dark stage veil under the board. The model reads as ABOVE the overlay. */
   background:
     radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
-    linear-gradient(100deg, hsla(248, 30%, 4%, 0.55) 0%, hsla(248, 30%, 4%, 0.72) 45%, hsla(248, 30%, 4%, 0.92) 80%);
+    linear-gradient(
+      100deg,
+      transparent 0%,
+      transparent 30%,
+      hsla(248, 30%, 4%, 0.72) 52%,
+      hsla(248, 30%, 4%, 0.92) 80%
+    );
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   justify-content: flex-end;
@@ -2250,10 +2258,31 @@
 
 /* Winner stat panel — stands beside the 3D showcase model (left third).
    Cream print-slab stack; values in display face. */
+/* Winner nameplate — giant display text rising behind/above the showcase
+   model (low opacity so the model visually stands in front of it). */
+.fps-postgame-name {
+  position: absolute;
+  left: 3vw;
+  top: 10vh;
+  max-width: 34vw;
+  overflow: hidden;
+  font-family: var(--w-font-display);
+  font-size: calc(64px * var(--ui-scale, 1));
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 0.95;
+  color: hsla(45, 100%, 62%, 0.34);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.5);
+  transform: skewX(-6deg);
+  pointer-events: none;
+  animation: fps-fade-in 0.6s ease-out;
+}
+
 .fps-postgame-stats {
   position: absolute;
   left: 4vw;
-  bottom: 18vh;
+  bottom: 34vh;
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--ui-scale, 1));
