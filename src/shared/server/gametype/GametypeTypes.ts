@@ -47,6 +47,11 @@ export interface MatchConfig {
   maxRespawnDelay?: number;
   /** Self-damage multiplier (1.0 = full, 0.0 = none). Default: 1.0 (Warsow DM-style) */
   selfDamage: number;
+  /** If true, a tie at the time limit extends the match instead of ending it
+   *  (duel: there is no draw — sudden extra minute until someone leads). */
+  overtimeOnDraw?: boolean;
+  /** Overtime extension in seconds (default 60). */
+  overtimeDuration?: number;
 }
 
 // ============================================================================
@@ -111,6 +116,19 @@ export type SpawnStrategyType = "random" | "furthest" | "team";
 // ============================================================================
 
 /**
+ * Authoritative match result, computed by the server when the match enters
+ * PostGame. `kind` disambiguates: a team win (TDM), a player win (FFA/duel),
+ * or a draw (tied at the limit). Cleared when the next warmup begins.
+ */
+export interface MatchWinner {
+  kind: "player" | "team" | "draw";
+  /** PlayerId (as string) or TeamId, absent for a draw. */
+  id?: string;
+  /** Display name for the banner ("Wraith", "Team Udon"). */
+  name?: string;
+}
+
+/**
  * Lightweight match state sent to clients for HUD display.
  * Keeps game rules server-side; client only knows what to display.
  */
@@ -124,4 +142,11 @@ export interface MatchStateSnapshot {
   teamScores?: Record<TeamId, number>;
   playerTeams?: Record<string, TeamId>;
   teamNames?: Record<TeamId, string>;
+  /** Set only during PostGame — who won the match that just ended. */
+  winner?: MatchWinner;
+  /** Number of overtime extensions this match (0 = regulation). */
+  overtime?: number;
+  /** Match flow mode: "single" = per-match server, post-game is terminal
+   *  (players return to the lobby); "continuous" = classic warmup loop. */
+  flow?: "single" | "continuous";
 }

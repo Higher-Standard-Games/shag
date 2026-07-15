@@ -195,6 +195,14 @@ export class MatchLobbyView {
 
     this.unsubscribers.push(
       this.lobbyClient.on("lobby:connect", (msg) => {
+        // Remember which lobby this match came from — the post-game
+        // RETURN TO LOBBY button navigates back to it via ?lobby=<id>
+        // (docs/research/single_game_server_lobby.md).
+        try {
+          sessionStorage.setItem("shag.return_lobby", this.lobbyId);
+        } catch {
+          /* storage unavailable — return falls back to a plain reload */
+        }
         const overlay = new ConnectingOverlay();
         overlay.show(msg.serverUrl);
       }),
@@ -474,16 +482,19 @@ export class MatchLobbyView {
     icon.textContent = "🔗";
     bar.appendChild(icon);
 
+    // Real, working invite link — the ?lobby= deep link LobbyPanel auto-joins
+    // on boot (works on any host, no SPA path-fallback required).
+    const inviteUrl = `${window.location.origin}/?lobby=${this.lobbyId}`;
     const url = document.createElement("span");
     url.className = "match-lobby__url-text";
-    url.textContent = `washoi.gg/lobby/${this.lobbyId}`;
+    url.textContent = `${window.location.host}/?lobby=${this.lobbyId}`;
     bar.appendChild(url);
 
     const copyBtn = document.createElement("button");
     copyBtn.className = "match-lobby__url-copy";
     copyBtn.textContent = "COPY";
     copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(`https://washoi.gg/lobby/${this.lobbyId}`);
+      navigator.clipboard.writeText(inviteUrl);
       copyBtn.textContent = "COPIED!";
       setTimeout(() => {
         copyBtn.textContent = "COPY";

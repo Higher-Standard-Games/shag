@@ -184,7 +184,7 @@ describe("SpectatorController", () => {
     controller.update(0.016);
 
     expect(cam.position.x).toBe(100);
-    expect(cam.position.y).toBe(226); // 200 + 26
+    expect(cam.position.y).toBe(234); // 200 + live standing viewheight (34)
     expect(cam.position.z).toBe(300);
   });
 
@@ -193,7 +193,53 @@ describe("SpectatorController", () => {
     controller.setTargetProvider(makeProvider({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 }));
     controller.setSpectateTarget("player_1");
     controller.update(0.016);
-    expect(cam.position.y).toBe(26);
+    expect(cam.position.y).toBe(34);
+  });
+
+  it("applies provider eye height and camera-local bob without changing the base sample", () => {
+    const cam = attachController(controller);
+    controller.setTargetProvider(
+      makeProvider({
+        x: 10,
+        y: 20,
+        z: 30,
+        yaw: 0,
+        pitch: 0,
+        eyeHeight: 10,
+        bobRight: 2,
+        bobUp: 3,
+        pitchOffsetDegrees: 5,
+        rollDegrees: 4,
+        snapToTarget: true,
+      }),
+    );
+    controller.setSpectateTarget("player_1");
+    controller.update(0.016);
+
+    expect(cam.position.x).toBeCloseTo(12);
+    expect(cam.position.y).toBeCloseTo(33);
+    expect(cam.position.z).toBeCloseTo(30);
+    expect(cam.rotation.x).toBeCloseTo((5 * Math.PI) / 180);
+    expect(cam.rotation.z).toBeCloseTo((4 * Math.PI) / 180);
+    expect(controller.getSmoothedPosition()).toEqual({ x: 10, y: 30, z: 30 });
+  });
+
+  it("can snap every provider sample that is already interpolated", () => {
+    const targetData: SpectatorTargetData = {
+      x: 0,
+      y: 0,
+      z: 0,
+      yaw: 0,
+      pitch: 0,
+      snapToTarget: true,
+    };
+    const cam = attachController(controller);
+    controller.setTargetProvider(() => targetData);
+    controller.setSpectateTarget("player_1");
+    controller.update(0.016);
+    targetData.x = 100;
+    controller.update(0.001);
+    expect(cam.position.x).toBe(100);
   });
 
   it("smooths position on subsequent frames", () => {
@@ -306,6 +352,22 @@ describe("SpectatorController", () => {
     expect(controller.getTargetEntityId()).toBeNull();
   });
 
+  it("releases an owned target provider without retaining its closure", () => {
+    const targetData = { x: 25, y: 0, z: 0, yaw: 0, pitch: 0 };
+    const provider = vi.fn(() => targetData);
+    const cam = attachController(controller);
+    controller.setTargetProvider(provider);
+    controller.setSpectateTarget("player_1");
+    controller.update(0.016);
+    expect(cam.position.x).toBe(25);
+
+    controller.clearTargetProvider();
+    targetData.x = 500;
+    controller.update(0.016);
+    expect(provider).toHaveBeenCalledOnce();
+    expect(cam.position.x).toBe(25);
+  });
+
   // ── getSmoothedPosition ───────────────────────────────────────
 
   it("returns smoothed position", () => {
@@ -316,7 +378,7 @@ describe("SpectatorController", () => {
 
     const pos = controller.getSmoothedPosition();
     expect(pos.x).toBe(50);
-    expect(pos.y).toBe(126);
+    expect(pos.y).toBe(134);
     expect(pos.z).toBe(150);
   });
 

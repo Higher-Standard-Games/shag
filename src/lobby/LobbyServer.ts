@@ -140,6 +140,10 @@ class MatchLobby {
   matchMap: string = ""; // Set when match starts
   serverUrl: string = ""; // Set when game server is spawned
   state: "waiting" | "playing" = "waiting";
+  /** Empty-lobby destruction is deferred until this time — set when the match
+   *  server exits, so players returning via the ?lobby= deep link (a page
+   *  reload that drops every lobby socket at once) still find their lobby. */
+  keepAliveUntil: number = 0;
 
   get playerCount(): number {
     return this.players.size;
@@ -651,8 +655,11 @@ export class LobbyServer {
     // persist or start a match once every human has left.
     this.evictBotsIfNoHumans(lobby);
 
-    // Destroy empty lobbies
-    if (lobby.players.size === 0) {
+    // Destroy empty lobbies — EXCEPT mid-match or during the return window.
+    // With per-match servers every player's lobby socket drops at once when
+    // they reload back from the game; they rejoin via the ?lobby= deep link
+    // moments later, so the lobby must survive being briefly empty.
+    if (lobby.players.size === 0 && lobby.state !== "playing" && Date.now() >= lobby.keepAliveUntil) {
       this.lobbies.delete(lobbyId);
       console.log(`[LobbyServer] Lobby ${lobbyId} destroyed (empty)`);
     }
@@ -1160,9 +1167,15 @@ export class LobbyServer {
       exitCode: code,
     });
 
-    // Return lobby to waiting state
+    // Return lobby to waiting state — the lobby IS the rematch screen
+    // (single-match flow: docs/research/single_game_server_lobby.md).
     lobby.state = "waiting";
     lobby.matchMap = "";
+    lobby.isStarting = false; // otherwise re-ready and findWaitingLobby stay blocked
+    lobby.serverUrl = ""; // never offer a connect URL to a dead server
+    lobby.votes.clear(); // fresh map vote for the next round
+    // Hold the lobby open for the return trip (reload drops all its sockets).
+    lobby.keepAliveUntil = Date.now() + 3 * 60_000;
 
     // Return all players to online status
     for (const lp of lobby.players.values()) {
@@ -1390,6 +1403,16 @@ export class LobbyServer {
   }
 
   private broadcastMatchesUpdate(): void {
+    // Lazy sweep: drop empty lobbies whose post-match return window expired
+    // (players never came back). Keeps keep-alive lobbies from lingering.
+    const now = Date.now();
+    for (const [lobbyId, lobby] of this.lobbies) {
+      if (lobby.players.size === 0 && lobby.state !== "playing" && now >= lobby.keepAliveUntil) {
+        this.lobbies.delete(lobbyId);
+        console.log(`[LobbyServer] Lobby ${lobbyId} destroyed (return window expired)`);
+      }
+    }
+
     this.broadcast({
       type: "matches:update",
       matches: this.getLiveMatches(),

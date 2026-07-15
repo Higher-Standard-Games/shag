@@ -41,13 +41,13 @@ export interface CinematicReel {
   segments: CinematicSegment[];
   totalDurationMs: number;
   totalSegments: number;
-  snapshotRate: number;
+  tickRate: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const AVG_SEGMENT_MS = 8000;
-const OVERLAP_BUFFER_TICKS = 60; // 3 s at 20 fps
+const OVERLAP_BUFFER_SECONDS = 3;
 const DEFAULT_TRANSITION_MS = 500;
 const REPLAY_WINDOW_SECONDS = 2;
 const REPLAY_THRESHOLD_PERCENTILE = 0.85; // top 15 %
@@ -56,26 +56,26 @@ const BUDGET_OVERRUN_FACTOR = 1.2;
 // ── SequenceBuilder ───────────────────────────────────────────────────────────
 
 export class SequenceBuilder {
-  build(
-    analysis: DemoAnalysis,
-    targetDurationMinutes: number,
-    snapshotRate: number,
-    _header: DemoHeader,
-  ): CinematicReel {
+  build(analysis: DemoAnalysis, targetDurationMinutes: number, tickRate: number, _header: DemoHeader): CinematicReel {
     const targetMs = targetDurationMinutes * 60 * 1000;
+    const effectiveTickRate = tickRate > 0 ? tickRate : 20;
 
     if (analysis.highlights.length === 0) {
-      return { segments: [], totalDurationMs: 0, totalSegments: 0, snapshotRate };
+      return { segments: [], totalDurationMs: 0, totalSegments: 0, tickRate: effectiveTickRate };
     }
 
     // ── 1. Select highlights ──────────────────────────────────────────
-    const selected = this._selectHighlights(analysis.highlights, targetMs);
+    const selected = this._selectHighlights(
+      analysis.highlights,
+      targetMs,
+      Math.round(OVERLAP_BUFFER_SECONDS * effectiveTickRate),
+    );
 
     // ── 2. Build base segments ────────────────────────────────────────
-    const baseSegments = selected.map((h) => this._buildBaseSegment(h, snapshotRate, analysis.totalTicks));
+    const baseSegments = selected.map((h) => this._buildBaseSegment(h, effectiveTickRate));
 
     // ── 3. Insert instant replays ────────────────────────────────────
-    const withReplays = this._insertReplays(baseSegments, targetMs, snapshotRate, analysis.totalTicks);
+    const withReplays = this._insertReplays(baseSegments, targetMs, effectiveTickRate);
 
     // ── 4. Assign transitions ────────────────────────────────────────
     this._assignTransitions(withReplays);
@@ -93,13 +93,17 @@ export class SequenceBuilder {
       segments: withReplays,
       totalDurationMs,
       totalSegments: withReplays.length,
-      snapshotRate,
+      tickRate: effectiveTickRate,
     };
   }
 
   // ── Private: selection ────────────────────────────────────────────────────
 
-  private _selectHighlights(highlights: HighlightCandidate[], targetMs: number): HighlightCandidate[] {
+  private _selectHighlights(
+    highlights: HighlightCandidate[],
+    targetMs: number,
+    overlapBufferTicks: number,
+  ): HighlightCandidate[] {
     const maxSegments = Math.max(1, Math.floor(targetMs / AVG_SEGMENT_MS));
 
     // Already sorted by score desc from DemoAnalyzer, but sort defensively
@@ -112,8 +116,8 @@ export class SequenceBuilder {
 
       const overlaps = selected.some(
         (s) =>
-          candidate.startTick <= s.endTick + OVERLAP_BUFFER_TICKS &&
-          candidate.endTick >= s.startTick - OVERLAP_BUFFER_TICKS,
+          candidate.startTick <= s.endTick + overlapBufferTicks &&
+          candidate.endTick >= s.startTick - overlapBufferTicks,
       );
       if (!overlaps) {
         selected.push(candidate);
@@ -127,10 +131,10 @@ export class SequenceBuilder {
 
   // ── Private: base segment construction ───────────────────────────────────
 
-  private _buildBaseSegment(h: HighlightCandidate, snapshotRate: number, _totalTicks: number): CinematicSegment {
+  private _buildBaseSegment(h: HighlightCandidate, tickRate: number): CinematicSegment {
     const preset = this._assignPreset(h);
-    const { playbackSpeed, speedKeyframes } = this._assignSpeed(preset, h);
-    const durationMs = this._computeDurationMs(h.startTick, h.endTick, snapshotRate, playbackSpeed);
+    const { playbackSpeed, speedKeyframes } = this._assignSpeed(preset, h, tickRate);
+    const durationMs = this._computeDurationMs(h.startTick, h.endTick, tickRate, playbackSpeed);
 
     const segment: CinematicSegment = {
       startTick: h.startTick,
@@ -183,7 +187,10 @@ export class SequenceBuilder {
   private _assignSpeed(
     preset: CameraPresetId,
     h: HighlightCandidate,
+    tickRate: number,
   ): { playbackSpeed: number; speedKeyframes?: Array<{ tick: number; speed: number }> } {
+    const ticks = (seconds: number): number => Math.round(seconds * tickRate);
+
     switch (preset) {
       case "chase_hero":
         return { playbackSpeed: 1.0 };
@@ -192,8 +199,8 @@ export class SequenceBuilder {
         return {
           playbackSpeed: 1.0,
           speedKeyframes: [
-            { tick: h.peakTick - 10, speed: 0.5 },
-            { tick: h.peakTick + 20, speed: 1.0 },
+            { tick: h.peakTick - ticks(0.5), speed: 0.5 },
+            { tick: h.peakTick + ticks(1), speed: 1.0 },
           ],
         };
 
@@ -202,22 +209,22 @@ export class SequenceBuilder {
           playbackSpeed: 0.75,
           speedKeyframes: [
             { tick: h.peakTick, speed: 0.25 },
-            { tick: h.peakTick + 20, speed: 1.0 },
+            { tick: h.peakTick + ticks(1), speed: 1.0 },
           ],
         };
 
       case "victim_pov":
         return {
           playbackSpeed: 1.0,
-          speedKeyframes: [{ tick: h.peakTick - 5, speed: 0.5 }],
+          speedKeyframes: [{ tick: h.peakTick - ticks(0.25), speed: 0.5 }],
         };
 
       case "dramatic_zoom":
         return {
           playbackSpeed: 1.0,
           speedKeyframes: [
-            { tick: h.peakTick - 5, speed: 0.25 },
-            { tick: h.peakTick + 10, speed: 1.0 },
+            { tick: h.peakTick - ticks(0.25), speed: 0.25 },
+            { tick: h.peakTick + ticks(0.5), speed: 1.0 },
           ],
         };
 
@@ -228,19 +235,14 @@ export class SequenceBuilder {
 
   // ── Private: durationMs ───────────────────────────────────────────────────
 
-  private _computeDurationMs(startTick: number, endTick: number, snapshotRate: number, playbackSpeed: number): number {
+  private _computeDurationMs(startTick: number, endTick: number, tickRate: number, playbackSpeed: number): number {
     const rawTicks = endTick - startTick;
-    return ((rawTicks / snapshotRate) * 1000) / playbackSpeed;
+    return ((rawTicks / tickRate) * 1000) / playbackSpeed;
   }
 
   // ── Private: instant replay insertion ────────────────────────────────────
 
-  private _insertReplays(
-    segments: CinematicSegment[],
-    targetMs: number,
-    snapshotRate: number,
-    totalTicks: number,
-  ): CinematicSegment[] {
+  private _insertReplays(segments: CinematicSegment[], targetMs: number, tickRate: number): CinematicSegment[] {
     if (segments.length === 0) return segments;
 
     const scores = segments.map((s) => s.highlight.score);
@@ -259,11 +261,11 @@ export class SequenceBuilder {
       if (segment.highlight.score < scoreThreshold) continue;
 
       const h = segment.highlight;
-      const replayWindowTicks = REPLAY_WINDOW_SECONDS * snapshotRate;
-      const replayStart = Math.max(0, h.peakTick - replayWindowTicks);
-      const replayEnd = Math.min(totalTicks, h.peakTick + replayWindowTicks);
+      const replayWindowTicks = REPLAY_WINDOW_SECONDS * tickRate;
+      const replayStart = Math.max(h.startTick, h.peakTick - replayWindowTicks);
+      const replayEnd = Math.min(h.endTick, h.peakTick + replayWindowTicks);
 
-      const replayDuration = this._computeDurationMs(replayStart, replayEnd, snapshotRate, 0.25);
+      const replayDuration = this._computeDurationMs(replayStart, replayEnd, tickRate, 0.25);
 
       // Skip if replay would push total over budget by more than 20%
       const projectedTotal = currentTotal + replayDuration;

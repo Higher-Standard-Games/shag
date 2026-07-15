@@ -317,6 +317,7 @@ Complete list of console commands in SHAG Engine. Press `~` to open the console.
 | `hud show/hide/toggle <id>` | Control elements |
 | `hud refresh` | Force refresh |
 | `hud theme <name>` | Set theme |
+| `demoplay hud <on\|off\|toggle>` | Control all active demo overlays; `H` toggles them during playback |
 
 ## Utility
 

@@ -29,6 +29,8 @@ export interface EntitySnapshot {
   crouching: boolean;
   sliding: boolean;
   wallJumping: boolean;
+  /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
+  crouchViewOffset?: number;
 }
 
 /** A timestamped snapshot for the entire frame */
@@ -56,6 +58,8 @@ export interface InterpolatedEntity {
   crouching: boolean;
   sliding: boolean;
   wallJumping: boolean;
+  /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
+  crouchViewOffset?: number;
 }
 
 /** Server gravity constant (must match server physics) */

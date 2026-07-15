@@ -2201,6 +2201,168 @@
   color: var(--w-text-dim);
 }
 
+/* --- Post-game variant: the match-result board ---
+   Enlarged and winner-titled; locked open for the whole PostGame phase. The
+   title plate flips from the red "SCOREBOARD" stamp to a gold victory plate.
+   The overlay veil goes light and un-blurred so the 3D winner showcase (stood
+   in the left third of the view) stays readable; the board shifts right. */
+.fps-scoreboard-overlay--postgame {
+  /* Directional veil: LIGHT on the left (3D winner showcase shows through),
+     dark on the right where the board sits. No backdrop blur — the showcase
+     is world-rendered behind this DOM layer and must stay crisp. */
+  /* Spotlight column: fully clear over the showcase model (left ~30%), then a
+     dark stage veil under the board. The model reads as ABOVE the overlay. */
+  background:
+    radial-gradient(hsla(190, 100%, 72%, 0.03) 1px, transparent 1.5px) 0 0 / 7px 7px,
+    linear-gradient(
+      100deg,
+      transparent 0%,
+      transparent 30%,
+      hsla(248, 30%, 4%, 0.72) 52%,
+      hsla(248, 30%, 4%, 0.92) 80%
+    );
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  justify-content: flex-end;
+  padding-right: 5vw;
+}
+
+.fps-scoreboard--postgame {
+  width: calc(860px * var(--ui-scale, 1));
+  max-width: 54vw;
+  padding-top: calc(84px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard--postgame .fps-scoreboard-title {
+  padding: calc(12px * var(--ui-scale, 1)) calc(44px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1))
+    calc(28px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsl(45, 100%, 55%), hsl(36, 96%, 46%)), var(--w-scan-cream);
+  font-size: calc(30px * var(--ui-scale, 1));
+  color: hsl(246, 42%, 10%);
+  text-shadow: none;
+  animation: w-fight-stamp 0.45s cubic-bezier(0.16, 1.3, 0.3, 1);
+}
+
+.fps-scoreboard--postgame .fps-scoreboard-row {
+  padding: calc(12px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1));
+  font-size: calc(20px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard--postgame .fps-scoreboard-col-score {
+  font-size: calc(26px * var(--ui-scale, 1));
+}
+
+.fps-scoreboard--postgame .fps-scoreboard-col-ping {
+  font-size: calc(14px * var(--ui-scale, 1));
+}
+
+/* Winner stat panel — stands beside the 3D showcase model (left third).
+   Cream print-slab stack; values in display face. */
+/* Winner nameplate — giant display text rising behind/above the showcase
+   model (low opacity so the model visually stands in front of it). */
+.fps-postgame-name {
+  position: absolute;
+  left: 3vw;
+  top: 10vh;
+  max-width: 34vw;
+  overflow: hidden;
+  font-family: var(--w-font-display);
+  font-size: calc(64px * var(--ui-scale, 1));
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 0.95;
+  color: hsla(45, 100%, 62%, 0.34);
+  text-shadow: calc(2px * var(--ui-scale, 1)) calc(3px * var(--ui-scale, 1)) 0 hsla(250, 45%, 4%, 0.5);
+  transform: skewX(-6deg);
+  pointer-events: none;
+  animation: fps-fade-in 0.6s ease-out;
+}
+
+.fps-postgame-stats {
+  position: absolute;
+  left: 4vw;
+  bottom: 34vh;
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--ui-scale, 1));
+  pointer-events: none;
+}
+
+.fps-postgame-stats-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(24px * var(--ui-scale, 1));
+  padding: calc(6px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1)) calc(8px * var(--ui-scale, 1));
+  background: linear-gradient(178deg, var(--w-cream), hsl(41, 92%, 85%) 78%), var(--w-scan-cyan);
+  clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+  transform: skewX(-4deg);
+  filter: var(--w-drop-print-sm);
+}
+
+.fps-postgame-stats-label {
+  font-family: var(--w-font-body);
+  font-size: calc(14px * var(--ui-scale, 1));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: hsl(246, 30%, 30%);
+}
+
+.fps-postgame-stats-value {
+  font-family: var(--w-font-display);
+  font-size: calc(24px * var(--ui-scale, 1));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: hsl(246, 42%, 12%);
+}
+
+/* Departed players (bots released at +10s, ragequits) stay on the post-game
+   board with their final score — dimmed, ping column reads "LEFT". */
+.fps-scoreboard-row--departed {
+  opacity: 0.45;
+}
+
+.fps-scoreboard-row--departed .fps-scoreboard-col-ping {
+  letter-spacing: 0.08em;
+}
+
+/* RETURN TO LOBBY — the single-match post-game exit. Sits on the overlay
+   (which is pointer-events: none); this button is the one interactive thing. */
+.fps-scoreboard-return {
+  position: absolute;
+  right: 5vw;
+  bottom: 12vh;
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  padding: calc(14px * var(--ui-scale, 1)) calc(40px * var(--ui-scale, 1)) calc(16px * var(--ui-scale, 1));
+  background: linear-gradient(100deg, hsl(190, 92%, 52%), hsl(200, 88%, 42%)), var(--w-scan-cream);
+  clip-path: polygon(2% 8%, 100% 0, 98% 100%, 0 92%);
+  transform: skewX(-5deg);
+  font-family: var(--w-font-display);
+  font-size: calc(20px * var(--ui-scale, 1));
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(246, 42%, 10%);
+  filter: var(--w-drop-print-sm);
+  animation: w-fight-stamp 0.45s cubic-bezier(0.16, 1.3, 0.3, 1);
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+
+.fps-scoreboard-return:hover {
+  transform: skewX(-5deg) scale(1.06);
+  filter: var(--w-drop-print-md);
+}
+
+.fps-scoreboard-return:active {
+  transform: skewX(-5deg) scale(0.97);
+}
+
 /* --- Team Scoreboard Variants --- */
 
 .fps-scoreboard-teams {
@@ -2260,7 +2422,9 @@
   left: calc(20px * var(--ui-scale, 1));
   width: calc(420px * var(--ui-scale, 1));
   max-width: 50vw;
-  z-index: 550;
+  /* Above the scoreboard overlay (600) — post-game banter happens over the
+     board veil — but below modal dialogs (700). */
+  z-index: 650;
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--ui-scale, 1));

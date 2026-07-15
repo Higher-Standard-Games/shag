@@ -92,12 +92,13 @@ function makeEntity(id: string, opts: EntityOpts = {}): Entity {
 function makeHeader(
   players: Array<{ playerId: string; name: string; team?: string }> = [],
   snapshotRate = 20,
+  tickRate = 60,
 ): DemoHeader {
   return {
     version: 1,
     map: "test_map",
     gametype: "ffa",
-    tickRate: 60,
+    tickRate,
     snapshotRate,
     startTime: 0,
     players: players.map((p) => ({ playerId: p.playerId, name: p.name, team: p.team ?? "" })),
@@ -269,18 +270,23 @@ describe("DemoAnalyzer", () => {
         makeFrame(100, [deathEvent("player_k1", "player_v1")], [killer]),
         makeFrame(302, [deathEvent("player_k1", "player_v2")], [killer]),
       ];
-      const header = makeHeader([
-        { playerId: "k1", name: "Killer" },
-        { playerId: "v1", name: "V1" },
-        { playerId: "v2", name: "V2" },
-      ]);
+      const header = makeHeader(
+        [
+          { playerId: "k1", name: "Killer" },
+          { playerId: "v1", name: "V1" },
+          { playerId: "v2", name: "V2" },
+        ],
+        20,
+        20,
+      );
 
       const result = analyzer.analyze(frames, header, 20000);
 
       // Should produce 2 separate highlights (unless they overlap after context expansion)
       const killerHighlights = result.highlights.filter((h) => h.primaryPlayer === "player_k1");
       // Both frags belong to same player but are far apart — should produce 2
-      // (context windows: 3s leadin+2s followthrough = 100 ticks total at 20Hz)
+      // Use a 20Hz server tick rate here so context-window deduplication does
+      // not hide the two distinct multi-kill groups being asserted.
       // At 20Hz, 3s = 60 ticks leadin, 2s = 40 followthrough
       // Frag1 at 100: window [40,140]
       // Frag2 at 302: window [242,342]
@@ -333,9 +339,8 @@ describe("DemoAnalyzer", () => {
     it("removes the lower-scored candidate when windows overlap", () => {
       // Two frags by different players at close ticks — both get context windows
       // that will overlap if they're close enough.
-      // snapshotRate=20: leadin=60, followthrough=40 → window radius=100
-      // Frag A at tick 100: window [40, 140], score 10
-      // Frag B at tick 120: window [60, 160], score 18 (rocket_jump)
+      // tickRate=60: leadin=180, followthrough=120. Both windows clamp to
+      // the available [100, 120] recording range and overlap.
       // They overlap → keep B (score 18), drop A (score 10)
       // Killers at origin, victims at x=500 (neutral — no distance tag)
       const killerA = makeEntity("player_a", { grounded: true, posX: 0, posY: 0, posZ: 0 });
@@ -361,16 +366,16 @@ describe("DemoAnalyzer", () => {
     });
 
     it("keeps both highlights when windows do not overlap", () => {
-      // With snapshotRate=20: leadin=60, followthrough=40
-      // Frag A at tick 100: window [40, 140]
-      // Frag B at tick 400: window [340, 440]
+      // With tickRate=60: leadin=180, followthrough=120.
+      // Frag A at tick 100: window [100, 220]
+      // Frag B at tick 401: window [221, 401]
       // No overlap → both kept
       const killerA = makeEntity("player_a", { grounded: true, posX: 0, posY: 0, posZ: 0 });
       const killerB = makeEntity("player_b", { grounded: true, posX: 0, posY: 0, posZ: 0 });
 
       const frames = [
         makeFrame(100, [deathEvent("player_a", "player_v1", { x: 500, y: 0, z: 0 })], [killerA]),
-        makeFrame(400, [deathEvent("player_b", "player_v2", { x: 500, y: 0, z: 0 })], [killerB]),
+        makeFrame(401, [deathEvent("player_b", "player_v2", { x: 500, y: 0, z: 0 })], [killerB]),
       ];
 
       const header = makeHeader([
@@ -485,6 +490,16 @@ describe("DemoAnalyzer", () => {
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
       const result = analyzer.analyze(frames, header, 50000);
       expect(result.highlights[0].endTick).toBeLessThanOrEqual(995);
+    });
+
+    it("sizes context windows from server tick rate rather than requested snapshot rate", () => {
+      const killer = makeEntity("player_k1", { grounded: true });
+      const frames = [makeFrame(0), makeFrame(500, [deathEvent("player_k1", "player_v1")], [killer]), makeFrame(1000)];
+      const header = makeHeader([{ playerId: "k1", name: "K" }], 60, 125);
+      const result = analyzer.analyze(frames, header, 8000);
+
+      expect(result.highlights[0].startTick).toBe(125);
+      expect(result.highlights[0].endTick).toBe(750);
     });
   });
 

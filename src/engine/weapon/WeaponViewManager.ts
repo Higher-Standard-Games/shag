@@ -16,8 +16,8 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
@@ -40,6 +40,16 @@ export interface WeaponPosition {
   offset: Vector3; // Position offset from camera
   rotation: Vector3; // Euler rotation
   scale: number; // Uniform scale
+}
+
+/** Recorded-time movement state supplied by followed-player demo playback. */
+export interface DemoWeaponBobInput {
+  deltaTime: number;
+  grounded: boolean;
+  horizontalSpeed: number;
+  velocityY: number;
+  landingVelocity: number;
+  bobCycle: number;
 }
 
 // Note: MD3 models are in Quake units (~1 unit = 1 inch)
@@ -100,11 +110,27 @@ export class WeaponViewManager {
 
   /**
    * Weapon bob for demo spectator mode.
-   * Not implemented — WeaponBob.update requires a tracked bobCycle and deltaTime
-   * from the live FPS controller. Bob during demo playback is a future polish item.
+   * Uses the reconstructed recorded-time phase instead of the live viewport state.
    */
-  public updateBob(_hSpeed: number, _velY: number): void {
-    // no-op until ViewportEffectsManager is wired for spectator state
+  public updateDemoBob(input: DemoWeaponBobInput): void {
+    this.demoBobActive = true;
+    this.weaponBob.update(
+      input.deltaTime,
+      input.grounded,
+      input.horizontalSpeed,
+      input.velocityY,
+      input.landingVelocity,
+      input.bobCycle,
+      this.reloadAnim.isReloading,
+      this.adsProgress,
+      this.effectiveBasePosition.x,
+    );
+  }
+
+  /** Return weapon bob ownership to the live FPS viewport-effects path. */
+  public clearDemoBob(): void {
+    this.demoBobActive = false;
+    this.weaponBob.reset();
   }
 
   /**
@@ -171,6 +197,7 @@ export class WeaponViewManager {
     return origin;
   }
   private weaponCamera: FreeCamera | null = null;
+  private weaponLight: HemisphericLight | null = null;
   private mainCamera: FreeCamera | null = null; // Main player camera for aim direction
   private _initCamera: FreeCamera | null = null; // Camera passed to init() — used for restore
   private weaponRoot: TransformNode | null = null;
@@ -201,6 +228,7 @@ export class WeaponViewManager {
 
   // Weapon bob (extracted)
   private weaponBob = new WeaponBob();
+  private demoBobActive = false;
   private effectiveBasePosition: Vector3 = Vector3.Zero(); // Base position with handedness
 
   // ADS (Aiming Down Sights) state
@@ -272,13 +300,17 @@ export class WeaponViewManager {
    * Initialize with scene and camera
    */
   public init(scene: Scene, camera: FreeCamera): void {
-    // Detach previous-scene observer before swapping `this.scene` so a re-init
-    // on a fresh scene doesn't leave a callback attached to the previous one.
-    if (this.updateObserver && this.scene && this.scene !== scene) {
-      this.scene.onBeforeRenderObservable.remove(this.updateObserver);
-      this.updateObserver = null;
-    }
+    // Re-init is expected when returning from a cold-start demo to live play.
+    // Release the prior camera/root/observer even when Babylon keeps the same
+    // Scene instance, otherwise every join adds another per-frame update.
+    this.disposeViewInfrastructure();
     this.scene = scene;
+    this._visible = true;
+    this.clearDemoBob();
+    this.weaponRecoil.reset();
+    this.weaponCharge.reset();
+    this.reloadAnim.cancel();
+    this.switchAnim.reset();
     this.mainCamera = camera; // Store for aim direction
     this._initCamera = camera; // Store for restoreToFPSCamera()
 
@@ -323,10 +355,10 @@ export class WeaponViewManager {
 
     // Add dedicated weapon light for PBR GLB models
     // Only affects rendering group 1 (weapons), not the world
-    const weaponLight = new HemisphericLight("weaponLight", new Vector3(0.3, 1, 0.5), scene);
-    weaponLight.intensity = 1.2;
-    weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
-    weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
+    this.weaponLight = new HemisphericLight("weaponLight", new Vector3(0.3, 1, 0.5), scene);
+    this.weaponLight.intensity = 1.2;
+    this.weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
+    this.weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
 
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
@@ -985,6 +1017,55 @@ export class WeaponViewManager {
     }
   }
 
+  /**
+   * End demo ownership and release its view infrastructure. The next followed
+   * target or live join reinitializes the singleton against its active camera.
+   */
+  public resetDemoPlayback(): void {
+    this.clearDemoBob();
+    this.weaponRecoil.reset();
+    this.weaponCharge.reset();
+    this.reloadAnim.cancel();
+    this.switchAnim.reset();
+    this.setBeamActive(false);
+    this.currentWeaponDef = null;
+    this._intendedWeaponId = null;
+    this._visible = false;
+    this.disposeViewInfrastructure();
+    this.scene = null;
+  }
+
+  /** Dispose camera/root resources before init() installs a replacement set. */
+  private disposeViewInfrastructure(): void {
+    const oldScene = this.scene;
+    if (this.updateObserver && oldScene) {
+      oldScene.onBeforeRenderObservable.remove(this.updateObserver);
+      this.updateObserver = null;
+    }
+    this._loadGeneration++;
+    this.weaponSlash.dispose();
+    this.weaponBarrels.dispose();
+    this.clear();
+    if (this.muzzleFlashModel) {
+      this.muzzleFlashModel.dispose();
+      this.muzzleFlashModel = null;
+    }
+    this.weaponRoot?.dispose();
+    this.weaponRoot = null;
+    if (oldScene?.activeCameras && this.weaponCamera) {
+      const remaining = oldScene.activeCameras.filter((camera) => camera !== this.weaponCamera);
+      oldScene.activeCameras = remaining.length > 0 ? remaining : null;
+    }
+    this.weaponCamera?.dispose();
+    this.weaponCamera = null;
+    this.muzzleFlashLight?.dispose();
+    this.muzzleFlashLight = null;
+    this.weaponLight?.dispose();
+    this.weaponLight = null;
+    this.mainCamera = null;
+    this._initCamera = null;
+  }
+
   // ==================== On-weapon Ammo Counter ====================
 
   /**
@@ -1223,17 +1304,19 @@ export class WeaponViewManager {
     const state = viewportManager.getCurrentState();
 
     // Delegate walk bob, sprint tilt, jump/land to WeaponBob
-    this.weaponBob.update(
-      deltaTime,
-      state.isGrounded,
-      state.horizontalSpeed,
-      state.velocity.y,
-      state.landingVelocity ?? 0,
-      state.bobCycle ?? 0,
-      this.reloadAnim.isReloading,
-      this.adsProgress,
-      this.effectiveBasePosition.x,
-    );
+    if (!this.demoBobActive) {
+      this.weaponBob.update(
+        deltaTime,
+        state.isGrounded,
+        state.horizontalSpeed,
+        state.velocity.y,
+        state.landingVelocity ?? 0,
+        state.bobCycle ?? 0,
+        this.reloadAnim.isReloading,
+        this.adsProgress,
+        this.effectiveBasePosition.x,
+      );
+    }
     const bob = this.weaponBob.state;
 
     // Apply to weapon root (on top of base position with handedness)

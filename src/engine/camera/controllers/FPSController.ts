@@ -1299,6 +1299,29 @@ export class FPSController implements ICameraController {
     return { ...this.config };
   }
 
+  /**
+   * Freeze/unfreeze mouse-look without releasing pointer lock (post-game
+   * screen). Movement/actions are frozen separately (server input gate +
+   * Game.sendInput strip); this locks the aim itself.
+   *
+   * On freeze the pitch is leveled to the horizon: the view stays wherever the
+   * final frag left it otherwise (often the floor), and the post-game winner
+   * showcase spawns at eye level — a floor-stare would frame nothing.
+   */
+  setLookFrozen(frozen: boolean): void {
+    this.inputHandler.setLookFrozen(frozen);
+    if (frozen) {
+      // Slight down-tilt (~4°) instead of dead level: raises the horizon so
+      // the post-game showcase model sits higher in frame.
+      const framedPitch = 0.07;
+      this.mouseRotationX = framedPitch;
+      this.inputHandler.mouseRotationX = framedPitch;
+      if (this.camera) {
+        this.camera.rotation.x = framedPitch;
+      }
+    }
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {

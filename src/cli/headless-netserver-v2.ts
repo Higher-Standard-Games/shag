@@ -39,6 +39,7 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
     keyPath: process.env.SHAG_GAME_KEY_PATH || "./certs/localhost-key.pem",
     gametype: "Deathmatch",
     shutdownOnEmpty: false,
+    singleMatch: false,
   };
 
   let positionalPos = 0;
@@ -88,6 +89,9 @@ function parseArgs(): GameServerConfig & { gamePath: string; gametype: string } 
       case "--shutdown":
         config.shutdownOnEmpty = true;
         break;
+      case "--single-match":
+        config.singleMatch = true;
+        break;
       case "--help":
       case "-h":
         printHelp();
@@ -133,6 +137,8 @@ Options:
   --cert <path>          TLS certificate path
   --key <path>           TLS key path
   --shutdown             Auto-exit when all clients disconnect
+  --single-match         One match per server: post-game is terminal, players
+                         return to the lobby, bots are released, process exits
   --help, -h             Show this help
 
 WebTransport Setup:
@@ -172,6 +178,9 @@ async function main(): Promise<void> {
   console.log(`[Server] TLS Cert: ${config.certPath}`);
   if (config.shutdownOnEmpty) {
     console.log(`[Server] Shutdown mode: auto-exit when empty`);
+  }
+  if (config.singleMatch) {
+    console.log(`[Server] Match flow: single — one match, then players return to the lobby`);
   }
   console.log("");
 

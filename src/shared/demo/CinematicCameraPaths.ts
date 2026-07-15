@@ -82,7 +82,7 @@ export function generateCameraPath(
   highlight: HighlightCandidate,
   startTick: number,
   endTick: number,
-  _snapshotRate: number,
+  _tickRate: number,
 ): CameraPathResult {
   switch (preset) {
     case "chase_hero":
