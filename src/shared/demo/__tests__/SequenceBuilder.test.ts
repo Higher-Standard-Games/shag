@@ -56,7 +56,7 @@ const HEADER: DemoHeader = {
   ],
 };
 
-const SNAPSHOT_RATE = 20;
+const TICK_RATE = HEADER.tickRate;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ describe("SequenceBuilder", () => {
 
   // 1. Empty highlights → empty reel
   it("returns an empty reel when there are no highlights", () => {
-    const reel = builder.build(makeAnalysis([]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([]), 5, TICK_RATE, HEADER);
     expect(reel.segments).toHaveLength(0);
     expect(reel.totalDurationMs).toBe(0);
     expect(reel.totalSegments).toBe(0);
@@ -78,7 +78,7 @@ describe("SequenceBuilder", () => {
   // 2. Single highlight → 1 segment
   it("produces a single segment from a single highlight", () => {
     const h = makeHighlight({ peakTick: 110, score: 20 });
-    const reel = builder.build(makeAnalysis([h]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
     // At minimum 1 base segment (replay may be added for top scorer)
     const baseSegments = reel.segments.filter((s) => !s.isReplay);
     expect(baseSegments).toHaveLength(1);
@@ -95,7 +95,7 @@ describe("SequenceBuilder", () => {
       score: 25,
       primaryPlayer: "player_2",
     });
-    const reel = builder.build(makeAnalysis([h1, h2]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h1, h2]), 5, TICK_RATE, HEADER);
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base).toHaveLength(2);
     expect(base[0].highlight.peakTick).toBeLessThan(base[1].highlight.peakTick);
@@ -105,7 +105,7 @@ describe("SequenceBuilder", () => {
   it("drops the lower-scored highlight when two overlap", () => {
     const h1 = makeHighlight({ startTick: 100, peakTick: 110, endTick: 150, score: 50 });
     const h2 = makeHighlight({ startTick: 120, peakTick: 130, endTick: 160, score: 10 });
-    const reel = builder.build(makeAnalysis([h1, h2]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h1, h2]), 5, TICK_RATE, HEADER);
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base).toHaveLength(1);
     expect(base[0].highlight.score).toBe(50);
@@ -124,7 +124,7 @@ describe("SequenceBuilder", () => {
         }),
       );
     }
-    const reel = builder.build(makeAnalysis(highlights, 50000), 1, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis(highlights, 50000), 1, TICK_RATE, HEADER);
     // 1 minute / 8s avg = ~7 base segments max
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base.length).toBeGreaterThan(0);
@@ -134,7 +134,7 @@ describe("SequenceBuilder", () => {
   // 6. rocket_jump tag → rocket_jump_hero preset
   it("assigns rocket_jump_hero preset for rocket_jump tag", () => {
     const h = makeHighlight({ tags: ["rocket_jump"], peakTick: 200, score: 20 });
-    const reel = builder.build(makeAnalysis([h]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base[0].cameraPreset).toBe("rocket_jump_hero");
   });
@@ -147,7 +147,7 @@ describe("SequenceBuilder", () => {
       peakTick: 100, // 100 % 5 === 0 but multi_kill takes priority
       score: 20,
     });
-    const reel = builder.build(makeAnalysis([h]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base[0].cameraPreset).toBe("orbit_kill");
   });
@@ -155,7 +155,7 @@ describe("SequenceBuilder", () => {
   // 8. long_range tag → dramatic_zoom preset
   it("assigns dramatic_zoom preset for long_range tag", () => {
     const h = makeHighlight({ tags: ["long_range"], peakTick: 200, score: 20 });
-    const reel = builder.build(makeAnalysis([h]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
     const base = reel.segments.filter((s) => !s.isReplay);
     expect(base[0].cameraPreset).toBe("dramatic_zoom");
   });
@@ -170,7 +170,7 @@ describe("SequenceBuilder", () => {
       score: 5,
       primaryPlayer: "player_2",
     });
-    const reel = builder.build(makeAnalysis([h1, h2], 2000), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h1, h2], 2000), 5, TICK_RATE, HEADER);
     const replaySegs = reel.segments.filter((s) => s.isReplay);
     expect(replaySegs.length).toBeGreaterThan(0);
     expect(replaySegs[0].cameraPreset).toBe("replay_orbit");
@@ -180,7 +180,7 @@ describe("SequenceBuilder", () => {
   // 10. First segment transitionIn is fade_to_black
   it("gives the first segment a fade_to_black transitionIn", () => {
     const h = makeHighlight({ peakTick: 110, score: 20 });
-    const reel = builder.build(makeAnalysis([h]), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
     expect(reel.segments[0].transitionIn).toBe("fade_to_black");
   });
 
@@ -196,7 +196,7 @@ describe("SequenceBuilder", () => {
         primaryPlayer: "player_2",
       }),
     ];
-    const reel = builder.build(makeAnalysis(highlights, 2000), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis(highlights, 2000), 5, TICK_RATE, HEADER);
     for (let i = 0; i < reel.segments.length; i++) {
       expect(reel.segments[i].segmentIndex).toBe(i);
     }
@@ -214,9 +214,19 @@ describe("SequenceBuilder", () => {
         primaryPlayer: "player_2",
       }),
     ];
-    const reel = builder.build(makeAnalysis(highlights, 2000), 5, SNAPSHOT_RATE, HEADER);
+    const reel = builder.build(makeAnalysis(highlights, 2000), 5, TICK_RATE, HEADER);
     const expectedSegmentSum = reel.segments.reduce((sum, s) => sum + s.durationMs, 0);
     const expectedTotal = expectedSegmentSum + reel.segments.length * 500;
     expect(reel.totalDurationMs).toBeCloseTo(expectedTotal, 0);
+  });
+
+  it("computes segment duration from server tick rate rather than requested snapshot rate", () => {
+    const header = { ...HEADER, tickRate: 125, snapshotRate: 60 };
+    const h = makeHighlight({ startTick: 100, peakTick: 111, endTick: 225 });
+    const reel = builder.build(makeAnalysis([h], 1000), 5, header.tickRate, header);
+    const base = reel.segments.find((segment) => !segment.isReplay);
+
+    expect(reel.tickRate).toBe(125);
+    expect(base?.durationMs).toBe(1000);
   });
 });

@@ -133,7 +133,7 @@ export class DemoAnalyzer {
    * Analyze a sequence of frames and return scored highlight candidates.
    *
    * @param frames      - All frames from DemoReader.readAllFrames()
-   * @param header      - Demo header (player roster, snapshotRate)
+   * @param header      - Demo header (player roster, server tick rate)
    * @param durationMs  - Total demo duration from DemoIndex.durationMs
    */
   analyze(frames: DemoFrame[], header: DemoHeader, durationMs: number): DemoAnalysis {
@@ -146,9 +146,9 @@ export class DemoAnalyzer {
       };
     }
 
-    const snapshotRate = header.snapshotRate > 0 ? header.snapshotRate : 20;
-    const leadin = Math.round(LEADIN_SECONDS * snapshotRate);
-    const followthrough = Math.round(FOLLOWTHROUGH_SECONDS * snapshotRate);
+    const tickRate = header.tickRate > 0 ? header.tickRate : 20;
+    const leadin = Math.round(LEADIN_SECONDS * tickRate);
+    const followthrough = Math.round(FOLLOWTHROUGH_SECONDS * tickRate);
 
     const lastTick = frames[frames.length - 1].tick;
     const firstTick = frames[0].tick;

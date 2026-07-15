@@ -122,4 +122,12 @@ export class WeaponSwitchAnim {
   get isSwitching(): boolean {
     return this.phase !== "idle";
   }
+
+  /** Cancel a pending switch and discard its async load target. */
+  reset(): void {
+    this.phase = "idle";
+    this.startTime = 0;
+    this.pendingWeaponId = null;
+    this.pendingPk3Path = undefined;
+  }
 }

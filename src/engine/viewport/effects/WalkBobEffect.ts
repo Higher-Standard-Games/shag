@@ -35,10 +35,11 @@ export class WalkBobEffect extends BaseViewportEffect {
 
   constructor() {
     super();
-    this.registerCvars();
+    WalkBobEffect.ensureCvars();
   }
 
-  private registerCvars(): void {
+  /** Register the shared view-bob controls without requiring an effect instance. */
+  static ensureCvars(): void {
     if (!Cvar.exists("cg_bob")) {
       Cvar.register("cg_bob", 1, {
         type: "int",
@@ -90,6 +91,44 @@ export class WalkBobEffect extends BaseViewportEffect {
     }
   }
 
+  /**
+   * The bob FORMULA, shared verbatim by live play (this effect) and demo POV
+   * reconstruction (DemoPovState) — one source so the two can never drift.
+   * Pure: advances the given cycle by the given delta and returns the offsets.
+   * Integration policy (lean smoothing, decay-when-idle) stays with callers.
+   */
+  static computeBob(
+    bobCycle: number,
+    horizontalSpeed: number,
+    deltaSeconds: number,
+  ): { newBobCycle: number; bobRight: number; bobUp: number; rollDegrees: number; targetLean: number } {
+    const amplitude = Cvar.getNumber("cg_bobamplitude") ?? 1.5;
+    const frequency = Cvar.getNumber("cg_bobfrequency") ?? 0.015;
+    const rollAmount = Cvar.getNumber("cg_bobroll") ?? 0.5;
+    const leanAmount = Cvar.getNumber("cg_boblean") ?? 1.5;
+
+    // Speed factor: scale bob intensity with movement speed (walk 1x → 2x cap).
+    const speedFactor = Math.min(horizontalSpeed / BASE_SPEED, 2.0);
+    // Speed ratio: 0 at base, 1 at 2x base (shared gradient).
+    const speedRatio = getSpeedRatio(horizontalSpeed);
+
+    // Bob cycle advances with distance traveled; cadence rises with speed.
+    const effectiveFrequency = frequency * (1 + speedRatio * 0.3);
+    const newBobCycle = bobCycle + horizontalSpeed * deltaSeconds * effectiveFrequency;
+
+    return {
+      newBobCycle,
+      // Vertical bob (primary), synced to footsteps.
+      bobUp: Math.sin(newBobCycle * 2) * amplitude * speedFactor,
+      // Horizontal sway (secondary), 90° phase offset, stronger when fast.
+      bobRight: Math.sin(newBobCycle) * amplitude * 0.4 * speedFactor * (1 + speedRatio * 0.5),
+      // Subtle shoulder roll matching the sway.
+      rollDegrees: Math.sin(newBobCycle) * rollAmount * speedFactor,
+      // Forward lean target when going fast (callers integrate/smooth it).
+      targetLean: speedRatio * leanAmount,
+    };
+  }
+
   update(deltaTime: number, state: PlayerState): ViewportDelta {
     const delta = createNeutralDelta();
 
@@ -113,51 +152,20 @@ export class WalkBobEffect extends BaseViewportEffect {
       return delta;
     }
 
-    // Get cvar values
-    const amplitude = Cvar.getNumber("cg_bobamplitude") ?? 1.5;
-    const frequency = Cvar.getNumber("cg_bobfrequency") ?? 0.015;
-    const rollAmount = Cvar.getNumber("cg_bobroll") ?? 0.5;
-    const leanAmount = Cvar.getNumber("cg_boblean") ?? 1.5;
+    const bob = WalkBobEffect.computeBob(this.bobCycle, state.horizontalSpeed, deltaTime);
+    this.bobCycle = bob.newBobCycle;
 
-    // Speed factor: scale bob intensity with movement speed
-    // Walking = 1.0, Fast = up to 2.0
-    const speedFactor = Math.min(state.horizontalSpeed / BASE_SPEED, 2.0);
-
-    // Speed ratio: 0 at base, 1 at 2x base (using shared gradient)
-    const speedRatio = getSpeedRatio(state.horizontalSpeed);
-
-    // Update bob cycle based on distance traveled
-    // Frequency scales with speed for realistic footstep cadence
-    const effectiveFrequency = frequency * (1 + speedRatio * 0.3);
-    this.bobCycle += state.horizontalSpeed * deltaTime * effectiveFrequency;
-
-    // === VERTICAL BOB (primary) ===
-    // Up/down motion synced to footsteps
-    const offsetY = Math.sin(this.bobCycle * 2) * amplitude * speedFactor;
-
-    // === HORIZONTAL SWAY (secondary) ===
-    // Left/right sway for realistic running feel - 90° phase offset from bob
-    // More pronounced when running fast
-    const swayAmount = amplitude * 0.4 * speedFactor * (1 + speedRatio * 0.5);
-    const offsetX = Math.sin(this.bobCycle) * swayAmount;
-
-    // === ROLL TILT ===
-    // Subtle shoulder rotation matching horizontal sway
-    const roll = Math.sin(this.bobCycle) * rollAmount * speedFactor;
-
-    // === FORWARD LEAN ===
-    // Lean forward when going fast - uses shared gradient (BASE_SPEED to MAX_SPEED)
-    const targetLean = speedRatio * leanAmount;
+    // Forward lean integration (live: per-frame lerp).
     const leanSpeed = 5; // How fast we lean forward/back
-    this.currentLean += (targetLean - this.currentLean) * Math.min(1, deltaTime * leanSpeed);
+    this.currentLean += (bob.targetLean - this.currentLean) * Math.min(1, deltaTime * leanSpeed);
 
     // Write shared bob values to state (for weapon bob to sync with)
     state.bobCycle = this.bobCycle;
-    state.speedRatio = speedRatio;
+    state.speedRatio = getSpeedRatio(state.horizontalSpeed);
 
     // Build delta
-    delta.positionOffset = new Vector3(offsetX, offsetY, 0);
-    delta.rotationOffset = new Vector3(this.currentLean, 0, roll);
+    delta.positionOffset = new Vector3(bob.bobRight, bob.bobUp, 0);
+    delta.rotationOffset = new Vector3(this.currentLean, 0, bob.rollDegrees);
 
     return delta;
   }

@@ -84,12 +84,23 @@ export const DEFAULT_ANIM_FILES: AnimFileConfig[] = [
   { name: "crouch_strafe_l", file: "crouch_walk_left.glb" },
   { name: "crouch_strafe_r", file: "crouch_walk_right.glb" },
   { name: "walljump", file: "wallrun.glb" },
+  // Victory dances (post-game winner showcase) — Mixamo dance clips exported
+  // as GLB into public/games/default/animations/. Missing files are tolerated
+  // (per-file try/catch above; playAnimation falls back to idle), so ship as
+  // many or as few as are downloaded.
+  { name: "dance_1", file: "dance_1.glb" },
+  { name: "dance_2", file: "dance_2.glb" },
+  { name: "dance_3", file: "dance_3.glb" },
 ];
+
+/** Victory-dance pool for the post-game winner showcase (random pick). */
+export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
 
 // ─── Manager ─────────────────────────────────────────────────────
 
 export class PlayerModelManager {
   private scene: Scene;
+  private readonly activeOneShots = new Map<PlayerModelInstance, { group: AnimationGroup; baseSpeedRatio: number }>();
 
   // Source model (loaded once)
   private loaded = false;
@@ -379,6 +390,15 @@ export class PlayerModelManager {
    * @returns true if animation was changed
    */
   playAnimation(instance: PlayerModelInstance, name: string): boolean {
+    return PlayerModelManager.playAnimationOn(instance, name);
+  }
+
+  /**
+   * Static variant of playAnimation — plays a looping animation on any
+   * PlayerModelInstance without needing the owning manager (the post-game
+   * winner showcase holds only the instance). Scene comes from the instance.
+   */
+  static playAnimationOn(instance: PlayerModelInstance, name: string): boolean {
     if (instance.currentAnim === name) return false;
 
     const animData = instance.anims.find((a) => a.name === name);
@@ -391,7 +411,7 @@ export class PlayerModelManager {
     }
 
     // Build new
-    instance.masterGroup = new AnimationGroup(`anim_${instance.id}_${name}`, this.scene);
+    instance.masterGroup = new AnimationGroup(`anim_${instance.id}_${name}`, instance.mesh.getScene());
     for (const item of animData.animations) {
       if (item.target) {
         instance.masterGroup.addTargetedAnimation(item.animation, item.target);
@@ -411,6 +431,7 @@ export class PlayerModelManager {
   playOnce(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): boolean {
     const animData = instance.anims.find((a) => a.name === name);
     if (!animData || animData.animations.length === 0) return false;
+    this.stopOneShot(instance, false);
 
     // Create overlay animation group (separate from masterGroup)
     const group = new AnimationGroup(`anim_${instance.id}_${name}_overlay`, this.scene);
@@ -429,24 +450,19 @@ export class PlayerModelManager {
       instance.masterGroup.stop();
     }
 
-    // Calculate one-shot duration from the longest animation channel
-    let maxFrames = 0;
-    for (const item of animData.animations) {
-      const keys = item.animation.getKeys();
-      if (keys.length > 0) {
-        maxFrames = Math.max(maxFrames, keys[keys.length - 1].frame);
-      }
-    }
-    // Convert frames to ms (Mixamo default 30fps) and apply speed ratio
-    const durationMs = ((maxFrames / 30) * 1000) / speedRatio;
+    const durationMs = this.getOneShotDurationMs(instance, name, speedRatio);
     instance.oneshotUntil = performance.now() + durationMs;
+    this.activeOneShots.set(instance, { group, baseSpeedRatio: speedRatio });
 
     // Play once (loop = false), auto-dispose when complete
     group.play(false);
 
     group.onAnimationEndObservable.addOnce(() => {
+      if (this.activeOneShots.get(instance)?.group !== group) return;
+      this.activeOneShots.delete(instance);
       group.stop();
       group.dispose();
+      instance.oneshotUntil = 0;
       // Resume locomotion masterGroup after one-shot completes
       if (instance.masterGroup) {
         instance.masterGroup.play(true);
@@ -454,6 +470,44 @@ export class PlayerModelManager {
     });
 
     return true;
+  }
+
+  /** Duration of a named one-shot at its authored 30fps and base speed. */
+  getOneShotDurationMs(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): number {
+    const animData = instance.anims.find((a) => a.name === name);
+    if (!animData || speedRatio <= 0) return 0;
+    let maxFrames = 0;
+    for (const item of animData.animations) {
+      const keys = item.animation.getKeys();
+      if (keys.length > 0) {
+        maxFrames = Math.max(maxFrames, keys[keys.length - 1].frame);
+      }
+    }
+    return ((maxFrames / 30) * 1000) / speedRatio;
+  }
+
+  /** Multiply an active one-shot's authored speed by an external clock scale. */
+  setOneShotTimeScale(instance: PlayerModelInstance, timeScale: number): void {
+    const active = this.activeOneShots.get(instance);
+    if (active) active.group.speedRatio = active.baseSpeedRatio * timeScale;
+  }
+
+  isOneShotPlaying(instance: PlayerModelInstance): boolean {
+    return this.activeOneShots.has(instance);
+  }
+
+  /** Stop and dispose an active overlay, optionally resuming locomotion. */
+  stopOneShot(instance: PlayerModelInstance, resumeLocomotion: boolean = true): void {
+    const active = this.activeOneShots.get(instance);
+    if (active) {
+      this.activeOneShots.delete(instance);
+      active.group.stop();
+      active.group.dispose();
+    }
+    instance.oneshotUntil = 0;
+    if (resumeLocomotion && instance.masterGroup) {
+      instance.masterGroup.play(true);
+    }
   }
 
   // --- Player Visibility Styling ------------------------------------------
@@ -572,6 +626,7 @@ export class PlayerModelManager {
 
   /** Dispose a single instance */
   disposeInstance(instance: PlayerModelInstance): void {
+    this.stopOneShot(instance, false);
     if (instance.attachedWeapon) {
       instance.attachedWeapon.dispose(false, true);
       instance.attachedWeapon = null;

@@ -17,6 +17,7 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { Game } from "../../../games/fps/Game";
+import { DEFAULT_VIEWHEIGHT } from "../../physics/PlayerPhysicsConstants";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -31,6 +32,15 @@ export interface SpectatorTargetData {
   yaw: number;
   /** Pitch rotation in radians */
   pitch: number;
+  /** Eye height above the entity origin. Defaults to the live FPS standing height. */
+  eyeHeight?: number;
+  /** Camera-local reconstructed presentation offsets (used by demo POV). */
+  bobRight?: number;
+  bobUp?: number;
+  pitchOffsetDegrees?: number;
+  rollDegrees?: number;
+  /** The provider already returns an interpolated presentation sample. */
+  snapToTarget?: boolean;
 }
 
 /**
@@ -40,9 +50,6 @@ export interface SpectatorTargetData {
 export type SpectatorTargetProvider = (entityId: string) => SpectatorTargetData | null;
 
 // ─── Constants ───────────────────────────────────────────────────
-
-/** Eye height offset above Q3 origin (Q3 PLAYER_MAXS_Z = 40, viewheight = 26) */
-const EYE_HEIGHT_OFFSET = 26;
 
 /** Default smoothing factor (0 = no smoothing, 1 = instant snap) */
 const DEFAULT_SMOOTHING = 0.25;
@@ -150,10 +157,10 @@ export class SpectatorController implements ICameraController {
 
     // Calculate eye position (Q3 origin + eye height)
     const eyeX = target.x;
-    const eyeY = target.y + EYE_HEIGHT_OFFSET;
+    const eyeY = target.y + (target.eyeHeight ?? DEFAULT_VIEWHEIGHT);
     const eyeZ = target.z;
 
-    if (!this.hasInitialPosition) {
+    if (!this.hasInitialPosition || target.snapToTarget) {
       // First frame — snap to target immediately
       this.smoothedPosition.set(eyeX, eyeY, eyeZ);
       this.smoothedYaw = target.yaw;
@@ -193,11 +200,21 @@ export class SpectatorController implements ICameraController {
     }
 
     // Apply to camera
-    this.camera.position.set(this.smoothedPosition.x, this.smoothedPosition.y, this.smoothedPosition.z);
+    const bobRight = target.bobRight ?? 0;
+    const bobUp = target.bobUp ?? 0;
+    // Match FPSApplicator's camera-local right axis without mutating the
+    // smoothed authoritative base position.
+    const bobX = Math.cos(this.smoothedYaw) * bobRight;
+    const bobZ = -Math.sin(this.smoothedYaw) * bobRight;
+    this.camera.position.set(
+      this.smoothedPosition.x + bobX,
+      this.smoothedPosition.y + bobUp,
+      this.smoothedPosition.z + bobZ,
+    );
     this.camera.rotation.set(
-      this.smoothedPitch,
+      this.smoothedPitch + ((target.pitchOffsetDegrees ?? 0) * Math.PI) / 180,
       this.smoothedYaw,
-      0, // No roll
+      ((target.rollDegrees ?? 0) * Math.PI) / 180,
     );
   }
 
@@ -238,6 +255,12 @@ export class SpectatorController implements ICameraController {
    */
   setTargetProvider(provider: SpectatorTargetProvider): void {
     this.targetProvider = provider;
+  }
+
+  /** Release a provider closure owned by a stopped playback/live session. */
+  clearTargetProvider(): void {
+    this.targetProvider = null;
+    this.hasInitialPosition = false;
   }
 
   /**

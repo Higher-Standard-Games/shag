@@ -29,6 +29,22 @@ const mockIndex = {
   indexOffset: 5100,
 };
 
+function setMockTimeline(
+  ticks: number[] = Array.from({ length: 100 }, (_, i) => i * 3),
+  tickRate = 60,
+  snapshotRate = 20,
+  durationMs = 5000,
+): void {
+  mockHeader.tickRate = tickRate;
+  mockHeader.snapshotRate = snapshotRate;
+  mockIndex.frameCount = ticks.length;
+  mockIndex.entries = ticks.map((tick, i) => ({
+    tick,
+    offset: 100 + i * 50,
+  }));
+  mockIndex.durationMs = durationMs;
+}
+
 const mockFrame = (tick: number) => ({
   tick,
   state: {
@@ -61,6 +77,7 @@ describe("DemoViewer", () => {
   let viewer: DemoViewer;
 
   beforeEach(() => {
+    setMockTimeline();
     viewer = new DemoViewer();
   });
 
@@ -110,7 +127,7 @@ describe("DemoViewer", () => {
     expect(viewer.getState()).toBe("paused");
   });
 
-  it("advances frames at snapshot rate", async () => {
+  it("advances frames from recorded tick intervals", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
 
@@ -125,6 +142,73 @@ describe("DemoViewer", () => {
 
     viewer.update(150); // 150ms → 3 frames at 20Hz
     expect(viewer.getCurrentFrame()).toBe(3);
+  });
+
+  it("uses effective recorded cadence when requested snapshot rate is inexact", async () => {
+    // A 125Hz server emits every two ticks when asked for 60 snapshots/s:
+    // the recorded cadence is 62.5Hz (16ms), not the requested 60Hz (16.67ms).
+    setMockTimeline(
+      Array.from({ length: 100 }, (_, i) => 5000 + i * 2),
+      125,
+      60,
+      2000,
+    );
+    await viewer.load(new Uint8Array(10));
+    viewer.play();
+
+    viewer.update(16);
+    expect(viewer.getCurrentFrame()).toBe(1);
+
+    viewer.update(144);
+    expect(viewer.getCurrentFrame()).toBe(10);
+    expect(viewer.getInfo().elapsedMs).toBe(160);
+    expect(viewer.getInfo().durationMs).toBe(1584);
+  });
+
+  it("honors irregular recorded tick gaps", async () => {
+    setMockTimeline([100, 102, 105, 106], 100, 50, 999);
+    await viewer.load(new Uint8Array(10));
+    viewer.play();
+
+    viewer.update(20);
+    expect(viewer.getCurrentFrame()).toBe(1);
+    viewer.update(29);
+    expect(viewer.getCurrentFrame()).toBe(1);
+    viewer.update(1);
+    expect(viewer.getCurrentFrame()).toBe(2);
+
+    expect(viewer.getInfo().elapsedMs).toBe(50);
+    expect(viewer.getInfo().durationMs).toBe(60);
+  });
+
+  it("reports a continuous playhead tick between recorded frames", async () => {
+    await viewer.load(new Uint8Array(10));
+    viewer.play();
+
+    viewer.update(25);
+
+    expect(viewer.getCurrentFrame()).toBe(0);
+    expect(viewer.getInfo().currentTick).toBe(0);
+    expect(viewer.getInfo().playheadTick).toBe(1.5);
+    expect(viewer.getNextFrame()?.tick).toBe(3);
+  });
+
+  it("catches up to the tick playhead while limiting stale frame delivery", async () => {
+    setMockTimeline(
+      Array.from({ length: 101 }, (_, i) => i),
+      1000,
+      60,
+      100,
+    );
+    await viewer.load(new Uint8Array(10));
+    const delivered: number[] = [];
+    viewer.onFrame((_state, tick) => delivered.push(tick));
+    viewer.play();
+
+    viewer.update(90);
+
+    expect(viewer.getCurrentFrame()).toBe(90);
+    expect(delivered).toEqual([0, 87, 88, 89, 90]);
   });
 
   it("ends at last frame", async () => {
@@ -142,10 +226,13 @@ describe("DemoViewer", () => {
   it("does not advance when paused", async () => {
     await viewer.load(new Uint8Array(10));
     viewer.play();
+    viewer.update(25);
     viewer.pause();
+    const pausedPlayhead = viewer.getInfo().playheadTick;
 
     viewer.update(100);
     expect(viewer.getCurrentFrame()).toBe(0);
+    expect(viewer.getInfo().playheadTick).toBe(pausedPlayhead);
   });
 
   // ── Speed ─────────────────────────────────────────────────────
@@ -157,6 +244,15 @@ describe("DemoViewer", () => {
 
     viewer.update(50); // 50ms * 2x = 100ms effective → 2 frames at 20Hz
     expect(viewer.getCurrentFrame()).toBe(2);
+  });
+
+  it("applies fractional speed to recorded time", async () => {
+    await viewer.load(new Uint8Array(10));
+    viewer.setSpeed(0.25);
+    viewer.play();
+
+    viewer.update(200); // 50ms of demo time
+    expect(viewer.getCurrentFrame()).toBe(1);
   });
 
   it("cycles through speed options", async () => {
@@ -249,6 +345,22 @@ describe("DemoViewer", () => {
     expect(frames[0]).toBe(150); // tick = 50 * 3
   });
 
+  it("increments the discontinuity id on seek and ended restart", async () => {
+    await viewer.load(new Uint8Array(10));
+    const loadedId = viewer.getInfo().discontinuityId;
+
+    viewer.seekToFrame(10);
+    expect(viewer.getInfo().discontinuityId).toBe(loadedId + 1);
+
+    viewer.seekToFrame(99);
+    viewer.play();
+    viewer.update(1);
+    expect(viewer.getState()).toBe("ended");
+    const endedId = viewer.getInfo().discontinuityId;
+    viewer.play();
+    expect(viewer.getInfo().discontinuityId).toBe(endedId + 1);
+  });
+
   // ── State callbacks ───────────────────────────────────────────
 
   it("notifies on state changes", async () => {
@@ -272,7 +384,8 @@ describe("DemoViewer", () => {
     expect(info.state).toBe("loaded");
     expect(info.currentFrame).toBe(50);
     expect(info.totalFrames).toBe(100);
-    expect(info.durationMs).toBe(5000);
+    expect(info.durationMs).toBe(4950);
+    expect(info.elapsedMs).toBe(2500);
     expect(info.playbackSpeed).toBe(1.0);
   });
 
