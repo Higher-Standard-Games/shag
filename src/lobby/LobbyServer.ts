@@ -1177,7 +1177,7 @@ export class LobbyServer {
     // Hold the lobby open for the return trip (reload drops all its sockets).
     lobby.keepAliveUntil = Date.now() + 3 * 60_000;
 
-    // Return all players to online status
+    // Return all players to the lobby (the rematch screen), not-ready.
     for (const lp of lobby.players.values()) {
       lp.ready = false;
       const player = this.players.get(lp.id);
