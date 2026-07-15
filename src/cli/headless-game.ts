@@ -14,7 +14,9 @@
  */
 
 import { runCli } from "./_runCli";
+import { formatPreflight, preflightGameAssets, resolveGameAssetDir } from "./_assetPreflight";
 import * as fs from "node:fs";
+import { fail } from "../engine/console/Command";
 import * as path from "node:path";
 import * as readline from "node:readline";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
@@ -132,16 +134,16 @@ async function initializeEngine(): Promise<HeadlessContext> {
 async function initializeGameSystems(ctx: HeadlessContext): Promise<void> {
   console.log("[Init] Loading game systems...");
 
-  // Initialize PK3 loader with game path
-  let gamePath = process.env.GAME_PATH || "./public/game";
-  if (!fs.existsSync(gamePath) && fs.existsSync("./public/games/default/basewsw")) {
-    gamePath = "./public/games/default/basewsw";
-  }
+  // Initialize PK3 loader with game path (shared resolution + preflight).
+  const gamePath = resolveGameAssetDir();
   console.log(`[Init] Game path: ${gamePath}`);
 
-  // Check if game path exists
-  if (!fs.existsSync(gamePath)) {
-    console.warn(`[Init] Game path not found: ${gamePath}`);
+  const preflight = preflightGameAssets(gamePath);
+  if (!preflight.ok) {
+    // Not fatal at startup — asset-free commands (headless info, determinism)
+    // still run, and asset-dependent commands surface their own failure and
+    // gate the exit code (QA-23). Run `assets` explicitly for a hard gate.
+    console.warn(`[Init] ${formatPreflight(preflight)}`);
     console.warn("[Init] Some commands may not work without PK3 files");
   }
 
@@ -198,6 +200,17 @@ async function registerCommands(_ctx: HeadlessContext): Promise<void> {
     // Preserve a failure code set by an earlier batch command — never force 0.
     process.exit(typeof process.exitCode === "number" ? process.exitCode : 0);
   });
+
+  registry.register(
+    "assets",
+    () => {
+      // Explicit, exit-code-observable asset gate: fails (exit 1 via runBatch)
+      // when the resolved game dir has no PK3 data (QA-WO11 step 3).
+      const result = preflightGameAssets();
+      return result.ok ? formatPreflight(result) : fail(formatPreflight(result));
+    },
+    "Verify the headless game asset dir has PK3 data (fails the run when missing)",
+  );
 
   registry.register("headless", (args: string[]) => {
     const sub = args[0]?.toLowerCase();
