@@ -142,6 +142,9 @@ export interface MatchStateSnapshot {
   teamScores?: Record<TeamId, number>;
   playerTeams?: Record<string, TeamId>;
   teamNames?: Record<TeamId, string>;
+  /** Spectator roster (no sim entity) — for the scoreboard. Populated by
+   *  SnapshotBuilder; client-consumed. */
+  spectators?: Array<{ playerId: string; name: string; ping: number }>;
   /** Set only during PostGame — who won the match that just ended. */
   winner?: MatchWinner;
   /** Number of overtime extensions this match (0 = regulation). */
