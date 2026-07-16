@@ -1,0 +1,57 @@
+# CI (QA-WO6 / QA-12): the suite, typecheck, and lint ratchet run on every push
+# to main and the QA branches, and on every PR. Before this existed, nothing ran
+# tests automatically — fixed bug classes only stayed fixed by convention.
+name: CI
+
+on:
+  push:
+    branches: ["main", "*-qa-improvements"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # wash-fps and tower are separate repos: the default GITHUB_TOKEN can
+          # only read THIS repo, so if they are private, add a SUBMODULES_TOKEN
+          # secret (fine-grained PAT with read access to both) — checkout
+          # rewrites the ssh submodule URLs to authenticated https.
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test:run
+
+      - name: Biome gate (no new diagnostics over baseline)
+        run: npm run gate:biome
+
+      # QA-WO3 regression gate: the split reliable router (whose silent dead end
+      # shipped the broken-chat bug) must not come back — one router, both channels.
+      - name: Trap gate — no split reliable router
+        run: |
+          if grep -rnE "handleReliable\s*\(" src --include="*.ts"; then
+            echo "::error::handleReliable( reappeared — route both channels through handleDatagram (see docs/research/v0.9.18-QA.md QA-7)"
+            exit 1
+          fi
+          echo "OK — single message router intact"

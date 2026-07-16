@@ -1,0 +1,5 @@
+#!/bin/sh
+# Pre-commit gate (QA-WO6): fail the commit if biome diagnostics exceed the
+# checked-in baseline (biome-baseline.json). ~3s. Bypass in an emergency with
+# `git commit --no-verify`; CI runs the same gate, so it will catch you there.
+node "$(git rev-parse --show-toplevel)/scripts/biome-gate.mjs" || exit 1

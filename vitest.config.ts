@@ -22,5 +22,14 @@ export default defineConfig({
         execArgv: ["--max-old-space-size=4096"],
       },
     },
+    // Visibility only (QA-22) — no thresholds yet. Run via `npm run test:coverage`;
+    // the client/lobby blind spots the audit found become measurable.
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "lcov"],
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/**/__tests__/**", "src/cli/**", "src/tools/**"],
+      reportsDirectory: "coverage",
+    },
   },
 });

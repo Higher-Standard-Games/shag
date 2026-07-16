@@ -88,3 +88,6 @@ tools/
 
 # TLS certificates for local development
 certs/
+
+# vitest coverage output (QA-WO6)
+coverage/
