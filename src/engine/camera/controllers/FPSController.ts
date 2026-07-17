@@ -28,13 +28,13 @@ import type { Scene } from "@babylonjs/core/scene";
 // import { Animation } from "@babylonjs/core/Animations/animation";
 // import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import "@babylonjs/loaders";
-import { Cvar } from "../../core/Cvar";
-import { DeveloperBar } from "../../debug/DeveloperBar";
 // Type-only import reaches into the fps game module — FPSController is itself
 // FPS-coupled (see QA matrix #6/#19). Type imports are erased at compile time
 // so this doesn't introduce a runtime engine→games dependency. Full relocation
 // to src/games/fps/camera/ is tracked separately.
 import type { InventoryManager } from "../../../games/fps/world/InventoryManager";
+import { Cvar } from "../../core/Cvar";
+import { DeveloperBar } from "../../debug/DeveloperBar";
 import { InputSystem } from "../../input/InputSystem";
 import { MovementVars } from "../../movement/MovementVars";
 import {
@@ -699,7 +699,7 @@ export class FPSController implements ICameraController {
         // Ensure weapons map is loaded (lazy init, same as crosshair section)
         // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         if (!(this as any)._weaponsMap) {
-          import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
+          import("../../../shared/entities/definitions/weapons/WeaponsTable").then((m) => {
             // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             (this as any)._weaponsMap = m.WEAPONS;
           });
@@ -1169,7 +1169,7 @@ export class FPSController implements ICameraController {
         // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
         if (!(this as any)._weaponsMap) {
           // Lazy load WEAPONS map (fire-and-forget)
-          import("../../../games/fps/server/weapons/WeaponDef").then((m) => {
+          import("../../../shared/entities/definitions/weapons/WeaponsTable").then((m) => {
             // biome-ignore lint/suspicious/noExplicitAny: Babylon camera/mesh internals and lazy-init diagnostics
             (this as any)._weaponsMap = m.WEAPONS;
           });
