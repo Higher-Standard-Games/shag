@@ -24,6 +24,12 @@ export default defineConfig({
     port: 3000,
     host: true, // Allow external access for Capacitor live reload
   },
+  // Strip log/debug console calls from PRODUCTION bundles as pure (QA-15):
+  // pure annotations only take effect at minify time, so dev keeps every log.
+  // console.warn / console.error always survive — they are the diagnostics.
+  esbuild: {
+    pure: ['console.log', 'console.debug'],
+  },
   assetsInclude: ['**/*.pk3'], // Treat PK3 files as static assets
   // ES6 @babylonjs packages used directly - no alias needed for tree-shaking
   build: {
@@ -31,8 +37,11 @@ export default defineConfig({
     assetsDir: 'assets',
     // Target modern browsers only (smaller output, no legacy polyfills)
     target: 'es2020',
-    // Disable source maps in production (saves ~30-50% of JS size)
-    sourcemap: false,
+    // Hidden source maps (QA-15): .map files are emitted for CI/error
+    // symbolication but bundles carry no sourceMappingURL comment.
+    // NOTE: deploys must exclude *.map from the public upload — the files
+    // exist in dist/ even though browsers are never pointed at them.
+    sourcemap: 'hidden',
     // Minification settings
     minify: 'esbuild',
     cssMinify: true,

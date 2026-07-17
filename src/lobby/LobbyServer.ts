@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
+import { log } from "../engine/core/Log";
 import { DemoReader } from "../shared/demo/DemoReader";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type {
@@ -854,8 +855,8 @@ export class LobbyServer {
           } else if (msg.type === "error") {
             finish(() => reject(new Error(msg.error || "Bot server rejected the request")));
           }
-        } catch {
-          // ignore malformed frames
+        } catch (err) {
+          log.warn("LobbyServer", "malformed frame from bot server:", err);
         }
       });
 
