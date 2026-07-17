@@ -37,6 +37,9 @@ console.log("");
 
 async function loadBsp(mapName: string): Promise<ReturnType<typeof BspLoader.load>> {
   const possiblePaths = [
+    // Canonical map-pk3 location (what the lobby/browser use)
+    path.resolve("./public/data", `map_${mapName}.pk3`),
+    // Legacy headless locations
     path.resolve("./public/games/default", `map_${mapName}.pk3`),
     path.resolve("./public/games/default/basewsw", `map_${mapName}.pk3`),
   ];

@@ -9,8 +9,9 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BspFile } from "../engine/loader/bsp/BspLoader";
-import type { CollisionWorld } from "../engine/network/systems/collision/CollisionWorld";
+import { SweepBackendAdapter } from "../engine/physics/SweepBackendAdapter";
 import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
+import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 import { SharedCollisionWorld } from "../shared/collision/SharedCollisionWorld";
 
 /**
@@ -33,7 +34,8 @@ export async function createHeadlessCollisionWorld(bsp: BspFile): Promise<Collis
     `[HeadlessBSPCollisionWorld] Test trace: fraction=${testResult.fraction.toFixed(4)}, hit=${testResult.fraction < 1}`,
   );
 
-  return new SharedCollisionWorld(backend);
+  // Adapter converts structural Vec3 <-> Babylon at the engine boundary (QA-WO8)
+  return new SharedCollisionWorld(new SweepBackendAdapter(backend));
 }
 
 // Re-export for backward compatibility

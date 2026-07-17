@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Entity } from "../../../engine/network/core/Entity";
-import { GameState } from "../../../engine/network/core/GameState";
+import { Entity } from "../../net/Entity";
+import { GameState } from "../../net/GameState";
 import { DemoAnalyzer } from "../DemoAnalyzer";
 import type { DemoFrame, DemoHeader } from "../DemoReader";
 

@@ -9,8 +9,8 @@
  * so any frame can be decoded independently via the index table.
  */
 
-import type { GameState } from "../../engine/network/core/GameState";
-import { BinaryProtocol } from "../../engine/network/protocol/BinaryProtocol";
+import { BinaryProtocol } from "../net/BinaryProtocol";
+import type { GameState } from "../net/GameState";
 
 // zlib is Node-only. Lazy-loaded to avoid crashes when this module is
 // imported in a browser context (future demo viewer will use DecompressionStream).

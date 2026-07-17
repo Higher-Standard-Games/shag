@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NetworkCommand } from "../../../../engine/network/protocol/BinaryProtocol";
+import type { NetworkCommand } from "../../../net/BinaryProtocol";
 import { sanitizeCommand, sanitizeMovement, sanitizeMovementOrZero } from "../InputSanitizer";
 
 function command(overrides: Partial<NetworkCommand> = {}): NetworkCommand {

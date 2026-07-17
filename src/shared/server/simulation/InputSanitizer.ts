@@ -1,4 +1,4 @@
-import type { NetworkCommand } from "../../../engine/network/protocol/BinaryProtocol";
+import type { NetworkCommand } from "../../net/BinaryProtocol";
 
 export const KNOWN_BUTTON_MASK = 0xffff;
 

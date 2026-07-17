@@ -1,20 +1,7 @@
-// Re-export BinaryEncoder as StateEncoder and BinaryDecoder as StateDecoder
-// for backwards compatibility with existing code
-import { BinaryDecoder, BinaryEncoder } from "../protocol/BinaryProtocol";
-
-export { BinaryDecoder as StateDecoder, BinaryEncoder as StateEncoder };
-
 /**
- * Base interface for all networked components.
- * Components are data containers that can be serialized and synchronized.
+ * Moved to shared/net/Component (QA-3 / QA-WO8): the wire component contract is
+ * part of the deterministic shared core, so shared code can use it without
+ * importing upward into engine. This shim keeps existing engine-path importers
+ * working; new code should import from shared/net directly.
  */
-export interface IComponent {
-  /** Serialize component state to binary */
-  serialize(encoder: BinaryEncoder): void;
-
-  /** Deserialize component state from binary */
-  deserialize(decoder: BinaryDecoder): void;
-
-  /** Clone component for snapshots */
-  clone(): IComponent;
-}
+export * from "../../../shared/net/Component";

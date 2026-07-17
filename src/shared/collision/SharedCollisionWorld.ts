@@ -2,34 +2,18 @@
  * SharedCollisionWorld - Single shared CollisionWorld implementation
  *
  * Used by BOTH client and server to guarantee physics parity.
- * Takes a SweepCollisionBackend via dependency injection.
+ * Takes a structural SweepBackend via dependency injection — the engine's
+ * Babylon-based SweepCollisionBackend is wrapped by SweepBackendAdapter
+ * (engine/physics) at the construction site, so this file is pure structural
+ * math with no engine or Babylon dependency (QA-3 / QA-WO8).
  *
  * This eliminates the duplicate BSPCollisionWorld / HeadlessBSPCollisionWorld
  * implementations that previously had subtle differences causing
  * client-server physics divergence.
  */
 
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { Vec3 } from "../../engine/network/components/TransformComponent";
-import type {
-  AABB,
-  CollisionWorld,
-  StepSlideMoveResult,
-  TraceResult,
-} from "../../engine/network/systems/collision/CollisionWorld";
-import type { SweepCollisionBackend } from "../../engine/physics/SweepCollisionBackend";
-
-// ═══════════════════════════════════════════════════════════════════
-// COORDINATE CONVERSION
-// ═══════════════════════════════════════════════════════════════════
-
-function toBabylon(v: Vec3): Vector3 {
-  return new Vector3(v.x, v.y, v.z);
-}
-
-function fromBabylon(v: Vector3): Vec3 {
-  return { x: v.x, y: v.y, z: v.z };
-}
+import type { Vec3 } from "../server/simulation/types";
+import type { AABB, CollisionWorld, StepSlideMoveResult, SweepBackend, TraceResult } from "./CollisionWorld";
 
 // ═══════════════════════════════════════════════════════════════════
 // SHARED COLLISION WORLD
@@ -40,9 +24,9 @@ export class SharedCollisionWorld implements CollisionWorld {
   private static readonly PLAYER_RADIUS = 16;
   private static readonly PLAYER_HEIGHT = 64;
 
-  private backend: SweepCollisionBackend;
+  private backend: SweepBackend;
 
-  constructor(backend: SweepCollisionBackend) {
+  constructor(backend: SweepBackend) {
     this.backend = backend;
   }
 
@@ -51,9 +35,6 @@ export class SharedCollisionWorld implements CollisionWorld {
   // ───────────────────────────────────────────────────────────────
 
   trace(start: Vec3, end: Vec3, bounds?: AABB): TraceResult {
-    const startV = toBabylon(start);
-    const endV = toBabylon(end);
-
     const options = bounds
       ? {
           radius: (bounds.max.x - bounds.min.x) / 2,
@@ -61,13 +42,13 @@ export class SharedCollisionWorld implements CollisionWorld {
         }
       : { radius: 0, height: 0 };
 
-    const result = this.backend.trace(startV, endV, options);
+    const result = this.backend.trace(start, end, options);
 
     return {
       hit: result.fraction < 1,
       fraction: result.fraction,
-      hitPoint: result.endPos ? fromBabylon(result.endPos) : undefined,
-      normal: result.normal ? fromBabylon(result.normal) : undefined,
+      hitPoint: result.endPos,
+      normal: result.normal,
       contents: result.contents ?? 0,
     };
   }
@@ -83,9 +64,12 @@ export class SharedCollisionWorld implements CollisionWorld {
    * identical ground detection and velocity clipping.
    */
   stepSlideMove(start: Vec3, velocity: Vec3, deltaTime: number, bounds: AABB): StepSlideMoveResult {
-    const startPos = toBabylon(start);
     // Backend expects MOVEMENT (units), not velocity (units/sec)
-    const movement = toBabylon(velocity).scale(deltaTime);
+    const movement: Vec3 = {
+      x: velocity.x * deltaTime,
+      y: velocity.y * deltaTime,
+      z: velocity.z * deltaTime,
+    };
 
     // Derive collision dimensions from bounds.
     // For player-sized or larger objects, keep hardcoded PLAYER constants
@@ -99,7 +83,7 @@ export class SharedCollisionWorld implements CollisionWorld {
       height: isSmallObject ? boundsHeight : SharedCollisionWorld.PLAYER_HEIGHT,
     };
 
-    const result = this.backend.stepSlideMove(startPos.clone(), movement, traceOpts);
+    const result = this.backend.stepSlideMove(start, movement, traceOpts);
 
     // ── GROUND DETECTION ──
     // Three-path system:
@@ -110,7 +94,7 @@ export class SharedCollisionWorld implements CollisionWorld {
     // lifts 0.5u above floor (movement.y > 0.1), but a 2u trace still found the
     // floor → falsely grounded → friction oscillation → shaking + camera loss.
     const expectedYMove = movement.y;
-    const actualYMove = result.endPos.y - startPos.y;
+    const actualYMove = result.endPos.y - start.y;
     let grounded = false;
 
     if (expectedYMove < -0.1 && actualYMove > expectedYMove * 0.5) {
@@ -118,24 +102,34 @@ export class SharedCollisionWorld implements CollisionWorld {
       grounded = true;
     } else if (Math.abs(movement.y) < 0.1) {
       // Path 2: nearly stationary vertically → trace to detect floor
-      const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-      const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+      const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
+      const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
       grounded = groundTrace.fraction < 1.0;
     } else if (movement.y > 0.1 && result.hitCount > 0) {
       // Path 3: moving uphill AND hit a surface → on a ramp
       // hitCount > 0 distinguishes ramp walking (hit the ramp) from
       // jumping/bumps (no collision, just moving through air)
-      const groundCheckEnd = result.endPos.add(new Vector3(0, -2, 0));
-      const groundTrace = this.backend.trace(result.endPos.clone(), groundCheckEnd, traceOpts);
+      const groundCheckEnd = { x: result.endPos.x, y: result.endPos.y - 2, z: result.endPos.z };
+      const groundTrace = this.backend.trace(result.endPos, groundCheckEnd, traceOpts);
       grounded = groundTrace.fraction < 1.0;
     }
 
     // ── VELOCITY CONVERSION ──
-    // Backend returns clipped MOVEMENT delta, convert back to velocity (units/sec)
-    const clippedVelocity = deltaTime > 0 ? fromBabylon(result.velocity.scale(1 / deltaTime)) : { x: 0, y: 0, z: 0 };
+    // Backend returns clipped MOVEMENT delta, convert back to velocity (units/sec).
+    // Multiply by the inverse (not divide) — bit-identical to the previous
+    // Babylon `.scale(1 / deltaTime)`, which determinism checksums depend on.
+    const invDt = deltaTime > 0 ? 1 / deltaTime : 0;
+    const clippedVelocity: Vec3 =
+      deltaTime > 0
+        ? {
+            x: result.velocity.x * invDt,
+            y: result.velocity.y * invDt,
+            z: result.velocity.z * invDt,
+          }
+        : { x: 0, y: 0, z: 0 };
 
     return {
-      endPos: fromBabylon(result.endPos),
+      endPos: result.endPos,
       velocity: clippedVelocity,
       grounded,
     };
@@ -146,8 +140,7 @@ export class SharedCollisionWorld implements CollisionWorld {
   // ───────────────────────────────────────────────────────────────
 
   pointContents(point: Vec3): number {
-    const pointV = toBabylon(point);
-    return this.backend.pointContents(pointV);
+    return this.backend.pointContents(point);
   }
 
   // ───────────────────────────────────────────────────────────────
