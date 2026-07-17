@@ -18,14 +18,16 @@ vi.mock("../weapon/ProjectileManager", () => ({
   getProjectileManager: () => ({ init: vi.fn() }),
 }));
 
+type Internals = { updateObserver: Observer<Scene> | null };
+
 describe("WeaponViewManager demo lifecycle", () => {
   it("releases scene observers and view resources before repeated playback", async () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);
     const firstCamera = new FreeCamera("first", Vector3.Zero(), scene);
     const secondCamera = new FreeCamera("second", Vector3.Zero(), scene);
-    const manager = WeaponViewManager.getInstance();
-    const internals = manager as unknown as { updateObserver: Observer<Scene> | null };
+    const manager = new WeaponViewManager();
+    const internals = manager as unknown as Internals;
 
     try {
       manager.init(scene, firstCamera);
@@ -39,7 +41,7 @@ describe("WeaponViewManager demo lifecycle", () => {
       expect(scene.onBeforeRenderObservable.observers).toContain(firstObserver);
       expect(scene.activeCameras).toContain(firstWeaponCamera);
 
-      manager.resetDemoPlayback();
+      manager.dispose();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(manager.isInitialized()).toBe(false);
@@ -57,11 +59,55 @@ describe("WeaponViewManager demo lifecycle", () => {
       expect(scene.activeCameras?.[0]).toBe(secondCamera);
       expect(scene.getCameraByName("weaponCamera")).not.toBe(firstWeaponCamera);
 
-      manager.resetDemoPlayback();
+      manager.dispose();
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(scene.onBeforeRenderObservable.observers).not.toContain(secondObserver);
     } finally {
-      if (manager.isInitialized()) manager.resetDemoPlayback();
+      if (manager.isInitialized()) manager.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
+  // QA-8 / QA-WO9 proof: live and demo are separate instances — disposing the
+  // demo one can never destroy the live viewmodel (the `demoplay stop` bug).
+  it("disposing a demo instance leaves the live instance's view intact", async () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const liveCamera = new FreeCamera("liveCam", Vector3.Zero(), scene);
+    const spectatorCamera = new FreeCamera("spectatorCam", Vector3.Zero(), scene);
+    const live = new WeaponViewManager();
+    const demo = new WeaponViewManager();
+    const liveInternals = live as unknown as Internals;
+
+    try {
+      live.init(scene, liveCamera);
+      const liveObserver = liveInternals.updateObserver;
+      const liveWeaponCamera = scene.activeCameras?.[1] ?? null;
+      expect(liveObserver).not.toBeNull();
+      expect(liveWeaponCamera).not.toBeNull();
+
+      // Demo playback starts: its own instance takes over the active cameras.
+      demo.init(scene, spectatorCamera);
+      expect(scene.activeCameras?.[0]).toBe(spectatorCamera);
+
+      // Demo playback stops.
+      demo.dispose();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // The live instance is untouched: still initialized, its observer still
+      // registered, its weapon camera not disposed.
+      expect(live.isInitialized()).toBe(true);
+      expect(scene.onBeforeRenderObservable.observers).toContain(liveObserver);
+      expect(liveWeaponCamera?.isDisposed()).toBe(false);
+
+      // And it can re-assert its camera pair to resume rendering.
+      live.reassertCameras();
+      expect(scene.activeCameras?.[0]).toBe(liveCamera);
+      expect(scene.activeCameras?.[1]).toBe(liveWeaponCamera);
+    } finally {
+      if (live.isInitialized()) live.dispose();
+      if (demo.isInitialized()) demo.dispose();
       scene.dispose();
       engine.dispose();
     }

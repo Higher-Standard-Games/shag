@@ -134,27 +134,16 @@ export class WeaponViewManager {
   }
 
   /**
-   * Re-parent the weapon camera to a different camera (e.g. SpectatorController's FreeCamera).
-   * Updates scene.activeCameras to [newCamera, weaponCamera] so the weapon renders correctly.
-   * Call restoreToFPSCamera() when demo playback ends.
+   * Re-assert this instance's camera pair as the scene's active cameras.
+   * Needed when another WeaponViewManager instance (demo playback) shared the
+   * scene and rewrote `scene.activeCameras` — after it is disposed, the live
+   * instance calls this to render again. Each instance only ever binds the
+   * camera it was init()ed with; there is no cross-instance camera swapping.
    */
-  public attachToCamera(camera: FreeCamera): void {
-    if (!this.scene || !this.weaponCamera) return;
-    this.mainCamera = camera;
-    this.weaponCamera.parent = camera;
+  public reassertCameras(): void {
+    if (!this.scene || !this.weaponCamera || !this.mainCamera) return;
     // Weapon camera must come after world camera so depth doesn't clobber world geometry
-    this.scene.activeCameras = [camera, this.weaponCamera];
-  }
-
-  /**
-   * Restore weapon camera parent back to the camera passed to init() (live FPS camera).
-   * Called when demo playback stops.
-   */
-  public restoreToFPSCamera(): void {
-    if (!this.scene || !this.weaponCamera || !this._initCamera) return;
-    this.mainCamera = this._initCamera;
-    this.weaponCamera.parent = this._initCamera;
-    this.scene.activeCameras = [this._initCamera, this.weaponCamera];
+    this.scene.activeCameras = [this.mainCamera, this.weaponCamera];
   }
 
   /**
@@ -198,8 +187,7 @@ export class WeaponViewManager {
   }
   private weaponCamera: FreeCamera | null = null;
   private weaponLight: HemisphericLight | null = null;
-  private mainCamera: FreeCamera | null = null; // Main player camera for aim direction
-  private _initCamera: FreeCamera | null = null; // Camera passed to init() — used for restore
+  private mainCamera: FreeCamera | null = null; // The camera this instance was init()ed with
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
@@ -287,8 +275,12 @@ export class WeaponViewManager {
   // Load generation counter — prevents concurrent loadWeapon calls from clobbering each other
   private _loadGeneration: number = 0;
 
-  private constructor() {}
-
+  /**
+   * The LIVE gameplay instance. The class is instantiable (QA-8): demo
+   * playback constructs its OWN `new WeaponViewManager()` bound to the
+   * spectator camera via init(), so starting/stopping a demo can never touch
+   * the live viewmodel (the `demoplay stop` destruction bug).
+   */
   public static getInstance(): WeaponViewManager {
     if (!WeaponViewManager.instance) {
       WeaponViewManager.instance = new WeaponViewManager();
@@ -312,7 +304,6 @@ export class WeaponViewManager {
     this.reloadAnim.cancel();
     this.switchAnim.reset();
     this.mainCamera = camera; // Store for aim direction
-    this._initCamera = camera; // Store for restoreToFPSCamera()
 
     // Initialize MD3 loader
     getMD3Loader().init(scene);
@@ -1018,10 +1009,11 @@ export class WeaponViewManager {
   }
 
   /**
-   * End demo ownership and release its view infrastructure. The next followed
-   * target or live join reinitializes the singleton against its active camera.
+   * Release this instance's view infrastructure (cameras, root, lights,
+   * observers). A demo instance is disposed when playback ends — the live
+   * instance is a separate object and is never touched (QA-8).
    */
-  public resetDemoPlayback(): void {
+  public dispose(): void {
     this.clearDemoBob();
     this.weaponRecoil.reset();
     this.weaponCharge.reset();
@@ -1063,7 +1055,6 @@ export class WeaponViewManager {
     this.weaponLight?.dispose();
     this.weaponLight = null;
     this.mainCamera = null;
-    this._initCamera = null;
   }
 
   // ==================== On-weapon Ammo Counter ====================
