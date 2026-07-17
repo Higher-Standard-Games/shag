@@ -16,8 +16,8 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
-import { Game } from "../../../games/fps/Game";
 import { DEFAULT_VIEWHEIGHT } from "../../physics/PlayerPhysicsConstants";
+import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -133,12 +133,13 @@ export class SpectatorController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera) return;
 
-    // Tick the network and render remote players (same as FreeflyController)
+    // Tick the network and render remote players (same as FreeflyController).
+    // Via the injected game frame hook — no direct game import (QA-WO7).
     try {
-      const gameManager = Game.getInstance();
-      if (gameManager.isGameRunning()) {
-        gameManager.processSnapshots();
-        gameManager.renderRemotePlayers();
+      const game = getGameFrameHook();
+      if (game?.isGameRunning()) {
+        game.processSnapshots();
+        game.renderRemotePlayers();
       }
     } catch (_e) {
       // Ignore if not initialized yet

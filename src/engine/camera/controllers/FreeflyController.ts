@@ -16,12 +16,12 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { FPS, registerFPSActions } from "../../../games/fps/client/FPSActions";
-import { Game } from "../../../games/fps/Game";
 import { Cvar } from "../../core/Cvar";
 import { InputSystem } from "../../input/InputSystem";
 import { getCollisionManager } from "../../physics";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { CameraInputHandler } from "../CameraInputHandler";
+import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 
 export class FreeflyController implements ICameraController {
@@ -233,12 +233,13 @@ export class FreeflyController implements ICameraController {
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera) return;
 
-    // Tick the network and render remote players even when paused or spectating
+    // Tick the network and render remote players even when paused or spectating.
+    // Via the injected game frame hook — no direct game import (QA-WO7).
     try {
-      const gameManager = Game.getInstance();
-      if (gameManager.isGameRunning()) {
-        gameManager.processSnapshots();
-        gameManager.renderRemotePlayers();
+      const game = getGameFrameHook();
+      if (game?.isGameRunning()) {
+        game.processSnapshots();
+        game.renderRemotePlayers();
       }
     } catch (_e) {
       // Ignore if not initialized yet
