@@ -91,3 +91,6 @@ certs/
 
 # vitest coverage output (QA-WO6)
 coverage/
+
+# hidden source maps relocated out of dist/ by postbuild (QA-15)
+sourcemaps/

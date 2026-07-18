@@ -27,6 +27,13 @@ export default defineConfig({
   // Strip log/debug console calls from PRODUCTION bundles as pure (QA-15):
   // pure annotations only take effect at minify time, so dev keeps every log.
   // console.warn / console.error always survive — they are the diagnostics.
+  //
+  // FOOTGUN: `pure` lets the minifier delete the whole call INCLUDING its
+  // arguments. So `console.log(queue.shift())` drops the shift() in prod only.
+  // Never pass a side-effecting/computed expression to console.log/console.debug
+  // — use the `log` façade (src/engine/core/Log.ts) instead: `log.debug(x)` calls
+  // a NON-pure function, so `x` is always evaluated at the call and only the
+  // console output is stripped.
   esbuild: {
     pure: ['console.log', 'console.debug'],
   },
@@ -39,8 +46,10 @@ export default defineConfig({
     target: 'es2020',
     // Hidden source maps (QA-15): .map files are emitted for CI/error
     // symbolication but bundles carry no sourceMappingURL comment.
-    // NOTE: deploys must exclude *.map from the public upload — the files
-    // exist in dist/ even though browsers are never pointed at them.
+    // The `postbuild` hook (scripts/relocate-sourcemaps.mjs) then MOVES every
+    // dist/**/*.map into sourcemaps/ — so the served bundle (web) and the
+    // wholesale dist/ copies (Capacitor webDir:'dist', Electron) never ship a
+    // map that would expose original source, with no per-deploy discipline.
     sourcemap: 'hidden',
     // Minification settings
     minify: 'esbuild',
