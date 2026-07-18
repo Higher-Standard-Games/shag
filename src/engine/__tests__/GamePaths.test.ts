@@ -5,32 +5,29 @@
  * The init() method with URL params is tested separately with mocks.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GamePaths } from "../core/GamePaths";
 
-// Mock window for node environment
-const mockWindow = {
-  location: {
-    search: "",
-    pathname: "/",
-    href: "http://localhost/",
-  },
-};
-
-// @ts-expect-error
-global.window = mockWindow;
-
 describe("GamePaths", () => {
+  // init() stubs global.fetch to serve engine.json; capture the real one and
+  // restore it after each test so a vi.fn() doesn't leak into later files.
+  //
+  // NB: this file used to also assign a partial `global.window` at module scope
+  // and never restore it. The suite runs the node environment in one shared
+  // process, so that leaked a browser-shaped `window` into later files — which
+  // made Babylon's NullEngine.dispose take its `typeof window !== "undefined"`
+  // branch and call a `window.removeEventListener` the stub lacked, flaking
+  // BspMeshBuilder purely by run order. GamePaths reads no browser globals, so
+  // the stub is removed rather than restored.
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     // Reset singleton before each test
     GamePaths.resetInstance();
+  });
 
-    // Reset mock window.location
-    mockWindow.location = {
-      search: "",
-      pathname: "/",
-      href: "http://localhost/",
-    };
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   describe("getInstance", () => {
