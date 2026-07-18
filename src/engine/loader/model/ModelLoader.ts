@@ -85,6 +85,11 @@ export interface ModelLoadResult {
  */
 export class ModelLoader {
   private static instance: ModelLoader;
+
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    ModelLoader.instance = null as unknown as ModelLoader;
+  }
   private scene: Scene | null = null;
 
   // Cache for loaded model data (for cloning)

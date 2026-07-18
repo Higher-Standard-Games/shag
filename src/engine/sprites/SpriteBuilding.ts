@@ -289,6 +289,11 @@ export class SpriteBuilding {
  */
 export class SpriteBuildingManager {
   private static instance: SpriteBuildingManager;
+
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    SpriteBuildingManager.instance = null as unknown as SpriteBuildingManager;
+  }
   private scene: Scene | null = null;
   private buildings: Map<string, SpriteBuilding> = new Map();
 

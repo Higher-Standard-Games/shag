@@ -166,6 +166,11 @@ const MOON_COLOR = new Color3(0.4, 0.45, 0.6);
 export class SkyLightSystem {
   private static instance: SkyLightSystem;
 
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    SkyLightSystem.instance = null as unknown as SkyLightSystem;
+  }
+
   private scene: Scene | null = null;
   private sunLight: DirectionalLight | null = null;
   private moonLight: DirectionalLight | null = null;

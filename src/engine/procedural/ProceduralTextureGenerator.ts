@@ -73,6 +73,11 @@ const DEFAULT_PRESETS: Record<string, TexturePreset> = {
 
 export class ProceduralTextureGenerator {
   private static instance: ProceduralTextureGenerator;
+
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    ProceduralTextureGenerator.instance = null as unknown as ProceduralTextureGenerator;
+  }
   private textureCache: Map<string, DynamicTexture> = new Map();
   private presets: Map<string, TexturePreset> = new Map();
   private scene: Scene | null = null;

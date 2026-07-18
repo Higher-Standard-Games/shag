@@ -64,6 +64,14 @@ export interface ServiceRegistration {
   dependencies?: string[];
   /** When this service should be initialized */
   phase?: InitPhase;
+  /**
+   * Optional: clear the service's cached singleton on dispose (QA-WO13). The
+   * factory is usually `X.getInstance()`, so `dispose()` alone leaves the static
+   * instance alive and a later init reuses the SAME (already-disposed) object.
+   * A stateful, lifecycle-bound service supplies `() => X.resetInstance()` so a
+   * re-init gets a fresh instance. Stateless config singletons omit it.
+   */
+  reset?: () => void;
 }
 
 /**
@@ -353,6 +361,17 @@ export class ServiceLocator {
           service.dispose();
         } catch (e) {
           console.warn(`[ServiceLocator] Dispose of '${name}' threw:`, e);
+        }
+      }
+      // Clear the cached singleton so a re-init gets a fresh instance instead
+      // of reusing this disposed one (QA-WO13). Wrapped like dispose so a
+      // throwing reset can't block the remaining tear-down.
+      const reset = this.registrations.get(name)?.reset;
+      if (reset) {
+        try {
+          reset();
+        } catch (e) {
+          console.warn(`[ServiceLocator] Reset of '${name}' threw:`, e);
         }
       }
     }

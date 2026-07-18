@@ -106,6 +106,11 @@ const DEFAULT_SETTINGS: PostProcessingSettings = {
 export class PostProcessingManager {
   private static instance: PostProcessingManager;
 
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    PostProcessingManager.instance = null as unknown as PostProcessingManager;
+  }
+
   private scene: Scene | null = null;
   private camera: Camera | null = null;
   private pipeline: DefaultRenderingPipeline | null = null;

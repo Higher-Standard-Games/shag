@@ -60,6 +60,11 @@ export interface AddIndicatorOptions {
 export class WorldIndicatorSystem {
   private static instance: WorldIndicatorSystem;
 
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    WorldIndicatorSystem.instance = null as unknown as WorldIndicatorSystem;
+  }
+
   private scene: Scene | null = null;
   private camera: ArcRotateCamera | null = null;
   private engine: Engine | null = null;

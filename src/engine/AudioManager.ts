@@ -19,6 +19,11 @@ export interface Playlist {
 export class AudioManager {
   private static instance: AudioManager;
 
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    AudioManager.instance = null as unknown as AudioManager;
+  }
+
   private currentMusic: HTMLAudioElement | null = null;
   private fadingOutMusic: HTMLAudioElement | null = null;
   private musicVolume = 0.5;

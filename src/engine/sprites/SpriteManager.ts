@@ -31,6 +31,11 @@ export interface StaticSprite {
 export class SpriteManager {
   private static instance: SpriteManager;
 
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    SpriteManager.instance = null as unknown as SpriteManager;
+  }
+
   private scene: Scene | null = null;
   private camera: Camera | null = null;
   private spriteSheets: Map<string, SpriteSheet> = new Map();

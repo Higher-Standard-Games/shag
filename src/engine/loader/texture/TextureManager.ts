@@ -33,6 +33,11 @@ export interface TextureInfo {
  */
 export class TextureManager {
   private static instance: TextureManager;
+
+  /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
+  static resetInstance(): void {
+    TextureManager.instance = null as unknown as TextureManager;
+  }
   private textureCache: Map<string, Texture> = new Map();
   private materialCache: Map<string, StandardMaterial> = new Map();
   private scene: Scene | null = null;
