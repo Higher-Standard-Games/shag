@@ -697,7 +697,7 @@ export class WeaponViewManager {
       }
 
       // Build the on-weapon ammo counter if this model is authored for one.
-      this.setupAmmoCounter(weaponName, glbRoot, loadGen).catch(() => {});
+      this.setupAmmoCounter(weaponName, modelPath, glbRoot, loadGen).catch(() => {});
 
       return true;
     } catch (e) {
@@ -1149,9 +1149,17 @@ export class WeaponViewManager {
    * has a `tag_ammo` anchor and its `.cfg` carries an `ammoCounter` directive.
    * Fire-and-forget — a missing anchor/cfg just means no counter (most weapons).
    */
-  private async setupAmmoCounter(weaponName: string, glbRoot: TransformNode, loadGen: number): Promise<void> {
+  private async setupAmmoCounter(
+    weaponName: string,
+    modelPath: string,
+    glbRoot: TransformNode,
+    loadGen: number,
+  ): Promise<void> {
     try {
-      const cfgPath = `/data/models/weapons/${weaponName}/${weaponName}.cfg`;
+      // Derive the cfg from the MODEL path, not the weapon id: Voltaic reuses the
+      // lasergun model dir, so weaponName ("voltaic") != the model directory and
+      // /data/models/weapons/voltaic/voltaic.cfg 404s — the counter never appears.
+      const cfgPath = modelPath.replace(/\.glb$/i, ".cfg");
       const res = await fetch(cfgPath);
       if (!res.ok) {
         console.log(`[AmmoCounter] no cfg for ${weaponName} (${res.status}) — skipping`);

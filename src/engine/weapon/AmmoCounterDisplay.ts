@@ -202,20 +202,20 @@ export class AmmoCounterDisplay {
     const cx = width / 2;
     const cy = height / 2;
 
-    // Dim "off-segment" ghost so blanked places still read as an LCD.
-    ctx.fillStyle = "rgba(40, 120, 70, 0.22)";
-    ctx.fillText("888", cx, cy);
-
-    // Drop shadow gives the digits depth/glow against the dark display.
-    ctx.shadowColor = "rgba(0, 40, 16, 0.9)";
-    ctx.shadowBlur = Math.max(2, height * 0.06);
-    ctx.shadowOffsetY = Math.max(1, height * 0.03);
-    ctx.fillStyle = `rgba(150, 255, 185, ${Math.max(0.7, this.config.digitAlpha)})`;
+    // Yellow backlight GLOW (0 offset = an even halo around the digits, not a
+    // one-sided drop shadow) behind near-black digits — a lit-LCD look without a
+    // distracting off-segment ghost. Two passes deepen the glow; the digits stay
+    // crisp because each pass repaints the same solid text on top.
+    ctx.shadowColor = "rgba(255, 205, 70, 0.95)";
+    ctx.shadowBlur = Math.max(3, height * 0.16);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = "rgba(12, 12, 12, 1)";
+    ctx.fillText(digits, cx, cy);
     ctx.fillText(digits, cx, cy);
     // Reset shadow so it can't bleed into a later paint on this shared context.
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
 
     this.texture.update();
   }
