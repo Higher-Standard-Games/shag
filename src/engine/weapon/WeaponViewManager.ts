@@ -613,10 +613,11 @@ export class WeaponViewManager {
             const matName = (pbr.name || "").toLowerCase();
             const isGlow = (matName.includes("_glow") || matName.includes("_emit")) && !!pbr.albedoTexture;
             if (isGlow) {
-              // Self-lit emissive strip. Opaque (NOT additive — the texture's
-              // bright near-white highlights blew out to white when accumulated),
-              // and biased toward the weapon's teal so those highlights stay teal
-              // rather than blooming white. Bloom then turns it into a soft glow.
+              // Self-lit emissive strip, TRANSLUCENT so the barrel reads through
+              // it — a glow, not a solid teal panel. Not additive (the texture's
+              // near-white highlights blew out to white when accumulated) and
+              // teal-biased so those highlights stay teal rather than blooming
+              // white. Bloom then turns the bright parts into a soft glow.
               const glowTex = pbr.albedoTexture;
               const glowMat = new StandardMaterial(`${pbr.name}_emis`, this.scene!);
               glowMat.disableLighting = true;
@@ -624,6 +625,8 @@ export class WeaponViewManager {
               glowMat.specularColor = new Color3(0, 0, 0);
               glowMat.emissiveTexture = glowTex;
               glowMat.emissiveColor = new Color3(0.5, 1.0, 1.0);
+              glowMat.alpha = 0.5; // translucent glow overlay, not a full teal fill
+              glowMat.transparencyMode = 2; // ALPHABLEND
               glowMat.backFaceCulling = false;
               mesh.material = glowMat;
               pbr.albedoTexture = null; // keep the texture alive on glowMat
