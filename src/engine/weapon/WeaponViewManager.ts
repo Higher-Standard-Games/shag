@@ -12,6 +12,7 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import "@babylonjs/core/Materials/Textures/Loaders/tgaTextureLoader"; // enable .tga glow maps
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -223,6 +224,8 @@ export class WeaponViewManager {
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
   private muzzleSocket: TransformNode | null = null;
+  /** Additive emissive glow map for the current weapon (WO-EB1), disposed on swap. */
+  private currentGlowTexture: Texture | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
   /**
    * The weapon id the view is currently showing or switching toward. Set by
@@ -488,6 +491,8 @@ export class WeaponViewManager {
     // Remove previous weapon before loading new one
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
+    this.currentGlowTexture?.dispose();
+    this.currentGlowTexture = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -550,6 +555,13 @@ export class WeaponViewManager {
       const convertedMaterials = new Map<string, StandardMaterial>();
       const pbrMaterialsToDispose: any[] = [];
 
+      // Optional additive glow map (WO-EB1): black except the glowing regions,
+      // applied as the material emissive so only those regions self-light (e.g.
+      // Electrobolt's energy coil). Loaded once, shared across the weapon's
+      // materials. Disposed with the weapon in disposeViewInfrastructure().
+      const glowTexturePath = this.currentWeaponDef?.viewModel?.glowTexture;
+      this.currentGlowTexture = glowTexturePath && this.scene ? new Texture(glowTexturePath, this.scene) : null;
+
       for (const mesh of result.meshes) {
         if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
@@ -598,6 +610,13 @@ export class WeaponViewManager {
             pbr.directIntensity = 1.0;
             pbr.backFaceCulling = false;
             applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
+            if (this.currentGlowTexture) {
+              // Additive self-lit coil: emissive picks up only the glow map's
+              // bright regions; body stays PBR-lit. Intensity tuned with bloom.
+              pbr.emissiveTexture = this.currentGlowTexture;
+              pbr.emissiveColor = new Color3(1, 1, 1);
+              pbr.emissiveIntensity = 1.5;
+            }
             console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
           }
         }
@@ -1038,6 +1057,8 @@ export class WeaponViewManager {
   public clear(): void {
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
+    this.currentGlowTexture?.dispose();
+    this.currentGlowTexture = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;

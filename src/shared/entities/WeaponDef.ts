@@ -36,6 +36,14 @@ export interface ViewModelDef {
 
   /** Model format: 'md3' (default) or 'glb' */
   viewModelFormat?: "md3" | "glb";
+
+  /**
+   * Optional additive self-lit glow map (e.g. an energy coil). A glow texture is
+   * black except the glowing regions, so it is applied as the material emissive:
+   * only the bright regions light up, the body stays lit normally. Path is
+   * resolved as a Babylon texture URL (supports .tga). Presentation-only.
+   */
+  glowTexture?: string;
 }
 
 /**
