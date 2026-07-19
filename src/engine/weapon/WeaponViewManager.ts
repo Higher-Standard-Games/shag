@@ -605,27 +605,25 @@ export class WeaponViewManager {
             mesh.material = convertedMaterials.get(matId)!;
           } else {
             // Warsow weapon materials are multi-pass, but the IQM→GLB conversion
-            // baked every pass as an OPAQUE base texture with no emissive/alpha.
-            // Fix them up by name (from the shipped *_glow / *_emit / *_glass tgas)
-            // so the glow/emit passes read as additive self-lit overlays (black =
-            // transparent, colour = glow) and glass reads as transparent.
+            // baked every pass as an OPAQUE, scene-lit base texture. Fix them up by
+            // name (from the shipped *_glow / *_emit / *_glass tgas): the glow/emit
+            // passes are solid teal energy strips (no black/alpha), so render them
+            // SELF-LIT (emissive, unlit) so they read as glow instead of a dark
+            // scene-shaded panel; glass reads as transparent.
             const matName = (pbr.name || "").toLowerCase();
             const isGlow = (matName.includes("_glow") || matName.includes("_emit")) && !!pbr.albedoTexture;
             if (isGlow) {
-              // Additive self-lit overlay: reuse the baked base texture as the
-              // emissive so the texture's black areas contribute nothing (only the
-              // lit parts glow over the barrel). Additive can't occlude, so it also
-              // stops the glow plane from painting black patches on the gun.
+              // Self-lit emissive strip. Opaque (NOT additive — the texture's
+              // bright near-white highlights blew out to white when accumulated),
+              // and biased toward the weapon's teal so those highlights stay teal
+              // rather than blooming white. Bloom then turns it into a soft glow.
               const glowTex = pbr.albedoTexture;
-              const glowMat = new StandardMaterial(`${pbr.name}_add`, this.scene!);
+              const glowMat = new StandardMaterial(`${pbr.name}_emis`, this.scene!);
               glowMat.disableLighting = true;
               glowMat.diffuseColor = new Color3(0, 0, 0);
               glowMat.specularColor = new Color3(0, 0, 0);
               glowMat.emissiveTexture = glowTex;
-              glowMat.emissiveColor = new Color3(1, 1, 1);
-              glowMat.alphaMode = 1; // Engine.ALPHA_ADD — additive; black adds nothing
-              glowMat.transparencyMode = 2; // route through the transparent pass
-              glowMat.disableDepthWrite = true; // a glow overlay must not occlude
+              glowMat.emissiveColor = new Color3(0.5, 1.0, 1.0);
               glowMat.backFaceCulling = false;
               mesh.material = glowMat;
               pbr.albedoTexture = null; // keep the texture alive on glowMat
