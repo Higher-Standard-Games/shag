@@ -386,6 +386,11 @@ export class WeaponViewManager {
     this.weaponLight.intensity = 1.2;
     this.weaponLight.diffuse = new Color3(1.0, 0.95, 0.9); // Slightly warm white
     this.weaponLight.groundColor = new Color3(0.3, 0.3, 0.35); // Cool fill from below
+    // Always win the weapon's limited light slots. The PBR safe cap is low, and the
+    // parked muzzle-flash point light + transient projectile lights compete for the
+    // same slots — if one of those wins over this light the gun renders black
+    // ("lights off"). A high render priority keeps this light selected every frame.
+    this.weaponLight.renderPriority = 1000;
 
     // Initialize hitscan effects system
     getHitscanEffects().init(scene);
@@ -399,6 +404,9 @@ export class WeaponViewManager {
     this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
     this.muzzleFlashLight.intensity = 0;
     this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
+    // Second-priority weapon light (below weaponLight, above transient projectile
+    // lights) so the flash reliably takes the weapon's second slot when firing (#2).
+    this.muzzleFlashLight.renderPriority = 500;
 
     // Register update loop. Previous-scene observer (if any) is already
     // detached above before `this.scene` was swapped.
@@ -610,6 +618,11 @@ export class WeaponViewManager {
             pbr.directIntensity = 1.0;
             pbr.backFaceCulling = false;
             applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
+            // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
+            // hemispheric weaponLight AND the always-present muzzle-flash light. With
+            // only one slot the muzzle-flash light (parked at intensity 0) could win
+            // and render the gun black. Allow two so both dedicated lights fit (#2).
+            pbr.maxSimultaneousLights = 2;
             if (this.currentGlowTexture) {
               // Additive self-lit coil: emissive picks up only the glow map's
               // bright regions; body stays PBR-lit. Intensity tuned with bloom.
