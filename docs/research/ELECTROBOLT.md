@@ -134,6 +134,12 @@ Three work orders. **WO-EB1 is independent** and can land first; **WO-EB2 → WO
 2. `electrobolt.ts`: set it to `/data/models/weapons/electrobolt/electrobolt_glow.tga`.
 3. `WeaponViewManager.loadGlbWeapon` gun path: when a def has `glowTexture`, load it and set the PBR material's `emissiveTexture` + `emissiveColor = white` (tuned intensity). A proper glow map is black except the coil, so only the coil lights.
 **Proof:** guard test (a def with `glowTexture` → material has an emissive texture); **visual check owed**. Optional: delete the dead 172-byte `_emit` + typo `elextrobolt.ktx`.
+**Done 2026-07-19** (`viewModel.glowTexture` + gun-path emissive + TGA loader): confirmed in a playtest — the coil now glows teal instead of the RGB/black stripe.
+
+### WO-EB1b — Transparent barrel housing (follow-up)
+
+**Observed in the same playtest:** parts of the barrel that render solid black should be **transparent** (a glass/housing element whose material alpha isn't applied — the gun path keeps the baked PBR and never enables alpha blending). Same class as the glow bug, different channel.
+**Likely fix:** for the affected submesh/material, set `transparencyMode = ALPHABLEND` and honor the texture alpha (or an `alpha`/`opacityTexture` from the def). Needs the GLB's material/alpha inspected. Visual verification owed. Not blocking WO-EB3.
 
 ### WO-EB2 — Authoritative one-shot rail endpoint on the wire
 
