@@ -82,6 +82,25 @@ export interface VoltaicBeamEvent {
   impactKind: 0 | 1 | 2;
 }
 
+export interface ElectroRailEvent {
+  type: "electro_rail";
+  entityId: string;
+  originX: number;
+  originY: number;
+  originZ: number;
+  dirX: number;
+  dirY: number;
+  dirZ: number;
+  endX: number;
+  endY: number;
+  endZ: number;
+  normalX: number;
+  normalY: number;
+  normalZ: number;
+  /** 0 = miss, 1 = world, 2 = player. */
+  impactKind: 0 | 1 | 2;
+}
+
 export interface ProjectileSpawnEvent {
   type: "projectile_spawn";
   entityId: string;
@@ -183,6 +202,7 @@ export type SnapshotEvent =
   | WeaponChargeEvent
   | WeaponChainEvent
   | VoltaicBeamEvent
+  | ElectroRailEvent
   | ProjectileSpawnEvent
   | ProjectileImpactEvent
   | ItemPickupEvent

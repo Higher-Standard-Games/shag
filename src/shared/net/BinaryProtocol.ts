@@ -737,6 +737,7 @@ export class BinaryProtocol {
     chat: 14,
     pickup_notify: 15,
     voltaic_beam: 16,
+    electro_rail: 17,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -757,6 +758,7 @@ export class BinaryProtocol {
     "chat",
     "pickup_notify",
     "voltaic_beam",
+    "electro_rail",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -903,6 +905,7 @@ export class BinaryProtocol {
           break;
 
         case 16: // voltaic_beam: entity, authoritative ray/contact, impact kind
+        case 17: // electro_rail: identical authoritative ray/contact payload
           encoder.writeString(event.entityId);
           encoder.writeFloat32(event.originX ?? 0);
           encoder.writeFloat32(event.originY ?? 0);
@@ -1102,6 +1105,7 @@ export class BinaryProtocol {
           break;
 
         case 16: // voltaic_beam
+        case 17: // electro_rail (identical payload; `type` resolves to the right name)
           state.events.push({
             type,
             entityId: decoder.readString(),
