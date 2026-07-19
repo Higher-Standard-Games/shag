@@ -563,13 +563,6 @@ export class WeaponViewManager {
       const convertedMaterials = new Map<string, StandardMaterial>();
       const pbrMaterialsToDispose: any[] = [];
 
-      // Optional additive glow map (WO-EB1): black except the glowing regions,
-      // applied as the material emissive so only those regions self-light (e.g.
-      // Electrobolt's energy coil). Loaded once, shared across the weapon's
-      // materials. Disposed with the weapon in disposeViewInfrastructure().
-      const glowTexturePath = this.currentWeaponDef?.viewModel?.glowTexture;
-      this.currentGlowTexture = glowTexturePath && this.scene ? new Texture(glowTexturePath, this.scene) : null;
-
       for (const mesh of result.meshes) {
         if (mesh.rotationQuaternion) mesh.rotationQuaternion = null;
 
@@ -611,26 +604,51 @@ export class WeaponViewManager {
             }
             mesh.material = convertedMaterials.get(matId)!;
           } else {
-            // Gun-type weapons: keep PBR material for proper metallic/roughness
-            // The albedo texture looks red without PBR shading — metallic/roughness
-            // interaction is what makes it look orange/metallic on Sketchfab
-            pbr.environmentIntensity = 2.0;
-            pbr.directIntensity = 1.0;
-            pbr.backFaceCulling = false;
-            applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
-            // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
-            // hemispheric weaponLight AND the always-present muzzle-flash light. With
-            // only one slot the muzzle-flash light (parked at intensity 0) could win
-            // and render the gun black. Allow two so both dedicated lights fit (#2).
-            pbr.maxSimultaneousLights = 2;
-            if (this.currentGlowTexture) {
-              // Additive self-lit coil: emissive picks up only the glow map's
-              // bright regions; body stays PBR-lit. Intensity tuned with bloom.
-              pbr.emissiveTexture = this.currentGlowTexture;
-              pbr.emissiveColor = new Color3(1, 1, 1);
-              pbr.emissiveIntensity = 1.5;
+            // Warsow weapon materials are multi-pass, but the IQM→GLB conversion
+            // baked every pass as an OPAQUE base texture with no emissive/alpha.
+            // Fix them up by name (from the shipped *_glow / *_emit / *_glass tgas)
+            // so the glow/emit passes read as additive self-lit overlays (black =
+            // transparent, colour = glow) and glass reads as transparent.
+            const matName = (pbr.name || "").toLowerCase();
+            const isGlow = (matName.includes("_glow") || matName.includes("_emit")) && !!pbr.albedoTexture;
+            if (isGlow) {
+              // Additive self-lit overlay: reuse the baked base texture as the
+              // emissive so the texture's black areas contribute nothing (only the
+              // lit parts glow over the barrel). Additive can't occlude, so it also
+              // stops the glow plane from painting black patches on the gun.
+              const glowTex = pbr.albedoTexture;
+              const glowMat = new StandardMaterial(`${pbr.name}_add`, this.scene!);
+              glowMat.disableLighting = true;
+              glowMat.diffuseColor = new Color3(0, 0, 0);
+              glowMat.specularColor = new Color3(0, 0, 0);
+              glowMat.emissiveTexture = glowTex;
+              glowMat.emissiveColor = new Color3(1, 1, 1);
+              glowMat.alphaMode = 1; // Engine.ALPHA_ADD — additive; black adds nothing
+              glowMat.transparencyMode = 2; // route through the transparent pass
+              glowMat.disableDepthWrite = true; // a glow overlay must not occlude
+              glowMat.backFaceCulling = false;
+              mesh.material = glowMat;
+              pbr.albedoTexture = null; // keep the texture alive on glowMat
+              pbrMaterialsToDispose.push(pbr);
+            } else if (matName.includes("_glass")) {
+              // Transparent glass housing (baked OPAQUE).
+              pbr.transparencyMode = 2; // ALPHABLEND
+              pbr.alpha = 0.35;
+              pbr.backFaceCulling = false;
+              applySafeMaxSimultaneousLights(pbr);
+              pbr.maxSimultaneousLights = 2;
+            } else {
+              // Main body / sights: keep PBR for proper metallic/roughness.
+              pbr.environmentIntensity = 2.0;
+              pbr.directIntensity = 1.0;
+              pbr.backFaceCulling = false;
+              applySafeMaxSimultaneousLights(pbr); // Prevent shader overflow from projectile PointLights
+              // ...but the safe PBR cap is 1, and the weapon needs BOTH its dedicated
+              // hemispheric weaponLight AND the always-present muzzle-flash light, or
+              // one intensity-0 light wins the slot and the gun renders black (#2).
+              pbr.maxSimultaneousLights = 2;
+              console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
             }
-            console.log(`[WeaponViewManager] Gun: keeping PBR "${pbr.name}" (env=${pbr.environmentIntensity})`);
           }
         }
 
