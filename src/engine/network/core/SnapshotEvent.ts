@@ -63,6 +63,25 @@ export interface WeaponChainEvent {
   points: Vec3Lite[];
 }
 
+export interface VoltaicBeamEvent {
+  type: "voltaic_beam";
+  entityId: string;
+  originX: number;
+  originY: number;
+  originZ: number;
+  dirX: number;
+  dirY: number;
+  dirZ: number;
+  endX: number;
+  endY: number;
+  endZ: number;
+  normalX: number;
+  normalY: number;
+  normalZ: number;
+  /** 0 = miss, 1 = world, 2 = player. */
+  impactKind: 0 | 1 | 2;
+}
+
 export interface ProjectileSpawnEvent {
   type: "projectile_spawn";
   entityId: string;
@@ -163,6 +182,7 @@ export type SnapshotEvent =
   | WeaponFireEvent
   | WeaponChargeEvent
   | WeaponChainEvent
+  | VoltaicBeamEvent
   | ProjectileSpawnEvent
   | ProjectileImpactEvent
   | ItemPickupEvent

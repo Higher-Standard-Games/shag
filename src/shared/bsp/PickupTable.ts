@@ -22,7 +22,7 @@ export const CLASSNAME_TO_WEAPON: Record<string, string> = {
   weapon_rocketlauncher: "rlauncher",
   weapon_plasmagun: "plasmagun",
   weapon_voltaic: "voltaic",
-  weapon_lasergun: "lasergun", // Legacy Warsow maps → LG
+  weapon_lasergun: "voltaic", // Warsow compatibility classname
   weapon_electrobolt: "electrobolt",
   weapon_instagun: "instagun",
 };
@@ -47,7 +47,7 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_grenadelauncher: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_rocketlauncher: { type: "ammo", kind: "rockets", amount: 10 },
   ammo_plasmagun: { type: "ammo", kind: "cells", amount: 50 },
-  ammo_lasergun: { type: "ammo", kind: "lasers", amount: 100 },
+  ammo_lasergun: { type: "ammo", kind: "cells", amount: 100 },
   ammo_electrobolt: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instagun: { type: "ammo", kind: "instas", amount: 5 },
   ammo_gunblade: { type: "ammo", kind: "gunblade", amount: 1 },
@@ -59,7 +59,7 @@ const AMMO_CLASSNAMES: Record<string, PickupClassInfo> = {
   ammo_grenades: { type: "ammo", kind: "grenades", amount: 10 },
   ammo_bolts: { type: "ammo", kind: "bolts", amount: 10 },
   ammo_instas: { type: "ammo", kind: "instas", amount: 5 },
-  ammo_lasers: { type: "ammo", kind: "lasers", amount: 100 },
+  ammo_lasers: { type: "ammo", kind: "cells", amount: 100 },
 };
 
 /**

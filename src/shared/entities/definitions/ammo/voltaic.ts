@@ -10,8 +10,7 @@ export const VOLTAIC_AMMO: AmmoDef = {
   name: "Energy Cells",
   type: EntityType.AMMO,
   classname: "ammo_cells",
-  // NOTE: "ammo_lasers" is owned by lasergun ammo (kind "lasers"); voltaic uses
-  // its own cell pool. No shipped map spawns ammo_cells/ammo_voltaic.
+  classnameAliases: ["ammo_lasergun", "ammo_lasers"],
 
   ammoType: "cells",
   amount: 100,

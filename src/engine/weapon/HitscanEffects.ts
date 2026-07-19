@@ -18,9 +18,11 @@ import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
-import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { mulberry32 } from "../../shared/SpreadUtils";
+import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getPointLightPool } from "./PointLightPool";
+import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
+import type { VoltaicImpactKind } from "./voltaic/VoltaicProfiles";
 
 // ── Config types ─────────────────────────────────────────────────────
 
@@ -50,6 +52,32 @@ export interface BeamConfig extends HitscanFireConfig {
   diameterStart?: number;
   /** Diameter at the endpoint (end). Default 0.2 */
   diameterEnd?: number;
+  /** Damage-ray origin when the visible beam begins at a cosmetic muzzle. */
+  traceOrigin?: Vector3;
+}
+
+/** Compact authoritative truth replicated only for the continuous Voltaic beam. */
+export interface VoltaicBeamTruthConfig extends HitscanFireConfig {
+  endpoint: Vector3;
+  impactKind: VoltaicImpactKind;
+  impactNormal?: Vector3;
+}
+
+/** Largest server-side Voltaic wander that reconciliation may legitimately add. */
+export const VOLTAIC_TRUTH_MAX_ANGLE_DEG = 8;
+
+/**
+ * Reject a recent server endpoint after the player has already turned away.
+ * Without this gate, a 20 Hz truth sample can connect the current muzzle to an
+ * endpoint from the previous aim direction and make the whole beam bend sideways.
+ */
+export function isVoltaicTruthAligned(currentDirection: Vector3, truthDirection: Vector3): boolean {
+  const currentLengthSquared = currentDirection.lengthSquared();
+  const truthLengthSquared = truthDirection.lengthSquared();
+  if (currentLengthSquared < 0.000001 || truthLengthSquared < 0.000001) return false;
+  const inverseLengths = 1 / Math.sqrt(currentLengthSquared * truthLengthSquared);
+  const dot = Vector3.Dot(currentDirection, truthDirection) * inverseLengths;
+  return dot >= Math.cos((VOLTAIC_TRUTH_MAX_ANGLE_DEG * Math.PI) / 180);
 }
 
 /** Pellet spread (riotgun-style multi-ray) */
@@ -87,26 +115,6 @@ interface ActiveEffect {
   duration: number;
 }
 
-/**
- * Jagged lightning beam (voltaic) — a chain of thin emissive cylinder segments
- * following a jittered path, re-jittered each frame for crackle. Core + glow layers.
- */
-interface LightningBeam {
-  coreSegs: Mesh[];
-  glowSegs: Mesh[];
-  coreMat: StandardMaterial;
-  glowMat: StandardMaterial;
-  light: PointLight | null;
-}
-
-/** Remote-player lightning beam — cached endpoints so update() can re-jitter it. */
-interface RemoteLightning extends LightningBeam {
-  origin: Vector3;
-  endpoint: Vector3;
-  color: Color3;
-  lastUpdate: number;
-}
-
 /** A traveling pellet tracer — short segment that slides along a ray */
 interface TravelingPellet {
   id: string;
@@ -130,33 +138,18 @@ export class HitscanEffects {
   private travelingPellets: TravelingPellet[] = [];
   private nextId = 0;
 
-  /** Reusable beam meshes for local player (updated every frame, not created/destroyed) */
-  private activeBeamCore: Mesh | null = null;
-  private activeBeamGlow: Mesh | null = null;
-  private activeBeamCoreMat: StandardMaterial | null = null;
-  private activeBeamGlowMat: StandardMaterial | null = null;
-  private activeBeamLight: PointLight | null = null;
+  private static readonly LOCAL_TRUTH_TIMEOUT = 0.1; // seconds
 
-  /** Remote player beams — keyed by entity ID */
-  private remoteBeams: Map<
-    number,
-    {
-      core: Mesh;
-      glow: Mesh;
-      coreMat: StandardMaterial;
-      glowMat: StandardMaterial;
-      light: PointLight | null;
-      lastUpdate: number;
-    }
-  > = new Map();
-  private static readonly REMOTE_BEAM_TIMEOUT = 0.15; // seconds
-
-  /** Local player's lightning beam (voltaic) — re-jittered each frame while firing */
-  private activeLightning: LightningBeam | null = null;
-  /** Remote players' lightning beams, keyed by entity id */
-  private remoteLightning: Map<number, RemoteLightning> = new Map();
-  /** Segments per bolt (more = smoother jag, more meshes) */
-  private static readonly LIGHTNING_SEGMENTS = 9;
+  /** Procedural GPU Voltaic renderer (hero, remote, impacts, and chain arcs). */
+  private voltaicRenderer: VoltaicEffectRenderer | null = null;
+  private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
+  private readonly localVoltaicEndpoint = new Vector3();
+  private readonly localVoltaicNormal = new Vector3();
+  private readonly localVoltaicDirection = new Vector3();
+  private localVoltaicImpactKind: VoltaicImpactKind = "none";
+  private localVoltaicHasNormal = false;
+  private localVoltaicHasDirection = false;
+  private localVoltaicTruthAt = -Infinity;
 
   /** Pooled wall marks (bullet holes / scorch marks) */
   private wallMarks: { mesh: Mesh; spawnTime: number }[] = [];
@@ -171,6 +164,14 @@ export class HitscanEffects {
   }
 
   init(scene: Scene): void {
+    if (this.scene !== scene) {
+      this.voltaicRenderer?.dispose();
+      this.voltaicRenderer = new VoltaicEffectRenderer(scene);
+      this.voltaicRenderer.setRemoteStartResolver(this.remoteVoltaicStartResolver);
+      void this.voltaicRenderer.prewarm().catch((error) => {
+        console.warn("[HitscanEffects] Voltaic shader prewarm failed; first use will retry compilation", error);
+      });
+    }
     this.scene = scene;
     console.log("[HitscanEffects] Initialized");
   }
@@ -228,422 +229,132 @@ export class HitscanEffects {
     return hit?.point ?? null;
   }
 
-  /**
-   * Continuous beam  (lightning-gun style, held-down)
-   * Dual tapered beam: wider at barrel, thinner at distance.
-   * Update every frame while firing. Call `stopBeam()` when fire ends.
-   */
-  updateBeam(cfg: BeamConfig): Vector3 | null {
-    if (!this.scene) return null;
-    const range = cfg.maxRange ?? 850;
-    const color = cfg.color ?? new Color3(1.0, 0.7, 0.1); // orange/yellow
-    const dStart = cfg.diameterStart ?? 0.4;
-    const dEnd = cfg.diameterEnd ?? 0.15;
+  // ── Procedural continuous Voltaic beam ───────────────────────────
 
-    const hit = this.traceRay(cfg.origin, cfg.direction, range);
-    const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
-
-    // Create or update core beam (tapered cylinder)
-    if (!this.activeBeamCore) {
-      const id = `beam_${this.nextId++}`;
-      this.activeBeamCore = MeshBuilder.CreateCylinder(
-        `${id}_core`,
-        {
-          height: 1,
-          diameterTop: dEnd, // thin at endpoint
-          diameterBottom: dStart, // wide at barrel
-          tessellation: 8,
-        },
-        this.scene,
-      );
-      this.activeBeamCore.isPickable = false;
-
-      this.activeBeamCoreMat = new StandardMaterial(`${id}_core_mat`, this.scene);
-      this.activeBeamCoreMat.emissiveColor = color;
-      this.activeBeamCoreMat.disableLighting = true;
-      this.activeBeamCoreMat.alpha = 0.75;
-      this.activeBeamCoreMat.backFaceCulling = false;
-      applySafeMaxSimultaneousLights(this.activeBeamCoreMat);
-      this.activeBeamCore.material = this.activeBeamCoreMat;
-
-      // Outer glow beam (wider, semi-transparent)
-      this.activeBeamGlow = MeshBuilder.CreateCylinder(
-        `${id}_glow`,
-        {
-          height: 1,
-          diameterTop: dEnd * 2.5,
-          diameterBottom: dStart * 2.5,
-          tessellation: 8,
-        },
-        this.scene,
-      );
-      this.activeBeamGlow.isPickable = false;
-
-      this.activeBeamGlowMat = new StandardMaterial(`${id}_glow_mat`, this.scene);
-      this.activeBeamGlowMat.emissiveColor = new Color3(
-        Math.min(1, color.r * 1.3),
-        Math.min(1, color.g * 1.3),
-        Math.min(1, color.b * 1.3),
-      );
-      this.activeBeamGlowMat.disableLighting = true;
-      this.activeBeamGlowMat.alpha = 0.2;
-      this.activeBeamGlowMat.backFaceCulling = false;
-      applySafeMaxSimultaneousLights(this.activeBeamGlowMat);
-      this.activeBeamGlow.material = this.activeBeamGlowMat;
-    } else {
-      if (this.activeBeamCoreMat) this.activeBeamCoreMat.emissiveColor = color;
-      if (this.activeBeamGlowMat) {
-        this.activeBeamGlowMat.emissiveColor = new Color3(
-          Math.min(1, color.r * 1.3),
-          Math.min(1, color.g * 1.3),
-          Math.min(1, color.b * 1.3),
-        );
-      }
-    }
-
-    // Orient both beams between origin and endpoint
-    this.orientCylinder(this.activeBeamCore!, cfg.origin, endpoint);
-    this.orientCylinder(this.activeBeamGlow!, cfg.origin, endpoint);
-
-    // Endpoint glow light
-    if (!this.activeBeamLight) {
-      this.activeBeamLight = getPointLightPool().acquire(endpoint, color, 8, 15);
-    } else {
-      this.activeBeamLight.position = endpoint;
-      this.activeBeamLight.diffuse = color;
-    }
-
-    return hit?.point ?? null;
-  }
-
-  /** Stop the local player's continuous beam effect */
-  stopBeam(): void {
-    this.activeBeamCore?.dispose();
-    this.activeBeamCore = null;
-    this.activeBeamGlow?.dispose();
-    this.activeBeamGlow = null;
-    this.activeBeamCoreMat?.dispose();
-    this.activeBeamCoreMat = null;
-    this.activeBeamGlowMat?.dispose();
-    this.activeBeamGlowMat = null;
-    getPointLightPool().release(this.activeBeamLight);
-    this.activeBeamLight = null;
-  }
-
-  // ── Lightning beam (voltaic chain lightning) ─────────────────────
-
-  /**
-   * Local player's jagged lightning beam. Call every frame while firing (like
-   * updateBeam); it re-jitters the bolt each call for crackle. `stopLightning()`
-   * when fire ends.
-   */
+  /** Procedural local hero beam. Call every frame while Voltaic is firing. */
   updateLightningBeam(cfg: BeamConfig): Vector3 | null {
-    if (!this.scene) return null;
+    if (!this.scene || !this.voltaicRenderer) return null;
     const range = cfg.maxRange ?? 850;
     const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
-    const hit = this.traceRay(cfg.origin, cfg.direction, range);
-    const endpoint = hit?.point ?? cfg.origin.add(cfg.direction.scale(range));
+    const now = performance.now() / 1000;
+    const hasFreshTruth =
+      this.localVoltaicHasDirection &&
+      now - this.localVoltaicTruthAt <= HitscanEffects.LOCAL_TRUTH_TIMEOUT &&
+      isVoltaicTruthAligned(cfg.direction, this.localVoltaicDirection);
+    const traceOrigin = cfg.traceOrigin ?? cfg.origin;
+    const hit = hasFreshTruth ? null : this.traceRay(traceOrigin, cfg.direction, range);
+    const endpoint = hasFreshTruth
+      ? this.localVoltaicEndpoint
+      : (hit?.point ?? traceOrigin.add(cfg.direction.scale(range)));
+    const impactKind = hasFreshTruth ? this.localVoltaicImpactKind : hit ? "world" : "none";
+    const impactNormal = hasFreshTruth
+      ? this.localVoltaicHasNormal
+        ? this.localVoltaicNormal
+        : undefined
+      : hit?.normal;
+    this.voltaicRenderer.updateHero({
+      start: cfg.origin,
+      end: endpoint,
+      color,
+      impactKind,
+      impactNormal,
+    });
+    return impactKind === "none" ? null : endpoint;
+  }
 
-    if (!this.activeLightning) this.activeLightning = this.createLightningBeam(color, endpoint);
-    this.orientLightning(this.activeLightning, cfg.origin, endpoint, color);
-    return hit?.point ?? null;
+  /** Starts a new local activation without inheriting a late packet from the previous beam. */
+  beginLightning(): void {
+    this.localVoltaicTruthAt = -Infinity;
+    this.localVoltaicImpactKind = "none";
+    this.localVoltaicHasNormal = false;
+    this.localVoltaicHasDirection = false;
+  }
+
+  /** Reconcile the hero beam to the exact server damage ray/contact. */
+  updateLocalLightningTruth(cfg: VoltaicBeamTruthConfig): void {
+    this.localVoltaicEndpoint.copyFrom(cfg.endpoint);
+    this.localVoltaicDirection.copyFrom(cfg.direction);
+    const directionLengthSquared = this.localVoltaicDirection.lengthSquared();
+    this.localVoltaicHasDirection = directionLengthSquared > 0.000001;
+    if (this.localVoltaicHasDirection) this.localVoltaicDirection.scaleInPlace(1 / Math.sqrt(directionLengthSquared));
+    this.localVoltaicImpactKind = cfg.impactKind;
+    this.localVoltaicHasNormal = !!cfg.impactNormal;
+    if (cfg.impactNormal) this.localVoltaicNormal.copyFrom(cfg.impactNormal);
+    this.localVoltaicTruthAt = performance.now() / 1000;
   }
 
   /** Stop the local player's lightning beam. */
   stopLightning(): void {
-    if (this.activeLightning) this.disposeLightning(this.activeLightning);
-    this.activeLightning = null;
+    this.voltaicRenderer?.stopHero();
+    this.localVoltaicTruthAt = -Infinity;
+    this.localVoltaicImpactKind = "none";
+    this.localVoltaicHasNormal = false;
+    this.localVoltaicHasDirection = false;
   }
 
-  /**
-   * One-shot lightning arc between two points (a chain-lightning hop). Spawns a
-   * short jagged bolt that fades via the shared effects[] lifecycle. Refreshed each
-   * shot by the server's weapon_chain event → reads as continuous forking lightning.
-   */
+  /** One-shot procedural arc between actual chain-lightning points. */
   fireLightningArc(from: Vector3, to: Vector3, color?: Color3, duration = 0.14): void {
-    if (!this.scene) return;
+    if (!this.scene || !this.voltaicRenderer) return;
     const col = color ?? new Color3(1.0, 0.7, 0.1);
-    const path = this.lightningPath(from, to);
-    const id = `larc_${this.nextId++}`;
-
-    const coreMat = new StandardMaterial(`${id}_cm`, this.scene);
-    coreMat.emissiveColor = this.brighten(col);
-    coreMat.disableLighting = true;
-    coreMat.alpha = 0.9;
-    coreMat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(coreMat);
-
-    const glowMat = new StandardMaterial(`${id}_gm`, this.scene);
-    glowMat.emissiveColor = col;
-    glowMat.disableLighting = true;
-    glowMat.alpha = 0.3;
-    glowMat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(glowMat);
-
-    const meshes: Mesh[] = [];
-    for (let i = 0; i < path.length - 1; i++) {
-      const core = MeshBuilder.CreateCylinder(`${id}_c${i}`, { height: 1, diameter: 0.16, tessellation: 5 }, this.scene);
-      core.isPickable = false;
-      core.material = coreMat;
-      this.orientCylinder(core, path[i], path[i + 1]);
-      meshes.push(core);
-
-      const glow = MeshBuilder.CreateCylinder(`${id}_g${i}`, { height: 1, diameter: 0.45, tessellation: 5 }, this.scene);
-      glow.isPickable = false;
-      glow.material = glowMat;
-      this.orientCylinder(glow, path[i], path[i + 1]);
-      meshes.push(glow);
-    }
-
-    const light = getPointLightPool().acquire(to, col, 6, 12);
-    this.effects.push({
-      id,
-      meshes,
-      materials: [coreMat, glowMat],
-      light,
-      spawnTime: performance.now() / 1000,
+    this.voltaicRenderer.fireChainArc(
+      {
+        start: from,
+        end: to,
+        color: col,
+        impactKind: "player",
+        intensity: 1.12,
+      },
       duration,
-    });
+    );
   }
 
-  /**
-   * Remote player's lightning beam. Driven by per-shot fire events; update() then
-   * re-jitters it each frame and auto-cleans it after REMOTE_BEAM_TIMEOUT.
-   */
-  updateRemoteLightningBeam(entityId: number, cfg: BeamConfig): void {
-    if (!this.scene) return;
-    const range = cfg.maxRange ?? 850;
+  /** Simplified remote presentation driven by authoritative endpoint truth. */
+  updateRemoteLightningBeam(entityId: string | number, cfg: VoltaicBeamTruthConfig): void {
+    if (!this.voltaicRenderer) return;
     const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
-    const endpoint = cfg.origin.add(cfg.direction.scale(range)); // no raytrace for remote
-    const now = performance.now() / 1000;
-
-    let beam = this.remoteLightning.get(entityId);
-    if (!beam) {
-      beam = {
-        ...this.createLightningBeam(color, endpoint),
-        origin: cfg.origin.clone(),
-        endpoint: endpoint.clone(),
+    this.voltaicRenderer.updateRemote(
+      String(entityId),
+      {
+        start: cfg.origin,
+        end: cfg.endpoint,
         color,
-        lastUpdate: now,
-      };
-      this.remoteLightning.set(entityId, beam);
-    } else {
-      beam.origin = cfg.origin.clone();
-      beam.endpoint = endpoint.clone();
-      beam.color = color;
-      beam.lastUpdate = now;
-    }
-    this.orientLightning(beam, beam.origin, beam.endpoint, color);
+        impactKind: cfg.impactKind,
+        impactNormal: cfg.impactNormal,
+      },
+      cfg.direction,
+    );
   }
 
-  private stopRemoteLightning(entityId: number): void {
-    const beam = this.remoteLightning.get(entityId);
-    if (beam) {
-      this.disposeLightning(beam);
-      this.remoteLightning.delete(entityId);
-    }
-  }
-
-  /** Build the segment meshes + materials + endpoint light for a lightning bolt. */
-  private createLightningBeam(color: Color3, endpoint: Vector3): LightningBeam {
-    const n = HitscanEffects.LIGHTNING_SEGMENTS;
-    const id = `lightning_${this.nextId++}`;
-
-    const coreMat = new StandardMaterial(`${id}_core_mat`, this.scene!);
-    coreMat.emissiveColor = this.brighten(color);
-    coreMat.disableLighting = true;
-    coreMat.alpha = 0.9;
-    coreMat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(coreMat);
-
-    const glowMat = new StandardMaterial(`${id}_glow_mat`, this.scene!);
-    glowMat.emissiveColor = color;
-    glowMat.disableLighting = true;
-    glowMat.alpha = 0.28;
-    glowMat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(glowMat);
-
-    const coreSegs: Mesh[] = [];
-    const glowSegs: Mesh[] = [];
-    for (let i = 0; i < n; i++) {
-      const core = MeshBuilder.CreateCylinder(`${id}_c${i}`, { height: 1, diameter: 0.18, tessellation: 5 }, this.scene!);
-      core.isPickable = false;
-      core.material = coreMat;
-      coreSegs.push(core);
-
-      const glow = MeshBuilder.CreateCylinder(`${id}_g${i}`, { height: 1, diameter: 0.5, tessellation: 5 }, this.scene!);
-      glow.isPickable = false;
-      glow.material = glowMat;
-      glowSegs.push(glow);
-    }
-
-    const light = getPointLightPool().acquire(endpoint, color, 7, 14);
-    return { coreSegs, glowSegs, coreMat, glowMat, light };
-  }
-
-  /** Re-jitter + orient a lightning bolt's segments between origin and endpoint. */
-  private orientLightning(beam: LightningBeam, origin: Vector3, endpoint: Vector3, color: Color3): void {
-    const path = this.lightningPath(origin, endpoint);
-    const n = beam.coreSegs.length;
-    for (let i = 0; i < n; i++) {
-      const a = path[i];
-      const b = path[i + 1];
-      this.orientCylinder(beam.coreSegs[i], a, b);
-      this.orientCylinder(beam.glowSegs[i], a, b);
-    }
-    beam.coreMat.emissiveColor = this.brighten(color);
-    beam.glowMat.emissiveColor = color;
-    if (beam.light) {
-      beam.light.position = endpoint;
-      beam.light.diffuse = color;
-    }
-  }
-
-  /**
-   * Build a jagged path from origin→endpoint with pinned endpoints and jitter that
-   * tapers to zero at both ends (so the bolt actually connects muzzle→target).
-   * Returns LIGHTNING_SEGMENTS+1 points.
-   */
-  private lightningPath(origin: Vector3, endpoint: Vector3): Vector3[] {
-    const n = HitscanEffects.LIGHTNING_SEGMENTS;
-    const diff = endpoint.subtract(origin);
-    const len = diff.length();
-    const points: Vector3[] = [origin.clone()];
-    if (len < 0.001) {
-      for (let i = 1; i <= n; i++) points.push(endpoint.clone());
-      return points;
-    }
-    const dir = diff.scale(1 / len);
-    let right = Vector3.Cross(dir, Vector3.Up());
-    if (right.lengthSquared() < 0.001) right = Vector3.Cross(dir, Vector3.Forward());
-    right.normalize();
-    const up = Vector3.Cross(right, dir).normalize();
-
-    const jitterAmp = Math.min(len * 0.04, 9); // fast random crackle (kept small so the arc reads)
-    const bowAmp = Math.min(len * 0.22, 110); // pronounced coherent bow — the visible "bending"
-    // Rotate the bow plane over time so the whole bolt sways/whips.
-    const phase = (performance.now() / 1000) * 3.2;
-    const bowX = Math.cos(phase);
-    const bowY = Math.sin(phase);
-
-    for (let i = 1; i < n; i++) {
-      const t = i / n;
-      const taper = Math.sin(t * Math.PI); // 0 at both ends
-      // Coherent bow (arc + sway) gives the bending look; jitter adds crackle.
-      const bow = bowAmp * taper;
-      const ox = bowX * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
-      const oy = bowY * bow + (Math.random() * 2 - 1) * jitterAmp * taper;
-      points.push(origin.add(diff.scale(t)).add(right.scale(ox)).add(up.scale(oy)));
-    }
-    points.push(endpoint.clone());
-    return points;
-  }
-
-  /** Brighten a color toward white for the hot bolt core. */
-  private brighten(color: Color3): Color3 {
-    return new Color3(Math.min(1, color.r + 0.3), Math.min(1, color.g + 0.3), Math.min(1, color.b + 0.3));
-  }
-
-  private disposeLightning(beam: LightningBeam): void {
-    for (const m of beam.coreSegs) m.dispose();
-    for (const m of beam.glowSegs) m.dispose();
-    beam.coreMat.dispose();
-    beam.glowMat.dispose();
-    getPointLightPool().release(beam.light);
-  }
-
-  /**
-   * Update a remote (third-person) player's beam.
-   * Called from Game when a fire event arrives for a beam weapon.
-   * Automatically cleaned up after REMOTE_BEAM_TIMEOUT if no updates arrive.
-   */
-  updateRemoteBeam(entityId: number, cfg: BeamConfig): void {
-    if (!this.scene) return;
+  /** One-trace fallback for legacy demos or a missing authoritative truth event. */
+  updateRemoteLightningFallback(entityId: string | number, cfg: BeamConfig): void {
+    if (!this.scene || !this.voltaicRenderer) return;
     const range = cfg.maxRange ?? 850;
     const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
-    const dStart = cfg.diameterStart ?? 0.6;
-    const dEnd = cfg.diameterEnd ?? 0.15;
-    const endpoint = cfg.origin.add(cfg.direction.scale(range));
-    // Note: no raytrace for remote beams (origin+dir from server is enough)
-
-    let beam = this.remoteBeams.get(entityId);
-    if (!beam) {
-      const id = `rbeam_${entityId}_${this.nextId++}`;
-      const core = MeshBuilder.CreateCylinder(
-        `${id}_core`,
-        {
-          height: 1,
-          diameterTop: dEnd,
-          diameterBottom: dStart,
-          tessellation: 8,
-        },
-        this.scene,
-      );
-      core.isPickable = false;
-      const coreMat = new StandardMaterial(`${id}_core_mat`, this.scene);
-      coreMat.emissiveColor = color;
-      coreMat.disableLighting = true;
-      coreMat.alpha = 0.7;
-      coreMat.backFaceCulling = false;
-      applySafeMaxSimultaneousLights(coreMat);
-      core.material = coreMat;
-
-      const glow = MeshBuilder.CreateCylinder(
-        `${id}_glow`,
-        {
-          height: 1,
-          diameterTop: dEnd * 2.5,
-          diameterBottom: dStart * 2.5,
-          tessellation: 8,
-        },
-        this.scene,
-      );
-      glow.isPickable = false;
-      const glowMat = new StandardMaterial(`${id}_glow_mat`, this.scene);
-      glowMat.emissiveColor = new Color3(
-        Math.min(1, color.r * 1.3),
-        Math.min(1, color.g * 1.3),
-        Math.min(1, color.b * 1.3),
-      );
-      glowMat.disableLighting = true;
-      glowMat.alpha = 0.15;
-      glowMat.backFaceCulling = false;
-      applySafeMaxSimultaneousLights(glowMat);
-      glow.material = glowMat;
-
-      const light = getPointLightPool().acquire(endpoint, color, 6, 12);
-
-      beam = { core, glow, coreMat, glowMat, light, lastUpdate: performance.now() / 1000 };
-      this.remoteBeams.set(entityId, beam);
-    } else {
-      beam.coreMat.emissiveColor = color;
-      if (beam.light) beam.light.diffuse = color;
-      beam.lastUpdate = performance.now() / 1000;
-    }
-
-    this.orientCylinder(beam!.core, cfg.origin, endpoint);
-    this.orientCylinder(beam!.glow, cfg.origin, endpoint);
-    if (beam!.light) beam!.light.position = endpoint;
+    const rayOrigin = cfg.traceOrigin ?? cfg.origin;
+    const hit = this.traceRay(rayOrigin, cfg.direction, range);
+    const endpoint = hit?.point ?? rayOrigin.add(cfg.direction.scale(range));
+    this.voltaicRenderer.updateRemote(
+      String(entityId),
+      {
+        start: cfg.origin,
+        end: endpoint,
+        color,
+        impactKind: hit ? "world" : "none",
+        impactNormal: hit?.normal,
+      },
+      cfg.direction,
+    );
   }
 
-  /** Stop a specific remote player's beam */
-  stopRemoteBeam(entityId: number): void {
-    const beam = this.remoteBeams.get(entityId);
-    if (beam) {
-      beam.core.dispose();
-      beam.glow.dispose();
-      beam.coreMat.dispose();
-      beam.glowMat.dispose();
-      getPointLightPool().release(beam.light);
-      this.remoteBeams.delete(entityId);
-    }
+  setRemoteLightningMuzzleResolver(resolver: VoltaicRemoteStartResolver): void {
+    this.remoteVoltaicStartResolver = resolver;
+    this.voltaicRenderer?.setRemoteStartResolver(resolver);
   }
 
-  /** Stop all remote beams */
-  stopAllRemoteBeams(): void {
-    // Collect IDs first to avoid mutating Map during iteration
-    const ids = [...this.remoteBeams.keys()];
-    for (const id of ids) this.stopRemoteBeam(id);
+  clearRemoteLightningMuzzleResolver(resolver: VoltaicRemoteStartResolver): void {
+    if (this.remoteVoltaicStartResolver !== resolver) return;
+    this.remoteVoltaicStartResolver = null;
+    this.voltaicRenderer?.setRemoteStartResolver(null);
   }
 
   /**
@@ -937,21 +648,7 @@ export class HitscanEffects {
       }
     }
 
-    // Auto-cleanup remote beams that haven't received updates
-    for (const [entityId, beam] of this.remoteBeams) {
-      if (now - beam.lastUpdate > HitscanEffects.REMOTE_BEAM_TIMEOUT) {
-        this.stopRemoteBeam(entityId);
-      }
-    }
-
-    // Remote lightning: re-jitter each frame for crackle, or time out.
-    for (const [entityId, beam] of this.remoteLightning) {
-      if (now - beam.lastUpdate > HitscanEffects.REMOTE_BEAM_TIMEOUT) {
-        this.stopRemoteLightning(entityId);
-      } else {
-        this.orientLightning(beam, beam.origin, beam.endpoint, beam.color);
-      }
-    }
+    this.voltaicRenderer?.update(_deltaTime);
   }
 
   /** Cleanup everything */
@@ -967,10 +664,8 @@ export class HitscanEffects {
       tp.material.dispose();
     }
     this.travelingPellets = [];
-    this.stopBeam();
-    this.stopAllRemoteBeams();
     this.stopLightning();
-    for (const id of [...this.remoteLightning.keys()]) this.stopRemoteLightning(id);
+    this.voltaicRenderer?.clear();
   }
 
   // ── Private helpers ──────────────────────────────────────────────

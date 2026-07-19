@@ -75,7 +75,7 @@ describe("extractPickups", () => {
       "shells:10",
       "grenades:10",
       "rockets:10",
-      "lasers:100",
+      "cells:100",
       "bolts:10",
       "instas:5",
     ]);
@@ -92,7 +92,7 @@ describe("extractPickups", () => {
       ent("item_health_mega", "nope"),
       ent("weapon_lasergun", "1 2 3"),
     ]);
-    expect(out.map((e) => e.kind)).toEqual(["lasergun"]);
+    expect(out.map((e) => e.kind)).toEqual(["voltaic"]);
     expect(out[0].id).toBe(0);
   });
 

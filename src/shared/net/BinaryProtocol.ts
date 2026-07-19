@@ -736,6 +736,7 @@ export class BinaryProtocol {
     weapon_chain: 13,
     chat: 14,
     pickup_notify: 15,
+    voltaic_beam: 16,
   };
 
   private static readonly EVT_NAME_MAP: string[] = [
@@ -755,6 +756,7 @@ export class BinaryProtocol {
     "weapon_chain",
     "chat",
     "pickup_notify",
+    "voltaic_beam",
   ];
 
   private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
@@ -898,6 +900,23 @@ export class BinaryProtocol {
         case 15: // pickup_notify: entityId (grabber), label
           encoder.writeString(event.entityId ?? "");
           encoder.writeString(event.label ?? "");
+          break;
+
+        case 16: // voltaic_beam: entity, authoritative ray/contact, impact kind
+          encoder.writeString(event.entityId);
+          encoder.writeFloat32(event.originX ?? 0);
+          encoder.writeFloat32(event.originY ?? 0);
+          encoder.writeFloat32(event.originZ ?? 0);
+          encoder.writeFloat32(event.dirX ?? 0);
+          encoder.writeFloat32(event.dirY ?? 0);
+          encoder.writeFloat32(event.dirZ ?? 0);
+          encoder.writeFloat32(event.endX ?? 0);
+          encoder.writeFloat32(event.endY ?? 0);
+          encoder.writeFloat32(event.endZ ?? 0);
+          encoder.writeFloat32(event.normalX ?? 0);
+          encoder.writeFloat32(event.normalY ?? 0);
+          encoder.writeFloat32(event.normalZ ?? 0);
+          encoder.writeUint8(event.impactKind ?? 0);
           break;
       }
     }
@@ -1079,6 +1098,26 @@ export class BinaryProtocol {
             type,
             entityId: decoder.readString(),
             label: decoder.readString(),
+          });
+          break;
+
+        case 16: // voltaic_beam
+          state.events.push({
+            type,
+            entityId: decoder.readString(),
+            originX: decoder.readFloat32(),
+            originY: decoder.readFloat32(),
+            originZ: decoder.readFloat32(),
+            dirX: decoder.readFloat32(),
+            dirY: decoder.readFloat32(),
+            dirZ: decoder.readFloat32(),
+            endX: decoder.readFloat32(),
+            endY: decoder.readFloat32(),
+            endZ: decoder.readFloat32(),
+            normalX: decoder.readFloat32(),
+            normalY: decoder.readFloat32(),
+            normalZ: decoder.readFloat32(),
+            impactKind: decoder.readUint8(),
           });
           break;
       }

@@ -1,2187 +1,1465 @@
-# Voltaic and Lasergun Beam Graphics — Research and Design
+# Voltaic Rift — Shooting Effect Research and Design
 
-**Status:** Effect-only visual design; implementation not started
-**Date:** 2026-07-18
-**Scope:** The Voltaic shooting effect only, from muzzle to impact
-**Constraint:** All new beam graphics must be generated in TypeScript/Babylon.js with no external visual assets
-**Performance target:** Maximum spectacle from 2 primary draws, no external visual assets
-
----
-
-## 0. Executive decision
-
-The beam should be rebuilt around one principle:
-
-> **The visible primary spine is the hitscan result. Motion and personality live around that spine, never in place of it.**
-
-The recommended production design is:
-
-1. **Build the Voltaic Rift, not a cleaner laser line.**
-   - A razor-white straight spine appears over the full hitscan path instantly.
-   - Three jagged gold lightning streams violently snap around that spine.
-   - A faint blue-violet shock sheath makes the air around the bolt feel torn
-     open.
-   - One or two short forks rupture outward during each electrical state.
-
-2. **Put the apparent complexity in one hero shader.**
-   - One camera-facing quad draws the exact core, three bolt streams, shock
-     sheath, forks, and previous-state ghost analytically.
-   - The primary geometry is four vertices and six indices and never changes.
-   - The shader receives only start, end, time, seed, intensity, and visual
-     width.
-   - The desired common cost is one beam draw plus one impact-storm draw.
-
-3. **Make electricity snap instead of swim.**
-   - Generate a new deterministic bolt state approximately 18–24 times per
-     second.
-   - Switch quickly to the new shape while the previous state fades for roughly
-     25–45 ms inside the same shader pass.
-   - Use piecewise-linear procedural noise with sharp corners, not smooth helix
-     motion and not per-frame `Math.random()`.
-
-4. **Make the endpoint the explosion of the composition.**
-   - Terminate in a large white-hot nucleus.
-   - Surround it with a broken rotating crown, radial electrical spikes, and a
-     restrained halo.
-   - Pulse the endpoint on contact without blinking the full beam.
-   - Chain arcs, when shown, erupt from this nucleus using the same visual
-     language at a larger displacement.
-
-5. **Keep spectacle away from the crosshair.**
-   - The field begins narrow at the muzzle.
-   - Chaos and sheath width grow through the middle of the beam.
-   - Maximum rupture occurs in the final third and at impact.
-   - The exact core never bends, disappears, or travels.
-
-6. **Render the same hero effect for enemies, accurately enough to trust.**
-   - Local POV and enemy clients call the same renderer and profiles.
-   - The straight core begins at the currently visible muzzle and ends at the
-     resolved impact supplied to the effect.
-   - Bolt streams, forks, sheath, and ghosting are decorative and reconstructed
-     locally from shooter seed and effect time; no lightning path is networked.
-   - Each client billboards the effect to its own camera, so the rift never
-     presents a paper-thin edge.
-   - If the remote muzzle is temporarily unavailable, use an interpolated eye
-     fallback without changing the endpoint.
-
-This document supersedes the **visual** decision in
-[`v0.9.16-weapon-system-overhaul.md`](./v0.9.16-weapon-system-overhaul.md) that
-specified a whole-bolt random re-jitter every frame. It does **not** supersede
-the gameplay decision that Voltaic uses chain lightning.
+**Status:** Procedural renderer and authoritative beam-truth integration implemented; visual tuning in progress
+**Date:** 2026-07-19
+**Target branch:** `0.9.20-voltaic-beams`
+**Scope:** Procedural graphics for the canonical Voltaic weapon (including legacy `lasergun` input), from authored muzzle to impact
+**Constraint:** TypeScript and Babylon.js only; no external visual assets
 
 ---
 
-## 1. Goals and non-goals
+## 0. Decision
 
-### 1.1 Goals
+Build **Voltaic Rift**: a hitscan line that looks less like a laser and more
+like the weapon has torn open a narrow electrical fault in the air.
 
-- Make Voltaic feel like an electrical catastrophe held open by the gun.
-- Preserve a precise first-person sight line inside a much larger hero effect.
-- Make the same effect spectacular from first-person and world-camera angles.
-- Preserve the immediate visual language of a hitscan weapon.
-- Replace the inherited Lasergun aesthetic rather than imitate it.
-- Make the effect attractive with bloom enabled and still readable with bloom
-  disabled.
-- Keep all new visuals procedural and repository-native.
-- Make sustained fire allocation-free after beam acquisition.
-- Make every major visual layer react coherently to the same effect clock.
-- Spend visual complexity at the endpoint and final third of the beam.
+The effect has two presentations:
 
-### 1.2 Non-goals
+- **Hero presentation:** the local player's extravagant first-person effect.
+- **World presentation:** a cheaper, cleaner version shown for other players.
 
-- No new GLB, texture, sprite sheet, particle texture, or authored shader asset.
-- No gameplay rebalance is automatically authorized by this design.
-- No conversion of either weapon into a projectile or simulated traveling bolt.
-- No network protocol, hit detection, lag compensation, weapon-state, audio, or
-  model redesign in this effect brief.
-- No general-purpose renderer framework.
-- No reliance on post-process bloom as the only way the beam can be seen.
-- No screen-space beam that ignores world depth or shines through walls.
+They share gameplay truth, not identical decoration. The straight damaging
+spine and resolved endpoint must be accurate enough to trust. Jagged streams,
+forks, afterimages, turbulence, and minor timing variation are visual fiction
+and may differ between clients.
 
-### 1.3 Assumptions
+The production renderer should use:
 
-- Voltaic is the visual replacement for the Lasergun weapon role; this document
-  is not designing two competing primary beam aesthetics.
-- Voltaic remains an 850-unit, 20 Hz single-ray hitscan weapon.
-- Voltaic keeps chain lightning and hipfire wander unless a separate gameplay
-  decision changes them.
-- Existing weapon models and sounds remain; “no external assets” applies to the
-  new shooting graphics.
-- Babylon.js remains at or near the installed `@babylonjs/core` 8.56.0 API
-  during implementation. The manifest currently permits this through
-  `^8.44.1`.
-- The effect receives valid muzzle and impact positions from existing gameplay
-  code. How those positions are produced or replicated is outside scope.
+1. one fixed-topology, GPU-deformed multi-strip mesh for the beam;
+2. one compact procedural mesh for the impact storm;
+3. a separate instanced strip batch only when real chain targets exist.
+
+The common first-person cost is two primary draws: beam and impact. The common
+world cost is one batched beam draw plus one batched impact draw for all visible
+remote continuous-beam users.
+
+The visual signature is:
+
+> a surgically straight white-hot truth line, assaulted by hot gold-orange
+> electrical streams, wrapped in a
+> blue-violet pressure scar, terminating in a violent geometric impact storm.
+
+### 0.1 Weapon and model contract
+
+There is one weapon and one renderer: `voltaic`. `lasergun` is only a Warsow
+compatibility ID/classname and source-level compatibility export. It is
+canonicalized to `voltaic` before inventory, snapshot, combat, viewmodel, bot,
+or effect selection. It must never acquire separate stats, ammo state, model
+selection, or visual routing.
+
+The production Voltaic deliberately uses the repository's complete original
+modern Lasergun model set at `/data/models/weapons/lasergun/lasergun.glb` for
+both world and view models. This is the runtime conversion of the IQM supplied
+by `z_weapons.pk3`, not the older Warsow MD3 from `data0_21pure.pk3`. The
+similarly named Voltaic model is WIP and is not the production selection. This
+filename choice is an asset decision, not a second Lasergun weapon path.
+
+The model's authored `tag_flash` node is the muzzle source. In first person,
+the tag is projected through the weapon camera and converted to the matching
+world-camera ray, keeping the beam pixel-attached when weapon and gameplay FOV
+differ. In world view, the live tag is carried with the hand-attached weapon
+hierarchy. Camera/eye offsets exist only as defensive fallbacks for incomplete
+legacy models.
 
 ---
 
-## 2. Source audit: current behavior
+## 1. Effect contract
 
-### 2.1 Relevant files
+### 1.1 The invariants
 
-| Area | File | Current responsibility |
+These properties communicate gameplay and must survive every quality level:
+
+- The beam appears across its full length immediately. Nothing travels from the
+  muzzle to the target.
+- A thin, straight spine identifies the actual hitscan direction.
+- The endpoint is the resolved hit point, a local collision result, or the best
+  available approximation in that order.
+- The hero beam starts on the authored visible muzzle pixel. For another
+  player, the authored weapon tag is preferred; a smoothly interpolated weapon
+  or eye fallback is still better than a stale event origin.
+- World geometry occludes the effect.
+- Start, stop, and contact changes feel prompt.
+
+### 1.2 The freedoms
+
+These properties have no damage meaning and should be used aggressively:
+
+- the number and exact path of electrical streams;
+- fork position, direction, and lifetime;
+- the previous-state afterimage;
+- sheath turbulence and color variation;
+- broken-ring rotation and impact spike arrangement;
+- local micro-timing within one electrical state;
+- first-person scale and exaggeration;
+- remote quality and level of detail.
+
+No bolt path needs to be transmitted. No two clients need to render the same
+fork. Random-looking detail only needs to remain stable enough on each client
+not to flicker incoherently.
+
+### 1.3 Accuracy tiers
+
+The effect should distinguish visual truth from decorative plausibility:
+
+| Property | Local hero view | Enemy/world view |
 |---|---|---|
-| Generic hitscan VFX | `src/engine/weapon/HitscanEffects.ts` | Tracers, beams, lightning, impacts, chain arcs |
-| First-person beam lifecycle | `src/engine/weapon/WeaponViewManager.ts` | Updates active beam every render frame |
-| Local fire/charge input | `src/games/fps/FPSPlayer.ts` | Starts and stops the first-person beam |
-| Remote fire dispatch | `src/games/fps/client/GameEvents.ts` | Converts network events into VFX |
-| Remote weapon pose | `src/games/fps/client/RemotePlayerRenderer.ts` | Interpolated player and hand-attached weapon |
-| Server weapon trace | `src/games/fps/server/systems/WeaponSystem.ts` | Fire cadence, damage, wander, chains |
-| Snapshot construction | `src/games/fps/server/SnapshotBuilder.ts` | Publishes weapon events and weapon state |
-| Event types | `src/engine/network/core/SnapshotEvent.ts` | Client-side discriminated snapshot events |
-| Binary codec | `src/shared/net/BinaryProtocol.ts` | Active event encode/decode |
-| Demo playback | `src/games/fps/client/DemoService.ts` | Replays recorded weapon events |
-| Weapon definitions | `src/shared/entities/definitions/weapons/{lasergun,voltaic}.ts` | Gameplay and presentation configuration |
+| Active state | Exact predicted/reconciled weapon state | Recent fire/weapon state |
+| Start | Authored live `tag_flash`, screen-space matched into world | Authored hand-attached `tag_flash`; weapon/eye fallback |
+| Straight spine | Server damage endpoint with predicted fallback | Server damage endpoint |
+| Player intersection | Authoritative player contact | Authoritative player contact |
+| Impact class | Exact if available | World/player/miss when available; generic otherwise |
+| Electrical paths | Local presentation only | Independently generated and simplified |
+| Forks and ghosts | Full | Reduced or omitted |
+| Damage implication | Spine and contact only | Spine and contact only |
 
-### 2.2 Existing first-person path
+The minimum believable remote result is a beam that leaves roughly the right
+place, points in the right direction, stops at roughly the right surface or
+target, and does not continue through the map. Pixel-identical replay is not a
+goal.
 
-`FPSPlayer.updateFiring()` starts an active beam after the current charge/ADS
-rules. `WeaponViewManager.update()` then:
+### 1.4 Goals
 
-1. Gets an approximate first-person muzzle position.
-2. Gets `mainCamera` forward.
-3. Calls `HitscanEffects.updateBeam()` for Lasergun or
-   `updateLightningBeam()` for Voltaic.
-4. The effect performs a client scene pick from the muzzle along camera forward.
+- Produce a stronger signature than the classic Quake lightning and Warsow
+  laser effects without copying either one.
+- Make sustained fire feel like maintained electrical violence rather than a
+  static tube or a sequence of projectiles.
+- Give first-person players a spectacular hero effect without obscuring aim.
+- Give observers a readable and performant world effect.
+- Remain attractive with bloom disabled and exceptional with normal bloom.
+- Allocate nothing and rebuild no geometry while a beam is active.
+- Spend complexity on silhouette, timing, and impact rather than particle count.
+- Generate every new visual procedurally in repository code.
 
-Problems:
+### 1.5 Non-goals
 
-- Gameplay targeting originates from the server eye/view position, while the
-  visual raycast originates from an offset muzzle.
-- Muzzle-to-target parallax can make the visual endpoint differ from the
-  crosshair result.
-- Voltaic server damage includes deterministic wander; the local beam uses plain
-  camera forward.
-- The local scene pick is cosmetic and may disagree with server BSP/player
-  resolution.
-- The first-person Voltaic bolt can cross the center of the screen with a bow up
-  to 110 world units.
-
-### 2.3 Existing Voltaic geometry
-
-The active Voltaic beam creates:
-
-- 9 core cylinder meshes.
-- 9 glow cylinder meshes.
-- 2 shared `StandardMaterial`s.
-- 1 pooled endpoint light.
-
-Every render frame:
-
-- A coherent bow rotates over time.
-- Every interior point also receives a new `Math.random()` offset.
-- All 18 cylinders are repositioned and reoriented.
-
-Consequences:
-
-- The path has no temporal continuity in its high-frequency component.
-- The noise rate depends on render rate.
-- The primary damage indicator is overwhelmed by decorative bowing.
-- Multiple remote Voltaic users multiply the mesh and transform-update cost.
-- Cylinder silhouettes appear physically thick near the first-person camera.
-
-### 2.4 Existing remote path
-
-`weapon_fire` currently carries:
-
-```text
-entityId
-weaponId
-origin xyz
-direction xyz
-```
-
-The remote dispatcher has a dedicated Voltaic case, but no Lasergun case.
-
-Current effects:
-
-- **Voltaic:** `origin + direction * 850`, no remote raycast and no authoritative
-  endpoint.
-- **Lasergun:** falls through to the generic default tracer with a 5,000-unit
-  range.
-- **Start point:** the server eye origin, not the interpolated hand/weapon muzzle.
-- **Continuity:** the beam is retained until 150 ms after the last fire event.
-
-This explains the strongest reported remote-client failure modes:
-
-- Lasergun is not rendered as a continuous Lasergun beam.
-- Voltaic can continue through walls and targets to maximum range.
-- The beam can detach from the visible remote weapon because player rendering is
-  interpolation-delayed while the event origin is a discrete server sample.
-- The endpoint moves at the 20 Hz damage cadence while player/weapon pose is
-  rendered every frame.
-
-### 2.5 ID type inconsistency
-
-The client event type defines `entityId` as a string, while
-`HitscanEffects.remoteBeams` and `remoteLightning` are declared as maps keyed by
-number. `handleRemoteWeaponFire()` accepts `any`, which hides the mismatch from
-TypeScript.
-
-JavaScript maps can still use the runtime string key, so this is not by itself a
-complete explanation for the visual bug. It is nevertheless unsafe and should be
-corrected in the new beam API.
-
-### 2.6 Wander cadence finding
-
-The server describes Voltaic hipfire wander as a “slow lissajous sweep,” but the
-current phase is:
-
-```ts
-const t = tick * 0.35 + shooterId;
-```
-
-At 125 simulation ticks per second:
-
-- yaw phase speed is `43.75 rad/s`, approximately `6.96 Hz`;
-- pitch uses `t * 1.7`, approximately `11.8 Hz`;
-- consecutive 20 Hz beam damage samples are separated by roughly `2.1` radians
-  in the yaw phase.
-
-With a four-degree amplitude and 850-unit range, endpoint displacement can be
-around 59 units on one axis before combining yaw and pitch. This is fast enough
-to look like discontinuous endpoint jumping on a remote client.
-
-This is partly gameplay, not merely graphics. The beam renderer should correctly
-display the authoritative direction regardless. Retuning the wander to genuinely
-slow frequencies is recommended but requires explicit gameplay approval.
+- No gameplay rebalance, damage change, or conversion away from hitscan.
+- No requirement that decorative electricity match between clients.
+- No broad network, lag compensation, audio, or weapon-model redesign.
+- No general-purpose VFX framework.
+- No new authored VFX textures, sprite sheets, GLBs, or downloaded effects.
+- No swarm of independent particles along the beam.
+- No dependence on a full-screen glow layer for basic readability.
 
 ---
 
-## 3. Out-of-scope engine audit retained for reference
+## 2. What is wrong now
 
-This section records issues discovered during source inspection, but none are
-part of the Voltaic effect proposal or its visual implementation work order. The
-effect renderer assumes it is given a muzzle position and an endpoint. Gameplay
-and networking corrections must be planned separately if desired.
+The replaced implementation in the branch baseline explained both the poor
+view and the poor scaling:
 
-The initial design assumed the server already owned one exact beam endpoint.
-Source inspection shows that assumption is false in the live `WeaponSystem`.
+- The local lightning is nine core cylinders plus nine glow cylinders.
+- Every render update creates a new array of `Vector3` points, calls
+  `Math.random()`, then repositions and reorients all 18 meshes.
+- The current coherent bow can reach roughly 110 world units, so the apparent
+  bolt can depart dramatically from the damaging ray.
+- Core and glow are ordinary `StandardMaterial` cylinders, producing a rounded
+  pipe rather than a sharp electrical line.
+- Remote Voltaic ends at `origin + direction * 850`; it does not perform even a
+  local world trace, so it can pass through geometry.
+- Remote start is the fire-event origin rather than a continuously interpolated
+  visible muzzle.
+- Separate materials, meshes, transforms, and point lights multiply with every
+  visible player.
 
-### 3.1 Current player trace
+The replacement can look much richer while being cheaper because the current
+cost is dominated by object count and CPU transform work, not sophisticated
+shading.
 
-`traceHitscanRay()`:
+### 2.1 Repository capabilities already available
 
-- loops through player entities;
-- uses a simple ray-to-center distance test with radius 32;
-- returns the first qualifying entity in iteration order;
-- does not compare candidates to find the nearest player;
-- does not compare the player hit distance against a BSP hit distance;
-- returns the target entity origin rather than the actual ray intersection.
+The engine already provides the pieces needed for an asset-free replacement:
 
-### 3.2 Current world trace
+- Babylon.js `ShaderMaterial`;
+- custom static `VertexData`;
+- thin instances and custom per-instance buffers;
+- WebGL2 standard derivatives for clean analytic edges;
+- HDR post-processing and bloom;
+- world and weapon camera layers;
+- a capped point-light pool;
+- effect prewarming infrastructure.
 
-`traceWorldImpact()` separately traces the BSP collision world. It is currently
-used for hitscan splash/insta-jump behavior, not as the general occlusion boundary
-for normal single-ray weapon damage.
+No new rendering dependency is justified.
 
-### 3.3 Consequences
+### 2.2 Lessons from classic effects
 
-- A server-authoritative visual endpoint cannot be obtained by merely serializing
-  the existing `primaryHit.position`.
-- A player behind a nearer wall may qualify in the player-only path.
-- If multiple players qualify, entity iteration order can decide which is hit.
-- The VFX endpoint and damage endpoint cannot be guaranteed identical.
+Quake III's lightning succeeded because it was immediate, bright, unmistakably
+continuous, and cheap. Its limitations are visual age, texture dependence, and
+a relatively simple repeated bolt language.
 
-### 3.4 Existing reusable work
+Warsow's Lasergun is readable and responsive, but its tiled ribbon/material
+language is deliberately restrained. Making that beam wider, noisier, or more
+particle-heavy would not create a new identity.
 
-`src/engine/server/lagcomp/LagCompensation.ts` already contains a better conceptual
-algorithm:
+The useful lesson is not to imitate their geometry. It is to preserve their
+clarity:
 
-1. Trace the world and compute its blocking distance.
-2. Test all player capsules.
-3. Select the closest player intersection that occurs before the world.
-4. Return distance, point, normal, hit part, and world-block information.
+- the player sees the entire hitscan relationship at once;
+- the damaging direction remains legible during motion;
+- contact matters as much as the beam body;
+- the effect cannot become a projectile trail.
 
-However:
+Voltaic Rift should keep those rules and spend modern GPU budget on a more
+violent silhouette, layered color, and contact response.
 
-- the live `WeaponSystem` does not use this class;
-- `WeaponDef.useLagCompensation` is configured on hitscan weapons but is not read
-  by the live server weapon path;
-- the lag-compensation class's world-only result currently provides a distance
-  but does not retain the BSP `hitPoint` and normal in its returned `HitResult`.
+---
 
-### 3.5 Required prerequisite work
+## 3. Final visual composition
 
-Introduce one result type used by damage, VFX, chains, telemetry, and future lag
-compensation:
+### 3.1 One shot, five visual ideas
+
+The complete hero effect is composed from five ideas:
+
+1. **Truth spine**
+   - A straight white-hot line from visual muzzle to resolved endpoint.
+   - Razor thin, stable, and always present while firing.
+   - Warm ivory in its center with a restrained golden inner falloff.
+
+2. **Rift streams**
+   - Three angular gold electrical paths snapping around the truth spine.
+   - One dominant stream establishes the silhouette.
+   - Two subordinate streams appear in broken intervals and cross the dominant
+     path without replacing the core.
+
+3. **State ghost**
+   - Only the previous dominant stream remains briefly after each snap.
+   - It fades in approximately 25–45 ms.
+   - This creates violent persistence without multiplying the whole effect.
+
+4. **Pressure sheath**
+   - A broad, faint blue-violet scar surrounding the final two-thirds.
+   - Its border shivers asymmetrically rather than forming a smooth glow tube.
+   - It suggests displaced or ionized air and separates the gold beam from warm
+     map lighting.
+
+5. **Impact storm**
+   - A compact white nucleus at the true endpoint.
+   - A broken gold crown oriented to the hit surface when a normal is known.
+   - Six to ten short radial spikes and one violet pressure halo.
+   - The crown changes state while contact persists; it does not respawn a pile
+     of particles on every damage tick.
+
+These are logical layers, not five draw calls.
+
+### 3.2 Spatial composition
+
+The effect is deliberately restrained near the reticle and extravagant near
+contact:
+
+- first 8 percent: narrow muzzle clamp; almost no displacement;
+- 8–35 percent: the dominant stream separates from the spine;
+- 35–70 percent: all streams and the sheath become visible;
+- 70–95 percent: maximum jagged displacement and occasional forks;
+- final 5 percent: paths compress back into the impact nucleus.
+
+Use an envelope such as:
+
+```text
+displacement(t) =
+  smoothstep(0.04, 0.28, t)
+  * smoothstep(1.0, 0.92, t)
+  * mix(0.55, 1.0, smoothstep(0.25, 0.8, t))
+```
+
+This protects first-person aim, pins every path to contact, and places the
+spectacle where the player is already looking for hit feedback.
+
+### 3.3 Temporal composition
+
+Electricity should not swim like a sine wave:
+
+- generate a new discrete electrical state at approximately 18–24 Hz;
+- switch immediately to the new stream geometry;
+- retain the previous dominant stream as a short fading ghost;
+- vary state duration by a small stable amount to avoid a mechanical metronome;
+- pulse the impact nucleus on the same state boundary;
+- animate crown rotation in coarse steps with a tiny continuous drift;
+- never seed from render-frame count.
+
+The fixed state cadence is close to the weapon's damage rhythm but does not have
+to equal it. Decoupling presentation makes low frame rates and network jitter
+less visible.
+
+### 3.4 Fire lifecycle
+
+**Attack, 0–35 ms**
+
+- The truth spine appears immediately.
+- A sharp muzzle pinch and impact nucleus lead the broader sheath.
+- Rift streams reach full displacement over one short electrical state.
+
+**Sustain**
+
+- Spine stays stable.
+- Streams snap between states.
+- The prior dominant state ghosts briefly.
+- The impact storm compresses and erupts without blinking away.
+
+**Release, 35–60 ms**
+
+- Stop the truth spine promptly.
+- Let the sheath, state ghost, and impact halo collapse quickly.
+- Do not leave a long trail that implies continuing damage.
+
+### 3.5 Color and energy hierarchy
+
+Suggested linear/HDR direction, subject to real-map tuning:
+
+| Layer | Hue | Relative energy | Purpose |
+|---|---|---:|---|
+| Truth spine | ivory-white | 1.00 | gameplay direction |
+| Inner edge | pale gold | 0.75 | electrical heat |
+| Dominant stream | saturated gold | 0.65 | silhouette |
+| Subordinate streams | amber/orange | 0.35–0.50 | complexity |
+| Previous ghost | orange-red | 0.12–0.22 | persistence |
+| Pressure sheath | blue-violet | 0.06–0.14 | color separation and scale |
+| Impact nucleus | white | 1.10–1.35 | contact priority |
+| Crown/spikes | gold with violet fringe | 0.40–0.80 | impact violence |
+
+The complementary violet is not a second weapon color. It should be visible
+mainly at the outer edge and on dark surfaces, disappearing before it turns the
+beam into neon vapor.
+
+### 3.6 Suggested starting values
+
+These are spike values, not final art constants:
+
+| Parameter | Hero POV | World presentation |
+|---|---:|---:|
+| Core width | 1.4–2.2 px | 1.2–2.0 px |
+| Rift streams | 3 | 1 dominant, optional second |
+| Max projected displacement | 12–24 px | 5–12 px |
+| Max world displacement | 8–16 units | 4–10 units |
+| Snap rate | 18–24 Hz | 14–20 Hz |
+| Previous-state ghost | 25–45 ms | off by default |
+| Decorative forks | 1–2 | 0–1 |
+| Sheath width | 18–40 px | 8–20 px |
+| Impact crown radius | 10–28 px | 6–16 px |
+| Release | 35–60 ms | 25–50 ms |
+
+Both projected and world limits are required. The smaller limit wins so the
+effect cannot consume the screen at close range or disappear completely at
+distance.
+
+### 3.7 Muzzle treatment
+
+The beam should not look pasted onto the camera:
+
+- Begin with a bright two- or three-pixel pinch at the live muzzle.
+- Add a tiny broken collar inside the beam draw, no separate particle emitter.
+- Clamp stream displacement almost to zero near the muzzle.
+- Fade broad sheath energy over the first few percent.
+- Advance the visual start if it falls behind the near plane.
+
+The muzzle treatment is a transition, not a repeated firearm flash.
+
+### 3.8 Impact variants
+
+**World**
+
+- Stop at the surface.
+- Orient the broken crown to the surface normal.
+- Offset it slightly along the normal to avoid z-fighting.
+- Keep the billboard nucleus facing the current camera.
+
+**Player**
+
+- Use the same nucleus but omit the flat wall crown.
+- Tighten the core and add two short crawling spikes.
+- Begin real chain arcs at this contact.
+
+**Miss**
+
+- End cleanly at range.
+- Fade the outer sheath over the last few percent.
+- Do not show a wall crown or environmental light.
+
+Impact variants should be visual input states, not inferred through expensive
+per-frame scene queries.
+
+### 3.9 Chain discharge
+
+Actual chain targets deserve more energy than decorative forks:
+
+- begin at the primary impact nucleus;
+- include a thin truth line between actual chain endpoints;
+- use one or two displaced rift streams with larger amplitude;
+- snap at the same cadence but use independent presentation seeds;
+- make the first chain edge brightest and reduce energy with chain depth;
+- keep decorative forks shorter, dimmer, and unattached to characters.
+
+Chain arcs are additional effect draws only when the gameplay event contains
+real chain edges. They are not part of the common no-chain budget.
+
+---
+
+## 4. Rendering technique research
+
+### 4.1 Options compared
+
+| Technique | Visual ceiling | CPU/update cost | Fragment cost | Draw/object count | Decision |
+|---|---:|---:|---:|---:|---|
+| Cylinder segments | low | very high | moderate | very high | reject |
+| CPU rebuilt ribbon | good | medium/high | low | low | reject for sustain |
+| GreasedLine | good | medium when points change | low/moderate | low | compatibility fallback |
+| One wide analytic quad | excellent | negligible | high across full envelope | one draw | research comparator |
+| Fixed GPU multi-strip | excellent | negligible | low/moderate | one draw | production recommendation |
+| Particle chain | noisy | medium/high | high overdraw | variable | impacts only, if ever |
+
+The important comparison is the final two rows.
+
+An analytic four-vertex quad is elegant: the fragment shader can draw every
+line, fork, and halo as a signed-distance field. Its weakness is that every
+pixel in the broad beam rectangle evaluates all procedural fields, including
+the large transparent gaps between jagged streams. A long diagonal beam can
+make that rectangle surprisingly large.
+
+A fixed multi-strip spends a few hundred vertex invocations instead. The vertex
+shader evaluates procedural centers at static nodes and the rasterizer shades
+only the actual strips. On the expected WebGL2 hardware, a few hundred vertices
+are negligible compared with repeatedly evaluating noise over thousands of
+transparent fragments. It also produces naturally angular piecewise-linear
+lightning.
+
+This is the Carmack-style trade: use more of the cheap thing—static vertices—to
+avoid large quantities of the expensive thing—overdraw and fragment work.
+
+### 4.2 Production primitive: fixed GPU multi-strip
+
+Create one immutable hero mesh containing several disconnected indexed strips:
+
+| Part | Approximate nodes | Purpose |
+|---|---:|---|
+| Truth spine | 2 | exact damaging line and inner glow |
+| Pressure sheath | 20–24 | broad irregular outer field |
+| Dominant stream | 28–32 | main jagged silhouette |
+| Subordinate stream A | 24–28 | broken secondary energy |
+| Subordinate stream B | 24–28 | broken secondary energy |
+| Previous dominant ghost | 28–32 | short persistence |
+| Fork A | 6–8 | optional rupture |
+| Fork B | 6–8 | optional rupture |
+
+With two side vertices per node, duplicated joins where useful, and static
+indices, one hero sheet is 352 vertices. The hero duplicates that immutable
+sheet once and rotates the pair +/-45 degrees around the truth axis, producing
+an X-shaped volumetric cross-section at 704 vertices while remaining one draw.
+The world mesh stays a single billboard sheet, omits the ghost, one subordinate
+stream, and one fork, and remains below 150 vertices.
+
+The topology is created once. During firing, only uniforms or instance buffers
+change. The vertex shader decides each part's position, width, intensity, and
+visibility from its static `aAlong`, `aSide`, `aPart`, and `aNode` attributes.
+
+The strips share one `ShaderMaterial` and one blending mode, so the complete
+beam is one draw. Additive or premultiplied blending makes overlaps within the
+same mesh harmless.
+
+### 4.3 Why not GreasedLine as the primary
+
+GreasedLine remains a useful reference, but its installed `setPoints()` path
+processes and replaces line data. That is better than 18 cylinders, but it
+still puts sustained deformation and buffer work on the CPU. Multiple layered
+GreasedLines would also make the one-draw composition harder. It is not a
+shipping fallback; reconsider it only if the fixed topology exposes a concrete
+production defect.
+
+Do not make it the visual ceiling.
+
+### 4.4 Mesh attributes
+
+A compact static vertex layout is enough:
 
 ```ts
-interface HitscanImpact {
-  kind: "none" | "world" | "player";
-  distance: number;
-  point: Vec3;
-  normal: Vec3;
-  entityId?: EntityId;
-  hitLocation?: HitLocation;
+// position.x = normalized along coordinate
+// position.y = strip side, -1 or +1
+// position.z = part id (+16 for the hero's second crossed sheet)
+// uv.x       = normalized node coordinate inside this part
+// uv.y       = stable per-node variation
+```
+
+The hero mesh is a normal retained mesh because there is only one first-person
+beam. The world mesh uses thin instances and custom buffers so all visible
+remote beams can share one draw.
+
+Suggested world instance data:
+
+```ts
+interface VoltaicGpuSample {
+  startAndSeed: Float32Array; // xyz + presentation seed
+  endAndState: Float32Array;  // xyz + electrical state
+  colorEnergy: Float32Array;  // rgb + intensity
+  widthsFlags: Float32Array;  // width, displacement, impact kind, life
 }
 ```
 
-The trace must:
-
-1. Normalize the direction once.
-2. Compute the BSP impact and distance.
-3. Compute the closest eligible player capsule intersection.
-4. Choose the smaller positive distance.
-5. Apply damage only when the winning candidate is a player.
-6. Return a max-range `none` endpoint when neither wins.
-
-This is a gameplay correctness change and therefore needs its own focused tests.
-It should be implemented before the new endpoint is put on the wire.
-
----
-
-## 4. Historical and engine research
-
-### 4.1 Quake III's useful precedent
-
-The open Quake III source keeps targeting and presentation separate:
-
-- `CG_LightningBolt()` computes a muzzle/view direction, traces to the world, and
-  uses `trace.endpos` as the beam endpoint.
-- It uses the provided weapon-origin/tag point as the visual beam origin even
-  though that can differ slightly from the trace origin.
-- It adds an impact effect only when the trace actually hits.
-- The renderer's `RB_SurfaceLightningBolt()` draws several rotated camera-facing
-  rail-core quads, not a chain of solid cylinders.
-
-The exact Q3 implementation is not a blueprint for modern visuals, but it
-validates two principles:
-
-1. Resolve the hit endpoint independently from the decorative muzzle origin.
-2. Use camera-facing beam surfaces for predictable apparent width.
-
-Relevant primary-source files:
-
-- [Quake III `cg_weapons.c`](https://github.com/id-Software/Quake-III-Arena/blob/master/code/cgame/cg_weapons.c)
-- [Quake III `tr_surface.c`](https://github.com/id-Software/Quake-III-Arena/blob/master/code/renderer/tr_surface.c)
-
-### 4.2 Babylon `GreasedLine`
-
-Babylon's
-[`GreasedLine`](https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/greased_line)
-is designed for arbitrary-width 3D lines rendered as triangles. Relevant features
-available in the resolved Babylon 8.56.0 package include camera-facing expansion,
-size attenuation, widths, colors, disconnected paths, dashing, offsets, and live
-point replacement.
-
-It is a strong spike primitive and already removes the current cylinder-chain
-failure modes. However, installed-source inspection changes the production
-recommendation:
-
-- `setPoints()` converts the point arrays, recomputes widths and color pointers,
-  and calls `_setPoints()`;
-- `_setPoints()` allocates a new `ArrayBuffer`, regenerates positions, indices,
-  UVs, previous/next attributes, and line-length counters;
-- it reapplies vertex data and refreshes bounds unless lazy mode is used;
-- the stock fragment shader produces a hard line edge and dash/color logic, not
-  an analytic soft core and corona;
-- a three-layer beam therefore means repeated geometry work and roughly three
-  transparent draws per primary beam.
-
-Those costs are modest for a few short lines, but they are avoidable for a
-continuous effect whose topology and visual grammar are known in advance.
-
-**Conclusion:** use GreasedLine to establish endpoint correctness, width targets,
-and a fallback path. The production target should be a static analytic ribbon
-whose motion is evaluated on the GPU.
-
-### 4.3 Babylon ribbons
-
-Babylon
-[`CreateRibbon`](https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/ribbon/)
-can update an existing ribbon when path topology is unchanged. SHAG already uses
-updatable ribbons for projectile trails and weapon slash effects.
-
-Ribbons offer full UV and material control, but a CPU-built camera-facing world
-ribbon has a difficult first-person edge case: the beam direction is almost
-collinear with the view direction. Robust hybrid world/pixel extrusion belongs
-in the vertex shader. For a generic line this recreates GreasedLine work; for
-this fixed beam it also enables the one-pass analytic material and eliminates
-all recurring topology updates.
-
-Conclusion: `CreateRibbon()` is useful for special impact sheets or afterimages.
-The primary beam should use a smaller purpose-built static quad rather than the
-general ribbon builder.
-
-### 4.4 Custom `ShaderMaterial`
-
-Babylon
-[`ShaderMaterial`](https://doc.babylonjs.com/typedoc/classes/BABYLON.ShaderMaterial)
-supports repository-owned vertex and fragment code with uniforms. SHAG already
-registers GLSL through `Effect.ShadersStore` in
-`GlowOverlayShaderMaterial.ts`, so a procedural one-pass beam shader is feasible.
-
-Advantages:
-
-- analytic soft core/corona in one draw;
-- arbitrary axial pulses and noise;
-- exact opacity control;
-- HDR output tailored to the current bloom threshold.
-
-Costs:
-
-- custom clip-space line extrusion must be implemented and tested;
-- transparency, fog, depth, multi-camera, WebGL/WebGPU, and mobile behavior become
-  SHAG responsibilities;
-- the repository's existing custom shaders are GLSL-oriented;
-- first-shot shader variants must be prewarmed to avoid the known weapon-effect
-  hitch pattern.
-
-Conclusion: the custom shader is now the production recommendation, not merely a
-fallback. The installed engine already uses `ShaderMaterial`, the beam needs no
-lighting model or textures, and its fixed topology sharply bounds the risk.
-GreasedLine remains the reference/fallback during the spike so visual progress
-does not depend on completing the optimized batch immediately.
-
-### 4.5 Bloom and glow
-
-SHAG already has an HDR Babylon `DefaultRenderingPipeline` with configurable
-bloom. A separate `GlowLayer` would add another render target and blur path.
-Babylon's
-[`GlowLayer`](https://doc.babylonjs.com/features/featuresDeepDive/mesh/glowLayer)
-is useful for selectively glowing emissive meshes, but it is unnecessary for the
-first prototype.
-
-Recommendation:
-
-- render an explicit low-alpha corona so bloom-off remains readable;
-- let the existing HDR bloom naturally enhance the bright core when enabled;
-- do not make a new global glow layer a beam dependency.
-
-### 4.6 Alpha and depth
-
-Babylon blend modes combine transparent pixels with the existing frame; see the
-official
-[`blend mode` documentation](https://doc.babylonjs.com/features/featuresDeepDive/materials/using/blendModes/).
-
-Recommended beam state:
-
-- depth test: enabled;
-- depth write: disabled;
-- core: alpha combine or restrained additive;
-- corona/detail: additive or premultiplied/combined after visual testing;
-- `isPickable = false`;
-- shadows: disabled;
-- no collision participation;
-- world camera/layer, not the viewmodel-only camera layer.
-
-Pure additive blending reduces sorting artifacts but can overexpose crossed
-beams. The prototype must be checked on bright and dark maps with bloom from 0 to
-3.
-
-### 4.7 Modern Warsow source audit
-
-The current Warsow/qfusion source was inspected at commit
-`d4f91d54ab4f21e83536bac9a3aab8dab7c62a56`. Its Lasergun is substantially more
-careful than a simple legacy beam:
-
-- local Lasergun presentation is predicted;
-- remote origin and endpoint samples are interpolated;
-- the gameplay trace origin and weapon projection origin are separate;
-- sustained effects are tracked and pooled per owner and POV/non-POV slot;
-- the straight strong beam uses a 12-unit view-aligned tiled ribbon;
-- the weak curved beam uses 24 configurable subdivisions, traces each segment,
-  and uploads camera-facing quads;
-- endpoint contact includes a rotating model, particles, a loop sound, and a
-  light;
-- one tiled beam material supplies the visual identity.
-
-This is the baseline to beat. The transferable lessons are prediction,
-interpolation, pooled ownership, endpoint truth, visual-muzzle separation, stable
-world-space tiling, and a continuous contact response. The CPU subdivision and
-asset-driven material are not constraints SHAG needs to inherit.
-
-### 4.8 GPU-native analytic ribbon
-
-The optimized primary beam needs only one static quad with attributes for
-longitudinal coordinate and side. The vertex shader expands it between two
-instance-provided endpoints. The fragment shader interprets the quad as a beam
-cross-section and analytically composes all layers.
-
-The useful primitives are:
-
-- `smoothstep` for controllable coverage ramps;
-- `fwidth` for resolution-aware antialiasing of procedural edges;
-- a small number of sine harmonics for stable, band-limited field motion;
-- HDR color above 1.0 for the existing bloom pipeline;
-- thin-instance custom attributes for endpoint and profile data.
-
-The official Babylon instance API permits custom per-instance vertex attributes,
-and the resolved package exposes `thinInstanceSetBuffer()`,
-`thinInstanceBufferUpdated()`, and partial buffer updates. Standard derivatives
-are supported by Babylon across WebGL2 and the WebGL1 extension path.
-
-One wide quad can contain:
-
-1. a straight antialiased damage core;
-2. a broad exponential or smoothstep corona;
-3. three piecewise-linear jagged bolt signed-distance fields;
-4. one or two state-seeded forks;
-5. a fading copy of the previous electrical state;
-6. a blue-violet torn-air sheath with irregular density;
-7. muzzle and endpoint width envelopes.
-
-No curve vertices need to be regenerated for the primary beam. The procedural
-field is continuous at every frame rate because time is an input, not a reason to
-create a new random path.
-
-The best motion is intentionally not continuously smooth. Electricity should
-snap between discrete deterministic states. The exact core is continuous; the
-outer streams switch at roughly 18–24 Hz while the previous state fades briefly.
-This gives the violence of high-speed lightning photography without CPU geometry
-rebuilds or frame-rate-dependent randomness.
-
-### 4.9 Architecture comparison after deeper research
-
-| Architecture | Visual ceiling | Per-frame CPU | Primary draws | Main weakness | Decision |
-|---|---:|---:|---:|---|---|
-| Cylinder chain | Low | High | up to 18/beam | pipe silhouette, transforms | Remove |
-| Three GreasedLines | Good | Medium | about 3/beam | rebuilds buffers, hard edge | Prototype/fallback |
-| Dynamic CPU ribbon | Good | Medium | 1-3/beam | tessellation/upload each frame | Reject for primary |
-| Analytic quad per beam | Excellent | Low | 1/beam | custom shader ownership | Safe intermediate |
-| Thin-instanced analytic quad | Excellent | Very low | 1 per render batch | culling/buffer complexity | Production target |
-| Full-screen raymarch/post-effect | Potentially high | Low | 1+ full-screen | depth/composition/overdraw | Reject |
-| GPU particle beam | Medium | Low | 1+ | noisy, weak endpoint truth | Impact detail only |
-
-The production renderer should be able to fall back from instanced analytic to
-one analytic mesh per beam without changing its shader grammar or public API.
-That keeps batching an optimization rather than a prerequisite for correctness.
-
-### 4.10 Carmack-style rendering decision
-
-The production trick is to make one rectangle impersonate an entire electrical
-system.
-
-```text
-4 vertices / 6 indices
-        ↓
-straight core + 3 lightning streams + forks + ghost + shock sheath
-        ↓
-1 beam draw
-```
-
-The shader evaluates distance to several analytic curves inside the quad. Each
-curve is generated from two bands of piecewise-linear one-dimensional noise:
-
-- coarse knots create the large violent silhouette;
-- fine knots create sharp local fractures;
-- an endpoint envelope pins the chaos to the muzzle and impact;
-- state and stream seeds keep the three bolts related but non-identical;
-- the previous state is evaluated once more at reduced intensity during the
-  short transition window.
-
-Use fixed, explicitly written noise evaluations rather than a general FBM loop.
-The shader needs at most two spatial scales. More octaves mostly add shimmer and
-fragment cost, not readable electricity.
-
-This is the highest spectacle-per-primitive option found in the comparison. It
-also leaves a clean fallback: the same visual state can drive two or three
-ordinary procedural ribbons if a target GPU rejects the hero shader.
-
----
-
-## 5. Visual design principles
-
-### 5.1 Hitscan readability rules
-
-1. The full damaging path appears immediately.
-2. The primary spine terminates at the resolved impact.
-3. Traveling pulses are overlays on an already-visible beam.
-4. The primary spine cannot wander away from its true damaging ray.
-5. Decorative forks do not touch an entity unless that entity is a real chain
-   target.
-6. No impact effect appears on a max-range miss.
-7. World impacts and player impacts are visually different.
-
-### 5.2 First-person comfort rules
-
-- Keep the beam narrow near the camera.
-- Fade in opacity over the first short section rather than presenting an opaque
-  pipe beside the camera.
-- Do not place a large point light at the near muzzle every 48 ms.
-- The beam should not oscillate across the crosshair.
-- Recoil/bob may move the decorative muzzle start, but not the target endpoint.
-- At full ADS, the beam should feel more optically stable.
-
-### 5.3 Remote readability rules
-
-- The beam must visually leave the remote weapon/hand.
-- The endpoint must be stable enough to read tracking skill.
-- A released beam should disappear promptly without a one-frame hole between 20
-  Hz samples.
-- Third-person corona width must not scale into a giant opaque rod at long range.
-- Multiple beams crossing should remain attributable by color and origin.
-
-### 5.4 Distinguishing actual and decorative branches
-
-Voltaic has two kinds of branch:
-
-- **Decorative filament/fork:** low intensity, short, never attaches to another
-  player, no gameplay meaning.
-- **Chain arc:** server-provided target-to-target connection, brighter, longer,
-  accompanied by target contact feedback.
-
-The two must not look identical. Otherwise players cannot tell which opponents
-were actually damaged.
-
----
-
-## 6. Brainstormed concepts and evaluation
-
-### 6.1 Clean surgical lance
-
-**Description:** Thin white-hot core, colored corona, tight contact point.
-
-**Strengths**
-
-- Maximum aim readability.
-- Very cheap.
-- Works for both first- and third-person.
-
-**Weaknesses**
-
-- Too generic by itself.
-- Voltaic needs additional electrical character.
-
-**Decision:** Use as the shared foundation.
-
-### 6.2 Frequency ruler
-
-**Description:** Small bright bands cross the Lasergun beam at regular spacing
-and move toward impact.
-
-The base beam remains fully visible; bands are only phase information.
-
-**Strengths**
-
-- Communicates coherent, engineered energy.
-- Motion reinforces direction without implying delayed damage.
-- Babylon GreasedLine dashing can prototype it without a custom shader.
-
-**Weaknesses**
-
-- Dash count must scale with beam length to keep spacing consistent.
-- Hard-edged dashes can strobe at low frame rates if moved too quickly.
-
-**Decision:** Recommended Lasergun detail.
-
-### 6.3 Electrical cage
-
-**Description:** A straight Voltaic spine with two low-opacity filaments that
-depart from and reconnect to the spine.
-
-**Strengths**
-
-- Reads as electricity while preserving aim truth.
-- Supports restrained, temporally coherent noise.
-- Filaments can be batched as disconnected GreasedLine paths.
-
-**Weaknesses**
-
-- Too much amplitude recreates the current visual confusion.
-- Filaments can alias or visually merge into a thick rope.
-
-**Decision:** Recommended Voltaic detail.
-
-### 6.4 Whole-beam bowed lightning
-
-**Description:** The entire primary path forms a large coherent bow.
-
-**Strengths**
-
-- Immediately dramatic.
-- Clearly distinguishes Voltaic from Lasergun.
-
-**Weaknesses**
-
-- Implies damage follows a curved path.
-- Crosses the reticle and hides tracking truth.
-- Near-camera movement is uncomfortable.
-- Already performs poorly in the current implementation.
-
-**Decision:** Reject for the primary beam. Allow larger curvature only on
-secondary chain arcs.
-
-### 6.5 Retinal afterimage
-
-**Description:** A faint 40–60 ms ribbon remains at the previous beam position
-during fast aim movement.
-
-**Strengths**
-
-- Makes fast flicks and tracking changes feel energetic.
-- Could give Lasergun a “laser calligraphy” identity.
-
-**Weaknesses**
-
-- Can obscure opponents and imply a wider damage area.
-- Adds transparent geometry and sorting.
-- Especially risky in first person.
-
-**Decision:** Optional prototype, disabled by default. If used, prefer
-third-person/spectator or a very low-opacity Lasergun-only afterimage.
-
-### 6.6 Harmonic nodes
-
-**Description:** A few energy knots move along the already-visible beam.
-
-**Strengths**
-
-- Gives forward motion without changing the primary shape.
-- Procedural spheres or short line bands require no assets.
-
-**Weaknesses**
-
-- Free-moving spheres may read as projectiles.
-- Extra mesh management is unnecessary if frequency bands achieve the same goal.
-
-**Decision:** Fold into the Lasergun frequency-band layer; do not spawn spheres.
-
-### 6.7 Contact drilling
-
-**Description:** Sustained contact grows a small rotating multi-lobed ring at a
-world impact.
-
-**Strengths**
-
-- Rewards maintaining contact visually.
-- Makes the endpoint feel powerful.
-- Can be generated from line loops or a small procedural disc.
-
-**Weaknesses**
-
-- Requires contact continuity state.
-- A growing scorch mark can falsely suggest persistent world damage.
-
-**Decision:** Use a restrained pulsing contact crown, not a permanent or growing
-decal.
-
-### 6.8 Hit tension
-
-**Description:** On player contact, Voltaic's core becomes tighter/brighter and
-endpoint activity increases.
-
-**Strengths**
-
-- Strong tactile feedback.
-- Does not need a large hit marker.
-
-**Weaknesses**
-
-- Must be driven by authoritative `impactKind`, not a client pick.
-- Excessive brightness can reveal enemies in ways not intended by gameplay.
-
-**Decision:** Recommended with small intensity differences.
-
-### 6.9 Spiral or double helix
-
-**Description:** One or two regular helices orbit the core.
-
-**Strengths**
-
-- Visually unique and procedural.
-- Works well for a sci-fi coherent beam.
-
-**Weaknesses**
-
-- Reads more like plasma or a rail trail if the spine itself twists.
-- Regular helix geometry costs more points and can shimmer at range.
-
-**Decision:** Reject for the hero effect. A helix is too orderly and reads like
-plasma containment. Voltaic should rupture and reconnect unpredictably.
-
-### 6.10 Screen-space flash only
-
-**Description:** Replace most world beam geometry with a muzzle flash, crosshair
-feedback, and endpoint flare.
-
-**Strengths**
-
-- Very cheap and comfortable in first person.
-
-**Weaknesses**
-
-- Loses the weapon's defining continuous-beam identity.
-- Fails remote readability.
-
-**Decision:** Reject.
-
-### 6.11 Traveling bolt
-
-**Description:** Show only a segment moving from muzzle to endpoint.
-
-**Strengths**
-
-- Strong motion and speed.
-
-**Weaknesses**
-
-- Communicates projectile travel time.
-- Directly conflicts with hitscan philosophy.
-
-**Decision:** Reject. Moving overlays are allowed only over a fully visible
-instantaneous spine.
-
-### 6.12 Smooth contained storm or ion braid
-
-**Description:** A straight white-hot core is held inside two amber electrical
-field filaments that appear to orbit it. Their transverse position, brightness,
-and apparent depth evolve continuously from physical distance, time, and seed.
-
-**Strengths**
-
-- Immediately distinguishes Voltaic from a conventional laser.
-- Looks volumetric from one camera-facing quad.
-- Requires no texture, curve rebuild, or particle swarm.
-- The core remains a perfect hitscan ruler.
-- Front/back dimming creates a readable cadence without gaps in damage truth.
-
-**Weaknesses**
-
-- Excessive amplitude becomes a plasma corkscrew.
-- High spatial frequency aliases at distance.
-- Both filaments can visually merge at unfavorable phases.
-
-**Decision:** Superseded. The single-quad analytic insight is retained, but the
-smooth braid aesthetic is rejected in favor of snapping jagged lightning.
-
-### 6.13 Surface ion wake
-
-**Description:** While a world impact sweeps across a surface, retain the last
-few authoritative contact points as a rapidly fading, surface-aligned hot groove
-and tiny outward sparks.
-
-**Strengths**
-
-- Makes floor and wall sweeping feel physical and powerful.
-- Adds motion history where it is semantically true: at the contact surface.
-- Creates a signature effect absent from classic Quake/Warsow beams.
-- Can use a tiny fixed ring buffer and one batched procedural strip.
-
-**Weaknesses**
-
-- A long-lived mark could imply continuing damage.
-- Repeated decals would be expensive and clutter competitive scenes.
-- Network endpoint jumps must not connect across unrelated surfaces.
-
-**Decision:** Optional polish only. Do not include it in the first hero-effect
-spike. The live impact storm is more important than persistent floor history.
-
-### 6.14 Voltaic Rift
-
-**Description:** A precise white spine holds open three violently jagged gold
-lightning streams inside a faint blue-violet shock sheath.
-
-**Strengths**
-
-- Huge, unmistakable silhouette.
-- Looks like a weapon-scale lightning strike rather than a laser ribbon.
-- The exact core preserves hitscan readability.
-- All primary layers can be synthesized in one shader pass.
-- Chaos can grow toward impact without covering the crosshair.
-
-**Weaknesses**
-
-- Excessive width can obscure a target.
-- Poorly filtered fine fractures will shimmer.
-- Three equally bright streams can become visual soup.
-
-**Decision:** Final hero concept. Use one dominant stream, two subordinate
-streams, and one invariant core. Amplitude and brightness must have hierarchy.
-
-### 6.15 Snap-state ghosting
-
-**Description:** Outer lightning changes in discrete states. For 25–45 ms after
-a state change, the previous bolt remains as a dim violet/gold ghost.
-
-**Strengths**
-
-- Creates violent high-frequency motion without camera-space blur.
-- Makes 18–24 Hz state changes feel intentional rather than choppy.
-- Can be drawn in the same shader from the previous state seed.
-- Suggests electrical persistence in the air.
-
-**Weaknesses**
-
-- A long ghost becomes a rail trail.
-- Drawing all three previous streams doubles procedural evaluations.
-
-**Decision:** Recommended. Ghost only the former dominant stream plus a weak
-sheath imprint at first. Add more only if the Beam Lab proves it worthwhile.
-
-### 6.16 Torn-air shock sheath
-
-**Description:** A broad, low-opacity blue-violet envelope surrounds the bolt.
-Its edge is irregular and locally punctured by the current electrical state.
-
-**Strengths**
-
-- Gives the beam scale and volume.
-- Separates the gold bolt from bright yellow or white map surfaces.
-- Makes bloom feel like emitted energy rather than a soft line filter.
-- Costs only additional fragment math inside the existing quad.
-
-**Weaknesses**
-
-- Too much opacity becomes a solid tube.
-- A uniformly smooth sheath looks like a force field.
-
-**Decision:** Recommended at low opacity. Break density along the length and
-allow short holes around major forks.
-
-### 6.17 Impact storm
-
-**Description:** A large white-hot nucleus surrounded by a rotating broken
-crown, radial spikes, small crawling arcs, and a restrained halo.
-
-**Strengths**
-
-- Provides the visual payoff at the point the player is aiming toward.
-- Can be one compact procedural mesh/material draw.
-- Makes sustained contact feel powerful without blinking the beam.
-- Provides a natural source for chain arcs.
-
-**Weaknesses**
-
-- Can hide the target if oversized.
-- Too many free particles increase cost and visual noise.
-
-**Decision:** Mandatory. Prefer a fixed procedural star/crown mesh over a large
-particle system. The nucleus stays compact; spikes and halo provide the size.
-
----
-
-## 7. Final visual specification
-
-### 7.1 Shared beam anatomy
-
-Every active beam consists of the following **logical** layers. Core, corona,
-and primary detail are composed inside one analytic material pass, not separate
-meshes or draws:
-
-1. **Core layer**
-   - Straight from visual muzzle to authoritative endpoint.
-   - Thin, near-white center tinted toward weapon color.
-   - Highest opacity and HDR intensity.
-
-2. **Corona layer**
-   - Same authoritative path.
-   - Approximately 2.5–4 times core width.
-   - Low alpha and lower HDR intensity.
-   - Present even when bloom is disabled.
-
-3. **Detail layer**
-   - Lasergun bands or Voltaic filament bundle.
-   - Lower opacity than the core.
-   - Never replaces the core.
-
-4. **Muzzle transition**
-   - Short alpha/width ramp at the visual origin.
-   - Small persistent nozzle glow while active.
-   - No repeated large muzzle flash on every 20 Hz damage tick.
-
-5. **Endpoint contact**
-   - Type-specific procedural effect.
-   - One capped pooled point light for the endpoint, subject to existing light
-     pool limits.
-
-### 7.2 Lasergun profile
-
-**Identity:** coherent industrial cutting beam.
-
-Suggested initial values for prototype tuning:
-
-| Parameter | Initial direction |
-|---|---|
-| Core color | white-hot center with red/orange tint |
-| Corona color | saturated red |
-| Core apparent width | narrow; target roughly 1.5–2.5 px at common range |
-| Corona apparent width | roughly 5–8 px, low alpha |
-| Band spacing | approximately 24–36 world units |
-| Band speed | fast enough to flow, slow enough not to strobe |
-| Path displacement | zero |
-| Release fade | approximately 35–60 ms |
-
-Detail behavior:
-
-- The complete core is always present.
-- A dashed bright overlay moves from muzzle toward impact.
-- Dash count is derived from beam length so world spacing is stable.
-- On a player hit, the endpoint becomes brighter and slightly tighter.
-- On a wall hit, render a compact red contact crown aligned to the surface
-  normal.
-
-### 7.3 Voltaic profile
-
-**Identity:** guided electrical tether with real chain discharge.
-
-Suggested initial values:
-
-| Parameter | Initial direction |
-|---|---|
-| Core color | near-white warm yellow, retaining current weapon palette |
-| Corona color | amber/orange |
-| Primary core width | slightly thinner than current cylinders |
-| Filament count | 2 |
-| Primary filament amplitude | approximately 2–5 world units, length-scaled and capped |
-| Primary path samples | none; analytic field over one straight quad |
-| Filament time | continuous server/demo-derived time |
-| Field rotation | approximately 1–2 turns over an 850-unit beam |
-| Projected detail cutoff | fade harmonics before they become subpixel |
-| Decorative fork life | approximately 60–100 ms |
-| Chain arc amplitude | larger than primary, approximately 6–14 units |
-| Release fade | approximately 45–70 ms |
-
-Detail behavior:
-
-- The primary spine follows the actual authoritative wandered damage ray.
-- Two filaments appear to orbit the spine with amplitude pinned to zero at both
-  endpoints.
-- Filaments use different phases plus a restrained second harmonic; brightness
-  is modulated as each strand passes in front of or behind the spine.
-- A compression band moves toward the endpoint but never erases or replaces the
-  instantaneous core.
-- Occasional decorative forks may leave an interior point but remain short and
-  never attach to another player.
-- Real chain arcs connect server-provided target points and are brighter than
-  decorative forks.
-
-### 7.4 World impact
-
-For `impactKind === "world"`:
-
-- terminate exactly at the server point;
-- orient a tiny procedural ring/crown using the server surface normal;
-- pulse brightness while contact continues;
-- place the pooled light slightly away from the wall along the normal;
-- do not create a new permanent wall mark every 48 ms;
-- refresh one short-lived 4–6-point surface ion wake keyed by shooter;
-- split the wake across discontinuous surfaces instead of drawing through air.
-
-### 7.5 Player impact
-
-For `impactKind === "player"`:
-
-- terminate at the actual ray/capsule intersection, not target origin;
-- do not render a wall-oriented disc;
-- brighten/tighten the contact;
-- Voltaic may add two or three short crawling arcs around the point;
-- chain arcs begin at this actual primary contact point.
-
-### 7.6 Miss
-
-For `impactKind === "none"`:
-
-- terminate at weapon range;
-- slightly fade the last few percent of the beam;
-- do not spawn a contact crown or point light burst.
-
-### 7.7 Why this can exceed the classic effects
-
-The aim is not merely more particles. It is to preserve everything the classic
-effects got right while improving the categories their renderers could not
-address cheaply.
-
-| Quality | Quake III lightning | Modern Warsow Lasergun | Proposed Voltaic |
-|---|---|---|---|
-| Immediate hitscan path | Yes | Yes | Yes, invariant core |
-| Trace origin separated from visual muzzle | Yes | Yes | Yes |
-| Predicted local presentation | Limited-era model | Yes | Yes |
-| Interpolated remote presentation | Basic snapshot era | Yes | Yes plus authoritative impact payload |
-| Soft antialiased core without texture | No | Asset/material dependent | Yes, analytic |
-| Distinct volumetric identity | Rotated core planes | Tiled ribbon/curved weak mode | Shader-only contained storm braid |
-| World-spaced motion | Limited | Tiled material | Analytic bands/compression |
-| Persistent contact feel | Impact effect | Model, particles, light, sound | Crown, capped light, surface ion wake |
-| Sustained CPU geometry work | Low for straight legacy bolt | CPU quads/subdivisions | None for primary beam |
-| Multi-beam batching | Renderer-specific | Dynamic batches | Explicit thin-instance target |
-| External visual assets | Yes | Yes | None |
-
-The differentiator is coherence: muzzle, core, field, hit tension, chain arcs,
-contact crown, and ion wake all respond to one authoritative impact state. A
-larger but disconnected particle effect would look busier, not better.
-
----
-
-## 8. Rendering architecture
-
-### 8.1 Recommended class split
-
-Keep `HitscanEffects` as the public coordinator but move beam-specific state into
-a focused renderer:
-
-```text
-HitscanEffects
-└── ProceduralBeamRenderer
-    ├── BeamProfile
-    ├── BeamInstancePool
-    ├── AnalyticBeamBatch (world)
-    ├── AnalyticBeamBatch (POV)
-    ├── AnalyticBeamMaterial
-    ├── ProceduralArcBatch
-    └── BeamImpactRenderer
-```
-
-Proposed API:
-
-```ts
-type BeamImpactKind = "none" | "world" | "player";
-
-interface BeamSample {
-  shooterId: string;
-  weaponId: "lasergun" | "voltaic";
-  visualStart: Vector3;
-  traceOrigin: Vector3;
-  direction: Vector3;
-  distance: number;
-  impactKind: BeamImpactKind;
-  impactNormal?: Vector3;
-  serverTick?: number;
-  localPredicted: boolean;
-}
-
-interface BeamInstance {
-  updateSample(sample: BeamSample): void;
-  setVisualStart(start: Vector3): void;
-  stop(fadeSeconds?: number): void;
-}
-```
-
-### 8.2 Why a separate renderer
-
-`HitscanEffects.ts` already handles many unrelated effect types and is over 1,200
-lines. A beam renderer provides:
-
-- explicit pooled lifecycle;
-- string-keyed shooter identity;
-- profile-based visuals;
-- testable deterministic field functions and instance packing;
-- a place to handle endpoint smoothing without affecting tracers and bolts;
-- easier shader and fallback prewarming.
-
-### 8.3 Fixed topology and batching plan
-
-The source mesh is a static quad with four vertices and six indices. Each vertex
-stores only:
-
-- `aAlong`: 0 at muzzle and 1 at endpoint;
-- `aSide`: -1 or +1 across the beam.
-
-World and POV effects use separate batches because the current viewmodel uses a
-second camera, `WEAPON_LAYER_MASK`, and rendering group 1. Within each batch,
-thin instances share one material and static geometry.
-
-Suggested instance attributes:
-
-```ts
-// Four vec4 attributes = 64 dynamic/static bytes per active beam.
-iStartProfile = [start.x, start.y, start.z, profileId];
-iEndFlags = [end.x, end.y, end.z, packedImpactFlags];
-iColorSeed = [color.r, color.g, color.b, seed01];
-iParams = [worldWidth, intensity, hitEnergy, phaseOffset];
-```
-
-The Babylon matrix instance buffer can contain static identity matrices. Only
-endpoint/state attributes need synchronization. At 16 active beams, uploading
-four vec4 values per beam is 1 KiB per update before driver overhead. Do not
-allocate new arrays; retain one maximum-size `Float32Array` per attribute group
-and set `thinInstanceCount` to the active count.
-
-Expected primary cost:
-
-- one world-beam draw and one POV-beam draw in the common full-quality case;
-- no geometry reconstruction;
-- no per-segment transform nodes;
-- no transparent sorting requirement when the selected blend is order
-  independent;
-- bounded fill rate from one corona-width quad per beam.
-
-If thin-instance integration complicates the first spike, render one static quad
-mesh per active beam using the same material and uniforms. That intermediate is
-still one draw and no geometry rebuild per beam, and it preserves the optimized
-shader design.
-
-### 8.4 Width strategy
-
-Neither purely world-space nor purely screen-space width is ideal:
-
-- world width disappears at range;
-- fixed pixel width can make distant beams too visually important.
-
-Implement a hybrid width in the vertex shader:
-
-1. Transform both endpoints into view space.
-2. Derive a view-facing side vector from the beam tangent and view direction.
-3. Compute world units per pixel at each endpoint from depth, vertical FOV, and
-   viewport height.
-4. Begin with the profile's world width.
-5. Clamp the core to a small minimum and maximum projected pixel width.
-6. Allow the corona to attenuate more aggressively than the core.
-7. Apply a separate near-muzzle width/alpha envelope for POV comfort.
-
-When the beam points almost directly at the camera, the tangent/view cross
-product becomes unstable. Fall back to camera right/up, retain the previous
-valid side for that instance if available, and reject non-finite output. The
-spike must also clip or advance a muzzle point that falls behind the near plane.
-
-Do not lock numeric widths until tested at:
-
-- common 16:9 desktop resolution;
-- high-DPI display;
-- mobile resolution;
-- FOV extremes;
-- ADS FOV;
-- 100–850 unit beam lengths.
-
-### 8.5 Field generation and compatibility fallback
-
-This CPU path generator is retained only for the GreasedLine compatibility
-fallback and for comparison testing. The production analytic primary beam does
-not rebuild a path. The straight fallback core needs only start/end.
-
-For Voltaic filaments:
-
-```ts
-for each sample i:
-  t = i / (sampleCount - 1)
-  envelope = sin(PI * t)
-  base = lerp(start, end, t)
-  offset =
-    right * noise1(seed, i, stateA/stateB) +
-    up    * noise2(seed, i, stateA/stateB)
-  point = base + offset * envelope * amplitude
-```
-
-Temporal algorithm:
-
-1. Compute an integer VFX state index at 20–30 Hz.
-2. Generate path A from `stateIndex`.
-3. Generate path B from `stateIndex + 1`.
-4. Smoothly interpolate A→B using fractional state time.
-5. Seed from shooter ID, weapon ID, filament index, and state index.
-
-Properties:
-
-- fixed result for the same seed and time;
-- no frame-rate dependence;
-- pinned muzzle and endpoint;
-- continuous motion;
-- reproducible demo playback if demo time is used.
-
-The path generator should use plain numeric vectors or a small reusable scratch
-buffer so it can be unit-tested without a Babylon scene.
-
-### 8.5.1 Production analytic beam field
-
-The straight primary beam has no generated path. Let `s = aAlong * beamLength`
-be physical distance along the ray and `y` be signed transverse position across
-the expanded quad.
-
-Conceptual fragment functions:
+Use retained maximum-size typed arrays. Update active slots in place and set the
+active instance count; do not allocate a new array per event or frame.
+
+### 4.5 Vertex generation
+
+For every stream node:
+
+1. interpolate its straight center from start to end;
+2. evaluate a coarse and fine value field at the node coordinate;
+3. multiply by the spatial displacement envelope;
+4. offset in a camera-facing perpendicular basis;
+5. evaluate neighboring node centers to derive a screen-facing join direction;
+6. for the hero, rotate the two sheet-side vectors +/-45 degrees around the
+   truth axis; for world/chain, retain one billboard side vector;
+7. extrude `aSide` by the hybrid world/pixel half-width;
+8. project normally so world depth still occludes the strip.
+
+The stream center is generated in the plane most legible to the viewing camera.
+That makes the decorative shape view-dependent, which is acceptable and
+desirable. The truth spine remains the same world segment.
+
+At a near-parallel camera angle, the usual cross product between beam tangent
+and view direction becomes unstable. Fall back to camera right, then retain the
+last valid side vector for the local hero beam. Reject non-finite output before
+uploading remote endpoints.
+
+### 4.6 Cheap sharp noise
+
+The desired motion needs value noise, not general fractional Brownian motion.
+A small multiplication-and-`fract` hash avoids texture access and expensive
+trigonometric hash calls:
 
 ```glsl
-float aaLine(float distanceToLine, float halfWidth) {
-  float aa = max(fwidth(distanceToLine), 0.0001);
-  return 1.0 - smoothstep(halfWidth - aa, halfWidth + aa, distanceToLine);
+float hash11(float p) {
+  p = fract(p * 0.1031);
+  p *= p + 33.33;
+  p *= p + p;
+  return fract(p);
 }
 
-float endpointEnvelope(float t) {
-  return smoothstep(0.0, 0.04, t) * smoothstep(1.0, 0.94, t);
+float linearNoise(float x, float seed) {
+  float cell = floor(x);
+  float f = fract(x);
+  float a = hash11(cell + seed);
+  float b = hash11(cell + 1.0 + seed);
+  return mix(a, b, f) * 2.0 - 1.0;
 }
-
-float phase = s * spatialFrequency + effectTime * phaseSpeed + seedPhase;
-float orbitY = sin(phase) + 0.28 * sin(phase * 2.17 + seedPhase);
-float orbitZ = cos(phase);
-float filamentCenter = amplitude * endpointEnvelope(aAlong) * orbitY;
-float filament = aaLine(abs(y - filamentCenter), filamentHalfWidth);
-float frontBack = mix(0.35, 1.0, orbitZ * 0.5 + 0.5);
 ```
 
-The final HDR signal combines:
+For a stream:
+
+```glsl
+float boltField(float s, float state, float seed) {
+  float coarse = linearNoise(s / 92.0, seed + state * 17.0);
+  float fine = linearNoise(s / 27.0, seed * 3.1 + state * 41.0);
+  return coarse + fine * 0.34;
+}
+```
+
+Evaluate this in the vertex shader. The strip interpolation between nodes is
+the intentional sharp lightning shape; do not smooth the value-noise fraction.
+Use explicit fixed expressions rather than a dynamic loop.
+
+The decoration does not require cross-GPU bit identity. If exact demo visuals
+later become desirable, send or record only the small state seed and accept
+minor floating-point variation—not path vertices.
+
+### 4.7 Stream construction
+
+The three streams should not look like parallel copies:
+
+- dominant: coarse field plus fine fractures, full path;
+- subordinate A: different seed, broken visibility windows, 65–80 percent
+  amplitude;
+- subordinate B: different scale and polarity, 45–70 percent amplitude;
+- ghost: previous dominant state, 70–90 percent amplitude, rapidly fading;
+- fork: begins on the dominant path, diverges through a short node interval,
+  never reaches an unrelated target.
+
+Broken windows can be calculated per segment from node index and state. Do not
+alpha-dither at a frequency that crawls or sparkles under temporal AA.
+
+### 4.8 Strip joins and cracks
+
+A naive independent quad per segment can leave pinholes at acute corners.
+Use one of these in order:
+
+1. a continuous indexed strip whose node extrusion uses the normalized average
+   of incoming and outgoing screen-space normals;
+2. a clamped miter length, beveling extremely sharp turns;
+3. tiny overlapping joint diamonds generated by the same topology only if the
+   first two still show cracks.
+
+The corona portion of each strip should hide microscopic join errors. Round
+caps are unnecessary for internal nodes and waste fragments.
+
+### 4.9 Fragment shader
+
+The fragment shader should be intentionally boring. Interpolate a signed strip
+coordinate and derive a soft edge:
+
+```glsl
+float d = abs(vSide);
+float aa = max(fwidth(d), 0.001);
+float core = 1.0 - smoothstep(0.20 - aa, 0.20 + aa, d);
+float glow = 1.0 - smoothstep(0.72 - aa, 1.0 + aa, d);
+```
+
+Part id selects a small fixed color/energy table. Stream interruption, fork
+life, and state fading should be decided in the vertex shader or through flat
+varyings wherever possible.
+
+Avoid:
+
+- texture samples;
+- fragment noise;
+- unbounded loops;
+- lighting calculations;
+- shadows, fog, picking, and collision;
+- `discard` unless profiling proves it wins on target GPUs.
+
+### 4.10 Width and displacement
+
+Use a hybrid measure for both line width and stream displacement:
+
+1. calculate a world-space target;
+2. derive world units per pixel at the node's view depth;
+3. enforce a projected minimum for readability;
+4. enforce a projected maximum for aim comfort and fill rate;
+5. cap the result in world units so distant beams do not gain gameplay weight.
+
+Core and displacement need separate clamps. A distant enemy beam may retain a
+one-pixel spine while its decorative displacement collapses almost completely.
+
+### 4.11 Blend mode and bright backgrounds
+
+Pure additive blending is simple, order independent, and bloom-friendly, but a
+white or gold beam can vanish against a near-white lightmap. The strongest
+candidate is Babylon's premultiplied-alpha mode:
 
 ```text
-core       = antialiased narrow line at y = 0
-inner glow = wider smooth falloff
-corona     = broad low-energy falloff
-filaments  = two phase-separated analytic lines
-bands      = world-spaced axial modulation of detail, never of core existence
-caps       = muzzle/endpoint envelopes
+result = source + destination * (1 - sourceAlpha)
 ```
 
-Use two or three harmonics, not high-frequency hash noise. This is cheaper,
-band-limited, deterministic, and easier to art-direct. Derive time from the
-rendered server/demo clock; never from the number of rendered frames.
+It permits HDR source energy while gently suppressing the immediate background
+under the narrow core. Compare it directly against additive and normal combine
+in real maps. If premultiplied output wins, accept imperfect ordering when two
+remote beams overlap; that rare artifact is cheaper and less harmful than a
+permanent contrast pass.
 
-Spatial frequency must be expressed in world units so changing beam length does
-not stretch the pattern. At distance, fade the second harmonic and then the
-filaments based on projected width. The core survives every LOD.
+Do not add a black cartoon outline. The gold inner edge and violet outer edge
+should provide chromatic contrast.
 
-### 8.5.2 Lasergun shader profile
+### 4.12 Depth and cameras
 
-- Set path amplitude to zero.
-- Use a narrower core and red/orange corona.
-- Evaluate a world-spaced saw/sine band mask moving toward the endpoint.
-- Keep a dim continuous sheath between bands.
-- Vary band brightness, not beam continuity.
+- Depth test on; depth write off.
+- Back-face culling off for the generated strips.
+- Shadows, lighting, collision, and picking off.
+- Hero beam on the appropriate first-person/world composition path used by the
+  current weapon camera setup.
+- World beam batch on the normal world layer.
+- No transparent mesh should ignore walls.
+- Advance or fade the first node when it intersects the near plane.
 
-### 8.5.3 Voltaic shader profile
+The local and world meshes use the same visual language but do not need the
+same topology, material defines, or camera layer.
 
-- Use the straight warm-white core at all times.
-- Draw two amber filaments separated by phase and slightly different harmonic
-  weighting.
-- Use the analytic quadrature term to dim the rear half of each orbit.
-- Add a low-frequency compression envelope that moves toward contact.
-- On authoritative player impact, reduce filament amplitude near the last 15
-  percent and raise core/contact intensity slightly, producing hit tension.
+### 4.13 Impact storm primitive
 
-### 8.5.4 Chain and fork geometry
+Build one immutable impact mesh containing two procedural parts:
 
-Real chain arcs do need a curved centerline. Use a second fixed strip template of
-8-12 segments. Its vertex shader generates deterministic transverse offsets from
-segment coordinate, seed, endpoints, and time. Thin-instance one arc per actual
-server-provided chain edge.
+- a camera-facing flare quad for the white nucleus and pressure halo;
+- a surface-oriented quad for the broken crown and radial spikes.
 
-Decorative forks use the same batch with a short endpoint and a non-gameplay
-flag. Their intensity and length must remain below real chain arcs. At low
-quality, omit decorative forks before reducing primary readability.
+Both parts share one material and one draw. A static part id tells the vertex
+shader whether to construct a camera-facing or normal-oriented basis. The
+fragment shader uses polar distance and angle to produce:
 
-### 8.6 Endpoint smoothing
+```text
+nucleus = tight radial falloff
+crown   = thin irregular ring * broken angular mask
+spikes  = sparse angular rays * short radial envelope
+halo    = broad low-energy radial falloff
+```
 
-Server samples arrive at the 20 Hz fire cadence. A naive lerp can drag the beam
-through geometry when the endpoint changes from one surface to another.
+Use a small fixed number of angular tests or a folded angular function, not a
+loop over particles. State and seed rotate or break the crown without changing
+topology.
 
-Recommended topology-aware rule:
+World impacts can share a thin-instance batch. The local hero impact may use a
+larger profile but still the same source mesh. Misses set impact visibility to
+zero instead of spawning and disposing an object every update.
 
-- same `impactKind`, small positional delta, and similar normal:
-  critically damp over approximately 30–50 ms;
-- player target moving continuously:
-  modest smoothing, capped so the beam does not visibly trail far behind;
-- impact kind change, large delta, or sharply different world normal:
-  snap to the new endpoint;
-- max-range miss ↔ wall/player hit:
-  snap.
+### 4.14 Environmental light
 
-The endpoint remains authoritative; smoothing is only presentation.
+The effect should first succeed without a dynamic light. Existing HDR bloom and
+the procedural contact shape carry most of the perceived energy at much lower
+cost.
 
-### 8.7 Start-point smoothing
+After the visual is stable, evaluate one short-range pooled endpoint light only
+at high quality:
 
-Local start:
+- prioritize the local hero impact;
+- cap remote Voltaic lights globally;
+- keep the light alive and vary intensity instead of enabling/disabling it;
+- prewarm affected material variants;
+- omit the light on misses and at low quality.
 
-- use `WeaponViewManager.getMuzzleWorldPosition()`;
-- eventually prefer a real tag/socket if weapon models expose one;
-- update every render frame.
+The light is polish, not part of the identity.
 
-Remote start:
+---
 
-- add a `RemotePlayerRenderer.getWeaponMuzzleWorldPosition(entityId)` query;
-- compute from the hand-attached weapon leader/root transform plus a
-  weapon-specific local muzzle offset;
-- fallback to interpolated eye position + forward offset while the model loads.
+## 5. Hero and world presentation architecture
 
-The remote start follows interpolated presentation. It should not reuse the
-discrete server event origin.
+### 5.1 One renderer, two profiles
 
-### 8.8 Muzzle offsets
+Do not build unrelated local and remote effects. Use one public renderer and
+two deliberately different profile/topology variants:
 
-If existing GLBs do not expose a stable muzzle node, add presentation-only config:
+```text
+VoltaicEffectRenderer
+├── HeroBeamMesh
+├── WorldBeamBatch
+├── HeroImpactMesh
+├── WorldImpactBatch
+└── ChainArcBatch
+```
+
+The shared renderer owns timing, acquisition, release, endpoint classification,
+quality selection, and cleanup. The profiles own only visual scale and enabled
+parts.
+
+This keeps the weapon recognizable from every camera without wasting the hero
+budget on distant players.
+
+### 5.2 Minimal effect input
+
+The renderer should consume resolved presentation data, not reach into weapon
+simulation:
 
 ```ts
-beamVisual: {
-  thirdPersonMuzzleOffset: { x, y, z },
-  firstPersonMuzzleOffset?: { x, y, z },
+type VoltaicImpactKind = 'none' | 'world' | 'player';
+type VoltaicViewKind = 'hero' | 'world';
+
+interface VoltaicEffectSample {
+  shooterKey: string;
+  viewKind: VoltaicViewKind;
+  visualStart: Vector3;
+  resolvedEnd: Vector3;
+  impactKind: VoltaicImpactKind;
+  impactNormal?: Vector3;
+  activationSeed: number;
+  effectTimeSeconds: number;
+  intensity: number;
 }
 ```
 
-The offset is transformed by the attached weapon root world matrix. Keep the
-server eye origin in the event as the trace origin and fallback.
+`activationSeed` only stabilizes presentation during one held burst. It need not
+be authoritative or identical across clients. `effectTimeSeconds` may come from
+local presentation time; demo-perfect decoration is not an effect requirement.
 
-### 8.9 Edge quality and bright-background readability
+### 5.3 Endpoint source order
 
-The analytic material must remain readable without bloom and against both dark
-and bright lightmapped surfaces:
+The renderer accepts a resolved endpoint and remains independent of its source.
+The shipping integration uses this order:
 
-- use derivative-based antialiasing on the core and filaments;
-- make the corona an explicit smooth falloff, not a post-process assumption;
-- evaluate additive, alpha-combine, and premultiplied-alpha output in HDR;
-- test a very subtle outer contrast fringe in the combined/premultiplied mode;
-- never depend on a full-screen glow layer or generated texture.
+1. an already resolved authoritative or predicted endpoint;
+2. supplied impact distance along the shot direction;
+3. one local BSP trace from the received origin/direction as a predicted or
+   legacy-demo fallback;
+4. maximum weapon range only as a degraded fallback.
 
-A contrast fringe is a narrow, low-opacity outer region that slightly attenuates
-the background before the bright core contribution. It can keep a yellow-white
-beam visible on a bright wall, but it must remain subtle enough not to look like
-a cartoon outline. If one blend mode cannot provide both the desired HDR core
-and fringe, prefer a clean one-pass beam over adding a permanent second pass;
-reserve a second contrast pass for low-visibility accessibility settings only.
+Current live play uses step 1 through the compact `voltaic_beam` event. No
+decorative geometry is transmitted, and no endpoint raycast runs every render
+frame. Older demos can degrade through the fallback order.
 
-### 8.10 Prewarming
+### 5.4 Remote start
 
-`EffectPreloader.ts` exists because first weapon effects can trigger material
-variant compilation and visible hitches. The final beam materials must be
-created/compiled during effect warmup:
+Remote accuracy is often judged more by the first 30 cm than by the final 5 cm.
+The beam must appear attached to the moving weapon:
 
-- analytic primary material and its selected blend mode;
-- instanced and non-instanced defines;
-- curved arc material;
-- GreasedLine fallback material;
-- impact material;
-- bloom on/off does not require a new first-shot compile during combat.
+1. query an interpolated remote muzzle transform when available;
+2. otherwise use the interpolated hand or weapon-root transform plus a small
+   configured offset;
+3. otherwise use interpolated eye position plus forward offset;
+4. use the discrete event origin only as a last one-frame fallback.
 
-### 8.11 Culling, depth, and lifetime details
+Update this visual start each render frame while the remote beam is alive. Do
+not retrace the endpoint merely because the presentation muzzle moved.
 
-Shader-generated world endpoints are not represented by the unit quad's local
-bounds. Therefore either:
+### 5.5 Endpoint presentation smoothing
 
-1. mark the two small beam batch meshes `alwaysSelectAsActiveMesh = true`; or
-2. refresh one aggregate batch bound when endpoint samples change.
+Hitscan truth is more important than smoothness. Use conservative rules:
 
-The first option is simpler and reasonable for at most two batch meshes. Do not
-refresh per-beam Babylon bounds every render frame merely to save a vertex
-shader invocation on an empty batch; set `thinInstanceCount = 0` when unused.
+- same hit class, same surface direction, small delta: damp over 20–40 ms;
+- continuous player tracking: short capped damping;
+- wall edge, hit-class change, large delta, or major normal change: snap;
+- miss to hit or hit to miss: snap.
 
-Required mesh/material state:
+Never drag an endpoint through a wall to hide a 20 Hz sample cadence. The impact
+storm's state changes can mask small snaps more honestly than excessive lerp.
 
-- depth test enabled and depth write disabled;
-- shadows, picking, collision, and lighting disabled;
-- world and POV batches assigned to their correct layer masks;
-- alpha mode chosen once per material, not toggled during fire;
-- global effect time set once per frame;
-- active endpoint buffers updated in place;
-- beam slots released only after the short release envelope reaches zero.
+### 5.6 Presentation randomness
 
-Do not attach point lights along the beam. One capped endpoint light and an
-optional tiny muzzle light provide the useful environmental response without
-creating per-beam light/shader-variant pressure.
-
-### 8.12 Concrete Babylon implementation notes
-
-Suggested file split:
+Generate a stable seed from local values such as:
 
 ```text
-src/engine/weapon/beam/
-├── BeamTypes.ts
-├── BeamProfiles.ts
-├── ProceduralBeamRenderer.ts
-├── AnalyticBeamBatch.ts
-├── AnalyticBeamMaterial.ts
-├── ProceduralArcBatch.ts
-└── BeamImpactRenderer.ts
+hash(shooterKey, activationCounter, viewKind, localSalt)
 ```
 
-Required modular imports include the normal `Mesh`, `VertexData`,
-`ShaderMaterial`, `Effect`, and math modules plus the thin-instance side effect:
+Then derive each electrical state and part seed from that base. The rules are:
 
-```ts
-import '@babylonjs/core/Meshes/thinInstanceMesh';
-```
+- randomize on activation and electrical state, not every frame;
+- preserve the same state for its full interval;
+- never use randomness to move the truth spine or impact point;
+- let hero and world seeds differ;
+- let two observers see different decorative paths;
+- avoid synchronization work that has no gameplay or readability value.
 
-Use the template `position.xy` as `(aAlong, aSide)` so the static mesh consumes
-one vertex attribute. A thin-instanced shader then needs four matrix columns and
-four custom vec4 attributes: nine vertex attribute locations in total, below the
-WebGL2 minimum of 16. Keep impact/profile codes as small exact float enums; do
-not require GLSL bitwise packing.
+This is intentional controlled non-determinism at the presentation boundary.
 
-Conceptual mesh setup:
+### 5.7 World simplification ladder
 
-```ts
-const positions = new Float32Array([
-  0, -1, 0,
-  0,  1, 0,
-  1, -1, 0,
-  1,  1, 0,
-]);
-const indices = new Uint16Array([0, 1, 2, 2, 1, 3]);
+The world effect should simplify by projected importance, not merely distance:
 
-mesh.thinInstanceSetBuffer('matrix', identityMatrices, 16, true);
-mesh.thinInstanceSetBuffer('iStartProfile', startProfile, 4, false);
-mesh.thinInstanceSetBuffer('iEndImpact', endImpact, 4, false);
-mesh.thinInstanceSetBuffer('iColorSeed', colorSeed, 4, false);
-mesh.thinInstanceSetBuffer('iParams', params, 4, false);
-mesh.thinInstanceCount = activeCount;
-```
+| Projected importance | World effect |
+|---|---|
+| Large/near | core, dominant stream, second broken stream, sheath, compact impact, optional fork |
+| Medium | core, dominant stream, narrow sheath, compact impact |
+| Small/far | core, faint corona, impact point only |
+| Subpixel | core only or culled if fully irrelevant |
 
-The shader should use Babylon's instance declaration/vertex includes and
-multiply the generated world position by `finalWorld`. Identity instance
-matrices keep endpoint attributes in world space while ensuring the instancing
-path and matrix attributes remain active.
+Projected beam length, width, and screen position are better signals than raw
+world distance. A long beam across the player's screen can remain important
+even when its shooter is far away.
 
-Per render frame:
+### 5.8 First-person comfort rules
 
-1. Update the local POV muzzle and interpolated remote muzzles in their retained
-   slots.
-2. Advance presentation smoothing using delta time.
-3. Write only active start/end/state values into retained typed arrays.
-4. Call `thinInstanceBufferUpdated()` once for each changed buffer, or use
-   partial updates after profiling.
-5. Set the global effect clock and viewport/FOV uniforms once per batch.
-6. Render; do not touch vertex/index topology.
+The hero effect is grand, but it cannot sabotage aim:
 
-Per 20 Hz authoritative sample:
+- the truth spine stays narrow;
+- large displacement grows away from the muzzle;
+- subordinate streams are lower energy near the reticle;
+- the sheath cannot become opaque;
+- the impact nucleus has a strict projected-size cap;
+- no high-contrast fork crosses the central few pixels for more than one state;
+- bloom-max testing is mandatory;
+- user beam-quality controls may reduce decoration without thinning truth.
 
-1. Update impact distance, kind, normal, and target identity.
-2. Apply topology-aware endpoint snap/smoothing rules.
-3. Refresh contact crown and ion-wake continuity state.
-4. Do not rebuild any primary-beam geometry.
-
-Batching decision:
-
-- Additive output is order independent and safe for thin-instance grouping.
-- Combined/premultiplied output with a contrast fringe may be order dependent.
-- If bright-background quality requires order-dependent blending, keep the
-  analytic shader but submit per-beam meshes in sorted order. Visual quality is
-  more important than collapsing eight already-cheap draws into one.
-- World and POV remain separate under every strategy because their cameras,
-  layer masks, and near-plane behavior differ.
-
-Fallback ladder:
-
-1. Thin-instanced analytic batches.
-2. One retained analytic quad mesh per beam.
-3. Pooled GreasedLine layers using the same profiles.
-4. Core-only GreasedLine on a platform that cannot compile the custom shader.
-
-The public `ProceduralBeamRenderer` API must not expose which rung is active.
+Grand means a strong silhouette and response, not filling the screen with fog.
 
 ---
 
-## 9. Out-of-scope network notes retained for reference
+## 6. Performance design
 
-Nothing in this section is required to build or evaluate the visual effect. It
-is retained only as historical context from the broader first research pass and
-must not expand the effect-only work order.
+### 6.1 Draw targets
 
-### 9.1 Recommended wire change
+| Situation | Beam draws | Impact draws | Notes |
+|---|---:|---:|---|
+| Local hero, no chain | 1 | 1 | normal case |
+| All remote primaries | 1 batch | 1 batch | thin-instanced world profiles |
+| Real chain discharge | +1 batch | included | one instance per chain edge |
 
-Extend the active `weapon_fire` event with beam-impact data rather than creating
-a second event that duplicates shooter and weapon identity.
+Two hero draws are a target, not a religion. A measured extra pass that creates
+a transformative result may be accepted, but no proposed layer currently needs
+one.
 
-Conceptual addition:
+### 6.2 Why the vertex-heavy design wins
 
-```ts
-interface WeaponFireEvent {
-  // existing
-  entityId: string;
-  weaponId: string;
-  originX: number;
-  originY: number;
-  originZ: number;
-  dirX: number;
-  dirY: number;
-  dirZ: number;
+The production hero mesh uses approximately hundreds of static vertices, which
+is trivial compared with:
 
-  // beam/hitscan visual result
-  impactKind?: "none" | "world" | "player";
-  impactDistance?: number;
-  normalX?: number;
-  normalY?: number;
-  normalZ?: number;
-}
-```
+- 18 Babylon meshes and transform nodes in the current local bolt;
+- repeated CPU vector allocation and cylinder orientation;
+- full-envelope noise evaluation in an analytic fragment canvas;
+- a particle system with repeated transparent quads.
 
-Distance is preferable to three endpoint floats because the event already has
-origin and normalized direction:
+Moving noise to the vertex shader also makes cost largely independent of screen
+resolution. The sheath still incurs fill rate, so its projected width—not its
+node count—is the first performance dial.
 
-```ts
-endpoint = traceOrigin + direction * impactDistance;
-```
+### 6.3 Hot-path rules
 
-This retains the exact eye/crosshair line even when the decorative muzzle is
-offset.
+- No mesh, material, vector-array, or typed-array allocation during sustain.
+- No vertex or index replacement after initialization.
+- No CPU path construction.
+- No per-node transform objects.
+- One global effect time update per material/batch per frame.
+- Start and endpoint values updated in retained buffers.
+- Remote collision fallback evaluated only when a new fire sample arrives.
+- Point lights absent by default and globally capped if enabled.
+- Beam and impact slots returned after their short release envelopes.
+- All subscriptions and render observers removed on disposal.
 
-Suggested binary representation:
+### 6.4 Quality profiles
+
+The initial implementation ships one extravagant hero profile and one bounded
+world profile. Do not add a settings matrix until profiling proves it is
+needed. If a lower rung becomes necessary, remove decorative layers in the LOD
+order below while preserving the truth core and contact readability.
+
+### 6.5 LOD order
+
+When reducing cost, remove layers in this order:
+
+1. remote previous-state ghosts;
+2. remote decorative forks;
+3. remote subordinate stream B;
+4. impact halo complexity;
+5. remote subordinate stream A;
+6. pressure sheath width;
+7. impact crown;
+8. dominant decorative stream.
+
+Never remove the truth spine before culling the whole effect.
+
+### 6.6 Shader variants
+
+Prefer three precompiled variants over a forest of runtime branches:
+
+- hero full;
+- world adaptive;
+- core-only fallback.
+
+The meshes already have different topology, so compile-time defines can omit
+unneeded state math. Prewarm all selected variants and both instanced/non-
+instanced paths through `EffectPreloader` before combat.
+
+### 6.7 Bounds and culling
+
+GPU-deformed endpoints are not represented by a unit source mesh's original
+bounds. For the tiny number of batch meshes:
+
+- mark active hero/world batch meshes as always active; or
+- update one conservative aggregate bound when samples change.
+
+Do not recalculate bounds per remote beam every render frame. Set instance count
+to zero when a batch is unused.
+
+### 6.8 Performance gates
+
+The visual spike should record:
+
+- draw calls at 1, 4, 8, and 16 beams;
+- CPU update time and JS allocation while firing for 30 seconds;
+- GPU frame time at bloom off/default/max;
+- fragment overdraw as sheath width changes;
+- active meshes, materials, and lights before/during/after firing;
+- buffer bytes uploaded per frame;
+- first-fire hitch after map load;
+- hero multi-strip versus analytic quad;
+- world thin instances versus one retained mesh per beam;
+- desktop, high-DPI, and mobile-resolution behavior.
+
+The acceptance target is not a guessed millisecond number before hardware
+testing. It is no material frame spike at 16 simplified world beams and a clear
+reduction in CPU/object pressure versus the existing cylinder implementation.
+
+---
+
+## 7. In-map tuning matrix
+
+The renderer is integrated. Tune it in representative maps and real multiplayer
+views; do not build a general comparison scene or maintain alternate renderers. Small
+temporary debug knobs are appropriate when a direct comparison is needed, but
+the production weapon and scene are the test harness.
+
+### 7.1 Required matrix
+
+The lab must cover:
+
+- first-person POV and multiple remote/world camera angles;
+- dark, gray, and near-white backgrounds;
+- 50, 200, and 850-unit beam lengths;
+- wall, player, miss, and chain states;
+- stationary and sweeping contacts;
+- bloom off, default, and maximum;
+- 1, 4, 8, and 16 simultaneous beams;
+- normal, high, and ADS-like FOV;
+- desktop, high-DPI, and mobile-like resolutions;
+- hero and simplified world profiles.
+
+### 7.2 Controls worth exposing
+
+Useful temporary tuning controls (only add the ones needed for the current
+comparison):
+
+- core pixel width and HDR energy;
+- stream count, displacement, and coarse/fine scale;
+- state rate and ghost lifetime;
+- sheath width and energy;
+- fork probability and length;
+- impact radius, spike count, and crown breakup;
+- blend mode;
+- hero/world profile;
+- endpoint kind and normal;
+- freeze state, advance one state, and slow motion;
+- bloom and background selection;
+- active beam count;
+- camera FOV and render scale.
+
+Freeze and single-step can be useful while judging silhouette. They do not
+justify a permanent VFX editor or alternate renderer path.
+
+### 7.3 Visual tuning sequence
+
+Tune in this order:
+
+1. **Spine alone**
+   - readable on black, gray, and white;
+   - stable at every FOV and length;
+   - no near-plane explosion.
+
+2. **Dominant stream**
+   - unmistakably angular;
+   - interesting frozen silhouette;
+   - no smooth snake, helix, or giant bow.
+
+3. **Snap timing and ghost**
+   - violent without noisy flicker;
+   - coherent at 30 FPS;
+   - still energetic at 144+ FPS.
+
+4. **Subordinate streams and sheath**
+   - enrich negative space;
+   - never erase the spine;
+   - remain restrained near the reticle.
+
+5. **Impact storm**
+   - more memorable than adding more beam strands;
+   - stable against walls and players;
+   - compact enough not to hide targets.
+
+6. **World profile**
+   - recognizable as the same weapon;
+   - attached and accurately aimed enough;
+   - cheap at 16 beams.
+
+7. **Chain state**
+   - real target connections dominate decorative forks;
+   - composition reads outward from primary impact.
+
+### 7.4 Acceptance criteria
+
+The tuning pass is complete only when:
+
+- the straight damaging ray is instantly legible in every profile;
+- the hero effect reads as a maintained electrical rift, not a textured laser,
+  smooth braid, or generic zig-zag;
+- a frozen frame has a deliberate silhouette;
+- the impact is at least as memorable as the beam body;
+- bloom-off remains attractive and bloom-max remains usable;
+- near-white surfaces do not erase the core;
+- first-person tracking remains comfortable;
+- world beams leave the visible weapon closely enough to feel attached;
+- remote world endpoints do not routinely continue through solid walls;
+- decorative differences between clients have no apparent damage meaning;
+- 16 world beams produce no mesh/material growth or material frame spike;
+- release is prompt and no orphan effect survives switch, death, or disconnect.
+
+### 7.5 Reject conditions
+
+Reject a tuning direction if:
+
+- it needs bloom to exist;
+- it resembles a glowing plumbing tube;
+- it resembles a smooth helix or DNA strand;
+- it becomes a projectile pulse;
+- the broad sheath dominates the center of aim;
+- forks repeatedly look attached to undamaged players;
+- impact is just a circular sprite-like blob;
+- the world profile looks like an unrelated weapon;
+- a prettier still frame causes obvious sweeping shimmer or aliasing.
+
+---
+
+## 8. Implementation notes and work order
+
+The first production implementation now exists on this branch. It includes:
+
+- fixed-topology hero, world, impact, and chain meshes;
+- procedural GLSL deformation and contact rendering with no external assets;
+- one canonical `voltaic` definition and combat/render path, with `lasergun`
+  normalized strictly as a Warsow compatibility alias;
+- the modern z_weapons IQM conversion at
+  `/data/models/weapons/lasergun/lasergun.glb` selected as the production
+  Voltaic world/view model while the older Warsow MD3 and separate WIP Voltaic
+  model remain unused;
+- retained thin-instance world/chain batches with zero idle template draws;
+- exact `voltaic_beam` server truth events carrying origin, direction, endpoint,
+  normal, and player/world/miss classification for canonical `voltaic` events;
+- an 8-degree temporal direction gate that accepts legitimate authoritative
+  wander but rejects stale endpoints after a rapid aim turn, preventing the
+  beam from bending toward an old direction;
+- hip-fire wander evaluated in seconds rather than raw 125 Hz tick units, with
+  independent low-frequency yaw/pitch phases and a regression cap on adjacent
+  shot angles, so it meanders coherently instead of orbit-jumping;
+- a camera-projected hero ribbon basis that remains stable when the beam and
+  view ray are nearly collinear, eliminating the non-ADS electrical-field spin;
+- first-person attachment to the live authored `tag_flash`, projected between
+  the weapon and world cameras so different FOVs cannot detach the beam;
+- per-frame remote attachment to the authored hand-mounted `tag_flash`, with
+  weapon-root and eye fallbacks, without retracing or moving the endpoint;
+- a 704-vertex hero beam topology made from two orthogonal 352-vertex sheets
+  rotated +/-45 degrees around the truth axis. Both contain the core, pressure
+  sheath, three primary electrical streams, previous-state ghost, and four
+  short terminal forks, producing a volumetric X cross-section without another
+  draw while the world profile remains a compact single sheet;
+- a twelve-quad procedural storm topology in the existing second hero draw:
+  endpoint nucleus/crown, an always-live muzzle corona and axial petals, plus
+  eight shader-ballistic contact streaks (four remotely) that eject along the
+  hit normal and fall under gravity. The burn-through spray adds no texture,
+  particle system, allocation, or additional draw call;
+- exact thin-instance shader prewarming and frame-coalesced buffer uploads;
+- deterministic lifecycle, overflow, protocol, and authoritative-contact tests;
+- explicit `hitscanType === "beam"` viewmodel routing so gameplay-only
+  `chainCount` cannot choose presentation;
+- local beam activation gated by authoritative loaded-ammo state, with one
+  stop/reset operation for release, reload, and clip exhaustion, preventing an
+  empty Voltaic from leaving the held-fire beam alive;
+- complete removal of the legacy local and remote tapered-cylinder held beams;
+- a real WebGL2 smoke check proving Babylon 8.56 compiles all hero/world/chain
+  shader variants and the canonical alias resolves to one definition;
+- a production GLB load proving the modern model exposes a finite authored
+  `tag_flash` node.
+
+The remaining work is visual comparison and tuning in real maps, not renderer
+architecture discovery.
+
+### 8.1 Suggested focused file split
+
+Keep the implementation small and Voltaic-specific:
 
 ```text
-existing weapon_fire payload
-flags u8
-  bit 0: has impact payload
-  bits 1–2: impact kind
-if impact:
-  impactDistance f32
-  normal xyz f32
+src/engine/weapon/voltaic/
+├── VoltaicEffectRenderer.ts
+├── VoltaicBeamGeometry.ts
+├── VoltaicShaderMaterial.ts
+└── VoltaicProfiles.ts
 ```
 
-Normal can later be packed to signed 16-bit components if bandwidth profiling
-justifies it. Start with simple floats.
-
-At 20 samples/second, the fixed addition is small compared with the existing
-string-heavy event and snapshot payload. Measure rather than prematurely pack.
-
-### 9.2 Why keep trace origin and direction
-
-- Other hitscan/tracer effects already use them.
-- Demo playback can reconstruct the exact ray.
-- A remote weapon model may not be loaded, so eye origin remains a fallback.
-- The visual muzzle must connect to a world endpoint derived from the eye ray,
-  not create a parallel muzzle ray.
-
-### 9.3 Beam activity and stopping
-
-Do not rely only on `REMOTE_BEAM_TIMEOUT = 0.15`.
-
-Every snapshot already includes `weapon_state` with:
-
-- `currentWeapon`;
-- `reloading`;
-- `lastFireTick`.
-
-The client can derive whether a remote beam should still be active:
-
-```ts
-const recent = snapshotTick - lastFireTick <= beamGraceTicks;
-active = isBeamWeapon(currentWeapon) && !reloading && recent;
-```
-
-Use event samples for endpoint updates and per-snapshot weapon state for
-convergent shutdown. Recommended visual grace is roughly one to two fire
-intervals plus interpolation margin, followed by a short fade.
-
-An explicit active/stop bit can be added later if testing proves the derived
-state insufficient. The old `src/shared/net/GameState.ts` contains a
-`weapon_stop` concept, but the active `BinaryProtocol` and `SnapshotEvent` union
-do not; do not assume that legacy path works.
-
-### 9.4 Local prediction
-
-Local firing must remain responsive:
-
-1. Start the visual immediately when current local charge/fire rules allow it.
-2. Predict a crosshair endpoint locally.
-3. Reconcile to authoritative server impact samples.
-
-For Voltaic, the best long-term parity is to move the deterministic aim-wander
-function into a shared pure module used by server and local prediction.
-
-Possible API:
-
-```ts
-computeBeamDirection({
-  yaw,
-  pitch,
-  tick,
-  shooterId,
-  isADS,
-  wanderDeg,
-}): Vec3
-```
-
-This requires the local side to use the predicted simulation tick, not
-`performance.now()`.
-
-### 9.5 Wander retune proposal
-
-Separate from the graphics implementation, consider replacing tick-as-phase with
-seconds:
-
-```ts
-const timeSec = tick / 125;
-const yawPhase = timeSec * TAU * 0.8 + seed;
-const pitchPhase = timeSec * TAU * 1.3 + seed2;
-```
-
-This preserves the authored four-degree envelope while making “slow sweep” true.
-
-This changes accuracy/feel and therefore needs:
-
-- explicit gameplay approval;
-- server simulation tests;
-- playtesting at hipfire and ADS;
-- anti-cheat accuracy calibration awareness.
-
-The new renderer does not depend on accepting this retune.
-
-### 9.6 Chain arcs
-
-Current `weapon_chain` events contain only world points. Minimum implementation:
-
-- use the new primary actual contact point as the first chain point;
-- keep remaining target positions;
-- render refreshed, pooled arcs at the 20 Hz cadence.
-
-Higher-quality future form:
-
-```ts
-targets: Array<{
-  entityId: string;
-  fallbackPoint: Vec3;
-  damageScale: number;
-}>
-```
-
-That would let clients attach chain endpoints to current interpolated target
-poses. It costs protocol work and is not required for the first primary-beam
-replacement.
-
-### 9.7 Demo compatibility
-
-Demo recording captures snapshot events verbatim and playback reuses remote
-weapon-fire rendering. Therefore:
-
-- update the binary/demo event type once;
-- make live and demo playback call the same beam-sample API;
-- drive procedural filament time from demo playback time/server tick;
-- do not seed from wall-clock time;
-- define behavior for older demos with no impact payload:
-  - client BSP trace fallback for world endpoint;
-  - max-range fallback if map picking is unavailable;
-  - never invent an authoritative player hit.
-
----
-
-## 10. Implementation work plan
-
-### Phase A — correctness tests and unified impact
-
-**Goal:** one authoritative first impact used by damage and presentation.
-
-Tasks:
-
-1. Add pure ray/capsule or reuse/refactor the better lag-compensation intersection.
-2. Compare all player candidate distances.
-3. Compare closest player against BSP distance.
-4. Return actual point, normal, distance, kind, entity, and hit location.
-5. Apply damage from the winning result.
-6. Feed chain lightning from actual primary contact.
-7. Preserve telemetry semantics.
-
-Required tests:
-
-- nearer of two aligned players is hit;
-- wall blocks player;
-- player before wall is hit;
-- dead/self entities ignored;
-- miss returns exactly weapon range;
-- world result returns point and normal;
-- crouched/standing capsule behavior is defined;
-- chain starts at actual primary intersection.
-
-Risk:
-
-- This changes gameplay correctness and deterministic simulation checksums.
-- It must not be hidden inside a “graphics-only” patch.
-
-### Phase B — protocol and demo payload
-
-**Goal:** every client receives the same beam distance and impact type.
-
-Files likely involved:
-
-- `src/games/fps/server/systems/WeaponSystem.ts`
-- `src/games/fps/server/SnapshotBuilder.ts`
-- `src/engine/network/core/SnapshotEvent.ts`
-- `src/shared/net/BinaryProtocol.ts`
-- `src/engine/__tests__/ProtocolCodecs.test.ts`
-- `src/engine/__tests__/GameEventSerialization.test.ts`
-- demo event tests
-
-Tests:
-
-- none/world/player round trips;
-- normal and distance float round trips;
-- zero distance and max range;
-- older demo fallback behavior;
-- event dispatch remains exhaustive.
-
-### Phase C — procedural beam renderer spike
-
-**Goal:** compare the new visual primitive without replacing every call site.
-
-Build:
-
-- `ProceduralBeamRenderer.ts`;
-- pooled `BeamInstance`;
-- one static analytic quad per beam as the first custom-shader step;
-- derivative-antialiased core, corona, Lasergun bands, and Voltaic braid;
-- fixed endpoint/state arrays with zero hot-path allocation;
-- straight Lasergun;
-- straight-spine Voltaic with two analytic orbiting filaments;
-- simple world/player/miss endpoint indicators;
-- debug spawn/update/stop hooks.
-
-Prototype comparison:
-
-1. One-pass analytic quad per active beam.
-2. Thin-instanced analytic world and POV batches.
-3. GreasedLine fallback using the same profile values.
-4. Additive versus combined/premultiplied HDR blend.
-
-Decision gate:
-
-- analytic rendering is the visual target; choose per-mesh or thin-instanced
-  submission based on measured complexity and performance;
-- retain GreasedLine only if the custom shader fails a platform requirement, not
-  because its default edge is visually sufficient.
-
-### Phase D — first-person integration
-
-Tasks:
-
-- route `WeaponViewManager` through the new renderer;
-- target from crosshair/predicted trace;
-- start from live viewmodel muzzle;
-- reconcile endpoint samples;
-- remove whole-bolt bow;
-- ensure charge, ADS, reload, release, switch, death, and ammo exhaustion stop it;
-- keep beam on world camera layer and viewmodel on weapon camera layer.
-
-### Phase E — remote integration
-
-Tasks:
-
-- add a real Lasergun remote beam case;
-- change all beam maps/API keys to string entity IDs;
-- expose remote interpolated muzzle position;
-- use authoritative impact distance;
-- update start every render frame from remote pose;
-- update target from samples;
-- topology-aware endpoint smoothing;
-- derive shutdown from weapon state plus short grace;
-- cleanup on entity removal/disconnect.
-
-### Phase F — impacts and chain polish
-
-Tasks:
-
-- procedural world contact crown;
-- short surface ion wake with discontinuity rules;
-- distinct player contact;
-- pooled endpoint light policy;
-- batched Voltaic chain arcs;
-- deterministic decorative forks;
-- falloff-scaled chain brightness;
-- prevent per-tick decal accumulation.
-
-### Phase G — prewarm, quality controls, cleanup
-
-Tasks:
-
-- warm materials/effects in `EffectPreloader`;
-- add a small quality CVar, not dozens of public tuning knobs;
-- suggested `cg_beamQuality 0|1|2`:
-  - 0: core + impact only;
-  - 1: core + corona + one detail path;
-  - 2: full detail/filaments/forks;
-- optional developer-only command for profile inspection;
-- delete old active/remote beam cylinder code after comparison;
-- retain generic tracer/bolt/pellet behavior.
-
----
-
-## 11. Performance budget
-
-### 11.1 Targets
-
-- Zero new mesh/material allocations during sustained beam updates.
-- Fixed four-vertex/six-index primary topology.
-- Target one world primary-beam batch plus one POV batch at full quality.
-- Accept one analytic draw per beam as an intermediate/fallback, still far below
-  the current cylinder cost.
-- No geometry-buffer replacement during primary beam updates.
-- At most four vec4 instance attributes, approximately 64 bytes per active beam
-  per full state upload; static matrices do not need per-frame replacement.
-- At most one pooled endpoint light per active primary beam, with the global pool
-  cap still respected.
-- No per-frame creation of `Vector3[]`, instance arrays, or materials in the hot
-  path; reuse fixed typed arrays and scratch vectors.
-- No client scene raycast for remote beam endpoint once authoritative data exists.
-- Beam update CPU time should remain negligible with 8 simultaneous shooters.
-
-### 11.2 Quality scaling
-
-| Quality | Core | Corona | Detail | Impact light | Decorative forks |
-|---|---|---|---|---|---|
-| 0 | yes | no or minimal | no | capped/off | no |
-| 1 | yes | yes | reduced | capped | no |
-| 2 | yes | yes | full | capped | yes |
-
-### 11.3 Metrics to capture
-
-- draw calls with 1, 4, and 8 active beams;
-- bytes uploaded to dynamic buffers per frame;
-- fragment overdraw and GPU time as corona width changes;
-- active meshes/materials before, during, and after firing;
-- JS heap allocation while holding fire for 30 seconds;
-- CPU frame time of beam update;
-- GPU frame time with bloom 0 and default;
-- first activation hitch after map load;
-- analytic per-beam versus thin-instance batch cost;
-- projected-detail LOD transition stability;
-- mobile/low-quality behavior.
-
----
-
-## 12. Validation plan
-
-### 12.1 Headless-first regression
-
-Because renderer and networking are high-risk, run the required `AGENTS.md`
-commands after implementation:
+`HitscanEffects` stays the coordinator during migration. Do not create a general
+beam framework until another implemented effect proves it needs the same
+primitive.
+
+The impact topology and material can live with the renderer initially. Split a
+fifth file only if the implementation becomes genuinely difficult to read.
+
+### 8.2 Babylon.js construction notes
+
+- Use modular imports for `Mesh`, `VertexData`, `VertexBuffer`, `ShaderMaterial`,
+  `Effect`, math types, and thin-instance support.
+- Store GLSL strings in TypeScript and register through `Effect.ShadersStore`,
+  following the existing `GlowOverlayShaderMaterial` pattern.
+- Build static position, UV, optional custom attribute, and index buffers once.
+- Set depth write off, depth test on, lighting/shadows/picking/collision off.
+- Use separate prewarmed hero and world materials/defines.
+- Keep world instance buffers dynamic and retained.
+- Do not change alpha mode while active; that creates material state churn.
+- Keep time in seconds from a stable presentation clock, not frame count.
+- Mark renderer-owned meshes for correct map/scene cleanup.
+
+### 8.3 Primitive decision — implemented
+
+The fixed GPU multi-strip was selected and implemented directly. Separate
+GreasedLine/analytic comparators would now duplicate working production code
+without answering the remaining question, which is visual tuning in real maps.
+The retained topology is deliberately bounded:
+
+| Profile | Vertices | Runtime geometry work |
+|---|---:|---|
+| Hero beam | 704 | uniforms only; two crossed sheets in one draw |
+| World beam | 146 | thin-instance buffers only |
+| Real chain | 92 | thin-instance buffers only |
+| Combined muzzle/impact/spark storm | 48 | uniforms or thin-instance buffers only |
+
+There are no CPU-generated bolt paths, particles, textures, per-frame mesh
+rebuilds, or per-stream draws.
+
+### 8.4 Hero effect — implemented
+
+- Live authored muzzle attachment is pixel-correct across different weapon and
+  gameplay FOVs.
+- The local trace responds immediately; recent authoritative contact replaces
+  it only while its direction remains within the safe truth envelope.
+- The one beam draw contains the core, sheath, three streams, ghost, and four
+  terminal forks duplicated across two +/-45-degree sheets. Its X-shaped
+  cross-section, local-only core, field displacement, halo, muzzle, and endpoint
+  caps are deliberately larger than the world profile.
+- The current hero tuning widens the local sheath, truth core, and electrical
+  streams by roughly 10-12% while leaving the remote profile unchanged.
+- Decorative displacement stays zero at the authored muzzle but reaches its
+  main amplitude within the first 14% of the beam. This keeps the truth core
+  attached while making the electrical field visibly peel away near the gun.
+- The second draw contains both the large start corona/spark petals and the
+  endpoint nucleus/crown/rays, plus eight procedural ballistic contact streaks.
+  Both wall and player contacts eject these streaks from the resolved endpoint
+  along its surface normal. Misses suppress every endpoint piece while retaining
+  the muzzle treatment.
+- Contact streak cross-sections are four times the initial tune, with a
+  six-pixel minimum half-width for a twelve-pixel on-screen body. Their outward
+  and tangential velocities are roughly 70% higher, trails are longer, and the
+  hero refresh cycle is about 28% faster. The result is a violent electrical
+  spray rather than tiny, nearly stationary embers.
+- The hero muzzle corona is sized beyond the viewmodel silhouette because the
+  weapon camera intentionally overlays world-camera effects at the barrel.
+- Attack/release, switch, death, ammo exhaustion, and disposal use retained
+  lifecycle state rather than creating or abandoning meshes. Empty-clip state
+  explicitly shuts down both the beam and charge presentation.
+- Voltaic uses the shared Plasmagun downshift reload and its 1.3-second timing.
+  The previous 0.065-second value was obsolete fire-cadence data in the reload
+  field and visibly compressed the full animation; beam cadence remains 20 Hz
+  through `fireRate`.
+
+The remaining exit gate is subjective but important: tune in live maps until
+the effect feels extravagant without covering the crosshair or target.
+
+### 8.5 World effect — implemented, multiplayer tuning pending
+
+- All visible remote primaries share the simplified thin-instanced world beam
+  and impact batches.
+- Authoritative server endpoints and contact classes supply damage truth.
+- Each client generates its own harmless electrical variation.
+- The start follows the live hand-attached `tag_flash`; weapon-root and eye
+  fallbacks cover late/incomplete model state.
+- Capacity is bounded at 32 retained remote samples with deterministic stale
+  release and least-recently-touched eviction.
+
+The remaining exit gate is a manual two-client check under motion, packet loss,
+teleport, death, disconnect, and a realistic 16-beam firefight. Decorative
+equality with the shooter is explicitly not required.
+
+### 8.6 Chain and final polish
+
+Real damage chains already use the fixed instanced arc batch and actual target
+endpoints, visually distinct from decorative terminal forks. Real-map tuning
+must still decide whether any dynamic endpoint light earns its shading cost;
+the current effect deliberately spends no new light or particle budget.
+
+### 8.7 Prewarm, fallback, and deletion — implemented
+
+Hero, instanced world, impact, and chain shader variants are prewarmed. The old
+local and remote tapered-cylinder beam paths are deleted. Tests cover retained
+resource counts, instance activation, timeouts, eviction, release, and cleanup.
+Unrelated tracer, pellet, and bolt effects remain on their existing paths.
+
+### 8.8 Work-order boundaries
+
+The prepared `0.9.20-voltaic-beams` branch is the correct integration line.
+Architecture, identity, protocol, and retained rendering are implemented; the
+next review should remain effect-focused: playtest silhouette, start/end scale,
+bloom behavior, target visibility, and remote attachment. Do not expand this
+into a general VFX framework or another protocol redesign.
+
+The reviewed endpoint mismatch justified one deliberately narrow protocol
+addition: `voltaic_beam`. It transmits only the damage-bearing truth spine and
+contact classification. Electrical paths, forks, pulses, widths, timing, and
+hero/world quality remain independent client presentation and consume no
+network bandwidth.
+
+### 8.9 Validation record and required regression
+
+The current implementation passed:
+
+- real WebGL2 shader compilation for hero, world, expanded impact/spark, and
+  chain variants;
+- actual production GLB load with a finite authored `tag_flash`;
+- `pnpm typecheck`;
+- `npm run build`;
+- `npm run test:run`: 127 files and 1432 tests;
+- `npm run test:simulation` and `npm run test:physics`;
+- `npm run server:tick` deterministic checksum comparison;
+- `npm run server:fuzz -- -- --ticks 1000`: zero errors and matching replay
+  checksum;
+- headless `wdm2` BSP load and information dump;
+- a valid 120-tick headless `sim replay W+JUMP 120` run.
+
+Known harness noise is unrelated to this effect: `test:physics` retains its
+existing StepSlideMove Y-position warning while exiting successfully; the
+headless shell reports missing `public/engine.json` but continues with the
+explicit `GAME_PATH`; and its documented compound semicolon replay still treats
+later input segments as commands. The single-sequence replay above verifies the
+simulation path without that parser limitation.
+
+Renderer/network edits remain high-risk under `AGENTS.md`. After every further
+change, rerun:
 
 ```bash
 npm run test:simulation
 npm run test:physics
 npm run server:tick
-npm run server:fuzz -- --ticks 1000
-npm run cli:game -- -- --exec "bsp load wdm2; bsp info; quit"
+npm run server:fuzz -- -- --ticks 1000
+npm run cli:game -- -- --exec 'bsp load wdm2; bsp info; quit'
 ```
 
-Also run:
+Also run the verified repository scripts:
 
 ```bash
-npm run typecheck
+pnpm typecheck
 npm run test:run
 npm run build
 ```
 
-### 12.2 Targeted automated tests
+Targeted tests should cover:
 
-#### Simulation
-
-- nearest player/world impact selection;
-- wall occlusion;
-- actual hit distance;
-- normal propagation;
-- Voltaic chain primary point;
-- ADS zeroes gameplay wander;
-- deterministic wander and trace result;
-- checksum stability for repeated identical runs.
-
-#### Protocol
-
-- event round-trip for all impact kinds;
-- optional payload absent for old/non-beam fire;
-- normals and distances;
-- exhaustive client event routing;
-- demo encode/decode.
-
-#### Renderer with Babylon `NullEngine`
-
-- pool acquire/update/stop/reuse;
-- no growth in mesh/material count across repeated cycles;
-- stable static vertex/index data across repeated updates;
-- correct thin-instance count and packed endpoint/profile attributes;
-- deterministic field parameters for the same seed/time;
-- endpoint envelope evaluates to zero filament amplitude at both caps;
-- finite vectors for zero-length and vertical beams;
-- string entity keys;
-- cleanup on `clear()` and scene disposal.
-
-#### Browser shader checks
-
-- analytic shader compiles on the actual WebGL2 engine;
-- derivative AA stays stable at dynamic-resolution and DPI changes;
-- per-mesh and instanced variants produce equivalent pixels;
-- no near-plane NaN or full-screen quad explosion;
-- context loss/restore recreates material and instance buffers;
-- bloom changes do not compile a new combat-time variant.
-
-### 12.3 Manual two-client matrix
-
-Test both directions: browser A watches B, then B watches A.
-
-Scenarios:
-
-- fire into a wall at 50, 200, and 850 units;
-- fire past a wall edge;
-- track a moving player in front of and behind geometry;
-- two aligned players;
-- rapid 180-degree turns;
-- crouch, jump, walljump, slide, and teleport while firing;
-- switch weapon while holding fire;
-- reload/ammo exhaustion/death/disconnect;
-- Voltaic hipfire and ADS;
-- chain one and two secondary targets;
-- spectator and demo playback;
-- weapon model loading late;
-- bloom 0, default, and maximum;
-- dark, midtone, and near-white surfaces with the same beam profile;
-- low/medium/high beam quality;
-- 30, 60, 120, and 144+ FPS;
-- high FOV and ADS FOV;
-- simulated latency/interpolation and net jitter.
-
-### 12.4 Visual acceptance criteria
-
-- Lasergun is always a beam remotely, never a generic tracer.
-- Remote beams stop at the same wall/player seen by the shooter.
-- Remote origin follows the visible weapon with no eye-origin detachment.
-- No visible 20 Hz on/off flashing during sustained fire.
-- Release feels prompt.
-- First-person beam never becomes an opaque pipe covering the target.
-- Voltaic primary spine clearly indicates the damaging ray.
-- Voltaic reads as a contained electrical field, not a generic zig-zag bolt.
-- Surface ion wake never bridges unrelated walls or survives long enough to
-  imply continuing damage.
-- Decorative forks cannot be mistaken for chain damage.
-- Chain arcs attach to actual affected targets.
-- Bloom-off remains readable.
-- Eight simultaneous beams do not cause material/mesh growth or a major frame
-  spike.
+- pool acquire, update, release, reuse, and scene disposal;
+- immutable vertex/index buffers across sustained updates;
+- finite output for zero-length, vertical, and camera-aligned beams;
+- stable electrical state for the same local seed/time;
+- correct hero/world quality selection;
+- remote timeout and entity cleanup;
+- no mesh/material count growth over repeated firing cycles;
+- shader compilation in real WebGL2, not only `NullEngine`;
+- context restoration and first-fire prewarm behavior.
 
 ---
 
-## 13. Risks and mitigations
+## 9. Why this can beat the classics
+
+The goal is not to claim victory through polygon count. The proposed effect
+combines properties that older classic implementations rarely had at once:
+
+| Quality | Classic lightning beam | Classic laser ribbon | Voltaic Rift target |
+|---|---|---|---|
+| Instant hitscan readability | strong | strong | invariant truth spine |
+| Distinct moving silhouette | moderate | restrained | snapping multi-stream rupture |
+| Contact as visual centerpiece | limited/secondary | compact | full procedural impact storm |
+| First-person hero direction | limited | generally shared | deliberately maximal |
+| Simplified remote direction | renderer-dependent | renderer-dependent | designed profile and LOD |
+| Bright-background treatment | texture/blend dependent | material dependent | analytic edge plus tested blend |
+| Sustained CPU transforms | implementation dependent | often ribbon updates | fixed topology, uniforms only |
+| External visual assets | commonly yes | commonly yes | none |
+| Client-identical decoration required | no | no | explicitly no |
+
+The actual competitive advantage is composition:
+
+1. The straight spine makes it more trustworthy than a wildly bent bolt.
+2. The snapping silhouette gives it more life than a tiled ribbon.
+3. The complementary pressure scar gives it a recognizable color structure.
+4. The endpoint storm makes maintained contact feel consequential.
+5. Hero/world profiles spend spectacle where it matters instead of multiplying
+   cost for every observer.
+6. Fixed GPU topology makes all of that cheaper than the current primitive.
+
+If any one of those is weak, adding particles will not save the effect. If all
+six are strong, the effect can be both cleaner and more spectacular than the
+reference weapons.
+
+---
+
+## 10. Risks and spike questions
+
+### 10.1 Risks and mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Unified trace changes gameplay | High | Separate Phase A, focused tests, deterministic regressions |
-| Server/live lag compensation is not integrated | High | Do not claim it is; design impact type to be reusable when integrated |
-| Custom shader fails on a target GPU | High | Prewarm/browser matrix; retained GreasedLine fallback |
-| Thin-instance integration complicates culling | Medium | Two always-active batch meshes or per-beam analytic intermediate |
-| Analytic braid looks flat | Medium | Quadrature front/back modulation, restrained phase separation |
-| Procedural harmonics alias at range | Medium | Derivative AA and projected-detail LOD |
-| Wide corona causes fill-rate cost | Medium | Tight quad bounds and quality-scaled corona width |
-| Transparent beams sort badly | Medium | Depth test on, depth write off, restrained additive blend |
-| Additive beam disappears on bright walls | High visual | Explicit corona; test combined/premultiplied output and subtle contrast fringe |
-| Endpoint smoothing crosses walls | High visual | Topology-aware snap rules |
-| First-person line clips near camera | Medium | Near-origin width/alpha ramp and clip tests |
-| Remote model lacks muzzle socket | Medium | Configured local offset plus interpolated eye fallback |
-| Point lights cause shader variants/hitches | High | Pool/cap, prewarm, quality control |
-| Procedural motion differs in demos | Medium | Seed/time from server/demo ticks, never wall-clock randomness |
-| Voltaic wander remains too fast | Medium | Renderer follows truth; separate approved gameplay retune |
-| Protocol change breaks old demos | Medium | Explicit missing-payload fallback |
-| Detail makes hitscan feel projectile-like | High design | Always-visible core; overlays never carry the only energy |
-| Surface wake reads as damage-over-time | Medium design | 80–140 ms cap, surface-only continuity, no gameplay-sized decal |
+| Multi-strip joints crack | medium | averaged normals, clamped miters, corona overlap |
+| Lightning looks too smooth | high | unsmoothed value noise and discrete state snaps |
+| Lightning looks like random scribble | high | dominant hierarchy, two frequency bands, pinned envelopes |
+| Hero effect obscures aim | high | narrow muzzle zone, projected caps, bloom-max testing |
+| Additive beam disappears on white | high | compare premultiplied output; retain chromatic edge |
+| Premultiplied remote beams sort imperfectly | low/medium | accept rare overlap or select additive world variant |
+| Sheath consumes fill rate | medium/high | tight strip, projected-width clamp, first LOD dial |
+| Impact hides a player | high | hard projected radius cap and player-specific compact profile |
+| Decorative fork implies damage | high | short, dim, unattached; real chains always brighter |
+| Remote endpoint remains implausible | high | supplied end or one-shot local BSP trace before max range |
+| Remote beam detaches from weapon | high | render-frame interpolated muzzle with fallbacks |
+| Near-parallel view creates NaN/explosion | high | camera-right fallback, finite guards, near-plane tests |
+| Custom shader hitches on first use | medium | prewarm every selected variant |
+| Mobile fragment cost is high | medium | vertex noise, core-only fallback, narrow world LOD |
+| Too many variants become maintenance burden | medium | three compiled profiles only |
+| Point light causes map shader churn | high | off by default, cap and prewarm if accepted |
+
+### 10.2 Questions only the visual spike can answer
+
+1. Does the multi-strip beat the analytic quad on both appearance and GPU time
+   in SHAG's actual maps?
+2. Is 28–32 dominant-stream nodes enough at 850 units without looking coarse?
+3. Which blend mode survives near-white surfaces while keeping satisfying HDR
+   bloom?
+4. How large can the hero sheath become before it competes with the reticle?
+5. Is 18, 20, 22, or 24 Hz the strongest snap cadence at both 30 and 144 FPS?
+6. Does the previous-state ghost improve violence or merely add clutter?
+7. Can one folded angular impact shader create a crown that does not resemble a
+   flat sprite?
+8. Does the violet pressure edge read as torn air or as unrelated neon?
+9. At what projected size should the world profile collapse to core-only?
+10. Does premultiplied world batching produce visible ordering artifacts in a
+    realistic 8–16 player firefight?
+11. Is a dynamic impact light worth its material and shading cost after the
+    shader-only effect is complete?
+
+These are the top areas to improve through direct iteration. Further protocol
+or simulation design will not answer them.
 
 ---
 
-## 14. Open questions for the visual spike
+## 11. Final recommendation
 
-These require rendering, not more desk research:
+Ship Voltaic Rift as one fixed GPU-deformed multi-strip beam plus one procedural
+storm mesh. Keep a surgically straight white-hot hitscan spine as the only
+damage-bearing visual truth. Around it, let the first-person hero profile snap
+three angular gold streams, one previous-state ghost, four short terminal
+forks, and a blue-violet pressure scar, with maximum chaos in the final third.
+Use the second draw for both the oversized muzzle tingle/sparks and the violent
+contact storm. Give other clients a deliberately simplified world profile
+using the same spine and identity but independently generated decoration.
+Attach both views to the model's live authored muzzle and stop at authoritative
+truth where available; exact fork parity is intentionally irrelevant. Generate
+noise in the vertex shader over immutable topology, keep fragment work to
+antialiased analytic falloffs, and thin-instance world effects.
 
-1. Does hybrid world/pixel extrusion remain stable at the near plane and across
-   SHAG's FOV range?
-2. Is one analytic pass enough for soft bloom-off edges and bright-background
-   contrast, or is an accessibility-only contrast pass justified?
-3. Which HDR blend mode best balances bloom, order independence, and visibility
-   on near-white lightmapped walls?
-4. Does the existing bloom threshold respond to the chosen emissive intensity
-   without washing out the beam?
-5. Can Lasergun band motion remain visible at 30 FPS without strobing?
-6. Does the pseudo-volumetric two-filament braid read correctly during fast
-   strafes and extreme view angles?
-7. What exact third-person muzzle offsets fit the existing Lasergun and Voltaic
-   GLBs?
-8. How much endpoint smoothing is tolerable before it feels lagged?
-9. Should first-person decorative filaments be lower amplitude than remote ones?
-10. What ion-wake duration and point count feel physical without reading as
-    damage-over-time?
-11. Does thin instancing materially outperform one analytic mesh per active beam
-    at SHAG's realistic maximum player count?
-12. Should the core use a subtle contrast fringe on bright maps, and can it be
-    achieved without a second draw?
+That is the best current route to an effect that is more spectacular than the
+classic beams, more accurate than the current Voltaic, and cheaper to sustain.
 
 ---
 
-## 15. Recommended work-order boundaries
+## 12. Sources
 
-To keep reviewable patches and isolate risk:
-
-1. **WO-BEAM1: authoritative first impact**
-   - Simulation only; world/player nearest hit and tests.
-
-2. **WO-BEAM2: beam impact protocol**
-   - Event types, binary codec, demos, tests.
-
-3. **WO-BEAM3: procedural renderer spike**
-   - Analytic quad shader, GreasedLine fallback, pooling, debug harness.
-
-4. **WO-BEAM4: first-person integration**
-   - Muzzle/target split, prediction/reconciliation, lifecycle.
-
-5. **WO-BEAM5: remote integration**
-   - Interpolated muzzle, endpoint samples, shutdown, Lasergun fix.
-
-6. **WO-BEAM6: impact and chain polish**
-   - Contact crown, surface ion wake, chain arcs, forks, lights.
-
-7. **WO-BEAM7: prewarm, performance, QA**
-   - Thin-instance batching, effect preloader, quality CVar, mandatory
-     regression and manual matrix.
-
-Do not combine all seven into one implementation patch. The gameplay trace change
-and renderer replacement deserve independent review and rollback points.
-
----
-
-## 16. Final recommendation in one paragraph
-
-Build a shared fixed-topology analytic beam whose camera-facing quad connects the
-current weapon muzzle to a server-resolved first impact and draws core, corona,
-bands, and field filaments in one HDR shader pass. Thin-instance world and POV
-batches where measured useful, retaining one analytic mesh per beam and
-GreasedLine as fallbacks. Give Lasergun a stable red cutting lance with
-world-spaced frequency bands. Give Voltaic a warm-white hitscan spine inside a
-pseudo-volumetric two-filament amber ion braid, a contact-compression response,
-an 80–140 ms surface ion wake, and brighter server-driven chain arcs between
-actual targets. Resolve world and player hits in one nearest-impact server trace
-before serializing distance/kind/normal with `weapon_fire`; update remote starts
-from interpolated weapon pose, endpoints from authoritative samples, and
-shutdown from per-snapshot weapon state.
-
----
-
-## 17. Sources
-
-### Repository sources inspected
+### 12.1 Repository sources inspected
 
 - `AGENTS.md`
+- `package.json`
 - `src/engine/weapon/HitscanEffects.ts`
 - `src/engine/weapon/WeaponViewManager.ts`
 - `src/engine/weapon/EffectPreloader.ts`
-- `src/games/fps/FPSPlayer.ts`
 - `src/games/fps/client/GameEvents.ts`
 - `src/games/fps/client/RemotePlayerRenderer.ts`
 - `src/games/fps/client/DemoService.ts`
 - `src/games/fps/server/systems/WeaponSystem.ts`
 - `src/games/fps/server/SnapshotBuilder.ts`
-- `src/engine/server/lagcomp/LagCompensation.ts`
 - `src/engine/network/core/SnapshotEvent.ts`
 - `src/shared/net/BinaryProtocol.ts`
-- `src/shared/net/GameState.ts`
-- `src/shared/collision/CollisionWorld.ts`
-- `src/shared/collision/SharedCollisionWorld.ts`
-- `src/shared/entities/WeaponDef.ts`
-- `src/shared/entities/definitions/weapons/lasergun.ts`
 - `src/shared/entities/definitions/weapons/voltaic.ts`
 - `src/engine/effects/PostProcessingManager.ts`
 - `src/engine/loader/shader/GlowOverlayShaderMaterial.ts`
-- `node_modules/@babylonjs/core/Meshes/GreasedLine/greasedLineBaseMesh.js`
-- `node_modules/@babylonjs/core/Meshes/GreasedLine/greasedLineMesh.js`
-- `node_modules/@babylonjs/core/Shaders/greasedLine.vertex.js`
-- `node_modules/@babylonjs/core/Shaders/greasedLine.fragment.js`
-- `node_modules/@babylonjs/core/Meshes/thinInstanceMesh.d.ts`
+- installed Babylon.js GreasedLine and thin-instance source/type declarations
 - `docs/manual/guides/weapon-system.md`
 - `docs/manual/guides/networking.md`
 - `docs/manual/guides/shader-system.md`
 - `docs/research/v0.9.16-weapon-system-overhaul.md`
-- `docs/research/RENDERING_PIPELINE.md`
 
-### External primary/official sources
+The manifest permits `@babylonjs/core` through `^8.44.1`; the installed package
+audited during this research is 8.56.0.
 
-- [Babylon.js: Creating a GreasedLine](https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/greased_line)
-- [Babylon.js: Creating ribbons](https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/ribbon/)
-- [Babylon.js: ShaderMaterial API](https://doc.babylonjs.com/typedoc/classes/BABYLON.ShaderMaterial)
-- [Babylon.js: Blend modes](https://doc.babylonjs.com/features/featuresDeepDive/materials/using/blendModes/)
-- [Babylon.js: GlowLayer](https://doc.babylonjs.com/features/featuresDeepDive/mesh/glowLayer)
-- [Babylon.js: Instances and custom per-instance buffers](https://doc.babylonjs.com/features/featuresDeepDive/mesh/copies/instances/)
-- [Babylon.js: WebGL2 and standard derivatives](https://doc.babylonjs.com/setup/support/webGL2)
-- [Khronos: OpenGL ES shading language derivatives and `fwidth`](https://registry.khronos.org/OpenGL/specs/es/3.2/GLSL_ES_Specification_3.20.html)
-- [NVIDIA GPU Gems: Real-Time Glow](https://developer.nvidia.com/gpugems/gpugems/part-iv-image-processing/chapter-21-real-time-glow)
-- [id Software: Quake III Arena source](https://github.com/id-Software/Quake-III-Arena)
-- [Quake III `cg_weapons.c`](https://github.com/id-Software/Quake-III-Arena/blob/master/code/cgame/cg_weapons.c)
-- [Quake III `tr_surface.c`](https://github.com/id-Software/Quake-III-Arena/blob/master/code/renderer/tr_surface.c)
-- [Warsow/qfusion source](https://github.com/Warsow/qfusion)
-- [Warsow `cg_main.cpp`](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/cg_main.cpp)
-- [Warsow `polyeffectssystem.cpp`](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/polyeffectssystem.cpp)
-- [Warsow `trackedeffectssystem.cpp`](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/trackedeffectssystem.cpp)
+### 12.2 External primary and official sources
 
-### Unverified items
+- [Babylon.js ShaderMaterial API](https://doc.babylonjs.com/typedoc/classes/BABYLON.ShaderMaterial)
+- [Babylon.js VertexData API](https://doc.babylonjs.com/typedoc/classes/BABYLON.VertexData)
+- [Babylon.js instances and custom buffers](https://doc.babylonjs.com/features/featuresDeepDive/mesh/copies/instances/)
+- [Babylon.js blend modes](https://doc.babylonjs.com/features/featuresDeepDive/materials/using/blendModes/)
+- [Babylon.js GreasedLine](https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/greased_line)
+- [Babylon.js WebGL2 support](https://doc.babylonjs.com/setup/support/webGL2)
+- [Khronos OpenGL ES Shading Language specification](https://registry.khronos.org/OpenGL/specs/es/3.2/GLSL_ES_Specification_3.20.html)
+- [id Software Quake III Arena source](https://github.com/id-Software/Quake-III-Arena)
+- [Quake III weapon effect code](https://github.com/id-Software/Quake-III-Arena/blob/master/code/cgame/cg_weapons.c)
+- [Quake III renderer surface code](https://github.com/id-Software/Quake-III-Arena/blob/master/code/renderer/tr_surface.c)
+- [Warsow qfusion source](https://github.com/Warsow/qfusion)
+- [Warsow polygon effects](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/polyeffectssystem.cpp)
+- [Warsow tracked effects](https://github.com/Warsow/qfusion/blob/master/source/client/cgame/trackedeffectssystem.cpp)
 
-- Final visual quality of the analytic braid in SHAG's actual maps and
-  post-process pipeline.
-- Exact per-beam versus thin-instance cost under realistic player counts.
-- Best HDR blend mode and whether a one-pass contrast fringe is viable.
-- Existing GLB-local muzzle coordinate values.
-- Mobile behavior of the custom shader and derivative AA.
-- Appropriate endpoint smoothing constants under real network conditions.
-- Whether Voltaic gameplay wander should be retuned; this document recommends
-  evaluation but does not authorize the balance change.
+### 12.3 Explicitly unverified
+
+- Final tuning in representative bright, dark, and bloom-disabled SHAG maps.
+- Measured GPU advantage over the analytic quad on target hardware.
+- Best blend mode against SHAG's brightest maps.
+- Final hero and remote projected-width constants after playtesting.
+- Mobile shader performance and derivative quality.
+- Whether a pooled endpoint light adds enough value to justify its cost.
+- Two-client visual attachment and contact quality under packet loss.
+
+Those are implementation-spike questions, not reasons to expand the design.

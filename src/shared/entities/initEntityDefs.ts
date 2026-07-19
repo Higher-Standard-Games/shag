@@ -11,7 +11,6 @@ import {
   GRENADE_AMMO,
   GUNBLADE_AMMO,
   INSTA_AMMO,
-  LASER_AMMO,
   PLASMA_AMMO,
   ROCKET_AMMO,
   SHELL_AMMO,
@@ -28,7 +27,6 @@ import {
   GRENADE_LAUNCHER,
   GUNBLADE,
   INSTAGUN,
-  LASERGUN,
   MACHINEGUN,
   PLASMAGUN,
   RIOTGUN,
@@ -53,8 +51,8 @@ export function initializeEntityDefs(): void {
   registry.register(GRENADE_LAUNCHER);
   registry.register(ROCKET_LAUNCHER);
   registry.register(PLASMAGUN);
-  registry.register(VOLTAIC); // New beam weapon (weapon_voltaic)
-  registry.register(LASERGUN); // Legacy Warsow LG (weapon_lasergun in maps)
+  // weapon_lasergun is a classname alias on the one canonical Voltaic def.
+  registry.register(VOLTAIC);
   registry.register(ELECTROBOLT);
   registry.register(INSTAGUN);
   registry.register(BLADE);
@@ -73,8 +71,7 @@ export function initializeEntityDefs(): void {
   registry.register(SHELL_AMMO);
   registry.register(GRENADE_AMMO);
   registry.register(ROCKET_AMMO);
-  registry.register(LASER_AMMO);
-  registry.register(VOLTAIC_AMMO); // Replaces laser ammo (aliases: ammo_lasers)
+  registry.register(VOLTAIC_AMMO);
   registry.register(BOLT_AMMO);
   registry.register(INSTA_AMMO);
 

@@ -14,12 +14,12 @@ import { ELECTROBOLT } from "../shared/entities/definitions/weapons/electrobolt"
 import { GRENADE_LAUNCHER } from "../shared/entities/definitions/weapons/glauncher";
 import { GUNBLADE } from "../shared/entities/definitions/weapons/gunblade";
 import { INSTAGUN } from "../shared/entities/definitions/weapons/instagun";
-import { LASERGUN } from "../shared/entities/definitions/weapons/lasergun";
 import { MACHINEGUN } from "../shared/entities/definitions/weapons/machinegun";
 import { PLASMAGUN } from "../shared/entities/definitions/weapons/plasmagun";
 import { RIOTGUN } from "../shared/entities/definitions/weapons/riotgun";
 import { ROCKET_LAUNCHER } from "../shared/entities/definitions/weapons/rlauncher";
 import { VOLTAIC } from "../shared/entities/definitions/weapons/voltaic";
+import { canonicalWeaponId } from "../shared/entities/definitions/weapons/WeaponsTable";
 import type { WeaponDef } from "../shared/entities/WeaponDef";
 
 // ── Profile Interface ───────────────────────────────────────────────
@@ -160,7 +160,6 @@ const ALL_WEAPON_DEFS: WeaponDef[] = [
   MACHINEGUN,
   RIOTGUN,
   ELECTROBOLT,
-  LASERGUN,
   VOLTAIC,
   PLASMAGUN,
   ROCKET_LAUNCHER,
@@ -201,7 +200,7 @@ const DEFAULT_PROFILE: WeaponProfile = {
  * Get weapon profile by weapon ID.
  */
 export function getWeaponProfile(weaponId: string): WeaponProfile {
-  return PROFILES.get(weaponId) ?? DEFAULT_PROFILE;
+  return PROFILES.get(canonicalWeaponId(weaponId)) ?? DEFAULT_PROFILE;
 }
 
 /**

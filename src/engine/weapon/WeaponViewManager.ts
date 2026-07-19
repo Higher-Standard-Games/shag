@@ -6,17 +6,21 @@
  */
 
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import "@babylonjs/core/Culling/ray";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
+import { canonicalWeaponId } from "../../shared/entities/definitions/weapons/WeaponsTable";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -88,6 +92,7 @@ const WEAPON_LAYER_MASK = 0x10000000;
 
 export class WeaponViewManager {
   private static instance: WeaponViewManager;
+  private static readonly IDENTITY_MATRIX = Matrix.Identity();
 
   private scene: Scene | null = null;
 
@@ -157,7 +162,34 @@ export class WeaponViewManager {
   public getMuzzleWorldPosition(): Vector3 | null {
     if (!this.mainCamera) return null;
 
-    // Use camera direction offsets to approximate barrel position.
+    // The viewmodel is rendered by a second camera with its own FOV. Project
+    // the authored model socket through that camera, then cast the matching
+    // screen ray through the world camera. Any point on that ray is pixel-exact
+    // with tag_flash even when cg_weaponfov differs from the gameplay FOV.
+    if (this.muzzleSocket && this.weaponCamera && this.scene) {
+      this.muzzleSocket.computeWorldMatrix(true);
+      const socketWorld = this.muzzleSocket.getAbsolutePosition();
+      const engine = this.scene.getEngine();
+      const viewport = this.weaponCamera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+      const screen = Vector3.Project(
+        socketWorld,
+        WeaponViewManager.IDENTITY_MATRIX,
+        this.weaponCamera.getTransformationMatrix(),
+        viewport,
+      );
+      if (Number.isFinite(screen.x + screen.y + screen.z)) {
+        const ray = this.scene.createPickingRay(
+          screen.x,
+          screen.y,
+          WeaponViewManager.IDENTITY_MATRIX,
+          this.mainCamera,
+          false,
+        );
+        return this.mainCamera.globalPosition.add(ray.direction.scale(5));
+      }
+    }
+
+    // Defensive fallback for an incomplete/legacy model without a muzzle tag.
     // Lerp between hip (gun on right side) and ADS (centered) using adsProgress.
     const ads = this.adsProgress; // 0 = hip, 1 = full ADS
     const forward = this.mainCamera.getDirection(Vector3.Forward());
@@ -190,6 +222,7 @@ export class WeaponViewManager {
   private mainCamera: FreeCamera | null = null; // The camera this instance was init()ed with
   private weaponRoot: TransformNode | null = null;
   private currentWeapon: MD3LoadResult | null = null;
+  private muzzleSocket: TransformNode | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
   /**
    * The weapon id the view is currently showing or switching toward. Set by
@@ -384,6 +417,8 @@ export class WeaponViewManager {
       return false;
     }
 
+    weaponName = canonicalWeaponId(weaponName);
+
     // Track the weapon the view is committing to (for server reconciliation).
     this._intendedWeaponId = weaponName;
 
@@ -442,9 +477,6 @@ export class WeaponViewManager {
   private async loadGlbWeapon(weaponName: string, modelPath: string, loadGen: number): Promise<boolean> {
     console.log(`[WeaponViewManager] GLB path — loading ${weaponName}, modelPath: ${modelPath}`);
 
-    const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
-    await import("@babylonjs/loaders/glTF");
-
     // Check if a newer load started while we were importing modules
     if (this._loadGeneration !== loadGen) {
       console.log(
@@ -455,6 +487,7 @@ export class WeaponViewManager {
 
     // Remove previous weapon before loading new one
     this.disposeAmmoCounter();
+    this.muzzleSocket = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -502,9 +535,6 @@ export class WeaponViewManager {
         // Blade: flip barrel + tilt upward for melee carry
         glbRoot.rotation.x = Math.PI;
         glbRoot.rotation.y = 0.9;
-      } else if (weaponName === "voltaic") {
-        // Voltaic: Blender/Sketchfab export, already Y-up
-        glbRoot.rotation.set(0, 0, 0);
       } else {
         // IQM→GLB weapons need TWO coordinate fixes:
         // 1. z_up_to_y_up in converter: Z-up → Y-up (scope on top)
@@ -614,6 +644,11 @@ export class WeaponViewManager {
         },
         getTag: () => null,
       } as any;
+
+      this.muzzleSocket = this.findWeaponTag(glbRoot, ["tag_flash", "tag_muzzle", "muzzle"]);
+      if (!this.muzzleSocket) {
+        console.warn(`[WeaponViewManager] ${weaponName}: model has no tag_flash muzzle socket; using camera fallback`);
+      }
 
       console.log(`[WeaponViewManager] GLB meshes loaded: ${weaponName} (${glbMeshes.length} meshes)`);
 
@@ -1002,6 +1037,7 @@ export class WeaponViewManager {
    */
   public clear(): void {
     this.disposeAmmoCounter();
+    this.muzzleSocket = null;
     if (this.currentWeapon) {
       this.currentWeapon.root.dispose();
       this.currentWeapon = null;
@@ -1590,12 +1626,17 @@ export class WeaponViewManager {
         this.muzzleFlashLight.intensity = normalizedIntensity;
 
         if (this.muzzleFlashIntensity > 0) {
-          // Update position if attached to tag
-          const tag = this.currentWeapon?.getTag("tag_flash");
-          if (tag && this.weaponRoot) {
-            const localPos = tag.origin;
-            const worldPos = Vector3.TransformCoordinates(localPos, this.weaponRoot.getWorldMatrix());
-            this.muzzleFlashLight.position = worldPos;
+          // GLB muzzle tags are live transform nodes; MD3 tags are static data.
+          if (this.muzzleSocket) {
+            this.muzzleSocket.computeWorldMatrix(true);
+            this.muzzleFlashLight.position.copyFrom(this.muzzleSocket.getAbsolutePosition());
+          } else {
+            const tag = this.currentWeapon?.getTag("tag_flash");
+            if (tag && this.weaponRoot) {
+              const localPos = tag.origin;
+              const worldPos = Vector3.TransformCoordinates(localPos, this.weaponRoot.getWorldMatrix());
+              this.muzzleFlashLight.position = worldPos;
+            }
           }
         }
       }
@@ -1614,15 +1655,17 @@ export class WeaponViewManager {
       if (muzzlePos) {
         const cfg = {
           origin: muzzlePos,
+          // Damage is traced from the eye; only the visible start follows the muzzle.
+          traceOrigin: this.mainCamera.position,
           direction: forward,
           maxRange: this.currentWeaponDef?.range ?? 850,
           color: this.beamColor,
         };
-        // Chain-lightning weapons (voltaic) render a jagged bolt; others a smooth beam.
-        if (this.currentWeaponDef?.chainCount) {
+        // Every continuous beam weapon uses the procedural Voltaic presentation.
+        // Legacy `lasergun` input is canonicalized before this point; chainCount
+        // is gameplay only and must never select a separate renderer.
+        if (this.currentWeaponDef?.hitscanType === "beam") {
           getHitscanEffects().updateLightningBeam(cfg);
-        } else {
-          getHitscanEffects().updateBeam(cfg);
         }
       }
     }
@@ -1630,11 +1673,13 @@ export class WeaponViewManager {
 
   /** Called by FPSPlayer to start/stop beam rendering */
   public setBeamActive(active: boolean, color?: Color3): void {
+    const wasActive = this.beamActive;
     this.beamActive = active;
     if (color) this.beamColor = color;
+    if (active && !wasActive) {
+      getHitscanEffects().beginLightning();
+    }
     if (!active) {
-      // Stop both beam styles — cheap no-op for whichever isn't active.
-      getHitscanEffects().stopBeam();
       getHitscanEffects().stopLightning();
       this.beamChargeProgress = 0;
     } else {
@@ -1656,6 +1701,8 @@ export class WeaponViewManager {
   public async switchWeaponAnimated(weaponId: string, pk3Path?: string): Promise<void> {
     // Cancel reload
     this.reloadAnim.cancel();
+
+    weaponId = canonicalWeaponId(weaponId);
 
     // Track the target immediately so reconciliation sees where the view is headed.
     this._intendedWeaponId = weaponId;

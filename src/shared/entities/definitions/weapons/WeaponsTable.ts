@@ -15,7 +15,6 @@ import {
   GRENADE_LAUNCHER,
   GUNBLADE,
   INSTAGUN,
-  LASERGUN,
   MACHINEGUN,
   PLASMAGUN,
   RIOTGUN,
@@ -35,7 +34,9 @@ export const WEAPONS: Record<string, WeaponDef> = {
   [ROCKET_LAUNCHER.id]: ROCKET_LAUNCHER,
   [PLASMAGUN.id]: PLASMAGUN,
   [VOLTAIC.id]: VOLTAIC,
-  [LASERGUN.id]: LASERGUN,
+  // Warsow compatibility ID. This is the same object and gameplay definition,
+  // not a parallel Lasergun implementation.
+  lasergun: VOLTAIC,
   [ELECTROBOLT.id]: ELECTROBOLT,
   [INSTAGUN.id]: INSTAGUN,
   [BLADE.id]: BLADE,
@@ -51,3 +52,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
   // Blade's charged blast gets RL-equal knockback (KB = damage × scale: 50×20 = 1000).
   blade_blast: { ...BLADE, knockbackScale: 20.0 },
 };
+
+/** Normalize compatibility names before they enter inventories or snapshots. */
+export function canonicalWeaponId(weaponId: string): string {
+  return weaponId === "lasergun" ? VOLTAIC.id : weaponId;
+}
