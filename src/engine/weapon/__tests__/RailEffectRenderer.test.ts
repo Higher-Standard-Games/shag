@@ -96,7 +96,7 @@ describe("RailEffectRenderer lifecycle", () => {
       }
       renderer.update(1 / 60);
       expect(renderer.getDebugCount()).toBe(3);
-      expect(scene.getMeshByName("rail_beam")?.thinInstanceCount).toBe(3);
+      expect((scene.getMeshByName("rail_beam") as Mesh | null)?.thinInstanceCount).toBe(3);
     } finally {
       renderer.dispose();
       scene.dispose();

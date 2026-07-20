@@ -103,11 +103,11 @@ void main() {
 
   float halfWidth;
   if (part < 0.5) {
-    halfWidth = hybridHalfWidth(center, 3.0, 10.0, 60.0); // GLOW sheath
+    halfWidth = hybridHalfWidth(center, 3.8, 13.0, 74.0); // GLOW sheath
   } else if (part < 1.5) {
-    halfWidth = hybridHalfWidth(center, 0.60, 3.0, 13.0); // CORE
+    halfWidth = hybridHalfWidth(center, 0.80, 4.0, 17.0); // CORE
   } else {
-    halfWidth = hybridHalfWidth(center, 0.42, 2.4, 9.0); // HELIX
+    halfWidth = hybridHalfWidth(center, 0.55, 3.2, 12.0); // HELIX
   }
 
   vec3 worldPosition = center + ribbonSide * side * halfWidth;

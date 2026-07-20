@@ -1627,7 +1627,11 @@ export class WeaponViewManager {
             // Fire event only triggers muzzle flash (handled below)
             break;
           case "bolt":
-            fx.fireBolt({ origin, direction: forward, maxRange: range, color });
+            // Rail rendering is driven by the authoritative electro_rail event
+            // (WO-EB3) for both the local shooter and remote players, so the
+            // visual endpoint always equals the damage endpoint (no through-wall
+            // client-picked bolt, and no old-bolt double-draw under the rail).
+            // Fire event only triggers the muzzle flash (handled below).
             break;
         }
       } else if (this.currentWeaponDef.projectileId) {
