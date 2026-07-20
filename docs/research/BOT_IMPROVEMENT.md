@@ -421,6 +421,28 @@ Success metrics:
 
 Difficulty should affect target speed, angular error, look-ahead distance, and how many hops the bot can chain. Easy bots should still use a coherent technique, just less efficiently.
 
+Implemented first slice: `route_strafe_jump` is an optional, one-verified-hop sequence. Safe reselection after landing forms a chain while giving route planning a veto before every hop. The brain tries the existing crouchslide first, then considers a strafe hop when all of these gates pass:
+
+- current state is non-firing route travel (`HUNT`, `ITEM_RUN`, `RETREAT`, or `CHASE`);
+- the current edge is a non-precision `walk` with at least 640 units remaining, raised to 800 for the terminal item approach;
+- current horizontal velocity is within 30 degrees of the route;
+- any next step inside 900 units is also a non-precision walk and turns no more than 30 degrees;
+- no live ally occupies an 80-unit route corridor in the next 600 units;
+- difficulty has at least `0.35` strafe-jump skill and authoritative speed is between 220 u/s and the difficulty target.
+
+The sequence then:
+
+1. sends forward+sprint+jump and allows 18 authoritative ticks for takeoff confirmation, with only a 10-tick non-interruptible commitment;
+2. switches in air to pure `LEFT` or `RIGHT` with no forward flag, selecting the side that corrects velocity toward the route;
+3. derives view yaw from current velocity, `maxAirSpeed`, the exported authoritative strafe acceleration, and its high-speed falloff, leaving one acceleration step below the projection cap instead of saturating it;
+4. caps view turning at `2.5 + 4.5 * skill` radians/second;
+5. exits on confirmed landing, route endpoint proximity (260 units), or the difficulty target speed;
+6. fails safely on lost momentum, more than `96 + 64 * skill` units of cross-track error, or timeout. Because it is optional, failure resumes the walk route and does not cool down or poison that nav edge.
+
+Focused tests pass the produced command through the real `MovementProfile` at 125 Hz and verify that it gains horizontal speed. They also cover route-error side selection, landing, loss of control, attack/precision/skill gates, sharp turns, and ally occupancy.
+
+Still deliberately unimplemented: collision/landing occupancy prediction throughout the arc, persisted hop metrics, dynamic item-active cancellation during a hop, and a deterministic full-map chain benchmark/overlay. Those are the next tuning layer; the current slice is conservative enough to compose with typed trigger traversal and precise item approaches.
+
 ### 7.2 Crouchslide traversal
 
 Sequence ID: `route_crouchslide`
@@ -1153,7 +1175,8 @@ This phase should land before new attacks.
 
 - Extend the initial `route_crouchslide` with collision/occupancy prediction and item-specific stopping-distance policy.
 - [x] Implement the first `traverse_teleporter` and `traverse_jumppad` executors.
-- Implement `route_strafe_jump` and `item_slide_approach`.
+- [x] Implement the first conservative `route_strafe_jump` executor.
+- [ ] Implement `item_slide_approach`.
 - Implement opportunity executors for speed-assisted jump, wall jump, and wall-jump-to-ledge-grab plans.
 - Tune using real movement simulation, not duplicated hardcoded constants.
 - Add route look-ahead, stopping distance, corner angle, trigger entry, and teammate occupancy checks.
@@ -1208,7 +1231,7 @@ Names are proposals; exact splits can be adjusted during implementation.
 | `src/cli/bot-analyze.ts` | Implemented deterministic map-analysis CLI; writes reports/caches without starting a match. |
 | `src/bot/BotGoalPlanner.ts` | Candidate goals, utility, stickiness, interruption, failure cooldowns. |
 | `src/bot/BotSequence.ts` | Implemented sequence registry/runtime; owns scoring, authoritative-tick phase state, commitments, timeouts, and aborts. |
-| `src/bot/sequences/*` | `ValidatedJumpSequence`, `RouteCrouchslideSequence`, `TraverseTeleporterSequence`, and `TraverseJumppadSequence` are implemented; richer movement, item, and combat sequences remain incremental. |
+| `src/bot/sequences/*` | `ValidatedJumpSequence`, `RouteCrouchslideSequence`, `RouteStrafeJumpSequence`, `TraverseTeleporterSequence`, and `TraverseJumppadSequence` are implemented; richer movement, item, and combat sequences remain incremental. |
 | `src/bot/BotFireSafety.ts` | Relation, line-of-fire, projectile, splash, and self-risk checks. |
 | `src/bot/StateMachineBrain.ts` | Become fallback/proposal logic; remove generic random actions replaced by sequences. |
 | `src/bot/HybridBrain.ts` | Score valid goals/sequences later; preserve rule fallback. |

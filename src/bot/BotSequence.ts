@@ -19,6 +19,10 @@ export interface BotSequenceContext {
   difficulty?: BotDifficulty | null;
   /** Brain-owned cooldown/precondition result for starting a route slide. */
   crouchslideReady?: boolean;
+  /** Brain-owned route-shape/safety result for starting a strafe-jump hop. */
+  routeStrafeReady?: boolean;
+  /** Deterministic fallback side when route error does not prefer one. */
+  routeStrafeSide?: -1 | 1;
 }
 
 export interface BotSequenceState {

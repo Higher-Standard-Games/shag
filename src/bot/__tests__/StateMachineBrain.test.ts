@@ -176,6 +176,7 @@ type TraversalHarness = {
   _blockedNavEdges: Map<string, number>;
   _getNavPathOptions: (tick: number) => { blockedEdgeKeys: ReadonlySet<string> };
   _tryStartRouteCrouchslide: (input: BotInput, state: BotGameState) => BotInput | null;
+  _tryStartRouteStrafeJump: (input: BotInput, state: BotGameState) => BotInput | null;
   _tickActiveSequence: (state: BotGameState) => BotInput | null;
   _lastBotVision: {
     probeDrop: () => { safe: boolean; reason: "no_landing"; fallDistance: number; landing: null };
@@ -263,6 +264,120 @@ describe("StateMachineBrain traversal executors", () => {
       weaponSlot: 0,
     };
     expect(harness._tryStartRouteCrouchslide(input, state)).toBeNull();
+    expect(brain.isSequenceActive()).toBe(false);
+  });
+
+  it("starts a pure-side strafe hop on a long straight route", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState({ velocity: { x: 0, y: 0, z: 320 } });
+    state.players = [];
+    const start = { id: 0, type: "spawn" as const, position: { x: 0, y: 0, z: 0 } };
+    const end = { id: 1, type: "floor" as const, position: { x: 0, y: 0, z: 1000 } };
+    const harness = brain as unknown as TraversalHarness;
+    harness.currentState = BotState.HUNT;
+    harness._currentPath = {
+      nodes: [start, end],
+      steps: [
+        {
+          from: start,
+          to: end,
+          type: "walk",
+          cost: 1000,
+          horizontalDistance: 1000,
+          heightDelta: 0,
+          requiresPreciseApproach: false,
+        },
+      ],
+      totalCost: 1000,
+      cursor: 0,
+    };
+
+    const input: BotInput = {
+      direction: { x: 0, y: 0, z: 1 },
+      pitch: 0,
+      yaw: 0,
+      buttons: InputButtons.FORWARD | InputButtons.SPRINT,
+      weaponSlot: 0,
+    };
+    const takeoff = harness._tryStartRouteStrafeJump(input, state);
+    expect(takeoff).not.toBeNull();
+    expect(takeoff!.buttons & InputButtons.JUMP).not.toBe(0);
+    expect(brain.getNavigationDebug()).toContain("sequence=route_strafe_jump phase=takeoff");
+
+    state.tick = 5;
+    state.self.isGrounded = false;
+    state.self.velocity = { x: 0, y: 300, z: 330 };
+    const airborne = harness._tickActiveSequence(state);
+    expect(airborne).not.toBeNull();
+    expect(airborne!.direction.z).toBe(0);
+    expect(Math.abs(airborne!.direction.x)).toBe(1);
+    expect(airborne!.buttons & InputButtons.FORWARD).toBe(0);
+    expect(airborne!.buttons & (InputButtons.LEFT | InputButtons.RIGHT)).not.toBe(0);
+  });
+
+  it("refuses a strafe hop before a sharp turn or occupied ally corridor", () => {
+    const brain = new StateMachineBrain(difficulty);
+    const state = makeState({ velocity: { x: 0, y: 0, z: 320 } });
+    state.players = [];
+    const start = { id: 0, type: "spawn" as const, position: { x: 0, y: 0, z: 0 } };
+    const corner = { id: 1, type: "floor" as const, position: { x: 0, y: 0, z: 800 } };
+    const exit = { id: 2, type: "floor" as const, position: { x: 800, y: 0, z: 800 } };
+    const harness = brain as unknown as TraversalHarness;
+    harness.currentState = BotState.HUNT;
+    harness._currentPath = {
+      nodes: [start, corner, exit],
+      steps: [
+        {
+          from: start,
+          to: corner,
+          type: "walk",
+          cost: 800,
+          horizontalDistance: 800,
+          heightDelta: 0,
+          requiresPreciseApproach: false,
+        },
+        {
+          from: corner,
+          to: exit,
+          type: "walk",
+          cost: 800,
+          horizontalDistance: 800,
+          heightDelta: 0,
+          requiresPreciseApproach: false,
+        },
+      ],
+      totalCost: 1600,
+      cursor: 0,
+    };
+
+    const input: BotInput = {
+      direction: { x: 0, y: 0, z: 1 },
+      pitch: 0,
+      yaw: 0,
+      buttons: InputButtons.FORWARD | InputButtons.SPRINT,
+      weaponSlot: 0,
+    };
+    expect(harness._tryStartRouteStrafeJump(input, state)).toBeNull();
+
+    harness._currentPath = {
+      nodes: [start, corner],
+      steps: harness._currentPath.steps.slice(0, 1),
+      totalCost: 800,
+      cursor: 0,
+    };
+    state.players = [
+      {
+        entityId: "ally_entity",
+        playerId: "ally",
+        position: { x: 20, y: 0, z: 300 },
+        velocity: { x: 0, y: 0, z: 0 },
+        isDead: false,
+        team: "red",
+        relation: "ally",
+        distance: 301,
+      },
+    ];
+    expect(harness._tryStartRouteStrafeJump(input, state)).toBeNull();
     expect(brain.isSequenceActive()).toBe(false);
   });
 

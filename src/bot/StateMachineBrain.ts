@@ -24,6 +24,7 @@ import { BotSequenceRegistry, BotSequenceRuntime, type BotSequenceRuntimeTick } 
 import type { BotVision, VisionResult } from "./BotVision";
 import { getWeaponProfile, selectBestWeapon, type WeaponProfile } from "./BotWeaponProfile";
 import { RouteCrouchslideSequence } from "./sequences/RouteCrouchslideSequence";
+import { RouteStrafeJumpSequence } from "./sequences/RouteStrafeJumpSequence";
 import { TraverseJumppadSequence } from "./sequences/TraverseJumppadSequence";
 import { TraverseTeleporterSequence } from "./sequences/TraverseTeleporterSequence";
 import { ValidatedJumpSequence } from "./sequences/ValidatedJumpSequence";
@@ -60,6 +61,14 @@ const BOT_SLIDE_COOLDOWN_TICKS = Math.ceil((PHYSICS.SLIDE_COOLDOWN / 1000) * 125
 const ROUTE_SLIDE_MIN_REMAINING_DISTANCE = 320;
 const ROUTE_SLIDE_LOOKAHEAD_DISTANCE = 520;
 const ROUTE_SLIDE_MAX_TURN_RADIANS = Math.PI / 4;
+const BOT_STRAFE_RETRY_TICKS = 30;
+const ROUTE_STRAFE_MIN_REMAINING_DISTANCE = 640;
+const ROUTE_STRAFE_ITEM_MIN_REMAINING_DISTANCE = 800;
+const ROUTE_STRAFE_LOOKAHEAD_DISTANCE = 900;
+const ROUTE_STRAFE_MAX_TURN_RADIANS = Math.PI / 6;
+const ROUTE_STRAFE_MAX_VELOCITY_ERROR_RADIANS = Math.PI / 6;
+const ROUTE_STRAFE_ALLY_LOOKAHEAD = 600;
+const ROUTE_STRAFE_ALLY_RADIUS = 80;
 
 export class StateMachineBrain extends BotBrain {
   // ── Internal state ────────────────────────────────────────────────
@@ -74,6 +83,8 @@ export class StateMachineBrain extends BotBrain {
   // Crouchslide cooldown. Sequence phases use authoritative server ticks.
   private _slideCooldownUntilTick: number = 0;
 
+  private _routeStrafeCooldownUntilTick: number = 0;
+  private _routeStrafeSide: -1 | 1 = 1;
   // Charged weapon cadence (blade alt-fire: hold, then release to shoot)
   private _chargeWeaponId: string | null = null;
   private _chargeTargetId: string | null = null;
@@ -102,6 +113,7 @@ export class StateMachineBrain extends BotBrain {
     this._sequenceRegistry.register(new RouteCrouchslideSequence());
     this._sequenceRegistry.register(new ValidatedJumpSequence());
     this._sequenceRegistry.register(new TraverseTeleporterSequence());
+    this._sequenceRegistry.register(new RouteStrafeJumpSequence());
     this._sequenceRegistry.register(new TraverseJumppadSequence());
   }
 
@@ -216,6 +228,8 @@ export class StateMachineBrain extends BotBrain {
     if (!this._suppressTraversalAutomation) {
       const sequenceInput = this._tryStartRouteCrouchslide(input, state);
       if (sequenceInput) return sequenceInput;
+      const strafeInput = this._tryStartRouteStrafeJump(input, state);
+      if (strafeInput) return strafeInput;
     }
 
     return input;
@@ -887,6 +901,8 @@ export class StateMachineBrain extends BotBrain {
     step: NavStep | null = this._activeSequenceStep,
     proposedInput: BotInput | null = null,
     crouchslideReady: boolean = false,
+    routeStrafeReady: boolean = false,
+    routeStrafeSide: -1 | 1 = this._routeStrafeSide,
   ) {
     const opportunity =
       step?.opportunityId && this._navGraph ? this._navGraph.getMovementOpportunity(step.opportunityId) : null;
@@ -900,6 +916,8 @@ export class StateMachineBrain extends BotBrain {
       proposedInput,
       difficulty: this.difficulty,
       crouchslideReady,
+      routeStrafeReady,
+      routeStrafeSide,
     };
   }
 
@@ -1117,6 +1135,88 @@ export class StateMachineBrain extends BotBrain {
     const context = this._getSequenceContext(state, step, input, true);
     if (!this._sequenceRuntime.start("route_crouchslide", context)) return null;
     this._slideCooldownUntilTick = state.tick + BOT_SLIDE_COOLDOWN_TICKS;
+    return this._tickActiveSequence(state);
+  }
+
+  /**
+   * Starts one speed-building hop only after the route planner has established
+   * enough straight, unoccupied walk space. Re-running this gate on every
+   * landing creates a chain without hiding route changes inside the sequence.
+   */
+  private _tryStartRouteStrafeJump(input: BotInput, state: BotGameState): BotInput | null {
+    if (
+      state.self.isDead ||
+      this._sequenceRuntime.isActive ||
+      state.tick < this._routeStrafeCooldownUntilTick ||
+      this.difficulty.strafeJumpSkill < 0.35
+    ) {
+      return null;
+    }
+
+    const navigationState =
+      this.currentState === BotState.HUNT ||
+      this.currentState === BotState.ITEM_RUN ||
+      this.currentState === BotState.RETREAT ||
+      this.currentState === BotState.CHASE;
+    if (!navigationState || !state.self.isGrounded || state.self.isSliding) return null;
+
+    const required = InputButtons.FORWARD | InputButtons.SPRINT;
+    const disallowed =
+      InputButtons.BACK |
+      InputButtons.LEFT |
+      InputButtons.RIGHT |
+      InputButtons.CROUCH |
+      InputButtons.FIRE |
+      InputButtons.ALT_FIRE;
+    if ((input.buttons & required) !== required || (input.buttons & disallowed) !== 0) return null;
+
+    const path = this._currentPath;
+    const step = path?.steps[path.cursor] ?? null;
+    if (!path || !step || step.type !== "walk" || step.requiresPreciseApproach) return null;
+
+    const routeDelta = vec3Subtract(step.to.position, state.self.position);
+    const remaining = Math.hypot(routeDelta.x, routeDelta.z);
+    const minRemaining =
+      this.currentState === BotState.ITEM_RUN && path.cursor === path.steps.length - 1
+        ? ROUTE_STRAFE_ITEM_MIN_REMAINING_DISTANCE
+        : ROUTE_STRAFE_MIN_REMAINING_DISTANCE;
+    if (remaining < minRemaining) return null;
+
+    const routeDirection = vec3Normalize({ x: routeDelta.x, y: 0, z: routeDelta.z });
+    const horizontalSpeed = Math.hypot(state.self.velocity.x, state.self.velocity.z);
+    if (horizontalSpeed > 0.001) {
+      const velocityDotRoute =
+        (state.self.velocity.x * routeDirection.x + state.self.velocity.z * routeDirection.z) / horizontalSpeed;
+      const velocityError = Math.acos(Math.max(-1, Math.min(1, velocityDotRoute)));
+      if (velocityError > ROUTE_STRAFE_MAX_VELOCITY_ERROR_RADIANS) return null;
+    }
+
+    const nextStep = path.steps[path.cursor + 1] ?? null;
+    if (remaining < ROUTE_STRAFE_LOOKAHEAD_DISTANCE && nextStep) {
+      if (nextStep.type !== "walk" || nextStep.requiresPreciseApproach) return null;
+      const nextDirection = vec3Normalize(vec3Subtract(nextStep.to.position, step.to.position));
+      const turnDot = Math.max(
+        -1,
+        Math.min(1, routeDirection.x * nextDirection.x + routeDirection.z * nextDirection.z),
+      );
+      if (Math.acos(turnDot) > ROUTE_STRAFE_MAX_TURN_RADIANS) return null;
+    }
+
+    const allyBlocksRoute = state.players.some((player) => {
+      if (player.relation !== "ally" || player.isDead) return false;
+      const relative = vec3Subtract(player.position, state.self.position);
+      if (Math.abs(relative.y) > 96) return false;
+      const along = relative.x * routeDirection.x + relative.z * routeDirection.z;
+      if (along <= 0 || along >= Math.min(remaining, ROUTE_STRAFE_ALLY_LOOKAHEAD)) return false;
+      const lateral = Math.abs(relative.x * routeDirection.z - relative.z * routeDirection.x);
+      return lateral < ROUTE_STRAFE_ALLY_RADIUS;
+    });
+    if (allyBlocksRoute) return null;
+
+    const context = this._getSequenceContext(state, step, input, false, true, this._routeStrafeSide);
+    if (!this._sequenceRuntime.start("route_strafe_jump", context)) return null;
+    this._routeStrafeSide = this._routeStrafeSide === 1 ? -1 : 1;
+    this._routeStrafeCooldownUntilTick = state.tick + BOT_STRAFE_RETRY_TICKS;
     return this._tickActiveSequence(state);
   }
 
