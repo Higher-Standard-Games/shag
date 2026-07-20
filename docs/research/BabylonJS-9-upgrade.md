@@ -134,6 +134,20 @@ rendering only for static contexts (menus/lobby/diorama), never gameplay.
 
 ## Recommended execution plan
 
+> **Execution status (2026-07-21):** WS0 (benchmark baseline) **skipped by
+> decision** — forward-only, no A/B against 8.56. **WS3 (the 9.17 bump)
+> executed first** on `feature/babylon-9-upgrade` (both repos): total fallout
+> was **three `Buffer` → `Uint8Array` typing sites** (TS 5.9 strict view
+> generics surfaced by 9.17's typings — DemoRecorder, ReSimBundle,
+> test-spawn-coords) and one environment repair (npm install clobbers
+> tfjs-node's `tensorflow.dll` placement on Windows — now auto-fixed by
+> `scripts/postinstall.mjs`, which replaced the Havok-only postinstall
+> one-liner). No Babylon API broke. Gates: tsc ×2 clean, **1511/1511 tests**,
+> biome below baseline, `server:tick` checksum unchanged (`2768943778` — T3
+> determinism guardrail met), headless movement smoke ✓. TS stayed at the
+> already-installed 5.9.3 (open question 1 resolved: no TS bump needed).
+> Browser validation checklist still owed in playtest. WS1/WS2 next.
+
 Ordering rationale: **measure first** (targets are meaningless without a
 baseline), then take the biggest win on the version we already run (WS1 —
 clustered dynamic lights needs no upgrade), then shrink the upgrade diff with

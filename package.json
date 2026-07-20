@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
-    "postinstall": "node -e \"const fs=require('fs');const src='node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm';const dest='public/wasm/HavokPhysics.wasm';if(fs.existsSync(src)){fs.mkdirSync('public/wasm',{recursive:true});fs.copyFileSync(src,dest);console.log('Copied HavokPhysics.wasm to public/wasm/')}\"",
+    "postinstall": "node scripts/postinstall.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "postbuild": "node scripts/relocate-sourcemaps.mjs",
@@ -91,9 +91,9 @@
     "ws": "^8.19.0"
   },
   "dependencies": {
-    "@babylonjs/core": "^8.44.1",
+    "@babylonjs/core": "^9.17.0",
     "@babylonjs/havok": "^1.3.11",
-    "@babylonjs/loaders": "^8.44.1",
+    "@babylonjs/loaders": "^9.17.0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
